@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2080",
+  "ver": "v2082",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2080: extract then prune runs on its own below the ON AIR floor; only eligible reels, only as much as needed, never while anything is in flight",
+  "note": "v2082: seven findings from a review of v2080 plus the sixteen uniques the vault refused to hold and the sightings a stray byte destroyed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

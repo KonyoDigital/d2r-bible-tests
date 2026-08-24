@@ -92,6 +92,24 @@ def _colour_carries_meaning(text, failures):
         if not pat.search(text):
             failures.append("bible.html: the grail wall no longer names a %s — no rule under %s "
                             "binds .%s to var(%s)" % (what, tab, cls, token))
+    # v2081 — EVERY CARD KIND IN THE FORGE FEED CARRIES A MEANING-BEARING RAIL, OR NONE DO.
+    # Measured on a render with a full rune+gem stash: .f-now rgb(95,201,122), .f-pipe
+    # rgb(91,159,208), .f-step rgb(205,177,87) — and .f-craft rgb(58,47,30), which is var(--border),
+    # the fallback for a card with no rule at all. `.f-craft` appeared ZERO times as a selector while
+    # `.f-craftrow`, `.f-craftacc` and `.f-craft-made` all existed, which is precisely why it read as
+    # present. A cube craft sat in the same feed as a runeword carrying the ABSENCE of a colour.
+    # The class is built dynamically ('f-card f-'+a.cls+' f-atom'), so no grep for the literal class
+    # string finds it — this asks the STYLESHEET whether each kind has a rail.
+    for kind, what in (("f-now", "a runeword you can forge NOW"),
+                       ("f-pipe", "a chain one step away"),
+                       ("f-step", "a step card"),
+                       ("f-craft", "a CUBE CRAFT")):
+        pat = re.compile(r"\.%s\s*\{[^{}]{0,200}?border-left-color\s*:" % re.escape(kind))
+        if not pat.search(text):
+            failures.append("bible.html: %s (.%s) has no border-left-color rule — it falls back to "
+                            "var(--border) and its colour says nothing, beside siblings whose "
+                            "colour is meaning" % (what, kind))
+
     # The glow means YOU HAVE IT. If it ever reaches the plain (missing) selector, colour and
     # ownership are being said with the same ink and neither reads.
     g = re.search(r"#tab-funi \.gf-piece \.[a-z0-9 ._,#-]{0,120}\{([^{}]{0,300})\}", text)

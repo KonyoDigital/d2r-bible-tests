@@ -109,7 +109,12 @@ def _load():
     try:
         with io.open(LEDGER, encoding="utf-8") as fh:
             blob = json.load(fh)
-        _LEDGER_UNREADABLE = False
+        # v2082 — VALID JSON IS NOT THE SAME AS A LEDGER. The flag was cleared BEFORE the shape was
+        # tested, so a file holding a valid JSON list read as healthy-and-empty: no .corrupt kept,
+        # every firstSeen, every returns count and every heal.disarmed silently gone — including the
+        # one flag this module names as the only thing that can re-arm a remedy LAW 2 disarmed for
+        # lying. One line from the defect the same commit closed.
+        _LEDGER_UNREADABLE = not isinstance(blob, dict)
         return blob if isinstance(blob, dict) else {"scars": {}}
     except Exception:
         _LEDGER_UNREADABLE = True
@@ -164,7 +169,20 @@ def record(rows, now_ms=None):
     # Which CHECKS are red in this reading, regardless of how they phrased it. A check absent from
     # the reading entirely (the cheap subset skipped it) is NOT evidence that it went green.
     red_checks = set(r.get("check") for r in (rows or []) if r.get("state") == "missing")
-    measured = set(r.get("check") for r in (rows or []))
+    # v2082 — AND ONLY AN **OK** READING CLEARS. The first cut took `measured` to be every check in
+    # the reading, so a check that came back UNKNOWN was "measured and not red" and its scar was
+    # stamped CLEARED — manufacturing the exact "THIS HAS COME BACK 1 time(s)" this function was
+    # written to stop, through a different door and needing no exception to fire.
+    #
+    # It is an everyday path, not an edge: `board is claimed` reports UNKNOWN whenever the board
+    # window simply is not open, `version drift` when the console does not answer inside 4s, and
+    # `art corpus` on any machine without an art dir — all three in the CHEAP subset the eagle runs
+    # every ten minutes. Close the board on an unclaimed world, reopen it, and the ledger reports a
+    # regression that never happened.
+    #
+    # "I looked and it is fine" is the only reading that may clear a scar. UNKNOWN is not that.
+    # [[unknown-stays-unknown]]
+    measured = set(r.get("check") for r in (rows or []) if r.get("state") == "ok")
     for r in rows or []:
         if r.get("state") != "missing":
             continue

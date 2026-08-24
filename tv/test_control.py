@@ -17802,19 +17802,82 @@ class TestV2080TheFoldNeverEatsALiveRecording(unittest.TestCase):
         import inspect
         of = self._of()
         src = inspect.getsource(of.plan)
-        self.assertIn("(now_ms - hi) < gap_ms", src,
-                      "the live-recording guard uses something other than the cluster gap")
+        # v2082 — AND A CALLER MAY NOT TUNE IT BELOW THE DEFAULT. The first cut compared against the
+        # caller's gap_ms directly, so `--gap-s 0` — which the shipped CLI accepts — made
+        # `(now_ms - hi) < 0` unsatisfiable and removed the refusal entirely. A review measured it:
+        # six frames of a recording IN PROGRESS became six separate minted session ids, the exact
+        # forgery this module exists to prevent. The window a caller may widen is how far apart two
+        # clusters must be; it is NOT how recent a recording may be before we call it finished.
+        self.assertIn("(now_ms - hi) < max(gap_ms, GAP_MS)", src,
+                      "the live-recording boundary is tunable below the cluster gap again")
+
+    def test_a_caller_CANNOT_disable_the_refusal_with_gap_zero(self):
+        """The behavioural half — the assertion above only proves an expression is present."""
+        of = self._of()
+        d = tempfile.mkdtemp(prefix="gapzero_")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        os.makedirs(hist)
+        now = int(time.time() * 1000)
+        for i in range(6):                       # a recording happening RIGHT NOW
+            io.open(os.path.join(hist, "f_%d.jpg" % (now - i * 1000)), "w").write("x" * 400)
+        for gap in (of.GAP_MS, 1500, 0):
+            p = of.plan(hist_dir=hist, gap_ms=gap)
+            eligible = [c for c in p["clusters"] if c.get("eligible")]
+            self.assertEqual(eligible, [],
+                             "gap_ms=%d folded a recording in progress into %d reel(s)"
+                             % (gap, len(eligible)))
 
     def test_the_healer_refuses_to_fold_while_anything_is_in_flight(self):
         """Two guards, because this one runs unattended and there is no undo. Anchored on the CALL,
         which cannot appear in a sentence about it. [[source-reading-guard]] 4b"""
-        import inspect
+        # v2082 — ASK THE COMPILER, NOT THE TEXT. An adversarial review copied console_healer.py to
+        # a temp tree, commented the ENTIRE in-flight block out, and ran these two assertions: both
+        # still passed, because the comment above the call contains the same words. `co_names`
+        # showed the truth — "retention_may_act" was gone.
+        #
+        # This was the ONLY guard on a remedy that MOVES his footage, unattended, on a ten-minute
+        # timer. It was measuring my prose. [[source-reading-guard]] §1
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import console_healer as ch
-        src = inspect.getsource(ch._remedy_fold_orphan_footage)
-        self.assertIn("_ca.retention_may_act()", src,
-                      "the automatic fold never asks whether he is filming")
-        self.assertIn("if not ok:", src, "it asks and ignores the answer")
+        names = set(ch._remedy_fold_orphan_footage.__code__.co_names)
+        self.assertIn("retention_may_act", names,
+                      "the automatic fold does not REFERENCE the in-flight check — a comment "
+                      "mentioning it is not a call")
+        # and it must act on the answer, not merely ask
+        import inspect
+        body = "\n".join(ln for ln in inspect.getsource(ch._remedy_fold_orphan_footage).splitlines()
+                          if not ln.lstrip().startswith("#"))
+        self.assertIn("if not ok:", body, "it asks and ignores the answer")
+
+    def test_the_fold_REALLY_refuses_while_something_is_in_flight(self):
+        """And a behavioural case, because the assertion above can only ever prove a NAME is
+        referenced. Nothing anywhere tested that the refusal actually stops the move."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_healer as ch
+        import control_app as ca
+        d = tempfile.mkdtemp(prefix="foldflight_")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        os.makedirs(hist)
+        for i in range(10):                       # 2017 stamps, a finished recording
+            io.open(os.path.join(hist, "f_%d.jpg" % (1500000000000 + i * 1500)), "w").write("x" * 400)
+        prev_h, prev_a = os.environ.get("TV_HIST"), os.environ.get("TV_AUTO_HEAL")
+        os.environ["TV_HIST"] = hist
+        os.environ["TV_AUTO_HEAL"] = "1"
+        self.addCleanup(lambda: (os.environ.__setitem__("TV_HIST", prev_h) if prev_h
+                                 else os.environ.pop("TV_HIST", None),
+                                 os.environ.__setitem__("TV_AUTO_HEAL", prev_a) if prev_a
+                                 else os.environ.pop("TV_AUTO_HEAL", None)))
+        ca._CHRON_JOB["running"] = True
+        try:
+            did, said = ch._remedy_fold_orphan_footage()
+        finally:
+            ca._CHRON_JOB["running"] = False
+        self.assertIsNot(did, True,
+                         "the fold MOVED his footage while a sweep was reading: %s" % said)
+        loose = [f for f in os.listdir(hist) if f.endswith(".jpg")]
+        self.assertEqual(len(loose), 10, "frames were moved despite the refusal")
 
 
 class TestV2080TheFixtureHoldIsCheckedWHEREVERTheSuiteRUNS(unittest.TestCase):
@@ -18093,8 +18156,19 @@ class TestV2080TheReviewFindings(unittest.TestCase):
         offered = {c["reel"] for c in rr.plan(hist_dir=hist)["candidates"]}
         frames = {os.path.basename(os.path.dirname(f)) for f in
                   (fa.plan_frames(hist, root=root)["prunable"] or [])}
-        self.assertEqual(offered & frames, set(),
-                         "the reel deleter and the frame deleter disagree about the same footage")
+        # v2082 — THE INTERSECTION COULD NOT FAIL IN EITHER DIRECTION. On this fixture both sides
+        # are empty, and `frames` is guaranteed empty by the case one method above — so `offered &
+        # frames` stays empty however wrong `offered` becomes. A review restored exact v2079
+        # behaviour (haveIndex forced True): the disagreement this case is NAMED for appeared —
+        # reel deleter offered nothing, frame deleter offered reel_s_1700000000000_1 — and it
+        # still passed.
+        #
+        # The real property is DIRECTIONAL: a reel the REEL deleter holds must not have frames the
+        # FRAME deleter offers. That is the contradiction; an intersection of two empties is not.
+        self.assertEqual(frames - offered, set(),
+                         "the FRAME deleter offers frames from %s, which the REEL deleter is "
+                         "holding — two authorities, opposite answers, same footage"
+                         % sorted(frames - offered))
 
     # ── 4 ────────────────────────────────────────────────────────────────────────────────────
     def _rr_tree(self):
@@ -18331,6 +18405,287 @@ class TestV2080TheHarnessDoesNotRunTheACTINGWatchers(unittest.TestCase):
         self.assertTrue(got.startswith(os.path.realpath(d)),
                         "a fixture world still writes tombstones to %s" % got)
         self.assertNotIn("d2r_bible_tests/tv/reel_tombstones.json", got)
+
+
+class TestV2082TheReviewOfV2080(unittest.TestCase):
+    """Seven findings an independent review reproduced in the v2080 bytes. These three had NO guard
+    at all — I fixed the behaviour and wrote no test, and a sabotage sweep proved it by leaving all
+    three green with the fixes reverted."""
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def _ch(self, root=None):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_healer
+        if root:
+            prev = os.environ.get("TV_SCAR_ROOT")
+            os.environ["TV_SCAR_ROOT"] = root
+            self.addCleanup(lambda: os.environ.__setitem__("TV_SCAR_ROOT", prev) if prev
+                            else os.environ.pop("TV_SCAR_ROOT", None))
+            self.addCleanup(setattr, console_healer, "LEDGER", console_healer.LEDGER)
+            console_healer.LEDGER = os.path.join(root, ".console_scars.json")
+        console_healer._DISARMED.clear()
+        return console_healer
+
+    # ── 1 ────────────────────────────────────────────────────────────────────────────────────
+    def test_1_EVERY_spelling_of_off_switches_the_deleter_off(self):
+        """It matched the exact byte "0" and nothing else, so `off`, `false`, `no`, `OFF` — and "0"
+        with a trailing space — all ARMED an unattended, irreversible deleter. Measured by the
+        review on six fixture reels: "0" held all six, every other spelling deleted.
+
+        Its two siblings in this file are opt-IN (`!= "1"`), so this one alone failed OPEN, on the
+        one thing in the tree with no undo. A typo is not permission."""
+        ca = self._ca()
+        prev = os.environ.get("TV_AUTO_PRUNE")
+        self.addCleanup(lambda: os.environ.__setitem__("TV_AUTO_PRUNE", prev) if prev
+                        else os.environ.pop("TV_AUTO_PRUNE", None))
+        for spelling in ("0", "off", "OFF", "Off", "false", "False", "no", "NO", " 0 ", "off "):
+            os.environ["TV_AUTO_PRUNE"] = spelling
+            ok, why = ca.retention_may_act()
+            self.assertFalse(ok, "TV_AUTO_PRUNE=%r left the deleter ARMED" % spelling)
+            self.assertIn("switched off", why)
+
+    def test_1b_it_is_still_ARMED_when_he_has_not_switched_it_off(self):
+        """The mirror — he asked for this to be automatic. A guard that turns it off for every
+        value would deliver the opposite of what he asked for and read as safety."""
+        ca = self._ca()
+        prev = os.environ.get("TV_AUTO_PRUNE")
+        self.addCleanup(lambda: os.environ.__setitem__("TV_AUTO_PRUNE", prev) if prev
+                        else os.environ.pop("TV_AUTO_PRUNE", None))
+        for spelling in ("1", "yes", "on", "true", ""):
+            os.environ["TV_AUTO_PRUNE"] = spelling
+            ok, _why = ca.retention_may_act()
+            self.assertTrue(ok, "TV_AUTO_PRUNE=%r disarmed it — he asked for automatic" % spelling)
+        os.environ.pop("TV_AUTO_PRUNE", None)
+        self.assertTrue(ca.retention_may_act()[0], "unset disarmed it")
+
+    def test_1c_the_off_switch_is_read_the_same_way_as_its_siblings(self):
+        """Three env switches decide whether something acts on his world. Two are opt-in and one is
+        opt-out; that asymmetry is deliberate (he asked for auto-prune ON) — but the PARSING must
+        not differ, or the odd one out is the one that fails open."""
+        import inspect
+        ca = self._ca()
+        src = inspect.getsource(ca.retention_may_act)
+        self.assertIn(".strip().lower()", src,
+                      "the kill switch compares a raw env string again — whitespace and case decide "
+                      "whether his footage is deleted")
+
+    # ── 2 ────────────────────────────────────────────────────────────────────────────────────
+    def test_2_an_UNKNOWN_reading_never_clears_a_scar(self):
+        """`measured` was every check in the reading and `red_checks` only the missing ones, so a
+        check that came back UNKNOWN was "measured and not red" and its scar was stamped CLEARED —
+        manufacturing the same false RETURN v2080 was written to stop, through another door.
+
+        Everyday triggers, all in the CHEAP subset the eagle runs every ten minutes: `board is
+        claimed` is UNKNOWN whenever the board window is not open; `version drift` when the console
+        does not answer in 4s; `art corpus` on a machine with no art dir. Close the board, reopen
+        it, and the ledger reports a regression that never happened."""
+        d = tempfile.mkdtemp(prefix="unk_")
+        self.addCleanup(shutil.rmtree, d, True)
+        ch = self._ch(d)
+        RED = [{"check": "disk headroom", "state": "missing", "why": "7.9GB free"}]
+        UNK = [{"check": "disk headroom", "state": "unknown", "why": "console not answering"}]
+        ch.record(RED, now_ms=1000)
+        ch.record(UNK, now_ms=2000)
+        out = ch.record(RED, now_ms=3000)
+        self.assertEqual(out[0]["returns"], 0,
+                         "an UNKNOWN reading cleared a live scar, so the next sighting was "
+                         "announced as a RETURN that never happened")
+        self.assertNotIn("COME BACK", ch.says(out[0]))
+
+    def test_2b_an_OK_reading_still_clears(self):
+        """The mirror: if nothing clears, nothing can ever be named a return either."""
+        d = tempfile.mkdtemp(prefix="unk2_")
+        self.addCleanup(shutil.rmtree, d, True)
+        ch = self._ch(d)
+        RED = [{"check": "disk headroom", "state": "missing", "why": "7.9GB free"}]
+        OK = [{"check": "disk headroom", "state": "ok", "why": "plenty"}]
+        ch.record(RED, now_ms=1000)
+        ch.record(OK, now_ms=2000)
+        self.assertEqual(ch.record(RED, now_ms=3000)[0]["returns"], 1,
+                         "a genuine clear-and-return stopped being counted")
+
+    # ── 6 ────────────────────────────────────────────────────────────────────────────────────
+    def test_6_valid_JSON_that_is_not_a_ledger_is_KEPT_not_wiped(self):
+        """`_LEDGER_UNREADABLE = False` was set BEFORE the isinstance test, so a file holding a
+        valid JSON list read as healthy-and-empty: no .corrupt kept, and every firstSeen, returns
+        count and heal.disarmed silently gone — including the one flag this module names as the
+        only thing that can re-arm a remedy disarmed for lying. One line from the defect the same
+        commit closed."""
+        import json as _j
+        d = tempfile.mkdtemp(prefix="nondict_")
+        self.addCleanup(shutil.rmtree, d, True)
+        ch = self._ch(d)
+        RED = [{"check": "visual lock", "state": "missing", "why": "drifted"}]
+        ch.record(RED, now_ms=1000)
+        for payload in ('["a valid JSON list"]', '"a valid JSON string"', '42', 'null'):
+            io.open(ch.LEDGER, "w", encoding="utf-8").write(payload)
+            ch.record(RED, now_ms=2000)
+            kept = [f for f in os.listdir(d) if ".corrupt" in f]
+            self.assertTrue(kept, "a ledger holding %s was overwritten, not kept" % payload)
+            for f in kept:
+                os.remove(os.path.join(d, f))
+
+    def test_6b_a_HEALTHY_ledger_is_never_set_aside(self):
+        """The mirror: treating every load as suspect would litter his tree with .corrupt copies of
+        perfectly good ledgers."""
+        d = tempfile.mkdtemp(prefix="nondict2_")
+        self.addCleanup(shutil.rmtree, d, True)
+        ch = self._ch(d)
+        RED = [{"check": "visual lock", "state": "missing", "why": "drifted"}]
+        for i in range(4):
+            ch.record(RED, now_ms=1000 + i)
+        self.assertEqual([f for f in os.listdir(d) if ".corrupt" in f], [],
+                         "a healthy ledger was set aside as corrupt")
+
+
+class TestV2082SixteenUniquesTheVaultRefusedToHold(unittest.TestCase):
+    """The page held TWO answers to "which uniques exist" and the vault consulted the other one.
+
+    MEASURED on a real render: seed d2r_owned, give each the mule id suggestMule() itself returns,
+    reload — 0 of 10 survive, and none reach the found ledger either. Harlequin Crest. Hellfire
+    Torch. Bul-Kathos' Wedding Band.
+
+    THE ROSTER is ITEM_VALUE (505 keys) union _UNI_EXTRA minus set pieces, matched by _norm().
+    THE ACCEPT-LIST tested ITEM_REGISTRY (547 keys) — a different object. Sixteen roster names are
+    true in the first and false in the second.
+
+    It is a REBUILD, not a delete, which is why hooking Set.prototype.delete caught nothing."""
+
+    def setUp(self):
+        self.repo = os.path.dirname(HERE)
+        self.bible = os.path.join(self.repo, "bible.html")
+        if not os.path.isfile(self.bible):
+            self.skipTest("bible.html is not on this machine")
+        with io.open(self.bible, encoding="utf-8") as fh:
+            self.s = fh.read()
+
+    def test_the_accept_list_asks_the_ROSTER_not_a_second_catalogue(self):
+        """One source of truth. A longer hand-list would drift again the moment either side moved."""
+        i = self.s.index("owned = new Set([...owned].filter(")
+        line = self.s[i:self.s.index("\n", i)]
+        self.assertIn("_ROSTER_NORM[_norm(n)]", line,
+                      "the vault decides what a unique is without asking the roster the rest of "
+                      "the page trusts")
+
+    def test_the_roster_set_is_built_from_the_roster_and_fails_CLOSED(self):
+        """An unreachable roster must admit nothing EXTRA — never fewer names than before, and
+        never a crash on a page where _gUniqueRoster has not been defined yet."""
+        i = self.s.index("var _ROSTER_NORM =")
+        blk = self.s[i:self.s.index("owned = new Set(", i)]
+        self.assertIn("window._gUniqueRoster", blk)
+        self.assertIn("catch", blk, "an unreachable roster would throw during load")
+        # ⚠ `Object.create(null)` also appears in this block's CATCH branch, so asserting the bare
+        # string passes with the assignment sabotaged — proven. Anchor on the ASSIGNMENT.
+        # [[source-reading-guard]] §4b
+        self.assertIn("var out = Object.create(null);", blk,
+                      "a plain {} inherits Object.prototype, so _ROSTER_NORM['constructor'] is "
+                      "truthy and any item named 'constructor' or 'toString' would be admitted "
+                      "into his physical vault by accident")
+        self.assertIn("catch(e){ return Object.create(null); }", blk,
+                      "an unreachable roster must admit nothing EXTRA, never fewer names")
+
+    def test_the_warning_no_longer_asserts_a_cause_it_cannot_know(self):
+        """It said "items renamed/removed in a data update". For sixteen names that was the wrong
+        cause — they are current items the roster actively offers — and the wrong cause is why this
+        survived: it read as housekeeping. [[label-outlived-referent]]"""
+        # ⚠ The old wording survives in the COMMENT that explains its removal, and the new wording
+        # is SPLIT across a string concatenation ('...that no ' + 'catalogue on this page...'), so
+        # neither phrase can be matched whole. Anchor on the live console.warn CALL and on a
+        # contiguous fragment. A guard that greps prose fails for its own reasons.
+        # [[source-reading-guard]] §4
+        i = self.s.index("console.warn('[bible] dropped '")
+        call = self.s[i:self.s.index(");", i)]
+        self.assertNotIn("renamed/removed", call,
+                         "the live warning still blames a data update for a catalogue disagreement")
+        self.assertIn("catalogue on this page recognises", call)
+
+    def test_set_pieces_are_still_excluded(self):
+        """The roster excludes them by construction (_pieces()), and they have their own store.
+        Admitting them here would put 127 set pieces into the physical vault."""
+        # TestTheSourceGuardsDoNotGetMoreDangerous caught a fixed 1400-char window here — the
+        # repo enforcing its own rule on me. A byte count is a guess about someone's prose; bound
+        # by the real end of the function. [[source-reading-guard]] §3
+        blk = _between(self, self.s, "function _roster()", "function _pieces()",
+                       what="the roster builder")
+        self.assertIn("var pc = _pieces();", blk)
+        self.assertIn("if (pc[k]) return;", blk,
+                      "the roster stopped excluding set pieces, so the vault would now admit them")
+
+
+class TestV2082SightingsSurviveAStrayByte(unittest.TestCase):
+    """vault_seen_save MERGES onto vault_seen_load(), so an unreadable store read as "no prior
+    sightings" and the next save wrote only the new rows.
+
+    MEASURED: three banked plus one new = 4 on disk; append ONE byte; the next sweep leaves 1. Four
+    ungrounded sightings destroyed, silently — the evidence the two-witness bar exists to
+    accumulate, and his tree holds 17 of them. The docstring said, verbatim, "an unreadable file is
+    not evidence of an empty stash" and then returned []."""
+
+    def _ca(self, root):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        self.addCleanup(setattr, ca, "_VAULT_SEEN_PATH", ca._VAULT_SEEN_PATH)
+        ca._VAULT_SEEN_PATH = os.path.join(root, "vault_seen.json")
+        return ca
+
+    def _row(self, n, s):
+        return {"name": n, "lane": "stash", "kind": "item", "conf": 0.9,
+                "witnesses": [{"session": s, "frame": s + "#0"}], "lastSeenTs": 1500000000000}
+
+    def _root(self):
+        d = tempfile.mkdtemp(prefix="seen_")
+        self.addCleanup(shutil.rmtree, d, True)
+        return d
+
+    def test_absent_and_unreadable_are_different_answers(self):
+        import json as _j
+        root = self._root()
+        ca = self._ca(root)
+        rows, ok = ca.vault_seen_load(strict=True)
+        self.assertEqual((rows, ok), ([], True), "an ABSENT store is a measurement, not an unknown")
+        io.open(ca._VAULT_SEEN_PATH, "w").write(_j.dumps({"rows": [self._row("a", "s1")]}))
+        self.assertEqual(ca.vault_seen_load(strict=True), ([self._row("a", "s1")], True))
+        io.open(ca._VAULT_SEEN_PATH, "a").write("!")
+        rows, ok = ca.vault_seen_load(strict=True)
+        self.assertFalse(ok, "an UNREADABLE store still reports itself as readable-and-empty")
+
+    def test_a_normal_sweep_still_MERGES_or_nothing_below_is_proven(self):
+        import json as _j
+        root = self._root()
+        ca = self._ca(root)
+        io.open(ca._VAULT_SEEN_PATH, "w").write(_j.dumps(
+            {"rows": [self._row("a", "s1"), self._row("b", "s2"), self._row("c", "s3")]}))
+        self.assertEqual(ca.vault_seen_save([self._row("d", "s4")]), 4,
+                         "the merge itself is broken, so the refusal below proves nothing")
+
+    def test_a_stray_byte_never_costs_him_a_sighting(self):
+        import json as _j
+        root = self._root()
+        ca = self._ca(root)
+        io.open(ca._VAULT_SEEN_PATH, "w").write(_j.dumps(
+            {"rows": [self._row("a", "s1"), self._row("b", "s2"), self._row("c", "s3")]}))
+        io.open(ca._VAULT_SEEN_PATH, "a").write("!")
+        n = ca.vault_seen_save([self._row("d", "s4")])
+        self.assertIsNone(n, "it merged onto an unreadable prior and erased every banked sighting")
+        kept = [f for f in os.listdir(root) if ".corrupt" in f]
+        self.assertTrue(kept, "the unreadable bytes were destroyed rather than kept")
+
+    def test_a_second_corruption_does_not_overwrite_the_first(self):
+        import json as _j
+        root = self._root()
+        ca = self._ca(root)
+        for _ in range(2):
+            io.open(ca._VAULT_SEEN_PATH, "w").write(_j.dumps({"rows": [self._row("a", "s1")]}))
+            io.open(ca._VAULT_SEEN_PATH, "a").write("!")
+            ca.vault_seen_save([self._row("d", "s4")])
+        kept = [f for f in os.listdir(root) if ".corrupt" in f]
+        self.assertGreaterEqual(len(kept), 2,
+                                "the second corruption overwrote the first — only %d kept"
+                                % len(kept))
 
 
 if __name__ == "__main__":

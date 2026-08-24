@@ -130,7 +130,13 @@ def plan(hist_dir=None, gap_ms=GAP_MS):
     now_ms = int(time.time() * 1000)
     out = []
     for lo, hi, run in clusters:
-        if (now_ms - hi) < gap_ms:
+        # v2082 — AND A CALLER MAY NOT DISABLE THIS BY PASSING ZERO. `--gap-s 0` reaches gap_ms=0,
+        # where `(now_ms - hi) < 0` is never true and the refusal vanishes entirely. Measured on six
+        # frames of a recording in progress: at the default it refuses; at gap_ms=0 it minted SIX
+        # separate session ids for that one recording and moved every frame — exactly the forgery
+        # this module's docstring exists to prevent. The window a caller may tune is how far apart
+        # two clusters must be; it is NOT how recent a recording may be before we call it finished.
+        if (now_ms - hi) < max(gap_ms, GAP_MS):
             out.append({"t0": lo, "t1": hi, "frames": len(run), "bytes": 0,
                         "reel": "reel_s_%d_1" % lo, "overlaps": [], "eligible": False,
                         "why": "REFUSED \u2014 the newest frame here is %.0fs old, inside the %.0fs "

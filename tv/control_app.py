@@ -10756,8 +10756,20 @@ def retention_may_act():
     Pulled out so it can be put to a case, the same reason drift_may_relaunch is separate. A
     decision buried inside a `while True` is a decision nobody can test.
     """
-    if os.environ.get("TV_AUTO_PRUNE") == "0":
-        return False, "auto-prune is switched off (TV_AUTO_PRUNE=0) — reporting only"
+    # v2082 — EVERY SPELLING OF OFF MEANS OFF, and this is the one switch in the tree where being
+    # wrong has no undo. It matched the exact byte "0" and nothing else, so `TV_AUTO_PRUNE=off`,
+    # `false`, `no`, `OFF` — or "0" with a trailing space — all ARMED an unattended, irreversible
+    # deleter. Measured on six fixture reels with the floor forced and nothing in flight: "0" held
+    # all six; every other spelling deleted.
+    #
+    # Two things make it sharper than an env-var nit. Its two siblings in this same file are opt-IN
+    # (`drift_may_relaunch` and `console_healer.heal` both test `!= "1"`), so this one alone failed
+    # OPEN. And `_retention_loop` measures BEFORE its first sleep, so the switch has to be right at
+    # BOOT — on a tree already under the floor it would act within milliseconds of startup, before
+    # he had touched anything. A typo is not permission. [[unknown-stays-unknown]]
+    _sw = str(os.environ.get("TV_AUTO_PRUNE", "")).strip().lower()
+    if _sw in ("0", "off", "false", "no", "none", "never"):
+        return False, "auto-prune is switched off (TV_AUTO_PRUNE=%s) — reporting only" % _sw
     busy = []
     try:
         if _CHRON_JOB.get("running"):
@@ -11499,16 +11511,35 @@ def _ledger_backup_loop():
             pass
 
 
-def vault_seen_load():
-    """Sightings from earlier sweeps that have not grounded. [] when there are none or it is
-    unreadable — an unreadable file is not evidence of an empty stash."""
+def vault_seen_load(strict=False):
+    """Sightings from earlier sweeps that have not grounded.
+
+    v2082 — THE DOCSTRING NAMED THE DEFECT AND THE CODE COMMITTED IT. It said, verbatim, "an
+    unreadable file is not evidence of an empty stash" — and then returned [] for both "there are
+    none" and "it will not parse". That is not cosmetic here, because vault_seen_save MERGES onto
+    whatever this returns:
+
+        for row in list(vault_seen_load()) + list(unsure_rows or []):
+
+    so an unreadable store reads as "no prior sightings" and the next save writes ONLY the new
+    rows. MEASURED: three banked sightings plus one new = 4 on disk; append ONE byte to the file;
+    the next sweep leaves 1. Four ungrounded sightings destroyed by a stray byte, silently. His tree
+    holds 17 of them — the evidence the two-witness bar exists to accumulate.
+
+    ABSENT is a measurement: no sweep has banked anything yet. UNREADABLE is an UNKNOWN.
+    `strict=True` distinguishes them, returning (rows, ok); the bare call keeps the old shape so no
+    reader has to change. [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+    """
+    if not os.path.exists(_VAULT_SEEN_PATH):
+        return ([], True) if strict else []
     try:
         with open(_VAULT_SEEN_PATH, encoding="utf-8") as fh:
             d = json.load(fh)
     except Exception:
-        return []
+        return ([], False) if strict else []
     rows = d.get("rows") if isinstance(d, dict) else d
-    return [r for r in (rows or []) if isinstance(r, dict) and r.get("name")]
+    out = [r for r in (rows or []) if isinstance(r, dict) and r.get("name")]
+    return (out, True) if strict else out
 
 
 def vault_seen_save(unsure_rows):
@@ -11518,8 +11549,29 @@ def vault_seen_save(unsure_rows):
     evidence is not evidence (law 4). Rows that have since GROUNDED are dropped by the caller.
     Returns how many rows are remembered, or None if nothing could be written.
     """
+    # v2082 — NEVER MERGE ONTO A PRIOR NOBODY COULD READ. Writing the union of "what I just saw"
+    # and "nothing, because the file would not open" destroys every sighting banked before now, and
+    # there is no way to re-derive them: the reels they came from may already be pruned. The corrupt
+    # bytes are set aside under a name that does not collide, and this sweep's rows are refused
+    # rather than written over history. He is told, because a silent refusal is its own defect.
+    prior, prior_ok = vault_seen_load(strict=True)
+    if not prior_ok:
+        keep_path = _VAULT_SEEN_PATH + ".corrupt"
+        _n = 0
+        while os.path.exists(keep_path):
+            _n += 1
+            keep_path = "%s.corrupt.%d" % (_VAULT_SEEN_PATH, _n)
+        try:
+            os.replace(_VAULT_SEEN_PATH, keep_path)
+        except OSError:
+            pass
+        print("  \u26a0 vault_seen.json will not parse \u2014 kept as %s. This sweep's %d sighting(s) "
+              "were NOT written, because merging onto an unreadable prior would erase every "
+              "sighting banked before now." % (os.path.basename(keep_path), len(unsure_rows or [])),
+              flush=True)
+        return None
     keep = {}
-    for row in list(vault_seen_load()) + list(unsure_rows or []):
+    for row in list(prior) + list(unsure_rows or []):
         if not isinstance(row, dict):
             continue
         name, lane = str(row.get("name") or "").strip(), str(row.get("lane") or "").strip().lower()
@@ -14740,7 +14792,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2080",
+        "ver": "v2082",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

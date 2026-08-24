@@ -8873,6 +8873,14 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe{border-left-color:#5b9fd0}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe:hover{border-color:rgba(91,159,208,.5)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-step{border-left-color:#cdb157}
+/* v2081 — THE ONE CARD KIND WHOSE COLOUR SAID NOTHING. Measured on a render with a full stash:
+   .f-now  rgb(95,201,122) green · .f-pipe rgb(91,159,208) blue · .f-step rgb(205,177,87) gold ·
+   .f-craft rgb(58,47,30) — that is var(--border), the fallback for a card with NO rule. `.f-craft`
+   as a selector appears ZERO times in this file; `.f-craftrow`, `.f-craftacc` and `.f-craft-made`
+   all exist and are different classes, which is exactly why it reads as present. So every cube
+   craft sat in the make-now feed beside meaning-bearing runeword cards carrying the absence of a
+   colour. Orange is the crafts identity already (--q-orange, .ft-craft). */
+:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft{border-left-color:var(--q-orange)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-step:hover{border-color:rgba(205,177,87,.5)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-defer{border-left-color:#6b5f48;opacity:.62}
 :is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart{flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:9px;overflow:hidden}
@@ -18741,11 +18749,46 @@ window.renderHighValueFinds = renderHighValueFinds;
   // batch looked like it "didn't build on top" of the earlier one (Konyo's accumulation bug). Match the label
   // suffix so they survive; _ensureSocketBaseEntry then rebuilds their cards on the same load.
   var _SOCKET_KEEP = /\((?:\d+\s*os(?:\s+low base)?|larzuk base)\)\s*$/i;
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));   // v659 — chronicle-seeded uniques + extras survive the prune
+  /* ── v2082 — THE PAGE HELD TWO ANSWERS TO "WHICH UNIQUES EXIST", AND THE VAULT USED THE OTHER ONE ──
+     MEASURED, on a real render, seeding d2r_owned and reloading: SIXTEEN names this page's own
+     roster offers cannot be held in the physical vault. Each survives one reload and is gone by the
+     next, and never reaches the found ledger either — Harlequin Crest, Hellfire Torch, Bul-Kathos'
+     Wedding Band, Gull, Atma's Scarab, The Cat's Eye, The Cranium Basher, Crescent Moon, Seraph's
+     Hymn, Saracen's Chance, and the six Latent-* names the roster canonicalises un-prefixed.
+
+     THE ROSTER (_roster/_gUniqueRoster, ~:18013) is ITEM_VALUE (505 keys) union _UNI_EXTRA, minus
+     set pieces, matched by _norm(). THIS filter tested ITEM_REGISTRY (547 keys) — a DIFFERENT
+     object. Every one of the sixteen is true in the first and false in the second. Two catalogues,
+     one question, opposite answers.
+
+     And it is a REBUILD, not a delete, which is why hooking Set.prototype.delete caught nothing and
+     why no existing guard saw it. The page even warns on every load — "pruned N stale owned entries
+     (items renamed/removed in data update)" — naming the wrong cause: these are not stale names
+     from an old build, they are current items the roster actively offers. A label that names the
+     wrong cause explains the symptom away. [[copy-drift]] [[label-outlived-referent]]
+
+     THE FIX IS ONE SOURCE OF TRUTH, not a longer hand-list: ask the roster. It is the same object
+     the grail wall, the Calculator and the chronicle already trust for "is this a unique", so the
+     two can no longer drift. Set pieces stay excluded — the roster excludes them by construction
+     (_pieces()), and they have their own store. */
+  var _ROSTER_NORM = (function(){
+    try {
+      var r = (typeof window._gUniqueRoster === 'function') ? window._gUniqueRoster() : [];
+      var out = Object.create(null);
+      r.forEach(function(n){ out[_norm(n)] = 1; });
+      return out;
+    } catch(e){ return Object.create(null); }   /* unreachable roster -> admit nothing EXTRA, never LESS */
+  })();
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));   // v659 — chronicle-seeded uniques + extras survive the prune
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
-    console.warn('[bible] pruned ' + wDrift + ' stale wishlist + ' + oDrift + ' stale owned entries (items renamed/removed in data update)');
+    /* v2082 — SAY WHAT WAS DROPPED, NOT WHY. "items renamed/removed in a data update" was a GUESS,
+       and for sixteen names it was the wrong one — they were current items this page offers. A
+       warning that asserts a cause it cannot know is how a real defect gets read as housekeeping. */
+    console.warn('[bible] dropped ' + wDrift + ' wishlist + ' + oDrift + ' owned entry(s) that no '
+      + 'catalogue on this page recognises' + (oDrift ? ' — ' + [...owned].length + ' owned kept' : '')
+      + '. If a name you own is in this list, the catalogues disagree and that is a defect, not tidying.');
     persist();
   }
 
@@ -38157,7 +38200,14 @@ function renderJournal(){
         if (_sealedCraftLead) craftAtomic.forEach(_emitAtom);
         atomic.forEach(_emitAtom);
         if (!_sealedCraftLead) craftAtomic.forEach(_emitAtom);
-        if (craftKeys.length){
+        /* v2081 — AND NOT WHEN THE ⚗️ SECTION IS ALREADY BELOW. This convenience accordion and the
+           dedicated ⚗️ Crafts section (~:38323) both call _craftAccHtml for the same types, and the
+           ⚗️ section renders whenever show('crafts') || show('all') — which includes the DEFAULT
+           ▦ All view. MEASURED on a render with a full rune+gem stash: 4 craft types, 8 accordions,
+           every header reading twice — "Create Caster", "Create Blood", "Create Safety",
+           "Create Hit Power", each drawn in full with all 9 slots, one above the other.
+           It earns its place only on the ⚒ Make-now filter, where the ⚗️ section does not render. */
+        if (craftKeys.length && !(show('crafts') || show('all'))){
           var ct='';
           craftKeys.forEach(function(ck){ var c0=craftGroups[ck][0]; ct+=_craftAccHtml(ck, c0&&c0.color); });
           H.push('<div class="forge-craftnow-lbl">⚗️ More craft recipes — tap a type for every slot (✓ = make now)</div><div class="forge-craftacc">'+ct+'</div>');
@@ -44606,7 +44656,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2080', name:'v2080 - the cycle closes itself', date:'2026-08-24', note:'extract then prune runs on its own below the ON AIR floor; only eligible reels, only as much as needed, never while anything is in flight' };
+  window.D2R_BUILD = { id:'v2082', name:'v2082 - every spelling of off means off', date:'2026-08-25', note:'seven findings from a review of v2080 plus the sixteen uniques the vault refused to hold and the sightings a stray byte destroyed' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
