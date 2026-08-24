@@ -14762,5 +14762,93 @@ class TestV2044TheDoctorCanSeeADoomedWorld(unittest.TestCase):
 
 
 
+class TestV2046TheDiskWarningMeasuresHisFootage(unittest.TestCase):
+    """The disk check used to say "a reel writes roughly 9GB/hour".
+
+    That number is REAL — v2019 clocked +37MB in 15s on a busy scene. So is 5.0-6.6GB/hour, measured
+    2026-08-24 across his three newest reels at 1.44-1.90 MB/frame. Both are true, because JPEG size
+    tracks scene complexity and the rate swings ~2x with what he is looking at. A single constant
+    cannot describe that, and quoting one as though it could is a right number under a word that
+    stopped being true. [[label-outlived-referent]]
+
+    He acts on this figure — it is how he decides whether to start a session.
+    """
+
+    def _fixture(self, tmp, n_frames, minutes, kb):
+        """A reel of n_frames spread over `minutes`, each kb kilobytes."""
+        import time as _t
+        d = os.path.join(tmp, "frames", "hist", "reel_s_1_1")
+        os.makedirs(d)
+        now = _t.time()
+        for i in range(n_frames):
+            q = os.path.join(d, "f_%d.jpg" % i)
+            with open(q, "wb") as fh:
+                fh.write(b"\0" * (kb * 1024))
+            t = now - (minutes * 60.0) + (i * minutes * 60.0 / max(1, n_frames - 1))
+            os.utime(q, (t, t))
+        return d
+
+    def _rate(self, tmp):
+        import unittest.mock as mock
+        import console_doctor as cd
+        with mock.patch.object(cd, "HERE", tmp):
+            return cd._measured_write_rate()
+
+    def test_it_measures_the_real_rate_from_his_own_reels(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            # 60 frames x 1MB over 1 minute = 60MB/min = 3.5GB/hour
+            self._fixture(tmp, 60, 1.0, 1024)
+            rate, n = self._rate(tmp)
+            self.assertEqual(n, 1)
+            self.assertAlmostEqual(rate, 60 * 1024 * 1024 * 60 / float(1 << 30), delta=0.3)
+
+    def test_a_reel_too_short_to_time_produces_NO_rate(self):
+        """Dividing by a near-zero window invents an enormous figure out of nothing."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fixture(tmp, 60, 0.05, 1024)      # 3 seconds
+            rate, n = self._rate(tmp)
+            self.assertIsNone(rate, "a 3-second reel was extrapolated into an hourly rate")
+            self.assertEqual(n, 0)
+
+    def test_a_reel_with_too_few_frames_produces_NO_rate(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fixture(tmp, 5, 5.0, 1024)
+            rate, n = self._rate(tmp)
+            self.assertIsNone(rate, "five frames were treated as a measurement")
+
+    def test_when_nothing_is_measurable_it_SAYS_it_is_a_worst_case(self):
+        """An unmeasured number must never arrive dressed as a measured one."""
+        import tempfile
+        import unittest.mock as mock
+        import console_doctor as cd
+        import collections
+        # Pin the FREE SPACE too. Reaching the warning branch must not depend on how full his disk
+        # happens to be while the suite runs - that is a gate that passes for the wrong reason.
+        fake = collections.namedtuple("du", "total used free")(500e9, 490e9, 10e9)
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(cd, "HERE", tmp):
+                with mock.patch.object(cd, "_measured_write_rate", lambda: (None, 0)):
+                    with mock.patch("shutil.disk_usage", lambda _p: fake):
+                        state, why = cd._check_disk_headroom()
+        self.assertEqual(state, cd.MISSING, "10GB free did not reach the warning branch")
+        self.assertIn("worst case", why,
+                      "an unmeasured rate was reported without saying it was unmeasured")
+
+    def test_the_warning_names_the_measured_rate_not_a_constant(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "console_doctor.py"), encoding="utf-8").read()
+        blk = _between(self, src, "def _check_disk_headroom():", "def _check_subscription_burn():",
+                       what="the disk check")
+        self.assertTrue("_measured_write_rate()" in blk,
+                        "the disk check asserts a constant rate again instead of measuring his "
+                        "footage - he decides whether to start a session on this number")
+        self.assertFalse("roughly 9GB/hour" in blk,
+                         "the old constant is back in the warning text")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

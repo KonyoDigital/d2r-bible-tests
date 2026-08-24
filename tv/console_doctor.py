@@ -162,6 +162,42 @@ def _check_lane_intent():
         mode, ("; console reports %s" % lanes) if lanes else "")
 
 
+def _measured_write_rate():
+    """GB/hour measured from HIS newest reels, or None when it cannot be measured.
+
+    v2046 — this used to be the constant "roughly 9GB/hour". That number is real: v2019 clocked
+    +37MB in 15s on a busy scene. So is 5.0-6.6GB/hour, measured 2026-08-24 across the three newest
+    reels at 1.44-1.90 MB/frame and 55-60 frames/min. Both are true, because JPEG size tracks scene
+    complexity and the rate swings ~2x with what he is looking at.
+
+    A single constant therefore cannot describe it, and quoting one as if it could is the shape of
+    [[label-outlived-referent]] — a right number under a word that stopped being true. So: measure
+    his actual footage, say the figure is measured, and fall back to the documented worst case
+    while SAYING it is a worst case. Returns (gb_per_hour, n_reels) or (None, 0).
+    """
+    import glob
+    best = []
+    reels = sorted(glob.glob(os.path.join(HERE, "frames", "hist", "reel_*")),
+                   key=lambda d: -os.stat(d).st_mtime)[:3]
+    for d in reels:
+        fr = glob.glob(os.path.join(d, "*.jpg"))
+        if len(fr) < 40:
+            continue                      # too few frames to time anything honestly
+        try:
+            st = [os.stat(q) for q in fr]
+        except OSError:
+            continue
+        ts = sorted(x.st_mtime for x in st)
+        mins = (ts[-1] - ts[0]) / 60.0
+        if mins < 1.0:
+            continue
+        gb = sum(x.st_size for x in st) / float(1 << 30)
+        best.append(gb * (60.0 / mins))
+    if not best:
+        return None, 0
+    return sum(best) / len(best), len(best)
+
+
 def _check_disk_headroom():
     """/api/on refuses below an 8GB floor. Finding that out when you press ON AIR is too late."""
     try:
@@ -179,9 +215,14 @@ def _check_disk_headroom():
     if free < 8.0:
         return MISSING, ("%.1fGB free — BELOW the 8GB floor, so /api/on will refuse to record%s"
                          % (free, tail))
+    rate, n = _measured_write_rate()
+    if rate:
+        rate_says = "your last %d reel(s) averaged %.1fGB/hour" % (n, rate)
+    else:
+        rate, rate_says = 9.0, "no reel was long enough to measure; using the 9GB/hour worst case"
     if free < 16.0:
-        return MISSING, ("%.1fGB free — a reel writes roughly 9GB/hour, so this is under two hours "
-                         "of recording%s" % (free, tail))
+        return MISSING, ("%.1fGB free — %s, so this is about %.1f hour(s) of recording%s"
+                         % (free, rate_says, free / rate, tail))
     return OK, "%.1fGB free%s" % (free, tail)
 
 
