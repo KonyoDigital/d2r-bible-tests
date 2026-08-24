@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2062"   # one deletion authority
+VERSION = "v2063"   # do not record a game that is not running
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -1545,6 +1545,12 @@ def _foot_fps_now():
     return round(len(recent) / 10.0, 2)
 
 
+# v2063 — how many frames to keep after the D2R window disappears. The window vanishing IS the
+# event worth filming (a crash, an alt-tab, a Space transition), so recording stops a few frames
+# late rather than instantly. Small enough that a closed game costs kilobytes, not gigabytes.
+NOGAME_TAIL_FRAMES = int(os.environ.get("TV_NOGAME_TAIL", "6") or 6)
+
+
 def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
     """v947 — 1fps archive helper. Always advances the due clock; never blocks on sips.
 
@@ -1580,6 +1586,40 @@ def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
         if not src_path or not os.path.isfile(src_path) or os.path.getsize(src_path) < 4000:
             globals()["_FOOTAGE_REJECTS"] = int(globals().get("_FOOTAGE_REJECTS") or 0) + 1
             return False
+        # ── v2063 — DO NOT RECORD A GAME THAT IS NOT RUNNING ────────────────────────────────────
+        # Konyo: "the shadow reader when toggled on, it needs to know when diablo ii window is open
+        # so it doesnt just record for free ... so it doesnt record for nothing".
+        #
+        # v899 built exactly this check and spent it on the wrong half. Its own comment says so:
+        # "NO D2R WINDOW: film may keep running, but AI reads stay OFF". So the expensive lane was
+        # protected and the DISK lane was not — with the game shut, frames kept landing at the full
+        # rate, and the only thing that ever stopped them was MIN_FREE_GB, i.e. running out.
+        #
+        # THE TAIL IS DELIBERATE, and it is v1548's reasoning applied to the other end of a session.
+        # v1548 refuses blank frames only during warm-up because "a blank frame LATER is not startup
+        # noise, it is the game crashing or the window vanishing, and that is evidence worth keeping
+        # rather than a fault to suppress". The same holds here: the first frames after the window
+        # disappears are the most informative ones in the whole reel, so a short tail is archived and
+        # only then does recording stop.
+        #
+        # Fail-OPEN by construction: _GAME_OK is unset until _set_game_gate has run, and an unset
+        # gate reads True. A lane that has not measured yet must never be the reason footage is lost.
+        # The gate it reads is already debounced (6s), so one flaky Quartz poll mid-play cannot stop
+        # the film. [[feedback-silence-is-not-evidence]]
+        if not (os.environ.get("TV_STUB") or os.environ.get("TV_NO_GAME_GUARD") == "0"):
+            if globals().get("_GAME_OK", True):
+                globals()["_NOGAME_TAIL_KEPT"] = 0
+            else:
+                _kept = int(globals().get("_NOGAME_TAIL_KEPT") or 0)
+                if _kept < NOGAME_TAIL_FRAMES:
+                    globals()["_NOGAME_TAIL_KEPT"] = _kept + 1
+                    globals()["_FOOTAGE_WHY"] = ("no D2R window — keeping frame %d of %d as evidence "
+                                                 "of what happened" % (_kept + 1, NOGAME_TAIL_FRAMES))
+                else:
+                    globals()["_NOGAME_SKIPPED"] = int(globals().get("_NOGAME_SKIPPED") or 0) + 1
+                    globals()["_FOOTAGE_WHY"] = "no D2R window — not recording (%d frame(s) skipped)" % (
+                        globals()["_NOGAME_SKIPPED"])
+                    return False
         # ── v1548 — THE WARM-UP GATE ────────────────────────────────────────────────────────────
         # 16 of the 17 blank captures in his worst reel land in the FIRST NINETEEN SECONDS: capture
         # starts while D2R is still launching, so the window exists — the grab succeeds, the file is

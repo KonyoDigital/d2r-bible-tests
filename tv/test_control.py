@@ -15548,5 +15548,108 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
         self.assertEqual(bad, [], "frame_authority calls a deleter at %s — it decides, it never acts" % bad)
 
 
+class TestV2063DoNotRecordAGameThatIsNotRunning(unittest.TestCase):
+    """Konyo: "the shadow reader ... needs to know when diablo ii window is open so it doesnt just
+    record for free".
+
+    v899 built this check and spent it on the wrong half — its own comment reads "NO D2R WINDOW:
+    film may keep running, but AI reads stay OFF". So the paid lane was protected and the DISK lane
+    was not: with the game shut, frames landed at the full rate and the only thing that ever stopped
+    them was running out of disk.
+
+    Driven through the real function against a TMP reel dir. Nothing here touches his footage.
+    [[feedback-fixtures-never-touch-live-data]]"""
+
+    def setUp(self):
+        import tempfile, shutil
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import tv_diablo
+        self.t = tv_diablo
+        self.tmp = tempfile.mkdtemp(prefix="nogame_")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.hist = os.path.join(self.tmp, "hist")
+        os.makedirs(self.hist)
+        self.src = os.path.join(self.tmp, "live.jpg")
+        with open(self.src, "wb") as fh:
+            fh.write(b"\xff\xd8\xff" + b"J" * 9000)      # past the 4000-byte floor
+        # point the archiver at the fixture and restore whatever was there
+        self._old = {k: self.t.__dict__.get(k) for k in
+                     ("HIST_DIR", "_FOOTAGE_WARM", "_GAME_OK", "_NOGAME_TAIL_KEPT", "_NOGAME_SKIPPED")}
+        self.addCleanup(self._restore)
+        self.t.HIST_DIR = self.hist
+        self.t._FOOTAGE_WARM = True          # warm-up is v1548's gate, not this one
+        self.t._NOGAME_TAIL_KEPT = 0
+        self.t._NOGAME_SKIPPED = 0
+        for k in ("TV_STUB", "TV_NO_GAME_GUARD"):
+            if os.environ.get(k):
+                self.skipTest("%s is set — the guard is deliberately disabled for harnesses" % k)
+
+    def _restore(self):
+        for k, v in self._old.items():
+            if v is None:
+                self.t.__dict__.pop(k, None)
+            else:
+                self.t.__dict__[k] = v
+
+    def _count(self):
+        return len([f for f in os.listdir(self.hist) if f.startswith("f_")])
+
+    def _shoot(self, n, ts0=1000.0):
+        """n archive attempts; returns how many frames are on disk afterwards."""
+        for i in range(n):
+            self.t._archive_footage_copy(self.src, ts0 + i, why="test", _consume_due=False)
+        return self._count()
+
+    def test_with_the_game_open_it_records(self):
+        self.t._GAME_OK = True
+        self.assertEqual(self._shoot(5), 5,
+                         "the gate refused frames while the game was OPEN — that loses real footage")
+
+    def test_with_the_game_shut_it_keeps_a_short_tail_then_stops(self):
+        self.t._GAME_OK = False
+        got = self._shoot(40)
+        self.assertEqual(got, self.t.NOGAME_TAIL_FRAMES,
+                         "with no D2R window it wrote %d frames; the tail is %d and then it must "
+                         "stop. Anything more is recording for nothing." % (got, self.t.NOGAME_TAIL_FRAMES))
+        self.assertGreater(int(self.t.__dict__.get("_NOGAME_SKIPPED") or 0), 0,
+                           "it stopped recording but counted no skips, so the console cannot tell "
+                           "him WHY the reel went quiet")
+
+    def test_the_tail_exists_at_all(self):
+        """The window vanishing IS the event worth filming. v1548 makes the same argument for the
+        other end of a session: a blank frame LATER is a crash, not startup noise."""
+        self.t._GAME_OK = False
+        self.assertGreater(self._shoot(1), 0,
+                           "it stopped instantly, so the frames that show WHAT HAPPENED are gone")
+
+    def test_when_the_game_comes_back_the_tail_RE_ARMS_for_the_next_absence(self):
+        """The first cut of this test only checked that recording RESUMED, and a sabotage that
+        deleted the reset passed it — resuming happens anyway, because the open-game branch archives
+        regardless. What the reset actually buys is a fresh tail the SECOND time the window goes,
+        so the test has to play the whole cycle: shut, exhaust, reopen, shut again."""
+        tail = self.t.NOGAME_TAIL_FRAMES
+        self.t._GAME_OK = False
+        self._shoot(40)                                  # burn the first tail
+        self.assertEqual(self._count(), tail)
+        self.t._GAME_OK = True
+        self._shoot(3, ts0=5000.0)                       # game is back: records normally
+        self.assertEqual(self._count(), tail + 3, "it did not resume recording when the game returned")
+        self.t._GAME_OK = False                          # and away again
+        self._shoot(40, ts0=9000.0)
+        self.assertEqual(self._count(), tail + 3 + tail,
+                         "the second absence got no tail, so the frames showing what happened the "
+                         "second time are gone — the gate never re-armed")
+
+    def test_an_unmeasured_gate_fails_OPEN(self):
+        """_GAME_OK is unset until _set_game_gate has run. A lane that has not measured yet must
+        never be the reason footage is lost."""
+        self.t.__dict__.pop("_GAME_OK", None)
+        # MORE than the tail, deliberately: shooting fewer than NOGAME_TAIL_FRAMES cannot tell a
+        # fail-open gate from a fail-closed one, because the tail would let them through either way.
+        # A sabotage flipping the default to False passed the first version of this test.
+        n = self.t.NOGAME_TAIL_FRAMES + 5
+        self.assertEqual(self._shoot(n), n, "an UNSET game gate suppressed footage")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
