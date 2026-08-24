@@ -15174,10 +15174,26 @@ class TestV2053TheSpaceWardenNeverEatsHisFootage(unittest.TestCase):
 
         # a path that EXISTS — _safe short-circuits on "absent" before it ever asks git, so a
         # missing directory would pass this test for the wrong reason.
+        #
+        # v2065 — AND IT MUST NOT BE ON THE **NEVER** LIST, which is this docstring's own scar
+        # arriving one layer up. The candidate list used to be
+        # ("playwright-report", "node_modules", "tv"). `playwright-report` exists only after a local
+        # Playwright run; once it was gone the list fell through to `node_modules`, which _safe
+        # refuses EARLY with "lives under node_modules" — so the tracked-file check was never
+        # reached and the assertion failed on a refusal it was not testing.
+        #
+        # The test was therefore green or red depending on whether a build artifact happened to be
+        # on disk, which is not a property of the code at all. Candidates are now filtered against
+        # sw.NEVER so the chosen path can only be refused for the reason under test.
         import os as _os
-        target = next((d for d in ("playwright-report", "node_modules", "tv")
-                       if _os.path.isdir(_os.path.join(sw.REPO, d))), None)
-        self.assertTrue(target, "no existing directory to test against")
+        target = next((d for d in ("playwright-report", "test-results", "tv")
+                       if _os.path.isdir(_os.path.join(sw.REPO, d))
+                       and not any(d == n or d.startswith(n.rstrip("/") + "/") for n in sw.NEVER)),
+                      None)
+        self.assertTrue(target, "no existing, non-NEVER directory to test against")
+        self.assertFalse(any(target == n or target.startswith(n.rstrip("/") + "/") for n in sw.NEVER),
+                         "%r is on the NEVER list, so it is refused before the tracked-file check "
+                         "and this test would pass for the wrong reason" % target)
         with mock.patch.object(sw.subprocess, "run", fake_run):
             ok, why = sw._safe(target)
         self.assertFalse(ok, "a path with tracked files inside it was accepted for deletion")
@@ -15530,6 +15546,36 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
         self.assertGreaterEqual(r.get("scanned", 0), 0)
         self.assertLessEqual(r["frames"], r["scanned"], "it offered more frames than it scanned")
 
+    def test_reel_retention_ASKS_the_authority_instead_of_keeping_its_own_copy(self):
+        """v2062 called frame_authority "the one deletion authority" and then wired only the frame
+        prune to it — leaving reel_retention, the deleter that removes WHOLE REELS, reading its own
+        private copy of the same two stores. Two copies of one rule is how they drift, and these two
+        already differed: reel_retention swallowed an unreadable store silently, so "no witnesses"
+        and "could not read the ledger" were the same answer.
+
+        They agreed on his tree the day this was written, which is exactly when a duplicate is
+        cheapest to remove and hardest to notice. Asked of the COMPILER, so a comment naming the
+        module cannot satisfy it. [[copy-drift]] [[source-reading-guard]] §1"""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention as _rr
+        names = set(_rr._durable_sessions.__code__.co_names)
+        self.assertIn("frame_authority", names,
+                      "reel_retention._durable_sessions does not reference frame_authority — the "
+                      "rule has two homes again")
+        self.assertIn("witness_index", names,
+                      "it imports the authority and never asks it anything")
+
+    def test_the_two_deleters_cannot_disagree_about_what_is_durable(self):
+        """The property the unification exists for, checked on the real tree rather than asserted."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention as _rr
+        import frame_authority as _fa
+        here = os.path.dirname(os.path.abspath(__file__))
+        self.assertEqual(_rr._durable_sessions(here),
+                         set(_fa.witness_index(here).get("sessions") or ()),
+                         "the reel deleter and the frame deleter disagree about which recordings "
+                         "are durable — one of them is about to be wrong")
+
     def test_it_deletes_nothing_itself(self):
         """A planner that deletes is a deleter. The whole point is that the acting stays with the
         caller, and there is exactly one place that decides."""
@@ -15720,9 +15766,15 @@ class TestV2064TheLedgerSaysWHENTheAiSawIt(unittest.TestCase):
 
     def test_an_UNDATED_sighting_reads_UNKNOWN_and_is_never_called_recent(self):
         """A row nobody dated and a row seen this minute are opposite facts. Collapsing them is the
-        lie with no author. [[unknown-stays-unknown]]"""
+        lie with no author. [[unknown-stays-unknown]]
+
+        v2065 REPOINTED THIS FIXTURE, and the reason matters: it used to carry a `session`, and a
+        session now resolves to a RECORDING WINDOW rather than UNKNOWN — which is strictly better
+        information, so the old expectation became wrong rather than the code. The intent is
+        unchanged and still enforced here: a sighting whose time is not known must never render as
+        recent. What changed is which input is genuinely unknown. See TestV2065."""
         html = self._render([{"name": "Stone of Jordan", "lane": "stash",
-                              "witnesses": [{"session": "s_1785083099664_77787"}]}])
+                              "witnesses": [{"conf": 0.44}]}])
         self.assertIn("UNKNOWN", html, "an undated sighting did not read UNKNOWN")
         self.assertNotIn("just now", html, "an undated sighting was rendered as recent")
         self.assertNotIn("AI saw it", html, "an undated sighting claimed a time it does not have")
@@ -15738,6 +15790,72 @@ class TestV2064TheLedgerSaysWHENTheAiSawIt(unittest.TestCase):
         html = self._render([{"name": "Shako", "lane": "stash",
                               "witnesses": [{"frame": "f_1.jpg", "ts": self.NOW}]}])
         self.assertIn("1 witness<", html + "<", "singular row still reads '1 witness(es)'")
+
+
+class TestV2065ABoundIsNotUnknown(unittest.TestCase):
+    """17 of his 24 vault rows were rendering "AI sighting time UNKNOWN" — every ungrounded sighting,
+    because they carry a session and no `ts`. But a recording id CONTAINS its own start time
+    (s_<epoch_ms>_<n>), so the instant is unknown while the WINDOW is not.
+
+    Reported as a recording, never as an instant. Rounding a range to a point is how a measurement
+    becomes a claim it never earned. [[unknown-stays-unknown]]
+
+    Reuses TestV2064's node harness, which runs the REAL shipped renderer."""
+
+    NOW = 1787600000000
+
+    def _render(self, rows):
+        return TestV2064TheLedgerSaysWHENTheAiSawIt._render(self, rows)
+
+    def test_a_session_only_sighting_reports_the_RECORDING_not_unknown(self):
+        html = self._render([{"name": "Bone Visor", "lane": "stash",
+                              "witnesses": [{"session": "s_1787520892804_95400"}]}])
+        self.assertIn("in a recording from", html,
+                      "a sighting that names its recording still read UNKNOWN — the window was "
+                      "known and thrown away")
+        self.assertNotIn("AI sighting time UNKNOWN", html)
+        self.assertIn("s_1787520892804_95400", html,
+                      "the recording is not named, so he cannot go and find it")
+
+    def test_it_never_claims_an_INSTANT_it_does_not_have(self):
+        html = self._render([{"name": "Bone Visor", "lane": "stash",
+                              "witnesses": [{"session": "s_1787520892804_95400"}]}])
+        self.assertNotIn("AI saw it 0m ago", html)
+        self.assertNotIn("just now", html)
+        self.assertIn("exact moment was not recorded", html,
+                      "nothing tells him this is a window rather than a timestamp")
+
+    def test_the_newest_recording_wins_when_there_are_several(self):
+        html = self._render([{"name": "Enigma", "lane": "stash",
+                              "witnesses": [{"session": "s_1784984019250_95276"},
+                                            {"session": "s_1785078127173_28278"}]}])
+        # s_1785078127173 = 2026-07-26, the newer of the two
+        self.assertIn("2026", html)
+        self.assertIn("s_1785078127173_28278", html)
+
+    def test_an_exact_timestamp_still_beats_the_bound(self):
+        """The bound is a fallback, not a replacement. A row that knows the instant must say the
+        instant, or the good data is thrown away to make the rendering uniform."""
+        html = self._render([{"name": "Harlequin Crest", "lane": "stash",
+                              "witnesses": [{"session": "s_1787520892804_95400",
+                                             "frame": "f_1.jpg", "ts": self.NOW}],
+                              "lastSeenTs": self.NOW}])
+        self.assertIn("AI saw it", html)
+        self.assertNotIn("in a recording from", html,
+                         "it downgraded an exact sighting time to a recording window")
+
+    def test_a_witness_with_neither_a_ts_nor_a_recording_is_still_UNKNOWN(self):
+        """The bound must not become a way of always having an answer."""
+        html = self._render([{"name": "Mystery", "lane": "stash", "witnesses": [{"conf": 0.4}]}])
+        self.assertIn("UNKNOWN", html)
+        self.assertNotIn("in a recording from", html)
+
+    def test_an_unparsable_recording_id_does_not_invent_a_date(self):
+        html = self._render([{"name": "Odd", "lane": "stash",
+                              "witnesses": [{"session": "not-a-session-id"}]}])
+        self.assertIn("UNKNOWN", html,
+                      "a recording id it could not parse produced a date anyway")
+        self.assertNotIn("1970", html, "it fell back to the epoch and rendered 1970")
 
 
 if __name__ == "__main__":

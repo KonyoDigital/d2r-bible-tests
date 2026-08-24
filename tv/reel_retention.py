@@ -102,34 +102,25 @@ def _durable_sessions(here=None):
     MIN_PAGES called it "evidence banked" and meant "at least one page was READ". Reading produces
     a PROPOSAL; only an apply puts rows in the ledger. Measured 2026-08-24: reel
     s_1787242455315_9654 had rows=7 in vault_swept and NOTHING in any durable store, so deleting it
-    would have taken those seven witnesses with it — and the night before, a blocked apply left 7
-    grounded and 17 unsure sitting in a proposal for hours while retention was free to run.
+    would have taken those seven witnesses with it.
 
-    Two stores make a witness durable, and both key on the SESSION the sighting came from:
-      · vault_accum.json — rows he has APPLIED
-      · vault_seen.json  — sightings that have not grounded yet (v2051)
-    Returns a set of session ids. An unreadable store contributes NOTHING and is not an error: the
-    caller errs toward KEEPING, so "I could not read the ledger" can only ever hold a reel, never
-    release one.
+    v2065 — AND THE RULE NOW HAS ONE HOME. v2062 built frame_authority to be "the one deletion
+    authority" and then wired only the frame prune to it, leaving this — the deleter that removes
+    WHOLE REELS — reading its own private copy of the same two stores. Two copies of one rule is how
+    they drift, and these two already differed: this one swallowed an unreadable store silently
+    (`except: continue`), so "no witnesses" and "could not read the ledger" were the same answer.
+    They agreed on his tree the day this was written (5 sessions, identical set) — which is exactly
+    when a duplicate is cheapest to remove and hardest to notice. [[copy-drift]]
+
+    Still errs toward KEEPING: a store that will not parse contributes nothing here AND makes
+    witness_index report ok=False, and the caller treats a non-durable reel as HELD. So "I could not
+    read the ledger" can only ever hold a reel, never release one.
     """
-    root = here or HERE
-    out = set()
-    for fn in ("vault_accum.json", "vault_seen.json"):
-        try:
-            with open(os.path.join(root, fn), encoding="utf-8") as fh:
-                blob = json.load(fh)
-        except Exception:
-            continue
-        rows = blob.get("owned") if isinstance(blob, dict) and "owned" in blob else None
-        if rows is None and isinstance(blob, dict):
-            rows = blob.get("rows")
-        for r in (rows or []):
-            if not isinstance(r, dict):
-                continue
-            for w in (r.get("witnesses") or []):
-                if isinstance(w, dict) and w.get("session"):
-                    out.add(str(w["session"]))
-    return out
+    try:
+        import frame_authority as _fa
+    except Exception:
+        return set()          # cannot ask the authority -> nothing is durable -> everything is held
+    return set(_fa.witness_index(here or HERE).get("sessions") or ())
 
 
 def _vault_lane_owes(reel_path):
