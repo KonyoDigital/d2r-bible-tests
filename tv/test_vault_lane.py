@@ -41,8 +41,8 @@ class TestVaultDecisions(unittest.TestCase):
         self.assertNotIn("Harlequin Crest", self._names(p, "owned"))
         self.assertIn("Harlequin Crest", self._names(p, "unsure"))
 
-    def test_two_recordings_ground_it(self):
-        p = self._run("two-recordings")
+    def test_enough_recordings_ground_it(self):
+        p = self._run("enough-recordings")
         self.assertIn("Harlequin Crest", self._names(p, "owned"))
         self.assertEqual(self._names(p, "throwOut"), [])
 
@@ -51,10 +51,13 @@ class TestVaultDecisions(unittest.TestCase):
         self.assertEqual(self._names(p, "throwOut"), [],
                          "it offered to bin an item on a single recording — there is no un-throw")
         whys = " ".join(str(h.get("why") or "") for h in (p.get("held") or []))
-        self.assertIn("needs 3", whys)
+        # derived, not pinned: the message quotes THROWOUT_MIN_WITNESSES, which moved with his
+        # 3-read ruling. "needs 3" was true until it was not, and nothing said so.
+        import vault_retro as _vr
+        self.assertIn("needs %d" % _vr.THROWOUT_MIN_WITNESSES, whys)
 
-    def test_junk_in_three_recordings_is_a_SUGGESTION_never_automatic(self):
-        p = self._run("junk-three-recordings")
+    def test_junk_at_the_throw_bar_is_a_SUGGESTION_never_automatic(self):
+        p = self._run("junk-at-the-throw-bar")
         self.assertIn("Cracked Sash", self._names(p, "throwOut"))
         for r in p.get("throwOut") or []:
             self.assertTrue(r.get("suggestion"), "a throw-out was not flagged as a suggestion")

@@ -360,6 +360,30 @@ def _between(case, src, start, end, min_len=40, what="slice"):
     return out
 
 
+def _fixture_hist(case, reels=7, sealed=True):
+    """A hist tree of our own. v2073 — these cases used to call rr.plan() with no argument,
+    which reads HIS live tv/frames/hist. They passed on his Mac and ERRORED on CI, where that
+    directory does not exist, and they had been red there since v2069 while the one suite I was
+    running locally stayed green. A test that needs his footage to pass is a test that cannot
+    run anywhere else. [[feedback-fixtures-never-touch-live-data]]"""
+    import tempfile, shutil, json as _j
+    root = tempfile.mkdtemp(prefix="cov_hist_")
+    case.addCleanup(shutil.rmtree, root, True)
+    hist = os.path.join(root, "frames", "hist")
+    os.makedirs(hist)
+    names = ["reel_s_15000000000%02d_1" % i for i in range(reels)]
+    for n in names:
+        d = os.path.join(hist, n)
+        os.makedirs(d)
+        with open(os.path.join(d, "f_1.jpg"), "wb") as fh:
+            fh.write(b"x" * 2048)
+    with open(os.path.join(root, "chronicle_swept.json"), "w", encoding="utf-8") as fh:
+        _j.dump({n: {"pages": 9} for n in names} if sealed else {}, fh)
+    with open(os.path.join(root, "vault_swept.json"), "w", encoding="utf-8") as fh:
+        _j.dump({n: {"ts": 1, "rows": 0} for n in names} if sealed else {}, fh)
+    return root, hist
+
+
 class TestTheatre(unittest.TestCase):
     """v765 — Konyo: 'its not really simulated anymore… its own independent VIEW, eyes on
     history' — the theatre serves REAL journaled sessions + REAL archived frames."""
@@ -16083,8 +16107,11 @@ class TestV2068ARuleThatNeverRunsMustSaySo(unittest.TestCase):
         return rr, hist, root, ctx
 
     def test_the_plan_reports_which_rules_it_never_reached(self):
+        import unittest.mock as mock
         rr = self._rr()
-        p = rr.plan()
+        root, hist = _fixture_hist(self)
+        with mock.patch.object(rr, "HERE", root):
+            p = rr.plan(hist)
         self.assertIn("coverage", p, "the plan does not report its own branch coverage")
         self.assertIn("neverFired", p)
         self.assertIn("coverageSay", p)
@@ -16096,16 +16123,22 @@ class TestV2068ARuleThatNeverRunsMustSaySo(unittest.TestCase):
         """`target-met` cannot fire without a free_mb target: it is unreachable BY CONSTRUCTION, not
         unexercised by the footage. Reporting them together would make a structurally inert branch
         look like a rule that quietly stopped working."""
+        import unittest.mock as mock
         rr = self._rr()
-        no_target = rr.plan()
+        root, hist = _fixture_hist(self)
+        with mock.patch.object(rr, "HERE", root):
+            no_target = rr.plan(hist)
         self.assertIn("target-met", no_target["notApplicable"],
                       "target-met was called a gap when no target was even asked for")
         self.assertNotIn("target-met", no_target["neverFired"])
         self.assertIn("cannot fire without a free_mb target", no_target["coverageSay"])
 
     def test_it_says_UNMEASURED_rather_than_fine_or_broken(self):
+        import unittest.mock as mock
         rr = self._rr()
-        p = rr.plan()
+        root, hist = _fixture_hist(self)
+        with mock.patch.object(rr, "HERE", root):
+            p = rr.plan(hist)
         say = p["coverageSay"]
         if p["neverFired"]:
             self.assertIn("UNMEASURED", say)
@@ -16116,8 +16149,15 @@ class TestV2068ARuleThatNeverRunsMustSaySo(unittest.TestCase):
     def test_the_v2056_rule_is_currently_one_of_them_on_his_tree(self):
         """The finding itself, pinned. If this ever starts failing it means his footage finally
         reaches that branch — which is good news, and the test should then be updated to say so
-        rather than deleted."""
+        rather than deleted.
+
+        v2073 — this one is genuinely ABOUT his tree, so it SKIPS where his tree is absent rather
+        than erroring. That is not the same as the four above it, which asked about the MECHANISM
+        and had no business reading his footage at all."""
         rr = self._rr()
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "frames", "hist")):
+            self.skipTest("his footage is not on this machine")
         p = rr.plan()
         self.assertEqual(p["coverage"].get("rows-not-banked"), 0,
                          "rows-not-banked now fires on his footage — the v2056 rule is finally "
@@ -16138,8 +16178,11 @@ class TestV2068ARuleThatNeverRunsMustSaySo(unittest.TestCase):
             if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_rule"
                     and n.args and isinstance(n.args[0], ast.Constant)):
                 tagged.add(n.args[0].value)
+        import unittest.mock as mock
         rr = self._rr()
-        declared = set(rr.plan()["coverage"].keys())
+        root, hist = _fixture_hist(self)
+        with mock.patch.object(rr, "HERE", root):
+            declared = set(rr.plan(hist)["coverage"].keys())
         self.assertEqual(declared - tagged, set(),
                          "declared but never counted: %s" % sorted(declared - tagged))
         self.assertEqual(tagged - declared, set(),
@@ -16248,6 +16291,9 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
                          "the second prune overwrote the first run's record")
 
     def test_a_reel_the_SUITE_opens_is_never_a_deletion_candidate(self):
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "frames", "hist")):
+            self.skipTest("his footage is not on this machine")
         """Six reels were pruned as "sealed by both lanes" and THREE were named by this very file.
         The suite did not go red — those cases skipTest when the footage is absent — so a real check
         silently became a permanent skip. Of the 17 reels the suite names, EIGHT are already gone.
@@ -16314,6 +16360,9 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         self.assertEqual(held["coverage"]["test-fixture"], 1)
 
     def test_the_fixture_hold_is_checked_FIRST(self):
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "frames", "hist")):
+            self.skipTest("his footage is not on this machine")
         """Order matters: if `recent` or `eligible` were checked first, a fixture would be reported
         under the wrong reason and the coverage line would say the fixture rule never fired — which
         is exactly the shape v2068 exists to surface."""
@@ -16351,8 +16400,9 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
                 raise ImportError("gone")
             return real(name, *a, **k)
 
-        with mock.patch("builtins.__import__", no_fa):
-            p = rr.plan()
+        root, hist = _fixture_hist(self)
+        with mock.patch.object(rr, "HERE", root), mock.patch("builtins.__import__", no_fa):
+            p = rr.plan(hist)
         self.assertTrue(p["ok"], "the plan died when frame_authority was unavailable")
         self.assertEqual(p["coverage"]["test-fixture"], 0)
 

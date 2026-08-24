@@ -67,8 +67,11 @@ class TestV1786TheReGateCanActuallyGate(unittest.TestCase):
     carrying conf would sail through, which is the wrong way round. Found by an adversarial review."""
 
     def test_a_genuine_proposal_clears_its_own_re_gate(self):
-        ev = [{"session": "s_1", "frame": "f1", "lane": "stash", "conf": 0.97},
-              {"session": "s_2", "frame": "f9", "lane": "stash", "conf": 0.95}]
+        # v2073 — as many looks as the LAW asks for, not the two this was written with. His ruling
+        # moved KEEP_MIN_WITNESSES to 3 and this case is about whether a genuine proposal clears its
+        # own re-gate, not about any particular number.
+        ev = [{"session": "s_%d" % i, "frame": "f%d" % i, "lane": "stash", "conf": 0.97 - 0.01 * i}
+              for i in range(v.KEEP_MIN_WITNESSES)]
         row = v._owned_row(("Ist Rune", "stash"), ev)
         wit = row.get("witnesses") or row.get("evidence") or []
         self.assertTrue(wit, "the row carries no provenance at all")

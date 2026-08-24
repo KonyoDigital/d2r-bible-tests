@@ -112,10 +112,15 @@ SCENARIOS = [
      "plant": {0: [{"name": "Harlequin Crest", "kind": "item", "conf": 0.95}]},
      "expect": "UNSURE, never OWN"},
 
-    {"id": "two-recordings",
-     "say": "the same Shako in TWO separate recordings — that is two independent witnesses, so it is "
-            "owned and goes to the Vault manager to be assigned a mule and a cell.",
-     "reels": ["reel_s_1786998496819_31092", "reel_s_1786998671206_32230"],
+    # v2073 — NAMED FOR THE LAW, NOT THE COUNT. This was "two-recordings" and its say said TWO,
+    # which stopped being true the moment his ruling moved KEEP_MIN_WITNESSES to 3. A scenario id
+    # that pins yesterday's number is a label that outlived its referent.
+    {"id": "enough-recordings",
+     "say": "the same Shako in THREE separate recordings — that is three independent witnesses, "
+            "which is the keep bar, so it is owned and goes to the Vault manager to be assigned a "
+            "mule and a cell.",
+     "reels": ["reel_s_1786998496819_31092", "reel_s_1786998671206_32230",
+               "reel_s_1786998775577_33262"],
      "frames": 12,
      "plant": {0: [{"name": "Harlequin Crest", "kind": "item", "conf": 0.95}]},
      "plant_all_reels": True,
@@ -130,11 +135,13 @@ SCENARIOS = [
                     "throwOut": True, "throwWhy": "white base, no sockets"}]},
      "expect": "HELD — no discard suggestion"},
 
-    {"id": "junk-three-recordings",
-     "say": "the same junk flagged in THREE separate recordings at high confidence. Now it may be "
-            "SUGGESTED for discard — and only ever as a suggestion he presses.",
+    # v2073 — THROWOUT_MIN_WITNESSES rose to 4 with the keep bar, so three recordings are now HELD
+    # and four are the suggestion. Renamed for the same reason as above.
+    {"id": "junk-at-the-throw-bar",
+     "say": "the same junk flagged in FOUR separate recordings at high confidence. Only now may it "
+            "be SUGGESTED for discard — and only ever as a suggestion he presses.",
      "reels": ["reel_s_1786998496819_31092", "reel_s_1786998671206_32230",
-               "reel_s_1786998775577_33262"],
+               "reel_s_1786998775577_33262", "reel_s_1786385768689_67392"],
      "frames": 12,
      "plant": {0: [{"name": "Cracked Sash", "kind": "item", "conf": 0.99,
                     "throwOut": True, "throwWhy": "white base, no sockets"}]},
@@ -154,7 +161,10 @@ SCENARIOS = [
     {"id": "merge-max",
      "say": "a later recording sees FEWER of an item than an earlier one. A read may never lower a "
             "count — an obstructed panel is a normal event, not evidence he threw something away.",
-     "reels": ["reel_s_1786998496819_31092", "reel_s_1786998671206_32230"],
+     # v2073 — a third recording, because the point of this scenario is the COUNT and the row has to
+     # ground before a count can be compared at all.
+     "reels": ["reel_s_1786998496819_31092", "reel_s_1786998671206_32230",
+               "reel_s_1786998775577_33262"],
      "frames": 12,
      "plant": {0: [{"name": "Ral", "kind": "rune", "count": 5, "conf": 0.95}]},
      "plant_second": {0: [{"name": "Ral", "kind": "rune", "count": 2, "conf": 0.95}]},

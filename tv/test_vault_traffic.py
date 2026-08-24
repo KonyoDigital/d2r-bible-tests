@@ -62,7 +62,13 @@ def _reel(root, sid, n=_FRAMES):
 
 
 class _Base(unittest.TestCase):
-    def sweep(self, items, sessions=2, surface="stash"):
+    def sweep(self, items, sessions=None, surface="stash"):
+        # v2073 — DEFAULT TRACKS THE LAW, NOT A NUMBER. These helpers hardcoded sessions=2, so
+        # when his ruling moved KEEP_MIN_WITNESSES to 3 every "this grounds" case in this file was
+        # silently testing a bar that no longer exists — 19 of them went red at once on CI while
+        # the local run I was doing (test_control only) stayed green.
+        if sessions is None:
+            sessions = vr.KEEP_MIN_WITNESSES
         root = tempfile.mkdtemp(prefix="vault-traffic-")
         self.addCleanup(__import__("shutil").rmtree, root, True)
         dirs = [_reel(root, "s_17870000%02d_sim" % s) for s in range(sessions)]
@@ -152,13 +158,20 @@ class TestTheThrowBarSeenFromBothSides(_Base):
     ITEM = {"name": "Cracked Sash", "kind": "item", "conf": 0.9,
             "throwOut": True, "throwWhy": "junk"}
 
-    def test_two_recordings_are_held_three_are_suggested(self):
-        two, _ = self.sweep([self.ITEM], sessions=2)
-        self.assertEqual(len(two["throwOut"]), 0, "two recordings suggested binning an item")
-        self.assertEqual(len(two["held"]), 1)
-        self.assertIn("recording", two["held"][0]["why"])
-        three, _ = self.sweep([self.ITEM], sessions=3)
-        self.assertEqual(len(three["throwOut"]), 1,
+    def test_below_the_throw_bar_is_HELD_and_at_it_is_SUGGESTED(self):
+        """v2073 — named for the LAW, not a number. It used to be
+        `test_two_recordings_are_held_three_are_suggested`, which stopped being true the moment his
+        3-read ruling pushed THROWOUT_MIN_WITNESSES to 4. Both halves are still checked: one short
+        of the bar must be HELD with a recording-shaped reason, and exactly at the bar it must be
+        SUGGESTED — a bar nothing can ever clear is a threshold above the ceiling."""
+        bar = vr.THROWOUT_MIN_WITNESSES
+        short, _ = self.sweep([self.ITEM], sessions=bar - 1)
+        self.assertEqual(len(short["throwOut"]), 0,
+                         "%d recordings suggested binning an item, one short of the bar" % (bar - 1))
+        self.assertEqual(len(short["held"]), 1)
+        self.assertIn("recording", short["held"][0]["why"])
+        at, _ = self.sweep([self.ITEM], sessions=bar)
+        self.assertEqual(len(at["throwOut"]), 1,
                          "the throw bar can never be cleared — it is a threshold above the ceiling")
 
     def test_a_suggestion_is_never_automatic(self):
@@ -198,7 +211,13 @@ class TestOneReelManyPanels(_Base):
              "runes": [{"name": "Ral Rune", "kind": "rune", "count": 3, "conf": 0.9}],
              "inventory": [{"name": "Tome of Town Portal", "conf": 0.9}]}
 
-    def _mixed(self, items=None, sessions=2):
+    def _mixed(self, items=None, sessions=None):
+        # v2073 — DEFAULT TRACKS THE LAW, NOT A NUMBER. These helpers hardcoded sessions=2, so
+        # when his ruling moved KEEP_MIN_WITNESSES to 3 every "this grounds" case in this file was
+        # silently testing a bar that no longer exists — 19 of them went red at once on CI while
+        # the local run I was doing (test_control only) stayed green.
+        if sessions is None:
+            sessions = vr.KEEP_MIN_WITNESSES
         import shutil
         items = items or self.ITEMS
         root = tempfile.mkdtemp(prefix="vault-mixed-")
@@ -228,8 +247,12 @@ class TestOneReelManyPanels(_Base):
     def test_each_panel_is_classified_and_read_on_its_own(self):
         res = self._mixed()
         self.assertTrue(res["ok"], res.get("why"))
-        self.assertEqual(res["totals"]["classified"], 6, "panels were not classified one by one")
-        self.assertEqual(res["totals"]["pagesRead"], 6)
+        # 3 panels per recording; the session count now tracks KEEP_MIN_WITNESSES rather than a
+        # hardcoded 2, so the expectation has to be derived or it pins yesterday's bar.
+        self.assertEqual(res["totals"]["classified"], 3 * vr.KEEP_MIN_WITNESSES,
+                         "panels were not classified one by one")
+        # all 3 panels per recording are ownership surfaces here, so pagesRead == classified
+        self.assertEqual(res["totals"]["pagesRead"], 3 * vr.KEEP_MIN_WITNESSES)
 
     def test_every_item_lands_in_the_lane_of_the_panel_it_was_seen_on(self):
         res = self._mixed()
@@ -259,7 +282,9 @@ class TestOneReelManyPanels(_Base):
             res = self._mixed()
         finally:
             self.SURF = keep
-        self.assertEqual(res["totals"]["pagesRead"], 4, "a non-ownership panel was paid for")
+        # 2 of the 3 panels per recording are ownership surfaces once one is made gameplay
+        self.assertEqual(res["totals"]["pagesRead"], 2 * vr.KEEP_MIN_WITNESSES,
+                         "a non-ownership panel was paid for")
         self.assertEqual(sorted(r["name"] for r in res["owned"]),
                          ["Shako", "Tome of Town Portal"])
 
@@ -332,7 +357,13 @@ class TestAMisreadDoesNotBecomeAGhost(_Base):
         on, _ = self.sweep(both)
         self.assertEqual(len(on["owned"]), 1)
 
-    def sweep_with_resolve(self, items, resolve, sessions=2, surface="stash"):
+    def sweep_with_resolve(self, items, resolve, sessions=None, surface="stash"):
+        # v2073 — DEFAULT TRACKS THE LAW, NOT A NUMBER. These helpers hardcoded sessions=2, so
+        # when his ruling moved KEEP_MIN_WITNESSES to 3 every "this grounds" case in this file was
+        # silently testing a bar that no longer exists — 19 of them went red at once on CI while
+        # the local run I was doing (test_control only) stayed green.
+        if sessions is None:
+            sessions = vr.KEEP_MIN_WITNESSES
         import shutil
         root = tempfile.mkdtemp(prefix="vault-fold-")
         self.addCleanup(shutil.rmtree, root, True)
@@ -361,7 +392,7 @@ class TestTraffic(_Base):
     def test_five_hundred_throw_flags_all_reach_a_verdict(self):
         big = [{"name": "Junk %04d" % i, "conf": 0.9, "throwOut": True, "throwWhy": "junk"}
                for i in range(500)]
-        res, dt = self.sweep(big, sessions=3)
+        res, dt = self.sweep(big, sessions=vr.THROWOUT_MIN_WITNESSES)
         self.assertEqual(len(res["throwOut"]), 500)
         self.assertLess(dt, 30.0, "500 throw flags took %.1fs" % dt)
 
