@@ -14267,7 +14267,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2069",
+        "ver": "v2070",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -17118,8 +17118,25 @@ class Handler(BaseHTTPRequestHandler):
                                      + " — relaunching now would throw away a paid read. "
                                        "Let it finish, then press again.", "busy": True})
                     return
+                # v2070 — THIS LAMP HAS READ `false` ON EVERY RELAUNCH SINCE v2027.
+                # It was `bool((doctor_payload() or {}).get("screen_recording"))`, and
+                # doctor_payload() has NO top-level key of that name — its top level is
+                # checks/logPath/logTail/ok/platform/shipName/shipPlatform/shipVer/ver. The grant
+                # lives in checks[] as {"id": "screen_recording", "ok": True, ...}. So the field the
+                # comment above calls the way to notice a DROP could never move, and a lamp that
+                # cannot move cannot notice anything — the same defect as a gate that is always
+                # green. MEASURED tonight: the console reported screenRecordingBefore:false while
+                # its own doctor said "granted to this process".
+                #
+                # And bool(None) == bool(False), so MISSING and DENIED read identically. They are
+                # different facts: None here means the check was not found, which is UNKNOWN and must
+                # never be published as "denied". [[unknown-stays-unknown]]
+                _grant = None
                 try:
-                    _grant = bool((doctor_payload() or {}).get("screen_recording"))
+                    for _c in (doctor_payload() or {}).get("checks") or []:
+                        if isinstance(_c, dict) and _c.get("id") == "screen_recording":
+                            _grant = bool(_c.get("ok"))
+                            break
                 except Exception:
                     _grant = None
                 # v2028 — `VERSION_STR` DID NOT EXIST. I invented the name and then "guarded" it

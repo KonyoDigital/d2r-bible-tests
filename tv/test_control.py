@@ -7193,12 +7193,24 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
     def _ev(self, sessions, conf=0.99):
         return [{"session": sid, "witness": w, "conf": conf} for sid, w in sessions]
 
-    def test_two_relooks_in_one_recording_ground_owned(self):
+    def test_relooks_in_one_recording_ground_owned(self):
+        """v2070 — HIS RULING: three reads, not two. The LAW is unchanged and is the point of this
+        case: re-looks inside ONE recording still count for keep (they never count for throw), so a
+        shelf examined three times minutes apart grounds without a second recording. Only the NUMBER
+        moved, and it moved because PROJECT_VAULT_MANAGER.md had recorded his rule as 3 since
+        2026-08-21 while the constant said 2."""
         import vault_retro as vr
-        ev = self._ev([("s1", "s1#0"), ("s1", "s1#1")], conf=0.8)
+        ev = self._ev([("s1", "s1#0"), ("s1", "s1#1"), ("s1", "s1#2")], conf=0.8)
         v = vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)
         self.assertTrue(v["pass"], v["why"])
         self.assertIn("look", v["why"])
+
+    def test_TWO_relooks_are_no_longer_enough(self):
+        """The bar has to be able to say no at the new number, or it is not the new bar. This is the
+        case that would have passed before his ruling and must now refuse."""
+        import vault_retro as vr
+        ev = self._ev([("s1", "s1#0"), ("s1", "s1#1")], conf=0.8)
+        self.assertFalse(vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)["pass"])
 
     def test_two_glances_without_a_gap_are_still_ONE_witness(self):
         """The rule has to be able to say no, or it is not a rule. Same bucket = same look."""
@@ -7216,11 +7228,27 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
         self.assertFalse(v["pass"])
         self.assertIn("1 independent recording", v["why"])
 
-    def test_three_real_recordings_do_reach_the_throw_bar(self):
+    def test_enough_real_recordings_do_reach_the_throw_bar(self):
+        """v2070 — THROWOUT_MIN_WITNESSES rose 3 -> 4 with the keep bar. It is defined as strictly
+        above KEEP_MIN_WITNESSES, so raising keep and leaving throw would have WEAKENED the throw
+        bar relative to keep — and there is no un-throw in Diablo."""
         import vault_retro as vr
-        ev = self._ev([("s0", "s0#0"), ("s1", "s1#0"), ("s2", "s2#0")])
+        ev = self._ev([("s%d" % i, "s%d#0" % i) for i in range(vr.THROWOUT_MIN_WITNESSES)])
         self.assertTrue(vr.gate(ev, vr.THROWOUT_CONF_FLOOR, vr.THROWOUT_MIN_WITNESSES,
                                 witness_field="session", witness_noun="recording")["pass"])
+
+    def test_one_recording_short_of_the_throw_bar_still_refuses(self):
+        import vault_retro as vr
+        ev = self._ev([("s%d" % i, "s%d#0" % i) for i in range(vr.THROWOUT_MIN_WITNESSES - 1)])
+        self.assertFalse(vr.gate(ev, vr.THROWOUT_CONF_FLOOR, vr.THROWOUT_MIN_WITNESSES,
+                                 witness_field="session", witness_noun="recording")["pass"])
+
+    def test_the_throw_bar_is_STRICTLY_above_the_keep_bar(self):
+        """The relation is the law; the numbers are his. If a future ruling moves keep again, this
+        is what refuses to let throw quietly become the easier of the two."""
+        import vault_retro as vr
+        self.assertGreater(vr.THROWOUT_MIN_WITNESSES, vr.KEEP_MIN_WITNESSES)
+        self.assertGreater(vr.THROWOUT_CONF_FLOOR, vr.KEEP_CONF_FLOOR)
 
     def test_the_sweep_opens_a_new_bucket_only_after_the_gap(self):
         """Measured through the real sweep rather than asserted on the constant: two runs a minute
@@ -7238,7 +7266,7 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
         """Old rows have no `witness` field. They must fall back to the session id rather than
         collapsing to a single unnamed witness and un-grounding what he already owns."""
         import vault_retro as vr
-        ev = [{"session": "s0", "conf": 0.9}, {"session": "s1", "conf": 0.9}]
+        ev = [{"session": "s%d" % i, "conf": 0.9} for i in range(vr.KEEP_MIN_WITNESSES)]
         v = vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)
         self.assertTrue(v["pass"], v["why"])
 
@@ -15032,16 +15060,37 @@ class TestV2051TwiceEverNotTwiceInOneSweep(unittest.TestCase):
             self.assertEqual({w.get("session") for w in row["witnesses"]}, {"s_A"},
                              "the row does not say WHICH session saw it")
 
-    def test_a_SECOND_session_grounds_it_across_sweeps(self):
-        """THE POINT. Seen once in one sweep, once in a later one, from DIFFERENT sessions."""
+    def test_ENOUGH_sessions_ground_it_across_sweeps(self):
+        """THE POINT, and it is about the ACCUMULATOR, not the number: seen once per sweep, in
+        DIFFERENT sessions, the earlier sightings must survive to be counted with the later one.
+
+        v2070 — driven off vr.KEEP_MIN_WITNESSES rather than a hardcoded 2, because his ruling moved
+        the bar to 3 and a test that pins the number instead of the LAW has to be rewritten every
+        time he rules. What this case defends is that a carried sighting still counts."""
         import tempfile
+        import vault_retro as vr
         with tempfile.TemporaryDirectory() as td:
-            first = self._sweep(self._reel(td, "s_A"))
-            carried = [r for r in first["unsure"] if r.get("name") == self.NAME]
-            second = self._sweep(self._reel(td, "s_B"), prior=carried)
-            self.assertIn(self.NAME, self._names(second, "owned"),
-                          "two DIFFERENT sessions still did not ground it — the sighting from the "
-                          "earlier sweep is being discarded, which is the whole defect")
+            carried = []
+            for i in range(vr.KEEP_MIN_WITNESSES):
+                out = self._sweep(self._reel(td, "s_%d" % i), prior=carried or None)
+                carried = [r for r in out["unsure"] if r.get("name") == self.NAME] or carried
+            self.assertIn(self.NAME, self._names(out, "owned"),
+                          "%d DIFFERENT sessions still did not ground it — the sightings from the "
+                          "earlier sweeps are being discarded, which is the whole defect"
+                          % vr.KEEP_MIN_WITNESSES)
+
+    def test_one_session_SHORT_of_the_bar_does_not_ground(self):
+        """The mirror of the number: at KEEP_MIN_WITNESSES-1 distinct sessions it must still refuse,
+        or the case above would pass at any bar and prove nothing about this one."""
+        import tempfile
+        import vault_retro as vr
+        with tempfile.TemporaryDirectory() as td:
+            carried = []
+            for i in range(vr.KEEP_MIN_WITNESSES - 1):
+                out = self._sweep(self._reel(td, "s_%d" % i), prior=carried or None)
+                carried = [r for r in out["unsure"] if r.get("name") == self.NAME] or carried
+            self.assertNotIn(self.NAME, self._names(out, "owned"),
+                             "it grounded one session short of the bar")
 
     def test_without_the_prior_it_still_does_not_ground(self):
         """The mirror. If it grounds with prior=None the test above proves nothing."""
@@ -16336,6 +16385,84 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         lf = fa.loose_frames(hist)
         self.assertEqual(lf["recording"], [])
         self.assertIn("no loose frames", lf["say"])
+
+
+class TestV2070TheGrantLampCanActuallyMove(unittest.TestCase):
+    """`screenRecordingBefore` has read false on every relaunch since v2027.
+
+    The route did `bool((doctor_payload() or {}).get("screen_recording"))` and doctor_payload() has
+    no top-level key of that name — the grant lives in checks[]. Its own comment calls this field the
+    way a DROP would be noticed; a lamp that cannot move cannot notice anything, which is the same
+    defect as a gate that is always green. MEASURED: the console reported false while its own doctor
+    said "granted to this process".
+
+    And bool(None) == bool(False), so MISSING and DENIED read identically. They are different facts.
+    [[unknown-stays-unknown]]"""
+
+    def _block(self):
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with open(_p, "r", encoding="utf-8") as fh:
+            src = fh.read()
+        # ⚠ THE END ANCHOR WAS "screenRecordingBefore" AND MY OWN COMMENT TRUNCATED THE WINDOW.
+        # The v2070 note above the fix quotes the field name while explaining it, so the slice ended
+        # at the prose and stopped six lines short of the code it was written to read — every
+        # assertion then failed against a block that did not contain the subject. Anchored on a
+        # code-only string that appears exactly once instead. [[source-reading-guard]] §2, §3
+        end = '"why": "replacing this process with the version on disk"'
+        self.assertEqual(src.count(end), 1,
+                         "the end anchor is not unique, so the slice is a guess")
+        return _between(self, src, 'if path == "/api/relaunch"', end,
+                        what="the relaunch route's grant read")
+
+    def test_it_no_longer_asks_for_a_key_that_does_not_exist(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as _ca
+        top = set((_ca.doctor_payload() or {}).keys())
+        self.assertNotIn("screen_recording", top,
+                         "doctor_payload now HAS a top-level screen_recording key — this guard was "
+                         "written for a world where it does not, so re-derive it rather than "
+                         "trusting it")
+        blk = self._block()
+        # ⚠ AND THE NEGATIVE TRIPPED ON MY OWN COMMENT, which QUOTES the broken line in order to
+        # explain it. A negative assertion has to be true of the whole searched text including the
+        # prose about it, so the code is separated from the commentary first — line-based, which
+        # cannot over-reach the way a block-comment stripper can. [[source-reading-guard]] §4
+        code = "\n".join(l for l in blk.splitlines() if not l.lstrip().startswith("#"))
+        self.assertIn("screen_recording", blk,
+                      "the subject is not in this slice at all — the anchors moved")
+        self.assertNotIn('.get("screen_recording")', code,
+                         "the route still reads a top-level key that does not exist, so the lamp is "
+                         "stuck at false again")
+        self.assertIn('"checks"', code, "the route does not read checks[], where the grant lives")
+
+    def test_the_grant_is_read_correctly_on_THIS_machine(self):
+        """Not a fixture: the real doctor. If the grant is genuinely absent here this SKIPS rather
+        than asserting a value it cannot know."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as _ca
+        found = [c for c in ((_ca.doctor_payload() or {}).get("checks") or [])
+                 if isinstance(c, dict) and c.get("id") == "screen_recording"]
+        if not found:
+            self.skipTest("this machine's doctor publishes no screen_recording check")
+        blk = self._block()
+        self.assertIn('_c.get("id") == "screen_recording"', blk,
+                      "the route does not look for the check by id")
+        self.assertIn("bool(_c.get(\"ok\"))", blk,
+                      "the route does not read the check's ok field")
+
+    def test_ABSENT_reads_as_None_and_never_as_denied(self):
+        """The half that matters when something breaks: an unmeasurable grant must not be published
+        as a denial, or the fallback advice fires for a machine that was never asked."""
+        blk = self._block()
+        self.assertIn("_grant = None", blk,
+                      "there is no None path — a missing check would collapse into False, and "
+                      "'nobody looked' would read the same as 'denied'")
+        # the initial value must be None, i.e. set BEFORE the loop that may or may not find it
+        i_none = blk.find("_grant = None")
+        i_loop = blk.find("for _c in")
+        self.assertGreater(i_loop, i_none,
+                           "_grant is not initialised to None before the search, so a payload with "
+                           "no checks at all would leave it undefined or false")
 
 
 if __name__ == "__main__":

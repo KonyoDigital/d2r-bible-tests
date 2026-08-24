@@ -111,9 +111,27 @@ KINDS = ("rune", "gem", "material", "item")
 REOPEN_GAP_MS = 180_000                   # 3 minutes — his number, taken as given rather than tuned
 
 KEEP_CONF_FLOOR = _cr.CONF_FLOOR          # 0.55 — one number, shared with the chronicle gate
-KEEP_MIN_WITNESSES = 2                    # two DIFFERENT sessions agreeing
+# ── v2070 — THREE READS. HIS RULING, 2026-08-24: "make it 3 reads". ──────────────────────
+# PROJECT_VAULT_MANAGER.md has recorded his rule as "verified by 3 reads" since 2026-08-21
+# while this constant said 2, so items were entering his vault on less corroboration than he
+# had asked for. The doc and the code disagreed and the doc was right.
+#
+# WHAT THIS COSTS, measured through the real gate before changing it: of his 7 grounded rows,
+# 6 have exactly TWO looks and only "Sullied Grand Charm of the Glacier" has three. Nothing
+# already in the ledger is lost — merge_vault absorbs existing rows without re-gating them
+# (see _rows_of/_absorb), and the console never writes the board. The bar governs what grounds
+# NEXT, not what he already owns.
+#
+# ⚠ AND THIS COUNTS LOOKS, NOT RECORDINGS. The default witness_field here is "witness" — a
+# re-look key opened by REOPEN_GAP_MS (3 minutes) — so three reads can come from ONE recording
+# in which the shelf was examined three times, minutes apart. Only the THROW bar passes
+# witness_field="session" and demands independent recordings. I told him "film it twice"
+# before reading this and it was wrong.
+KEEP_MIN_WITNESSES = 3                    # three DIFFERENT looks agreeing — his ruling
 THROWOUT_CONF_FLOOR = 0.85                # strictly above KEEP_CONF_FLOOR
-THROWOUT_MIN_WITNESSES = 3                # strictly above KEEP_MIN_WITNESSES — and >1 session, always
+THROWOUT_MIN_WITNESSES = 4                # strictly above KEEP_MIN_WITNESSES — and >1 session,
+                                          # always. Raised with the keep bar so the throw bar
+                                          # is never weakened relative to it.
 
 
 # ── reel selection ──────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2069",
+  "ver": "v2070",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2069: I pruned six reels he authorised and THREE were named by tv/test_control.py. The suite did not go red - those cases skipTest when the footage is absent - so a real check silently became a permanent skip, which is the same defect as a gate that is always green. It had happened twice before and been absorbed: two cases already read fixture reel was pruned PERMANENTLY skipped. Of the 17 reels the suite opens by name, EIGHT are already gone. The authority now scans the suite for reel ids and holds any reel a test names, checked FIRST. Also: apply_plan wrote no record, so a deleted reel left nothing behind - a tombstone now goes down BEFORE the first rmtree. And 3420 loose frames, 3.41 GB, sat directly in hist belonging to no reel and therefore to no authority; they are now reported and refused rather than invisible.",
+  "note": "v2070: HIS RULING: make it 3 reads. KEEP_MIN_WITNESSES 2 to 3, and THROWOUT_MIN_WITNESSES 3 to 4 with it, because the throw bar is defined as strictly above the keep bar and raising keep alone would have quietly weakened throw - there is no un-throw in Diablo. PROJECT_VAULT_MANAGER.md had recorded his rule as 3 reads since 2026-08-21 while the constant said 2, so items were grounding on less corroboration than he asked for. Nothing already in the ledger is lost: merge_vault absorbs existing rows without re-gating and the console never writes the board. Measured through the real gate, 1 of his 7 rows clears bar 3 and all 7 stay. Also: screenRecordingBefore has read false on EVERY relaunch since v2027 because it asked doctor_payload for a top-level key that does not exist - the grant lives in checks. It now returns True or False or None, where None means nobody could tell and must never be published as denied.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
