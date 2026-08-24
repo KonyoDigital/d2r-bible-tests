@@ -13792,7 +13792,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2039",
+        "ver": "v2040",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -16786,12 +16786,30 @@ def _board_apply_on_load(win, payload_path):
                        "why": "the board window opened but never defined vaultAccumApply within "
                               "60s - the page may not have finished loading"}
         else:
-            raw = win.evaluate_js(
-                "(function(){try{return JSON.stringify({ok:true,applied:window.vaultAccumApply(%s)});}"
-                "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})()"
-                % payload)
-            verdict = (json.loads(raw) if raw
-                       else {"ok": False, "why": "the board window returned nothing"})
+            # v2040 — A GUEST WORLD DOES NOT KEEP WHAT YOU WRITE TO IT. REFUSE RATHER THAN LIE.
+            # bible.html resolves _D2R_OWNER only from a clicked d2r_ownerClaim. Without it
+            # _D2R_PFX becomes 'I·<installId>·' and the load lives in a per-install GUEST world.
+            # Measured 2026-08-24: six board windows, six install ids, six empty worlds, and
+            # d2r_owned gone every time - while d2r_grailFarm only LOOKED migrated because the
+            # console re-bridges it on each load. An apply into that world returns ok:true, writes
+            # real rows, and they are unreachable on the next launch. That is the worst answer this
+            # can give: a paid sweep banked into a world that evaporates. [[the-unjoined-end]]
+            try:
+                owner = bool(win.evaluate_js("!!window._D2R_OWNER"))
+            except Exception:
+                owner = False
+            if not owner:
+                verdict = {"ok": False, "guestWorld": True,
+                           "why": "this board window is an UNCLAIMED guest world - anything applied "
+                                  "here is lost on the next launch. Open the board in the main TV "
+                                  "DIABLO window and press 'This browser is mine', then apply again."}
+            else:
+                raw = win.evaluate_js(
+                    "(function(){try{return JSON.stringify({ok:true,applied:window.vaultAccumApply(%s)});}"
+                    "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})()"
+                    % payload)
+                verdict = (json.loads(raw) if raw
+                           else {"ok": False, "why": "the board window returned nothing"})
     except Exception as e:
         verdict = {"ok": False, "why": "the queued apply failed: %s" % str(e)[:180]}
     try:

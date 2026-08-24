@@ -4125,28 +4125,15 @@ try {
     // Already claimed by SOMEONE (this install or another) → no banner. A guest on a machine whose
     // owner is a different install is a deliberate, quiet state, not something to nag about.
     if (claimed || window._D2R_OWNER) return;
-    // v2039 — A BANNER MUST NOT ASSERT AN EMPTINESS IT NEVER MEASURED.
-    // Measured on his own board, 2026-08-24 03:54: this bar rendered "chronicle, vault and forge
-    // all start at zero" directly above a VAULT tile reading 7, on a store holding 451 KB of
-    // d2r_grailFarm and a freshly applied d2r_owned. The GATE was correct - there genuinely was no
-    // d2r_ownerClaim key - but the SENTENCE it renders is a claim about DATA, and nothing had
-    // looked at the data. The bar exists to help a genuinely empty browser get its world back; on
-    // a full one it is a false alarm telling him he has lost everything.
-    var hasData = false;
-    try {
-      var DATA_KEYS = ['d2r_owned', 'd2r_grailFarm', 'd2r_muleAssign', 'd2r_foundLog'];
-      for (var i = 0; i < window.localStorage.length && !hasData; i++) {
-        var k = window.localStorage.key(i) || '';
-        for (var j = 0; j < DATA_KEYS.length; j++) {
-          if (k.indexOf(DATA_KEYS[j]) < 0) continue;
-          var v = window.localStorage.getItem(k) || '';
-          // '[]', '{}', 'null' and '' are all EMPTY. Testing presence, or length alone, would
-          // count an empty array as a full vault and suppress the bar for the browser that needs it.
-          if (v.length > 4) { hasData = true; break; }
-        }
-      }
-    } catch(e){}
-    if (hasData) return;
+    // v2040 — THE BANNER IS NOT COSMETIC AND MUST NOT BE SUPPRESSED. REVERTS v2039.
+    // v2039 hid this bar whenever the store held data, because it read "chronicle, vault and forge
+    // all start at zero" above a VAULT tile showing 7. The sentence was misleading, but hiding the
+    // bar was the wrong fix and a REGRESSION: this button is the ONLY way to write d2r_ownerClaim,
+    // and without that claim _D2R_OWNER is false, _D2R_PFX becomes 'I·<installId>·', and every load
+    // lives in a per-install GUEST world. Measured 2026-08-24: six board windows, six install ids,
+    // six empty worlds - and d2r_owned lost every time, while d2r_grailFarm only *appeared* to
+    // survive because the console re-bridges it on each load. Suppressing the bar would have hidden
+    // the fix for exactly the person standing on the bug.
     var bar = document.getElementById('claim-bar');
     if (!bar) return;
     bar.hidden = false;
@@ -44404,7 +44391,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2039', name:'v2039 - the board does not lie about being empty', date:'2026-08-24', note:'the claim bar announced a vault of zero above a tile reading 7, and the subscription figures rendered under the fixed help button at every width' };
+  window.D2R_BUILD = { id:'v2040', name:'v2040 - the claim bar is the fix not the noise', date:'2026-08-24', note:'reverts v2039 suppression and refuses an apply into an unclaimed guest world instead of reporting ok' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

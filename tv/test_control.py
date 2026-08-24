@@ -14585,6 +14585,57 @@ class TestV2038TheApplyCanReachAWindowTheConsoleDoesNotOwn(unittest.TestCase):
 
 
 
+class TestV2040TheClaimBarIsTheFixNotTheNoise(unittest.TestCase):
+    """v2039 hid the claim bar when the store held data. That was a REGRESSION and this reverts it.
+
+    The bar's button is the ONLY writer of d2r_ownerClaim. Without that claim `_D2R_OWNER` is false,
+    `_D2R_PFX` becomes 'I·<installId>·', and the load lives in a per-install GUEST world. Measured
+    2026-08-24: six board windows, six install ids, six empty worlds, and d2r_owned lost every time.
+    d2r_grailFarm only LOOKED like it migrated because the console re-bridges it on every load.
+
+    So suppressing the bar hides the fix from exactly the person standing on the bug.
+    """
+
+    def _bible(self):
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return open(os.path.join(here, "bible.html"), encoding="utf-8").read()
+
+    def test_the_bar_is_never_suppressed_by_the_presence_of_data(self):
+        src = self._bible()
+        blk = _between(self, src, "var claimed = null;", "var btn = document.getElementById",
+                       what="the claim-bar block")
+        self.assertFalse("hasData" in blk,
+                         "the bar is being hidden when the store holds data again - that hides the "
+                         "only control that writes d2r_ownerClaim, stranding him in a guest world")
+
+    def test_the_claim_button_still_writes_the_only_key_that_matters(self):
+        src = self._bible()
+        blk = _between(self, src, "var btn = document.getElementById('claim-btn')", "})();",
+                       what="the claim button")
+        self.assertTrue("d2r_ownerClaim" in blk,
+                        "the button no longer writes d2r_ownerClaim, so nothing can ever leave the "
+                        "guest world")
+
+    def test_a_guest_world_apply_is_refused_not_reported_ok(self):
+        """An apply into an unclaimed world returns ok:true and evaporates on the next launch."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        blk = _between(self, src, "def _board_apply_on_load", "def board_window():",
+                       what="the board-side applier")
+        # The CALL, not the NAME. A first cut asserted "_D2R_OWNER" in blk and passed against a
+        # sabotage that replaced the whole check with `owner = True`, because the explanatory
+        # comment above it still contained the name. My own prose blinded my own guard.
+        call = 'win.evaluate_js("!!window._D2R_OWNER")'
+        self.assertTrue(call in blk,
+                        "the applier no longer ASKS the page whether it is the owner - it will bank "
+                        "a paid sweep into a world that evaporates and report ok:true")
+        self.assertLess(blk.find(call), blk.find("vaultAccumApply(%s)"),
+                        "ownership is checked AFTER the write, which is not a check")
+        self.assertTrue("guestWorld" in blk,
+                        "the refusal no longer names itself, so a caller cannot tell a guest world "
+                        "from a real failure")
+
+
 class TestV2039TheBoardDoesNotLieAboutBeingEmpty(unittest.TestCase):
     """Two defects caught by LOOKING at his board, both invisible to every parser gate.
 
@@ -14602,25 +14653,6 @@ class TestV2039TheBoardDoesNotLieAboutBeingEmpty(unittest.TestCase):
     def _bible(self):
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return open(os.path.join(here, "bible.html"), encoding="utf-8").read()
-
-    def test_the_claim_bar_measures_before_it_claims(self):
-        src = self._bible()
-        blk = _between(self, src, "var claimed = null;", "var btn = document.getElementById",
-                       what="the claim-bar block")
-        self.assertTrue("hasData" in blk,
-                        "the bar no longer looks at the store before announcing it is empty")
-        self.assertLess(blk.find("if (hasData) return;"), blk.find("bar.hidden = false"),
-                        "the emptiness check runs AFTER the bar is revealed, so it reveals first "
-                        "and asks later")
-
-    def test_an_empty_array_still_counts_as_empty(self):
-        """'[]' and '{}' are what a genuinely fresh browser holds. If those read as DATA the bar is
-        suppressed for exactly the browser it exists to help."""
-        src = self._bible()
-        blk = _between(self, src, "var DATA_KEYS", "if (hasData) return;",
-                       what="the emptiness measurement")
-        self.assertTrue("v.length > 4" in blk,
-                        "presence alone, or a zero-length test, would count '[]' as a full vault")
 
     def test_the_meter_reserves_the_fixed_FAB_column(self):
         src = self._bible()
