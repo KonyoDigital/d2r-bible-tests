@@ -222,6 +222,16 @@ def test_referenced_reels(repo=None):
 
     Only REAL reel ids count (a 10-16 digit epoch): tests build their own throwaway dirs called
     reel_s_1_1, and holding those would be holding nothing.
+
+    ⚠ AND A TEST LITERAL CAN CLAIM REAL FOOTAGE BY ACCIDENT. This scan cannot tell a reel a test
+    READS from one a test merely NAMES. v2071 wrote `reel_s_1787523300658_1` into a guard as an
+    illustration, and the orphan fold minted that exact directory from the same t0 an hour later —
+    so retention began holding 3.15 GB of his footage with the reason "the TEST SUITE opens this
+    reel", which was false. It errs toward KEEPING, so nothing was endangered; what was wrong was
+    the REASON, and a wrong reason is how a real hold later gets dismissed as noise.
+
+    Use a stamp no recording can carry (the v2071 guards now use 1500000000000 — 2017) whenever a
+    test SYNTHESISES a reel name rather than pointing at footage on disk.
     """
     import re
     root = repo or os.path.dirname(HERE)

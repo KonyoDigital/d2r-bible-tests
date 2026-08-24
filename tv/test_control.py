@@ -16507,18 +16507,18 @@ class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
         root = tempfile.mkdtemp(prefix="sid_")
         self.addCleanup(shutil.rmtree, root, True)
         got = {}
-        for name in ("reel_orphan_1787523300658_1", "reel_s_1787523300658_1"):
+        for name in ("reel_orphan_1500000000000_1", "reel_s_1500000000000_1"):
             d = os.path.join(root, name)
             os.makedirs(d)
-            with open(os.path.join(d, "f_1787523300658.jpg"), "wb") as fh:
+            with open(os.path.join(d, "f_1500000000000.jpg"), "wb") as fh:
                 fh.write(b"x")
             got[name] = (cr.reconstruct_index(d) or {}).get("sessionId")
-        self.assertEqual(got["reel_s_1787523300658_1"], "s_1787523300658_1")
-        self.assertEqual(got["reel_orphan_1787523300658_1"], "orphan_1787523300658_1")
+        self.assertEqual(got["reel_s_1500000000000_1"], "s_1500000000000_1")
+        self.assertEqual(got["reel_orphan_1500000000000_1"], "orphan_1500000000000_1")
         import re as _re
         rec = _re.compile(r"^s_(\d{10,16})(?:_|$)")     # v2065's recording parser
-        self.assertTrue(rec.match(got["reel_s_1787523300658_1"]))
-        self.assertFalse(rec.match(got["reel_orphan_1787523300658_1"]),
+        self.assertTrue(rec.match(got["reel_s_1500000000000_1"]))
+        self.assertFalse(rec.match(got["reel_orphan_1500000000000_1"]),
                          "an orphan-named reel would read as UNKNOWN time in the ledger")
 
     def test_a_cluster_that_OVERLAPS_a_reel_is_refused(self):
@@ -16555,7 +16555,7 @@ class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
 
     def test_the_folded_reel_is_named_so_its_session_parses(self):
         of = self._of()
-        base = 1787523300658
+        base = 1500000000000
         h = self._tree(loose=[base + i * 1000 for i in range(4)])
         p = of.plan(h)
         self.assertEqual(p["clusters"][0]["reel"], "reel_s_%d_1" % base)
@@ -16571,7 +16571,7 @@ class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
 
     def test_probe_artifacts_are_never_moved(self):
         of = self._of()
-        base = 1787523300658
+        base = 1500000000000
         h = self._tree(loose=[base + i * 1000 for i in range(3)])
         with open(os.path.join(h, "197_%d.jpg" % base), "wb") as fh:
             fh.write(b"z" * 64)
@@ -16593,7 +16593,7 @@ class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
 
     def test_it_refuses_without_yes(self):
         of = self._of()
-        base = 1787523300658
+        base = 1500000000000
         h = self._tree(loose=[base, base + 1000])
         r = of.apply_plan(of.plan(h), yes=False)
         self.assertFalse(r["ok"])
