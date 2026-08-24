@@ -12693,3 +12693,38 @@ It survived only because every `git add` tonight named explicit paths — one `g
 published it. Now gitignored and untracked, local copies kept, and a simulated fresh clone passes
 every vault suite.
 
+---
+
+## REG-394 — a persistent second WebKit process emptied his live ledger (v2048, reverts v2043)
+
+**I caused this one.** Recording it in full because the mechanism is not obvious and the next person
+to reach for `private_mode=False` needs to find it.
+
+His grail/vault ledger lives ONLY in the MAIN window's localStorage. Nothing on disk has ever held
+his bare `d2r_foundLog` — `vault_ledger_load()` says as much in its own docstring: *the console has
+never held them.*
+
+v2043 gave the spawned board window `private_mode=False` so its own world would survive a relaunch.
+It worked: install id `c5c2c92d` survived two launches, and his ledger read 404 / 5 / 120 immediately
+afterwards. But persistence puts a second process into **the same localStorage the main window is
+using**. Over the following hour I ran several persistent WebKit probes beside his live console, and
+his main window went to **ZERO**. The shared store afterwards held `__probe_sentinel` — my own
+diagnostic key — and none of his.
+
+**Reverted in v2048: the board window is ephemeral again, on purpose.** v2045 had already removed
+the only reason it needed to persist — it is a GUEST world that can never be his real one, so
+nothing of value is stored there. **Isolation is worth more than persistence for a window whose
+contents do not matter.**
+
+**Recovery:** a complete backup taken at 04:38 (v2041's snapshot path) holds all 404 uniques, 120 set
+pieces and 5 owned, with names. `~/d2r_ledger_backups/restore_ledger.py` restores them through the
+board's own dated, merge-max, undoable `chronicleApply` / `vaultAccumApply` — never by writing
+localStorage directly. It requires the board to be open in the MAIN window and refuses otherwise.
+
+⚠ **The standing lesson:** his ledger has no durable home. v2041 gives it a 30-minute snapshot, which
+is a receipt, not a fix. Until something persists that world deliberately, ANY second process on this
+origin is a hazard to it.
+
+**Guard:** `tv/test_control.py::TestV2048TheBoardWindowStaysIsolated` — checks the CALL, not the
+prose, because the comment above it legitimately contains the words `private_mode=False`.
+

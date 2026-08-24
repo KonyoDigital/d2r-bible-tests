@@ -13845,7 +13845,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2047",
+        "ver": "v2048",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -16836,40 +16836,22 @@ def board_window():
             min_size=(1080, 700),
             background_color="#060504",
         )
-        # ── v2043 — THE BOARD WINDOW WAS EPHEMERAL, AND THAT IS THE WHOLE BUG ────────────────
-        # The MAIN window starts with `private_mode=False` (line ~3380) so its localStorage
-        # persists. This start() passed NOTHING, and pywebview defaults private_mode to True — so
-        # every board window got a FRESH, EMPTY, throwaway store.
+        # ── v2048 — REVERTS v2043. THE BOARD WINDOW STAYS EPHEMERAL, ON PURPOSE. ─────────────
+        # v2043 gave this window `private_mode=False` so its own world would survive a relaunch.
+        # It worked — install id c5c2c92d survived two launches. But persistence puts this process
+        # into THE SAME localStorage the MAIN window is using, and the main window's ledger lives
+        # only in ITS memory (nothing on disk ever held his bare d2r_foundLog).
         #
-        # Measured 2026-08-24, and this is the measurement that finally isolated it: a bare
-        # pywebview process pointed at an INERT same-origin URL (/api/status, so none of
-        # bible.html's own JS runs) saw **0 keys**, while the on-disk store held 23 including
-        # d2r_installId. Nothing about the board's identity code was at fault.
+        # MEASURED 2026-08-24, and I caused it: after running persistent WebKit probes beside his
+        # live console, his main window went from 404 foundLog / 5 owned / 120 setPieces to ZERO,
+        # and the shared store held my probe's key and none of his. A second persistent process on
+        # this origin can take the live window's world with it.
         #
-        # Everything downstream follows from this one flag:
-        #   · bible.html finds no d2r_installIdCache, mints a NEW install id, and _D2R_PFX becomes
-        #     'I·<newid>·' — a brand-new GUEST world on every single launch (six ids in one night).
-        #   · d2r_grailFarm "reappears" only because the console re-bridges it; there is no
-        #     migration and there never was.
-        #   · d2r_owned and d2r_muleAssign have no bridge, so an applied vault evaporated every
-        #     time — which is why the vault kept reading 0 after a real, verified apply.
-        #
-        # The code already knew this state existed: line ~3401 warns "board storage is EPHEMERAL
-        # this run (tallies/grail reset on quit)". It was only ever wired for the main window.
-        _bkw = {}
-        try:
-            import inspect as _bi
-            if "private_mode" in set(_bi.signature(webview.start).parameters):
-                _bkw["private_mode"] = False
-        except Exception:
-            pass
-        try:
-            webview.start(**_bkw)
-        except TypeError:
-            # older pywebview without private_mode — an ephemeral window beats no window, but SAY SO
-            print("\u26a0 pywebview too old for private_mode=False — this board window's storage is "
-                  "EPHEMERAL: its tallies and grail reset when it closes.", flush=True)
-            webview.start()
+        # v2045 already removed the only reason a board window needed to persist — it is a GUEST
+        # world that can never be his real one, so nothing of value is stored here. An ephemeral
+        # board window is isolated by construction and cannot reach what the main window holds.
+        # Isolation is worth more than persistence for a window whose contents do not matter.
+        webview.start()
     except Exception as e:
         _loud_fail(
             "TV DIABLO",

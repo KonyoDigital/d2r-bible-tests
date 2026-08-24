@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2047",
+  "ver": "v2048",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2047: seven hand-labelled negatives were eaten by archive rotation, and a vault_doctor fixture was standing on his live ledger",
+  "note": "v2048: reverts v2043: a persistent second WebKit process shares the main windows localStorage and emptied his live ledger",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
