@@ -15357,5 +15357,57 @@ class TestV2058ThePruneStaysOffUntilItCanSeeATooltip(unittest.TestCase):
 
 
 
+class TestV2060TheSealWaitsForTheLedger(unittest.TestCase):
+    """v1779 SAID it had moved the swept marker after the ledger write. Its diff did not, and the
+    failure message went on telling him "the reels stay unswept so nothing is lost" while both seal
+    sites still ran ~56 lines EARLIER. A failed ledger save therefore sealed the reels anyway and
+    the paid reads were gone for good — the precise loss that note claims to prevent.
+
+    This guard is about CALL ORDER, read off the AST, so no comment or ship note can satisfy it.
+    [[source-reading-guard]] §1 · [[label-outlived-referent]]"""
+
+    def _fn(self):
+        import ast
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with open(_p, "r", encoding="utf-8") as _fh:
+            src = _fh.read()
+        fns = [n for n in ast.walk(ast.parse(src))
+               if isinstance(n, ast.FunctionDef) and n.name == "_vault_sweep_run"]
+        self.assertEqual(len(fns), 1, "_vault_sweep_run is not there under that name — this guard "
+                                      "would then pass by being blind")
+        return fns[0]
+
+    def test_no_seal_is_persisted_before_the_ledger_is_down(self):
+        import ast
+        fn = self._fn()
+        seals, ledgers = [], []
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name):
+                if n.func.id == "_vault_swept_save":
+                    seals.append(n.lineno)
+                elif n.func.id == "vault_ledger_save":
+                    ledgers.append(n.lineno)
+        self.assertTrue(seals, "the sweep seals nothing at all — every reel would be re-read, and "
+                               "paid for, forever")
+        self.assertEqual(len(ledgers), 1,
+                         "expected exactly one vault_ledger_save call to order against, got %d — "
+                         "the ordering claim is meaningless with more" % len(ledgers))
+        early = [ln for ln in seals if ln < ledgers[0]]
+        self.assertEqual(early, [],
+                         "control_app.py:%s seals the reels BEFORE the ledger write at :%d. If that "
+                         "write then fails, the footage is marked read and its rows never landed."
+                         % (early, ledgers[0]))
+
+    def test_the_failure_message_no_longer_claims_the_reels_are_unswept(self):
+        """A right rule under a dead reason is still a lie about the system. Checked against the
+        function's STRING CONSTANTS, never its prose, so the guard cannot trip on its own text."""
+        import ast
+        fn = self._fn()
+        consts = [n.value for n in ast.walk(fn)
+                  if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+        stale = [c for c in consts if "stay unswept so nothing is lost" in c]
+        self.assertEqual(stale, [], "the failure message still tells him nothing was lost")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

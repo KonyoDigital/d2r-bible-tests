@@ -44446,7 +44446,7 @@ body.cousin-shell #v687-build-badge{top:calc(28px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2059', name:'v2059 - the repair door, and one claim bar', date:'2026-08-24', note:'Both findings from the Grok review, confirmed on my own scan. P0: /api/board_restore_dates and /api/board_tick were plumbing with no tap, and CI had been red since v2052 because I committed that ship without reading the verdict. They now have a repair panel in the console. P1: the v2057 CSS invented --claim-bar-h beside the --claim-h token v1800 already had; the duplicate is gone and the offsets fold into the original. Measured bar-up at 1440/901/375 with a FRESH profile per width, because the first run reused one and never raised the bar at the narrow two.' };
+  window.D2R_BUILD = { id:'v2060', name:'v2060 - the seal waits for the ledger', date:'2026-08-24', note:'The vault sweep sealed the reels ~56 lines BEFORE it wrote the ledger, so a failed ledger save marked the footage read and threw the paid reads away for good. v1779 says in its own comment that it moved the marker after the write, and its diff did not — the failure message has been telling him the reels stay unswept while they were already sealed. Both seal sites now defer to a pending flag; nothing is persisted until vault_ledger_save returns true, and the message finally says something true. Guarded on the AST call order, proven RED under two separate sabotages.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2059",
+  "ver": "v2060",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2059: Both findings from the Grok review, confirmed on my own scan. P0: /api/board_restore_dates and /api/board_tick were plumbing with no tap, and CI had been red since v2052 because I committed that ship without reading the verdict. They now have a repair panel in the console. P1: the v2057 CSS invented --claim-bar-h beside the --claim-h token v1800 already had; the duplicate is gone and the offsets fold into the original. Measured bar-up at 1440/901/375 with a FRESH profile per width, because the first run reused one and never raised the bar at the narrow two.",
+  "note": "v2060: The vault sweep sealed the reels ~56 lines BEFORE it wrote the ledger, so a failed ledger save marked the footage read and threw the paid reads away for good. v1779 says in its own comment that it moved the marker after the write, and its diff did not — the failure message has been telling him the reels stay unswept while they were already sealed. Both seal sites now defer to a pending flag; nothing is persisted until vault_ledger_save returns true, and the message finally says something true. Guarded on the AST call order, proven RED under two separate sabotages.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

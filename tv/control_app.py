@@ -11704,6 +11704,17 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # THE SAFEGUARD ITSELF IS UNCHANGED AND STILL WANTED: a sweep that grounded nothing seals
         # nothing, so a reel is never written off on the strength of a run that produced no rows —
         # whatever the cause. What changes is that the message now says what is actually known.
+        # ── v2060 — THE SEAL NOW WAITS FOR THE LEDGER. ─────────────────────────────────
+        # v1779 said it had moved the swept marker AFTER the ledger write and its diff did
+        # not: both seal sites still ran ~56 lines EARLIER, and the failure message below
+        # told him "the reels stay unswept so nothing is lost" while they were already
+        # sealed. A failed ledger save therefore burned the paid reads permanently — the
+        # exact loss v1779 was written to prevent. [[label-outlived-referent]]
+        #
+        # `swept` is still mutated in place here (it is this function's own dict); what is
+        # deferred is the PERSIST. Nothing on disk changes until the ledger is safely down.
+        _seal_pending = False
+        _seal_say = ""
         _rows = len((prop.get("uniques") or {})) + len((prop.get("owned") or []))
         if _rows:
             # v2002 — RECORD WHICH READER SEALED IT. {"ts": ...} alone cannot answer "is this
@@ -11718,7 +11729,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             for sess in (prop.get("sessionsRead") or []):
                 swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": int(_rows),
                                     "promptVer": _pv, "agentVer": _av}
-            _vault_swept_save(swept)
+            _seal_pending = True          # v2060 — persisted only after the ledger is down
         else:
             # ── v2003 — A COMPLETE ANSWER MAY SEAL; AN INCOMPLETE ONE MAY NOT ────────────────
             #
@@ -11755,11 +11766,13 @@ def _vault_sweep_run(hist_dir, limit, force=False):
                                         "promptVer": _pv, "agentVer": _av,
                                         "why": "read %d panel(s), every one cross-checked, no name "
                                                "to be had" % _read_ok[0]}
-                _vault_swept_save(swept)
-                print("   \u2705 read %d panel(s) and cross-checked every one \u2014 no name to be "
-                      "had, which is a COMPLETE answer, not a failure. Sealed at %s so the same "
-                      "frames are not paid for again; a newer vault reader reopens them by itself."
-                      % (_read_ok[0], _pv or "?"))
+                _seal_pending = True      # v2060 — persisted only after the ledger is down
+                # held back until the seal is REAL: a "Sealed at ..." printed before the write
+                # is a claim about something that has not happened yet.
+                _seal_say = ("   \u2705 read %d panel(s) and cross-checked every one \u2014 no name "
+                             "to be had, which is a COMPLETE answer, not a failure. Sealed at %s so "
+                             "the same frames are not paid for again; a newer vault reader reopens "
+                             "them by itself." % (_read_ok[0], _pv or "?"))
             else:
                 _whynot = ("nothing was read" if not _read_ok[0]
                            else "the pixel lane could not run" if _pix_err
@@ -11775,9 +11788,16 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # This ledger is what the readers have SEEN; it is never what he owns.
         led = _vr.merge_vault(vault_ledger_load(), prop)
         if not vault_ledger_save(led):
-            # v1779 — the swept marker used to be written BEFORE this, and this return value was
-            # discarded: a failed ledger write left the reels marked and their paid reads gone.
-            print("   ⚠ vault ledger did not save — the reels stay unswept so nothing is lost")
+            # v2060 — and NOW this sentence is true. The seal was deferred above, so refusing to
+            # write it here really does leave the footage readable and the paid reads recoverable.
+            print("   ⚠ vault ledger did not save — the reels stay UNSEALED (nothing was "
+                  "written to %s), so every frame this run paid for can be read again."
+                  % os.path.basename(_VAULT_SWEPT_PATH))
+        else:
+            if _seal_pending:
+                _vault_swept_save(swept)
+                if _seal_say:
+                    print(_seal_say)
         # The proposal he presses is the ACCUMULATED picture (every session so far), not just this
         # run's — that is the whole point of an accumulator. throwOut/unsure/held stay from this
         # run's gate, which is the only place they were reasoned about.
@@ -14119,7 +14139,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2059",
+        "ver": "v2060",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
