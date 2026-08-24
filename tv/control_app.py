@@ -10710,8 +10710,22 @@ def _vault_json_save(path, rec):
 # So: read the ledger through the same read-only channel the cross-reference already uses, and
 # write a timestamped copy OUTSIDE THE REPO. The repo is PUBLIC - his ledger must never land in it.
 _LEDGER_BACKUP_DIR = os.path.join(os.path.expanduser("~"), "d2r_ledger_backups")
-_LEDGER_BACKUP_EVERY_S = 1800.0
-_LEDGER_BACKUP_KEEP = 20
+# v2050 — 600s, not 1800s. THE INTERVAL IS HOW MUCH HE CAN LOSE.
+# On 2026-08-24 his live ledger went from 404/5/120 to zero, and the only surviving copy was a
+# snapshot taken minutes earlier. At 30 minutes the window between "it was fine" and "it is gone"
+# was wide enough that the save was luck. A snapshot costs one evaluate_js against a window that is
+# already open and writes nothing unless the counts CHANGED, so the cheap thing and the safe thing
+# point the same way here.
+_LEDGER_BACKUP_EVERY_S = 600.0
+# v2050 — and one at STARTUP, before the first interval elapses. A console that boots, inherits a
+# world and dies twenty minutes later used to leave no receipt at all. `_LEDGER_BACKUP_FIRST_S`
+# gives the main window time to exist and the board time to be asked.
+_LEDGER_BACKUP_FIRST_S = 45.0
+# v2050 — 60, raised with the interval. Tightening 1800s -> 600s tripled the rate, and keeping 20
+# would have shrunk the history from ~10 hours to ~3 for no reason: a snapshot is ~14 KB and only
+# written when the COUNTS CHANGE, so 60 of them is under a megabyte and usually spans days.
+# Depth is what lets him go back past a bad day, and this is the file that made one survivable.
+_LEDGER_BACKUP_KEEP = 60
 _LEDGER_BACKUP_STATE = {"last": "", "counts": None, "writes": 0, "why": ""}
 
 
@@ -10769,9 +10783,11 @@ def _ledger_snapshot_once(force=False):
 
 def _ledger_backup_loop():
     """Snapshot his ledger while a window is alive to be asked."""
+    _wait = _LEDGER_BACKUP_FIRST_S      # the FIRST one comes early, then settle into the interval
     while True:
         try:
-            time.sleep(_LEDGER_BACKUP_EVERY_S)
+            time.sleep(_wait)
+            _wait = _LEDGER_BACKUP_EVERY_S
             path, why = _ledger_snapshot_once()
             _LEDGER_BACKUP_STATE["why"] = why if not path else _LEDGER_BACKUP_STATE["why"]
             if path:
@@ -13845,7 +13861,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2049",
+        "ver": "v2050",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

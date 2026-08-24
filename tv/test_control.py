@@ -14890,5 +14890,66 @@ class TestV2049TheVerdictNamesWhatDidNotRun(unittest.TestCase):
 
 
 
+class TestV2050TheSnapshotWindowIsHowMuchHeCanLose(unittest.TestCase):
+    """These are VALUE assertions, deliberately — not greps over source.
+
+    Three guards tonight passed against a sabotage because the explanatory comment above the code
+    contained the string being searched for. A constant can be read directly and cannot lie about
+    itself. [[source-reading-guard]]
+
+    The number matters because it was nearly the whole story: on 2026-08-24 his live ledger went
+    from 404 uniques / 5 owned / 120 set pieces to ZERO, and the only surviving copy was a snapshot
+    taken minutes earlier. At a 30-minute interval, the gap between "it was fine" and "it is gone"
+    was wide enough that surviving it was luck.
+    """
+
+    def _ca(self):
+        import control_app
+        return control_app
+
+    def test_the_interval_is_ten_minutes_or_tighter(self):
+        ca = self._ca()
+        self.assertLessEqual(ca._LEDGER_BACKUP_EVERY_S, 600.0,
+                             "the snapshot interval is %.0fs — that is how much of his grail "
+                             "history a crash can take" % ca._LEDGER_BACKUP_EVERY_S)
+        self.assertGreaterEqual(ca._LEDGER_BACKUP_EVERY_S, 60.0,
+                                "polling faster than a minute costs an evaluate_js against his live "
+                                "window for nothing — it only writes when the counts change")
+
+    def test_the_FIRST_snapshot_does_not_wait_a_whole_interval(self):
+        """A console that boots, inherits a world and dies before the first tick leaves no receipt."""
+        ca = self._ca()
+        self.assertLess(ca._LEDGER_BACKUP_FIRST_S, ca._LEDGER_BACKUP_EVERY_S,
+                        "the first snapshot waits a full interval, so a short-lived console never "
+                        "records the world it was handed")
+        self.assertGreaterEqual(ca._LEDGER_BACKUP_FIRST_S, 10.0,
+                                "snapshotting immediately at boot asks a window that may not exist "
+                                "yet, and a refusal is not a backup")
+
+    def test_tightening_the_interval_did_not_shrink_his_history(self):
+        """3x the rate at the same depth would be 1/3 the history — a silent downgrade."""
+        ca = self._ca()
+        hours = ca._LEDGER_BACKUP_KEEP * ca._LEDGER_BACKUP_EVERY_S / 3600.0
+        self.assertGreaterEqual(hours, 9.0,
+                                "keeping %d snapshots every %.0fs covers only %.1f hours — the "
+                                "30-minute era covered 10, and depth is what lets him go back past "
+                                "a bad day" % (ca._LEDGER_BACKUP_KEEP, ca._LEDGER_BACKUP_EVERY_S, hours))
+
+    def test_the_loop_still_refuses_to_file_nothing(self):
+        """The interval is worthless if a snapshot can overwrite a good backup with an empty read."""
+        import tempfile
+        import unittest.mock as mock
+        ca = self._ca()
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(ca, "_LEDGER_BACKUP_DIR", tmp):
+                with mock.patch.object(ca, "board_ownership", lambda sample=0: {
+                        "ok": True, "counts": {"foundLog": 0, "owned": 0, "setPieces": 0},
+                        "sample": {"foundLog": [], "owned": [], "setPieces": []}}):
+                    path, why = ca._ledger_snapshot_once(force=True)
+        self.assertIsNone(path, "an empty ledger is filed again — that would have destroyed the "
+                                "only copy of his 404 uniques")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

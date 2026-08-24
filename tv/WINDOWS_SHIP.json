@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2049",
+  "ver": "v2050",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2049: 45 gates passed in CI while 24 cases skipped inside them, and only the verdict gets read",
+  "note": "v2050: the ledger snapshot ran every 30 minutes; the night it was needed, surviving was luck",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
