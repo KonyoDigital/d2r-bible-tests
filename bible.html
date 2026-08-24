@@ -4138,20 +4138,6 @@ try {
     if (!bar) return;
     bar.hidden = false;
     document.body.classList.add('has-claim-bar');
-    /* v2057 — PUBLISH THE HEIGHT, because the class alone was doing nothing.
-       `has-claim-bar` was added here and NOTHING in the stylesheet ever read it: measured by CDP,
-       #tvf-console-return (fixed, z 10050) and #v687-build-badge (fixed, z 9990) sat ON TOP of this
-       bar at 1440, 901 and 375 — over the one control that gets him out of a guest world.
-       The bar is 88px at 1440, 120 at 901 and 159 at 375, so a constant offset is wrong at two of
-       three widths; the CSS reads this variable instead. */
-    try {
-      var _setH = function(){
-        try { document.body.style.setProperty('--claim-bar-h', bar.offsetHeight + 'px'); } catch(e){}
-      };
-      _setH();
-      if (window.ResizeObserver) { new ResizeObserver(_setH).observe(bar); }
-      else { window.addEventListener('resize', _setH); }
-    } catch(e){}
     var btn = document.getElementById('claim-btn');
     btn.onclick = function(){
       try {
@@ -44409,15 +44395,22 @@ try {
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28px}  /* ribbons live left too */
-/* v2057 — MOVE THE FIXED CORNER CONTROLS BELOW THE CLAIM BAR WHILE IT IS UP.
-   These are the only two fixed elements that land in the bar's band. Placed after every other
-   `top:` rule for them so it wins on order, and keyed to the measured height so it is correct at
-   every width. The fallback (96px) is only ever used if the JS could not measure. */
-body.has-claim-bar #tvf-console-return{top:calc(var(--claim-bar-h, 96px) + 10px)}
-body.has-claim-bar #v687-build-badge,
-body.has-claim-bar.app-ctx #v687-build-badge,
-body.has-claim-bar.ladder-profile #v687-build-badge,
-body.has-claim-bar.cousin-shell #v687-build-badge{top:calc(var(--claim-bar-h, 96px) + 42px)}
+/* v2059 — MOVE THE FIXED CORNER CONTROLS BELOW THE CLAIM BAR, USING v1800's --claim-h.
+   v2057 shipped a SECOND height variable (--claim-bar-h) with its own ResizeObserver. That was a
+   weaker duplicate and it is gone: --claim-h (bible.html ~44300) already watches [hidden] with a
+   MutationObserver — the reveal path a ResizeObserver does NOT report on its own, which is exactly
+   how this bar appears — guards against writing 0px, caps at 260, and already includes the +8 gap
+   the popovers use. Two variables for one measurement is one of them being wrong. [[copy-drift]]
+
+   --claim-h is 0 when the bar is absent (its usual state), so these need no `has-claim-bar` class:
+   they simply ADD it to the offset each element already had, and collapse to that offset when the
+   bar is down. The overlap was measured by CDP at 1440 / 901 / 375 before and after. */
+body.app-ctx.engine-driven #tvf-console-return,
+#tvf-console-return{top:calc(8px + var(--claim-h,0px))}
+#v687-build-badge{top:calc(6px + var(--claim-h,0px))}   /* base is 6px (rule ~44392) — NOT 8 */
+body.app-ctx #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
+body.ladder-profile #v687-build-badge,
+body.cousin-shell #v687-build-badge{top:calc(28px + var(--claim-h,0px))}
 #v687-intake-modal{
   position:fixed;inset:0;z-index:10060;display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.72);padding:16px;
@@ -44453,7 +44446,7 @@ body.has-claim-bar.cousin-shell #v687-build-badge{top:calc(var(--claim-bar-h, 96
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2058', name:'v2058 - the prune was eating the names', date:'2026-08-24', note:'sig_diff at tol 28 cannot see a hover tooltip, and the tooltip is the only place an item name exists' };
+  window.D2R_BUILD = { id:'v2059', name:'v2059 - the repair door, and one claim bar', date:'2026-08-24', note:'Both findings from the Grok review, confirmed on my own scan. P0: /api/board_restore_dates and /api/board_tick were plumbing with no tap, and CI had been red since v2052 because I committed that ship without reading the verdict. They now have a repair panel in the console. P1: the v2057 CSS invented --claim-bar-h beside the --claim-h token v1800 already had; the duplicate is gone and the offsets fold into the original. Measured bar-up at 1440/901/375 with a FRESH profile per width, because the first run reused one and never raised the bar at the narrow two.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

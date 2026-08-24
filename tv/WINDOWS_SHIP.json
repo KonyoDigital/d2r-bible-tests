@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2058",
+  "ver": "v2059",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2058: sig_diff at tol 28 cannot see a hover tooltip, and the tooltip is the only place an item name exists",
+  "note": "v2059: Both findings from the Grok review, confirmed on my own scan. P0: /api/board_restore_dates and /api/board_tick were plumbing with no tap, and CI had been red since v2052 because I committed that ship without reading the verdict. They now have a repair panel in the console. P1: the v2057 CSS invented --claim-bar-h beside the --claim-h token v1800 already had; the duplicate is gone and the offsets fold into the original. Measured bar-up at 1440/901/375 with a FRESH profile per width, because the first run reused one and never raised the bar at the narrow two.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

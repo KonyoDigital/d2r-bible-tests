@@ -5148,6 +5148,7 @@
             <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
             <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">\U0001F985 eagle</button>
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
+            <button class="util-btn" id="btn-repair" type="button" title="LEDGER REPAIR — restore find dates from the in-game Chronicle, or correct one mis-registered item. Both press the BOARD's own doors; the console never writes the ledger itself.">🩹 repair</button>
           </div>
           <!-- v2028 — 🦅 THE EAGLE EYE, in the console. Konyo: "dont we need like a type of EAGLE
                EYE kind of style management system here? eyes from above it all like that can see
@@ -5157,6 +5158,33 @@
                consumers. The guard was right, and this is the tap it asked for. -->
           <div id="eagle-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid rgba(255,255,255,.14);border-radius:8px;margin-top:6px"></div>
           <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
+          <!-- v2059 — 🩹 LEDGER REPAIR, and the tap v1550's guard asked for.
+               v2052 added /api/board_tick and /api/board_restore_dates with no consumer anywhere,
+               and Routine I has been RED on that spec since — "a route with no caller is plumbing
+               with no tap". Same shape v2028 closed for /api/eagle, same answer: give it a real
+               caller rather than a comment that makes the scan pass.
+               These are not invented controls. Both repairs were needed on 2026-08-24: a restore
+               stamped 249 find-dates with the time of the restore, and it promoted
+               Natalya's Soul (claws) into setPieces though it was already dated May 27.
+               Both press the BOARD's own toggles — the console still never writes the ledger. -->
+          <div id="repair-box" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px">
+            <div style="color:#e9b96e;font-weight:var(--fw-semibold);letter-spacing:.6px">🩹 LEDGER REPAIR</div>
+            <div style="margin-top:6px">
+              <button class="util-btn" id="btn-repair-dates" type="button" title="Rewrite find-dates that carry a given stamp, using the in-game Chronicle (d2r_gameFound). A name the game has no date for is LEFT ALONE — unknown stays unknown.">restore dates from the game</button>
+              <input id="repair-stamp" type="text" placeholder="stamp prefix, e.g. Aug 24, 2026" style="width:170px;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px;margin-left:5px">
+            </div>
+            <div style="margin-top:6px">
+              <input id="repair-name" type="text" placeholder="item name" style="width:200px;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
+              <select id="repair-kind" style="background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px;margin-left:5px">
+                <option value="set-drop">drop from SET store (keep the grail row)</option>
+                <option value="set">toggle set piece</option>
+                <option value="unique">toggle unique</option>
+                <option value="owned">register as owned</option>
+              </select>
+              <button class="util-btn" id="btn-repair-tick" type="button" title="Press the board's own toggle for this one name. An un-tick is HIS ruling, not the console's.">apply</button>
+            </div>
+            <div id="repair-out" style="margin-top:6px;color:#9aa6b2"></div>
+          </div>
           <!-- v1496 · 🖥 THE FLEET — who is online and when each machine was last here. Konyo asked for
                "a tracker for whose logged in and when, like we have for the website"; /console has
                answered that in a browser tab since v875, and this is the same answer inside the console
@@ -10582,6 +10610,43 @@
       }
     };
   })();
+
+  // v2059 — the ledger-repair taps. Both routes existed since v2052 with no caller at all.
+  $('btn-repair').onclick = function(){
+    var box = $('repair-box'); if (!box) return;
+    box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+  };
+  $('btn-repair-dates').onclick = async function(){
+    var out = $('repair-out'); this.disabled = true;
+    out.innerHTML = 'asking the board…';
+    try {
+      var pfx = ($('repair-stamp').value || '').trim();
+      var r = await fetch(API + '/api/board_restore_dates', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ stampPrefix: pfx }) });
+      var j = await r.json();
+      out.innerHTML = (j && j.ok)
+        ? ('<span style="color:#8fd0a0">rewrote ' + (j.rewritten || 0) + ' date(s); left '
+           + (j.noGameDate || 0) + ' alone (the game has no date for them)</span>')
+        : ('<span style="color:#e07070">' + ((j && j.why) || 'no answer') + '</span>');
+    } catch(e){ out.innerHTML = '<span style="color:#e07070">' + e + '</span>'; }
+    this.disabled = false;
+  };
+  $('btn-repair-tick').onclick = async function(){
+    var out = $('repair-out'); var nm = ($('repair-name').value || '').trim();
+    if (!nm) { out.innerHTML = '<span style="color:#e9b96e">name it first</span>'; return; }
+    this.disabled = true; out.innerHTML = 'asking the board…';
+    try {
+      var r = await fetch(API + '/api/board_tick', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name: nm, kind: $('repair-kind').value, want: false }) });
+      var j = await r.json();
+      out.innerHTML = (j && j.ok)
+        ? ('<span style="color:#8fd0a0">' + nm + ' — ' + (j.unchanged ? 'already that way' : 'done') + '</span>')
+        : ('<span style="color:#e07070">' + ((j && j.why) || 'no answer') + '</span>');
+    } catch(e){ out.innerHTML = '<span style="color:#e07070">' + e + '</span>'; }
+    this.disabled = false;
+  };
 
   $('btn-eagle').onclick = async function(){
     var out = $('eagle-out'); if (!out) return;
