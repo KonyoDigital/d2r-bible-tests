@@ -8452,7 +8452,20 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    visible control was the red erase button. The seal fills it — engraved gold, next-hunt pointers. */
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed{margin:18px 0 8px;padding:44px 26px 40px;border:1px solid rgba(212,168,71,.4);border-radius:14px;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(240,192,96,.09),rgba(0,0,0,0) 65%),linear-gradient(180deg,rgba(26,20,10,.6),rgba(14,11,6,.4));box-shadow:inset 0 1px 0 rgba(255,220,140,.12),0 10px 30px -18px rgba(0,0,0,.8)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-crest{font-size:40px;line-height:var(--lh-none);margin-bottom:12px;filter:drop-shadow(0 0 18px rgba(240,192,96,.45))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-title{font-family:var(--serif-display,serif);font-variant-caps:small-caps;letter-spacing:var(--ls-wider);font-size:22px;color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.4);margin-bottom:6px}
+/* v2077 — THE SEALED TITLE SPOKE A LANGUAGE THIS PAGE DOES NOT SPEAK. Konyo: 'SEALED should be
+   different.. something changed template style.. typography'. MEASURED against the page's own
+   serif vocabulary (h2 / .boss-name / .sec-h, all --serif-display):
+        title   Cinzel 22px  weight 400   letter-spacing 4.4px   small-caps
+        page    Cinzel 17px  weight 700   letter-spacing 0.34px  none
+   Three departures at once, and none of them deliberate-looking: it was the ONLY element on
+   the page using font-variant-caps, the only one tracked at --ls-wider (.20em = 13x the
+   page's .34px), and it declared no weight at all so it fell to 400 while every sibling
+   title is 700. Thin, sprawling small-caps beside bold tight Cinzel reads as a stray card
+   from another template — which is exactly what he said.
+   It now speaks the page's language and is simply the LOUDEST voice in it: same face, same
+   weight, same tracking discipline, larger and brighter because 99/99 forged is the proudest
+   state on the board. [[visual-regression-detector]] */
+:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-title{font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);letter-spacing:var(--ls-tight);font-size:clamp(24px,2.6vw,30px);color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.4);margin-bottom:6px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-sub{color:var(--text-dim,#9a8c72);font-size:13.5px;line-height:var(--lh-relaxed);margin-bottom:20px}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btns{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn{padding:9px 18px;border:1px solid rgba(212,168,71,.45);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.13),rgba(240,192,96,.04));color:var(--gold-bright,#f0c060);font-size:var(--fs-body);cursor:pointer;transition:background .15s ease,transform .12s ease}
@@ -38068,7 +38081,19 @@ function renderJournal(){
           if (craftAtomic.length >= 8) return;
           var gemShort=String(c.gem||'').replace('Perfect ','P.');
           craftAtomic.push({
-            icon:'⚗️', cls:'craft', skipKey:'craftslot|'+c.craft+'|'+c.slot,
+            /* v2077 — EVERY CRAFT CARD SHOWED THE SAME ⚗️. Konyo: "HD ART for gems.. and blood and
+               caster.. and etc.. something different". The atom emitter picks art with
+               `a.artName ? _rwArt(a.artName) : <span>a.icon</span>` — runeword atoms carry an
+               artName and get a real sprite; craft atoms carried none, so Caster, Blood, Safety and
+               Hit Power all rendered one alembic emoji and were indistinguishable at a glance.
+               The DEFINING ingredient of a craft IS its gem, and every one of them already has HD
+               art on disk — verified by asking the page: Perfect Amethyst -> hd_perfect_amethyst.png,
+               Ruby -> hd_perfect_ruby.png, Emerald -> hd_perfect_emerald.png,
+               Sapphire -> hd_perfect_saphire.png. Nothing had to be drawn; the card just never
+               asked. The ⚗️ stays as the fallback for any craft whose gem art is missing, so an
+               absent sprite degrades to the craft's own \u2697 rather than the generic scroll
+               glyph _rwArt falls back to, which would read as 'runeword' on a craft card. */
+            icon:'⚗️', artName:(c.gem||''), cls:'craft', skipKey:'craftslot|'+c.craft+'|'+c.slot,
             craft:c.craft, slot:c.slot, color:c.color||'var(--q-orange)',
             atoms:['<div class="f-atomact">Craft <b class="f-rwbig" style="color:'+_fEsc(c.color||'var(--q-orange)')+'">'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.top?' <span class="f-ideal">★</span>':'')+(c.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</div>'
               +'<div class="f-atomrecipe"><span class="f-reclbl">cube</span>'
@@ -38103,7 +38128,14 @@ function renderJournal(){
           var sk = a.chainKey ? (isLast && a.forgeWordKey ? a.forgeWordKey : a.chainKey) : a.skipKey;
           var skipBtn = sk ? '<button class="f-skip" title="not now — skip this'+(isLast&&a.forgeWordKey?' word (show the next)':'')+'" onclick="window.forgeSkipAnim(this,\''+_fJs(sk)+'\')">✕</button>' : '';
           var backBtn = (a.chainKey && step>0) ? ' <button class="f-btn f-btn-mini" title="go back a step — I didn’t actually do the previous one" onclick="window.forgeStepBack(\''+a.chainKey+'\')">↺ back</button>' : '';
-          var _atomArt = a.artName ? _rwArt(a.artName) : ('<span class="f-atomic-ic">'+a.icon+'</span>');
+          /* v2077 — degrade to the atom's OWN icon when the named art does not resolve.
+             ⚠ `_rwArt` never returns empty: with no sprite it emits the generic scroll glyph
+             (<span class="f-glyph">📜</span>), so a plain `|| ''` fallback can NEVER fire and a
+             gem-less craft would show a SCROLL — which says "runeword" on a card that is not one.
+             I wrote that fallback first and it was wrong; this checks for the glyph itself. */
+          var _atomArt = '';
+          if (a.artName){ try { _atomArt = _rwArt(a.artName) || ''; } catch(e){ _atomArt=''; } }
+          if (!_atomArt || _atomArt.indexOf('f-glyph') >= 0) _atomArt = '<span class="f-atomic-ic">'+a.icon+'</span>';
           /* v1644 ITEM2 — the atom's step glyph was ALSO stamped on the art corner. It is
              decorative in both branches: with artName it covers the item sprite, and without it the
              art slot IS that same glyph, so the badge printed the icon twice. The title line already
@@ -38698,8 +38730,16 @@ function renderJournal(){
   // panel (~5 rows) with a styled scrollbar. One renderer, BOTH grail forges, same position.
   function _allGrid(title, sub, entries, fn, rar){
     if(!entries.length) return '';
-    var openAttr=''; try { if(localStorage.getItem('d2r_grailWallOpen')==='1') openAttr=' open'; } catch(e){}
-    var H=['<details class="gf-wall"'+openAttr+' ontoggle="try{localStorage.setItem(\'d2r_grailWallOpen\',this.open?\'1\':\'\')}catch(e){}">'
+    /* v2077 — THE WALL ALWAYS STARTS COLLAPSED. Konyo: "for F-Uniques and F-Sets its not collapsed
+       by default, all the items with the TZ level next to it — it needs to be default collapsed".
+       The default WAS collapsed, but the open state persisted in d2r_grailWallOpen, so opening it
+       once left 120+ chips expanded on every load forever after — which is what made both tabs read
+       as an unstructured wall of names rather than a page with a summary and a drawer.
+       The asymmetry decides it: wrongly OPEN costs him a page dominated by 120 rows every time he
+       lands; wrongly CLOSED costs one click. A drawer this large does not get to remember "open".
+       The toggle still works for the session; only the stickiness is gone, and with it the key that
+       had no other reader. */
+    var H=['<details class="gf-wall">'
       +'<summary class="gf-wall-sum"><span class="gf-wall-emblem">📿</span><span class="gf-wall-hd"><span class="gf-wall-t">'+title+'</span><span class="gf-wall-sub">'+sub+'</span></span><span class="gf-wall-ct">'+entries.length+'</span><span class="gf-wall-chev">▾</span></summary>'
       +'<div class="gf-wall-body"><input class="gf-wall-filter" type="text" placeholder="🔍 type to filter '+entries.length+'…" oninput="window.gfWallFilter(this)">'
       +'<div class="gf-allgrid">'];
@@ -44510,7 +44550,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2076', name:'v2076 - the eyes control was 20th of 25', date:'2026-08-24', note:'The control that decides whether the third eye runs sat 20th of 25 children inside ADVANCED, behind eight util buttons, four output panels, the repair box and the fleet list, in a rail 238 to 430px wide. It was never hidden by status - g5_status reports present, authorized, mode shadow, and refreshG5 polls every 20s. Moving it to first was necessary and NOT sufficient: measured with no scrollIntoView it still sat 609px into a 786px rail because the details element itself lives near the bottom. It now leads the panel under a real heading and opening ADVANCED brings it into view. Also: sc-card-tvd had no grid area so it auto-placed onto an implicit third row taking one of three columns - 589px of grid became 462px with no orphaned columns.' };
+  window.D2R_BUILD = { id:'v2077', name:'v2077 - the sealed title speaks the page again', date:'2026-08-24', note:'Three visual repairs reported by screenshot, each measured before it was touched. ONE: the SEALED card was the only element on this page using font-variant-caps, the only display title tracked at --ls-wider which is 13 times the page tracking, and it declared no weight so it fell to 400 while every sibling serif title is 700. Measured Cinzel 22px 400 4.4px small-caps against the page Cinzel 17px 700 0.34px. It is now the same face and weight, tracked tight, and larger because 99 of 99 forged is the proudest state on the board. TWO: every craft card showed one alembic emoji because craft atoms carried no artName while runeword atoms do. Each craft is defined by its gem and every gem already had HD art on disk. THREE: the grail wall persisted its open state, so opening it once left 120 chips expanded on every load forever.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

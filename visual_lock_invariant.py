@@ -84,6 +84,38 @@ def _colour_carries_meaning(text, failures):
             failures.append("bible.html: %s (missing: %s)" % (why, needle))
 
 
+def _sealed_title_speaks_the_page(text, failures):
+    """v2077 — the SEALED card is the proudest state on the board (99/99 runewords forged) and it
+    was the only element speaking a different typographic language.
+
+    MEASURED against h2 / .boss-name / .sec-h, all --serif-display:
+        title   Cinzel 22px  weight 400   letter-spacing 4.4px   small-caps
+        page    Cinzel 17px  weight 700   letter-spacing 0.34px  none
+
+    Three departures at once — the only font-variant-caps on the page, the only --ls-wider display
+    title (.20em, 13x the page's .34px), and NO declared weight so it fell to 400 beside siblings at
+    700. Konyo read it exactly as it was: "something changed template style.. typography".
+
+    Loud is fine. A DIFFERENT LANGUAGE is not. This pins the three departures, not the size.
+    """
+    import re as _re
+    m = _re.search(r'\.forge-sealed \.fs-title\{([^}]*)\}', text)
+    if not m:
+        failures.append("bible.html: the .forge-sealed .fs-title rule is gone — the sealed card's "
+                        "title now inherits whatever the page gives it")
+        return
+    rule = m.group(1)
+    if "font-variant-caps" in rule:
+        failures.append("bible.html: the SEALED title uses font-variant-caps, which nothing else on "
+                        "this page does — that is what made it read as another template")
+    if "--ls-wider" in rule:
+        failures.append("bible.html: the SEALED title is tracked at --ls-wider (.20em); the page's "
+                        "serif titles sit near .34px, so this sprawls beside every sibling")
+    if "font-weight" not in rule:
+        failures.append("bible.html: the SEALED title declares no font-weight, so it falls to 400 "
+                        "while every other serif-display title on the page is 700")
+
+
 def _no_orphaned_grid_card(text, failures):
     """v2075 — A CARD WITH NO AREA FALLS OUT OF THE LAYOUT AND NOBODY NOTICES.
 
@@ -128,6 +160,7 @@ def check():
         if name.startswith("bible"):
             _colour_carries_meaning(text, failures)
             _no_orphaned_grid_card(text, failures)
+            _sealed_title_speaks_the_page(text, failures)
         # 1) no raw weight literals — every one must be var(--fw-*)
         for i, line in enumerate(lines, 1):
             for m in RAW_WEIGHT.finditer(line):

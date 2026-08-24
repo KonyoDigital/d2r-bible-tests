@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2076",
+  "ver": "v2077",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2076: The control that decides whether the third eye runs sat 20th of 25 children inside ADVANCED, behind eight util buttons, four output panels, the repair box and the fleet list, in a rail 238 to 430px wide. It was never hidden by status - g5_status reports present, authorized, mode shadow, and refreshG5 polls every 20s. Moving it to first was necessary and NOT sufficient: measured with no scrollIntoView it still sat 609px into a 786px rail because the details element itself lives near the bottom. It now leads the panel under a real heading and opening ADVANCED brings it into view. Also: sc-card-tvd had no grid area so it auto-placed onto an implicit third row taking one of three columns - 589px of grid became 462px with no orphaned columns.",
+  "note": "v2077: Three visual repairs reported by screenshot, each measured before it was touched. ONE: the SEALED card was the only element on this page using font-variant-caps, the only display title tracked at --ls-wider which is 13 times the page tracking, and it declared no weight so it fell to 400 while every sibling serif title is 700. Measured Cinzel 22px 400 4.4px small-caps against the page Cinzel 17px 700 0.34px. It is now the same face and weight, tracked tight, and larger because 99 of 99 forged is the proudest state on the board. TWO: every craft card showed one alembic emoji because craft atoms carried no artName while runeword atoms do. Each craft is defined by its gem and every gem already had HD art on disk. THREE: the grail wall persisted its open state, so opening it once left 120 chips expanded on every load forever.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
