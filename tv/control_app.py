@@ -10361,7 +10361,38 @@ _PRUNE_POLL_S = 60.0
 _PRUNE_BATCH = 120         # frames fingerprinted per pass, so it never hogs a core while he plays
 _PRUNE_FLOOR = 200         # below this many loose frames there is nothing worth pruning
 _PRUNE_LOCK = threading.Lock()
-_PRUNE_STATS = {"passes": 0, "framesDropped": 0, "bytesFreed": 0, "lastSay": "", "enabled": True}
+# v2058 — flipped to True only when _prune_once refuses to delete a frame the panel gate calls a
+# stash panel. Until then the loop does not run, whatever the enabled flag says.
+_PRUNE_SAFE_TO_RUN = False
+# ── v2058 — THE PRUNE IS OFF. IT WAS EATING THE ONLY FRAMES THAT CARRY ITEM NAMES. ───────────
+# v2037 deleted a frame when `sig_diff(kept, this) <= 0.02`, using sig_diff at its DEFAULT tol=28.
+# At that tolerance a D2R hover tooltip moves the whole-frame jpeg_sig by LITERALLY ZERO — and a
+# stash GRID prints no names, so the tooltip is the only place a name exists at all.
+#
+# MEASURED ON HIS OWN REEL (reel_s_1787520892804_95400), three frames that produced three DIFFERENT
+# owned rows in vault_accum.json:
+#     f_1787520897795 -> "Sullied Grand Charm of Blight"
+#     f_1787520899289 -> "Chaotic Grand Charm of Incineration"
+#     f_1787520901207 -> "Chaotic Grand Charm"
+#   pairwise sig_diff at tol=28:  0.00000, 0.00000, 0.00000   -> all three "identical", two deleted.
+# A full replay of the loop's own constants drops 67 frames from that reel including FOUR witness
+# frames, and each of those four is the SECOND distinct session for one of his seven owned rows —
+# so four rows would fall below law 2's two-witness bar and simply never be proposed.
+#
+# WHY MY OWN SAFETY MEASUREMENT MISSED IT: v2037 claimed "worst information loss 0.0117 against the
+# frames the reader actually read". That number was computed with THE SAME BLIND INSTRUMENT — I
+# measured the tooltip frames with a signature that cannot see tooltips, and got back the reassuring
+# answer the instrument was incapable of not giving. [[feedback-suspect-the-instrument]]
+#
+# v2032 had already written this down: "THE DEDUPE THAT MAKES A HELD GRID CHEAP MAKES A HOVER PASS
+# INVISIBLE" — the sweep works around it by adding every panel_gate=="stash" frame on top of the
+# dedupe. _prune_once never calls panel_gate at all, and it runs UPSTREAM of that workaround.
+#
+# OFF until it can prove, per frame, that it is not deleting a panel. Disk is not worth a name.
+_PRUNE_STATS = {"passes": 0, "framesDropped": 0, "bytesFreed": 0,
+                "lastSay": "OFF (v2058) — the 0.02 rule cannot see a hover tooltip and was "
+                           "deleting the frames that carry item names",
+                "enabled": False}
 
 
 def prune_stats():
@@ -10473,6 +10504,10 @@ def _prune_loop():
             time.sleep(_PRUNE_POLL_S)
             with _PRUNE_LOCK:
                 on = _PRUNE_STATS.get("enabled", True)
+            # v2058 — a second, independent refusal. The flag above is data and data can be
+            # flipped; this one is code. Until _prune_once consults the panel gate, no pass runs.
+            if not _PRUNE_SAFE_TO_RUN:
+                continue
             if not on or not _agent_alive():
                 continue
             d, b, why = _prune_once()
@@ -14084,7 +14119,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2057",
+        "ver": "v2058",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

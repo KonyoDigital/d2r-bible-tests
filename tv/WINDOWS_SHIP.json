@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2057",
+  "ver": "v2058",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2057: has-claim-bar was set and nothing in the stylesheet ever read it",
+  "note": "v2058: sig_diff at tol 28 cannot see a hover tooltip, and the tooltip is the only place an item name exists",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

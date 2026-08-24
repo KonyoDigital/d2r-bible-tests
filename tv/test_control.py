@@ -15293,5 +15293,69 @@ class TestV2055NotOpenIsNotDoomed(unittest.TestCase):
 
 
 
+class TestV2058ThePruneStaysOffUntilItCanSeeATooltip(unittest.TestCase):
+    """v2037's rolling prune was deleting the only frames that carry item names, and I shipped it.
+
+    It dropped a frame when `sig_diff(kept, this) <= 0.02` using sig_diff at its DEFAULT tol=28. At
+    that tolerance a D2R hover tooltip moves the whole-frame jpeg_sig by LITERALLY ZERO. A stash grid
+    prints no names, so the tooltip is the only place a name exists — meaning the prune's
+    "these are identical" rule selected almost exactly the frames the vault lane exists to read.
+
+    MEASURED on reel_s_1787520892804_95400: f_1787520897795, f_1787520899289 and f_1787520901207
+    produced three DIFFERENT owned rows ("Sullied Grand Charm of Blight", "Chaotic Grand Charm of
+    Incineration", "Chaotic Grand Charm") and are pairwise 0.00000 apart at tol=28. Replaying the
+    loop's own constants drops 67 frames from that reel including four witness frames, each the
+    SECOND session for one of his seven owned rows — four rows would fall under law 2 and never be
+    proposed.
+
+    v2032 had already recorded this blindness and the sweep works around it with panel_gate.
+    _prune_once never called panel_gate and ran UPSTREAM of the workaround.
+
+    ⚠ v2037's own safety number ("worst loss 0.0117") was computed with THE SAME BLIND INSTRUMENT.
+    Measuring tooltip frames with a signature that cannot see tooltips returns the reassuring answer
+    it is incapable of not giving. [[feedback-suspect-the-instrument]]
+    """
+
+    def _ca(self):
+        import control_app
+        return control_app
+
+    def test_the_prune_loop_refuses_to_run(self):
+        ca = self._ca()
+        self.assertFalse(ca._PRUNE_SAFE_TO_RUN,
+                         "the prune is armed again — it deletes the frames that carry item names")
+        self.assertFalse(ca._PRUNE_STATS.get("enabled"),
+                         "the enabled flag is back on")
+
+    def test_the_refusal_is_CODE_not_only_a_flag(self):
+        """A flag is data and data gets flipped. The loop must refuse on its own."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        blk = _between(self, src, "def _prune_loop():", "def vault_seen_load",
+                       what="the prune loop")
+        self.assertTrue("if not _PRUNE_SAFE_TO_RUN:" in blk,
+                        "the loop no longer refuses independently of the enabled flag")
+
+    def test_it_may_only_be_re_armed_once_it_consults_the_panel_gate(self):
+        """The ONE condition. Re-arming without a per-frame panel check repeats the defect."""
+        ca = self._ca()
+        names = set(ca._prune_once.__code__.co_names)
+        consults = bool({"stash_screen_open", "stash_screen_open_cached", "panel_gate"} & names)
+        if ca._PRUNE_SAFE_TO_RUN:
+            self.assertTrue(consults,
+                            "the prune is armed but _prune_once still never asks whether the frame "
+                            "it is deleting shows a stash panel — that is exactly the v2037 defect")
+
+    def test_the_blindness_that_caused_it_is_real_and_recorded(self):
+        """Guard the FACT, so nobody re-derives 0.02/tol=28 as safe from first principles."""
+        import chronicle_retro as cr
+        import inspect
+        sig = inspect.signature(cr.sig_diff)
+        self.assertEqual(sig.parameters["tol"].default, 28,
+                         "sig_diff's default tol changed — the measurement behind this guard "
+                         "(a tooltip moving the signature by 0.00000) was taken at tol=28")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
