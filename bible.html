@@ -8349,6 +8349,12 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-piece:hover{filter:brightness(1.25);transform:translateY(-1px)}
 .gf-piece.have{background:rgba(95,201,122,.14);border-color:rgba(95,201,122,.55);color:#a9edbb;text-decoration:none}
 .gf-piece.have .gp-ck{color:#5fc97a}
+/* v2073 — an item reads as its rarity here too. Sits AFTER .gf-piece's flat colour so it wins on
+   order rather than on specificity games, and the .have state below still overrides it, because a
+   piece he already owns is telling him something more important than what colour it is. */
+.gf-piece .gp-nm-set{color:var(--q-set)}
+.gf-piece .gp-nm-uni{color:var(--q-unique)}
+.gf-piece.have .gp-nm-set,.gf-piece.have .gp-nm-uni{color:inherit}
 .gf-piece .gp-ck{color:#6b6048;opacity:.8;font-weight:var(--fw-black)}
 .gf-piece img{width:15px;height:15px}
 .gf-src{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:#b6a888}
@@ -38680,14 +38686,22 @@ function renderJournal(){
   // needs to be intelligently and proportionally built, dropdown expandable"). Collapsed by
   // default behind a flagship summary bar; open = a type-to-filter box + a CONTAINED scroll
   // panel (~5 rows) with a styled scrollbar. One renderer, BOTH grail forges, same position.
-  function _allGrid(title, sub, entries, fn){
+  function _allGrid(title, sub, entries, fn, rar){
     if(!entries.length) return '';
     var openAttr=''; try { if(localStorage.getItem('d2r_grailWallOpen')==='1') openAttr=' open'; } catch(e){}
     var H=['<details class="gf-wall"'+openAttr+' ontoggle="try{localStorage.setItem(\'d2r_grailWallOpen\',this.open?\'1\':\'\')}catch(e){}">'
       +'<summary class="gf-wall-sum"><span class="gf-wall-emblem">📿</span><span class="gf-wall-hd"><span class="gf-wall-t">'+title+'</span><span class="gf-wall-sub">'+sub+'</span></span><span class="gf-wall-ct">'+entries.length+'</span><span class="gf-wall-chev">▾</span></summary>'
       +'<div class="gf-wall-body"><input class="gf-wall-filter" type="text" placeholder="🔍 type to filter '+entries.length+'…" oninput="window.gfWallFilter(this)">'
       +'<div class="gf-allgrid">'];
-    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+'</span>'); });
+    /* v2073 — THE WALL WAS THE ONE PLACE AN ITEM WAS NOT ITS OWN COLOUR. Konyo, looking at both
+       walls: "color sync for uniques / for set items... it was very pretty now its not as pretty".
+       Every other surface in this file names an item in its rarity — .item-tile.it-r-set uses
+       --q-set, table.drops td.item-name.q-set does, the legend chips do — and this grid, which is
+       the LONGEST list of item names on the page, printed all 120 of them in one flat cream.
+       _allGrid is shared by uniques and sets, which is exactly why neither got a colour: a shared
+       renderer with no rarity argument can only ever pick one. */
+    var _rc = rar ? ' gp-nm-' + rar : '';
+    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm'+_rc+'">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+'</span>'); });
     H.push('</div></div></details>');
     return H.join('');
   }
@@ -39770,7 +39784,7 @@ function renderJournal(){
       var _ownA=_ownedNames();
       var _missAll=_uniItems().filter(function(x){ return !_ownedHas(_ownA,x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
         .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:'') }; });
-      H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni'));
+      H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni', 'uni'));
       // v682.2 — the still-dark remainder: these chronicle rows exist in-game as bare base-type
       // silhouettes; a dark row's unique NAME is hidden until it drops, so it can't be carded yet.
       // They count in the All-missing number so every meter tells the same 403-story.
@@ -41415,7 +41429,7 @@ function renderJournal(){
       var _missP=[];
       (s.sets||[]).forEach(function(st){ (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl }); } }); });
       _missP.sort(function(a,b){ return a.n.localeCompare(b.n); });
-      H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece'));
+      H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece', 'set'));
     }
 
     // v619 — ⚔ COMPLETED SETS wear the horizontal seal (the platform's done-forever language): a full

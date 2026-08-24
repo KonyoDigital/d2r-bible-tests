@@ -54,6 +54,36 @@ RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-a
 RAW_SHORTHAND = re.compile(r"font: *(?:400|500|600|700|800|900)\b")
 
 
+def _colour_carries_meaning(text, failures):
+    """v2073 — LOCK THE COLOUR THAT CARRIES MEANING, not just the weight.
+
+    Konyo, looking at both grail walls: "color sync for uniques / for set items... it was very
+    pretty now its not as pretty". `_allGrid` renders the uniques wall AND the sets wall and took no
+    rarity argument, so 120 item names printed in one flat cream on a page where every other surface
+    colours an item by its rarity. A shared renderer with no rarity parameter CAN ONLY EVER PICK ONE
+    COLOUR — and nothing failed, because this lock covered weight and structure and said nothing
+    about colour. He was the detector. [[visual-regression-detector]]
+
+    A rarity colour is the same KIND of promise as a weight token: it is meaning, not decoration.
+    """
+    checks = [
+        ('.gf-piece .gp-nm-set{color:var(--q-set)}',
+         "the grail wall no longer names a SET piece in set green"),
+        ('.gf-piece .gp-nm-uni{color:var(--q-unique)}',
+         "the grail wall no longer names a UNIQUE in unique gold"),
+        ("' gp-nm-' + rar",
+         "_allGrid stopped stamping a rarity class — with none, both walls fall back to one flat "
+         "colour and neither can say what it is showing"),
+        ("_missAll, 'grailFoundUni', 'uni'",
+         "the uniques wall stopped declaring its rarity to _allGrid"),
+        ("_missP, 'grailTogglePiece', 'set'",
+         "the sets wall stopped declaring its rarity to _allGrid"),
+    ]
+    for needle, why in checks:
+        if needle not in text:
+            failures.append("bible.html: %s (missing: %s)" % (why, needle))
+
+
 def check():
     failures = []
     for name, cfg in SURFACES.items():
@@ -64,6 +94,8 @@ def check():
             failures.append(f"{name}: cannot read ({e})")
             continue
         text = "\n".join(lines)
+        if name.startswith("bible"):
+            _colour_carries_meaning(text, failures)
         # 1) no raw weight literals — every one must be var(--fw-*)
         for i, line in enumerate(lines, 1):
             for m in RAW_WEIGHT.finditer(line):
@@ -114,9 +146,18 @@ def main():
               % (len(failures), "" if len(failures) == 1 else "s"))
         for f in failures:
             print("   • " + f)
-        print("\nFix: replace each raw font-weight:NNN with its token "
-              "(400=regular 500=normal 600=medium 700=semibold 800=bold 900=black), "
-              "e.g. font-weight:var(--fw-semibold). See LOCKED_TYPE_SYSTEM.md.")
+        # v2073 — ADVICE THAT MATCHES THE FAILURE. This footer printed weight advice under every
+        # drift, including the colour checks added the same day — telling him to swap a
+        # font-weight token when what broke was a rarity colour. A right instruction under the
+        # wrong failure is worse than none: it sends the reader to the wrong file.
+        if any("rarity" in f or "green" in f or "gold" in f or "colour" in f for f in failures):
+            print("\nFix (colour): an item name carries MEANING in its colour — set pieces read "
+                  "var(--q-set), uniques var(--q-unique). Restore the rarity class _allGrid stamps "
+                  "and the binding under .gf-piece. See the visual-regression-detector skill.")
+        if any("weight" in f for f in failures):
+            print("\nFix (weight): replace each raw font-weight:NNN with its token "
+                  "(400=regular 500=normal 600=medium 700=semibold 800=bold 900=black), "
+                  "e.g. font-weight:var(--fw-semibold). See LOCKED_TYPE_SYSTEM.md.")
         return 1
     print("✅ VISUAL-LOCK OK — 0 raw font-weight literals in both surfaces; "
           "--fw-* intact; console --hd-* structure rhythm + --ls-*/--lh-* scales defined "
