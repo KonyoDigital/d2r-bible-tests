@@ -401,6 +401,24 @@ def _witness_rows(evidence):
     return sorted(rows, key=lambda r: (str(r["session"]), str(r["frame"]), str(r["lane"])))
 
 
+# ── v2074 — THE CLOSED FIELD LIST THAT HAS SILENTLY DROPPED A FIELD FOUR TIMES ───────────────
+# apply_payload() rebuilds each owned row by NAMING the fields it ships. That is the right shape —
+# a payload should be deliberate — but it means a field added to _owned_row simply does not arrive,
+# and NOTHING fails. It has happened four times (v1986, v1996, v2004, v2006), and v1986's was the
+# expensive one: `witnesses` shipped as an int instead of rows, so a board loop `for (i < w.length)`
+# over a number never ran, and REG-339's 3-session equipment lock was disabled ON THE ONLY PATH THAT
+# RUNS while still passing against hand-made arrays in tests.
+#
+# So the omission is now DECLARED rather than accidental. Anything an owned row carries must either
+# ship, or be named here with a reason. The guard in test_vault_retro.py fails on any field that is
+# in neither list — a fifth silent drop becomes a loud one.
+#
+# Empty today, and that is the honest state: every field an owned row carries is shipped.
+APPLY_NOT_SHIPPED = {
+    # "fieldname": "why the board does not need it",
+}
+
+
 def _owned_row(key, evidence):
     """Fold one (name, lane) pile into an owned row. MERGE-MAX on count and conf; max on lastSeen.
 

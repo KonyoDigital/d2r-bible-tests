@@ -346,5 +346,65 @@ class TestApplyPayloadIsTheProductionSHAPE(unittest.TestCase):
                          "apply_payload mutated the proposal it was handed")
 
 
+class TestApplyPayloadCannotSilentlyDropAField(unittest.TestCase):
+    """apply_payload names the fields it ships, so a field added to _owned_row simply does not
+    arrive and nothing fails. That has happened FOUR times — v1986, v1996, v2004, v2006 — and
+    v1986's cost REG-339's 3-session equipment lock on the only path that actually runs, while the
+    tests kept passing against hand-made arrays.
+
+    This is the fifth-time guard: every field an owned row carries must either SHIP or be named in
+    vault_retro.APPLY_NOT_SHIPPED with a reason. Neither is a failure."""
+
+    def _row(self):
+        ev = [{"session": "s_%d" % i, "witness": "s_%d#0" % i, "frame": "f%d.jpg" % i,
+               "lane": "stash", "conf": 0.9, "count": 3 + i, "kind": "item",
+               "ts": 1787600000000 + i} for i in range(v.KEEP_MIN_WITNESSES)]
+        return v._owned_row(("Shako", "stash"), ev), ev
+
+    def test_every_owned_field_either_ships_or_is_declared_unshipped(self):
+        row, _ = self._row()
+        pay = v.apply_payload({"ok": True, "owned": [row], "throwOut": [], "generatedTs": 1})
+        self.assertTrue(pay.get("items"), "apply_payload shipped no items at all")
+        shipped = set(pay["items"][0])
+        declared = set(getattr(v, "APPLY_NOT_SHIPPED", {}))
+        missing = set(row) - shipped - declared
+        self.assertEqual(missing, set(),
+                         "apply_payload silently drops %s — a board reader asking for it gets "
+                         "undefined and nothing fails. Ship it, or name it in APPLY_NOT_SHIPPED "
+                         "with a reason." % sorted(missing))
+
+    def test_the_declared_list_cannot_hide_a_field_that_is_actually_gone(self):
+        """A declaration is a decision, not a dumping ground: every name in APPLY_NOT_SHIPPED must
+        really be a field an owned row carries, or it is stale and hiding nothing."""
+        row, _ = self._row()
+        stale = set(getattr(v, "APPLY_NOT_SHIPPED", {})) - set(row)
+        self.assertEqual(stale, set(),
+                         "APPLY_NOT_SHIPPED names %s, which an owned row no longer carries — a "
+                         "stale exemption silently covers whatever takes that name next" % sorted(stale))
+
+    def test_witnesses_ship_as_ROWS_not_as_a_count(self):
+        """v1986, pinned. `witnesses` as an int made every board loop over it a no-op."""
+        row, ev = self._row()
+        pay = v.apply_payload({"ok": True, "owned": [row], "throwOut": [], "generatedTs": 1})
+        w = pay["items"][0].get("witnesses")
+        self.assertIsInstance(w, list, "witnesses shipped as %s — a board `for (i<w.length)` over a "
+                                       "number never runs" % type(w).__name__)
+        self.assertEqual(len(w), len(ev))
+        self.assertTrue(all(isinstance(x, dict) for x in w))
+        self.assertEqual(pay["items"][0].get("witnessCount"), len(ev),
+                         "the count that replaced the int is gone too")
+
+    def test_provenance_survives_the_shaping(self):
+        """reel and frame live on the witness dicts and NOWHERE else in `items`. Losing the rows
+        loses the only pointer back to the pixels."""
+        row, _ = self._row()
+        pay = v.apply_payload({"ok": True, "owned": [row], "throwOut": [], "generatedTs": 1})
+        w = pay["items"][0]["witnesses"]
+        self.assertTrue(any(x.get("frame") for x in w),
+                        "no witness carries a frame — the row can no longer be traced to what it "
+                        "was read from")
+        self.assertTrue(any(x.get("session") for x in w), "no witness carries a session")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

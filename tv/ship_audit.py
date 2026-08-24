@@ -41,6 +41,12 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+try:                                   # this REPORTS, and a reporter that crashes while
+    from console_safe import enable    # reporting makes a clean tree exit non-zero
+    enable()
+except Exception:
+    pass
 REPO = os.path.dirname(HERE)
 RECEIPT = os.path.join(HERE, ".ship_receipt.json")
 
