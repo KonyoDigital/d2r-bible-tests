@@ -2733,7 +2733,7 @@ def _open_board_once():
     open_board(auto_on=True)
     return "opened"
 
-def _open_board_native(tab="session", apply_vault=""):
+def _open_board_native(tab="session"):
     """v767.1 (Konyo: 'no need for Chrome anymore') — the BOARD opens in its own native
     window too: a sibling process runs pywebview on the LOCAL bible.html#tvd. Returns True
     if the native window spawned; False → caller falls back to a browser."""
@@ -2759,8 +2759,7 @@ def _open_board_native(tab="session", apply_vault=""):
         pass
     try:
         proc = subprocess.Popen(
-            [sys.executable, os.path.abspath(__file__), "--board-window", "--hash=" + (tab or "session")]
-            + (["--apply-vault=" + apply_vault] if apply_vault else []),
+            [sys.executable, os.path.abspath(__file__), "--board-window", "--hash=" + (tab or "session")],
             cwd=REPO,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -11534,54 +11533,6 @@ def vault_forget(ledger=False):
     return {"ok": True, "forgot": True, "ledgerCleared": bool(ledger)}
 
 
-def _queue_board_apply(payload, timeout_s=90.0):
-    """v2038 — apply through a BOARD WINDOW PROCESS when the main window is on the console rail.
-
-    THE GAP THIS CLOSES. vault_apply evaluates JS in `_MAIN_WIN`. `_open_board_native` spawns the
-    board as a SEPARATE PROCESS, so the console holds no handle to it and structurally cannot write
-    there. Whenever he was not already looking at the board, an apply answered "the window is on the
-    CONSOLE, not the board" - correct, and impossible to act on without him. Nine grounded items sat
-    unapplied for a night for exactly that reason, while the sweep that found them was already paid
-    for. A proposal nobody can apply is a sweep nobody can bank.
-
-    The process that OWNS a window is the one that can write to it. So the payload is handed to a
-    board-window process on its argv and IT does the apply, in its own window, through the board's
-    own `vaultAccumApply` - the same dated, merge-max, undoable path his hand uses. The console
-    still never writes the vault, which is the rule vault_apply's own docstring states.
-
-    Returns the board's verdict, or None when no board window could be spawned - so the caller
-    falls through to the honest original message instead of inventing a success."""
-    try:
-        path = os.path.join(HERE, "vault_apply_queued.json")
-        res_path = path + ".result.json"
-        try:
-            os.remove(res_path)          # a STALE result must never be read as this run's answer
-        except Exception:
-            pass
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(payload)
-        if not _open_board_native(tab="tools", apply_vault=path):
-            return None
-        deadline = time.time() + timeout_s
-        while time.time() < deadline:
-            if os.path.isfile(res_path):
-                try:
-                    with open(res_path, encoding="utf-8") as fh:
-                        out = json.load(fh)
-                except Exception:
-                    time.sleep(0.4)      # a half-written result is not a result
-                    continue
-                if isinstance(out, dict):
-                    out["viaBoardWindow"] = True
-                    return out
-            time.sleep(1.0)
-        return {"ok": False, "viaBoardWindow": True,
-                "why": "a board window opened but never reported back in %.0fs - look at it before "
-                       "retrying; the apply may or may not have landed" % timeout_s}
-    except Exception as e:
-        return {"ok": False, "why": "could not queue the apply: %s" % str(e)[:160]}
-
-
 def vault_apply(proposal=None):
     """Ask THE BOARD to apply the vault accumulator's gated rows. The console never writes the
     vault, the grail or localStorage.
@@ -11685,13 +11636,20 @@ def vault_apply(proposal=None):
         verdict = json.loads(raw)
     except Exception:
         return {"ok": False, "why": "the board answered something unreadable"}
-    # v2038 — THE MAIN WINDOW IS NOT THE ONLY WINDOW. Only the console-rail cause is retried: a
-    # board whose BUILD lacks vaultAccumApply would fail identically in a fresh window, so retrying
-    # that would open a window purely to deliver the same refusal.
-    if (not verdict.get("ok")) and "not the board" in str(verdict.get("why") or ""):
-        queued = _queue_board_apply(payload)
-        if queued is not None:
-            return queued
+    # ── v2045 — THE QUEUED APPLY IS REMOVED. IT WAS A WRONG IDEA, NOT A BADLY GUARDED ONE. ──
+    # v2038 answered "the window is on the CONSOLE, not the board" by spawning a board window and
+    # applying there. v2040 then had to stop it reporting ok:true into an unclaimed guest world.
+    # Both were treating the symptom.
+    #
+    # MEASURED 2026-08-24: the main window and a spawned board window hold SEPARATE localStorage
+    # while both run — a persistent probe beside the live console saw its own sentinel and not his
+    # 404-entry ledger — and the console is what SERVES /board, so a board window can never exist
+    # without the console running. A spawned board window is therefore never his real world, and
+    # claiming one would only build a second empty owner world beside the real one.
+    #
+    # The original message was right the whole time: put the board on the MAIN window. Working
+    # around a correct refusal is how a night gets spent banking a paid sweep into a world that
+    # evaporates. [[the-unjoined-end]]
     return verdict
 
 
@@ -13887,7 +13845,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2044",
+        "ver": "v2045",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -16838,85 +16796,6 @@ def _loud_fail(title, msg):
         pass
 
 
-def _board_apply_on_load(win, payload_path):
-    """v2038 — do the queued vault apply in THIS process's own window, then say what happened.
-
-    Runs via `webview.start(func, args)`, i.e. after the window exists. It waits for the BOARD to
-    define `vaultAccumApply` rather than sleeping a fixed time: bible.html is read fresh from disk
-    and its parse time is not a constant, and a fixed sleep would apply into a half-built page on a
-    slow morning and look like a board that lost the function.
-
-    It writes its verdict to `<payload>.result.json` because the console is a different process and
-    a return value cannot cross that boundary. Silence would read as success, which is the one
-    answer this must never give."""
-    out_path = payload_path + ".result.json"
-    verdict = {"ok": False, "why": "the board window never became ready"}
-    try:
-        with open(payload_path, encoding="utf-8") as fh:
-            payload = fh.read()
-        ready = False
-        gone = False
-        blind = 0
-        for _ in range(60):
-            try:
-                ready = bool(win.evaluate_js("typeof window.vaultAccumApply === 'function'"))
-                blind = 0
-            except Exception:
-                # v2038 — A WINDOW THAT KEEPS THROWING IS GONE, NOT SLOW. A few throws while the
-                # WebKit view initialises are normal; ten in a row are an answer. Waiting the full
-                # 60s on a dead window makes the console sit out its own timeout and then report an
-                # unknown as a maybe, which is the one answer this must never give.
-                ready = False
-                blind += 1
-                if blind >= 10:
-                    gone = True
-                    break
-            if ready:
-                break
-            time.sleep(1.0)
-        if gone:
-            verdict = {"ok": False,
-                       "why": "the board window went away before it could apply - evaluate_js "
-                              "failed 10 times running"}
-        elif not ready:
-            verdict = {"ok": False,
-                       "why": "the board window opened but never defined vaultAccumApply within "
-                              "60s - the page may not have finished loading"}
-        else:
-            # v2040 — A GUEST WORLD DOES NOT KEEP WHAT YOU WRITE TO IT. REFUSE RATHER THAN LIE.
-            # bible.html resolves _D2R_OWNER only from a clicked d2r_ownerClaim. Without it
-            # _D2R_PFX becomes 'I·<installId>·' and the load lives in a per-install GUEST world.
-            # Measured 2026-08-24: six board windows, six install ids, six empty worlds, and
-            # d2r_owned gone every time - while d2r_grailFarm only LOOKED migrated because the
-            # console re-bridges it on each load. An apply into that world returns ok:true, writes
-            # real rows, and they are unreachable on the next launch. That is the worst answer this
-            # can give: a paid sweep banked into a world that evaporates. [[the-unjoined-end]]
-            try:
-                owner = bool(win.evaluate_js("!!window._D2R_OWNER"))
-            except Exception:
-                owner = False
-            if not owner:
-                verdict = {"ok": False, "guestWorld": True,
-                           "why": "this board window is an UNCLAIMED guest world - anything applied "
-                                  "here is lost on the next launch. Open the board in the main TV "
-                                  "DIABLO window and press 'This browser is mine', then apply again."}
-            else:
-                raw = win.evaluate_js(
-                    "(function(){try{return JSON.stringify({ok:true,applied:window.vaultAccumApply(%s)});}"
-                    "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})()"
-                    % payload)
-                verdict = (json.loads(raw) if raw
-                           else {"ok": False, "why": "the board window returned nothing"})
-    except Exception as e:
-        verdict = {"ok": False, "why": "the queued apply failed: %s" % str(e)[:180]}
-    try:
-        with open(out_path, "w", encoding="utf-8") as fh:
-            json.dump(verdict, fh)
-    except Exception:
-        pass
-    print("\U0001f4e6 queued vault apply -> %s" % json.dumps(verdict)[:300], flush=True)
-
-
 def board_window():
     """v767.1 — dedicated native window for the LOCAL board (file:// bible.html#tvd).
     v773.2 — orphan guard: if the control server disappears for ~60s, this window self-closes
@@ -16946,14 +16825,10 @@ def board_window():
             tab = a.split("=", 1)[1] or "session"
     if tab in ("tvd", "tvd-on", "tvd-off"):
         tab = "session"
-    _apply_path = ""            # v2038 — a vault payload handed over on argv, if any
-    for a in sys.argv:
-        if a.startswith("--apply-vault="):
-            _apply_path = a.split("=", 1)[1]
     url = "http://127.0.0.1:%d/board#%s" % (CONTROL_PORT, tab)
     try:
         import webview
-        _win = webview.create_window(
+        webview.create_window(
             "TV DIABLO — Board",
             url=url,
             width=1500,
@@ -16989,18 +16864,12 @@ def board_window():
         except Exception:
             pass
         try:
-            if _apply_path:
-                webview.start(_board_apply_on_load, (_win, _apply_path), **_bkw)
-            else:
-                webview.start(**_bkw)
+            webview.start(**_bkw)
         except TypeError:
             # older pywebview without private_mode — an ephemeral window beats no window, but SAY SO
             print("\u26a0 pywebview too old for private_mode=False — this board window's storage is "
-                  "EPHEMERAL: anything applied here is lost when it closes.", flush=True)
-            if _apply_path:
-                webview.start(_board_apply_on_load, (_win, _apply_path))
-            else:
-                webview.start()
+                  "EPHEMERAL: its tallies and grail reset when it closes.", flush=True)
+            webview.start()
     except Exception as e:
         _loud_fail(
             "TV DIABLO",

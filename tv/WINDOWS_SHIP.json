@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2044",
+  "ver": "v2045",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2044: an unclaimed board world fails silently because the ledger counts read the same either way; the Eagle Eye now asks and says so",
+  "note": "v2045: a spawned board window can never be his real world, so applying there was a wrong idea rather than a badly guarded one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
