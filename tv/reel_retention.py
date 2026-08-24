@@ -173,6 +173,26 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     recent = set(reels[-keep_recent:]) if keep_recent else set()
     candidates, kept, freed = [], [], 0.0
 
+    # ── v2068 — A RULE THAT NEVER RUNS MUST SAY SO ─────────────────────────────────────────────
+    # Every reason below is a REASON NOT TO DELETE, and they are checked in order, so an earlier
+    # one hides every later one. MEASURED on his 35 reels: 12 never-swept, 11 sealed-with-0-pages,
+    # 5 recent, 1 vault-owes, 6 eligible — and the v2056 rule ("this reel produced rows and none of
+    # them are banked, so the frames ARE the record") fired ZERO times. On his data a working v2056
+    # and a deleted one are indistinguishable, which is the mirror of a blind fixture: real data,
+    # right gate, still green.
+    #
+    # So the plan now counts its own branches and names the ones that never ran. NEVER FIRED is
+    # reported as UNMEASURED, never as "fine" and never as "broken" — this run simply contains no
+    # reel that reaches it, and that is a fact about the footage, not about the rule.
+    # [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
+    RULES = ("recent", "never-chronicle-swept", "zero-pages", "rows-not-banked",
+             "vault-owes", "target-met", "eligible")
+    hits = dict((r, 0) for r in RULES)
+
+    def _rule(tag, why):
+        hits[tag] += 1
+        return why
+
     for reel in reels:
         path = os.path.join(hist, reel)
         size = _dir_mb(path)
@@ -180,37 +200,62 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         pages = int((ce or {}).get("pages") or 0)
 
         if reel in recent:
-            why = "one of the %d most recent — kept so a re-sweep always has real footage" % keep_recent
+            why = _rule("recent",
+                        "one of the %d most recent — kept so a re-sweep always has real footage"
+                        % keep_recent)
         elif ce is None:
-            why = "never chronicle-swept — it has not been read even once"
+            why = _rule("never-chronicle-swept",
+                        "never chronicle-swept — it has not been read even once")
         elif pages < MIN_PAGES:
-            why = ("sealed with 0 pages — that is 'this reader found nothing', not 'done'; the "
-                   "engine reopens these when the prompt improves")
+            why = _rule("zero-pages",
+                        "sealed with 0 pages — that is 'this reader found nothing', not 'done'; "
+                        "the engine reopens these when the prompt improves")
         elif (ve or {}).get("rows") and _reel_ts_key(reel) not in _DURABLE:
             # v2056 — READ IS NOT BANKED. This reel produced rows and none of them reached a store
             # that outlives the frames, so deleting it destroys the only record of those witnesses.
-            why = ("the sweep read %s row(s) here and NONE of them are in the ledger yet — the "
-                   "witnesses live only in these frames, so this reel is the record. Apply the "
-                   "vault proposal (or let a sweep write vault_seen.json) and it becomes eligible."
-                   % (ve or {}).get("rows"))
+            why = _rule("rows-not-banked",
+                        "the sweep read %s row(s) here and NONE of them are in the ledger yet — the "
+                        "witnesses live only in these frames, so this reel is the record. Apply the "
+                        "vault proposal (or let a sweep write vault_seen.json) and it becomes "
+                        "eligible." % (ve or {}).get("rows"))
         elif ve is None and _vault_lane_owes(path):
-            why = ("the VAULT lane has never swept it — it still owes the vault manager its stash "
-                   "rows" + ("" if vault else " (vault_swept.json does not exist yet)"))
+            why = _rule("vault-owes",
+                        "the VAULT lane has never swept it — it still owes the vault manager its "
+                        "stash rows" + ("" if vault else " (vault_swept.json does not exist yet)"))
         else:
             if free_mb is not None and freed >= free_mb:
-                why = "eligible, but the target was already met — this stops as soon as it can"
+                why = _rule("target-met",
+                            "eligible, but the target was already met — this stops as soon as it can")
                 kept.append({"reel": reel, "mb": round(size, 1), "why": why, "pages": pages})
                 continue
             freed += size
             candidates.append({"reel": reel, "mb": round(size, 1), "pages": pages,
-                               "why": "read (%d pages) and sealed by BOTH lanes — it has given up "
-                                      "its information" % pages})
+                               "why": _rule("eligible",
+                                            "read (%d pages) and sealed by BOTH lanes — it has "
+                                            "given up its information" % pages)})
             continue
         kept.append({"reel": reel, "mb": round(size, 1), "why": why, "pages": pages})
 
+    # NOT REACHED and NOT APPLICABLE are two different answers, and only one of them is a gap.
+    # `target-met` can only fire when a free_mb target was asked for; with no target it is
+    # unreachable BY CONSTRUCTION, not unexercised by the footage. Reporting them together would
+    # make a structurally-inert branch look like a rule that quietly stopped working.
+    _na = set() if free_mb is not None else {"target-met"}
+    never = [r for r in RULES if not hits[r] and r not in _na]
+    na = sorted(r for r in _na if not hits[r])
     return {"ok": True, "hist": hist, "candidates": candidates, "kept": kept,
             "freeMb": round(freed, 1), "onDisk": len(reels),
             "vaultLedger": bool(vault),
+            "coverage": dict(hits), "neverFired": never, "notApplicable": na,
+            "coverageSay": (("every rule this run could reach was exercised by the footage"
+                             if not never else
+                             "%d rule(s) were NEVER REACHED on these %d reel(s) — %s. That is "
+                             "UNMEASURED, not fine and not broken: nothing in this footage gets far "
+                             "enough down the chain to test them."
+                             % (len(never), len(reels), ", ".join(never)))
+                            + ("" if not na else
+                               " (%s cannot fire without a free_mb target and is not counted as a "
+                               "gap.)" % ", ".join(na))),
             "say": ("%d reel(s) may go, freeing %d MB" % (len(candidates), round(freed))
                     if candidates else
                     "NOTHING is safe to delete yet — and that is an answer, not a failure. " +
@@ -257,6 +302,14 @@ def main(argv=None):
     print("\nKEPT, and why:")
     for k in p["kept"]:
         print("   %-40s %6.1f MB  %s" % (k["reel"], k["mb"], k["why"]))
+    # v2068 — print the coverage LAST, where a verdict is read. A rule that never ran is the one
+    # thing this plan cannot otherwise tell him, and it is exactly the thing that looks fine.
+    print("\nRULE COVERAGE:")
+    for _r, _n in p["coverage"].items():
+        _tag = ("" if _n else ("   <- NEVER REACHED on this footage"
+                               if _r in p["neverFired"] else "   (n/a without --free-mb)"))
+        print("   %-24s %3d%s" % (_r, _n, _tag))
+    print("   %s" % p["coverageSay"])
     if a.apply:
         r = apply_plan(p, a.yes)
         print("\n%s" % ("removed %d reel(s), freed %d MB" % (len(r["removed"]), round(r["freedMb"]))

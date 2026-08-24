@@ -15996,5 +15996,106 @@ class TestV2067LookingAtTheLedgerIsFree(unittest.TestCase):
                          % sorted(set(bad)))
 
 
+class TestV2068ARuleThatNeverRunsMustSaySo(unittest.TestCase):
+    """The retention plan is a chain of REASONS NOT TO DELETE, checked in order, so an earlier one
+    hides every later one. MEASURED on his 35 reels: 12 never-swept, 11 zero-pages, 5 recent, 1
+    vault-owes, 6 eligible — and v2056's rule ("this reel produced rows and none are banked, so the
+    frames ARE the record") fired ZERO times. On his data a working v2056 and a deleted one are
+    indistinguishable: the mirror of a blind fixture — real data, right gate, still green.
+
+    [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]"""
+
+    def _rr(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention
+        return reel_retention
+
+    def _tree(self, reels, chron, vault, durable=()):
+        """A FIXTURE hist dir. His reels, ledgers and seal store are never read here.
+        [[feedback-fixtures-never-touch-live-data]]"""
+        import json as _j, tempfile, shutil
+        import unittest.mock as mock
+        rr = self._rr()
+        root = tempfile.mkdtemp(prefix="cov_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        for name in reels:
+            d = os.path.join(hist, name)
+            os.makedirs(d)
+            with open(os.path.join(d, "f_1.jpg"), "wb") as fh:
+                fh.write(b"x" * 2048)
+        for fn, blob in (("chronicle_swept.json", chron), ("vault_swept.json", vault)):
+            with open(os.path.join(root, fn), "w", encoding="utf-8") as fh:
+                _j.dump(blob, fh)
+        ctx = [mock.patch.object(rr, "CHRON_PATH", os.path.join(root, "chronicle_swept.json"), create=True),
+               mock.patch.object(rr, "VAULT_PATH", os.path.join(root, "vault_swept.json"), create=True),
+               mock.patch.object(rr, "_durable_sessions", lambda *_a, **_k: set(durable))]
+        return rr, hist, root, ctx
+
+    def test_the_plan_reports_which_rules_it_never_reached(self):
+        rr = self._rr()
+        p = rr.plan()
+        self.assertIn("coverage", p, "the plan does not report its own branch coverage")
+        self.assertIn("neverFired", p)
+        self.assertIn("coverageSay", p)
+        self.assertEqual(sum(p["coverage"].values()), len(p["candidates"]) + len(p["kept"]),
+                         "the coverage counts do not add up to the reels actually classified — "
+                         "some reel took a branch nothing counted")
+
+    def test_NOT_REACHED_and_NOT_APPLICABLE_are_kept_apart(self):
+        """`target-met` cannot fire without a free_mb target: it is unreachable BY CONSTRUCTION, not
+        unexercised by the footage. Reporting them together would make a structurally inert branch
+        look like a rule that quietly stopped working."""
+        rr = self._rr()
+        no_target = rr.plan()
+        self.assertIn("target-met", no_target["notApplicable"],
+                      "target-met was called a gap when no target was even asked for")
+        self.assertNotIn("target-met", no_target["neverFired"])
+        self.assertIn("cannot fire without a free_mb target", no_target["coverageSay"])
+
+    def test_it_says_UNMEASURED_rather_than_fine_or_broken(self):
+        rr = self._rr()
+        p = rr.plan()
+        say = p["coverageSay"]
+        if p["neverFired"]:
+            self.assertIn("UNMEASURED", say)
+            self.assertNotIn("broken", say.replace("not broken", ""))
+            for r in p["neverFired"]:
+                self.assertIn(r, say, "a rule was counted as never-reached and not NAMED")
+
+    def test_the_v2056_rule_is_currently_one_of_them_on_his_tree(self):
+        """The finding itself, pinned. If this ever starts failing it means his footage finally
+        reaches that branch — which is good news, and the test should then be updated to say so
+        rather than deleted."""
+        rr = self._rr()
+        p = rr.plan()
+        self.assertEqual(p["coverage"].get("rows-not-banked"), 0,
+                         "rows-not-banked now fires on his footage — the v2056 rule is finally "
+                         "exercised. Update this test; do not delete it.")
+        self.assertIn("rows-not-banked", p["neverFired"])
+
+    def test_every_declared_rule_has_a_counter(self):
+        """A branch that forgets to call _rule() is invisible to the coverage report, which is the
+        same defect one level up."""
+        import ast
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reel_retention.py")
+        with open(_p, "r", encoding="utf-8") as fh:
+            src = fh.read()
+        fn = [n for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.FunctionDef) and n.name == "plan"][0]
+        tagged = set()
+        for n in ast.walk(fn):
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_rule"
+                    and n.args and isinstance(n.args[0], ast.Constant)):
+                tagged.add(n.args[0].value)
+        rr = self._rr()
+        declared = set(rr.plan()["coverage"].keys())
+        self.assertEqual(declared - tagged, set(),
+                         "declared but never counted: %s" % sorted(declared - tagged))
+        self.assertEqual(tagged - declared, set(),
+                         "counted under a tag nothing declares: %s" % sorted(tagged - declared))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

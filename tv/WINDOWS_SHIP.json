@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2067",
+  "ver": "v2068",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2067: vault_ledger_load had exactly ONE caller in the whole console - inside _vault_sweep_run - so the accumulated ledger, and every sighting time and frame id v2064 and v2065 put on it, could only be seen as a side effect of paying for a sweep. Looking at what the AI had already seen cost a re-read. There is now a free read and a console panel for it, rendering through the same _vaultNames the proposal uses. It distinguishes absent from unreadable from empty, which the old loader folds into one. Two defects surfaced only by running it: the handler was written in a different closure from the row renderer and threw at click time, and TEN javascript string literals used the python escape backslash-U-0001-XXXX, which JS renders as literal text - so the EAGLE EYE panel had been printing U0001F985 instead of the bird. Also conf 0 now reads confidence not recorded, because the keep floor is 0.55 and no grounded row can carry a zero.",
+  "note": "v2068: The retention plan is a chain of REASONS NOT TO DELETE checked in order, so an earlier reason hides every later one. Measured on his 35 reels: 12 never-swept, 11 sealed-with-zero-pages, 5 recent, 1 vault-owes, 6 eligible - and the v2056 rule fired ZERO times. On his footage a working v2056 and a deleted one are indistinguishable, which is the mirror of a blind fixture: real data, right gate, still green. The plan now counts its own branches and names the ones it never reached, reported as UNMEASURED rather than as fine or as broken. NOT REACHED and NOT APPLICABLE are kept apart: target-met cannot fire without a free_mb target, so it is unreachable by construction rather than untested by the footage, and folding them together would make an inert branch look like a rule that quietly stopped working.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
