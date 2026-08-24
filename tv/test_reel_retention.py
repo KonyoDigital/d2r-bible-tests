@@ -215,5 +215,112 @@ class TestV2042AHoldThatCanNeverBeSatisfiedIsALeak(unittest.TestCase):
 
 
 
+class TestV2056ReadIsNotBanked(unittest.TestCase):
+    """Konyo: "after the sweep ... data needs to be extracted and ledgered and counted for items as
+    witnesses so when they get pruned they continue to exist on record."
+
+    MIN_PAGES called it "evidence banked" and meant "at least one page was READ". A sweep produces a
+    PROPOSAL; only an apply puts rows in a store that outlives the frames. The night before this
+    guard was written, a blocked apply left 7 grounded and 17 unsure sitting in a proposal for hours
+    while retention was free to run — and reel s_1787242455315_9654 had rows=7 in vault_swept with
+    nothing durable behind it.
+
+    ⚠ ON HIS REAL TREE THIS BRANCH IS CURRENTLY UNEXERCISED: that reel is held by the EARLIER
+    chronicle-pages branch, so his data cannot tell a working guard from a broken one. The case is
+    therefore built here. [[gate-blind-to-unexercised-input]]
+    """
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.hist = os.path.join(self.root, "hist")
+        os.makedirs(self.hist)
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self._real = rr.HERE
+        rr.HERE = self.root
+        self.addCleanup(setattr, rr, "HERE", self._real)
+
+    def _reel(self, sid, kb=8):
+        d = os.path.join(self.hist, "reel_" + sid)
+        os.makedirs(d)
+        with open(os.path.join(d, "f_1.jpg"), "wb") as fh:
+            fh.write(b"\0" * (kb * 1024))
+        with open(os.path.join(d, "index.json"), "w") as fh:
+            json.dump({"sessionId": sid, "focus": "stash"}, fh)
+        return "reel_" + sid
+
+    def _ledgers(self, sid, rows, durable):
+        """Both lanes have READ it. `durable` decides whether the rows reached a store."""
+        with open(os.path.join(self.root, "chronicle_swept.json"), "w") as fh:
+            json.dump({"reel_" + sid: {"pages": 12}}, fh)
+        with open(os.path.join(self.root, "vault_swept.json"), "w") as fh:
+            json.dump({sid: {"ts": 1, "rows": rows}}, fh)
+        acc = {"owned": []}
+        if durable:
+            acc["owned"] = [{"name": "Enigma", "lane": "stash",
+                             "witnesses": [{"session": sid, "frame": "f_1.jpg"}]}]
+        with open(os.path.join(self.root, "vault_accum.json"), "w") as fh:
+            json.dump(acc, fh)
+
+    def _eligible(self, name):
+        p = rr.plan(self.hist, keep_recent=0)
+        return name in {r.get("reel") or r.get("name") for r in (p.get("candidates") or [])}, p
+
+    def _why(self, plan, name):
+        for row in (plan.get("candidates") or []) + (plan.get("kept") or []):
+            if (row.get("reel") or row.get("name")) == name:
+                return row.get("why") or ""
+        return ""
+
+    def test_rows_read_but_NOT_banked_holds_the_reel(self):
+        sid = "s_1000000000000_1"
+        name = self._reel(sid)
+        self._ledgers(sid, rows=7, durable=False)
+        ok, plan = self._eligible(name)
+        self.assertFalse(ok, "a reel whose 7 rows exist ONLY in these frames was offered for "
+                             "deletion — that destroys the only record of those witnesses")
+        self.assertIn("NONE of them are in the ledger", self._why(plan, name))
+
+    def test_the_same_reel_becomes_eligible_ONCE_the_rows_are_banked(self):
+        """The mirror. Without it, a guard that holds everything forever would also pass."""
+        sid = "s_1000000000000_2"
+        name = self._reel(sid)
+        self._ledgers(sid, rows=7, durable=True)
+        ok, plan = self._eligible(name)
+        self.assertTrue(ok, "banked evidence still did not release the reel: %r"
+                            % self._why(plan, name))
+
+    def test_vault_seen_counts_as_durable_too(self):
+        """v2051's ungrounded sightings outlive the frames just as owned rows do."""
+        sid = "s_1000000000000_3"
+        name = self._reel(sid)
+        self._ledgers(sid, rows=4, durable=False)
+        with open(os.path.join(self.root, "vault_seen.json"), "w") as fh:
+            json.dump({"rows": [{"name": "Dwarf Star", "lane": "stash",
+                                 "witnesses": [{"session": sid, "frame": "f_1.jpg"}]}]}, fh)
+        ok, plan = self._eligible(name)
+        self.assertTrue(ok, "a sighting durable in vault_seen.json did not release the reel: %r"
+                            % self._why(plan, name))
+
+    def test_an_unreadable_ledger_holds_rather_than_releases(self):
+        """'I could not read the record' must never resolve to 'delete the record'."""
+        sid = "s_1000000000000_4"
+        name = self._reel(sid)
+        self._ledgers(sid, rows=5, durable=False)
+        with open(os.path.join(self.root, "vault_accum.json"), "w") as fh:
+            fh.write("{ this is not json")
+        ok, plan = self._eligible(name)
+        self.assertFalse(ok, "an unreadable ledger released a reel holding un-banked evidence")
+
+    def test_a_reel_that_produced_NO_rows_is_unaffected(self):
+        """Nothing was found in it, so there is no record to lose."""
+        sid = "s_1000000000000_5"
+        name = self._reel(sid)
+        self._ledgers(sid, rows=0, durable=False)
+        ok, plan = self._eligible(name)
+        self.assertTrue(ok, "a reel with no rows was held by the banked check: %r"
+                            % self._why(plan, name))
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

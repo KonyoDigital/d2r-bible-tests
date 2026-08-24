@@ -73,6 +73,17 @@ def _dir_mb(path):
     return total / (1024.0 * 1024.0)
 
 
+_DURABLE = set()
+
+
+def _reel_ts_key(reel):
+    """The SESSION id a reel directory name carries. vault_swept is keyed by session, the plan
+    iterates directories, and the two differ by the `reel_` prefix — matching them by eye is how a
+    reel gets held or released for the wrong reason."""
+    b = os.path.basename(str(reel or ""))
+    return b[len("reel_"):] if b.startswith("reel_") else b
+
+
 def _reel_ts(reel):
     """Sort key: the epoch ms embedded in reel_s_<ms>_<n>. Falls back to mtime, and a reel whose
     name cannot be parsed sorts NEWEST so it is the last thing anyone deletes."""
@@ -80,6 +91,45 @@ def _reel_ts(reel):
         return int(reel.split("_")[2])
     except Exception:
         return float("inf")
+
+
+def _durable_sessions(here=None):
+    """Sessions whose witnesses survive INDEPENDENTLY of the frames.
+
+    v2056 — Konyo: "after the sweep ... data needs to be extracted and ledgered and counted for
+    items as witnesses so when they get pruned they continue to exist on record."
+
+    MIN_PAGES called it "evidence banked" and meant "at least one page was READ". Reading produces
+    a PROPOSAL; only an apply puts rows in the ledger. Measured 2026-08-24: reel
+    s_1787242455315_9654 had rows=7 in vault_swept and NOTHING in any durable store, so deleting it
+    would have taken those seven witnesses with it — and the night before, a blocked apply left 7
+    grounded and 17 unsure sitting in a proposal for hours while retention was free to run.
+
+    Two stores make a witness durable, and both key on the SESSION the sighting came from:
+      · vault_accum.json — rows he has APPLIED
+      · vault_seen.json  — sightings that have not grounded yet (v2051)
+    Returns a set of session ids. An unreadable store contributes NOTHING and is not an error: the
+    caller errs toward KEEPING, so "I could not read the ledger" can only ever hold a reel, never
+    release one.
+    """
+    root = here or HERE
+    out = set()
+    for fn in ("vault_accum.json", "vault_seen.json"):
+        try:
+            with open(os.path.join(root, fn), encoding="utf-8") as fh:
+                blob = json.load(fh)
+        except Exception:
+            continue
+        rows = blob.get("owned") if isinstance(blob, dict) and "owned" in blob else None
+        if rows is None and isinstance(blob, dict):
+            rows = blob.get("rows")
+        for r in (rows or []):
+            if not isinstance(r, dict):
+                continue
+            for w in (r.get("witnesses") or []):
+                if isinstance(w, dict) and w.get("session"):
+                    out.add(str(w["session"]))
+    return out
 
 
 def _vault_lane_owes(reel_path):
@@ -126,6 +176,9 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     except OSError as e:
         return {"ok": False, "why": "cannot read %s: %s" % (hist, e), "candidates": [], "kept": []}
 
+    # v2056 — sessions whose witnesses survive without the frames, read ONCE per plan.
+    global _DURABLE
+    _DURABLE = _durable_sessions(HERE)
     recent = set(reels[-keep_recent:]) if keep_recent else set()
     candidates, kept, freed = [], [], 0.0
 
@@ -142,6 +195,13 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         elif pages < MIN_PAGES:
             why = ("sealed with 0 pages — that is 'this reader found nothing', not 'done'; the "
                    "engine reopens these when the prompt improves")
+        elif (ve or {}).get("rows") and _reel_ts_key(reel) not in _DURABLE:
+            # v2056 — READ IS NOT BANKED. This reel produced rows and none of them reached a store
+            # that outlives the frames, so deleting it destroys the only record of those witnesses.
+            why = ("the sweep read %s row(s) here and NONE of them are in the ledger yet — the "
+                   "witnesses live only in these frames, so this reel is the record. Apply the "
+                   "vault proposal (or let a sweep write vault_seen.json) and it becomes eligible."
+                   % (ve or {}).get("rows"))
         elif ve is None and _vault_lane_owes(path):
             why = ("the VAULT lane has never swept it — it still owes the vault manager its stash "
                    "rows" + ("" if vault else " (vault_swept.json does not exist yet)"))
