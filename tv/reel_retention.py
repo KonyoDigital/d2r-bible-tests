@@ -82,6 +82,36 @@ def _reel_ts(reel):
         return float("inf")
 
 
+def _vault_lane_owes(reel_path):
+    """Would the VAULT lane ever read this reel at all?
+
+    v2042 — a reel that DECLARED a chronicle focus is not the vault lane's to read:
+    `vault_retro.OWNERSHIP_SURFACES` deliberately excludes 'chronicle'. Holding such a reel until
+    the vault sweeps it holds it FOREVER.
+
+    Measured 2026-08-24: five reels declaring chronicle-uniques / chronicle-sets (250 MB) were kept
+    on exactly that reason, waiting for a lane that was never going to come, while the disk sat at
+    96%. A hold that can never be satisfied is not a hold, it is a leak.
+
+    Errs toward KEEPING: an unreadable index, or no declared focus at all, still owes the lane.
+    Deleting footage is irreversible and 'I could not tell' must never resolve to 'delete it'.
+    """
+    try:
+        with open(os.path.join(reel_path, "index.json"), encoding="utf-8") as fh:
+            ix = json.load(fh)
+    except Exception:
+        return True
+    focus = str((ix or {}).get("focus") or "").lower()
+    if not focus:
+        return True
+    try:
+        import vault_retro as _vr
+        surfaces = tuple(_vr.OWNERSHIP_SURFACES)
+    except Exception:
+        surfaces = ("stash", "inventory", "equipment", "runes", "gems", "materials")
+    return focus in surfaces
+
+
 def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     """What may go, oldest first, and WHY every other reel stays. Writes nothing.
 
@@ -112,7 +142,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         elif pages < MIN_PAGES:
             why = ("sealed with 0 pages — that is 'this reader found nothing', not 'done'; the "
                    "engine reopens these when the prompt improves")
-        elif ve is None:
+        elif ve is None and _vault_lane_owes(path):
             why = ("the VAULT lane has never swept it — it still owes the vault manager its stash "
                    "rows" + ("" if vault else " (vault_swept.json does not exist yet)"))
         else:

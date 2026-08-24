@@ -131,5 +131,89 @@ class TestRetentionSelectsAndRefuses(unittest.TestCase):
         self.assertEqual(p["candidates"], [])
 
 
+class TestV2042AHoldThatCanNeverBeSatisfiedIsALeak(unittest.TestCase):
+    """The vault hold must ask whether the VAULT LANE WILL EVER COME.
+
+    `vault_retro.OWNERSHIP_SURFACES` deliberately excludes 'chronicle', so a reel that DECLARED a
+    chronicle focus is never the vault lane's to read. Holding it until the vault sweeps it holds it
+    forever. Measured on his tree 2026-08-24: five reels declaring chronicle-uniques /
+    chronicle-sets — 185 MB — kept on exactly that reason while the disk sat at 96%, waiting for a
+    lane that was never going to come.
+
+    Every case runs against a TEMP fixture, never his frames.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.hist = os.path.join(self.root, "hist")
+        os.makedirs(self.hist)
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self._real_here = rr.HERE
+        rr.HERE = self.root
+        self.addCleanup(setattr, rr, "HERE", self._real_here)
+
+    def _reel(self, ms, focus="__none__", kb=8):
+        name = "reel_s_%d_1" % ms
+        d = os.path.join(self.hist, name)
+        os.makedirs(d)
+        with open(os.path.join(d, "f_%d.jpg" % ms), "wb") as fh:
+            fh.write(b"\0" * (kb * 1024))
+        if focus != "__no_index__":
+            ix = {} if focus == "__none__" else {"focus": focus}
+            with open(os.path.join(d, "index.json"), "w") as fh:
+                json.dump(ix, fh)
+        return name
+
+    def _sweep(self, reels):
+        with open(os.path.join(self.root, "chronicle_swept.json"), "w") as fh:
+            json.dump({r: {"pages": 12} for r in reels}, fh)
+        with open(os.path.join(self.root, "vault_swept.json"), "w") as fh:
+            json.dump({}, fh)          # the vault lane has swept NOTHING
+
+    def _why(self, plan, reel):
+        for row in (plan.get("candidates") or []) + (plan.get("kept") or []):
+            if row.get("reel") == reel or row.get("name") == reel:
+                return row.get("why") or ""
+        return None
+
+    def _plan_one(self, focus):
+        r = self._reel(1_000_000_000_000, focus=focus)
+        self._sweep([r])
+        p = rr.plan(self.hist, keep_recent=0)
+        cands = {row.get("reel") or row.get("name") for row in (p.get("candidates") or [])}
+        return r, p, (r in cands)
+
+    def test_a_chronicle_reel_is_not_held_for_a_lane_that_will_never_read_it(self):
+        for focus in ("chronicle-uniques", "chronicle-sets"):
+            with self.subTest(focus=focus):
+                r, p, eligible = self._plan_one(focus)
+                self.assertTrue(eligible,
+                                "a %s reel is still held for the VAULT lane, which by "
+                                "OWNERSHIP_SURFACES will never read it - that reel can never be "
+                                "freed. why=%r" % (focus, self._why(p, r)))
+                self.setUp()
+
+    def test_a_stash_reel_IS_still_held_until_the_vault_reads_it(self):
+        r, p, eligible = self._plan_one("stash")
+        self.assertFalse(eligible,
+                         "a stash reel the vault lane has never read became deletable - its rows "
+                         "would be lost before they were ever banked")
+        self.assertIn("VAULT lane", self._why(p, r) or "")
+
+    def test_a_reel_with_NO_declared_focus_is_still_held(self):
+        """No focus means the vault lane classifies it, so it may still owe rows."""
+        r, p, eligible = self._plan_one("__none__")
+        self.assertFalse(eligible, "an unfocused reel became deletable before the vault saw it")
+
+    def test_an_UNREADABLE_index_keeps_the_hold(self):
+        """Deleting footage is irreversible. 'I could not tell' must never resolve to 'delete it'."""
+        r, p, eligible = self._plan_one("__no_index__")
+        self.assertFalse(eligible,
+                         "a reel whose index could not be read was selected for deletion - the "
+                         "planner guessed in the one direction that cannot be undone")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

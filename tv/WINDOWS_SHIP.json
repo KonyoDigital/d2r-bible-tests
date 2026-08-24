@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2041",
+  "ver": "v2042",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2041: his grail and vault ledgers existed only in a running windows localStorage; the console now snapshots them outside the repo",
+  "note": "v2042: retention kept chronicle reels waiting for the vault lane, which by OWNERSHIP_SURFACES will never read them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
