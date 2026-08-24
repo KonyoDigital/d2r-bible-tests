@@ -4138,6 +4138,20 @@ try {
     if (!bar) return;
     bar.hidden = false;
     document.body.classList.add('has-claim-bar');
+    /* v2057 — PUBLISH THE HEIGHT, because the class alone was doing nothing.
+       `has-claim-bar` was added here and NOTHING in the stylesheet ever read it: measured by CDP,
+       #tvf-console-return (fixed, z 10050) and #v687-build-badge (fixed, z 9990) sat ON TOP of this
+       bar at 1440, 901 and 375 — over the one control that gets him out of a guest world.
+       The bar is 88px at 1440, 120 at 901 and 159 at 375, so a constant offset is wrong at two of
+       three widths; the CSS reads this variable instead. */
+    try {
+      var _setH = function(){
+        try { document.body.style.setProperty('--claim-bar-h', bar.offsetHeight + 'px'); } catch(e){}
+      };
+      _setH();
+      if (window.ResizeObserver) { new ResizeObserver(_setH).observe(bar); }
+      else { window.addEventListener('resize', _setH); }
+    } catch(e){}
     var btn = document.getElementById('claim-btn');
     btn.onclick = function(){
       try {
@@ -44395,6 +44409,15 @@ try {
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28px}  /* ribbons live left too */
+/* v2057 — MOVE THE FIXED CORNER CONTROLS BELOW THE CLAIM BAR WHILE IT IS UP.
+   These are the only two fixed elements that land in the bar's band. Placed after every other
+   `top:` rule for them so it wins on order, and keyed to the measured height so it is correct at
+   every width. The fallback (96px) is only ever used if the JS could not measure. */
+body.has-claim-bar #tvf-console-return{top:calc(var(--claim-bar-h, 96px) + 10px)}
+body.has-claim-bar #v687-build-badge,
+body.has-claim-bar.app-ctx #v687-build-badge,
+body.has-claim-bar.ladder-profile #v687-build-badge,
+body.has-claim-bar.cousin-shell #v687-build-badge{top:calc(var(--claim-bar-h, 96px) + 42px)}
 #v687-intake-modal{
   position:fixed;inset:0;z-index:10060;display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.72);padding:16px;
@@ -44430,7 +44453,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2056', name:'v2056 - read is not banked', date:'2026-08-24', note:'retention would delete a reel whose rows existed only in those frames' };
+  window.D2R_BUILD = { id:'v2057', name:'v2057 - the claim bar had two things sitting on it', date:'2026-08-24', note:'has-claim-bar was set and nothing in the stylesheet ever read it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

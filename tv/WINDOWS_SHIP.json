@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2056",
+  "ver": "v2057",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2056: retention would delete a reel whose rows existed only in those frames",
+  "note": "v2057: has-claim-bar was set and nothing in the stylesheet ever read it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
