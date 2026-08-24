@@ -9048,7 +9048,13 @@ def board_ownership(sample=0):
           "if(p&&typeof p==='object')return Object.keys(p);return [];}catch(e){return [];}};"
           "var fl=g('d2r_foundLog'),ow=g('d2r_owned'),sp=g('d2r_setPieces');"
           "var n=%d;"
-          "return JSON.stringify({ok:true,counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length},"
+          # v2044 — REPORT WHICH WORLD THESE COUNTS CAME FROM. An unclaimed load lives in a
+          # per-install GUEST world (_D2R_PFX = 'I·<installId>·'), and anything applied there is
+          # unreachable from the next one. That failure is SILENT by construction: the counts look
+          # exactly the same either way, so a reader cannot tell a real ledger from a doomed one.
+          "var owner=!!window._D2R_OWNER, pfx=(typeof window._D2R_PFX==='string'?window._D2R_PFX:null);"
+          "return JSON.stringify({ok:true,owner:owner,pfx:pfx,"
+          "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)}});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
@@ -13881,7 +13887,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2043",
+        "ver": "v2044",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

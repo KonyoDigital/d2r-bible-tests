@@ -14823,5 +14823,73 @@ class TestV2043TheBoardWindowIsNotEphemeral(unittest.TestCase):
 
 
 
+class TestV2044TheDoctorCanSeeADoomedWorld(unittest.TestCase):
+    """An unclaimed board world fails SILENTLY: the ledger counts read exactly the same in a doomed
+    world as in a real one, so nothing on any screen distinguishes them. An apply into it returns
+    ok:true, writes real rows, and they are unreachable from the next load. That cost a whole night.
+    [[the-unjoined-end]]
+    """
+
+    def _cd(self):
+        import console_doctor
+        return console_doctor
+
+    def test_an_ABSENT_ownership_field_is_unknown_never_a_pass(self):
+        """An older console cannot answer. 'Nobody asked' must never read as 'all fine'."""
+        import unittest.mock as mock
+        cd = self._cd()
+        with mock.patch.object(cd, "_post", lambda *a, **k: {
+                "ok": True, "counts": {"foundLog": 404, "owned": 5, "setPieces": 120}}):
+            state, why = cd._check_the_board_world_is_claimed()
+        self.assertEqual(state, cd.UNKNOWN,
+                         "a console that cannot report ownership was graded as healthy")
+
+    def test_an_unclaimed_world_is_reported_MISSING_with_the_remedy(self):
+        import unittest.mock as mock
+        cd = self._cd()
+        with mock.patch.object(cd, "_post", lambda *a, **k: {
+                "ok": True, "owner": False, "pfx": "I\u00b7abc12345\u00b7",
+                "counts": {"foundLog": 404, "owned": 5, "setPieces": 120}}):
+            state, why = cd._check_the_board_world_is_claimed()
+        self.assertEqual(state, cd.MISSING, "a doomed world was not flagged")
+        self.assertIn("This browser is mine", why, "the report names no remedy")
+        # 404 + 5 + 120 = 529. Naming the size is what makes the warning land: "your 529-entry
+        # ledger is in a world that evaporates" is a different sentence from a generic caution.
+        self.assertIn("529", why,
+                      "the warning does not say how much is at stake, so it reads as boilerplate")
+
+    def test_a_claimed_world_passes(self):
+        import unittest.mock as mock
+        cd = self._cd()
+        with mock.patch.object(cd, "_post", lambda *a, **k: {
+                "ok": True, "owner": True, "pfx": "",
+                "counts": {"foundLog": 404, "owned": 5, "setPieces": 120}}):
+            state, why = cd._check_the_board_world_is_claimed()
+        self.assertEqual(state, cd.OK)
+
+    def test_a_silent_console_is_unknown_not_ok(self):
+        import unittest.mock as mock
+        cd = self._cd()
+        with mock.patch.object(cd, "_post", lambda *a, **k: None):
+            state, why = cd._check_the_board_world_is_claimed()
+        self.assertEqual(state, cd.UNKNOWN)
+
+    def test_the_check_is_actually_in_the_CHECKS_list(self):
+        """A check nobody runs is prose."""
+        cd = self._cd()
+        names = [n for n, _fn in cd.CHECKS]
+        self.assertIn("board is claimed", names, "the check is never run by the Eagle Eye")
+
+    def test_board_ownership_reports_which_world_it_read(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        blk = _between(self, src, "def board_ownership", "def _jsq(", what="board_ownership")
+        self.assertTrue("_D2R_OWNER" in blk,
+                        "board_ownership no longer says which world the counts came from, so a real "
+                        "ledger and a doomed one are indistinguishable to every caller")
+        self.assertTrue("owner:owner" in blk)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

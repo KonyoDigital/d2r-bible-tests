@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2043",
+  "ver": "v2044",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2043: board_window called webview.start with no private_mode so every board window threw its localStorage away; the main window has always passed private_mode False",
+  "note": "v2044: an unclaimed board world fails silently because the ledger counts read the same either way; the Eagle Eye now asks and says so",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

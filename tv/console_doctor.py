@@ -59,6 +59,48 @@ def _get(path, timeout=4):
         return None
 
 
+def _post(path, body=None, timeout=20):
+    """POST a console route. Absent console is UNKNOWN, never a failure."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(
+            CONSOLE + path, data=json.dumps(body or {}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8", "replace"))
+    except Exception:
+        return None
+
+
+def _check_the_board_world_is_claimed():
+    """An UNCLAIMED board lives in a guest world, and everything applied there is lost.
+
+    This is the failure that cost a whole night: `bible.html` resolves `_D2R_OWNER` only from a
+    clicked `d2r_ownerClaim`. Without it `_D2R_PFX` becomes 'I·<installId>·' — a per-install world.
+    An apply into it returns ok:true, writes real rows, and they are unreachable from the next load.
+
+    It is SILENT BY CONSTRUCTION: the ledger counts read exactly the same in a doomed world as in a
+    real one, so nothing on any screen distinguishes them. That is precisely what a doctor is for.
+    [[the-unjoined-end]]
+    """
+    got = _post("/api/board_ownership", {"sample": 0})
+    if not got:
+        return UNKNOWN, "the console did not answer — nobody asked, so nothing is known"
+    if not got.get("ok"):
+        return UNKNOWN, "the board refused the read: %s" % str(got.get("why"))[:90]
+    if "owner" not in got:
+        # v2044 added the field. An older console cannot answer, and MUST NOT read as a pass.
+        return UNKNOWN, ("this console predates the ownership field (v2044) — restart it to find "
+                         "out whether the board world persists")
+    counts = got.get("counts") or {}
+    total = sum(int(counts.get(k) or 0) for k in ("foundLog", "owned", "setPieces"))
+    if got.get("owner"):
+        return OK, "the board is CLAIMED — it writes the bare keys, so what is applied persists"
+    return MISSING, ("the board is an UNCLAIMED guest world (prefix %r) holding %d ledger entries — "
+                     "anything applied here is lost on the next launch. Open the board and press "
+                     "'This browser is mine'." % (got.get("pfx"), total))
+
+
 def _tree_version():
     # v2026 — READ THE WHOLE FILE. The first cut read 400KB and returned None, because D2R_BUILD
     # sits ~1.1MB into a 5.8MB file. A version check that answers None is a check that never fires,
@@ -250,6 +292,7 @@ CHECKS = [
     ("subscription", _check_subscription_burn),
     ("unattended reel", _check_a_reel_is_not_recording_unattended),
     ("sweep would find", _check_the_sweep_would_find_something),
+    ("board is claimed", _check_the_board_world_is_claimed),
     ("the other doctors", _check_the_other_doctors),
 ]
 
