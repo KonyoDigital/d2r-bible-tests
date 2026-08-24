@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2048",
+  "ver": "v2049",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2048: reverts v2043: a persistent second WebKit process shares the main windows localStorage and emptied his live ledger",
+  "note": "v2049: 45 gates passed in CI while 24 cases skipped inside them, and only the verdict gets read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

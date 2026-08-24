@@ -14839,5 +14839,56 @@ class TestV2046TheDiskWarningMeasuresHisFootage(unittest.TestCase):
 
 
 
+class TestV2049TheVerdictNamesWhatDidNotRun(unittest.TestCase):
+    """run_gates' own docstring already says it: *"Silence about a check that did not happen is the
+    same lie as a false green."* That rule was enforced for a whole GATE that skips. It was NOT
+    enforced one level down, and that is exactly where it hid.
+
+    Measured 2026-08-24 in a true CI environment (a fresh clone, so tv/frames/ is absent because it
+    is gitignored): **45 gates passed while 24 individual CASES skipped inside them** — 8 of them the
+    entire scoring half of test_stash_eye_aspect. Meanwhile that hand-labelled corpus had rotted from
+    14 frames to 7, losing EVERY negative, and CI stayed green because the cases that would have
+    failed never executed.
+
+    The per-gate line said `OK (skipped=8)`. The verdict said `45 gate(s) passed`. Only the verdict
+    gets read. [[feedback-blind-fixture-green-gate]]
+    """
+
+    def _src(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        return open(os.path.join(here, "run_gates.py"), encoding="utf-8").read()
+
+    def test_the_verdict_counts_cases_that_skipped_inside_passing_gates(self):
+        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
+                       what="the case-skip accounting")
+        self.assertTrue('skipped=(\\d+)' in blk or 'skipped=(\d+)' in blk,
+                        "the verdict no longer parses the per-suite skip count, so a gate that "
+                        "passes while its cases skip reads as full coverage again")
+        # THE PRINTED STRING, not the phrase. A first cut asserted "DID NOT RUN" and passed
+        # against a sabotage that rewrote the print, because the comment heading above it says
+        # "COUNT THE CASES THAT DID NOT RUN". That is the third time tonight my own prose has
+        # blinded my own guard. [[source-reading-guard]]
+        self.assertTrue("CASE(S) DID NOT RUN inside those gates" in blk,
+                        "the verdict no longer NAMES the cases that did not run — a gate that "
+                        "passes while its cases skip reads as full coverage again")
+
+    def test_it_does_not_double_count_a_gate_that_skipped_entirely(self):
+        """A whole-gate SKIP is already reported and already counted; counting its cases again
+        would inflate the number and make the honest one look wrong."""
+        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
+                       what="the case-skip accounting")
+        self.assertTrue('_st != "SKIP"' in blk,
+                        "gate-level SKIPs are being counted a second time as case skips")
+
+    def test_the_gate_still_passes_when_nothing_skipped(self):
+        """The warning must be conditional. A line that always prints is furniture."""
+        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
+                       what="the case-skip accounting")
+        self.assertTrue("if _cases:" in blk,
+                        "the warning prints unconditionally — it would appear on a clean run and "
+                        "stop meaning anything")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

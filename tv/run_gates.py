@@ -673,9 +673,38 @@ def main(argv):
                 print("   … and %d more" % (len(names) - 12))
         print("\n❌ %d gate(s) FAILED: %s" % (len(failed), ", ".join(failed)))
         return 1
-    print("✅ %d gate(s) passed%s."
+    # ── v2049 — COUNT THE CASES THAT DID NOT RUN INSIDE THE GATES THAT PASSED ────────────────
+    # This file's own docstring already says it: "Silence about a check that did not happen is the
+    # same lie as a false green." That rule was enforced for a whole GATE that skips. It was not
+    # enforced one level down, and that is where it hid.
+    #
+    # MEASURED 2026-08-24 in atrue CI environment (a fresh clone, so tv/frames/ is absent because it
+    # is gitignored): 45 gates passed while 24 individual CASES skipped inside them — 8 of them the
+    # entire scoring half of test_stash_eye_aspect. The hand-labelled corpus had meanwhile rotted
+    # from 14 frames to 7, losing EVERY negative, and CI stayed green the whole time because the
+    # cases that would have failed never executed. The per-gate line said "OK (skipped=8)"; the
+    # verdict said "45 gate(s) passed". Only the verdict gets read.
+    #
+    # Not promoted to a failure: most of these skips are legitimate on a runner that has no frames
+    # and no second-eye binary. Making them fatal would just teach everyone to ignore a red gate,
+    # which is the same decay in the other direction. Naming the number is what was missing.
+    _cases = 0
+    _where = []
+    for _g, _st, _dt, _d, _ in results:
+        _m = re.search(r"skipped=(\d+)", str(_d or ""))
+        if _m and _st != "SKIP":
+            _n = int(_m.group(1))
+            if _n:
+                _cases += _n
+                _where.append("%s=%d" % (_g.name, _n))
+    print("\u2705 %d gate(s) passed%s."
           % (len(results) - len(skipped),
              (", %d skipped for a DECLARED reason" % len(skipped)) if skipped else ""))
+    if _cases:
+        print("\u26a0 %d CASE(S) DID NOT RUN inside those gates: %s"
+              % (_cases, ", ".join(sorted(_where))))
+        print("   A gate that passes while its cases skip is not covering them. If a skip here is "
+              "because a fixture is absent on this venue, that check has never run at all.")
     return 0
 
 
