@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2060",
+  "ver": "v2061",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2060: The vault sweep sealed the reels ~56 lines BEFORE it wrote the ledger, so a failed ledger save marked the footage read and threw the paid reads away for good. v1779 says in its own comment that it moved the marker after the write, and its diff did not — the failure message has been telling him the reels stay unswept while they were already sealed. Both seal sites now defer to a pending flag; nothing is persisted until vault_ledger_save returns true, and the message finally says something true. Guarded on the AST call order, proven RED under two separate sabotages.",
+  "note": "v2061: The third eye flagged that v2059 fixed two elements and left the account ribbons at top:0. It was right, and measuring it found two more. On pixels, ladder profile, claim bar UP: the ribbon sat at y=0..21 under a sticky claim bar occupying 0..88 at z-index 9997 against the ribbon 2000, so the one cue that says which economy he is writing to was painted over in exactly the state a new browser starts in. Fixed by folding --claim-h in, same as v2059. Then: in the app context on a ladder profile the CONSOLE button and the build badge overlapped by 7px, because two rules of identical specificity disagreed and the later one won on a page it was not written for. And the ladder ribbon never got the max-width:92vw its twin cousin-ribbon has, so at 375 it spanned x=-39..403 on a 375px viewport, off both edges. Five profile/width/bar states now measure zero overlaps.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

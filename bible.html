@@ -44411,6 +44411,46 @@ body.app-ctx.engine-driven #tvf-console-return,
 body.app-ctx #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 body.ladder-profile #v687-build-badge,
 body.cousin-shell #v687-build-badge{top:calc(28px + var(--claim-h,0px))}
+/* v2061 — AND THE ACCOUNT RIBBONS, which the third eye caught and v2059 missed.
+   MEASURED by CDP on the running board, ladder profile, claim bar UP:
+     1440  ribbon y=0..21   claim bar 0..88    elementFromPoint(ribbon centre) = .claim-in
+      901  ribbon y=0..21   claim bar 0..120   elementFromPoint(ribbon centre) = .claim-in
+   position:fixed;top:0;z-index:2000 under a sticky claim bar at z-index:9997 means the ribbon is
+   not merely overlapped, it is PAINTED OVER — the topmost element at its own centre is the bar.
+   So the one cue that says which economy he is writing to was invisible in exactly the state a
+   new browser starts in. A warning that is covered is a warning that was never given. */
+#ladder-ribbon,#cousin-ribbon{top:calc(0px + var(--claim-h,0px))}
+body.cousin-shell #ladder-ribbon{top:calc(24px + var(--claim-h,0px))}  /* v665.1 stack, preserved */
+/* v2061 — AND A COLLISION THAT PREDATES BOTH OF US, found by looking at the pixels rather than
+   at the diff. In the APP context on a LADDER profile, ⌂CONSOLE occupies y=104..131 and the build
+   badge sat at y=124..144 — SEVEN PIXELS of overlap, at every width, with or without a claim bar.
+
+   It is [[d2r-css-last-rule-wins]] exactly: `body.app-ctx #v687-build-badge{top:40px}` (~:5009) and
+   `body.ladder-profile #v687-build-badge{top:28px}` (~:44397) have IDENTICAL specificity — one id,
+   one class, one element — so the LATER one wins, and the 28px meant for a page with no console
+   button won on the page that has one. Neither rule is wrong; nobody wrote the pair.
+
+   Two classes beat one, so this names the combination rather than reordering anything. */
+body.app-ctx.ladder-profile #v687-build-badge,
+body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
+/* v2061 — TWO MORE, both only visible at a narrow width, both found by measuring rather than reading.
+
+   (a) #ladder-ribbon NEVER GOT ITS TWIN'S CLAMP. #cousin-ribbon carries
+       `max-width:92vw;overflow:hidden;text-overflow:ellipsis` (~:41791); the ladder ribbon, written
+       beside it, has `white-space:nowrap` and no clamp at all. MEASURED at vw375: the ribbon spans
+       x=-39..403 on a 375px viewport — off BOTH edges, so the sentence cannot be read from either
+       end. Two ribbons, one shape, one of them fixed. [[feedback-generalize-fixes]] [[copy-drift]]
+
+   (b) BELOW 684px THE RIBBON REACHES THE CONSOLE BUTTON. The ribbon is centred and 442px wide, so
+       its left edge is (vw-442)/2, which crosses ⌂CONSOLE's right edge (121px) at vw=684. MEASURED
+       collide=True at 375/480/560/640 and False at 700/760/901. Ribbon height is 21px at every one
+       of those widths, so 25px clears it with a 4px gap. The badge needs nothing here: it is
+       display:none below 720px (~:44445). */
+#ladder-ribbon{max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:683px){
+  body.ladder-profile #tvf-console-return,
+  body.cousin-shell #tvf-console-return{top:calc(8px + 25px + var(--claim-h,0px))}
+}
 #v687-intake-modal{
   position:fixed;inset:0;z-index:10060;display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.72);padding:16px;
@@ -44446,7 +44486,7 @@ body.cousin-shell #v687-build-badge{top:calc(28px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2060', name:'v2060 - the seal waits for the ledger', date:'2026-08-24', note:'The vault sweep sealed the reels ~56 lines BEFORE it wrote the ledger, so a failed ledger save marked the footage read and threw the paid reads away for good. v1779 says in its own comment that it moved the marker after the write, and its diff did not — the failure message has been telling him the reels stay unswept while they were already sealed. Both seal sites now defer to a pending flag; nothing is persisted until vault_ledger_save returns true, and the message finally says something true. Guarded on the AST call order, proven RED under two separate sabotages.' };
+  window.D2R_BUILD = { id:'v2061', name:'v2061 - the account cue nobody could see', date:'2026-08-24', note:'The third eye flagged that v2059 fixed two elements and left the account ribbons at top:0. It was right, and measuring it found two more. On pixels, ladder profile, claim bar UP: the ribbon sat at y=0..21 under a sticky claim bar occupying 0..88 at z-index 9997 against the ribbon 2000, so the one cue that says which economy he is writing to was painted over in exactly the state a new browser starts in. Fixed by folding --claim-h in, same as v2059. Then: in the app context on a ladder profile the CONSOLE button and the build badge overlapped by 7px, because two rules of identical specificity disagreed and the later one won on a page it was not written for. And the ladder ribbon never got the max-width:92vw its twin cousin-ribbon has, so at 375 it spanned x=-39..403 on a 375px viewport, off both edges. Five profile/width/bar states now measure zero overlaps.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
