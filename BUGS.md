@@ -12767,6 +12767,23 @@ file.
 mirror (*without* the prior it must still NOT ground, or the main case proves nothing) and the
 same-session case. Sabotage-proven.
 
+## v2052 — the board endpoint actually opens the board
+
+POST `/api/board` returned `{nav: "/board?app=1#…"}` and did not move the window. The UI follows
+that URL internally; every HTTP client (restore_ledger, this session) got a path and nothing
+happened. `claim:true` writes the documented `d2r_ownerClaim=*` hatch if none is set, so a restore
+lands in his world instead of `I·<installId>·` (empty forge, empty grail).
+
+2026-08-24 restore measured: owner world `d2r_rwMade=99`, guest `I·c5c2c92d·d2r_rwMade=0`. Same
+store, two prefixes. The wipe he saw was the guest prefix.
+
+The first restore also (1) snapshot stored `Object.keys(foundLog)` so dates were thrown away,
+(2) `toggleSetPiece` restamped existing foundLog rows with now, (3) promoted Natalya's Soul
+(claws) into setPieces (121, he has 120). Snapshot now keeps the dict; replay keeps an existing
+date; `dropSetPieceKeepGrail` pulled Natalya's Soul out of setPieces without touching the grail
+row. In-game Chronicle dates (`d2r_gameFound`) were copied back onto 32 rows that had them —
+the rest have no game date, and unknown stays unknown.
+
 ### v2051 addendum — the path shipped, the registry that exists to catch it did not
 
 `_VAULT_SEEN_PATH` is import-bound from `TV_VAULT_SEEN`, the same shape as `TV_VAULT_LEDGER` /

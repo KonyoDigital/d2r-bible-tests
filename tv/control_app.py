@@ -3360,6 +3360,9 @@ def open_control_window():
             # first durable copy of them that has ever existed. Written outside the repo.
             threading.Thread(target=_ledger_backup_loop, daemon=True,
                              name="tvd-ledger-backup").start()
+            # v2053 — reclaims regenerable test output when the disk gets short. Never his footage.
+            threading.Thread(target=_warden_loop, daemon=True,
+                             name="tvd-space-warden").start()
         except Exception as _ee:
             print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
@@ -9015,7 +9018,7 @@ def chronicle_apply(proposal=None):
     return out
 
 
-def board_ownership(sample=0):
+def board_ownership(sample=0, dump_stores=False):
     """ASK THE BOARD WHAT HE OWNS. The read direction of the channel that already applies.
 
     Konyo, 2026-08-20, on being told the vault cross-reference needed him to paste a console dump:
@@ -9041,20 +9044,32 @@ def board_ownership(sample=0):
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
     js = ("(function(){try{"
-          "var g=function(k){try{var v=(window.LSR?window.LSR.getItem(k):localStorage.getItem(k));"
-          "var p=v?JSON.parse(v):null;"
+          "var raw=function(k){try{var v=(window.LSR?window.LSR.getItem(k):localStorage.getItem(k));"
+          "return v?JSON.parse(v):null;}catch(e){return null;}};"
+          "var g=function(k){try{var p=raw(k);"
           "if(Array.isArray(p))return p.slice();"
           "if(p&&typeof p==='object')return Object.keys(p);return [];}catch(e){return [];}};"
-          "var fl=g('d2r_foundLog'),ow=g('d2r_owned'),sp=g('d2r_setPieces');"
+          "var flRaw=raw('d2r_foundLog');"
+          "var fl=Array.isArray(flRaw)?flRaw.slice():(flRaw&&typeof flRaw==='object'?Object.keys(flRaw):[]);"
+          "var dates=(flRaw&&typeof flRaw==='object'&&!Array.isArray(flRaw))?flRaw:null;"
+          "var ow=g('d2r_owned'),sp=g('d2r_setPieces');"
           "var n=%d;"
           # v2044 — REPORT WHICH WORLD THESE COUNTS CAME FROM. An unclaimed load lives in a
           # per-install GUEST world (_D2R_PFX = 'I·<installId>·'), and anything applied there is
           # unreachable from the next one. That failure is SILENT by construction: the counts look
           # exactly the same either way, so a reader cannot tell a real ledger from a doomed one.
           "var owner=!!window._D2R_OWNER, pfx=(typeof window._D2R_PFX==='string'?window._D2R_PFX:null);"
-          "return JSON.stringify({ok:true,owner:owner,pfx:pfx,"
+          "var stores=null,gameFound=null;"
+          "try{var _gp=raw('d2r_gameFound');if(_gp&&typeof _gp==='object'&&!Array.isArray(_gp))gameFound=_gp;}catch(_g){}"
+          + ("if(%s){stores={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);"
+             "if(!k)continue;var v=localStorage.getItem(k);var nn=0;"
+             "try{var pp=JSON.parse(v);nn=Array.isArray(pp)?pp.length:(pp&&typeof pp==='object'?Object.keys(pp).length:(v?1:0));}"
+             "catch(_e){nn=v?1:0;}stores[k]=nn;}}catch(_s){stores={err:String(_s)}}}"
+             % ("true" if dump_stores else "false"))
+          + "return JSON.stringify({ok:true,owner:owner,pfx:pfx,"
           "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length},"
-          "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)}});"
+          "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
+          "stores:stores,dates:dates,gameFound:gameFound});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
         raw = _ejs(w, js, timeout=8.0)
@@ -9063,6 +9078,82 @@ def board_ownership(sample=0):
     if not raw:
         return {"ok": False, "why": "the board did not answer in time — its ledger is UNREAD, "
                                     "which is not the same as empty"}
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
+
+
+def board_tick(name, kind, want):
+    """Call the SAME toggle his hand uses. want=False is an un-tick — his ruling, not ours.
+
+    The console never writes the ledger. This only asks the board window to press the existing
+    door (toggleSetPiece / toggleOwned / tvVaultRegister)."""
+    w = globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    n = str(name or "").strip()
+    k = str(kind or "").strip().lower()
+    if not n or k not in ("set", "unique", "owned", "set-drop"):
+        return {"ok": False, "why": "need name and kind=set|unique|owned|set-drop"}
+    want_js = "true" if want else "false"
+    js = (
+        "(function(){try{"
+        "var n=%s, kind=%s, want=%s;"
+        "if(kind==='set'){"
+        "  var has=false;"
+        "  try{var sp=JSON.parse((window.LSR?window.LSR.getItem('d2r_setPieces'):localStorage.getItem('d2r_setPieces'))||'[]');has=sp.indexOf(n)>=0;}catch(e2){}"
+        "  if(!!want===!!has) return JSON.stringify({ok:true,unchanged:true,has:has});"
+        "  if(typeof window.toggleSetPiece!=='function') return JSON.stringify({ok:false,why:'no toggleSetPiece'});"
+        "  window.toggleSetPiece(n);"
+        "  var has2=false; try{var sp2=JSON.parse((window.LSR?window.LSR.getItem('d2r_setPieces'):localStorage.getItem('d2r_setPieces'))||'[]');has2=sp2.indexOf(n)>=0;}catch(e4){}"
+        "  return JSON.stringify({ok:true,has:has2,kind:'set'});"
+        "}"
+        "if(kind==='set-drop'){"
+        "  if(typeof window.dropSetPieceKeepGrail!=='function') return JSON.stringify({ok:false,why:'no dropSetPieceKeepGrail'});"
+        "  return JSON.stringify(window.dropSetPieceKeepGrail(n));"
+        "}"
+        "if(kind==='owned'){"
+        "  if(typeof window.tvVaultRegister!=='function') return JSON.stringify({ok:false,why:'no tvVaultRegister'});"
+        "  var r=window.tvVaultRegister(n);"
+        "  return JSON.stringify({ok:true,kind:'owned',register:r});"
+        "}"
+        "if(typeof window.toggleOwned!=='function') return JSON.stringify({ok:false,why:'no toggleOwned'});"
+        "window.toggleOwned(n);"
+        "return JSON.stringify({ok:true,kind:'unique'});"
+        "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
+        % (json.dumps(n), json.dumps(k), want_js)
+    )
+    try:
+        raw = _ejs(w, js, timeout=8.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused the tick: %s" % str(e)[:160]}
+    if not raw:
+        return {"ok": False, "why": "the board did not answer in time"}
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
+
+
+def board_restore_dates(stamp_prefix=""):
+    """Rewrite foundLog stamps that match stamp_prefix from d2r_gameFound (in-game Chronicle).
+    Names with no game date are left as they are."""
+    w = globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    js = ("(function(){try{"
+          "if(typeof window.restoreLedgerDatesFromGame!=='function')"
+          "return JSON.stringify({ok:false,why:'no restoreLedgerDatesFromGame'});"
+          "return JSON.stringify(window.restoreLedgerDatesFromGame(%s));"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
+          % json.dumps(str(stamp_prefix or "")))
+    try:
+        raw = _ejs(w, js, timeout=8.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused: %s" % str(e)[:160]}
+    if not raw:
+        return {"ok": False, "why": "the board did not answer in time"}
     try:
         return json.loads(raw)
     except Exception:
@@ -10326,6 +10417,47 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
             "kept every frame more than %.3f from the one before it" % max_diff)
 
 
+# ── v2053 — THE SPACE WARDEN LOOP ────────────────────────────────────────────────────────────
+# Konyo, after a stuck Playwright run wrote 9.5 GB into test-results/ in 95 minutes and took his
+# disk to 2.8 GB free: "is there a way we can do this automatically ... so we dont hit cap limit
+# again?"
+#
+# Three pruners already existed and each owned something different — reel_retention owns reels,
+# _prune_loop owns loose live frames, the ledger snapshot owns backups. Playwright's output had NO
+# OWNER, so it grew without a bound and without a complaint. The gap was an owner, not a policy.
+#
+# space_warden deletes ONLY what a named command can regenerate, and re-verifies at run time that
+# each path is inside the repo, gitignored, and tracks zero files. His footage is REPORTED and
+# deleted by nobody.
+_WARDEN_EVERY_S = 900.0
+_WARDEN_STATE = {"runs": 0, "freedBytes": 0, "last": "", "why": ""}
+
+
+def warden_state():
+    """What the space warden has actually reclaimed. Honest zeros."""
+    return dict(_WARDEN_STATE)
+
+
+def _warden_loop():
+    while True:
+        try:
+            time.sleep(_WARDEN_EVERY_S)
+            try:
+                import space_warden as _sw
+            except Exception as _ie:
+                _WARDEN_STATE["why"] = "space_warden unavailable: %s" % str(_ie)[:70]
+                continue
+            out = _sw.reclaim(dry_run=False)
+            _WARDEN_STATE["runs"] += 1
+            _WARDEN_STATE["why"] = str(out.get("why") or "")[:160]
+            if out.get("acted"):
+                _WARDEN_STATE["freedBytes"] += int(out.get("freedBytes") or 0)
+                _WARDEN_STATE["last"] = time.strftime("%Y-%m-%d_%H%M%S")
+                print("  \U0001f9f9 space warden: %s" % out["why"], flush=True)
+        except Exception:
+            pass
+
+
 def _prune_loop():
     """Prune while he records, indefinitely, exactly as he asked."""
     while True:
@@ -10745,7 +10877,7 @@ def ledger_backup_state():
 def _ledger_snapshot_once(force=False):
     """One snapshot. Returns (wrote_path_or_None, why). Never raises, never writes an empty ledger."""
     try:
-        got = board_ownership(sample=5000)
+        got = board_ownership(sample=5000, dump_stores=True)
     except Exception as e:
         return (None, "the board refused: %s" % str(e)[:90])
     if not isinstance(got, dict) or not got.get("ok"):
@@ -10753,16 +10885,22 @@ def _ledger_snapshot_once(force=False):
         # backup from a refusal would file "he owns nothing" as though it were measured.
         return (None, str((got or {}).get("why") or "the board did not answer"))
     counts = got.get("counts") or {}
-    led = got.get("sample") or {}
+    led = dict(got.get("sample") or {})
+    # v2052 — KEEP THE DATES. sample.foundLog used to be Object.keys, so a restore could
+    # replay names and not stamps. The dict is the ledger.
+    if isinstance(got.get("dates"), dict) and got["dates"]:
+        led["foundLog"] = got["dates"]
     total = sum(int(counts.get(k) or 0) for k in ("foundLog", "owned", "setPieces"))
     if total <= 0:
         return (None, "the board answered with an EMPTY ledger - refusing to file that over a "
                       "backup that has content")
     # every store must be COMPLETE or the copy is a silent truncation pretending to be a backup
     for k in ("foundLog", "owned", "setPieces"):
-        if len(led.get(k) or []) < int(counts.get(k) or 0):
+        chunk = led.get(k)
+        n = len(chunk) if isinstance(chunk, (list, dict)) else 0
+        if n < int(counts.get(k) or 0):
             return (None, "%s came back truncated (%d of %s) - a partial ledger is not a backup"
-                          % (k, len(led.get(k) or []), counts.get(k)))
+                          % (k, n, counts.get(k)))
     if not force and _LEDGER_BACKUP_STATE.get("counts") == counts:
         return (None, "unchanged since the last snapshot (%s)" % json.dumps(counts))
     try:
@@ -13938,7 +14076,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2051",
+        "ver": "v2052",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -13946,6 +14084,8 @@ def status_payload():
         "prune": prune_stats(),
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": ledger_backup_state(),
+        # v2053 — what the space warden has reclaimed, so the disk is a number he can see.
+        "warden": warden_state(),
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -16097,7 +16237,16 @@ class Handler(BaseHTTPRequestHandler):
             # the board is who to ask; the console had only ever been able to tell it to write.
             # POST like its sibling, not because this spends anything (it spends nothing) but
             # because the two halves of one channel should not answer to different verbs.
-            self._json(200, board_ownership(sample=body.get("sample") or 0))
+            self._json(200, board_ownership(sample=body.get("sample") or 0,
+                                            dump_stores=bool(body.get("dumpStores"))))
+            return
+        if path == "/api/board_tick":
+            # HIS ruling, HIS door. The console never writes the ledger.
+            self._json(200, board_tick(body.get("name"), body.get("kind"),
+                                       bool(body.get("want"))))
+            return
+        if path == "/api/board_restore_dates":
+            self._json(200, board_restore_dates(body.get("stampPrefix") or body.get("stamp") or ""))
             return
         if path == "/api/chronicle_sweep":
             # v1519 — POST starts it, deliberately. This is the call that spends subscription reads,
@@ -16833,12 +16982,43 @@ class Handler(BaseHTTPRequestHandler):
             if popout:
                 self._json(200, open_board(auto_on=True, tab=tab))
                 return
+            # v2052 — AN HTTP CLIENT MUST BE ABLE TO MOVE THIS WINDOW. Returning a URL the UI
+            # follows internally left restore_ledger and every other caller with a path and
+            # nothing happening. Same-window still; never a second native window.
+            if isinstance(body, dict):
+                _btab = str(body.get("tab") or "").strip()
+                if _btab in ("session", "tools", "forge", "funi", "fsets", "tvd"):
+                    tab = _btab
+            nav = "/board?app=1#%s" % tab
+            claim = bool(isinstance(body, dict) and body.get("claim"))
+            navigated = False
+            why_nav = None
+            w = globals().get("_MAIN_WIN")
+            if w is not None and globals().get("_WINDOW_LIVE"):
+                claim_js = (
+                    "try{if(!localStorage.getItem('d2r_ownerClaim'))"
+                    "{localStorage.setItem('d2r_ownerClaim','*');}}catch(_c){}"
+                    if claim else "")
+                js = ("(function(){try{%s window.location.href=%s;return 'ok';}"
+                      "catch(e){return 'err:'+String(e&&e.message||e)}})()") % (
+                          claim_js, json.dumps(nav))
+                try:
+                    raw = _ejs(w, js, timeout=4.0)
+                    navigated = (str(raw) == "ok")
+                    if not navigated:
+                        why_nav = str(raw)[:160]
+                except Exception as _ne:
+                    why_nav = str(_ne)[:160]
+            else:
+                why_nav = "the main window is not open"
             self._json(200, {
                 "ok": True,
                 "msg": "same-window nav",
-                "nav": "/board?app=1#%s" % tab,
+                "nav": nav,
                 "tab": tab,
                 "spawned": False,
+                "navigated": navigated,
+                "why": why_nav,
             })
             return
         if path == "/api/quit":

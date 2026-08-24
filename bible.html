@@ -21873,7 +21873,12 @@ function toggleSetPiece(piece) {
       try { var _gfP = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
             if (Object.prototype.hasOwnProperty.call(_gfP, piece)){ delete _gfP[piece];
               window.LSR.setItem('d2r_gameFound', JSON.stringify(_gfP)); } } catch(e){}
-    } else fl[piece] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+    } else if (!Object.prototype.hasOwnProperty.call(fl, piece) || !fl[piece]) {
+      /* v2052 — MERGE-MAX THE DATE. A restore/replay that ticks a piece already dated in
+         foundLog used to overwrite the farm stamp with now. Keep the existing date; only
+         write when there is none. */
+      fl[piece] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+    }
     window.LSR.setItem('d2r_foundLog', JSON.stringify(fl)); } catch(e){}
   // v682 — a seeded piece un-tick is USER TRUTH: record it so the boot floor never re-asserts it
   // v684 — MAC-ladder must NOT write this: d2r_grailUnfound isn't ladder-forked, so a ladder un-tick
@@ -21959,6 +21964,40 @@ function toggleSetPiece(piece) {
   try { if (typeof window._setChronBeat === 'function') window._setChronBeat(); } catch(e){}
 }
 window.toggleSetPiece = toggleSetPiece;
+
+/* v2052 — drop a name from the SET store without touching foundLog / gameFound.
+   Restore promoted Natalya's Soul (claws) into setPieces even though it was already
+   dated in foundLog (May 27). toggleSetPiece would un-tick the grail row too. */
+window.dropSetPieceKeepGrail = function(piece){
+  try {
+    if (!piece || !setPieces.has(piece)) return {ok:true, unchanged:true, has:false};
+    setPieces.delete(piece);
+    persist();
+    try { if (typeof renderSetTracker === 'function') renderSetTracker(); } catch(e){}
+    return {ok:true, has:false, n:setPieces.size};
+  } catch(e){ return {ok:false, why:String(e && e.message || e)}; }
+};
+
+/* v2052 — rewrite foundLog stamps that match stampPrefix from d2r_gameFound (the
+   in-game Chronicle date). Names with no game date are left as they are — unknown
+   stays unknown, never invented. */
+window.restoreLedgerDatesFromGame = function(stampPrefix){
+  try {
+    var fl = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {};
+    var gf = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
+    var n = 0, kept = 0, pfx = String(stampPrefix || '');
+    Object.keys(fl).forEach(function(k){
+      if (pfx && String(fl[k] || '').indexOf(pfx) !== 0) return;
+      var g = gf[k];
+      var d = (g && g.at && typeof window._gameStampToLedger === 'function')
+            ? (window._gameStampToLedger(g.at) || '') : '';
+      if (!d) { kept++; return; }
+      fl[k] = d; n++;
+    });
+    window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
+    return {ok:true, rewritten:n, noGameDate:kept};
+  } catch(e){ return {ok:false, why:String(e && e.message || e)}; }
+};
 
 // v259: 1-photo AI set-piece intake — screenshot your set items → Claude reads the
 // names → each recognised piece is checked off in the tracker (the setPieces Set).
@@ -44391,7 +44430,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2051', name:'v2051 - twice ever not twice in one sweep', date:'2026-08-24', note:'an ungrounded sighting was discarded, so ten of his items were unsure in two consecutive sweeps and could never ground' };
+  window.D2R_BUILD = { id:'v2052', name:'v2052 - the board endpoint actually opens the board', date:'2026-08-24', note:'HTTP POST /api/board now moves the main window onto /board. Returning a URL the UI follows internally left restore with a path and nothing happening. claim:true writes the owner hatch if none is set so restore lands in his world not a guest prefix.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -495,6 +495,18 @@ class TestStopDiscipline(unittest.TestCase):
         self.assertIn("same-window nav", board)
         self.assertIn("spawned", board)
         self.assertIn("popout", board)
+        self.assertIn("location.href", board)
+        self.assertIn("navigated", board)
+
+    def test_board_ownership_keeps_foundLog_dates(self):
+        """v2052 — Object.keys(foundLog) threw the stamps away. The dict is the ledger."""
+        import inspect
+        src = inspect.getsource(ca.board_ownership)
+        self.assertIn("var dates=", src)
+        self.assertIn("flRaw", src)
+        post = inspect.getsource(ca.Handler.do_POST)
+        self.assertIn("/api/board_restore_dates", post)
+        self.assertIn("set-drop", inspect.getsource(ca.board_tick))
 
     def test_board_opens_once_per_session(self):
         ca._BOARD_OPENED = False
@@ -14558,7 +14570,7 @@ class TestV2041ADurableReceiptForALedgerThatLivesInAWindow(unittest.TestCase):
     def _patch(self, ca, tmp, answer):
         import unittest.mock as mock
         return (mock.patch.object(ca, "_LEDGER_BACKUP_DIR", tmp),
-                mock.patch.object(ca, "board_ownership", lambda sample=0: answer))
+                mock.patch.object(ca, "board_ownership", lambda sample=0, **kw: answer))
 
     def _run(self, answer, tmp, force=True, reset=True):
         import control_app as ca
@@ -14947,7 +14959,7 @@ class TestV2050TheSnapshotWindowIsHowMuchHeCanLose(unittest.TestCase):
         ca = self._ca()
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch.object(ca, "_LEDGER_BACKUP_DIR", tmp):
-                with mock.patch.object(ca, "board_ownership", lambda sample=0: {
+                with mock.patch.object(ca, "board_ownership", lambda sample=0, **kw: {
                         "ok": True, "counts": {"foundLog": 0, "owned": 0, "setPieces": 0},
                         "sample": {"foundLog": [], "owned": [], "setPieces": []}}):
                     path, why = ca._ledger_snapshot_once(force=True)
@@ -15097,6 +15109,117 @@ class TestV2052TheSeenFileIsTheJoin(unittest.TestCase):
         # the unique call form is: prior_seen=_prior_seen
         src = inspect.getsource(ca._vault_sweep_run)
         self.assertEqual(src.count("prior_seen=_prior_seen"), 1)
+
+
+class TestV2053TheSpaceWardenNeverEatsHisFootage(unittest.TestCase):
+    """Konyo, after a stuck Playwright run wrote 60,232 files / 9.5 GB into test-results/ in 95
+    minutes and took his disk from 14 GB free to 2.8 GB: "is there a way we can do this
+    automatically ... so we dont hit cap limit again?"
+
+    Three pruners already existed and each owned something different — reel_retention owns reels,
+    _prune_loop owns loose live frames, the ledger snapshot owns backups. Playwright's output had NO
+    OWNER, so it grew unbounded and uncomplaining. The gap was an owner, not a policy.
+
+    THE RULE THAT MAKES IT SAFE UNATTENDED: auto-delete only what a NAMED COMMAND can regenerate;
+    propose everything else. A reel of his farming is regenerable by nothing, and no amount of
+    free-space pressure changes that. [[feedback-fixtures-never-touch-live-data]]
+    """
+
+    def _sw(self):
+        import space_warden
+        return space_warden
+
+    def test_his_footage_is_never_in_the_auto_tier(self):
+        sw = self._sw()
+        auto = [p for p, _ in sw.AUTO]
+        for bad in ("tv/frames", "tv/frames/hist", "tv/frames/corpus", "art", ".git"):
+            self.assertNotIn(bad, auto, "%s is in the AUTO delete tier" % bad)
+        rows = sw.survey()["rows"]
+        for r in rows:
+            if r["path"].startswith("tv/frames"):
+                self.assertEqual(r["tier"], "propose",
+                                 "%s is not in the propose tier — it could be deleted" % r["path"])
+                self.assertFalse(r["safe"], "%s is marked safe to auto-delete" % r["path"])
+
+    def test_every_auto_path_names_the_command_that_regenerates_it(self):
+        """If you cannot name that command, the path is not output — it is someone's data."""
+        sw = self._sw()
+        for path, regen in sw.AUTO:
+            self.assertTrue(str(regen or "").strip(),
+                            "%s is auto-deletable with no stated way to get it back" % path)
+
+    def test_a_path_outside_the_repo_is_refused(self):
+        sw = self._sw()
+        ok, why = sw._safe("../../../etc")
+        self.assertFalse(ok, "a path escaping the repo was accepted")
+        self.assertIn("OUTSIDE", why)
+
+    def test_a_TRACKED_path_is_refused_even_if_listed(self):
+        """Being on the AUTO list is a proposal, not a warrant — git decides.
+
+        A first cut used bible.html, which is refused EARLIER for not being gitignored, so the
+        tracked-file check was never reached and deleting it left the test green. git's two answers
+        are mocked here so this case can only pass by reaching the second one."""
+        import collections
+        import unittest.mock as mock
+        sw = self._sw()
+        R = collections.namedtuple("R", "returncode stdout")
+
+        def fake_run(argv, **kw):
+            if "check-ignore" in argv:
+                return R(0, "")                      # git DOES ignore it
+            if "ls-files" in argv:
+                return R(0, "test-results/kept.txt\n")   # ...but a file inside is TRACKED
+            return R(0, "0\t.")
+
+        # a path that EXISTS — _safe short-circuits on "absent" before it ever asks git, so a
+        # missing directory would pass this test for the wrong reason.
+        import os as _os
+        target = next((d for d in ("playwright-report", "node_modules", "tv")
+                       if _os.path.isdir(_os.path.join(sw.REPO, d))), None)
+        self.assertTrue(target, "no existing directory to test against")
+        with mock.patch.object(sw.subprocess, "run", fake_run):
+            ok, why = sw._safe(target)
+        self.assertFalse(ok, "a path with tracked files inside it was accepted for deletion")
+        self.assertIn("tracks", why, "the refusal does not say git tracks something: %r" % why)
+
+    def test_a_path_git_does_not_ignore_is_refused(self):
+        sw = self._sw()
+        ok, why = sw._safe("tv")
+        self.assertFalse(ok, "a non-ignored directory was accepted for deletion")
+
+    def test_it_does_nothing_while_there_is_room(self):
+        """A full test-results/ is a debugging aid until space is actually short."""
+        import unittest.mock as mock
+        sw = self._sw()
+        with mock.patch.object(sw, "_free_gb", lambda: sw.FLOOR_GB + 50):
+            out = sw.reclaim(dry_run=False)
+        self.assertFalse(out.get("acted"), "it deleted things while the disk had room")
+        self.assertIn("above the", out["why"])
+
+    def test_a_dry_run_deletes_nothing(self):
+        import unittest.mock as mock
+        sw = self._sw()
+        with mock.patch.object(sw, "_free_gb", lambda: 1.0):
+            out = sw.reclaim(dry_run=True)
+        self.assertTrue(out.get("dryRun"))
+        self.assertFalse(out.get("acted"))
+
+    def test_an_unreadable_free_space_does_nothing(self):
+        """'I could not measure' must never resolve to 'delete it'. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        sw = self._sw()
+        with mock.patch.object(sw, "_free_gb", lambda: None):
+            out = sw.reclaim(dry_run=False)
+        self.assertFalse(out.get("acted"))
+        self.assertIn("could not read", out["why"])
+
+    def test_the_warden_loop_is_actually_started(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        self.assertTrue('name="tvd-space-warden"' in src, "the warden loop is never started")
+        self.assertTrue("target=_warden_loop" in src)
+
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2051",
+  "ver": "v2052",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2051: an ungrounded sighting was discarded, so ten of his items were unsure in two consecutive sweeps and could never ground",
+  "note": "v2052: HTTP POST /api/board now moves the main window onto /board. Returning a URL the UI follows internally left restore with a path and nothing happening. claim:true writes the owner hatch if none is set so restore lands in his world not a guest prefix.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
