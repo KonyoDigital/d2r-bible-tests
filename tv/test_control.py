@@ -16465,5 +16465,149 @@ class TestV2070TheGrantLampCanActuallyMove(unittest.TestCase):
                            "no checks at all would leave it undefined or false")
 
 
+class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
+    """An unsealed session's frames stay loose forever, invisible to every lane and every deleter.
+    Folding them into a reel makes them readable — and is the one operation here that could
+    manufacture EVIDENCE, so the refusal is the load-bearing half.
+
+    reel_index.ensure_reel_index writes its index via chronicle_retro.reconstruct_index, which sets
+    sessionId from the DIRECTORY NAME with `reel_` stripped. PROVEN in test_the_name_decides_the_
+    session_id below. So folding leftovers of an ALREADY-SEALED session under a new name mints a new
+    session id for one recording, forging the independence the keep and throw bars demand.
+
+    All fixtures. His reels are never read or written here.
+    [[feedback-fixtures-never-touch-live-data]]"""
+
+    def _of(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import orphan_fold
+        return orphan_fold
+
+    def _tree(self, loose=(), reels=()):
+        import tempfile, shutil
+        root = tempfile.mkdtemp(prefix="orphan_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        for t in loose:
+            with open(os.path.join(hist, "f_%d.jpg" % t), "wb") as fh:
+                fh.write(b"x" * 256)
+        for name, times in reels:
+            d = os.path.join(hist, name)
+            os.makedirs(d)
+            for t in times:
+                with open(os.path.join(d, "f_%d.jpg" % t), "wb") as fh:
+                    fh.write(b"y" * 256)
+        return hist
+
+    def test_the_name_decides_the_session_id(self):
+        """The mechanism the whole refusal rests on, proven rather than cited."""
+        import tempfile, shutil
+        import chronicle_retro as cr
+        root = tempfile.mkdtemp(prefix="sid_")
+        self.addCleanup(shutil.rmtree, root, True)
+        got = {}
+        for name in ("reel_orphan_1787523300658_1", "reel_s_1787523300658_1"):
+            d = os.path.join(root, name)
+            os.makedirs(d)
+            with open(os.path.join(d, "f_1787523300658.jpg"), "wb") as fh:
+                fh.write(b"x")
+            got[name] = (cr.reconstruct_index(d) or {}).get("sessionId")
+        self.assertEqual(got["reel_s_1787523300658_1"], "s_1787523300658_1")
+        self.assertEqual(got["reel_orphan_1787523300658_1"], "orphan_1787523300658_1")
+        import re as _re
+        rec = _re.compile(r"^s_(\d{10,16})(?:_|$)")     # v2065's recording parser
+        self.assertTrue(rec.match(got["reel_s_1787523300658_1"]))
+        self.assertFalse(rec.match(got["reel_orphan_1787523300658_1"]),
+                         "an orphan-named reel would read as UNKNOWN time in the ledger")
+
+    def test_a_cluster_that_OVERLAPS_a_reel_is_refused(self):
+        """THE ONE THAT MATTERS. Baseline first, or this case cannot tell a refusal from a plan that
+        offers nothing. [[feedback-blind-fixture-green-gate]]"""
+        of = self._of()
+        base = 1787520000000
+        # BASELINE: the same loose frames with NO reel nearby are eligible
+        h1 = self._tree(loose=[base + i * 1000 for i in range(5)])
+        p1 = of.plan(h1)
+        self.assertTrue(p1["clusters"][0]["eligible"],
+                        "the no-reel baseline is not foldable, so the overlap case below would pass "
+                        "for the wrong reason")
+        # AND NOW with a reel covering the same window
+        h2 = self._tree(loose=[base + i * 1000 for i in range(5)],
+                        reels=[("reel_s_%d_9" % base, [base + 2000])])
+        p2 = of.plan(h2)
+        c = p2["clusters"][0]
+        self.assertFalse(c["eligible"], "a window an existing reel already covers was offered — "
+                                        "folding it forges a second session for one recording")
+        self.assertIn("reel_s_%d_9" % base, c["overlaps"])
+        self.assertIn("forges", c["why"])
+
+    def test_an_overlapping_cluster_is_not_moved_even_with_yes(self):
+        """The refusal must live in the ACT, not only in the report."""
+        of = self._of()
+        base = 1787520000000
+        h = self._tree(loose=[base + i * 1000 for i in range(5)],
+                       reels=[("reel_s_%d_9" % base, [base + 2000])])
+        p = of.plan(h)
+        of.apply_plan(p, yes=True)
+        left = [n for n in os.listdir(h) if n.startswith("f_")]
+        self.assertEqual(len(left), 5, "an overlapping cluster was folded anyway")
+
+    def test_the_folded_reel_is_named_so_its_session_parses(self):
+        of = self._of()
+        base = 1787523300658
+        h = self._tree(loose=[base + i * 1000 for i in range(4)])
+        p = of.plan(h)
+        self.assertEqual(p["clusters"][0]["reel"], "reel_s_%d_1" % base)
+        r = of.apply_plan(p, yes=True)
+        self.assertTrue(r["ok"], r)
+        d = os.path.join(h, "reel_s_%d_1" % base)
+        self.assertTrue(os.path.isdir(d))
+        self.assertTrue(os.path.isfile(os.path.join(d, "index.json")),
+                        "no index — the lanes still cannot read what was just folded (v1608: the "
+                        "index IS the reel)")
+        with open(os.path.join(d, "index.json"), encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh).get("sessionId"), "s_%d_1" % base)
+
+    def test_probe_artifacts_are_never_moved(self):
+        of = self._of()
+        base = 1787523300658
+        h = self._tree(loose=[base + i * 1000 for i in range(3)])
+        with open(os.path.join(h, "197_%d.jpg" % base), "wb") as fh:
+            fh.write(b"z" * 64)
+        of.apply_plan(of.plan(h), yes=True)
+        self.assertTrue(os.path.isfile(os.path.join(h, "197_%d.jpg" % base)),
+                        "a probe artifact was folded into a reel as if it were footage")
+
+    def test_it_deletes_nothing(self):
+        import ast
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orphan_fold.py")
+        with open(_p, "r", encoding="utf-8") as fh:
+            src = fh.read()
+        bad = [n.lineno for n in ast.walk(ast.parse(src))
+               if isinstance(n, ast.Call)
+               and (getattr(n.func, "attr", "") in ("remove", "unlink", "rmtree")
+                    or getattr(n.func, "id", "") in ("remove", "unlink", "rmtree"))]
+        self.assertEqual(bad, [], "orphan_fold calls a deleter at line(s) %s — it moves, never "
+                                  "removes" % bad)
+
+    def test_it_refuses_without_yes(self):
+        of = self._of()
+        base = 1787523300658
+        h = self._tree(loose=[base, base + 1000])
+        r = of.apply_plan(of.plan(h), yes=False)
+        self.assertFalse(r["ok"])
+        self.assertIn("--yes", r["why"])
+        self.assertEqual(len([n for n in os.listdir(h) if n.startswith("f_")]), 2)
+
+    def test_a_long_silence_starts_a_new_cluster(self):
+        of = self._of()
+        base = 1787520000000
+        h = self._tree(loose=[base, base + 1000, base + 1000 + of.GAP_MS + 5000])
+        p = of.plan(h)
+        self.assertEqual(len(p["clusters"]), 2,
+                         "a gap longer than GAP_MS did not split the recording")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
