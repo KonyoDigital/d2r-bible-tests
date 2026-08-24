@@ -16779,5 +16779,45 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
                       "_drift_loop is never spawned, so the console still says nothing")
 
 
+class TestV2077HdArtCoverageDoesNotRegress(unittest.TestCase):
+    """Konyo: "in general all the HD ART make sure is back."
+
+    MEASURED by asking the page itself on 2026-08-24: of 320 ITEMS, 317 resolve real art, ZERO fall
+    back to a placeholder, and 3 have none — Polaris Spear, The Scourge, and Cow King's Leathers
+    (set). All three are genuinely ABSENT FILES, not lookup bugs: `ls art/ | grep -i polaris` and
+    `scourge` return nothing, and for Cow King's only mr_cowkingshooves.png exists, which is a
+    different piece. That is a CASC extraction job, not a code fix, and saying so is the point —
+    [[unknown-stays-unknown]] applies to assets too.
+
+    What CAN regress silently is the corpus: art is 1,233 files on disk, and a prune, a bad sync or
+    a rename takes them away with nothing failing. The board would then quietly draw placeholders
+    where it used to draw items — exactly the class of loss he has been catching by eye."""
+
+    ART = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "art")
+    FLOOR = 1233
+
+    def test_the_art_corpus_has_not_shrunk(self):
+        import glob as _g
+        if not os.path.isdir(self.ART):
+            self.skipTest("the art directory is not on this machine")
+        n = len(_g.glob(os.path.join(self.ART, "*.png")))
+        self.assertGreaterEqual(
+            n, self.FLOOR,
+            "the art corpus dropped from %d to %d file(s). Something removed artwork the board "
+            "draws, and nothing else would have failed — the page just starts showing placeholders."
+            % (self.FLOOR, n))
+
+    def test_the_gem_art_every_craft_card_depends_on_is_present(self):
+        """v2077 gave craft cards their gem sprite. If these four go, every craft silently reverts
+        to one alembic emoji and the cards become indistinguishable again."""
+        import glob as _g
+        if not os.path.isdir(self.ART):
+            self.skipTest("the art directory is not on this machine")
+        for gem in ("amethyst", "ruby", "emerald", "saphire"):
+            hits = _g.glob(os.path.join(self.ART, "hd_perfect_%s*.png" % gem))
+            self.assertTrue(hits, "hd_perfect_%s is gone — the crafts that depend on it fall back "
+                                  "to the generic icon" % gem)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
