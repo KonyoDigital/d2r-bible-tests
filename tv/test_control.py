@@ -2,7 +2,9 @@
 # 🎛 TV DIABLO control app — TDD (v765 REPLAY THEATRE + button/window discipline).
 # Boots the REAL Handler on an ephemeral port with a fixture journal + frame archive.
 import atexit
+import contextlib
 import glob
+import io
 import json
 import os
 import re
@@ -14245,6 +14247,69 @@ class TestV2034TheApplyNamesWhichCauseStoppedIt(unittest.TestCase):
 
 
 
+@contextlib.contextmanager
+def inert_roster():
+    """Yield a callable that arms the roster with every loop body replaced by a sleeper.
+
+    NOTHING in this file may start the real background watchers. `_chron_autoread_loop` starts
+    chronicle sweeps and `_prune_loop` deletes frames — both against HIS tree. pytest's own
+    leaked-child guard caught it, which is the only reason it was not a test that quietly read live
+    footage. [[feedback-fixtures-never-touch-live-data]]
+    """
+    import inspect
+    import threading as _th
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import control_app as _ca
+    src = inspect.getsource(_ca.start_background_watchers)
+    stop = _th.Event()
+    real = {}
+    for fn_name in re.findall(r'\(\s*"tvd-[a-z-]+",\s*(\w+)\s*\)', src):
+        real[fn_name] = getattr(_ca, fn_name, None)
+        setattr(_ca, fn_name, lambda: stop.wait(30))
+    try:
+        yield _ca.start_background_watchers
+    finally:
+        stop.set()
+        for fn_name, fn in real.items():
+            if fn is not None:
+                setattr(_ca, fn_name, fn)
+
+
+def _watcher_is_armed(name, target):
+    """v2079 — ONE way to ask "is this background job actually started", for all seven of them.
+
+    Six near-identical copies of this question used to grep control_app.py for a hand-written
+    `threading.Thread(name="tvd-x", target=_x)`. Every one was RIGHT to ask — a loop nobody starts
+    is the defect this project keeps finding — and every one pinned the SPELLING, so collapsing the
+    two duplicate start sites into one roster turned all six red while the watchers were, for the
+    first time, armed in BOTH modes. Six copies of one question is the same copy-drift the roster
+    removes from the product. [[copy-drift]]
+
+    ⚠ AND IT MUST NOT RUN THE REAL LOOPS. The first cut called start_background_watchers() for
+    real, which spawns the chronicle auto-reader and the rolling prune — jobs that read HIS footage
+    and start sweeps. pytest caught it as a leaked child process, and it would have been a test
+    touching live data. [[feedback-fixtures-never-touch-live-data]]
+
+    So every roster target is replaced with an inert sleeper first. What is proven is the thing that
+    actually broke: the name is in the roster, it is bound to the right function, the roster spawns
+    a thread for it, and both start paths call the roster.
+    """
+    import inspect
+    import threading as _th
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import control_app as _ca
+    roster_src = inspect.getsource(_ca.start_background_watchers)
+    if name not in roster_src or target not in roster_src:
+        return False
+    # both callers, or one mode silently loses the whole roster — the v1761 defect, generalised
+    whole = inspect.getsource(_ca)
+    if whole.count("start_background_watchers(") < 3:
+        return False
+    with inert_roster() as start:
+        start("test (inert)")
+        return name in set(t.name for t in _th.enumerate())
+
+
 class TestV2035TheLaneReelSealsItselfWhenHeLeavesTheStash(unittest.TestCase):
     """v2035 — Konyo asked for this twice and it had never been built.
 
@@ -14307,11 +14372,8 @@ class TestV2035TheLaneReelSealsItselfWhenHeLeavesTheStash(unittest.TestCase):
 
     def test_the_watcher_is_actually_started(self):
         """A loop nobody starts is the class this whole night kept finding."""
-        import os
-        here = os.path.dirname(os.path.abspath(__file__))
-        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
-        self.assertIn('name="tvd-stash-watch"', src, "the watcher thread is never started")
-        self.assertIn("target=_stash_watch_loop", src)
+        self.assertTrue(_watcher_is_armed("tvd-stash-watch", "_stash_watch_loop"),
+                        "the stash watcher is never started")
 
 
 
@@ -14513,10 +14575,8 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
 
     def test_the_prune_loop_is_actually_started(self):
         """A loop nobody starts is the class this project keeps finding."""
-        here = os.path.dirname(os.path.abspath(__file__))
-        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
-        self.assertTrue('name="tvd-rolling-prune"' in src, "the prune thread is never started")
-        self.assertTrue("target=_prune_loop" in src)
+        self.assertTrue(_watcher_is_armed("tvd-rolling-prune", "_prune_loop"),
+                        "the prune thread is never started")
 
 
 
@@ -14703,10 +14763,8 @@ class TestV2041ADurableReceiptForALedgerThatLivesInAWindow(unittest.TestCase):
                          "his entire grail history" % d)
 
     def test_the_backup_loop_is_actually_started(self):
-        here = os.path.dirname(os.path.abspath(__file__))
-        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
-        self.assertTrue('name="tvd-ledger-backup"' in src, "the backup loop is never started")
-        self.assertTrue("target=_ledger_backup_loop" in src)
+        self.assertTrue(_watcher_is_armed("tvd-ledger-backup", "_ledger_backup_loop"),
+                        "the backup loop is never started")
 
 
 
@@ -15304,10 +15362,8 @@ class TestV2053TheSpaceWardenNeverEatsHisFootage(unittest.TestCase):
         self.assertIn("could not read", out["why"])
 
     def test_the_warden_loop_is_actually_started(self):
-        here = os.path.dirname(os.path.abspath(__file__))
-        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
-        self.assertTrue('name="tvd-space-warden"' in src, "the warden loop is never started")
-        self.assertTrue("target=_warden_loop" in src)
+        self.assertTrue(_watcher_is_armed("tvd-space-warden", "_warden_loop"),
+                        "the warden loop is never started")
 
 
 
@@ -15644,10 +15700,17 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
         import reel_retention as _rr
         import frame_authority as _fa
         here = os.path.dirname(os.path.abspath(__file__))
-        self.assertEqual(_rr._durable_sessions(here),
-                         set(_fa.witness_index(here).get("sessions") or ()),
+        # v2079 — _durable_sessions now returns (sessions, ok). The `ok` is the half that was being
+        # dropped on the floor: it is False only when a durable store EXISTS AND WILL NOT PARSE, and
+        # the caller holds every reel when it is. Both halves are compared, because agreeing about
+        # the sessions while disagreeing about whether the index is complete is still a disagreement.
+        idx = _fa.witness_index(here)
+        sessions, ok = _rr._durable_sessions(here)
+        self.assertEqual(sessions, set(idx.get("sessions") or ()),
                          "the reel deleter and the frame deleter disagree about which recordings "
                          "are durable — one of them is about to be wrong")
+        self.assertEqual(ok, bool(idx.get("ok")),
+                         "they disagree about whether the durable index is even COMPLETE")
 
     def test_it_deletes_nothing_itself(self):
         """A planner that deletes is a deleter. The whole point is that the acting stays with the
@@ -16772,11 +16835,8 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
 
     def test_the_loop_is_actually_started(self):
         """A watcher nobody starts is the defect it was written to fix. [[the-unjoined-end]]"""
-        ca = self._ca()
-        import inspect
-        src = inspect.getsource(ca)
-        self.assertIn("target=_drift_loop", src,
-                      "_drift_loop is never spawned, so the console still says nothing")
+        self.assertTrue(_watcher_is_armed("tvd-version-drift", "_drift_loop"),
+                        "_drift_loop is never spawned, so the console still says nothing")
 
 
 class TestV2077HdArtCoverageDoesNotRegress(unittest.TestCase):
@@ -16817,6 +16877,453 @@ class TestV2077HdArtCoverageDoesNotRegress(unittest.TestCase):
             hits = _g.glob(os.path.join(self.ART, "hd_perfect_%s*.png" % gem))
             self.assertTrue(hits, "hd_perfect_%s is gone — the crafts that depend on it fall back "
                                   "to the generic icon" % gem)
+
+
+class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
+    """Konyo: "put it all under eagle eye and watchdog so if something within the console is out of
+    sync it can catch it."
+
+    The eagle eye only ever ran when he PRESSED it. Every defect it exists to see is one where NO
+    COMPONENT IS WRONG and two correct things disagree — a process serving the code it booted with
+    while the page reads stamps from disk; a lane locked on the board and open in the engine; frames
+    belonging to no reel; sprites the board draws quietly gone. Those states persist for exactly as
+    long as nobody looks."""
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def _cd(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_doctor
+        return console_doctor
+
+    def test_the_watchdog_is_actually_started(self):
+        """A watcher nobody spawns is the defect it was written to fix. [[the-unjoined-end]]"""
+        self.assertTrue(_watcher_is_armed("tvd-eagle-watch", "_eagle_watch_loop"),
+                        "_eagle_watch_loop is never spawned, so the eagle still only runs when he "
+                        "presses the button")
+
+    def test_it_is_published_or_no_surface_can_show_it(self):
+        st = self._ca().status_payload() or {}
+        self.assertIn("eagle", st, "the status payload does not carry the watchdog's last look")
+        for k in ("checked", "needsYou", "unknown", "rows", "say"):
+            self.assertIn(k, st["eagle"])
+
+    def test_before_it_has_run_it_says_so_rather_than_all_clear(self):
+        """A watchdog defaulting to 'all clear' reads as reassurance nobody measured."""
+        import inspect
+        src = inspect.getsource(self._ca())
+        i = src.index("_EAGLE = {")
+        blk = src[i:src.index("\n\n", i)]
+        self.assertIn('"needsYou": None', blk, "needsYou defaults to a number nobody counted")
+        self.assertIn("not measured yet", blk)
+
+    def test_UNKNOWN_is_never_folded_into_all_clear(self):
+        """The design rule: a watchdog that says 'fine' because it could not look is the defect it
+        exists to catch. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        ca = self._ca()
+        rows = [{"check": "a", "state": "ok", "why": ""},
+                {"check": "b", "state": "unknown", "why": "console not answering"}]
+        with mock.patch.dict(sys.modules):
+            import console_doctor as cd
+            with mock.patch.object(cd, "run", lambda **k: rows):
+                ca._eagle_once()
+        st = ca.eagle_state()
+        self.assertEqual(st["unknown"], 1)
+        self.assertNotIn("all clear", st["say"],
+                         "a check that could not be measured was reported as all clear")
+
+    def test_the_five_new_checks_are_on_the_roster(self):
+        """Each one exists because a defect of that exact shape shipped and HE found it."""
+        names = [n for n, _ in self._cd().CHECKS]
+        for want in ("visual lock", "art corpus", "footage has a reel",
+                     "vault stores", "locked lanes"):
+            self.assertIn(want, names, "the eagle no longer watches %r" % want)
+
+    def test_the_slow_subset_is_named_not_guessed(self):
+        """The watchdog runs include_slow=False every 10 minutes. If a cheap check silently joined
+        SLOW, the watchdog would stop running it and nothing would say so."""
+        cd = self._cd()
+        self.assertEqual(set(cd.SLOW), {"the other doctors"},
+                         "the SLOW set moved — the watchdog skips those, so anything added here "
+                         "stops being watched on the timer")
+
+    def test_a_check_that_throws_becomes_UNKNOWN_not_a_crash(self):
+        cd = self._cd()
+        import unittest.mock as mock
+        def boom():
+            raise RuntimeError("deliberate")
+        with mock.patch.object(cd, "CHECKS", [("exploder", boom)]):
+            rows = cd.run(include_slow=False)
+        self.assertEqual(rows[0]["state"], cd.UNKNOWN)
+        self.assertIn("threw", rows[0]["why"])
+
+
+class TestV2079TheWallKeepsHisPlace(unittest.TestCase):
+    """Konyo: "grail wall ✓ snaps the drawer shut."
+
+    v2077 removed the d2r_grailWallOpen persistence so the wall starts COLLAPSED on every load —
+    correct, and it took the re-render with it: every ✓ rebuilds the forge, the fresh <details> has
+    no open attribute, and the drawer he is working inside closes under his hand, filter and scroll
+    gone, on the exact action the wall exists for."""
+
+    def _html(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_open_state_lives_in_the_page_not_the_browser(self):
+        """Both rulings hold only because the lifetimes differ. If this state ever reaches
+        localStorage, v2077's defect is back and this test is the thing that says so."""
+        s = self._html()
+        i = s.index("var _wallOpen = {}")
+        blk = s[i:s.index("function _allGrid(", i)]
+        self.assertNotIn("localStorage", blk,
+                         "the wall's open state reached storage — a reload will start it OPEN again")
+        # Anchored on the CALL, never the NAME. The name appears in v2077's own comment explaining
+        # that the key was removed, so `assertNotIn("d2r_grailWallOpen")` fails on my prose while
+        # the code is correct — the guard going red for its own reasons rather than the subject's.
+        # A storage call naming the key cannot appear in a sentence about it. [[source-reading-guard]]
+        for call in ("getItem('d2r_grailWallOpen'", 'getItem("d2r_grailWallOpen"',
+                     "setItem('d2r_grailWallOpen'", 'setItem("d2r_grailWallOpen"'):
+            self.assertNotIn(call, s, "the persisted key v2077 removed is being %s again"
+                             % ("read" if "get" in call else "written"))
+
+    def test_a_re_render_restores_it_and_both_forges_call_that(self):
+        """Anchored on the CALL, never the name — a name appears in every sentence about it and a
+        guard that matches prose passes with the code deleted. [[source-reading-guard]] 4b"""
+        s = self._html()
+        # Counting the SUBSTRING is blind: commenting a call out leaves it in the file and the
+        # count unchanged. Proven — that exact sabotage passed on the first cut of this guard.
+        # Count LIVE call sites: the text present on a line whose code half is not commented out.
+        live = [ln for ln in s.splitlines()
+                if "window.gfWallRestore(box);" in ln
+                and not ln.strip().startswith("//")
+                and ln.index("window.gfWallRestore") < (ln.index("//") if "//" in ln
+                                                        else len(ln))]
+        self.assertEqual(len(live), 2,
+                         "the uniques forge and the sets forge must BOTH restore the wall after "
+                         "they rewrite innerHTML; found %d LIVE call site(s)" % len(live))
+        self.assertIn("ontoggle=\"window.gfWallToggled(this)\"", s,
+                      "nothing records that he opened it, so a re-render has nothing to restore")
+
+    def test_the_filter_and_the_scroll_come_back_too(self):
+        """Restoring `open` while the list underneath shows all 398 rows from the top is a drawer
+        that only LOOKS like it kept his place."""
+        s = self._html()
+        i = s.index("window.gfWallRestore=function(root)")
+        blk = s[i:s.index("</script>", i)]
+        self.assertIn("window.gfWallFilter(inp)", blk, "the typed filter is not re-applied")
+        self.assertIn("grid.scrollTop=st.top", blk, "the scroll offset is not restored")
+        self.assertIn("st.q = inp.value", self._html(), "typing is never banked")
+
+
+class TestV2079OneSpellingForARarityColour(unittest.TestCase):
+    """v2073 fixed the flat-cream grail wall by INVENTING `.gp-nm-uni` / `.gp-nm-set`, three new
+    rules sitting a few hundred lines below two that had been colouring item names in these exact
+    two tabs since v1625. Nobody was wrong at any step and the page looked right — but two
+    spellings of one idea is how they drift, and the next person to retune the rarity palette would
+    have found one of them. [[copy-drift]]"""
+
+    def _html(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def _css_only(self, s):
+        """Strip HTML comments and JS-style block comments so this grades RULES, not the prose that
+        explains them — including the paragraph above the fix, which names both dead classes.
+        Bounded so a stray `/*` inside a string cannot eat a third of the file.
+        [[source-reading-guard]] §4"""
+        s = re.sub(r"<!--.{0,6000}?-->", " ", s, flags=re.S)
+        return re.sub(r"/\*.{0,6000}?\*/", " ", s, flags=re.S)
+
+    def test_the_invented_classes_are_gone_from_the_STYLESHEET(self):
+        css = self._css_only(self._html())
+        for dead in ("gp-nm-uni", "gp-nm-set"):
+            self.assertNotIn(dead, css,
+                             "%s is a second spelling of a colour rule this page already had" % dead)
+
+    def test_the_rule_that_survived_covers_the_wall_too(self):
+        """The whole point of collapsing them: the ONE surviving rule must reach the missing chips,
+        or the wall goes back to flat cream and the merge was a silent regression."""
+        css = self._css_only(self._html())
+        self.assertIn("#tab-funi .gf-piece .gf-nm,#tab-funi .gf-piece .gp-nm", css)
+        self.assertIn("#tab-fsets .gf-nm,#tab-fsets .gp-nm", css)
+
+    def test_the_glow_stays_on_FOUND_only(self):
+        """Colour says WHAT IT IS, glow says YOU HAVE IT. 398 glowing missing names say both at
+        once and neither clearly — and that is what plain `#tab-funi .gf-piece .gf-nm{...glow}`
+        would do the moment the wall started using a matched class."""
+        css = self._css_only(self._html())
+        # Match the PROPERTY at a declaration boundary, not the substring. `xtext-shadow:` contains
+        # "text-shadow" and is inert CSS — a sabotage that killed the glow passed the first cut of
+        # this assertion for exactly that reason.
+        prop = re.compile(r"[{;]\s*text-shadow\s*:")
+        i = css.index("#tab-funi .gf-piece.have .gf-nm")
+        self.assertTrue(prop.search(css[i:css.index("}", i) + 1]),
+                        "the found glow was lost in the merge")
+        j = css.index("#tab-funi .gf-piece .gf-nm,#tab-funi .gf-piece .gp-nm")
+        self.assertFalse(prop.search(css[j:css.index("}", j) + 1]),
+                         "the glow leaked onto every MISSING name")
+
+    def test_the_renderer_no_longer_takes_an_argument_its_container_knows(self):
+        """`rar` only existed to tell a shared renderer something the tab scope already decides."""
+        s = self._html()
+        self.assertIn("function _allGrid(title, sub, entries, fn){", s)
+        self.assertNotIn("' gp-nm-' + rar", s)
+
+
+class TestV2079AnUnreadableLedgerHoldsTheFootage(unittest.TestCase):
+    """THE ONE WITH NO UN-DELETE. On origin since v2065.
+
+    `_load` answered {} for both "never written" and "exists and will not parse". With an
+    unreadable vault_swept.json, `_entry(vault, reel)` is None for EVERY reel, so every reel a
+    chronicle sweep has read falls past `ve is None and _vault_lane_owes(...)` — false for any reel
+    that declared a chronicle focus — into `else:` and out as ELIGIBLE, reported as "sealed by BOTH
+    lanes"."""
+
+    def _tree(self, n=6):
+        import json as _j
+        root = tempfile.mkdtemp(prefix="reelledger_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "frames", "hist")
+        os.makedirs(hist)
+        chron = {}
+        for i in range(n):
+            sid = "s_150000000%04d" % i
+            d = os.path.join(hist, "reel_" + sid)
+            os.makedirs(d)
+            io.open(os.path.join(d, "f_%s_1.jpg" % sid), "w").write("x" * 1000)
+            chron["reel_" + sid] = {"pages": 9}
+        io.open(os.path.join(root, "chronicle_swept.json"), "w").write(_j.dumps(chron))
+        io.open(os.path.join(root, "vault_swept.json"), "w").write(
+            _j.dumps(dict((k, {"rows": 0}) for k in chron)))
+        io.open(os.path.join(root, "vault_accum.json"), "w").write(_j.dumps({"owned": []}))
+        io.open(os.path.join(root, "vault_seen.json"), "w").write(_j.dumps({"rows": []}))
+        return root, hist
+
+    def _plan(self, root, hist):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention as rr
+        old = rr.HERE
+        rr.HERE = root
+        self.addCleanup(setattr, rr, "HERE", old)
+        return rr.plan(hist_dir=hist)
+
+    def test_the_branch_is_reachable_or_this_whole_case_proves_nothing(self):
+        """A gate that could never release a reel cannot be shown to have stopped releasing one.
+        [[feedback-blind-fixture-green-gate]]"""
+        root, hist = self._tree()
+        p = self._plan(root, hist)
+        self.assertTrue(p["candidates"],
+                        "with every ledger readable nothing was eligible — the fixture cannot "
+                        "demonstrate a hold, so the cases below would pass vacuously")
+        self.assertEqual(p["unreadable"], [])
+
+    def test_a_seal_store_that_will_not_parse_holds_every_reel(self):
+        root, hist = self._tree()
+        io.open(os.path.join(root, "vault_swept.json"), "w").write("{ this is not json")
+        p = self._plan(root, hist)
+        self.assertEqual(p["candidates"], [],
+                         "footage was released for deletion on the strength of a ledger that "
+                         "could not be opened")
+        self.assertIn("vault_swept.json", p["unreadable"])
+        self.assertTrue(any("ledger-unreadable" in (k.get("why") or "") or "will not parse"
+                            in (k.get("why") or "") for k in p["kept"]),
+                        "everything was held but he is not told why")
+
+    def test_a_durable_store_that_will_not_parse_holds_every_reel(self):
+        root, hist = self._tree()
+        io.open(os.path.join(root, "vault_accum.json"), "w").write("]]not json[[")
+        p = self._plan(root, hist)
+        self.assertEqual(p["candidates"], [])
+        self.assertTrue(p["unreadable"], "witness_index reported ok=False and it was dropped again")
+
+    def test_ABSENT_is_a_measurement_and_must_not_be_treated_as_unknown(self):
+        """The mirror, and the reason this is not just 'hold on any falsy load': vault_swept.json
+        genuinely does not exist on a tree that has never run a vault sweep. Holding forever on a
+        file that was never supposed to be there is the same defect pointed the other way."""
+        root, hist = self._tree()
+        os.remove(os.path.join(root, "vault_swept.json"))
+        p = self._plan(root, hist)
+        self.assertEqual(p["unreadable"], [],
+                         "an absent store was reported as unreadable — 'never written' and 'will "
+                         "not parse' are opposite facts")
+
+    def test_the_inert_rule_is_not_reported_as_an_unmeasured_gap(self):
+        """`ledger-unreadable` cannot fire on a healthy tree. Listing it under neverFired would
+        train him to ignore the list that names real gaps."""
+        root, hist = self._tree()
+        p = self._plan(root, hist)
+        self.assertNotIn("ledger-unreadable", p["neverFired"])
+        self.assertIn("ledger-unreadable", p["notApplicable"])
+
+
+class TestV2079EveryWatcherStartsInBothModes(unittest.TestCase):
+    """v1761 carved this and paid for it: "A background job attached to a WINDOW is a background
+    job that vanishes the moment you run without one." It then fixed it for ONE thread by writing a
+    SECOND start site in the headless branch, and every watcher added afterwards went into the
+    window branch only.
+
+    Measured 2026-08-24 on a headless console: seven of nine threads never existed — the rolling
+    prune, the only durable copy of his grail ledgers, the space warden, the version-drift watcher
+    and the eagle watchdog itself. [[copy-drift]] [[the-unjoined-end]]"""
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def test_there_is_exactly_one_roster(self):
+        """Two start sites for one roster IS the defect. Anchored on the CALL: a thread start
+        cannot appear inside a sentence about one."""
+        import inspect
+        src = inspect.getsource(self._ca())
+        starts = re.findall(r"threading\.Thread\(target=(\w+)", src)
+        in_roster = re.search(r"def start_background_watchers.*?\n(?=\ndef |\n# )", src, re.S)
+        self.assertTrue(in_roster, "the roster function is gone")
+        for name in ("_prune_loop", "_ledger_backup_loop", "_warden_loop", "_drift_loop",
+                     "_eagle_watch_loop", "_chron_autoread_loop", "_stash_watch_loop"):
+            self.assertEqual(starts.count(name), 0,
+                             "%s is started by a hand-written threading.Thread again — it belongs "
+                             "in the roster, or one start path will lose it" % name)
+            self.assertIn(name, in_roster.group(0), "%s fell out of the roster" % name)
+
+    def test_both_start_paths_call_it(self):
+        import inspect
+        src = inspect.getsource(self._ca())
+        self.assertEqual(src.count("start_background_watchers("), 3,
+                         "expected the definition plus exactly two callers (window + headless); "
+                         "found %d mention(s)" % src.count("start_background_watchers("))
+
+    def test_it_actually_starts_them_and_names_any_that_fail(self):
+        with inert_roster() as start:
+            r = start("test")
+        self.assertEqual(r["failed"], [], "a watcher failed to start: %r" % r["failed"])
+        live = set(t.name for t in threading.enumerate())
+        for name in r["roster"]:
+            self.assertIn(name, live, "%s is in the roster and not running" % name)
+
+    def test_it_is_idempotent_so_a_second_call_cannot_double_a_watcher(self):
+        with inert_roster() as start:
+            start("first")
+            again = start("second")
+        self.assertEqual(again["started"], [],
+                         "calling it twice started duplicates: %r" % again["started"])
+
+    def test_a_watcher_measures_before_it_sleeps(self):
+        """`time.sleep()` at the top of the loop publishes `checked: None` for the whole first
+        period, and a surface reading it cannot tell 'all clear' from 'nobody looked yet'."""
+        import inspect
+        for fn in ("_drift_loop", "_eagle_watch_loop"):
+            src = inspect.getsource(getattr(self._ca(), fn))
+            body = src[src.index("while True:"):]
+            sleep_at = body.index("time.sleep(")
+            work_at = min(body.index("_drift_once()") if "_drift_once()" in body else 10 ** 9,
+                          body.index("_eagle_once()") if "_eagle_once()" in body else 10 ** 9)
+            self.assertIn("if not first:", body[:sleep_at],
+                          "%s sleeps before its first measurement" % fn)
+            self.assertLess(work_at, 10 ** 9)
+
+
+class TestV2079TheScarLedgerAndTheHealer(unittest.TestCase):
+    """Konyo: "give it the capabilities to see this so when it happens in the future it can auto
+    scar / auto heal / auto fix."
+
+    SCAR is unconditional — remembering costs nothing. HEAL is opt-in and exists only where the
+    repair is RE-DERIVABLE FROM EVIDENCE rather than an act of judgement."""
+
+    def _ch(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_healer
+        return console_healer
+
+    def _isolated(self):
+        ch = self._ch()
+        d = tempfile.mkdtemp(prefix="scarledger_")
+        self.addCleanup(shutil.rmtree, d, True)
+        old = ch.LEDGER
+        ch.LEDGER = os.path.join(d, ".scars.json")
+        self.addCleanup(setattr, ch, "LEDGER", old)
+        ch._DISARMED.clear()
+        return ch
+
+    def test_a_returning_fault_is_named_a_RETURN(self):
+        """The one sentence nothing in the system could say before, and the reason he kept meeting
+        the same defect as a surprise."""
+        ch = self._isolated()
+        red = [{"check": "visual lock", "state": "missing", "why": "the wall lost its colour"}]
+        ch.record(red, now_ms=1000)
+        ch.record([], now_ms=2000)                       # it cleared
+        out = ch.record(red, now_ms=3000)                # and came back
+        self.assertEqual(out[0]["returns"], 1)
+        self.assertIn("COME BACK 1 time", ch.says(out[0]))
+        ch.record([], now_ms=4000)
+        ch.record(red, now_ms=5000)
+        self.assertEqual(ch.record(red, now_ms=6000)[0]["returns"], 2,
+                         "the return count reset — a fault that keeps coming back must keep saying so")
+
+    def test_the_SIZE_of_a_fault_is_not_its_identity(self):
+        """"2385 frames belong to no reel" and "12 frames belong to no reel" are one scar
+        returning. Fingerprinted on the shape or every recurrence reads as a first sighting."""
+        ch = self._isolated()
+        a = ch.fingerprint("footage", "2385 frame(s) (3.15 GB) belong to NO reel")
+        b = ch.fingerprint("footage", "12 frame(s) (0.01 GB) belong to NO reel")
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, ch.fingerprint("footage", "the hist directory is unreadable"))
+
+    def test_healing_is_OFF_unless_armed_and_says_what_it_would_do(self):
+        ch = self._isolated()
+        os.environ.pop("TV_AUTO_HEAL", None)
+        state, said = ch.heal({"check": "footage has a reel", "why": "x", "heal": {}})
+        self.assertEqual(state, "not-armed")
+        self.assertIn("TV_AUTO_HEAL=1", said)
+
+    def test_a_remedy_that_does_not_clear_its_check_is_DISARMED(self):
+        """LAW 2, and it is what stops a repair loop from touching his files forever."""
+        ch = self._isolated()
+        os.environ["TV_AUTO_HEAL"] = "1"
+        self.addCleanup(os.environ.pop, "TV_AUTO_HEAL", None)
+        old = ch.REMEDIES.get("footage has a reel")
+        ch.REMEDIES["footage has a reel"] = ("test double", lambda: (True, "pretended to fold"))
+        self.addCleanup(ch.REMEDIES.__setitem__, "footage has a reel", old)
+        scar = ch.record([{"check": "footage has a reel", "state": "missing", "why": "12 loose"}])[0]
+        first = ch.heal(scar, recheck=lambda: ("missing", "still 12 loose"))
+        self.assertEqual(first[0], "still-red",
+                         "a remedy graded its own homework — the check was never re-run")
+        second = ch.heal(scar, recheck=lambda: ("missing", "still 12 loose"))
+        self.assertEqual(second[0], "disarmed", "the failed remedy would be retried forever")
+
+    def test_a_code_regression_gets_NO_remedy_and_says_so(self):
+        """A module that silently rewrote code to make its own gate go green would be the single
+        most dangerous thing in this tree."""
+        ch = self._isolated()
+        for check in ("visual lock", "locked lanes", "art corpus", "disk headroom"):
+            state, said = ch.heal({"check": check, "why": "x", "heal": {}})
+            self.assertEqual(state, "no-remedy", "%s acquired a machine repair" % check)
+            self.assertIn("needs a person", said)
+
+    def test_no_remedy_deletes_anything_of_his(self):
+        """LAW 3, read off the remedies themselves rather than asserted about them."""
+        import inspect
+        ch = self._ch()
+        for name, (_why, fn) in ch.REMEDIES.items():
+            src = inspect.getsource(fn)
+            src = re.sub(r'"""..*?"""', " ", src, flags=re.S)     # the prose says "deleted" a lot
+            for banned in ("os.remove(", "shutil.rmtree(", "os.unlink(", "os.rmdir("):
+                self.assertNotIn(banned, src,
+                                 "the remedy for %r calls %s — no remedy may destroy his data"
+                                 % (name, banned))
+
+    def test_the_watchdog_actually_calls_the_ledger(self):
+        """Built on both ends and never joined is the failure mode this whole file exists for."""
+        import inspect
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        src = inspect.getsource(control_app._eagle_once)
+        self.assertIn("_ch.tend(rows", src, "the eagle sees and never remembers")
 
 
 if __name__ == "__main__":

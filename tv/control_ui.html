@@ -6848,10 +6848,49 @@
       if (_bv && _cv !== _bv) _bits.push('board ' + _bv);
       _lbl += ' · \u26a0 console ' + _cv + ', ' + _bits.join(', ') + ' — relaunch';
     }
+    /* ── v2079 — THE TWO WATCHERS SPEAK HERE, OR THEY DO NOT SPEAK ────────────────────────────
+       `status.drift` (v2072) and `status.eagle` (v2078) were both measured, both published, and
+       read by NOTHING. Plumbing built on both ends and never joined: it reads wired from the
+       Python side and from the payload, and carries nothing to a screen.
+       [[plumbing-with-no-tap]] [[the-unjoined-end]]
+
+       They belong on THIS line rather than in a new widget, because this line is already the
+       page's answer to "is what I am looking at what is on disk" — the triple lamp catches a
+       stale BOARD, and `drift` catches the half it structurally cannot see: control_app.py itself
+       changed on disk, so the process is serving Python it has never executed. Same question,
+       one place. */
+    var _d = st.drift || {}, _e = st.eagle || {};
+    // A watcher that has not run yet says so. `drift === null` is the engine's own third state
+    // (UNMEASURED, not in-sync) and it must not arrive here as silence. [[unknown-stays-unknown]]
+    if (_d.drift === true && _d.disk && _d.disk !== _cv) {
+      _lbl += ' · \u27f2 ' + _d.disk + ' is on disk';
+    } else if (_d.checked && _d.drift === null) {
+      _lbl += ' · \u27f2 version drift UNMEASURED';
+    }
+    if (_e.needsYou) {
+      _lbl += ' · \ud83e\udd85 ' + _e.needsYou + ' need' + (_e.needsYou === 1 ? 's' : '') + ' you';
+    } else if (_e.checked && _e.unknown) {
+      _lbl += ' · \ud83e\udd85 ' + _e.unknown + ' not measured';
+    }
     $('foot-ver').textContent = _lbl;
     try {
-      var _skew = ((_av && _cv !== _av) || (_bv && _cv !== _bv));
-      $('foot-ver').style.color = _skew ? '#d8a94a' : '';
+      // The rows themselves, on hover — the footer says HOW MANY, the title says WHICH.
+      var _tip = [];
+      if (_d.say) _tip.push('\u27f2 ' + _d.say);
+      if (_e.say) _tip.push('\ud83e\udd85 ' + _e.say);
+      (_e.rows || []).forEach(function (r) {
+        if (r.state !== 'ok') _tip.push('   ' + (r.state === 'missing' ? '\u2717' : '?') + ' '
+                                        + r.check + ' — ' + (r.why || ''));
+      });
+      $('foot-ver').title = _tip.join('\n') || 'console, agent and board all on ' + _cv;
+    } catch (e) {}
+    try {
+      // v2079 — and the COLOUR follows the same four reasons as the words. A line that says
+      // "3 need you" in the calm colour is a line he reads as calm.
+      var _skew = ((_av && _cv !== _av) || (_bv && _cv !== _bv)
+                   || _d.drift === true || !!_e.needsYou);
+      var _hazy = (!_skew && ((_d.checked && _d.drift === null) || !!_e.unknown));
+      $('foot-ver').style.color = _skew ? '#d8a94a' : (_hazy ? '#9a8c72' : '');
     } catch(e){}
     // v1251 — if the ship stamp moved under us (or first paint), reload the board/engine
     // iframe with a cache-bust so bible D2R_BUILD can't stay stuck on an older gate version.

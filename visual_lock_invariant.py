@@ -65,23 +65,38 @@ def _colour_carries_meaning(text, failures):
     about colour. He was the detector. [[visual-regression-detector]]
 
     A rarity colour is the same KIND of promise as a weight token: it is meaning, not decoration.
+
+    v2079 — AND IT LOCKED THE SPELLING RATHER THAN THE PROMISE. The first cut pinned the literal
+    strings `.gf-piece .gp-nm-set{...}` and `' gp-nm-' + rar`, so collapsing those invented classes
+    back onto the rule the page had carried since v1625 — a strictly better state — turned the lock
+    RED while the pixels were correct. A lock that fails on a correct refactor spends the one thing
+    it is for, his attention, on a lie, and the pressure it creates is to weaken it.
+
+    So it asks the question the eye asks: DOES A MISSING ITEM NAME IN THIS TAB RESOLVE TO THIS TAB'S
+    RARITY COLOUR? The class is read out of the renderer instead of being hardcoded here, so a
+    rename passes and a deletion fails. [[source-reading-guard]] §1
     """
-    checks = [
-        ('.gf-piece .gp-nm-set{color:var(--q-set)}',
-         "the grail wall no longer names a SET piece in set green"),
-        ('.gf-piece .gp-nm-uni{color:var(--q-unique)}',
-         "the grail wall no longer names a UNIQUE in unique gold"),
-        ("' gp-nm-' + rar",
-         "_allGrid stopped stamping a rarity class — with none, both walls fall back to one flat "
-         "colour and neither can say what it is showing"),
-        ("_missAll, 'grailFoundUni', 'uni'",
-         "the uniques wall stopped declaring its rarity to _allGrid"),
-        ("_missP, 'grailTogglePiece', 'set'",
-         "the sets wall stopped declaring its rarity to _allGrid"),
-    ]
-    for needle, why in checks:
-        if needle not in text:
-            failures.append("bible.html: %s (missing: %s)" % (why, needle))
+    m = re.search(r"gf-piece gf-miss.{0,400}?<span class=\"([a-z0-9 _-]+)\">'\+esc\(e\.n\)", text,
+                  re.S)
+    if not m:
+        failures.append("bible.html: cannot find the class _allGrid puts on a wall item's NAME — "
+                        "the renderer changed shape, so nothing below can be graded")
+        return
+    cls = (m.group(1).split() or [""])[-1]
+    for tab, token, what in (("#tab-funi", "--q-unique", "UNIQUE in unique gold"),
+                             ("#tab-fsets", "--q-set", "SET piece in set green")):
+        # A rule that scopes to this tab, names the class the wall actually emits, and sets colour
+        # from this tab's rarity token. All three in one declaration block, or the wall is flat.
+        pat = re.compile(re.escape(tab) + r"[^{}]{0,200}\." + re.escape(cls)
+                         + r"[^{}]{0,200}\{[^{}]{0,300}?color:\s*var\(" + re.escape(token) + r"\)")
+        if not pat.search(text):
+            failures.append("bible.html: the grail wall no longer names a %s — no rule under %s "
+                            "binds .%s to var(%s)" % (what, tab, cls, token))
+    # The glow means YOU HAVE IT. If it ever reaches the plain (missing) selector, colour and
+    # ownership are being said with the same ink and neither reads.
+    g = re.search(r"#tab-funi \.gf-piece \.[a-z0-9 ._,#-]{0,120}\{([^{}]{0,300})\}", text)
+    if g and re.search(r"(?:^|[{;])\s*text-shadow\s*:", g.group(1)):
+        failures.append("bible.html: the FOUND glow leaked onto every MISSING name in #tab-funi")
 
 
 def _sealed_title_speaks_the_page(text, failures):

@@ -49,11 +49,36 @@ MIN_PAGES = 1            # "evidence banked" means at least one page was actuall
 
 
 def _load(path):
+    """{} for callers that do not need to tell the two empties apart. Use _load_state when it
+    matters, and for a DELETER it always matters."""
+    return _load_state(path)[0]
+
+
+def _load_state(path):
+    """(blob, state) where state is 'absent' | 'ok' | 'unreadable'.
+
+    v2079 — THE HOLE THIS CLOSES, and it has been on origin since v2065. `_load` answered `{}` for
+    both "this store has never been written" and "this store exists and will not parse", and those
+    are opposite facts. ABSENT is a measurement: `vault_swept.json` genuinely does not exist on a
+    tree that has never run a vault sweep, and this module's own prose says so. UNREADABLE is an
+    UNKNOWN — the ledger might name every witness in the reel about to be deleted, and nobody can
+    say, because nobody could open it.
+
+    Collapsed, the consequence is concrete and it is not the safe direction: with an unreadable
+    `vault_swept.json`, `_entry(vault, reel)` is None for EVERY reel, so every reel that a chronicle
+    sweep has read falls past `ve is None and _vault_lane_owes(...)` — false for any reel that
+    declared a chronicle focus — straight into `else:` and out as ELIGIBLE. Footage deleted on the
+    strength of a file that could not be opened, with the report cheerfully saying "sealed by BOTH
+    lanes". There is no un-delete.
+    [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+    """
+    if not os.path.exists(path):
+        return {}, "absent"
     try:
         with open(path, encoding="utf-8") as fh:
-            return json.load(fh) or {}
+            return (json.load(fh) or {}), "ok"
     except Exception:
-        return {}
+        return {}, "unreadable"
 
 
 def _entry(ledger, reel):
@@ -120,8 +145,14 @@ def _durable_sessions(here=None):
     try:
         import frame_authority as _fa
     except Exception:
-        return set()          # cannot ask the authority -> nothing is durable -> everything is held
-    return set(_fa.witness_index(here or HERE).get("sessions") or ())
+        # cannot ask the authority -> nothing is durable AND nothing is known
+        return set(), False
+    idx = _fa.witness_index(here or HERE)
+    # v2079 — and carry the authority's own `ok` instead of dropping it on the floor. It is False
+    # when ANY durable store would not parse, and the sessions set is then a PARTIAL index. The
+    # comment above argues a partial index can only hold reels; that is true of the rows-not-banked
+    # branch and NOT true of a reel with no rows, which reaches `else:` untouched.
+    return set(idx.get("sessions") or ()), bool(idx.get("ok"))
 
 
 def _vault_lane_owes(reel_path):
@@ -160,8 +191,23 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     free_mb: stop once this much has been selected. None = report every eligible reel.
     """
     hist = hist_dir or os.path.join(HERE, "frames", "hist")
-    chron = _load(os.path.join(HERE, "chronicle_swept.json")) or _load(os.path.join(hist, "chronicle_swept.json"))
-    vault = _load(os.path.join(HERE, "vault_swept.json")) or _load(os.path.join(hist, "vault_swept.json"))
+    unreadable = []
+
+    def _pick(fn):
+        """First readable copy wins, and every UNREADABLE copy is named. A store that exists and
+        will not parse is recorded even when a sibling copy answers, because the reason a caller
+        wants to know is 'is my picture of the ledgers complete', not 'did I get a dict'."""
+        blob = {}
+        for cand in (os.path.join(HERE, fn), os.path.join(hist, fn)):
+            b, st = _load_state(cand)
+            if st == "unreadable":
+                unreadable.append(os.path.relpath(cand, HERE))
+            if b and not blob:
+                blob = b
+        return blob
+
+    chron = _pick("chronicle_swept.json")
+    vault = _pick("vault_swept.json")
 
     try:
         reels = sorted((d for d in os.listdir(hist) if d.startswith("reel_")), key=_reel_ts)
@@ -170,7 +216,9 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
 
     # v2056 — sessions whose witnesses survive without the frames, read ONCE per plan.
     global _DURABLE
-    _DURABLE = _durable_sessions(HERE)
+    _DURABLE, _durable_ok = _durable_sessions(HERE)
+    if not _durable_ok:
+        unreadable.append("a durable store (vault_accum.json / vault_seen.json)")
     recent = set(reels[-keep_recent:]) if keep_recent else set()
     try:
         import frame_authority as _fa
@@ -192,8 +240,8 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     # reported as UNMEASURED, never as "fine" and never as "broken" — this run simply contains no
     # reel that reaches it, and that is a fact about the footage, not about the rule.
     # [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
-    RULES = ("test-fixture", "recent", "never-chronicle-swept", "zero-pages", "rows-not-banked",
-             "vault-owes", "target-met", "eligible")
+    RULES = ("ledger-unreadable", "test-fixture", "recent", "never-chronicle-swept", "zero-pages",
+             "rows-not-banked", "vault-owes", "target-met", "eligible")
     hits = dict((r, 0) for r in RULES)
 
     def _rule(tag, why):
@@ -206,7 +254,17 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         ce, ve = _entry(chron, reel), _entry(vault, reel)
         pages = int((ce or {}).get("pages") or 0)
 
-        if reel in _fixtures:
+        if unreadable:
+            # v2079 — FIRST, and it holds EVERYTHING. Not a per-reel judgement: a ledger that will
+            # not parse means this module's picture of what has been banked is unknown for every
+            # reel at once, so there is no reel it can honestly release. Deliberately ahead of
+            # test-fixture so the REPORT names the real reason rather than a coincidental one.
+            why = _rule("ledger-unreadable",
+                        "HELD — %s will not parse, so nothing here knows which witnesses are "
+                        "banked. 'I could not read the ledger' is not 'there are no witnesses', "
+                        "and footage has no un-delete. Fix or remove the file and re-run."
+                        % ", ".join(sorted(set(unreadable))))
+        elif reel in _fixtures:
             # ── v2069 — A REEL A TEST OPENS IS A FIXTURE, WHATEVER THE LEDGERS SAY ─────────────
             # Learned the expensive way, on a prune that had already run: six reels went as
             # "sealed by both lanes, has given up its information" and THREE were named by
@@ -262,12 +320,20 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     # `target-met` can only fire when a free_mb target was asked for; with no target it is
     # unreachable BY CONSTRUCTION, not unexercised by the footage. Reporting them together would
     # make a structurally-inert branch look like a rule that quietly stopped working.
+    # `ledger-unreadable` is structurally inert on a healthy tree, exactly like `target-met` with no
+    # target — reporting it as NEVER REACHED would train him to ignore the list that names real gaps.
     _na = set() if free_mb is not None else {"target-met"}
+    if not unreadable:
+        _na.add("ledger-unreadable")
     never = [r for r in RULES if not hits[r] and r not in _na]
     na = sorted(r for r in _na if not hits[r])
     return {"ok": True, "hist": hist, "candidates": candidates, "kept": kept,
             "freeMb": round(freed, 1), "onDisk": len(reels),
             "vaultLedger": bool(vault),
+            # Published so a caller cannot repeat the mistake this fix corrects: an empty
+            # `candidates` because everything is held reads identically to an empty one because
+            # nothing was eligible, unless the reason is on the payload.
+            "unreadable": sorted(set(unreadable)),
             "coverage": dict(hits), "neverFired": never, "notApplicable": na,
             "coverageSay": (("every rule this run could reach was exercised by the footage"
                              if not never else

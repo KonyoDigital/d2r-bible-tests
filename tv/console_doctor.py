@@ -335,6 +335,135 @@ def _check_the_other_doctors():
     return worst, " · ".join(parts) + "  (run them for the detail)"
 
 
+# ── v2078 — EVERYTHING THE NIGHT OF 2026-08-24 BUILT, WATCHED FROM ABOVE ─────────────────────
+# Konyo: "put it all under eagle eye and watchdog so if something within the console is out of
+# sync it can catch it."
+#
+# Each check below exists because a REAL defect of that exact shape shipped and HE found it. None
+# of them tests code — they test whether the RUNNING SYSTEM still agrees with itself, which is the
+# one thing no unit test and no gate can see.
+#
+# Every one errs the same way: what it cannot measure is UNKNOWN, never OK. A watchdog that reports
+# "fine" because it could not look is the defect it was built to catch.
+
+
+def _check_the_visual_lock_holds():
+    """The board's meaning-bearing CSS — weight, structure, rarity COLOUR, the sealed title, and
+    every Sessions card owning a grid area. He found all of those by eye first."""
+    import subprocess
+    lock = os.path.join(os.path.dirname(HERE), "visual_lock_invariant.py")
+    if not os.path.isfile(lock):
+        return UNKNOWN, "visual_lock_invariant.py is not on this machine, so nothing is pinning the board's type or colour"
+    try:
+        p = subprocess.run([sys.executable, lock], capture_output=True, text=True, timeout=90)
+    except Exception as e:
+        return UNKNOWN, "the visual lock could not run (%s) — that is unmeasured, not clean" % str(e)[:70]
+    if p.returncode == 0:
+        return OK, "weight, structure, rarity colour and the sealed title all still pinned"
+    bad = [l.strip(" \u2022") for l in (p.stdout or "").split("\n") if l.strip().startswith("\u2022")]
+    return MISSING, ("the board's visual lock has DRIFTED: %s"
+                     % ("; ".join(bad)[:230] or "see visual_lock_invariant.py"))
+
+
+def _check_the_art_corpus():
+    """1,233 sprites the board draws. A prune, a bad sync or a rename takes them with nothing
+    failing — the page just starts drawing placeholders where it drew items."""
+    import glob
+    art = os.path.join(os.path.dirname(HERE), "art")
+    if not os.path.isdir(art):
+        return UNKNOWN, "the art directory is not on this machine"
+    n = len(glob.glob(os.path.join(art, "*.png")))
+    gems = [g for g in ("amethyst", "ruby", "emerald", "saphire")
+            if not glob.glob(os.path.join(art, "hd_perfect_%s*.png" % g))]
+    if gems:
+        return MISSING, ("%d sprite(s) on disk but the craft gems %s are GONE — every craft card "
+                         "silently reverts to one alembic emoji" % (n, ", ".join(gems)))
+    if n < 1233:
+        return MISSING, ("the art corpus is %d files, down from 1233 — the board will draw "
+                         "placeholders where it used to draw items" % n)
+    return OK, "%d sprite(s), and the four craft gems are all present" % n
+
+
+def _check_footage_belongs_to_a_reel():
+    """A session that dies before it SEALS leaves its frames loose in hist/, where no lane and no
+    deleter can see them — 3.15 GB of his footage was invisible that way."""
+    try:
+        sys.path.insert(0, HERE)
+        import frame_authority as fa
+    except Exception as e:
+        return UNKNOWN, "frame_authority did not import (%s)" % str(e)[:70]
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    if not os.path.isdir(hist):
+        return UNKNOWN, "no frames/hist on this machine"
+    try:
+        lf = fa.loose_frames(hist)
+    except Exception as e:
+        return UNKNOWN, "could not read the loose frames (%s)" % str(e)[:70]
+    if not lf.get("ok"):
+        return UNKNOWN, lf.get("say") or "the loose-frame scan could not answer"
+    rec = len(lf.get("recording") or [])
+    if rec:
+        return MISSING, ("%d frame(s) (%.2f GB) belong to NO reel — an unsealed recording no sweep "
+                         "can reach. `python3 tv/orphan_fold.py` shows the plan."
+                         % (rec, (lf.get("recordingBytes") or 0) / 1e9))
+    return OK, "every recording frame belongs to a reel"
+
+
+def _check_the_vault_stores_are_readable():
+    """His ledger is the whole point of the vault manager. An unreadable store must never read as
+    an empty one — that difference is what the free ledger view exists to keep."""
+    import json as _j
+    names = ("vault_accum.json", "vault_seen.json", "vault_swept.json")
+    absent, broken, counts = [], [], {}
+    for n in names:
+        fp = os.path.join(HERE, n)
+        if not os.path.exists(fp):
+            absent.append(n)
+            continue
+        try:
+            with open(fp, encoding="utf-8") as fh:
+                blob = _j.load(fh)
+            rows = blob.get("owned") if isinstance(blob, dict) and "owned" in blob else (
+                blob.get("rows") if isinstance(blob, dict) and "rows" in blob else blob)
+            counts[n] = len(rows) if hasattr(rows, "__len__") else 0
+        except Exception as e:
+            broken.append("%s (%s)" % (n, str(e)[:40]))
+    if broken:
+        return MISSING, ("a vault store will not parse: %s — everything downstream is INCOMPLETE, "
+                         "not empty" % "; ".join(broken))
+    if absent:
+        return UNKNOWN, ("%s has never been written, so there is nothing to compare against yet"
+                         % ", ".join(absent))
+    return OK, ("%d grounded row(s), %d sighting(s) waiting, %d sealed recording(s)"
+                % (counts.get("vault_accum.json", 0), counts.get("vault_seen.json", 0),
+                   counts.get("vault_swept.json", 0)))
+
+
+def _check_the_locked_lanes_still_refuse():
+    """He ruled it plainly: equipment and inventory are never to be told to move. The BOARD has
+    carried _LOCKED_LANES since v1712; the engine that PRODUCES the suggestions did not until
+    v2075, and a non-grail item he was WEARING could clear the throw bar."""
+    try:
+        sys.path.insert(0, HERE)
+        import vault_retro as vr
+    except Exception as e:
+        return UNKNOWN, "vault_retro did not import (%s)" % str(e)[:70]
+    locked = tuple(getattr(vr, "LOCKED_LANES", ()) or ())
+    if not locked:
+        return MISSING, ("vault_retro has no LOCKED_LANES — an item on his character or in his "
+                         "inventory can be suggested for the bin again")
+    for lane in ("equipment", "inventory"):
+        if lane not in locked:
+            return MISSING, "the %s lane is no longer locked against throw suggestions" % lane
+    if getattr(vr, "THROWOUT_MIN_WITNESSES", 0) <= getattr(vr, "KEEP_MIN_WITNESSES", 0):
+        return MISSING, ("the throw bar (%s) is no longer STRICTLY above the keep bar (%s) — there "
+                         "is no un-throw in Diablo"
+                         % (getattr(vr, "THROWOUT_MIN_WITNESSES", "?"),
+                            getattr(vr, "KEEP_MIN_WITNESSES", "?")))
+    return OK, ("%s locked; keep needs %d look(s), throw needs %d recording(s)"
+                % (" + ".join(locked), vr.KEEP_MIN_WITNESSES, vr.THROWOUT_MIN_WITNESSES))
+
+
 CHECKS = [
     ("version drift", _check_version_drift),
     ("lane intent", _check_lane_intent),
@@ -343,6 +472,11 @@ CHECKS = [
     ("unattended reel", _check_a_reel_is_not_recording_unattended),
     ("sweep would find", _check_the_sweep_would_find_something),
     ("board is claimed", _check_the_board_world_is_claimed),
+    ("visual lock", _check_the_visual_lock_holds),
+    ("art corpus", _check_the_art_corpus),
+    ("footage has a reel", _check_footage_belongs_to_a_reel),
+    ("vault stores", _check_the_vault_stores_are_readable),
+    ("locked lanes", _check_the_locked_lanes_still_refuse),
     ("the other doctors", _check_the_other_doctors),
 ]
 

@@ -119,3 +119,6 @@ tv/vault_swept.json
 tv/reel_tombstones.json
 tv/shadow_ai.json
 tv/.ship_receipt.json
+tv/.console_scars.json
+tv/*.healer_bak
+tv/*.corrupt

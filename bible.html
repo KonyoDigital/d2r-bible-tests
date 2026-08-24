@@ -8352,9 +8352,6 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 /* v2073 — an item reads as its rarity here too. Sits AFTER .gf-piece's flat colour so it wins on
    order rather than on specificity games, and the .have state below still overrides it, because a
    piece he already owns is telling him something more important than what colour it is. */
-.gf-piece .gp-nm-set{color:var(--q-set)}
-.gf-piece .gp-nm-uni{color:var(--q-unique)}
-.gf-piece.have .gp-nm-set,.gf-piece.have .gp-nm-uni{color:inherit}
 .gf-piece .gp-ck{color:#6b6048;opacity:.8;font-weight:var(--fw-black)}
 .gf-piece img{width:15px;height:15px}
 .gf-src{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:#b6a888}
@@ -8482,8 +8479,19 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:color-mix(in srgb,var(--fsq) 18%,transparent)}
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni .fs-rt-t,
 :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set .fs-rt-t{color:var(--fsq)}
-#tab-funi .gf-piece .gf-nm{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}   /* v1625 ITEM3b — a found unique reads unique, like the Calculator */
-#tab-fsets .gf-nm{color:var(--q-set)}               /* v1625 ITEM3c — a set piece reads set-green everywhere */
+/* v2079 — ONE SPELLING, AND IT IS THE ONE THE PAGE ALREADY HAD. v2073 fixed the flat-cream wall
+   by inventing `.gp-nm-uni` / `.gp-nm-set` — three new rules sitting a few hundred lines below
+   these two, which had been colouring item names in these exact two tabs since v1625 and were the
+   right answer already. Two spellings of one idea is how they drift, and one of them would have
+   been retuned without the other. The wall's chips carry `.gp-nm` (a live JS hook at ~21644, so
+   the class name stays); the SCOPE decides the colour, because each tab renders exactly one
+   rarity — which also retires _allGrid's `rar` argument, a parameter that only existed to tell a
+   shared renderer something its container already knew. [[copy-drift]] [[d2r-css-last-rule-wins]] */
+#tab-funi .gf-piece .gf-nm,#tab-funi .gf-piece .gp-nm{color:var(--q-unique)}
+/* The GLOW stays on found only. Colour says WHAT IT IS, glow says YOU HAVE IT — 398 glowing
+   missing names would say both at once and neither clearly. */
+#tab-funi .gf-piece.have .gf-nm{text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}   /* v1625 ITEM3b */
+#tab-fsets .gf-nm,#tab-fsets .gp-nm{color:var(--q-set)}               /* v1625 ITEM3c */
 :is(#tab-funi,#tab-fsets) .gs-set-h{line-height:var(--lh-snug);gap:10px;column-gap:12px}   /* v1625 ITEM3c typography */
 :is(#tab-funi,#tab-fsets) .gs-set-n{min-width:215px;line-height:var(--lh-snug)}
 :is(#tab-funi,#tab-fsets) .gs-head,:is(#tab-funi,#tab-fsets) .gs-set{padding-left:12px}
@@ -38728,7 +38736,19 @@ function renderJournal(){
   // needs to be intelligently and proportionally built, dropdown expandable"). Collapsed by
   // default behind a flagship summary bar; open = a type-to-filter box + a CONTAINED scroll
   // panel (~5 rows) with a styled scrollbar. One renderer, BOTH grail forges, same position.
-  function _allGrid(title, sub, entries, fn, rar){
+  // v2079 — page-life ONLY. Cleared by a reload because it is a plain object in a closure, which
+  // is the entire mechanism: "collapsed on every load" and "does not close while I work" are not in
+  // conflict once the state is scoped to the page rather than the browser.
+  var _wallOpen = {};
+  function _wallState(det){
+    var k = det && det.getAttribute && det.getAttribute('data-wall');
+    if (!k) return null;
+    return (_wallOpen[k] = _wallOpen[k] || {open:false, q:'', top:0});
+  }
+  window.gfWallToggled = function(det){
+    try { var st=_wallState(det); if(st) st.open = !!det.open; } catch(e){}
+  };
+  function _allGrid(title, sub, entries, fn){
     if(!entries.length) return '';
     /* v2077 — THE WALL ALWAYS STARTS COLLAPSED. Konyo: "for F-Uniques and F-Sets its not collapsed
        by default, all the items with the TZ level next to it — it needs to be default collapsed".
@@ -38739,9 +38759,22 @@ function renderJournal(){
        lands; wrongly CLOSED costs one click. A drawer this large does not get to remember "open".
        The toggle still works for the session; only the stickiness is gone, and with it the key that
        had no other reader. */
-    var H=['<details class="gf-wall">'
+    /* v2079 — AND IT MUST NOT SNAP SHUT UNDER HIS HAND. The note above is right about the LOAD
+       and was wrong about the TICK: every ✓ re-renders the whole forge, the fresh <details> has no
+       open attribute, and the drawer he was working inside closed on him — mid-list, filter gone,
+       scroll gone, every time he found something. That is the wall fighting the exact action it
+       exists for.
+       Both rulings hold at once because they are about DIFFERENT lifetimes. `_wallOpen` lives in
+       this closure and nowhere else: a reload starts collapsed (his ruling, unweakened — there is
+       no key to persist and nothing to read back), while a re-render inside one page-life restores
+       open, the filter text and the scroll offset. Deliberately NOT localStorage; the whole defect
+       v2077 fixed was this state outliving the page. */
+    var _wk = 'w:' + title, _ws = _wallOpen[_wk] || null;
+    var H=['<details class="gf-wall" data-wall="'+esc(_wk)+'"'+(_ws && _ws.open ? ' open' : '')
+      +' ontoggle="window.gfWallToggled(this)">'
       +'<summary class="gf-wall-sum"><span class="gf-wall-emblem">📿</span><span class="gf-wall-hd"><span class="gf-wall-t">'+title+'</span><span class="gf-wall-sub">'+sub+'</span></span><span class="gf-wall-ct">'+entries.length+'</span><span class="gf-wall-chev">▾</span></summary>'
-      +'<div class="gf-wall-body"><input class="gf-wall-filter" type="text" placeholder="🔍 type to filter '+entries.length+'…" oninput="window.gfWallFilter(this)">'
+      +'<div class="gf-wall-body"><input class="gf-wall-filter" type="text" value="'
+      +esc((_ws && _ws.q) || '')+'" placeholder="🔍 type to filter '+entries.length+'…" oninput="window.gfWallFilter(this)">'
       +'<div class="gf-allgrid">'];
     /* v2073 — THE WALL WAS THE ONE PLACE AN ITEM WAS NOT ITS OWN COLOUR. Konyo, looking at both
        walls: "color sync for uniques / for set items... it was very pretty now its not as pretty".
@@ -38750,8 +38783,7 @@ function renderJournal(){
        the LONGEST list of item names on the page, printed all 120 of them in one flat cream.
        _allGrid is shared by uniques and sets, which is exactly why neither got a colour: a shared
        renderer with no rarity argument can only ever pick one. */
-    var _rc = rar ? ' gp-nm-' + rar : '';
-    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm'+_rc+'">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+'</span>'); });
+    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+'</span>'); });
     H.push('</div></div></details>');
     return H.join('');
   }
@@ -38767,6 +38799,28 @@ function renderJournal(){
   window.gfWallFilter=function(inp){
     try { var q=(inp.value||'').toLowerCase().trim(); var grid=inp.parentElement.querySelector('.gf-allgrid');
       [].forEach.call(grid.children, function(ch){ ch.style.display = (!q || (ch.textContent||'').toLowerCase().indexOf(q)>=0) ? '' : 'none'; });
+      // v2079 — bank it, so the tick that re-renders does not also erase what he typed.
+      var st=_wallState(inp.closest ? inp.closest('.gf-wall') : null); if(st) st.q = inp.value||'';
+    } catch(e){}
+  };
+  /* v2079 — the half a `value=` attribute cannot do: re-apply the FILTERING and the SCROLL after a
+     re-render. Called by the forge renderers once their HTML is in the document. Restoring `open`
+     and the typed text while the list underneath shows all 120 rows unfiltered and jumped to the
+     top would be a drawer that only LOOKS like it kept his place. */
+  window.gfWallRestore=function(root){
+    try {
+      [].forEach.call((root||document).querySelectorAll('.gf-wall[data-wall]'), function(det){
+        var st=_wallOpen[det.getAttribute('data-wall')];
+        if(!st) return;
+        var inp=det.querySelector('.gf-wall-filter');
+        if(inp && st.q){ inp.value=st.q; window.gfWallFilter(inp); }
+        var grid=det.querySelector('.gf-allgrid');
+        if(grid && st.top) grid.scrollTop=st.top;
+        if(grid && !grid._gfScrollBound){
+          grid._gfScrollBound=true;
+          grid.addEventListener('scroll', function(){ st.top=grid.scrollTop; }, {passive:true});
+        }
+      });
     } catch(e){}
   };
 
@@ -39834,7 +39888,7 @@ function renderJournal(){
       var _ownA=_ownedNames();
       var _missAll=_uniItems().filter(function(x){ return !_ownedHas(_ownA,x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
         .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:'') }; });
-      H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni', 'uni'));
+      H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni'));
       // v682.2 — the still-dark remainder: these chronicle rows exist in-game as bare base-type
       // silhouettes; a dark row's unique NAME is hidden until it drops, so it can't be carded yet.
       // They count in the All-missing number so every meter tells the same 403-story.
@@ -39979,6 +40033,7 @@ function renderJournal(){
       if(!s.found) H.push('<div class="forge-empty">Nothing marked found yet — tick uniques here or in the Calculator (they sync).</div>');
     }
     box.innerHTML=H.join('');
+    window.gfWallRestore(box);   // v2079 — the drawer keeps his place across the tick that re-renders it
 
     /* v1633 — EVERY TALLY IS A MOMENT (Konyo: "each 1 tally gets a celebration feature for adding
        or finding one", with 10s bigger, 100 bigger still, 200 biggest). Mirrors the Forge's
@@ -41479,7 +41534,7 @@ function renderJournal(){
       var _missP=[];
       (s.sets||[]).forEach(function(st){ (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl }); } }); });
       _missP.sort(function(a,b){ return a.n.localeCompare(b.n); });
-      H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece', 'set'));
+      H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece'));
     }
 
     // v619 — ⚔ COMPLETED SETS wear the horizontal seal (the platform's done-forever language): a full
@@ -41660,6 +41715,7 @@ function renderJournal(){
     }
     if(F==='all') H.push('<div class="forge-note">full per-set checklists live in 🧰 Tools → Item Set Tracker (same tally, always in sync)</div>');
     box.innerHTML=H.join('');
+    window.gfWallRestore(box);   // v2079 — the drawer keeps his place across the tick that re-renders it
 
     /* v1633 — EVERY TALLY IS A MOMENT (Konyo: "each 1 tally gets a celebration feature for adding
        or finding one", with 10s bigger, 100 bigger still, 200 biggest). Mirrors the Forge's
@@ -44550,7 +44606,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2077', name:'v2077 - the sealed title speaks the page again', date:'2026-08-24', note:'Three visual repairs reported by screenshot, each measured before it was touched. ONE: the SEALED card was the only element on this page using font-variant-caps, the only display title tracked at --ls-wider which is 13 times the page tracking, and it declared no weight so it fell to 400 while every sibling serif title is 700. Measured Cinzel 22px 400 4.4px small-caps against the page Cinzel 17px 700 0.34px. It is now the same face and weight, tracked tight, and larger because 99 of 99 forged is the proudest state on the board. TWO: every craft card showed one alembic emoji because craft atoms carried no artName while runeword atoms do. Each craft is defined by its gem and every gem already had HD art on disk. THREE: the grail wall persisted its open state, so opening it once left 120 chips expanded on every load forever.' };
+  window.D2R_BUILD = { id:'v2079', name:'v2079 - the drawer keeps his place', date:'2026-08-24', note:'grail wall survives the tick that re-renders it; an unreadable ledger holds every reel instead of releasing it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

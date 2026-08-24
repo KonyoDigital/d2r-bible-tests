@@ -3188,6 +3188,66 @@ def _win_tint_caption():
         pass
 
 
+# ── v2079 — ONE ROSTER, CALLED FROM BOTH START PATHS ──────────────────────────────────────────
+# v1761 carved this exact lesson and paid for it: "A background job attached to a WINDOW is a
+# background job that vanishes the moment you run without one." It then fixed it for ONE thread by
+# writing a SECOND start site in the headless branch — and every watcher added afterwards went into
+# the window branch only. Measured 2026-08-24 on a headless console: seven of the nine threads never
+# existed, including the rolling prune, the only durable copy of his grail ledgers, the space
+# warden, the version-drift watcher and the eagle watchdog itself. Two start sites for one roster is
+# copy-drift, and this is what it drifted into. [[copy-drift]] [[the-unjoined-end]]
+#
+# So the roster lives here, once, and BOTH paths call it. A watcher that needs the window stays in
+# open_control_window with the two that actually do.
+#
+# Each start is INDIVIDUALLY guarded. The old block wrapped all nine in one try, so the first one
+# to raise silently took the other eight with it and printed a message about the ENGINE DRIVER —
+# a failure report naming the wrong subsystem, under which six unrelated jobs were simply absent.
+_WATCHERS_STARTED = []
+
+
+def start_background_watchers(why):
+    """Start every background job that does NOT need a native window. Idempotent by name."""
+    roster = [
+        # v1745 — reads only visits whose LEDGER is known, only when no session is live and no
+        # sweep is running, and never applies. See chronicle_autoread_tick.
+        ("tvd-chron-autoread", _chron_autoread_loop),
+        # v2035 — seals a LANE-declared reel once the stash leaves the screen.
+        ("tvd-stash-watch", _stash_watch_loop),
+        # v2037 — prunes duplicate live frames while he records; 96% full at 5-6 GB/hour.
+        ("tvd-rolling-prune", _prune_loop),
+        # v2041 — his grail/vault ledgers live ONLY in a window's localStorage; this is the first
+        # durable copy of them that has ever existed. Written outside the repo.
+        ("tvd-ledger-backup", _ledger_backup_loop),
+        # v2053 — reclaims regenerable test output when the disk gets short. Never his footage.
+        ("tvd-space-warden", _warden_loop),
+        # v2072 — say it out loud when the process is behind the disk. ANNOUNCES ONLY unless
+        # TV_AUTO_RELAUNCH=1, and even then refuses while the agent is alive: a restart mid-film
+        # orphans the frames of the session it kills.
+        ("tvd-version-drift", _drift_loop),
+        # v2078 — the eagle on a timer, so being out of sync is NOTICED rather than waited for.
+        ("tvd-eagle-watch", _eagle_watch_loop),
+    ]
+    live = set(t.name for t in threading.enumerate())
+    started, failed = [], []
+    for name, fn in roster:
+        if name in live:
+            continue
+        try:
+            threading.Thread(target=fn, daemon=True, name=name).start()
+            started.append(name)
+            _WATCHERS_STARTED.append(name)
+        except Exception as e:
+            # NAME the one that failed. Six jobs once went missing under a message about a seventh.
+            failed.append(name)
+            print("\u26a0 %s did not start (%s) \u2014 that job is ABSENT, not idle"
+                  % (name, str(e)[:90]), flush=True)
+    if started:
+        print("   %d background watcher(s) armed (%s): %s"
+              % (len(started), why, ", ".join(n.replace("tvd-", "") for n in started)), flush=True)
+    return {"started": started, "failed": failed, "roster": [n for n, _ in roster]}
+
+
 def open_control_window():
     """Open the real native app window (pywebview). Blocks until the user closes it."""
     # v1251 — cache-bust the WKWebView URL with the ship stamp so a relaunch never
@@ -3343,33 +3403,12 @@ def open_control_window():
     # driver would double-fire the board. Only the primary starts these.
     if not globals().get("_WINDOW_ONLY"):
         try:
+            # These two genuinely need the window — they drive the board tab.
             threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
             threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
-            # v1745 — the Chronicle auto-read watchdog. Reads only visits whose LEDGER is known,
-            # only when no session is live and no sweep is running, and never applies. See
-            # chronicle_autoread_tick.
-            threading.Thread(target=_chron_autoread_loop, daemon=True, name="tvd-chron-autoread").start()
-            # v2035 — seals a LANE-declared reel once the stash leaves the screen.
-            threading.Thread(target=_stash_watch_loop, daemon=True,
-                             name="tvd-stash-watch").start()
-            # v2037 — prunes duplicate live frames while he records. See _prune_once for why
-            # this exists and what makes it safe; the short version is 96% full at 5-6 GB/hour.
-            threading.Thread(target=_prune_loop, daemon=True,
-                             name="tvd-rolling-prune").start()
-            # v2041 — his grail/vault ledgers live ONLY in a window's localStorage; this is the
-            # first durable copy of them that has ever existed. Written outside the repo.
-            threading.Thread(target=_ledger_backup_loop, daemon=True,
-                             name="tvd-ledger-backup").start()
-            # v2053 — reclaims regenerable test output when the disk gets short. Never his footage.
-            threading.Thread(target=_warden_loop, daemon=True,
-                             name="tvd-space-warden").start()
-            # v2072 — say it out loud when the window is behind the disk. ANNOUNCES ONLY unless
-            # TV_AUTO_RELAUNCH=1, and even then refuses while the agent is alive: a restart mid-film
-            # orphans the frames of the session it kills, which is the defect v2071 repairs.
-            threading.Thread(target=_drift_loop, daemon=True,
-                             name="tvd-version-drift").start()
         except Exception as _ee:
-            print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
+            print(f"\u26a0 engine driver failed to start ({_ee}) \u2014 tallies need a board tab open", flush=True)
+        start_background_watchers("window")
 
     # v928 — private_mode=False FOR REAL: the comment below claimed it since forever, but
     # the call never passed it. pywebview defaults to private (ephemeral) storage, so every
@@ -10511,9 +10550,17 @@ def drift_may_relaunch():
 def _drift_loop():
     """Announce drift. Restart only if he has explicitly asked for it AND nothing is in flight."""
     announced = None
+    # v2079 — MEASURE FIRST, SLEEP AFTER. `time.sleep()` at the top of the loop means the payload
+    # carries `checked: None` for the entire first period, and the surface reading it has no way to
+    # tell "measured, all clear" from "nobody has looked yet" — which is the exact confusion this
+    # watcher exists to remove. A console restarted onto a stale tree said nothing for five minutes.
+    # [[unknown-stays-unknown]]
+    first = True
     while True:
         try:
-            time.sleep(_DRIFT_EVERY_S)
+            if not first:
+                time.sleep(_DRIFT_EVERY_S)
+            first = False
             d = _drift_once()
             if not d:
                 announced = None
@@ -10539,6 +10586,102 @@ def _drift_loop():
             except Exception as e:
                 print("  \u26a0 auto-relaunch failed, staying on the old version: %s"
                       % str(e)[:120], flush=True)
+        except Exception:
+            pass
+
+
+# ── v2078 — THE WATCHDOG. Konyo: "put it all under eagle eye and watchdog so if something within
+# the console is out of sync it can catch it."
+#
+# The eagle eye only ever ran when he PRESSED it. Every defect it exists to see is one where no
+# component is wrong and two correct things disagree — a process serving the code it booted with
+# while the page reads stamps from disk; a lane locked on the board and open in the engine; frames
+# belonging to no reel; sprites the board draws quietly gone. Those states persist for exactly as
+# long as nobody looks, and for most of one night nobody did.
+#
+# So it looks by itself. CHEAP subset only (include_slow=False) — the sub-doctors shell out and cost
+# about two minutes, which is fine for a button and not fine every ten. It ANNOUNCES ONCE per
+# distinct problem, because a watchdog that repeats itself is one he learns to scroll past, and it
+# clears that memory when the problem goes, so a RETURNING fault is said again. It fixes nothing.
+_EAGLE = {"checked": None, "needsYou": None, "unknown": None, "rows": [], "say": "not measured yet"}
+_EAGLE_EVERY_S = float(os.environ.get("TV_EAGLE_EVERY_S", "600") or 600)
+
+
+def eagle_state():
+    """The last thing the watchdog saw. Reads a dict; changes nothing."""
+    with _PRUNE_LOCK:
+        return dict(_EAGLE)
+
+
+def _eagle_once():
+    try:
+        sys.path.insert(0, HERE)
+        import console_doctor as _cd
+        rows = _cd.run(include_slow=False)
+    except Exception as e:
+        with _PRUNE_LOCK:
+            _EAGLE.update({"checked": int(time.time() * 1000), "needsYou": None, "unknown": None,
+                           "rows": [], "say": "the eagle could not run: %s" % str(e)[:110]})
+        return []
+    bad = [r for r in rows if r.get("state") == "missing"]
+    unk = [r for r in rows if r.get("state") == "unknown"]
+    # v2079 — AND WHAT IT DOES WITH WHAT IT SAW. Konyo: "give it the capabilities to see this so
+    # when it happens in the future it can auto scar / auto heal / auto fix."
+    #   SCAR is unconditional: every red is written to a durable ledger with when it first
+    #   appeared, when it cleared, and HOW MANY TIMES IT HAS COME BACK. Remembering costs nothing
+    #   and risks nothing, and without it a returning fault is indistinguishable from a new one —
+    #   which is the whole reason the same defect kept arriving as a surprise.
+    #   HEAL is opt-in (TV_AUTO_HEAL=1) and exists for exactly two faults, both re-derivable from
+    #   evidence rather than judgement. Everything else reports and is meant to.
+    tended = []
+    try:
+        import console_healer as _ch
+        _recheck = dict((n, fn) for n, fn in _cd.CHECKS)
+        tended = _ch.tend(rows, recheck_for=_recheck)
+    except Exception as e:
+        print("  \U0001f985 the scar ledger could not be written: %s" % str(e)[:110], flush=True)
+    for t in tended:
+        if t.get("state") == "healed":
+            print("  \U0001f985 healed \u2014 %s: %s" % (t["scar"].get("check"), t.get("said")),
+                  flush=True)
+    with _PRUNE_LOCK:
+        _EAGLE.update({
+            "checked": int(time.time() * 1000), "rows": rows,
+            "needsYou": len(bad), "unknown": len(unk),
+            # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
+            # could not look is the defect it exists to catch. [[unknown-stays-unknown]]
+            "healed": [t["scar"].get("check") for t in tended if t.get("state") == "healed"],
+            # A fault that has cleared before and come back is a REGRESSION, and the count is the
+            # part he should see. Carried onto the payload so a surface can say it in words.
+            "returning": [{"check": t["scar"].get("check"), "returns": t["scar"].get("returns")}
+                          for t in tended if (t["scar"].get("returns") or 0) > 0],
+            "say": ("all clear across %d check(s)" % len(rows)) if not bad and not unk else
+                   (("%d need you%s" % (len(bad), (", %d not measured" % len(unk)) if unk else ""))
+                    if bad else "%d check(s) could not be measured" % len(unk))})
+    return bad
+
+
+def _eagle_watch_loop():
+    said = set()
+    # Same correction, in the code that repeated the defect the day it was written: the eagle slept
+    # 600s before its first look, so a console that booted with a fault reported "not measured yet"
+    # for ten minutes while the fault sat there.
+    first = True
+    while True:
+        try:
+            if not first:
+                time.sleep(_EAGLE_EVERY_S)
+            first = False
+            bad = _eagle_once()
+            for r in bad:
+                key = "%s|%s" % (r.get("check"), (r.get("why") or "")[:60])
+                if key in said:
+                    continue
+                said.add(key)
+                print("  \U0001f985 %s \u2014 %s" % (r.get("check"), (r.get("why") or "")[:150]),
+                      flush=True)
+            if not bad:
+                said.clear()
         except Exception:
             pass
 
@@ -14409,13 +14552,14 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2077",
+        "ver": "v2079",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
         # measured-zero: the loop reports every pass, including the ones that dropped nothing.
         "prune": prune_stats(),
         "drift": drift_state(),   # v2072 — running vs disk, so a five-ship-behind window says so
+        "eagle": eagle_state(),   # v2078 — the watchdog's last look at the running system
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": ledger_backup_state(),
         # v2053 — what the space warden has reclaimed, so the disk is a number he can see.
@@ -17775,12 +17919,10 @@ def main():
     # Every lamp green, the job simply absent. A background job attached to a WINDOW is a background
     # job that vanishes the moment you run without one. [[the-unjoined-end]]
     if not globals().get("_WINDOW_ONLY"):
-        try:
-            threading.Thread(target=_chron_autoread_loop, daemon=True,
-                             name="tvd-chron-autoread").start()
-            print("   chronicle watchdog armed (headless) — unread visits sweep themselves")
-        except Exception as _ae:
-            print("⚠ chronicle watchdog failed to start (%s) — visits will need the read button" % _ae)
+        # v2079 — the SAME roster the window path starts. This branch used to arm exactly one of
+        # the seven by hand, which is how the other six came to be window-only without anyone
+        # deciding they should be.
+        start_background_watchers("headless")
     try:
         while True:
             time.sleep(1)

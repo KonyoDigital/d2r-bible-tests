@@ -56,11 +56,31 @@ SEAL_STORE = "vault_swept.json"
 
 def _load(root, fn):
     """None means COULD NOT READ, which is not the same as empty. Callers must treat it as a hold."""
+    return _load_state(root, fn)[0]
+
+
+def _load_state(root, fn):
+    """(blob, state) where state is 'absent' | 'ok' | 'unreadable'.
+
+    v2079 — AND THE THREE ARE NOT TWO. `_load` folded ABSENT and UNREADABLE into one None, and
+    `witness_index` then reported ok=False for both. On a tree that has simply never run a vault
+    sweep — every test fixture, and any fresh install — the durable stores are absent, so the
+    authority declared itself unreliable and a caller that honours `ok` holds every reel forever.
+
+    That is not a hypothetical: it went red across ~17 reel_retention cases within one gate run of
+    the change that started honouring `ok`. The over-correction is the same defect as the one it
+    was correcting, pointed the other way — "I could not read it" and "there is nothing to read"
+    are opposite facts and neither may borrow the other's answer.
+    [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]]
+    """
+    fp = os.path.join(root, fn)
+    if not os.path.exists(fp):
+        return {}, "absent"
     try:
-        with open(os.path.join(root, fn), encoding="utf-8") as fh:
-            return json.load(fh)
+        with open(fp, encoding="utf-8") as fh:
+            return json.load(fh), "ok"
     except Exception:
-        return None
+        return None, "unreadable"
 
 
 def _rows_of(blob):
@@ -84,10 +104,15 @@ def witness_index(root=None):
     root = root or HERE
     frames, sessions, ok, seen = set(), set(), True, {}
     for fn in DURABLE_STORES:
-        blob = _load(root, fn)
-        if blob is None:
+        blob, state = _load_state(root, fn)
+        if state == "unreadable":
+            # Only THIS makes the index partial. An absent store contributes nothing and that is a
+            # measurement, not a gap — see _load_state.
             ok = False
             seen[fn] = None
+            continue
+        if state == "absent":
+            seen[fn] = 0
             continue
         n = 0
         for r in _rows_of(blob):
