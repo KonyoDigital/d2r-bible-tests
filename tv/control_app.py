@@ -10401,6 +10401,33 @@ def prune_stats():
         return dict(_PRUNE_STATS)
 
 
+def prune_reclaimable():
+    """What THE ONE DELETION AUTHORITY says could be freed. Asks; never acts.
+
+    v2062 — v2058 turned the prune off "until it can prove, per frame, that it is not deleting a
+    panel", and left the console with nothing to say about disk but a zero. The proof it wanted was
+    never going to come from sig_diff: at tol=28 a hover tooltip moves the whole-frame signature by
+    zero, so no threshold on that number can separate a panel from a repeat. frame_authority asks a
+    different question entirely — IS THIS FRAME EVIDENCE — which is answerable from the seal store
+    and the witness lists, without looking at a single pixel.
+
+    This is the READ half. Nothing here deletes, and _PRUNE_SAFE_TO_RUN still gates the write half.
+    """
+    try:
+        import frame_authority as _fa
+    except Exception as e:
+        return {"ok": False, "why": "frame_authority did not import: %s" % str(e)[:140]}
+    try:
+        pl = _fa.plan_frames(HIST_DIR)
+    except Exception as e:
+        return {"ok": False, "why": "the authority could not plan: %s" % str(e)[:140]}
+    return {"ok": True, "frames": len(pl["prunable"]), "bytes": int(pl["bytes"]),
+            "gb": round(pl["bytes"] / 1e9, 3), "kept": pl["kept"], "scanned": pl["scanned"],
+            "witnessFrames": pl["witnessFrames"], "sealedSessions": pl["sealedSessions"],
+            "sealOk": bool(pl["sealOk"]), "witnessOk": bool(pl["witnessOk"]),
+            "heldBy": pl["heldBy"], "say": pl["say"]}
+
+
 def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=False,
                 hist_dir=None):
     """One pass over the loose live frames. Returns (dropped, bytes_freed, why). Never raises."""
@@ -10507,6 +10534,20 @@ def _prune_loop():
             # v2058 — a second, independent refusal. The flag above is data and data can be
             # flipped; this one is code. Until _prune_once consults the panel gate, no pass runs.
             if not _PRUNE_SAFE_TO_RUN:
+                # v2062 — REFUSING TO DELETE IS NOT A REASON TO REPORT NOTHING. The pass still runs
+                # the authority and publishes what COULD be freed, so "the prune is off" and "there
+                # is nothing to free" stop looking identical on his console.
+                # [[feedback-silence-is-not-evidence]]
+                try:
+                    _rc = prune_reclaimable()
+                    with _PRUNE_LOCK:
+                        _PRUNE_STATS["reclaimable"] = _rc
+                        _PRUNE_STATS["lastSay"] = (
+                            ("OFF (v2058) — deleting is refused; the authority says %s" % _rc["say"])
+                            if _rc.get("ok") else
+                            ("OFF (v2058) — and the authority could not answer: %s" % _rc.get("why")))
+                except Exception:
+                    pass
                 continue
             if not on or not _agent_alive():
                 continue
@@ -14139,7 +14180,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2061",
+        "ver": "v2062",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

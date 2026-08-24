@@ -15409,5 +15409,144 @@ class TestV2060TheSealWaitsForTheLedger(unittest.TestCase):
         self.assertEqual(stale, [], "the failure message still tells him nothing was lost")
 
 
+class TestV2062OneDeletionAuthority(unittest.TestCase):
+    """Three things could delete his footage and each had a different idea of "safe". The prune kept
+    a frame only when it LOOKED different from the one before — and a hover tooltip, the only place
+    D2R writes an item name, moves that number by zero. frame_authority asks the question that
+    actually decides it: IS THIS FRAME EVIDENCE.
+
+    Every case below runs on a FIXTURE TREE built in tmp. Nothing here reads or writes his reels,
+    his ledger or his seal store. [[feedback-fixtures-never-touch-live-data]]"""
+
+    def _tree(self, sealed=None, accum=None, seen=None, reels=None, broken=()):
+        import tempfile, shutil, json as _j
+        root = tempfile.mkdtemp(prefix="fa_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        for name, frames in (reels or {}).items():
+            d = os.path.join(hist, "reel_" + name)
+            os.makedirs(d)
+            for f in frames:
+                with open(os.path.join(d, f), "wb") as fh:
+                    fh.write(b"x" * 1000)
+        for fn, blob in (("vault_swept.json", sealed if sealed is not None else {}),
+                         ("vault_accum.json", {"owned": accum or []}),
+                         ("vault_seen.json", {"rows": seen or []})):
+            with open(os.path.join(root, fn), "w", encoding="utf-8") as fh:
+                _j.dump(blob, fh)
+        for fn in broken:
+            with open(os.path.join(root, fn), "w", encoding="utf-8") as fh:
+                fh.write("{ this is not json")
+        return root, hist
+
+    def _mod(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import frame_authority
+        return frame_authority
+
+    # six reels so KEEP_RECENT=5 still leaves one old reel to reason about
+    _REELS = {"s_1000_1": ["f_1.jpg", "f_2.jpg"], "s_2000_2": ["f_3.jpg"], "s_3000_3": ["f_4.jpg"],
+              "s_4000_4": ["f_5.jpg"], "s_5000_5": ["f_6.jpg"], "s_6000_6": ["f_7.jpg"]}
+
+    def test_a_witness_frame_in_a_sealed_reel_is_never_prunable(self):
+        """The row survives extraction — but the frame is the only way to ever SHOW him why the row
+        is there, which is the retro debugging he asked for by name."""
+        fa = self._mod()
+        root, hist = self._tree(
+            sealed={"s_1000_1": {"ts": 1, "rows": 1}},
+            accum=[{"name": "Shako", "witnesses": [{"session": "s_1000_1", "frame": "f_1.jpg"}]}],
+            reels=self._REELS)
+        p = fa.plan_frames(hist, root=root)
+        names = [os.path.basename(f) for f in p["prunable"]]
+        self.assertNotIn("f_1.jpg", names, "a witness frame was offered up for deletion")
+        self.assertIn("f_2.jpg", names,
+                      "f_2 is in the same SEALED reel and witnessed nothing — it should be prunable, "
+                      "or the authority frees nothing and is just the disabled prune again")
+
+    def test_an_unsealed_reel_is_never_touched(self):
+        fa = self._mod()
+        root, hist = self._tree(sealed={}, reels=self._REELS)
+        p = fa.plan_frames(hist, root=root)
+        self.assertEqual(p["prunable"], [],
+                         "frames were offered from reels the sweep has never sealed — those pixels "
+                         "may be the only copy of a name")
+
+    def test_the_newest_five_recordings_are_held_even_when_sealed(self):
+        fa = self._mod()
+        root, hist = self._tree(sealed={k: {"ts": 1, "rows": 0} for k in self._REELS},
+                                reels=self._REELS)
+        p = fa.plan_frames(hist, root=root)
+        held = {os.path.basename(os.path.dirname(f)) for f in p["prunable"]}
+        self.assertEqual(held, {"reel_s_1000_1"},
+                         "only the single OLDEST reel may be offered; the newest five are held "
+                         "whatever the seal store says")
+
+    def test_an_unreadable_store_holds_everything(self):
+        """The fail-safe direction. 'I could not tell' must never resolve to 'delete it'."""
+        fa = self._mod()
+        root, hist = self._tree(sealed={k: {"ts": 1} for k in self._REELS}, reels=self._REELS,
+                                broken=("vault_accum.json",))
+        p = fa.plan_frames(hist, root=root)
+        self.assertFalse(p["witnessOk"], "an unparsable durable store must be reported, not skipped")
+        self.assertEqual(p["prunable"], [],
+                         "frames were offered while the witness list was incomplete — that deletes "
+                         "on the strength of a file it could not open")
+
+    def test_an_unreadable_seal_store_frees_nothing_and_says_so(self):
+        fa = self._mod()
+        root, hist = self._tree(reels=self._REELS, broken=("vault_swept.json",))
+        p = fa.plan_frames(hist, root=root)
+        self.assertFalse(p["sealOk"])
+        self.assertEqual(p["prunable"], [])
+        self.assertIn("could not be read", p["say"])
+
+    def test_the_authority_is_actually_CALLED_by_the_console(self):
+        """A module built right and called by nothing reads as wired from both ends and carries
+        nothing. Asked of the COMPILER (co_names), not of the text, so a comment naming
+        frame_authority cannot satisfy it. [[the-unjoined-end]] [[source-reading-guard]] §1"""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as _ca
+        self.assertTrue(hasattr(_ca, "prune_reclaimable"),
+                        "the console has no reader for the authority at all")
+        names = set(_ca.prune_reclaimable.__code__.co_names)
+        self.assertIn("frame_authority", names,
+                      "prune_reclaimable does not reference frame_authority")
+        self.assertIn("plan_frames", names, "it imports the authority and never asks it anything")
+        loop = set(_ca._prune_loop.__code__.co_names)
+        self.assertIn("prune_reclaimable", loop,
+                      "_prune_loop never calls prune_reclaimable, so while deleting is refused the "
+                      "console can only ever report a zero — and 'off' then looks exactly like "
+                      "'nothing to free'")
+
+    def test_the_authority_answers_on_the_real_tree(self):
+        """Not a fixture: the shipped console, his actual seal store and reels. A planner that only
+        ever ran on tmp is a planner whose real answer nobody has seen."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as _ca
+        r = _ca.prune_reclaimable()
+        self.assertTrue(r.get("ok"), "the authority could not answer on the real tree: %s" % r.get("why"))
+        self.assertIsInstance(r.get("frames"), int)
+        self.assertGreaterEqual(r.get("scanned", 0), 0)
+        self.assertLessEqual(r["frames"], r["scanned"], "it offered more frames than it scanned")
+
+    def test_it_deletes_nothing_itself(self):
+        """A planner that deletes is a deleter. The whole point is that the acting stays with the
+        caller, and there is exactly one place that decides."""
+        import ast
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frame_authority.py")
+        with open(_p, "r", encoding="utf-8") as _fh:
+            src = _fh.read()
+        bad = []
+        for n in ast.walk(ast.parse(src)):
+            if isinstance(n, ast.Call):
+                f = n.func
+                nm = (f.attr if isinstance(f, ast.Attribute) else
+                      f.id if isinstance(f, ast.Name) else "")
+                if nm in ("remove", "unlink", "rmtree"):
+                    bad.append((nm, n.lineno))
+        self.assertEqual(bad, [], "frame_authority calls a deleter at %s — it decides, it never acts" % bad)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

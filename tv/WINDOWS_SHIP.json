@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2061",
+  "ver": "v2062",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2061: The third eye flagged that v2059 fixed two elements and left the account ribbons at top:0. It was right, and measuring it found two more. On pixels, ladder profile, claim bar UP: the ribbon sat at y=0..21 under a sticky claim bar occupying 0..88 at z-index 9997 against the ribbon 2000, so the one cue that says which economy he is writing to was painted over in exactly the state a new browser starts in. Fixed by folding --claim-h in, same as v2059. Then: in the app context on a ladder profile the CONSOLE button and the build badge overlapped by 7px, because two rules of identical specificity disagreed and the later one won on a page it was not written for. And the ladder ribbon never got the max-width:92vw its twin cousin-ribbon has, so at 375 it spanned x=-39..403 on a 375px viewport, off both edges. Five profile/width/bar states now measure zero overlaps.",
+  "note": "v2062: Three things could delete his footage and each had its own idea of safe. The prune kept a frame only when it LOOKED different from the one before, and a hover tooltip - the only place D2R writes an item name - moves that number by zero, which is why v2058 had to turn it off. frame_authority.py asks the question that actually decides it: IS THIS FRAME EVIDENCE. A frame is offered only when its recording is SEALED, it is not named as a witness behind a vault row, and it is not among the newest five; anything unreadable holds everything. Measured on his real tree: 274 of 4754 frames, 0.37 GB, with all 16 witness frames held. Wired into the console so that while deleting stays refused it still publishes what COULD be freed - because off and nothing-to-free must not look the same.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
