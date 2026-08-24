@@ -3514,7 +3514,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
    one family, but deliberately NOT a switch: there is nothing here to turn on, and giving it a
    pill would invite a click that does nothing. Two tracks (hour, day) because the two caps bind at
    different times — a burst can be fine for the day and still trip the hour. */
-#tab-tools .sub-meter{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(18,28,40,.62),rgba(18,28,40,.34));border:1px solid rgba(120,170,220,.20)}
+#tab-tools .sub-meter{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 60px 8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(18,28,40,.62),rgba(18,28,40,.34));border:1px solid rgba(120,170,220,.20)}
 #tab-tools .sub-meter[hidden]{display:none}
 #tab-tools .sm-ico{flex:0 0 auto;width:27px;height:27px;display:flex;align-items:center;justify-content:center;font-size:15px;border-radius:8px;background:rgba(120,170,220,.13);border:1px solid rgba(120,170,220,.24)}
 #tab-tools .sm-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0;flex:1 1 auto}
@@ -4125,6 +4125,28 @@ try {
     // Already claimed by SOMEONE (this install or another) → no banner. A guest on a machine whose
     // owner is a different install is a deliberate, quiet state, not something to nag about.
     if (claimed || window._D2R_OWNER) return;
+    // v2039 — A BANNER MUST NOT ASSERT AN EMPTINESS IT NEVER MEASURED.
+    // Measured on his own board, 2026-08-24 03:54: this bar rendered "chronicle, vault and forge
+    // all start at zero" directly above a VAULT tile reading 7, on a store holding 451 KB of
+    // d2r_grailFarm and a freshly applied d2r_owned. The GATE was correct - there genuinely was no
+    // d2r_ownerClaim key - but the SENTENCE it renders is a claim about DATA, and nothing had
+    // looked at the data. The bar exists to help a genuinely empty browser get its world back; on
+    // a full one it is a false alarm telling him he has lost everything.
+    var hasData = false;
+    try {
+      var DATA_KEYS = ['d2r_owned', 'd2r_grailFarm', 'd2r_muleAssign', 'd2r_foundLog'];
+      for (var i = 0; i < window.localStorage.length && !hasData; i++) {
+        var k = window.localStorage.key(i) || '';
+        for (var j = 0; j < DATA_KEYS.length; j++) {
+          if (k.indexOf(DATA_KEYS[j]) < 0) continue;
+          var v = window.localStorage.getItem(k) || '';
+          // '[]', '{}', 'null' and '' are all EMPTY. Testing presence, or length alone, would
+          // count an empty array as a full vault and suppress the bar for the browser that needs it.
+          if (v.length > 4) { hasData = true; break; }
+        }
+      }
+    } catch(e){}
+    if (hasData) return;
     var bar = document.getElementById('claim-bar');
     if (!bar) return;
     bar.hidden = false;
@@ -44382,7 +44404,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2038', name:'v2038 - the apply reaches a window the console does not own', date:'2026-08-24', note:'the board is a separate process so the console could never write to it: the payload now rides on its argv and the board window applies it itself' };
+  window.D2R_BUILD = { id:'v2039', name:'v2039 - the board does not lie about being empty', date:'2026-08-24', note:'the claim bar announced a vault of zero above a tile reading 7, and the subscription figures rendered under the fixed help button at every width' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

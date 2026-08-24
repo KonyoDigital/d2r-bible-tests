@@ -14585,5 +14585,56 @@ class TestV2038TheApplyCanReachAWindowTheConsoleDoesNotOwn(unittest.TestCase):
 
 
 
+class TestV2039TheBoardDoesNotLieAboutBeingEmpty(unittest.TestCase):
+    """Two defects caught by LOOKING at his board, both invisible to every parser gate.
+
+    1. The claim bar rendered "chronicle, vault and forge all start at zero" directly above a VAULT
+       tile reading 7, on a store holding 451 KB of d2r_grailFarm. Its GATE was correct - there was
+       no d2r_ownerClaim key - but the SENTENCE is a claim about DATA and nothing had looked at the
+       data. [[unknown-stays-unknown]]
+
+    2. The subscription meter's right-aligned figures ended 3px PAST .help-btn's left edge at 1440,
+       1200, 1100, 901 AND 375 - measured by CDP. Because the FABs are position:fixed, the collision
+       only appears at scroll positions that put the row level with them, which is why his screenshot
+       caught it and a first CDP pass at scrollTop 0 reported "no overlap".
+    """
+
+    def _bible(self):
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return open(os.path.join(here, "bible.html"), encoding="utf-8").read()
+
+    def test_the_claim_bar_measures_before_it_claims(self):
+        src = self._bible()
+        blk = _between(self, src, "var claimed = null;", "var btn = document.getElementById",
+                       what="the claim-bar block")
+        self.assertTrue("hasData" in blk,
+                        "the bar no longer looks at the store before announcing it is empty")
+        self.assertLess(blk.find("if (hasData) return;"), blk.find("bar.hidden = false"),
+                        "the emptiness check runs AFTER the bar is revealed, so it reveals first "
+                        "and asks later")
+
+    def test_an_empty_array_still_counts_as_empty(self):
+        """'[]' and '{}' are what a genuinely fresh browser holds. If those read as DATA the bar is
+        suppressed for exactly the browser it exists to help."""
+        src = self._bible()
+        blk = _between(self, src, "var DATA_KEYS", "if (hasData) return;",
+                       what="the emptiness measurement")
+        self.assertTrue("v.length > 4" in blk,
+                        "presence alone, or a zero-length test, would count '[]' as a full vault")
+
+    def test_the_meter_reserves_the_fixed_FAB_column(self):
+        src = self._bible()
+        blk = _between(self, src, "#tab-tools .sub-meter{", "}", what="the sub-meter rule")
+        self.assertTrue("padding:8px 60px 8px 12px" in blk,
+                        "the meter no longer reserves room for the fixed help/legend FABs - its "
+                        "figures render under the gold '?' at every width")
+
+    def test_the_meter_still_exists_to_be_covered(self):
+        """A guard on a rule for an element that was deleted is a guard measuring nothing."""
+        src = self._bible()
+        self.assertTrue('id="sub-meter"' in src, "#sub-meter is gone from the board")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

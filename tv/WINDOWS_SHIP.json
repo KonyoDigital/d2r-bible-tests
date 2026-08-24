@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2038",
+  "ver": "v2039",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2038: the board is a separate process so the console could never write to it: the payload now rides on its argv and the board window applies it itself",
+  "note": "v2039: the claim bar announced a vault of zero above a tile reading 7, and the subscription figures rendered under the fixed help button at every width",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
