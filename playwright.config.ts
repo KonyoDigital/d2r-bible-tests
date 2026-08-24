@@ -31,9 +31,19 @@ export default defineConfig({
 
        This is v684's lesson arriving through a different door: that comment reduced timeouts so a
        red shard would "finish and REPORT" after SIGKILL left failing specs nameless for 40 runs.
-       Same principle — a report that cannot be delivered is a report nobody has. Local keeps
-       retain-on-failure, where volume costs nothing. */
-    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
+       Same principle — a report that cannot be delivered is a report nobody has.
+
+       v2053 — AND LOCAL IS NOT FREE EITHER. THAT PREMISE IS NOW MEASURED FALSE.
+       This used to read "Local keeps retain-on-failure, where volume costs nothing." On
+       2026-08-24 a local run wrote **60,232 files / 9.5 GB into test-results/ in 95 minutes**
+       and took his disk from 14 GB free to 2.8 GB — with `retries: 2` locally, every test is
+       recorded and a failing one is recorded three times. Playwright clears outputDir between
+       runs, so nothing was leaking ACROSS runs; the whole 9.5 GB accumulated DURING one run,
+       which is precisely why no prune could have saved him. The fix is to write less, not to
+       sweep up after.
+       `on-first-retry` keeps the diagnostic value that matters — the attempt worth debugging —
+       and it is now the setting on both venues. [[feedback-threshold-above-the-ceiling]] */
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
   projects: [

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2052",
+  "ver": "v2053",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2052: HTTP POST /api/board now moves the main window onto /board. Returning a URL the UI follows internally left restore with a path and nothing happening. claim:true writes the owner hatch if none is set so restore lands in his world not a guest prefix.",
+  "note": "v2053: playwright wrote 9.5GB into test-results in 95 minutes and nothing owned it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
