@@ -113,5 +113,6 @@ tv/stash_gate_cache.json.tmp
 # It survived tonight only because every `git add` named explicit paths; one `git add -A` would
 # have published it. Machine state is not source. [[feedback-fixtures-never-touch-live-data]]
 tv/vault_accum.json
+tv/vault_seen.json
 tv/vault_swept.json
 tv/shadow_ai.json

@@ -12728,3 +12728,42 @@ origin is a hazard to it.
 **Guard:** `tv/test_control.py::TestV2048TheBoardWindowStaysIsolated` — checks the CALL, not the
 prose, because the comment above it legitimately contains the words `private_mode=False`.
 
+---
+
+## REG-395 — the accumulator was never fed, so "twice" meant "twice in one sweep" (v2051)
+
+`vault_retro`'s gate says it in its own words at the branch that produces an unsure row:
+
+> *Law 2: one witness is never `owned`. It is remembered as unsure so a later session can
+> corroborate it — **the accumulator's whole point**.*
+
+Nothing was remembering it. An `unsure` row was `{name, why}` — no lane, no witnesses, no session,
+no confidence — and `_rows_of` absorbs only `owned`. A sighting from one sweep could therefore never
+pair with a sighting from the next, so the two-witness bar meant **"twice inside ONE sweep run"**,
+never "twice ever".
+
+**Measured across two real sweeps of his reels, 2026-08-24:**
+* **10 items were unsure in BOTH** — `Enigma`, `Dwarf Star`, `Bone Visor`, `Obsession`,
+  `Dread Grasp`, `Bone Knife` among them. Each was seen at least once in each run; every one of
+  those sightings was discarded.
+* **3 items that GROUNDED in the earlier sweep were not grounded in the later one**
+  (`Bone Break`, `Goblin Toe`, `Rotting Fissure`) — a sweep's `owned` is a view of the reels read
+  in THAT run, not an accumulated ledger. Accumulation only happens on apply.
+
+**Fixed in three joins, because the intent existed and the plumbing did not:**
+* an `unsure` row now carries `lane`, `witnesses`, `sessions`, `conf`, `lastSeenTs`
+* `sweep(prior_seen=...)` folds earlier ungrounded sightings into the evidence **before** gating
+* the console remembers them in `tv/vault_seen.json` (gitignored — his item names, public repo) and
+  drops a name once it has grounded
+
+⚠ **THE GATE IS UNTOUCHED.** A folded-in sighting only supplies a session id that `gate()` still has
+to accept on distinct-session and confidence terms. Law 2 still holds: the same session twice is
+repetition, not corroboration — guarded explicitly.
+
+⚠ **Law 5 intact:** `vault_retro` reads what it is handed and writes nothing. The console owns the
+file.
+
+**Guard:** `tv/test_control.py::TestV2051TwiceEverNotTwiceInOneSweep` — five cases including the
+mirror (*without* the prior it must still NOT ground, or the main case proves nothing) and the
+same-session case. Sabotage-proven.
+

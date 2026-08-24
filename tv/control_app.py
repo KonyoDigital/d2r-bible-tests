@@ -10502,6 +10502,14 @@ VAULT_LEDGER_PATH = (os.environ.get("TV_VAULT_LEDGER")
                      or os.path.join(_fixture_root_for_state(), "vault_accum.json"))
 _VAULT_SWEPT_PATH = (os.environ.get("TV_VAULT_SWEPT")
                      or os.path.join(_fixture_root_for_state(), "vault_swept.json"))
+# v2051 — SIGHTINGS THAT DID NOT GROUND YET. vault_retro's own gate comments say a single witness
+# "is remembered as unsure so a later session can corroborate it — the accumulator's whole point",
+# but nothing was remembering it: an unsure row was {name, why} and `_rows_of` absorbs only `owned`.
+# Measured across two real sweeps of his reels, TEN items were unsure in BOTH and every sighting was
+# discarded, so the two-witness bar meant "twice inside one sweep", never "twice ever".
+# Goes through _fixture_root_for_state() like its siblings so a test can never write his real one.
+_VAULT_SEEN_PATH = (os.environ.get("TV_VAULT_SEEN")
+                    or os.path.join(_fixture_root_for_state(), "vault_seen.json"))
 
 _VAULT_LOCK = threading.Lock()
 _VAULT_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0, "reelsTotal": 0,
@@ -10794,6 +10802,54 @@ def _ledger_backup_loop():
                 print("  \U0001f9fe ledger backup: %s" % os.path.basename(path), flush=True)
         except Exception:
             pass
+
+
+def vault_seen_load():
+    """Sightings from earlier sweeps that have not grounded. [] when there are none or it is
+    unreadable — an unreadable file is not evidence of an empty stash."""
+    try:
+        with open(_VAULT_SEEN_PATH, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except Exception:
+        return []
+    rows = d.get("rows") if isinstance(d, dict) else d
+    return [r for r in (rows or []) if isinstance(r, dict) and r.get("name")]
+
+
+def vault_seen_save(unsure_rows):
+    """Remember this sweep's ungrounded sightings so a LATER session can corroborate them.
+
+    Keeps the union: a name that this sweep did not see again is NOT forgotten, because absence of
+    evidence is not evidence (law 4). Rows that have since GROUNDED are dropped by the caller.
+    Returns how many rows are remembered, or None if nothing could be written.
+    """
+    keep = {}
+    for row in list(vault_seen_load()) + list(unsure_rows or []):
+        if not isinstance(row, dict):
+            continue
+        name, lane = str(row.get("name") or "").strip(), str(row.get("lane") or "").strip().lower()
+        if not name or not lane:
+            continue        # a row with no lane cannot be folded back in; drop it rather than guess
+        k = "%s|%s" % (lane, name)
+        cur = keep.setdefault(k, {"name": name, "lane": lane, "kind": row.get("kind") or "item",
+                                  "witnesses": [], "conf": 0.0, "lastSeenTs": None})
+        seen = {(w.get("session"), w.get("frame")) for w in cur["witnesses"]}
+        for w in (row.get("witnesses") or []):
+            if isinstance(w, dict) and (w.get("session"), w.get("frame")) not in seen:
+                cur["witnesses"].append(dict(w))
+                seen.add((w.get("session"), w.get("frame")))
+        try:
+            cur["conf"] = max(float(cur["conf"] or 0.0), float(row.get("conf") or 0.0))
+        except (TypeError, ValueError):
+            pass
+        cur["lastSeenTs"] = row.get("lastSeenTs") or cur["lastSeenTs"]
+    rows = [r for r in keep.values() if r["witnesses"]]
+    try:
+        with open(_VAULT_SEEN_PATH, "w", encoding="utf-8") as fh:
+            json.dump({"rows": rows, "ts": int(time.time() * 1000)}, fh, ensure_ascii=False)
+    except Exception:
+        return None
+    return len(rows)
 
 
 def vault_ledger_load():
@@ -11288,8 +11344,29 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         # mini-first reels (234 frames, 0 pages read) while a reel that is 59% stash panels sat
         # unswept. stash_screen_open_cached is a crop and an OCR with no model call, so the
         # ordering can afford to ask it about every reel before we pay to read any of them.
+        # v2051 — HAND THE SWEEP WHAT EARLIER SWEEPS SAW BUT COULD NOT GROUND.
+        # This is what makes the two-witness bar mean "twice EVER" rather than "twice inside one
+        # sweep run". The gate is unchanged: a folded-in sighting only ever supplies a session id
+        # that gate() still has to accept on distinct-session and confidence terms.
+        _prior_seen = vault_seen_load()
         prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit,
-                         panel_gate=stash_screen_open_cached)
+                         panel_gate=stash_screen_open_cached, prior_seen=_prior_seen)
+        # Remember this run's ungrounded sightings, minus anything that has now GROUNDED — a name
+        # in `owned` no longer needs corroborating and would otherwise be folded in forever.
+        try:
+            _now_owned = {(str(r.get("name") or ""), str(r.get("lane") or "").lower())
+                          for r in (prop.get("owned") or []) if isinstance(r, dict)}
+            _keep = [r for r in (prop.get("unsure") or [])
+                     if isinstance(r, dict) and r.get("name") and r.get("lane")
+                     and (str(r.get("name")), str(r.get("lane")).lower()) not in _now_owned]
+            _n = vault_seen_save(_keep)
+            if _n is not None:
+                print("   \U0001f9e0 remembering %d ungrounded sighting(s) for a later session "
+                      "to corroborate" % _n, flush=True)
+        except Exception as _se:
+            # never fatal: a sweep that read his reels is worth more than this bookkeeping
+            print("   \u26a0 could not remember the ungrounded sightings: %s" % str(_se)[:100],
+                  flush=True)
         if _not_stash[0]:
             # said out loud, never silently: "the stash was never open on camera" and "the reader
             # found nothing in it" are different answers and only one of them is about his stash
@@ -13861,7 +13938,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2050",
+        "ver": "v2051",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

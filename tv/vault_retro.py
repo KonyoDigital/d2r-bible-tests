@@ -623,7 +623,7 @@ def _name_folder(resolve=None):
 
 
 def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None,
-          panel_gate=None):
+          panel_gate=None, prior_seen=None):
     """THE VAULT RETRO SWEEP: sealed reels in, a PROPOSAL of what he owns out. Writes nothing.
 
     hist_dirs: sealed reel directories, newest-first (mini/stash reels are re-ordered to the front).
@@ -877,6 +877,39 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         _eg = ", ".join("%s -> %s" % kv for kv in sorted(folded_names.items())[:3])
         print("   \U0001f9f9 %d reader name(s) folded onto the roster (%s)"
               % (len(folded_names), _eg))
+    # ── v2051 — FOLD IN WHAT EARLIER SWEEPS SAW, BEFORE THE GATE RUNS ────────────────────────
+    # `prior_seen` is the caller's record of sightings that did NOT ground last time: rows shaped
+    # like the `unsure` rows this function emits. Folding them into `evidence` is what makes the
+    # two-witness bar mean "twice EVER" instead of "twice inside one sweep run".
+    #
+    # THE GATE IS NOT TOUCHED. Whether any of this grounds is still decided by gate() on DISTINCT
+    # SESSIONS and the confidence floor, so a prior sighting can only ever supply a session id that
+    # gate() then has to accept on its own terms. A repeat of the SAME session adds nothing, because
+    # witnesses are counted as distinct sessions (law 2).
+    #
+    # LAW 5 IS INTACT: this reads what it was handed and writes nothing. The console owns the file.
+    _folded_prior = 0
+    for _row in (prior_seen or []):
+        if not isinstance(_row, dict):
+            continue
+        _nm = str(_row.get("name") or "").strip()
+        _ln = str(_row.get("lane") or "").strip().lower()
+        if not _nm or _ln not in LANES:
+            continue
+        _key = (_nm, _ln)
+        _have = {(w.get("session"), w.get("frame")) for w in evidence.get(_key, [])
+                 if isinstance(w, dict)}
+        for _w in (_row.get("witnesses") or []):
+            if not isinstance(_w, dict):
+                continue
+            if (_w.get("session"), _w.get("frame")) in _have:
+                continue        # the same sighting twice is repetition, not corroboration
+            evidence.setdefault(_key, []).append(dict(_w))
+            _folded_prior += 1
+    if _folded_prior:
+        print("   \U0001f9e9 folded %d earlier sighting(s) that had not grounded yet"
+              % _folded_prior, flush=True)
+
     owned, throw_out = [], []
     for key in sorted(evidence, key=lambda k: (k[1], k[0].lower(), k[0])):
         ev = evidence[key]
@@ -884,7 +917,25 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         if not v["pass"]:
             # Law 2: one witness is never `owned`. It is remembered as unsure so a later session can
             # corroborate it — the accumulator's whole point.
-            unsure.append({"name": key[0], "why": "%s in %s — %s" % (key[0], key[1], v["why"])})
+            #
+            # v2051 — AND NOW THE ROW CAN ACTUALLY CARRY THAT. Until now an unsure row was
+            # {name, why}: no lane, no witnesses, no session, no confidence. `_rows_of` absorbs only
+            # `owned`, so nothing downstream could ever pair a sighting from THIS run with one from
+            # the next. The sentence above described an accumulator that was not being fed.
+            #
+            # Measured 2026-08-24 across two real sweeps of his reels: TEN items were unsure in
+            # BOTH — Enigma, Dwarf Star, Bone Visor, Obsession among them — each seen at least once
+            # in each run, and every one of those sightings discarded. The two-witness bar was in
+            # practice "twice inside one sweep", never "twice ever".
+            #
+            # The evidence rides along; the GATE is untouched. Whether this grounds is still decided
+            # by `gate()` on distinct sessions and the confidence floor.
+            unsure.append({"name": key[0], "why": "%s in %s — %s" % (key[0], key[1], v["why"]),
+                           "lane": key[1], "kind": "item",
+                           "conf": v.get("bestConf"),
+                           "sessions": v.get("sessions") or [],
+                           "witnesses": [dict(e) for e in ev if isinstance(e, dict)],
+                           "lastSeenTs": max([e.get("ts") or 0 for e in ev] or [0]) or None})
             continue
         owned.append(_owned_row(key, ev))
     _is_grail = _grail_guard()

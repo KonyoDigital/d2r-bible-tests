@@ -14951,5 +14951,103 @@ class TestV2050TheSnapshotWindowIsHowMuchHeCanLose(unittest.TestCase):
 
 
 
+class TestV2051TwiceEverNotTwiceInOneSweep(unittest.TestCase):
+    """vault_retro's own gate says a single witness "is remembered as unsure so a later session can
+    corroborate it — the accumulator's whole point." Nothing was remembering it.
+
+    An `unsure` row was `{name, why}`: no lane, no witnesses, no session, no confidence. And
+    `_rows_of` absorbs only `owned`. So a sighting from one sweep could never pair with a sighting
+    from the next, and the two-witness bar meant "twice inside ONE sweep run", never "twice ever".
+
+    Measured across two real sweeps of his reels on 2026-08-24: TEN items were unsure in BOTH —
+    Enigma, Dwarf Star, Bone Visor, Obsession among them — every sighting discarded. Three items
+    that HAD grounded in the earlier sweep were not grounded in the later one, because a sweep's
+    `owned` is a view of the reels read in that run.
+
+    THE GATE IS NOT TOUCHED by the fix. A folded-in sighting only supplies a session id that
+    `gate()` still has to accept on distinct-session and confidence terms.
+    [[d2r-multiwitness-corroboration]] [[the-unjoined-end]]
+    """
+
+    NAME = "Enigma"
+
+    def _reel(self, td, sid, frames=4):
+        """One reel, one session, every frame identical so _distinct yields a single page —
+        i.e. exactly ONE sighting from this session."""
+        d = os.path.join(td, "reel_%s" % sid)
+        os.makedirs(d, exist_ok=True)
+        rows = []
+        for i in range(frames):
+            fn = "f_%03d.jpg" % i
+            open(os.path.join(d, fn), "w").close()
+            rows.append({"f": fn, "ts": 1000 + i})
+        with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"sessionId": sid, "n": len(rows), "frames": rows}, fh)
+        return d
+
+    def _sweep(self, d, prior=None):
+        import vault_retro as vr
+        return vr.sweep([d], sig=lambda p: "SAME",
+                        classify=lambda p: "stash",
+                        reader=lambda p, s: {"items": [{"name": self.NAME, "conf": 0.9}]},
+                        panel_gate=lambda p: "stash",
+                        prior_seen=prior)
+
+    def _names(self, prop, key):
+        return {r.get("name") for r in (prop.get(key) or []) if isinstance(r, dict)}
+
+    def test_one_sighting_in_one_session_does_not_ground(self):
+        """The bar itself must still hold — this is the case the whole gate exists for."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            p = self._sweep(self._reel(td, "s_A"))
+            self.assertNotIn(self.NAME, self._names(p, "owned"),
+                             "one session grounded an item — the two-witness bar is gone")
+            self.assertIn(self.NAME, self._names(p, "unsure"))
+
+    def test_an_unsure_row_carries_the_evidence_it_needs_to_be_corroborated(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            p = self._sweep(self._reel(td, "s_A"))
+            row = [r for r in p["unsure"] if r.get("name") == self.NAME][0]
+            self.assertTrue(row.get("lane"), "no lane — the row cannot be folded back in")
+            self.assertTrue(row.get("witnesses"), "no witnesses — there is nothing to corroborate")
+            self.assertEqual({w.get("session") for w in row["witnesses"]}, {"s_A"},
+                             "the row does not say WHICH session saw it")
+
+    def test_a_SECOND_session_grounds_it_across_sweeps(self):
+        """THE POINT. Seen once in one sweep, once in a later one, from DIFFERENT sessions."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            first = self._sweep(self._reel(td, "s_A"))
+            carried = [r for r in first["unsure"] if r.get("name") == self.NAME]
+            second = self._sweep(self._reel(td, "s_B"), prior=carried)
+            self.assertIn(self.NAME, self._names(second, "owned"),
+                          "two DIFFERENT sessions still did not ground it — the sighting from the "
+                          "earlier sweep is being discarded, which is the whole defect")
+
+    def test_without_the_prior_it_still_does_not_ground(self):
+        """The mirror. If it grounds with prior=None the test above proves nothing."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            self._sweep(self._reel(td, "s_A"))
+            second = self._sweep(self._reel(td, "s_B"), prior=None)
+            self.assertNotIn(self.NAME, self._names(second, "owned"),
+                             "it grounded WITHOUT the carried sighting — so the previous test was "
+                             "passing for the wrong reason")
+
+    def test_the_same_session_twice_is_repetition_not_corroboration(self):
+        """Law 2. Folding a prior sighting must not let ONE session count twice."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            first = self._sweep(self._reel(td, "s_A"))
+            carried = [r for r in first["unsure"] if r.get("name") == self.NAME]
+            again = self._sweep(self._reel(td, "s_A"), prior=carried)
+            self.assertNotIn(self.NAME, self._names(again, "owned"),
+                             "the SAME session counted as two witnesses — one eye looking twice is "
+                             "repetition, and that is exactly what law 2 forbids")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
