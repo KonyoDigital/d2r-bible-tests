@@ -485,7 +485,16 @@ CHECKS = [
 # fine for a human pressing the button and NOT fine on every CI run, so callers can ask for the
 # cheap subset. The slow one is named rather than guessed at, so adding a check never silently
 # joins the slow set.
-SLOW = ("the other doctors",)
+# v2080 — AND "sweep would find" WAS NEVER CHEAP. Measured on a fixture tree: 16,585 ms of a
+# 17,069 ms "cheap subset" — 97% of it, in the set that runs on a ten-minute timer at every console
+# boot. It cost a gate: v2080 made the eagle measure BEFORE it sleeps (right) and start in headless
+# consoles too (right), and together those two correct fixes put a 17-second tick in the boot path
+# of every console a test spawns, pushing test_roundtrip_sim's stub read past its 60s deadline.
+# Two fixes breaking each other, and neither was wrong on its own. [[two-fixes-broke-each-other]]
+#
+# The SLOW set being NAMED rather than guessed was the right design and it did not save me, because
+# nobody had timed the members. A list is a claim; the guard below now MEASURES it.
+SLOW = ("the other doctors", "sweep would find")
 
 
 def run(include_slow=True):

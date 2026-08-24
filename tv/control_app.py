@@ -3203,7 +3203,19 @@ def _win_tint_caption():
 # Each start is INDIVIDUALLY guarded. The old block wrapped all nine in one try, so the first one
 # to raise silently took the other eight with it and printed a message about the ENGINE DRIVER —
 # a failure report naming the wrong subsystem, under which six unrelated jobs were simply absent.
-_WATCHERS_STARTED = []
+# v2080 — THE ACTING WATCHERS STAND DOWN IN A HARNESS. A full gate run left five files moved under
+# tv/ with his console down, and the tree's own canary caught it: .console_scars.json and
+# reel_tombstones.json among them. Both are runtime records of DECISIONS — which faults have come
+# back, which reels a deleter removed — and neither is a file a test may write.
+#
+# The path fixes (the scar ledger through _root(), the tombstone through _fixture_root at CALL time)
+# close the ones that resolve by path. This closes the rest at the source: a console a harness
+# spawned has no business running the eagle, the version-drift watcher or the retention loop at all.
+# It is serving a fixture world; there is nothing there to be out of sync with, and nothing there
+# that should ever be pruned. TV_STUB is the seam the tree already uses for exactly this
+# (control_app.py:1041 sets it, g5_grok_eyes honours it since v1519).
+# [[feedback-fixtures-never-touch-live-data]]
+_HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention")
 
 
 def start_background_watchers(why):
@@ -3227,16 +3239,23 @@ def start_background_watchers(why):
         ("tvd-version-drift", _drift_loop),
         # v2078 — the eagle on a timer, so being out of sync is NOTICED rather than waited for.
         ("tvd-eagle-watch", _eagle_watch_loop),
+        # v2080 — closes the extract -> prune cycle. Deletes ONLY below the ON AIR floor, ONLY reels
+        # the plan calls eligible, ONLY as much as it needs, and never while anything is in flight.
+        ("tvd-retention", _retention_loop),
     ]
     live = set(t.name for t in threading.enumerate())
-    started, failed = [], []
+    harness = bool(os.environ.get("TV_STUB"))
+    started, failed, stood_down = [], [], []
     for name, fn in roster:
         if name in live:
+            continue
+        if harness and name in _HARNESS_ONLY_SKIP:
+            # NAMED, not silent: "it did not run" and "it is not there" must never look the same.
+            stood_down.append(name)
             continue
         try:
             threading.Thread(target=fn, daemon=True, name=name).start()
             started.append(name)
-            _WATCHERS_STARTED.append(name)
         except Exception as e:
             # NAME the one that failed. Six jobs once went missing under a message about a seventh.
             failed.append(name)
@@ -3245,7 +3264,11 @@ def start_background_watchers(why):
     if started:
         print("   %d background watcher(s) armed (%s): %s"
               % (len(started), why, ", ".join(n.replace("tvd-", "") for n in started)), flush=True)
-    return {"started": started, "failed": failed, "roster": [n for n, _ in roster]}
+    if stood_down:
+        print("   %d watcher(s) stood down (TV_STUB harness): %s"
+              % (len(stood_down), ", ".join(n.replace("tvd-", "") for n in stood_down)), flush=True)
+    return {"started": started, "failed": failed, "stoodDown": stood_down,
+            "roster": [n for n, _ in roster]}
 
 
 def open_control_window():
@@ -10686,6 +10709,171 @@ def _eagle_watch_loop():
             pass
 
 
+# ── v2080 — THE CYCLE HE ASKED FOR, CLOSED ───────────────────────────────────────────────────
+# Konyo: "why is this not being optimized and pruned automatically like we said based on data and
+# reels getting extracted".
+#
+# Because it never was. v2006 wired reel_retention to a caller for the first time and wrote, in as
+# many words: "IT REPORTS, IT NEVER DELETES ... `--apply --yes` stays a thing he types." So the
+# EXTRACT half is automatic (the chronicle auto-reader sweeps unread reels on its own) and the
+# PRUNE half has always required him. Two halves of one cycle, and the joint was a printed sentence.
+# [[plumbing-with-no-tap]] [[the-unjoined-end]]
+#
+# Measured on his tree the day he asked: 30 reels, 0 MB reclaimable, 1.6 GB free on a 228 GB disk,
+# and his own gates failing with "DISK TOO FULL to record". Of the 30: 11 (609 MB) are locked behind
+# a SWEEP that has simply never run, 7 are named by the test suite, 3 are the newest, 9 were read and
+# found nothing. Nothing was wrong. Nobody had ever pressed the second half of the button.
+#
+# THE ORDER IS THE SAFETY, and it is not negotiable:
+#   1. EXTRACT FIRST. A reel that has not been read is never a deletion candidate — plan() already
+#      refuses it, and this loop's first move is to say how much is waiting on a sweep rather than
+#      to look for something to delete. Deleting is the LAST resort, never the first.
+#   2. ONLY BELOW THE FLOOR. Above 8 GB nothing is deleted at all, whatever is eligible. Below it,
+#      /api/on refuses to record — so at that point doing nothing has its own cost, and that is the
+#      only reason this is allowed to act without him.
+#   3. ONLY WHAT plan() CALLS ELIGIBLE — read and sealed by BOTH lanes, i.e. it has already given up
+#      its information to the ledger. Never a held reel, for any reason, at any pressure.
+#   4. ONLY AS MUCH AS IT NEEDS. `free_mb` stops the plan the moment the target is met.
+#   5. NEVER WHILE ANYTHING IS IN FLIGHT — recording, sweeping, or him filming.
+#   6. NEVER ON AN UNREADABLE LEDGER. v2079 makes plan() hold everything then, and this checks it
+#      again by name rather than trusting that to stay true.
+# TV_AUTO_PRUNE=0 turns the acting off and leaves the reporting.
+_RETENTION = {"checked": None, "freeGb": None, "freedMb": 0, "removed": [], "say": "not measured yet",
+              "lockedBehindASweep": None, "lockedMb": None}
+_RETENTION_EVERY_S = float(os.environ.get("TV_RETENTION_EVERY_S", "900") or 900)
+ON_AIR_FLOOR_GB = 8.0       # /api/on refuses below this. The one number that makes acting worth it.
+PRUNE_HEADROOM_GB = 2.0     # clear to floor + this, so it does not re-fire on every tick
+
+
+def retention_state():
+    with _PRUNE_LOCK:
+        return dict(_RETENTION)
+
+
+def retention_may_act():
+    """MAY this process delete a reel right now? -> (bool, why). Decides; never acts.
+
+    Pulled out so it can be put to a case, the same reason drift_may_relaunch is separate. A
+    decision buried inside a `while True` is a decision nobody can test.
+    """
+    if os.environ.get("TV_AUTO_PRUNE") == "0":
+        return False, "auto-prune is switched off (TV_AUTO_PRUNE=0) — reporting only"
+    busy = []
+    try:
+        if _CHRON_JOB.get("running"):
+            busy.append("a chronicle sweep is reading")
+        if _VAULT_JOB.get("running"):
+            busy.append("a vault sweep is reading")
+        if (mini_state() or {}).get("running"):
+            busy.append("a mini is recording")
+        if _agent_alive():
+            busy.append("the agent is alive — he is filming")
+    except Exception as e:
+        # An unmeasurable state is never a green light, and least of all for a deleter.
+        return False, "could not tell what is running (%s)" % str(e)[:80]
+    if busy:
+        return False, " and ".join(busy) + " — footage is being written or read right now"
+    return True, "nothing in flight"
+
+
+def _retention_once():
+    import shutil as _shd
+    try:
+        import reel_retention as _rr
+    except Exception as e:
+        with _PRUNE_LOCK:
+            _RETENTION.update({"checked": int(time.time() * 1000),
+                               "say": "reel_retention did not import (%s)" % str(e)[:90]})
+        return None
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    try:
+        free_gb = _shd.disk_usage(hist).free / 1e9
+    except Exception as e:
+        with _PRUNE_LOCK:
+            _RETENTION.update({"checked": int(time.time() * 1000),
+                               "say": "could not read the disk (%s)" % str(e)[:80]})
+        return None
+    need_mb = max(0.0, (ON_AIR_FLOOR_GB + PRUNE_HEADROOM_GB - free_gb) * 1000.0)
+    p = _rr.plan(hist, free_mb=(need_mb or None))
+    if not p.get("ok"):
+        with _PRUNE_LOCK:
+            _RETENTION.update({"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
+                               "say": "the retention plan could not run: %s" % str(p.get("why"))[:90]})
+        return None
+    # STEP 1 — what is waiting on a SWEEP. This is the honest answer to "why is nothing prunable",
+    # and it is reported whether or not anything is deleted, because it is usually the real story.
+    waiting = [k for k in (p.get("kept") or [])
+               if "never chronicle-swept" in (k.get("why") or "")
+               or "VAULT lane has never swept" in (k.get("why") or "")]
+    waiting_mb = round(sum(k.get("mb") or 0 for k in waiting), 1)
+    cands = p.get("candidates") or []
+    # v2006's scar, honoured: ONE SIDE DECIDES. The floor travels on the payload so the board can
+    # never compare a rounded number against python's unrounded one and disagree about the same fact.
+    base = {"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
+            "floorGb": ON_AIR_FLOOR_GB,
+            "lockedBehindASweep": len(waiting), "lockedMb": waiting_mb,
+            "eligible": len(cands), "eligibleMb": round(p.get("freeMb") or 0, 1),
+            "unreadable": p.get("unreadable") or []}
+    if p.get("unreadable"):
+        with _PRUNE_LOCK:
+            _RETENTION.update(dict(base, say="HELD — %s will not parse. Nothing is deleted while "
+                                             "the ledgers cannot be read."
+                                             % ", ".join(p["unreadable"])))
+        return None
+    if free_gb >= ON_AIR_FLOOR_GB:
+        with _PRUNE_LOCK:
+            _RETENTION.update(dict(base, say="%.1fGB free — above the %.0fGB floor, so nothing is "
+                                             "deleted. %d reel(s) (%.0f MB) are waiting on a sweep."
+                                             % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb)))
+        return None
+    if not cands:
+        with _PRUNE_LOCK:
+            _RETENTION.update(dict(base,
+                say="%.1fGB free, BELOW the %.0fGB floor — and nothing is eligible. %d reel(s) "
+                    "(%.0f MB) are locked behind a sweep that has never run; every other reel is "
+                    "held for a reason that no amount of pressure changes."
+                    % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb)))
+        return None
+    ok, why = retention_may_act()
+    if not ok:
+        with _PRUNE_LOCK:
+            _RETENTION.update(dict(base, say="%.1fGB free and %d reel(s) could go, but %s"
+                                             % (free_gb, len(cands), why)))
+        return None
+    r = _rr.apply_plan(p, yes=True)
+    with _PRUNE_LOCK:
+        _RETENTION.update(dict(base, freedMb=round(r.get("freedMb") or 0, 1),
+                               removed=list(r.get("removed") or []),
+                               say=("freed %.0f MB by removing %d reel(s) that had already given "
+                                    "up their information; tombstones written to %s"
+                                    % (r.get("freedMb") or 0, len(r.get("removed") or []),
+                                       os.path.basename(str(r.get("tombstonePath")))))))
+    return r
+
+
+def _retention_loop():
+    said = None
+    first = True
+    while True:
+        try:
+            if not first:
+                time.sleep(_RETENTION_EVERY_S)
+            first = False
+            r = _retention_once()
+            st = retention_state()
+            if r and r.get("removed"):
+                print("  \U0001f5c3 %s" % st["say"], flush=True)
+                said = None
+                continue
+            # Say the situation ONCE per distinct situation. A disk warning repeated every 15
+            # minutes is a disk warning he learns to scroll past.
+            if st.get("say") != said and (st.get("freeGb") or 99) < ON_AIR_FLOOR_GB:
+                print("  \U0001f5c3 %s" % st["say"], flush=True)
+                said = st.get("say")
+        except Exception:
+            pass
+
+
 def prune_reclaimable():
     """What THE ONE DELETION AUTHORITY says could be freed. Asks; never acts.
 
@@ -14552,7 +14740,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2079",
+        "ver": "v2080",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -14560,6 +14748,7 @@ def status_payload():
         "prune": prune_stats(),
         "drift": drift_state(),   # v2072 — running vs disk, so a five-ship-behind window says so
         "eagle": eagle_state(),   # v2078 — the watchdog's last look at the running system
+        "retention": retention_state(),   # v2080 — extract -> prune, and why nothing moved
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": ledger_backup_state(),
         # v2053 — what the space warden has reclaimed, so the disk is a number he can see.

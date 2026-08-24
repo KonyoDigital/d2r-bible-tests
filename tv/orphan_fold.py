@@ -40,6 +40,7 @@ import argparse
 import glob
 import json
 import os
+import time
 import re
 import sys
 
@@ -114,8 +115,30 @@ def plan(hist_dir=None, gap_ms=GAP_MS):
             prev = t
         clusters.append((start, prev, run))
 
+    # ── v2080 — A RECORDING IN PROGRESS *IS* A PILE OF LOOSE FRAMES ──────────────────────────
+    # That is not a race, it is the steady state: while he films, every new frame lands directly in
+    # hist/ as `f_<ms>.jpg` and only becomes a reel at SEAL. Which is exactly the population this
+    # module folds. A fold running unattended would therefore move the frames of the session he is
+    # filming RIGHT NOW into a reel and seal it as a finished recording — and v2080 put this behind
+    # an automatic healer on a ten-minute timer, so it would have done it on its own.
+    #
+    # The cluster boundary cannot tell a finished recording from one still being written: both end
+    # at "the newest frame I can see". So the rule is TIME, not shape — a window whose last frame is
+    # newer than the same gap that defines a cluster boundary has not been shown to be over.
+    # A frame that is still arriving is UNKNOWN, and unknown means leave it alone.
+    # [[unknown-stays-unknown]] [[feedback-fixtures-never-touch-live-data]]
+    now_ms = int(time.time() * 1000)
     out = []
     for lo, hi, run in clusters:
+        if (now_ms - hi) < gap_ms:
+            out.append({"t0": lo, "t1": hi, "frames": len(run), "bytes": 0,
+                        "reel": "reel_s_%d_1" % lo, "overlaps": [], "eligible": False,
+                        "why": "REFUSED \u2014 the newest frame here is %.0fs old, inside the %.0fs "
+                               "gap that defines a cluster. This may be a recording STILL IN "
+                               "PROGRESS, and a recording in progress is indistinguishable from "
+                               "loose frames. Folding it would seal a session he is still filming."
+                               % ((now_ms - hi) / 1000.0, gap_ms / 1000.0)})
+            continue
         hit = [w[0] for w in windows if not (w[2] < lo or w[1] > hi)]
         size = 0
         for t in run:

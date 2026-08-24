@@ -49,7 +49,34 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LEDGER = os.path.join(HERE, ".console_scars.json")
+
+
+def _root():
+    """v2080 — GUARD THE PATH, NOT THE CALL SITE.
+
+    A unit test called the real `_eagle_once()`, which calls `tend()` unconditionally — and so a
+    test wrote HIS ledger and HIS three `.healer_bak` files. Worse than a stray write: that reading
+    contained no failures, so under the old clearing rule every live scar was stamped CLEARED and
+    the next real watchdog tick would have announced "THIS HAS COME BACK 5 time(s)" about faults
+    that never went away.
+
+    Isolating that one test would fix that one test. The tree's existing rule is stronger and is
+    why the vault ledgers survived the same night: resolve the PATH through the fixture root, so a
+    test can never reach the real file no matter which call site it goes through.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+    env = os.environ.get("TV_SCAR_ROOT")
+    if env:
+        return env
+    try:
+        sys.path.insert(0, HERE)
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(HERE)
+    except Exception:
+        return HERE
+
+
+LEDGER = os.path.join(_root(), ".console_scars.json")
 
 # The number in a why-string is the SIZE of a fault, never its identity: "2385 frame(s) belong to
 # no reel" and "12 frame(s) belong to no reel" are one scar returning, not two scars. Fingerprint
@@ -62,16 +89,48 @@ def fingerprint(check, why):
     return "%s|%s" % (check, _NUM.sub("#", (why or "").strip())[:140])
 
 
+_LEDGER_UNREADABLE = False
+
+
 def _load():
+    """v2080 — ABSENT AND UNPARSABLE ARE NOT THE SAME EMPTY, HERE EITHER.
+
+    This module was shipped in the same commit that split those two states apart in
+    reel_retention and frame_authority, and then made the identical collapse in its own store: any
+    exception returned `{"scars": {}}`, and the next `_save` overwrote the corrupt bytes. One stray
+    byte in the ledger therefore erased every scar's `firstSeen`, its `returns` count — and its
+    `heal.disarmed` flag, which made ledger corruption the only thing in the system that can
+    RE-ARM a remedy LAW 2 disarmed for lying. [[unknown-stays-unknown]]
+    """
+    global _LEDGER_UNREADABLE
+    if not os.path.exists(LEDGER):
+        _LEDGER_UNREADABLE = False
+        return {"scars": {}}
     try:
         with io.open(LEDGER, encoding="utf-8") as fh:
             blob = json.load(fh)
+        _LEDGER_UNREADABLE = False
         return blob if isinstance(blob, dict) else {"scars": {}}
     except Exception:
+        _LEDGER_UNREADABLE = True
         return {"scars": {}}
 
 
 def _save(blob):
+    # Never write over history nobody could read. The corrupt bytes are set aside under a name that
+    # does not collide, and the fresh ledger starts beside them rather than on top of them.
+    if _LEDGER_UNREADABLE:
+        keep = LEDGER + ".corrupt"
+        n = 0
+        while os.path.exists(keep):
+            n += 1
+            keep = "%s.corrupt.%d" % (LEDGER, n)
+        try:
+            os.replace(LEDGER, keep)
+        except OSError:
+            return                      # cannot even move it — write nothing rather than destroy
+        print("  \U0001f985 the scar ledger would not parse; kept as %s and started a new one"
+              % os.path.basename(keep), flush=True)
     tmp = LEDGER + ".tmp"
     with io.open(tmp, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(blob, indent=1, ensure_ascii=False))
@@ -80,12 +139,32 @@ def _save(blob):
 
 def record(rows, now_ms=None):
     """Fold one watchdog reading into the ledger. Returns the scars that are RED right now, each
-    carrying its own history, so the caller can tell a first sighting from a return."""
+    carrying its own history, so the caller can tell a first sighting from a return.
+
+    v2080 — A SCAR CLEARS WHEN ITS CHECK GOES GREEN, NOT WHEN ONE PHRASING OF IT DISAPPEARS.
+
+    The first cut stamped `clearedAt` on any scar whose FINGERPRINT was absent from this reading.
+    But one check can emit several shapes: `disk headroom` says "N GB free — BELOW the 8GB floor"
+    under the floor and "N GB free — your last N reels averaged ... about N hour(s) of recording"
+    above it. A disk oscillating across 8 GB therefore makes shape A vanish (recorded as CLEARED)
+    while shape B appears — and back again — with the check RED the entire time.
+
+    MEASURED ON HIS LIVE LEDGER, which is how this was found: two `disk headroom` fingerprints,
+    each reporting `returns=6`. Twelve returns, none of which happened. The return count is the one
+    number this module exists to produce, and it was counting a rephrasing.
+
+    So the CHECK's state decides clearing, and the fingerprint still decides identity — two
+    genuinely different failures of one check stay two scars, and neither can clear the other.
+    """
     now = int(now_ms if now_ms is not None else time.time() * 1000)
     blob = _load()
     scars = blob.setdefault("scars", {})
     red_now = []
     seen_keys = set()
+    # Which CHECKS are red in this reading, regardless of how they phrased it. A check absent from
+    # the reading entirely (the cheap subset skipped it) is NOT evidence that it went green.
+    red_checks = set(r.get("check") for r in (rows or []) if r.get("state") == "missing")
+    measured = set(r.get("check") for r in (rows or []))
     for r in rows or []:
         if r.get("state") != "missing":
             continue
@@ -107,10 +186,14 @@ def record(rows, now_ms=None):
             s["times"] = int(s.get("times") or 0) + 1
             s["why"] = r.get("why")
         red_now.append(dict(s, key=k))
-    # Anything the ledger holds as red that this reading did not see has CLEARED. Stamping the
-    # clear is what makes the next sighting a RETURN rather than another first.
+    # A scar clears only when its CHECK was measured this round and came back not-red. A check that
+    # this reading never ran (the watchdog uses the cheap subset) leaves its scars exactly as they
+    # were — "nobody looked" is not "it is fixed". [[unknown-stays-unknown]]
     for k, s in scars.items():
-        if k not in seen_keys and not s.get("clearedAt"):
+        if k in seen_keys or s.get("clearedAt"):
+            continue
+        chk = s.get("check")
+        if chk in measured and chk not in red_checks:
             s["clearedAt"] = now
     _save(blob)
     return red_now
@@ -143,6 +226,17 @@ def _remedy_fold_orphan_footage():
     the reel it belongs to is read off the evidence, never chosen. Nothing is deleted: the frames
     move into the reel directory their own stamp names."""
     sys.path.insert(0, HERE)
+    # v2080 — AND NOT WHILE ANYTHING IS IN FLIGHT. orphan_fold now refuses a still-growing window on
+    # its own (the structural fix, which protects the CLI too), but this remedy runs UNATTENDED on a
+    # timer and must not lean on one guard for something with no undo. If the console can be asked
+    # what is running, ask it; if it cannot be asked, that is not permission.
+    try:
+        import control_app as _ca
+        ok, why = _ca.retention_may_act()
+        if not ok:
+            return None, "not folding while %s" % why
+    except Exception:
+        pass          # no console in this process — orphan_fold's own time guard still applies
     import orphan_fold as of
     # TV_HIST or nothing. `of.plan()` with no argument reads the module's OWN default hist dir,
     # which on a test tree is HIS footage and on a scratch tree is the wrong directory entirely —
@@ -161,7 +255,7 @@ def _remedy_fold_orphan_footage():
     ok = [c for c in (p.get("clusters") or []) if c.get("eligible") and c.get("frames")]
     refused = [c for c in (p.get("clusters") or []) if not c.get("eligible")]
     if not ok:
-        return False, ("nothing eligible to fold"
+        return None, ("nothing eligible to fold"
                        + (" — %d cluster(s) REFUSED for overlapping an existing reel, which would "
                           "forge a second session id for one recording" % len(refused)
                           if refused else ""))
@@ -177,12 +271,17 @@ def _remedy_fold_orphan_footage():
 
 def _remedy_restore_a_vault_store():
     """A store that will not parse is restored ONLY from a backup THIS MODULE wrote while the same
-    store was parsing, and only when that backup holds AT LEAST AS MANY ROWS. The corrupt file is
-    kept beside it as .corrupt — nothing of his is ever thrown away to make a check go green."""
+    store was parsing. The corrupt file is kept beside it — under a name that does not collide with
+    an earlier one — because nothing of his is ever thrown away to make a check go green.
+
+    The row protection is in back_up_healthy_stores, not here: a backup is only ever refreshed from
+    a store that PARSED and had NOT SHRUNK, so the bytes this restores were, at the moment they were
+    banked, at least as many rows as anything seen since. Saying it here as if this function checked
+    it would be publishing a check nobody performs."""
     names = ("vault_accum.json", "vault_seen.json", "vault_swept.json")
     fixed = []
     for n in names:
-        fp = os.path.join(HERE, n)
+        fp = os.path.join(_root(), n)
         bak = fp + ".healer_bak"
         if not os.path.exists(fp) or not os.path.exists(bak):
             continue
@@ -197,13 +296,43 @@ def _remedy_restore_a_vault_store():
                 good = json.load(fh)
         except Exception:
             continue                       # the backup is no better; leave both alone
-        os.replace(fp, fp + ".corrupt")
+        # v2080 — AND THE FIX FOR "IT ADVERTISES A CHECK IT DOES NOT PERFORM" IS THE WORDS.
+        # The docstring and the REMEDIES contract both promised "only when that backup holds AT
+        # LEAST AS MANY ROWS", and there was no comparison here. My first correction ADDED one —
+        # and a sabotage proved it could never run: a store that parses is skipped four lines above
+        # (nothing to restore), and a store that does not parse has no countable rows, so the
+        # comparison is unreachable from both directions. A branch that cannot execute is not a
+        # guard, it is a guard-shaped comment. [[feedback-threshold-above-the-ceiling]]
+        #
+        # The row protection is real and it lives in back_up_healthy_stores: a smaller ledger never
+        # overwrites a larger backup, which is tested and has been seen red. So the promise moves to
+        # where the code is, rather than a check moving to where the promise was.
+        # v2080 — AND SAY HOW OLD THE BYTES ARE. A backup is only refreshed when the live store
+        # parses AND has not shrunk, so it can legitimately be days behind — a restore reporting
+        # only a ROW COUNT reads as "recovered" when it may be "recovered to last Tuesday". A
+        # reading carries the age of the thing it measured, never the age of the read.
+        # [[stale-reading]]
+        try:
+            age_s = max(0.0, time.time() - os.path.getmtime(bak))
+        except OSError:
+            age_s = None
+        when = ("age UNKNOWN" if age_s is None else
+                ("%.0f minute(s) old" % (age_s / 60.0) if age_s < 5400 else
+                 "%.1f hour(s) old" % (age_s / 3600.0)))
+        # ...and never on top of an earlier .corrupt. A second corruption used to overwrite the
+        # first — potentially his only unbacked bytes — under a message saying it was KEPT.
+        keep = fp + ".corrupt"
+        _n = 0
+        while os.path.exists(keep):
+            _n += 1
+            keep = "%s.corrupt.%d" % (fp, _n)
+        os.replace(fp, keep)
         with io.open(fp, "w", encoding="utf-8") as fh:
             fh.write(json.dumps(good, ensure_ascii=False))
-        fixed.append("%s (%d row(s), corrupt copy kept as %s.corrupt)" % (
-            n, len(_rows_of(good)), n))
+        fixed.append("%s (%d row(s), backup %s; corrupt copy kept as %s)" % (
+            n, len(_rows_of(good)), when, os.path.basename(keep)))
     if not fixed:
-        return False, "no store had a healthy backup to come back from"
+        return None, "no store had a healthy backup to come back from"
     return True, "restored " + "; ".join(fixed)
 
 
@@ -223,7 +352,7 @@ def back_up_healthy_stores():
     is the reason a heal can exist later, and it runs whether or not healing is armed."""
     kept = 0
     for n in ("vault_accum.json", "vault_seen.json", "vault_swept.json"):
-        fp = os.path.join(HERE, n)
+        fp = os.path.join(_root(), n)
         if not os.path.exists(fp):
             continue
         try:
@@ -252,8 +381,8 @@ def back_up_healthy_stores():
 REMEDIES = {
     "footage has a reel": ("the reel is read off each frame's own stamp; nothing is deleted",
                            _remedy_fold_orphan_footage),
-    "vault stores": ("restores only from a backup this module wrote while the store parsed, and "
-                     "only if it holds at least as many rows; the corrupt copy is kept",
+    "vault stores": ("restores only from a backup this module wrote while the store parsed and had "
+                     "not shrunk; every corrupt copy is kept",
                      _remedy_restore_a_vault_store),
 }
 
@@ -288,6 +417,13 @@ def heal(scar, recheck=None):
         _note_heal(scar, worked=False, said="the remedy threw: %s" % str(e)[:110], disarm=True)
         _DISARMED.add(check)
         return "failed", "the remedy for %r threw: %s" % (check, str(e)[:110])
+    if did is None:
+        # v2080 — NOTHING TO DO IS NOT A FAILURE. `_remedy_fold_orphan_footage` returns a refusal
+        # when every cluster overlaps an existing reel — that is orphan_fold's DESIGNED answer, the
+        # correct one, and treating it as a failed heal disarmed the remedy permanently. And the
+        # disarm outlives the process: it is written to the ledger, and nothing anywhere sets it
+        # back to False. So a remedy could be retired forever by working correctly.
+        return "nothing-to-do", said
     if not did:
         _note_heal(scar, worked=False, said=said, disarm=True)
         _DISARMED.add(check)

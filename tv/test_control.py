@@ -15705,7 +15705,11 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
         # the caller holds every reel when it is. Both halves are compared, because agreeing about
         # the sessions while disagreeing about whether the index is complete is still a disagreement.
         idx = _fa.witness_index(here)
-        sessions, ok = _rr._durable_sessions(here)
+        # v2080 — three values now: the third is WHY, because "ok=False" was being reported with a
+        # reason naming two files that may be perfectly readable (frame_authority failing to import
+        # produces the same False). Right hold, wrong reason is still a wrong report.
+        sessions, ok, why = _rr._durable_sessions(here)
+        self.assertTrue(why is None or isinstance(why, str))
         self.assertEqual(sessions, set(idx.get("sessions") or ()),
                          "the reel deleter and the frame deleter disagree about which recordings "
                          "are durable — one of them is about to be wrong")
@@ -15760,6 +15764,16 @@ class TestV2063DoNotRecordAGameThatIsNotRunning(unittest.TestCase):
         self.addCleanup(self._restore)
         self.t.HIST_DIR = self.hist
         self.t._FOOTAGE_WARM = True          # warm-up is v1548's gate, not this one
+        # v2080 — AND NEITHER IS THE DISK. These five cases are about the GAME-WINDOW gate, and
+        # every one of them went red on his Mac writing 0 frames — not because the gate was wrong
+        # but because free space had fallen under MIN_FREE_GB (8 GB) and the archiver refuses to
+        # record at all below it. A test that reports "the gate refused frames while the game was
+        # OPEN" when the real answer is "the disk is full" is a gate going red for a NEIGHBOUR's
+        # reason, which is the exact class the fixture canary was written to stop.
+        # The disk governor is a real rule with its own tests; it must not be able to decide this
+        # one. [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+        self._old["MIN_FREE_GB"] = self.t.__dict__.get("MIN_FREE_GB")
+        self.t.MIN_FREE_GB = 0
         self.t._NOGAME_TAIL_KEPT = 0
         self.t._NOGAME_SKIPPED = 0
         for k in ("TV_STUB", "TV_NO_GAME_GUARD"):
@@ -16303,10 +16317,15 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         seen = {}
 
         def boom(path):
-            seen["tomb_exists_at_delete_time"] = os.path.exists(rr.TOMBSTONE_PATH)
+            seen["tomb_exists_at_delete_time"] = os.path.exists(rr._tombstone_path())
             raise OSError("refusing, on purpose")
 
-        with mock.patch.object(rr, "TOMBSTONE_PATH", os.path.join(root, "tomb.json")), \
+        # v2080 — patch the RESOLVER, not the constant. `_tombstone_path()` is computed per call
+        # so a fixture cannot write his real file; a constant bound at import could not do that, and
+        # 89 fixture tombstones in his tree proved it. A test that patches the constant is now
+        # patching something the writer never reads. [[feedback-fixtures-never-touch-live-data]]
+        _tp = os.path.join(root, "tomb.json")
+        with mock.patch.object(rr, "_tombstone_path", lambda: _tp), \
              mock.patch.object(rr.shutil, "rmtree", boom):
             r = rr.apply_plan({"hist": hist, "freeMb": 1,
                                "candidates": [{"reel": "reel_s_111_1", "mb": 1.0, "pages": 4,
@@ -16322,7 +16341,7 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         rr = self._rr()
         root, hist = self._hist(reels=[("reel_s_222_2", 4, "chronicle-sets")])
         tp = os.path.join(root, "tomb.json")
-        with mock.patch.object(rr, "TOMBSTONE_PATH", tp):
+        with mock.patch.object(rr, "_tombstone_path", lambda: tp):
             rr.apply_plan({"hist": hist, "freeMb": 1,
                            "candidates": [{"reel": "reel_s_222_2", "mb": 9.5, "pages": 31,
                                            "why": "read and sealed by BOTH lanes"}]}, yes=True)
@@ -16342,7 +16361,7 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         rr = self._rr()
         root, hist = self._hist(reels=[("reel_s_1_1", 1, None), ("reel_s_2_2", 1, None)])
         tp = os.path.join(root, "tomb.json")
-        with mock.patch.object(rr, "TOMBSTONE_PATH", tp):
+        with mock.patch.object(rr, "_tombstone_path", lambda: tp):
             rr.apply_plan({"hist": hist, "freeMb": 1,
                            "candidates": [{"reel": "reel_s_1_1", "mb": 1, "pages": 1, "why": "a"}]},
                           yes=True)
@@ -16943,13 +16962,49 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                      "vault stores", "locked lanes"):
             self.assertIn(want, names, "the eagle no longer watches %r" % want)
 
-    def test_the_slow_subset_is_named_not_guessed(self):
-        """The watchdog runs include_slow=False every 10 minutes. If a cheap check silently joined
-        SLOW, the watchdog would stop running it and nothing would say so."""
+    def test_the_cheap_subset_is_actually_CHEAP(self):
+        """v2080 — PIN THE LAW, NOT THE MEMBERSHIP.
+
+        The first cut asserted `set(SLOW) == {"the other doctors"}`. That is a claim about a list,
+        and the list was wrong: `sweep would find` sat in the CHEAP subset costing 16,585 ms of a
+        17,069 ms tick — 97% of it — and the guard was perfectly green about it. It cost a gate,
+        because the eagle runs that subset at every console boot.
+
+        So this measures. A subset called cheap that takes 17 seconds is not a naming problem."""
+        import time as _t
         cd = self._cd()
-        self.assertEqual(set(cd.SLOW), {"the other doctors"},
-                         "the SLOW set moved — the watchdog skips those, so anything added here "
-                         "stops being watched on the timer")
+        BUDGET_MS = 3000        # generous: the whole cheap tick, on a cold fixture tree
+        slow = []
+        total = 0.0
+        for name, fn in cd.CHECKS:
+            if name in cd.SLOW:
+                continue
+            t0 = _t.time()
+            try:
+                fn()
+            except Exception:
+                pass
+            ms = (_t.time() - t0) * 1000
+            total += ms
+            if ms > BUDGET_MS:
+                slow.append("%s (%.0f ms)" % (name, ms))
+        self.assertEqual(slow, [],
+                         "these run on the watchdog's 10-minute timer AND at every console boot, "
+                         "and they are not cheap: %s" % ", ".join(slow))
+        self.assertLess(total, BUDGET_MS * 3,
+                        "the whole cheap subset costs %.0f ms — it is in the boot path of every "
+                        "console a test spawns" % total)
+
+    def test_a_check_moved_to_SLOW_is_still_RUN_somewhere(self):
+        """The mirror: moving a check into SLOW stops the watchdog running it. That is only safe
+        because the full run still does. A check in neither is a check nobody performs."""
+        cd = self._cd()
+        names = [n for n, _ in cd.CHECKS]
+        for s in cd.SLOW:
+            self.assertIn(s, names, "%r is in SLOW and not on the roster at all" % s)
+        full = [r["check"] for r in cd.run(include_slow=True)]
+        for s in cd.SLOW:
+            self.assertIn(s, full, "%r is skipped by BOTH the cheap and the full run" % s)
 
     def test_a_check_that_throws_becomes_UNKNOWN_not_a_crash(self):
         cd = self._cd()
@@ -17244,6 +17299,10 @@ class TestV2079TheScarLedgerAndTheHealer(unittest.TestCase):
         ch = self._ch()
         d = tempfile.mkdtemp(prefix="scarledger_")
         self.addCleanup(shutil.rmtree, d, True)
+        prev = os.environ.get("TV_SCAR_ROOT")
+        os.environ["TV_SCAR_ROOT"] = d
+        self.addCleanup(lambda: os.environ.__setitem__("TV_SCAR_ROOT", prev) if prev
+                        else os.environ.pop("TV_SCAR_ROOT", None))
         old = ch.LEDGER
         ch.LEDGER = os.path.join(d, ".scars.json")
         self.addCleanup(setattr, ch, "LEDGER", old)
@@ -17252,18 +17311,61 @@ class TestV2079TheScarLedgerAndTheHealer(unittest.TestCase):
 
     def test_a_returning_fault_is_named_a_RETURN(self):
         """The one sentence nothing in the system could say before, and the reason he kept meeting
-        the same defect as a surprise."""
+        the same defect as a surprise.
+
+        ⚠ v2080 — "IT CLEARED" IS AN OK ROW, NOT AN EMPTY READING. The first cut of this case
+        expressed the clear as `record([])`, which is exactly the confusion that produced the
+        manufactured-returns bug: absence of a fault in a reading is not evidence the fault is gone.
+        A watchdog running the cheap subset omits whole checks every tick."""
         ch = self._isolated()
         red = [{"check": "visual lock", "state": "missing", "why": "the wall lost its colour"}]
+        green = [{"check": "visual lock", "state": "ok", "why": "all four pins hold"}]
         ch.record(red, now_ms=1000)
-        ch.record([], now_ms=2000)                       # it cleared
+        ch.record(green, now_ms=2000)                    # it cleared, and SAID so
         out = ch.record(red, now_ms=3000)                # and came back
         self.assertEqual(out[0]["returns"], 1)
         self.assertIn("COME BACK 1 time", ch.says(out[0]))
-        ch.record([], now_ms=4000)
+        ch.record(green, now_ms=4000)
         ch.record(red, now_ms=5000)
         self.assertEqual(ch.record(red, now_ms=6000)[0]["returns"], 2,
                          "the return count reset — a fault that keeps coming back must keep saying so")
+
+    def test_ONE_CHECK_REPHRASING_ITSELF_IS_NOT_A_RETURN(self):
+        """FOUND ON HIS LIVE LEDGER: two `disk headroom` fingerprints, each reporting returns=6.
+        Twelve returns, none of which happened.
+
+        `_check_disk_headroom` emits one shape under the 8GB floor and a different one above it, so
+        a disk oscillating across that line made shape A vanish and shape B appear, over and over,
+        with the check RED throughout. The return count is the one number this module exists to
+        produce and it was counting a rephrasing."""
+        ch = self._isolated()
+        below = {"check": "disk headroom", "state": "missing", "why": "7.9GB free — BELOW the 8GB floor"}
+        above = {"check": "disk headroom", "state": "missing",
+                 "why": "9.2GB free — your last 3 reel(s) averaged 2.1GB/hour, about 1.8 hour(s)"}
+        for i, row in enumerate([below, above] * 4):
+            out = ch.record([row], now_ms=1000 + i)
+        self.assertEqual(out[0]["returns"], 0,
+                         "a check that never stopped failing was reported as having COME BACK %d "
+                         "time(s)" % out[0]["returns"])
+
+    def test_a_check_the_reading_never_RAN_does_not_clear(self):
+        """The watchdog runs include_slow=False, so whole checks are absent from most readings.
+        Treating that as "fixed" is the same error one step further out. [[unknown-stays-unknown]]"""
+        ch = self._isolated()
+        ch.record([{"check": "visual lock", "state": "missing", "why": "drifted"}], now_ms=1000)
+        ch.record([{"check": "disk headroom", "state": "ok", "why": "fine"}], now_ms=2000)
+        held = [v for v in ch.history().values() if v["check"] == "visual lock"][0]
+        self.assertIsNone(held.get("clearedAt"),
+                          "a check that was not measured this round was recorded as cleared")
+
+    def test_two_DIFFERENT_failures_of_one_check_stay_two_scars(self):
+        """The mirror: keying on the check alone would let fixing one defect clear the other."""
+        ch = self._isolated()
+        a = {"check": "visual lock", "state": "missing", "why": "the wall lost its colour"}
+        b = {"check": "visual lock", "state": "missing", "why": "the sealed title stopped speaking"}
+        ch.record([a, b], now_ms=1000)
+        self.assertEqual(len([v for v in ch.history().values() if v["check"] == "visual lock"]), 2,
+                         "two distinct failures of one check collapsed into a single scar")
 
     def test_the_SIZE_of_a_fault_is_not_its_identity(self):
         """"2385 frames belong to no reel" and "12 frames belong to no reel" are one scar
@@ -17309,21 +17411,926 @@ class TestV2079TheScarLedgerAndTheHealer(unittest.TestCase):
         """LAW 3, read off the remedies themselves rather than asserted about them."""
         import inspect
         ch = self._ch()
-        for name, (_why, fn) in ch.REMEDIES.items():
+        # v2080 — AND FOLLOW THE CALLEES. The first cut inspected only each remedy's OWN frame,
+        # so `of.apply_plan(p, yes=True)` was certified without the guard ever reading apply_plan.
+        # A promise about what code does must cover the code it delegates to, or it is a promise
+        # about one stack frame. [[source-reading-guard]]
+        import orphan_fold as _of
+        subjects = [(n, fn) for n, (_w, fn) in ch.REMEDIES.items()]
+        subjects += [("orphan_fold.apply_plan", _of.apply_plan),
+                     ("orphan_fold.plan", _of.plan)]
+        for name, fn in subjects:
             src = inspect.getsource(fn)
             src = re.sub(r'"""..*?"""', " ", src, flags=re.S)     # the prose says "deleted" a lot
+            src = "\n".join(ln for ln in src.splitlines() if not ln.lstrip().startswith("#"))
             for banned in ("os.remove(", "shutil.rmtree(", "os.unlink(", "os.rmdir("):
                 self.assertNotIn(banned, src,
-                                 "the remedy for %r calls %s — no remedy may destroy his data"
+                                 "the remedy path %r calls %s — no remedy may destroy his data"
                                  % (name, banned))
 
     def test_the_watchdog_actually_calls_the_ledger(self):
-        """Built on both ends and never joined is the failure mode this whole file exists for."""
+        """Built on both ends and never joined is the failure mode this whole file exists for.
+
+        ⚠ v2080 — THE FIRST CUT OF THIS GUARD COULD NOT GO RED, and an adversarial review proved
+        it: `assertIn("_ch.tend(rows", src)` passes with the call commented out, because a `#` does
+        not remove the text. The guard written to catch "the eagle sees and never remembers" would
+        have stayed green through exactly that. Count LIVE lines, not substrings.
+        [[source-reading-guard]] 4b"""
         import inspect
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import control_app
         src = inspect.getsource(control_app._eagle_once)
-        self.assertIn("_ch.tend(rows", src, "the eagle sees and never remembers")
+        live = [ln for ln in src.splitlines()
+                if "_ch.tend(rows" in ln and not ln.lstrip().startswith("#")]
+        self.assertEqual(len(live), 1,
+                         "the eagle sees and never remembers: %d LIVE call(s) to the scar ledger"
+                         % len(live))
+        # and it must be REACHED, not merely present in a branch that never runs
+        self.assertTrue(any("import console_healer as _ch" in ln for ln in src.splitlines()
+                            if not ln.lstrip().startswith("#")),
+                        "the ledger module is never imported on a live line")
+
+
+class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
+    """Konyo: "why is this not being optimized and pruned automatically like we said based on data
+    and reels getting extracted".
+
+    Because it never was. v2006 gave reel_retention a caller for the first time and wrote, in as
+    many words: "IT REPORTS, IT NEVER DELETES ... `--apply --yes` stays a thing he types." So the
+    EXTRACT half ran on its own and the PRUNE half always needed him. Measured the day he asked: 30
+    reels, 0 MB reclaimable, 1.6 GB free on a 228 GB disk, and his own gates failing with DISK TOO
+    FULL TO RECORD — while 11 reels (609 MB) sat locked behind a sweep that had never run.
+
+    The ORDER is the safety. Every case here is a REFUSAL except two."""
+
+    def _tree(self, n=8, mb_each=1.2):
+        import json as _j
+        root = tempfile.mkdtemp(prefix="prunecycle_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        chron = {}
+        for i in range(n):
+            sid = "s_150000000%04d" % i
+            d = os.path.join(hist, "reel_" + sid)
+            os.makedirs(d)
+            io.open(os.path.join(d, "f_%s_0.jpg" % sid), "w").write("x" * int(mb_each * 1e6))
+            chron["reel_" + sid] = {"pages": 9}
+        io.open(os.path.join(root, "chronicle_swept.json"), "w").write(_j.dumps(chron))
+        io.open(os.path.join(root, "vault_swept.json"), "w").write(
+            _j.dumps(dict((k, {"rows": 0}) for k in chron)))
+        io.open(os.path.join(root, "vault_accum.json"), "w").write(_j.dumps({"owned": []}))
+        io.open(os.path.join(root, "vault_seen.json"), "w").write(_j.dumps({"rows": []}))
+        return root, hist
+
+    def _bind(self, root, hist, floor):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        import reel_retention as rr
+        for mod, attr, val in ((rr, "HERE", root), (ca, "HERE", root),
+                               (ca, "ON_AIR_FLOOR_GB", floor), (ca, "PRUNE_HEADROOM_GB", 0.0)):
+            self.addCleanup(setattr, mod, attr, getattr(mod, attr))
+            setattr(mod, attr, val)
+        old = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = hist
+        self.addCleanup(lambda: os.environ.__setitem__("TV_HIST", old) if old
+                        else os.environ.pop("TV_HIST", None))
+        return ca
+
+    def _reels(self, hist):
+        return len([d for d in os.listdir(hist) if d.startswith("reel_")])
+
+    def test_ABOVE_the_floor_it_deletes_NOTHING_however_much_is_eligible(self):
+        """The floor is the entire justification for acting without him. Above it, doing nothing
+        has no cost, so nothing is done."""
+        root, hist = self._tree()
+        ca = self._bind(root, hist, floor=0.0)
+        before = self._reels(hist)
+        ca._retention_once()
+        self.assertEqual(self._reels(hist), before,
+                         "footage was deleted while the disk was above the ON AIR floor")
+
+    def test_BELOW_the_floor_with_everything_clear_it_acts_or_this_is_all_theatre(self):
+        """The reachability half. A cycle that can never act cannot be shown to refuse correctly.
+        [[feedback-blind-fixture-green-gate]]"""
+        root, hist = self._tree()
+        ca = self._bind(root, hist, floor=9999.0)
+        before = self._reels(hist)
+        ca._retention_once()
+        self.assertLess(self._reels(hist), before,
+                        "nothing was deleted below the floor with clear ledgers and nothing in "
+                        "flight — every refusal case below would then pass vacuously")
+        self.assertTrue(retention_freed(ca), "it deleted reels and reported freeing nothing")
+
+    def test_an_unreadable_ledger_stops_it_even_below_the_floor(self):
+        root, hist = self._tree()
+        ca = self._bind(root, hist, floor=9999.0)
+        io.open(os.path.join(root, "vault_swept.json"), "w").write("{ not json")
+        before = self._reels(hist)
+        ca._retention_once()
+        self.assertEqual(self._reels(hist), before,
+                         "footage was deleted on the strength of a ledger nothing could open")
+        self.assertIn("will not parse", ca.retention_state()["say"])
+
+    def test_it_refuses_while_anything_is_reading_or_writing_footage(self):
+        root, hist = self._tree()
+        ca = self._bind(root, hist, floor=9999.0)
+        for flag, job in (("running", ca._CHRON_JOB), ("running", ca._VAULT_JOB)):
+            before = self._reels(hist)
+            job[flag] = True
+            try:
+                ca._retention_once()
+                self.assertEqual(self._reels(hist), before,
+                                 "it deleted footage while a sweep was reading")
+            finally:
+                job[flag] = False
+
+    def test_it_can_be_switched_off_and_then_only_reports(self):
+        root, hist = self._tree()
+        ca = self._bind(root, hist, floor=9999.0)
+        os.environ["TV_AUTO_PRUNE"] = "0"
+        self.addCleanup(os.environ.pop, "TV_AUTO_PRUNE", None)
+        before = self._reels(hist)
+        ca._retention_once()
+        self.assertEqual(self._reels(hist), before)
+        self.assertIn("switched off", ca.retention_state()["say"])
+
+    def test_it_names_what_is_LOCKED_BEHIND_A_SWEEP_which_is_usually_the_real_story(self):
+        """On his tree the answer to "why is nothing prunable" was never "the pruner is broken" —
+        it was 11 reels nobody had read. If the cycle cannot say that, he is left guessing."""
+        import json as _j
+        root, hist = self._tree()
+        ca = self._bind(root, hist, floor=0.0)
+        chron = _j.loads(io.open(os.path.join(root, "chronicle_swept.json"), encoding="utf-8").read())
+        gone = sorted(chron)[0]
+        del chron[gone]                                  # one reel nobody has ever read
+        io.open(os.path.join(root, "chronicle_swept.json"), "w").write(_j.dumps(chron))
+        ca._retention_once()
+        st = ca.retention_state()
+        self.assertGreaterEqual(st.get("lockedBehindASweep") or 0, 1,
+                                "an unread reel was not reported as waiting on a sweep")
+        self.assertIn("sweep", st["say"])
+
+    def test_the_floor_travels_on_the_payload_so_two_sides_cannot_disagree(self):
+        """v2006's own scar: the first cut compared an UNROUNDED float in python against a ROUNDED
+        one on the board, so at exactly 12.0GB python warned and the board did not."""
+        root, hist = self._tree()
+        ca = self._bind(root, hist, floor=0.0)
+        ca._retention_once()
+        self.assertEqual(ca.retention_state().get("floorGb"), ca.ON_AIR_FLOOR_GB)
+
+    def test_the_decision_is_separable_from_the_acting(self):
+        """A decision buried in a `while True` is a decision nobody can put a case to."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        ok, why = ca.retention_may_act()
+        self.assertIsInstance(ok, bool)
+        self.assertTrue(why)
+
+    def test_it_is_in_the_roster_so_it_starts_in_BOTH_modes(self):
+        self.assertTrue(_watcher_is_armed("tvd-retention", "_retention_loop"),
+                        "the retention cycle is not armed — the prune half is manual again")
+
+    def test_it_is_published_or_the_deleter_reports_nowhere(self):
+        """It acts unattended. The one thing he must be able to see is what it did, or why not."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        self.assertIn("retention", ca.status_payload() or {})
+        with io.open(os.path.join(os.path.dirname(HERE), "tv", "control_ui.html"),
+                     encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertIn("st.retention", ui, "nothing on the console reads it")
+
+
+def retention_freed(ca):
+    st = ca.retention_state()
+    return bool(st.get("freedMb")) and bool(st.get("removed"))
+
+
+class TestV2079TheLockedLanesRefuseAndTheTestIsNotVACUOUS(unittest.TestCase):
+    """His ruling, plainly: equipment and inventory are NEVER to be told to move. v2075 wrote the
+    refusal into vault_retro and nothing tested it.
+
+    ⚠ AND THE OBVIOUS TEST PROVES NOTHING. The throw bar needs THROWOUT_MIN_WITNESSES (4)
+    independent recordings. Build a fixture with three and the item is refused by the GATE, so the
+    assertion "it was held" passes with the locked-lane branch DELETED. A guard that cannot tell
+    which of two refusals fired is measuring neither. So every case here first proves the item
+    WOULD have been thrown, and only then locks the lane.
+    [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]"""
+
+    def _vr(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import vault_retro
+        return vault_retro
+
+    def _flag(self, vr, name, lane, n=None):
+        """n independent recordings, each at full confidence — the evidence a throw needs."""
+        n = vr.THROWOUT_MIN_WITNESSES if n is None else n
+        return [{"session": "s%d" % i, "frame": "s%d#0" % i, "lane": lane, "conf": 0.99,
+                 "why": "junk", "witness": "s%d" % i, "ts": 1500000000000 + i}
+                for i in range(n)]
+
+    def test_the_fixture_really_would_be_thrown_or_nothing_below_means_anything(self):
+        vr = self._vr()
+        v = vr.gate(self._flag(vr, "Cracked Sash", "stash"), vr.THROWOUT_CONF_FLOOR,
+                    vr.THROWOUT_MIN_WITNESSES, witness_field="session", witness_noun="recording")
+        self.assertTrue(v["pass"],
+                        "the fixture does not clear the throw bar (%s), so every 'it was held' "
+                        "below would pass with the lane lock removed" % v["why"])
+
+    def test_one_recording_short_would_be_refused_by_the_GATE_not_the_lane(self):
+        """The other half of the same point: this is the refusal the lane lock must not be
+        confused with."""
+        vr = self._vr()
+        v = vr.gate(self._flag(vr, "x", "stash", vr.THROWOUT_MIN_WITNESSES - 1),
+                    vr.THROWOUT_CONF_FLOOR, vr.THROWOUT_MIN_WITNESSES,
+                    witness_field="session", witness_noun="recording")
+        self.assertFalse(v["pass"])
+        self.assertIn("independent recording", v["why"])
+
+    def test_equipment_and_inventory_are_both_locked(self):
+        vr = self._vr()
+        self.assertEqual(set(vr.LOCKED_LANES), {"equipment", "inventory"},
+                         "a lane he ruled on left the lock, or one was added without his say")
+
+    def test_the_refusal_names_the_LANE_as_the_reason(self):
+        """The `why` is what the Vault manager shows him. If it says "not enough recordings" about
+        an item on his character, the next ruling will be about a bar that was never the reason."""
+        vr = self._vr()
+        for lane in vr.LOCKED_LANES:
+            v = vr.gate(self._flag(vr, "Cracked Sash", lane), vr.THROWOUT_CONF_FLOOR,
+                        vr.THROWOUT_MIN_WITNESSES, witness_field="session",
+                        witness_noun="recording")
+            self.assertTrue(v["pass"], "the %s fixture must clear the bar first" % lane)
+        import inspect
+        src = inspect.getsource(vr.plan) if hasattr(vr, "plan") else ""
+        if "LOCKED_LANES" not in src:
+            src = "".join(inspect.getsource(getattr(vr, n)) for n in dir(vr)
+                          if callable(getattr(vr, n, None))
+                          and getattr(getattr(vr, n), "__module__", "") == vr.__name__
+                          and "LOCKED_LANES" in (inspect.getsource(getattr(vr, n))
+                                                 if hasattr(getattr(vr, n), "__code__") else ""))
+        self.assertIn("LOCKED lane", src,
+                      "nothing in vault_retro refuses a throw on lane grounds")
+        self.assertIn("if key[1] in LOCKED_LANES:", src,
+                      "the lane check is gone, or moved somewhere the gate runs first")
+
+    def test_the_lane_check_runs_BEFORE_the_evidence_is_weighed(self):
+        """Order is the point. If the gate ran first, an item on his character with four recordings
+        would be thrown and the lock would only ever catch the ones that were failing anyway."""
+        import inspect
+        vr = self._vr()
+        src = "".join(inspect.getsource(getattr(vr, n)) for n in dir(vr)
+                      if hasattr(getattr(vr, n, None), "__code__")
+                      and "LOCKED_LANES" in (inspect.getsource(getattr(vr, n)) or ""))
+        lane_at = src.index("if key[1] in LOCKED_LANES:")
+        gate_at = src.index("THROWOUT_MIN_WITNESSES,\n", lane_at - 4000) if \
+            "THROWOUT_MIN_WITNESSES,\n" in src else src.index("THROWOUT_CONF_FLOOR")
+        self.assertLess(lane_at, gate_at,
+                        "the evidence is weighed before the lane is checked — an item on his "
+                        "character can be thrown by having enough witnesses")
+
+
+class TestV2079TheArtTestsFinallyREADTheBoard(unittest.TestCase):
+    """#19. The art guards counted *.png in a directory and checked four gem files existed. Neither
+    half ever opened bible.html, so the JOIN — does every picture the board asks for actually
+    resolve — was checked by nothing.
+
+    Both halves can be perfectly healthy while the page shows placeholders: the corpus floor is met
+    because 1265 files are present, and the four gems are present, and a path the page asks for is
+    still absent. [[the-unjoined-end]]"""
+
+    REF = re.compile(r"['\"](art/[A-Za-z0-9_./-]+\.(?:png|jpg|jpeg|webp|svg))['\"]")
+
+    def setUp(self):
+        self.repo = os.path.dirname(HERE)
+        self.bible = os.path.join(self.repo, "bible.html")
+        if not os.path.isfile(self.bible):
+            self.skipTest("bible.html is not on this machine")
+
+    def _referenced(self):
+        with io.open(self.bible, encoding="utf-8") as fh:
+            return sorted(set(self.REF.findall(fh.read())))
+
+    def test_the_board_asks_for_a_lot_of_art_or_this_guard_is_blind(self):
+        """A regex that stops matching would report zero missing files forever — the quiet
+        direction. [[feedback-suspect-the-instrument]]"""
+        self.assertGreater(len(self._referenced()), 800,
+                           "only %d art path(s) found in bible.html — the matcher broke, and a "
+                           "broken matcher can only ever report success"
+                           % len(self._referenced()))
+
+    def test_every_picture_the_board_asks_for_EXISTS(self):
+        missing = [r for r in self._referenced()
+                   if not os.path.exists(os.path.join(self.repo, r))]
+        self.assertEqual(missing, [],
+                         "bible.html asks for %d file(s) that are not on disk — the board draws a "
+                         "placeholder and every art guard stays green: %s"
+                         % (len(missing), ", ".join(missing[:6])))
+
+
+class TestV2080TheFoldNeverEatsALiveRecording(unittest.TestCase):
+    """THE MOST DANGEROUS THING WRITTEN THIS NIGHT, and it was mine.
+
+    A recording in progress IS a pile of loose frames — that is not a race, it is the steady state.
+    While he films, every new frame lands directly in hist/ as `f_<ms>.jpg` and only becomes a reel
+    at SEAL. That is exactly the population orphan_fold targets. v2080 put the fold behind an
+    automatic healer on a ten-minute timer, so armed, it would have moved the frames of the session
+    he was filming into a reel and sealed it as finished — unattended, with no undo.
+
+    The cluster boundary cannot tell a finished recording from one still being written: both end at
+    "the newest frame I can see". So the rule is TIME."""
+
+    def _of(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import orphan_fold
+        return orphan_fold
+
+    def _tree(self, old=10, live=0):
+        of = self._of()
+        root = tempfile.mkdtemp(prefix="livefold_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        for i in range(old):                      # 2017 stamps — nothing of his is ever near them
+            io.open(os.path.join(hist, "f_%d.jpg" % (1500000000000 + i * 1500)), "w").write("x" * 400)
+        now = int(time.time() * 1000)
+        for i in range(live):
+            io.open(os.path.join(hist, "f_%d.jpg" % (now - i * 1500)), "w").write("x" * 400)
+        return of, hist
+
+    def _by_age(self, clusters):
+        old = [c for c in clusters if c["t0"] < 1600000000000]
+        live = [c for c in clusters if c["t0"] >= 1600000000000]
+        return old, live
+
+    def test_a_FINISHED_recording_is_still_foldable_or_the_guard_broke_the_feature(self):
+        """The reachability half. A fold that refuses everything protects nothing and fixes
+        nothing. [[feedback-blind-fixture-green-gate]]"""
+        of, hist = self._tree(old=10)
+        old, _ = self._by_age(of.plan(hist_dir=hist)["clusters"])
+        self.assertTrue(old and old[0]["eligible"],
+                        "a recording from 2017 is not foldable — the time guard is refusing "
+                        "everything, so the case below would pass for the wrong reason")
+
+    def test_a_recording_STILL_IN_PROGRESS_is_refused(self):
+        of, hist = self._tree(old=10, live=10)
+        old, live = self._by_age(of.plan(hist_dir=hist)["clusters"])
+        self.assertTrue(live, "the live frames did not form their own cluster — fixture is wrong")
+        self.assertFalse(live[0]["eligible"],
+                         "the fold would seal a session he is still filming")
+        self.assertIn("STILL IN PROGRESS", live[0]["why"])
+        self.assertTrue(old[0]["eligible"], "and the finished one must still go")
+
+    def test_apply_LEAVES_the_live_frames_exactly_where_they_are(self):
+        """The plan refusing is not the same as apply honouring it."""
+        of, hist = self._tree(old=10, live=10)
+        p = of.plan(hist_dir=hist)
+        of.apply_plan(p, yes=True)
+        loose = [f for f in os.listdir(hist)
+                 if f.endswith(".jpg") and int(f[2:-4]) >= 1600000000000]
+        self.assertEqual(len(loose), 10,
+                         "apply_plan moved %d live frame(s) out from under the recorder"
+                         % (10 - len(loose)))
+        reels = [d for d in os.listdir(hist) if d.startswith("reel_")]
+        self.assertEqual(len(reels), 1, "the finished recording was not folded")
+
+    def test_the_boundary_is_the_same_gap_that_defines_a_cluster(self):
+        """Not a second, independently-tuned constant. A window whose last frame is newer than the
+        gap has not been SHOWN to be over, which is exactly what the gap already means.
+        [[feedback-threshold-above-the-ceiling]]"""
+        import inspect
+        of = self._of()
+        src = inspect.getsource(of.plan)
+        self.assertIn("(now_ms - hi) < gap_ms", src,
+                      "the live-recording guard uses something other than the cluster gap")
+
+    def test_the_healer_refuses_to_fold_while_anything_is_in_flight(self):
+        """Two guards, because this one runs unattended and there is no undo. Anchored on the CALL,
+        which cannot appear in a sentence about it. [[source-reading-guard]] 4b"""
+        import inspect
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_healer as ch
+        src = inspect.getsource(ch._remedy_fold_orphan_footage)
+        self.assertIn("_ca.retention_may_act()", src,
+                      "the automatic fold never asks whether he is filming")
+        self.assertIn("if not ok:", src, "it asks and ignores the answer")
+
+
+class TestV2080TheFixtureHoldIsCheckedWHEREVERTheSuiteRUNS(unittest.TestCase):
+    """A SKIP IS NOT A PASS, and the guards this fixes are the ones that stop his footage being
+    deleted.
+
+    Three cases about the deleter call `rr.plan()` with no argument and skipTest when his footage is
+    absent — so on CI, on the Windows machine, and in any clean checkout, they never run at all. One
+    of them says the disease in its own docstring: "The suite did not go red — those cases skipTest
+    when the footage is absent — so a real check silently became a permanent skip." It diagnosed
+    that and then had it.
+
+    These are the twins. Same questions, asked of a FIXTURE tree, so they run everywhere and go red
+    for the subject's reasons on any machine. The his-tree versions stay: they are an extra
+    observation about his actual footage, which is a different and also useful thing.
+    [[regression-guard]] [[feedback-blind-fixture-green-gate]]"""
+
+    def _tree(self, n=8):
+        import json as _j
+        root = tempfile.mkdtemp(prefix="fixhold_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        chron = {}
+        names = []
+        for i in range(n):
+            sid = "s_150000000%04d" % i
+            d = os.path.join(hist, "reel_" + sid)
+            os.makedirs(d)
+            io.open(os.path.join(d, "f_%s_0.jpg" % sid), "w").write("x" * 200000)
+            chron["reel_" + sid] = {"pages": 9}
+            names.append("reel_" + sid)
+        io.open(os.path.join(root, "chronicle_swept.json"), "w").write(_j.dumps(chron))
+        io.open(os.path.join(root, "vault_swept.json"), "w").write(
+            _j.dumps(dict((k, {"rows": 0}) for k in chron)))
+        io.open(os.path.join(root, "vault_accum.json"), "w").write(_j.dumps({"owned": []}))
+        io.open(os.path.join(root, "vault_seen.json"), "w").write(_j.dumps({"rows": []}))
+        return root, hist, names
+
+    def _plan(self, root, hist, fixtures=()):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import frame_authority as fa
+        import reel_retention as rr
+        self.addCleanup(setattr, rr, "HERE", rr.HERE)
+        rr.HERE = root
+        old = fa.test_referenced_reels
+        self.addCleanup(setattr, fa, "test_referenced_reels", old)
+        fa.test_referenced_reels = lambda *a, **k: set(fixtures)
+        return rr.plan(hist_dir=hist)
+
+    def test_the_fixture_is_deletable_WITHOUT_the_hold_or_nothing_below_is_proven(self):
+        """The sabotage that showed the original guard proved nothing: after a prune his tree had no
+        eligible fixture left, so removing the hold changed nothing and every test stayed green."""
+        root, hist, names = self._tree()
+        p = self._plan(root, hist, fixtures=())
+        self.assertIn(names[0], {c["reel"] for c in p["candidates"]},
+                      "the oldest reel is not eligible even with no fixture hold — the tree cannot "
+                      "demonstrate that the hold does anything")
+
+    def test_a_reel_the_SUITE_opens_is_never_offered_for_deletion(self):
+        root, hist, names = self._tree()
+        p = self._plan(root, hist, fixtures={names[0]})
+        self.assertNotIn(names[0], {c["reel"] for c in p["candidates"]},
+                         "a reel the test suite opens by name was offered for deletion — deleting "
+                         "it does not turn a test red, it turns one into a permanent skip")
+
+    def test_the_fixture_hold_is_checked_FIRST_so_the_REASON_is_right(self):
+        """If `recent` or `eligible` were checked first, a fixture would be held under the wrong
+        reason and the coverage line would say the fixture rule never fired.
+
+        ⚠ THE REEL MUST BE BOTH. Marking the OLDEST reel as a fixture cannot test order at all:
+        `recent` would not have claimed it either way, so moving the fixture check below `recent`
+        changes nothing and the sabotage passes. Proven — that is exactly what happened to the first
+        cut of this case. The subject has to be a reel that TWO rules both want.
+        [[source-reading-guard]] 4c"""
+        root, hist, names = self._tree()
+        newest = names[-1]                       # also one of the 5 most recent
+        p = self._plan(root, hist, fixtures={newest})
+        held = dict((k["reel"], k["why"] or "") for k in p["kept"])
+        self.assertIn(newest, held)
+        self.assertIn("TEST SUITE", held[newest],
+                      "a reel that is BOTH a fixture and recent was held under the wrong reason "
+                      "(%s) — the fixture rule now reads as never fired" % held[newest][:60])
+        self.assertEqual(p["coverage"]["test-fixture"], 1)
+        by_reason = [r for r, w in held.items() if "TEST SUITE" in w]
+        self.assertEqual(by_reason, [newest],
+                         "the counter and the reasons disagree about which reels were held as "
+                         "fixtures: %r" % by_reason)
+
+    def test_every_declared_rule_still_has_a_counter(self):
+        """A branch that forgets to call _rule() is invisible to the coverage report."""
+        root, hist, names = self._tree()
+        p = self._plan(root, hist, fixtures={names[0]})
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention as rr
+        import inspect
+        declared = set(re.findall(r'_rule\(\s*"([a-z-]+)"', inspect.getsource(rr.plan)))
+        self.assertTrue(declared)
+        self.assertEqual(declared - set(p["coverage"]), set(),
+                         "a rule fires and is never counted, so the coverage report cannot say "
+                         "whether it ran")
+
+
+class TestV2080TheLedgerBackupNeverLosesRows(unittest.TestCase):
+    """The healer's other remedy REWRITES his ledger. Every case here is about not losing a row.
+
+    The backup exists because a repair needs something to repair FROM and nothing in this tree ever
+    wrote one. That makes the bank/restore pair the most data-destructive code in the healer, and
+    the failure modes are quiet: overwrite a good backup with a shrunken one and the loss is only
+    discovered the day it is needed."""
+
+    def _ch(self, root):
+        """v2080 — point TV_SCAR_ROOT, not HERE. The healer resolves every store path through
+        _root() so a test can never reach his real files; patching HERE no longer redirects
+        anything, which is the whole point of moving the guard to the PATH."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_healer
+        old = os.environ.get("TV_SCAR_ROOT")
+        os.environ["TV_SCAR_ROOT"] = root
+        self.addCleanup(lambda: os.environ.__setitem__("TV_SCAR_ROOT", old) if old
+                        else os.environ.pop("TV_SCAR_ROOT", None))
+        self.addCleanup(setattr, console_healer, "LEDGER", console_healer.LEDGER)
+        console_healer.LEDGER = os.path.join(root, ".console_scars.json")
+        console_healer._DISARMED.clear()
+        return console_healer
+
+    def _root(self):
+        d = tempfile.mkdtemp(prefix="bak_")
+        self.addCleanup(shutil.rmtree, d, True)
+        return d
+
+    def _w(self, root, name, blob):
+        import json as _j
+        io.open(os.path.join(root, name), "w").write(
+            blob if isinstance(blob, str) else _j.dumps(blob))
+
+    def _rows(self, ch, root, name):
+        import json as _j
+        try:
+            with io.open(os.path.join(root, name), encoding="utf-8") as fh:
+                return len(ch._rows_of(_j.load(fh)))
+        except Exception:
+            return None
+
+    def _owned(self, n):
+        return {"owned": [{"name": "item-%d" % i} for i in range(n)]}
+
+    def test_a_SHRUNKEN_ledger_never_overwrites_a_larger_backup(self):
+        """The moment a backup is most valuable is exactly the moment it is most dangerous to
+        replace: the live store has just lost rows."""
+        root = self._root()
+        ch = self._ch(root)
+        self._w(root, "vault_accum.json", self._owned(3))
+        ch.back_up_healthy_stores()
+        self._w(root, "vault_accum.json", self._owned(1))
+        ch.back_up_healthy_stores()
+        self.assertEqual(self._rows(ch, root, "vault_accum.json.healer_bak"), 3,
+                         "a shrunken ledger overwrote the backup — the rows are gone from both")
+
+    def test_a_GROWN_ledger_does_move_the_backup_up(self):
+        """The reachability half: a bank that never updates is a backup frozen at row one."""
+        root = self._root()
+        ch = self._ch(root)
+        self._w(root, "vault_accum.json", self._owned(3))
+        ch.back_up_healthy_stores()
+        self._w(root, "vault_accum.json", self._owned(5))
+        ch.back_up_healthy_stores()
+        self.assertEqual(self._rows(ch, root, "vault_accum.json.healer_bak"), 5)
+
+    def test_a_CORRUPT_store_is_never_banked_over_a_good_backup(self):
+        root = self._root()
+        ch = self._ch(root)
+        self._w(root, "vault_swept.json", {"rows": [1, 2, 3]})
+        ch.back_up_healthy_stores()
+        self._w(root, "vault_swept.json", "}{ garbage")
+        ch.back_up_healthy_stores()
+        self.assertEqual(self._rows(ch, root, "vault_swept.json.healer_bak"), 3,
+                         "garbage was banked as a backup")
+
+    def test_a_restore_KEEPS_the_corrupt_bytes(self):
+        """Nothing of his is thrown away to make a check go green."""
+        root = self._root()
+        ch = self._ch(root)
+        self._w(root, "vault_accum.json", self._owned(4))
+        ch.back_up_healthy_stores()
+        self._w(root, "vault_accum.json", "}{ garbage")
+        did, said = ch._remedy_restore_a_vault_store()
+        self.assertTrue(did, said)
+        self.assertEqual(self._rows(ch, root, "vault_accum.json"), 4)
+        self.assertTrue(os.path.exists(os.path.join(root, "vault_accum.json.corrupt")),
+                        "the corrupt copy was destroyed rather than kept")
+
+    def test_a_restore_SAYS_how_old_the_bytes_are(self):
+        """A backup is only refreshed when the live store parses and has not shrunk, so it can be
+        days behind. Reporting a row count alone reads as "recovered" when it may be "recovered to
+        last Tuesday". [[stale-reading]]"""
+        root = self._root()
+        ch = self._ch(root)
+        self._w(root, "vault_accum.json", self._owned(4))
+        ch.back_up_healthy_stores()
+        self._w(root, "vault_accum.json", "}{ garbage")
+        _did, said = ch._remedy_restore_a_vault_store()
+        self.assertRegex(said, r"(minute|hour)\(s\) old|age UNKNOWN",
+                         "the restore does not say how old the backup was: %r" % said)
+
+    def test_with_NO_healthy_backup_it_refuses_and_changes_nothing(self):
+        root = self._root()
+        ch = self._ch(root)
+        self._w(root, "vault_seen.json", {"rows": [{"name": "a"}]})
+        ch.back_up_healthy_stores()
+        self._w(root, "vault_seen.json", "}{ garbage")
+        self._w(root, "vault_seen.json.healer_bak", "}{ also garbage")
+        before = io.open(os.path.join(root, "vault_seen.json"), encoding="utf-8").read()
+        did, _said = ch._remedy_restore_a_vault_store()
+        self.assertFalse(did)
+        self.assertEqual(io.open(os.path.join(root, "vault_seen.json"), encoding="utf-8").read(),
+                         before, "it touched the live store with nothing to restore from")
+
+
+class TestV2080TheReviewFindings(unittest.TestCase):
+    """Eight defects an independent review reproduced in the v2079 bytes. Six were mine, all were
+    real, and three of them shipped. Each case here is the reviewer's own input."""
+
+    def _mods(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_healer, frame_authority, reel_retention
+        return frame_authority, reel_retention, console_healer
+
+    # ── 1 ────────────────────────────────────────────────────────────────────────────────────
+    def _fa_tree(self, durable=True):
+        import json as _j
+        root = tempfile.mkdtemp(prefix="fa_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        for i in range(7):
+            sid = "s_17000000000%02d_1" % i
+            d = os.path.join(hist, "reel_" + sid)
+            os.makedirs(d)
+            io.open(os.path.join(d, "f_%s_0.jpg" % sid), "w").write("x" * 4000)
+        io.open(os.path.join(root, "vault_swept.json"), "w").write(
+            _j.dumps({"s_1700000000000_1": {"rows": 7}}))
+        if durable:
+            io.open(os.path.join(root, "vault_accum.json"), "w").write(_j.dumps({"owned": []}))
+            io.open(os.path.join(root, "vault_seen.json"), "w").write(_j.dumps({"rows": []}))
+        return root, hist
+
+    def test_1_with_NO_durable_store_the_frame_deleter_holds_everything(self):
+        """v2079 released a frame v2077 held. Splitting absent from unreadable made `ok` True on a
+        tree with no durable store — a complete picture of nothing — so every frame read as
+        "witnessed nothing", which for this module means DELETABLE. Measured on the reviewer's
+        input: v2077 kept 7, v2079 pruned 1, and reel_retention HELD the same reel throughout.
+        Two deletion authorities, opposite answers, same footage."""
+        fa, _rr, _ch = self._mods()
+        root, hist = self._fa_tree(durable=False)
+        p = fa.plan_frames(hist, root=root)
+        self.assertEqual(len(p["prunable"]), 0,
+                         "frames were offered for deletion with no durable store in existence — "
+                         "nothing there can prove a frame IS a witness, and unprovable is not no")
+        self.assertFalse(p["haveIndex"])
+
+    def test_1b_with_a_durable_store_present_it_can_still_prune_or_the_guard_is_a_wall(self):
+        fa, _rr, _ch = self._mods()
+        root, hist = self._fa_tree(durable=True)
+        p = fa.plan_frames(hist, root=root)
+        self.assertTrue(p["haveIndex"])
+        self.assertGreater(len(p["prunable"]), 0,
+                           "nothing is prunable even with a healthy empty index — the hold has "
+                           "become unconditional and the case above proves nothing")
+
+    def test_1c_the_two_deleters_agree_about_that_reel(self):
+        fa, rr, _ch = self._mods()
+        root, hist = self._fa_tree(durable=False)
+        self.addCleanup(setattr, rr, "HERE", rr.HERE)
+        rr.HERE = root
+        offered = {c["reel"] for c in rr.plan(hist_dir=hist)["candidates"]}
+        frames = {os.path.basename(os.path.dirname(f)) for f in
+                  (fa.plan_frames(hist, root=root)["prunable"] or [])}
+        self.assertEqual(offered & frames, set(),
+                         "the reel deleter and the frame deleter disagree about the same footage")
+
+    # ── 4 ────────────────────────────────────────────────────────────────────────────────────
+    def _rr_tree(self):
+        import json as _j
+        root = tempfile.mkdtemp(prefix="say_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "hist")
+        os.makedirs(hist)
+        chron = {}
+        for i in range(6):
+            sid = "s_150000000%04d" % i
+            d = os.path.join(hist, "reel_" + sid)
+            os.makedirs(d)
+            io.open(os.path.join(d, "f_%s_0.jpg" % sid), "w").write("x" * 3000)
+            chron["reel_" + sid] = {"pages": 9}
+        io.open(os.path.join(root, "chronicle_swept.json"), "w").write(_j.dumps(chron))
+        io.open(os.path.join(root, "vault_accum.json"), "w").write(_j.dumps({"owned": []}))
+        io.open(os.path.join(root, "vault_seen.json"), "w").write(_j.dumps({"rows": []}))
+        return root, hist
+
+    def test_4_a_CORRUPT_ledger_is_never_described_as_an_absent_one(self):
+        """`say` branched on bool(vault), falsy for both. The sweep consumer copies ONLY `say` onto
+        his console, so the true `unreadable` field never reached a screen and the most alarming
+        state was described as the most innocent one."""
+        _fa, rr, _ch = self._mods()
+        root, hist = self._rr_tree()
+        self.addCleanup(setattr, rr, "HERE", rr.HERE)
+        rr.HERE = root
+        io.open(os.path.join(root, "vault_swept.json"), "w").write("{ half a flush")
+        p = rr.plan(hist_dir=hist)
+        self.assertEqual(p["unreadable"], ["vault_swept.json"])
+        self.assertNotIn("does not exist", p["say"],
+                         "a ledger that will not parse was reported as one that was never written")
+        self.assertIn("NOT PARSE", p["say"])
+
+    def test_4b_an_ABSENT_ledger_is_still_described_as_absent(self):
+        _fa, rr, _ch = self._mods()
+        root, hist = self._rr_tree()
+        self.addCleanup(setattr, rr, "HERE", rr.HERE)
+        rr.HERE = root
+        p = rr.plan(hist_dir=hist)
+        self.assertEqual(p["unreadable"], [])
+        self.assertIn("does not exist", p["say"])
+
+    # ── 5 ────────────────────────────────────────────────────────────────────────────────────
+    def _iso(self):
+        _fa, _rr, ch = self._mods()
+        d = tempfile.mkdtemp(prefix="wipe_")
+        self.addCleanup(shutil.rmtree, d, True)
+        prev = os.environ.get("TV_SCAR_ROOT")
+        os.environ["TV_SCAR_ROOT"] = d
+        self.addCleanup(lambda: os.environ.__setitem__("TV_SCAR_ROOT", prev) if prev
+                        else os.environ.pop("TV_SCAR_ROOT", None))
+        self.addCleanup(setattr, ch, "LEDGER", ch.LEDGER)
+        ch.LEDGER = os.path.join(d, ".console_scars.json")
+        ch._DISARMED.clear()
+        return ch
+
+    def test_5_a_corrupt_scar_ledger_is_KEPT_not_overwritten(self):
+        """The same absent-vs-unparsable collapse this commit fixed in two other modules, made in
+        its own store. One stray byte erased every firstSeen, every returns count — and every
+        heal.disarmed flag, which made ledger corruption the only thing that can RE-ARM a remedy
+        LAW 2 disarmed for lying."""
+        ch = self._iso()
+        red = [{"check": "visual lock", "state": "missing", "why": "drifted"}]
+        ch.record(red, now_ms=1000)
+        with io.open(ch.LEDGER, "a", encoding="utf-8") as fh:
+            fh.write("!")
+        ch.record(red, now_ms=2000)
+        kept = [f for f in os.listdir(os.path.dirname(ch.LEDGER)) if ".corrupt" in f]
+        self.assertTrue(kept, "the unreadable ledger was overwritten instead of being kept")
+
+    def test_5b_a_second_corruption_does_not_overwrite_the_first(self):
+        ch = self._iso()
+        red = [{"check": "visual lock", "state": "missing", "why": "drifted"}]
+        for i in range(3):
+            ch.record(red, now_ms=1000 + i)
+            with io.open(ch.LEDGER, "a", encoding="utf-8") as fh:
+                fh.write("!")
+        ch.record(red, now_ms=9000)
+        kept = [f for f in os.listdir(os.path.dirname(ch.LEDGER)) if ".corrupt" in f]
+        self.assertGreaterEqual(len(kept), 2,
+                                "each corruption overwrote the last — only %d copy kept" % len(kept))
+
+    # ── 6 ────────────────────────────────────────────────────────────────────────────────────
+    def test_6_a_DESIGNED_refusal_is_not_a_failure_and_never_disarms(self):
+        """orphan_fold answering "every cluster overlaps an existing reel" is the CORRECT answer.
+        Treating it as a failed heal disarmed the remedy — and the disarm is written to the ledger,
+        which nothing anywhere sets back to False. A remedy could be retired forever by working."""
+        ch = self._iso()
+        os.environ["TV_AUTO_HEAL"] = "1"
+        self.addCleanup(os.environ.pop, "TV_AUTO_HEAL", None)
+        old = ch.REMEDIES["footage has a reel"]
+        self.addCleanup(ch.REMEDIES.__setitem__, "footage has a reel", old)
+        ch.REMEDIES["footage has a reel"] = ("test double", lambda: (None, "nothing eligible"))
+        scar = ch.record([{"check": "footage has a reel", "state": "missing", "why": "x"}])[0]
+        state, _said = ch.heal(scar, recheck=lambda: ("missing", "still"))
+        self.assertEqual(state, "nothing-to-do")
+        after = ch.history(scar["key"])
+        self.assertFalse((after.get("heal") or {}).get("disarmed"),
+                         "a remedy was permanently disarmed for correctly having nothing to do")
+
+    def test_6b_a_remedy_that_LIES_is_still_disarmed(self):
+        """The mirror — LAW 2 must survive the fix above."""
+        ch = self._iso()
+        os.environ["TV_AUTO_HEAL"] = "1"
+        self.addCleanup(os.environ.pop, "TV_AUTO_HEAL", None)
+        old = ch.REMEDIES["footage has a reel"]
+        self.addCleanup(ch.REMEDIES.__setitem__, "footage has a reel", old)
+        ch.REMEDIES["footage has a reel"] = ("test double", lambda: (True, "pretended"))
+        scar = ch.record([{"check": "footage has a reel", "state": "missing", "why": "x"}])[0]
+        self.assertEqual(ch.heal(scar, recheck=lambda: ("missing", "still"))[0], "still-red")
+        self.assertEqual(ch.heal(scar, recheck=lambda: ("missing", "still"))[0], "disarmed")
+
+    # ── 8 ────────────────────────────────────────────────────────────────────────────────────
+    def test_8_what_the_restore_PROMISES_is_what_the_restore_DOES(self):
+        """The reviewer's point was that the docstring and the contract string shown to him both
+        claimed a row comparison this function never made.
+
+        My first correction ADDED the comparison — and a sabotage proved it unreachable: a store
+        that parses is skipped before it, and one that does not parse has no countable rows. A
+        branch that cannot execute is a guard-shaped comment, so the promise moved to where the code
+        actually is. This pins that they cannot drift apart again.
+        [[feedback-threshold-above-the-ceiling]]"""
+        import inspect
+        _fa, _rr, ch = self._mods()
+        contract = ch.REMEDIES["vault stores"][0]
+        doc = inspect.getdoc(ch._remedy_restore_a_vault_store) or ""
+        body = inspect.getsource(ch._remedy_restore_a_vault_store)
+        body = "\n".join(ln for ln in body.splitlines() if not ln.lstrip().startswith("#"))
+        claims_rows = "as many rows" in contract or "as many rows" in doc.split("The row")[0]
+        does_rows = "live_rows" in body
+        self.assertEqual(claims_rows, does_rows,
+                         "the restore %s a row comparison and %s one"
+                         % ("claims" if claims_rows else "does not claim",
+                            "makes" if does_rows else "does not make"))
+        # and the protection it DOES rely on must still exist where it says it does
+        bank = inspect.getsource(ch.back_up_healthy_stores)
+        self.assertIn("_rows_of(json.load(fh))) > len(_rows_of(blob))", bank,
+                      "the shrink guard the restore's docstring points at is gone")
+
+    def test_8b_a_second_corrupt_copy_does_not_overwrite_the_first(self):
+        import json as _j
+        ch = self._iso()
+        root = os.path.dirname(ch.LEDGER)
+        fp = os.path.join(root, "vault_seen.json")
+        for _ in range(2):
+            io.open(fp, "w").write(_j.dumps({"rows": [{"name": "a"}, {"name": "b"}]}))
+            ch.back_up_healthy_stores()
+            io.open(fp, "w").write("}{ garbage")
+            ch._remedy_restore_a_vault_store()
+        kept = [f for f in os.listdir(root) if f.startswith("vault_seen.json.corrupt")]
+        self.assertGreaterEqual(len(kept), 2,
+                                "the second corruption overwrote the first under a message saying "
+                                "it was KEPT — only %d copy survived" % len(kept))
+
+
+class TestV2080TheHarnessDoesNotRunTheACTINGWatchers(unittest.TestCase):
+    """A full gate run left FIVE files moved under tv/ with his console down, and the tree's own
+    byte-identical canary caught it. Two of them are runtime records of DECISIONS —
+    .console_scars.json (which faults have come back) and reel_tombstones.json (which reels a
+    deleter removed) — and neither is a file a test may write.
+
+    Three fixes, at three depths:
+      · the scar ledger resolves through _root(), so its PATH cannot reach his tree from a fixture
+      · the tombstone path resolves at CALL time, because a constant bound at import is a fixture
+        guard with a race built in — `rr.HERE = root` came too late and 89 fixture tombstones
+        landed in his real file
+      · and this: a console a HARNESS spawned does not run the acting watchers at all"""
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def test_the_three_ACTING_watchers_stand_down_under_TV_STUB(self):
+        """They are the three that DECIDE something about his world: what is out of sync, whether to
+        relaunch, and what to delete. A fixture world has nothing to be out of sync with."""
+        prev = os.environ.get("TV_STUB")
+        os.environ["TV_STUB"] = "1"
+        self.addCleanup(lambda: os.environ.__setitem__("TV_STUB", prev) if prev
+                        else os.environ.pop("TV_STUB", None))
+        with inert_roster() as start:
+            r = start("harness-test")
+        self.assertEqual(set(r["stoodDown"]),
+                         {"tvd-eagle-watch", "tvd-version-drift", "tvd-retention"})
+        for name in r["stoodDown"]:
+            self.assertNotIn(name, r["started"])
+
+    def test_the_OBSERVING_watchers_still_run_in_a_harness(self):
+        """The mirror. Standing down everything would make the harness a different program from the
+        one it is testing, which is its own defect."""
+        prev = os.environ.get("TV_STUB")
+        os.environ["TV_STUB"] = "1"
+        self.addCleanup(lambda: os.environ.__setitem__("TV_STUB", prev) if prev
+                        else os.environ.pop("TV_STUB", None))
+        with inert_roster() as start:
+            r = start("harness-test")
+        for name in ("tvd-chron-autoread", "tvd-rolling-prune", "tvd-ledger-backup",
+                     "tvd-space-warden", "tvd-stash-watch"):
+            self.assertIn(name, r["started"] + list(r.get("stoodDown") or []))
+            self.assertNotIn(name, r["stoodDown"])
+
+    def test_without_TV_STUB_every_watcher_runs(self):
+        prev = os.environ.pop("TV_STUB", None)
+        self.addCleanup(lambda: os.environ.__setitem__("TV_STUB", prev) if prev else None)
+        with inert_roster() as start:
+            r = start("normal-test")
+        self.assertEqual(r["stoodDown"], [],
+                         "watchers stood down on a real console: %r" % r["stoodDown"])
+
+    def test_standing_down_is_SAID_not_silent(self):
+        """"it did not run" and "it is not there" must never look the same."""
+        import inspect
+        src = inspect.getsource(self._ca().start_background_watchers)
+        self.assertIn("stood down", src)
+        self.assertIn('"stoodDown": stood_down', src,
+                      "the payload does not carry which watchers were skipped")
+
+    def test_the_tombstone_path_resolves_at_CALL_time(self):
+        """A constant computed at import is a fixture guard with a race built into it: it is only as
+        good as the moment it was evaluated. 89 fixture tombstones proved it."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention as rr
+        d = tempfile.mkdtemp(prefix="tomb_")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        os.makedirs(hist)
+        prev = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = hist
+        self.addCleanup(lambda: os.environ.__setitem__("TV_HIST", prev) if prev
+                        else os.environ.pop("TV_HIST", None))
+        got = rr._tombstone_path()
+        self.assertTrue(got.startswith(os.path.realpath(d)),
+                        "a fixture world still writes tombstones to %s" % got)
+        self.assertNotIn("d2r_bible_tests/tv/reel_tombstones.json", got)
 
 
 if __name__ == "__main__":

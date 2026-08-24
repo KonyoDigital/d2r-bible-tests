@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2079",
+  "ver": "v2080",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2079: grail wall survives the tick that re-renders it; an unreadable ledger holds every reel instead of releasing it",
+  "note": "v2080: extract then prune runs on its own below the ON AIR floor; only eligible reels, only as much as needed, never while anything is in flight",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

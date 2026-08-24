@@ -1,0 +1,13 @@
+{
+  "t": "2026-08-24T21:57:58",
+  "ts": 1787597878.349895,
+  "ok": true,
+  "code": 200,
+  "err": "",
+  "event": "boot",
+  "okAt": "2026-08-24T21:57:58",
+  "attempts": 1,
+  "failures": 0,
+  "suppressed_by": "",
+  "fleet": 2
+}

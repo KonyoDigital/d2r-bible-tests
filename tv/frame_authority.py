@@ -103,6 +103,7 @@ def witness_index(root=None):
     """
     root = root or HERE
     frames, sessions, ok, seen = set(), set(), True, {}
+    absent = 0
     for fn in DURABLE_STORES:
         blob, state = _load_state(root, fn)
         if state == "unreadable":
@@ -113,6 +114,7 @@ def witness_index(root=None):
             continue
         if state == "absent":
             seen[fn] = 0
+            absent += 1
             continue
         n = 0
         for r in _rows_of(blob):
@@ -125,7 +127,17 @@ def witness_index(root=None):
                 if w.get("session"):
                     sessions.add(str(w["session"]))
         seen[fn] = n
-    return {"frames": frames, "sessions": sessions, "ok": ok, "perStore": seen}
+    # v2080 — `ok` alone is not enough for a FRAME deleter, and splitting absent from unreadable
+    # exposed that. `ok` answers "is my picture complete"; a tree where NO durable store exists has
+    # a complete picture of nothing, and every frame then reads as "witnessed nothing" — which for
+    # this module means DELETABLE. That released frames the pre-split code held, and put the
+    # frame-level authority in direct contradiction with reel_retention, which holds the very same
+    # reel because its sweep read rows that reached no store.
+    # `haveIndex` is the missing fact: is there anything here that COULD name a witness. Without
+    # one, "not a witness" is unprovable rather than false, and this module's own rule is that
+    # everything errs toward keeping. [[unknown-stays-unknown]]
+    return {"frames": frames, "sessions": sessions, "ok": ok, "perStore": seen,
+            "haveIndex": absent < len(DURABLE_STORES)}
 
 
 def sealed_sessions(root=None):
@@ -183,6 +195,10 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
         return False, ("a durable store could not be read (%s), so the witness list is incomplete "
                        "and every frame is treated as evidence" % ", ".join(
                            k for k, v in (wit.get("perStore") or {}).items() if v is None))
+    if not wit.get("haveIndex", True):
+        return False, ("no durable store exists yet (%s), so nothing here can prove a frame IS a "
+                       "witness — and 'unprovable' is not 'no'. Every predicate in this module errs "
+                       "toward keeping." % ", ".join(DURABLE_STORES))
     if sess not in (sealed or {}):
         return False, ("recording %s is not sealed — the sweep has not said it read everything "
                        "here, so these pixels may be the only copy of a name" % sess)
@@ -203,6 +219,10 @@ def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
     recent = recent_reels(hist_dir, keep)
     out = {"prunable": [], "heldBy": {}, "bytes": 0, "kept": 0, "scanned": 0,
            "sealOk": seal_ok, "witnessOk": wit["ok"],
+           # v2080 — `witnessOk` answers "is my picture complete", which is TRUE of a picture of
+           # nothing. A reader shown ok:true and 0 witnesses would conclude "measured, none" when
+           # the fact is "there is no index yet". Both travel. [[unknown-stays-unknown]]
+           "haveIndex": wit.get("haveIndex", True),
            "witnessFrames": len(wit["frames"]), "sealedSessions": len(sealed)}
     if not seal_ok:
         out["say"] = ("%s could not be read, so NOTHING is prunable — a prune that cannot tell a "

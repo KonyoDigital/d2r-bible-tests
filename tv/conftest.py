@@ -63,12 +63,34 @@ LIVE_FILES = (
     "g5_stats.json",            # cumulative G5 lane counters — 1,731 real calls, no other copy
     "g5_subscription_budget.json",  # the call-timestamp ledger the 240/day cap is computed FROM
     "known_frames.json",        # frame fingerprints learned from him actually playing
+    # v2080 — THE CANARY DID NOT KNOW ABOUT THESE, so a test wrote all four and nothing said a word.
+    # TestV2078 called the real _eagle_once(), which tends the scar ledger unconditionally. The
+    # ledger is the durable record of which faults have COME BACK — it cannot be re-derived from
+    # anything, which is exactly the bar this tuple is for. The .healer_bak files are the only copy
+    # of his vault stores that exists outside a window's localStorage.
+    ".console_scars.json",
+    "vault_accum.json.healer_bak",
+    "vault_seen.json.healer_bak",
+    "vault_swept.json.healer_bak",
 )
 # Deliberately NOT listed, and the reason is one command: `git ls-files --error-unmatch`.
 # stub_manifest.json, vault_accum.json, vault_corpus_index.json, stash_grid_truth.json,
 # set_roster.json, unique_roster.json, chronicle_audit_baseline.json, WINDOWS_SHIP.json and
 # g5_second_lane_v1789.json are all TRACKED, so `git checkout` restores them byte-for-byte.
 # This tuple is for bytes that have no way back — not for everything a test might touch.
+
+
+# v2080 — AND PREVENT IT, not only catch it. The canary above reports a write AFTER it happened;
+# this makes the write impossible for the whole session by pointing the scar ledger at a throwaway
+# root before any test imports console_healer. Guard the PATH, not the call site — the same rule
+# that kept vault_accum.json safe on the night the scar ledger was not.
+def _pin_scar_ledger_away_from_his_tree():
+    import tempfile
+    if not os.environ.get("TV_SCAR_ROOT"):
+        os.environ["TV_SCAR_ROOT"] = tempfile.mkdtemp(prefix="scarledger_test_")
+
+
+_pin_scar_ledger_away_from_his_tree()
 
 
 def _fingerprint(path):

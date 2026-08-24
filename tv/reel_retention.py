@@ -146,13 +146,16 @@ def _durable_sessions(here=None):
         import frame_authority as _fa
     except Exception:
         # cannot ask the authority -> nothing is durable AND nothing is known
-        return set(), False
+        return set(), False, "frame_authority could not be imported, so nothing can say which "\
+                             "recordings are banked"
     idx = _fa.witness_index(here or HERE)
     # v2079 — and carry the authority's own `ok` instead of dropping it on the floor. It is False
     # when ANY durable store would not parse, and the sessions set is then a PARTIAL index. The
     # comment above argues a partial index can only hold reels; that is true of the rows-not-banked
     # branch and NOT true of a reel with no rows, which reaches `else:` untouched.
-    return set(idx.get("sessions") or ()), bool(idx.get("ok"))
+    bad = [k for k, v in (idx.get("perStore") or {}).items() if v is None]
+    return (set(idx.get("sessions") or ()), bool(idx.get("ok")),
+            ("%s will not parse" % ", ".join(sorted(bad))) if bad else None)
 
 
 def _vault_lane_owes(reel_path):
@@ -216,9 +219,14 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
 
     # v2056 — sessions whose witnesses survive without the frames, read ONCE per plan.
     global _DURABLE
-    _DURABLE, _durable_ok = _durable_sessions(HERE)
+    _DURABLE, _durable_ok, _durable_why = _durable_sessions(HERE)
     if not _durable_ok:
-        unreadable.append("a durable store (vault_accum.json / vault_seen.json)")
+        # NAME THE REAL REASON. `_durable_sessions` returns ok=False both when a store will not
+        # parse AND when frame_authority itself could not be imported — and saying "vault_accum.json
+        # / vault_seen.json will not parse" about two perfectly readable files sends him to fix the
+        # wrong thing. Right hold, wrong reason is still a wrong report.
+        unreadable.append("the durable witness index could not be read"
+                          if _durable_why is None else _durable_why)
     recent = set(reels[-keep_recent:]) if keep_recent else set()
     try:
         import frame_authority as _fa
@@ -301,7 +309,9 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         elif ve is None and _vault_lane_owes(path):
             why = _rule("vault-owes",
                         "the VAULT lane has never swept it — it still owes the vault manager its "
-                        "stash rows" + ("" if vault else " (vault_swept.json does not exist yet)"))
+                        "stash rows" + ("" if vault else
+                                        (" (vault_swept.json will not parse)" if unreadable
+                                         else " (vault_swept.json does not exist yet)")))
         else:
             if free_mb is not None and freed >= free_mb:
                 why = _rule("target-met",
@@ -344,15 +354,49 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
                             + ("" if not na else
                                " (%s cannot fire without a free_mb target and is not counted as a "
                                "gap.)" % ", ".join(na))),
+            # v2080 — AND `say` MUST NOT CONTRADICT `unreadable`. It branched on bool(vault),
+            # which is falsy for BOTH an absent store and a corrupt one, so a ledger that would not
+            # parse was reported to him as "vault_swept.json does not exist, so the vault manager
+            # has never sealed anything." The `unreadable` field said the opposite two keys away —
+            # and the sweep consumer (control_app.py) copies ONLY `say` onto his console, so the
+            # true field never reaches a screen. The most alarming state was described as the most
+            # innocent one. [[unknown-stays-unknown]] [[label-outlived-referent]]
             "say": ("%d reel(s) may go, freeing %d MB" % (len(candidates), round(freed))
                     if candidates else
                     "NOTHING is safe to delete yet — and that is an answer, not a failure. " +
-                    ("no reel has been swept by BOTH lanes; vault_swept.json does not exist, so the "
+                    ("%s will NOT PARSE, so every reel is held: nothing here knows which "
+                     "witnesses are banked, and that is not the same as knowing there are none."
+                     % ", ".join(sorted(set(unreadable))) if unreadable else
+                     "no reel has been swept by BOTH lanes; vault_swept.json does not exist, so the "
                      "vault manager has never sealed anything." if not vault else
                      "every reel is recent, unread, or still owed to a lane."))}
 
 
-TOMBSTONE_PATH = os.path.join(HERE, "reel_tombstones.json")
+def _tombstone_path():
+    """v2080 — RESOLVE AT CALL TIME, NOT AT IMPORT.
+
+    `TOMBSTONE_PATH = os.path.join(HERE, ...)` was bound when the module loaded, so a test that
+    repoints `rr.HERE` at a fixture tree — which every retention test does — still wrote its
+    tombstones into HIS tree. The full gate run proved it: 89 tombstones carrying 2017 fixture
+    stamps sitting in his real reel_tombstones.json, and the byte-identical canary caught the file
+    moving during a run with his console down.
+
+    Nothing of his was deleted (all 30 reels intact, and the 6 real entries are an earlier
+    deliberate prune) — but a deleter's record of what it removed is not a file tests may write to,
+    and "it happened to be harmless this time" is not a property to rely on.
+
+    A constant computed at import is a fixture guard with a race built into it: the guard is only
+    as good as the moment it was evaluated. [[feedback-fixtures-never-touch-live-data]]
+    """
+    try:
+        sys.path.insert(0, HERE)
+        import tv_diablo as _tvd
+        return os.path.join(_tvd._fixture_root(HERE), "reel_tombstones.json")
+    except Exception:
+        return os.path.join(HERE, "reel_tombstones.json")
+
+
+TOMBSTONE_PATH = _tombstone_path()   # back-compat for readers; the writers call the function
 
 
 def _tombstone(hist, cands):
@@ -389,17 +433,18 @@ def _tombstone(hist, cands):
             rec["focus"] = None
         rows.append(rec)
     try:
-        old = _load(TOMBSTONE_PATH)
+        old = _load(_tombstone_path())
         prev = old.get("reels") if isinstance(old, dict) else None
     except Exception:
         prev = None
     blob = {"reels": (prev or []) + rows, "updatedTs": int(time.time() * 1000)}
-    tmp = TOMBSTONE_PATH + ".tmp"
+    dest = _tombstone_path()
+    tmp = dest + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(blob, fh, indent=1)
         fh.flush()
         os.fsync(fh.fileno())
-    os.replace(tmp, TOMBSTONE_PATH)
+    os.replace(tmp, dest)
     return rows
 
 
@@ -425,7 +470,7 @@ def apply_plan(p, yes=False):
     return {"ok": not failed, "removed": removed, "failed": failed,
             "freedMb": p.get("freeMb", 0),
             "tombstoned": (len(tomb) if tomb is not None else None),
-            "tombstonePath": TOMBSTONE_PATH,
+            "tombstonePath": _tombstone_path(),
             "tombstoneWhy": tomb_why}
 
 
