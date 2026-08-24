@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2037",
+  "ver": "v2038",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2037: prunes duplicate live frames while recording: 96 percent full at 5-6 GB per hour, and nothing pruned within a reel until now",
+  "note": "v2038: the board is a separate process so the console could never write to it: the payload now rides on its argv and the board window applies it itself",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

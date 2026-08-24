@@ -44382,7 +44382,7 @@ body.ladder-profile #v687-build-badge,body.cousin-shell #v687-build-badge{top:28
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2037', name:'v2037 - the rolling prune', date:'2026-08-24', note:'prunes duplicate live frames while recording: 96 percent full at 5-6 GB per hour, and nothing pruned within a reel until now' };
+  window.D2R_BUILD = { id:'v2038', name:'v2038 - the apply reaches a window the console does not own', date:'2026-08-24', note:'the board is a separate process so the console could never write to it: the payload now rides on its argv and the board window applies it itself' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

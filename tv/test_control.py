@@ -14451,5 +14451,139 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
 
 
 
+class TestV2038TheApplyCanReachAWindowTheConsoleDoesNotOwn(unittest.TestCase):
+    """A proposal nobody can apply is a sweep nobody can bank.
+
+    vault_apply evaluates JS in `_MAIN_WIN`. `_open_board_native` spawns the board as a SEPARATE
+    PROCESS, so the console holds no handle to it and structurally cannot write there. Whenever he
+    was not already looking at the board, the apply answered "the window is on the CONSOLE, not the
+    board" - correct, actionable only by him, and it left nine grounded items unapplied for a night
+    after the sweep that found them had already been paid for.
+    """
+
+    def test_the_flag_is_passed_only_when_there_is_something_to_apply(self):
+        """A board window opened for reading must not carry an apply payload."""
+        import unittest.mock as mock
+        import control_app
+        seen = {}
+
+        class _P:
+            pid = 4321
+
+        def _fake_popen(argv, **kw):
+            seen["argv"] = list(argv)
+            return _P()
+
+        with mock.patch.object(control_app.subprocess, "Popen", _fake_popen):
+            with mock.patch.object(control_app, "ensure_webview", lambda: True):
+                control_app._open_board_native(tab="tools")
+                plain = seen.get("argv") or []
+                control_app._open_board_native(tab="tools", apply_vault="/tmp/x.json")
+                withp = seen.get("argv") or []
+        self.assertFalse([x for x in plain if "--apply-vault" in str(x)],
+                         "a plain board open carried an apply payload")
+        self.assertIn("--apply-vault=/tmp/x.json", withp,
+                      "the payload never reached the board process, so it would open and do nothing")
+
+    def test_a_stale_result_is_never_read_as_this_runs_answer(self):
+        """The worst failure here is reporting a PREVIOUS apply as this one."""
+        import tempfile
+        import unittest.mock as mock
+        import control_app
+        with tempfile.TemporaryDirectory() as home:
+            qp = os.path.join(home, "vault_apply_queued.json")
+            with open(qp + ".result.json", "w") as fh:
+                json.dump({"ok": True, "applied": {"owned": 999}, "stale": True}, fh)
+            with mock.patch.object(control_app, "HERE", home):
+                with mock.patch.object(control_app, "_open_board_native", lambda **kw: False):
+                    out = control_app._queue_board_apply("{}")
+            self.assertIsNone(out, "spawn failed, so the caller must fall through - not succeed")
+            self.assertFalse(os.path.exists(qp + ".result.json"),
+                             "the stale result survived; a later poll would read 999 applied items "
+                             "from a run that never happened")
+
+    def test_no_window_means_None_so_the_caller_keeps_the_honest_message(self):
+        import tempfile
+        import unittest.mock as mock
+        import control_app
+        with tempfile.TemporaryDirectory() as home:
+            with mock.patch.object(control_app, "HERE", home):
+                with mock.patch.object(control_app, "_open_board_native", lambda **kw: False):
+                    self.assertIsNone(control_app._queue_board_apply("{}"))
+
+    def test_it_returns_the_boards_verdict_and_marks_how_it_got_there(self):
+        import tempfile
+        import unittest.mock as mock
+        import control_app
+        with tempfile.TemporaryDirectory() as home:
+            qp = os.path.join(home, "vault_apply_queued.json")
+
+            def _spawn(**kw):
+                with open(qp + ".result.json", "w") as fh:
+                    json.dump({"ok": True, "applied": {"owned": 9}}, fh)
+                return True
+
+            with mock.patch.object(control_app, "HERE", home):
+                with mock.patch.object(control_app, "_open_board_native", _spawn):
+                    out = control_app._queue_board_apply("{}", timeout_s=10.0)
+            self.assertTrue(out.get("ok"))
+            self.assertTrue(out.get("viaBoardWindow"),
+                            "the caller cannot tell WHICH window applied it - that belongs in the "
+                            "answer, not in a log")
+
+    def test_the_board_side_always_writes_a_verdict_even_when_it_fails(self):
+        """Silence from a different process reads as success. It must never be silent."""
+        import tempfile
+        import control_app
+
+        class _DeadWin:
+            def evaluate_js(self, _code):
+                raise RuntimeError("window is gone")
+
+        with tempfile.TemporaryDirectory() as d:
+            pay = os.path.join(d, "p.json")
+            with open(pay, "w") as fh:
+                fh.write("{}")
+            import unittest.mock as mock
+            with mock.patch.object(control_app.time, "sleep", lambda _s: None):
+                control_app._board_apply_on_load(_DeadWin(), pay)
+            self.assertTrue(os.path.exists(pay + ".result.json"),
+                            "the board process failed and wrote nothing; the console would wait "
+                            "out its timeout and report an unknown as a maybe")
+            with open(pay + ".result.json") as fh:
+                v = json.load(fh)
+            self.assertFalse(v.get("ok"))
+            self.assertTrue(v.get("why"), "a failure with no reason is not a report")
+            self.assertIn("went away", v.get("why"),
+                          "a DEAD window was reported as a slow one - the console then waits out "
+                          "its own timeout and reports an unknown as a maybe")
+
+    def test_it_waits_for_the_board_rather_than_sleeping_a_fixed_time(self):
+        """bible.html is read fresh from disk; its parse time is not a constant."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        body = _between(self, src, "def _board_apply_on_load", "def board_window():",
+                        what="the board-side applier")
+        self.assertTrue("typeof window.vaultAccumApply === 'function'" in body,
+                        "it no longer waits for the board to define the function")
+
+    def test_only_the_console_rail_cause_is_retried(self):
+        """A board whose BUILD lacks vaultAccumApply fails identically in a fresh window.
+
+        Retrying that opens a window purely to deliver the same refusal, and on his machine that
+        is a second native WebKit tree for nothing (v773.1: 26 accumulated board windows lagged
+        the whole Mac).
+        """
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        body = _between(self, src, "# v2038 — THE MAIN WINDOW IS NOT THE ONLY WINDOW",
+                        "return verdict", what="the retry condition")
+        self.assertTrue('"not the board" in str(verdict.get("why")' in body,
+                        "the retry is no longer scoped to the console-rail cause")
+        self.assertTrue('not verdict.get("ok")' in body,
+                        "a SUCCESSFUL apply would be retried in a second window")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
