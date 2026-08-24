@@ -15222,5 +15222,76 @@ class TestV2053TheSpaceWardenNeverEatsHisFootage(unittest.TestCase):
 
 
 
+class TestV2055NotOpenIsNotDoomed(unittest.TestCase):
+    """v2044's check answered "the board is an UNCLAIMED guest world — anything applied here is lost
+    on the next launch" whenever he simply was not looking at the board.
+
+    `_D2R_OWNER` and `_D2R_PFX` are bible.html globals. On the CONSOLE RAIL they do not exist, so
+    both read falsy. Measured live 2026-08-24: pfx=None while d2r_ownerClaim was '*' on disk and the
+    ledger sat in BARE keys — claimed, persisted, entirely safe, and reported as doomed. After the
+    night his ledger actually WAS emptied, that is the last sentence in this console that should
+    ever be shown wrongly. [[unknown-stays-unknown]]
+    """
+
+    def _cd(self):
+        import console_doctor
+        return console_doctor
+
+    COUNTS = {"foundLog": 390, "owned": 5, "setPieces": 121}
+
+    def _ask(self, payload):
+        import unittest.mock as mock
+        cd = self._cd()
+        with mock.patch.object(cd, "_post", lambda *a, **k: payload):
+            return cd._check_the_board_world_is_claimed()
+
+    def test_the_board_not_being_open_is_UNKNOWN_not_a_warning(self):
+        state, why = self._ask({"ok": True, "boardLoaded": False, "owner": False, "pfx": None,
+                                "counts": self.COUNTS})
+        cd = self._cd()
+        self.assertEqual(state, cd.UNKNOWN,
+                         "a console showing the rail was told its vault will evaporate")
+        self.assertIn("not open", why)
+
+    def test_a_REAL_unclaimed_world_still_raises_the_alarm(self):
+        """The alarm must survive. Silencing it would be worse than the false positive."""
+        state, why = self._ask({"ok": True, "boardLoaded": True, "owner": False,
+                                "pfx": "I\u00b7abc12345\u00b7", "counts": self.COUNTS})
+        cd = self._cd()
+        self.assertEqual(state, cd.MISSING,
+                         "a genuinely unclaimed guest world is no longer flagged — that is the "
+                         "state that cost him his ledger")
+        self.assertIn("This browser is mine", why)
+
+    def test_a_claimed_board_passes(self):
+        state, why = self._ask({"ok": True, "boardLoaded": True, "owner": True, "pfx": "",
+                                "counts": self.COUNTS})
+        self.assertEqual(state, self._cd().OK)
+
+    def test_an_older_console_without_the_field_gets_the_RIGHT_reason(self):
+        """boardLoaded absent must not be read as False — that is a guess, not a measurement.
+
+        Both answers are UNKNOWN, so asserting the STATE alone cannot tell them apart: a first cut
+        did exactly that and passed against `if not got.get("boardLoaded")`. The distinction is the
+        EXPLANATION — an old console has not been asked; it is not a console with a closed board."""
+        state, why = self._ask({"ok": True, "counts": self.COUNTS})
+        cd = self._cd()
+        self.assertEqual(state, cd.UNKNOWN)
+        self.assertIn("predates", why,
+                      "an older console was told its BOARD is closed, when the truth is this "
+                      "console cannot answer the question at all: %r" % why)
+        self.assertNotIn("not open", why)
+
+    def test_board_ownership_actually_reports_the_flag(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        blk = _between(self, src, "def board_ownership", "def board_tick", what="board_ownership")
+        self.assertTrue("boardLoaded:boardLoaded" in blk,
+                        "the flag is never put in the payload, so the doctor cannot use it")
+        self.assertTrue("typeof window._D2R_PFX==='string'" in blk,
+                        "boardLoaded is not derived from whether bible.html's globals exist")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

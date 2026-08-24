@@ -88,6 +88,15 @@ def _check_the_board_world_is_claimed():
         return UNKNOWN, "the console did not answer — nobody asked, so nothing is known"
     if not got.get("ok"):
         return UNKNOWN, "the board refused the read: %s" % str(got.get("why"))[:90]
+    # v2055 — "THE BOARD IS NOT OPEN" IS NOT "THE BOARD IS DOOMED".
+    # _D2R_OWNER/_D2R_PFX are bible.html globals. On the console rail they do not exist, both read
+    # falsy, and this check used to answer MISSING with "anything applied here is lost on the next
+    # launch" — about a world that was claimed, on disk, and perfectly safe. After the night his
+    # ledger actually was emptied, that is the last sentence that should ever be shown wrongly.
+    if got.get("boardLoaded") is False:
+        return UNKNOWN, ("the board is not open in the window — ownership lives in bible.html's "
+                         "globals, so it cannot be read from the console rail. Open the board to "
+                         "find out.")
     if "owner" not in got:
         # v2044 added the field. An older console cannot answer, and MUST NOT read as a pass.
         return UNKNOWN, ("this console predates the ownership field (v2044) — restart it to find "

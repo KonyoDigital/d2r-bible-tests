@@ -9058,7 +9058,15 @@ def board_ownership(sample=0, dump_stores=False):
           # per-install GUEST world (_D2R_PFX = 'I·<installId>·'), and anything applied there is
           # unreachable from the next one. That failure is SILENT by construction: the counts look
           # exactly the same either way, so a reader cannot tell a real ledger from a doomed one.
-          "var owner=!!window._D2R_OWNER, pfx=(typeof window._D2R_PFX==='string'?window._D2R_PFX:null);"
+          # v2055 — SAY WHETHER THE BOARD IS EVEN LOADED. `_D2R_OWNER` and `_D2R_PFX` are defined
+          # by bible.html; on the CONSOLE RAIL they do not exist, so both read falsy and the doctor
+          # concluded "UNCLAIMED guest world — anything applied here is lost". That is the most
+          # alarming sentence in the console and it fired whenever he simply was not looking at the
+          # board. Measured live: pfx=None with d2r_ownerClaim='*' on disk and the ledger in BARE
+          # keys — claimed, safe, and reported as doomed. `boardLoaded` separates "I cannot see"
+          # from "it is a guest world". [[unknown-stays-unknown]]
+          "var boardLoaded=(typeof window._D2R_PFX==='string');"
+          "var owner=!!window._D2R_OWNER, pfx=(boardLoaded?window._D2R_PFX:null);"
           "var stores=null,gameFound=null;"
           "try{var _gp=raw('d2r_gameFound');if(_gp&&typeof _gp==='object'&&!Array.isArray(_gp))gameFound=_gp;}catch(_g){}"
           + ("if(%s){stores={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);"
@@ -9066,7 +9074,7 @@ def board_ownership(sample=0, dump_stores=False):
              "try{var pp=JSON.parse(v);nn=Array.isArray(pp)?pp.length:(pp&&typeof pp==='object'?Object.keys(pp).length:(v?1:0));}"
              "catch(_e){nn=v?1:0;}stores[k]=nn;}}catch(_s){stores={err:String(_s)}}}"
              % ("true" if dump_stores else "false"))
-          + "return JSON.stringify({ok:true,owner:owner,pfx:pfx,"
+          + "return JSON.stringify({ok:true,owner:owner,pfx:pfx,boardLoaded:boardLoaded,"
           "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
           "stores:stores,dates:dates,gameFound:gameFound});"
@@ -14076,7 +14084,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2053",
+        "ver": "v2055",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

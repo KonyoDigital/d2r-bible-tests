@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2053",
+  "ver": "v2055",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2053: playwright wrote 9.5GB into test-results in 95 minutes and nothing owned it",
+  "note": "v2055: the doctor told him his vault would evaporate whenever he simply was not looking at the board",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
