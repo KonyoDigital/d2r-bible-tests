@@ -5166,9 +5166,10 @@
             <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
             <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
             <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
-            <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">\U0001F985 eagle</button>
+            <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">🦅 eagle</button>
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
             <button class="util-btn" id="btn-repair" type="button" title="LEDGER REPAIR — restore find dates from the in-game Chronicle, or correct one mis-registered item. Both press the BOARD's own doors; the console never writes the ledger itself.">🩹 repair</button>
+            <button class="util-btn" id="btn-ledger" type="button" title="THE LEDGER — what the AI has SEEN, read for free. Every grounded row and every sighting still waiting on a second witness, each with when it was read and which frames it came from. Reads two files; spends nothing; writes nothing.">📒 ledger</button>
           </div>
           <!-- v2028 — 🦅 THE EAGLE EYE, in the console. Konyo: "dont we need like a type of EAGLE
                EYE kind of style management system here? eyes from above it all like that can see
@@ -5177,6 +5178,12 @@
                no tap — give it one or delete it", and /api/eagle shipped in v2026 with zero
                consumers. The guard was right, and this is the tap it asked for. -->
           <div id="eagle-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid rgba(255,255,255,.14);border-radius:8px;margin-top:6px"></div>
+          <!-- v2067 — THE LEDGER, LOOKED AT FOR FREE. vault_ledger_load() had exactly one caller in
+               the console (inside _vault_sweep_run), so the accumulated ledger — and every sighting
+               time and frame id v2064/v2065 put on it — could only be seen as a side effect of
+               paying for a sweep. Konyo asked to "visually render the backend through the ledger
+               visually so we can visually surgically fix anything needed future wise". -->
+          <div id="ledger-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid rgba(255,255,255,.14);border-radius:8px;margin-top:6px"></div>
           <div id="farmgate-out" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px"></div>
           <!-- v2059 — 🩹 LEDGER REPAIR, and the tap v1550's guard asked for.
                v2052 added /api/board_tick and /api/board_restore_dates with no consumer anywhere,
@@ -10668,17 +10675,27 @@
     this.disabled = false;
   };
 
+  /* v2067 — the ledger view lives in the VAULT scope, beside _vaultNames, because that is
+     where the row renderer is: this file's vault code sits inside its own closure and the
+     first cut of this handler was written up here, next to the eagle. It threw
+     `_vaultNames is not defined` the moment it was actually clicked — a defect no amount of
+     reading would have shown, because the call is spelled correctly. Wired, not duplicated:
+     one renderer, one definition. [[the-unjoined-end]] */
+  $('btn-ledger').onclick = function(){
+    if (window._ledgerView) window._ledgerView(this);
+  };
+
   $('btn-eagle').onclick = async function(){
     var out = $('eagle-out'); if (!out) return;
     out.style.display = 'block';
     out.style.borderColor = '';
-    out.innerHTML = '\U0001F985 looking over the whole console… (the sub-doctors take a moment)';
+    out.innerHTML = '🦅 looking over the whole console… (the sub-doctors take a moment)';
     this.disabled = true;
     try {
       var r = await fetch(API + '/api/eagle'); var j = await r.json();
       if (!j || j.ok === false){
         out.style.borderColor = '#e07070';
-        out.innerHTML = '<div style="color:#e07070">\U0001F985 the eagle eye could not run — '
+        out.innerHTML = '<div style="color:#e07070">🦅 the eagle eye could not run — '
           + ((j && j.why) || 'no answer') + '</div>';
         return;
       }
@@ -10693,11 +10710,11 @@
       }).join('');
       out.style.borderColor = col;
       out.innerHTML = '<div style="color:' + col + ';font-weight:var(--fw-semibold);letter-spacing:.6px">'
-        + '\U0001F985 EAGLE EYE · ' + (needs ? (needs + ' need you') : (unk ? (unk + ' not measured') : 'all clear'))
+        + '🦅 EAGLE EYE · ' + (needs ? (needs + ' need you') : (unk ? (unk + ' not measured') : 'all clear'))
         + '</div>' + rows;
     } catch(e){
       out.style.borderColor = '#e07070';
-      out.innerHTML = '<div style="color:#e07070">\U0001F985 the console did not answer: '
+      out.innerHTML = '<div style="color:#e07070">🦅 the console did not answer: '
         + (e && e.message || e) + '</div>';
     } finally {
       this.disabled = false;
@@ -15130,7 +15147,16 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (r && r.lane) bits.push(escC(String(r.lane)));
       if (r && r.kind && r.kind !== 'item') bits.push(escC(String(r.kind)));
       if (r && r.count !== undefined && r.count !== null) bits.push('×' + escC(String(r.count)));
-      if (r && r.conf !== undefined && r.conf !== null) bits.push('conf ' + escC(String(r.conf)));
+      /* v2067 — A ZERO HERE IS NOT A MEASUREMENT. The keep gate's floor is KEEP_CONF_FLOOR
+         0.55 (vault_retro.py:113), so no grounded row can carry 0 and no sighting reaches
+         `owned` with one — a zero always means the reader recorded no confidence, never that
+         it judged the name 0%% likely. Printed as `conf 0` it read as the second thing, on 17
+         of his 24 rows. [[unknown-stays-unknown]] */
+      if (r && r.conf !== undefined && r.conf !== null) {
+        var _cf = Number(r.conf);
+        bits.push((isFinite(_cf) && _cf > 0) ? ('conf ' + escC(String(r.conf)))
+                                            : 'confidence not recorded');
+      }
       if (r && r.witnesses !== undefined) {
         var w = r.witnesses;
         var wn = (typeof w === 'number' ? w : (w || []).length);
@@ -15197,6 +15223,62 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         + (withWhy && r && r.why ? '<i>' + escC(String(r.why)) + '</i>' : '') + '</div>';
     }).join('');
   }
+
+  /* v2067 — THE LEDGER, LOOKED AT FOR FREE.
+     vault_ledger_load() had exactly one caller in the console — inside _vault_sweep_run — so the
+     accumulated ledger, and every sighting time and frame id v2064/v2065 put on it, could only be
+     seen as a SIDE EFFECT of paying for a sweep. This reads it and spends nothing. */
+  window._ledgerView = async function (btn) {
+    var out = document.getElementById('ledger-out'); if (!out) return;
+    out.style.display = 'block';
+    out.style.borderColor = '';
+    out.innerHTML = '📒 reading the ledger…';
+    if (btn) btn.disabled = true;
+    try {
+      var r = await fetch('/api/vault_ledger', { cache: 'no-store' });
+      var j = await r.json();
+      if (!j || j.ok === false){
+        out.style.borderColor = '#e07070';
+        out.innerHTML = '<div style="color:#e07070">📒 could not read the ledger — '
+          + ((j && j.why) || 'no answer') + '</div>';
+        return;
+      }
+      var st = j.stores || {}, t = (j.totals || {}), w = t.when || {};
+      /* A STORE THAT WOULD NOT OPEN IS THE HEADLINE, not a footnote: everything below it is
+         INCOMPLETE rather than empty, and the two must never read alike. */
+      var broke = ['accum','seen'].filter(function(k){
+        return st[k] && String(st[k].state || '').indexOf('unreadable') === 0; });
+      var col = broke.length ? '#e07070' : (w.undated ? '#e9b96e' : '#8fd0a0');
+      function age(k){
+        var s = st[k] || {};
+        if (String(s.state) === 'absent') return k + ': never written';
+        if (String(s.state).indexOf('unreadable') === 0) return k + ': ' + s.state;
+        if (s.ageS == null) return k + ': age UNKNOWN';
+        var m = Math.round(s.ageS / 60);
+        return k + ': written ' + (m < 60 ? m + 'm' : (m < 1440 ? Math.round(m/60) + 'h' : Math.round(m/1440) + 'd')) + ' ago';
+      }
+      var head = '<div style="color:' + col + ';font-weight:var(--fw-semibold);letter-spacing:.6px">'
+        + '📒 THE LEDGER · ' + (t.owned || 0) + ' grounded · ' + (t.sightings || 0) + ' waiting</div>'
+        + '<div style="color:#9aa6b2;margin-top:3px">' + escC(j.say || '') + '</div>'
+        + '<div style="color:#7f958a;margin-top:3px">' + escC(age('accum')) + ' · ' + escC(age('seen')) + '</div>';
+      /* Rendered through the SAME _vaultNames the sweep proposal uses, so a row he reads here and a
+         row he reads there cannot disagree about what it says. */
+      var body = '';
+      if ((j.owned || []).length)
+        body += '<div style="margin-top:6px;color:#8fd0a0">GROUNDED — two witnesses or better</div>'
+             + _vaultNames(j.owned, true);
+      if ((j.seen || []).length)
+        body += '<div style="margin-top:6px;color:#e9b96e">SEEN ONCE — held until a second sighting</div>'
+             + _vaultNames(j.seen, true);
+      if (!body) body = '<div style="margin-top:6px;color:#9aa6b2">nothing in either store yet</div>';
+      out.style.borderColor = col;
+      out.innerHTML = head + body;
+    } catch(e){
+      out.style.borderColor = '#e07070';
+      out.innerHTML = '<div style="color:#e07070">📒 the console did not answer: '
+        + escC(String(e && e.message || e)) + '</div>';
+    } finally { if (btn) btn.disabled = false; }
+  };
 
   window._vaultScan = async function () {
     var body = document.getElementById('vault-body');

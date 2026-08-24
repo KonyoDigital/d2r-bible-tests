@@ -15858,5 +15858,143 @@ class TestV2065ABoundIsNotUnknown(unittest.TestCase):
         self.assertNotIn("1970", html, "it fell back to the epoch and rendered 1970")
 
 
+class TestV2067LookingAtTheLedgerIsFree(unittest.TestCase):
+    """vault_ledger_load() had exactly ONE caller in the whole console — inside _vault_sweep_run — so
+    the accumulated ledger, and every sighting time and frame id v2064/v2065 put on it, could only be
+    seen as a SIDE EFFECT of paying for a sweep.
+
+    Konyo: "i want it to visually render the backend through the ledger visually so we can visually
+    surgically fix anything needed future wise."
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def _with_stores(self, accum, seen):
+        """Point the view at FIXTURE stores. His real ledger is never read or written here.
+        [[feedback-fixtures-never-touch-live-data]]"""
+        import json as _j, tempfile, shutil
+        import unittest.mock as mock
+        ca = self._ca()
+        root = tempfile.mkdtemp(prefix="ledgerview_")
+        self.addCleanup(shutil.rmtree, root, True)
+        ap = os.path.join(root, "vault_accum.json")
+        sp = os.path.join(root, "vault_seen.json")
+        for path, blob in ((ap, accum), (sp, seen)):
+            if blob is None:
+                continue                       # absent on purpose
+            with open(path, "w", encoding="utf-8") as fh:
+                if blob == "BROKEN":
+                    fh.write("{ not json")
+                else:
+                    _j.dump(blob, fh)
+        with mock.patch.object(ca, "VAULT_LEDGER_PATH", ap), \
+             mock.patch.object(ca, "_VAULT_SEEN_PATH", sp):
+            return ca.vault_ledger_view()
+
+    def test_absent_unreadable_and_empty_are_three_different_answers(self):
+        """vault_ledger_load() folds all three into {} — fine for the sweep, which only wants rows,
+        and wrong for a viewer: "your ledger is empty" and "I could not open your ledger" must never
+        look the same. [[unknown-stays-unknown]]"""
+        absent = self._with_stores(None, None)
+        self.assertEqual(absent["stores"]["accum"]["state"], "absent")
+        self.assertIsNone(absent["stores"]["accum"]["ageS"],
+                          "an absent store reported an age, which is a measurement it never took")
+
+        empty = self._with_stores({"owned": []}, {"rows": []})
+        self.assertEqual(empty["stores"]["accum"]["state"], "ok")
+        self.assertEqual(empty["totals"]["owned"], 0)
+
+        broke = self._with_stores("BROKEN", {"rows": []})
+        self.assertTrue(broke["stores"]["accum"]["state"].startswith("unreadable"))
+        self.assertIn("INCOMPLETE", broke["say"],
+                      "a store that would not open was not announced — everything under it is "
+                      "incomplete, not empty")
+
+    def test_it_tallies_the_three_time_states_the_board_renders(self):
+        v = self._with_stores(
+            {"owned": [{"name": "A", "lastSeenTs": 1787600000000,
+                        "witnesses": [{"frame": "f_1.jpg", "ts": 1787600000000}]}]},
+            {"rows": [{"name": "B", "witnesses": [{"session": "s_1787520892804_95400"}]},
+                      {"name": "C", "witnesses": [{"conf": 0.4}]}]})
+        self.assertEqual(v["totals"]["when"], {"exact": 1, "recording": 1, "undated": 1},
+                         "the tally disagrees with what the rows actually carry")
+        self.assertEqual(v["totals"]["owned"], 1)
+        self.assertEqual(v["totals"]["sightings"], 2)
+
+    def test_the_age_belongs_to_the_STORE_not_to_this_call(self):
+        """A ledger written three days ago is three days old however fresh the response is.
+        [[stale-reading]]"""
+        v = self._with_stores({"owned": []}, {"rows": []})
+        self.assertIsNotNone(v["stores"]["accum"]["mtime"])
+        self.assertLess(v["stores"]["accum"]["ageS"], 120,
+                        "the fixture was written seconds ago and the store reports otherwise")
+        self.assertIn("readTs", v, "nothing says when this READ happened, so the two ages cannot "
+                                   "be told apart")
+
+    def test_the_view_writes_nothing_and_calls_no_reader(self):
+        """It exists so that LOOKING is free. A viewer that spends is not a viewer."""
+        import ast
+        ca = self._ca()
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with open(_p, "r", encoding="utf-8") as fh:
+            src = fh.read()
+        fn = [n for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.FunctionDef) and n.name == "vault_ledger_view"]
+        self.assertEqual(len(fn), 1)
+        called = {n.func.id for n in ast.walk(fn[0])
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+        for banned in ("vault_ledger_save", "vault_seen_save", "_vault_json_save",
+                       "claude_vault_read", "_vault_sweep_run"):
+            self.assertNotIn(banned, called, "the free ledger view calls %s" % banned)
+
+    def test_the_route_exists_and_is_wired_to_the_view(self):
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with open(_p, "r", encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('path == "/api/vault_ledger"', src, "the route is gone")
+        # bounded by the NEXT route, not by a byte count — a window sized in characters is a guess
+        # about how long someone's comment is, and the meta-guard on byte-counted slices is right to
+        # refuse new ones. [[source-reading-guard]] §3
+        blk = _between(self, src, 'path == "/api/vault_ledger"', 'if path ==',
+                       what="the vault_ledger route body")
+        self.assertIn("vault_ledger_view()", blk, "the route does not call the view")
+
+    def test_the_handler_can_actually_REACH_the_row_renderer(self):
+        """The first cut of this handler was written beside the eagle's, which is a different
+        closure from the one holding _vaultNames. It threw `_vaultNames is not defined` the moment
+        it was clicked — a defect no amount of reading finds, because the call is spelled correctly.
+
+        Checked STRUCTURALLY: the definition must sit inside the same closure as the renderer, so
+        there must be no closure-closing `})();` between them."""
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with open(_p, "r", encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertEqual(ui.count("function _vaultNames("), 1)
+        self.assertEqual(ui.count("window._ledgerView = async function"), 1)
+        i = ui.index("function _vaultNames(")
+        j = ui.index("window._ledgerView = async function")
+        lo, hi = min(i, j), max(i, j)
+        self.assertNotIn("})();", ui[lo:hi],
+                         "a closure closes between _vaultNames and window._ledgerView, so the "
+                         "handler cannot see the renderer it calls")
+        self.assertIn("window._ledgerView", ui[ui.index("$('btn-ledger').onclick"):][:300],
+                      "the button does not call the view function")
+
+    def test_no_python_emoji_escape_survives_in_the_console_javascript(self):
+        r"""JavaScript has no \U escape. `'\U0001F985 EAGLE EYE'` renders as the literal text
+        "U0001F985 EAGLE EYE", which is what the eagle panel had been printing. Ten of these were in
+        the file. [[feedback-generalize-fixes]]"""
+        import re as _re
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with open(_p, "r", encoding="utf-8") as fh:
+            ui = fh.read()
+        bad = _re.findall(r"\\U0001[0-9A-Fa-f]{4}", ui)
+        self.assertEqual(bad, [], "python-style emoji escapes render as literal text in JS: %s"
+                         % sorted(set(bad)))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

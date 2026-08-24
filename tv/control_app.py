@@ -11087,6 +11087,93 @@ def vault_ledger_save(led):
     return _vault_json_save(VAULT_LEDGER_PATH, led if isinstance(led, dict) else {})
 
 
+def _vault_store_read(path):
+    """ABSENT, UNREADABLE and EMPTY are three different facts and this returns which.
+
+    vault_ledger_load() folds all three into {} — fine for the sweep, which only wants rows, and
+    wrong for a viewer, where "your ledger is empty" and "I could not open your ledger" must never
+    look the same. [[unknown-stays-unknown]]
+    """
+    if not os.path.exists(path):
+        return None, "absent", None
+    try:
+        st = os.stat(path)
+    except OSError:
+        st = None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh), "ok", (st.st_mtime if st else None)
+    except Exception as e:
+        return None, "unreadable: %s" % str(e)[:90], (st.st_mtime if st else None)
+
+
+def vault_ledger_view():
+    """THE LEDGER, READ-ONLY AND FREE.
+
+    Konyo: "i want it to visually render the backend through the ledger visually so we can visually
+    surgically fix anything needed future wise."
+
+    Until now `vault_ledger_load()` had exactly ONE caller in the whole console — inside
+    `_vault_sweep_run`. So the accumulated ledger, and every sighting time and frame id v2064/v2065
+    put on it, could only be seen as a SIDE EFFECT of paying for a sweep. Looking at what the AI has
+    already seen cost a re-read.
+
+    This reads the two durable stores and returns them. It writes nothing, spends nothing, and calls
+    no reader.
+
+    THE AGES ARE THE STORES', NOT THIS CALL'S. A ledger written three days ago is three days old
+    however fresh this response is, so each store carries its own mtime and age, and a store that
+    could not be read carries no age at all rather than a zero. [[stale-reading]]
+    """
+    acc, acc_why, acc_mt = _vault_store_read(VAULT_LEDGER_PATH)
+    seen, seen_why, seen_mt = _vault_store_read(_VAULT_SEEN_PATH)
+    owned = [r for r in ((acc or {}).get("owned") or []) if isinstance(r, dict)]
+    _sr = (seen or {}).get("rows") if isinstance(seen, dict) else (seen or [])
+    sightings = [r for r in (_sr or []) if isinstance(r, dict) and r.get("name")]
+
+    def _when(row):
+        """Which of the three time-states this row is in — the same three the board renders."""
+        ts = row.get("lastSeenTs") or 0
+        for w in (row.get("witnesses") or []):
+            if isinstance(w, dict):
+                try:
+                    ts = max(ts, int(w.get("ts") or 0))
+                except Exception:
+                    pass
+        if ts:
+            return "exact"
+        for w in (row.get("witnesses") or []):
+            if isinstance(w, dict) and str(w.get("session") or "").startswith("s_"):
+                return "recording"
+        return "undated"
+
+    tally = {"exact": 0, "recording": 0, "undated": 0}
+    for r in owned + sightings:
+        tally[_when(r)] += 1
+
+    now = time.time()
+
+    def _store(why, mt):
+        return {"state": why, "mtime": int(mt * 1000) if mt else None,
+                "ageS": int(now - mt) if mt else None}
+
+    unreadable = [n for n, w in (("accum", acc_why), ("seen", seen_why)) if w.startswith("unreadable")]
+    return {
+        "ok": True,
+        "readTs": int(now * 1000),
+        "owned": owned,
+        "seen": sightings,
+        "stores": {"accum": _store(acc_why, acc_mt), "seen": _store(seen_why, seen_mt)},
+        "totals": {"owned": len(owned), "sightings": len(sightings), "when": tally},
+        "say": (
+            ("could not read %s — what follows is INCOMPLETE, not empty" % ", ".join(unreadable))
+            if unreadable else
+            ("%d grounded row(s) and %d sighting(s) still short of a second witness. "
+             "%d carry an exact read time, %d name only the recording they came from, %d neither."
+             % (len(owned), len(sightings), tally["exact"], tally["recording"], tally["undated"]))),
+    }
+
+
 _VAULT_QUOTE = {"sig": None, "res": None}
 
 
@@ -14180,7 +14267,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2066",
+        "ver": "v2067",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -15859,6 +15946,13 @@ class Handler(BaseHTTPRequestHandler):
             # v1578 — THE FREE PASS, vault edition. Prices a vault retro sweep on HIS film.
             # Zero model calls, zero writes.
             self._json(200, vault_scan_cost())
+            return
+        if path == "/api/vault_ledger":
+            # v2067 — LOOKING AT THE LEDGER IS FREE. Until now vault_ledger_load() had exactly one
+            # caller in this file, inside _vault_sweep_run, so the accumulated ledger could only be
+            # seen as a side effect of paying for a sweep. Reads two files, writes nothing, calls
+            # no reader.
+            self._json(200, vault_ledger_view())
             return
         if path == "/api/vault_sweep":
             # v1578 — progress + result of the vault sweep. GET never starts one; starting spends
