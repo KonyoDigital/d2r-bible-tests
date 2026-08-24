@@ -3352,6 +3352,10 @@ def open_control_window():
             # v2035 — seals a LANE-declared reel once the stash leaves the screen.
             threading.Thread(target=_stash_watch_loop, daemon=True,
                              name="tvd-stash-watch").start()
+            # v2037 — prunes duplicate live frames while he records. See _prune_once for why
+            # this exists and what makes it safe; the short version is 96% full at 5-6 GB/hour.
+            threading.Thread(target=_prune_loop, daemon=True,
+                             name="tvd-rolling-prune").start()
         except Exception as _ee:
             print(f"⚠ engine driver failed to start ({_ee}) — tallies need a board tab open", flush=True)
 
@@ -10211,6 +10215,129 @@ def _newest_frame_path():
         return None
 
 
+# ── v2037 — THE ROLLING PRUNE ────────────────────────────────────────────────────────────────
+# Konyo: "it needs to be like optimizing itself while its reading maybe even deleting the first
+# couple minutes or half even before the 1 hour ends.. like it should be doing it indefinitely
+# while its on and looped to prune and register and witness".
+#
+# WHY IT IS NEEDED, MEASURED 2026-08-24: 9.3 GB free of 228 GB (96% full) against a capture rate
+# of 5.0-6.6 GB/hour. reel_retention.py cannot help and is right not to - it works at WHOLE-REEL
+# granularity, and every reel on disk is recent, unread, or still owes the vault lane its stash
+# rows, so it correctly refuses to delete any of them. Nothing pruned WITHIN a reel, and within
+# is where the waste is.
+#
+# WHAT IS SAFE TO DROP, AND HOW THAT WAS ESTABLISHED. Fingerprinting all 1270 frames of his
+# 22-minute auto-vault reel: grouping consecutive frames at a TIGHT 0.02 and keeping one per
+# group removes 26% of the bytes. Measured against the nine frames that reel's sweep actually
+# READ, the worst distance from a dropped frame to its kept representative was 0.0117 - a fifth
+# of the 0.05 at which two frames begin to look different at all. A tooltip appearing moves the
+# signature far more than 0.02, so a frame carrying a NAME always opens its own group and is
+# kept. That is the entire safety argument, and it is measurement rather than reasoning.
+#
+# IT COMPARES AGAINST THE KEPT FRAME, NOT THE PREVIOUS ONE. still_runs bounds only consecutive
+# pairs, and on this same reel that let a 56-frame run walk 0.484 from its anchor while every
+# step stayed under 0.22 - welding gameplay in the Worldstone Chamber to a Loading screen. A
+# prune that drifted like that would delete frames it never actually compared to what it kept.
+# Holding the anchor makes the group's total spread bounded by construction.
+#
+# THREE THINGS IT MUST NOT DO, each worse than the disk it saves:
+#   1. never touch a REEL directory. Sealed reels are the reader's evidence and a sweep may be
+#      walking one this second. This prunes only the LOOSE live frames.
+#   2. never touch anything recent - _PRUNE_GRACE_S keeps the newest frames whole, so the stash
+#      watcher and the live eye always read a complete picture.
+#   3. never touch a `.part.` file. A half-written frame is not a frame (v2036).
+_PRUNE_MAX_DIFF = 0.02     # measured: worst loss to a kept representative was 0.0117
+_PRUNE_GRACE_S = 180.0     # never touch a frame younger than this
+_PRUNE_POLL_S = 60.0
+_PRUNE_BATCH = 120         # frames fingerprinted per pass, so it never hogs a core while he plays
+_PRUNE_FLOOR = 200         # below this many loose frames there is nothing worth pruning
+_PRUNE_LOCK = threading.Lock()
+_PRUNE_STATS = {"passes": 0, "framesDropped": 0, "bytesFreed": 0, "lastSay": "", "enabled": True}
+
+
+def prune_stats():
+    """What the rolling prune has ACTUALLY done. Honest zeros, never an estimate."""
+    with _PRUNE_LOCK:
+        return dict(_PRUNE_STATS)
+
+
+def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=False,
+                hist_dir=None):
+    """One pass over the loose live frames. Returns (dropped, bytes_freed, why). Never raises."""
+    max_diff = _PRUNE_MAX_DIFF if max_diff is None else max_diff
+    grace_s = _PRUNE_GRACE_S if grace_s is None else grace_s
+    batch = _PRUNE_BATCH if batch is None else batch
+    floor = _PRUNE_FLOOR if floor is None else floor
+    root = hist_dir or HIST_DIR
+    try:
+        import glob as _g
+        import chronicle_retro as _cr
+        import vault_retro as _vr
+    except Exception as _e:
+        return (0, 0, "prune modules unavailable: %s" % str(_e)[:70])
+    try:
+        live = [q for q in _g.glob(os.path.join(root, "f_*.jpg"))
+                if ".part." not in os.path.basename(q)]
+    except Exception as _e:
+        return (0, 0, "could not list frames: %s" % str(_e)[:70])
+    if len(live) < floor:
+        return (0, 0, "only %d loose frame(s) - the floor is %d" % (len(live), floor))
+    now = time.time()
+    try:
+        live.sort(key=lambda q: os.stat(q).st_mtime)
+        old = [q for q in live if (now - os.stat(q).st_mtime) > grace_s]
+    except Exception as _e:
+        return (0, 0, "could not age the frames: %s" % str(_e)[:70])
+    if len(old) < 3:
+        return (0, 0, "nothing older than the %.0fs grace" % grace_s)
+    old = old[:batch]
+    dropped = freed = 0
+    kept_sig = None
+    for q in old:
+        try:
+            sg = _vr.DEFAULT_SIG(q)
+        except Exception:
+            sg = None
+        if sg is None:
+            kept_sig = None          # unreadable breaks the group; it is never absorbed
+            continue
+        if kept_sig is not None and _cr.sig_diff(kept_sig, sg) <= max_diff:
+            try:
+                sz = os.stat(q).st_size
+                if not dry_run:
+                    os.remove(q)
+                dropped += 1
+                freed += sz
+            except Exception:
+                pass
+            continue                 # kept_sig stays the ANCHOR, so the group cannot drift
+        kept_sig = sg
+    return (dropped, freed,
+            "kept every frame more than %.3f from the one before it" % max_diff)
+
+
+def _prune_loop():
+    """Prune while he records, indefinitely, exactly as he asked."""
+    while True:
+        try:
+            time.sleep(_PRUNE_POLL_S)
+            with _PRUNE_LOCK:
+                on = _PRUNE_STATS.get("enabled", True)
+            if not on or not _agent_alive():
+                continue
+            d, b, why = _prune_once()
+            with _PRUNE_LOCK:
+                _PRUNE_STATS["passes"] += 1
+                _PRUNE_STATS["framesDropped"] += d
+                _PRUNE_STATS["bytesFreed"] += b
+                _PRUNE_STATS["lastSay"] = why
+            if d:
+                print("  \U0001f5dc rolling prune: dropped %d duplicate frame(s), freed %.0f MB"
+                      % (d, b / 1048576.0), flush=True)
+        except Exception:
+            pass
+
+
 def _current_declared_focus():
     """The focus this session declared, if any — read from the live mini state only."""
     try:
@@ -13608,7 +13735,12 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2036",
+        "ver": "v2037",
+        # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
+        # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
+        # witnesses and any other data information related ledger style maybe?" Zeros here mean
+        # measured-zero: the loop reports every pass, including the ones that dropped nothing.
+        "prune": prune_stats(),
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361

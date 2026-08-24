@@ -14317,5 +14317,139 @@ class TestV2036ATornFrameIsNotAnAbsentStash(unittest.TestCase):
 
 
 
+class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
+    """Konyo asked for a prune that runs "indefinitely while its on ... to prune and register and
+    witness". Deleting film is irreversible, so every refusal here matters more than the bytes.
+
+    The safety bar was MEASURED, not argued: fingerprinting all 1270 frames of his 22-minute
+    auto-vault reel, grouping at 0.02 and keeping one per group drops 26% of the bytes, and the
+    worst distance from a dropped frame to its kept representative - measured against the nine
+    frames that reel's sweep actually READ - was 0.0117.
+    """
+
+    def _mk(self, d, name, age_s=9999):
+        q = os.path.join(d, name)
+        with open(q, "wb") as f:
+            f.write(b"\xff\xd8\xff\xe0" + b"0" * 200)
+        t = time.time() - age_s
+        os.utime(q, (t, t))
+        return q
+
+    def _run(self, root, sigs, **kw):
+        """Run one prune pass with a FAKE fingerprint, so the test measures the POLICY."""
+        import unittest.mock as mock
+        import control_app, vault_retro
+        with mock.patch.object(vault_retro, "DEFAULT_SIG",
+                               lambda q: sigs.get(os.path.basename(q))):
+            kw.setdefault("floor", 0)
+            kw.setdefault("grace_s", 0.0)
+            kw.setdefault("batch", 500)
+            return control_app._prune_once(hist_dir=root, **kw)
+
+    def test_it_compares_against_the_KEPT_frame_not_the_previous_one(self):
+        """The defect this avoids is the one still_runs actually has.
+
+        On his own reel a 56-frame run walked 0.484 from its anchor while every consecutive step
+        stayed under 0.22 - welding gameplay to a Loading screen. A prune that drifted that way
+        would delete frames it never compared against what it kept.
+
+        Each frame here differs from the PREVIOUS by 0.01, under the 0.02 bar. But f_3 differs
+        from the ANCHOR f_0 by 0.03, over it. Anchor-comparison keeps f_0 and f_3;
+        previous-comparison keeps only f_0 and silently eats a frame 3x past the bar.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            sigs = {}
+            for k in range(5):
+                n = "f_%d.jpg" % k
+                self._mk(root, n)
+                sigs[n] = [0] * (100 - k) + [100] * k     # k of 100 samples differ from f_0
+            d, b, why = self._run(root, sigs, max_diff=0.02)
+            left = sorted(os.path.basename(x) for x in glob.glob(os.path.join(root, "f_*.jpg")))
+            self.assertIn("f_0.jpg", left, "the anchor itself must never be dropped")
+            self.assertIn("f_3.jpg", left,
+                          "f_3 is 0.03 from the anchor - over the 0.02 bar - and was eaten. "
+                          "That is previous-frame comparison, and it is how a group drifts "
+                          "without bound (the still_runs defect measured on his own reel).")
+            self.assertNotIn("f_1.jpg", left, "f_1 is 0.01 from the anchor and adds nothing")
+            self.assertNotIn("f_2.jpg", left, "f_2 is 0.02 from the anchor and adds nothing")
+            self.assertEqual(d, 3, "expected f_1, f_2 and f_4 dropped")
+
+    def test_it_never_touches_a_reel_directory(self):
+        """Sealed reels are the reader's evidence, and a sweep may be walking one right now."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            reel = os.path.join(root, "reel_s_1_2")
+            os.makedirs(reel)
+            sigs = {}
+            for k in range(4):
+                n = "f_%d.jpg" % k
+                self._mk(root, n); sigs[n] = [0] * 100
+            inside = self._mk(reel, "f_99.jpg"); sigs["f_99.jpg"] = [0] * 100
+            self._run(root, sigs, max_diff=0.02)
+            self.assertTrue(os.path.exists(inside),
+                            "a frame INSIDE a reel was deleted - sealed reels are evidence and a "
+                            "sweep may be reading that directory this second")
+
+    def test_it_never_touches_a_partial_write(self):
+        """v2036's rule, enforced at the second place it matters."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            sigs = {}
+            for k in range(4):
+                n = "f_%d.jpg" % k
+                self._mk(root, n); sigs[n] = [0] * 100
+            part = self._mk(root, "f_eye.jpg.part.jpg"); sigs["f_eye.jpg.part.jpg"] = [0] * 100
+            self._run(root, sigs, max_diff=0.02)
+            self.assertTrue(os.path.exists(part),
+                            "a half-written frame was deleted; it is not a frame and not a duplicate")
+
+    def test_the_grace_window_protects_recent_frames(self):
+        """The stash watcher and the live eye read the newest frame - it must always be whole."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            sigs = {}
+            for k in range(6):
+                n = "f_%d.jpg" % k
+                self._mk(root, n, age_s=1)     # all brand new
+                sigs[n] = [0] * 100
+            d, b, why = self._run(root, sigs, grace_s=600.0, max_diff=0.02)
+            self.assertEqual(d, 0, "recent frames were pruned despite the grace window")
+            self.assertIn("grace", why)
+
+    def test_an_unreadable_frame_breaks_the_group_and_is_kept(self):
+        """A fingerprint we could not take is not evidence of sameness. [[unknown-stays-unknown]]"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            sigs = {}
+            for k in range(4):
+                n = "f_%d.jpg" % k
+                self._mk(root, n); sigs[n] = [0] * 100
+            self._mk(root, "f_bad.jpg"); sigs["f_bad.jpg"] = None
+            self._run(root, sigs, max_diff=0.02)
+            left = [os.path.basename(x) for x in glob.glob(os.path.join(root, "f_*.jpg"))]
+            self.assertIn("f_bad.jpg", left, "an unreadable frame was deleted as a duplicate")
+
+    def test_dry_run_deletes_nothing_but_still_reports(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            sigs = {}
+            for k in range(5):
+                n = "f_%d.jpg" % k
+                self._mk(root, n); sigs[n] = [0] * 100
+            d, b, why = self._run(root, sigs, max_diff=0.02, dry_run=True)
+            left = glob.glob(os.path.join(root, "f_*.jpg"))
+            self.assertEqual(len(left), 5, "dry_run deleted files")
+            self.assertGreater(d, 0, "dry_run reported nothing - it must still count")
+
+    def test_the_prune_loop_is_actually_started(self):
+        """A loop nobody starts is the class this project keeps finding."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        self.assertTrue('name="tvd-rolling-prune"' in src, "the prune thread is never started")
+        self.assertTrue("target=_prune_loop" in src)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
