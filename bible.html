@@ -40788,7 +40788,65 @@ function renderJournal(){
           _landed = Object.prototype.hasOwnProperty.call(_fl, n);
         } catch(e){ _landed = true; }   // cannot tell → do not invent a demotion
         if (_landed) res.uniques.push(n);
-        else { res.vaulted = res.vaulted || []; res.vaulted.push(n); }
+        else {
+          res.vaulted = res.vaulted || []; res.vaulted.push(n);
+          /* ── v2083 — "VAULTED" HELD FOR ONE PAGE-LIFE, THEN IT WAS GONE ─────────────────────
+             v1987 refused a fix here and said exactly why: "chronicleApply reports `vaulted` for
+             a base, yet d2r_owned does not gain it, so nothing reaches ownedPool() and nothing
+             can be filed. That needs its own pass with the scope established first, not a guess
+             at the end of an arc." This is that pass, and the measurement it asked for — a REAL
+             apply, then a RELOAD:
+
+                 apply Shako · Phase Blade · Monarch · Archon Plate
+                   res.vaulted   all four        d2r_owned  4 ✓      muleAssign 0
+                 ...reload
+                   d2r_owned     0  <- every one gone        .vm-cell 0
+
+             TWO joints, both open, neither announcing itself:
+
+             1. IT NEVER BECAME A KNOWN NAME. toggleOwned puts the base in `owned`; the load-time
+                accept-list (~:18744) then REBUILDS `owned` from the catalogues, and a base is in
+                none of them. tvVaultRegister avoids this by calling _tvExtraRemember, whose own
+                comment calls itself the ONE DOOR "so there is one door and the store cannot drift
+                from the object" — and this path, which vaults just as really, never walked
+                through it. The same defect v1991 closed for the TV registrar, still open here.
+             2. IT WAS NEVER FILED. muleAssign is 0 BEFORE the reload too, so even inside one
+                page-life nothing reached a mule and the grid stayed empty. vaultAutoAssign has
+                existed since v1980 with nothing to work on.
+
+             Filing uses `!assign[n]` — tvVaultRegister's own rule. It fills an EMPTY home and
+             never overrides one he chose; a WRONG home is the audit's business (renderVaultAudit
+             already flags misroutes for him to confirm), not this one's.
+             [[the-unjoined-end]] [[plumbing-with-no-tap]] */
+          try {
+            /* NO `!findExtraItem(n)` GUARD. It asks whether the name is known RIGHT NOW, in
+               memory — and _EXTRA_ITEM_SET carries entries that were never persisted, which is the
+               very v1991 defect this door exists to close. Measured: "Shako" answered KNOWN, the
+               remember was skipped, and it was gone on the next reload while Monarch and Archon
+               Plate — which answered unknown — survived. A guard that reads volatile state to
+               decide a DURABLE action is asking the wrong question. _tvExtraRemember is idempotent,
+               so remembering an already-known name costs one dictionary write. */
+            if (typeof window._tvExtraRemember === 'function') {
+              window._tvExtraRemember(n, { rarity:'basic', base:n, cat:'\ud83d\udcfa TV-vaulted',
+                                           val:'tv', src:'chronicle-apply' });
+            }
+          } catch(e){}
+          /* THE FILING IS NOT DONE HERE, AND THAT IS THE POINT. My first cut wrote
+             `assign[n] = suggestMule(n).id` inline — and it did nothing, because `typeof assign`
+             is 'undefined' in THIS scope: `assign` is a let inside the vault IIFE. That is the
+             v1987 failure verbatim, made again after reading the note that describes it. Measured
+             before it was noticed: res.filed came back {} while everything looked wired.
+
+             Worse than dead: had it worked it would have been WRONG. window.vaultAutoAssign
+             (~:35000) already does this job with three rules mine did not have —
+               · `if (assign[name]) return;`  fills an empty home, never overrides one he chose
+               · v1983 SKIPS equipment and inventory, his words in capitals: "inventory and main
+                 character equiment (SHOULD NEVER BE TOLD TO BE MOVED its locked there)"
+               · logs source:'auto-assign', where assignItem would have stamped 'filed-by-hand' —
+                 a lie in the ledger about who decided
+             So the apply's job ends at making the name REAL. Filing has a door already; it is
+             called below, once, after the whole batch. [[copy-drift]] [[the-unjoined-end]] */
+        }
         /* v1918 — WRITE THE PROVENANCE AT THE ONE POINT THAT KNOWS ALL OF IT. Here we hold the
            row the console sent (why, witnesses, seen) AND the answer to "where did it actually
            land", which is computed three lines up and was reported to nobody. */
@@ -43478,6 +43536,9 @@ window._renderStashFresh = function(){
                an arc. [[the-unjoined-end]] */
           });
           var res = window.chronicleApply({ wouldAdd: { uniques: _uni, sets: _setp } });
+          /* v2083 — and now that a vaulted base SURVIVES, file the batch through the one door that
+             knows his locked lanes. Once, after the apply, never per item. */
+          try { if (typeof window.vaultAutoAssign === 'function') window.vaultAutoAssign(); } catch(e){}
           out.grail = ((res && res.uniques) || []).concat((res && res.sets) || []);
           /* v1982 — A VAULTED ROW LANDED AND THE RESULT SAID NOTHING HAPPENED. chronicleApply has a
              FIFTH outcome besides uniques/sets/skipped/unknown: `vaulted`, for a name that is a BASE
@@ -44656,7 +44717,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2082', name:'v2082 - every spelling of off means off', date:'2026-08-25', note:'seven findings from a review of v2080 plus the sixteen uniques the vault refused to hold and the sightings a stray byte destroyed' };
+  window.D2R_BUILD = { id:'v2083', name:'v2083 - a vaulted base survives the reload', date:'2026-08-25', note:'items a reel vaults now persist and reach a mule instead of existing for one page-life' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -9880,11 +9880,27 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
         self.assertIn("res.vaulted", body, "there is nowhere to report a vault landing")
 
     def test_a_name_that_did_not_land_is_not_counted_as_a_find(self):
+        """v2083 — PIN THE LAW, NOT THE LAYOUT. This asserted the literal `else { res.vaulted`,
+        which is a one-LINER, and went red the moment that branch grew a body — the semantics were
+        untouched. A guard that fails when someone reformats the code it guards spends attention on
+        a non-event, and the pressure it creates is to weaken it.
+
+        The law is: `_landed` decides, and the NOT-landed side reports a vault landing rather than
+        dropping the name. That is what is checked now, with the prose stripped so the comment
+        explaining the branch cannot satisfy it."""
         body = self._apply_src()
         i = body.find("if (_landed) res.uniques.push(n);")
         self.assertGreater(i, 0, "the receipt pushes unconditionally again")
-        self.assertIn("else { res.vaulted", body[i:i + 200],
-                      "a name that went to the vault is silently dropped from the receipt")
+        tail = re.sub(r"/\*.{0,8000}?\*/", " ", body[i:i + 4000], flags=re.S)
+        j = tail.find("else")
+        self.assertGreater(j, 0, "the landed check lost its else — a name that did not land is "
+                                 "silently dropped from the receipt")
+        self.assertIn("res.vaulted", tail[j:j + 400],
+                      "the not-landed branch no longer reports a vault landing")
+        self.assertLess(tail.find("res.vaulted", j), tail.find("res.uniques", j) if
+                        tail.find("res.uniques", j) > 0 else 10 ** 9,
+                        "the not-landed branch counts it as a FIND — the exact confusion v1889 "
+                        "closed: applying Shako reported uniques:5 and moved the grail counter by 4")
 
     def test_an_unreadable_ledger_does_NOT_invent_a_demotion(self):
         """If the ledger cannot be read, "he did not find it" is a claim we have not earned. The
@@ -18686,6 +18702,93 @@ class TestV2082SightingsSurviveAStrayByte(unittest.TestCase):
         self.assertGreaterEqual(len(kept), 2,
                                 "the second corruption overwrote the first — only %d kept"
                                 % len(kept))
+
+
+class TestV2083AVaultedBaseSurvivesTheReload(unittest.TestCase):
+    """v1987 refused a fix here and said exactly why: "chronicleApply reports `vaulted` for a base,
+    yet d2r_owned does not gain it, so nothing reaches ownedPool() and nothing can be filed. That
+    needs its own pass with the scope established first, not a guess at the end of an arc."
+
+    MEASURED before the fix, a real apply then a reload:
+        apply Shako · Phase Blade · Monarch · Archon Plate
+          res.vaulted  all four     d2r_owned 4 ✓     muleAssign 0
+        ...reload
+          d2r_owned    0            .vm-cell  0
+    and after: owned 4, muleAssign 4, .vm-cell 4, .vm-grid 2.
+
+    TWO joints. The name never became KNOWN (the load-time accept-list rebuilds `owned` from the
+    catalogues and a base is in none of them), and it was never FILED.
+
+    These are source guards because the behaviour lives in a browser; the rendered half is
+    tests/v2083_vaulted_base_survives.spec.ts, which runs on CI. [[test-venue]]"""
+
+    def setUp(self):
+        self.bible = os.path.join(os.path.dirname(HERE), "bible.html")
+        if not os.path.isfile(self.bible):
+            self.skipTest("bible.html is not on this machine")
+        with io.open(self.bible, encoding="utf-8") as fh:
+            self.s = fh.read()
+
+    def _vaulted_branch(self):
+        return _between(self, self.s, "res.vaulted = res.vaulted || []; res.vaulted.push(n);",
+                        "/* v1918", what="the vaulted branch")
+
+    def test_a_vaulted_name_is_REMEMBERED_through_the_one_door(self):
+        """_tvExtraRemember's own comment calls itself the one door "so there is one door and the
+        store cannot drift from the object". This path vaults just as really and never used it."""
+        blk = self._vaulted_branch()
+        self.assertIn("window._tvExtraRemember(n,", blk,
+                      "a base applied from a reel is never remembered, so the load-time accept-list "
+                      "drops it and it exists for exactly one page-life")
+
+    def test_the_remember_is_NOT_guarded_by_volatile_state(self):
+        """`!findExtraItem(n)` asks whether the name is known RIGHT NOW — and _EXTRA_ITEM_SET holds
+        entries that were never persisted, which is the v1991 defect this door exists to close.
+        Measured: Shako answered KNOWN, was skipped, and vanished; Monarch and Archon Plate, which
+        answered unknown, survived. A guard reading volatile state to decide a DURABLE action is
+        asking the wrong question."""
+        blk = self._vaulted_branch()
+        self.assertNotIn("!window.findExtraItem(n)", blk,
+                         "the durable remember is gated on an in-memory lookup again")
+
+    def test_the_filing_goes_through_vaultAutoAssign_not_inline(self):
+        """My first cut wrote `assign[n] = suggestMule(n).id` inline. It did nothing — `typeof
+        assign` is 'undefined' in that scope, the v1987 failure verbatim. And had it worked it would
+        have been WRONG: vaultAutoAssign skips equipment and inventory (his words, in capitals) and
+        logs source:'auto-assign', where assignItem stamps 'filed-by-hand' — a lie about who
+        decided."""
+        blk = _between(self, self.s, "var res = window.chronicleApply({ wouldAdd:",
+                       "out.grail", what="the apply call site")
+        self.assertIn("window.vaultAutoAssign()", blk,
+                      "nothing files the batch after an apply, so vaultAutoAssign has nothing to "
+                      "work on and the grid stays empty")
+        # ⚠ STRIP THE PROSE FIRST. The comment in that branch QUOTES `assign[n] = suggestMule(n).id`
+        # to explain why it was removed, so a bare assertNotIn fails on my own explanation — the
+        # third time tonight. Bound the block-comment strip so a stray `/*` cannot eat the file.
+        # [[source-reading-guard]] §4
+        vb = re.sub(r"/\*.{0,8000}?\*/", " ", self._vaulted_branch(), flags=re.S)
+        self.assertNotIn("assign[n] =", vb,
+                         "the vaulted branch files inline again — `assign` is a let in another "
+                         "scope, so it silently does nothing, and it would bypass the equipment lock")
+        self.assertIn("window._tvExtraRemember(n,", vb,
+                      "the comment strip ate the code too — the slice is measuring nothing")
+
+    def test_the_LOCKED_LANES_rule_is_still_where_the_filing_happens(self):
+        """His words in capitals: "inventory and main character equiment (SHOULD NEVER BE TOLD TO BE
+        MOVED its locked there)". Routing the apply through vaultAutoAssign is only safe while
+        vaultAutoAssign still honours that."""
+        blk = _between(self, self.s, "window.vaultAutoAssign = function()", "ownedPool().forEach",
+                       what="vaultAutoAssign's head")
+        after = _between(self, self.s, "ownedPool().forEach(function(name){",
+                         "window.vaultAutoAssign = window.vaultAutoAssign",
+                         min_len=200, what="vaultAutoAssign's body") \
+            if "window.vaultAutoAssign = window.vaultAutoAssign" in self.s else \
+            self.s[self.s.index("ownedPool().forEach(function(name){"):][:3000]
+        self.assertIn("if (assign[name]) return;", after,
+                      "auto-assign no longer fills only EMPTY homes — it can now override a "
+                      "placement he made by hand")
+        self.assertIn("SHOULD NEVER BE TOLD TO BE MOVED", after,
+                      "the equipment/inventory lock left the function the apply now routes through")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2082",
+  "ver": "v2083",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2082: seven findings from a review of v2080 plus the sixteen uniques the vault refused to hold and the sightings a stray byte destroyed",
+  "note": "v2083: items a reel vaults now persist and reach a mule instead of existing for one page-life",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
