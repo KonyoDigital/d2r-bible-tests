@@ -15651,5 +15651,94 @@ class TestV2063DoNotRecordAGameThatIsNotRunning(unittest.TestCase):
         self.assertEqual(self._shoot(n), n, "an UNSET game gate suppressed footage")
 
 
+class TestV2064TheLedgerSaysWHENTheAiSawIt(unittest.TestCase):
+    """Konyo: "the ledger should tell us when it was seen by AI so we can see visually in retro and
+    visually debug in retro if needed surgically anything."
+
+    The console vault row printed "2 witness(es)" and nothing about WHEN, so a sighting from tonight
+    and one from three weeks ago read identically, and a row he wanted to check against the game had
+    nothing pointing at the frames that produced it.
+
+    RUNS THE REAL SHIPPED FUNCTION under node — not a grep, and not a copy. The renderer lives inside
+    a large IIFE so it is unreachable from the page scope; extracting it by BRACE BALANCE (never a
+    byte window) is what makes this testable at all. [[source-reading-guard]] §3"""
+
+    def _render(self, rows):
+        import json as _json, shutil as _sh, subprocess as _sp, tempfile as _tf
+        node = _sh.which("node")
+        if not node:
+            self.skipTest("node is not installed on this machine")
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        if not os.path.isfile(p):
+            self.skipTest("control_ui.html is not on this machine")
+        with open(p, encoding="utf-8") as fh:
+            src = fh.read()
+
+        def grab(sig):
+            i = src.find(sig)
+            self.assertGreater(i, 0, "%s is gone from control_ui.html" % sig)
+            self.assertEqual(src.count(sig), 1, "%s appears more than once — the wrong copy would "
+                                                "be extracted" % sig)
+            j = src.index("{", i)
+            depth = 0
+            for k in range(j, len(src)):
+                if src[k] == "{":
+                    depth += 1
+                elif src[k] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return src[i:k + 1]
+            self.fail("unbalanced braces reading %s" % sig)
+
+        prog = ("\n\n".join([grab("function escC("), grab("function _agoMs("),
+                              grab("function _vaultNames(")])
+                + "\nconsole.log(JSON.stringify(_vaultNames(" + _json.dumps(rows) + ", true)));\n")
+        with _tf.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+            f.write(prog)
+            jp = f.name
+        try:
+            out = _sp.run([node, jp], capture_output=True, text=True, timeout=60)
+            self.assertEqual(out.returncode, 0, out.stderr[:500])
+            return _json.loads(out.stdout.strip().splitlines()[-1])
+        finally:
+            os.unlink(jp)
+
+    NOW = 1787600000000
+
+    def test_a_dated_sighting_shows_when_and_names_its_frames(self):
+        html = self._render([{"name": "Harlequin Crest", "lane": "stash",
+                              "witnesses": [{"frame": "f_111.jpg", "ts": self.NOW - 3 * 60000},
+                                            {"frame": "f_222.jpg", "ts": self.NOW - 9 * 60000}],
+                              "lastSeenTs": self.NOW - 3 * 60000}])
+        self.assertIn("AI saw it", html, "the row does not say WHEN the AI saw it")
+        self.assertIn("f_111.jpg", html,
+                      "the row names no frame, so he cannot go back and look at what it read — "
+                      "which is the whole point of debugging in retro")
+        self.assertIn("f_222.jpg", html, "only one of two witness frames is reachable")
+        self.assertIn("when the SIGHTING happened", html,
+                      "nothing says the stamp is the age of the READ rather than of this render")
+
+    def test_an_UNDATED_sighting_reads_UNKNOWN_and_is_never_called_recent(self):
+        """A row nobody dated and a row seen this minute are opposite facts. Collapsing them is the
+        lie with no author. [[unknown-stays-unknown]]"""
+        html = self._render([{"name": "Stone of Jordan", "lane": "stash",
+                              "witnesses": [{"session": "s_1785083099664_77787"}]}])
+        self.assertIn("UNKNOWN", html, "an undated sighting did not read UNKNOWN")
+        self.assertNotIn("just now", html, "an undated sighting was rendered as recent")
+        self.assertNotIn("AI saw it", html, "an undated sighting claimed a time it does not have")
+
+    def test_a_row_with_no_witness_field_claims_nothing_either_way(self):
+        html = self._render([{"name": "Shako", "lane": "stash"}])
+        self.assertNotIn("AI saw it", html)
+        self.assertNotIn("UNKNOWN", html,
+                         "a row that never carried witnesses is not an undated sighting — saying "
+                         "UNKNOWN there invents a reading that was never taken")
+
+    def test_one_witness_is_not_written_as_witness_es(self):
+        html = self._render([{"name": "Shako", "lane": "stash",
+                              "witnesses": [{"frame": "f_1.jpg", "ts": self.NOW}]}])
+        self.assertIn("1 witness<", html + "<", "singular row still reads '1 witness(es)'")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

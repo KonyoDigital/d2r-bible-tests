@@ -15113,10 +15113,44 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (r && r.conf !== undefined && r.conf !== null) bits.push('conf ' + escC(String(r.conf)));
       if (r && r.witnesses !== undefined) {
         var w = r.witnesses;
-        bits.push((typeof w === 'number' ? w : (w || []).length) + ' witness(es)');
+        var wn = (typeof w === 'number' ? w : (w || []).length);
+        bits.push(wn + (wn === 1 ? ' witness' : ' witnesses'));
+      }
+      /* v2064 — WHEN THE AI SAW IT, not just how many times.
+         Konyo: "the ledger should tell us when it was seen by AI so we can see visually in retro
+         and visually debug in retro if needed surgically anything."
+         The row said "2 witness(es)" and nothing about WHEN, so a sighting from tonight and one
+         from three weeks ago read identically — and a row he wants to check against the game had
+         nothing pointing at the frames that produced it.
+         The stamp is the age of the SIGHTING, never of this render. An absent timestamp reads
+         UNKNOWN and is not quietly folded into "just now": a row nobody dated and a row seen this
+         minute are opposite facts. [[stale-reading]] [[unknown-stays-unknown]] */
+      var _sTs = 0, _sFrames = [];
+      if (r && typeof r === 'object') {
+        if (r.lastSeenTs) _sTs = Number(r.lastSeenTs) || 0;
+        (Array.isArray(r.witnesses) ? r.witnesses : []).forEach(function (w2) {
+          if (!w2 || typeof w2 !== 'object') return;
+          var t2 = Number(w2.ts || 0);
+          if (isFinite(t2) && t2 > _sTs) _sTs = t2;
+          if (w2.frame) _sFrames.push(String(w2.frame));
+          else if (w2.session) _sFrames.push('recording ' + String(w2.session));
+        });
+      }
+      var _rel = _sTs ? _agoMs(_sTs) : '';
+      var _seen = '';
+      if (_sTs && _rel) {
+        _seen = '<span class="vault-seen" title="' + escC('The AI read this at '
+          + new Date(_sTs).toLocaleString()
+          + (_sFrames.length ? ' \u2014 from ' + _sFrames.join(', ') : '')
+          + '. This is when the SIGHTING happened, not when this panel was drawn.')
+          + '">\ud83d\udc41 AI saw it ' + escC(_rel) + '</span>';
+      } else if (r && r.witnesses !== undefined) {
+        _seen = '<span class="vault-seen unknown" title="This sighting carries no timestamp, so WHEN '
+          + 'is unknown. That is not the same as never, and not the same as recently.">'
+          + '\ud83d\udc41 AI sighting time UNKNOWN</span>';
       }
       return '<div class="chron-n"><b>' + head + '</b>'
-        + (bits.length ? '<i>' + bits.join(' · ') + '</i>' : '')
+        + (bits.length ? '<i>' + bits.join(' · ') + '</i>' : '') + _seen
         + (withWhy && r && r.why ? '<i>' + escC(String(r.why)) + '</i>' : '') + '</div>';
     }).join('');
   }
