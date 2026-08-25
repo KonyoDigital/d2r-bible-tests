@@ -3649,6 +3649,30 @@
      Wrapping is the safety net: add an eighth tab later and the worst case is a second row, never
      a hidden control. ═══════════════════════════════════════════════════════════════════════════ */
   .head-tabs { flex-wrap: wrap; row-gap: 6px; overflow-x: visible; }
+  /* ══ v2100 — ONE ROW OF TABS ═══════════════════════════════════════════════════════════════
+     "the main tabs on top should be one row. idont want it to have to open a second row."
+
+     THE STRIP COULD NEVER GROW, because it lives INSIDE .brand and .brand is content-sized
+     (flex 0 1 auto). At 1000px that left the strip 441px for ~590px of tabs — it was STARVED, not
+     overflowing, and no amount of trimming inside it could help. One line fixes that; the rest is
+     a modest tightening so the eight fit without hiding anything.
+
+     ⚠ MEASURED WITH THE ART LOADING. My first harness served control_ui.html without /art, so every
+     <img class="ht-i"> removed itself through its own onerror and the icons were absent from every
+     number I quoted back. The icons are ~300px of the strip's width. [[feedback-blind-fixture-green-gate]]
+     ⚠ AND VERIFIED ON THE PICTURE. An earlier attempt (nav out of .brand, flex:1 0 100%) measured
+     "rows: 1" across part of the range and RENDERED as a 3-row column jammed against the CONSOLE
+     rail with OFF AIR stranded mid-row. Reverted. [[visual-regression-detector]] ═════════════ */
+  .brand { flex: 1 1 auto; min-width: 0; }
+  @media (max-width: 1180px) {
+    .head-tabs { gap: 4px; margin-left: 8px; }
+    .head-tabs .ht { padding: 6px 8px; letter-spacing: 0; }
+    .brand-id { gap: 8px; }
+    .brand-id .clock { font-size: var(--fs-2xs); }
+    .head-right { gap: 8px; }
+    .live-bug { padding: 6px 10px; }
+  }
+
   @media (max-width: 1000px) {
     .topbar { gap: clamp(6px, 1.2vw, 14px); }
     .head-tabs { margin-left: 8px; gap: 4px; }
@@ -4564,7 +4588,7 @@
   aside.rail .signal { flex: 1 1 auto !important; display: flex; flex-direction: column; justify-content: space-evenly; }   /* v889 — the health card FILLS; rows breathe evenly */
   .head-tabs .ht { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
     color: var(--gold-dim); font: var(--fw-medium) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-normal);
-    padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+    padding: 9px 13px; border-radius: 8px; cursor: pointer; white-space: nowrap; }   /* v2100 — folded up from the retired !important layer */
   .head-tabs .ht:hover { color: var(--gold); border-color: var(--edge-hi); box-shadow: 0 0 10px rgba(240,192,96,.18); }
   .head-tabs .ht:active { transform: translateY(1px); }
   /* v945 CONSOLE PARITY C7 — the CURRENT tab is clearly lit (was indistinguishable), plus a keyboard ring */
@@ -4582,7 +4606,7 @@
   .head-tabs .ht:hover .ht-i { opacity: 1; }
   .head-tabs .ht.shell-on .ht-i { opacity: 1; filter: brightness(1.25) contrast(1.08) drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
   @media (max-width: 900px){ .head-tabs .ht .ht-i { width: 15px; height: 15px; vertical-align: -2px; } }
-  .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .55; font-size: var(--fs-xs); padding: 7px 9px; }   /* v905 — the main four lead */
+  .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .55; font-size: var(--fs-xs); padding: 9px 11px; }   /* v905 — the main four lead · v2100 padding folded up from the retired !important layer, which also ends the 2px height mismatch that made these two sit off-baseline */
   /* ══ v1625 · THE TAB WEARS ITS QUALITY ═══════════════════════════════════════════════════════
      Konyo: "for the main tabs i want it colored accordingly to each relevant... F-SETS it can be
      matched and synced to green sets like it is ingame. F-UNIQUES it can be matched and synced to
@@ -4708,7 +4732,7 @@
   body.gliding .shell { opacity: 0; transform: scale(.992); transition: opacity .14s ease, transform .14s ease; }
   /* v911 — the emblem is the GRAIL now */
   .brand .emblem img { border-radius: 10px; filter: drop-shadow(0 0 14px rgba(240,192,96,.45)); }
-  @media (max-width: 900px){ .head-tabs { gap: 3px; } .head-tabs .ht { padding: 7px 8px; font-size: var(--fs-xs); } }   /* v882 — tabs shrink, never vanish (the rail is gone) */
+  @media (max-width: 900px){ .head-tabs { gap: 3px; } .head-tabs .ht { font-size: var(--fs-xs); } }   /* v882 — tabs shrink, never vanish (the rail is gone) · v2100 padding dropped, the measured layer owns it */
   /* v1576 (dead-seam sweep) — the .bible-rail / .brl rule set was left behind when v882 wiped the
      rail's markup ("ONE NAV: header tabs are the nav"). Five live CSSOM rules that could never match
      an element (0 × #bible-rail, 0 × .brl in this document). Removed with its orphaned click wiring. */
@@ -4721,8 +4745,126 @@
     .topbar .brand { flex: 1 1 auto; min-width: 0; overflow: hidden; }
     .topbar .head-tabs { flex: 1 1 0; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
     .topbar .head-tabs::-webkit-scrollbar { height: 0; display: none; }
-    .topbar .head-tabs .ht { padding: 7px 9px !important; letter-spacing: var(--ls-tight); flex: 0 0 auto; } }
-  @media (max-width: 1080px){ .topbar .head-tabs .ht { padding: 6px 7px !important; font-size: var(--fs-xs); } }
+    .topbar .head-tabs .ht { letter-spacing: var(--ls-tight); } }   /* v2100 — padding + `flex:0 0 auto` dropped: the measured layer below owns both, and this !important could not be overridden from there */
+  @media (max-width: 1080px){ .topbar .head-tabs .ht { font-size: var(--fs-xs); } }   /* v2100 — padding dropped, see above */
+
+  /* ══ v2100 — THE HEADER FITS ON ONE ROW, AND THE CLOCK WAS WHY IT DIDN'T ═══════════════════
+     "the time should be more to the left symmetric with the logo and name together under them
+      both. and the main tabs on top should be one row."
+
+     I spent four attempts trimming the TAB STRIP and made it worse every time (1440 went from one
+     row to two; 960 reached FIVE). Then I measured the header instead of guessing at it, and the
+     tabs were never the problem:
+
+         at 1000px    identity 347  +  tabs 591  +  OFF AIR 128  +  gaps ~50   =  1116 into 1000
+
+     THE IDENTITY BLOCK WAS 347px TO PRINT ~140px OF CLOCK. `.brand-id` was a wrapping flexbox and
+     the clock forced its own line with `flex-basis: 100%` — inside a `max-width: max-content`
+     parent that is circular, and Chrome resolved it at 347. A 44px crest and a 38px name pill were
+     sitting in a 347px column because of a sizing loop nobody could see. Nothing was visibly wrong;
+     the strip two elements away just silently had 155px less to live in.
+
+     A grid says the actual structure — crest beside (name over clock) — and each column is sized by
+     what is IN it. `#sigil` and `#sg-edit` share one cell on purpose: they swap
+     (`ed.hidden=false; el.hidden=true`, ~:13982), and that code's own comment already calls it
+     "the field TAKES THE PILL'S PLACE — same slot, no reflow."
+
+     ⚠ MEASURE WITH THE ART LOADING. My first harness served this file without /art, so every
+     <img class="ht-i"> deleted itself through its own onerror and the icons — ~260px of strip —
+     were missing from every number I quoted. [[feedback-blind-fixture-green-gate]] ══════════════ */
+  .brand-id {
+    display: grid;
+    grid-template-columns: auto minmax(0, max-content);
+    align-items: center;
+    column-gap: clamp(8px, .9vw, 14px);
+    row-gap: 2px;
+    max-width: max-content;
+  }
+  .brand-id > .emblem  { grid-column: 1; grid-row: 1 / span 2; }
+  .brand-id > .sigil,
+  .brand-id > .sg-edit { grid-column: 2; grid-row: 1; }
+  .brand-id > .clock   { grid-column: 2; grid-row: 2; margin-left: 0; }
+
+  /* ── ONE ROW, WITH THE ART ON, STRETCHED TO FILL IT ──────────────────────────────────────────
+     Konyo, on the first one-row build: "now they need to be clickable obviously.. and stretched
+     better and more symmetric and HD art titles still missing here but at least it's in one row."
+     The art is not negotiable, so the row has to be paid for somewhere else. Measured at his own
+     window width (1120 — `control_app.py:3334` creates it), the eight tabs cost ~800px with their
+     icons and the strip was being handed 647. Crushing the type until it fitted bought exactly ONE
+     pixel of slack, which is a coincidence, not a layout. So the width comes from the two
+     neighbours that were over-spending instead:
+
+        the identity column  253 -> 170   (the date sits under the time, nothing hidden)
+        the OFF AIR pill     tightened, and the header gaps with it
+
+     and `flex: 1 1 auto` then spreads whatever is left over the eight tabs, so the strip FILLS the
+     row instead of ending in dead space — the "stretched, more symmetric" he asked for. Because
+     `flex-wrap` stays on, an unforeseen width still wraps gracefully rather than overflowing.
+     ⚠ THE ROW COUNT MUST BE MEASURED AS A FLEX LINE, NOT A ROUNDED `top`. Tools and TV·D used to
+     carry a 2px taller padding, so on ONE line their centres sat 2px off everyone else's and a
+     counter keyed on `Math.round(top)` reported TWO rows for a header that was already correct. I
+     "fixed" that phantom four times, making it worse each time (1440 went 1 row -> 2; 960 reached
+     FIVE). Compare the strip's HEIGHT to a tab's height. [[feedback-suspect-the-instrument]]
+     ───────────────────────────────────────────────────────────────────────────────────────────── */
+  .head-tabs .ht { flex: 1 1 auto; justify-content: center; }
+  .head-tabs { justify-content: stretch; }
+
+  /* THE ORDER OF CONCESSIONS MATTERS, and I had it backwards once already. He asked for the header
+     "compacted more", so the LAST thing to give is header HEIGHT. Cheapest first:
+        1. the tabs tighten   (type + padding + icon — costs nothing but density)
+        2. the gaps and the name pill tighten
+        3. the date drops under the time  (this is the one that makes the bar ~15px TALLER)
+        4. the icon yields   (only below his window)
+     Stacking the date at 1600 — where the strip already had 231px spare — bought a taller header
+     for nothing. Each step below is entered only at the width where the previous one runs out.
+     ⚠ NOT the topbar's own padding, at any step: v938.1 mirrors that value into the fixed
+     `body.shell-open .topbar` rule in the SECOND sheet so the tab row lands on identical pixels in
+     both modes, and changing one copy makes the strip jump when a board is promoted. [[copy-drift]]
+     ───────────────────────────────────────────────────────────────────────────────────────────── */
+  @media (max-width: 1700px) {
+    .live-bug { padding: clamp(6px,.5vw,8px) clamp(10px,.9vw,14px); }
+    .head-right { gap: 10px; }
+    .head-tabs { gap: 4px; margin-left: 10px; }
+    .head-tabs .ht,
+    .head-tabs .ht[data-tab="tools"],
+    .head-tabs .ht[data-tab="tvd"] { padding: 7px 8px; font-size: var(--fs-xs); letter-spacing: 0; }
+    .head-tabs .ht .ht-i { width: 16px; height: 16px; vertical-align: -3px; }
+  }
+  @media (max-width: 1500px) {
+    .head-tabs { gap: 3px; }
+    .head-tabs .ht,
+    .head-tabs .ht[data-tab="tools"],
+    .head-tabs .ht[data-tab="tvd"] { padding: 7px 6px; }
+    .head-tabs .ht .ht-i { width: 15px; height: 15px; margin-right: 1px; }
+  }
+  @media (max-width: 1350px) {
+    .brand-id .clock .d { display: block; margin: 1px 0 0 0; }
+    .topbar { gap: 12px; }
+    .brand { gap: 9px; }
+    .sigil { padding: 4px 8px 4px 6px; font-size: var(--fs-2xs); }
+    .head-tabs { margin-left: 8px; }
+  }
+  /* At HIS width — 1120, the size `control_app.py:3334` creates the window at — the eight tabs
+     cost 753px and the strip is handed 731. Twenty-two pixels, and here is where they lived:
+     topbar gap 22.4 · brand gap 11.2 · name pill 115 · OFF AIR 126 · crest 45. */
+  @media (max-width: 1150px) {
+    .topbar { gap: 10px; }
+    .live-bug { padding: 6px 10px; }
+    .head-right { gap: 8px; }
+    .head-tabs { gap: 2px; margin-left: 4px; }
+    .head-tabs .ht,
+    .head-tabs .ht[data-tab="tools"],
+    .head-tabs .ht[data-tab="tvd"] { padding: 7px 5px; }
+    .head-tabs .ht .ht-i { width: 14px; height: 14px; }
+  }
+  /* ── and ONLY below his window does the ornament finally yield ────────────────────────────────
+     Under ~1100 there is no arrangement of icon, label and padding that fits eight tabs on one
+     line — measured, not assumed: the tightest legible config still needs ~729px and the strip has
+     593. v1614 already ruled which half goes: "the WORD is the tab, the picture is the ornament,
+     and the tab must survive without it." No label is ever hidden at any width. ─────────────── */
+  @media (max-width: 1100px) {
+    .head-tabs .ht .ht-i { display: none; }
+  }
 </style>
 </head>
 <body data-state="off">
@@ -13772,8 +13914,13 @@ body:not(.shell-open) #tvd-eng {
 .hd-empty { line-height: var(--lh-relaxed) !important; }
 .meter .m-lab, .meter label, .m-name { letter-spacing: var(--ls-label) !important; }
 .status-chip { padding: 7px 12px !important; }
-.head-tabs .ht { padding: 9px 13px !important; }
-.head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { padding: 9px 11px !important; opacity: .8 !important; }
+/* v2100 — the two tab-padding !important lines that used to sit here are RETIRED, folded into
+   the base .head-tabs .ht rules exactly as v1276 folded the chip padding: "ONE authoritative
+   source, not a fighting layer". They were the LAST word in the document, in a SECOND <style>,
+   so every responsive rule written in the main sheet lost to them silently — the header could
+   not be made to fit on one row from the place the header is styled. `opacity` stays: that is
+   the v905 "main four lead" hierarchy and it is not a spacing concern. */
+.head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .8 !important; }
 .sh-card, #th-shelfov .sh-card { line-height: var(--lh-normal) !important; }
 .tly-k { padding: 5px 9px !important; }
 /* VISUAL LOCK typography (type-token fold) — removed a dead .panel-h/.section/.console-h !important rule:

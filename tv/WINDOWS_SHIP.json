@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2099",
+  "ver": "v2100",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2099: Four P1 issues where a ship moved a surface and left the gate pinned to the old shape - tab counts, the Forge craft chip, the crafts split and the removed board switches. Every pin re-derived by measurement rather than edited to match.",
+  "note": "v2100: Eight tabs, their HD art and the clock all fit one row at his 1120 window. The tab strip was never the problem: four layers set its padding and the last was an !important pair in a SECOND stylesheet, so every responsive rule written where the header is styled lost silently. Folded to one source (as v1276 did for chips), then sized the concessions cheapest-first - tabs tighten, gaps tighten, date drops under the time, and only below his window does the icon yield.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
