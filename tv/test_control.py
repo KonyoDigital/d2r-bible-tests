@@ -20709,11 +20709,16 @@ class TestV2127TheSweepButtonsCarryTheirConsequence(unittest.TestCase):
             self.assertIsNotNone(f, "the %s forget button is gone" % pre)
             self.assertIn("chron-drop", f.group(0),
                           "'forget what is swept' (%s) lost its danger tint" % pre)
-        self.assertIn("chron-cost", self.ui,
-                      "'run it for real' no longer looks like it SPENDS something — it makes real "
-                      "model calls and sat in the row looking identical to the free one")
-        self.assertIn("chron-drop", self.ui,
-                      "'forget what is swept' lost its danger tint — it discards the whole proposal")
+            # ⚠ #158 — ON THE BUTTON, NOT ANYWHERE IN THE FILE. The first cut asserted
+            # "chron-cost" file-wide, and the CSS RULE that defines it satisfied that — so the
+            # class could be dropped from the button it exists for and stay green. Same shape as
+            # the greps this arc has been fixing all night.
+            r = _re.search(r'<button[^>]*id="%s-run"[^>]*>' % pre, self.ui)
+            self.assertIsNotNone(r, "the %s run-for-real button is gone" % pre)
+            self.assertIn("chron-cost", r.group(0),
+                          "'run it for real' (%s) no longer looks like it SPENDS something — it "
+                          "makes real model calls and sat in the row looking identical to the "
+                          "free one" % pre)
 
     def test_the_classes_are_actually_styled(self):
         """A class nothing paints is the same as no class. [[the-unjoined-end]]"""

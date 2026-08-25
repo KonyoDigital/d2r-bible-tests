@@ -126,6 +126,20 @@ test('v1814 — the migration repairs old assignments WITHOUT touching his own c
     try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {}
     try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
     try {
+      /* v2130 — AND THE FIXTURE MUST OWN WHAT IT FILES. renderVault prunes any assignment whose
+         name is not in ownedPool() and then saveA()s the result, so seeding d2r_muleAssign alone
+         left an EMPTY object before the migration was ever consulted — the spec was asserting
+         against a store the first render had already cleared.
+         MEASURED on a spec-faithful boot (init script + webdriver spoof): d2r_foundLog 356 entries,
+         ownedPool() 0, d2r_muleAssign {} — every seeded row gone.
+         ⚠ ownedPool() reads d2r_owned and NOT the grail ledger, so a unique he has FOUND is not in
+         the vault pool. That is a real question about what the vault is for and it is filed
+         separately; it is not this spec's subject, which is whether the MIGRATION repairs old
+         assignments. So the fixture states its own premise: he owns these. */
+      localStorage.setItem('d2r_owned', JSON.stringify([
+        "Andariel's Visage", 'Homunculus', "Astreon's Iron Ward", 'Goldwrap', 'Nightsmoke',
+        'Blackhand Key', 'Shaftstop', "Titan's Revenge", "Nord's Tenderizer"
+      ]));
       localStorage.setItem('d2r_muleAssign', JSON.stringify({
         "Andariel's Visage": 'uni-weap',      // mis-filed armour, BASE_DB-decisive → must move
         'Homunculus': 'uni-weap',             // mis-filed shield, BASE_DB-decisive → must move
@@ -172,7 +186,21 @@ test('v1816 — the repair runs ONCE, and after it his hand wins', async ({ page
     try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
     try {
       if (!localStorage.getItem('__seeded')) {
-        localStorage.setItem('d2r_muleAssign', JSON.stringify({
+        /* v2130 — AND THE FIXTURE MUST OWN WHAT IT FILES. renderVault prunes any assignment whose
+         name is not in ownedPool() and then saveA()s the result, so seeding d2r_muleAssign alone
+         left an EMPTY object before the migration was ever consulted — the spec was asserting
+         against a store the first render had already cleared.
+         MEASURED on a spec-faithful boot (init script + webdriver spoof): d2r_foundLog 356 entries,
+         ownedPool() 0, d2r_muleAssign {} — every seeded row gone.
+         ⚠ ownedPool() reads d2r_owned and NOT the grail ledger, so a unique he has FOUND is not in
+         the vault pool. That is a real question about what the vault is for and it is filed
+         separately; it is not this spec's subject, which is whether the MIGRATION repairs old
+         assignments. So the fixture states its own premise: he owns these. */
+      localStorage.setItem('d2r_owned', JSON.stringify([
+        "Andariel's Visage", 'Homunculus', "Astreon's Iron Ward", 'Goldwrap', 'Nightsmoke',
+        'Blackhand Key', 'Shaftstop', "Titan's Revenge", "Nord's Tenderizer"
+      ]));
+      localStorage.setItem('d2r_muleAssign', JSON.stringify({
           "Andariel's Visage": 'uni-weap',   // mis-filed → the one-time repair must move it
           'Blackhand Key': 'uni-weap',       // correct → untouched
         }));
@@ -236,7 +264,21 @@ test('v1817 — a failed write must not stamp the repair as done', async ({ page
     try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
     try {
       if (!localStorage.getItem('__seeded')) {
-        localStorage.setItem('d2r_muleAssign', JSON.stringify({
+        /* v2130 — AND THE FIXTURE MUST OWN WHAT IT FILES. renderVault prunes any assignment whose
+         name is not in ownedPool() and then saveA()s the result, so seeding d2r_muleAssign alone
+         left an EMPTY object before the migration was ever consulted — the spec was asserting
+         against a store the first render had already cleared.
+         MEASURED on a spec-faithful boot (init script + webdriver spoof): d2r_foundLog 356 entries,
+         ownedPool() 0, d2r_muleAssign {} — every seeded row gone.
+         ⚠ ownedPool() reads d2r_owned and NOT the grail ledger, so a unique he has FOUND is not in
+         the vault pool. That is a real question about what the vault is for and it is filed
+         separately; it is not this spec's subject, which is whether the MIGRATION repairs old
+         assignments. So the fixture states its own premise: he owns these. */
+      localStorage.setItem('d2r_owned', JSON.stringify([
+        "Andariel's Visage", 'Homunculus', "Astreon's Iron Ward", 'Goldwrap', 'Nightsmoke',
+        'Blackhand Key', 'Shaftstop', "Titan's Revenge", "Nord's Tenderizer"
+      ]));
+      localStorage.setItem('d2r_muleAssign', JSON.stringify({
           "Andariel's Visage": 'uni-weap',
           'Blackhand Key': 'uni-weap',
         }));
