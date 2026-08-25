@@ -20144,5 +20144,58 @@ console.log(JSON.stringify({
                         "a one-step craft needing a DIFFERENT rune leaves the signature identical")
 
 
+class TestV2114ABorrowedTitleStaysBorrowed(unittest.TestCase):
+    """v2114 — Konyo, with both tooltips on screen at once: "the tooltip in the bottom i want
+    HD art only not double, one is rendering a regular OS message box."
+
+    The element was #foot-ver, whose `title` the console REWRITES on its own poll (~:7418,
+    the version-skew line). The sequence: hover -> the prose lane steals the title -> the poll
+    puts it back a second later -> the native box is eligible again -> both render, ours
+    anchored and the grey one under the cursor.
+
+    Borrowing an attribute from a surface that repaints itself is not a one-time act. Both
+    lanes now watch the attribute for the length of the hover and re-take it, keeping the
+    NEWEST wording so the bubble cannot go stale either.
+
+    Verified on the LIVE console: title still borrowed after ~7s of repaints, restored on
+    leave, zero stray [data-tip-held].
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+        with open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as f:
+            self.board = f.read()
+
+    def test_both_surfaces_watch_the_attribute(self):
+        for src, who in ((self.ui, "the console"), (self.board, "the board")):
+            self.assertIn(
+                "attributeFilter: ['title']", src,
+                "%s stops watching the borrowed title. A surface that repaints itself hands the "
+                "attribute back mid-hover and the OS grey box opens on top of the skinned one — "
+                "which is exactly what he photographed" % who,
+            )
+            self.assertIn("MutationObserver", src, "%s has no observer for the steal" % who)
+
+    def test_the_observer_is_disconnected_on_release(self):
+        # an observer that outlives the hover keeps stealing from an element nobody is on
+        for src, who in ((self.ui, "the console"), (self.board, "the board")):
+            i = src.find("release: function()")
+            if i < 0:
+                i = src.find("function release()")
+            self.assertGreater(i, 0, "%s has no release path" % who)
+            body = src[i:i + 500]
+            self.assertIn("disconnect()", body,
+                          "%s never disconnects the observer, so it keeps re-stealing the title "
+                          "of an element the pointer has already left" % who)
+
+    def test_the_re_steal_keeps_the_newest_wording(self):
+        # the repaint usually means the SENTENCE changed; showing the old one is a stale reading
+        for src, who in ((self.ui, "the console"), (self.board, "the board")):
+            self.assertIn("held = back", src.replace("sayHeld", "held"),
+                          "%s re-steals but keeps the ORIGINAL text, so the bubble would show a "
+                          "sentence the surface has already replaced" % who)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

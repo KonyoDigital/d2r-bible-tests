@@ -6321,7 +6321,7 @@
     /* v2105 — THE PROSE LANE'S STATE. The title is BORROWED, never taken: it lives in
        data-tip-held for the length of one hover, so a stuck steal is visible in the DOM and a
        spec can assert there are zero at rest. */
-    var sayHost = null, sayHeld = null, sayTimer = null, sayWarm = 0, sayTouch = 0;
+    var sayHost = null, sayHeld = null, sayTimer = null, sayWarm = 0, sayTouch = 0, sayWatch = null;
     function ensure(){
       if (el) return el;
       el = document.createElement('div'); el.id = 'itip';
@@ -6407,6 +6407,7 @@
       },
       touched: function(){ sayTouch = Date.now(); },
       release: function(){
+        if (sayWatch){ try { sayWatch.disconnect(); } catch(e){} sayWatch = null; }
         if (sayHost){ try {
           /* refuse to clobber a title a re-render already put back */
           if (sayHeld !== null && !sayHost.hasAttribute('title')) sayHost.setAttribute('title', sayHeld);
@@ -6464,6 +6465,26 @@
           /* stolen NOW, not when the timer fires: the native box's own ~1s clock started at the
              first mouse event, and an attribute that is absent cannot open one. */
           try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}
+          /* v2114 — AND KEEP IT STOLEN. Konyo, with both boxes on screen at once: "the tooltip in
+             the bottom i want HD art only not double, one is rendering a regular OS message box."
+             The element was #foot-ver, whose `title` this console REWRITES on its own poll
+             (~:7418). So the sequence was: hover -> we steal it -> the poll puts it back a second
+             later -> the native box is eligible again -> both render, ours anchored and the grey
+             one under the cursor. Borrowing an attribute from a surface that repaints itself is
+             not a one-time act. Watch it for the length of the hover and re-take it. */
+          try {
+            if (sayWatch){ sayWatch.disconnect(); sayWatch = null; }
+            sayWatch = new MutationObserver(function(){
+              if (sayHost !== node) return;
+              var back = node.getAttribute('title');
+              if (back == null) return;
+              sayHeld = back;                                   // keep the NEWEST wording
+              try { node.setAttribute('data-tip-held', back); node.removeAttribute('title'); } catch(e){}
+              var box = el && el.querySelector('.itip-say');
+              if (box && el.classList.contains('tip-say')) box.textContent = back;
+            });
+            sayWatch.observe(node, { attributes: true, attributeFilter: ['title'] });
+          } catch(e){}
         }
         var self = this, wait = viaFocus ? 0 : ((Date.now() - sayWarm < 600) ? 40 : 380);
         clearTimeout(sayTimer);

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2113",
+  "ver": "v2114",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2113: The bridge comparator decides whether the console payload is rewritten at all, and my own v2101 took craft identity out of it. Until then the ready crafts rode inside now, whose SORTED NAMES were part of the signature; giving crafts their own channel left only a count behind, so six ready crafts becoming six DIFFERENT ready crafts produced an identical signature and FORGE QUESTS kept showing crafts he had already made. This is the v1862 defect re-opened by the route v1862 named: a cache key that omits the value it is caching is not a cache key. The guard RUNS the comparator rather than grepping it.",
+  "note": "v2114: Both tooltips were on screen at once because the console rewrites the footer title on its own poll: hover stole it, the repaint handed it straight back, and the native grey box became eligible again while the skinned one was still open. Borrowing an attribute from a surface that repaints itself is not a one-time act - both lanes now watch it for the length of the hover and re-take it, keeping the newest wording so the bubble cannot go stale either. Verified on the live console: still borrowed after seven seconds of repaints, restored on leave, zero strays.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -26403,9 +26403,10 @@ window._jewelTipHtml = _jewelTipHtml;
        refusing to clobber one a re-render already restored. CSS cannot suppress a native tooltip;
        only the absent attribute can. [[the-unjoined-end]] */
     (function _proseLane(){
-      var host = null, held = null, timer = null, warm = 0, touched = 0;
+      var host = null, held = null, timer = null, warm = 0, touched = 0, watch = null;
       function owns(){ return tip.classList.contains('tip-say'); }
       function release(){
+        if (watch){ try { watch.disconnect(); } catch(e){} watch = null; }
         if (host){ try {
           if (held !== null && !host.hasAttribute('title')) host.setAttribute('title', held);
           host.removeAttribute('data-tip-held');
@@ -26456,6 +26457,24 @@ window._jewelTipHtml = _jewelTipHtml;
           /* stolen NOW, not when the timer fires: the native box's own ~1s clock started at the
              first mouse event, and an attribute that is absent cannot open one */
           try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}
+          /* v2114 — AND KEEP IT STOLEN. A surface that repaints itself hands the attribute back
+             mid-hover, and the native grey box becomes eligible again — Konyo saw both at once on
+             the console footer, whose title is rewritten on a poll. Borrowing from a live surface
+             is not a one-time act; watch the attribute for the length of the hover and re-take it,
+             keeping the NEWEST wording so the bubble never goes stale either. */
+          try {
+            if (watch){ watch.disconnect(); watch = null; }
+            watch = new MutationObserver(function(){
+              if (host !== node) return;
+              var back = node.getAttribute('title');
+              if (back == null) return;
+              held = back;
+              try { node.setAttribute('data-tip-held', back); node.removeAttribute('title'); } catch(e){}
+              var box = tip.querySelector('.att-say');
+              if (box && tip.classList.contains('tip-say')) box.textContent = back;
+            });
+            watch.observe(node, { attributes: true, attributeFilter: ['title'] });
+          } catch(e){}
         }
         var wait = viaFocus ? 0 : ((Date.now() - warm < 600) ? 40 : 380);
         clearTimeout(timer);
@@ -45161,7 +45180,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2113', name:'v2113 - a cache key that cannot see the crafts', date:'2026-08-25', note:'The bridge comparator decides whether the console payload is rewritten at all, and my own v2101 took craft identity out of it. Until then the ready crafts rode inside now, whose SORTED NAMES were part of the signature; giving crafts their own channel left only a count behind, so six ready crafts becoming six DIFFERENT ready crafts produced an identical signature and FORGE QUESTS kept showing crafts he had already made. This is the v1862 defect re-opened by the route v1862 named: a cache key that omits the value it is caching is not a cache key. The guard RUNS the comparator rather than grepping it.' };
+  window.D2R_BUILD = { id:'v2114', name:'v2114 - a borrowed title stays borrowed', date:'2026-08-25', note:'Both tooltips were on screen at once because the console rewrites the footer title on its own poll: hover stole it, the repaint handed it straight back, and the native grey box became eligible again while the skinned one was still open. Borrowing an attribute from a surface that repaints itself is not a one-time act - both lanes now watch it for the length of the hover and re-take it, keeping the newest wording so the bubble cannot go stale either. Verified on the live console: still borrowed after seven seconds of repaints, restored on leave, zero strays.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
