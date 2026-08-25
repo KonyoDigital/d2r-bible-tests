@@ -20291,5 +20291,69 @@ class TestV2115AnUnreadableStoreIsNotAnEmptyOne(unittest.TestCase):
                          "store for the life of the process")
 
 
+class TestV2118TheApplyActuallyFiles(unittest.TestCase):
+    """v2118 — queue #44. A comment described a call that did not exist, which is the most
+    expensive kind, because everyone downstream reasons from it.
+
+    `_chronicleApplyInner` explains at length why it does NOT file inline — a first cut wrote
+    `assign[n] = ...` into a scope where `assign` is a `let` inside the vault IIFE, so it did
+    nothing, and had it worked it would have been WRONG: `window.vaultAutoAssign` carries three
+    rules that inline write lacked (never override a home he chose; SKIP equipment and
+    inventory, his words: "inventory and main character equiment SHOULD NEVER BE TOLD TO BE
+    MOVED its locked there"; and stamp source:'auto-assign' instead of lying 'filed-by-hand').
+
+    It ends: "Filing has a door already; it is called below, once, after the whole batch."
+
+    It was never called. So the SWEEP path filed and a HAND TICK did not — a grail tick left
+    d2r_muleAssign untouched and the grid empty until he pressed the button himself.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    """
+
+    def setUp(self):
+        with open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as f:
+            self.board = f.read()
+        self.body = _between(self, self.board,
+                             "window._chronicleApplyInner = function(proposal, add, res){",
+                             "window.chronicleUndoLast", what="the chronicle apply")
+
+    def test_the_apply_files_after_the_batch(self):
+        self.assertIn(
+            "window.vaultAutoAssign()", self.body,
+            "the apply registers the name and never files it. The comment inside this function "
+            "says the door 'is called below, once, after the whole batch' — if that call is gone "
+            "again, a hand tick leaves muleAssign untouched and only the sweep path files",
+        )
+
+    def test_it_files_ONCE_and_only_when_something_landed(self):
+        # per-name filing would re-run the whole assembler for every ticked item, and filing on an
+        # empty apply churns the ledger and the byte-identity invariant for nothing
+        self.assertEqual(
+            self.body.count("window.vaultAutoAssign()"), 1,
+            "the apply calls the assembler more than once — it belongs after the batch, not "
+            "inside the per-name loop",
+        )
+        i = self.body.find("window.vaultAutoAssign()")
+        guard = self.body[max(0, i - 240):i]
+        self.assertIn(
+            "res.uniques.length || res.sets.length", guard,
+            "the assembler runs even when the apply landed nothing, which churns the vault "
+            "ledger on every no-op",
+        )
+
+    def test_it_does_NOT_file_inline_again(self):
+        # the v1987 failure, twice made: `assign` is a let in another closure, so this is dead
+        # code that reads as wired.
+        # STRIP THE PROSE FIRST — this function's comment QUOTES the dead line verbatim ("My
+        # first cut wrote `assign[n] = suggestMule(n).id` inline"), so a raw grep fires on the
+        # paragraph explaining the fix. Sixth time tonight; it should be the default in any
+        # guard that greps source. [[feedback-comments-vs-code]]
+        code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        code = re.sub(r"(?m)^\s*//.*$", "", code)
+        self.assertGreater(len(code.strip()), 400, "the comment strip ate the function body")
+        self.assertNotIn("assign[n] =", code,
+                         "someone wrote the filing inline again — `assign` is a let inside the "
+                         "vault IIFE, so it is undefined in this scope and silently does nothing")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

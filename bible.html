@@ -5115,7 +5115,14 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     <div class="tqu-cards">
       <button class="tqu-btn tqu-vault" style="--a:#f0c060" onclick="window.quickIntake&&window.quickIntake('vault')" title="ON AIR — the reel reads your vault automatically and files items to their mules. Tap to arm this lane.">
         <img class="tqu-art" src="art/horadric_cube_graphic.png" alt="" loading="lazy">
-        <span class="tqu-txt"><b>Vault items</b><small>auto-file to mules</small></span></button>
+        <!-- v2118 — THE CONDITION BELONGS ON THE LABEL, not only in the section header and the
+             tooltip. A second eye, reading the live console OFF AIR: "the auto-assembler cannot
+             file while the console is OFF AIR. Tools still says auto-file to mules." The header
+             above does say "the reel reads these" and the title says "ON AIR — …", but a chip is
+             read on its own, and on its own this one promised filing unconditionally. Same shape
+             as the ⚙ ADVANCED switches that said "waiting for a reel" while no reel could start:
+             armed is not running. [[label-outlived-referent]] -->
+        <span class="tqu-txt"><b>Vault items</b><small>files to mules while a reel rolls</small></span></button>
       <button class="tqu-btn tqu-rune" style="--a:#ffb454" onclick="window.quickIntake&&window.quickIntake('rune')" title="ON AIR — the reel tallies your runes automatically. Tap to arm this lane.">
         <img class="tqu-art" src="art/hd_ber_rune.png" alt="" loading="lazy">
         <span class="tqu-txt"><b>Runes</b><small>tally your count</small></span></button>
@@ -41407,6 +41414,28 @@ function renderJournal(){
             : (res.skipped.length ? (res.skipped.length + ' you already had') : 'swept from your own footage'));
       }
     } catch(e){}
+    /* ══ v2118 — THE DOOR THE COMMENT ALREADY PROMISED ═══════════════════════════════════════
+       Twelve hundred lines up, the apply explains why it does NOT file inline — a first cut wrote
+       `assign[n] = ...` into a scope where `assign` is a `let` inside the vault IIFE, so it did
+       nothing, and had it worked it would have been WRONG: window.vaultAutoAssign carries three
+       rules that inline write did not (never override a home he chose; SKIP equipment and
+       inventory, his words — "inventory and main character equiment SHOULD NEVER BE TOLD TO BE
+       MOVED its locked there"; and stamp source:'auto-assign' rather than lying 'filed-by-hand').
+       It ends: "Filing has a door already; it is called below, once, after the whole batch."
+
+       IT WAS NEVER CALLED. The function returned right here. So the SWEEP path filed (it calls
+       vaultAutoAssign itself) while a HAND TICK or a shot-apply registered the name and left
+       `d2r_muleAssign` untouched — the grid stayed empty and only pressing ⚖️ Auto-assign myself
+       fixed it. A comment describing a call that does not exist is the most expensive kind:
+       everyone downstream reasons from it. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+       ONCE, AFTER THE BATCH — not per name — and only when something actually landed, so a
+       no-op apply cannot churn the ledger or the byte-identity invariant. */
+    try {
+      if ((res.uniques.length || res.sets.length) && typeof window.vaultAutoAssign === 'function') {
+        window.vaultAutoAssign();
+      }
+    } catch(e){}
     return res;
   };
 
@@ -45189,7 +45218,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2117', name:'v2117 - the deleter is opt-in', date:'2026-08-25', note:'Queue item 28. The one action in this tree with no undo was the only automatic one that failed OPEN. v2082 made every spelling of off mean off and its own comment named the deeper problem without moving it: its two siblings are opt-IN, so this one alone armed itself when the variable was unset. A relaunch can be re-launched and a heal re-run; a deleted reel is gone. The retention loop measures before its first sleep, so on a tree already under the floor it acted within milliseconds of boot - and his console reports 6.6GB free against an 8GB floor right now. Announcing is unchanged; only the destruction waits for him.' };
+  window.D2R_BUILD = { id:'v2118', name:'v2118 - the door the comment already promised', date:'2026-08-25', note:'Queue 44 and 124. The chronicle apply explains at length why it does not file inline and ends with filing has a door already, it is called below once after the whole batch - and that call was never written. So the sweep path filed while a hand tick or a shot apply registered the name and left the mule ledger untouched, which is why a grail tick left the grid empty until he pressed the balance button himself. A comment describing a call that does not exist is the most expensive kind, because everyone downstream reasons from it. Also the Tools vault chip promised auto-file to mules unconditionally when that lane needs a rolling reel.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

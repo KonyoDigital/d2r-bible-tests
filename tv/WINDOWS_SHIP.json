@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2117",
+  "ver": "v2118",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2117: Queue item 28. The one action in this tree with no undo was the only automatic one that failed OPEN. v2082 made every spelling of off mean off and its own comment named the deeper problem without moving it: its two siblings are opt-IN, so this one alone armed itself when the variable was unset. A relaunch can be re-launched and a heal re-run; a deleted reel is gone. The retention loop measures before its first sleep, so on a tree already under the floor it acted within milliseconds of boot - and his console reports 6.6GB free against an 8GB floor right now. Announcing is unchanged; only the destruction waits for him.",
+  "note": "v2118: Queue 44 and 124. The chronicle apply explains at length why it does not file inline and ends with filing has a door already, it is called below once after the whole batch - and that call was never written. So the sweep path filed while a hand tick or a shot apply registered the name and left the mule ledger untouched, which is why a grail tick left the grid empty until he pressed the balance button himself. A comment describing a call that does not exist is the most expensive kind, because everyone downstream reasons from it. Also the Tools vault chip promised auto-file to mules unconditionally when that lane needs a rolling reel.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
