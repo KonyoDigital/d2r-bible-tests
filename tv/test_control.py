@@ -20070,5 +20070,79 @@ class TestV2111TheQueueWasRightAboutFour(unittest.TestCase):
             )
 
 
+class TestV2113TheBridgeCacheKeySeesTheCrafts(unittest.TestCase):
+    """v2113 — the v1862 defect, re-opened by my own v2101, by the exact route v1862 named.
+
+    `_fsCmp` decides whether `d2r_forgeSummary` is REWRITTEN at all — "write ONLY on real
+    change". Until v2101 the ready crafts rode inside `now`, and `now9`, the SORTED NAMES,
+    was part of the signature. v2101 gave crafts their own channel (rightly — they were
+    being drawn twice) and left behind only `c9.crafts`, a COUNT. Six ready crafts becoming
+    six DIFFERENT ready crafts then produced an identical signature, the bridge was never
+    rewritten, and FORGE QUESTS kept showing crafts he had already made.
+
+    v1862's own words, about the sets count: "A cache key that omits the value it is
+    caching is not a cache key."
+
+    THIS RUNS THE COMPARATOR, it does not grep it. A structural check would pass on a
+    version that mentions `crafts` and still compares nothing.
+    """
+
+    def test_a_same_count_craft_swap_changes_the_signature(self):
+        import subprocess, tempfile, json as _j
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not on PATH — the comparator cannot be executed here")
+        board = os.path.join(os.path.dirname(HERE), "bible.html")
+        with open(board, encoding="utf-8") as f:
+            src = f.read()
+        i = src.find("var _fsCmp = function(x)")
+        self.assertGreater(i, 0, "the bridge comparator is gone")
+        j = src.find("if (_fsCmp(_fsOld)", i)
+        self.assertGreater(j, i, "could not find the end of the comparator")
+        body = src[i:j].strip().rstrip(";")
+
+        script = """
+const _fsCmp = %s;
+const base = { now:['Insight'], pipeline:[], onestep:[{rw:'Fortitude',sub:'runes'}],
+  counts:{now:1,deferred:0,pipeline:0,onestep:1,crafts:3},
+  grail:{found:278,total:403}, chron:{made:60,total:99}, sets:{found:121,total:135},
+  crafts:[{name:'Caster Amulet'},{name:'Caster Ring'},{name:'Blood Belt'}],
+  craftOnestep:[{name:'Safety Boots',missing:'Ral'}] };
+const swap = JSON.parse(JSON.stringify(base));
+swap.crafts = [{name:'Blood Gloves'},{name:'Hit Power Helm'},{name:'Safety Shield'}];
+const order = JSON.parse(JSON.stringify(base));
+order.crafts = [base.crafts[2], base.crafts[0], base.crafts[1]];
+const step = JSON.parse(JSON.stringify(base));
+step.craftOnestep = [{name:'Safety Boots',missing:'Ort'}];
+console.log(JSON.stringify({
+  swapSeen: _fsCmp(base) !== _fsCmp(swap),
+  orderStable: _fsCmp(base) === _fsCmp(order),
+  stepSeen: _fsCmp(base) !== _fsCmp(step),
+}));
+""" % body.replace("var _fsCmp = ", "", 1)
+
+        with tempfile.NamedTemporaryFile("w", suffix=".mjs", delete=False, encoding="utf-8") as fh:
+            fh.write(script)
+            path = fh.name
+        try:
+            out = subprocess.run([node, path], capture_output=True, text=True, timeout=30)
+            self.assertEqual(out.returncode, 0,
+                             "the comparator would not execute: %s" % (out.stderr or "")[-200:])
+            r = _j.loads(out.stdout.strip().splitlines()[-1])
+        finally:
+            os.unlink(path)
+
+        self.assertTrue(r["swapSeen"],
+                        "three ready crafts becoming three DIFFERENT ready crafts leaves the "
+                        "signature IDENTICAL — the bridge is never rewritten and the console "
+                        "keeps showing crafts he has already made")
+        self.assertTrue(r["orderStable"],
+                        "merely REORDERING the same crafts changes the signature, which rewrites "
+                        "the bridge on every scan and breaks the byte-identity invariant v903.1 "
+                        "and the ladder bleed-proof both depend on")
+        self.assertTrue(r["stepSeen"],
+                        "a one-step craft needing a DIFFERENT rune leaves the signature identical")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

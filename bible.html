@@ -37829,7 +37829,19 @@ function renderJournal(){
            Every field the console actually PRINTS belongs here. A cache key that omits the value
            it is caching is not a cache key. [[the-unjoined-end]] */
         (x.sets || {}).found || 0, (x.sets || {}).total || 0,
-        (x.grail || {}).total || 0, (x.chron || {}).total || 0]); };
+        (x.grail || {}).total || 0, (x.chron || {}).total || 0,
+        /* v2113 — CRAFT IDENTITY, NOT JUST THE COUNT. This is the v1862 defect re-opened by my
+           own v2101, and by exactly the route v1862 warns about: "A cache key that omits the
+           value it is caching is not a cache key."
+           Until v2101 the ready crafts rode inside `now`, and `now9` — the SORTED NAMES — was in
+           this signature, so swapping one craft for another changed it. v2101 gave crafts their
+           own channel (rightly: they were being drawn twice) and left only `c9.crafts`, a COUNT,
+           behind. Six ready crafts becoming six DIFFERENT ready crafts then produced an identical
+           signature, the bridge was never rewritten, and the console's FORGE QUESTS kept showing
+           crafts he had already made. Same shape as the sets count in v1862: a field the console
+           PRINTS that the comparator could not see. */
+        (x.crafts || []).map(function(c){ return c && (c.name || c.craft + ' ' + c.slot); }).sort(),
+        (x.craftOnestep || []).map(function(c){ return (c && (c.name || '')) + '|' + ((c && c.missing) || ''); }).sort()]); };
         if (_fsCmp(_fsOld) !== _fsCmp(_fsPayload)) window.LSR.setItem('d2r_forgeSummary', JSON.stringify(_fsPayload));
     } catch(e){}
     return out;
@@ -45149,7 +45161,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2112', name:'v2112 - I was testing in the wrong engine', date:'2026-08-25', note:'He reported the ADVANCED drawer empty three times against builds that measured correct on my side. His console is a pywebview window, so the engine is WebKit, and every check I ran on that panel was headless Chrome - where both v2076 nearest and v2107 start behave. The placement no longer asks scrollIntoView with an options bag; it finds the scrolling ancestor and assigns scrollTop, which no engine has an opinion about. Also: the console-demo harness now names the pane that failed to route and whether the board still answers a direct switchTab, because the gate only shows the tail of its output and I chased one truncated timeout three times.' };
+  window.D2R_BUILD = { id:'v2113', name:'v2113 - a cache key that cannot see the crafts', date:'2026-08-25', note:'The bridge comparator decides whether the console payload is rewritten at all, and my own v2101 took craft identity out of it. Until then the ready crafts rode inside now, whose SORTED NAMES were part of the signature; giving crafts their own channel left only a count behind, so six ready crafts becoming six DIFFERENT ready crafts produced an identical signature and FORGE QUESTS kept showing crafts he had already made. This is the v1862 defect re-opened by the route v1862 named: a cache key that omits the value it is caching is not a cache key. The guard RUNS the comparator rather than grepping it.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

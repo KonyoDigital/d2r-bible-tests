@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2112",
+  "ver": "v2113",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2112: He reported the ADVANCED drawer empty three times against builds that measured correct on my side. His console is a pywebview window, so the engine is WebKit, and every check I ran on that panel was headless Chrome - where both v2076 nearest and v2107 start behave. The placement no longer asks scrollIntoView with an options bag; it finds the scrolling ancestor and assigns scrollTop, which no engine has an opinion about. Also: the console-demo harness now names the pane that failed to route and whether the board still answers a direct switchTab, because the gate only shows the tail of its output and I chased one truncated timeout three times.",
+  "note": "v2113: The bridge comparator decides whether the console payload is rewritten at all, and my own v2101 took craft identity out of it. Until then the ready crafts rode inside now, whose SORTED NAMES were part of the signature; giving crafts their own channel left only a count behind, so six ready crafts becoming six DIFFERENT ready crafts produced an identical signature and FORGE QUESTS kept showing crafts he had already made. This is the v1862 defect re-opened by the route v1862 named: a cache key that omits the value it is caching is not a cache key. The guard RUNS the comparator rather than grepping it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -33,7 +33,12 @@ test('plain whites: premium-only show; common wanted bases eth/socketed-only wit
   expect(seeded, 'the runeword roster was empty when the fixture seeded — nothing was marked made')
     .toBeGreaterThan(50);
   await page.reload();
-  await page.waitForFunction(() => typeof (window as any)._endgameFilterBases === 'function',
+  /* v2113 — the FUNCTION existing is not the ROSTER existing. `_endgameFilterBases` is
+     assigned to window early; what this test reads depends on RUNEWORD_TIP being parsed and on
+     the seeded d2r_rwMade being visible. Waiting only for the callable reproduces the original
+     race one reload later. */
+  await page.waitForFunction(() => typeof (window as any)._endgameFilterBases === 'function'
+                                && Object.keys((window as any).RUNEWORD_TIP || {}).length > 0,
                              null, { timeout: 30000 });
   const r = await page.evaluate(() => {
     const w: any = window;
