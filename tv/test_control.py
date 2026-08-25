@@ -8644,9 +8644,16 @@ class TestV1834ANamedReelIsReachableAndPricedAsItself(unittest.TestCase):
                                 "chronicle_sweep_now.py"), encoding="utf-8").read()
         i = src.find("the free pass says:")
         self.assertGreater(i, 0)
-        self.assertIn('!= "already-swept"', src[max(0, i - 600):i],
-                      "the reel count still counts reels skipped as already-swept, so the pages "
-                      "and the reels in one sentence describe different sets")
+        # v2120 (#80) — PIN THE LAW, NOT THE LABEL. This asserted the literal `!= "already-swept"`
+        # predicate, so it went green precisely WHILE the defect was present and would have gone
+        # red on the fix: v2098 made the skip note CONDITIONAL ("already-swept" only when the reel
+        # is in memory, "not targeted this run" otherwise) and this filter still named one word, so
+        # every untargeted reel was back in the price. The law is that a reel the sweep would
+        # actually READ carries no note at all. [[label-outlived-referent]] [[source-reading-guard]]
+        self.assertIn('if not (r or {}).get("note")', src[max(0, i - 900):i],
+                      "the reel count is pinned to a skip LABEL again — a conditional note then "
+                      "puts every untargeted reel back into the price, and the pages and the reels "
+                      "in one sentence describe different sets")
 
 
 
