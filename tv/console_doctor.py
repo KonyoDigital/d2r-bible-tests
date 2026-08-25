@@ -464,6 +464,102 @@ def _check_the_locked_lanes_still_refuse():
                 % (" + ".join(locked), vr.KEEP_MIN_WITNESSES, vr.THROWOUT_MIN_WITNESSES))
 
 
+def _check_the_two_surfaces_agree():
+    """EVERY DOOR LEADS TO A ROOM, AND A MOVE LEFT EXACTLY ONE COPY.
+
+    Konyo: "i want it all under management so nothing gets buged."
+
+    This exists because ONE failure shape produced four separate defects he had to find himself,
+    in a single arc, and not one gate saw any of them:
+      · v2085 built the Vault tab on the BOARD and never added it to the CONSOLE header — the room
+        existed with no door on the surface that asks for rooms;
+      · v2085 COPIED the shadow/tooltip switches into the console drawer instead of MOVING them, so
+        Tools kept rendering them and the job read as done;
+      · the header hid the seventh tab instead of shrinking it, silently;
+      · demo_console's PANE_TABS never walked the tab that had just shipped, so J1 reported a
+        confident green about the four it already knew.
+    Every one is the same thing: ADDED in the new place, NOT FINISHED in the old one. Silent by
+    construction, which is the defining property. [[the-unjoined-end]] [[copy-drift]]
+
+    Cheap on purpose — it reads three files and runs no subprocess, so it belongs in the fast set
+    the eagle ticks on its timer, not in SLOW.
+
+    All five arms are PROVEN RED, each by a sabotage asserted to have changed the bytes first:
+        a console tab with no board room      -> MISSING
+        J1 stops walking a shipped tab        -> MISSING
+        a moved control reappears on the board-> MISSING
+        the console loses a drawer switch     -> MISSING
+        the signpost points at a dead room    -> MISSING
+    and the healthy tree still reads OK. [[feedback-blind-fixture-green-gate]]
+    """
+    repo = os.path.dirname(HERE)
+    try:
+        board = open(os.path.join(repo, "bible.html"), encoding="utf-8").read()
+        ui = open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+    except Exception as e:
+        return UNKNOWN, "could not read both surfaces (%s)" % str(e)[:70]
+
+    faults = []
+    # session and tvd are console-NATIVE: they deliberately open no board pane.
+    NATIVE = {"session", "tvd"}
+    shell = [m.group(1) for m in
+             re.finditer(r'<button class="ht" type="button" data-tab="(\w+)"', ui)]
+    panes = set(re.findall(r'id="tab-([\w-]+)"', board))
+    for tab in shell:
+        if tab not in NATIVE and tab not in panes:
+            faults.append("the console offers a '%s' tab and the board has no #tab-%s to open"
+                          % (tab, tab))
+
+    try:
+        demo = open(os.path.join(HERE, "demo_console.mjs"), encoding="utf-8").read()
+        m = re.search(r"const PANE_TABS = \[([^\]]*)\]", demo)
+        walked = set(re.findall(r"'(\w+)'", m.group(1))) if m else set()
+        for tab in shell:
+            if tab not in NATIVE and tab not in walked:
+                faults.append("J1 never walks the '%s' tab — it ships ungated" % tab)
+    except Exception:
+        faults.append("demo_console.mjs could not be read to check its tab coverage")
+
+    # A MOVED CONTROL MUST NOT BE BACK IN THE ROOM IT LEFT.
+    # Pinned to TOOLS specifically, which is the room he named: "why is it still located in the
+    # tools tab?". NOT pinned to "absent from the board", and the reason is worth recording —
+    # v2093 tried exactly that and it was WRONG. toggleTooltipPass is not a painter: it arms the
+    # vault mini-lane, POSTs /api/shadow AND POSTs /api/on, which STARTS A RECORDING, and it
+    # tracks `startedReel` so switching OFF gives back the reel it started (a scar: 9GB/hour he
+    # never asked for). The console drawer's twin only POSTs /api/shadow — and the server ignores
+    # the `lane` field entirely, so BOTH drawer buttons write one shadow flag and neither performs
+    # a tooltip pass. Deleting the board copies would have silently downgraded a real capability.
+    # Tighten this to "absent from the board" only once the drawer drives the real orchestration.
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
+    tools_i = board.find('id="tab-tools"')
+    tools_end = board.find('id="tab-forge"', tools_i) if tools_i >= 0 else -1
+    if tools_i >= 0 and tools_end > tools_i:
+        tools_pane = board[tools_i:tools_end]
+        for cid in ("shadow-ai", "tip-pass"):
+            if ('id="%s"' % cid) in tools_pane:
+                faults.append("#%s is back in the Tools tab — he asked twice for it to leave" % cid)
+
+    for cid in ("sadv-sha", "sadv-tip"):
+        n = ui.count('id="%s"' % cid)
+        if n != 1:
+            faults.append("the console has %d copies of #%s (expected 1)" % (n, cid))
+
+    if 'id="vault-moved-note"' in board:
+        i = board.find('id="vault-moved-note"')
+        m = re.search(r"switchTab\('(\w+)'\)", board[i:i + 1400])
+        room = m.group(1) if m else None
+        if not room or ('id="tab-%s"' % room) not in board:
+            faults.append("the Tools signpost points at a room that does not exist (%r)" % room)
+    else:
+        faults.append("the Tools signpost is gone — anyone looking where the vault used to be is "
+                      "told nothing")
+
+    if faults:
+        return MISSING, " · ".join(faults)[:400]
+    return OK, ("%d console tab(s) all reach a board room, J1 walks every one, no moved control "
+                "left a second copy" % len([t for t in shell if t not in NATIVE]))
+
+
 CHECKS = [
     ("version drift", _check_version_drift),
     ("lane intent", _check_lane_intent),
@@ -477,6 +573,7 @@ CHECKS = [
     ("footage has a reel", _check_footage_belongs_to_a_reel),
     ("vault stores", _check_the_vault_stores_are_readable),
     ("locked lanes", _check_the_locked_lanes_still_refuse),
+    ("surfaces agree", _check_the_two_surfaces_agree),
     ("the other doctors", _check_the_other_doctors),
 ]
 

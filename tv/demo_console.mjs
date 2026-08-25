@@ -26,7 +26,11 @@ try {
 // (TV_CONTROL_PORT=17999 control_app.py --no-open) instead of the one Konyo has open. Default
 // unchanged; nothing that does not set the variable behaves differently.
 const URL = `http://127.0.0.1:${process.env.TV_CONTROL_PORT || 17772}/`;
-const PANE_TABS = ['forge', 'funi', 'fsets', 'tools'];  // v1377 — 'session' removed: Sessions is now console-native (data-view=sessions), no longer opens a bible pane
+const PANE_TABS = ['forge', 'funi', 'fsets', 'tools', 'vault'];  // v1377 — 'session' removed: Sessions is now console-native (data-view=sessions), no longer opens a bible pane
+// v2092 — 'vault' added. The console got a Vault tab between Tools and TV·D this ship, and this
+// list is what J1 SHELL MATRIX actually walks — so without it the new tab would have shipped
+// with the matrix reporting a confident green about the four tabs it already knew.
+// A gate is blind to what its fixture never exercises. [[gate-blind-to-unexercised-input]]
 
 const results = [];
 function record(name, ok, detail) {

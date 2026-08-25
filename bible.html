@@ -3481,35 +3481,35 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .tqu-say{flex:1 0 100%;margin-top:8px;padding:7px 11px;border-radius:9px;font-size:var(--fs-micro);line-height:1.45;color:#e8ddf5;background:rgba(157,123,216,.10);border:1px solid rgba(157,123,216,.28)}
 /* v2000 — the shadow reader's widget. Its own full-width row like .tqu-say, so it can never
    squeeze the four lane cards. Declared after them because the last declaration wins in this file. */
-#tab-tools .shadow-ai{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(20,16,28,.55),rgba(20,16,28,.25));border:1px solid rgba(157,123,216,.26)}
-#tab-tools .shadow-ai[hidden]{display:none}
-#tab-tools .sha-sw{position:relative;flex:0 0 auto;width:52px;height:27px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);transition:background .18s,border-color .18s}
-#tab-tools .sha-sw .sha-dot{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#6b6478;transition:transform .18s,background .18s}
-#tab-tools .sha-sw .sha-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.35;transition:opacity .18s}
-#tab-tools .sha-sw.sha-on{background:rgba(102,255,136,.16);border-color:rgba(102,255,136,.45)}
-#tab-tools .sha-sw.sha-on .sha-dot{transform:translateX(25px);background:var(--best,#66ff88)}
-#tab-tools .sha-sw.sha-on .sha-eye{opacity:0}
-#tab-tools .sha-sw.sha-on .sha-dot::after{content:'';position:absolute;inset:0;border-radius:50%;box-shadow:0 0 9px 2px rgba(102,255,136,.5)}
+:is(#tab-tools,#tab-vault) .shadow-ai{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(20,16,28,.55),rgba(20,16,28,.25));border:1px solid rgba(157,123,216,.26)}
+:is(#tab-tools,#tab-vault) .shadow-ai[hidden]{display:none}
+:is(#tab-tools,#tab-vault) .sha-sw{position:relative;flex:0 0 auto;width:52px;height:27px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);transition:background .18s,border-color .18s}
+:is(#tab-tools,#tab-vault) .sha-sw .sha-dot{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#6b6478;transition:transform .18s,background .18s}
+:is(#tab-tools,#tab-vault) .sha-sw .sha-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.35;transition:opacity .18s}
+:is(#tab-tools,#tab-vault) .sha-sw.sha-on{background:rgba(102,255,136,.16);border-color:rgba(102,255,136,.45)}
+:is(#tab-tools,#tab-vault) .sha-sw.sha-on .sha-dot{transform:translateX(25px);background:var(--best,#66ff88)}
+:is(#tab-tools,#tab-vault) .sha-sw.sha-on .sha-eye{opacity:0}
+:is(#tab-tools,#tab-vault) .sha-sw.sha-on .sha-dot::after{content:'';position:absolute;inset:0;border-radius:50%;box-shadow:0 0 9px 2px rgba(102,255,136,.5)}
 /* DEAD is not OFF, and it must not look like it: no OCR on this machine means the switch cannot do
    anything, and the widget says so in amber rather than sitting quietly grey. */
-#tab-tools .sha-sw.sha-dead{background:rgba(240,192,96,.12);border-color:rgba(240,192,96,.45);cursor:not-allowed}
-#tab-tools .sha-sw.sha-dead .sha-dot{background:#f0c060}
-#tab-tools .sha-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0}
-#tab-tools .sha-txt b{font-size:13px;color:#e8ddf5;font-weight:var(--fw-bold)}
-#tab-tools .sha-txt small{font-size:var(--fs-micro);color:#a99cc4}
+:is(#tab-tools,#tab-vault) .sha-sw.sha-dead{background:rgba(240,192,96,.12);border-color:rgba(240,192,96,.45);cursor:not-allowed}
+:is(#tab-tools,#tab-vault) .sha-sw.sha-dead .sha-dot{background:#f0c060}
+:is(#tab-tools,#tab-vault) .sha-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0}
+:is(#tab-tools,#tab-vault) .sha-txt b{font-size:13px;color:#e8ddf5;font-weight:var(--fw-bold)}
+:is(#tab-tools,#tab-vault) .sha-txt small{font-size:var(--fs-micro);color:#a99cc4}
 /* v2013 — the tooltip pass. Its own full-width row like the shadow reader, declared after it so the
    last declaration wins, and amber-gold because it is the one control that asks HIM to do something
    rather than reporting what the machine did. */
-#tab-tools .tip-pass{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(40,30,12,.55),rgba(40,30,12,.22));border:1px solid rgba(240,192,96,.30)}
-#tab-tools .tip-pass[hidden]{display:none}
-#tab-tools .tp-sw{position:relative;flex:0 0 auto;width:52px;height:27px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);transition:background .18s,border-color .18s}
-#tab-tools .tp-sw .tp-dot{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#6b6478;transition:transform .18s,background .18s}
-#tab-tools .tp-sw .tp-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.35;transition:opacity .18s}
-#tab-tools .tp-sw.tp-on{background:rgba(240,192,96,.18);border-color:rgba(240,192,96,.55)}
-#tab-tools .tp-sw.tp-on .tp-dot{transform:translateX(25px);background:#f0c060;box-shadow:0 0 9px 2px rgba(240,192,96,.45)}
-#tab-tools .tp-sw.tp-on .tp-eye{opacity:0}
-#tab-tools .tp-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0;flex:1 1 auto}
-#tab-tools .tp-txt b{font-size:13px;color:#f0d9a8;font-weight:var(--fw-bold)}
+:is(#tab-tools,#tab-vault) .tip-pass{flex:1 0 100%;display:flex;align-items:center;gap:11px;margin-top:8px;padding:8px 12px;border-radius:11px;background:linear-gradient(180deg,rgba(40,30,12,.55),rgba(40,30,12,.22));border:1px solid rgba(240,192,96,.30)}
+:is(#tab-tools,#tab-vault) .tip-pass[hidden]{display:none}
+:is(#tab-tools,#tab-vault) .tp-sw{position:relative;flex:0 0 auto;width:52px;height:27px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);transition:background .18s,border-color .18s}
+:is(#tab-tools,#tab-vault) .tp-sw .tp-dot{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#6b6478;transition:transform .18s,background .18s}
+:is(#tab-tools,#tab-vault) .tp-sw .tp-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.35;transition:opacity .18s}
+:is(#tab-tools,#tab-vault) .tp-sw.tp-on{background:rgba(240,192,96,.18);border-color:rgba(240,192,96,.55)}
+:is(#tab-tools,#tab-vault) .tp-sw.tp-on .tp-dot{transform:translateX(25px);background:#f0c060;box-shadow:0 0 9px 2px rgba(240,192,96,.45)}
+:is(#tab-tools,#tab-vault) .tp-sw.tp-on .tp-eye{opacity:0}
+:is(#tab-tools,#tab-vault) .tp-txt{display:flex;flex-direction:column;line-height:var(--lh-tight);min-width:0;flex:1 1 auto}
+:is(#tab-tools,#tab-vault) .tp-txt b{font-size:13px;color:#f0d9a8;font-weight:var(--fw-bold)}
 /* v2022 — THE SUBSCRIPTION METER. Same lane-row language as .shadow-ai / .tip-pass so it reads as
    one family, but deliberately NOT a switch: there is nothing here to turn on, and giving it a
    pill would invite a click that does nothing. Two tracks (hour, day) because the two caps bind at
@@ -3542,9 +3542,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   #tab-tools .sub-meter{align-items:flex-start}
   #tab-tools .sm-txt small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 }
-#tab-tools .tp-txt small{font-size:var(--fs-micro);color:#c9b68f}
-#tab-tools .tp-count{flex:0 0 auto;font-size:var(--fs-micro);color:#f0c060;border:1px solid rgba(240,192,96,.35);border-radius:999px;padding:2px 10px;white-space:nowrap}
-#tab-tools .tp-count[hidden]{display:none}
+:is(#tab-tools,#tab-vault) .tp-txt small{font-size:var(--fs-micro);color:#c9b68f}
+:is(#tab-tools,#tab-vault) .tp-count{flex:0 0 auto;font-size:var(--fs-micro);color:#f0c060;border:1px solid rgba(240,192,96,.35);border-radius:999px;padding:2px 10px;white-space:nowrap}
+:is(#tab-tools,#tab-vault) .tp-count[hidden]{display:none}
 #tab-tools .tqu-say:empty{display:none}
 #tab-tools .tqu-btn{display:flex;align-items:center;gap:11px;min-width:152px;flex:1 1 152px;padding:9px 13px;cursor:pointer;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01));border:1px solid var(--a,rgba(255,255,255,.2));border-color:color-mix(in srgb,var(--a) 45%,transparent);border-radius:12px;transition:transform .09s,box-shadow .15s,filter .12s,background .15s}
 #tab-tools .tqu-btn:hover{transform:translateY(-2px);box-shadow:0 7px 20px color-mix(in srgb,var(--a) 32%,transparent);filter:brightness(1.07);background:linear-gradient(180deg,color-mix(in srgb,var(--a) 15%,transparent),color-mix(in srgb,var(--a) 4%,transparent))}
@@ -5111,44 +5111,6 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <button class="tqu-btn tqu-mat" style="--a:#b79cf0" onclick="window.quickIntake&&window.quickIntake('material')" title="ON AIR — the reel tallies your materials (uber / Sunder) automatically. Tap to arm this lane.">
         <img class="tqu-art" src="art/hd_token_of_absolution.png" alt="" loading="lazy">
         <span class="tqu-txt"><b>Materials</b><small>ubers &amp; Sunders</small></span></button>
-    </div>
-    <!-- v2000 — 👁 THE SHADOW READER. Konyo: "is there a way to like have an AI lurking in the
-         shadows reading the game ingame and sometimes firing whats needed? … for this it should
-         have an ON/OFF for shadow AI a button to click a cool widget."
-
-         The lurking reader has existed since v932 — the TEXT EYE OCRs the live frame and turns new
-         item-ish text into a PRIORITY read. It had no switch he could reach and no surface saying
-         it was there at all, which is why he went hunting for a button that did not exist.
-
-         It reports THREE facts and never averages them into one lamp: what he chose, whether the
-         lane can run at all, and whether a reel is actually rolling. A single green light covering
-         all three is the G5 scar exactly — "mode=primary, calls=0", every lamp green, lane dark. -->
-    <div class="shadow-ai" id="shadow-ai" hidden>
-      <button type="button" class="sha-sw" id="sha-sw" onclick="window.toggleShadowAI&&window.toggleShadowAI()"
-              aria-pressed="true" title="the reader that watches while you play">
-        <span class="sha-dot"></span><span class="sha-eye">👁</span>
-      </button>
-      <span class="sha-txt"><b>Shadow reader</b><small id="sha-say">checking…</small></span>
-    </div>
-    <!-- v2013 — 🔎 TOOLTIP PASS. Konyo: "or to click on what within the console? like we need a
-         feature button for this thats on/off cool desgined".
-
-         WHAT IT IS FOR, measured by vault_doctor on his own film: 220 occupied cells across 10
-         stash panels and ZERO readable names. D2R prints no names in a grid — a name exists only
-         in the HOVER TOOLTIP. So the whole chain is starving on one thing, and it is a thing only
-         he can do: hover the items while a reel is rolling.
-
-         WHY A BUTTON AND NOT AN INSTRUCTION. Every piece already existed and had to be put in the
-         right state SEPARATELY: arm the vault lane, switch the shadow reader on, start a reel. Three
-         controls in two places, and getting one wrong makes the pass silently worthless. This is
-         one action that does all three and then says what to do. -->
-    <div class="tip-pass" id="tip-pass" hidden>
-      <button type="button" class="tp-sw" id="tp-sw" onclick="window.toggleTooltipPass&&window.toggleTooltipPass()"
-              aria-pressed="false" title="arm everything and film a naming pass">
-        <span class="tp-dot"></span><span class="tp-eye">🔎</span>
-      </button>
-      <span class="tp-txt"><b>Tooltip pass</b><small id="tp-say">…</small></span>
-      <span class="tp-count" id="tp-count" hidden></span>
     </div>
     <!-- v2022 — SUBSCRIPTION METER. Konyo: "the console needs a meter lol... like how much tokens
          is it spending", then "okay is there a way to visually render it?"
@@ -8942,6 +8904,58 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
        the surface his readers feed and the one he asked to see first. Nothing about it
        changed but where it lives: same ids, same #vault-dock / #vault-shelf, same
        renderVault. -->
+      <!-- v2092 — THE TWO SWITCHES FINALLY LEFT TOOLS. Konyo: "we said to move the shadow toggle
+           and tooltip to advanced in sessions instead of it rendering in tools. remember? why is it
+           still located in the tools tab?"
+           He is right, and the reason is exact: v2085 MIRRORED both switches into the console's
+           ADVANCED drawer and never removed the originals. A COPY IS NOT A MOVE — both surfaces
+           rendered them, so Tools looked untouched and the job read as done. [[copy-drift]]
+           Placed above the Mule Manager, the first of the two homes he offered, because that keeps
+           them on the BOARD: the console drawer is only reachable with the console open, and the
+           public site has no console at all.
+           ⚠ THE MARKUP COULD NOT MOVE ALONE. Their CSS was scoped `:is(#tab-tools,#tab-vault) .shadow-ai` and
+           `#tab-tools .tip-pass`, INCLUDING the `[hidden]{display:none}` rules — so moving the nodes
+           without re-scoping would have left both rows unstyled and, worse, permanently VISIBLE in
+           their new room, since the rule that hides them was the scoped one. The selectors now name
+           both rooms. Four selectors, checked by count. [[d2r-bible]] [[the-unjoined-end]] -->
+    <!-- v2000 — 👁 THE SHADOW READER. Konyo: "is there a way to like have an AI lurking in the
+         shadows reading the game ingame and sometimes firing whats needed? … for this it should
+         have an ON/OFF for shadow AI a button to click a cool widget."
+
+         The lurking reader has existed since v932 — the TEXT EYE OCRs the live frame and turns new
+         item-ish text into a PRIORITY read. It had no switch he could reach and no surface saying
+         it was there at all, which is why he went hunting for a button that did not exist.
+
+         It reports THREE facts and never averages them into one lamp: what he chose, whether the
+         lane can run at all, and whether a reel is actually rolling. A single green light covering
+         all three is the G5 scar exactly — "mode=primary, calls=0", every lamp green, lane dark. -->
+    <div class="shadow-ai" id="shadow-ai" hidden>
+      <button type="button" class="sha-sw" id="sha-sw" onclick="window.toggleShadowAI&&window.toggleShadowAI()"
+              aria-pressed="true" title="the reader that watches while you play">
+        <span class="sha-dot"></span><span class="sha-eye">👁</span>
+      </button>
+      <span class="sha-txt"><b>Shadow reader</b><small id="sha-say">checking…</small></span>
+    </div>
+    <!-- v2013 — 🔎 TOOLTIP PASS. Konyo: "or to click on what within the console? like we need a
+         feature button for this thats on/off cool desgined".
+
+         WHAT IT IS FOR, measured by vault_doctor on his own film: 220 occupied cells across 10
+         stash panels and ZERO readable names. D2R prints no names in a grid — a name exists only
+         in the HOVER TOOLTIP. So the whole chain is starving on one thing, and it is a thing only
+         he can do: hover the items while a reel is rolling.
+
+         WHY A BUTTON AND NOT AN INSTRUCTION. Every piece already existed and had to be put in the
+         right state SEPARATELY: arm the vault lane, switch the shadow reader on, start a reel. Three
+         controls in two places, and getting one wrong makes the pass silently worthless. This is
+         one action that does all three and then says what to do. -->
+    <div class="tip-pass" id="tip-pass" hidden>
+      <button type="button" class="tp-sw" id="tp-sw" onclick="window.toggleTooltipPass&&window.toggleTooltipPass()"
+              aria-pressed="false" title="arm everything and film a naming pass">
+        <span class="tp-dot"></span><span class="tp-eye">🔎</span>
+      </button>
+      <span class="tp-txt"><b>Tooltip pass</b><small id="tp-say">…</small></span>
+      <span class="tp-count" id="tp-count" hidden></span>
+    </div>
 <div class="boss-card collapsible collapsed tool-premium tool-primary" id="mule-vault-card" style="--tc:#f0c060">
     <div class="boss-header" onclick="window.toggleCardCollapse('mule-vault-card');window.renderVault&&window.renderVault()" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_gold.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
@@ -44811,7 +44825,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2091', name:'v2091 - Each vault now names the other', date:'2026-08-25', note:'He asked where the vault manager is on the console. Nothing was broken - the console panel is the VAULT ACCUMULATOR and the mule manager is a different capability on the board - but neither surface had ever named the other. The console panel now says where the mule manager lives, the mirror of the Tools signpost in v2090.' };
+  window.D2R_BUILD = { id:'v2093', name:'v2093 - The strip fits and the eagle learns the joint', date:'2026-08-25', note:'Seven tabs no longer fit the console header so TV-D scrolled silently out of view - the strip now wraps and the clock puts its date beside the time. The eagle gains a surfaces-agree check with five arms all proven red.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

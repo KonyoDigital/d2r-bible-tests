@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2091",
+  "ver": "v2093",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2091: He asked where the vault manager is on the console. Nothing was broken - the console panel is the VAULT ACCUMULATOR and the mule manager is a different capability on the board - but neither surface had ever named the other. The console panel now says where the mule manager lives, the mirror of the Tools signpost in v2090.",
+  "note": "v2093: Seven tabs no longer fit the console header so TV-D scrolled silently out of view - the strip now wraps instead of hiding and the clock puts its date beside the time. And the shadow plus tooltip switches left the board entirely for the Advanced drawer beside the Grok eyes, which is where he asked for them.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

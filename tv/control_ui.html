@@ -3603,6 +3603,40 @@
     flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .head-tabs::-webkit-scrollbar { display: none; }
   .head-tabs .ht { flex: none; }
+
+  /* ══ v2093 — THE STRIP MUST FIT, NOT SCROLL INTO THE DARK ═══════════════════════════════════
+     Konyo, with the console open: "TV-D is like hidden... make the TITLE tabs more fitting on top
+     so we can see it all", and "where it says time on the right corner maybe can be put diffrently
+     so theres more room on top".
+
+     MEASURED, real clock text filled in, 7 tabs (Vault landed this arc):
+         w=900  strip 523px · content 523px   fits
+         w=860  strip 486px · content 518px   CUT by 32px → tvd
+         w=800  strip 470px · content 518px   CUT by 48px → tvd
+     It breaks at ~880px and TV·D is always the casualty, because it is last in the row.
+
+     THE DEFECT IS THE SILENCE, NOT THE WIDTH. `overflow-x:auto` with `scrollbar-width:none` means
+     a tab that runs out of room does not shrink, wrap, or hint — it is simply not there, and
+     nothing on screen says a seventh tab exists. That is how he lost a room he already had.
+     [[visual-regression-detector]]
+
+     Three moves, cheapest first:
+       1. the strip WRAPS instead of scrolling — no tab can ever be silently unreachable again;
+       2. the clock puts its date BESIDE the time instead of under it — his ask, and that stacked
+          block is where the width was going;
+       3. tabs tighten gap and padding on a narrow window.
+     Wrapping is the safety net: add an eighth tab later and the worst case is a second row, never
+     a hidden control. ═══════════════════════════════════════════════════════════════════════════ */
+  .head-tabs { flex-wrap: wrap; row-gap: 6px; overflow-x: visible; }
+  @media (max-width: 1000px) {
+    .topbar { gap: clamp(6px, 1.2vw, 14px); }
+    .head-tabs { margin-left: 8px; gap: 4px; }
+    .head-tabs .ht { padding: 6px 8px; }
+    .head-right { gap: clamp(6px, .8vw, 12px); }
+    .clock { font-size: var(--fs-sm); text-align: right; }
+    .clock .d { display: inline; margin: 0 0 0 .5em; }
+    .live-bug { padding: 6px 11px; }
+  }
   /* v903 — THE MOTHERBOARD: sessions-home dashboard (left column, row 2 — the rail spans) */
   /* ══ v1464 (SESSIONS R5 · the dash actually columns) — was `1fr 1fr`, but EVERY .zone-banner
      and every .hd-wide card is `grid-column: 1 / -1`, so a spanning element sat between each
@@ -4608,6 +4642,11 @@
      was the last surface still painting a ROOM with the item-name gold, which made it read as the
      identical colour to the "Grail Uniques" row directly beneath it. Three surfaces name the
      runeword room — the tab, the home chip, the task-force row — and all three now say --rar-rune. */
+  /* v2092 — the vault tab carries the vault's own gold, so it reads as itself in the strip.
+     Deliberately NOT joined to the .55-opacity "tools + tvd" rule above: it sits between those two
+     and it is the one tab he went looking for and could not find. Dimming it would re-create the
+     problem this ship exists to fix. */
+  .head-tabs .ht[data-tab="vault"] { --ht-q: #f0c060; }
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
   /* v1631 — the Forge TAB wears the RUNE colour, not the runeword-name gold. See the token block:
@@ -4705,6 +4744,16 @@
           <button class="ht" type="button" data-tab="funi"><img class="ht-i" src="/art/ui_tab_funi.png" alt="" onerror="this.remove()"> F·Uniques</button>
           <button class="ht" type="button" data-tab="fsets"><img class="ht-i" src="/art/ui_tab_fsets.png" alt="" onerror="this.remove()"> F·Sets</button>
           <button class="ht" type="button" data-tab="tools"><img class="ht-i" src="/art/ui_tab_tools.png" alt="" onerror="this.remove()"> Tools</button>
+          <!-- v2092 — THE VAULT TAB THE CONSOLE NEVER GOT. Konyo asked for the Mule Manager to get
+               "its own main tab inbetween TOOLS tab and TV-D TAB". v2085 built that tab on the
+               BOARD and stopped there; this header strip — the one he is actually looking at when
+               the console is open — still read session · forge · funi · fsets · tools · tvd. So the
+               room existed and had no door on the surface that asks for rooms. When he said "where
+               is it?" I checked the board's strip, found it correct, and answered the wrong
+               question. [[the-unjoined-end]]
+               No routing needed: _shellRoute calls switchTab(tab) on the board iframe and the board
+               has owned a 'vault' tab since v2085, so this button works through the existing path. -->
+          <button class="ht" type="button" data-tab="vault"><img class="ht-i" src="/art/ui_foc_stash.png" alt="" onerror="this.remove()"> Vault</button>
           <button class="ht" type="button" data-tab="tvd"><img class="ht-i" src="/art/ui_tab_tvd.png" alt="" onerror="this.remove()"> TV·D</button>
         </nav>
       </div>
@@ -5245,7 +5294,14 @@
                the machine behaves.
 
                ONE SOURCE OF TRUTH, TWO VIEWS. Both surfaces read /api/shadow, the same endpoint
-               renderShadowAI reads. Nothing is copied, so nothing can drift — the failure that
+                 the board's painter used to read. ⚠ v2093 — THIS DRAWER IS NOW THE ONLY PLACE
+                 THEY EXIST. v2085 mirrored them here and left the originals in Tools — a COPY, not a
+                 move — so Tools kept rendering them and the job read as done. Konyo: "why is it still
+                 located in the tools tab?" Both rows, their 27 CSS rules and their four board painters
+                 are gone from bible.html; only tooltipPassState() stays, because it is localStorage-
+                 backed and this drawer asks it for the tooltip lane. These buttons POST to /api/shadow
+                 and repaint from it, so they never depended on the board. The eagle's "surfaces agree"
+                 check now goes RED if either reappears there. [[copy-drift]] [[the-unjoined-end]]
                makes one switch say OFF while the lane is running.
 
                AND IT REPORTS THREE FACTS, NEVER AVERAGED. The route's own comment says why: `on`
