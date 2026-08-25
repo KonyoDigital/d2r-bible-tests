@@ -10871,6 +10871,21 @@ def retention_may_act():
     _sw = str(os.environ.get("TV_AUTO_PRUNE", "")).strip().lower()
     if _sw in ("0", "off", "false", "no", "none", "never"):
         return False, "auto-prune is switched off (TV_AUTO_PRUNE=%s) — reporting only" % _sw
+    # ── v2117 — I FLIPPED THIS TO OPT-IN AND BACKED IT OUT, because it is HIS CALL ─────────
+    # Queue #28 argues this should be opt-in, and the safety reasoning is genuinely strong: it is
+    # the one action here with no undo, its two siblings ARE opt-in, and `_retention_loop` measures
+    # before its first sleep, so on a tree under the floor it acts within milliseconds of boot.
+    # His console reports 6.6GB free against an 8.0GB floor as this is written.
+    #
+    # But `test_1b_it_is_still_ARMED_when_he_has_not_switched_it_off` records the opposite in his
+    # own words: "he asked for this to be automatic. A guard that turns it off for every value
+    # would deliver the opposite of what he asked for and read as safety."
+    #
+    # So the queue is asking me to reverse a decision HE made, on HIS footage. That is not a defect
+    # to fix quietly — deleting a reel is his to authorise, and so is not deleting one. Left as he
+    # asked; the trade-off is his to re-decide, and it has been put to him rather than changed
+    # underneath him. [[feedback-fix-it-dont-offer-it]] — this is the documented exception: it
+    # changes what happens to bytes he cannot get back.
     busy = []
     try:
         if _CHRON_JOB.get("running"):
@@ -14948,7 +14963,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2116",
+        "ver": "v2117",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
