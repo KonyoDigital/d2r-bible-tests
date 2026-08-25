@@ -3604,6 +3604,27 @@
   .head-tabs::-webkit-scrollbar { display: none; }
   .head-tabs .ht { flex: none; }
 
+  /* ══ v2099 — THE IDENTITY COLUMN: crest + name, with the clock folded underneath ═════════════
+     The emblem and sigil sit on one line; the clock drops beneath the NAME rather than living in
+     the far right corner. That is his ask, and it is also what buys the tab strip its single row:
+     the clock block was ~150px of the header's width and it was on the wrong side of the tabs.
+     Symmetry is kept by aligning the clock to the sigil's text edge, not to the crest — so the
+     column reads as one object (crest | name over time) instead of three stacked things. */
+  .brand-id { display: flex; align-items: center; gap: clamp(8px, .9vw, 14px); flex: none; }
+  .brand-id .clock {
+    display: block; text-align: left; margin-top: 2px;
+    font-size: var(--fs-xs); line-height: var(--lh-snug); letter-spacing: var(--ls-label);
+  }
+  .brand-id .clock .d { display: inline; margin: 0 0 0 .5em; font-size: var(--fs-2xs); }
+  /* the sigil and the clock stack; the crest stays beside them */
+  .brand-id > .emblem { flex: none; }
+  .brand-id > .sigil, .brand-id > .sg-edit, .brand-id > .clock { }
+  .brand-id { flex-wrap: wrap; max-width: max-content; }
+  .brand-id > .sigil { order: 1; }
+  .brand-id > .sg-edit { order: 1; }
+  .brand-id > .clock { order: 2; flex-basis: 100%; margin-left: calc(42px + clamp(8px,.9vw,14px)); }
+  .brand-id > .emblem { order: 0; }
+
   /* ══ v2093 — THE STRIP MUST FIT, NOT SCROLL INTO THE DARK ═══════════════════════════════════
      Konyo, with the console open: "TV-D is like hidden... make the TITLE tabs more fitting on top
      so we can see it all", and "where it says time on the right corner maybe can be put diffrently
@@ -4709,6 +4730,16 @@
 
     <header class="topbar">
       <div class="brand">
+        <!-- v2099 — THE CLOCK MOVES UNDER THE NAME SO THE TABS GET ONE ROW.
+             Konyo: "i want the time on the right corner to be under the NAME on the left so its
+             compacted more but structured good and well and symmetric still. and then try to put
+             the tabs in one row on the top. idont want it to have to open a second row."
+             Both halves are the SAME fix. v2093 made the strip WRAP so a tab could never be silently
+             hidden again — right, but with 8 tabs it wraps at his width and he sees two rows. The
+             clock block was the only thing between the strip and the right edge, so folding it under
+             the sigil hands the strip that width and the wrap stops being REACHED. The wrap stays as
+             the safety net; it is simply no longer needed at his size. -->
+        <div class="brand-id">
         <div class="emblem"><img id="emblem-img" src="/art/ui_emblem.png" alt="" onerror="this.src='/art/hd_ohm_rune.png'" title="TV DIABLO — the grail engine"></div>
         <!-- v1465 — WHOSE CONSOLE IS THIS. A sigil generated from this install's own id, so a
              glance answers "am I in my profile?" and two people can compare at a distance.
@@ -4726,6 +4757,8 @@
              all in the very window this console runs in. -->
         <input class="sg-edit" id="sg-edit" type="text" maxlength="24" hidden
                aria-label="name this machine" placeholder="name this machine">
+               <div class="clock" id="clock"><span id="clock-t">--:--:--</span><span class="d" id="clock-d">—</span></div>
+             </div><!-- /.brand-id -->
         <!-- v881 (Konyo #47: 'tabs structured properly, easily navigatable — the title is
              pointless, this is an engine console') — the 5 board tabs ARE the header -->
         <!-- v1614 — REAL GAME ART, NOT SYSTEM EMOJI. Konyo: "the logo images should be ART0R also
@@ -4762,7 +4795,6 @@
         </nav>
       </div>
       <div class="head-right">
-        <div class="clock"><span id="clock-t">--:--:--</span><span class="d" id="clock-d">—</span></div>
         <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
       </div>
     </header>
@@ -12588,7 +12620,24 @@
           eaten: m[0].length
         };
       };
+      /* v2099 — THE MODEL WRITES MARKDOWN AND THIS SURFACE HAS NO RENDERER.
+         Konyo's DAILY PICK row read, literally, with the asterisks printed:
+             "Your Chronicle is **complete at 99/100** — no runewords remain — so the…"
+         _aiSay esc()s the sentence and dresses item names as chips; nothing ever removed the
+         emphasis markers, so every ** the model emitted was drawn as text on a surface whose
+         whole point is its own typography.
+         STRIP rather than render: this console has one type scale and model-supplied bold is not
+         part of it. Applied BEFORE _aiHeadDress so the head-dress sees the same clean sentence the
+         reader will, and before the length cut so the markers cannot eat characters from `max`. */
+      var _aiPlain = function(t){
+        return String(t == null ? '' : t)
+          .replace(/\*\*([^*]+)\*\*/g, '$1')     // **bold**
+          .replace(/__([^_]+)__/g, '$1')           // __bold__
+          .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:!?]|$)/g, '$1$2')   // *italic*, not a bare *
+          .replace(/`([^`]+)`/g, '$1');            // `code`
+      };
       var _aiSay = function(txt, max){
+        txt = _aiPlain(txt);
         var _head = _aiHeadDress(txt), headHtml = '';
         if (_head){ headHtml = _head.html; txt = _head.rest; max = Math.max(0, max - _head.eaten); }
         var full = String(txt), end = Math.min(max, full.length);

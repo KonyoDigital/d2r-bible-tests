@@ -1,3 +1,9 @@
+// v2099 — RETARGETED AT THE ROOM THAT NOW OWNS CRAFTS.
+// v2094 split the cube-crafts out of the runeword chronicle into #tab-crafts, rendered by the
+// SAME renderForge under a 'crafts' scope. This spec kept driving Forge, so it went red on the
+// intended product while a regression that dropped crafts from the NEW room would have stayed
+// green — a gate pointed at the old address measures nothing and blocks everything.
+// Measured after the retarget: #tab-crafts .f-craftacc = 4, its ⚗️ pill reads 4.
 import { test, expect } from './_net_stub';
 import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
@@ -26,16 +32,16 @@ test('sealed chronicle still shows all 4 craft types + ✓ crafted buttons', asy
       try { (w.LSR || localStorage).setItem('d2r_rwMade', JSON.stringify(made)); } catch (e) {}
       if (w.rwMade) Object.keys(tip).forEach((n) => { w.rwMade[n] = '2026-07-26'; });
     } catch (e) {}
-    try { w.switchTab && w.switchTab('forge'); } catch (e) {}
+    try { w.switchTab && w.switchTab('crafts'); } catch (e) {}
     try { w.renderForge && w.renderForge(); } catch (e) {}
     // force crafts filter
-    try { w.forgeSetFilter && w.forgeSetFilter('crafts'); } catch (e) {}
+    try { w.forgeSetFilter && w.forgeSetFilter('crafts', 'crafts'); } catch (e) {}
     try { w.renderForge && w.renderForge(); } catch (e) {}
-    const acc = document.querySelectorAll('#tab-forge .f-craftacc');
-    const rows = document.querySelectorAll('#tab-forge .f-craftrow');
-    const madeBtns = document.querySelectorAll('#tab-forge .f-craft-made');
-    const names = Array.from(document.querySelectorAll('#tab-forge .f-craftacc-name')).map((el) => el.textContent || '');
-    const pill = document.querySelector('#tab-forge .forge-tab.ft-craft .ft-ct');
+    const acc = document.querySelectorAll('#tab-crafts .f-craftacc');
+    const rows = document.querySelectorAll('#tab-crafts .f-craftrow');
+    const madeBtns = document.querySelectorAll('#tab-crafts .f-craft-made');
+    const names = Array.from(document.querySelectorAll('#tab-crafts .f-craftacc-name')).map((el) => el.textContent || '');
+    const pill = document.querySelector('#tab-crafts .forge-tab.ft-craft .ft-ct');
     const scan = (typeof w.forgeScan === 'function') ? w.forgeScan() : null;
     return {
       accN: acc.length,
@@ -44,7 +50,7 @@ test('sealed chronicle still shows all 4 craft types + ✓ crafted buttons', asy
       names,
       pill: pill ? pill.textContent : '',
       craftTypes: (scan && scan.craftTypes) ? scan.craftTypes.map((t: any) => t.craft) : [],
-      sealedBanner: !!document.querySelector('#tab-forge .forge-sealed'),
+      sealedBanner: !!document.querySelector('#tab-crafts .forge-sealed'),
     };
   });
   // all 4 craft types always present

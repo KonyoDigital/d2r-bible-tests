@@ -382,7 +382,15 @@ class TestSweepEveryReel(unittest.TestCase):
                             skip_reels={"reel_s_100"})
         self.assertEqual(len(res["reels"]), 3)
         notes = [r.get("note") for r in res["reels"]]
-        self.assertIn("already-swept", notes)
+        # v2099 — PIN THE LAW, NOT THE WORD. This asserted the literal "already-swept", which v2098
+        # narrowed to mean what it says: a reel the sweep MEMORY records. A reel skipped for any
+        # other reason (the caller targeted a different one) now reports "not targeted this run".
+        # The law here is v1524's and it is unchanged — a skipped reel must still be REPORTED, or
+        # his footage looks thinner than it is. Assert that, and that the note SAYS SOMETHING.
+        skipped = [r for r in res["reels"] if r.get("note")]
+        self.assertEqual(len(skipped), 1, "the skipped reel vanished from the report: %s" % notes)
+        self.assertTrue(str(skipped[0]["note"]).strip(),
+                        "a skipped reel was reported with an empty reason")
 
     def test_progress_still_fires_for_a_skipped_reel(self):
         # otherwise a mostly-cached sweep looks stalled
@@ -1077,7 +1085,11 @@ class TestV1781LimitCountsReelsItCanRead(unittest.TestCase):
         res = cr.sweep_hist(self.d, lambda p: None, lambda p, k: {}, limit=1,
                             skip_reels={"reel_s_2000_newest"})
         notes = [st.get("note") for st in res["reels"]]
-        self.assertIn("already-swept", notes, "the skipped reel vanished from the report: %s" % notes)
+        # v2099 — same law, not the same word. See the note in TestSweepEveryReel above: v2098 made
+        # "already-swept" mean only what the memory records, so a reel skipped because the caller
+        # targeted another one says "not targeted this run" instead. What v1524 protects is that it
+        # is REPORTED at all.
+        self.assertTrue([n for n in notes if n], "the skipped reel vanished from the report: %s" % notes)
         self.assertEqual(res["totals"].get("skippedReels"), 1)
 
 

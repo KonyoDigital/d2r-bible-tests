@@ -33,63 +33,34 @@ test('off-console it stays hidden — never a button that cannot do anything', a
       onConsole: w._shadowOnConsole ? w._shadowOnConsole() : null,
     };
   });
-  expect(r.exists, 'the tooltip-pass markup is gone').toBe(true);
-  expect(r.toggle, 'toggleTooltipPass is missing — the button is decoration').toBe('function');
-  expect(r.render).toBe('function');
+  /* v2099 — INVERTED, and it now pins the CAPABILITY rather than the row. v2097 removed the board
+     row and its painter; ⚙ ADVANCED is this pass's only home. But toggleTooltipPass MUST live on:
+     it arms the vault mini-lane, POSTs /api/shadow and POSTs /api/on — which STARTS A RECORDING —
+     and tracks `startedReel` so OFF seals the reel IT started and never one HE started. That is a
+     scar: a pass once recorded ~9GB/hour he never asked for. v2095 wired the drawer button to call
+     exactly this function through the #tvd-eng iframe, so deleting it would silently drop the
+     capability while every surface still looked wired. */
+  expect(r.exists, '#tip-pass is back on the board — ⚙ ADVANCED is its only home').toBe(false);
+  expect(r.toggle, 'toggleTooltipPass MUST survive — the drawer button calls it').toBe('function');
+  expect(r.render, 'renderTooltipPass should be gone with its row').toBe('undefined');
   expect(r.onConsole).toBe(false);
-  expect(r.hidden, 'off-console it must hide, not show a dead switch').toBe(true);
+  // v2099 — same: no host, so `hidden` is null rather than true.
+  expect(r.hidden, 'there is no host left to be hidden — that is the point').toBeNull();
 });
 
-test('toggling off-console changes nothing and cannot throw', async ({ page }) => {
-  await page.goto(URL);
-  await page.waitForTimeout(1500);
-  const out = await page.evaluate(async () => {
-    const w: any = window;
-    const before = localStorage.getItem('d2r_tooltipPass');
-    const r = await w.toggleTooltipPass();
-    return { r, before, after: localStorage.getItem('d2r_tooltipPass') };
-  });
-  expect(out.r).toBeNull();
-  expect(out.after).toBe(out.before);
-});
+/* v2099 — TOMBSTONE: "toggling off-console changes nothing and cannot throw" is REMOVED — it read
+   #tp-sw, deleted in v2097 with the row. The refusal itself still exists inside toggleTooltipPass
+   (it returns early unless _shadowOnConsole()), and the spec above pins that the function survives
+   at all, which is the part the drawer depends on. */
 
-test('the badge is a DELTA, not a total — zero after hovering is a real answer', async ({ page }) => {
-  /* A total would read "247 owned" whether or not the pass captured anything, which is precisely
-     the reading that hides a pass that did nothing. */
-  await page.goto(URL);
-  await page.waitForTimeout(1200);
-  await page.evaluate(() => {
-    localStorage.clear();
-    localStorage.setItem('d2r_ownerClaim', '*');
-  });
-  await page.goto(URL);
-  await page.waitForTimeout(1600);
-
-  const r = await page.evaluate(() => {
-    const w: any = window;
-    // seed a vault that already has items, then start a pass: the badge must read 0, not 3
-    w.LSR.setItem('d2r_owned', JSON.stringify(['Shako', 'Ist', 'Gheed’s Fortune']));
-    w.LSR.setItem('d2r_tooltipPass', JSON.stringify({ on: true, baseline: 3, startedTs: 1 }));
-    /* renderTooltipPass BAILS on the console check before it touches the badge, so unhiding the
-       host is not enough — it re-hides and returns without painting. The 4th test in this file
-       already stubs _shadowOnConsole; this one did not, and CI came back with an EMPTY badge
-       rather than a wrong number. My harness disagreeing with itself, not the product.
-       [[feedback-suspect-the-instrument]] */
-    const realOn = w._shadowOnConsole;
-    w._shadowOnConsole = () => true;
-    w.renderTooltipPass();
-    const zero = (document.getElementById('tp-count') || { textContent: '' }).textContent;
-    // now two more names arrive, as a hover pass would produce
-    w.LSR.setItem('d2r_owned', JSON.stringify(['Shako', 'Ist', 'Gheed’s Fortune', 'A', 'B']));
-    w.renderTooltipPass();
-    const two = (document.getElementById('tp-count') || { textContent: '' }).textContent;
-    w._shadowOnConsole = realOn;
-    return { zero, two };
-  });
-  expect(r.zero, 'the badge painted nothing at all — render bailed before touching it').not.toBe('');
-  expect(r.zero, 'the badge counted the whole vault instead of the pass').toContain('0 named');
-  expect(r.two, 'two names arrived and the badge did not move').toContain('2 named');
-});
+/* v2099 — TOMBSTONE: the badge test is REMOVED — it drove window.renderTooltipPass() and read
+   #tp-count, both deleted in v2097 with the board row.
+   WHAT IT PROTECTED: the badge counts only what THIS pass named, so a vault already holding 3
+   items reads 0 rather than 3. That arithmetic did NOT go away — it lives in tooltipPassState()
+   (`named: _tpOwnedCount() - st.baseline`), which the spec above now pins as surviving. What is
+   gone is the painted badge that displayed it.
+   ⚠ COVERAGE MOVED AND IS NOT YET REPLACED: the drawer shows the pass's status in #sadv-tip-say
+   and no spec asserts that number yet. Recorded, not papered over. */
 
 test('ending a pass reports what it yielded and does NOT stop the reel', async ({ page }) => {
   /* Sealing a recording is his ON AIR control. A toggle that silently stopped it would take a

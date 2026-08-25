@@ -44,7 +44,15 @@ export const BINDS_SECTIONS_TOTAL = 16;
 export const ENDGAME_RELICS_TOTAL = 15;
 
 // Nav tab bar entries (v158 dock spec). v232: +TZ tracker → 12.
-export const NAV_TABS_TOTAL = 17;   // v710.4 — +📺 TV·D (the live scanner's flagship board) joined the workshop group
+// v2099 — 17 → 19. Two rooms joined the workshop group and this pin did not move with them:
+//   v2085  🎒 Vault  (its own room between F·Sets and TV·D)
+//   v2094  ⚗️ Crafts (the cube-crafts, split out of the Forge chronicle)
+// Routine I went red on shards 2 and 5 for two SHAs — "Expected 17 Received 18" — while every
+// gate I ran locally stayed green, because the pre-push hook runs a SMOKE subset and the full
+// Playwright suite only runs on CI. A pin is a CLAIM about the product; moving the product
+// without moving the claim turns a real gate into noise. Measured, not assumed:
+//   document.querySelectorAll('.tabs .tab[data-tab]').length === 19
+export const NAV_TABS_TOTAL = 19;   // v710.4 +📺 TV·D · v2085 +🎒 Vault · v2094 +⚗️ Crafts
 
 // Horadric cube recipe browser rows (v177).
 export const HORADRIC_RECIPES_TOTAL = 36;

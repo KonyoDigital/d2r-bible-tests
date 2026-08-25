@@ -260,14 +260,17 @@ test.describe('v1621 — rarity on the title, gems on the crafts', () => {
        (.ft-craft .ft-ct, bible.html:7393) and the lit tab (.ft-craft.on, :7401). The expected value
        is READ from --q-orange, never typed; the purple is named only as the thing it must not be. */
     await page.goto(BOARD); await page.waitForTimeout(2400);
-    await page.evaluate(() => { try { (window as any).switchTab('forge'); } catch (e) {} });
+    // v2099 — open the room that OWNS the chip. renderForge('crafts') only paints #tab-crafts
+    // when that tab is entered, so measuring it after switchTab('forge') would have found an
+    // empty room and read as a missing chip — the retarget would have looked like the defect.
+    await page.evaluate(() => { try { (window as any).switchTab('crafts'); } catch (e) {} });
     await page.waitForTimeout(1500);
     /* .forge-tab carries `transition: color .16s` (bible.html:7382). Reading getComputedStyle the
        instant after classList.add('on') returns the START frame of that transition — the resting
        #b7a888 — which is what this probe measured on its first draft and it wrongly accused the
        board of ignoring its own rule. The lit state is therefore read AFTER the transition lands. */
     const rest = await page.evaluate(() => {
-      const tab: any = document.querySelector('#tab-forge .forge-tab.ft-craft');
+      const tab: any = document.querySelector('#tab-crafts .forge-tab.ft-craft');
       if (!tab) return null;
       const probe = document.createElement('span');
       probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--q-orange').trim();
@@ -281,11 +284,14 @@ test.describe('v1621 — rarity on the title, gems on the crafts', () => {
     });
     await page.waitForTimeout(500);
     const lit = rest ? await page.evaluate(() => {
-      const tab: any = document.querySelector('#tab-forge .forge-tab.ft-craft');
+      const tab: any = document.querySelector('#tab-crafts .forge-tab.ft-craft');
       return { tab: getComputedStyle(tab).color, bd: getComputedStyle(tab).borderTopColor };
     }) : null;
     const m = rest ? { orange: rest.orange, rest: { ct: rest.ct }, lit: lit! } : null;
-    expect(m, 'the Forge CRAFTS filter chip must exist to be measured').toBeTruthy();
+    // v2099 — the CRAFTS chip lives in #tab-crafts since v2096; the orange contract travelled
+    // with it. Measured after opening that room: #tab-crafts .forge-tab.ft-craft exists,
+    // #tab-forge has none.
+    expect(m, 'the CRAFTS filter chip must exist in the crafts room to be measured').toBeTruthy();
     const PURPLE = 'rgb(199, 156, 230)';   // #c79ce6 — the colour being removed, named to be excluded
     expect(m!.rest.ct, 'resting CRAFTS count: D2 paints crafted items orange').toBe(m!.orange);
     expect(m!.rest.ct, 'and it must no longer be the invented purple').not.toBe(PURPLE);

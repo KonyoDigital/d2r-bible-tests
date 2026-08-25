@@ -62,7 +62,11 @@ test('the sub-tab tiles are KPI dashboard tiles with counts', async ({ page }) =
     const active = document.querySelector('#tab-forge .forge-tab.on');
     return { tileCount: tabs.length, allHaveCounts: counts.every((c) => /\d/.test(c)), activeExists: !!active };
   });
-  expect(r.tileCount).toBe(6);
+  // v2099 — 6 → 5. v2096 gated the ⚗️ CRAFTS chip to the room that owns crafts, so the
+  // chronicle draws five: All · One step · Make now · Pipeline · Completed. The orange
+  // CRAFTS contract did not disappear — it moved to #tab-crafts, and v1621 now measures it
+  // there. Measured: #tab-forge .forge-tab = 5, #tab-crafts .forge-tab = 6.
+  expect(r.tileCount).toBe(5);
   expect(r.allHaveCounts).toBe(true);
   expect(r.activeExists).toBe(true);
 });

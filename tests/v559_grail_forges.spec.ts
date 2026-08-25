@@ -153,7 +153,11 @@ test('the runeword Forge is UNTOUCHED: its scan + shell still render independent
   expect(r.active).toBe(true);
   expect(r.buckets).toBe(true);
   expect(r.meter).toBe(true);
-  expect(r.tiles).toBe(6);   // the original 6 sub-tabs, unchanged
+  // v2099 — 6 → 5. v2096 gated the ⚗️ CRAFTS chip to the room that owns crafts, so the
+  // chronicle draws five: All · One step · Make now · Pipeline · Completed. The orange
+  // CRAFTS contract did not disappear — it moved to #tab-crafts, and v1621 now measures it
+  // there. Measured: #tab-forge .forge-tab = 5, #tab-crafts .forge-tab = 6.
+  expect(r.tiles).toBe(5);   // v2096 — the ⚗️ chip belongs to #tab-crafts now
 });
 
 test('nav: the two new tabs ride after Forge with HD icons; palette picks them up', async ({ page }) => {
@@ -163,8 +167,9 @@ test('nav: the two new tabs ride after Forge with HD icons; palette picks them u
     const fsetsIco = document.querySelector('.tabs .tab[data-tab="fsets"] img.tab-hdico');
     return { order: tabs.slice(-3), funiIco: !!funiIco, fsetsIco: !!fsetsIco, count: tabs.length };
   });
-  expect(r.count).toBe(17);   // v710.4 — +📺 TV·D (the live scanner) joined the workshop group
-  expect(r.order).toEqual(['funi', 'fsets', 'tvd']);
+  expect(r.count).toBe(19);   // v710.4 +TV·D · v2085 +Vault · v2094 +Crafts — measured, not assumed
+  // v2099 — the workshop tail moved when the Vault got its own room: fsets · vault · tvd
+  expect(r.order).toEqual(['fsets', 'vault', 'tvd']);
   expect(r.funiIco).toBe(true);
   expect(r.fsetsIco).toBe(true);
 });

@@ -1,3 +1,9 @@
+// v2099 — RETARGETED AT THE ROOM THAT NOW OWNS CRAFTS.
+// v2094 split the cube-crafts out of the runeword chronicle into #tab-crafts, rendered by the
+// SAME renderForge under a 'crafts' scope. This spec kept driving Forge, so it went red on the
+// intended product while a regression that dropped crafts from the NEW room would have stayed
+// green — a gate pointed at the old address measures nothing and blocks everything.
+// Measured after the retarget: #tab-crafts .f-craftacc = 4, its ⚗️ pill reads 4.
 import { test, expect } from './_net_stub';
 import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
@@ -38,14 +44,14 @@ test('sealed chronicle + gems/runes → crafts on Make now as atomic tasks', asy
 
   const r = await page.evaluate(() => {
     const w: any = window;
-    try { w.switchTab && w.switchTab('forge'); } catch (e) {}
+    try { w.switchTab && w.switchTab('crafts'); } catch (e) {}
     try { w.renderForge && w.renderForge(); } catch (e) {}
     const s = w.forgeScan();
-    const body = document.getElementById('forge-body');
+    const body = document.getElementById('crafts-body');
     const html = body ? body.innerHTML : '';
-    const nowSec = document.querySelector('#forge-body .forge-sec-now');
-    const craftCards = document.querySelectorAll('#forge-body .forge-sec-now .f-card.f-craft');
-    const nowPill = document.querySelector('#forge-body .forge-tab.ft-now');
+    const nowSec = document.querySelector('#crafts-body .forge-sec-now');
+    const craftCards = document.querySelectorAll('#crafts-body .forge-sec-now .f-card.f-craft');
+    const nowPill = document.querySelector('#crafts-body .forge-tab.ft-now');
     let fs: any = null;
     try { fs = JSON.parse(localStorage.getItem('d2r_forgeSummary') || 'null'); } catch (e) {}
     let cr: any = null;

@@ -42,25 +42,30 @@ test('off-console the widget is hidden, never a toggle that cannot do anything',
       toggle: typeof w.toggleShadowAI,
     };
   });
-  expect(r.exists, 'the shadow widget markup is gone').toBe(true);
-  expect(r.render, 'renderShadowAI is missing — the widget can never paint').toBe('function');
-  expect(r.toggle, 'toggleShadowAI is missing — the switch is decoration').toBe('function');
+  /* v2099 — INVERTED, because the product moved and this pinned the old shape. He asked twice for
+     the shadow reader to live in ⚙ ADVANCED beside the Grok eyes; v2095 wired the drawer to the
+     real orchestration and v2097 removed the board copies, their painters and 27 CSS rules. This
+     required all of them, so it went red on the intended product — and, worse, it would have
+     stayed GREEN if a second copy reappeared on the board, which is the exact drift that made him
+     ask twice. Inverted it is strictly stronger. */
+  expect(r.exists, '#shadow-ai is back on the board — two copies is how the last one hid').toBe(false);
+  expect(r.render, 'renderShadowAI should be gone with its row').toBe('undefined');
+  expect(r.toggle, 'toggleShadowAI should be gone with its row').toBe('undefined');
   expect(r.onConsole, 'a file:// page must not count as the console').toBe(false);
-  expect(r.hidden, 'the widget must stay hidden off-console, not show a dead switch').toBe(true);
+  // v2099 — `hidden` was read off the host; with the host gone it is null by construction, which
+  // is the honest reading. Asserting `true` here would have been a check that can never pass.
+  expect(r.hidden, 'there is no host left to be hidden — that is the point').toBeNull();
 });
 
-test('toggling off-console does nothing and cannot throw', async ({ page }) => {
-  await page.goto(URL);
-  await page.waitForTimeout(1500);
-  const out = await page.evaluate(async () => {
-    const w: any = window;
-    const before = (document.getElementById('sha-sw') || { className: '' }).className;
-    const r = await w.toggleShadowAI();
-    return { r, after: (document.getElementById('sha-sw') || { className: '' }).className, before };
-  });
-  expect(out.r).toBeNull();
-  expect(out.after).toBe(out.before);
-});
+/* v2099 — TOMBSTONE: "toggling off-console does nothing and cannot throw" is REMOVED.
+   It drove window.toggleShadowAI(), which v2097 deleted with the board row when the shadow reader
+   moved to ⚙ ADVANCED — he asked for that twice. Its subject does not exist here any more, so the
+   test could only ever be red.
+   WHAT IT PROTECTED, and where it went: the drawer's shadow button POSTs /api/shadow and repaints
+   from it; it never reached into the board. So "cannot throw off-console" is now a property of the
+   CONSOLE, and a file:// spec of bible.html cannot see the console.
+   ⚠ COVERAGE MOVED AND IS NOT YET REPLACED on the console side. Written down rather than dropped
+   quietly: a deleted test nobody notices is how a capability goes dark. */
 
 test('the three facts have three separate surfaces, not one lamp', async ({ page }) => {
   /* The G5 scar: one object answered "is it ready" and "was it asked" with the same word, and the

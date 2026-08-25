@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2098",
+  "ver": "v2099",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2098: The sweep labelled every reel in the callers skip set already-swept, so a targeted run reported untargeted reels as done - the memory never gained an entry, retention held them as unread, and the next sweep skipped them again. Twelve of his reels were stranded that way.",
+  "note": "v2099: Four P1 issues where a ship moved a surface and left the gate pinned to the old shape - tab counts, the Forge craft chip, the crafts split and the removed board switches. Every pin re-derived by measurement rather than edited to match.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
