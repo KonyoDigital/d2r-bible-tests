@@ -818,6 +818,71 @@ def _git_tracked_dirty():
         return False
 
 
+def fleet_pull():
+    """v2102 — fast-forward this checkout to origin/main, or explain precisely why not.
+
+    Refuses on a dirty TRACKED tree (untracked files are fine — reels, logs and caches
+    live in this repo and must never be a reason to refuse an update). Returns the
+    before/after so the caller can say what actually happened rather than assuming.
+    """
+    out = {"ok": False, "pulled": False, "msg": "", "before": "", "after": "", "ver": ""}
+    try:
+        if not os.path.isdir(os.path.join(REPO, ".git")):
+            out["msg"] = "this install is not a git checkout — update it the way you installed it"
+            return out
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=REPO, capture_output=True, text=True, timeout=15,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        if (dirty.stdout or "").strip():
+            out["msg"] = ("local TRACKED edits are present, so a fast-forward would not be safe. "
+                          "Commit or stash them, then update.")
+            return out
+        before = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO, capture_output=True, text=True, timeout=15,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        out["before"] = (before.stdout or "").strip()
+        r = subprocess.run(
+            ["git", "pull", "--ff-only"],
+            cwd=REPO, capture_output=True, text=True, timeout=180,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        after = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO, capture_output=True, text=True, timeout=15,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        out["after"] = (after.stdout or "").strip()
+        if r.returncode != 0:
+            out["msg"] = ((r.stderr or r.stdout or "git pull failed").strip().splitlines() or [""])[-1][:160]
+            return out
+        out["ok"] = True
+        out["pulled"] = bool(out["before"] and out["after"] and out["before"] != out["after"])
+        # THE VERSION MUST COME OFF DISK, NOT OUT OF MEMORY. `_app_ver()` reports the stamp of
+        # the module this PROCESS loaded at boot — which after a successful pull is still the OLD
+        # code. Reporting that would show the version unchanged and read as "the update failed"
+        # at the exact moment it succeeded. What moved is the file. [[stale-reading]]
+        try:
+            # builtin open(): this module does NOT import `io`, and the except below would
+            # have swallowed that NameError into an empty version string — a silent miss
+            # dressed as "no version found". [[source-reading-guard]]
+            with open(os.path.abspath(__file__), encoding="utf-8") as _fh:
+                _src = _fh.read()
+            _m = re.search(r'"ver": "(v[\d.]+)"', _src)
+            out["ver"] = _m.group(1) if _m else ""
+        except Exception:
+            out["ver"] = ""
+        if not out["pulled"]:
+            out["msg"] = "already unified with origin/main"
+        return out
+    except Exception as e:
+        out["msg"] = "update failed: %s" % str(e)[:120]
+        return out
+
+
 def fleet_origin_status(force_fetch=False):
     """v1418 — {behind, latest, head, origin, dirty, ok, howTo, ver}.
     behind = commits on origin/main not in HEAD (0 = unified with fleet channel)."""
@@ -893,9 +958,18 @@ def fleet_origin_status(force_fetch=False):
                     % out["behind"]
                 )
             else:
+                # v2102 — THIS SENTENCE USED TO BE FALSE. It said "Relaunch TV DIABLO to
+                # auto-pull" on every platform. No Mac launcher pulled at all (only the
+                # one-time tv/install-tvd.sh did), and the Windows one takes its
+                # "control already up - focusing; skip pull/spawn" branch whenever the
+                # console is running — which, for an always-on console, is always. Konyo
+                # found a second machine on v945 with nothing on screen ever saying so.
+                # The Mac launcher pulls now, and the console has an UPDATE NOW button;
+                # this text names the button, which works on every platform and in every
+                # state. [[label-outlived-referent]]
                 out["howTo"] = (
-                    "You are %d commit(s) behind GitHub. Relaunch TV DIABLO to auto-pull, "
-                    "or run: git pull && relaunch."
+                    "You are %d commit(s) behind GitHub. Press UPDATE NOW in the console "
+                    "banner (or run: git pull), then relaunch TV DIABLO."
                     % out["behind"]
                 )
         else:
@@ -14811,7 +14885,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2101",
+        "ver": "v2102",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -16973,6 +17047,18 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/update":
+            # v2102 — THE PULL, not just the verdict. GET /api/update has reported "you are N
+            # behind" since v817 and could never do anything about it, while its own howTo said
+            # "Relaunch TV DIABLO to auto-pull" — which was false: no launcher pulled (only the
+            # one-time tv/install-tvd.sh did), and the Windows one skips the pull entirely
+            # whenever the console is already up, which for an always-on console is always.
+            # Konyo found a second machine sitting on v945. [[the-unjoined-end]]
+            #
+            # ONLY fast-forward, and ONLY on a clean tree: a machine mid-edit keeps its work and
+            # is told why it is not updating. Never a merge, never a rebase, never a reset.
+            self._json(200, fleet_pull())
+            return
         if path == "/api/chronicle_apply":
             # v1523 — the write. POST only, and it goes through the BOARD, which owns the ledger.
             self._json(200, chronicle_apply(body.get("proposal")))

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2101",
+  "ver": "v2102",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2101: The ready crafts were published on TWO channels - v1411 poured them into forgeSummary.now and the payload still carried them in crafts - so the console drew every craft twice, once as MAKE NOW with no art and again as CRAFT NOW with one generic medallion shared by all six. now is the runeword channel again, crafts carry their own gem art resolved board-side, and a ready craft is a first-class task in the DAILY TASK FORCE instead of inheriting the runeword sentence about owning every rune.",
+  "note": "v2102: A second machine sat on v945 and nothing ever said so. The behind-check had existed since v817 but could only run if you CLICKED the version in the footer, and the comment above it claimed a banner that was never written. Meanwhile the API told every platform to relaunch to auto-pull - false: no Mac launcher pulled at all, and the Windows one skips the pull whenever the console is already up. The console now checks on load and every 30 minutes, paints a real banner, and UPDATE NOW performs a guarded fast-forward.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

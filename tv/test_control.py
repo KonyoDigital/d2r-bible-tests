@@ -19447,5 +19447,91 @@ class TestV2101ACraftIsOneTaskWithItsOwnPicture(unittest.TestCase):
         self.assertIn("craftList", body, "the Task Force no longer reads the craft channel")
 
 
+class TestV2102TheConsoleNoticesItIsBehind(unittest.TestCase):
+    """v2102 — Konyo opened a second machine: "it's reading v945. why is it not auto
+    updating itself."
+
+    Nothing was broken. There was simply no passive check anywhere. The code that finds
+    out lived entirely inside `$('foot-ver').onclick`, and the comment directly above it
+    claimed "banner also paints when behind" about a banner that had never been written.
+    Meanwhile /api/update's own howTo said "Relaunch TV DIABLO to auto-pull" — false on
+    every platform: NO Mac launcher pulled (only the one-time install script did), and the
+    Windows launcher skips the pull whenever the console is already up, which for an
+    always-on console is always. So a machine could sit 1,150 versions back in silence.
+
+    Four assertions, one per unjoined end. [[the-unjoined-end]]
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
+            self.app = f.read()
+
+    def test_the_check_runs_without_being_clicked(self):
+        self.assertIn('id="fleet-bar"', self.ui, "the fleet banner markup is gone")
+        # a check that only a human can start is not a check: it must be armed on load
+        # AND re-armed on a timer, not merely defined
+        self.assertIn("setInterval(look,", self.ui,
+                      "the behind-check no longer repeats — a console left open would never "
+                      "learn it went stale")
+        i = self.ui.find("setInterval(look,")
+        self.assertGreater(i, 0)
+        window = self.ui[max(0, i - 2600):i]
+        self.assertIn("/api/update", window,
+                      "the periodic check does not actually ask /api/update")
+        self.assertIn("look();", self.ui,
+                      "the check is defined but never run at load — the banner would only "
+                      "appear 30 minutes in")
+
+    def test_the_banner_offers_an_action_that_exists(self):
+        self.assertIn('id="fleet-go"', self.ui, "the UPDATE NOW button is gone")
+        self.assertIn("method: 'POST'", self.ui,
+                      "UPDATE NOW no longer POSTs — GET /api/update only REPORTS, it cannot "
+                      "change anything, so the button would be decoration")
+        self.assertIn('if path == "/api/update"', self.app)
+        # and the POST route must reach the worker, not just report again
+        self.assertIn("fleet_pull()", self.app,
+                      "POST /api/update does not call the pull worker")
+
+    def test_the_pull_refuses_on_a_dirty_tree_and_only_fast_forwards(self):
+        i = self.app.find("def fleet_pull(")
+        self.assertGreater(i, 0, "fleet_pull() is gone")
+        body = self.app[i:self.app.find("\ndef ", i + 10)]
+        self.assertIn("--untracked-files=no", body,
+                      "the dirty check counts UNTRACKED files, so reels/logs/caches — which "
+                      "live in this repo — would block every update forever")
+        self.assertIn("--ff-only", body, "the pull is no longer fast-forward-only")
+        for forbidden in ("reset", "--hard", "rebase"):
+            self.assertNotIn(forbidden, body,
+                             "fleet_pull must never %s — it runs unattended on his machines "
+                             "and would destroy local work" % forbidden)
+
+    def test_it_reports_the_version_on_DISK_not_the_one_in_memory(self):
+        i = self.app.find("def fleet_pull(")
+        body = self.app[i:self.app.find("\ndef ", i + 10)]
+        # STRIP THE PROSE FIRST. The comment inside fleet_pull EXPLAINS why _app_ver() is
+        # wrong here, and naming it there made this guard fire on its own documentation —
+        # red for the presence of the sentence describing the fix. A guard that greps source
+        # must read CODE, not the paragraph about the code. [[feedback-comments-vs-code]]
+        code = "\n".join(ln for ln in body.splitlines() if not ln.lstrip().startswith("#"))
+        self.assertNotIn("_app_ver()", code,
+                         "_app_ver() reports the stamp of the module THIS PROCESS loaded at "
+                         "boot, which after a successful pull is still the OLD code — it "
+                         "would show the version unchanged and read as 'the update failed' "
+                         "at the exact moment it worked")
+        self.assertIn("__file__", code,
+                      "the reported version is not read off disk")
+
+    def test_relaunching_on_a_mac_actually_pulls(self):
+        with open(os.path.join(HERE, "start_tvd_mac.sh"), encoding="utf-8") as f:
+            sh = f.read()
+        self.assertIn("pull --ff-only", sh,
+                      "the Mac launcher does not pull, so 'relaunch to update' is false here")
+        self.assertIn("--untracked-files=no", sh,
+                      "the launcher's clean-tree check counts untracked files (reels, logs) "
+                      "and would therefore never pull on a real machine")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -42,6 +42,33 @@ fi
 
 cd "$REPO"
 
+# ── v2102 — RELAUNCHING ACTUALLY PULLS NOW ─────────────────────────────────
+# Konyo, opening a second machine: "it's reading v945. why is it not auto
+# updating itself." It never could. NO launcher pulled — only the one-time
+# tv/install-tvd.sh did — while /api/update's own howTo told him "Relaunch TV
+# DIABLO to auto-pull". That sentence was false on every machine, and the only
+# way to even LEARN you were behind was to click the version in the footer,
+# which nobody does. So a second console sat 1,150 versions back and no surface
+# ever said so. [[the-unjoined-end]] [[label-outlived-referent]]
+#
+# ONLY on a clean tree, and only fast-forward: a machine mid-edit keeps its
+# work and is told why it is not updating. Never a rebase, never a merge.
+if command -v git >/dev/null 2>&1 && [ -d "$REPO/.git" ]; then
+  if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+    echo "📺 local tracked edits — NOT auto-pulling. Commit or stash them to rejoin the fleet."
+  else
+    _tvd_before="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '?')"
+    if git -C "$REPO" pull --ff-only --quiet 2>/dev/null; then
+      _tvd_after="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '?')"
+      if [ "$_tvd_before" != "$_tvd_after" ]; then
+        echo "📺 fleet update: $_tvd_before → $_tvd_after"
+      fi
+    else
+      echo "📺 could not fast-forward (offline, or history diverged) — running what is on disk."
+    fi
+  fi
+fi
+
 if ! command -v python3 >/dev/null 2>&1; then
   osascript -e 'display alert "TV DIABLO" message "python3 not found. Re-run: curl -fsSL https://bull-4-u.com/d2r/install-tvd.sh | bash" as critical' || true
   exit 1
