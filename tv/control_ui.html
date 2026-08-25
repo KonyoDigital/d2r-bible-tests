@@ -5040,6 +5040,18 @@
                         There is no un-throw in Diablo, so this lane has no button that acts on it. -->
         <div class="hd-col hd-wide hd-vault" id="hd-vault">
           <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
+          <!-- v2091 — SAY WHERE THE OTHER VAULT IS. Konyo, looking at this console: "on the
+               console where is vault manager?" Nothing here is broken — this panel is the VAULT
+               ACCUMULATOR and it does what it says. But the MULE MANAGER is a different capability
+               living on the board, and neither surface has ever named the other, so a search for
+               "vault manager" on the console finds a panel with a different name and no signpost.
+               Same defect as v2090 in Tools, other direction. [[the-unjoined-end]]
+               Static child of #hd-vault: vaultPaint writes #vault-sub and #vault-body, and nothing
+               sets innerHTML on #hd-vault itself, so this line is never repainted away. -->
+          <div class="chron-idle" style="opacity:.72;font-size:.86em;margin:2px 0 6px">
+            this reads your <b>sealed reels</b> · the <b>mule manager</b> (which mule holds what)
+            lives on the board, in its own <b>🎒 VAULT</b> tab
+          </div>
           <div class="vault-body" id="vault-body">
             <div class="chron-idle">tap to price it — no model call, nothing written</div>
           </div>

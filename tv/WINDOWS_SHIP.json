@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2090",
+  "ver": "v2091",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2090: He went looking for the Vault Manager in Tools where it lived for months and reported it gone. It was present and correct on every surface measured - web, app context, his own window on v2089 - but the place he looked did not say so. Tools now carries a signpost card that opens the vault.",
+  "note": "v2091: He asked where the vault manager is on the console. Nothing was broken - the console panel is the VAULT ACCUMULATOR and the mule manager is a different capability on the board - but neither surface had ever named the other. The console panel now says where the mule manager lives, the mirror of the Tools signpost in v2090.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
