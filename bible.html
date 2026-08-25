@@ -47146,7 +47146,7 @@ function _tpOwnedCount(){
    The row that displayed them leaves the board this ship, and the button that RUNS the pass now
    lives in the console's ⚙ ADVANCED drawer (v2095) — so the messages follow the button, into
    #sadv-tip-say on the parent document.
-   Deliberately NO getElementById('tp-say') fallback: that element no longer exists, and a lookup
+   Deliberately NO #tp-say fallback: that element no longer exists, and a lookup
    of something never created is exactly what test_the_board_looks_up_nothing_it_never_creates
    catches — it caught me doing this once already. Null when the board is opened standalone, and
    every write below is already guarded by `if (say)`. [[the-unjoined-end]] */

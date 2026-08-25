@@ -54,6 +54,15 @@ SURFACES = [
 # to be checkable by reading the line it names.
 CROSS_DOCUMENT = {
     # (surface, id): why it is legitimately absent from this document
+    # v2097 moved the tooltip pass's status line off the board into the console's ⚙ ADVANCED
+    # drawer, so _tpSay() reaches it through window.parent.document — guarded by
+    # `window.parent !== window` (bible.html:47155) and null BY DESIGN when the board is opened
+    # standalone, where every write is `if (say)`-guarded. VERIFIED both ends before exempting:
+    # read at bible.html:47156, written at tv/control_ui.html:5617. An exemption that is merely
+    # asserted would hide exactly the broken join this scanner exists to find.
+    ("bible.html", "sadv-tip-say"):
+        "written in tv/control_ui.html:5617 — the board reaches it through its parent document "
+        "when the console iframes it, and gets null (guarded) when opened standalone",
 }
 
 # Reads that are provably not element lookups — a selector string, a data key, a CSS class.

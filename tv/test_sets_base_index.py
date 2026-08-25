@@ -291,10 +291,21 @@ class TestTheChroniclesShareOneStyle(unittest.TestCase):
 
     def test_the_shared_sibling_rule_still_exists(self):
         """The guard above is only meaningful while there IS a shared rule to inherit."""
+        import re
         s = self._src()
-        self.assertIn(":is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill", s,
-                      "the sibling rule is gone — removing inline colours now leaves them unstyled, "
-                      "which is worse than the drift")
+        # v2119 — PIN THE LAW, NOT THE MEMBER LIST. This asserted the literal three-tab spelling and
+        # went red the moment v2094 legitimately joined #tab-crafts to the same family: the rule was
+        # never gone, the grep just could not reach past its own wording. What matters is that each
+        # sibling is still IN the shared rule, not how many siblings there are.
+        # [[source-reading-guard]] [[feedback-state-the-bar-not-the-routes]]
+        m = re.search(r":is\(([^)]*)\)\s*\.fp-fill\{", s)
+        self.assertIsNotNone(m, "the sibling rule is gone — removing inline colours now leaves them "
+                                "unstyled, which is worse than the drift")
+        members = [t.strip() for t in m.group(1).split(",")]
+        for sib in ("#tab-forge", "#tab-funi", "#tab-fsets"):
+            self.assertIn(sib, members,
+                          "%s dropped out of the shared .fp-fill rule — that sibling is now "
+                          "unstyled and free to drift" % sib)
 
 
 class TestEveryLedgerStatusHasAPill(unittest.TestCase):

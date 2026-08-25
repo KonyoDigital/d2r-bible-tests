@@ -52,6 +52,12 @@ tv/_*.txt
 tv/__pycache__/
 
 # v1465 — per-install identity: unique per PC, must NEVER travel between machines
+# v2119 — AND THE ROOT COPIES. These two patterns name `tv/` only, so `git check-ignore` was
+# silent on `/.tvd_identity.json` and `git add -A` staged it into a PUBLIC repo, carrying this
+# machine's install id, its hostname and its username. Anyone cloning inherited konyo-3.local's
+# identity as their own. [[the-unjoined-end]]
+/.tvd_identity.json
+/.tvd_beacon.json
 tv/.tvd_identity.json
 # v1597 — the beacon's own last-result record. Per-install and machine-specific (attempts,
 # failures, the IP-dependent verdict), exactly like .tvd_identity.json beside it. Committing
