@@ -19989,5 +19989,77 @@ class TestV2110UpToDateIsNotTheSameAsRunningIt(unittest.TestCase):
                       "drift is no longer published on /api/status, so the banner cannot read it")
 
 
+class TestV2111TheQueueWasRightAboutFour(unittest.TestCase):
+    """v2111 — four findings from the review queue, verified before acting on them and all
+    four real. Two were defects I shipped tonight, and one was a file I never swept.
+
+    1. /api/relaunch refused on three job flags but NOT on `_agent_alive()` — while
+       `drift_may_relaunch()`, the AUTOMATIC path, checks it and says why: restarting then
+       "ORPHANS the frames of the session it kills". The two paths guarded different things
+       and the WEAKER one is the one v2107 put a button on.
+    2. #g5-eyes-card shipped with the `hidden` attribute. v2103 made paintG5 always reveal
+       it — but that only runs after the first /api/g5_status answers, so a slow or failed
+       first load still opened an empty drawer.
+    3. .home-dash reserved a scrollbar gutter it no longer needed once v2103 shrink-wrapped
+       it — 15px of dead stripe, the remainder of the gap he reported.
+    4. functions/api/ask.js — a SECOND prompt for the same model — still told it the
+       Chronicle was out of 100, twice. v2104 fixed the board's prompt; I swept bible.html
+       and the console for the literal and never thought to sweep the Cloudflare function.
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
+            self.app = f.read()
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+
+    def test_relaunch_refuses_while_he_is_filming(self):
+        body = _between(self, self.app, 'path == "/api/relaunch"', "self._json(200, {\"ok\": False",
+                        what="the relaunch route", min_len=200)
+        # STRIP THE PROSE. The comment explaining this fix NAMES `_agent_alive()` — so with the
+        # real call deleted the assertion below still found the word and PASSED. That is the
+        # dangerous direction of this scar: not a false red, a false GREEN over a live defect.
+        # Caught only because the sabotage run reported "MISSED" and I checked the sabotage had
+        # actually applied instead of trusting the verdict. [[feedback-comments-vs-code]]
+        code = "\n".join(ln for ln in body.splitlines() if not ln.lstrip().startswith("#"))
+        self.assertGreater(len(code.strip()), 120, "the comment strip ate the route body")
+        self.assertIn("_agent_alive()", code,
+                      "the manual relaunch no longer checks whether he is FILMING. It replaces "
+                      "the process, and the reel fold runs at seal — restarting mid-session "
+                      "orphans that session's frames. The automatic path has always refused here")
+
+    def test_the_eyes_card_does_not_ship_hidden(self):
+        i = self.ui.find('id="g5-eyes-card"')
+        self.assertGreater(i, 0, "the Grok Eyes card is gone")
+        tag = self.ui[i:self.ui.find(">", i)]
+        self.assertNotIn(
+            " hidden", tag,
+            "the card ships hidden again, so it only appears once a fetch answers — the drawer "
+            "opens empty on a slow or failed first load, which is the complaint v2103 closed",
+        )
+
+    def test_the_dash_does_not_reserve_a_gutter_it_does_not_need(self):
+        self.assertIn(".home-dash { scrollbar-gutter: auto; }", self.ui,
+                      "the dash reserves a scrollbar gutter again — 15px of dead stripe down its "
+                      "full height whether or not it overflows")
+        # the surfaces that DO scroll routinely must keep theirs, or their layout jumps
+        self.assertIn(".rail, .ch-grid, .sh-grid { scrollbar-gutter: stable; }", self.ui,
+                      "the routinely-scrolling panels lost their reservation; their layout will "
+                      "jump each time a scrollbar appears")
+
+    def test_the_cloudflare_prompt_states_no_denominator(self):
+        ask = os.path.join(os.path.dirname(HERE), "functions", "api", "ask.js")
+        self.assertTrue(os.path.isfile(ask), "functions/api/ask.js is gone")
+        with open(ask, encoding="utf-8") as f:
+            src = f.read()
+        for bad in ("N/100", "100-runeword"):
+            self.assertNotIn(
+                bad, src,
+                "the Cloudflare prompt tells the model the Chronicle roster is 100. It is 99, "
+                "and the app already sends the real number in snapshot.chronicle — the model "
+                "will write a fluent sentence around whatever denominator it is handed",
+            )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

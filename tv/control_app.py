@@ -14885,7 +14885,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2110",
+        "ver": "v2111",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -17746,6 +17746,20 @@ class Handler(BaseHTTPRequestHandler):
                         _busy.append("a mini is recording")
                 except Exception:
                     pass
+                # v2111 — AND THE ONE THAT MEANS HE IS FILMING. This route checked three job
+                # flags and not `_agent_alive()`, while `drift_may_relaunch()` — the AUTOMATIC
+                # path, added later — checks it and explains exactly why: "Restarting then both
+                # interrupts the session and ORPHANS the frames of the session it kills, because
+                # the reel fold runs at seal (v2071)."
+                # The two paths guarded different things, and the WEAKER one is the one with a
+                # button on it. v2107 put RELAUNCH NOW in the fleet banner, which made this a
+                # one-click way to do the exact thing the other path refuses. Same question, same
+                # answer, whoever is asking. [[copy-drift]]
+                try:
+                    if _agent_alive():
+                        _busy.append("the agent is alive — you are filming")
+                except Exception:
+                    _busy.append("could not tell whether the agent is alive")
                 if _busy:
                     self._json(200, {"ok": False, "why": " and ".join(_busy)
                                      + " — relaunching now would throw away a paid read. "

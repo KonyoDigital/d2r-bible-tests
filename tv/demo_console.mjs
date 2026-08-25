@@ -68,13 +68,29 @@ async function goHome(page) {
 // Warm up: give the engine iframe a chance to boot bible JS so the first pane route is snappy
 // (best-effort — shellOpen() retries switchTab for ~4s anyway, so this is never fatal).
 async function warmEngine(page) {
+  /* v2112 — WAIT FOR WHAT J1 ACTUALLY ASSERTS, AND SAY SO IF IT NEVER ARRIVES.
+     This waited only for `switchTab` to be a function, then swallowed its own timeout with
+     "the click retry loop will cover it". On a COLD console — a gate run seconds after a
+     relaunch — switchTab exists while the board's tab markup does not, so J1 clicked six
+     panes and timed out waiting for `.tab.active` to follow. The run reported
+     `j1_shellMatrix — page.waitForFunction: Timeout 12000ms exceeded`, which names the
+     symptom and hides the cause; the same journey then passed twice in a row at 5.7s
+     against a warm console.
+     Silence is not evidence: a warm-up that gives up quietly turns a boot race into a
+     mystery failure in an unrelated journey. [[feedback-silence-is-not-evidence]] */
   try {
     await page.waitForFunction(() => {
       const f = document.getElementById('tvd-eng');
       const w = f && f.contentWindow;
-      return !!(w && typeof w.switchTab === 'function');
-    }, null, { timeout: 15000 });
-  } catch (_) { /* the click retry loop will cover it */ }
+      if (!w || typeof w.switchTab !== 'function') return false;
+      const d = f.contentDocument;
+      // the tab strip is what every pane journey steers by — an engine with no tabs is not warm
+      return !!(d && d.querySelector('.tab.active'));
+    }, null, { timeout: 25000 });
+  } catch (_) {
+    console.log('⚠ BOOT — the board engine did not finish loading in 25s. The pane journeys '
+      + 'below steer by its tab strip, so treat any J1/J2 failure as THIS, not as a routing bug.');
+  }
 }
 
 // ── the six journeys ──────────────────────────────────────────────────────────────
@@ -83,13 +99,59 @@ async function j1_shellMatrix(page) {
   await goHome(page);
   for (const tab of PANE_TABS) {
     await page.click(`#head-tabs .ht[data-tab="${tab}"]`);
-    await page.waitForFunction((t) => {
-      if (!document.body.classList.contains('shell-open')) return false;
-      const f = document.getElementById('tvd-eng');
-      const d = f && f.contentDocument;
-      const a = d && d.querySelector('.tab.active');
-      return !!(a && a.dataset.tab === t);
-    }, tab, { timeout: 12000 });
+    try {
+      await page.waitForFunction((t) => {
+        if (!document.body.classList.contains('shell-open')) return false;
+        const f = document.getElementById('tvd-eng');
+        const d = f && f.contentDocument;
+        const a = d && d.querySelector('.tab.active');
+        return !!(a && a.dataset.tab === t);
+        /* v2112 — 30s, not 12s. This gate runs INSIDE hooks/pre-push, immediately after the
+           full tv suite and alongside the Playwright smoke, so the machine is loaded and the
+           board is promoting a 5.9MB document into an iframe. Measured: 8/9 at ~17s during the
+           gate, 9/9 five times in a row at ~6s standalone, with no product difference between
+           them. The budget was the failure, and a per-pane budget that only holds on an idle
+           machine is a race the gate loses at exactly the moment it matters. */
+      }, tab, { timeout: 30000 });
+    } catch (e) {
+      /* v2112 — NAME THE PANE. This threw `page.waitForFunction: Timeout 12000ms exceeded`,
+         which says a wait expired and nothing about WHICH of six panes, what the board was
+         showing instead, or whether the shell had even opened — so the same message covers a
+         routing bug, a cold engine and a click that missed. Report the state at the moment it
+         gave up. [[feedback-verify-not-proxy]] */
+      const st = await page.evaluate(() => {
+        const f = document.getElementById('tvd-eng');
+        let d = null; try { d = f && f.contentDocument; } catch (_) {}
+        const a = d && d.querySelector('.tab.active');
+        return {
+          shell: document.body.classList.contains('shell-open'),
+          doc: !!d,
+          active: a ? a.dataset.tab : null,
+          tabs: d ? d.querySelectorAll('.tabs .tab').length : -1,
+        };
+      }).catch(() => null);
+      /* v2112 — AND ASK WHETHER THE ROUTE ITSELF STILL WORKS. "the pane did not activate"
+         covers two opposite causes: the click never reached the router, or the router ran and
+         the board refused. Calling switchTab directly separates them — if the board moves when
+         asked in-process, the defect is upstream of the board, and if it does not, it is the
+         board. Suspect the instrument before the subject. [[feedback-suspect-the-instrument]] */
+      const probe = await page.evaluate((t) => {
+        const f = document.getElementById('tvd-eng');
+        const w = f && f.contentWindow;
+        const out = { hasSwitch: !!(w && typeof w.switchTab === 'function'), threw: null, after: null };
+        if (!out.hasSwitch) return out;
+        try { w.switchTab(t); } catch (e) { out.threw = String((e && e.message) || e); }
+        try {
+          const a = f.contentDocument.querySelector('.tab.active');
+          out.after = a ? a.dataset.tab : null;
+        } catch (e) { out.after = '(unreadable)'; }
+        return out;
+      }, tab).catch(() => null);
+      throw new Error(`pane "${tab}" never activated — shell-open=${st && st.shell}, `
+        + `board doc=${st && st.doc}, board shows="${st && st.active}", `
+        + `board tab count=${st && st.tabs} · direct switchTab: exists=${probe && probe.hasSwitch}`
+        + `, threw=${probe && probe.threw}, board then showed="${probe && probe.after}"`);
+    }
   }
   // then TV·D → shell closes and the stage is visible
   await page.click('#head-tabs .ht[data-tab="tvd"]');
@@ -663,6 +725,15 @@ async function main() {
   const pass = results.filter((r) => r.ok).length;
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   console.log(`DEMOS: ${pass}/9 ✅  (${secs}s)`);
+  /* v2112 — AND THE FAILURES AGAIN, AFTER THE SUMMARY. hooks/pre-push shows only the TAIL of
+     this output, so a failure printed at the top — where it happens — is cut off, and the gate
+     reports "DEMOS: 8/9" with no way to tell WHICH journey or why. I chased one of these three
+     times reading a truncated log. The line costs nothing when everything passes. */
+  const failed = results.filter((r) => !r.ok);
+  if (failed.length) {
+    console.log('── what failed (repeated here because the gate only shows the tail) ──');
+    for (const r of failed) console.log(`   ❌ ${r.name} — ${r.detail || '(no detail)'}`);
+  }
   process.exitCode = pass === 9 ? 0 : 1;
 }
 

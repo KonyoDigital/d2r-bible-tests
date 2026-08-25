@@ -227,7 +227,14 @@
   :focus-visible { outline: 2px solid var(--gold-antique); outline-offset: 2px; }
   /* v1464 — reserve the scrollbar gutter so a pane does not jump sideways the moment its
      content grows past the fold. .rail overflows live as cards appear. */
-  .rail, .home-dash, .ch-grid, .sh-grid { scrollbar-gutter: stable; }
+  .rail, .ch-grid, .sh-grid { scrollbar-gutter: stable; }
+  /* v2111 — .home-dash LEAVES THAT LIST. `stable` reserves the scrollbar's width whether the box
+     overflows or not, and since v2103 shrink-wrapped the dash to its content it usually does not:
+     the reservation was 15px of dead vertical stripe down the full height of the panel, measured
+     as `offsetWidth 813 - clientWidth 798`. It was the remainder of the black gap he reported.
+     The other three keep it — they scroll routinely, and there the reservation is what stops the
+     layout jumping when a scrollbar appears. */
+  .home-dash { scrollbar-gutter: auto; }
   body {
     background:
       radial-gradient(130% 90% at 8% -12%, rgba(240,192,96,.10), transparent 46%),
@@ -5546,7 +5553,12 @@
                opinion happens at all. [[visual-regression-detector]] -->
           <div class="adv-sec-h">👁 WHICH EYES READ</div>
           <!-- ══ GROK EYES (G5) — REMOVABLE optional console toggle; OFF default; cousin never needs this ══ -->
-          <div id="g5-eyes-card" class="g5-eyes-card" hidden title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
+          <!-- v2111 — NO LONGER SHIPS `hidden`. v2103 made paintG5 always reveal the card, but that
+     only runs AFTER the first /api/g5_status answers — so on a slow or failed first load the
+     drawer still opened with nothing in it, which is the complaint v2103 was meant to close.
+     The card now exists from the first paint and SAYS what it does not yet know; its own
+     UNKNOWN state is the honest resting position, not absence. [[unknown-stays-unknown]] -->
+          <div id="g5-eyes-card" class="g5-eyes-card" data-state="unknown" title="Optional Grok vision lane. Default OFF. Cousins without Grok leave this alone.">
             <div class="g5-eyes-row">
               <!-- v2033 — Konyo: "should it really be called Grok Eyes? cuz default is Claude
                    eyes? lol.. so just eyes?". He is right, and it is a LABEL THAT NAMES ONE
