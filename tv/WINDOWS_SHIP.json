@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2122",
+  "ver": "v2123",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2122: Queue 32 138 135 139 136. Two deleters gave opposite answers about the same footage: the frame deleter refuses to remove a single frame while there is no durable witness index, and the reel deleter, which removes the whole reel those frames live in, never asked. Measured on a fixture with both lanes sealed and no durable store, frames offered zero and reels offered eight. The batch filing door added in v2118 was gated on uniques or sets, and a vaulted base lands in neither, so the one case that most needs filing was the one that never filed. Also repaired a retention gate that had been red for nine cases because a reel id it builds collides with a literal another test file names, so the fixture protection rule was claiming the suite own fixtures.",
+  "note": "v2123: The console disk reading is polled every 900 seconds and it is the number he acts on when deciding whether he can record. Measured tonight on his live console, the footer said 4.7GB free and BELOW the floor while the disk actually held 8.3GB, because space had been freed since the last poll, which would have sent him hunting for room he already had. The gate itself was never wrong because the on route re-measures for itself. Only the sentence he reads was wrong. The disk sentence now carries the age of the thing it measured, and an unstamped reading says UNKNOWN rather than reading as fresh.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

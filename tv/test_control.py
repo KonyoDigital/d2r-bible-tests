@@ -20487,6 +20487,50 @@ class TestV2115AnUnreadableStoreIsNotAnEmptyOne(unittest.TestCase):
                          "store for the life of the process")
 
 
+class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
+    """MEASURED tonight, on his live console: the footer said "4.7GB free, BELOW the 8GB floor"
+    while the disk actually held 8.3GB. 3.6GB had been freed since the retention watcher last
+    polled, and it polls every 900s — so the number he acts on to decide whether he can record was
+    a quarter of an hour out of date, in the direction that sends him hunting for space he already
+    has.
+
+    /api/on re-measures for itself, so the GATE was never wrong. Only the sentence he reads was.
+    A reading carries the age of the THING IT MEASURED, never the age of the fetch, and an age that
+    cannot be established is UNKNOWN rather than absent. [[stale-reading]]"""
+
+    def setUp(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        self.body = _between(self, ui, "if (_rt.say) {", "_tip.push(",
+                             what="the disk sentence's age stamp")
+        self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        self.assertGreater(len(self.code.strip()), 80, "the comment strip ate the block")
+
+    def test_it_reads_the_stamp_the_measurement_carries(self):
+        self.assertIn("_rt.checked", self.code,
+                      "the disk sentence does not consult when it was measured, so a 15-minute-old "
+                      "figure reads exactly like a fresh one")
+
+    def test_an_unstamped_reading_says_UNKNOWN_rather_than_nothing(self):
+        self.assertIn("UNKNOWN", self.body,
+                      "a reading with no stamp falls through silently — 'nobody looked' must never "
+                      "render the same as 'just measured'")
+
+    def test_the_backend_actually_publishes_the_stamp(self):
+        """Two halves each built right and never joined is the failure this pairing exists to
+        avoid: the reader is worthless if retention_state stops stamping. [[the-unjoined-end]]"""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        # VERIFIED against the real spelling, not a guessed one: _RETENTION is stamped in
+        # control_app.py wherever the watcher re-measures (~:10922/:10930/:10937), and
+        # retention_state() hands a copy of it out on /api/status.
+        self.assertIn('_RETENTION = {"checked"', src,
+                      "the retention record no longer carries a `checked` field at all")
+        self.assertIn('_RETENTION.update({"checked": int(time.time() * 1000)', src,
+                      "the retention watcher no longer re-stamps when it measures, so the age the "
+                      "console prints would freeze at the first reading")
+
+
 class TestV2122TheRenameMigrationMovesEveryStoreThatKeysOnThePiece(unittest.TestCase):
     """v2119 corrected the Natalya slots (Mark IS the Scissors Suwayyah; Soul is the Mesh Boots).
 
