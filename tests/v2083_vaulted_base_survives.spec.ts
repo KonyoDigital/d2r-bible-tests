@@ -39,8 +39,14 @@ async function cleanWorld(page: any) {
 async function applyBases(page: any) {
   return page.evaluate((bases: string[]) => {
     const w: any = window;
+    /* v2120 (#45) — THE FIXTURE NO LONGER DOES PRODUCTION'S JOB. This called vaultAutoAssign
+       itself, so it stayed green for every door that stopped at chronicleApply — which is exactly
+       what v2118 had to fix, unseen by this spec. chronicleApply files its own batch now; if that
+       call is ever removed this goes red, which is the whole point of having it.
+       ⚠ The SECOND, identical self-join further down is deliberately left alone: it SEEDS the
+       world for the every-door test rather than testing the join.
+       [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] */
     const res = w.chronicleApply({ wouldAdd: { uniques: bases, sets: [] } });
-    try { w.vaultAutoAssign && w.vaultAutoAssign(); } catch (e) {}
     const P = w._D2R_PFX || '';
     return {
       vaulted: res.vaulted || [],

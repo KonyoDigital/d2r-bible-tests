@@ -83,13 +83,22 @@ def _colour_carries_meaning(text, failures):
                         "the renderer changed shape, so nothing below can be graded")
         return
     cls = (m.group(1).split() or [""])[-1]
+    # v2120 (#43) — AND NOT INSIDE A COMMENT. This searched the raw file, so
+    # `/* :is(#tab-forge) .f-craft{border-left-color:var(--q-orange)} */` satisfied it.
+    # PROVEN BY SABOTAGE, not by reading: commenting out bible.html's only live .f-craft rule kept
+    # this lock GREEN, while DELETING the same line correctly went red. The strip is
+    # LENGTH-BOUNDED because an unbounded one once ate 16.9% of bible.html.
+    # [[source-reading-guard]] [[feedback-comments-vs-code]]
+    _uncommented = re.sub(r"/\*.{0,4000}?\*/", " ", text, flags=re.S)
+    if len(_uncommented) < len(text) * 0.6:
+        _uncommented = text          # the strip misfired — measure the real thing, never a ruin
     for tab, token, what in (("#tab-funi", "--q-unique", "UNIQUE in unique gold"),
                              ("#tab-fsets", "--q-set", "SET piece in set green")):
         # A rule that scopes to this tab, names the class the wall actually emits, and sets colour
         # from this tab's rarity token. All three in one declaration block, or the wall is flat.
         pat = re.compile(re.escape(tab) + r"[^{}]{0,200}\." + re.escape(cls)
                          + r"[^{}]{0,200}\{[^{}]{0,300}?color:\s*var\(" + re.escape(token) + r"\)")
-        if not pat.search(text):
+        if not pat.search(_uncommented):
             failures.append("bible.html: the grail wall no longer names a %s — no rule under %s "
                             "binds .%s to var(%s)" % (what, tab, cls, token))
     # v2081 — EVERY CARD KIND IN THE FORGE FEED CARRIES A MEANING-BEARING RAIL, OR NONE DO.
@@ -105,7 +114,7 @@ def _colour_carries_meaning(text, failures):
                        ("f-step", "a step card"),
                        ("f-craft", "a CUBE CRAFT")):
         pat = re.compile(r"\.%s\s*\{[^{}]{0,200}?border-left-color\s*:" % re.escape(kind))
-        if not pat.search(text):
+        if not pat.search(_uncommented):
             failures.append("bible.html: %s (.%s) has no border-left-color rule — it falls back to "
                             "var(--border) and its colour says nothing, beside siblings whose "
                             "colour is meaning" % (what, kind))

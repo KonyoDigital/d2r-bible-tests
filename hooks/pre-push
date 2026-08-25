@@ -229,7 +229,21 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   # not to run this" and "this passed" must never look the same.
   # [[feedback-blind-fixture-green-gate]]
   _demo_touched=0
-  if git diff --cached --name-only 2>/dev/null | grep -q "tv/control_ui.html" ||      git log -1 --name-only --pretty=format: 2>/dev/null | grep -q "tv/control_ui.html"; then
+  # v2120 — LOOK AT THE WHOLE PUSH, NOT THE LAST COMMIT. This asked `git log -1`, so a push
+  # carrying a UI commit FOLLOWED by a test-only commit reported "tv/control_ui.html is unchanged"
+  # and skipped — which is exactly what happened on the v2120 push: the UI changed in that push and
+  # the gate said it had not. The range is what is actually being shipped.
+  _range=""
+  if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+    _range="$(git rev-parse --abbrev-ref '@{u}')..HEAD"
+  elif git rev-parse --verify origin/main >/dev/null 2>&1; then
+    _range="origin/main..HEAD"
+  fi
+  if git diff --cached --name-only 2>/dev/null | grep -q "tv/control_ui.html"; then
+    _demo_touched=1
+  elif [ -n "$_range" ] && git diff --name-only "$_range" 2>/dev/null | grep -q "tv/control_ui.html"; then
+    _demo_touched=1
+  elif [ -z "$_range" ] && git log -1 --name-only --pretty=format: 2>/dev/null | grep -q "tv/control_ui.html"; then
     _demo_touched=1
   fi
   if [ "$_demo_touched" = "1" ]; then

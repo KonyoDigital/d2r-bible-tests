@@ -16923,6 +16923,10 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         d = st["drift"]
         for k in ("checked", "running", "disk", "drift", "say"):
             self.assertIn(k, d)
+        # v2120 (#24) — see the eagle twin: PUBLISHED is not SHOWN.
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as _fh:
+            _ui = _fh.read()
+        self.assertIn("st.drift", _ui, "nothing on the console reads the version drift")
 
     def test_before_it_has_run_it_says_so_rather_than_in_sync(self):
         """A drift field defaulting to False would read as 'in sync' from the first second, which is
@@ -17012,6 +17016,13 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         self.assertIn("eagle", st, "the status payload does not carry the watchdog's last look")
         for k in ("checked", "needsYou", "unknown", "rows", "say"):
             self.assertIn(k, st["eagle"])
+        # v2120 (#24) — AND A SURFACE MUST ACTUALLY READ IT. A key on /api/status is the same shape
+        # as a route with no consumer: the footer block that paints this could be deleted and this
+        # test stayed green. Its own retention sibling already asserts its reader.
+        # [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as _fh:
+            _ui = _fh.read()
+        self.assertIn("st.eagle", _ui, "nothing on the console reads the eagle")
 
     def test_before_it_has_run_it_says_so_rather_than_all_clear(self):
         """A watchdog defaulting to 'all clear' reads as reassurance nobody measured."""
@@ -17357,8 +17368,13 @@ class TestV2079EveryWatcherStartsInBothModes(unittest.TestCase):
     def test_it_actually_starts_them_and_names_any_that_fail(self):
         with inert_roster() as start:
             r = start("test")
+            # v2120 (#27) — PROVE IT INSIDE THE `with`. inert_roster's finally calls stop.set(),
+            # which releases every sleeper, so a liveness assert placed after the block races
+            # threads that are already exiting: green if no daemon has noticed yet, red if one
+            # has. Its own sibling test was rewritten at v2088 for exactly that flake and this
+            # one never got the same treatment. [[feedback-suspect-the-instrument]]
+            live = set(t.name for t in threading.enumerate())
         self.assertEqual(r["failed"], [], "a watcher failed to start: %r" % r["failed"])
-        live = set(t.name for t in threading.enumerate())
         for name in r["roster"]:
             self.assertIn(name, live, "%s is in the roster and not running" % name)
 
@@ -18899,6 +18915,18 @@ class TestV2083AVaultedBaseSurvivesTheReload(unittest.TestCase):
         self.assertIn("if (assign[name]) return;", after,
                       "auto-assign no longer fills only EMPTY homes — it can now override a "
                       "placement he made by hand")
+        # v2120 (#46) — ASSERT THE LOCK, NOT THE SENTENCE ABOUT IT. This quoted Konyo's own words
+        # from a COMMENT; the lock itself is `_laneLocked` + an early return (bible.html:35413-14)
+        # and neither string appeared anywhere in this file. Delete the skip, leave the quote, and
+        # the old assertion stayed green — while a locked item could be filed to a mule again.
+        # v2118 routed one more caller through this function, so it is load-bearing now.
+        # [[source-reading-guard]]
+        self.assertIn("window._laneLocked(name)", after,
+                      "vaultAutoAssign no longer ASKS which lane the item is in — the "
+                      "equipment/inventory lock is gone from the function the apply routes through")
+        self.assertIn("if (_lk)", after,
+                      "vaultAutoAssign asks _laneLocked and ignores the answer, so an item locked "
+                      "to his equipment or inventory can be filed to a mule again")
         self.assertIn("SHOULD NEVER BE TOLD TO BE MOVED", after,
                       "the equipment/inventory lock left the function the apply now routes through")
 
@@ -19500,7 +19528,13 @@ class TestV2102TheConsoleNoticesItIsBehind(unittest.TestCase):
 
     def test_the_banner_offers_an_action_that_exists(self):
         self.assertIn('id="fleet-go"', self.ui, "the UPDATE NOW button is gone")
-        self.assertIn("method: 'POST'", self.ui,
+        # v2120 (#89) — SCOPE IT TO THE HANDLER. "method: 'POST'" occurs 25 times in
+        # control_ui.html and the first is the generic fetch helper ~4,600 lines above #fleet-go,
+        # so reverting UPDATE NOW to a GET left this green. [[source-reading-guard]]
+        go = _between(self, self.ui, "go.onclick = async function()", "\n    };",
+                      what="the UPDATE NOW handler")
+        self.assertIn("'/api/update'", go, "UPDATE NOW no longer talks to /api/update at all")
+        self.assertIn("method: 'POST'", go,
                       "UPDATE NOW no longer POSTs — GET /api/update only REPORTS, it cannot "
                       "change anything, so the button would be decoration")
         self.assertIn('if path == "/api/update"', self.app)
@@ -19734,8 +19768,13 @@ class TestV2105TheHintWearsTheConsolesSkin(unittest.TestCase):
                       "release does not check first, so it can clobber a title that a "
                       "re-render already put back")
         # every exit path must run it
+        _binder = _between(self, self.ui, "function _itipBind()", "\n  })();",
+                           what="the console tooltip binder")
         for hook in ("pagehide", "focusout", "Escape"):
-            self.assertIn(hook, self.ui, "the %s exit path is gone" % hook)
+            # v2120 (#99) — SCOPE IT TO THE BINDER. 'Escape' occurs 16 times in control_ui.html,
+            # so deleting the tooltip's own keydown listener left this green. Its v2109 sibling
+            # already scopes the identical loop to the lane body. [[source-reading-guard]]
+            self.assertIn(hook, _binder, "the %s exit path is gone" % hook)
 
     def test_screen_readers_and_keyboards_are_not_worse_off(self):
         self.assertIn("aria-describedby", self.ui,
@@ -20001,7 +20040,12 @@ class TestV2110UpToDateIsNotTheSameAsRunningIt(unittest.TestCase):
         self.assertIn("/api/status", body,
                       "the banner gives up as soon as it is level with GitHub, which on his own "
                       "machine is always — and never notices the process is running old code")
-        self.assertIn("drift", body, "the banner does not consult the running-vs-disk measurement")
+        # v2120 (#109) — STRIP THE PROSE. The v2110 comment inside this window says "status.drift",
+        # so one of the three hits was the paragraph describing the branch. Its TestV2107 sibling
+        # already strips. [[feedback-comments-vs-code]]
+        _code = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
+        self.assertGreater(len(_code.strip()), 120, "the comment strip ate the branch body")
+        self.assertIn("drift", _code, "the banner does not consult the running-vs-disk measurement")
         self.assertIn("armRelaunch", body,
                       "a detected drift no longer offers the relaunch that resolves it")
 

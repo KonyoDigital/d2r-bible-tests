@@ -130,6 +130,14 @@ test('every door into the vault opens it, not just the purpose-built one', async
 
     const enter = (how: string) => {
       (document.querySelector('[data-tab=main]') as HTMLElement).click();
+      /* v2120 (#58) — AND PUT THE CARD BACK. Leaving the vault is not the same as closing it:
+         nothing re-collapses #mule-vault-card, so after the FIRST door the next two measured a
+         card door one had already opened — `collapsed:false` was inherited, not earned.
+         (The sibling visible-cell assertion is NOT vacuous: cell height is 0 while #tab-vault is
+         display:none, so a chip that fails to switch rooms does go red.)
+         [[feedback-blind-fixture-green-gate]] */
+      const _vc = document.getElementById('mule-vault-card');
+      if (_vc && !_vc.classList.contains('collapsed')) _vc.classList.add('collapsed');
       if (how === 'tab') {
         (document.querySelector('[data-tab=vault]') as HTMLElement).click();
       } else if (how === 'chip') {
