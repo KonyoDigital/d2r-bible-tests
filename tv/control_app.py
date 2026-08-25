@@ -10755,7 +10755,18 @@ PRUNE_HEADROOM_GB = 2.0     # clear to floor + this, so it does not re-fire on e
 
 def retention_state():
     with _PRUNE_LOCK:
-        return dict(_RETENTION)
+        st = dict(_RETENTION)
+    # v2087 — THE FLOOR IS A CONSTANT, NOT A MEASUREMENT, SO IT IS KNOWN BEFORE ANYTHING IS MEASURED.
+    # It only ever reached this payload through _retention_once's `base`, which is built AFTER three
+    # early returns (no hist dir, disk_usage failed, plan not ok). On a tree that has never recorded
+    # — every fresh CI checkout — all three fire, so the console published a retention state with no
+    # floor in it at all while the deleter and the recorder were both using 8.0.
+    # That is what turned CI's Publish red from v2086 on, and a red Publish does not deploy: his live
+    # site sat two versions behind while every local gate was green. [[the-unjoined-end]]
+    # Stamping it here makes the published floor equal to the used floor BY CONSTRUCTION, on any
+    # machine, measured or not — rather than by whether a measurement happened to complete.
+    st["floorGb"] = ON_AIR_FLOOR_GB
+    return st
 
 
 def retention_may_act():
@@ -14800,7 +14811,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2087",
+        "ver": "v2088",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

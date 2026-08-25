@@ -19120,5 +19120,83 @@ class TestV2086TheThreeThingsThatWereQuietlyTrue(unittest.TestCase):
                       "whole tree is built on")
 
 
+class TestV2087TheFloorIsPublishedOnATreeThatNeverRecorded(unittest.TestCase):
+    """A CONSTANT IS KNOWN BEFORE ANYTHING IS MEASURED — and this one was not published until
+    something was.
+
+    v2086 pulled the 8GB floor into ON_AIR_FLOOR_GB so the deleter and the recorder could not drift
+    apart, and guarded it with a runtime equality check. That guard passed on his Mac and FAILED on
+    every CI checkout, because floorGb only ever reached the payload through _retention_once's
+    `base` — which is built AFTER three early returns (no hist dir, disk_usage raised, plan not ok).
+    A tree that has never recorded takes one of those three every time.
+
+    WHAT IT COST: the Publish workflow went red at v2086 and stayed red. A red Publish does not
+    deploy. His live site sat two versions behind while every local gate reported green — the
+    failure was invisible from the machine the work was done on. [[the-unjoined-end]]
+
+    ⚠ THIS TEST EXISTS BECAUSE ITS SIBLING COULD NOT SEE IT. The v2086 check calls _retention_once()
+    on whatever tree it finds, so on a machine with footage it measures a real floor and passes. The
+    property it MEANT to assert — published floor == used floor — has to be checked where nothing has
+    ever been measured, which is the only place it was ever false.
+    [[feedback-blind-fixture-green-gate]] [[unknown-stays-unknown]]
+
+    Fixtures only. TV_HIST is pointed at a directory that does not exist; his tree is never read.
+    [[feedback-fixtures-never-touch-live-data]]"""
+
+    def _cold(self, body):
+        """Run `body` in a CHILD process whose TV_HIST points nowhere, so this cannot be satisfied
+        by state some earlier test in this process left behind."""
+        import subprocess, sys as _s, tempfile, os as _o
+        root = tempfile.mkdtemp(prefix="coldfloor_")
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        prog = ("import os,sys\n"
+                "os.environ['TV_STUB']='1'\n"
+                "os.environ['TV_HIST']=%r\n"
+                "sys.path.insert(0,%r)\n"
+                "import control_app as ca\n" + body)
+        r = subprocess.run([_s.executable, "-c", prog % (_o.path.join(root, "never", "hist"),
+                                                        _o.path.dirname(_o.path.abspath(__file__)))],
+                           capture_output=True, text=True)
+        return (r.stdout or "").strip(), (r.stderr or "").strip()
+
+    def test_the_floor_is_published_even_though_nothing_was_ever_measured(self):
+        out, err = self._cold("st=ca.retention_state()\n"
+                              "print(repr(st.get('floorGb')), repr(ca.ON_AIR_FLOOR_GB))\n")
+        self.assertTrue(out, "the cold-tree probe produced nothing: %s" % err[-300:])
+        got, want = out.split()
+        self.assertNotEqual(got, "None",
+                            "a tree that never recorded publishes NO floor — which is exactly the "
+                            "state every CI checkout is in, and why Publish went red at v2086")
+        self.assertEqual(got, want,
+                         "the published floor %s is not the floor the deleter uses %s" % (got, want))
+
+    def test_it_is_still_right_after_a_run_that_returns_early(self):
+        """_retention_once takes an early return on a tree with no footage. The floor must survive
+        that, not be erased by it."""
+        out, err = self._cold("ca._retention_once()\n"
+                              "st=ca.retention_state()\n"
+                              "print(repr(st.get('floorGb')), repr(ca.ON_AIR_FLOOR_GB))\n")
+        self.assertTrue(out, "the cold-tree probe produced nothing: %s" % err[-300:])
+        got, want = out.split()
+        self.assertEqual(got, want,
+                         "an early return left the published floor as %s while the deleter uses %s"
+                         % (got, want))
+
+    def test_the_floor_is_not_simply_hardcoded_twice(self):
+        """A stamp that repeated the literal would pass the two checks above and still drift. It has
+        to READ the constant."""
+        src = self._src() if hasattr(self, "_src") else io.open(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+            encoding="utf-8").read()
+        i = src.index("def retention_state()")
+        blk = src[i:src.index("\ndef ", i + 10)]
+        blk = "\n".join(ln for ln in blk.splitlines() if not ln.lstrip().startswith("#"))
+        self.assertIn('st["floorGb"] = ON_AIR_FLOOR_GB', blk,
+                      "retention_state no longer stamps the floor from the shared constant")
+        self.assertNotIn("8.0", blk,
+                         "a bare 8.0 literal is back inside retention_state — it can drift from "
+                         "ON_AIR_FLOOR_GB, which is the whole defect v2086 set out to close")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
