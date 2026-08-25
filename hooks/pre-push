@@ -240,9 +240,48 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
         exit 1
       fi
     else
-      echo "pre-push: ⏭  CONSOLE DEMOS SKIPPED — the console app is not up on :17772."
-      echo "           The UI changed and nothing verified it. Start TV DIABLO and re-push, or"
-      echo "           run it by hand:  node tv/demo_console.mjs"
+      # ── v2119 — A SKIP IS NOT A PASS, AND NOBODY IS COMING TO FIX IT ────────────────────────
+      # v1930 made this skip LOUD, which was right and was not enough: a loud skip still shipped
+      # UI nobody had looked at, because the remedy ("start TV DIABLO and re-push") required a
+      # person to be sitting there. Konyo's ruling, twice: "i dont get why you didnt open it
+      # yourself the console.. you have authorization to do it.. next time dont wait for me", and
+      # then "you can relaunch and verify you DONT NEED TO WAIT FOR ME TO DO IT ... i want it
+      # locked as a workflow too.. so you odnt forget it."
+      #
+      # So the gate starts its OWN headless console and runs. Two safety rules, both load-bearing:
+      #   · it only ever starts one when the port is ALREADY SILENT — it never takes over his
+      #     window, and it never rebinds a port something else holds [[process-port-discipline]]
+      #   · it stops ONLY the pid it started, by pid, never by name. `pkill -f` cannot tell his
+      #     console from ours and has cost him a live window before.
+      # A headless console cannot capture the GAME (no Screen Recording grant from this shell),
+      # which does not matter here: J1-J9 exercise the UI and its routes, not the capture.
+      echo "pre-push: ▶  :17772 is silent — starting a headless console for the gate (his window is not touched)."
+      _own_console=""
+      ( cd "$REPO/tv" && nohup python3 control_app.py --no-open >/tmp/tvd_gate_console.log 2>&1 & echo $! > /tmp/tvd_gate_console.pid ) || true
+      _own_console=$(cat /tmp/tvd_gate_console.pid 2>/dev/null || true)
+      _up=0
+      for _i in $(seq 1 40); do
+        sleep 1
+        if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then _up=1; break; fi
+      done
+      if [ "$_up" = "1" ]; then
+        if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
+          echo "pre-push: ✅ console demos green (on a console this gate started)."
+          _demo_rc=0
+        else
+          _demo_rc=1
+        fi
+      else
+        echo "pre-push: ❌ could not start a console on :17772 — see /tmp/tvd_gate_console.log"
+        echo "           This is a FAILURE, not a skip: the UI changed and nothing verified it."
+        _demo_rc=1
+      fi
+      # stop ONLY what we started, by pid
+      if [ -n "$_own_console" ]; then
+        kill "$_own_console" 2>/dev/null || true
+        rm -f /tmp/tvd_gate_console.pid
+      fi
+      [ "$_demo_rc" = "0" ] || exit 1
     fi
   else
     # How many pushes have gone by without this gate running? Cheap, and it turns an invisible

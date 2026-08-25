@@ -17,7 +17,7 @@ piece's suffix, and that is only sometimes true:
 
     Taebaek's Glory (ward)              base Ward              — suffix IS the base
     Cow King's Hooves (heavy boots)     base Heavy Boots       — suffix IS the base
-    Natalya's Soul (claws)              base Scissors Suwayyah — suffix is a CATEGORY
+    Natalya's Mark (claws)              base Scissors Suwayyah — suffix is a CATEGORY
     Horazon's Secrets (grimoire)        base Occult Codex      — suffix is a CATEGORY
     Immortal King's Soul Cage (armor)   base Sacred Armor      — suffix is a CATEGORY
 

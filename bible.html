@@ -4003,6 +4003,62 @@ try {
     try { window.localStorage.setItem('d2r_chronSyncMerged_v1','1'); } catch(e){}
   }
 } catch(e){}
+/* ══ v2119 — A RENAMED PIECE STRING STRANDS HIS TICK, AND NOTHING MIGRATED IT ════════════════
+   A set piece's identity IS the literal string "Name (slot)" — the roster authors it whole and
+   d2r_setPieces stores it verbatim. v2116 corrected the Natalya roster against ITEM_CODEX
+   (`Natalya's Mark` -> "Scissors Suwayyah", a CLAW; `Natalya's Soul` -> "Mesh Boots") and the
+   two pieces swapped slots. Every tick, retraction and unfound row he already had was written
+   under the OLD spelling, and a grep for _SET_ALIAS / _SET_RENAME returns NOTHING: there has
+   never been a rename migration in this file. So v2116 silently orphaned his own records — the
+   tick stayed in the store and matched no piece the roster could name.
+
+   THE NAME IS THE TESTIMONY; THE SLOT IS THE DECORATION. A reader read "Natalya's Soul" off his
+   screen — the "(claws)" was appended by a roster that was wrong at the time. So the ITEM is
+   preserved and only the label moves. This deliberately does NOT do what a slot-first rewrite
+   would: mapping "Natalya's Soul (claws)" onto "Natalya's Mark (claws)" would change WHICH ITEM
+   he is recorded as having found, off a label that was never his testimony.
+
+   ALL FOUR STORES, or the records stop agreeing with each other. d2r_setRepairRemoved matters
+   most: the board already repaired `Natalya's Soul` out (the game's own Remaining page lists it
+   as missing) and retracted its date. Migrating the tick without the RETRACTION would resurrect
+   a rejected read as a fresh find under a name whose suppression no longer matched it.
+   [[the-unjoined-end]] [[unknown-stays-unknown]] */
+try {
+  if (!window.localStorage.getItem('d2r_pieceAlias_v1')){
+    var _ALIAS = { "Natalya's Mark (boots)": "Natalya's Mark (claws)",
+                   "Natalya's Soul (claws)": "Natalya's Soul (boots)" };
+    ['d2r_setPieces','d2r_setRepairRemoved','d2r_grailUnfound','d2r_foundLog'].forEach(function(k){
+      try {
+        var raw = window.localStorage.getItem(k);   /* raw-ok: one-time rename migration */
+        if (!raw) return;
+        var v = JSON.parse(raw), dirty = false;
+        if (Array.isArray(v)){
+          v = v.map(function(n){
+            if (_ALIAS[n]){ dirty = true; return _ALIAS[n]; }
+            return n;
+          });
+          /* a store that already holds BOTH spellings must not keep the stale one */
+          var seen = {}; v = v.filter(function(n){ if (seen[n]) { dirty = true; return false; } seen[n]=1; return true; });
+        } else if (v && typeof v === 'object'){
+          Object.keys(_ALIAS).forEach(function(oldN){
+            if (Object.prototype.hasOwnProperty.call(v, oldN)){
+              var newN = _ALIAS[oldN];
+              /* never overwrite a row already written under the correct name */
+              if (!Object.prototype.hasOwnProperty.call(v, newN)) v[newN] = v[oldN];
+              delete v[oldN]; dirty = true;
+            }
+          });
+        } else { return; }
+        if (dirty){
+          window.localStorage.setItem(k, JSON.stringify(v));   /* raw-ok: one-time rename migration */
+          try { console.warn('[bible] v2119 renamed Natalya piece string(s) in ' + k
+                             + ' — the roster corrected their slots and the old spelling matched nothing'); } catch(e){}
+        }
+      } catch(e){}
+    });
+    try { window.localStorage.setItem('d2r_pieceAlias_v1','1'); } catch(e){}
+  }
+} catch(e){}
 try {
   if (window.D2R_PROFILE==='ladder'){
     // v684 — machine-aware: WINDOWS-ladder seeds WL· from the COUSIN's own W· ledger (it was hardcoded
@@ -16826,7 +16882,7 @@ try { window._GRAIL_SEED = _GRAIL_SEED; } catch(e){}
 // v682 — SET-PIECE FOUND-SEED: the in-game SETS Chronicle (34 photos, 2026-07-14) — 108 pieces found
 // of the 135-piece universe = the exact 80% the in-game progress bar shows. Same contract as _GRAIL_SEED:
 // floors d2r_setPieces + dated d2r_foundLog on every boot (owner main, non-fresh), honors d2r_grailUnfound.
-const _SET_SEED = {"Aldur's Advance (boots)":"May 18, 2026 \u00b7 23:24","Aldur's Rhythm (mace)":"May 18, 2026 \u00b7 23:39","Aldur's Stony Gaze (helm)":"Jun 4, 2026 \u00b7 01:18","Angelic Halo (ring)":"May 18, 2026 \u00b7 01:28","Angelic Mantle (armor)":"May 14, 2026 \u00b7 18:27","Angelic Sickle (sword)":"May 19, 2026 \u00b7 16:12","Angelic Wings (amulet)":"May 19, 2026 \u00b7 23:47","Arcanna's Deathwand (staff)":"May 15, 2026 \u00b7 20:47","Arcanna's Flesh (armor)":"May 28, 2026 \u00b7 20:14","Arcanna's Head (helm)":"May 14, 2026 \u00b7 20:17","Arcanna's Sign (amulet)":"Jul 5, 2026 \u00b7 23:20","Arctic Binding (belt)":"May 15, 2026 \u00b7 20:05","Arctic Furs (armor)":"May 13, 2026 \u00b7 00:21","Arctic Horn (bow)":"May 21, 2026 \u00b7 13:16","Arctic Mitts (gloves)":"May 25, 2026 \u00b7 21:36","Bane's Authority (belt)":"May 17, 2026 \u00b7 01:29","Bane's Oathmaker (sword)":"May 19, 2026 \u00b7 20:30","Bane's Wraithskin (armor)":"May 14, 2026 \u00b7 20:07","Berserker's Hatchet (axe)":"May 18, 2026 \u00b7 23:14","Berserker's Hauberk (armor)":"May 15, 2026 \u00b7 15:39","Berserker's Headgear (helm)":"May 18, 2026 \u00b7 23:33","Bul-Kathos' Sacred Charge (sword)":"May 18, 2026 \u00b7 02:25","Cathan's Mesh (chainmail)":"May 15, 2026 \u00b7 14:23","Cathan's Rule (rod)":"May 20, 2026 \u00b7 01:42","Cathan's Seal (ring)":"May 16, 2026 \u00b7 01:20","Cathan's Sigil (amulet)":"May 27, 2026 \u00b7 19:40","Cathan's Visage (mask)":"May 18, 2026 \u00b7 00:45","Civerb's Cudgel (scepter)":"Jun 4, 2026 \u00b7 12:57","Civerb's Icon (amulet)":"May 19, 2026 \u00b7 23:43","Civerb's Ward (shield)":"Jun 10, 2026 \u00b7 19:42","Cleglaw's Claw (shield)":"May 27, 2026 \u00b7 19:30","Cleglaw's Pincers (gloves)":"May 14, 2026 \u00b7 18:40","Cleglaw's Tooth (sword)":"May 15, 2026 \u00b7 19:20","Cow King's Hide (studded leather)":"May 20, 2026 \u00b7 01:50","Cow King's Horns (war bonnet)":"May 17, 2026 \u00b7 01:56","Credendum (mithril coil)":"May 18, 2026 \u00b7 23:22","Dangoon's Teaching (reinforced mace)":"Jun 10, 2026 \u00b7 21:54","Dark Adherent (dusk shroud)":"May 22, 2026 \u00b7 00:58","Death's Touch (sword)":"May 15, 2026 \u00b7 18:10","Griswold's Heart (armor)":"May 17, 2026 \u00b7 01:51","Griswold's Valor (helm)":"Jun 8, 2026 \u00b7 16:10","Guillaume's Face (winged helm)":"Jun 10, 2026 \u00b7 23:36","Haemosu's Adamant (cuirass)":"May 18, 2026 \u00b7 00:32","Horazon's Countenance (helm)":"May 19, 2026 \u00b7 21:06","Horazon's Hold (gloves)":"May 15, 2026 \u00b7 20:03","Horazon's Legacy (boots)":"May 19, 2026 \u00b7 00:23","Hsarus' Iron Fist (shield)":"Jul 12, 2026 \u00b7 19:08","Hsarus' Iron Heel (boots)":"May 25, 2026 \u00b7 01:50","Hsarus' Iron Stay (belt)":"May 14, 2026 \u00b7 18:41","Hwanin's Blessing (belt)":"May 14, 2026 \u00b7 23:38","Hwanin's Justice (bill)":"Jun 3, 2026 \u00b7 21:44","Hwanin's Refuge (tigulated mail)":"Jun 21, 2026 \u00b7 19:57","Hwanin's Splendor (grand crown)":"May 29, 2026 \u00b7 00:52","Immortal King's Detail (belt)":"May 18, 2026 \u00b7 23:34","Immortal King's Forge (gloves)":"May 15, 2026 \u00b7 19:09","Immortal King's Pillar (boots)":"Jun 2, 2026 \u00b7 01:06","Immortal King's Stone Crusher (hammer)":"May 23, 2026 \u00b7 17:56","Infernal Cranium (helm)":"Jun 29, 2026 \u00b7 01:31","Infernal Sign (belt)":"May 15, 2026 \u00b7 18:36","Infernal Torch (wand)":"May 27, 2026 \u00b7 23:58","Iratha's Coil (helm)":"May 25, 2026 \u00b7 21:53","Iratha's Collar (amulet)":"Jun 18, 2026 \u00b7 00:18","Iratha's Cord (belt)":"May 14, 2026 \u00b7 23:56","Iratha's Cuff (gloves)":"May 19, 2026 \u00b7 15:52","Isenhart's Case (armor)":"May 15, 2026 \u00b7 20:06","Isenhart's Horns (helm)":"May 17, 2026 \u00b7 01:29","Isenhart's Lightbrand (sword)":"May 15, 2026 \u00b7 01:26","Isenhart's Parry (shield)":"May 25, 2026 \u00b7 19:22","M'avina's Caster (bow)":"Jun 10, 2026 \u00b7 21:12","M'avina's Icy Clutch (gloves)":"May 18, 2026 \u00b7 23:22","M'avina's Tenet (belt)":"May 19, 2026 \u00b7 00:18","Magnus' Skin (sharkskin gloves)":"May 18, 2026 \u00b7 01:04","Milabrega's Diadem (helm)":"May 27, 2026 \u00b7 00:51","Milabrega's Orb (shield)":"May 15, 2026 \u00b7 18:02","Milabrega's Robe (armor)":"May 19, 2026 \u00b7 22:59","Milabrega's Rod (scepter)":"May 18, 2026 \u00b7 20:56","Naj's Circlet (circlet)":"May 15, 2026 \u00b7 01:18","Naj's Light Plate (hellforge plate)":"Jun 19, 2026 \u00b7 00:50","Naj's Puzzler (elder staff)":"Jun 10, 2026 \u00b7 19:31","Natalya's Shadow (armor)":"May 31, 2026 \u00b7 21:18","Natalya's Soul (claws)":"May 27, 2026 \u00b7 01:02","Ondal's Almighty (spired helm)":"May 18, 2026 \u00b7 00:58","Rite of Passage (sharkskin boots)":"May 15, 2026 \u00b7 01:33","Sander's Paragon (cap)":"Jun 7, 2026 \u00b7 23:03","Sander's Riprap (heavy boots)":"May 15, 2026 \u00b7 01:19","Sander's Superstition (bone wand)":"May 15, 2026 \u00b7 17:57","Sander's Taboo (heavy gloves)":"May 18, 2026 \u00b7 01:45","Sazabi's Cobalt Redeemer (cryptic sword)":"May 31, 2026 \u00b7 21:32","Sigon's Gage (gloves)":"May 15, 2026 \u00b7 13:39","Sigon's Guard (shield)":"May 20, 2026 \u00b7 12:43","Sigon's Sabot (boots)":"May 15, 2026 \u00b7 01:29","Sigon's Shelter (armor)":"May 15, 2026 \u00b7 01:00","Sigon's Visor (helm)":"May 14, 2026 \u00b7 18:58","Sigon's Wrap (belt)":"May 18, 2026 \u00b7 01:49","Tal Rasha's Fine-Spun Cloth (belt)":"May 25, 2026 \u00b7 23:42","Tal Rasha's Horadric Crest (helm)":"May 17, 2026 \u00b7 01:58","Tal Rasha's Lidless Eye (orb)":"May 15, 2026 \u00b7 20:00","Tancred's Crowbill (military pick)":"May 15, 2026 \u00b7 13:40","Tancred's Skull (bone helm)":"May 15, 2026 \u00b7 15:24","Tancred's Spine (full plate mail)":"May 15, 2026 \u00b7 17:46","Tancred's Weird (amulet)":"May 18, 2026 \u00b7 00:23","Trang-Oul's Guise (helm)":"May 29, 2026 \u00b7 00:46","Trang-Oul's Scales (armor)":"May 26, 2026 \u00b7 00:17","Vidala's Barb (bow)":"May 25, 2026 \u00b7 23:11","Vidala's Fetlock (boots)":"May 15, 2026 \u00b7 17:59","Vidala's Snare (amulet)":"May 19, 2026 \u00b7 16:08","Whitstan's Guard (round shield)":"May 15, 2026 \u00b7 18:24","Wilhelm's Pride (battle belt)":"Jun 25, 2026 \u00b7 00:24"};
+const _SET_SEED = {"Aldur's Advance (boots)":"May 18, 2026 \u00b7 23:24","Aldur's Rhythm (mace)":"May 18, 2026 \u00b7 23:39","Aldur's Stony Gaze (helm)":"Jun 4, 2026 \u00b7 01:18","Angelic Halo (ring)":"May 18, 2026 \u00b7 01:28","Angelic Mantle (armor)":"May 14, 2026 \u00b7 18:27","Angelic Sickle (sword)":"May 19, 2026 \u00b7 16:12","Angelic Wings (amulet)":"May 19, 2026 \u00b7 23:47","Arcanna's Deathwand (staff)":"May 15, 2026 \u00b7 20:47","Arcanna's Flesh (armor)":"May 28, 2026 \u00b7 20:14","Arcanna's Head (helm)":"May 14, 2026 \u00b7 20:17","Arcanna's Sign (amulet)":"Jul 5, 2026 \u00b7 23:20","Arctic Binding (belt)":"May 15, 2026 \u00b7 20:05","Arctic Furs (armor)":"May 13, 2026 \u00b7 00:21","Arctic Horn (bow)":"May 21, 2026 \u00b7 13:16","Arctic Mitts (gloves)":"May 25, 2026 \u00b7 21:36","Bane's Authority (belt)":"May 17, 2026 \u00b7 01:29","Bane's Oathmaker (sword)":"May 19, 2026 \u00b7 20:30","Bane's Wraithskin (armor)":"May 14, 2026 \u00b7 20:07","Berserker's Hatchet (axe)":"May 18, 2026 \u00b7 23:14","Berserker's Hauberk (armor)":"May 15, 2026 \u00b7 15:39","Berserker's Headgear (helm)":"May 18, 2026 \u00b7 23:33","Bul-Kathos' Sacred Charge (sword)":"May 18, 2026 \u00b7 02:25","Cathan's Mesh (chainmail)":"May 15, 2026 \u00b7 14:23","Cathan's Rule (rod)":"May 20, 2026 \u00b7 01:42","Cathan's Seal (ring)":"May 16, 2026 \u00b7 01:20","Cathan's Sigil (amulet)":"May 27, 2026 \u00b7 19:40","Cathan's Visage (mask)":"May 18, 2026 \u00b7 00:45","Civerb's Cudgel (scepter)":"Jun 4, 2026 \u00b7 12:57","Civerb's Icon (amulet)":"May 19, 2026 \u00b7 23:43","Civerb's Ward (shield)":"Jun 10, 2026 \u00b7 19:42","Cleglaw's Claw (shield)":"May 27, 2026 \u00b7 19:30","Cleglaw's Pincers (gloves)":"May 14, 2026 \u00b7 18:40","Cleglaw's Tooth (sword)":"May 15, 2026 \u00b7 19:20","Cow King's Hide (studded leather)":"May 20, 2026 \u00b7 01:50","Cow King's Horns (war bonnet)":"May 17, 2026 \u00b7 01:56","Credendum (mithril coil)":"May 18, 2026 \u00b7 23:22","Dangoon's Teaching (reinforced mace)":"Jun 10, 2026 \u00b7 21:54","Dark Adherent (dusk shroud)":"May 22, 2026 \u00b7 00:58","Death's Touch (sword)":"May 15, 2026 \u00b7 18:10","Griswold's Heart (armor)":"May 17, 2026 \u00b7 01:51","Griswold's Valor (helm)":"Jun 8, 2026 \u00b7 16:10","Guillaume's Face (winged helm)":"Jun 10, 2026 \u00b7 23:36","Haemosu's Adamant (cuirass)":"May 18, 2026 \u00b7 00:32","Horazon's Countenance (helm)":"May 19, 2026 \u00b7 21:06","Horazon's Hold (gloves)":"May 15, 2026 \u00b7 20:03","Horazon's Legacy (boots)":"May 19, 2026 \u00b7 00:23","Hsarus' Iron Fist (shield)":"Jul 12, 2026 \u00b7 19:08","Hsarus' Iron Heel (boots)":"May 25, 2026 \u00b7 01:50","Hsarus' Iron Stay (belt)":"May 14, 2026 \u00b7 18:41","Hwanin's Blessing (belt)":"May 14, 2026 \u00b7 23:38","Hwanin's Justice (bill)":"Jun 3, 2026 \u00b7 21:44","Hwanin's Refuge (tigulated mail)":"Jun 21, 2026 \u00b7 19:57","Hwanin's Splendor (grand crown)":"May 29, 2026 \u00b7 00:52","Immortal King's Detail (belt)":"May 18, 2026 \u00b7 23:34","Immortal King's Forge (gloves)":"May 15, 2026 \u00b7 19:09","Immortal King's Pillar (boots)":"Jun 2, 2026 \u00b7 01:06","Immortal King's Stone Crusher (hammer)":"May 23, 2026 \u00b7 17:56","Infernal Cranium (helm)":"Jun 29, 2026 \u00b7 01:31","Infernal Sign (belt)":"May 15, 2026 \u00b7 18:36","Infernal Torch (wand)":"May 27, 2026 \u00b7 23:58","Iratha's Coil (helm)":"May 25, 2026 \u00b7 21:53","Iratha's Collar (amulet)":"Jun 18, 2026 \u00b7 00:18","Iratha's Cord (belt)":"May 14, 2026 \u00b7 23:56","Iratha's Cuff (gloves)":"May 19, 2026 \u00b7 15:52","Isenhart's Case (armor)":"May 15, 2026 \u00b7 20:06","Isenhart's Horns (helm)":"May 17, 2026 \u00b7 01:29","Isenhart's Lightbrand (sword)":"May 15, 2026 \u00b7 01:26","Isenhart's Parry (shield)":"May 25, 2026 \u00b7 19:22","M'avina's Caster (bow)":"Jun 10, 2026 \u00b7 21:12","M'avina's Icy Clutch (gloves)":"May 18, 2026 \u00b7 23:22","M'avina's Tenet (belt)":"May 19, 2026 \u00b7 00:18","Magnus' Skin (sharkskin gloves)":"May 18, 2026 \u00b7 01:04","Milabrega's Diadem (helm)":"May 27, 2026 \u00b7 00:51","Milabrega's Orb (shield)":"May 15, 2026 \u00b7 18:02","Milabrega's Robe (armor)":"May 19, 2026 \u00b7 22:59","Milabrega's Rod (scepter)":"May 18, 2026 \u00b7 20:56","Naj's Circlet (circlet)":"May 15, 2026 \u00b7 01:18","Naj's Light Plate (hellforge plate)":"Jun 19, 2026 \u00b7 00:50","Naj's Puzzler (elder staff)":"Jun 10, 2026 \u00b7 19:31","Natalya's Shadow (armor)":"May 31, 2026 \u00b7 21:18","Natalya's Soul (boots)":"May 27, 2026 \u00b7 01:02","Ondal's Almighty (spired helm)":"May 18, 2026 \u00b7 00:58","Rite of Passage (sharkskin boots)":"May 15, 2026 \u00b7 01:33","Sander's Paragon (cap)":"Jun 7, 2026 \u00b7 23:03","Sander's Riprap (heavy boots)":"May 15, 2026 \u00b7 01:19","Sander's Superstition (bone wand)":"May 15, 2026 \u00b7 17:57","Sander's Taboo (heavy gloves)":"May 18, 2026 \u00b7 01:45","Sazabi's Cobalt Redeemer (cryptic sword)":"May 31, 2026 \u00b7 21:32","Sigon's Gage (gloves)":"May 15, 2026 \u00b7 13:39","Sigon's Guard (shield)":"May 20, 2026 \u00b7 12:43","Sigon's Sabot (boots)":"May 15, 2026 \u00b7 01:29","Sigon's Shelter (armor)":"May 15, 2026 \u00b7 01:00","Sigon's Visor (helm)":"May 14, 2026 \u00b7 18:58","Sigon's Wrap (belt)":"May 18, 2026 \u00b7 01:49","Tal Rasha's Fine-Spun Cloth (belt)":"May 25, 2026 \u00b7 23:42","Tal Rasha's Horadric Crest (helm)":"May 17, 2026 \u00b7 01:58","Tal Rasha's Lidless Eye (orb)":"May 15, 2026 \u00b7 20:00","Tancred's Crowbill (military pick)":"May 15, 2026 \u00b7 13:40","Tancred's Skull (bone helm)":"May 15, 2026 \u00b7 15:24","Tancred's Spine (full plate mail)":"May 15, 2026 \u00b7 17:46","Tancred's Weird (amulet)":"May 18, 2026 \u00b7 00:23","Trang-Oul's Guise (helm)":"May 29, 2026 \u00b7 00:46","Trang-Oul's Scales (armor)":"May 26, 2026 \u00b7 00:17","Vidala's Barb (bow)":"May 25, 2026 \u00b7 23:11","Vidala's Fetlock (boots)":"May 15, 2026 \u00b7 17:59","Vidala's Snare (amulet)":"May 19, 2026 \u00b7 16:08","Whitstan's Guard (round shield)":"May 15, 2026 \u00b7 18:24","Wilhelm's Pride (battle belt)":"Jun 25, 2026 \u00b7 00:24"};
 try { window._SET_SEED = _SET_SEED; } catch(e){}
 // v342.3 — Magic & Rare keepers: rolled-name items (skillers, magic/rare charms·jewels·rings·amulets,
 // notable rares/crafts) that can't be grail-DB entries. Map name→quality ('magic'|'rare'|'crafted').
@@ -26193,6 +26249,34 @@ window._jewelTipHtml = _jewelTipHtml;
     if (!tip){ tip = document.createElement('div'); tip.id='arttip'; tip.innerHTML='<img alt=""><div class="att-name"></div><div class="att-desc"></div>'; document.body.appendChild(tip); }
     if (!tip.querySelector('.att-desc')){ var dd=document.createElement('div'); dd.className='att-desc'; tip.appendChild(dd); }
     var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), desc = tip.querySelector('.att-desc'), cur = null;
+      /* ══ v2119 — AN ANCHOR CAN CARRY BOTH, AND HE GETS BOTH ═══════════════════════════════════
+         Konyo, on the console: "i want hdart only not double one is rendering a regular OS message
+         box." v2109 made the PROSE lane defer to this one by selector, which was right — but defer
+         meant `return null` BEFORE borrowing the `title`, and only the prose lane ever removed it.
+         So an element matching ARTTIP_SEL *and* carrying a native `title` drew the rich item card
+         with the grey OS box sitting on top of it. The console twin has no such hole.
+         Borrowed, never destroyed: parked in data-tip-held and given back on every exit — the four
+         clear paths below (left the anchor, mouseout, left the document, click) all route through
+         _artFree, so there is no path that hides the card and keeps the title. */
+      var _artHeld = null;
+      function _artHold(el){
+        try {
+          if (!el || !el.hasAttribute('title')) return;
+          if (_artHeld && _artHeld !== el) _artFree();
+          el.setAttribute('data-tip-held', el.getAttribute('title'));
+          el.removeAttribute('title');
+          _artHeld = el;
+        } catch(e){}
+      }
+      function _artFree(){
+        try {
+          var el = _artHeld; _artHeld = null;
+          if (!el) return;
+          var back = el.getAttribute('data-tip-held');
+          if (back !== null && !el.hasAttribute('title')) el.setAttribute('title', back);
+          el.removeAttribute('data-tip-held');
+        } catch(e){}
+      }
     // v309: a missing/blocked art file must never show the browser's broken-image box in
     // the floating tip — hide the <img> on error (the ID-card surface already falls back to
     // the rarity glyph; this gives the popup the same grace).
@@ -26265,7 +26349,7 @@ window._jewelTipHtml = _jewelTipHtml;
         var cp = cex.split('|'); var exn = el.getAttribute('data-arttip') || cp[0];
         // v341.37 — fall back to the slot's HD base art ("magic <slot> base") so every craft-name popup shows an item image
         var caurl = (typeof artUrl==='function') ? (artUrl(cp[2]||'') || artUrl(cp[1]||'') || artUrl('magic '+(cp[1]||'')+' base')) : '';
-        cur = el;
+        cur = el; _artHold(el);
         img.src = caurl || ''; img.style.display = caurl ? '' : 'none';
         lab.textContent = exn; lab.style.color = 'var(--q-orange)';
         desc.innerHTML = (typeof _craftExampleTipHtml==='function') ? _craftExampleTipHtml(cp[0], cp[1], exn) : '';
@@ -26290,7 +26374,7 @@ window._jewelTipHtml = _jewelTipHtml;
             // v345 — rolled-name keepers have no artUrl entry: fall back to the wrap's own <img> src
             // (the base sprite) or the resolver's artSrc so the rich card still shows an image.
             if (!vurl){ var _wi = el.querySelector('img'); vurl = (_wi && _wi.getAttribute('src')) || vr.artSrc || ''; }
-            cur = el;
+            cur = el; _artHold(el);
             img.src = vurl || ''; img.style.display = vurl ? '' : 'none';
             lab.textContent = wn; lab.style.color = (typeof _tipTint==='function' ? _tipTint(wn) : '') || '';
             desc.innerHTML = vr.desc;
@@ -26303,7 +26387,7 @@ window._jewelTipHtml = _jewelTipHtml;
         var wimg = el.querySelector('img');
         var wurl = (wimg && wimg.getAttribute('src')) || (typeof artUrl==='function' ? artUrl(wn) : '');
         if (!wurl) return;
-        cur = el;
+        cur = el; _artHold(el);
         img.src = wurl; img.style.display = '';
         lab.textContent = wn; lab.style.color = (typeof _tipTint==='function' ? _tipTint(wn) : '') || '';
         desc.innerHTML = '';
@@ -26318,7 +26402,7 @@ window._jewelTipHtml = _jewelTipHtml;
       if (aura){
         var au = (typeof AURA_ART !== 'undefined') ? AURA_ART[aura] : '';
         if (!au) return;
-        cur = el;
+        cur = el; _artHold(el);
         img.src = au; img.style.display = '';
         lab.textContent = aura + ' aura'; lab.style.color = '';
         desc.innerHTML = '';
@@ -26346,7 +26430,7 @@ window._jewelTipHtml = _jewelTipHtml;
         var _bArt = (typeof _runBossArt === 'function') ? _runBossArt(_bTip, _bRow.name) : null;
         var _bUrl = (_bArt && _bArt.url) || '';
         var _bDrops = (_bRow.dropTable && ((window._calcDrops?window._calcDrops(_bRow):_bRow.dropTable).length)) || 0;
-        cur = el;
+        cur = el; _artHold(el);
         img.src = _bUrl; img.style.display = _bUrl ? '' : 'none';
         lab.textContent = _bRow.name; lab.style.color = '';
         desc.innerHTML = '<div class="att-info">'
@@ -26371,7 +26455,7 @@ window._jewelTipHtml = _jewelTipHtml;
       var url = (typeof artUrl==='function') ? ((_ctx && artUrl(_ctx)) || artUrl(nm) || artUrl(r.artName)) : '';
       if (!url && r.artSrc) url = r.artSrc;   // v345 — rolled-name keeper base sprite
       if (!url && !r.desc) return;
-      cur = el;
+      cur = el; _artHold(el);
       img.src = url || ''; img.style.display = url ? '' : 'none';
       lab.textContent = nm; lab.style.color = (typeof _tipTint==='function' ? _tipTint(nm) : '') || '';
       desc.innerHTML = r.desc;
@@ -26387,15 +26471,15 @@ window._jewelTipHtml = _jewelTipHtml;
     var ARTTIP_SEL = '.d2art-wrap[aria-label],[data-arttip],[data-art-logo],[data-boss-tip],[data-aura-logo],.colossal-tile,.vm-item-name,.vault-chip,.top-drop-row,.road-node,.road-branch,.cw-name-ex[data-craftex]';
     document.addEventListener('mousemove', function(e){
       if (!cur) return;
-      if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); return; }
+      if (!cur.isConnected || cur.offsetParent===null){ _artFree(); cur=null; tip.classList.remove('on'); return; }
       var over = e.target && e.target.closest && e.target.closest(ARTTIP_SEL);
-      if (over !== cur){ cur=null; tip.classList.remove('on'); return; }   // left the source → hide
+      if (over !== cur){ _artFree(); cur=null; tip.classList.remove('on'); return; }   // left the source → hide
       // v643 — no per-frame re-positioning: the card is glued to the item's rect, so it holds
       // perfectly still while the cursor travels inside the anchor (no more trailing wobble).
     });
-    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest(ARTTIP_SEL); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
+    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest(ARTTIP_SEL); if (el && el===cur){ _artFree(); cur=null; tip.classList.remove('on'); } });
     // ultimate safety net: leaving the document entirely also clears it
-    document.addEventListener('mouseleave', function(){ if (cur){ cur=null; tip.classList.remove('on'); } });
+    document.addEventListener('mouseleave', function(){ if (cur){ _artFree(); cur=null; tip.classList.remove('on'); } });
     /* v2109 — PUBLISHED so the prose lane can DEFER to this one instead of racing it.
        An unreachable seam is unchecked, and the alternative was to copy this selector into
        the second listener, where the two would drift the first time an anchor is added
@@ -38328,7 +38412,16 @@ function renderJournal(){
       var _cReadyN = _isCrafts ? (typeof CRAFTS!=='undefined'&&CRAFTS?CRAFTS.filter(function(c){
             return (s.crafts||[]).some(function(x){ return x.craft===c.key; }); }).length:0) : 0;
       var _cTotN   = _isCrafts ? ((typeof CRAFTS!=='undefined'&&CRAFTS)?CRAFTS.length:0) : 0;
-      H.push('<div class="forge-progress" title="'+_recon.replace(/"/g,'&quot;')+'"><div class="fp-track"><div class="fp-fill" style="width:'+_rwPct+'%"></div></div>'
+      /* v2119 — THE BAR MEASURES WHAT THE LABEL NAMES. v2094 scoped the fp-lbl below to craft
+         types and left the FILL, the PERCENT and the TOOLTIP on _rwPct/_recon — the runeword
+         chronicle — so the crafts room drew a 99%-full green bar, and a "99%" coin, directly over
+         the words "0 / 4 craft types ready". Three figures describing runewords under a sentence
+         counting crafts. [[label-outlived-referent]] */
+      var _barPct = _isCrafts ? (_cTotN ? Math.round(_cReadyN / _cTotN * 100) : 0) : _rwPct;
+      var _barTtl = _isCrafts
+        ? (_cTotN + ' craft types\n' + _cReadyN + ' have every ingredient tallied right now')
+        : _recon;
+      H.push('<div class="forge-progress" title="'+_barTtl.replace(/"/g,'&quot;')+'"><div class="fp-track"><div class="fp-fill" style="width:'+_barPct+'%"></div></div>'
         +'<div class="fp-lbl">'+(_isCrafts
             ? '\u2697\ufe0f <b>'+_cReadyN+'</b> / '+_cTotN+' craft types ready'
             : '\ud83d\udcdc <b>'+_rwMadeN+'</b> / '+_rwTotal+' runewords forged')
@@ -38336,7 +38429,7 @@ function renderJournal(){
              + (_incLad ? 'all ' + _workable + ' planned here (' + _ladN + ' ladder-only included)'
                         : _workable + ' workable here, ' + _ladN + ' ladder-only')
              + '</span>' : '')
-        +'<span class="fp-pct">'+_rwPct+'%</span></div></div>');
+        +'<span class="fp-pct">'+_barPct+'%</span></div></div>');
     } catch(e){}
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
     var tab=function(key,emoji,label,cls,n){
@@ -38373,7 +38466,10 @@ function renderJournal(){
     //   • skipped tasks → Restore skipped   • a just-created runeword → ↩ Undo last: <name> (one-click un-make)
     var _rbits='';
     if (skip.size) _rbits+='<span>↩ <b>'+skip.size+'</b> skipped task'+(skip.size>1?'s':'')+'</span><button class="f-btn f-btn-mini" onclick="window.forgeUnskipAll()">↺ Restore skipped</button>';
-    if (F!=='completed'){ var _ld=_lastDone(); if (_ld) _rbits+='<span>✅ <b>'+_doneN+'</b> created</span><button class="f-btn f-btn-mini f-undo-last" title="put your most recently created runeword ('+_fEsc(_ld)+') back into the task list" onclick="window.forgeUndoLastDone()">↩ Undo last: '+_fEsc(_ld)+'</button><button class="f-btn f-btn-mini" onclick="window.forgeSetFilter(\'completed\')" title="see every created runeword — restore or clear any">✅ see all</button>'; }
+    /* v2119 — the ↩ Undo-last bar is RUNEWORD restore: _doneN and _lastDone() both read _madeRw(),
+       so inside the Crafts room it printed "✅ 99 created" and offered to put a RUNEWORD back.
+       [[label-outlived-referent]] */
+    if (!_isCrafts && F!=='completed'){ var _ld=_lastDone(); if (_ld) _rbits+='<span>✅ <b>'+_doneN+'</b> created</span><button class="f-btn f-btn-mini f-undo-last" title="put your most recently created runeword ('+_fEsc(_ld)+') back into the task list" onclick="window.forgeUndoLastDone()">↩ Undo last: '+_fEsc(_ld)+'</button><button class="f-btn f-btn-mini" onclick="window.forgeSetFilter(\'completed\')" title="see every created runeword — restore or clear any">✅ see all</button>'; }
     if (_rbits) H.push('<div class="forge-restore-top">'+_rbits+'</div>');
     // v546 — "Do this one thing" hero banner: one highest-leverage move, above the cards (not on the Completed view).
     /* v2094 — the 👉 DO THIS ONE THING hero is a RUNEWORD recommendation ('Archon Plate —
@@ -45218,7 +45314,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2118', name:'v2118 - the door the comment already promised', date:'2026-08-25', note:'Queue 44 and 124. The chronicle apply explains at length why it does not file inline and ends with filing has a door already, it is called below once after the whole batch - and that call was never written. So the sweep path filed while a hand tick or a shot apply registered the name and left the mule ledger untouched, which is why a grail tick left the grid empty until he pressed the balance button himself. A comment describing a call that does not exist is the most expensive kind, because everyone downstream reasons from it. Also the Tools vault chip promised auto-file to mules unconditionally when that lane needs a rolling reel.' };
+  window.D2R_BUILD = { id:'v2119', name:'v2119 - the slot, the disk and the drawer', date:'2026-08-25', note:'Queue 114 70 107 111 118 119 120. A set piece named one item and wore another slot: the roster bound Natalya Mark to boots and Natalya Soul to claws while the set catalogue says Mark is a Scissors Suwayyah and Soul is Mesh Boots, which is the claws-shows-boots-art he reported. Fixed at the roster, the stored reading derived label, the missing list and the base index, with a one-time migration so a tick already written under the old spelling is not stranded, and a new guard that compares every piece slot to its own base. The crafts room drew a 99 percent bar over the words zero of four craft types ready. An anchor carrying both a rich card and a native title showed both. The advanced drawer scrolled to the wrong place because the rail is static and can never be an offsetParent. The shadow floor sentence read the agent blob which is empty exactly when the console is off air.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -46308,12 +46404,12 @@ window._CH_PILL_MAP = {
      shortfall: a base printed on the Remaining page is a piece he does NOT have, by definition. A
      base he already owns never needs expanding. The stamp travels so the age is answerable.
      [[stale-reading]] */
-  window._SET_BASE_INDEX = {"index":{"amulet":{"base":"Amulet","pieces":["Tal Rasha's Adjudication (amulet)","Telling of Beads (amulet)"]},"balrog skin":{"base":"Balrog Skin","pieces":["Sazabi's Ghost Liberator (balrog skin)"]},"boots":{"base":"Boots","pieces":["Tancred's Hobnails (light plated boots)"]},"bramble mitts":{"base":"Bramble Mitts","pieces":["Laying of Hands (bramble mitts)"]},"caduceus":{"base":"Caduceus","pieces":["Griswold's Redemption (scepter)"]},"cantor trophy":{"base":"Cantor Trophy","pieces":["Trang-Oul's Wing (shield)"]},"heavy boots":{"base":"Heavy Boots","pieces":["Cow King's Hooves (heavy boots)"]},"lacquered plate":{"base":"Lacquered Plate","pieces":["Tal Rasha's Guardianship (armor)"]},"leather armor":{"base":"Leather Armor","pieces":["Vidala's Ambush (armor)"]},"leather gloves":{"base":"Leather Gloves","pieces":["Death's Hand (gloves)"]},"occult codex":{"base":"Occult Codex","pieces":["Horazon's Secrets (grimoire)"]},"russet armor":{"base":"Russet Armor","pieces":["Horazon's Dominion (armor)"]},"sacred armor":{"base":"Sacred Armor","pieces":["Immortal King's Soul Cage (armor)"]},"sash":{"base":"Sash","pieces":["Death's Guard (belt)"]},"scissors suwayyah":{"base":"Scissors Suwayyah","pieces":["Natalya's Soul (claws)"]},"shadow plate":{"base":"Shadow Plate","pieces":["Aldur's Deception (armor)"]},"vortex shield":{"base":"Vortex Shield","pieces":["Griswold's Honor (shield)"]},"ward":{"base":"Ward","pieces":["Taebaek's Glory (ward)"]}},"readAt":"2026-08-21T10:19:13.811000Z","reel":"reel_s_1787307553811_9452","source":"sets_2026-08-21.json"};
+  window._SET_BASE_INDEX = {"index":{"amulet":{"base":"Amulet","pieces":["Tal Rasha's Adjudication (amulet)","Telling of Beads (amulet)"]},"balrog skin":{"base":"Balrog Skin","pieces":["Sazabi's Ghost Liberator (balrog skin)"]},"boots":{"base":"Boots","pieces":["Tancred's Hobnails (light plated boots)"]},"bramble mitts":{"base":"Bramble Mitts","pieces":["Laying of Hands (bramble mitts)"]},"caduceus":{"base":"Caduceus","pieces":["Griswold's Redemption (scepter)"]},"cantor trophy":{"base":"Cantor Trophy","pieces":["Trang-Oul's Wing (shield)"]},"heavy boots":{"base":"Heavy Boots","pieces":["Cow King's Hooves (heavy boots)"]},"lacquered plate":{"base":"Lacquered Plate","pieces":["Tal Rasha's Guardianship (armor)"]},"leather armor":{"base":"Leather Armor","pieces":["Vidala's Ambush (armor)"]},"leather gloves":{"base":"Leather Gloves","pieces":["Death's Hand (gloves)"]},"occult codex":{"base":"Occult Codex","pieces":["Horazon's Secrets (grimoire)"]},"russet armor":{"base":"Russet Armor","pieces":["Horazon's Dominion (armor)"]},"sacred armor":{"base":"Sacred Armor","pieces":["Immortal King's Soul Cage (armor)"]},"sash":{"base":"Sash","pieces":["Death's Guard (belt)"]},"scissors suwayyah":{"base":"Scissors Suwayyah","pieces":["Natalya's Mark (claws)"]},"shadow plate":{"base":"Shadow Plate","pieces":["Aldur's Deception (armor)"]},"vortex shield":{"base":"Vortex Shield","pieces":["Griswold's Honor (shield)"]},"ward":{"base":"Ward","pieces":["Taebaek's Glory (ward)"]}},"readAt":"2026-08-21T10:19:13.811000Z","reel":"reel_s_1787307553811_9452","source":"sets_2026-08-21.json"};
 
   /* v1925 — THE GAME'S OWN MISSING LIST, so the board can be checked against it without a sweep.
      Read off his Chronicle Remaining page; stamped, because a negative reading expires the moment
      he finds the item. [[stale-reading]] */
-  window._SET_MISSING = {"names":["Aldur's Deception (armor)","Cow King's Hooves (heavy boots)","Death's Guard (belt)","Death's Hand (gloves)","Griswold's Honor (shield)","Griswold's Redemption (scepter)","Horazon's Dominion (armor)","Horazon's Secrets (grimoire)","Immortal King's Soul Cage (armor)","Laying of Hands (bramble mitts)","Natalya's Soul (claws)","Sazabi's Ghost Liberator (balrog skin)","Taebaek's Glory (ward)","Tal Rasha's Adjudication (amulet)","Tal Rasha's Guardianship (armor)","Tancred's Hobnails (light plated boots)","Telling of Beads (amulet)","Trang-Oul's Wing (shield)","Vidala's Ambush (armor)"],"readAt":"2026-08-21T10:19:13.811000Z","reel":"reel_s_1787307553811_9452"};
+  window._SET_MISSING = {"names":["Aldur's Deception (armor)","Cow King's Hooves (heavy boots)","Death's Guard (belt)","Death's Hand (gloves)","Griswold's Honor (shield)","Griswold's Redemption (scepter)","Horazon's Dominion (armor)","Horazon's Secrets (grimoire)","Immortal King's Soul Cage (armor)","Laying of Hands (bramble mitts)","Natalya's Mark (claws)","Sazabi's Ghost Liberator (balrog skin)","Taebaek's Glory (ward)","Tal Rasha's Adjudication (amulet)","Tal Rasha's Guardianship (armor)","Tancred's Hobnails (light plated boots)","Telling of Beads (amulet)","Trang-Oul's Wing (shield)","Vidala's Ambush (armor)"],"readAt":"2026-08-21T10:19:13.811000Z","reel":"reel_s_1787307553811_9452"};
 
   window._chSetPiecesOnBase = function(baseName){
     /* Same shape as _chUniquesOnBase so the engine can treat the two symmetrically: a caller that

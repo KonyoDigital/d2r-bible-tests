@@ -58,7 +58,8 @@
     {
       "set": "Natalya's Odium (Sin)",
       "base": "Scissors Suwayyah",
-      "piece": "Natalya's Soul (claws)"
+      "piece": "Natalya's Mark (claws)",
+      "pieceRelabelled": "v2119 — the GAME supplied only set+base; `piece` was the board's own label under a roster that bound Natalya's Mark to (boots) and Natalya's Soul to (claws). ITEM_CODEX says Scissors Suwayyah IS Natalya's Mark. The observed half (base) is untouched; only the derived half is corrected, and it is re-derivable from that base."
     },
     {
       "set": "Sazabi's Grand Tribute",

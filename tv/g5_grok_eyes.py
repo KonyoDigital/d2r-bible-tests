@@ -736,7 +736,13 @@ def stats_view():
     out = dict(_STATS)
     for k in _COUNTERS:
         out[k] = int(base.get(k) or 0) + int(_STATS.get(k) or 0)
-    for k in ("last", "last_error"):
+    # v2119 (#121) — last_error_ts RIDES WITH last_error, or the sentence reads as now. _stats_flush
+    # persists the stamp (it is in the flushed key list) but this hydration never restored it, so
+    # after ANY restart the remembered error came back off disk with no stamp and the EYES card
+    # printed "age unknown" — the exact phrase that card was built to remove. MEASURED on his live
+    # console at v2119: the card still said "age unknown" beside a remembered 208/200 quota error.
+    # [[stale-reading]] [[the-unjoined-end]]
+    for k in ("last", "last_error", "last_error_ts"):
         if out.get(k) is None and base.get(k) is not None:
             out[k] = base[k]
     return out

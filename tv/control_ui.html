@@ -11558,22 +11558,42 @@
     });
   }
 
+  /* v2119 — the last /api/shadow payload, kept so the floor sentence can be repainted without a
+     second round trip when the (slower) status read lands after the switches have already drawn. */
+  var _shadowLastJ = null;
+  function _shadowFloorRepaint(){
+    try { if (_shadowLastJ) _shadowAdvPaint(_shadowLastJ, null); } catch (e) {}
+  }
+
   window._shadowAdvRefresh = function () {
     /* v2116 — ask the DISK before describing the wait. Kept as a separate, non-blocking read so a
        slow/absent /api/status can never stop the switches from painting: absent simply means we
        have nothing extra to say, not that everything is fine. */
     try {
       fetch(API + '/api/status').then(function (r) { return r.json(); }).then(function (s2) {
-        var h = (s2 && s2.health) || {};
-        var free = h.freeGB, floor = h.minFreeGB;
+        /* v2119 (#120) — ASK THE DISK, WHICH MEANS `retention`. v2116 read `health.freeGB`, and
+           `health` is the AGENT's blob: control_app publishes `(st or {}).get("health") or {}`, and
+           freeGB/minFreeGB are written in ONE place, tv_diablo.py, only WHILE the agent runs. So in
+           exactly the OFF AIR case this sentence exists for, it was reading `{}` and saying nothing.
+           MEASURED live on his console just now, mode=off:
+               health {}          retention {"freeGb":9.2,"floorGb":8.0}
+           `retention.floorGb` is also the number /api/on actually refuses on, so the sentence and
+           the gate now quote one figure. [[the-unjoined-end]] [[label-outlived-referent]] */
+        var h = (s2 && s2.retention) || {};
+        var free = h.freeGb, floor = (h.floorGb != null ? h.floorGb : null);
         window._shadowFloorSay = (free != null && floor != null && free < floor)
           ? (free + 'GB free, needs ' + floor + 'GB') : '';
-      }).catch(function () { window._shadowFloorSay = ''; });
+        /* v2119 (#118) — AND REPAINT WHEN IT LANDS. The read is deliberately non-blocking, but
+           nothing in this chain repainted, and the only callers are one-shot (the <details>
+           ontoggle plus two explicit refreshes). So the sentence was set AFTER the paint that
+           needed it and showed up on the SECOND open — of which there usually is not one. */
+        _shadowFloorRepaint();
+      }).catch(function () { window._shadowFloorSay = ''; _shadowFloorRepaint(); });
     } catch (e) { window._shadowFloorSay = ''; }
     return fetch(API + '/api/shadow')
       .then(function (r) { return r.json(); })
-      .then(function (j) { _shadowAdvPaint(j, null); return j; })
-      .catch(function (e) { _shadowAdvPaint(null, e); return null; });
+      .then(function (j) { _shadowLastJ = j; _shadowAdvPaint(j, null); return j; })
+      .catch(function (e) { _shadowLastJ = null; _shadowAdvPaint(null, e); return null; });
   };
 
   /* v2095 — THE TOOLTIP BUTTON HAS TO DO THE TOOLTIP PASS.
@@ -11654,10 +11674,16 @@
         sc = sc.parentElement;
       }
       if (sc && sc !== document.body) {
-        // offsetTop is relative to the offsetParent, so walk the chain to be sure of the delta
-        var top = 0, n = target;
-        while (n && n !== sc) { top += n.offsetTop; n = n.offsetParent; }
-        sc.scrollTop = Math.max(0, top - 6);
+        /* v2119 (#111) — RECTS, NOT offsetParent. `.rail` is declared with grid-area/flex/overflow
+           and NO `position`, so it is static — and a static box is never an offsetParent. The walk
+           therefore sailed straight past the scroller it had just found, summed a DOCUMENT-relative
+           top, and assigned that to rail.scrollTop: the drawer opened, then jumped somewhere else.
+           This is the third pass over this hole (v2107, v2113) and the first to stop asking the
+           layout tree a question it cannot answer. getBoundingClientRect is viewport-relative for
+           BOTH boxes, so their difference is the exact delta no matter which ancestors are
+           positioned. [[feedback-suspect-the-instrument]] */
+        var delta = target.getBoundingClientRect().top - sc.getBoundingClientRect().top;
+        sc.scrollTop = Math.max(0, sc.scrollTop + delta - 6);
       } else if (target.scrollIntoView) {
         target.scrollIntoView({ block: 'start', inline: 'nearest' });   // no scroller — page-level
       }
@@ -11763,7 +11789,15 @@
         }
         var _stale = '';
         var _bq = st.budget || {};
-        if (/(\d+)\/(\d+) today/.test(String(g5s.last_error)) && _bq.dailyUsed === 0){
+        /* v2119 (#119) — THE CONTRADICTION IS THE FINDING, AND `dailyUsed === 0` IS NOT IT.
+           This captured the remembered counts and then threw them away, testing instead whether
+           today's counter happened to be zero. A remembered "208/200 today" is just as stale
+           against 1/200 as against 0/200 — so one G5 call later the MEMORY suffix vanished and a
+           dead quota message read as current. Compare the numbers that disagree.
+           [[stale-reading]] [[feedback-contradiction-is-the-finding]] */
+        var _m = /(\d+)\/(\d+) today/.exec(String(g5s.last_error));
+        if (_m && _bq.dailyMax != null
+            && (Number(_m[1]) !== Number(_bq.dailyUsed || 0) || Number(_m[2]) !== Number(_bq.dailyMax))){
           _stale = ' — the live budget is ' + (_bq.hourlyUsed || 0) + '/' + (_bq.hourlyMax || '?')
                  + ' this hour, ' + (_bq.dailyUsed || 0) + '/' + (_bq.dailyMax || '?')
                  + ' today, so this is a MEMORY, not the meter';

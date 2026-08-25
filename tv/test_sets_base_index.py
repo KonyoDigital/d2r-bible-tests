@@ -47,7 +47,7 @@ class TestTheIndexItself(unittest.TestCase):
         self.assertTrue(any(p.endswith("(ward)") for p in pairs["Ward"]))
         # ...and rows where it is a CATEGORY, which a suffix rule would have mis-resolved
         self.assertIn("Scissors Suwayyah", pairs)
-        self.assertEqual(pairs["Scissors Suwayyah"], ["Natalya's Soul (claws)"],
+        self.assertEqual(pairs["Scissors Suwayyah"], ["Natalya's Mark (claws)"],
                          "the suffix here is 'claws', a category — not the base")
         self.assertEqual(pairs["Occult Codex"], ["Horazon's Secrets (grimoire)"])
         self.assertEqual(pairs["Sacred Armor"], ["Immortal King's Soul Cage (armor)"])
@@ -306,6 +306,88 @@ class TestTheChroniclesShareOneStyle(unittest.TestCase):
             self.assertIn(sib, members,
                           "%s dropped out of the shared .fp-fill rule — that sibling is now "
                           "unstyled and free to drift" % sib)
+
+
+class TestV2119ASetPiecesSlotAgreesWithItsBase(unittest.TestCase):
+    """The swap that produced this guard: the roster bound `Natalya's Mark` to (boots) and
+    `Natalya's Soul` to (claws) while the set catalogue said Mark -> "Scissors Suwayyah" (a CLAW)
+    and Soul -> "Mesh Boots". Konyo saw it as art: "claws is boots image.. and the boots is a claw
+    image? its completely oppisite". Nothing compared the two, so a piece could name one item and
+    wear another's slot indefinitely — and the slot is what the base index, the art lane and his
+    own ledger all key on. [[feedback-generalize-fixes]]
+
+    ⚠ The arbiter is `setMembers[].slot`, NOT ITEM_CODEX. My first cut of this guard asked the
+    codex, which knows only 3 of the 295 piece strings, and its own floor caught it judging two."""
+
+    # slot word -> words that must appear in the base for it to be consistent. Deliberately
+    # literal: a slot this table cannot judge is SKIPPED, never guessed. [[unknown-stays-unknown]]
+    SLOT_WORDS = {
+        "claws":  ("suwayyah", "katar", "talons", "blade", "scissors", "claw", "hand"),
+        "boots":  ("boots", "greaves", "treads", "shoes"),
+        "helm":   ("helm", "cap", "crown", "mask", "casque", "coif", "diadem", "circlet",
+                   "visage", "armet", "shako", "horns", "skull", "sallet", "basinet",
+                   "guise", "corona", "guard", "tiara", "spirit"),
+        "armor":  ("mail", "plate", "armor", "hauberk", "cuirass", "jerkin", "skin", "shroud",
+                   "wyrmhide", "husk", "fleece", "field", "breast", "cape", "robe", "vest",
+                   "shell", "scarab", "hide", "pelt"),
+        "belt":   ("belt", "sash", "girdle", "vambraces"),
+        "gloves": ("gloves", "gauntlets", "bracers", "mitts", "vambraces"),
+        "amulet": ("amulet",),
+        "ring":   ("ring",),
+        "shield": ("shield", "rondache", "targe", "aegis", "ward", "scutum", "defender",
+                   "pavise", "kite", "buckler", "tower", "spiked", "heater", "luna",
+                   "trophy", "head", "skull", "preserver", "idol", "bone"),
+    }
+
+    def _src(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_no_piece_wears_another_items_slot(self):
+        import re
+        s = self._src()
+
+        # name -> base, straight out of the set catalogue the board renders from
+        bases = dict(re.findall(r'\{"name":"([^"]+)","slot":"([^"]+)"', s))
+        # MEASURED, not aspirational: exactly 56 setMembers rows carry a "slot" today, and 55 of
+        # the piece strings resolve against them. A floor above the ceiling is an absent floor.
+        # [[feedback-threshold-above-the-ceiling]]
+        self.assertGreaterEqual(len(bases), 50,
+                                "only %d setMembers rows carry a base — this guard has lost its "
+                                "arbiter and would pass by knowing nothing" % len(bases))
+
+        # STRIP THE PROSE FIRST. bible.html's comments QUOTE the very swap this guard exists to
+        # catch ("Natalya's Soul (claws) is a Scissors Suwayyah…"), so a raw scan reports the
+        # paragraph explaining the bug as the bug. Bounded so a stray `/*` cannot eat the file —
+        # an unbounded strip once removed 16.9% of it. [[feedback-comments-vs-code]]
+        code = re.sub(r"/\*.{0,4000}?\*/", " ", s, flags=re.S)
+        code = re.sub(r"(?m)^\s*//.*$", "", code)
+        # AND NOT THE RENAME MIGRATION'S OWN MAP. v2119's _ALIAS exists precisely to name the OLD
+        # spelling so a stranded tick can be moved; scanning it reports the cure as the disease.
+        code = re.sub(r"var _ALIAS = \{.{0,600}?\};", " ", code, flags=re.S)
+        self.assertGreater(len(code), len(s) * 0.6, "the comment strip ate the document")
+        pieces = set(re.findall(r'"([^"]+?) \(([a-z ]+)\)"', code))
+        self.assertTrue(pieces, "no set-piece strings found — this guard has lost its subject")
+
+        judged, bad = 0, []
+        for name, slot in pieces:
+            base = bases.get(name)
+            words = self.SLOT_WORDS.get(slot)
+            if not base or not words:
+                continue                      # unknown name or unjudgeable slot -> SKIP, never guess
+            judged += 1
+            if not any(w in base.lower() for w in words):
+                bad.append('%s (%s) -> base "%s"' % (name, slot, base))
+
+        # A SKIP IS NOT A PASS. Without this the table could drift to judging nothing and read
+        # exactly like "everything agrees" — which is how the swap survived.
+        # [[feedback-blind-fixture-green-gate]]
+        self.assertGreaterEqual(judged, 20,
+                                "only %d piece(s) could be judged — the guard has gone blind, which "
+                                "reads identical to 'everything agrees'" % judged)
+        self.assertEqual(bad, [],
+                         "a set piece names one item and wears another's slot; the base index, the "
+                         "art lane and his ledger all key on that slot: %s" % bad)
 
 
 class TestEveryLedgerStatusHasAPill(unittest.TestCase):
