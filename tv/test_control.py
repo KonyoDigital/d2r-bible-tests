@@ -19606,5 +19606,71 @@ class TestV2103AControlThatVanishesIsNotAControl(unittest.TestCase):
                           "here'; those are opposite facts")
 
 
+class TestV2104OnePlaceStatesHowManyRunewordsExist(unittest.TestCase):
+    """v2104 — his DAILY TASK FORCE read "complete at 99/100".
+
+    The panel was RIGHT: it prints `fs.chron.total`, derived from
+    `Object.keys(RUNEWORD_TIP).length` = 99. The 100 came from the AI PROMPT, which
+    told Sonnet in words that the denominator was `snapshot.chronicle made/100` — so
+    the model wrote a sentence around a number the app never believed. Four rendered
+    surfaces printed the same literal, and three more carried it as a fallback.
+
+    Measured live: RUNEWORD_TIP holds 99 keys; RUNEWORDS holds 101 rows / 100 distinct
+    names, and the extra name is "Death's Web" — a UNIQUE listed for reference.
+
+    A total hardcoded in one place and derived in another is exactly how the two drift.
+    [[label-outlived-referent]] [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        with open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as f:
+            self.board = f.read()
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+
+    def test_the_prompt_does_not_hand_the_model_a_denominator(self):
+        self.assertNotIn(
+            "made/100", self.board,
+            "the AI prompt states the runeword denominator as a literal again — the model "
+            "will write a sentence around it, which is exactly how '99/100' reached his panel",
+        )
+
+    def test_there_is_one_source_and_it_is_the_roster(self):
+        self.assertIn("window._rwTotalN = function()", self.board,
+                      "the single-source runeword total helper is gone")
+        # every reader must go through it, not re-derive with a literal floor
+        self.assertNotIn(
+            "Object.keys(RUNEWORD_TIP).length:100", self.board,
+            "a reader falls back to a literal 100 again. An invented denominator is worse "
+            "than none: at 99 made, `_mN === _tot` would be false and the CHRONICLE COMPLETE "
+            "moment — the one that branch exists to fire — would be suppressed",
+        )
+
+    def test_no_rendered_prose_claims_a_hundred(self):
+        for phrase in ("100-runeword", "100 runeword", "the Chronicle's 100"):
+            self.assertNotIn(
+                phrase, self.board,
+                "a surface still tells him the roster is 100. It is 99 — the 100th distinct "
+                "name in RUNEWORDS is Death's Web, which is a unique, not a runeword",
+            )
+
+    def test_the_one_step_rows_wear_the_runewords_picture(self):
+        i = self.ui.find("function hdTaskForce(")
+        self.assertGreater(i, 0)
+        j = self.ui.find("\n  function ", i + 1)
+        body = self.ui[i:j]
+        self.assertIn(
+            "art: 'runes', g: '🎯'", body,
+            "the ONE STEP hero is back to a raw 🎯. A ONE STEP row names a RUNEWORD, and this "
+            "project already ruled 🎯 means 'nothing could be resolved' "
+            "(tests/v1628_board_quality_tokens asserts it never renders on a card)",
+        )
+        self.assertNotIn(
+            '<span class="tf-g">◈</span>', body,
+            "the ONE STEP roster rows are back to a bare glyph instead of the runeword art the "
+            "chronicle row two lines below already paints",
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

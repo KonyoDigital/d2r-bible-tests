@@ -13017,7 +13017,13 @@
       } else if (oneList.length){
         heroOne = true;
         var o0 = oneList[0], on0 = o0.rw || o0;
-        hero = { g: '🎯', t: 'Hunt <b>' + esc(String(on0)) + '</b> — ' + (o0.sub === 'runes' ? 'one rune away' : o0.sub === 'base' ? 'one base away' : 'one step away'), tag: 'ONE STEP', cls: 'step' };
+        /* v2104 — a ONE STEP row names a RUNEWORD, so it wears the runeword's picture: the same
+           artImg('runes') the Runewords chronicle row paints two rows below and the MINI focus
+           paints in the strip. This was the last raw colour emoji on a hero row — and this project
+           already ruled that 🎯 means "nothing could be resolved" (tests/v1628_board_quality_tokens
+           asserts it never renders on a card), so using it as a real glyph on the flagship panel
+           contradicted a ruling already in the suite. The glyph stays as artImg's own fallback. */
+        hero = { art: 'runes', g: '🎯', t: 'Hunt <b>' + esc(String(on0)) + '</b> — ' + (o0.sub === 'runes' ? 'one rune away' : o0.sub === 'base' ? 'one base away' : 'one step away'), tag: 'ONE STEP', cls: 'step' };
       } else if (ai){
         heroAi = true;
         // v1636 — ONE ART NODE PER ROW. v1636 gave the NAME its own art (the ask: "the item
@@ -13048,7 +13054,7 @@
       // v1368 (R5) — THE HUNT leads over PROGRESS: one-step-out targets (what to hunt next) + the AI daily
       // pick sit directly under the ready wins; the chronicle progress bars drop below them as context.
       oneList.slice(heroOne ? 1 : 0, 2).forEach(function(t){
-        rows.push('<div class="tf-row"><span class="tf-g">◈</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
+        rows.push('<div class="tf-row"><span class="tf-g">' + artImg('runes', 'tf-i') + '</span><span class="tf-t"><b>' + (t.rw || t) + '</b> · ' + (t.sub === 'runes' ? 'farm the missing rune' : t.sub === 'base' ? 'hunt the base' : 'one step out') + '</span><span class="tf-tag dim">ONE STEP</span></div>');
       });
       if (ai && !heroAi) rows.push('<div class="tf-row tf-ai' + (_aiGo ? ' tf-go' : '') + '"' + _aiGo
         + '><span class="tf-g">✶</span><span class="tf-t">' + _aiSay(ai, 90) + '</span><span class="tf-tag ai">DAILY PICK</span></div>');

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2103",
+  "ver": "v2104",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2103: Six fixes from a four-agent sweep. The dead black gap was the dash claiming the whole leftover viewport and filling 491px of it. Every control in the Crafts room repainted the Forge, because a bare renderForge default meant forge instead of the room you are in. The Forge and Crafts emblem shipped an img with no src at all, so the picture AND its fallback glyph were both absent. The Grok Eyes card deleted itself on any failed fetch. The crafts icon was referenced but never declared in CONSOLE_ART. And every MAKE-NOW recipe ingredient now wears HD art and its in-game colour: gems their gem, runes orange, magic bases and jewels blue.",
+  "note": "v2104: His DAILY TASK FORCE read complete at 99 of 100. The panel was right - it prints the derived total, 99. The 100 came from the AI PROMPT, which told Sonnet in words that the denominator was a round hundred, so the model wrote a sentence around a number the app never believed. Four rendered surfaces printed the same literal and three more carried it as a fallback, including one that would have SUPPRESSED the CHRONICLE COMPLETE moment at 99 made. Every reader now asks the roster. Also: the ONE STEP rows wear the runewords own picture instead of a raw target emoji this project already ruled means nothing could be resolved.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -5796,6 +5796,27 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       return Object.keys(tips).filter(function(n){ return md[n]; }).length;
     } catch(e){ return 0; }
   };
+  /* v2104 — ONE PLACE STATES HOW MANY RUNEWORDS EXIST. Four rendered surfaces printed a literal
+     100 while RUNEWORD_TIP has held 99 for many versions, and the AI prompt shipped that 100 to
+     the model, which duly wrote "complete at 99/100" onto his DAILY TASK FORCE. The roster is 99;
+     the 101 rows in RUNEWORDS are 99 runewords + Spirit twice (sword/shield) + Death's Web, which
+     is a UNIQUE listed for reference. A total hardcoded in one place and derived in another is
+     exactly how the two drift. [[label-outlived-referent]] */
+  window._rwTotalN = function(){
+    try {
+      var tips = (typeof RUNEWORD_TIP!=='undefined') ? RUNEWORD_TIP : (window.RUNEWORD_TIP||{});
+      return Object.keys(tips).length;
+    } catch(e){ return 0; }
+  };
+  /* the static prose that names the roster reads it FROM the roster. 0 (roster not parsed yet)
+     leaves the markup exactly as authored rather than printing a number nobody measured. */
+  window._rwTotalPaint = function(){
+    try {
+      var n = window._rwTotalN(); if (!n) return;
+      var els = document.querySelectorAll('.rw-total');
+      for (var i=0;i<els.length;i++) els[i].textContent = n;
+    } catch(e){}
+  };
   // v591.1 — BOOT-RACE GUARD: this page is ONE huge file — the runeword engine (RUNEWORD_TIP mid-file,
   // forgeScan/_forgeMetaBase at the very end) comes alive SECONDS after this early block on a slow load.
   // Copying during that window exported a degenerate filter (premium floor only, "KonyoEndgame0") that
@@ -9221,7 +9242,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <h3>🎒 The Vault · 📜 Chronicle · 🎯 Loot Filters · 🔬 AI Item Checker</h3>
     <ul>
       <li><strong>The Vault</strong> — your mule manager. Screenshot a stash and the AI auto-files every item onto the right mule in a real-stash cell grid; search always knows which mule has what.</li>
-      <li><strong>Chronicle</strong> — your 100-runeword progress; ✓ the ones you've made.</li>
+      <li><strong>Chronicle</strong> — your <span class="rw-total">99</span>-runeword progress; ✓ the ones you've made.</li>
       <li><strong>Loot Filters</strong> — one-tap copy of an in-game filter that shows exactly the bases to farm for the runewords you still need.</li>
       <li><strong>AI Item Checker</strong> — paste a magic/rare item, get a keep-or-toss verdict.</li>
     </ul>
@@ -9290,7 +9311,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
         <ul><li><b>📸 AI screenshot intake</b> — drop a stash photo, it reads every item and auto-files it onto the right "mule" in a real-stash cell grid.</li>
         <li>One of the <b>3 stashes</b> (Vault · Runes · Gems) that feed the engine. Auto-sort · delete-unsorted · full-reset · find-across-mules.</li></ul></div>
       <div class="tlg-card" style="--tc:#b58cff"><div class="tlg-card-h"><span class="tlg-card-ic">📜</span><span class="tlg-card-t">Chronicle</span></div>
-        <p>Your <b>100-runeword progress</b> — ✓ the ones you've made, live-synced with your rune stash so "can make now" is always current. Feeds the Forge + Loot Filters.</p></div>
+        <p>Your <b><span class="rw-total">99</span>-runeword progress</b> — ✓ the ones you've made, live-synced with your rune stash so "can make now" is always current. Feeds the Forge + Loot Filters.</p></div>
       <div class="tlg-card" style="--tc:#e0a84a"><div class="tlg-card-h"><span class="tlg-card-ic">🎯</span><span class="tlg-card-t">Loot Filters</span></div>
         <p>One-tap copy of an <b>in-game loot filter</b>, rebuilt live from your Chronicle, that shows exactly the <b>socket-correct bases to find</b> for the runewords you still need (Larzuk them to size). Import in D2R.</p></div>
       <div class="tlg-card" style="--tc:var(--rune)"><div class="tlg-card-h"><span class="tlg-card-ic">⟐</span><span class="tlg-card-t">Rune Stash · Cube-Up</span></div>
@@ -9304,7 +9325,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <div class="tlg-card" style="--tc:#d0a050"><div class="tlg-card-h"><span class="tlg-card-ic">🧊</span><span class="tlg-card-t">Horadric Cube Recipes</span></div>
         <p>Every cube recipe, filterable, live-checked vs your tallies (✓ cubeable now).</p></div>
       <div class="tlg-card" style="--tc:#a8adb8"><div class="tlg-card-h"><span class="tlg-card-ic">📖</span><span class="tlg-card-t">All Runewords + Best Bases</span></div>
-        <p>The full 100-runeword DB (rune order · base · level) + the socket-correct best base per runeword. Click any → its card.</p></div>
+        <p>The full <span class="rw-total">99</span>-runeword DB (rune order · base · level) + the socket-correct best base per runeword. Click any → its card.</p></div>
       <div class="tlg-card" style="--tc:#66ff88"><div class="tlg-card-h"><span class="tlg-card-ic">💠</span><span class="tlg-card-t">Trade Values</span></div>
         <p>Every unique/set + valuable magic item rated <b>High → Trash</b> (maxroll / DarkHumility). Owned items show the badge in 📋 Registered too.</p></div>
       <div class="tlg-card" style="--tc:#00e676"><div class="tlg-card-h"><span class="tlg-card-ic">🎽</span><span class="tlg-card-t">Item Set Tracker</span></div>
@@ -11763,7 +11784,7 @@ window.openDrop = function(name){
     __alignCard('#item-detail .rainbow-facet-card');
     return;
   }
-  // Runeword: an EXACT (normalized) match against the 100-entry RUNEWORD_TIP
+  // Runeword: an EXACT (normalized) match against the 99-entry RUNEWORD_TIP
   // registry. Runs BEFORE findMaterial's loose substring fallback so short
   // runeword names (Bone/Black/Steel/Stone/Honor/Peace/Venom…) route to their own
   // verified ID card instead of mis-matching a material substring. Runeword names
@@ -22543,9 +22564,11 @@ function renderAllRunewords(){
   const shown = q ? sorted.filter((rw) =>
     (rw.n + ' ' + rw.runes + ' ' + rw.base + ' ' + (rw.notes || '')).toLowerCase().includes(q)
   ) : sorted;
-  // v477 — CALIBRATION: show the canonical DISTINCT-runeword count (matches the Chronicle's 100), not the raw
+  // v477 — CALIBRATION: show the canonical DISTINCT-runeword count (matches the Chronicle's 99), not the raw
   // row count. The browser has extra rows on purpose — Spirit is shown as its 2 bases (sword/shield) and
-  // Death's Web is a unique listed for reference — so list.length (102) ≠ the real number of runewords (100).
+  // Death's Web is a unique listed for reference — so list.length (101) ≠ the real number of runewords (99).
+  // v2104 — BOTH numbers in the line above were wrong: measured live, RUNEWORDS holds 101 rows and
+  // RUNEWORD_TIP 99 keys. A comment that misstates the count is how the next literal gets written.
   const _canon = (n) => String(n).replace(/\s*\([^)]*\)\s*$/, '').trim();
   const _real = {}; list.forEach((x) => { const c = _canon(x.n); if (typeof RUNEWORD_TIP !== 'undefined' && RUNEWORD_TIP[c]) _real[c] = 1; });
   const realCount = Object.keys(_real).length;
@@ -22567,7 +22590,7 @@ function renderAllRunewords(){
 }
 window.renderAllRunewords = renderAllRunewords;
 // v369 — Chronicle Runeword Maker: forge-now (synced w/ Rune Stash) + already-created tracker.
-let _rwcFilter = 'todo';   // v372 — default to "⏳ Left" so the working list shows only what's NOT yet created (Konyo: "see what's left, created shouldn't clutter it"); ✨ Created / All 100 are a click away
+let _rwcFilter = 'todo';   // v372 — default to "⏳ Left" so the working list shows only what's NOT yet created (Konyo: "see what's left, created shouldn't clutter it"); ✨ Created / All 99 are a click away
 window.rwcSetFilter = function(f){ _rwcFilter = f; renderRunewordChronicle(); };
 // v596 — FORGE→VAULT CONSUME SYNC (Konyo: "after i click created on forge it needs to automatically
 // get taken out of the vault — not showing again and again the same socketed base"). Marking a
@@ -24524,7 +24547,12 @@ window.buildAskSnapshot = function(){
       oneStep:(_fs.onestep||[]).slice(0,12).map(function(t){return t.rw+(t.sub==='base'?' (go get: '+(t.bestStr||t.baseReq||'the base')+')':t.sub==='cube'?' (cube runes up)':' (get: '+((t.missing||[]).join(', '))+')');}),
       counts:_fs.counts }; } }catch(e){}
   try { var _made=Object.keys((typeof rwMade!=='undefined'&&rwMade)||{}).filter(function(n){return typeof RUNEWORD_TIP!=='undefined'&&RUNEWORD_TIP[n];}).length;
-    snap.chronicle={ made:_made, total:(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100 }; }catch(e){}
+    /* v2104 — NO ROSTER, NO DENOMINATOR. This fell back to a literal 100 and handed it to the
+       model as fact; the block above documents a real boot race where RUNEWORD_TIP genuinely is
+       undefined for a moment on a slow load. A made-up denominator is worse than none, because the
+       model will happily write a sentence around it. [[unknown-stays-unknown]] */
+    var _rwT = window._rwTotalN ? window._rwTotalN() : 0;
+    if (_rwT) snap.chronicle={ made:_made, total:_rwT }; }catch(e){}
   return snap;
 };
 function _askEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -24703,7 +24731,11 @@ window.dailyCreateAi = function(force){
   var today; try{ today=new Date().toISOString().slice(0,10); }catch(e){ today=''; }
   // v556 — PICK-LOGIC VERSION stamp. When the pick's question/priority changes (e.g. v555.5 runewords-over-crafts),
   // a same-day cached blurb from the OLD logic must not survive until tomorrow — bump _PICK_V to auto-invalidate.
-  var _PICK_V='3';   // v1270 — pick logic now DESCENDS to grail/sets when runewords are sealed; invalidate v2 cache
+  var _PICK_V='4';   // v2104 — the prompt stopped naming a literal denominator and now cites the
+                     // snapshot's own total, so a pick cached under the old wording must not survive.
+                     // (Deliberately NOT quoting the old string here: the guard that forbids it greps
+                     // this file, and prose describing a defect reads exactly like the defect.
+                     // [[feedback-comments-vs-code]])   // v1270 — pick logic now DESCENDS to grail/sets when runewords are sealed; invalidate v2 cache
   try { if(!force && window.LSR.getItem('d2r_createNowAiV')!==_PICK_V) force=true; } catch(e){}
   // v555.3 — even within the same day, if the cached pick NAMES a runeword the player has since made (Chronicle),
   // it's stale ("Make Enigma" after Enigma is done) → force a fresh pick that respects the Chronicle.
@@ -24754,7 +24786,7 @@ window.dailyCreateAi = function(force){
   var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
-  fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing to make right now from my Top Picks and why. PRIORITISE an unmade RUNEWORD from snapshot.forge.makeNow — finishing runewords advances my Chronicle (snapshot.chronicle made/100) and a runeword outweighs a craft. Recommend a CRAFT (e.g. a caster amulet) ONLY if I have no makeable unmade runeword left. Once my Chronicle is complete it is naturally all crafts/items.',snapshot:snap})})
+  fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing to make right now from my Top Picks and why. PRIORITISE an unmade RUNEWORD from snapshot.forge.makeNow — finishing runewords advances my Chronicle (use snapshot.chronicle.made and snapshot.chronicle.total verbatim - never a round figure) and a runeword outweighs a craft. Recommend a CRAFT (e.g. a caster amulet) ONLY if I have no makeable unmade runeword left. Once my Chronicle is complete it is naturally all crafts/items.',snapshot:snap})})
     .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ window.LSR.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} try{ window._syncCreateNowAiArt(); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
 };
 
@@ -27580,6 +27612,7 @@ if (!_APPCTX_BOOT){
 }
 renderRuneTable(); renderRuneSources(); renderRuneStash();
 renderAllRunewords();
+try { window._rwTotalPaint(); } catch(e){}   // v2104 — the guide prose reads the roster, not a literal
 try { renderRwBases(); } catch(e){}
 renderGemStash();
 renderHoradricRecipes();
@@ -38047,7 +38080,7 @@ function renderJournal(){
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div></div>');
     // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
     try {
-      var _rwTotal=(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100;
+      var _rwTotal=window._rwTotalN?window._rwTotalN():0;   // v2104 — the roster, not a literal 100 (_rwPct already guards 0)
       var _rwMadeN=_madeRw().length, _rwPct=_rwTotal?Math.round(_rwMadeN/_rwTotal*100):0;
       // v1474 (Konyo: "how come ONE STEP is 91 if there are 99 forges? doesn't that counter it?")
       // The counts were CORRECT but not legible: three numbers sit inches apart on one screen
@@ -38612,7 +38645,7 @@ function renderJournal(){
       var _mN=_madeRw().length;
       if (typeof window.__forgeMadeN==='number' && _mN>window.__forgeMadeN && _motionOK()){
         var _fill=box.querySelector('.fp-fill'); if(_fill){ _fill.classList.remove('fp-celebrate'); void _fill.offsetWidth; _fill.classList.add('fp-celebrate'); }
-        var _t=document.createElement('div'); _t.className='forge-toast'; _t.innerHTML='✨ <b>Forged!</b> '+_mN+' / '+(typeof RUNEWORD_TIP!=='undefined'?Object.keys(RUNEWORD_TIP).length:100)+' <span class="ft-sub">the Chronicle grows</span>';
+        var _t=document.createElement('div'); _t.className='forge-toast'; _t.innerHTML='✨ <b>Forged!</b> '+_mN+(function(){ var _tt=window._rwTotalN?window._rwTotalN():0; return _tt?(' / '+_tt):''; })()+' <span class="ft-sub">the Chronicle grows</span>';
         (function(el){var st=document.getElementById('forge-toasts');if(!st){st=document.createElement('div');st.id='forge-toasts';document.body.appendChild(st);}st.appendChild(el);})(_t); setTimeout(function(){ _t.classList.add('out'); setTimeout(function(){ _t.remove(); },450); }, 2400);
         // v606 — ASCEND: the next tasks rise to meet you (staggered, first card leads)
         try { var _asc=box.querySelectorAll('.forge-sec-now .f-card');
@@ -38631,8 +38664,12 @@ function renderJournal(){
           }
         } catch(e){}
         // v606 — MILESTONE EPIC: every 10th forge + the 100% finish get the full golden moment
-        try { var _tot=(typeof RUNEWORD_TIP!=='undefined')?Object.keys(RUNEWORD_TIP).length:100;
-          if (_mN===_tot || _mN%10===0){
+        /* v2104 — the finish is measured against the ROSTER. With the old literal, a moment
+           where RUNEWORD_TIP was unavailable made _tot 100, and `_mN===_tot` at 99 made would have
+           SUPPRESSED the CHRONICLE COMPLETE moment — the one it exists to fire. An unknown total
+           now suppresses only the finish branch; every 10th forge still gets its moment. */
+        try { var _tot=window._rwTotalN?window._rwTotalN():0;
+          if ((_tot && _mN===_tot) || _mN%10===0){
             var _ep=document.createElement('div'); _ep.className='forge-epic';
             var _gl='ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛏᛒᛖ', _in='';
             for (var _gi=0;_gi<14;_gi++){ _in+='<span class="fe-rune" style="left:'+(4+Math.random()*92)+'%;animation-delay:'+Math.round(Math.random()*550)+'ms;font-size:'+(18+Math.round(Math.random()*18))+'px">'+_gl[_gi%_gl.length]+'</span>'; }
@@ -42174,7 +42211,7 @@ function renderJournal(){
       + I('ask-bible-card','🔮','Ask the AI — Diablo II Helper','Sonnet · reads your live stash')
       + I('ai-item-checker-card','🔬','AI Item Checker','magic/rare — keep or toss?')
       +'<div class="tlp-grp">🏆 The endgame — make it &amp; farm it</div>'
-      + I('rw-chronicle-card','📜','Chronicle','the 100-runeword endgame goal · ✓ progress')
+      + I('rw-chronicle-card','📜','Chronicle','the '+(window._rwTotalN?window._rwTotalN():99)+'-runeword endgame goal · ✓ progress')
       + I('loot-filters-card','🎯','Loot Filters','copy → D2R · farm the bases you still need')
       +'<div class="tlp-grp">📊 Data &amp; reference</div>'
       + I('rw-bases-card','🔩','Best Runeword Bases','which base per word')
@@ -44951,7 +44988,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2103', name:'v2103 - the room you are standing in', date:'2026-08-25', note:'Six fixes from a four-agent sweep. The dead black gap was the dash claiming the whole leftover viewport and filling 491px of it. Every control in the Crafts room repainted the Forge, because a bare renderForge default meant forge instead of the room you are in. The Forge and Crafts emblem shipped an img with no src at all, so the picture AND its fallback glyph were both absent. The Grok Eyes card deleted itself on any failed fetch. The crafts icon was referenced but never declared in CONSOLE_ART. And every MAKE-NOW recipe ingredient now wears HD art and its in-game colour: gems their gem, runes orange, magic bases and jewels blue.' };
+  window.D2R_BUILD = { id:'v2104', name:'v2104 - one place states how many runewords exist', date:'2026-08-25', note:'His DAILY TASK FORCE read complete at 99 of 100. The panel was right - it prints the derived total, 99. The 100 came from the AI PROMPT, which told Sonnet in words that the denominator was a round hundred, so the model wrote a sentence around a number the app never believed. Four rendered surfaces printed the same literal and three more carried it as a fallback, including one that would have SUPPRESSED the CHRONICLE COMPLETE moment at 99 made. Every reader now asks the roster. Also: the ONE STEP rows wear the runewords own picture instead of a raw target emoji this project already ruled means nothing could be resolved.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
