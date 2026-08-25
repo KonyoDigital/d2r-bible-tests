@@ -250,7 +250,11 @@ def _remedy_fold_orphan_footage():
     # what is running, ask it; if it cannot be asked, that is not permission.
     try:
         import control_app as _ca
-        ok, why = _ca.retention_may_act()
+        # v2128 (#33) — ASK WHAT IS IN FLIGHT, not whether the DELETER is armed. Folding loose
+        # frames into the reel their own stamp names deletes nothing, so borrowing
+        # retention_may_act meant TV_AUTO_PRUNE=0 — the documented way to stop the prune — also
+        # silenced the fold, with a refusal naming a feature the fold is not. [[copy-drift]]
+        ok, why = _ca.nothing_in_flight()
         if not ok:
             return None, "not folding while %s" % why
     except Exception:

@@ -10643,6 +10643,22 @@ def drift_may_relaunch():
     """
     if os.environ.get("TV_AUTO_RELAUNCH") != "1":
         return False, "auto-relaunch is opt-in (TV_AUTO_RELAUNCH=1); announcing only"
+    return nothing_in_flight()
+
+
+def nothing_in_flight(consequence="a relaunch now would throw that away"):
+    """Is anything reading or writing footage right now? -> (ok, why). NO on/off switch.
+
+    v2128 (#33) — SPLIT OUT OF retention_may_act, which the orphan FOLD was borrowing whole.
+    Folding loose frames into the reel their own stamp names DELETES NOTHING — it moves them — so
+    it has no business inheriting the DELETER's switch: `TV_AUTO_PRUNE=0`, the documented way to
+    stop pruning, also returned "not folding while auto-prune is switched off". Right guard, wrong
+    question, and the fold went quiet for the life of that env with a reason that named a different
+    feature.
+
+    The prune switch itself is untouched, and so is his ruling that the prune stays automatic.
+    [[copy-drift]]
+    """
     busy = []
     try:
         if _CHRON_JOB.get("running"):
@@ -10657,7 +10673,7 @@ def drift_may_relaunch():
         # could not tell -> do not act. An unmeasurable state is never a green light.
         return False, "could not tell what is running (%s)" % str(e)[:80]
     if busy:
-        return False, " and ".join(busy) + " — a relaunch now would throw that away"
+        return False, " and ".join(busy) + " — " + consequence
     return True, "nothing in flight"
 
 
@@ -10895,22 +10911,11 @@ def retention_may_act():
     # asked; the trade-off is his to re-decide, and it has been put to him rather than changed
     # underneath him. [[feedback-fix-it-dont-offer-it]] — this is the documented exception: it
     # changes what happens to bytes he cannot get back.
-    busy = []
-    try:
-        if _CHRON_JOB.get("running"):
-            busy.append("a chronicle sweep is reading")
-        if _VAULT_JOB.get("running"):
-            busy.append("a vault sweep is reading")
-        if (mini_state() or {}).get("running"):
-            busy.append("a mini is recording")
-        if _agent_alive():
-            busy.append("the agent is alive — he is filming")
-    except Exception as e:
-        # An unmeasurable state is never a green light, and least of all for a deleter.
-        return False, "could not tell what is running (%s)" % str(e)[:80]
-    if busy:
-        return False, " and ".join(busy) + " — footage is being written or read right now"
-    return True, "nothing in flight"
+    # v2128 (#33) — ONE IMPLEMENTATION, TWO SENTENCES. This block was duplicated verbatim in
+    # drift_may_relaunch and here, differing only in the consequence it names; splitting the fold
+    # off the prune switch was pointless if it left three copies of the same four checks. The
+    # caller supplies its own tail, so the wording each door needs is preserved. [[copy-drift]]
+    return nothing_in_flight("footage is being written or read right now")
 
 
 def _retention_once():
@@ -14991,7 +14996,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2127",
+        "ver": "v2128",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

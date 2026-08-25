@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2127",
+  "ver": "v2128",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2127: Konyo asked for the sweep panel buttons to be emphasized if they have meaning and hidden if they do not. All four had meaning and none of them had weight, so they are now priced by what pressing them costs. Register is the only one that writes to his ledger and is the primary. Run it for real spends real money on model calls and is marked as costing something. Price the sweep reads nothing and writes nothing and is quiet. Forget what is swept discards the proposal and carries a danger tint on top of the confirm it already had.",
+  "note": "v2128: The orphan fold borrowed the deleters on off switch, so the documented way to stop pruning also silenced a remedy that deletes nothing and moves frames instead. The fold overlap refusal used exact intervals, and the leftovers of an already sealed session lie outside that reels remaining span by construction, so the one case the module names as harmful was the one it could never refuse. A reel that has lost its jpegs contributed no window at all, so every cluster in its span read eligible. And the owned prune asked seven catalogues whether a name is real and never asked the one store that records his own filing decision.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

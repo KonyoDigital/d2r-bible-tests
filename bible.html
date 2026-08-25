@@ -18953,7 +18953,16 @@ window.renderHighValueFinds = renderHighValueFinds;
       return out;
     } catch(e){ return Object.create(null); }   /* unreachable roster -> admit nothing EXTRA, never LESS */
   })();
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));   // v659 — chronicle-seeded uniques + extras survive the prune
+  /* v2128 (#36) — AND A NAME HE FILED TO A MULE IS A NAME HE OWNS. Every clause here asks a
+     CATALOGUE whether the name is real; none asks the one store that records HIS OWN DECISION. A
+     mule-assigned name no catalogue recognises is deleted HERE — and `persist()` runs before the
+     foundLog walk below — leaving a d2r_muleAssign row pointing at nothing and no trace in the
+     ledger. v2082's _ROSTER_NORM closed the sixteen MEASURED names; this closes the class.
+     ⚠ Defence in depth, stated honestly: I could NOT name a currently-reachable victim on this
+     tree (TV extras are covered by _EXTRA_ITEM_SET, socket bases by _SOCKET_KEEP). It is here
+     because the store exists and was not consulted, not because a row is dying today. */
+  var _maKeep = _safeJsonParse(LS.getItem('d2r_muleAssign'), {}) || {};
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _maKeep[n] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));   // v659 — chronicle-seeded uniques + extras survive the prune · v2128 — + his own mule filing
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
@@ -37186,7 +37195,7 @@ function renderJournal(){
        jewel') already resolves to art/jewel02_graphic.png, the same file _JEWEL_ART names.
        [[copy-drift]] */
     var _sl = String(label || '').replace(/^magic\s+/i, '').trim();
-    var _slotRep = (typeof window !== 'undefined' && window._SLOT_REP) || null;
+    var _slotRep = window._SLOT_REP || null;   // published beside the accordion's own table
     var a = (kind === 'base' && _slotRep && _slotRep[_sl]) ? _slotRep[_sl] : _fArt(tip);
     var img = a ? '<img class="f-cing-img" src="'+a+'" alt="" loading="lazy" onerror="this.remove()">' : '';
     return '<span class="f-getchip f-ing-'+kind+'" data-arttip="'+_fEsc(tip)+'" style="color:'+colour+'">'
@@ -45410,7 +45419,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2127', name:'v2127 - four buttons, four consequences', date:'2026-08-26', note:'Konyo asked for the sweep panel buttons to be emphasized if they have meaning and hidden if they do not. All four had meaning and none of them had weight, so they are now priced by what pressing them costs. Register is the only one that writes to his ledger and is the primary. Run it for real spends real money on model calls and is marked as costing something. Price the sweep reads nothing and writes nothing and is quiet. Forget what is swept discards the proposal and carries a danger tint on top of the confirm it already had.' };
+  window.D2R_BUILD = { id:'v2128', name:'v2128 - three refusals that were not asking the right question', date:'2026-08-26', note:'The orphan fold borrowed the deleters on off switch, so the documented way to stop pruning also silenced a remedy that deletes nothing and moves frames instead. The fold overlap refusal used exact intervals, and the leftovers of an already sealed session lie outside that reels remaining span by construction, so the one case the module names as harmful was the one it could never refuse. A reel that has lost its jpegs contributed no window at all, so every cluster in its span read eligible. And the owned prune asked seven catalogues whether a name is real and never asked the one store that records his own filing decision.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

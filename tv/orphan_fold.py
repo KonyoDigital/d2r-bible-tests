@@ -77,6 +77,19 @@ def _reel_windows(hist):
                     ts.append(int(m.group(1)))
         except OSError:
             continue
+        if not ts:
+            # v2128 (#11) — A REEL THAT HAS LOST ITS JPEGS STILL OWNS ITS WINDOW. The reaper sheds
+            # frames and leaves index.json behind, so a hollow reel contributed NO window at all
+            # and every cluster inside its span read `eligible` — the overlap refusal, the one
+            # thing standing between this module and a forged session id, was silently absent for
+            # exactly the reels most likely to have leftovers. The index carries the timestamps the
+            # pixels no longer can. [[unknown-stays-unknown]]
+            try:
+                with open(os.path.join(d, "index.json"), "r") as fh:
+                    ts = [int(r.get("ts")) for r in (json.load(fh).get("frames") or [])
+                          if isinstance(r, dict) and r.get("ts")]
+            except Exception:
+                ts = []
         if ts:
             out.append((os.path.basename(d), min(ts), max(ts)))
     return out
@@ -145,7 +158,13 @@ def plan(hist_dir=None, gap_ms=GAP_MS):
                                "loose frames. Folding it would seal a session he is still filming."
                                % ((now_ms - hi) / 1000.0, gap_ms / 1000.0)})
             continue
-        hit = [w[0] for w in windows if not (w[2] < lo or w[1] > hi)]
+        # v2128 (#11) — ADJACENT IS NOT SEPARATE. v883's seal fold already moved every IN-window
+        # frame into reel_<sid>/, so the leftovers of an ALREADY-SEALED session lie OUTSIDE that
+        # reel's remaining min/max BY CONSTRUCTION — the case this module's own docstring names as
+        # the one that can do real harm, and the one an exact-interval test can never refuse. The
+        # same silence that separates two clusters has to separate a cluster from a reel.
+        pad = max(gap_ms, GAP_MS)
+        hit = [w[0] for w in windows if not (w[2] < lo - pad or w[1] > hi + pad)]
         size = 0
         for t in run:
             try:

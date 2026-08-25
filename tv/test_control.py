@@ -18033,9 +18033,16 @@ class TestV2080TheFoldNeverEatsALiveRecording(unittest.TestCase):
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import console_healer as ch
         names = set(ch._remedy_fold_orphan_footage.__code__.co_names)
-        self.assertIn("retention_may_act", names,
+        # v2128 (#33) — THE LAW IS "THE FOLD ASKS WHAT IS IN FLIGHT", and only the NAME it asks
+        # moved. It used to call retention_may_act, which also carries the DELETER's on/off switch,
+        # so TV_AUTO_PRUNE=0 silenced a remedy that deletes nothing. nothing_in_flight() is the
+        # same check without the switch.
+        self.assertIn("nothing_in_flight", names,
                       "the automatic fold does not REFERENCE the in-flight check — a comment "
                       "mentioning it is not a call")
+        self.assertNotIn("retention_may_act", names,
+                         "the fold is asking the DELETER's question again, so the documented way "
+                         "to stop pruning also stops folding — which deletes nothing")
         # and it must act on the answer, not merely ask
         import inspect
         body = "\n".join(ln for ln in inspect.getsource(ch._remedy_fold_orphan_footage).splitlines()
@@ -20610,6 +20617,100 @@ class TestV2126TheWaitingBannerOpensTheRoomItNames(unittest.TestCase):
         self.assertIn("not in your grail yet", self.ui,
                       "the banner no longer says these finds are NOT in his ledger yet, which is "
                       "the whole point of the proposal being read-only")
+
+
+class TestV2128TheFoldRefusesWhatIsAlreadyCovered(unittest.TestCase):
+    """#11 — the overlap refusal is the one thing standing between this module and a FORGED session
+    id, and it had two holes, both silent.
+
+    1. EXACT INTERVALS. v883's seal fold already moved every IN-window frame into reel_<sid>/, so
+       the leftovers of an already-SEALED session lie OUTSIDE that reel's remaining min/max BY
+       CONSTRUCTION — which is the case the module's own docstring names as the harmful one, and
+       the one an exact-interval test can never refuse.
+    2. HOLLOW REELS. The reaper sheds jpegs and leaves index.json, and the window builder only read
+       f_<ms>.jpg — so a hollow reel contributed NO window and every cluster in its span read
+       eligible.
+
+    MEASURED, before -> after, on the adjacent-leftovers fixture:
+        normal reel   eligible 1 -> 0
+        hollow reel   eligible 1 -> 0
+        a genuinely separate cluster (10 min away) stays eligible in both
+    [[unknown-stays-unknown]]"""
+
+    def _tree(self, hollow, gap_ms):
+        import json as _j, tempfile
+        d = tempfile.mkdtemp(prefix="of-guard-")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        os.makedirs(hist)
+        base = 1_500_000_000_000
+        r = os.path.join(hist, "reel_s_%d_1" % base)
+        os.makedirs(r)
+        if hollow:
+            with open(os.path.join(r, "index.json"), "w") as fh:
+                _j.dump({"frames": [{"ts": base}, {"ts": base + 5000}]}, fh)
+        else:
+            for k in (0, 5000):
+                with open(os.path.join(r, "f_%d.jpg" % (base + k)), "wb") as fh:
+                    fh.write(b"x" * 512)
+        for k in (gap_ms, gap_ms + 1000):
+            with open(os.path.join(hist, "f_%d.jpg" % (base + k)), "wb") as fh:
+                fh.write(b"y" * 512)
+        return hist
+
+    def _eligible(self, hist):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import orphan_fold as of
+        rows = of.plan(hist_dir=hist).get("clusters") or []
+        return [c for c in rows if isinstance(c, dict) and c.get("eligible")], rows
+
+    def test_leftovers_beside_a_sealed_reel_are_refused(self):
+        for hollow in (False, True):
+            elig, rows = self._eligible(self._tree(hollow, 6000))
+            self.assertTrue(rows, "the fixture produced no cluster at all — nothing was measured")
+            self.assertEqual(elig, [],
+                             "leftovers ADJACENT to a sealed reel (hollow=%s) were offered for "
+                             "folding — they would be minted under a forged session id" % hollow)
+
+    def test_a_genuinely_separate_cluster_is_STILL_eligible(self):
+        """The mirror, and the half that matters: a refusal that refuses everything is the same
+        defect wearing a helmet. [[feedback-blind-fixture-green-gate]]"""
+        for hollow in (False, True):
+            elig, rows = self._eligible(self._tree(hollow, 10 * 60 * 1000))
+            self.assertTrue(rows, "the fixture produced no cluster at all")
+            self.assertEqual(len(elig), 1,
+                             "a cluster ten minutes clear of every reel is being refused "
+                             "(hollow=%s) — the fold can no longer do its job at all" % hollow)
+
+
+class TestV2128TheFoldDoesNotBorrowTheDeletersSwitch(unittest.TestCase):
+    """#33 — folding loose frames into the reel their own stamp names DELETES NOTHING; it moves
+    them. It was calling retention_may_act, which carries the DELETER's on/off switch, so
+    TV_AUTO_PRUNE=0 — the documented way to stop pruning, and his ruling — also silenced the fold,
+    with a refusal naming a feature the fold is not. [[copy-drift]]"""
+
+    def test_the_in_flight_check_exists_without_the_switch(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        self.assertTrue(hasattr(ca, "nothing_in_flight"),
+                        "the in-flight question has no home of its own again")
+        # ⚠ ASK THE COMPILER, NOT THE SOURCE. This function's own docstring explains that it no
+        # longer reads TV_AUTO_PRUNE, so a text search finds the sentence saying it does not.
+        # Tenth time in one night. co_names cannot contain a comment. [[source-reading-guard]]
+        names = set(ca.nothing_in_flight.__code__.co_names)
+        self.assertNotIn("environ", names,
+                         "nothing_in_flight reads the environment — the split did not actually "
+                         "separate the in-flight question from the deleter's on/off switch")
+        self.assertTrue({"_CHRON_JOB", "_VAULT_JOB", "_agent_alive"} <= names,
+                        "nothing_in_flight no longer performs the in-flight checks it exists for: "
+                        "%r" % sorted(names))
+
+    def test_the_prune_still_asks_the_same_thing(self):
+        """The split must not have changed what the DELETER checks."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        self.assertIn("nothing_in_flight", set(ca.retention_may_act.__code__.co_names),
+                      "retention_may_act no longer consults the in-flight check at all")
 
 
 class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
