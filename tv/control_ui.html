@@ -11015,6 +11015,17 @@
       .catch(function (e) { _shadowAdvPaint(null, e); return null; });
   };
 
+  /* v2095 — THE TOOLTIP BUTTON HAS TO DO THE TOOLTIP PASS.
+     Both buttons POSTed /api/shadow {lane, on} — and the server NEVER READS `lane`:
+         want = body.get("on");  self._json(200, _shadow_set(bool(want)))
+     So both drawer switches wrote ONE shadow flag and "Tooltip pass" performed no pass.
+     The board's toggleTooltipPass does three things this could not: it arms the vault mini-lane,
+     POSTs /api/shadow, and POSTs /api/on — which STARTS A RECORDING — then tracks `startedReel`
+     so switching OFF seals the reel IT started and never one HE started. That is a scar: a pass
+     once recorded ~9GB/hour he never asked for.
+     This is why v2093 refused to delete the board rows. The tooltip lane now drives the REAL
+     orchestration through the same iframe seam the painter already uses to READ its state, so no
+     logic is copied and the safety cannot drift out of step. [[the-unjoined-end]] [[copy-drift]] */
   [['sadv-sha', 'shadow'], ['sadv-tip', 'tooltip']].forEach(function (p) {
     var el = document.getElementById(p[0]);
     if (!el) return;
@@ -11023,6 +11034,24 @@
       var want = el.getAttribute('aria-pressed') !== 'true';
       var say = document.getElementById(p[0] + '-say');
       if (say) say.textContent = want ? 'switching on…' : 'switching off…';
+      if (p[1] === 'tooltip') {
+        var _fr = document.getElementById('tvd-eng');
+        var _w = _fr && _fr.contentWindow;
+        var _fn = null;
+        try { _fn = (_w && typeof _w.toggleTooltipPass === 'function') ? _w.toggleTooltipPass : null; } catch (e) { _fn = null; }
+        if (!_fn) {
+          /* The pass exists only on the board. Say so rather than falling back to a POST that
+             would flip the shadow flag and LOOK like it worked. [[unknown-stays-unknown]] */
+          if (say) say.textContent = 'UNKNOWN — open the board once so the pass can run';
+          el.disabled = true;
+          return;
+        }
+        try {
+          Promise.resolve(_fn()).then(function () { return window._shadowAdvRefresh(); })
+            .catch(function () { if (say) say.textContent = 'UNKNOWN — the pass did not answer'; });
+        } catch (e) { if (say) say.textContent = 'could not run the pass: ' + String(e && e.message || e); }
+        return;
+      }
       fetch(API + '/api/shadow', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                    body: JSON.stringify({ lane: p[1], on: want }) })
         .then(function () { return window._shadowAdvRefresh(); })

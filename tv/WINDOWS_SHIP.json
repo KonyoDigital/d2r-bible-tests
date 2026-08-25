@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2094",
+  "ver": "v2095",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2094: The cube-crafts left the runeword chronicle for a parallel tab rendered by the same function, the same stylesheet and the same card structure - only which container it writes to and which half of the payload it may see are different. Measured before and after on an identical seeded world: 91 runeword cards plus 36 craft cards equals the 127 the single room used to draw, with nothing lost and no leakage either way.",
+  "note": "v2095: Both Advanced drawer buttons POSTed the same endpoint and the server never read the lane field so neither performed a tooltip pass. The tooltip lane now drives the board orchestration through the iframe seam the painter already used to read its state.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
