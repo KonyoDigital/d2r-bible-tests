@@ -19775,14 +19775,23 @@ class TestV2107TheDrawerOpensWHEREHeCanSeeIt(unittest.TestCase):
         self.assertGreater(len(code.strip()), 80,
                            "the comment strip left almost nothing — it ate the handler")
         self.assertIn("function", code, "the strip removed the handler itself, not its comments")
-        self.assertIn("scrollIntoView", code, "opening ADVANCED no longer scrolls it into view")
         self.assertNotIn(
             "block: 'nearest'", code,
             "back to `nearest`, which moves the least it can — at his 1120x660 window that is "
             "nothing, and the drawer opens entirely below the fold while looking empty",
         )
-        self.assertIn("block: 'start'", code,
-                      "the drawer no longer comes to the top of the rail")
+        # v2113 — AND IT MUST NOT DEPEND ON scrollIntoView's OPTIONS BAG. His console is a
+        # pywebview window, so the engine is WebKit; every check of this panel was run in
+        # headless CHROME, where both v2076's `nearest` and v2107's `start` behave. He reported
+        # the same empty drawer THREE times against builds that measured correct on my side.
+        # Assigning scrollTop is the flattest thing there is and no engine has an opinion
+        # about it. [[test-venue]]
+        self.assertIn("scrollTop =", code,
+                      "the drawer is back to asking scrollIntoView to place it — that is the "
+                      "call whose behaviour differs between his WebKit window and my Chrome")
+        self.assertIn("overflowY", code,
+                      "nothing finds the scrolling ancestor, so the scroll would be applied to "
+                      "the wrong box or to nothing at all")
 
 
 class TestV2107ItFetchesItselfButAsksBeforeRestarting(unittest.TestCase):

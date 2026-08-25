@@ -11592,10 +11592,31 @@
        `block:'start'` on the DETAILS puts ⚙ ADVANCED at the top of the rail, so its content fills
        the space below instead of starting past the bottom of it. The card is what he came for; the
        summary he already clicked does not need to stay in view. */
+    /* v2113 — SET scrollTop, DO NOT ASK scrollIntoView. His console is a pywebview window, so
+       the engine is WebKit — and every check I ran on this panel was in headless CHROME, where
+       both v2076's `nearest` and v2107's `start` behave. He has now reported the same empty
+       drawer three times against builds that measured correct on my side, which is the tell that
+       I was verifying in the wrong engine, not that the fix was wrong. [[test-venue]]
+       `scrollIntoView` with an options object is the part engines disagree about (smooth
+       behaviour inside a nested scroller especially). Assigning `scrollTop` is the oldest,
+       flattest thing there is: find the scrolling ancestor, put the drawer at its top, done —
+       no options bag, no smooth animation to be dropped, no engine opinion. */
     try {
       var target = det || document.getElementById('g5-eyes-card');
-      if (target && target.scrollIntoView) {
-        target.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'smooth' });
+      if (!target) return;
+      var sc = target.parentElement;
+      while (sc && sc !== document.body) {
+        var ov = getComputedStyle(sc).overflowY;
+        if ((ov === 'auto' || ov === 'scroll') && sc.scrollHeight > sc.clientHeight + 4) break;
+        sc = sc.parentElement;
+      }
+      if (sc && sc !== document.body) {
+        // offsetTop is relative to the offsetParent, so walk the chain to be sure of the delta
+        var top = 0, n = target;
+        while (n && n !== sc) { top += n.offsetTop; n = n.offsetParent; }
+        sc.scrollTop = Math.max(0, top - 6);
+      } else if (target.scrollIntoView) {
+        target.scrollIntoView({ block: 'start', inline: 'nearest' });   // no scroller — page-level
       }
     } catch (e) {}
   };
