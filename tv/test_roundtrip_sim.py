@@ -155,7 +155,26 @@ class TestRoundtrip(unittest.TestCase):
         # 9 — LIVE truncation regression: frames after the last read must already show
         sessions = api("/api/sessions").get("sessions") or []
         self.assertTrue(sessions, "no sessions listed while live")
-        live_sid = api("/api/status").get("sessionId") or (sessions[0].get("sessionId") or "")
+        # v2089 — DO NOT ASSERT AGAINST THE SESSION THIS TEST INVENTED.
+        # When no stub read lands inside 60s the block above appends a fallback journal row, and if
+        # it cannot resolve a real session id it stamps the literal "s_ci_fallback". That row then
+        # appears in /api/sessions as its OWN session at n=1 — AHEAD of the real recording — so
+        # `sessions[0]` picked the phantom, and the truncation check ran against a session that by
+        # construction has one beat and no footage. Measured, every run:
+        #     session n=1 sid=s_ci_fallback           beats=1   footage=0    <- what was asserted
+        #     session n=2 sid=s_1787628392124_31356   beats=13  footage=12   <- the real recording
+        # 12 injected, 12 present. THE PRODUCT WAS NEVER TRUNCATING ANYTHING. This gate had been red
+        # on every machine and every CI run for weeks, reporting a defect that did not exist — and a
+        # gate that is permanently red carries no information, exactly like one that is permanently
+        # green. [[feedback-blind-fixture-green-gate]] [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+        # The live session is the NEWEST real one: prefer what the console says, else the highest n
+        # that this test did not fabricate.
+        _real = [x for x in sessions
+                 if not str(x.get("sessionId") or "").startswith("s_ci_fallback")]
+        _newest = max(_real, key=lambda x: (x.get("n") or 0)) if _real else None
+        live_sid = (api("/api/status").get("sessionId")
+                    or (_newest.get("sessionId") if _newest else "")
+                    or (sessions[0].get("sessionId") or ""))
         live_n = next((x.get("n") for x in sessions if x.get("sessionId") == live_sid), 1)
         live_beats = api("/api/session?n=%d" % live_n).get("beats") or []
         live_foot = [b for b in live_beats if b.get("footage")]

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2089",
+  "ver": "v2090",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2089: The idempotence check asserted started==[], true only if every thread the first call armed is still alive when the second runs. threading.enumerate is process-global, so a leftover watcher could die between the two calls and be legitimately restarted. Now it asserts no duplicate live threads and no re-arm of a running one - both race-free, and it goes red on a disabled dedupe where the old one could not.",
+  "note": "v2090: He went looking for the Vault Manager in Tools where it lived for months and reported it gone. It was present and correct on every surface measured - web, app context, his own window on v2089 - but the place he looked did not say so. Tools now carries a signpost card that opens the vault.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

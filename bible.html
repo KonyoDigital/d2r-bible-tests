@@ -5290,7 +5290,37 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="rune-stash-card" style="--tc:var(--rune)">
+  <!-- v2090 — A SIGNPOST WHERE THE VAULT USED TO BE.
+     v2085 moved The Vault — Mule Manager out of Tools into its own top-level room, which he asked
+     for. What that ship did NOT do is tell anyone standing in Tools where it went. He came looking
+     in the place it had lived for months and said "i dont see vult manager at all now" — and the
+     tab was present and correct on every surface I could measure: web context, app context (the
+     console shows 6 tabs and VAULT is one of them), his own window reporting bibleVer v2089, and
+     the live site carrying the same bytes. It was never missing. He was looking where it used to
+     be, which is the only place that did not say so.
+     A MOVE IS NOT FINISHED UNTIL THE OLD ADDRESS FORWARDS. [[the-unjoined-end]]
+
+     ⚠ BUILT FROM THE NEIGHBOURING CARDS' OWN MARKUP, NOT AN APPROXIMATION OF IT. The first cut
+     reached for `boss-title-wrap` + `boss-title`, which the cards in this room do not use — they
+     use `boss-title-block` + `boss-name` — and hung a raw <button> in the header. Rendered and
+     LOOKED AT, it was visibly foreign: no icon block, the wrong type scale, and a white default
+     button beside cards set in the display serif. (Measured while fixing it: boss-title-wrap and
+     boss-title carry no CSS rule of their own, which is why the text fell back to browser
+     defaults; boss-name and boss-title-block do.) Copy the room, do not approximate it.
+     [[d2r-bible]] [[visual-regression-detector]] -->
+<div class="boss-card tool-premium" id="vault-moved-note" style="--tc:#f0c060">
+  <div class="boss-header" role="button" tabindex="0"
+       onclick="window.vaultJump ? window.vaultJump() : (window.switchTab &amp;&amp; window.switchTab('vault'))"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+    <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_gold.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
+    <div class="boss-title-block">
+      <p class="boss-name">The Vault — Mule Manager moved</p>
+      <p class="boss-subtitle">It has a room of its own now &middot; the <b>🎒 VAULT</b> tab up top, between F&middot;SETS and TV&middot;D</p>
+      <p class="boss-loc">Every mule, every assignment and every item is exactly as you left it — click here to open it</p>
+    </div>
+  </div>
+</div>
+<div class="boss-card collapsible collapsed tool-premium tool-primary" id="rune-stash-card" style="--tc:var(--rune)">
     <div class="boss-header" onclick="window.toggleCardCollapse('rune-stash-card')" role="button" tabindex="0" aria-expanded="false">
       <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/runeZod_icon.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,150,50,.5))" decoding="async"></span>
       <div class="boss-title-block">
@@ -44781,7 +44811,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2089', name:'v2089 - A verdict that depended on thread scheduling', date:'2026-08-25', note:'The idempotence check asserted started==[], true only if every thread the first call armed is still alive when the second runs. threading.enumerate is process-global, so a leftover watcher could die between the two calls and be legitimately restarted. Now it asserts no duplicate live threads and no re-arm of a running one - both race-free, and it goes red on a disabled dedupe where the old one could not.' };
+  window.D2R_BUILD = { id:'v2090', name:'v2090 - A move is not finished until the old address forwards', date:'2026-08-25', note:'He went looking for the Vault Manager in Tools where it lived for months and reported it gone. It was present and correct on every surface measured - web, app context, his own window on v2089 - but the place he looked did not say so. Tools now carries a signpost card that opens the vault.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
