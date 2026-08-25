@@ -26746,6 +26746,24 @@ function switchTab(name) {
   // v693.1 🏓R4 — the Binds verdict opens itself ONCE per session (the tab's whole answer); every
   // other lore drawer stays collapsed. sessionStorage: per-tab-session, never persisted state.
   try { document.documentElement.classList.toggle('runs-open', name === 'funi' && !!window._fuRunsActive); } catch(e){}   // v695 🏓R7 — the dock yields only while the runs view is actually on screen
+  /* v2087 — THE VAULT'S OWN ROOM OPENED AS A CLOSED DRAWER.
+     In Tools a collapsed card sat among a dozen others and read as "click to open". v2085 gave the
+     vault a room of its own where that card is the ONLY thing in it — so a collapsed card there is
+     an EMPTY PAGE. Measured on entry, three ways in:
+         clicking the VAULT tab   collapsed=YES  body 0px    .vm-cell visible 0
+         via the do-now chip      collapsed=YES  body 0px    .vm-cell visible 0
+         via vaultJump()          collapsed=no   body 1027px .vm-cell visible 3
+     Only the purpose-built path worked. Shown the room cold with no hint, a different model family
+     independently reported "no item grids, thumbnails, or stored-item content is visible ... heading
+     with nothing beneath it, and dead space filling most of the frame".
+     Opening it on entry — not only when a chip asks — is what makes all three doors agree.
+     [[the-unjoined-end]] [[visual-regression-detector]] */
+  if (name === "vault"){ try {
+    var _vc = document.getElementById('mule-vault-card');
+    if (_vc && _vc.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
+      window.toggleCardCollapse('mule-vault-card');
+    if (typeof window.renderVault === 'function') window.renderVault();
+  } catch(e){} }
   if (name === "binds"){ try {
     if (!sessionStorage.getItem('d2r_bindsVerdictShown')){
       sessionStorage.setItem('d2r_bindsVerdictShown','1');
@@ -28068,6 +28086,24 @@ try { document.documentElement.setAttribute("data-active-tab", document.querySel
 window._toolJump = function(id){
   try {
     var el = document.getElementById(id); if (!el) return;
+    /* v2087 — A JUMP THAT NEVER LEFT THE ROOM IT WAS CLICKED IN.
+       Measured: standing on Tools, the "⚡ do now → 🏦 vault" chip did NOTHING — active tab
+       still 'tools', scrollY unmoved, card still collapsed. v2085 moved #mule-vault-card into
+       its own #tab-vault, and scrollIntoView() on an element inside a display:none pane is a
+       silent no-op (its rect measured 0x0). getElementById still FINDS it, so every guard that
+       asked "does the element exist" said yes about a chip that could not work.
+       Ask the element which room it is in rather than assuming it shares ours — 17 of the 18
+       chips are already home, so this is inert for them and cannot go stale if a card moves
+       again. [[the-unjoined-end]] [[feedback-generalize-fixes]] */
+    try {
+      var pane = el.closest && el.closest('.tab-content');
+      if (pane && pane.id && pane.id.indexOf('tab-') === 0) {
+        var room = pane.id.slice(4);
+        var here = (document.querySelector('.tab.active') || {}).getAttribute
+                 ? document.querySelector('.tab.active').getAttribute('data-tab') : '';
+        if (room !== here && typeof window.switchTab === 'function') window.switchTab(room);
+      }
+    } catch(eR){}
     el.scrollIntoView({ behavior: "smooth", block: "start" });
     el.classList.remove("tool-jump-pulse"); void el.offsetWidth; el.classList.add("tool-jump-pulse");
     setTimeout(function(){ el.classList.remove("tool-jump-pulse"); }, 1400);
@@ -33866,11 +33902,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       persistOwned(); saveA();
       try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
       // v735.1 — do not expand vault card while user is on TV·D (silent file only)
+      /* v2087 — ...but v2085 moved the card out of Tools, and this still named Tools. Measured:
+         standing in the VAULT watching it, a TV pickup did NOT expand the card; standing in
+         TOOLS, it expanded a card that is not in that room. Exactly inverted. Ask the CARD
+         which room it lives in — that is the fact this condition always meant. */
       try {
         var curV = (document.querySelector('.tab.active') || {}).getAttribute
           ? document.querySelector('.tab.active').getAttribute('data-tab') : '';
-        if (curV === 'tools') {
-          var card = document.getElementById('mule-vault-card');
+        var _vCard = document.getElementById('mule-vault-card');
+        var _vPane = _vCard && _vCard.closest ? _vCard.closest('.tab-content') : null;
+        var _vRoom = (_vPane && _vPane.id && _vPane.id.indexOf('tab-') === 0) ? _vPane.id.slice(4) : 'tools';
+        if (curV === _vRoom) {
+          var card = _vCard;
           if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
             window.toggleCardCollapse('mule-vault-card');
         }
@@ -44738,7 +44781,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2086', name:'v2086 - one floor and a record that follows its footage', date:'2026-08-25', note:'the ON AIR floor stops existing in four places, the tombstone lands beside the tree it records, and a budget that could only fire on his machine now says when it measured nothing' };
+  window.D2R_BUILD = { id:'v2087', name:'v2087 - A jump that never left the room', date:'2026-08-25', note:'Two sites still named the room the vault card left in v2085 - the do-now vault chip did nothing at all from Tools, and a TV pickup expanded the card only where he could not see it. Both now ask the card which pane it is in.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2086",
+  "ver": "v2087",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2086: the ON AIR floor stops existing in four places, the tombstone lands beside the tree it records, and a budget that could only fire on his machine now says when it measured nothing",
+  "note": "v2087: Two sites still named the room the vault card left in v2085 - the do-now vault chip did nothing at all from Tools, and a TV pickup expanded the card only where he could not see it. Both now ask the card which pane it is in.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
