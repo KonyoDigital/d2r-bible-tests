@@ -44781,7 +44781,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2088', name:'v2088 - The floor a cold tree never published', date:'2026-08-25', note:'A red Publish does not deploy - his live site sat two versions behind while every local gate was green. retention_state now stamps the floor from the shared constant, because a floor is a constant and not a measurement.' };
+  window.D2R_BUILD = { id:'v2089', name:'v2089 - A verdict that depended on thread scheduling', date:'2026-08-25', note:'The idempotence check asserted started==[], true only if every thread the first call armed is still alive when the second runs. threading.enumerate is process-global, so a leftover watcher could die between the two calls and be legitimately restarted. Now it asserts no duplicate live threads and no re-arm of a running one - both race-free, and it goes red on a disabled dedupe where the old one could not.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

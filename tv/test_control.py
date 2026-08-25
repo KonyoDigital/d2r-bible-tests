@@ -17296,11 +17296,38 @@ class TestV2079EveryWatcherStartsInBothModes(unittest.TestCase):
             self.assertIn(name, live, "%s is in the roster and not running" % name)
 
     def test_it_is_idempotent_so_a_second_call_cannot_double_a_watcher(self):
+        """v2088 — ASSERT THE PROPERTY, NOT A PROXY THAT DEPENDS ON A RACE.
+
+        This asserted `again["started"] == []`, which is only true if every thread the FIRST call
+        armed is still alive when the second runs. threading.enumerate() is process-global and the
+        inert stub is `lambda: stop.wait(30)`, so a leftover watcher from an earlier test in the
+        same process can be alive at call one (which therefore skips it), die, and be legitimately
+        started by call two. Then `started == ['tvd-stash-watch']` and the test fails having found
+        no defect at all.
+
+        It failed exactly that way on CI — one name, tvd-stash-watch — and passed here every time,
+        including in CI's own two-module invocation. A test whose verdict depends on thread
+        scheduling is not measuring the code. [[feedback-suspect-the-instrument]]
+
+        "Cannot double a watcher" means: never two LIVE threads with the same name, and never
+        re-arm one that is already running. Both are race-free. Restarting a watcher that has
+        genuinely DIED is correct behaviour, not a defect — that is recovery.
+        """
+        import threading as _th
         with inert_roster() as start:
             start("first")
+            before = set(t.name for t in _th.enumerate() if t.name.startswith("tvd-") and t.is_alive())
             again = start("second")
-        self.assertEqual(again["started"], [],
-                         "calling it twice started duplicates: %r" % again["started"])
+            after = [t.name for t in _th.enumerate() if t.name.startswith("tvd-") and t.is_alive()]
+
+        doubled = sorted(n for n in set(after) if after.count(n) > 1)
+        self.assertEqual(doubled, [],
+                         "two live threads share a watcher name — the roster doubled it: %r" % doubled)
+
+        re_armed = sorted(set(again["started"]) & before)
+        self.assertEqual(re_armed, [],
+                         "these watchers were ALREADY RUNNING and were started a second time: %r"
+                         % re_armed)
 
     def test_a_watcher_measures_before_it_sleeps(self):
         """`time.sleep()` at the top of the loop publishes `checked: None` for the whole first

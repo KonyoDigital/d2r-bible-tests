@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2088",
+  "ver": "v2089",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2088: A red Publish does not deploy - his live site sat two versions behind while every local gate was green. retention_state now stamps the floor from the shared constant, because a floor is a constant and not a measurement.",
+  "note": "v2089: The idempotence check asserted started==[], true only if every thread the first call armed is still alive when the second runs. threading.enumerate is process-global, so a leftover watcher could die between the two calls and be legitimately restarted. Now it asserts no duplicate live threads and no re-arm of a running one - both race-free, and it goes red on a disabled dedupe where the old one could not.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
