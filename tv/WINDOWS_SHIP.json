@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2108",
+  "ver": "v2109",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2108: Two CI failures tonight were flakes, not regressions, and both had one shape: a fixed waitForTimeout followed by an evaluate that reads a board global the 5.9MB page has not built yet. When the runner is loaded the global is absent, the customary fallback swallows it, the fixture seeds nothing, and the test reports a PRODUCT defect that is really the harness arriving early. v592 seeded an empty runeword ledger and then accused the loot filter; v559 read a toast before it existed. Both fixed at the cause. A sweep found 51 more specs with the same shape - a ratchet now stops that number growing, and a boardReady helper is the way to pay it down.",
+  "note": "v2109: The board half of the tooltip work. The OS grey box is replaced on bible.html too, as a second SKIN on the card that already exists rather than a second element - the ruling v1618 already made. Not one line of the item driver changed: it is scarred code, so the prose lane is a separate listener on the same element, and it defers to the item card BY SELECTOR rather than by timing, because 672 elements carry both an item anchor and a title. It opens above the theatre, which the item lane does not, and the title is borrowed for one hover and always given back.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

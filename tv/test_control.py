@@ -19882,5 +19882,65 @@ class TestTheSleepThenReadFlakesDoNotGetMoreNumerous(unittest.TestCase):
         )
 
 
+class TestV2109TheBoardHintWearsTheSameSkin(unittest.TestCase):
+    """v2109 — the board half of the ask: "across the platform".
+
+    v2105 replaced the OS grey box on the CONSOLE. This does the board, on #arttip, as a
+    second SKIN on the card that already exists — v1618's ruling, "no need to create a new
+    one just sync the current one". Not one line of the item driver changed: it is scarred
+    code (v654's compact-anchor rule, v171's orphan-scroll fix, v441's orb mirror), so the
+    prose lane is a separate listener on the same element.
+
+    Verified on the pixels before this was written: `tip-say on tip-side-left` at z-index
+    100002, the title borrowed and returned with zero strays, and an element carrying BOTH a
+    data-arttip and a title correctly rendering `tip-rich tip-r-unique` with the prose lane
+    deferring and the title left intact.
+    """
+
+    def setUp(self):
+        with open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as f:
+            self.board = f.read()
+
+    def test_it_is_the_SAME_card_not_a_second_one(self):
+        self.assertIn(".tip-say", self.board, "the board prose lane is gone")
+        self.assertIn("#arttip.tip-say", self.board,
+                      "the prose lane no longer rides #arttip — a second floating element is how "
+                      "the two skins drift apart")
+
+    def test_it_opens_ABOVE_the_theatre(self):
+        # .tvz-theatre computes 99991 and holds titled controls of its own; the item lane's
+        # 9999 would put the sentence BEHIND the thing it describes
+        m = re.search(r"#arttip\.tip-say\{[^}]*z-index:(\d+)", self.board)
+        self.assertIsNotNone(m, "the prose lane declares no z-index of its own")
+        self.assertGreater(int(m.group(1)), 99991,
+                           "the prose lane sits below .tvz-theatre, so it would open behind the "
+                           "theatre whose controls it is describing")
+
+    def test_it_defers_to_the_item_card_BY_SELECTOR_not_by_timing(self):
+        body = _between(self, self.board, "function _proseLane()", "\n    })();",
+                        what="the board prose lane")
+        self.assertIn("window.ARTTIP_SEL", body,
+                      "the prose lane no longer asks the item selector. 672 elements carry BOTH a "
+                      "data-arttip and a title; deciding by whether the card happens to be `.on` "
+                      "would flip depending on whether mouseout beat mouseover")
+        self.assertIn("window.ARTTIP_SEL = ARTTIP_SEL", self.board,
+                      "the item selector is no longer published, so the prose lane cannot defer "
+                      "without copying it — and a copied selector drifts the first time an anchor "
+                      "is added to one and not the other")
+
+    def test_the_title_is_borrowed_and_given_back(self):
+        body = _between(self, self.board, "function _proseLane()", "\n    })();",
+                        what="the board prose lane")
+        self.assertIn("removeAttribute('title')", body,
+                      "nothing removes `title`, so the OS grey box still opens over the skin — "
+                      "CSS cannot suppress a native tooltip")
+        self.assertIn("data-tip-held", body, "the borrowed title is parked nowhere")
+        self.assertIn("hasAttribute('title')", body,
+                      "release does not check first, so it can clobber a title a re-render "
+                      "already put back")
+        for hook in ("pagehide", "focusout", "Escape"):
+            self.assertIn(hook, body, "the %s exit path is gone — a borrowed title could strand" % hook)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

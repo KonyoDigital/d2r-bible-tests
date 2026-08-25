@@ -1189,6 +1189,38 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 /* v247: the hover tooltip pops in — a subtle scale + rise instead of a hard cut.
    move() positions via left/top, so transform is ours to animate freely. */
 #arttip.on{opacity:1;transform:scale(1) translateY(0)}
+/* ══ v2109 — THE PROSE LANE ON THE BOARD: the twin of the console's, on #arttip ══════════════════
+   Konyo: "all these tooltips are like regular windows i want them HD art upgraded for allround and
+   ACROSS THE PLATFORM". v2105 did the console; this is the board, and it is the SAME card wearing a
+   second skin rather than a second element — v1618's ruling, "no need to create a new one just sync
+   the current one". THE CONSOLE IS THE SOURCE for this design; only the sizes differ, because the
+   two surfaces have different type scales. [[copy-drift]]
+   ⚠ z-index 100002, NOT the item lane's 9999: `.tvz-theatre` computes 99991 and holds titled
+   controls of its own, so the prose lane would open BEHIND the theatre it is describing. The item
+   lane stays at 9999 — nothing changes for the anchors it already serves. */
+#arttip.tip-say{max-width:min(340px,calc(100vw - 24px));padding:9px 12px 10px;text-align:left;z-index:100002;
+  border-color:rgba(240,192,96,.62);
+  background:radial-gradient(130% 150% at 50% 0%,rgba(240,192,96,.10),transparent 60%),linear-gradient(180deg,#1c140a,#100b06);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.78),inset 0 0 0 2px rgba(240,192,96,.14),0 14px 42px rgba(0,0,0,.82),0 0 22px rgba(240,192,96,.13)}
+#arttip.tip-say > :not(.att-say){display:none}
+#arttip .att-say{display:none}
+#arttip.tip-say .att-say{display:block;position:relative;z-index:1;
+  font-family:var(--mono,monospace);font-size:var(--fs-meta);font-weight:var(--fw-medium);
+  line-height:var(--lh-snug);letter-spacing:var(--ls-tight);color:var(--text,#f4e8d0);
+  /* pre-WRAP, not pre-line: pre-line collapses the runs of spaces that keep a multi-line hint in
+     columns, which is exactly what the native box preserved */
+  white-space:pre-wrap;overflow-wrap:break-word;padding-right:26px}
+/* the gauntlet — the SAME file the cursor wears, so "just like the mouse cursor" is answered with
+   the cursor itself and not a lookalike */
+#arttip.tip-say::after{content:"";position:absolute;right:7px;bottom:6px;width:21px;height:21px;
+  background:url("art/hd_cursor_hand32.png") center/contain no-repeat;opacity:.14;
+  filter:sepia(.75) saturate(.7);pointer-events:none;z-index:0}
+#arttip.tip-say::before{content:"";position:absolute;width:9px;height:9px;z-index:2;background:#1a1209;
+  border:1px solid rgba(240,192,96,.62);transform:rotate(45deg)}
+#arttip.tip-say.tip-side-right::before{left:-5.5px;top:calc(50% - 5px);border-right:0;border-top:0}
+#arttip.tip-say.tip-side-left::before{right:-5.5px;top:calc(50% - 5px);border-left:0;border-bottom:0}
+#arttip.tip-say.tip-side-below::before{top:-5.5px;left:20px;border-right:0;border-bottom:0}
+#arttip.tip-say.tip-side-above::before{bottom:-5.5px;left:20px;border-left:0;border-top:0}
 #arttip.tip-rich{max-width:300px;padding:11px 13px 12px}
 #arttip img{display:block;width:96px;height:96px;object-fit:contain;margin:0 auto 5px}
 #arttip.tip-rich img{width:52px;height:78px;margin:0 auto 4px}
@@ -26348,9 +26380,119 @@ window._jewelTipHtml = _jewelTipHtml;
     document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest(ARTTIP_SEL); if (el && el===cur){ cur=null; tip.classList.remove('on'); } });
     // ultimate safety net: leaving the document entirely also clears it
     document.addEventListener('mouseleave', function(){ if (cur){ cur=null; tip.classList.remove('on'); } });
+    /* v2109 — PUBLISHED so the prose lane can DEFER to this one instead of racing it.
+       An unreachable seam is unchecked, and the alternative was to copy this selector into
+       the second listener, where the two would drift the first time an anchor is added
+       here and not there. [[copy-drift]] */
+    try { window.ARTTIP_SEL = ARTTIP_SEL; } catch(e){}
     // v169 fix: a click can re-render / hide the hovered element, leaving the tip
     // orphaned and chasing the cursor. A click dismisses it outright.
     document.addEventListener('click', function(){ if (cur){ cur=null; tip.classList.remove('on'); } }, true);
+    /* ══ v2109 — THE PROSE LANE, PURELY ADDITIVE ═══════════════════════════════════════════════
+       Not one line of the driver above changes. It is scarred code (v654's compact-anchor rule,
+       v171's orphan-scroll fix, v441's orb mirror) and the native `title=` box is a separate
+       concern that can be served by a separate listener on the SAME card.
+
+       IT DEFERS TO THE ITEM LANE DETERMINISTICALLY, by asking `ARTTIP_SEL` — not by testing
+       whether the card happens to be `.on` at this instant. 672 elements on this page carry BOTH
+       a data-arttip and a title (e.g. data-arttip="Key of Terror" title="open ... ID card") and
+       today show the rich card with the OS grey box on top of it. A timing test would flip
+       depending on whether mouseout on the old anchor beat mouseover on the new one.
+
+       The title is BORROWED: parked in data-tip-held for one hover and given back on every exit,
+       refusing to clobber one a re-render already restored. CSS cannot suppress a native tooltip;
+       only the absent attribute can. [[the-unjoined-end]] */
+    (function _proseLane(){
+      var host = null, held = null, timer = null, warm = 0, touched = 0;
+      function owns(){ return tip.classList.contains('tip-say'); }
+      function release(){
+        if (host){ try {
+          if (held !== null && !host.hasAttribute('title')) host.setAttribute('title', held);
+          host.removeAttribute('data-tip-held');
+          host.removeAttribute('aria-describedby');
+        } catch(e){} }
+        host = null; held = null;
+      }
+      function hide(){
+        clearTimeout(timer); timer = null;
+        if (owns()){
+          warm = Date.now();
+          tip.classList.remove('on','tip-say','tip-side-right','tip-side-left','tip-side-below','tip-side-above');
+        }
+        release();
+      }
+      /* element-anchored with a beak, never cursor-following: v643's scar on this very card was
+         "it looks like randomly opening windows", and the beak is what says WHICH control it is
+         describing */
+      function place(node){
+        var w = tip.offsetWidth || 160, h = tip.offsetHeight || 40,
+            vw = window.innerWidth, vh = window.innerHeight,
+            r = node.getBoundingClientRect(), side, x, y;
+        var fitsR = r.right + 14 + w <= vw - 8, fitsL = r.left - w - 14 >= 8;
+        side = fitsR ? 'right' : (fitsL ? 'left' : null);
+        if (side && r.width <= 520){
+          x = (side === 'left') ? (r.left - w - 14) : (r.right + 14);
+          y = Math.min(Math.max(8, r.top + r.height / 2 - h / 2), vh - h - 8);
+        } else {
+          side = (r.bottom + 12 + h <= vh - 8) ? 'below' : 'above';
+          x = Math.min(Math.max(8, r.left), vw - w - 8);
+          y = (side === 'below') ? (r.bottom + 12) : Math.max(8, r.top - h - 12);
+        }
+        tip.classList.remove('tip-side-right','tip-side-left','tip-side-below','tip-side-above');
+        tip.classList.add('tip-side-' + side);
+        tip.style.left = x + 'px'; tip.style.top = y + 'px';
+      }
+      function say(node, viaFocus){
+        if (node === host) return;
+        if (!viaFocus && Date.now() - touched < 700) return;   // a tap is not a hover
+        var txt = node.getAttribute('title');
+        if (txt === null) txt = node.getAttribute('data-tip-held');
+        if (!txt || !txt.trim()) return;
+        hide();
+        host = node;
+        if (viaFocus){ held = null; }   // focus opens no native box, so there is nothing to steal
+        else {
+          held = txt;
+          /* stolen NOW, not when the timer fires: the native box's own ~1s clock started at the
+             first mouse event, and an attribute that is absent cannot open one */
+          try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}
+        }
+        var wait = viaFocus ? 0 : ((Date.now() - warm < 600) ? 40 : 380);
+        clearTimeout(timer);
+        timer = setTimeout(function(){
+          if (host !== node || !node.isConnected) return;
+          tip.className = 'tip-say';
+          tip.setAttribute('role','tooltip');
+          var box = tip.querySelector('.att-say');
+          if (!box){ box = document.createElement('div'); box.className = 'att-say'; tip.appendChild(box); }
+          box.textContent = txt;
+          try { node.setAttribute('aria-describedby','arttip'); } catch(e){}
+          place(node); tip.classList.add('on'); place(node);   // measure, then place
+        }, wait);
+      }
+      function candidate(e){
+        var n = e.target && e.target.closest && e.target.closest('[title],[data-tip-held]');
+        if (!n || n.matches('iframe,html,body')) return null;
+        // the ITEM card owns this anchor — ask the selector, never the current state
+        try { if (window.ARTTIP_SEL && n.closest(window.ARTTIP_SEL)) return null; } catch(e){}
+        return n;
+      }
+      document.addEventListener('mouseover', function(e){ var n = candidate(e); if (n) say(n); });
+      document.addEventListener('mouseout', function(e){
+        if (!host) return;
+        var n = e.target && e.target.closest && e.target.closest('[title],[data-tip-held]');
+        if (n === host) hide();
+      });
+      /* sighted KEYBOARD users GAIN what a native tooltip never gave them: `title` has always been
+         mouse-only on focus in every browser */
+      document.addEventListener('focusin', function(e){ var n = candidate(e); if (n) say(n, true); });
+      document.addEventListener('focusout', function(){ if (host) hide(); });
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape') hide(); });
+      document.addEventListener('click', function(){ hide(); }, true);
+      window.addEventListener('scroll', function(){ if (host) hide(); }, true);
+      document.addEventListener('touchstart', function(){ touched = Date.now(); }, { passive: true, capture: true });
+      window.addEventListener('pagehide', function(){ release(); });
+    })();
     // v171 fix: scroll only dismisses an ORPHANED tip (disconnected / hidden host) —
     // mirroring the mousemove guard. A benign smooth-scroll (scroll-behavior:smooth
     // scrollIntoView fires a stream of scroll events) no longer suppresses the popup
@@ -45007,7 +45149,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2108', name:'v2108 - a sleep is not a wait', date:'2026-08-25', note:'Two CI failures tonight were flakes, not regressions, and both had one shape: a fixed waitForTimeout followed by an evaluate that reads a board global the 5.9MB page has not built yet. When the runner is loaded the global is absent, the customary fallback swallows it, the fixture seeds nothing, and the test reports a PRODUCT defect that is really the harness arriving early. v592 seeded an empty runeword ledger and then accused the loot filter; v559 read a toast before it existed. Both fixed at the cause. A sweep found 51 more specs with the same shape - a ratchet now stops that number growing, and a boardReady helper is the way to pay it down.' };
+  window.D2R_BUILD = { id:'v2109', name:'v2109 - across the platform', date:'2026-08-25', note:'The board half of the tooltip work. The OS grey box is replaced on bible.html too, as a second SKIN on the card that already exists rather than a second element - the ruling v1618 already made. Not one line of the item driver changed: it is scarred code, so the prose lane is a separate listener on the same element, and it defers to the item card BY SELECTOR rather than by timing, because 672 elements carry both an item anchor and a title. It opens above the theatre, which the item lane does not, and the title is borrowed for one hover and always given back.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
