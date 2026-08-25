@@ -12281,13 +12281,20 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
     both directions, because a veto only ever seen pass is a veto nobody has seen work — and pin the
     two rows it must NEVER eat, which is the more dangerous half: withholding a real find on
     evidence nobody has is worse than the defect it was built for.
-    ⚠ v2119 — THE FIXTURE NAME MOVED, AND THE REASON MATTERS. This class used
-    "Natalya's Soul (claws)", which stopped being a roster piece when v2116/v2119 corrected the
-    Natalya slots (Mark IS the Scissors Suwayyah; Soul is the Mesh Boots). `denied()` folds BOTH
-    sides through the roster and drops what will not fold (`{c for c in (...) if c}`), so the
-    fixture quietly became "an unfoldable name is not denied" — which is NOT what this class is
-    for, and it went red honestly. The row v1923 was actually built for is the CLAWS one, so the
-    fixture now names it correctly. [[label-outlived-referent]]
+    ⚠ v2130 — I CORRECTED THIS DOCSTRING, BECAUSE MY FIRST EXPLANATION OF IT WAS WRONG.
+    I wrote that `denied()` "drops what will not fold (`{c for c in (...) if c}`)". It does not.
+    `_folder`'s fold ends `return nm`, so an unrecognised name passes through as its NORMALISED
+    self and is never dropped — measured directly:
+
+        fold("Natalya's Soul (claws)") -> "Natalya's Soul (boots)"
+        fold("Zzz Nonexistent (claws)") -> "Zzz Nonexistent (claws)"
+
+    and with a page naming "Soul (claws)", every spelling of Soul — bare, (claws), (boots) — is
+    still DENIED under the canonical name. The resolver folds cleanly across the v2119 rename.
+
+    What actually moved is narrower: the fixture named a piece and asserted the OLD STRING back
+    out of `withheld`, while denial reports the CANONICAL one. Same case, current spelling.
+    [[label-outlived-referent]] [[feedback-suspect-the-instrument]]
     [[feedback-blind-fixture-green-gate]] [[stale-reading]]
     """
 
@@ -20681,6 +20688,56 @@ class TestV2128TheFoldRefusesWhatIsAlreadyCovered(unittest.TestCase):
             self.assertEqual(len(elig), 1,
                              "a cluster ten minutes clear of every reel is being refused "
                              "(hollow=%s) — the fold can no longer do its job at all" % hollow)
+
+
+class TestV2130AQueuedCraftChipIsNamedByItsGem(unittest.TestCase):
+    """#102 — v2106 dropped the '⚗️ ' prefix from the QUEUED craft chips so the gem's own art
+    identifies them, and nothing pinned it. The existing coverage (v1621) asserts four chips whose
+    text starts Caster/Blood/Safety/Hit Power — but those are the EMPTY-QUEUE chips built by
+    _forgeChip, which never carried the alembic. Putting '⚗️ ' back on the queued templates stayed
+    green.
+
+    ⚠ The comment there also claimed "the alembic only survives as _craftArt's fallback". It does
+    not: the fallback is artImg('forge') -> /art/ui_tab_forge.png, the Hell's Forge medallion.
+    Corrected in the same ship — a comment describing art that is not served is the same defect as
+    one describing a call that does not exist."""
+
+    def setUp(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            self.ui = fh.read()
+        self.body = _between(self, self.ui, "var _craftArt = function(t)",
+                             "always-visible craft types when nothing else queued",
+                             what="the craft-chip templates")
+        self.assertLess(len(self.body), 4000,
+                        "the chip-template slice is %d chars — it has run past the templates"
+                        % len(self.body))
+        self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        self.code = re.sub(r"(?m)^\s*//.*$", "", self.code)
+        self.assertGreater(len(self.code.strip()), 200, "the comment strip ate the templates")
+
+    def test_the_queued_chips_lead_with_the_gem_not_an_alembic(self):
+        # ⚠ ANCHOR ON THE CRAFT TEXT, NOT THE CLASS. The first "hd-chip now" in this slice is the
+        # RUNEWORD chip (_chipArt(rw) + '⚒ ' + rw + ' · MAKE NOW'); scoping by class alone read it
+        # and reported the wrong template. The craft chips are the ones ending "· CRAFT NOW" and
+        # the one-step line. [[source-reading-guard]]
+        for kind, tail in (("hd-chip now", "CRAFT NOW"), ("hd-chip step", "miss +")):
+            i = self.code.find(tail)
+            self.assertGreater(i, -1, "the %r craft chip template is gone" % kind)
+            j = self.code.rfind("'<span class=\"" + kind, 0, i)
+            self.assertGreater(j, -1, "the %r opening tag is gone" % kind)
+            seg = self.code[j:i + 20]
+            self.assertNotIn("\u2697", seg,
+                             "the alembic is back on the %r chip — the gem is the craft's "
+                             "identity and a shared glyph identifies nothing: %r" % (kind, seg[:90]))
+            self.assertIn("_craftArt(t)", seg,
+                          "the %r chip no longer renders the gem's own art" % kind)
+
+    def test_the_fallback_is_named_correctly(self):
+        """The comment claimed the alembic; the code serves the forge medallion. Pin the CODE."""
+        fb = _between(self, self.code, "var _craftArt = function(t)", "};", what="_craftArt")
+        self.assertIn("artImg('forge'", fb,
+                      "_craftArt's fallback changed — if it is no longer the forge medallion, the "
+                      "comment above the templates has to move with it")
 
 
 class TestV2127TheSweepButtonsCarryTheirConsequence(unittest.TestCase):

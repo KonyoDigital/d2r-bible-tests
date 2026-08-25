@@ -12976,7 +12976,11 @@
              and then an emoji meaning the same thing — the exact duplicate v1636 removed from
              the Task Force hero ("the row glyph slot had carried that same art since v1616, so
              the success path rendered the icon, a 4px gap, then the same icon again").
-             The gem IS the craft's identity; the alembic only survives as _craftArt's fallback. */
+             The gem IS the craft's identity. ⚠ v2130 (#102) — AND THE ALEMBIC DOES NOT SURVIVE
+             AS THE FALLBACK, which this comment claimed for four versions: _craftArt falls back to
+             artImg('forge'), i.e. CONSOLE_ART.forge = /art/ui_tab_forge.png, the Hell's Forge quest
+             medallion. A comment describing art that is not served is the same defect as a comment
+             describing a call that does not exist. [[label-outlived-referent]] */
           return '<span class="hd-chip now">' + _craftArt(t) + nm + ' · CRAFT NOW</span>';
         }))
         .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
