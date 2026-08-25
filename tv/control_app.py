@@ -10015,19 +10015,27 @@ def _chron_swept_path():
 
 
 def _chron_swept_load():
-    try:
-        with open(_chron_swept_path(), encoding="utf-8") as fh:
-            d = json.load(fh)
-        return d if isinstance(d, dict) else {}
-    except Exception:
-        return {}
+    # v2115 — unreadable is UNKNOWN, not empty; the matching save refuses while it is
+    return _json_store_load(_chron_swept_path(), {})
 
 
 def _chron_swept_save(rec):
     """Torn-write safe, same as every other persisted file here (v1209): a crash mid-write would
-    leave a truncated JSON that reads as 'nothing was ever swept' and re-pays for the whole hist."""
+    leave a truncated JSON that reads as 'nothing was ever swept' and re-pays for the whole hist.
+
+    v2115 — and it refuses entirely when the last READ of this path failed on a file that exists.
+    Torn-write safety protects a write that is interrupted; it does nothing about a write of the
+    WRONG THING, which is what happens when the sweep reasoned from an empty dict it was handed
+    because the file would not parse."""
+    _p = _chron_swept_path()
+    if _store_write_blocked(_p):
+        try:
+            print("⛔ refusing to write %s — the last read of it failed, so this would overwrite "
+                  "a sweep memory we never saw" % os.path.basename(_p), flush=True)
+        except Exception:
+            pass
+        return
     try:
-        _p = _chron_swept_path()
         tmp = _p + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(rec, fh, indent=1)
@@ -11470,12 +11478,8 @@ def _vault_still_sealed(rec, prompt_ver=None):
 
 
 def _vault_swept_load():
-    try:
-        with open(_VAULT_SWEPT_PATH, encoding="utf-8") as fh:
-            d = json.load(fh)
-        return d if isinstance(d, dict) else {}
-    except Exception:
-        return {}
+    # v2115 — unreadable is UNKNOWN, not empty; the matching save refuses while it is
+    return _json_store_load(_VAULT_SWEPT_PATH, {})
 
 
 def _vault_swept_save(rec):
@@ -11484,7 +11488,59 @@ def _vault_swept_save(rec):
     _vault_json_save(_VAULT_SWEPT_PATH, rec)
 
 
+# ── v2115 — AN UNREADABLE STORE IS NOT AN EMPTY ONE ─────────────────────────────────────────
+# Four loaders here did `except Exception: return {}` and four savers wrote back inside the SAME
+# function (_vault_sweep_run, _chron_sweep_run). So one bad read — a torn write, a file being
+# written as it was read, a permissions blip — produced this sequence:
+#
+#     load -> {} -> the sweep treats everything as never-swept -> save -> HIS LEDGER IS GONE
+#
+# The savers are already torn-write safe (v1209, tmp + fsync + os.replace). That protects against
+# a crash DURING a write and does nothing about a write of the wrong thing, which is this.
+#
+# ABSENT and UNREADABLE are different facts and only one of them is safe to overwrite:
+#   · the file does not exist  -> a first run. {} is the truth. Write freely.
+#   · the file exists and will not parse -> WE DO NOT KNOW what is in it. Writing {} over it
+#     destroys the only copy, and the sweep that decided to write was reasoning from {} anyway.
+# [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+_UNREADABLE = set()          # paths whose last load found a file it could not parse
+
+
+def _json_store_load(path, empty):
+    """Load a JSON store. Records the path when it EXISTS but will not parse, so the matching
+    save can refuse rather than overwrite something we failed to read."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            d = json.load(fh)
+        _UNREADABLE.discard(path)
+        return d if isinstance(d, type(empty)) else empty
+    except FileNotFoundError:
+        _UNREADABLE.discard(path)          # absent is a fact, and it is the honest empty
+        return empty
+    except Exception as e:
+        _UNREADABLE.add(path)
+        try:
+            print("⚠ %s exists but will not parse (%s) — treating it as UNKNOWN, not empty; "
+                  "writes to it are refused until it reads clean"
+                  % (os.path.basename(path), str(e)[:80]), flush=True)
+        except Exception:
+            pass
+        return empty
+
+
+def _store_write_blocked(path):
+    """True when the last read of this path failed on a file that EXISTS."""
+    return path in _UNREADABLE
+
+
 def _vault_json_save(path, rec):
+    if _store_write_blocked(path):
+        try:
+            print("⛔ refusing to write %s — the last read of it failed, so this would overwrite "
+                  "a file whose contents we never saw" % os.path.basename(path), flush=True)
+        except Exception:
+            pass
+        return False
     try:
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
@@ -11693,12 +11749,8 @@ def vault_seen_save(unsure_rows):
 
 
 def vault_ledger_load():
-    try:
-        with open(VAULT_LEDGER_PATH, encoding="utf-8") as fh:
-            d = json.load(fh)
-        return d if isinstance(d, dict) else {}
-    except Exception:
-        return {}
+    # v2115 — unreadable is UNKNOWN, not empty; the matching save refuses while it is
+    return _json_store_load(VAULT_LEDGER_PATH, {})
 
 
 def vault_ledger_save(led):
@@ -12959,17 +13011,15 @@ def _chron_reads_path():
 
 
 def _chron_reads_load():
-    try:
-        with open(_chron_reads_path(), encoding="utf-8") as fh:
-            d = json.load(fh)
-        return d if isinstance(d, dict) else {}
-    except Exception:
-        return {}
+    # v2115 — unreadable is UNKNOWN, not empty; the matching save refuses while it is
+    return _json_store_load(_chron_reads_path(), {})
 
 
 def _chron_reads_save(rec):
+    _p = _chron_reads_path()
+    if _store_write_blocked(_p):      # v2115 — never overwrite a store we failed to read
+        return
     try:
-        _p = _chron_reads_path()
         tmp = _p + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(rec, fh)
@@ -14885,7 +14935,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2114",
+        "ver": "v2115",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

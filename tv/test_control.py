@@ -20197,5 +20197,95 @@ class TestV2114ABorrowedTitleStaysBorrowed(unittest.TestCase):
                           "sentence the surface has already replaced" % who)
 
 
+class TestV2115AnUnreadableStoreIsNotAnEmptyOne(unittest.TestCase):
+    """v2115 — from the queue's P0 batch (#22 / #7 / #34 / #25), and it is a data-loss class.
+
+    Four loaders did `except Exception: return {}` and four savers wrote back inside the SAME
+    function (_vault_sweep_run, _chron_sweep_run). One bad read — a torn write, a file being
+    written as it was read, a permissions blip — gave:
+
+        load -> {} -> the sweep treats everything as never-swept -> save -> the ledger is gone
+
+    The savers were already torn-write safe since v1209 (tmp + fsync + os.replace). That
+    protects a write that is INTERRUPTED and does nothing about a write of the WRONG THING,
+    which is this. ABSENT and UNREADABLE are different facts and only one is safe to
+    overwrite. [[unknown-stays-unknown]]
+
+    This corrupts a real file on disk and checks the bytes survive. A structural check would
+    pass on a version that records the failure and writes anyway.
+    """
+
+    def _mod(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "ca_v2115", os.path.join(HERE, "control_app.py"))
+        mod = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(mod)
+        except SystemExit:
+            pass
+        return mod
+
+    def test_a_corrupt_store_is_read_as_unknown_and_never_overwritten(self):
+        import tempfile
+        ca = self._mod()
+        d = tempfile.mkdtemp(prefix="v2115_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "vault_ledger.json")
+
+        # a REAL ledger, then a torn write over it
+        good = '{"Shako": {"mule": "uni-armor"}, "SoJ": {"mule": "uni-small"}}'
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(good)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"Shako": {"mule": "uni-arm')          # truncated mid-write
+        torn = open(path, encoding="utf-8").read()
+
+        got = ca._json_store_load(path, {})
+        self.assertEqual(got, {}, "the caller still gets an empty dict to work with")
+        self.assertTrue(ca._store_write_blocked(path),
+                        "an unreadable file was not recorded, so the save that follows will "
+                        "overwrite a store nobody managed to read")
+
+        wrote = ca._vault_json_save(path, {"only": "what the sweep rebuilt from nothing"})
+        self.assertFalse(wrote, "the save went ahead over an unreadable store")
+        self.assertEqual(open(path, encoding="utf-8").read(), torn,
+                         "THE FILE WAS OVERWRITTEN. Whatever was in it is now gone, replaced by "
+                         "what a sweep inferred from an empty dict it was handed by a failed read")
+
+    def test_an_ABSENT_store_is_still_freely_writable(self):
+        # the opposite failure: refusing to write on a first run would mean nothing ever persists
+        import tempfile
+        ca = self._mod()
+        d = tempfile.mkdtemp(prefix="v2115b_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "never_existed.json")
+
+        got = ca._json_store_load(path, {})
+        self.assertEqual(got, {}, "an absent store is honestly empty")
+        self.assertFalse(ca._store_write_blocked(path),
+                         "a file that does not exist was treated as unreadable — a first run "
+                         "would then never be able to save anything at all")
+        self.assertTrue(ca._vault_json_save(path, {"first": "run"}), "the first write was refused")
+        self.assertIn("first", open(path, encoding="utf-8").read())
+
+    def test_a_store_that_reads_clean_again_unblocks(self):
+        import tempfile
+        ca = self._mod()
+        d = tempfile.mkdtemp(prefix="v2115c_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "s.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("{ this will not parse")
+        ca._json_store_load(path, {})
+        self.assertTrue(ca._store_write_blocked(path))
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"ok": 1}')
+        ca._json_store_load(path, {})
+        self.assertFalse(ca._store_write_blocked(path),
+                         "the block never lifts, so one bad read would freeze writes to this "
+                         "store for the life of the process")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

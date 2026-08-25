@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2114",
+  "ver": "v2115",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2114: Both tooltips were on screen at once because the console rewrites the footer title on its own poll: hover stole it, the repaint handed it straight back, and the native grey box became eligible again while the skinned one was still open. Borrowing an attribute from a surface that repaints itself is not a one-time act - both lanes now watch it for the length of the hover and re-take it, keeping the newest wording so the bubble cannot go stale either. Verified on the live console: still borrowed after seven seconds of repaints, restored on leave, zero strays.",
+  "note": "v2115: The queue P0 batch, and it is a data-loss class. Four loaders swallowed a read error into an empty dict and four savers wrote back inside the SAME function, so one bad read gave: load empty, the sweep treats everything as never-swept, save, and his ledger is gone. The savers were already torn-write safe since v1209, which protects a write that is INTERRUPTED and does nothing about a write of the WRONG THING. Absent and unreadable are different facts and only one is safe to overwrite. The guard corrupts a real file and checks the bytes survive.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
