@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2095",
+  "ver": "v2096",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2095: Both Advanced drawer buttons POSTed the same endpoint and the server never read the lane field so neither performed a tooltip pass. The tooltip lane now drives the board orchestration through the iframe seam the painter already used to read its state.",
+  "note": "v2096: The chips were still summing the combined payload so Forge ALL read the craft count and drew a crafts pill while Crafts COMPLETED read the 99 runewords. Each chip now counts the room it is in, and the sealed chronicle routes to the crafts room instead of pointing below itself.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

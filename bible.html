@@ -38131,13 +38131,24 @@ function renderJournal(){
     // v1409 — Crafts pill always shows all 4 craft TYPES (never 0 just because no Perfect gem is tallied).
     var _craftTabN = (typeof CRAFTS!=='undefined' && CRAFTS && CRAFTS.length) ? CRAFTS.length : (s.craftTypes||[]).length || s.crafts.length;
     var _craftStepN = (s.craftOnestep||[]).length;
+      /* v2096 — EACH ROOM COUNTS ONLY ITS OWN WORK. Konyo, looking at v2095: "i see crafts
+         still render in FORGE ... also the all subtab", and for the other room "remove the 99
+         CHRONICLE runewords they dont belong now in the CRAFTS".
+         He was right on both. The chips were still summing the COMBINED payload:
+           · Forge  ALL read 4 — the craft-type count, on a chronicle with nothing left to forge;
+           · Forge  still drew a ⚗️ CRAFTS chip for a room that no longer holds any;
+           · Crafts COMPLETED read 99 — the runewords forged, in the craft room.
+         A right number under a word naming a different quantity, three times over.
+         [[label-outlived-referent]] */
+      var _cChronN = 0;
+      try { var _cc = window._craftChronCount ? window._craftChronCount() : null; if (_cc) _cChronN = _cc.n||0; } catch(e){}
     H.push('<div class="forge-tabs">'
-      + tab('all','▦','All','ft-all',total+(s.farm||[]).length+_craftTabN)   // v678 (swarm) — the v604 farm catch-all renders on ▦ All; the pill said 0 over 91 cards · v1409 + crafts
+      + tab('all','▦','All','ft-all',(_isCrafts ? (total+(s.farm||[]).length+_craftTabN) : (total+(s.farm||[]).length)))   // v678 (swarm) — the v604 farm catch-all renders on ▦ All; the pill said 0 over 91 cards · v1409 + crafts
       + tab('onestep','🟡','One step','ft-step',s.onestep.length+(s.farm||[]).length+_craftStepN)   // v678 — farm rows ride the one-step view · v1409 craft one-steps
       + tab('now','⚒','Make now','ft-now',nowCount)                 //   make now → pipeline (Konyo)
       + tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length)
-      + tab('crafts','⚗️','Crafts','ft-craft',_craftTabN)
-      + tab('completed','✅','Completed','ft-done',_doneN)          // v532 — end of the storyline
+        + (_isCrafts ? tab('crafts','⚗️','Crafts','ft-craft',_craftTabN) : '')
+      + tab('completed','✅','Completed','ft-done',(_isCrafts ? _cChronN : _doneN))          // v532 — end of the storyline
       +'</div>');
 
     // v533 — ALWAYS-VISIBLE restore bar. Was buried inside the Make-now section, so skipping your last task
@@ -38217,7 +38228,15 @@ function renderJournal(){
               +'<div class="fs-title">Chronicle Sealed</div>'
               +'<div class="fs-sub">Every runeword in the catalog stands forged — this is the end of the line.<br>The hunt is pure grail now: bases for trade, uniques &amp; sets for the wall.</div></div>'
           +'</div>'
-          +'<div class="fs-btns fs-routes"><button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')"><span class="fs-rt-t">🏆 F·Uniques</span><span class="fs-rt-s">the grail wall — every unique still dark</span></button>'
+          /* v2096 — AND THE ROUTE HAS TO BE ON THE SCREEN HE ACTUALLY SEES. There are two sealed
+             screens: this one (the Completed filter) and the ALL-view one below. On a sealed chronicle
+             the auto-select lands on Completed, so THIS is the one that renders — and it offered only
+             F·Uniques and F·Sets. With crafts moved to their own room in v2094, a sealed Forge had no
+             way to point at them at all. Measured: querySelector('.forge-sealed:not(.forge-sealed-done)')
+             found nothing, because that variant never draws once the chronicle is sealed. */
+          +'<div class="fs-btns fs-routes">'
+            +'<button class="fs-btn fs-btn-craft" onclick="window.switchTab&&window.switchTab(\'crafts\')"><span class="fs-rt-t">⚗️ Crafts</span><span class="fs-rt-s">create them all</span></button>'
+            +'<button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')"><span class="fs-rt-t">🏆 F·Uniques</span><span class="fs-rt-s">the grail wall — every unique still dark</span></button>'
           +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')"><span class="fs-rt-t">🧩 F·Sets</span><span class="fs-rt-s">finish the sets — closest first</span></button></div></div>');
         if (_skipNote) H.push(_skipNote);
         H.push('<details class="forge-sealed-roll"><summary>📜 show the sealed chronicle · '+made.length+' runeword'+(made.length===1?'':'s')+'</summary><div class="fsr-body">'+_doneTools+_doneList+'</div></details>');
@@ -38239,9 +38258,12 @@ function renderJournal(){
       if (_sealedAll){
         H.push('<div class="forge-sealed"><div class="fs-crest">⚒👑⚒</div>'
           +'<div class="fs-title">Chronicle Sealed</div>'
-          +'<div class="fs-sub">Every one of the <b>'+_sealN+'</b> runewords stands forged. The runeword Forge rests —<br>⚗️ <b>Crafts still live below</b> (and 🏆 grail / 🧩 sets). Bases for trade stay on the wall.</div>'
+          /* v2096 — the sealed screen still said crafts were "below" and its button re-filtered the
+             chronicle to a bucket that no longer exists here. v2094 moved them to their own room; the
+             old address has to forward, exactly like the Tools signpost in v2090. */
+          +'<div class="fs-sub">Every one of the <b>'+_sealN+'</b> runewords stands forged. The runeword Forge rests —<br>⚗️ <b>Crafts have a room of their own now</b> (and 🏆 grail / 🧩 sets). Bases for trade stay on the wall.</div>'
           +'<div class="fs-btns">'
-          +'<button class="fs-btn fs-btn-craft" onclick="window.forgeSetFilter&&window.forgeSetFilter(\'crafts\')">⚗️ Crafts — create them all</button>'
+          +'<button class="fs-btn fs-btn-craft" onclick="window.switchTab&&window.switchTab(\'crafts\')">⚗️ Crafts — create them all</button>'
           +'<button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')">🏆 F·Uniques — the grail wall</button>'
           +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button>'
           +'</div></div>');
@@ -44924,7 +44946,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2095', name:'v2095 - The tooltip button finally does the tooltip pass', date:'2026-08-25', note:'Both Advanced drawer buttons POSTed the same endpoint and the server never read the lane field so neither performed a tooltip pass. The tooltip lane now drives the board orchestration through the iframe seam the painter already used to read its state.' };
+  window.D2R_BUILD = { id:'v2096', name:'v2096 - Each room counts only its own work', date:'2026-08-25', note:'The chips were still summing the combined payload so Forge ALL read the craft count and drew a crafts pill while Crafts COMPLETED read the 99 runewords. Each chip now counts the room it is in, and the sealed chronicle routes to the crafts room instead of pointing below itself.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
