@@ -17750,6 +17750,15 @@ class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
         io.open(os.path.join(root, "chronicle_swept.json"), "w").write(_j.dumps(chron))
         ca._retention_once()
         st = ca.retention_state()
+        # v2122 (#142) — AND A SURFACE MUST READ THE SIZE, not only the count. lockedMb has been
+        # published all along with nothing consuming it; "11 reel(s) await a sweep" does not tell
+        # him whether clearing them would even reach the floor. [[the-unjoined-end]]
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as _fh:
+            _ui = _fh.read()
+        _ui_code = re.sub(r"/\*.{0,4000}?\*/", " ", _ui, flags=re.S)
+        self.assertGreater(len(_ui_code), len(_ui) * 0.5, "the comment strip ate the console")
+        self.assertIn("_rt.lockedMb", _ui_code,
+                      "the footer names how MANY reels await a sweep and never how much they hold")
         self.assertGreaterEqual(st.get("lockedBehindASweep") or 0, 1,
                                 "an unread reel was not reported as waiting on a sweep")
         self.assertIn("sweep", st["say"])
@@ -20478,6 +20487,58 @@ class TestV2115AnUnreadableStoreIsNotAnEmptyOne(unittest.TestCase):
                          "store for the life of the process")
 
 
+class TestV2122TheRenameMigrationMovesEveryStoreThatKeysOnThePiece(unittest.TestCase):
+    """v2119 corrected the Natalya slots (Mark IS the Scissors Suwayyah; Soul is the Mesh Boots).
+
+    A set piece's identity IS the literal "Name (slot)" string — the roster authors it whole and
+    the stores keep it verbatim — and `grep _SET_ALIAS` returned NOTHING before v2119: there had
+    never been a rename migration in this file. So the correction silently ORPHANED every tick,
+    retraction, date and locker already written under the old spelling.
+
+    The first cut named four stores under a comment that said "ALL FOUR STORES, or the records stop
+    agreeing with each other" — and left out the two carrying the TESTIMONY: d2r_gameFound (the
+    in-game date and dropper; this board's own v1963 note records "05/27/2026, 01:02 · The Cow King
+    · n=6" against this exact piece) and d2r_muleAssign (which locker he filed it to).
+    [[the-unjoined-end]] [[copy-drift]]"""
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        self.body = _between(self, board, "d2r_pieceAlias_v", "catch(e){}",
+                             what="the piece-rename migration")
+        self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        self.assertGreater(len(self.code.strip()), 200, "the comment strip ate the migration")
+
+    def test_it_moves_every_store_that_keys_on_the_piece_string(self):
+        for store in ("d2r_setPieces", "d2r_setRepairRemoved", "d2r_grailUnfound",
+                      "d2r_foundLog", "d2r_gameFound", "d2r_muleAssign"):
+            self.assertIn(store, self.code,
+                          "%s keys on the literal \"Name (slot)\" string and is NOT in the alias "
+                          "list — a rename leaves its rows pointing at a name nothing looks up" % store)
+
+    def test_the_flag_moved_with_the_widened_list(self):
+        """A one-shot flag written after the loop means a LATER addition never runs on a machine
+        that already saw the earlier version. Widening the list without bumping the key ships a
+        migration that is dead on exactly the machines that need it."""
+        self.assertIn("d2r_pieceAlias_v2", self.code,
+                      "the alias list was widened without bumping its one-shot flag, so his board "
+                      "— which already recorded v1 — will never run the wider version")
+        self.assertNotIn("d2r_pieceAlias_v1", self.code,
+                         "both flag versions are present; the v1 guard would short-circuit v2")
+
+    def test_it_preserves_the_ITEM_and_only_corrects_the_label(self):
+        """THE NAME IS THE TESTIMONY, THE SLOT IS THE DECORATION. A reader read "Natalya's Soul"
+        off his screen; the "(claws)" was appended by a roster that was wrong at the time. Mapping
+        Soul(claws) onto Mark(claws) would change WHICH ITEM he is recorded as owning, off a label
+        that was never his testimony. [[unknown-stays-unknown]]"""
+        self.assertIn('"Natalya\'s Soul (claws)": "Natalya\'s Soul (boots)"', self.code,
+                      "the alias no longer preserves the item name — check it has not been "
+                      "rewritten to map Soul onto Mark")
+        self.assertNotIn('"Natalya\'s Soul (claws)": "Natalya\'s Mark', self.code,
+                         "the migration would rewrite WHICH ITEM he found, off a slot label that "
+                         "was never his testimony")
+
+
 class TestV2118TheApplyActuallyFiles(unittest.TestCase):
     """v2118 — queue #44. A comment described a call that did not exist, which is the most
     expensive kind, because everyone downstream reasons from it.
@@ -20529,8 +20590,12 @@ class TestV2118TheApplyActuallyFiles(unittest.TestCase):
         )
         i = self.code.find("window.vaultAutoAssign()")
         guard = self.code[max(0, i - 240):i]
+        # v2122 (#141) — AND `res.vaulted` IS PART OF THE CONDITION NOW. v2118 gated the call on
+        # uniques-or-sets and a BASE lands in NEITHER (toggleOwned routes an unknown grail name to
+        # the physical vault, recorded in res.vaulted), so the one case that most needs filing was
+        # the one that never filed. Pinning the old spelling would have kept that green.
         self.assertIn(
-            "res.uniques.length || res.sets.length", guard,
+            "res.vaulted", guard,
             "the assembler runs even when the apply landed nothing, which churns the vault "
             "ledger on every no-op",
         )

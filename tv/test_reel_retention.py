@@ -390,6 +390,33 @@ class TestV2122TheTwoDeletersAgreeAboutTheSameFootage(unittest.TestCase):
         finally:
             rr.HERE = real
 
+    def _frame_plan(self, root, hist):
+        """v2122 (#143) — ASK THE OTHER DELETER TOO, or this is not an agreement test.
+
+        The first cut of this class asked reel_retention alone: it proved "the reel deleter holds",
+        never "the two deleters agree". frame_authority could start OFFERING frames in this state
+        and nothing here would notice — which is the same one-sidedness the original #32 report
+        called out in the test it replaced."""
+        import frame_authority as fa
+        real = fa.HERE
+        fa.HERE = root
+        try:
+            return fa.plan_frames(hist, root=root, keep=0)
+        finally:
+            fa.HERE = real
+
+    def test_the_two_deleters_give_the_SAME_answer_with_no_index(self):
+        """The actual invariant. Neither may release footage the other is protecting."""
+        root, hist = self._tree(durable=False)
+        frames = self._frame_plan(root, hist)
+        reels = self._plan(root, hist)
+        self.assertEqual(frames.get("prunable"), [],
+                         "the FRAME deleter offered frames with no durable witness index — the "
+                         "premise this whole agreement rests on has changed")
+        self.assertEqual(reels.get("candidates"), [],
+                         "the REEL deleter offered footage the frame deleter refuses to touch: "
+                         "two authorities, opposite answers, and footage has no un-delete")
+
     def test_no_durable_index_holds_every_reel(self):
         root, hist = self._tree(durable=False)
         p = self._plan(root, hist)

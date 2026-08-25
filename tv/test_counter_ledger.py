@@ -213,7 +213,11 @@ class TestAgainstTheRealRosterAndTheRealReading(unittest.TestCase):
         the page actually names. [[feedback-contradiction-is-the-finding]]"""
         ev_path = os.path.join(HERE, "chron_evidence.json")
         if not os.path.isfile(ev_path):
-            self.skipTest("no chron_evidence.json on this machine")
+            # ⚠ chron_evidence.json is UNTRACKED (it carries item names, and this repo is PUBLIC),
+            # so this case is a permanent SKIP on CI and only ever runs on his machine. A skip is
+            # not a pass — say which venue actually proved it. [[feedback-blind-fixture-green-gate]]
+            self.skipTest("no chron_evidence.json here — this case only ever runs on HIS machine, "
+                          "so CI has never proven it either way")
         with open(ev_path, encoding="utf-8") as fh:
             ev = json.load(fh)
 
@@ -221,7 +225,21 @@ class TestAgainstTheRealRosterAndTheRealReading(unittest.TestCase):
         self.assertIn("Natalya's Mark (claws)", r["names"],
                       "the corrected reading no longer names the Suwayyah row this case is about")
 
-        out = cl.denied(ev.get("sets") or {})
+        # v2122 (#144) — PIN THE SPLIT ITSELF, or `denied == []` proves nothing. Empty evidence,
+        # evidence that has lost the Soul sightings, or evidence that already names Mark would all
+        # keep the assertion below green while the finding it describes had evaporated.
+        sets = ev.get("sets") or {}
+        soul = [k for k in sets if k.startswith("Natalya's Soul")]
+        mark = [k for k in sets if k.startswith("Natalya's Mark")]
+        self.assertTrue(soul,
+                        "the evidence no longer carries a Natalya's Soul sighting, so the two-sides"
+                        "-name-different-pieces finding this case documents is not what is being "
+                        "measured any more")
+        self.assertEqual(mark, [],
+                         "the evidence now names Natalya's Mark too — the page names it as MISSING, "
+                         "so this should be a DENIAL and the empty result below would be hiding one")
+
+        out = cl.denied(sets)
         self.assertEqual([d["name"] for d in out["denied"]], [],
                          "his evidence names Natalya's Soul and the page names Natalya's Mark — "
                          "denying across two different pieces would destroy a real find")
