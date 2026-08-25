@@ -3374,6 +3374,32 @@
   .chron-apply { border-color: rgba(143,230,160,.42); background: rgba(143,230,160,.10);
     color: var(--st-good); }
   .chron-apply:hover { background: rgba(143,230,160,.18); }
+  /* ══ v2127 — FOUR BUTTONS, FOUR DIFFERENT CONSEQUENCES, ONE APPEARANCE ═══════════════════════
+     Konyo: "these buttons price the sweep, run it again, register 7, forget what is swept — i want
+     them emphasized if they have meaning.. if they dont then remove/hide them."
+
+     They all had meaning; what they did not have was WEIGHT. Priced by what pressing them costs:
+
+       register N ✓      the ONLY one that writes to his ledger        -> PRIMARY, loudest
+       run it again      spends real money on model calls              -> marked COSTLY, not neutral
+       price the sweep   reads nothing, writes nothing, costs nothing  -> QUIET
+       forget what is..  discards the proposal (already arm-to-confirm)-> QUIET + danger tint
+
+     A row where the free one and the paid one and the writing one look identical is a row he has
+     to read every time to use safely. */
+  .chron-apply { font-weight: var(--fw-bold); padding: 7px 15px;
+    box-shadow: 0 0 0 1px rgba(143,230,160,.18), 0 2px 8px -2px rgba(143,230,160,.35); }
+  .chron-cost { border-color: rgba(240,192,96,.45); background: rgba(240,192,96,.10);
+    color: var(--gold-bright, #f0c060); }
+  .chron-cost:hover { background: rgba(240,192,96,.18); }
+  .chron-cost::before { content: '\25c8 '; opacity: .8; }        /* it spends something */
+  .chron-quiet { opacity: .72; font-weight: var(--fw-medium);
+    border-color: rgba(198,166,100,.20); background: transparent; }
+  .chron-quiet:hover { opacity: 1; background: rgba(198,166,100,.10); }
+  .chron-drop { opacity: .66; border-color: rgba(255,110,110,.22); background: transparent;
+    color: #e6b2b2; }
+  .chron-drop:hover { opacity: 1; border-color: rgba(255,110,110,.5);
+    background: rgba(255,110,110,.10); }
   .chron-note { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
     color: var(--st-idle); }
 
@@ -5337,8 +5363,8 @@
             <div class="chron-idle">tap to price it — no model call, nothing written</div>
           </div>
           <div class="chron-foot">
-            <button class="chron-btn" type="button" id="chron-scan">price the sweep</button>
-            <button class="chron-btn chron-go" type="button" id="chron-run" hidden>run it for real</button>
+            <button class="chron-btn chron-quiet" type="button" id="chron-scan">price the sweep</button>
+            <button class="chron-btn chron-go chron-cost" type="button" id="chron-run" hidden>run it for real</button>
             <button class="chron-btn chron-apply" type="button" id="chron-apply" hidden>register them ✓</button>
             <!-- v1550 — TWO TOOLS THAT EXISTED WITH NO TAP.
                  An audit of every /api/ route against control_ui.html found four with no consumer.
@@ -5350,7 +5376,7 @@
                    /api/chronicle_forget (v1524) clears the sweep memory. Its own docstring says
                      "an optimisation he cannot clear is a cage" — and it was one. -->
             <button class="chron-btn" type="button" id="chron-tune" hidden>⚖ tune the gate</button>
-            <button class="chron-btn" type="button" id="chron-forget">↺ forget what is swept</button>
+            <button class="chron-btn chron-drop" type="button" id="chron-forget">↺ forget what is swept</button>
             <span class="chron-note" id="chron-note">reads nothing · costs nothing · changes nothing</span>
           </div>
           <div class="chron-tune" id="chron-tune-panel" hidden>
@@ -5417,10 +5443,10 @@
             <div class="chron-idle">tap to price it — no model call, nothing written</div>
           </div>
           <div class="chron-foot">
-            <button class="chron-btn" type="button" id="vault-scan">price the sweep</button>
-            <button class="chron-btn chron-go" type="button" id="vault-run" hidden>run it for real</button>
+            <button class="chron-btn chron-quiet" type="button" id="vault-scan">price the sweep</button>
+            <button class="chron-btn chron-go chron-cost" type="button" id="vault-run" hidden>run it for real</button>
             <button class="chron-btn chron-apply" type="button" id="vault-apply" hidden>register them ✓</button>
-            <button class="chron-btn" type="button" id="vault-forget">↺ forget what is swept</button>
+            <button class="chron-btn chron-drop" type="button" id="vault-forget">↺ forget what is swept</button>
             <span class="chron-note" id="vault-note">reads nothing · costs nothing · changes nothing</span>
           </div>
           <div class="chron-review" id="vault-review" hidden></div>

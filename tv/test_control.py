@@ -20565,6 +20565,53 @@ class TestV2124FilingAnItemDoesNotChangeWhereItBelongs(unittest.TestCase):
                       "the end-to-end case no longer goes through the real door")
 
 
+class TestV2126TheWaitingBannerOpensTheRoomItNames(unittest.TestCase):
+    """Konyo: "347 finds waiting to register but when i click it nothing happens".
+
+    The banner's own label reads "TV·D ▸ Chronicle Sweep →" and its handler called `_shellHome()`
+    alone. shellHome lights the TV·D tab but does NOT clear `data-view`, and #hd-chron is
+    display:none under data-view="sessions" — which the comment directly above the banner already
+    SAYS, in the sentence explaining why the banner had to exist at all. So it scrolled to a hidden
+    element and nothing moved.
+
+    MEASURED on his live console before the fix:
+        before _shellHome()   view=sessions  #hd-chron visible=false  height=0
+        after  _shellHome()   view=sessions  #hd-chron visible=false  height=0
+    and after: view=null, visible=true, height=1087, register button reachable.
+    [[the-unjoined-end]]"""
+
+    def setUp(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            self.ui = fh.read()
+        self.body = _between(self, self.ui, "window._chronWaitingJump = function", "window._shellHome =",
+                             what="the waiting-banner jump")
+        self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        self.assertGreater(len(self.code.strip()), 120, "the comment strip ate the handler")
+
+    def test_it_leaves_the_sessions_view_first(self):
+        self.assertIn("removeAttribute('data-view')", self.code,
+                      "the jump does not leave the Sessions view, so #hd-chron stays display:none "
+                      "and the click lands on a 0x0 element — exactly what he reported")
+
+    def test_it_still_goes_to_the_cockpit_and_to_the_panel(self):
+        self.assertIn("shellHome()", self.code, "the jump no longer opens the TV·D cockpit")
+        self.assertIn("hd-chron", self.code, "the jump no longer targets the Chronicle Sweep panel")
+
+    def test_the_button_calls_the_one_door(self):
+        """The header's TV·D button and this banner must not grow two ways to reach the cockpit."""
+        btn = _between(self, self.ui, 'id="chron-waiting"', "</button>", what="the waiting banner")
+        self.assertIn("_chronWaitingJump", btn,
+                      "the banner has its own inline route again — the last one drifted from the "
+                      "header button and stopped working")
+
+    def test_the_label_says_what_it_MEANS_not_only_where_it_goes(self):
+        """His question was "what does it mean and what is it meant for?" — a state ("waiting to
+        register") is not a meaning."""
+        self.assertIn("not in your grail yet", self.ui,
+                      "the banner no longer says these finds are NOT in his ledger yet, which is "
+                      "the whole point of the proposal being read-only")
+
+
 class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
     """MEASURED tonight, on his live console: the footer said "4.7GB free, BELOW the 8GB floor"
     while the disk actually held 8.3GB. 3.6GB had been freed since the retention watcher last

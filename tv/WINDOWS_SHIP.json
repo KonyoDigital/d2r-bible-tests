@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2126",
+  "ver": "v2127",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2126: Konyo asked what the finds waiting to register banner under the TZ tracker means and reported that clicking it does nothing. Its label named the TV D chronicle sweep and its handler called shell home alone, which lights the TV D tab but never clears the sessions view, and the chronicle panel is display none under that view, so it scrolled to a hidden element and nothing moved. It now goes through the same door the header TV D button uses, lands on the panel with a brief ring so he can see where he was sent, and says what the number means rather than only where it goes.",
+  "note": "v2127: Konyo asked for the sweep panel buttons to be emphasized if they have meaning and hidden if they do not. All four had meaning and none of them had weight, so they are now priced by what pressing them costs. Register is the only one that writes to his ledger and is the primary. Run it for real spends real money on model calls and is marked as costing something. Price the sweep reads nothing and writes nothing and is quiet. Forget what is swept discards the proposal and carries a danger tint on top of the confirm it already had.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
