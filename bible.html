@@ -13267,7 +13267,16 @@ const ITEM_SETS = [
   {name:"Trang-Oul's Avatar (Necro)",pieces:["Trang-Oul's Guise (helm)","Trang-Oul's Scales (armor)","Trang-Oul's Wing (shield)","Trang-Oul's Claws (gloves)","Trang-Oul's Girth (belt)"]},
   {name:"Immortal King (Barb)",pieces:["Immortal King's Will (helm)","Immortal King's Soul Cage (armor)","Immortal King's Detail (belt)","Immortal King's Forge (gloves)","Immortal King's Pillar (boots)","Immortal King's Stone Crusher (hammer)"]},
   {name:"M'avina's Battle Hymn (Ama)",pieces:["M'avina's True Sight (helm)","M'avina's Embrace (armor)","M'avina's Icy Clutch (gloves)","M'avina's Tenet (belt)","M'avina's Caster (bow)"]},
-  {name:"Natalya's Odium (Sin)",pieces:["Natalya's Totem (helm)","Natalya's Shadow (armor)","Natalya's Mark (boots)","Natalya's Soul (claws)"]},
+  /* v2116 — THE TWO SLOT LABELS WERE SWAPPED, AND THE APP CONTRADICTED ITSELF ABOUT IT.
+     Konyo, with the game open beside the app: "you see how claws is boots image.. and the
+     boots is a claw image? its completely opposite".
+     He was right, and the app already held the answer: its own item data says
+     Natalya's Mark -> slot "Scissors Suwayyah" (a CLAW base) and Natalya's Soul ->
+     slot "Mesh Boots". This roster said the opposite. The ART comes from the item data and
+     the LABEL from here, which is why one row showed boots art under the word claws.
+     A sweep of all 12 sets against the item bases found exactly these two and no others.
+     [[feedback-contradiction-is-the-finding]] */
+  {name:"Natalya's Odium (Sin)",pieces:["Natalya's Totem (helm)","Natalya's Shadow (armor)","Natalya's Mark (claws)","Natalya's Soul (boots)"]},
   {name:"Griswold's Legacy (Pala)",pieces:["Griswold's Valor (helm)","Griswold's Heart (armor)","Griswold's Honor (shield)","Griswold's Redemption (scepter)"]},
   {name:"Aldur's Watchtower (Druid)",pieces:["Aldur's Stony Gaze (helm)","Aldur's Deception (armor)","Aldur's Advance (boots)","Aldur's Rhythm (mace)"]},
   {name:"Bul-Kathos' Children (Barb)",pieces:["Bul-Kathos' Sacred Charge (sword)","Bul-Kathos' Tribal Guardian (sword)"]},
@@ -45180,7 +45189,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2115', name:'v2115 - an unreadable store is not an empty one', date:'2026-08-25', note:'The queue P0 batch, and it is a data-loss class. Four loaders swallowed a read error into an empty dict and four savers wrote back inside the SAME function, so one bad read gave: load empty, the sweep treats everything as never-swept, save, and his ledger is gone. The savers were already torn-write safe since v1209, which protects a write that is INTERRUPTED and does nothing about a write of the WRONG THING. Absent and unreadable are different facts and only one is safe to overwrite. The guard corrupts a real file and checks the bytes survive.' };
+  window.D2R_BUILD = { id:'v2116', name:'v2116 - armed is not reading', date:'2026-08-25', note:'Four from the queue and the second eye. Natalya slot labels were swapped and the app contradicted its own item data - the art came from the data and the label from the roster, which is why the claws row showed boots art; a sweep of all twelve sets found exactly those two. The chronicle evidence saver has been raising on a python set and three earlier versions only made that audible, so it now sanitises AND names the field it had to fix. The shadow switches said waiting for a reel while the disk floor made recording impossible - waiting implies it could happen. And the EYES card printed yesterday refusal as a live meter, so every error site now stamps when it happened.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

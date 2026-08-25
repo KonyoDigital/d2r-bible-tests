@@ -54,7 +54,7 @@ _API_STRIP = (
 _CALL_LOG: list[float] = []
 _STATS = {
     "calls": 0, "ok": 0, "errors": 0, "skipped_budget": 0, "shadow": 0, "primary": 0,
-    "last": None, "last_error": None, "lane": "subscription-cli",
+    "last": None, "last_error": None, "last_error_ts": None, "lane": "subscription-cli",
 }
 _LOCK = threading.Lock()
 _AUTH_LOGGED = False
@@ -299,7 +299,7 @@ def _log_auth_once(stripped):
         return
     _AUTH_LOGGED = True
     if stripped:
-        _STATS["last_error"] = None  # not an error
+        _STATS["last_error"] = None; _STATS["last_error_ts"] = None  # not an error
         # leave a breadcrumb in stats
         _STATS["stripped_api_env"] = ",".join(stripped)
 
@@ -458,7 +458,7 @@ def start_login(*, prefer_oauth=True):
             )
             _LOGIN_STARTED_AT = time.time()
             _STATS["last"] = "login-started"
-            _STATS["last_error"] = None
+            _STATS["last_error"] = None; _STATS["last_error_ts"] = None
             return {
                 "ok": True, "started": True, "reason": "spawned",
                 "msg": "browser authorize opened — complete SuperGrok login, then PRIMARY stays green",
@@ -467,6 +467,7 @@ def start_login(*, prefer_oauth=True):
             }
         except Exception as e:
             _LOGIN_PROC = None
+            _STATS["last_error_ts"] = int(time.time() * 1000)
             _STATS["last_error"] = f"login spawn failed: {e}"
             return {
                 "ok": False, "started": False, "reason": "spawn-failed",
@@ -679,7 +680,7 @@ def _stats_flush():
             merged = dict(base)
             for k in _COUNTERS:
                 merged[k] = int(base.get(k) or 0) + int(_STATS.get(k) or 0)
-            for k in ("last", "last_error", "lane", "stripped_api_env"):
+            for k in ("last", "last_error", "last_error_ts", "lane", "stripped_api_env"):
                 if _STATS.get(k) is not None:
                     merged[k] = _STATS[k]
             merged["ts"] = time.time()
@@ -788,6 +789,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         # quiet" and "the eye is rationed" are different facts and he acts on them differently.
         _STATS["skipped_budget"] += 1
         h, d = _budget_counts()          # (this hour, today)
+        _STATS["last_error_ts"] = int(time.time() * 1000)
         _STATS["last_error"] = ("budget: %s/%s this hour, %s/%s today — refused, not failed"
                                 % (h, _HOURLY_MAX, d, _DAILY_MAX))
         _stats_flush()
@@ -799,6 +801,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
 
     bin_path = _grok_bin()
     if not bin_path:
+        _STATS["last_error_ts"] = int(time.time() * 1000)
         _STATS["last_error"] = "grok CLI not on PATH"
         _stats_flush()
         return None
@@ -848,6 +851,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     except subprocess.TimeoutExpired:
         _STATS["errors"] += 1
         _STATS["calls"] += 1
+        _STATS["last_error_ts"] = int(time.time() * 1000)
         _STATS["last_error"] = f"grok -p timeout {_TIMEOUT_S:.0f}s"
         _stats_flush()
         _cleanup(work)
@@ -855,6 +859,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     except Exception as e:
         _STATS["errors"] += 1
         _STATS["calls"] += 1
+        _STATS["last_error_ts"] = int(time.time() * 1000)
         _STATS["last_error"] = str(e)[:160]
         _stats_flush()
         _cleanup(work)
@@ -868,6 +873,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     if r.returncode != 0 and not out:
         _STATS["errors"] += 1
         err = (r.stderr or "")[:200]
+        _STATS["last_error_ts"] = int(time.time() * 1000)
         _STATS["last_error"] = f"grok exit {r.returncode}: {err}"
         _stats_flush()
         return None
@@ -892,6 +898,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         _m = _re.search(r"status (\d{3})", _err) or _re.search(r"http_status\"?\s*:\s*(\d{3})", _err)
         if _m:
             _status = _m.group(1)
+        _STATS["last_error_ts"] = int(time.time() * 1000)
         _STATS["last_error"] = (("grok HTTP %s — %s" % (_status, _err[:220])) if _status
                                 else ("grok gave no JSON — said: %s" % (_err[:220] or "(nothing)")))
         _stats_flush()

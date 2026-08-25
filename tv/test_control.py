@@ -20184,7 +20184,11 @@ class TestV2114ABorrowedTitleStaysBorrowed(unittest.TestCase):
             if i < 0:
                 i = src.find("function release()")
             self.assertGreater(i, 0, "%s has no release path" % who)
-            body = src[i:i + 500]
+            # v2116 — _between, not a byte count: this file's own ratchet forbids new
+            # byte-counted slices, and it is right to. A window a later comment outgrows comes
+            # back short, and assertIn on a short slice fails for the wrong reason.
+            end = "say: function(" if "say: function(" in src[i:] else "function say("
+            body = _between(self, src[i:], "release", end, what="%s release path" % who)
             self.assertIn("disconnect()", body,
                           "%s never disconnects the observer, so it keeps re-stealing the title "
                           "of an element the pointer has already left" % who)

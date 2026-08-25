@@ -11540,14 +11540,36 @@
       var on = !!st.on, avail = st.available !== false;
       btn.disabled = !avail;
       btn.setAttribute('aria-pressed', on && avail ? 'true' : 'false');
+      /* v2116 — "WAITING" IMPLIES IT COULD HAPPEN. A second eye, reading the live console:
+         "Armed. Not reading. The green lamps are real flags. Nothing is looking at the game right
+         now." Both switches read ON · waiting for a reel while the disk sat at 6.6GB against an
+         8GB floor — so ON AIR would REFUSE, no reel could ever roll, and the sentence described a
+         wait that had no end. That is the g5 scar in a different lane: READY is not ASKED, and a
+         lamp that cannot distinguish them is decoration with a colour.
+         `_shadowFloorSay` carries the refusal reason from /api/status when there is one. */
+      var _blocked = (typeof window._shadowFloorSay === 'string') ? window._shadowFloorSay : '';
       say.textContent = !avail ? 'this machine cannot run it — the switch is decoration'
         : on ? (j.recording ? 'ON · a reel is rolling, it is reading'
-                            : 'ON · waiting for a reel — it only fires while one rolls')
+                            : (_blocked
+                                 ? ('ON, but nothing can record — ' + _blocked
+                                    + '. It only fires while a reel rolls, and none can start.')
+                                 : 'ON · waiting for a reel — it only fires while one rolls'))
              : 'OFF — nothing is reading the live frame';
     });
   }
 
   window._shadowAdvRefresh = function () {
+    /* v2116 — ask the DISK before describing the wait. Kept as a separate, non-blocking read so a
+       slow/absent /api/status can never stop the switches from painting: absent simply means we
+       have nothing extra to say, not that everything is fine. */
+    try {
+      fetch(API + '/api/status').then(function (r) { return r.json(); }).then(function (s2) {
+        var h = (s2 && s2.health) || {};
+        var free = h.freeGB, floor = h.minFreeGB;
+        window._shadowFloorSay = (free != null && floor != null && free < floor)
+          ? (free + 'GB free, needs ' + floor + 'GB') : '';
+      }).catch(function () { window._shadowFloorSay = ''; });
+    } catch (e) { window._shadowFloorSay = ''; }
     return fetch(API + '/api/shadow')
       .then(function (r) { return r.json(); })
       .then(function (j) { _shadowAdvPaint(j, null); return j; })
@@ -11723,7 +11745,32 @@
         bits.unshift('⚠ switched to ' + esc(intent).toUpperCase() + ' but NOT running — ' + esc(st.blockedWhy || 'blocked'));
       }
       var g5s = st.stats || {};
-      if (g5s.last_error) bits.push('⚠ last Grok error (intake lane): ' + String(g5s.last_error).slice(0, 90));
+      /* v2116 — A LAST ERROR CARRIES ITS AGE, OR IT READS AS NOW. A second eye, on the live
+         console: "The EYES card is still painting yesterday's 208/200 today — refused, while the
+         live budget is 0/30 this hour, 0/200 today. That's a stale last_error, not a live meter."
+         It was exactly that: the field is a SENTENCE with numbers in it, printed verbatim, and
+         the sentence outlived the day it described. The lane now stamps `last_error_ts` (7 sites),
+         so the age can be stated — and where the live budget CONTRADICTS the remembered one, the
+         contradiction is the finding and gets said out loud rather than averaged away.
+         [[stale-reading]] [[feedback-contradiction-is-the-finding]] */
+      if (g5s.last_error){
+        var _et = g5s.last_error_ts, _age = '';
+        if (_et){
+          var _mins = Math.max(0, Math.round((Date.now() - _et) / 60000));
+          _age = _mins < 60 ? (_mins + 'm ago')
+               : _mins < 1440 ? (Math.round(_mins / 60) + 'h ago')
+               : (Math.round(_mins / 1440) + 'd ago');
+        }
+        var _stale = '';
+        var _bq = st.budget || {};
+        if (/(\d+)\/(\d+) today/.test(String(g5s.last_error)) && _bq.dailyUsed === 0){
+          _stale = ' — the live budget is ' + (_bq.hourlyUsed || 0) + '/' + (_bq.hourlyMax || '?')
+                 + ' this hour, ' + (_bq.dailyUsed || 0) + '/' + (_bq.dailyMax || '?')
+                 + ' today, so this is a MEMORY, not the meter';
+        }
+        bits.push('⚠ last Grok error (intake lane' + (_age ? (', ' + _age) : ', age unknown') + '): '
+                  + String(g5s.last_error).slice(0, 90) + _stale);
+      }
       if (g5s.errors) bits.push(g5s.errors + ' error(s) / ' + (g5s.calls || 0) + ' call(s)');
       bits.push('default OFF · cousin never needs this');
       if (hint) hint.textContent = bits.join(' · ');

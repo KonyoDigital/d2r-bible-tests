@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2115",
+  "ver": "v2116",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2115: The queue P0 batch, and it is a data-loss class. Four loaders swallowed a read error into an empty dict and four savers wrote back inside the SAME function, so one bad read gave: load empty, the sweep treats everything as never-swept, save, and his ledger is gone. The savers were already torn-write safe since v1209, which protects a write that is INTERRUPTED and does nothing about a write of the WRONG THING. Absent and unreadable are different facts and only one is safe to overwrite. The guard corrupts a real file and checks the bytes survive.",
+  "note": "v2116: Four from the queue and the second eye. Natalya slot labels were swapped and the app contradicted its own item data - the art came from the data and the label from the roster, which is why the claws row showed boots art; a sweep of all twelve sets found exactly those two. The chronicle evidence saver has been raising on a python set and three earlier versions only made that audible, so it now sanitises AND names the field it had to fix. The shadow switches said waiting for a reel while the disk floor made recording impossible - waiting implies it could happen. And the EYES card printed yesterday refusal as a live meter, so every error site now stamps when it happened.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

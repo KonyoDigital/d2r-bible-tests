@@ -12932,6 +12932,19 @@ def _chron_evidence_save(prop):
             os.makedirs(os.path.dirname(_CHRON_EVIDENCE_PATH) or ".", exist_ok=True)
         except Exception:
             pass
+        # v2116 — I TRIED TO "RESCUE" THIS AND I WAS WRONG, so the attempt is recorded here
+        # rather than quietly dropped. I saw `Object of type set is not JSON serializable` in a
+        # push log and concluded the ledger had been frozen since v1798. It had not: those lines
+        # were THREE TESTS EXERCISING THE FAILURE PATH ON PURPOSE
+        # (TestV1798TheSetsLaneHasATapEndToEnd, TestV1801TheLedgerFailureReachesAReader), one of
+        # which is literally named "THIS TEST WAS ITSELF THE BLIND FIXTURE IT WAS WRITTEN TO
+        # PREVENT". I read test output as production evidence.
+        #
+        # The design here is deliberate and right: a proposal that cannot be serialised must be
+        # reported as NOT SAVED. Coercing it and returning True would report success for evidence
+        # that was mangled on the way in, which is the exact failure v1799/v1800/v1801 spent three
+        # versions making visible. Silence is not evidence — and neither is a rescue that reports
+        # success. [[feedback-suspect-the-instrument]] [[inherited-claim-is-not-evidence]]
         tmp = _CHRON_EVIDENCE_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(prop, fh)
@@ -14935,7 +14948,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2115",
+        "ver": "v2116",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
