@@ -16924,9 +16924,17 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         for k in ("checked", "running", "disk", "drift", "say"):
             self.assertIn(k, d)
         # v2120 (#24) — see the eagle twin: PUBLISHED is not SHOWN.
+        # v2121 (#133) — AND STRIP THE PROSE, or this is the same defect it replaced. The live
+        # reader is ONE line (`var _d = st.drift || {}, _e = st.eagle || {};`); comment that line
+        # out and a raw grep still finds the string inside the comment. The sibling assertion in
+        # this same commit already strips for exactly this reason.
+        # [[feedback-comments-vs-code]] [[source-reading-guard]]
         with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as _fh:
             _ui = _fh.read()
-        self.assertIn("st.drift", _ui, "nothing on the console reads the version drift")
+        _ui_code = re.sub(r"/\*.{0,4000}?\*/", " ", _ui, flags=re.S)
+        _ui_code = re.sub(r"(?m)^\s*//.*$", "", _ui_code)
+        self.assertGreater(len(_ui_code), len(_ui) * 0.5, "the comment strip ate the console")
+        self.assertIn("st.drift", _ui_code, "nothing on the console reads the version drift")
 
     def test_before_it_has_run_it_says_so_rather_than_in_sync(self):
         """A drift field defaulting to False would read as 'in sync' from the first second, which is
@@ -17020,9 +17028,17 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # as a route with no consumer: the footer block that paints this could be deleted and this
         # test stayed green. Its own retention sibling already asserts its reader.
         # [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        # v2121 (#133) — AND STRIP THE PROSE, or this is the same defect it replaced. The live
+        # reader is ONE line (`var _d = st.drift || {}, _e = st.eagle || {};`); comment that line
+        # out and a raw grep still finds the string inside the comment. The sibling assertion in
+        # this same commit already strips for exactly this reason.
+        # [[feedback-comments-vs-code]] [[source-reading-guard]]
         with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as _fh:
             _ui = _fh.read()
-        self.assertIn("st.eagle", _ui, "nothing on the console reads the eagle")
+        _ui_code = re.sub(r"/\*.{0,4000}?\*/", " ", _ui, flags=re.S)
+        _ui_code = re.sub(r"(?m)^\s*//.*$", "", _ui_code)
+        self.assertGreater(len(_ui_code), len(_ui) * 0.5, "the comment strip ate the console")
+        self.assertIn("st.eagle", _ui_code, "nothing on the console reads the eagle")
 
     def test_before_it_has_run_it_says_so_rather_than_all_clear(self):
         """A watchdog defaulting to 'all clear' reads as reassurance nobody measured."""
@@ -20422,10 +20438,18 @@ class TestV2118TheApplyActuallyFiles(unittest.TestCase):
         self.body = _between(self, self.board,
                              "window._chronicleApplyInner = function(proposal, add, res){",
                              "window.chronicleUndoLast", what="the chronicle apply")
+        # v2121 (#126) — AND A COMMENT-FREE COPY FOR EVERY ASSERTION IN THIS CLASS. Test 3 already
+        # stripped prose, and said why; tests 1 and 2 read the raw slice, so a commented-out
+        # `// window.vaultAutoAssign();` kept them green AND could make .find() land on the comment
+        # so the 240-char guard window inspected prose instead of the `if`. All three could be
+        # green with the production call gone. [[feedback-comments-vs-code]] [[source-reading-guard]]
+        self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        self.code = re.sub(r"(?m)^\s*//.*$", "", self.code)
+        self.assertGreater(len(self.code.strip()), 400, "the comment strip ate the function body")
 
     def test_the_apply_files_after_the_batch(self):
         self.assertIn(
-            "window.vaultAutoAssign()", self.body,
+            "window.vaultAutoAssign()", self.code,
             "the apply registers the name and never files it. The comment inside this function "
             "says the door 'is called below, once, after the whole batch' — if that call is gone "
             "again, a hand tick leaves muleAssign untouched and only the sweep path files",
@@ -20435,12 +20459,12 @@ class TestV2118TheApplyActuallyFiles(unittest.TestCase):
         # per-name filing would re-run the whole assembler for every ticked item, and filing on an
         # empty apply churns the ledger and the byte-identity invariant for nothing
         self.assertEqual(
-            self.body.count("window.vaultAutoAssign()"), 1,
+            self.code.count("window.vaultAutoAssign()"), 1,
             "the apply calls the assembler more than once — it belongs after the batch, not "
             "inside the per-name loop",
         )
-        i = self.body.find("window.vaultAutoAssign()")
-        guard = self.body[max(0, i - 240):i]
+        i = self.code.find("window.vaultAutoAssign()")
+        guard = self.code[max(0, i - 240):i]
         self.assertIn(
             "res.uniques.length || res.sets.length", guard,
             "the assembler runs even when the apply landed nothing, which churns the vault "
@@ -20454,7 +20478,7 @@ class TestV2118TheApplyActuallyFiles(unittest.TestCase):
         # first cut wrote `assign[n] = suggestMule(n).id` inline"), so a raw grep fires on the
         # paragraph explaining the fix. Sixth time tonight; it should be the default in any
         # guard that greps source. [[feedback-comments-vs-code]]
-        code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        code = re.sub(r"/\*.*?\*/", " ", self.code, flags=re.S)
         code = re.sub(r"(?m)^\s*//.*$", "", code)
         self.assertGreater(len(code.strip()), 400, "the comment strip ate the function body")
         self.assertNotIn("assign[n] =", code,

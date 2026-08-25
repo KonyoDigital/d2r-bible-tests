@@ -203,7 +203,14 @@ def main(argv=None):
     # other note a non-skip path emits is "no-index", a zero-frame reel that reads nothing and is
     # correctly excluded too. [[label-outlived-referent]]
     _priced = [r for r in (quote.get("reels") or []) if not (r or {}).get("note")]
-    _nreels = len(_priced) if _priced else _fmt((quote.get("totals") or {}).get("reels"))
+    # v2121 (#131) — AN EMPTY FILTER IS NOT A MISSING LIST. The `else totals.reels` fallback was
+    # written when an empty `_priced` could only mean "quote.reels is absent"; after #80 it ALSO
+    # means "the filter correctly found zero readable reels" — a targeted --reel of something
+    # already swept, or a walk that is all skips. That printed "0 page read(s) across 18 reel(s)",
+    # which is v1834's lie again for the skip-all case. Ask whether the LIST exists, not whether it
+    # is non-empty. [[unknown-stays-unknown]]
+    _has_reels = isinstance(quote.get("reels"), list)
+    _nreels = len(_priced) if _has_reels else _fmt((quote.get("totals") or {}).get("reels"))
     print("\nthe free pass says: %s page read(s) across %s reel(s), %s classify — %s"
           % (_fmt(quote.get("wouldReadPages")), _nreels,
              _fmt(quote.get("wouldClassify")), (quote.get("verdict") or {}).get("state")))

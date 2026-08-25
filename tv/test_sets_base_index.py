@@ -302,7 +302,12 @@ class TestTheChroniclesShareOneStyle(unittest.TestCase):
         self.assertIsNotNone(m, "the sibling rule is gone — removing inline colours now leaves them "
                                 "unstyled, which is worse than the drift")
         members = [t.strip() for t in m.group(1).split(",")]
-        for sib in ("#tab-forge", "#tab-funi", "#tab-fsets"):
+        # v2121 (#127) — AND #tab-crafts. The replacement for the 3-tab literal pin kept the
+        # pre-v2094 trio as its required set, so the fourth sibling could drop straight back out
+        # and stay green — the very un-unify the original was watching for. Every member of the
+        # family is required; what is NOT required is the count, which is what made the old pin
+        # brittle.
+        for sib in ("#tab-forge", "#tab-crafts", "#tab-funi", "#tab-fsets"):
             self.assertIn(sib, members,
                           "%s dropped out of the shared .fp-fill rule — that sibling is now "
                           "unstyled and free to drift" % sib)
@@ -506,13 +511,45 @@ class TestNoGateSkipsSilently(unittest.TestCase):
         with io.open(p, encoding="utf-8") as fh:
             return fh.read()
 
-    def test_the_demo_gate_announces_every_skip(self):
+    def test_the_demo_gate_never_skips_for_a_missing_console(self):
+        """v2121 (#132) — THE LAW GOT STRONGER, SO THE PIN MOVED WITH IT.
+
+        This asserted the string "CONSOLE DEMOS SKIPPED", and v2119 deleted that branch: at
+        Konyo's instruction ("you can relaunch and verify you DONT NEED TO WAIT FOR ME TO DO IT
+        ... i want it locked as a workflow too") a silent port now STARTS a headless console and
+        runs the demos, and failing to start is a FAILURE rather than a skip. So the old pin went
+        red on the fix — the same shape as #80. Pin what must be TRUE, not the sentence that used
+        to be printed. [[feedback-state-the-bar-not-the-routes]]"""
         h = self._hook()
-        self.assertIn("CONSOLE DEMOS SKIPPED", h,
-                      "the app-down branch must SAY it skipped")
+        self.assertNotIn("CONSOLE DEMOS SKIPPED", h,
+                         "the app-down SKIP is back — a UI change can ship unverified again")
+        self.assertIn("control_app.py --no-open", h,
+                      "the gate no longer starts its own console when :17772 is silent")
+        self.assertIn("_demo_rc=1", h,
+                      "failing to start a console must be a FAILURE, not a quiet pass")
         self.assertIn("console demos not run", h,
-                      "the file-unchanged branch must say it skipped too — that is the branch that "
-                      "hid seven versions of a red gate")
+                      "the file-unchanged branch must still say it skipped — that is the branch "
+                      "that hid seven versions of a red gate")
+
+    def test_the_gate_stops_only_the_console_it_started(self):
+        """The safety half, and it is not optional: :17772 is his LIVE window. The gate may only
+        ever start one when the port is already silent, and may only ever stop the pid it started
+        — never by name. `pkill -f` cannot tell his console from the gate's and has cost him a
+        live window before. [[process-port-discipline]]"""
+        import re
+        h = self._hook()
+        # ⚠ STRIP THE SHELL COMMENTS. The first cut of this assertion fired on the hook's own
+        # sentence explaining that it must never use `pkill -f` — the rule forbidding the thing,
+        # read as the thing. Eighth time in one night that prose has stood in for code in a check
+        # of mine. [[feedback-comments-vs-code]] [[source-reading-guard]]
+        code = re.sub(r"(?m)^\s*#.*$", "", h)
+        self.assertGreater(len(code.strip()), 800, "the comment strip ate the hook")
+        self.assertNotIn("pkill", code,
+                         "the hook kills by NAME somewhere — that reaches his live console")
+        self.assertIn('kill "$_own_console"', h,
+                      "the gate does not stop the console it started, by pid")
+        self.assertIn("_own_console=$(cat", h,
+                      "the gate does not record WHICH pid it started, so it cannot stop just that one")
 
     def test_the_skip_says_how_long_it_has_been_skipping(self):
         """A count he can watch grow beats a line he stops seeing."""

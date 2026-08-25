@@ -4024,10 +4024,17 @@ try {
    a rejected read as a fresh find under a name whose suppression no longer matched it.
    [[the-unjoined-end]] [[unknown-stays-unknown]] */
 try {
-  if (!window.localStorage.getItem('d2r_pieceAlias_v1')){
+  if (!window.localStorage.getItem('d2r_pieceAlias_v2')){
     var _ALIAS = { "Natalya's Mark (boots)": "Natalya's Mark (claws)",
                    "Natalya's Soul (claws)": "Natalya's Soul (boots)" };
-    ['d2r_setPieces','d2r_setRepairRemoved','d2r_grailUnfound','d2r_foundLog'].forEach(function(k){
+    /* v2121 (#128) — AND THE TWO STORES THAT CARRY THE TESTIMONY. The first cut said "ALL FOUR
+       STORES, or the records stop agreeing with each other" and then omitted the two that matter
+       most: d2r_gameFound holds the in-game date and dropper ("05/27/2026, 01:02 · The Cow King ·
+       n=6" is recorded in this file's own v1963 note against this exact piece), and d2r_muleAssign
+       holds which locker he filed it to. Migrating the TICK without them leaves the date and the
+       locker stranded on a name nothing looks up any more. */
+    ['d2r_setPieces','d2r_setRepairRemoved','d2r_grailUnfound','d2r_foundLog',
+     'd2r_gameFound','d2r_muleAssign'].forEach(function(k){
       try {
         var raw = window.localStorage.getItem(k);   /* raw-ok: one-time rename migration */
         if (!raw) return;
@@ -4056,7 +4063,7 @@ try {
         }
       } catch(e){}
     });
-    try { window.localStorage.setItem('d2r_pieceAlias_v1','1'); } catch(e){}
+    try { window.localStorage.setItem('d2r_pieceAlias_v2','1'); } catch(e){}
   }
 } catch(e){}
 try {
@@ -26488,7 +26495,19 @@ window._jewelTipHtml = _jewelTipHtml;
       // v643 — no per-frame re-positioning: the card is glued to the item's rect, so it holds
       // perfectly still while the cursor travels inside the anchor (no more trailing wobble).
     });
-    document.addEventListener('mouseout', function(e){ var el=e.target.closest && e.target.closest(ARTTIP_SEL); if (el && el===cur){ _artFree(); cur=null; tip.classList.remove('on'); } });
+    document.addEventListener('mouseout', function(e){
+      var el=e.target.closest && e.target.closest(ARTTIP_SEL);
+      /* v2121 (#130) — LEAVING A CHILD IS NOT LEAVING THE WRAP. mouseout fires on every
+         child-to-child move inside the anchor (img -> label, padding -> img) and
+         e.target.closest(ARTTIP_SEL) is STILL `cur`, so this restored the borrowed title and hid
+         the rich card mid-hover — the OS grey box flickering back on exactly the anchors #107
+         existed to clear. The mousemove handler above already gets this right. */
+      if (el && el===cur){
+        var to = e.relatedTarget;
+        if (to && cur.contains && cur.contains(to)) return;   // still inside the same anchor
+        _artFree(); cur=null; tip.classList.remove('on');
+      }
+    });
     // ultimate safety net: leaving the document entirely also clears it
     document.addEventListener('mouseleave', function(){ if (cur){ _artFree(); cur=null; tip.classList.remove('on'); } });
     /* v2109 — PUBLISHED so the prose lane can DEFER to this one instead of racing it.
@@ -45330,7 +45349,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2120', name:'v2120 - the price, the pin and the plain tab', date:'2026-08-25', note:'Queue 113 80 53 23 110 105 88 66 61 42. A store that parsed but held the wrong shape was treated as a clean empty and then overwritten, which is the data-loss class v2115 closed for corrupt files and left open for valid JSON of the wrong type. The reel price counted reels the sweep would never read, because v2098 made the skip note conditional and the filter still named only the old word. The disk refusal quoted a hardcoded 8GB beside a constant it guards on. The grail wall jumped back to row one on the first tick because it returned before binding its own scroll listener. A shell route reported success when the function merely existed. The in-app auto pull ignored the pin both launchers honour, and the Mac launcher had a second pull site that ignored it too. The tab strip could still clip silently at narrow widths. The vault tab carried a tint nothing consumed under a comment saying it did.' };
+  window.D2R_BUILD = { id:'v2121', name:'v2121 - the reviews of my own night', date:'2026-08-25', note:'Queue 131 128 130 133 127 132 126. The reel price fell back to the whole walk whenever the filter correctly found zero readable reels, which is the same lie for the skip-all case. The Natalya rename migrated four stores and missed the two that carry his testimony, the in-game date and the mule locker. The borrowed tooltip title was given back on every child-to-child move inside the same anchor, so the OS box flickered back mid-hover. Three guards I shipped in the same night could not fail for what they name: two file-wide greps added by the very commit that fixed file-wide greps, a sibling list that dropped the fourth member, and an apply pin that read its own comments. And the console gate lock broke the test that pins it, because the law got stronger and the pin still named the old sentence.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

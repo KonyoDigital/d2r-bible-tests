@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2120",
+  "ver": "v2121",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2120: Queue 113 80 53 23 110 105 88 66 61 42. A store that parsed but held the wrong shape was treated as a clean empty and then overwritten, which is the data-loss class v2115 closed for corrupt files and left open for valid JSON of the wrong type. The reel price counted reels the sweep would never read, because v2098 made the skip note conditional and the filter still named only the old word. The disk refusal quoted a hardcoded 8GB beside a constant it guards on. The grail wall jumped back to row one on the first tick because it returned before binding its own scroll listener. A shell route reported success when the function merely existed. The in-app auto pull ignored the pin both launchers honour, and the Mac launcher had a second pull site that ignored it too. The tab strip could still clip silently at narrow widths. The vault tab carried a tint nothing consumed under a comment saying it did.",
+  "note": "v2121: Queue 131 128 130 133 127 132 126. The reel price fell back to the whole walk whenever the filter correctly found zero readable reels, which is the same lie for the skip-all case. The Natalya rename migrated four stores and missed the two that carry his testimony, the in-game date and the mule locker. The borrowed tooltip title was given back on every child-to-child move inside the same anchor, so the OS box flickered back mid-hover. Three guards I shipped in the same night could not fail for what they name: two file-wide greps added by the very commit that fixed file-wide greps, a sibling list that dropped the fourth member, and an apply pin that read its own comments. And the console gate lock broke the test that pins it, because the law got stronger and the pin still named the old sentence.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
