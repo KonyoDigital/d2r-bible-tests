@@ -4240,6 +4240,25 @@
   .adv-sec-h { margin: 8px 0 5px; font-size: var(--fs-2xs); font-weight: var(--fw-semibold);
     letter-spacing: var(--ls-label); color: #c4b5e8; text-transform: uppercase;
     border-bottom: 1px solid rgba(185,162,224,.22); padding-bottom: 4px; }
+  /* v2085 — built from the drawer's existing vocabulary: the same --fs-*/--fw-* tokens, the same
+     edge and accent variables the util-strip uses. A control that invents its own scale reads as
+     bolted on, and this one sits directly under the eyes card. */
+  .shadow-adv { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 4px; }
+  .shadow-adv-sw { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 10px;
+    background: rgba(255,255,255,.03); border: 1px solid var(--edge, rgba(255,255,255,.10));
+    border-radius: 9px; cursor: pointer; text-align: left; color: inherit;
+    transition: border-color .14s, background .14s; }
+  .shadow-adv-sw:hover { border-color: var(--edge-hi, rgba(255,255,255,.22)); background: rgba(255,255,255,.055); }
+  .shadow-adv-sw[aria-pressed="true"] { border-color: rgba(143,230,160,.5); background: rgba(143,230,160,.08); }
+  .shadow-adv-sw[disabled] { opacity: .5; cursor: default; }
+  .shadow-adv-dot { flex: none; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-muted, #b5a48a); box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+  .shadow-adv-sw[aria-pressed="true"] .shadow-adv-dot { background: #8fe6a0; box-shadow: 0 0 8px rgba(143,230,160,.7); }
+  .shadow-adv-ic { flex: none; font-size: var(--fs-lg); line-height: 1; opacity: .9; }
+  .shadow-adv-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .shadow-adv-t b { font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-tight); }
+  .shadow-adv-t small { font-size: var(--fs-2xs); color: var(--text-muted, #b5a48a);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .adv-sec-h-rest { margin-top: 14px; color: var(--text-muted, #b5a48a);
     border-bottom-color: var(--edge, rgba(255,255,255,.14)); }
   .g5-eyes-card { margin-top: 8px; padding: 8px 9px; border: 1px solid rgba(185,162,224,.28);
@@ -5166,7 +5185,7 @@
       <div class="rail-secondary">
         <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
              The utility strip keeps the rare paths one small click away, out of the flow. -->
-        <details class="sig-adv" ontoggle="if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
+        <details class="sig-adv" ontoggle="if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._shadowAdvRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
           <summary>⚙ ADVANCED</summary>
           <!-- v2076 — THE CONTROL THAT DECIDES WHETHER THE THIRD EYE RUNS WAS 20th OF 25.
                Konyo, twice: "when i click ADVANCED settings to toggle grok eyes ... i dont see it at
@@ -5203,6 +5222,37 @@
             <div class="g5-eyes-hint" id="g5-eyes-hint">optional · default OFF · cousin never needs this</div>
           </div>
           <!-- ══ END GROK EYES (G5) ══ -->
+          <!-- ══ v2085 — THE TWO SWITCHES THAT LIVED ONLY IN THE BOARD'S TOOLS TAB ══════════════
+               Konyo: "the toggle buttons for shadow and the others put also in ADVANCED SETTINGs
+               surgically put it there and typography and polish it perfectly".
+
+               They were never website features: both call _shadowOnConsole(), which tests
+               location.host for :17772/:17771, so on bull-4-u.com they hide entirely. Console
+               controls, reachable only by opening the board, finding Tools among sixteen cards,
+               and scrolling. This is the console's own drawer — the place he opens to change how
+               the machine behaves.
+
+               ONE SOURCE OF TRUTH, TWO VIEWS. Both surfaces read /api/shadow, the same endpoint
+               renderShadowAI reads. Nothing is copied, so nothing can drift — the failure that
+               makes one switch say OFF while the lane is running.
+
+               AND IT REPORTS THREE FACTS, NEVER AVERAGED. The route's own comment says why: `on`
+               is what he chose, `available` is whether the lane can run at all, `recording` is
+               whether a reel is rolling. "A single green light covering all three is the g5 scar:
+               mode=primary, calls=0." An unreachable route reads UNKNOWN, never off. -->
+          <div class="adv-sec-h">👁 WHAT WATCHES WHILE YOU PLAY</div>
+          <div class="shadow-adv" id="shadow-adv">
+            <button type="button" class="shadow-adv-sw" id="sadv-sha" aria-pressed="false"
+                    title="the reader that watches the live frame while you play">
+              <span class="shadow-adv-dot"></span><span class="shadow-adv-ic">👁</span>
+              <span class="shadow-adv-t"><b>Shadow reader</b><small id="sadv-sha-say">checking…</small></span>
+            </button>
+            <button type="button" class="shadow-adv-sw" id="sadv-tip" aria-pressed="false"
+                    title="hover an item while a reel rolls — the reader fires on the tooltip text">
+              <span class="shadow-adv-dot"></span><span class="shadow-adv-ic">🔎</span>
+              <span class="shadow-adv-t"><b>Tooltip pass</b><small id="sadv-tip-say">checking…</small></span>
+            </button>
+          </div>
           <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
           <div class="util-strip">
             <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
@@ -10829,6 +10879,85 @@
      So opening ADVANCED now brings it INTO VIEW. Nearest scrolling ancestor only, `block:'nearest'`
      so it moves the least it can, and guarded — a console that throws while opening a panel is
      worse than one that scrolls awkwardly. [[visual-regression-detector]] */
+  /* ── v2085 — THE DRAWER'S COPY OF THE TWO SWITCHES ────────────────────────────────────────
+     Reads /api/shadow — the same endpoint the board's widget reads — so there is ONE source of
+     truth and two views of it. Nothing is mirrored into a local variable, because a second copy
+     is how one switch comes to say OFF while the lane is running.
+
+     THREE FACTS, NEVER AVERAGED, because the route's own comment demands it:
+       on         what he chose
+       available  whether the lane can run at all — a switch that cannot do anything must say so
+       recording  whether a reel is actually rolling; the eye only fires during one
+     A single green light over all three is the g5 scar: "mode=primary, calls=0".
+
+     AND AN UNREACHABLE ROUTE READS UNKNOWN, NEVER OFF. "I could not ask" and "he turned it off"
+     are opposite facts, and only one of them means nothing is watching. [[unknown-stays-unknown]] */
+  function _shadowAdvPaint(j, err) {
+    var pairs = [['sadv-sha', 'sha'], ['sadv-tip', 'tip']];
+    pairs.forEach(function (p) {
+      var btn = document.getElementById(p[0]);
+      var say = document.getElementById(p[0] + '-say');
+      if (!btn || !say) return;
+      if (err || !j) {
+        btn.setAttribute('aria-pressed', 'false');
+        btn.disabled = true;
+        say.textContent = 'UNKNOWN — the console did not answer';
+        return;
+      }
+      /* ⚠ /api/shadow CARRIES NO TOOLTIP STATE. Measured on his live console: the payload is
+         {ok,on,why,available,recording,say} and nothing else, so `j.tooltip` is undefined and the
+         first cut of this painter showed the tooltip switch confidently OFF having measured
+         nothing. That state lives in the BOARD's localStorage under an LSR key whose prefix is the
+         2×2 profile fork — so the board is asked for it, never re-derived here. Unreachable board
+         → UNKNOWN, never off. */
+      var st;
+      if (p[1] === 'sha') st = j;
+      else {
+        st = null;
+        try {
+          var _fr = document.getElementById('tvd-eng');
+          var _w = _fr && _fr.contentWindow;
+          if (_w && typeof _w.tooltipPassState === 'function') st = _w.tooltipPassState();
+        } catch (e) { st = null; }
+        if (!st) {
+          btn.setAttribute('aria-pressed', 'false');
+          btn.disabled = true;
+          say.textContent = 'UNKNOWN — the board is not open, so its switch cannot be read';
+          return;
+        }
+      }
+      var on = !!st.on, avail = st.available !== false;
+      btn.disabled = !avail;
+      btn.setAttribute('aria-pressed', on && avail ? 'true' : 'false');
+      say.textContent = !avail ? 'this machine cannot run it — the switch is decoration'
+        : on ? (j.recording ? 'ON · a reel is rolling, it is reading'
+                            : 'ON · waiting for a reel — it only fires while one rolls')
+             : 'OFF — nothing is reading the live frame';
+    });
+  }
+
+  window._shadowAdvRefresh = function () {
+    return fetch(API + '/api/shadow')
+      .then(function (r) { return r.json(); })
+      .then(function (j) { _shadowAdvPaint(j, null); return j; })
+      .catch(function (e) { _shadowAdvPaint(null, e); return null; });
+  };
+
+  [['sadv-sha', 'shadow'], ['sadv-tip', 'tooltip']].forEach(function (p) {
+    var el = document.getElementById(p[0]);
+    if (!el) return;
+    el.addEventListener('click', function () {
+      if (el.disabled) return;
+      var want = el.getAttribute('aria-pressed') !== 'true';
+      var say = document.getElementById(p[0] + '-say');
+      if (say) say.textContent = want ? 'switching on…' : 'switching off…';
+      fetch(API + '/api/shadow', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                   body: JSON.stringify({ lane: p[1], on: want }) })
+        .then(function () { return window._shadowAdvRefresh(); })
+        .catch(function () { if (say) say.textContent = 'UNKNOWN — the console did not answer'; });
+    });
+  });
+
   window._advOpened = function (det) {
     try {
       var lead = document.getElementById('g5-eyes-card');

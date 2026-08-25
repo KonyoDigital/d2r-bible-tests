@@ -18791,5 +18791,209 @@ class TestV2083AVaultedBaseSurvivesTheReload(unittest.TestCase):
                       "the equipment/inventory lock left the function the apply now routes through")
 
 
+class TestV2084TheVaultIsARoomOfItsOwn(unittest.TestCase):
+    """Konyo: "the VAULT MANAGER it needs a MAIN TAB of its own inbetween tools and TV-D tab on
+    top.. surgically put it there".
+
+    It was a COLLAPSED boss-card inside Tools, opened by clicking a header, sharing that tab with
+    sixteen other cards — the surface his readers feed and the one he asked to see first.
+
+    Moving it touches seven sites and each one, missed, leaves a control that goes nowhere. The
+    rendered half is tests/v2084_vault_tab.spec.ts; these are the joins a source read can pin."""
+
+    def setUp(self):
+        self.bible = os.path.join(os.path.dirname(HERE), "bible.html")
+        if not os.path.isfile(self.bible):
+            self.skipTest("bible.html is not on this machine")
+        with io.open(self.bible, encoding="utf-8") as fh:
+            self.s = fh.read()
+
+    def test_the_tab_sits_between_the_forge_cluster_and_TVD(self):
+        """His words: between Tools and TV·D. The forge three sit in that span and must stay
+        adjacent, so the vault goes after fsets and before tvd."""
+        import re as _re
+        order = _re.findall(r'<button class="tab" data-tab="([a-z0-9]+)"', self.s)
+        for t in ("tools", "fsets", "vault", "tvd"):
+            self.assertIn(t, order, "%s left the tab bar" % t)
+        self.assertLess(order.index("tools"), order.index("vault"))
+        self.assertLess(order.index("vault"), order.index("tvd"))
+        self.assertEqual(order.index("fsets") + 1, order.index("vault"),
+                         "the forge cluster is no longer adjacent — funi/fsets moved")
+
+    def test_the_pane_uses_the_class_its_SIBLINGS_use(self):
+        """⚠ THE ONE THAT ALMOST SHIPPED. I wrote class="tab-pane" — a class that appeared exactly
+        ONCE in this file, on my own line. The real class is `tab-content`. Nothing threw: the pane
+        simply never hid, so the Vault was visible UNDERNEATH every other tab. Measured on pixels:
+        clicking Main showed `tab-main, tab-vault`. Reading the code would not have caught it;
+        rendering did."""
+        import re as _re
+        panes = _re.findall(r'<div class="([a-z-]+)" id="tab-([a-z0-9]+)">', self.s)
+        klass = dict((tab, cls) for cls, tab in panes)
+        self.assertIn("vault", klass, "the #tab-vault pane is gone")
+        self.assertEqual(klass["vault"], klass.get("tvd"),
+                         "the vault pane uses %r while its sibling uses %r — a pane with the wrong "
+                         "class never hides, and shows underneath every other tab"
+                         % (klass.get("vault"), klass.get("tvd")))
+        self.assertEqual(self.s.count('class="tab-pane"'), 0,
+                         "a class that exists nowhere else in this file is a class nothing styles")
+
+    def test_the_console_shell_can_reach_it(self):
+        """`body.app-ctx .tabs .tab{display:none}` hides EVERY tab and one rule re-shows five by
+        name. A tab added without joining it renders perfectly on the website and is unreachable in
+        the app — one surface working is exactly how that split survives unnoticed."""
+        blk = _between(self, self.s, "body.app-ctx .tabs .tab[data-tab=\"session\"]",
+                       "display:inline-flex", what="the app-ctx re-show list")
+        self.assertIn('data-tab="vault"', blk,
+                      "the vault tab is invisible inside the console shell and fine on the site")
+
+    def test_the_card_moved_and_did_not_stay(self):
+        """A copy in both tabs would duplicate every id in it — 24 of them, including the render
+        targets renderVault writes to."""
+        self.assertEqual(self.s.count('id="mule-vault-card"'), 1,
+                         "the card exists twice — every id inside it is now duplicated")
+        i = self.s.index('id="tab-vault"')
+        j = self.s.index('id="mule-vault-card"')
+        self.assertLess(i, j, "the card is not inside the vault pane")
+        # The repo's own meta-guard caught a fixed 20000-byte window here — twice tonight it has
+        # enforced this rule on me. Bound by the pane's real end, not a byte count.
+        # [[source-reading-guard]] §3
+        pane = _between(self, self.s, 'id="tab-vault"', 'id="tab-tvd"',
+                        min_len=2000, what="the vault pane")
+        for el in ('id="vault-dock"', 'id="vault-shelf"'):
+            self.assertIn(el, pane,
+                          "renderVault's target %s did not travel with the card" % el)
+
+    def test_every_navigator_points_at_the_room_it_is_now_in(self):
+        """Three routes led to the card by switching to Tools. A jump that still switches to Tools
+        lands him where the card is not, with nothing to show for the click."""
+        vj = _between(self, self.s, "window.vaultJump = function()", "renderVault()",
+                      what="vaultJump")
+        self.assertIn("switchTab('vault')", vj, "vaultJump still opens Tools")
+        self.assertNotIn("switchTab('tools')", vj)
+        qi = _between(self, self.s, "var CARD = { vault:'mule-vault-card'",
+                      "toggleCardCollapse(CARD[lane])", what="quickIntake")
+        # ⚠ `assertIn("CARD_TAB")` also passes on `var CARD_TAB = {};` — the name survives being
+        # gutted, and quickIntake('vault') then opens a card in a room he is not in. Assert the
+        # MAPPING, not that the identifier exists. [[source-reading-guard]] §4b
+        self.assertIn("CARD_TAB = { vault:'vault' }", qi,
+                      "quickIntake's room lookup is empty — it opens the vault card without "
+                      "switching to the vault tab")
+        self.assertIn("window.switchTab(CARD_TAB[lane])", qi,
+                      "the lookup exists and nothing consumes it")
+
+    def test_the_tools_map_no_longer_claims_to_contain_it(self):
+        """That panel says "Everything in this tab". Listing a card that left is how he goes looking
+        for something that is not there. [[label-outlived-referent]]"""
+        blk = _between(self, self.s, "Everything in this tab", "Rune Stash",
+                       what="the Tools legend")
+        self.assertNotIn("toolsLegendJump('mule-vault-card')", blk,
+                         "the Tools map still jumps to the vault as an in-tab card")
+        self.assertIn("its own \U0001f392 Vault tab", blk,
+                      "the map does not say where the vault went")
+
+
+class TestV2085TheSwitchesReachTheConsoleDrawer(unittest.TestCase):
+    """Konyo: "the toggle buttons for shadow and the others put also in ADVANCED SETTINGs surgically
+    put it there and typography and polish it perfectly".
+
+    They were never website features: both call _shadowOnConsole(), which tests location.host for
+    :17772/:17771, so on bull-4-u.com they hide entirely. Console controls reachable only by opening
+    the board, finding Tools among sixteen cards, and scrolling to one of them."""
+
+    def _ui(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def _bible(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def setUp(self):
+        if not os.path.isfile(os.path.join(os.path.dirname(HERE), "bible.html")):
+            self.skipTest("bible.html is not on this machine")
+
+    def test_the_section_is_in_the_drawer_between_the_eyes_and_the_rare_paths(self):
+        s = self._ui()
+        i_eyes = s.index('<div class="adv-sec-h">\U0001f441 WHICH EYES READ</div>')
+        i_new = s.index("WHAT WATCHES WHILE YOU PLAY")
+        i_rare = s.index("RARE PATHS")
+        self.assertLess(i_eyes, i_new, "the new section jumped above the eyes card")
+        self.assertLess(i_new, i_rare, "the switches landed in RARE PATHS, which is where things "
+                                       "he touches once a year live")
+
+    def test_the_shadow_lane_reads_the_SAME_endpoint_the_board_reads(self):
+        """One source of truth, two views. A second copy of the state is how one switch comes to
+        say OFF while the lane is running."""
+        s = self._ui()
+        self.assertIn("fetch(API + '/api/shadow')", s,
+                      "the drawer does not read /api/shadow — it is showing something it invented")
+        self.assertIn("/api/shadow", self._bible(),
+                      "the board stopped reading the same route, so the two can now disagree")
+
+    def test_the_tooltip_lane_ASKS_THE_BOARD_rather_than_re_deriving_its_key(self):
+        """⚠ /api/shadow CARRIES NO TOOLTIP STATE. Measured on his live console: the payload is
+        {ok,on,why,available,recording,say} and nothing else, so `j.tooltip` is undefined and the
+        first cut of this painter showed the switch confidently OFF having measured nothing.
+
+        That state lives in the BOARD's localStorage under an LSR key whose prefix is the 2×2
+        profile/install fork. A console that re-derived that prefix would carry a second copy of the
+        routing rule — the v1478 defect exactly: "the board wrote W·, the console read BARE, and a
+        machine that is supposed to start at zero greeted its owner with someone else's chronicle."
+        """
+        ui = self._ui()
+        self.assertIn("_w.tooltipPassState()", ui,
+                      "the drawer does not ask the board for the tooltip lane")
+        self.assertNotIn("_D2R_PFX", ui,
+                         "the console is deriving the board's storage prefix itself — that is the "
+                         "second copy of the routing rule v1478 was written about")
+        self.assertIn("window.tooltipPassState = function()", self._bible(),
+                      "the board no longer answers for its own switch")
+
+    def test_an_unreachable_route_or_board_reads_UNKNOWN_not_OFF(self):
+        """"I could not ask" and "he turned it off" are opposite facts, and only one of them means
+        nothing is watching. Measured with neither reachable: both switches read UNKNOWN and
+        disable themselves. [[unknown-stays-unknown]]"""
+        ui = self._ui()
+        blk = _between(self, ui, "function _shadowAdvPaint(j, err)",
+                       "window._shadowAdvRefresh = function", what="the drawer painter")
+        # ⚠ THERE ARE TWO UNKNOWN PATHS — the route did not answer, and the board is not open —
+        # so `assertIn("UNKNOWN")` is satisfied by whichever one the sabotage did not touch. Both
+        # sabotages passed on the first cut for exactly that reason. COUNT them.
+        # [[source-reading-guard]] §2 — an anchor that is not unique is a guess.
+        # Strip the prose: my own comment above the branch uses the word UNKNOWN to explain the
+        # rule, so a raw count is 3 where the CODE has 2. [[source-reading-guard]] §4
+        code = re.sub(r"/\*.{0,4000}?\*/", " ", blk, flags=re.S)
+        self.assertEqual(code.count("UNKNOWN"), 2,
+                         "expected both unreachable paths (route, board) to read UNKNOWN; the code "
+                         "has %d" % code.count("UNKNOWN"))
+        self.assertEqual(code.count("btn.disabled = true"), 2,
+                         "a switch it could not read stays pressable on %d of the two unreachable "
+                         "paths, so he can act on a state nobody measured"
+                         % (2 - code.count("btn.disabled = true")))
+        self.assertNotIn("say.textContent = 'OFF'", code,
+                         "an unreachable lane is being reported as OFF — 'I could not ask' and 'he "
+                         "turned it off' are opposite facts")
+
+    def test_the_three_facts_are_not_averaged_into_one_lamp(self):
+        """The route's own comment: "A single green light covering all three is the g5 scar:
+        mode=primary, calls=0." `available` and `recording` must each reach a sentence."""
+        blk = _between(self, self._ui(), "function _shadowAdvPaint(j, err)",
+                       "window._shadowAdvRefresh = function", what="the drawer painter")
+        self.assertIn("available", blk, "whether the lane can run at all is not reported")
+        self.assertIn("recording", blk, "whether a reel is rolling is not reported")
+        self.assertIn("cannot run it", blk,
+                      "a lane that cannot run reads the same as one that is simply off")
+
+    def test_the_painter_is_actually_CALLED_when_the_drawer_opens(self):
+        """Built on both ends and never joined is the failure this whole file keeps finding. The
+        hook lives in the ontoggle ATTRIBUTE, not a JS line — the first cut added the function and
+        nothing invoked it."""
+        ui = self._ui()
+        i = ui.index('<details class="sig-adv"')
+        tag = ui[i:ui.index(">", i)]
+        self.assertIn("_shadowAdvRefresh()", tag,
+                      "the painter exists and the drawer never calls it")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

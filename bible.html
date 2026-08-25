@@ -4238,6 +4238,7 @@ try {
     <button class="tab" data-tab="forge">🔨 Forge</button>
     <button class="tab" data-tab="funi">🏆 F·uniques</button>
     <button class="tab" data-tab="fsets">🧩 F·sets</button>
+    <button class="tab" data-tab="vault">🎒 Vault</button><!-- v2084 — Konyo: "the VAULT MANAGER it needs a MAIN TAB of its own inbetween tools and TV-D tab on top". After the forge cluster so those three rooms stay adjacent. -->
     <button class="tab" data-tab="tvd">📺 TV·D</button><!-- v914 (Konyo: 'yes I want it on the website too') — the live view is a first-class site tab again; app-ctx keeps it in the console header instead -->
    </div>
   </div>
@@ -5022,8 +5023,12 @@ body.app-ctx .tabs{position:sticky;top:0;z-index:60;max-width:none;margin:0;padd
   border-bottom:1px solid rgba(240,192,96,.18);overflow:visible;flex-wrap:nowrap}
 body.app-ctx .tabs .tab{display:none}
 body.app-ctx .tabs .tab[data-tab="tools"]{opacity:.62;flex:0 1 auto !important;font-size:12px !important}   /* v905 — Tools is a side lane; the main four lead */
+/* v2084 — AND THE NEW TAB JOINS THIS LIST, OR IT IS INVISIBLE IN THE CONSOLE SHELL AND PERFECT ON
+   THE SITE. `body.app-ctx .tabs .tab{display:none}` hides EVERY tab; this rule re-shows five by
+   name. One surface working is exactly how that kind of split survives unnoticed. */
 body.app-ctx .tabs .tab[data-tab="session"],body.app-ctx .tabs .tab[data-tab="tools"],
 body.app-ctx .tabs .tab[data-tab="forge"],body.app-ctx .tabs .tab[data-tab="funi"],
+body.app-ctx .tabs .tab[data-tab="vault"],
 body.app-ctx .tabs .tab[data-tab="fsets"]{
   display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
   letter-spacing:var(--ls-normal)}
@@ -5240,97 +5245,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     <span class="ti-g"><span class="ti-gl">❓</span><button class="ti-chip" onclick="document.getElementById('tools-legend-modal').classList.add('show')" title="Field guide — what every planner does + where to start">🧰 field guide</button></span>
   </div>
 
-  <div class="boss-card collapsible collapsed tool-premium tool-primary" id="mule-vault-card" style="--tc:#f0c060">
-    <div class="boss-header" onclick="window.toggleCardCollapse('mule-vault-card');window.renderVault&&window.renderVault()" role="button" tabindex="0" aria-expanded="false">
-      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_gold.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
-      <div class="boss-title-block">
-        <p class="boss-name">The Vault — Mule Manager</p>
-        <p class="boss-subtitle">Your second-account warehouse — every ✓ owned item gets a home, and the search will always know where it lives</p>
-      </div>
-      <span class="collapse-chevron">▾</span>
-    </div>
-    <div class="boss-body">
-      <!-- v1984 — what the lock is holding, shown next to the button that skips them. -->
-<div id="vault-lane-locks" class="vault-lane-locks" hidden></div>
-<div class="vault-toolbar">
-        <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoAssign()">⚖️ Auto-assign unsorted</button>
-        <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
-        <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
-        <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()">↺ Reset assignments</button>
-        <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="FULL RESET — wipes the Recently-registered log, the scan ledger, AND every ✓ owned/vaulted item + mule assignments + set-piece checks. A true blank start (mule roster + rune/gem tallies stay).">🧹 Reset everything (blank start)</button>
-        <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
-     _startAutoWatch polls the linked folder every 12s and feeds the same window.vaultIntake,
-     which keeps all 38 of its crop steps and its locate/rawname/socketcheck/vault templates.
-     The folder picker beside this (webkitdirectory) STAYS — that is the automation's setup,
-     not a manual read. The ON/OFF for this lane is the Vault pill in the Tools lane row. -->
-<span class="vault-lane-mini" id="mini-vault-section"></span>
-        <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
-        <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
-        <button class="vault-btn" id="vault-clear-scan-btn" style="display:none;border-color:rgba(240,192,96,.45);color:var(--gold-bright,#f0c060)" onclick="window.vaultClearScanHistory()" title="WIPE THE SCAN SLATE — forget which screenshot files were already read, so the next folder scan treats every file as fresh and re-reads them. Does NOT touch your ✓ owned items, mules, Magic &amp; Rare, or the registered vault — only the seen-files ledger.">🧽 Clear scan history</button>
-        <span id="vault-watcher" class="vault-watcher" style="display:none" title="your screenshots folder is linked — the vault watches it and auto-reads new captures. Click to re-pick the folder.">
-          <span class="vw-eye"><span class="vw-iris"><span class="vw-pupil"></span></span><span class="vw-lid"></span></span>
-          <span class="vw-txt"><span class="vw-t1">FOLDER LINKED</span><span class="vw-t2">watching for new shots…</span></span>
-        </span>
-        <input type="file" id="vault-dir-input" webkitdirectory multiple accept="image/*" style="display:none">
-        
-        <span class="vault-status" id="vault-status"></span>
-      </div>
-      <div class="vault-find">
-        <span class="vault-find-ic">🔎</span>
-        <input id="vault-find-input" class="vault-find-input" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
-        <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
-      </div>
-      <div id="vault-find-results" class="vault-find-results" hidden></div>
-      <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
-      <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
-      <div id="vault-audit" class="vault-audit" hidden></div>
-      <div class="vault-dock" id="vault-dock"></div>
-      <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
-        <summary style="cursor:pointer;color:#7fd4ff;font-weight:var(--fw-medium)">📸 How to take screenshots the AI can actually read — example below</summary>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px">
-          <img id="vault-shot-example" alt="example: in-game text visible — this is what the AI reads" style="max-width:300px;border:1px solid rgba(212,168,71,.5);border-radius:6px;cursor:zoom-in" onclick="window._gildLightboxOpen&&this.src&&window._gildLightboxOpen(this.src,'Example — a real stash screenshot with the tooltip open: the item NAME is visible text, so the AI reads it. Hover an item (or hold Alt over ground loot) before you screenshot.')">
-          <div style="flex:1;min-width:240px;line-height:1.6">
-            <strong style="color:var(--best)">The AI reads NAMES, not slots</strong> — items never need to be in a special position. What matters is that the <strong>name text is visible in the picture</strong>:
-            <ul style="margin:6px 0 6px 18px;padding:0">
-              <li>✅ <strong>ground loot with Alt held</strong> — every name labeled, the best batch input</li>
-              <li>✅ <strong>hover tooltip open</strong> over an item in stash/inventory</li>
-              <li>✅ trade / vendor / mule windows where names show</li>
-              <li>❌ a bare stash tab — that is item ART only, no names → little to read</li>
-            </ul>
-            <span style="color:var(--text-dim)">Tip: after a session, stand over your pile, hold Alt, screenshot once — one picture logs the whole haul. The example image (click to enlarge) shows readable in-game text — this real stash screenshot (tooltip open on Spellsteel) is exactly what the AI read correctly in our live test.</span>
-          </div>
-        </div>
-      </details>
-      <div class="vault-shelf" id="vault-shelf"></div>
-      <!-- v342.28: Multi-copy keepers editor — staples you want several of (merc/build), targets editable -->
-      <div id="vault-multikeep" class="vault-multikeep" hidden></div>
-      <!-- v442 — UNIFIED REGISTRY ENGINE: Registered triage + Last-scan delta + intake history are CONSECUTIVE
-           here and CSS-welded into ONE panel (Konyo: "combine these as 1 unit view engine CRM"). The Throw-Out
-           Review stays its own standalone section BELOW the unit (Konyo: "the throw-out section don't touch it"). -->
-      <div id="vault-registered" class="vault-registered" hidden></div>
-      <!-- AI-intake report = the LAST-SCAN DELTA strip of the unified engine -->
-      <div id="vault-intake-report" hidden style="margin:14px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
-      <!-- Recently-registered intake history = the bottom zone of the unified engine -->
-      <div id="vault-journal" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(127,212,255,.28);border-radius:10px;background:rgba(127,212,255,.03);font-size:12px;line-height:1.6"></div>
-      <!-- v1949 — THE ROUTING LEDGER. bible.html has called d2r_chronicleInboxLog the
-           "VISUAL BACKEND - every KAI read forever for debug" since v1356, and NOTHING HAS EVER
-           RENDERED IT. Measured 2026-08-22: the store is written on every routing decision and read
-           exactly once, as a boolean. Konyo: "i want it to visually render the backend through the
-           ledger visually so we can visually surgically fix anything needed future wise". -->
-      <div id="routing-ledger" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(240,192,96,.28);border-radius:10px;background:rgba(240,192,96,.03);font-size:12px;line-height:1.5"></div>
-      <!-- v455: dedicated Socketed/Larzuk Review — SAME runeword engine (_baseRWLine) as throw-out, but for the
-           MULED socketed / Larzuk bases: exact-socket + base-TYPE match + already-created (Chronicle) split.
-           Placed ABOVE the Throw-Out Review (v456) so the "what can I still create" readout sits with the kept
-           items, not buried below the discards. -->
-      <div id="vault-socketed" class="vault-throwout" hidden></div>
-      <!-- v366: dedicated Throw-Out Review — standalone, LEFT AS-IS per Konyo -->
-      <div id="vault-throwout" class="vault-throwout" hidden></div>
-      <!-- v342.15: shared-stash advisory ("don't mule these") -->
-      <div id="vault-keep" class="vault-keep" hidden></div>
-      <div class="vault-detail" id="vault-detail" hidden></div>
-      <details class="zd-note vd-howto" style="margin-top:10px"><summary style="cursor:pointer;list-style:none;font-weight:var(--fw-medium);color:var(--gold-dim,#b89b5e)">ℹ️ How auto-assign &amp; muling works <span style="opacity:.6;font-weight:var(--fw-regular)">(tap to expand)</span></summary><div style="margin-top:7px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div></details>
-    </div>
-  </div>
+  
 
   <!-- v1715 — THE SHOPPING LIST (Konyo: "based on what exactly runewords created already and what
        runes i still need to buy and what base items i need to buy"). A procurement view: everything
@@ -8991,6 +8906,104 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
      literally always breathing"). Mission-control shell: a live screen bezel that breathes with
      the agent's real half-second heartbeat, meters, and the mono signal feed. The session-tab
      card stays as the compact twin — one shared engine renders both. -->
+<div class="tab-content" id="tab-vault">
+  <!-- v2084 — THE VAULT IS A ROOM, NOT A CARD IN A DRAWER. It was a collapsed boss-card
+       inside Tools, opened by clicking a header, sharing that tab with sixteen others —
+       the surface his readers feed and the one he asked to see first. Nothing about it
+       changed but where it lives: same ids, same #vault-dock / #vault-shelf, same
+       renderVault. -->
+<div class="boss-card collapsible collapsed tool-premium tool-primary" id="mule-vault-card" style="--tc:#f0c060">
+    <div class="boss-header" onclick="window.toggleCardCollapse('mule-vault-card');window.renderVault&&window.renderVault()" role="button" tabindex="0" aria-expanded="false">
+      <span class="boss-emoji" style="display:inline-flex;align-items:center;justify-content:center"><img width="42" height="42" src="art/logo_gold.png" alt="" style="width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(240,192,96,.45))" decoding="async"></span>
+      <div class="boss-title-block">
+        <p class="boss-name">The Vault — Mule Manager</p>
+        <p class="boss-subtitle">Your second-account warehouse — every ✓ owned item gets a home, and the search will always know where it lives</p>
+      </div>
+      <span class="collapse-chevron">▾</span>
+    </div>
+    <div class="boss-body">
+      <!-- v1984 — what the lock is holding, shown next to the button that skips them. -->
+<div id="vault-lane-locks" class="vault-lane-locks" hidden></div>
+<div class="vault-toolbar">
+        <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoAssign()">⚖️ Auto-assign unsorted</button>
+        <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
+        <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
+        <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()">↺ Reset assignments</button>
+        <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="FULL RESET — wipes the Recently-registered log, the scan ledger, AND every ✓ owned/vaulted item + mule assignments + set-piece checks. A true blank start (mule roster + rune/gem tallies stay).">🧹 Reset everything (blank start)</button>
+        <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
+     _startAutoWatch polls the linked folder every 12s and feeds the same window.vaultIntake,
+     which keeps all 38 of its crop steps and its locate/rawname/socketcheck/vault templates.
+     The folder picker beside this (webkitdirectory) STAYS — that is the automation's setup,
+     not a manual read. The ON/OFF for this lane is the Vault pill in the Tools lane row. -->
+<span class="vault-lane-mini" id="mini-vault-section"></span>
+        <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
+        <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
+        <button class="vault-btn" id="vault-clear-scan-btn" style="display:none;border-color:rgba(240,192,96,.45);color:var(--gold-bright,#f0c060)" onclick="window.vaultClearScanHistory()" title="WIPE THE SCAN SLATE — forget which screenshot files were already read, so the next folder scan treats every file as fresh and re-reads them. Does NOT touch your ✓ owned items, mules, Magic &amp; Rare, or the registered vault — only the seen-files ledger.">🧽 Clear scan history</button>
+        <span id="vault-watcher" class="vault-watcher" style="display:none" title="your screenshots folder is linked — the vault watches it and auto-reads new captures. Click to re-pick the folder.">
+          <span class="vw-eye"><span class="vw-iris"><span class="vw-pupil"></span></span><span class="vw-lid"></span></span>
+          <span class="vw-txt"><span class="vw-t1">FOLDER LINKED</span><span class="vw-t2">watching for new shots…</span></span>
+        </span>
+        <input type="file" id="vault-dir-input" webkitdirectory multiple accept="image/*" style="display:none">
+        
+        <span class="vault-status" id="vault-status"></span>
+      </div>
+      <div class="vault-find">
+        <span class="vault-find-ic">🔎</span>
+        <input id="vault-find-input" class="vault-find-input" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
+        <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
+      </div>
+      <div id="vault-find-results" class="vault-find-results" hidden></div>
+      <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
+      <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
+      <div id="vault-audit" class="vault-audit" hidden></div>
+      <div class="vault-dock" id="vault-dock"></div>
+      <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
+        <summary style="cursor:pointer;color:#7fd4ff;font-weight:var(--fw-medium)">📸 How to take screenshots the AI can actually read — example below</summary>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px">
+          <img id="vault-shot-example" alt="example: in-game text visible — this is what the AI reads" style="max-width:300px;border:1px solid rgba(212,168,71,.5);border-radius:6px;cursor:zoom-in" onclick="window._gildLightboxOpen&&this.src&&window._gildLightboxOpen(this.src,'Example — a real stash screenshot with the tooltip open: the item NAME is visible text, so the AI reads it. Hover an item (or hold Alt over ground loot) before you screenshot.')">
+          <div style="flex:1;min-width:240px;line-height:1.6">
+            <strong style="color:var(--best)">The AI reads NAMES, not slots</strong> — items never need to be in a special position. What matters is that the <strong>name text is visible in the picture</strong>:
+            <ul style="margin:6px 0 6px 18px;padding:0">
+              <li>✅ <strong>ground loot with Alt held</strong> — every name labeled, the best batch input</li>
+              <li>✅ <strong>hover tooltip open</strong> over an item in stash/inventory</li>
+              <li>✅ trade / vendor / mule windows where names show</li>
+              <li>❌ a bare stash tab — that is item ART only, no names → little to read</li>
+            </ul>
+            <span style="color:var(--text-dim)">Tip: after a session, stand over your pile, hold Alt, screenshot once — one picture logs the whole haul. The example image (click to enlarge) shows readable in-game text — this real stash screenshot (tooltip open on Spellsteel) is exactly what the AI read correctly in our live test.</span>
+          </div>
+        </div>
+      </details>
+      <div class="vault-shelf" id="vault-shelf"></div>
+      <!-- v342.28: Multi-copy keepers editor — staples you want several of (merc/build), targets editable -->
+      <div id="vault-multikeep" class="vault-multikeep" hidden></div>
+      <!-- v442 — UNIFIED REGISTRY ENGINE: Registered triage + Last-scan delta + intake history are CONSECUTIVE
+           here and CSS-welded into ONE panel (Konyo: "combine these as 1 unit view engine CRM"). The Throw-Out
+           Review stays its own standalone section BELOW the unit (Konyo: "the throw-out section don't touch it"). -->
+      <div id="vault-registered" class="vault-registered" hidden></div>
+      <!-- AI-intake report = the LAST-SCAN DELTA strip of the unified engine -->
+      <div id="vault-intake-report" hidden style="margin:14px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
+      <!-- Recently-registered intake history = the bottom zone of the unified engine -->
+      <div id="vault-journal" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(127,212,255,.28);border-radius:10px;background:rgba(127,212,255,.03);font-size:12px;line-height:1.6"></div>
+      <!-- v1949 — THE ROUTING LEDGER. bible.html has called d2r_chronicleInboxLog the
+           "VISUAL BACKEND - every KAI read forever for debug" since v1356, and NOTHING HAS EVER
+           RENDERED IT. Measured 2026-08-22: the store is written on every routing decision and read
+           exactly once, as a boolean. Konyo: "i want it to visually render the backend through the
+           ledger visually so we can visually surgically fix anything needed future wise". -->
+      <div id="routing-ledger" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(240,192,96,.28);border-radius:10px;background:rgba(240,192,96,.03);font-size:12px;line-height:1.5"></div>
+      <!-- v455: dedicated Socketed/Larzuk Review — SAME runeword engine (_baseRWLine) as throw-out, but for the
+           MULED socketed / Larzuk bases: exact-socket + base-TYPE match + already-created (Chronicle) split.
+           Placed ABOVE the Throw-Out Review (v456) so the "what can I still create" readout sits with the kept
+           items, not buried below the discards. -->
+      <div id="vault-socketed" class="vault-throwout" hidden></div>
+      <!-- v366: dedicated Throw-Out Review — standalone, LEFT AS-IS per Konyo -->
+      <div id="vault-throwout" class="vault-throwout" hidden></div>
+      <!-- v342.15: shared-stash advisory ("don't mule these") -->
+      <div id="vault-keep" class="vault-keep" hidden></div>
+      <div class="vault-detail" id="vault-detail" hidden></div>
+      <details class="zd-note vd-howto" style="margin-top:10px"><summary style="cursor:pointer;list-style:none;font-weight:var(--fw-medium);color:var(--gold-dim,#b89b5e)">ℹ️ How auto-assign &amp; muling works <span style="opacity:.6;font-weight:var(--fw-regular)">(tap to expand)</span></summary><div style="margin-top:7px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div></details>
+    </div>
+  </div>
+</div>
 <div class="tab-content" id="tab-tvd">
  <!-- v766 — TV·D restructured to STRUCTURALLY MATCH the TV DIABLO control app (tv/control_ui.html):
       header band · state-tinted stage + lower-third meters · console rail (RUN STORY + SYNAPSE) ·
@@ -35319,7 +35332,9 @@ window.vaultAutoAssign = function(){
     return m ? '<span class="vault-loc-badge" onclick="window.vaultJump&&window.vaultJump()" title="stored in your vault — click to open it">🏦 '+esc(m.name)+'</span>' : '';
   };
   window.vaultJump = function(){
-    if (typeof switchTab==='function') switchTab('tools');
+    /* v2084 — the vault left Tools. A jump that still switched to Tools would land him in the room
+       the card is no longer in, with nothing to show for the click. */
+    if (typeof switchTab==='function') switchTab('vault');
     var card=document.getElementById('mule-vault-card');
     if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse==='function') window.toggleCardCollapse('mule-vault-card');
     renderVault();
@@ -41930,9 +41945,15 @@ function renderJournal(){
     var pop='<div class="tools-legend-pop" id="tools-legend-pop">'
       +'<span class="tlp-close" title="close" onclick="window.toolsLegendToggle()">✕</span>'
       +'<div class="tlp-h">🧭 Tools — map</div><div class="tlp-sub">Everything in this tab, grouped by what you\'re doing. Tap any row to jump to it.</div>'
-      +'<div class="tlp-start" role="button" tabindex="0" onclick="window.toolsLegendJump(\'mule-vault-card\')">👉 <b>Start here — feed the engine.</b> 📸 Screenshot your loot into the <b>3 stashes</b>: Vault (items) · Runes · Gems. The Forge &amp; the AI tools read all three together.</div>'
+      +'<div class="tlp-start" role="button" tabindex="0" onclick="window.vaultJump&&window.vaultJump()">👉 <b>Start here — feed the engine.</b> 📸 Screenshot your loot into the <b>3 stashes</b>: Vault (items) · Runes · Gems. The Forge &amp; the AI tools read all three together.</div>'
       +'<div class="tlp-grp">📸 Feed the engine — the 3 stashes</div>'
-      + I('mule-vault-card','🎒','The Vault — items','📸 photo → auto-files to mules')
+      /* v2084 — this panel says "Everything in this tab", and the Vault is not in it any more. It
+         keeps a row because he still starts there, but the row says where it went and the jump
+         crosses tabs. A map naming a room it does not contain sends him looking for a card that is
+         not there. [[label-outlived-referent]] */
+      + '<div class="tlp-i" role="button" tabindex="0" onclick="window.vaultJump&&window.vaultJump()">'
+      +   '<span class="tlp-ic">🎒</span><span class="tlp-t"><b>The Vault — items</b>'
+      +   '<small>📸 photo → auto-files to mules · now its own 🎒 Vault tab</small></span></div>'
       + I('rune-stash-card','ᛝ','Rune Stash','📸 photo → tally + cube-up')
       + I('gem-stash-card','💎','Gem Stash','📸 photo → tally + cube-up')
       + I('material-stash-card','🎲','Materials Stash','📸 uber / Sunder mats')
@@ -44717,7 +44738,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2083', name:'v2083 - a vaulted base survives the reload', date:'2026-08-25', note:'items a reel vaults now persist and reach a mule instead of existing for one page-life' };
+  window.D2R_BUILD = { id:'v2085', name:'v2085 - the vault gets a room and the switches get a door', date:'2026-08-25', note:'the vault manager becomes its own main tab between the forge cluster and TV-D, and the shadow and tooltip switches are mirrored into the console ADVANCED drawer' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -46525,9 +46546,14 @@ window.quickIntake = function(which){
                material:'materials', materials:'materials' };
   var CARD = { vault:'mule-vault-card', runes:'rune-stash-card', gems:'gem-stash-card',
                materials:'material-stash-card' };
+  /* v2084 — three of these four cards still live in Tools; the vault has its own room now. The map
+     says WHICH ROOM rather than assuming one, so a fourth room later cannot silently send him to
+     the wrong door. */
+  var CARD_TAB = { vault:'vault' };
   var lane = LANE[String(which||'').toLowerCase()];
   if (!lane) return { ok:false, why:'unknown-lane' };
   try {
+    try { if (CARD_TAB[lane] && typeof window.switchTab === 'function') window.switchTab(CARD_TAB[lane]); } catch(e){}
     var card = document.getElementById(CARD[lane]);
     if (card && typeof window.toggleCardCollapse === 'function' && card.classList.contains('collapsed')) {
       window.toggleCardCollapse(CARD[lane]);
@@ -46609,6 +46635,21 @@ function _tpState(){
   try { return JSON.parse((window.LSR && window.LSR.getItem(_TP_KEY)) || 'null') || null; }
   catch(e){ return null; }
 }
+/* v2085 — THE BOARD ANSWERS FOR ITS OWN STATE. The console's ADVANCED drawer mirrors this switch,
+   and the state lives in localStorage under an LSR key whose prefix is the 2×2 profile/install
+   fork. A console that re-derived that prefix would be carrying a second copy of the routing rule
+   — the v1478 defect exactly: "It used to carry its OWN second copy of the rule ... the board wrote
+   W·, the console read BARE, and a machine that is supposed to start at zero greeted its owner with
+   someone else's chronicle." So the board is asked instead. Three facts, never averaged, matching
+   /api/shadow's shape so one painter can render either lane. [[copy-drift]] */
+window.tooltipPassState = function(){
+  var st = _tpState();
+  return { ok: true, on: !!(st && st.on), available: (typeof window._shadowOnConsole === 'function')
+             ? !!window._shadowOnConsole() : false,
+           recording: !!(st && st.on),
+           named: (st && typeof st.baseline === 'number')
+             ? Math.max(0, _tpOwnedCount() - st.baseline) : null };
+};
 function _tpSet(v){
   try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_TP_KEY, JSON.stringify(v)); }
   catch(e){}
