@@ -20683,6 +20683,95 @@ class TestV2128TheFoldRefusesWhatIsAlreadyCovered(unittest.TestCase):
                              "(hollow=%s) — the fold can no longer do its job at all" % hollow)
 
 
+class TestV2127TheSweepButtonsCarryTheirConsequence(unittest.TestCase):
+    """Konyo: "these buttons price the sweep, run it again, register 7, forget what is swept — i
+    want them emphasized if they have meaning.. if they dont then remove/hide them."
+
+    They all had meaning; what they lacked was WEIGHT. Four identical pills meant the free one, the
+    one that spends model calls, and the one that WRITES TO HIS LEDGER all read the same. Priced by
+    consequence now — and pinned, because a CSS class is the easiest thing in the file to drop by
+    accident."""
+
+    def setUp(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def test_every_action_row_button_declares_its_weight(self):
+        import re as _re
+        for pre in ("chron", "vault"):
+            m = _re.search(r'<button[^>]*id="%s-scan"[^>]*>' % pre, self.ui)
+            self.assertIsNotNone(m, "the %s price button is gone" % pre)
+            self.assertIn("chron-quiet", m.group(0),
+                          "'price the sweep' (%s) lost its quiet weight — it reads nothing, writes "
+                          "nothing and costs nothing, and must not look like the one that writes"
+                          % pre)
+            f = _re.search(r'<button[^>]*id="%s-forget"[^>]*>' % pre, self.ui)
+            self.assertIsNotNone(f, "the %s forget button is gone" % pre)
+            self.assertIn("chron-drop", f.group(0),
+                          "'forget what is swept' (%s) lost its danger tint" % pre)
+        self.assertIn("chron-cost", self.ui,
+                      "'run it for real' no longer looks like it SPENDS something — it makes real "
+                      "model calls and sat in the row looking identical to the free one")
+        self.assertIn("chron-drop", self.ui,
+                      "'forget what is swept' lost its danger tint — it discards the whole proposal")
+
+    def test_the_classes_are_actually_styled(self):
+        """A class nothing paints is the same as no class. [[the-unjoined-end]]"""
+        css = re.sub(r"/\*.*?\*/", " ", self.ui, flags=re.S)
+        for cls in (".chron-cost", ".chron-quiet", ".chron-drop"):
+            self.assertIn(cls + " {", css,
+                          "%s is applied in the markup and painted nowhere" % cls)
+
+    def test_the_writing_button_is_still_the_loudest(self):
+        css = re.sub(r"/\*.*?\*/", " ", self.ui, flags=re.S)
+        # ⚠ THERE ARE TWO `.chron-apply` RULES — v1523's colour and v2127's weight — so slicing to
+        # the FIRST one reads the wrong block. Gather them all.
+        rules = re.findall(r"\.chron-apply\s*\{[^}]*\}", css)
+        self.assertTrue(rules, "the register button has no rule at all")
+        self.assertTrue(any("fw-bold" in r for r in rules),
+                        "the ONE button that writes to his ledger is no longer the heaviest in the "
+                        "row — that is the whole point of the ordering: %r" % rules)
+
+
+class TestV2128AFiledNameSurvivesTheOwnedPrune(unittest.TestCase):
+    """#36 — the owned prune asks SEVEN catalogues whether a name is real and never asked the one
+    store that records HIS OWN decision. persist() runs before the foundLog walk, so a mule-assigned
+    name no catalogue recognises was deleted and left a d2r_muleAssign row pointing at nothing.
+
+    ⚠ Stated as the report did: defence in depth, not a reproduced victim — TV extras are covered by
+    _EXTRA_ITEM_SET and socket bases by _SOCKET_KEEP. It is here because the store exists and was
+    not consulted."""
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        # end on the WARN, not on "persist()" — the comment above the filter mentions persist(),
+        # so that end-marker cut the slice off 56 lines BEFORE the line being tested.
+        self.line = _between(self, board, "const beforeOwned = owned.size;",
+                             "console.warn('[bible] dropped", what="the owned prune")
+        self.code = re.sub(r"/\*.*?\*/", " ", self.line, flags=re.S)
+        self.code = re.sub(r"(?m)^\s*//.*$", "", self.code)
+        self.assertGreater(len(self.code.strip()), 200, "the comment strip ate the prune")
+
+    def test_the_prune_consults_his_own_filing(self):
+        self.assertIn("d2r_muleAssign", self.code,
+                      "the owned prune never asks d2r_muleAssign — a name he FILED to a mule that "
+                      "no catalogue recognises is deleted, leaving the locker row pointing at "
+                      "nothing and no trace in the ledger")
+        self.assertIn("_maKeep[n]", self.code,
+                      "the mule store is read but not used in the keep test, so consulting it "
+                      "changes nothing")
+
+    def test_it_is_a_KEEP_and_not_a_new_way_to_drop_things(self):
+        """The mirror: this clause may only ever ADD survivors. If it appeared with && it would be
+        narrowing the keep-list instead of widening it. [[feedback-blind-fixture-green-gate]]"""
+        i = self.code.find("_maKeep[n]")
+        self.assertGreater(i, -1)
+        self.assertIn("||", self.code[max(0, i - 40):i],
+                      "the mule-assign clause is not OR-ed into the keep list — it is narrowing "
+                      "what survives rather than widening it")
+
+
 class TestV2128TheFoldDoesNotBorrowTheDeletersSwitch(unittest.TestCase):
     """#33 — folding loose frames into the reel their own stamp names DELETES NOTHING; it moves
     them. It was calling retention_may_act, which carries the DELETER's on/off switch, so
@@ -20715,13 +20804,22 @@ class TestV2128TheFoldDoesNotBorrowTheDeletersSwitch(unittest.TestCase):
         self.assertIsNone(sig.parameters["consequence"].default,
                           "nothing_in_flight has a DEFAULT consequence again — every caller that "
                           "forgets one now refuses with another feature's sentence")
-        fold = inspect.getsource(ch._remedy_fold_orphan_footage)
-        self.assertIn("nothing_in_flight(\"", fold,
-                      "the fold calls the shared check with no consequence, so its refusal will "
-                      "carry whatever the default happens to be")
-        self.assertNotIn("relaunch", fold.split("nothing_in_flight(")[1][:120],
+        # ⚠ #157 — getsource RETURNS THE COMMENTS TOO, and this function's comment explains the
+        # relaunch wording it no longer uses. Strip first, then read. Eleventh time in one night.
+        # [[feedback-comments-vs-code]]
+        fold_src = inspect.getsource(ch._remedy_fold_orphan_footage)
+        fold = re.sub(r"(?m)^\s*#.*$", "", fold_src)
+        fold = re.sub(r'"""(?:.|\n)*?"""', " ", fold)
+        self.assertGreater(len(fold.strip()), 200, "the comment strip ate the remedy")
+        m = re.search(r"nothing_in_flight\(\s*([\"'])(.*?)\1", fold)
+        self.assertIsNotNone(m,
+                             "the fold calls the shared check with NO consequence, so its refusal "
+                             "carries whatever the default happens to be")
+        self.assertNotIn("relaunch", m.group(2),
                          "the fold's refusal still names a RELAUNCH — folding moves frames, it "
-                         "does not restart anything")
+                         "does not restart anything: %r" % m.group(2))
+        self.assertIn("fold", m.group(2).lower(),
+                      "the fold's refusal does not name folding: %r" % m.group(2))
 
     def test_the_prune_still_asks_the_same_thing(self):
         """The split must not have changed what the DELETER checks."""
