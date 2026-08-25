@@ -7432,7 +7432,14 @@
       _lbl += ' · \ud83d\uddc3 freed ' + Math.round(_rt.freedMb) + 'MB';
     } else if (_rt.checked && typeof _rt.freeGb === 'number' && _rt.freeGb < (_rt.floorGb || 8)) {
       _lbl += ' · \ud83d\uddc3 ' + _rt.freeGb + 'GB free'
-            + (_rt.lockedBehindASweep ? (', ' + _rt.lockedBehindASweep + ' reel(s) await a sweep') : '');
+            /* v2122 (#136) — SAY HOW MUCH, not just how many. "11 reel(s) await a sweep" does not
+               tell him whether clearing them would even reach the floor; 609 MB against a 2.4 GB
+               shortfall is a different decision from 609 MB against 200 MB. The backend has
+               published lockedMb all along and nothing read it. [[the-unjoined-end]] */
+            + (_rt.lockedBehindASweep
+                 ? (', ' + _rt.lockedBehindASweep + ' reel(s) ('
+                    + (_rt.lockedMb ? Math.round(_rt.lockedMb) + 'MB' : '?') + ') await a sweep')
+                 : '');
     }
     $('foot-ver').textContent = _lbl;
     try {

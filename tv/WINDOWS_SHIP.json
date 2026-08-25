@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2121",
+  "ver": "v2122",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2121: Queue 131 128 130 133 127 132 126. The reel price fell back to the whole walk whenever the filter correctly found zero readable reels, which is the same lie for the skip-all case. The Natalya rename migrated four stores and missed the two that carry his testimony, the in-game date and the mule locker. The borrowed tooltip title was given back on every child-to-child move inside the same anchor, so the OS box flickered back mid-hover. Three guards I shipped in the same night could not fail for what they name: two file-wide greps added by the very commit that fixed file-wide greps, a sibling list that dropped the fourth member, and an apply pin that read its own comments. And the console gate lock broke the test that pins it, because the law got stronger and the pin still named the old sentence.",
+  "note": "v2122: Queue 32 138 135 139 136. Two deleters gave opposite answers about the same footage: the frame deleter refuses to remove a single frame while there is no durable witness index, and the reel deleter, which removes the whole reel those frames live in, never asked. Measured on a fixture with both lanes sealed and no durable store, frames offered zero and reels offered eight. The batch filing door added in v2118 was gated on uniques or sets, and a vaulted base lands in neither, so the one case that most needs filing was the one that never filed. Also repaired a retention gate that had been red for nine cases because a reel id it builds collides with a literal another test file names, so the fixture protection rule was claiming the suite own fixtures.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

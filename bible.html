@@ -41562,8 +41562,19 @@ function renderJournal(){
 
        ONCE, AFTER THE BATCH — not per name — and only when something actually landed, so a
        no-op apply cannot churn the ledger or the byte-identity invariant. */
+    /* v2122 (#138) — AND A VAULTED BASE IS THE CASE THAT MOST NEEDS FILING. v2118 gated this on
+       `res.uniques.length || res.sets.length` and a base does NOT land in either: toggleOwned
+       routes a name the board does not know as a grail into the PHYSICAL VAULT, and this function
+       records it in `res.vaulted` forty lines up. So applying Shako · Phase Blade · Monarch ·
+       Archon Plate registered four names, reported them vaulted, and filed NONE of them — the
+       exact "muleAssign is 0" the v2083 comment measured, still true after the door was built.
+
+       It was invisible until now because tests/v2083 called vaultAutoAssign ITSELF right after
+       chronicleApply. Removing that self-join (#45) is what turned CI red here, which is the whole
+       reason a fixture must never do production's job. [[the-unjoined-end]] */
     try {
-      if ((res.uniques.length || res.sets.length) && typeof window.vaultAutoAssign === 'function') {
+      var _landedAny = res.uniques.length || res.sets.length || (res.vaulted && res.vaulted.length);
+      if (_landedAny && typeof window.vaultAutoAssign === 'function') {
         window.vaultAutoAssign();
       }
     } catch(e){}
@@ -45349,7 +45360,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2121', name:'v2121 - the reviews of my own night', date:'2026-08-25', note:'Queue 131 128 130 133 127 132 126. The reel price fell back to the whole walk whenever the filter correctly found zero readable reels, which is the same lie for the skip-all case. The Natalya rename migrated four stores and missed the two that carry his testimony, the in-game date and the mule locker. The borrowed tooltip title was given back on every child-to-child move inside the same anchor, so the OS box flickered back mid-hover. Three guards I shipped in the same night could not fail for what they name: two file-wide greps added by the very commit that fixed file-wide greps, a sibling list that dropped the fourth member, and an apply pin that read its own comments. And the console gate lock broke the test that pins it, because the law got stronger and the pin still named the old sentence.' };
+  window.D2R_BUILD = { id:'v2122', name:'v2122 - the two deleters, and the door that was gated wrong', date:'2026-08-25', note:'Queue 32 138 135 139 136. Two deleters gave opposite answers about the same footage: the frame deleter refuses to remove a single frame while there is no durable witness index, and the reel deleter, which removes the whole reel those frames live in, never asked. Measured on a fixture with both lanes sealed and no durable store, frames offered zero and reels offered eight. The batch filing door added in v2118 was gated on uniques or sets, and a vaulted base lands in neither, so the one case that most needs filing was the one that never filed. Also repaired a retention gate that had been red for nine cases because a reel id it builds collides with a literal another test file names, so the fixture protection rule was claiming the suite own fixtures.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

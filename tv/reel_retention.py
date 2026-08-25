@@ -227,6 +227,18 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         # wrong thing. Right hold, wrong reason is still a wrong report.
         unreadable.append("the durable witness index could not be read"
                           if _durable_why is None else _durable_why)
+    # v2122 (#32) — AND A TREE WITH NO INDEX AT ALL HOLDS TOO. frame_authority refuses to delete a
+    # SINGLE FRAME when `haveIndex` is False — nothing there can prove a frame is not the only
+    # record of what it saw — and this module, which deletes the WHOLE REEL those frames live in,
+    # never asked: `haveIndex` appeared zero times in this file. `ok` is True for a complete
+    # picture of NOTHING, so the two deleters disagreed by construction on the same footage, and
+    # footage has no undo. [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+    _have_index = False
+    try:
+        import frame_authority as _fa_idx
+        _have_index = bool(_fa_idx.witness_index(HERE).get("haveIndex", True))
+    except Exception:
+        _have_index = False
     recent = set(reels[-keep_recent:]) if keep_recent else set()
     try:
         import frame_authority as _fa
@@ -248,7 +260,8 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     # reported as UNMEASURED, never as "fine" and never as "broken" — this run simply contains no
     # reel that reaches it, and that is a fact about the footage, not about the rule.
     # [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
-    RULES = ("ledger-unreadable", "test-fixture", "recent", "never-chronicle-swept", "zero-pages",
+    RULES = ("no-witness-index", "ledger-unreadable", "test-fixture", "recent",
+             "never-chronicle-swept", "zero-pages",
              "rows-not-banked", "vault-owes", "target-met", "eligible")
     hits = dict((r, 0) for r in RULES)
 
@@ -262,7 +275,14 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         ce, ve = _entry(chron, reel), _entry(vault, reel)
         pages = int((ce or {}).get("pages") or 0)
 
-        if unreadable:
+        if not _have_index:
+            why = _rule("no-witness-index",
+                        "HELD — no durable witness store exists yet, so nothing here can prove "
+                        "this reel's frames are not the only record of what it saw. The FRAME "
+                        "deleter holds every frame in this reel for exactly that reason; a reel "
+                        "deleter that released it would destroy what the frame deleter is "
+                        "protecting.")
+        elif unreadable:
             # v2079 — FIRST, and it holds EVERYTHING. Not a per-reel judgement: a ledger that will
             # not parse means this module's picture of what has been banked is unknown for every
             # reel at once, so there is no reel it can honestly release. Deliberately ahead of

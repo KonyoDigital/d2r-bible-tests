@@ -8650,6 +8650,16 @@ class TestV1834ANamedReelIsReachableAndPricedAsItself(unittest.TestCase):
         # is in memory, "not targeted this run" otherwise) and this filter still named one word, so
         # every untargeted reel was back in the price. The law is that a reel the sweep would
         # actually READ carries no note at all. [[label-outlived-referent]] [[source-reading-guard]]
+        # v2122 (#135) — AND PIN THE FALLBACK BESIDE IT. #131: `len(_priced) if _priced else
+        # totals.reels` meant that when the filter CORRECTLY found zero readable reels — a targeted
+        # --reel of something already swept — the count silently became the whole walk, printing
+        # "0 page read(s) across 18 reel(s)". An empty filter is not a missing list.
+        self.assertIn('_has_reels = isinstance(quote.get("reels"), list)', src[max(0, i - 900):i],
+                      "the reel count falls back to totals.reels whenever the filter finds zero, "
+                      "so a skip-all sweep prints the entire walk as its price")
+        self.assertIn('len(_priced) if _has_reels', src[max(0, i - 900):i],
+                      "the count no longer asks whether the reels LIST exists — an empty result "
+                      "and an absent list are different facts")
         self.assertIn('if not (r or {}).get("note")', src[max(0, i - 900):i],
                       "the reel count is pinned to a skip LABEL again — a conditional note then "
                       "puts every untargeted reel back into the price, and the pages and the reels "
@@ -16390,6 +16400,13 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         for name in loose:
             with open(os.path.join(hist, name), "wb") as fh:
                 fh.write(b"y" * 1024)
+        # v2122 (#32) — a durable witness store, because his tree has one. reel_retention now holds
+        # EVERY reel while `haveIndex` is False, matching frame_authority, which has always refused
+        # to delete a single FRAME in that state. Without this the fixture asks the reel deleter to
+        # release footage the frame deleter would not touch — and these cases are about the
+        # test-fixture hold, not about that one.
+        with open(os.path.join(root, "vault_accum.json"), "w", encoding="utf-8") as fh:
+            _j.dump({}, fh)
         return root, hist
 
     def test_the_tombstone_is_written_BEFORE_anything_is_deleted(self):
@@ -16504,6 +16521,12 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
             _j.dump({n: {"pages": 9} for n in names}, fh)
         with open(os.path.join(root, "vault_swept.json"), "w", encoding="utf-8") as fh:
             _j.dump({n: {"ts": 1, "rows": 0} for n in names}, fh)
+        # v2122 (#32) — and a durable witness store, or NOTHING is offered and the baseline
+        # assertion below (which exists precisely so this case cannot measure nothing) is the one
+        # that goes red. reel_retention now holds every reel while haveIndex is False, matching
+        # frame_authority's refusal to delete a single frame in that state.
+        with open(os.path.join(root, "vault_accum.json"), "w", encoding="utf-8") as fh:
+            _j.dump({}, fh)
 
         def run(fixtures):
             with mock.patch.object(rr, "HERE", root), \
@@ -20274,6 +20297,47 @@ class TestV2114ABorrowedTitleStaysBorrowed(unittest.TestCase):
                           "%s re-steals but keeps the ORIGINAL text, so the bubble would show a "
                           "sentence the surface has already replaced" % who)
 
+
+
+class TestV2122TheBorrowSurvivesAMoveInsideTheAnchor(unittest.TestCase):
+    """v2121 (#130) — LEAVING A CHILD IS NOT LEAVING THE WRAP.
+
+    v2119 borrowed the native `title` on enter and gave it back on four exit paths. One of those
+    is `mouseout`, which fires on every child-to-child move INSIDE the anchor (img -> label,
+    padding -> img) — and `e.target.closest(ARTTIP_SEL)` is still `cur`, so it restored the title
+    and hid the rich card while the pointer had not left anything. The OS grey box #107 exists to
+    clear flickered straight back on the same anchors.
+
+    VERIFIED ON THE LIVE BOARD at v2121, on a real `.d2art-wrap.d2art-r-unique`:
+
+        after enter        title=null   held='THE OS BOX TEXT'   card on
+        after child move   title=null   held='THE OS BOX TEXT'   card on     <- this case
+        after real leave   title restored, held cleared, card off
+
+    The mousemove handler beside it already got this right (`over !== cur` keeps the card), so the
+    two listeners contradicted each other. [[feedback-contradiction-is-the-finding]]
+    """
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        body = _between(self, board, "document.addEventListener('mouseout'", "mouseleave",
+                        what="the art lane's mouseout handler")
+        # code only — this handler's comment describes the very bug it fixes
+        self.code = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
+        self.assertGreater(len(self.code.strip()), 60, "the comment strip ate the handler")
+
+    def test_it_asks_where_the_pointer_WENT(self):
+        self.assertIn("relatedTarget", self.code,
+                      "mouseout gives the title back without asking where the pointer went, so a "
+                      "move onto the anchor's own child restores the OS grey box mid-hover")
+
+    def test_it_keeps_the_borrow_while_the_pointer_is_still_inside(self):
+        self.assertIn("contains", self.code,
+                      "nothing checks whether the pointer is still INSIDE the anchor — leaving a "
+                      "child is being treated as leaving the wrap")
+        self.assertIn("return", self.code,
+                      "the guard computes the answer and does not act on it")
 
 class TestV2115AnUnreadableStoreIsNotAnEmptyOne(unittest.TestCase):
     """v2115 — from the queue's P0 batch (#22 / #7 / #34 / #25), and it is a data-loss class.
