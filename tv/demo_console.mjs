@@ -705,13 +705,69 @@ async function main() {
     await warmEngine(page);
   } catch (e) {
     console.log(`❌ BOOT — ${e.message}`);
-    console.log('DEMOS: 0/9 ✅');
+    console.log('DEMOS: 0/0 ✅  (boot failed)');
     await browser.close();
     process.exitCode = 1;
     return;
   }
 
-  const journeys = [j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship];
+// v2130 — J10: THE HEADER, AT THE WIDTHS THAT DECIDE IT. #85 — v2100 shipped one-row-at-his-width,
+// the grid identity column and the 1100px icon yield with NO gate at all: `ls tests/ | grep v21..`
+// was empty and `grep head-tabs tv/test_control.py` returned nothing, so every one of those was
+// unpinned. The only harness touching the strip measured {top,left} and nothing else.
+//
+// It lives HERE and not in tests/ because the strip is control_ui.html — the console — and this is
+// the gate that runs against :17772 on every UI change.
+//
+// ⚠ THE ROW COUNT IS COMPARED AS HEIGHTS, NEVER AS Math.round(top). v2100's own comment records
+// four failed "fixes" chasing a phantom second row that was really Tools/TV·D sitting 2px taller.
+// ⚠ AND `overflow-x:auto` WITH `scrollbar-width:none` IS ITSELF THE DEFECT (#66): a tab that runs
+// out of room does not shrink or hint, it is simply NOT THERE. That pair is asserted absent.
+async function j10_headerGeometry(page) {
+  const name = 'J10 HEADER GEOMETRY';
+  const widths = [1920, 1650, 1440, 1280, 1200, 1120, 1000, 900];
+  const bad = [];
+  const seen = [];
+  for (const w of widths) {
+    await page.setViewportSize({ width: w, height: 660 });
+    await page.waitForTimeout(220);
+    const r = await page.evaluate(() => {
+      const s = document.getElementById('head-tabs');
+      if (!s) return { err: 'no #head-tabs' };
+      const t0 = s.querySelector('.ht');
+      if (!t0) return { err: 'no tabs' };
+      const cs = getComputedStyle(s);
+      const sr = s.getBoundingClientRect();
+      const tabs = Array.from(s.querySelectorAll('.ht'));
+      const offscreen = tabs.filter((b) => {
+        const r = b.getBoundingClientRect();
+        return r.width < 1 || r.right <= sr.left + 0.5 || r.left >= sr.right - 0.5;
+      }).length;
+      const icon = s.querySelector('.ht-i');
+      return {
+        rows: Math.max(1, Math.round(s.clientHeight / t0.offsetHeight)),
+        clipped: s.scrollWidth > s.clientWidth + 1,
+        silent: (cs.overflowX === 'auto' || cs.overflowX === 'scroll') && cs.scrollbarWidth === 'none',
+        tabs: tabs.length,
+        offscreen,
+        icons: !!(icon && icon.getBoundingClientRect().width > 0),
+      };
+    });
+    if (r.err) { record(name, false, `${w}px — ${r.err}`); return; }
+    seen.push(`${w}:${r.rows}r${r.icons ? '+i' : ''}`);
+    if (r.rows !== 1) bad.push(`${w}px wraps to ${r.rows} rows`);
+    if (r.clipped) bad.push(`${w}px clips the strip`);
+    if (r.silent) bad.push(`${w}px has overflow-x:${'auto'} with no scrollbar — a tab can vanish silently`);
+    if (r.offscreen) bad.push(`${w}px pushes ${r.offscreen} tab(s) out of reach`);
+    if (r.tabs !== 8) bad.push(`${w}px shows ${r.tabs} tabs, not 8`);
+    // the icon yield is a DESIGN line, not an accident: they hold to 1120 and drop below 1100
+    if (w >= 1120 && !r.icons) bad.push(`${w}px lost its tab art above the 1100px yield`);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  record(name, bad.length === 0, bad.length ? bad.join(' · ') : `one row at ${seen.join(' ')}`);
+}
+
+  const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship];
   for (const j of journeys) {
     try {
       await j(page);
@@ -724,7 +780,7 @@ async function main() {
   await browser.close();
   const pass = results.filter((r) => r.ok).length;
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(`DEMOS: ${pass}/9 ✅  (${secs}s)`);
+  console.log(`DEMOS: ${pass}/${results.length} ✅  (${secs}s)`);
   /* v2112 — AND THE FAILURES AGAIN, AFTER THE SUMMARY. hooks/pre-push shows only the TAIL of
      this output, so a failure printed at the top — where it happens — is cut off, and the gate
      reports "DEMOS: 8/9" with no way to tell WHICH journey or why. I chased one of these three
