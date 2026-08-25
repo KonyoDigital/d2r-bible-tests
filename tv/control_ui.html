@@ -3291,6 +3291,18 @@
   .hd-chron .chron-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
   /* v1914 — the Sessions-side pointer at the waiting proposal. Sized like a banner note, not a
      button that competes with the hunt; the arrow is the only thing that says it goes somewhere. */
+  /* v2125 — the destination half of the banner, pushed to the right edge. Was an inline style;
+     a chip that names a room deserves to look like a control rather than dimmed prose. */
+  .cw-go { margin-left: auto; opacity: .82; white-space: nowrap;
+           padding: 2px 8px; border-radius: 999px;
+           border: 1px solid rgba(181,140,255,.38); background: rgba(181,140,255,.10); }
+  .chron-waiting:hover .cw-go { opacity: 1; border-color: rgba(181,140,255,.7); }
+  /* v2125 — LAND ON IT. Scrolling a long dashboard to a panel is not the same as showing him
+     WHICH panel he was sent to; a brief ring answers "did anything happen?" — the question the
+     dead click left him asking. */
+  #hd-chron.chron-landed { outline: 2px solid rgba(181,140,255,.75); outline-offset: 3px;
+                           border-radius: 10px; transition: outline-color .5s ease; }
+  @media (prefers-reduced-motion: reduce) { #hd-chron.chron-landed { transition: none; } }
   .chron-waiting { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; width: 100%;
     margin: 2px 0 0; padding: 7px 11px; text-align: left; cursor: pointer;
     font: var(--fw-semibold) var(--fs-xs) / 1.4 var(--mono, ui-monospace, monospace);
@@ -5242,8 +5254,8 @@
              something to register, and it says the NUMBER — a nag with no count is furniture.
              [[the-unjoined-end]] -->
         <button class="chron-waiting" id="chron-waiting" type="button" hidden
-                onclick="try{window._shellHome&&window._shellHome();var p=document.getElementById('hd-chron');if(p)setTimeout(function(){p.scrollIntoView({block:'center',behavior:'smooth'})},120);}catch(e){}"
-                title="the proposal is read-only until you press register — this only takes you to it"></button>
+                onclick="window._chronWaitingJump&&window._chronWaitingJump()"
+                title="These are item names the readers lifted off your own reels. Nothing is written to your grail until you press REGISTER in TV·D ▸ Chronicle Sweep — this button only takes you there, and you can drop the whole proposal instead."></button>
         <!-- v1580 — THE ROTATION IS "WHAT TO HUNT TODAY", so it lives in zone Ⅰ (renamed
              Ⅰ TZ TRACKER in v1630 precisely because this rotation card IS what it renders).
              It was in Ⅲ THE RECORD — "the chronicle of your runs" — which is the wrong
@@ -12170,6 +12182,38 @@
       });
     } catch(e){}
   }
+  /* ══ v2125 — THE BANNER SAID TV·D AND WENT NOWHERE ══════════════════════════════════════════
+     Konyo: "347 finds waiting to register but when i click it nothing happens what does it mean
+     and what is it meant for?"
+
+     Its own label reads "TV·D ▸ Chronicle Sweep →" and its handler called `_shellHome()` alone.
+     shellHome lights the TV·D tab but does NOT clear `data-view`, and #hd-chron is display:none
+     under data-view="sessions" — which the comment above the banner already SAYS, in the sentence
+     explaining why the banner had to exist at all. So it scrolled to a hidden element and nothing
+     moved. MEASURED on his live console:
+
+         before _shellHome()   view=sessions  #hd-chron visible=false  height=0
+         after  _shellHome()   view=sessions  #hd-chron visible=false  height=0
+
+     The header's own TV·D button does `removeAttribute('data-view')` FIRST (:12211). This is that
+     same door, so there is one way to reach the cockpit and it cannot drift again.
+     [[the-unjoined-end]] */
+  window._chronWaitingJump = function () {
+    try {
+      document.body.removeAttribute('data-view');   // leave Sessions, or the panel stays 0x0
+      shellHome();
+      var p = document.getElementById('hd-chron');
+      if (!p) return;
+      setTimeout(function () {
+        try {
+          p.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          /* land ON it, not merely near it — the register button is the point of the trip */
+          p.classList.add('chron-landed');
+          setTimeout(function () { p.classList.remove('chron-landed'); }, 2200);
+        } catch (e) {}
+      }, 140);
+    } catch (e) {}
+  };
   window._shellHome = shellHome;
   window._shellOpen = shellOpen;
   // ══ v1376 (SESSIONS FLAGSHIP R3) — the console-native SESSIONS view. Unlike the other pane tabs, the
@@ -15996,8 +16040,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var _wait = document.getElementById('chron-waiting');
     if (_wait) {
       _wait.hidden = !_n;
-      _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> find(s) read and waiting to register'
-        + ' <span style="margin-left:auto;opacity:.8">TV·D ▸ Chronicle Sweep →</span>';
+      /* v2125 — SAY WHAT IT IS, NOT ONLY WHERE IT GOES. "waiting to register" told him a state
+         and not a meaning: these are names the readers lifted off his own reels, held as a
+         PROPOSAL, with nothing written to his grail until he presses register. His words: "what
+         does it mean and what is it meant for?" */
+      _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> find(s) read from your reels \u2014 '
+        + '<b>not in your grail yet</b>'
+        + '<span class="cw-go">review &amp; register in TV\u00b7D \u2192</span>';
     }
   }
   // v1526 — epoch-ms "how long ago". NOT _fleetSince: that one does Date.parse(iso) and a visit

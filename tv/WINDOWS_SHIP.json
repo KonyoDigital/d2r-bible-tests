@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2124",
+  "ver": "v2126",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2124: The vault classifier gave a different answer once the item had been filed, because the white base branch is gated on the extras table and the vault register writes the name straight into it. Measured on his live board, five of seven bases moved locker purely by being vaulted, so the assembler filed with one answer and the integrity auditor, which calls the same function afterwards, got another and flagged the systems own filing as a misroute. A vault entry records that he has one, not that the name is a catalogue unique.",
+  "note": "v2126: Konyo asked what the finds waiting to register banner under the TZ tracker means and reported that clicking it does nothing. Its label named the TV D chronicle sweep and its handler called shell home alone, which lights the TV D tab but never clears the sessions view, and the chronicle panel is display none under that view, so it scrolled to a hidden element and nothing moved. It now goes through the same door the header TV D button uses, lands on the panel with a brief ring so he can see where he was sent, and says what the number means rather than only where it goes.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

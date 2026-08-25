@@ -37175,7 +37175,19 @@ function renderJournal(){
      losing what it needs to find the item. A missing sprite drops the <img> and keeps the WORD —
      the name is the ingredient, the picture is the ornament. */
   function _atomIng(tip, label, colour, kind){
-    var a = _fArt(tip);
+    /* v2125 (#94) — ONE INGREDIENT, ONE PICTURE. MAKE-NOW resolved every atom through
+       _fArt(tip) while the accordion below uses _SLOT_REP / _JEWEL_ART, so the SAME ingredient
+       drew a different file in the two places: measured, artUrl('magic Amulet base') gives
+       art/amu1_graphic.png where _SLOT_REP.Amulet gives art/hd_amulet.png — and all NINE slots
+       differ that way. Both files exist, so nothing looked broken; it is a FIDELITY split, and
+       _artTier ranks the in-game hd_* art ABOVE the keyword *_graphic art, so MAKE-NOW was
+       getting the worse of the two.
+       ⚠ The jewel half of that report is WRONG and is deliberately not "fixed": artUrl('any
+       jewel') already resolves to art/jewel02_graphic.png, the same file _JEWEL_ART names.
+       [[copy-drift]] */
+    var _sl = String(label || '').replace(/^magic\s+/i, '').trim();
+    var _slotRep = (typeof window !== 'undefined' && window._SLOT_REP) || null;
+    var a = (kind === 'base' && _slotRep && _slotRep[_sl]) ? _slotRep[_sl] : _fArt(tip);
     var img = a ? '<img class="f-cing-img" src="'+a+'" alt="" loading="lazy" onerror="this.remove()">' : '';
     return '<span class="f-getchip f-ing-'+kind+'" data-arttip="'+_fEsc(tip)+'" style="color:'+colour+'">'
       + img + _fEsc(label) + '</span>';
@@ -38262,9 +38274,18 @@ function renderJournal(){
     // a magic-blue floating tooltip image, exactly like the Amulet/Ring slots. _tipTint already → magic blue.
     if(!D2IO_ART['any jewel'])D2IO_ART['any jewel']='art/jewel02_graphic.png'; if(!D2IO_ART['Jewel'])D2IO_ART['Jewel']='art/jewel02_graphic.png'; } } catch(e){}
   var _JEWEL_ART='art/jewel02_graphic.png';
+  try { window._JEWEL_ART = _JEWEL_ART; } catch(e){}
   // v513 — all GOOD hd_ files (base_boots/base_belt were the v497 corrupt blue-gem placeholders). Tooltip
   // names point at the SAME good art so the floating cursor card matches the row image (not a blue gem).
+  /* v2125 (#94) — PUBLISHED, because the other half of this join lives in a different closure.
+     _atomIng (MAKE-NOW, ~1,000 lines up and behind an IIFE boundary) resolved ingredient art
+     through _fArt(tip) while the accordion here uses these tables, so the SAME ingredient drew a
+     different FILE in the two places — art/amu1_graphic.png vs art/hd_amulet.png, and all nine
+     slots differ that way. Both files exist, so nothing looked broken; it is a FIDELITY split, and
+     _artTier ranks the in-game hd_* art ABOVE the keyword art, so MAKE-NOW got the worse one.
+     Publishing beats copying the table: a second copy is a second thing that drifts. [[copy-drift]] */
   var _SLOT_REP={Amulet:'art/hd_amulet.png',Ring:'art/hd_ring.png',Gloves:'art/hd_gloves_l.png',Belt:'art/hd_light_belt.png',Boots:'art/hd_chain_boots.png',Helm:'art/hd_helm.png',Shield:'art/hd_kite_shield.png','Body Armor':'art/hd_light_plate.png',Weapon:'art/hd_crystal_sword.png'};
+  try { window._SLOT_REP = _SLOT_REP; } catch(e){}
   var _SLOT_TIP={Amulet:'Amulet',Ring:'Ring',Gloves:'Gloves',Belt:'Light Belt',Boots:'Chain Boots',Helm:'Helm',Shield:'Kite Shield','Body Armor':'Light Plate',Weapon:'Crystal Sword'};
   // color = the craft type's colour (Caster=amethyst, Blood=ruby, Safety=emerald, Hit Power=sapphire) so the
   // slot art glows in that "caster colour" (Konyo: sync each craft slot to its gem colour).
@@ -38504,10 +38525,17 @@ function renderJournal(){
       var _cChronN = 0;
       try { var _cc = window._craftChronCount ? window._craftChronCount() : null; if (_cc) _cChronN = _cc.n||0; } catch(e){}
     H.push('<div class="forge-tabs">'
-      + tab('all','▦','All','ft-all',(_isCrafts ? (total+(s.farm||[]).length+_craftTabN) : (total+(s.farm||[]).length)))   // v678 (swarm) — the v604 farm catch-all renders on ▦ All; the pill said 0 over 91 cards · v1409 + crafts
+      /* v2125 (#74) — ONE UNIT PER CHIP ROW. _craftTabN is craft TYPES (4: Caster, Blood, Safety,
+         Hit Power) and _craftStepN is craft RECIPES (per type x slot, 36 of them). The ALL view
+         renders BOTH sections, so it read "4" above 36 cards it had painted itself, and sat BELOW
+         the One-step chip beside it — in Forge, All is always >= One-step. */
+      + tab('all','▦','All','ft-all',(_isCrafts ? (total+(s.farm||[]).length+_craftTabN+_craftStepN) : (total+(s.farm||[]).length)))   // v678 (swarm) — the v604 farm catch-all renders on ▦ All; the pill said 0 over 91 cards · v1409 + crafts
       + tab('onestep','🟡','One step','ft-step',s.onestep.length+(s.farm||[]).length+_craftStepN)   // v678 — farm rows ride the one-step view · v1409 craft one-steps
       + tab('now','⚒','Make now','ft-now',nowCount)                 //   make now → pipeline (Konyo)
-      + tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length)
+      /* v2125 (#74) — and NO Pipeline chip in the crafts room: s.pipeline is zeroed for crafts
+         at the top of this renderer, so it could only ever read 0 — a control that is always empty
+         teaches him the room is broken rather than that the lane does not apply here. */
+      + (_isCrafts ? '' : tab('pipeline','🔧','Pipeline','ft-pipe',s.pipeline.length))
         + (_isCrafts ? tab('crafts','⚗️','Crafts','ft-craft',_craftTabN) : '')
       + tab('completed','✅','Completed','ft-done',(_isCrafts ? _cChronN : _doneN))          // v532 — end of the storyline
       +'</div>');
@@ -38974,7 +39002,7 @@ function renderJournal(){
       }
     }
     // per-filter empty hint (a bucket the user filtered to that has nothing in it)
-    var bc = F==='now'?(liveNow.length+deferred.length+Object.keys(_craftTypes).length):F==='pipeline'?s.pipeline.length:F==='onestep'?(s.onestep.length+(s.farm||[]).length+(s.craftOnestep||[]).length):F==='crafts'?(typeof CRAFTS!=='undefined'&&CRAFTS?CRAFTS.length:s.crafts.length):(total+(s.farm||[]).length+_craftTabN);   // v678 — farm rows count where they render · v1183/v1409 crafts always shown
+    var bc = F==='now'?(liveNow.length+deferred.length+Object.keys(_craftTypes).length):F==='pipeline'?s.pipeline.length:F==='onestep'?(s.onestep.length+(s.farm||[]).length+(s.craftOnestep||[]).length):F==='crafts'?(typeof CRAFTS!=='undefined'&&CRAFTS?CRAFTS.length:s.crafts.length):(total+(s.farm||[]).length+_craftTabN+(_isCrafts?(s.craftOnestep||[]).length:0));   // v2125 (#74) — the body counter moves WITH the All chip, or the pill and the cards below it describe different sets · v678 — farm rows count where they render · v1183/v1409 crafts always shown
     if (F!=='all' && !bc){
       H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — tap <b>▦ All</b>, or tally more runes / gems / bases.</div>');
     }
@@ -45382,7 +45410,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2124', name:'v2124 - filing an item stops changing where it belongs', date:'2026-08-25', note:'The vault classifier gave a different answer once the item had been filed, because the white base branch is gated on the extras table and the vault register writes the name straight into it. Measured on his live board, five of seven bases moved locker purely by being vaulted, so the assembler filed with one answer and the integrity auditor, which calls the same function afterwards, got another and flagged the systems own filing as a misroute. A vault entry records that he has one, not that the name is a catalogue unique.' };
+  window.D2R_BUILD = { id:'v2126', name:'v2126 - the banner opens the room it names', date:'2026-08-26', note:'Konyo asked what the finds waiting to register banner under the TZ tracker means and reported that clicking it does nothing. Its label named the TV D chronicle sweep and its handler called shell home alone, which lights the TV D tab but never clears the sessions view, and the chronicle panel is display none under that view, so it scrolled to a hidden element and nothing moved. It now goes through the same door the header TV D button uses, lands on the panel with a brief ring so he can see where he was sent, and says what the number means rather than only where it goes.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

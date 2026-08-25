@@ -20550,10 +20550,19 @@ class TestV2124FilingAnItemDoesNotChangeWhereItBelongs(unittest.TestCase):
                         "a filing, which is the actual defect")
         with io.open(spec, encoding="utf-8") as fh:
             body = fh.read()
-        self.assertIn("suggestMule", body, "the spec no longer calls the classifier")
-        self.assertIn("_tvExtraRemember", body,
+        # ⚠ #149 — STRIP THE SPEC'S OWN PROSE FIRST. Its header block explains the defect and names
+        # both functions, so a raw grep is satisfied by the paragraph describing the bug while the
+        # actual calls are gone. Ninth time in one night. [[feedback-comments-vs-code]]
+        code = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
+        code = re.sub(r"(?m)^\s*//.*$", "", code)
+        self.assertGreater(len(code.strip()), 400, "the comment strip ate the spec")
+        self.assertIn("w.suggestMule(", code,
+                      "the spec no longer CALLS the classifier — only mentions it")
+        self.assertIn("_tvExtraRemember && w._tvExtraRemember(", code,
                       "the spec no longer files the item between the two readings, so it cannot "
                       "see the answer move")
+        self.assertIn("tvVaultRegister(", code,
+                      "the end-to-end case no longer goes through the real door")
 
 
 class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
