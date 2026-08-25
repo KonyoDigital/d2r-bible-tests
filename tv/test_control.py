@@ -16341,7 +16341,7 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         # 89 fixture tombstones in his tree proved it. A test that patches the constant is now
         # patching something the writer never reads. [[feedback-fixtures-never-touch-live-data]]
         _tp = os.path.join(root, "tomb.json")
-        with mock.patch.object(rr, "_tombstone_path", lambda: _tp), \
+        with mock.patch.object(rr, "_tombstone_path", lambda *a: _tp), \
              mock.patch.object(rr.shutil, "rmtree", boom):
             r = rr.apply_plan({"hist": hist, "freeMb": 1,
                                "candidates": [{"reel": "reel_s_111_1", "mb": 1.0, "pages": 4,
@@ -16357,7 +16357,7 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         rr = self._rr()
         root, hist = self._hist(reels=[("reel_s_222_2", 4, "chronicle-sets")])
         tp = os.path.join(root, "tomb.json")
-        with mock.patch.object(rr, "_tombstone_path", lambda: tp):
+        with mock.patch.object(rr, "_tombstone_path", lambda *a: tp):
             rr.apply_plan({"hist": hist, "freeMb": 1,
                            "candidates": [{"reel": "reel_s_222_2", "mb": 9.5, "pages": 31,
                                            "why": "read and sealed by BOTH lanes"}]}, yes=True)
@@ -16377,7 +16377,7 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         rr = self._rr()
         root, hist = self._hist(reels=[("reel_s_1_1", 1, None), ("reel_s_2_2", 1, None)])
         tp = os.path.join(root, "tomb.json")
-        with mock.patch.object(rr, "_tombstone_path", lambda: tp):
+        with mock.patch.object(rr, "_tombstone_path", lambda *a: tp):
             rr.apply_plan({"hist": hist, "freeMb": 1,
                            "candidates": [{"reel": "reel_s_1_1", "mb": 1, "pages": 1, "why": "a"}]},
                           yes=True)
@@ -16992,6 +16992,14 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         BUDGET_MS = 3000        # generous: the whole cheap tick, on a cold fixture tree
         slow = []
         total = 0.0
+        # ⚠ v2086 — THIS COULD ONLY GO RED ON HIS MACHINE, which is the mirror of a blind fixture.
+        # On a clean CI checkout every console- and footage-dependent check returns instantly:
+        # there is no console to time out against, no art dir, no frames. So the budget it enforces
+        # is unreachable there, and the 16,585 ms check it caught was only ever catchable HERE.
+        # A guard that can fire on one machine and never on another is a guard that has an opinion
+        # about which machine you are on. So it now names WHICH checks actually did work, and
+        # refuses to call the run a pass when none of them did. [[feedback-blind-fixture-green-gate]]
+        did_work = 0
         for name, fn in cd.CHECKS:
             if name in cd.SLOW:
                 continue
@@ -17002,6 +17010,8 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                 pass
             ms = (_t.time() - t0) * 1000
             total += ms
+            if ms > 1.0:
+                did_work += 1
             if ms > BUDGET_MS:
                 slow.append("%s (%.0f ms)" % (name, ms))
         self.assertEqual(slow, [],
@@ -17010,6 +17020,14 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         self.assertLess(total, BUDGET_MS * 3,
                         "the whole cheap subset costs %.0f ms — it is in the boot path of every "
                         "console a test spawns" % total)
+        # And say plainly when the measurement was thin, rather than reporting a pass that measured
+        # nothing. This is UNMEASURED, not fine — the distinction the whole tree is built on.
+        if did_work < 2:
+            print("   \u26a0 the cheap-subset budget measured almost nothing on this machine "
+                  "(%d of %d check(s) took over 1 ms). A green result here is UNMEASURED, not "
+                  "proof the subset is cheap — the 16.6 s check this caught was only catchable on "
+                  "a tree with a console, art and footage."
+                  % (did_work, len([n for n, _ in cd.CHECKS if n not in cd.SLOW])), flush=True)
 
     def test_a_check_moved_to_SLOW_is_still_RUN_somewhere(self):
         """The mirror: moving a check into SLOW stops the watchdog running it. That is only safe
@@ -18993,6 +19011,113 @@ class TestV2085TheSwitchesReachTheConsoleDrawer(unittest.TestCase):
         tag = ui[i:ui.index(">", i)]
         self.assertIn("_shadowAdvRefresh()", tag,
                       "the painter exists and the drawer never calls it")
+
+
+class TestV2086TheThreeThingsThatWereQuietlyTrue(unittest.TestCase):
+    """Three latent items an adversarial review named and nobody had fixed. None was firing; all
+    three are the kind that stay true and quiet until they are not."""
+
+    def _rr(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention
+        return reel_retention
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    # ── ONE FLOOR ────────────────────────────────────────────────────────────────────────────
+    def test_the_ON_AIR_floor_exists_exactly_ONCE(self):
+        """This number decides two different things: whether /api/on will RECORD, and whether the
+        auto-prune may DELETE. They must be the same by construction, because the whole argument
+        for deleting unattended is "below this he cannot record anyway". It lived in FOUR places —
+        one constant and three bare 8.0 literals — agreeing today with nothing holding them
+        together. Move one and the deleter acts at a level where recording still works.
+        [[copy-drift]]"""
+        import inspect
+        src = inspect.getsource(self._ca())
+        src = "\n".join(ln for ln in src.splitlines() if not ln.lstrip().startswith("#"))
+        self.assertEqual(src.count("_free < 8.0"), 0,
+                         "a bare 8.0 floor literal is back — it can drift from ON_AIR_FLOOR_GB, "
+                         "and then the deleter and the recorder disagree about the same threshold")
+        self.assertGreaterEqual(src.count("_free < ON_AIR_FLOOR_GB"), 2,
+                                "the record-refusal sites stopped reading the shared floor")
+
+    def test_the_deleter_and_the_recorder_use_the_SAME_number(self):
+        """Read at runtime, not from the text — the property is that they are equal, not that they
+        look alike."""
+        ca = self._ca()
+        st = ca.retention_state()
+        ca._retention_once()
+        st = ca.retention_state()
+        self.assertEqual(st.get("floorGb"), ca.ON_AIR_FLOOR_GB,
+                         "the deleter publishes a floor that is not the one it uses")
+
+    # ── THE TOMBSTONE FOLLOWS THE TREE ───────────────────────────────────────────────────────
+    def test_the_record_lands_beside_the_footage_it_records(self):
+        """It resolved from rr.HERE and TV_HIST only, so a caller passing hist_dir straight to
+        plan() deleted from one tree and wrote the tombstones into HIS. `_tombstone(hist, cands)`
+        has always RECEIVED that path and ignored it."""
+        rr = self._rr()
+        d = tempfile.mkdtemp(prefix="tombtree_")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        os.makedirs(hist)
+        got = rr._tombstone_path(hist)
+        self.assertTrue(got.startswith(os.path.realpath(d)),
+                        "a foreign tree still records its tombstones into %s" % got)
+
+    def test_HIS_OWN_tree_still_records_where_it_always_did(self):
+        """The mirror. Redirecting on any hist argument would move his real tombstone file the
+        moment something passed his own path in."""
+        rr = self._rr()
+        mine = os.path.join(rr.HERE, "frames", "hist")
+        self.assertEqual(rr._tombstone_path(mine), rr._tombstone_path(),
+                         "passing his own hist moved his tombstone file")
+
+    def test_the_under_check_is_IMPORTED_not_re_derived(self):
+        """⚠ The first cut called `_under` bare — it lives in tv_diablo, not here, so it was a
+        NameError swallowed by the `except Exception: pass` two lines below it. A guard that can
+        never pass, hiding inside its own error handling.
+
+        And it is imported rather than rewritten because v1897 says why: the comparison "was
+        written four times tonight as h.startswith(root + os.sep), and on Windows that is a coin
+        flip". His Windows machine is the other half of this project."""
+        import inspect
+        src = inspect.getsource(self._rr()._tombstone_path)
+        self.assertIn("from tv_diablo import _under", src,
+                      "the containment check is re-derived locally again")
+        body = "\n".join(ln for ln in src.splitlines() if not ln.lstrip().startswith("#"))
+        self.assertNotIn("startswith(", body,
+                         "a hand-rolled prefix comparison is back — v1897 measured that one as a "
+                         "coin flip on Windows")
+
+    # ── A BUDGET THAT COULD ONLY FIRE ON HIS MACHINE ─────────────────────────────────────────
+    def test_the_cheap_budget_admits_when_it_measured_nothing(self):
+        """On a clean CI checkout every console- and footage-dependent check returns instantly, so
+        the budget is unreachable there and the 16,585 ms check it caught was only ever catchable
+        on his tree. A guard that fires on one machine and never on another has an opinion about
+        which machine you are on. [[feedback-blind-fixture-green-gate]]"""
+        import inspect
+        src = inspect.getsource(self.__class__.__module__ and
+                                sys.modules[self.__class__.__module__])
+        i = src.index("def test_the_cheap_subset_is_actually_CHEAP")
+        blk = src[i:src.index("\n    def ", i + 10)]
+        # ⚠ `assertIn("did_work")` matches even when the increment is unreachable — the identifier
+        # survives in the declaration and in the message. Anchor on the CONDITION that does the
+        # counting. [[source-reading-guard]] §4b
+        self.assertIn("if ms > 1.0:", blk,
+                      "nothing counts how many checks actually did work, so a run that measured "
+                      "nothing reports the same as one that measured everything")
+        self.assertIn("did_work += 1", blk)
+        # ⚠ "UNMEASURED" appears TWICE in that block — once in the comment explaining the rule and
+        # once in the message he actually sees. Changing one leaves the other, so a bare assertIn
+        # passes with the report gutted. Anchor on the sentence that reaches HIM.
+        # [[source-reading-guard]] §2 — an anchor that is not unique is a guess.
+        self.assertIn("A green result here is UNMEASURED, not", blk,
+                      "a run that measured nothing is reported as a pass — the distinction this "
+                      "whole tree is built on")
 
 
 if __name__ == "__main__":

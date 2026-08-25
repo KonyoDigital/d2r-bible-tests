@@ -372,7 +372,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
                      "every reel is recent, unread, or still owed to a lane."))}
 
 
-def _tombstone_path():
+def _tombstone_path(hist=None):
     """v2080 — RESOLVE AT CALL TIME, NOT AT IMPORT.
 
     `TOMBSTONE_PATH = os.path.join(HERE, ...)` was bound when the module loaded, so a test that
@@ -388,6 +388,35 @@ def _tombstone_path():
     A constant computed at import is a fixture guard with a race built into it: the guard is only
     as good as the moment it was evaluated. [[feedback-fixtures-never-touch-live-data]]
     """
+    # v2086 — AND IT ANSWERS FROM THE TREE BEING DELETED, when the caller knows which one that is.
+    # It resolved from rr.HERE and TV_HIST only, so a caller that repointed NEITHER — passing
+    # hist_dir straight to plan() — deleted from one tree and recorded the tombstones into HIS.
+    # `_tombstone(hist, cands)` has always RECEIVED that path and ignored it. Not exercised today
+    # (the suite patches the resolver, _retention_once sets TV_HIST) but a deleter's record of what
+    # it removed should not be one indirection away from the footage it removed.
+    # [[feedback-fixtures-never-touch-live-data]]
+    if hist:
+        # ⚠ `_under` is NOT in this module — it lives in tv_diablo, and the first cut called it
+        # bare. That is a NameError, and the `except Exception: pass` right here would have
+        # swallowed it and fallen through to the old behaviour: a guard that can never pass, hiding
+        # inside its own error handling. The muleById defect, one more time.
+        #
+        # And it is imported rather than re-derived because v1897 says why: this comparison "was
+        # written four times tonight as h.startswith(root + os.sep), and on Windows that is a coin
+        # flip". His Windows machine is the other half of this project. [[copy-drift]]
+        try:
+            sys.path.insert(0, HERE)
+            from tv_diablo import _under as _is_under
+        except Exception:
+            _is_under = None
+        if _is_under is not None:
+            try:
+                h = os.path.realpath(hist)
+                base = os.path.dirname(h) if os.path.basename(h) == "hist" else h
+                if not _is_under(h, HERE):
+                    return os.path.join(base, "reel_tombstones.json")
+            except Exception:
+                pass
     try:
         sys.path.insert(0, HERE)
         import tv_diablo as _tvd
@@ -433,12 +462,12 @@ def _tombstone(hist, cands):
             rec["focus"] = None
         rows.append(rec)
     try:
-        old = _load(_tombstone_path())
+        old = _load(_tombstone_path(hist))
         prev = old.get("reels") if isinstance(old, dict) else None
     except Exception:
         prev = None
     blob = {"reels": (prev or []) + rows, "updatedTs": int(time.time() * 1000)}
-    dest = _tombstone_path()
+    dest = _tombstone_path(hist)
     tmp = dest + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(blob, fh, indent=1)
@@ -470,7 +499,7 @@ def apply_plan(p, yes=False):
     return {"ok": not failed, "removed": removed, "failed": failed,
             "freedMb": p.get("freeMb", 0),
             "tombstoned": (len(tomb) if tomb is not None else None),
-            "tombstonePath": _tombstone_path(),
+            "tombstonePath": _tombstone_path(p.get("hist")),
             "tombstoneWhy": tomb_why}
 
 

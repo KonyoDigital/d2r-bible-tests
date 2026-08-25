@@ -10741,7 +10741,15 @@ def _eagle_watch_loop():
 _RETENTION = {"checked": None, "freeGb": None, "freedMb": 0, "removed": [], "say": "not measured yet",
               "lockedBehindASweep": None, "lockedMb": None}
 _RETENTION_EVERY_S = float(os.environ.get("TV_RETENTION_EVERY_S", "900") or 900)
-ON_AIR_FLOOR_GB = 8.0       # /api/on refuses below this. The one number that makes acting worth it.
+# ── v2086 — ONE FLOOR, FOUR COPIES ───────────────────────────────────────────────────────────
+# This number decides two different things: whether /api/on will RECORD, and whether the auto-prune
+# may DELETE. They must be the same number by construction, because the whole argument for deleting
+# unattended is "below this, he cannot record anyway". It lived in FOUR places — this constant and
+# three bare 8.0 literals — agreeing today with nothing holding them together. Move one and the
+# deleter silently starts acting at a level where recording still works, or stops acting at one
+# where it does not. That is the two-catalogue defect that cost him sixteen uniques, in a float.
+# [[copy-drift]]
+ON_AIR_FLOOR_GB = 8.0
 PRUNE_HEADROOM_GB = 2.0     # clear to floor + this, so it does not re-fire on every tick
 
 
@@ -11101,7 +11109,7 @@ def mini_start(seconds=None, test=False, focus=None):
     try:
         import shutil as _shd
         _free = _shd.disk_usage(HIST_DIR).free / 1e9
-        if _free < 8.0:
+        if _free < ON_AIR_FLOOR_GB:
             return {"ok": False, "mode": "off", "seconds": secs, "secondsAsked": asked,
                     "error": "DISK TOO FULL to record — %.1fGB free, need 8GB. Free ~%.0fGB and press MINI again." % (_free, 9 - _free)}
     except Exception:
@@ -12305,7 +12313,7 @@ def _vault_sweep_run(hist_dir, limit, force=False):
             # ROUNDED one on the board, so at exactly 12.0GB free — which is where his disk sat
             # when this shipped — python warned and the board did not. Two halves, two thresholds,
             # one fact. The boolean travels; nobody re-derives it.
-            _ON_AIR_FLOOR_GB = 8.0      # /api/on refuses below this; the warning must lead it
+            _ON_AIR_FLOOR_GB = ON_AIR_FLOOR_GB   # v2086 — the one floor, never a fourth copy
             _WARN_AT_GB = 12.0
             prop["retention"] = {"candidates": len(_rp.get("candidates") or []),
                                  "freeMb": _rp.get("freeMb") or 0,
@@ -14792,7 +14800,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2085",
+        "ver": "v2086",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -17540,7 +17548,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 import shutil as _shd
                 _free = _shd.disk_usage(HIST_DIR).free / 1e9
-                if _free < 8.0:
+                if _free < ON_AIR_FLOOR_GB:
                     self._json(200, {"ok": False, "mode": "off",
                                      "error": "DISK TOO FULL to record — %.1fGB free, need 8GB. Free ~%.0fGB and press ON AIR again." % (_free, 9 - _free)})
                     return

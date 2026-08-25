@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2085",
+  "ver": "v2086",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2085: the vault manager becomes its own main tab between the forge cluster and TV-D, and the shadow and tooltip switches are mirrored into the console ADVANCED drawer",
+  "note": "v2086: the ON AIR floor stops existing in four places, the tombstone lands beside the tree it records, and a budget that could only fire on his machine now says when it measured nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
