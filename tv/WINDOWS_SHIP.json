@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2107",
+  "ver": "v2108",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2107: ADVANCED was rendering in full, below the fold. At the window size the app actually creates - 1120 by 660 - the rail is 490px tall holding 1191px of content, so the Grok Eyes card landed at y510 and the switches at y752 against a viewport ending at 660. v2076 anticipated this and scrolled with block nearest, which moves the least it can, and for a card one pixel inside the viewport the least is one pixel. Now it comes to the top: card fully visible at y180, switches fully visible at y422. And the console fetches its own update without being asked - the pull is safe and reversible - while the RELAUNCH stays his click, because the app already refuses to restart while he is filming.",
+  "note": "v2108: Two CI failures tonight were flakes, not regressions, and both had one shape: a fixed waitForTimeout followed by an evaluate that reads a board global the 5.9MB page has not built yet. When the runner is loaded the global is absent, the customary fallback swallows it, the fixture seeds nothing, and the test reports a PRODUCT defect that is really the harness arriving early. v592 seeded an empty runeword ledger and then accused the loot filter; v559 read a toast before it existed. Both fixed at the cause. A sweep found 51 more specs with the same shape - a ratchet now stops that number growing, and a boardReady helper is the way to pay it down.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

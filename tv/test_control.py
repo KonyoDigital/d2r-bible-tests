@@ -19834,5 +19834,53 @@ class TestV2107ItFetchesItselfButAsksBeforeRestarting(unittest.TestCase):
                       "the catch no longer reports the torn connection as the relaunch it is")
 
 
+class TestTheSleepThenReadFlakesDoNotGetMoreNumerous(unittest.TestCase):
+    """v2108 — a ratchet on the flake class that cost two false failures in one night.
+
+    `await page.waitForTimeout(N)` followed by an evaluate that reads a LAZILY BUILT board
+    global (RUNEWORD_TIP, CRAFTS, forgeScan, funiScan, fsetsScan, _endgameFilterBases) is a
+    race: bible.html is ~5.9MB and defines those after load, so on a loaded runner the global
+    is absent, the customary `|| {}` swallows it, the fixture seeds NOTHING, and the assertion
+    reports a PRODUCT defect that is really the harness arriving early.
+
+    Both of tonight's false failures had that exact shape — v592 seeded an empty `d2r_rwMade`
+    and then accused the loot filter; v559 read a toast before it existed. Each was green in
+    four consecutive runs and red in one, with the only ship in between touching a different
+    surface. That is a flake, and a gate that is sometimes red has stopped carrying
+    information.
+
+    This does not pretend to have fixed all of them. It stops the count GROWING and records
+    the debt honestly, the same way TestTheSourceGuardsDoNotGetMoreDangerous does for
+    byte-counted slices. `tests/_board_ready.ts` is the way to pay it down: it waits for the
+    thing the test is about to read. [[feedback-blind-fixture-green-gate]]
+    """
+
+    LIMIT = 51        # measured 2026-08-25 after fixing v592 and v559. It may only go DOWN.
+    GLOBALS = ("RUNEWORD_TIP", "RUNEWORDS", "CRAFTS", "_endgameFilterBases",
+               "forgeScan", "funiScan", "fsetsScan")
+
+    def test_the_count_does_not_grow(self):
+        import glob
+        root = os.path.join(os.path.dirname(HERE), "tests")
+        pat = re.compile(r"waitForTimeout\([^)]*\);?\s*(?:const\s+\w+\s*=\s*)?await page\.evaluate")
+        gpat = re.compile(r"w\.(%s)\b" % "|".join(self.GLOBALS))
+        found = []
+        for f in sorted(glob.glob(os.path.join(root, "*.spec.ts"))):
+            with open(f, encoding="utf-8") as fh:
+                src = fh.read()
+            for m in pat.finditer(src):
+                if gpat.search(src[m.end():m.end() + 420]):
+                    found.append(os.path.basename(f))
+                    break
+        self.assertLessEqual(
+            len(found), self.LIMIT,
+            "%d specs sleep and then read a lazily-built board global, up from %d. That is a "
+            "race, not a wait: on a loaded runner the global is absent, `|| {}` swallows it, "
+            "and the test reports a PRODUCT defect that is really the harness arriving early. "
+            "Use boardReady() from tests/_board_ready.ts. New: %s"
+            % (len(found), self.LIMIT, sorted(set(found))[-6:]),
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

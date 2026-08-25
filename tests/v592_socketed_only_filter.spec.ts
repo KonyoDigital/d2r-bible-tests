@@ -11,14 +11,30 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 test('plain whites: premium-only show; common wanted bases eth/socketed-only with plain drops hidden', async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem('d2r_ladderMode', 'nonladder'); });
-  await page.goto(URL); await page.waitForTimeout(1500);
-  await page.evaluate(() => {
+  await page.goto(URL);
+  /* v2108 — WAIT FOR THE ROSTER, DO NOT SLEEP AND HOPE. This slept a fixed 1,500ms and then
+     seeded `d2r_rwMade` from `Object.keys(RUNEWORD_TIP)`. On a loaded runner the 5.9MB board had
+     not defined that object yet, so the fallback `|| {}` seeded NOTHING — every runeword read as
+     unmade, the filter took its early-stage branch, and `cvWanted` came back false. The test then
+     accused the loot filter of a defect that was really the harness arriving early.
+     Green in four consecutive runs and red in one, with the only ship in between touching the
+     CONSOLE and not the board at all — which is the tell for a flake, not a regression.
+     [[feedback-blind-fixture-green-gate]] */
+  await page.waitForFunction(() => Object.keys((window as any).RUNEWORD_TIP || {}).length > 0,
+                             null, { timeout: 30000 });
+  const seeded = await page.evaluate(() => {
     const w: any = window;
     const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Insight') made[n] = 'x'; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     localStorage.setItem('d2r_rwProfile', 'fresh');
+    return Object.keys(made).length;
   });
-  await page.reload(); await page.waitForTimeout(1500);
+  // an empty seed is the failure this test used to report as a filter bug — say so plainly
+  expect(seeded, 'the runeword roster was empty when the fixture seeded — nothing was marked made')
+    .toBeGreaterThan(50);
+  await page.reload();
+  await page.waitForFunction(() => typeof (window as any)._endgameFilterBases === 'function',
+                             null, { timeout: 30000 });
   const r = await page.evaluate(() => {
     const w: any = window;
     const CODE = JSON.parse(document.getElementById('lf-base-codes')!.textContent!.trim());
