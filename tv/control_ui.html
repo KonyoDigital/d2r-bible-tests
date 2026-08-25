@@ -12626,13 +12626,19 @@
       var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">' + _chipArt(rw) + '⚒ ' + rw + ' · MAKE NOW</span>'; })
         .concat((craftNow || []).slice(0, 6).map(function(t){
           var nm = (t && (t.name || (t.craft ? (t.craft + ' ' + (t.slot || '')) : t))) || 'craft';
-          return '<span class="hd-chip now">' + _craftArt(t) + '⚗️ ' + nm + ' · CRAFT NOW</span>';
+          /* v2106 — ONE ART NODE PER ROW. v2101 gave the craft its gem sprite and left the
+             alembic standing next to it, so every FORGE QUESTS chip drew the picture, a space,
+             and then an emoji meaning the same thing — the exact duplicate v1636 removed from
+             the Task Force hero ("the row glyph slot had carried that same art since v1616, so
+             the success path rendered the icon, a 4px gap, then the same icon again").
+             The gem IS the craft's identity; the alembic only survives as _craftArt's fallback. */
+          return '<span class="hd-chip now">' + _craftArt(t) + nm + ' · CRAFT NOW</span>';
         }))
         .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
         .concat((craftStep || []).slice(0, 4).map(function(t){
           var nm = (t && (t.name || t)) || 'craft';
           var miss = (t && t.missing) ? (' · need ' + t.missing) : ' · one step';
-          return '<span class="hd-chip step">' + _craftArt(t) + '⚗️ ' + nm + miss + '</span>';
+          return '<span class="hd-chip step">' + _craftArt(t) + nm + miss + '</span>';
         }))
         .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
       // always-visible craft types when nothing else queued

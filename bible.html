@@ -105,7 +105,11 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--gold
 .legend-item-text{flex:1}
 .legend-item-title{font-size:12px;color:var(--text);font-weight:var(--fw-medium);line-height:var(--lh-snug)}
 .legend-item-desc{font-size:var(--fs-meta);color:var(--text-muted);line-height:var(--lh-snug);margin-top:2px}
-.boss-card{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);border-radius:12px;margin:20px 0;overflow:hidden;scroll-margin-top:var(--scroll-pad-card);content-visibility:auto;contain-intrinsic-size:auto 90px}
+/* v2106 — `.tools-signpost` rides the card's own frame WITHOUT wearing the class. It is a
+   pointer, not a planner: v83's collapse-parity gate counts every `#tab-tools > .boss-card`
+   and demands it start COLLAPSED, which would hide the one thing this element exists to say.
+   Styling it here keeps the room identical and leaves that gate strict. */
+.boss-card,.tools-signpost{background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);border-radius:12px;margin:20px 0;overflow:hidden;scroll-margin-top:var(--scroll-pad-card);content-visibility:auto;contain-intrinsic-size:auto 90px}
 .boss-header{background:linear-gradient(90deg,var(--surface-3),var(--surface-2));border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:14px}
 .boss-emoji{font-size:40px;line-height:var(--lh-none);filter:drop-shadow(0 0 8px rgba(212,168,71,.5))}
 /* v341.10 — premium Tools-tab cards: each carries a themed accent (--tc) so the whole Tools tab
@@ -5248,7 +5252,16 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
      boss-title carry no CSS rule of their own, which is why the text fell back to browser
      defaults; boss-name and boss-title-block do.) Copy the room, do not approximate it.
      [[d2r-bible]] [[visual-regression-detector]] -->
-<div class="boss-card tool-premium" id="vault-moved-note" style="--tc:#f0c060">
+<!-- v2106 — A SIGNPOST IS NOT A PLANNER, so it is no longer a `.boss-card`.
+     v83's collapse-parity gate reads every `#tab-tools > .boss-card` and requires it to be
+     `.collapsible`, to open on toggleCardCollapse, and to START COLLAPSED — one idiom, no
+     odd-one-out. That is right for the PLANNERS it was written about, and wrong for this:
+     collapsing a signpost hides the very pointer it exists to be, and it has no body to
+     collapse. Rather than exempt my own element inside the gate — which is how a rule stops
+     meaning anything — it keeps the LOOK (.tool-premium, boss-header/boss-name/boss-title-block
+     all still apply) and drops the CLASS the gate counts. The tools tab keeps one idiom for
+     its planners, and the gate needed no weakening. [[regression-guard]] -->
+<div class="tools-signpost tool-premium" id="vault-moved-note" style="--tc:#f0c060">
   <div class="boss-header" role="button" tabindex="0"
        onclick="window.vaultJump ? window.vaultJump() : (window.switchTab &amp;&amp; window.switchTab('vault'))"
        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
@@ -24736,6 +24749,12 @@ window.dailyCreateAi = function(force){
                      // (Deliberately NOT quoting the old string here: the guard that forbids it greps
                      // this file, and prose describing a defect reads exactly like the defect.
                      // [[feedback-comments-vs-code]])   // v1270 — pick logic now DESCENDS to grail/sets when runewords are sealed; invalidate v2 cache
+  /* v2106 — PUBLISHED so the guard can pin the LAW instead of the NUMBER. The spec that proves a
+     version bump invalidates a same-day cache asserted the literal '3', so every bump of this
+     constant broke a test that was still describing correct behaviour — and the "fix" is to edit
+     the number, which is how a guard quietly stops meaning anything. It can now read the version
+     the app actually holds and assert the STAMP FOLLOWED IT. An unreachable seam is unchecked. */
+  try { window._PICK_V = _PICK_V; } catch(e){}
   try { if(!force && window.LSR.getItem('d2r_createNowAiV')!==_PICK_V) force=true; } catch(e){}
   // v555.3 — even within the same day, if the cached pick NAMES a runeword the player has since made (Chronicle),
   // it's stale ("Make Enigma" after Enigma is done) → force a fresh pick that respects the Chronicle.
@@ -44988,7 +45007,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2105', name:'v2105 - the hint wears the consoles skin', date:'2026-08-25', note:'The native title box - the OS grey rectangle - is replaced across the console by a lane on the tooltip card that already existed. v1616 called that box the one thing on this console that does not look like this console and replaced it for ITEMS only; this applies the same ruling to every remaining hint. It is a LANE on the existing element, never a second one, which is what v1618 asked for. The title is BORROWED for the length of one hover and always given back. No mass edit: a delegated handler reads whatever title is there, so it also covers the ones built inside JS strings.' };
+  window.D2R_BUILD = { id:'v2106', name:'v2106 - a signpost is not a planner', date:'2026-08-25', note:'Four repairs aimed at the CI queue. The FORGE QUESTS chips drew the gem sprite AND an emoji beside it - the duplicate v1636 already removed once. The Vault signpost was counted by the tools-tab collapse gate, which demands every card start collapsed, and collapsing a signpost hides the one thing it exists to say: it keeps the look and drops the class the gate counts, so the gate needed no weakening. The pick-logic version is published so its spec can pin the LAW rather than the literal. And the grail-import test waited a fixed 2600ms for a toast that lives 5200ms, which is why it was red, green and red again on adjacent commits.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

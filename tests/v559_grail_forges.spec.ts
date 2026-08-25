@@ -184,7 +184,15 @@ test('v561 — grail bulk-import: AI-read FOUND names batch-tick into the LEDGER
     const blob: Blob = await new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg'));
     w.grailIntake([new File([blob], 'g.jpg', { type: 'image/jpeg' })]);   // not awaited — it will navigate
   });
-  await page.waitForLoadState('load'); await page.waitForTimeout(2600);   // post-reload boot + import toast window
+  await page.waitForLoadState('load');
+  /* v2106 — WAIT FOR THE TOAST, DO NOT SLEEP AND HOPE. This was a fixed 2,600ms pause followed by a
+     synchronous DOM read, and the toast it reads only lives 5,200ms — so on a loaded CI runner the
+     boot outran the sleep and the node was not there yet. Measured across tonight's runs: RED at
+     c99cc692's parent, GREEN at c99cc692, RED again at c1d4efac, with nothing touching grail import
+     in between. That is a flake, and a gate that is sometimes red has stopped carrying information
+     — the same defect as one that is always green. Polling for the node removes the timing
+     dependence without weakening a single assertion. [[feedback-blind-fixture-green-gate]] */
+  await page.locator('.forge-toast').first().waitFor({ state: 'attached', timeout: 15000 });
   const r = await page.evaluate(() => {
     const owned = Object.keys(JSON.parse(localStorage.getItem('d2r_foundLog') || '{}'));   // v677
     const pieces = JSON.parse(localStorage.getItem('d2r_setPieces') || '[]');

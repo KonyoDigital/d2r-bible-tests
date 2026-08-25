@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2105",
+  "ver": "v2106",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2105: The native title box - the OS grey rectangle - is replaced across the console by a lane on the tooltip card that already existed. v1616 called that box the one thing on this console that does not look like this console and replaced it for ITEMS only; this applies the same ruling to every remaining hint. It is a LANE on the existing element, never a second one, which is what v1618 asked for. The title is BORROWED for the length of one hover and always given back. No mass edit: a delegated handler reads whatever title is there, so it also covers the ones built inside JS strings.",
+  "note": "v2106: Four repairs aimed at the CI queue. The FORGE QUESTS chips drew the gem sprite AND an emoji beside it - the duplicate v1636 already removed once. The Vault signpost was counted by the tools-tab collapse gate, which demands every card start collapsed, and collapsing a signpost hides the one thing it exists to say: it keeps the look and drops the class the gate counts, so the gate needed no weakening. The pick-logic version is published so its spec can pin the LAW rather than the literal. And the grail-import test waited a fixed 2600ms for a toast that lives 5200ms, which is why it was red, green and red again on adjacent commits.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -106,8 +106,15 @@ test('v556 — a pick-logic version bump invalidates a same-day cached pick', as
     const origFetch = w.fetch; w.fetch = () => { asked = true; return Promise.resolve({ json: () => Promise.resolve({}) }); };
     w.dailyCreateAi();                                    // NOT forced — must self-detect the version mismatch
     w.fetch = origFetch;
-    return { asked, vNow: localStorage.getItem('d2r_createNowAiV') };
+    return { asked, vNow: localStorage.getItem('d2r_createNowAiV'), vApp: String(w._PICK_V ?? '') };
   });
   expect(r.asked).toBe(true);       // stale-version cache → re-asks despite same-day
-  expect(r.vNow).toBe('3');         // stamped with the current pick-logic version (v1270 bump — rotation descends to grail/sets)
+  /* v2106 — PIN THE LAW, NOT THE NUMBER. This asserted the literal '3', so every bump of the
+     pick-logic version turned a test that was still describing CORRECT behaviour red, and the
+     obvious "fix" was to edit the number — which is how a guard quietly stops meaning anything.
+     The law is: a version-mismatched same-day cache re-asks AND is re-stamped with whatever the
+     app's current version is. Read that from the app and prove the stamp followed it. */
+  expect(r.vApp, 'the app no longer publishes its pick-logic version — this test cannot check the stamp').not.toBe('');
+  expect(r.vApp).not.toBe('1');     // the staged cache version, or the test proves nothing
+  expect(r.vNow).toBe(r.vApp);      // stamped with the version the app actually holds
 });
