@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2100",
+  "ver": "v2101",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2100: Eight tabs, their HD art and the clock all fit one row at his 1120 window. The tab strip was never the problem: four layers set its padding and the last was an !important pair in a SECOND stylesheet, so every responsive rule written where the header is styled lost silently. Folded to one source (as v1276 did for chips), then sized the concessions cheapest-first - tabs tighten, gaps tighten, date drops under the time, and only below his window does the icon yield.",
+  "note": "v2101: The ready crafts were published on TWO channels - v1411 poured them into forgeSummary.now and the payload still carried them in crafts - so the console drew every craft twice, once as MAKE NOW with no art and again as CRAFT NOW with one generic medallion shared by all six. now is the runeword channel again, crafts carry their own gem art resolved board-side, and a ready craft is a first-class task in the DAILY TASK FORCE instead of inheriting the runeword sentence about owning every rune.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

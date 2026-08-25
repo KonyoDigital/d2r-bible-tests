@@ -858,19 +858,32 @@ class TestSessionsHomeDashOrder(unittest.TestCase):
         self.assertEqual(seq, expected, f"Sessions home-dash out of order:\n  got {seq}\n  exp {expected}")
 
     def test_forge_ready_chips_before_pipeline(self):
-        """Ready crafts ride with MAKE NOW, not after the pipeline waiting list."""
+        """Ready crafts ride with MAKE NOW, not after the pipeline waiting list.
+
+        v2101 — THIS GUARD USED TO FAIL ON ITS OWN REACH. It read a fixed 2,500-character
+        window from `function hdForge(`, so when v2101 added a comment above the chip
+        builder the pipeline marker fell outside the window, `str.find` returned -1, and
+        -1 < (a real index) reported the chips as CORRECTLY ORDERED being broken — a red
+        that was about the ruler, not the code. Worse, the same arithmetic hides the
+        opposite case: if the FIRST marker goes missing it returns -1 and the assertion
+        PASSES. Bound by the function, and prove both markers exist before comparing.
+        [[source-reading-guard]]
+        """
         ui = os.path.join(HERE, "control_ui.html")
         with open(ui, encoding="utf-8") as f:
             html = f.read()
-        # scope to hdForge
         i = html.find("function hdForge(")
-        self.assertGreater(i, 0)
-        chunk = html[i:i + 2500]
-        self.assertLess(
-            chunk.find("concat((craftNow || []).slice(0, 6)"),
-            chunk.find(".concat((f.pipeline || []).map"),
-            "craftNow chips must render before pipeline chips",
-        )
+        self.assertGreater(i, 0, "hdForge() is gone from the console")
+        # the function ends where the next top-level one begins, whatever its length
+        j = html.find("\n  function ", i + 1)
+        self.assertGreater(j, i, "could not find the end of hdForge()")
+        chunk = html[i:j]
+
+        a = chunk.find("concat((craftNow || []).slice(0, 6)")
+        b = chunk.find(".concat((f.pipeline || []).map")
+        self.assertGreater(a, -1, "the craftNow chip builder is gone from hdForge()")
+        self.assertGreater(b, -1, "the pipeline chip builder is gone from hdForge()")
+        self.assertLess(a, b, "craftNow chips must render before pipeline chips")
 
 
 class TestSessionDelete(unittest.TestCase):
@@ -7635,7 +7648,12 @@ class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
         # and the same trap one property over: the terror flag's colour
         k = self.ui.find(".tz-slot.next .tzz-txt b.tzz-terr")
         self.assertGreater(k, 0, "the terror flag is repainted by the column rule again")
-        self.assertGreater(k, self.ui.find(".tz-slot.next .tzz-txt b { color:"),
+        # v2101 — prove the rule being overridden still EXISTS before comparing positions:
+        # a vanished marker yields -1, and `k > -1` is true for every k, so this pin used to
+        # pass loudest exactly when the thing it guards had been deleted. [[source-reading-guard]]
+        _over = self.ui.find(".tz-slot.next .tzz-txt b { color:")
+        self.assertGreater(_over, 0, "the column colour rule this override exists to beat is gone")
+        self.assertGreater(k, _over,
                            "the terror-flag override must follow the rule that overrode it")
 
     def test_the_next_piece_row_has_exactly_one_hover_card(self):
@@ -9897,8 +9915,13 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
                                  "silently dropped from the receipt")
         self.assertIn("res.vaulted", tail[j:j + 400],
                       "the not-landed branch no longer reports a vault landing")
-        self.assertLess(tail.find("res.vaulted", j), tail.find("res.uniques", j) if
-                        tail.find("res.uniques", j) > 0 else 10 ** 9,
+        # v2101 — the `else 10**9` already defends the RIGHT-hand marker; the LEFT one had no
+        # such guard, and a missing `res.vaulted` yields -1, which is less than anything — the
+        # pin passing precisely because the branch it checks had disappeared. [[source-reading-guard]]
+        _v = tail.find("res.vaulted", j)
+        _u = tail.find("res.uniques", j)
+        self.assertGreater(_v, -1, "the not-landed branch no longer records a vault landing at all")
+        self.assertLess(_v, _u if _u > 0 else 10 ** 9,
                         "the not-landed branch counts it as a FIND — the exact confusion v1889 "
                         "closed: applying Shako reported uniques:5 and moved the grail counter by 4")
 
@@ -19326,6 +19349,102 @@ class TestV2098ASkippedReelSaysWHYItWasSkipped(unittest.TestCase):
         notes = self._notes(root, hist, ["reel_s_1000000000000_1", "reel_s_1000000000001_2"])
         self.assertEqual(sorted(set(notes.values())), ["not targeted this run"],
                          "an unreadable memory must not let any reel claim it was already swept")
+
+
+class TestV2101ACraftIsOneTaskWithItsOwnPicture(unittest.TestCase):
+    """v2101 — Konyo: "mission crafts render twice with mismatched art".
+
+    v1411 appended every ready craft to `d2r_forgeSummary.now` so the console's FORGE
+    QUESTS would stop under-showing them — but the payload's `crafts` key still carried
+    the same rows. Two channels, one truth, and the console reads both: each craft drew
+    once as `MAKE NOW` and again as `CRAFT NOW`. The pictures disagreed for the same
+    reason: the `art` map is built from RUNEWORDS, so the MAKE NOW copy resolved to no
+    art and the CRAFT NOW copy fell back to one generic medallion shared by all six.
+
+    It also made the DAILY TASK FORCE hero read "Forge <b>Caster Amulet</b> — you own
+    every rune" about a craft, which is not forged and needs a gem.
+
+    Three assertions, because the bug had three faces. [[copy-drift]]
+    """
+
+    def setUp(self):
+        # `os.path.dirname(HERE)` is how every other test in this file reaches the board
+        # (see line ~807). There is no module-level REPO — an earlier draft of this guard
+        # assumed one, and the harness that "proved" it green had silently CREATED the name
+        # by assigning to it, so the guard passed in the prover and errored in the suite.
+        # [[feedback-suspect-the-instrument]]
+        with open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as f:
+            self.board = f.read()
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+
+    def test_the_bridge_publishes_crafts_on_exactly_ONE_channel(self):
+        i = self.board.find("var _fsPayload = {")
+        self.assertGreater(i, 0, "the console bridge payload is gone")
+        j = self.board.find("\n        };", i)
+        self.assertGreater(j, i, "could not find the end of the bridge payload")
+        body = self.board[i:j]
+
+        now = re.search(r"\n\s*now:\s*([^\n]+)", body)
+        self.assertIsNotNone(now, "the bridge stopped publishing `now`")
+        self.assertNotIn(
+            "_fsNowCraft", now.group(1),
+            "crafts are being poured into `now` AND published as `crafts` again — the console "
+            "renders both, so every ready craft draws twice (MAKE NOW + CRAFT NOW)",
+        )
+        self.assertIn("crafts:", body, "the craft channel itself vanished")
+
+    def test_every_craft_carries_its_OWN_art(self):
+        # scope to the bridge payload: `crafts:` also occurs in the Forge's own scan output,
+        # and an anchor that matches the WRONG occurrence reports on code it was not aiming at
+        i = self.board.find("var _fsPayload = {")
+        self.assertGreater(i, 0, "the console bridge payload is gone")
+        j = self.board.find("\n        };", i)
+        self.assertGreater(j, i, "could not find the end of the bridge payload")
+        body = self.board[i:j]
+        for key in ("crafts:", "craftOnestep:"):
+            k = body.find(key)
+            self.assertGreater(k, -1, f"{key} is gone from the bridge payload")
+            line = body[k:body.find("\n", k)]
+            self.assertIn(
+                "art:", line,
+                f"{key} ships no art, so the console falls back to ONE generic medallion for "
+                f"every craft — a picture that identifies nothing",
+            )
+
+    def test_the_console_does_not_paint_every_craft_the_same(self):
+        i = self.ui.find("function hdForge(")
+        self.assertGreater(i, 0, "hdForge() is gone")
+        j = self.ui.find("\n  function ", i + 1)
+        self.assertGreater(j, i, "could not find the end of hdForge()")
+        body = self.ui[i:j]
+        self.assertIn("_craftArt = function", body,
+                      "the per-craft art resolver is gone from hdForge()")
+        # check the CHIPS themselves rather than counting artImg calls: the generic medallion is
+        # legitimate as _craftArt's own fallback, so its mere presence proves nothing either way
+        for marker, what in ((" · CRAFT NOW</span>", "the ready-craft chip"),
+                             ("+ miss + '</span>'", "the one-step craft chip")):
+            k = body.find(marker)
+            self.assertGreater(k, -1, f"{what} is gone from hdForge()")
+            seg = body[body.rfind("\n", 0, k):k]
+            self.assertIn(
+                "_craftArt(t)", seg,
+                f"{what} paints a generic medallion directly again — one picture for all of "
+                f"them, which is the 'mismatched art' half of his report",
+            )
+
+    def test_the_task_force_does_not_call_a_craft_a_runeword(self):
+        i = self.ui.find("function hdTaskForce(")
+        self.assertGreater(i, 0, "hdTaskForce() is gone")
+        j = self.ui.find("\n  function ", i + 1)
+        self.assertGreater(j, i, "could not find the end of hdTaskForce()")
+        body = self.ui[i:j]
+        self.assertIn(
+            "you own the gem and the rune", body,
+            "a ready CRAFT has no branch of its own, so it inherits the runeword sentence "
+            "'you own every rune' — which is not what a craft needs",
+        )
+        self.assertIn("craftList", body, "the Task Force no longer reads the craft channel")
 
 
 if __name__ == "__main__":

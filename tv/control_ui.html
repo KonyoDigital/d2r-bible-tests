@@ -12301,6 +12301,13 @@
       var cr = null; try { cr = craftRaw ? JSON.parse(craftRaw) : null; } catch(e2){ cr = null; }
       var _art = f.art || {};
       var _chipArt = function(rw){ var u = _art[rw]; return u ? '<img class="hd-chip-art" src="' + u + '" alt="" loading="lazy" onerror="this.remove()">' : ''; };
+      /* v2101 — a craft wears its OWN gem now. Konyo: "mission crafts render twice with mismatched
+         art". Every craft chip used to call artImg('forge') — one generic medallion for all six,
+         which is a picture that identifies nothing. The board resolves the gem's art and ships it
+         on the bridge (`t.art`), because artUrl lives on the board's side of the iframe. */
+      var _craftArt = function(t){ var u = t && t.art;
+        return u ? '<img class="hd-chip-art" src="' + u + '" alt="" loading="lazy" onerror="this.remove()">'
+                 : artImg('forge', 'hd-chip-art'); };
       // v1409 — craft quests from forgeSummary.crafts / d2r_craftReady (never leave FORGE empty when only crafts are open)
       // v1424 — READY first (runewords MAKE NOW + crafts CRAFT NOW), then one-step, then pipeline.
       // Was: crafts dumped after pipeline → ready crafts looked "out of order" under MISSIONS.
@@ -12309,13 +12316,13 @@
       var chips = (f.now || []).map(function(rw){ return '<span class="hd-chip now">' + _chipArt(rw) + '⚒ ' + rw + ' · MAKE NOW</span>'; })
         .concat((craftNow || []).slice(0, 6).map(function(t){
           var nm = (t && (t.name || (t.craft ? (t.craft + ' ' + (t.slot || '')) : t))) || 'craft';
-          return '<span class="hd-chip now">' + artImg('forge', 'hd-chip-art') + nm + ' · CRAFT NOW</span>';
+          return '<span class="hd-chip now">' + _craftArt(t) + '⚗️ ' + nm + ' · CRAFT NOW</span>';
         }))
         .concat((f.onestep || []).map(function(t){ var rw = t.rw || t; return '<span class="hd-chip step">' + _chipArt(rw) + '◈ ' + rw + ' · one step</span>'; }))
         .concat((craftStep || []).slice(0, 4).map(function(t){
           var nm = (t && (t.name || t)) || 'craft';
           var miss = (t && t.missing) ? (' · need ' + t.missing) : ' · one step';
-          return '<span class="hd-chip step">' + artImg('forge', 'hd-chip-art') + nm + miss + '</span>';
+          return '<span class="hd-chip step">' + _craftArt(t) + '⚗️ ' + nm + miss + '</span>';
         }))
         .concat((f.pipeline || []).map(function(rw){ return '<span class="hd-chip">⏳ ' + rw + '</span>'; }));
       // always-visible craft types when nothing else queued
@@ -12824,10 +12831,24 @@
       // now win first, else a one-step hunt, else the AI daily pick, else the grail still out there. Nothing
       // actionable → no hero (the roster + today stat carry). Whatever the hero surfaces is dropped from the
       // roster below so the lead never duplicates.
-      var heroNow = false, heroOne = false, heroAi = false, hero = null;
+      /* v2101 — A CRAFT IS ITS OWN KIND OF TASK. Konyo's panel read "Forge <b>Caster Amulet</b> —
+         you own every rune" about a CRAFT: a craft is not forged, and what you own for it is a GEM
+         and a rune. That sentence was true of the runewords this branch was written for and simply
+         inherited by crafts when v1411 poured them into `now`. `now` is runewords again (see
+         bible.html `_fsPayload`), and crafts get a branch that says what they actually are.
+         [[label-outlived-referent]] */
+      var craftList = (fs && fs.crafts) || [];
+      var heroNow = false, heroCraft = false, heroOne = false, heroAi = false, hero = null;
       if (nowList.length){
         heroNow = true;
         hero = { art: 'forge', g: '⚒', t: 'Forge <b>' + esc(String(nowList[0])) + '</b> — you own every rune', tag: 'READY NOW', cls: 'ready' };
+      } else if (craftList.length){
+        heroCraft = true;
+        var _c0 = craftList[0];
+        hero = { icon: (_c0 && _c0.art ? '<img class="tf-i" src="' + _c0.art + '" alt="" loading="lazy" onerror="this.remove()">' : null),
+                 art: (_c0 && _c0.art) ? null : 'forge', g: '⚗️',
+                 t: 'Craft <b>' + esc(String(_c0.name || _c0.craft || 'craft')) + '</b> — you own the gem and the rune',
+                 tag: 'READY NOW', cls: 'ready' };
       } else if (oneList.length){
         heroOne = true;
         var o0 = oneList[0], on0 = o0.rw || o0;
@@ -12851,6 +12872,13 @@
       // READY — make-it-now wins (the hero already surfaced the first if it led with one)
       nowList.slice(heroNow ? 1 : 0, 3).forEach(function(rw){
         rows.push('<div class="tf-row tf-ready"><span class="tf-g">' + artImg('forge', 'tf-i') + '</span><span class="tf-t">Forge <b>' + rw + '</b></span><span class="tf-tag">READY — make it now</span></div>');
+      });
+      // v2101 — ready CRAFTS sit beside the ready runewords, each wearing its own gem and reading
+      // as a craft. They used to arrive here disguised as runewords, or not at all.
+      craftList.slice(heroCraft ? 1 : 0, 3).forEach(function(t){
+        var _ci = (t && t.art) ? '<img class="tf-i" src="' + t.art + '" alt="" loading="lazy" onerror="this.remove()">' : artImg('forge', 'tf-i');
+        rows.push('<div class="tf-row tf-ready"><span class="tf-g">' + _ci + '</span><span class="tf-t">Craft <b>'
+          + esc(String(t.name || t.craft || 'craft')) + '</b></span><span class="tf-tag">READY — craft it now</span></div>');
       });
       // v1368 (R5) — THE HUNT leads over PROGRESS: one-step-out targets (what to hunt next) + the AI daily
       // pick sit directly under the ready wins; the chronicle progress bars drop below them as context.
