@@ -3712,7 +3712,20 @@
      so it now reads as one deliberate column instead of a half-empty two. ══ */
   .home-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: var(--hd-gap); grid-area: dash;
     align-content: start; align-items: start; grid-auto-rows: max-content;   /* v906.1 — cards GROW, never overlap */
-    min-height: 0; overflow-y: auto; }
+    min-height: 0; overflow-y: auto;
+    /* v2103 — THE DASH MAY NOT CLAIM HEIGHT IT DOES NOT FILL. Konyo: "a dead black gap with its own
+       scrollbar sits between console sections."
+       `grid-area: dash` lands this box in the `minmax(0, 1fr)` row of .shell, and a grid item
+       defaults to align-self:stretch — so #home-dash was sized to the WHOLE leftover viewport
+       (886.7px at 1120x1080) while `align-content: start` above packed its 491px of content at the
+       top. The 396px remainder was a dead band, carrying a 15px scrollbar gutter down its full
+       height because `scrollbar-gutter: stable` reserves that space whether the box overflows or
+       not (measured offsetWidth 813 - clientWidth 798 = 15). Nothing failed to render into it: it
+       was height the dash took from the grid and never used.
+       `align-self: start` shrink-wraps it to its content; `max-height: 100%` caps it at the grid
+       area so `overflow-y: auto` still scrolls when the dash is TALLER than the row (verified at
+       1120x660, his shipped window size, and at his 880x600 minimum — both still scroll). */
+    align-self: start; max-height: 100%; }
   .home-dash .hd-col { height: fit-content; min-height: 0; }
   /* ══ v1362 (SESSIONS R2 · the HUNT hub — zone tier, Konyo-approved) — the Sessions tab is the FORGE/HUNT/
      MISSIONS counterpart to TV-D=engines. THREE zones with the TV-D-grade banner tier, the HUNT leading;
@@ -3809,6 +3822,12 @@
   body:not([data-view="sessions"]) #hd-taskforce,
   body:not([data-view="sessions"]) .zone-mission,
   body:not([data-view="sessions"]) #hd-forge { display: none !important; }
+  /* v2103 — AND THE HIDDEN Ⅲ RECORD MOVEMENT STOPS HOLDING A LIVE GRID ROW. Its columns are hidden
+     by CSS (v1275/v1274 moved that movement to TV·D), but the generic collapse rule asks
+     `.zone:not(:has(> .hd-col:not([hidden])))` — about the `hidden` ATTRIBUTE, which those columns
+     never carry. So an empty <section class="zone"> stayed in the grid and cost one 12px gap: the
+     last of the dead band above. A guard that tests an attribute cannot see a CSS truth. */
+  body[data-view="sessions"] .zone:has(> .zone-banner.zone-record) { display: none; }
   /* the Sessions flagship view: the cockpit stage steps aside so the hunt leads; the RECORD chronicles below.
      The "full grail bible →" link appears here to reach bible.html's deep session data. */
   /* v1380.3 — hide standby stage on Sessions, BUT never while theatre is open (cinema needs the CRT) */
@@ -4530,7 +4549,15 @@
      live AI-ENGINES bay (dark/resting when not scanning) de-emphasises to a single quiet "asleep" line and the
      HUNT leads. The primary ON AIR control + Theatre stay reachable. ON-AIR (TV-D) the full bay is untouched. ══ */
   body[data-state="off"] .rail .signal > * { display: none; }   /* off-air: collapse the whole live bay to one quiet line */
-  body[data-state="off"] .rail .signal { border: 1px dashed var(--edge); opacity: .8; padding: 8px 12px; }
+  body[data-state="off"] .rail .signal { border: 1px dashed var(--edge); opacity: .8; padding: 8px 12px;
+    /* v2103 — AND IT STOPS GROWING WHEN IT IS EMPTY. `aside.rail .signal { flex: 1 1 auto
+       !important }` (v889, "the health card FILLS") still applied after the rule ABOVE emptied
+       the card off-air, so the scanner bay rendered as a 413px DASHED EMPTY BOX at 1120x1080
+       — one line of text in a box eight times its height. The grow is not what holds the rail
+       together: `#btn-shelf { margin-top: auto !important }` already anchors the floor, and
+       slack-at-rail-bottom measures 0 with and without it. Scoped to off-air only; on air and
+       in sim the card still fills, so v889 is intact. 413px -> 77px. */
+    flex: 0 0 auto !important; }
   body[data-state="off"] .rail .signal::before { content: "🧠 THE SCANNER · asleep — press ON to wake the engines";
     display: block; font: var(--fw-semibold) var(--fs-2xs)/var(--lh-snug) var(--mono); letter-spacing: var(--ls-snug);
     color: var(--muted); padding: 3px 2px; text-transform: none; }
@@ -5746,7 +5773,13 @@
     uniques:   '/art/ui_tab_funi.png',               // gold ring, amber gem — GOLD, the unique colour
     sets:      '/art/ui_tab_fsets.png',              // four puzzle pieces — GREEN, the set colour
     runes:     '/art/hd_ber_rune.png',               // a Ber rune (v384 item pull)
-    stash:     '/art/ui_foc_stash.png',              // the Horadric Cube
+    stash:     '/art/ui_foc_stash.png',              // the Horadric Cube — the STASH FOCUS, not the room
+    crafts:    '/art/logo_cube.png',                // v2103 — the ⚗️ CRAFTS room's own tab. The markup
+                                                    // has referenced this file since the v2094 split while
+                                                    // the map did not declare it, so it was the ONE orphan
+                                                    // v1615 reports: a picture chosen outside the only place
+                                                    // pictures are chosen, which is how a second picture for
+                                                    // one concept gets in. [[copy-drift]]
     gems:      '/art/hd_perfect_ruby.png',
     materials: '/art/hd_burning_essence_of_terror.png',
     chronicle: '/art/ui_chronicle.png',              // the Tome of Identify
@@ -11338,9 +11371,48 @@
     if (!card) return;
     var btns = card.querySelectorAll('.g5-seg-btn');
     var _authPoll = null;
-    function paintG5(st){
-      if (!st || st.present === false){ card.hidden = true; return; }
-      card.hidden = false;
+    /* v2103 — A CONTROL THAT VANISHES IS NOT A CONTROL. Konyo: "when i click advanced in the
+       console right now its like hidden the options there grok eye and shadow ai.. its always
+       hidden like sometimes itsm there and sometimes its not lol."
+
+       Both lines that could hide this card treated three different facts as one:
+         · the fetch threw            (I COULD NOT ASK — a blip, a restart, a slow route)
+         · `present === false`        (the grok binary is not installed on THIS machine)
+         · a real payload             (the lane exists and has a state)
+       The first two both did `card.hidden = true`, so a momentary hiccup DELETED the control he
+       had gone into ADVANCED to find, and a moment later it was back. That is exactly the
+       intermittency he described, and it is the same defect the block 100 lines above this one
+       already names for the OTHER two switches: "AN UNREACHABLE ROUTE READS UNKNOWN, NEVER OFF.
+       'I could not ask' and 'he turned it off' are opposite facts."
+
+       So the card is now ALWAYS present inside ADVANCED and says which of the three it is.
+       [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]] */
+    function paintG5(st, why){
+      card.hidden = false;                 // never again: a control he is hunting for must be there
+      if (!st || st.present === false) {
+        var _absent = (st && st.present === false);
+        card.setAttribute('data-mode', 'off');
+        card.setAttribute('data-state', _absent ? 'absent' : 'unknown');
+        for (var _i = 0; _i < btns.length; _i++) {
+          btns[_i].disabled = true;
+          btns[_i].classList.remove('is-on');
+          btns[_i].setAttribute('aria-pressed', 'false');
+        }
+        if (hint) {
+          /* The reason goes in the TITLE, not the sentence. `why` is a raw fetch/JSON error
+             ("Unexpected token '<', \"<!DOCTYPE \"...") — true, and meaningless to the person
+             reading it. The visible line says what it means for him; the detail stays one
+             hover away for whoever is debugging. */
+          hint.textContent = _absent
+            ? 'GROK EYES — not installed on this machine, so this lane cannot run here.'
+            : 'GROK EYES — UNKNOWN: the control server did not answer. This is not "off" — nobody could ask.';
+          hint.title = _absent ? 'the grok binary was not found on this machine'
+                               : ('could not reach /api/g5_status' + (why ? ' — ' + why : ''));
+        }
+        return;
+      }
+      card.removeAttribute('data-state');
+      for (var _j = 0; _j < btns.length; _j++) btns[_j].disabled = false;
       // Show *intent* on the switch (what you chose); effective mode needs subscription
       var intent = (st.switch || st.mode || 'off');
       var mode = st.mode || 'off';
@@ -11405,7 +11477,11 @@
       try {
         var r = await fetch(API + '/api/g5_status');
         paintG5(await r.json());
-      } catch (e){ card.hidden = true; }
+      } catch (e){
+        // v2103 — was `card.hidden = true`: one bad fetch and the control he came here for
+        // disappeared. A failure to ASK is reported as a failure to ask.
+        paintG5(null, String((e && e.message) || e).slice(0, 60));
+      }
     }
     async function setG5(mode){
       for (var i = 0; i < btns.length; i++) btns[i].disabled = true;

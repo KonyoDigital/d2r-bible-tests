@@ -8074,6 +8074,18 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 /* v675 — the IDEAL base chip on one-step cards yells like a Make-now pick */
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip-ideal{border-color:rgba(255,215,106,.75);background:linear-gradient(135deg,rgba(255,215,106,.16),rgba(201,155,63,.10));box-shadow:0 0 12px rgba(255,215,106,.28);font-weight:var(--fw-bold);font-size:var(--fs-body);color:#ffe08a!important}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip-ideal:hover{box-shadow:0 0 16px rgba(255,215,106,.45)}
+/* v2103 — THE INGREDIENT CHIPS. Each carries its own in-game colour as `color`, so the frame and
+   the wash are derived from it with color-mix rather than a second hardcoded palette that would
+   drift the moment a gem changed. Declared AFTER `.f-getchip:hover` on purpose: that rule repaints
+   every chip cream on hover, which would throw away the whole point of colouring them. */
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip[class*="f-ing-"]{display:inline-flex;align-items:center;gap:6px;
+  border-color:color-mix(in srgb,currentColor 40%,transparent);
+  background:color-mix(in srgb,currentColor 10%,rgba(0,0,0,.30))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip[class*="f-ing-"] .f-cing-img{width:16px;height:16px;object-fit:contain;flex:none;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.65))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip[class*="f-ing-"]:hover{color:inherit;
+  background:color-mix(in srgb,currentColor 18%,rgba(0,0,0,.30));
+  border-color:color-mix(in srgb,currentColor 68%,transparent)}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getsub b{color:#cdb988;font-style:normal}
 /* One-step full-journey arc: do-this-now segment lit, downstream dimmed */
@@ -36792,6 +36804,17 @@ function renderJournal(){
   function _fEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function _fJs(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
   function _fArt(n){ try { return (typeof artUrl==='function') ? (artUrl(n)||'') : ''; } catch(e){ return ''; } }
+  /* v2103 — ONE INGREDIENT CHIP: HD art + the in-game colour, for the MAKE-NOW recipe row.
+     `tip` is the name the #arttip card resolves (the full "Perfect Amethyst", "magic Amulet base"),
+     `label` is what the row prints ("P.Amethyst"), so the chip can be short without the tooltip
+     losing what it needs to find the item. A missing sprite drops the <img> and keeps the WORD —
+     the name is the ingredient, the picture is the ornament. */
+  function _atomIng(tip, label, colour, kind){
+    var a = _fArt(tip);
+    var img = a ? '<img class="f-cing-img" src="'+a+'" alt="" loading="lazy" onerror="this.remove()">' : '';
+    return '<span class="f-getchip f-ing-'+kind+'" data-arttip="'+_fEsc(tip)+'" style="color:'+colour+'">'
+      + img + _fEsc(label) + '</span>';
+  }
   function _has(g){ try { return typeof window[g]!=='undefined'; } catch(e){ return false; } }
   // v518 — in-game RARITY colour for any item reference (the SINGLE source of truth, _qHex):
   // runeword → orange · white base → white · unique gold · set green · magic blue. Konyo: "synced
@@ -38020,7 +38043,7 @@ function renderJournal(){
     // place that cannot disagree with what is actually on screen. The runeword hover card reads this to
     // decide whether to draw its base row (ONE STEP only, Konyo's ask).
     try { window._FORGE_VIEW = F; } catch(e){}
-    H.push('<div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" '+(_isCrafts?'art/logo_cube.png':'art/ui_tab_forge.png')+' alt="" onerror="this.outerHTML=&#39;'+(_isCrafts?'&#9879;':'&#128296;')+'&#39;"></span><div class="forge-headtxt"><div class="forge-title">'+(_isCrafts?'Crafts':'Forge')+'</div>'
+    H.push('<div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="'+(_isCrafts?'art/logo_cube.png':'art/ui_tab_forge.png')+'" alt="" onerror="this.outerHTML=&#39;'+(_isCrafts?'&#9879;':'&#128296;')+'&#39;"></span><div class="forge-headtxt"><div class="forge-title">'+(_isCrafts?'Crafts':'Forge')+'</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div></div>');
     // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
     try {
@@ -38312,11 +38335,24 @@ function renderJournal(){
             icon:'⚗️', artName:(c.gem||''), cls:'craft', skipKey:'craftslot|'+c.craft+'|'+c.slot,
             craft:c.craft, slot:c.slot, color:c.color||'var(--q-orange)',
             atoms:['<div class="f-atomact">Craft <b class="f-rwbig" style="color:'+_fEsc(c.color||'var(--q-orange)')+'">'+_fEsc(c.craft)+' '+_fEsc(c.slot)+'</b>'+(c.top?' <span class="f-ideal">★</span>':'')+(c.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</div>'
+              /* v2103 — EVERY INGREDIENT WEARS ITS ART AND ITS IN-GAME COLOUR. Konyo: "the keywords
+                 here are not HD art and color synced like they were.. gems with art · runes with
+                 art · items related like jewels blue related · each item and their individual cell
+                 relation and color to the ingame color synced."
+                 These four chips were bare `.f-getchip` text. The ACCORDION twin of this very
+                 recipe (_cingRune / _cingBase / _cingJewel, ~:37876) has carried HD art since v516
+                 — the upgrade just never reached the MAKE-NOW card, so the same recipe was dressed
+                 in one room and plain in the other. v518 already settled the colours and quotes him
+                 doing it: "in-game RARITY colour for any item reference … synced ingame for each
+                 individual item reference". So: the GEM takes the craft's own gem colour (which is
+                 what makes Caster purple and Blood red), the RUNE takes --rune, and the magic base
+                 and the jewel take --q-magic, because in the game they are blue. [[copy-drift]] */
               +'<div class="f-atomrecipe"><span class="f-reclbl">cube</span>'
-              +'<span class="f-getchip" data-arttip="'+_fEsc(c.gem)+'">'+_fEsc(gemShort)+'</span>'
-              +'<span class="f-cplus">+</span><span class="f-getchip" data-arttip="'+_fEsc(c.rune)+'">'+_fEsc(c.rune)+'</span>'
-              +'<span class="f-cplus">+</span>magic '+_fEsc(c.slot)
-              +'<span class="f-cplus">+</span>jewel</div>'
+              +_atomIng(c.gem, gemShort, _fEsc(c.color||'var(--q-orange)'), 'gem')
+              +'<span class="f-cplus">+</span>'+_atomIng(c.rune, c.rune, 'var(--rune)', 'rune')
+              +'<span class="f-cplus">+</span>'+_atomIng('magic '+c.slot+' base', 'magic '+c.slot, 'var(--q-magic)', 'base')
+              +'<span class="f-cplus">+</span>'+_atomIng('any jewel', 'jewel', 'var(--q-magic)', 'jewel')
+              +'</div>'
               +'<div class="f-atomsubrow">you hold the gem + rune · buy a magic '+_fEsc(c.slot)+' from a vendor if needed</div>'],
             /* v1635 — UNDO WHERE YOU LOGGED IT. v1634 emitted the ✕ only on the accordion row, so
                anyone who ticked ✓ from this do-now card had no way to take it back from here. Same
@@ -38619,6 +38655,23 @@ function renderJournal(){
      crafts-body at 0. A wrapper that drops its arguments is invisible until someone adds one.
      [[the-unjoined-end]] */
   renderForge=function(_scope){
+    /* v2103 — AN ARGUMENT-LESS REPAINT MEANS "THE ROOM I AM IN", NOT ALWAYS THE FORGE.
+       Every control inside the CRAFTS room ends in a bare `renderForge()` —
+       forgeCraftToggle, forgeCrafted, forgeUncraft, forgeSkip, forgeUnskipAll — which
+       wrote #forge-body while he was standing in #tab-crafts. So opening a craft
+       accordion, or ticking one ✓ crafted, repainted a room he could not see and left
+       the one in front of him untouched: the click looked dead. `renderCrafts()` had
+       exactly ONE caller in the whole file (switchTab), which is the tell.
+       Defaulting the scope here fixes all five at once and cannot drift, where five
+       edited call sites would be five chances to miss the sixth. An explicit
+       renderForge('crafts') or a caller standing anywhere else is unaffected.
+       [[the-unjoined-end]] */
+    if (_scope === undefined) {
+      try {
+        var _a = document.querySelector('.tab.active');
+        if (_a && _a.getAttribute('data-tab') === 'crafts') _scope = 'crafts';
+      } catch(e){}
+    }
     _renderForgeInner(_scope);
     try { if (typeof _writeCraftReady==='function') _writeCraftReady(); } catch(e){}
   };
@@ -44898,7 +44951,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2102', name:'v2102 - the console notices it is behind', date:'2026-08-25', note:'A second machine sat on v945 and nothing ever said so. The behind-check had existed since v817 but could only run if you CLICKED the version in the footer, and the comment above it claimed a banner that was never written. Meanwhile the API told every platform to relaunch to auto-pull - false: no Mac launcher pulled at all, and the Windows one skips the pull whenever the console is already up. The console now checks on load and every 30 minutes, paints a real banner, and UPDATE NOW performs a guarded fast-forward.' };
+  window.D2R_BUILD = { id:'v2103', name:'v2103 - the room you are standing in', date:'2026-08-25', note:'Six fixes from a four-agent sweep. The dead black gap was the dash claiming the whole leftover viewport and filling 491px of it. Every control in the Crafts room repainted the Forge, because a bare renderForge default meant forge instead of the room you are in. The Forge and Crafts emblem shipped an img with no src at all, so the picture AND its fallback glyph were both absent. The Grok Eyes card deleted itself on any failed fetch. The crafts icon was referenced but never declared in CONSOLE_ART. And every MAKE-NOW recipe ingredient now wears HD art and its in-game colour: gems their gem, runes orange, magic bases and jewels blue.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

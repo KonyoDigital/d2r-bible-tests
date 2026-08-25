@@ -57,7 +57,11 @@ test.describe('v59 nav compass widget', () => {
     // v82: an 11th tab — "tools" (personal planners: Rune Stash, Materials Stash, Item Set
     // Tracker, relocated out of runes/ancients/rotw into their own home) — was added.
     // v232: a 12th tab — "TZ tracker" (live terror-zone rotation) — was added.
-    expect(r.chipNames.length).toBe(17);   // … · v710.4 + 📺 TV·D
+    // v2085: an 18th tab — "vault" (the Mule Manager got a main tab of its own, between tools
+    // and TV·D). v2094: a 19th — "crafts", split out of the Forge so a runeword room and a
+    // craft room stop sharing one door. Both land in .tabs-workshop, and the compass builds its
+    // chips FROM .tabs (chipsMatchTabs above asserts that sync), so it picked both up on its own.
+    expect(r.chipNames.length).toBe(19);   // … · v710.4 + 📺 TV·D · v2085 + 🎒 Vault · v2094 + ⚗️ Crafts
     expect(r.hasBackToTop).toBe(true);
     expect(r.firstChipKeepsIcon).toBe(true);
     expect(r.noUndef).toBe(true);

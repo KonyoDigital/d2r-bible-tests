@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2102",
+  "ver": "v2103",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2102: A second machine sat on v945 and nothing ever said so. The behind-check had existed since v817 but could only run if you CLICKED the version in the footer, and the comment above it claimed a banner that was never written. Meanwhile the API told every platform to relaunch to auto-pull - false: no Mac launcher pulled at all, and the Windows one skips the pull whenever the console is already up. The console now checks on load and every 30 minutes, paints a real banner, and UPDATE NOW performs a guarded fast-forward.",
+  "note": "v2103: Six fixes from a four-agent sweep. The dead black gap was the dash claiming the whole leftover viewport and filling 491px of it. Every control in the Crafts room repainted the Forge, because a bare renderForge default meant forge instead of the room you are in. The Forge and Crafts emblem shipped an img with no src at all, so the picture AND its fallback glyph were both absent. The Grok Eyes card deleted itself on any failed fetch. The crafts icon was referenced but never declared in CONSOLE_ART. And every MAKE-NOW recipe ingredient now wears HD art and its in-game colour: gems their gem, runes orange, magic bases and jewels blue.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

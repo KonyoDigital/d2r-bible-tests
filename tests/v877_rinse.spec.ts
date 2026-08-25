@@ -213,7 +213,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
       return { tabs, view, surface: surface ? surface.id : null,
                stageW: r.width, stageH: r.height, phase };
     });
-    expect(vis.tabs).toBe(6);   // v888 — TV·D joined the header nav
+    expect(vis.tabs).toBe(8);   // v888 — TV·D joined the header nav · v2092 +🎒 Vault · v2094 +⚗️ Crafts
     expect(vis.surface, 'the console home paints no surface at all').not.toBeNull();
     expect(vis.stageW, `${vis.surface} is 0-wide on view "${vis.view}" — the console is black`)
       .toBeGreaterThan(400);

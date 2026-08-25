@@ -62,15 +62,25 @@ test('craft recipe rows: each ingredient (rune / base / jewel) carries HD art + 
   await page.goto(URL); await page.waitForTimeout(1600);
   const r = await page.evaluate(() => {
     const w: any = window;
-    // navigate to forge tab + render + open the Caster craft accordion
-    try { w.switchTab && w.switchTab('forge'); } catch (e) {}
-    try { w.renderForge && w.renderForge(); } catch (e) {}
-    try { w.forgeCraftToggle && w.forgeCraftToggle('Caster'); } catch (e) {}
-    const row = document.querySelector('#tab-forge .f-craftrow');
-    const rune = document.querySelector('#tab-forge .f-cing-rune');
-    const base = document.querySelector('#tab-forge .f-cing-base');
-    const jewel = document.querySelector('#tab-forge .f-cing-jewel');
-    const slot = document.querySelector('#tab-forge .f-craftrow-slot') as HTMLElement;
+    /* v2094 — the craft bench left the Forge for a room of its own. renderCrafts() is
+       renderForge('crafts') (bible.html:37679); the default render blanks the craft half of
+       forgeScan()'s payload and the ⚗️ section is gated `if (_isCrafts && …)`
+       (bible.html:37969, 38520), so #tab-forge holds no craft row to measure at all now. */
+    try { w.switchTab && w.switchTab('crafts'); } catch (e) {}
+    /* Opened via the ⚗️ FILTER, not forgeCraftToggle. F==='crafts' is what runs the first-visit
+       auto-open (bible.html:38537), and a closed accordion emits no .f-craftrow at all
+       (bible.html:37906). The toggle would be the more human door, but it is currently broken in
+       this room and that defect belongs to tests/v1635_craft_book_painted.spec.ts, not here:
+       forgeCraftToggle flips _craftOpen and then calls a BARE renderForge() (bible.html:37766),
+       which repaints #forge-body and never touches #crafts-body. Reported for a one-word fix —
+       renderForge('crafts'). This spec is about the ART on the row, so it uses the door that works
+       rather than going red on someone else's bug. */
+    try { w.forgeSetFilter && w.forgeSetFilter('crafts', 'crafts'); } catch (e) {}
+    const row = document.querySelector('#tab-crafts .f-craftrow');
+    const rune = document.querySelector('#tab-crafts .f-cing-rune');
+    const base = document.querySelector('#tab-crafts .f-cing-base');
+    const jewel = document.querySelector('#tab-crafts .f-cing-jewel');
+    const slot = document.querySelector('#tab-crafts .f-craftrow-slot') as HTMLElement;
     return {
       hasRow: !!row,
       runeArt: rune ? !!rune.querySelector('img') : false,
@@ -82,7 +92,7 @@ test('craft recipe rows: each ingredient (rune / base / jewel) carries HD art + 
       slotColor: slot ? slot.getAttribute('style') : '',
     };
   });
-  expect(r.hasRow).toBe(true);
+  expect(r.hasRow, 'the ⚗️ Crafts room rendered no recipe row — nothing below is measuring anything').toBe(true);
   expect(r.runeArt).toBe(true);                         // rune HD icon
   expect(r.runeTip).toBeTruthy();                       // rune tooltip name
   expect(r.baseArt).toBe(true);                         // base slot HD icon

@@ -29,7 +29,10 @@ const REPO = path.resolve(__dirname, '..');
 const UI = fs.readFileSync(path.join(REPO, 'tv', 'control_ui.html'), 'utf8');
 const BOARD = 'file://' + path.join(REPO, 'bible.html');
 
-const TABS = ['session', 'forge', 'funi', 'fsets', 'tools', 'tvd'];
+/* v2092 added 🎒 vault to this strip and v2094 added ⚗️ crafts, in the source order below
+   (tv/control_ui.html #head-tabs). The strip is eight; the two maps under it are still the same
+   three tinted + the plain rest, and which bucket each newcomer belongs in is argued there. */
+const TABS = ['session', 'forge', 'crafts', 'funi', 'fsets', 'tools', 'vault', 'tvd'];
 // the three tabs the GAME has a quality for -> the board token that owns that quality
 // v1628 CORRECTS THIS MAP, NOT THE APP. It said forge: '--rune' because until v1627 the console's
 // --rar-runeword WAS #ff7d3c. v1627 pulled the palette from Konyo's own _profilehd.json and a
@@ -41,7 +44,19 @@ const TABS = ['session', 'forge', 'funi', 'fsets', 'tools', 'tvd'];
    where runes become words. Runeword NAMES stay gold (the game has no runeword colour, so quality
    decides it) — that rule lives in its own specs and is untouched here. */
 const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', forge: '--rune' };
-const PLAIN = ['session', 'tools', 'tvd'];
+/* v2092 — vault joins the plain list on the v1615 rule at the top of this file: a STASH is a
+   container, not an item quality, so it stays chrome exactly like session/tools/tvd. (The CSS
+   declares `--ht-q: #f0c060` on that tab, but the rule that consumes --ht-q names only
+   funi/fsets/forge, so nothing reads it — the tab paints the base --gold-dim. Reported as a dead
+   declaration, not asserted here; either way the tab is plain.)
+   ⚠ crafts is in NEITHER map, and that is a pending product decision rather than an oversight.
+   By this file's own v1631 reasoning — "a TAB labels a ROOM", which is why forge wears --rune —
+   the Crafts room makes CRAFTED items and the game has a colour for those (--q-orange, which
+   tests/v1625_board_quality_surfaces.spec.ts already pins on the board's own craft chip). The
+   console's strip does not tint it yet. Listing it as PLAIN would lock in "crafts must never be
+   orange", which contradicts that; listing it as TINTED would red on a change this file cannot
+   make. It is left out until the strip's tint set is decided. */
+const PLAIN = ['session', 'tools', 'tvd', 'vault'];
 // every quality colour the board declares — a plain tab must match NONE of them
 const QUALITIES = ['--q-unique', '--q-set', '--q-rare', '--q-magic', '--q-orange', '--rune'];
 // v1622's trap: the console's own chrome. A tint that lands here is invisible as a tint.
@@ -170,11 +185,11 @@ async function measureTabs(page: any, lit: boolean) {
 }
 
 test.describe('v1625 — the six main tabs wear the game\'s quality palette', () => {
-  test('★★ the strip is exactly the six known tabs', async ({ page }) => {
+  test('★★ the strip is exactly the eight known tabs', async ({ page }) => {
     await console_(page);
     const got = await page.evaluate(() =>
       Array.from(document.querySelectorAll('#head-tabs .ht')).map((b: any) => b.getAttribute('data-tab')));
-    expect(got, 'the tint map below addresses these six by name — a seventh would go untinted and untested').toEqual(TABS);
+    expect(got, 'the tint map above addresses these by name — a ninth would go untinted and untested').toEqual(TABS);
   });
 
   test('★★★ F·Uniques, F·Sets and Forge ARE the board\'s colours — read live, not restated', async ({ page }) => {
@@ -275,14 +290,15 @@ test.describe('v1625 — the six main tabs wear the game\'s quality palette', ()
 
   test('★★★ every tab stays legible UNLIT and LIT — measured, with the number in the message', async ({ page }) => {
     /* v1614 fixed exactly one of these states on exactly one tab. Six tinted tabs × two states is
-       twelve chances to reprint that bug, so all twelve are measured against the pixels under them.
+       twelve chances to reprint that bug — sixteen since v2092/v2094 made the strip eight — so
+       every one of them is measured against the pixels under it.
        Ratio uses the resolved rgb() pair (WCAG's own model); the opacity-attenuated figure is
        recorded alongside because v905 dims Tools/TV·D to .55 — that dimming predates this change
        and is reported, not asserted on. */
     await console_(page);
     const unlit = await measureTabs(page, false);
     const lit = await measureTabs(page, true);
-    expect(unlit.length).toBe(6);
+    expect(unlit.length).toBe(TABS.length);   // v2092/v2094 — eight tabs × two states = sixteen chances
     for (const [state, rows] of [['unlit', unlit], ['lit', lit]] as [string, any[]][]) {
       for (const t of rows) {
         expect(t.ratio,

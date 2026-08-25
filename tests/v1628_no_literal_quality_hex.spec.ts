@@ -90,16 +90,57 @@ function stripComments(src: string): string {
   };
 
   // Region map: which byte offsets are inside <style>/<script>.
+  //
+  // ⚠ SCANNED IN SOURCE ORDER, NOT PATTERN-MATCHED, AND THIS IS THE SECOND TIME THIS MAP HAS
+  // BEEN THE BUG RATHER THAN THE FILE. A global /<(style|script)\b[^>]*>[\s\S]*?<\/\1>/ has no
+  // idea what a comment is, so a <style> WRITTEN IN PROSE opens a region. v2094 added a doctrine
+  // comment to bible.html whose text reads "The Forge pane is a <style> block and an EMPTY
+  // #forge-body" (bible.html:8833) — inside an HTML comment. MEASURED: that phantom region ran
+  // from line 8833 to the next real </style> at 29124, twenty thousand two hundred and ninety-one
+  // lines, marking every one of them isCode=1 and isScript=0. Two whole classes of comment then
+  // survived stripping inside it: <!-- --> (skipped because isCode was set) and // line comments
+  // (skipped because isScript was not). The guard reported bible.html:15866 — a `//` sentence
+  // reading "render in the in-game ORANGE — the same #ffa800 the crafted bucket uses" — as a
+  // hardcoded palette literal, and test C's prose case for that exact line went red beside it.
+  // Correct code, red guard, and the fault was the guard's own reach. [[source-reading-guard]]
+  //
+  // The scanner below is only ever positioned OUTSIDE a region, so at every step `<!--` really is
+  // an HTML comment and may be skipped whole — which is what makes a <style> named in prose
+  // invisible to it. Measured after the change: bible offenders 1 → 0, console unchanged at 0,
+  // test B checked 9 → 9 in both files, largest comment span 3492 chars in both directions.
+  // THE COUNT IS THE TELL: comment-blanked bytes rose 10.0% → 13.2% in bible.html (the prose the
+  // phantom region had been shielding) and did not move at all in control_ui.html.
   const isCode = new Uint8Array(n);
   const isScript = new Uint8Array(n);
-  const regionRe = /<(style|script)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi;
-  let r: RegExpExecArray | null;
-  while ((r = regionRe.exec(src)) !== null) {
-    const bodyStart = r.index + r[0].indexOf('>', 0) + 1;
-    const bodyEnd = r.index + r[0].length - (`</${r[1]}>`).length;
-    for (let k = bodyStart; k < bodyEnd; k++) {
-      isCode[k] = 1;
-      if (r[1].toLowerCase() === 'script') isScript[k] = 1;
+  const openRe = /<(style|script)\b[^>]*>/iy;
+  {
+    let i = 0;
+    while (i < n) {
+      if (src.startsWith('<!--', i)) {
+        const e = src.indexOf('-->', i + 4);
+        i = e < 0 ? n : e + 3;
+        continue;
+      }
+      if (src.charCodeAt(i) === 60 /* '<' */) {
+        openRe.lastIndex = i;
+        const t = openRe.exec(src);
+        if (t) {
+          const tag = t[1].toLowerCase();
+          const bodyStart = i + t[0].length;
+          // an unclosed region runs to EOF — the same reading the old regex gave by dropping it
+          const closeRe = new RegExp('</' + tag + '\\s*>', 'gi');
+          closeRe.lastIndex = bodyStart;
+          const c = closeRe.exec(src);
+          const bodyEnd = c ? c.index : n;
+          for (let k = bodyStart; k < bodyEnd; k++) {
+            isCode[k] = 1;
+            if (tag === 'script') isScript[k] = 1;
+          }
+          i = c ? c.index + c[0].length : n;
+          continue;
+        }
+      }
+      i++;
     }
   }
 

@@ -207,7 +207,11 @@ test.describe('v203 the vault', () => {
     await page.evaluate(() => (document.querySelector('#item-detail-panel .vault-loc-badge') as HTMLElement).click());
     await page.waitForTimeout(500);
     const tab = await page.evaluate(() => (document.querySelector('.tabs .tab.active') as HTMLElement)?.dataset.tab);
-    expect(tab).toBe('tools');
+    // v2084 gave the Vault Manager a main tab of its own and v2090 forwarded every old address to
+    // it: window.vaultJump — the handler this badge fires (bible.html:35377) — now calls
+    // switchTab('vault') (bible.html:35382), not switchTab('tools'). The law is unchanged, the
+    // room moved: the badge must land him where the card actually is.
+    expect(tab).toBe('vault');
   });
 
   test('manifests export copies markdown; add/rename/delete mule round-trip', async ({ page }) => {

@@ -74,18 +74,39 @@ test('ending a pass reports what it yielded and does NOT stop the reel', async (
   const say = await page.evaluate(async () => {
     const w: any = window;
     w.LSR.setItem('d2r_owned', JSON.stringify(['a', 'b', 'c', 'd']));
+    // no startedReel: this pass did NOT start the reel, so the reel is HIS and must survive
     w.LSR.setItem('d2r_tooltipPass', JSON.stringify({ on: true, baseline: 1, startedTs: 1 }));
     // force the console check true for this call only
     const real = w._shadowOnConsole;
     w._shadowOnConsole = () => true;
-    await w.toggleTooltipPass();
+    const verdict = await w.toggleTooltipPass();
     w._shadowOnConsole = real;
     const st = JSON.parse(w.LSR.getItem('d2r_tooltipPass') || '{}');
-    return { text: (document.getElementById('tp-say') || { textContent: '' }).textContent || '', st };
+    return { verdict, st };
   });
   expect(say.st.on, 'the pass did not end').toBe(false);
   expect(say.st.last, 'the yield was not recorded').toBe(3);
-  expect(say.text).toContain('3 item(s) named');
-  expect(say.text.toLowerCase(), 'it must say the reel is still rolling, not silently seal it')
-    .toContain('still rolling');
+  /* v2101 — READ THE VERDICT THE CALLER GETS, not #tp-say. v2097 deleted that element with the
+     board row and rerouted every one of the pass's nine status lines to #sadv-tip-say on the
+     PARENT document (bible.html:46833 _tpSay), because the button that runs the pass now lives in
+     the console's ⚙ ADVANCED drawer. On a standalone file:// board window.parent === window, so
+     _tpSay() returns null BY DESIGN and the old assertion was reading an element that cannot exist
+     here — the same lookup-of-nothing the board's own guard forbids.
+     The returned object is what the drawer actually consumes: v2095 wires the button as
+     `Promise.resolve(toggleTooltipPass()).then(_shadowAdvRefresh)` (tv/control_ui.html:11313).
+     Both halves of this test's law are in it — `named` is the yield, and `sealed:false` with
+     `reelWasMine:false` IS "the reel is still rolling and it is yours". */
+  expect(say.verdict, 'toggleTooltipPass returned nothing — the drawer has no verdict to paint').toBeTruthy();
+  expect(say.verdict.named, 'the yield the caller is told about must match the store').toBe(3);
+  expect(say.verdict.reelWasMine, 'a reel this pass did not start must be reported as HIS').toBe(false);
+  expect(say.verdict.sealed, 'ending the pass must not seal a reel it did not start').toBe(false);
 });
+
+/* ⚠ COVERAGE GAP, RECORDED NOT PAPERED OVER — the WORDING of those nine lines is now painted into
+   #sadv-tip-say on the console and no spec asserts it. The one that matters most is the branch
+   above: "The reel is STILL ROLLING — you started it, so seal it from ON AIR when you are done."
+   v2019 exists because the branch that fires when the news is worst was the branch that told him
+   least, and the verdict fields asserted above prove the DECISION, not the sentence.
+   Covering it needs a parent document that owns #sadv-tip-say with the board in a same-origin
+   #tvd-eng frame — the console's real shape (tv/control_ui.html:13938 src="/board?app=1…") — which
+   is a harness this file does not have yet. */

@@ -62,7 +62,10 @@ test.describe('v1614 — game art, not emoji', () => {
           loaded: !!img && img.complete && img.naturalWidth > 0,
         };
       }));
-    expect(tabs.length, 'the six-tab strip').toBe(6);
+    // v2092 gave the Vault its own door on this strip and v2094 gave Crafts one, so the six-tab
+    // strip is eight: session · forge · crafts · funi · fsets · tools · vault · tvd. The count is
+    // pinned on purpose — a NEW tab must arrive with art that decodes, not with a silent onerror.
+    expect(tabs.length, 'the eight-tab strip').toBe(8);
     for (const t of tabs) {
       expect(t.src, `the ${t.tab} tab lost its icon element — onerror removed it, so the file at ` +
         'its src did not load').not.toBeNull();

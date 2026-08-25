@@ -70,7 +70,10 @@ test('a vaulted base SURVIVES a reload and reaches a mule', async ({ page }) => 
   const after = await page.evaluate(() => {
     const w: any = window;
     const P = w._D2R_PFX || '';
-    try { w.switchTab && w.switchTab('tools'); } catch (e) {}
+    // v2084 — the vault left Tools for a main tab of its own, and v2087 made that room open the
+    // card on entry. Walking the door he actually walks is what makes the .vm-cell count below a
+    // statement about the room rather than about a bare renderVault() call.
+    try { w.switchTab && w.switchTab('vault'); } catch (e) {}
     try { w.renderVault && w.renderVault(); } catch (e) {}
     return {
       owned: JSON.parse(localStorage.getItem(P + 'd2r_owned') || '[]'),
@@ -97,13 +100,32 @@ test('auto-assign never overrides a home he chose by hand', async ({ page }) => 
     const ma = JSON.parse(localStorage.getItem(P + 'd2r_muleAssign') || '{}');
     const name = bases.find((b) => ma[b]) || bases[0];
     const before = ma[name];
-    // move it somewhere the planner would not choose, the way his own hand would
-    const other = Object.keys(ma).map((k) => ma[k]).find((id) => id && id !== before) || '__keep';
-    ma[name] = other;
-    localStorage.setItem(P + 'd2r_muleAssign', JSON.stringify(ma));
+    /* MOVE IT THROUGH THE DOOR HIS HAND USES, NOT AROUND IT. This wrote d2r_muleAssign straight
+       into localStorage, and `assign` is a closure object loaded ONCE at parse time
+       (bible.html:32553) — vaultAutoAssign reads that object and ends on saveA()
+       (bible.html:32603, 35100), which serialises it back over any direct write. So the "hand
+       move" never existed as far as the app was concerned, and the guard being tested
+       (`if (assign[name]) return;`, bible.html:35069) was never actually reached with a
+       hand-filed value.
+       It read green anyway, for a reason that has since been fixed: before v1980/v1991 taught the
+       apply to mule, `ma` came back EMPTY, so `before` was undefined and `other` fell through to
+       the '__keep' literal — which is also what suggestMule returns for a keep-in-inventory item.
+       The assertion was comparing auto-assign's own answer to itself. [[feedback-blind-fixture-green-gate]]
+       window.vaultAssign IS the click-assign handler (assignItem, bible.html:33782/33799), so
+       filing through it is the same path a real drag or plate-click takes. It rejects anything
+       muleById() does not know, so the target is picked from real assigned ids only — '__keep' is
+       not a mule and would silently no-op. */
+    const other = Object.keys(ma).map((k) => ma[k])
+      .find((id) => id && id !== before && id !== '__keep');
+    if (other) { try { w.vaultAssign(name, other); } catch (e) {} }
+    const filed = JSON.parse(localStorage.getItem(P + 'd2r_muleAssign') || '{}')[name];
     try { w.vaultAutoAssign && w.vaultAutoAssign(); } catch (e) {}
     const post = JSON.parse(localStorage.getItem(P + 'd2r_muleAssign') || '{}');
-    return { name, before, moved: other, after: post[name] };
+    return { name, before, moved: other, filed, after: post[name] };
   }, BASES);
+  // NON-VACUITY: a hand move that never landed leaves nothing for auto-assign to override, and the
+  // assertion below would pass on an app that does not implement the rule at all.
+  expect(r.moved, 'the fixture found no second mule to move it to — nothing was tested').toBeTruthy();
+  expect(r.filed, `the hand move did not take: ${r.name} is still on ${r.before}`).toBe(r.moved);
   expect(r.after, `auto-assign moved ${r.name} out of the home it was filed in`).toBe(r.moved);
 });

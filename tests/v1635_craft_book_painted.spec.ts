@@ -98,14 +98,24 @@ async function asRealBrowser(page: any) {
   }, CHRON_KEY);
 }
 
-/* Board → Forge tab → crafts filter. The two waits are the board's own async render settling; the
- * spec asserts a real row count afterwards so a short wait shows up as a failure, never as a skip. */
+/* Board → Crafts tab → crafts filter. The two waits are the board's own async render settling; the
+ * spec asserts a real row count afterwards so a short wait shows up as a failure, never as a skip.
+ *
+ * v2094 SPLIT THE BENCH OUT OF THE FORGE. renderForge takes a scope now: renderForge('crafts')
+ * writes #crafts-body and is the only render that may see forgeScan()'s craft half, while the
+ * default render blanks crafts/craftOnestep/craftTypes and the ⚗️ section is gated
+ * `if (_isCrafts && …)` (bible.html:38520). So switchTab('forge') reaches an empty room now, and
+ * the filter call has to name its scope — forgeSetFilter(f) with no scope writes the CHRONICLE's
+ * chip (_forgeFilter) and re-renders the wrong body (bible.html:37676).
+ * The 'crafts' filter is still mandatory for the same reason the header note above gives, plus a
+ * second one it now buys: F==='crafts' is what triggers the first-visit auto-open
+ * (bible.html:38537), and a closed accordion emits no .f-craftrow at all (bible.html:37906). */
 async function openCraftBench(page: any) {
   await page.goto(BOARD);
   await page.waitForTimeout(2500);
   await page.evaluate(() => {
-    (window as any).switchTab('forge');
-    (window as any).forgeSetFilter('crafts');
+    (window as any).switchTab('crafts');
+    (window as any).forgeSetFilter('crafts', 'crafts');
   });
   await page.waitForTimeout(1200);
 }

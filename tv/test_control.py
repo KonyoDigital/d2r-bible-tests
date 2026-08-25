@@ -19533,5 +19533,78 @@ class TestV2102TheConsoleNoticesItIsBehind(unittest.TestCase):
                       "and would therefore never pull on a real machine")
 
 
+class TestV2103AControlThatVanishesIsNotAControl(unittest.TestCase):
+    """v2103 — Konyo: "when i click advanced in the console right now its like hidden the
+    options there grok eye and shadow ai.. its always hidden like sometimes itsm there and
+    sometimes its not lol."
+
+    Intermittent, because it was a FETCH FAILURE. `refreshG5()` ended in
+    `catch (e){ card.hidden = true; }`, and `paintG5` opened with
+    `if (!st || st.present === false){ card.hidden = true; return; }`. Three different
+    facts — "I could not ask", "this machine has no grok binary", and a real payload —
+    collapsed into one outcome, and two of them DELETED the control he had opened
+    ADVANCED to find. A moment later the next poll succeeded and it was back.
+
+    The block 100 lines above this code already states the rule for the OTHER two
+    switches in the same drawer: "AN UNREACHABLE ROUTE READS UNKNOWN, NEVER OFF." The
+    eyes card simply never got it. [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+        i = self.ui.find("function g5EyesUi(")
+        self.assertGreater(i, 0, "the Grok Eyes card wiring is gone")
+        j = self.ui.find("\n  })();", i)
+        self.assertGreater(j, i, "could not find the end of g5EyesUi()")
+        body = self.ui[i:j]
+        # READ CODE, NOT THE PARAGRAPHS EXPLAINING IT. This fix is DESCRIBED in a block
+        # comment that quotes the very expression it removed ("The first two both did
+        # `card.hidden = true`"), so a naive filter on lines STARTING with // or * leaves
+        # every continuation line of that paragraph in — and the guard fires on its own
+        # documentation. Strip real /* */ blocks and // lines.
+        # [[feedback-comments-vs-code]] [[source-reading-guard]]
+        code = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
+        code = re.sub(r"(?m)^\s*//.*$", "", code)
+        # AND CHECK THE STRIP DID NOT DEVOUR THE CODE. An unbounded /*…*/ strip once ate
+        # 16.9% of bible.html and the guard downstream went quietly green on the crumbs.
+        # THE COUNT IS THE TELL. [[feedback-suspect-the-instrument]]
+        self.assertGreater(
+            len(code), 0.35 * len(body),
+            "the comment strip removed %d%% of g5EyesUi() — that is the stripper eating code, "
+            "not comments, and every assertion below would be reading crumbs"
+            % round(100 * (1 - len(code) / float(len(body)))),
+        )
+        self.code = code
+
+    def test_no_path_hides_the_card(self):
+        self.assertNotIn(
+            "card.hidden = true", self.code,
+            "something still hides the Grok Eyes card. A control the user is hunting for must "
+            "never disappear — an unreachable route is UNKNOWN, not absent, and a missing "
+            "binary is a sentence, not a deletion",
+        )
+
+    def test_a_failed_fetch_paints_UNKNOWN_rather_than_disappearing(self):
+        i = self.code.find("async function refreshG5(")
+        self.assertGreater(i, 0, "refreshG5() is gone")
+        body = self.code[i:i + 900]
+        self.assertIn("catch", body)
+        self.assertIn(
+            "paintG5(null", body,
+            "the catch no longer repaints the card as UNKNOWN — whatever it does instead, the "
+            "control must still be on screen after a failed fetch",
+        )
+
+    def test_the_three_states_stay_separate(self):
+        self.assertIn("present === false", self.code,
+                      "the 'not installed on this machine' case is gone — it would now be "
+                      "reported as if the server were unreachable")
+        for phrase in ("UNKNOWN", "not installed on this machine"):
+            self.assertIn(phrase, self.code,
+                          "the card no longer distinguishes 'could not ask' from 'cannot run "
+                          "here'; those are opposite facts")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

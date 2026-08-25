@@ -103,11 +103,18 @@ async function seedAndReload(page: any, entries: Record<string, any>, tab: strin
    ITEM 2 — CRAFTS ARE ORANGE, NOT PURPLE
    ════════════════════════════════════════════════════════════════════════════════════════════ */
 test.describe('v1625 · ITEM 2 — the CRAFTS chip is D2 orange', () => {
+  /* v2094 MOVED THE CHIP, NOT THE COLOUR. Crafts left the Forge for a room of their own, and v2096
+     stopped the Forge drawing a ⚗️ chip for crafts it no longer holds (bible.html:38102 renders it
+     only when `_isCrafts`). So the element this test measures now exists at #tab-crafts, reached by
+     switchTab('crafts') — which renders on entry via window.renderCrafts (bible.html:26762).
+     The stylesheet never forked: every rule below is scoped
+     `:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft` (bible.html:7745-7763),
+     so the orange this test pins is the same declaration it always was. */
   test('★★★ .forge-tab.ft-craft computes --q-orange, resting AND lit, and has left the purple family', async ({ page }) => {
-    await board(page, 'forge');
+    await board(page, 'crafts');
     const r = await page.evaluate(() => {
       const Q: any = (window as any).__q;
-      const chip: any = document.querySelector('#tab-forge .forge-tab.ft-craft');
+      const chip: any = document.querySelector('#tab-crafts .forge-tab.ft-craft');
       if (!chip) return { missing: true };
       const ct: any = chip.querySelector('.ft-ct');
       const rest = { chip: Q.colorOf(chip), ct: ct ? Q.colorOf(ct) : null };
@@ -121,7 +128,7 @@ test.describe('v1625 · ITEM 2 — the CRAFTS chip is D2 orange', () => {
       return { missing: false, orange: Q.paint('--q-orange'), rest, lit,
                litRatio: Q.ratio(lit.chip, lit.bg) };
     });
-    expect(r.missing, 'no CRAFTS chip rendered on the Forge tab — nothing to colour').toBe(false);
+    expect(r.missing, 'no CRAFTS chip rendered in the Crafts room — nothing to colour').toBe(false);
     console.log('ITEM 2 · resting chip=%s ct=%s | lit chip=%s ct=%s border=%s | --q-orange=%s | lit contrast=%s:1',
       r.rest!.chip, r.rest!.ct, r.lit!.chip, r.lit!.ct, r.lit!.border, r.orange, r.litRatio!.toFixed(2));
 
