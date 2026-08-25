@@ -19255,5 +19255,78 @@ class TestV2087TheFloorIsPublishedOnATreeThatNeverRecorded(unittest.TestCase):
                          "ON_AIR_FLOOR_GB, which is the whole defect v2086 set out to close")
 
 
+class TestV2098ASkippedReelSaysWHYItWasSkipped(unittest.TestCase):
+    """A REEL SKIPPED BECAUSE NOBODY ASKED FOR IT IS NOT A REEL THAT HAS BEEN READ.
+
+    Konyo: "how come they are still waiting on a sweep the items it says in the tooltip here" —
+    11 reel(s), 609 MB, and pressing sweep never cleared them.
+
+    chronicle_retro labelled EVERY reel in the caller's skip set "already-swept", and skip_reels
+    is supplied by the caller: a TARGETED sweep narrows it to the reel it wants (v1779), so every
+    reel that was merely NOT TARGETED reported itself as done.
+
+    IT SELF-PERPETUATES, which is why it survived: the sweep skips them claiming done, the memory
+    never gains an entry, retention holds them as unread, the next sweep skips them again.
+
+    MEASURED ON HIS TREE before the fix:
+        last run  30 reels · 29 noted "already-swept" · 1 read · pagesRead 0
+        memory    chronicle_swept.json holds 24 entries
+        mismatch  12 of the 29 appear in NO memory entry
+        age       the run (17:56:14) was NEWER than the memory (17:46:20) — a real inconsistency,
+                  not a stale read. Checked before claiming it. [[stale-reading]]
+        after     18 already-swept · 12 not targeted this run
+    And retention, independently, calls 10 of them "never chronicle-swept ... not read even once".
+
+    Fixtures only — a COPIED tree with its own chronicle_swept.json. His is never written.
+    [[feedback-fixtures-never-touch-live-data]]"""
+
+    def _tree(self, memory):
+        import shutil, tempfile, json as _j
+        root = tempfile.mkdtemp(prefix="skipnote_")
+        self.addCleanup(shutil.rmtree, root, True)
+        for f in ("chronicle_retro.py",):
+            shutil.copy2(os.path.join(HERE, f), root)
+        hist = os.path.join(root, "hist"); os.makedirs(hist)
+        for nm in ("reel_s_1000000000000_1", "reel_s_1000000000001_2"):
+            os.makedirs(os.path.join(hist, nm))
+            with open(os.path.join(hist, nm, "f_1000000000000.jpg"), "wb") as fh:
+                fh.write(b"x" * 64)
+        with io.open(os.path.join(root, "chronicle_swept.json"), "w", encoding="utf-8") as fh:
+            fh.write(_j.dumps(memory))
+        return root, hist
+
+    def _notes(self, root, hist, skip):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "cr_fixture_%d" % id(root), os.path.join(root, "chronicle_retro.py"))
+        cr = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cr)
+        out = cr.sweep_hist(hist, lambda *a, **k: [], lambda *a, **k: {}, skip_reels=set(skip))
+        return {r.get("reel"): r.get("note") for r in (out.get("reels") or [])}
+
+    def test_a_reel_the_memory_knows_is_already_swept(self):
+        root, hist = self._tree({"reel_s_1000000000000_1": {"ts": 1, "pages": 3}})
+        notes = self._notes(root, hist, ["reel_s_1000000000000_1", "reel_s_1000000000001_2"])
+        self.assertEqual(notes.get("reel_s_1000000000000_1"), "already-swept",
+                         "a reel the sweep memory records was genuinely paid for")
+
+    def test_a_reel_the_memory_does_NOT_know_says_it_was_not_targeted(self):
+        root, hist = self._tree({"reel_s_1000000000000_1": {"ts": 1, "pages": 3}})
+        notes = self._notes(root, hist, ["reel_s_1000000000000_1", "reel_s_1000000000001_2"])
+        self.assertEqual(notes.get("reel_s_1000000000001_2"), "not targeted this run",
+                         "a reel skipped for any reason OTHER than having been read must say so — "
+                         "claiming 'already-swept' is what stranded 12 of his reels forever")
+
+    def test_an_unreadable_memory_claims_NOTHING_is_swept(self):
+        """Fail toward work, never toward a false 'done'. If the memory cannot be read, the sweep
+        may not assert that any reel has been paid for."""
+        root, hist = self._tree({"reel_s_1000000000000_1": {"ts": 1, "pages": 3}})
+        with io.open(os.path.join(root, "chronicle_swept.json"), "w", encoding="utf-8") as fh:
+            fh.write("{ this is not json")
+        notes = self._notes(root, hist, ["reel_s_1000000000000_1", "reel_s_1000000000001_2"])
+        self.assertEqual(sorted(set(notes.values())), ["not targeted this run"],
+                         "an unreadable memory must not let any reel claim it was already swept")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

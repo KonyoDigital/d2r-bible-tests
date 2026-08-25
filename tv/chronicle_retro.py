@@ -1802,11 +1802,39 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
     if limit:
         _ordered = _ordered[:limit]
     _report_skipped = [d for d in _all if os.path.basename(d) in skip]
+    # v2098 — SAY WHY IT WAS SKIPPED. This labelled EVERY reel in the caller's skip set
+    # "already-swept", and skip_reels is supplied by the caller: a TARGETED sweep narrows it to the
+    # reel it wants (v1779), so every reel that was merely NOT TARGETED reported itself as done.
+    #
+    # Konyo: "how come they are still waiting on a sweep the items it says in the tooltip here".
+    # Because it self-perpetuates. Measured on his tree:
+    #     last run   30 reels · 29 noted "already-swept" · 1 read · pagesRead 0
+    #     memory     chronicle_swept.json holds 24 entries
+    #     mismatch   12 of the 29 are in NO memory entry at all
+    #     age        the run (17:56:14) is NEWER than the memory (17:46:20), so this is a real
+    #                inconsistency and not a stale read — checked before claiming it
+    #     retention  independently calls 10 of them "never chronicle-swept ... not read even once"
+    # The sweep skips them claiming done, the memory never gains an entry, retention holds them as
+    # unread, the next sweep skips them again. Nothing ever clears, and the tooltip and the sweep
+    # report contradict each other about the same reels.
+    #
+    # ASK THE MEMORY instead of assuming. A reel the memory knows is genuinely already-swept; one
+    # skipped for any other reason says so. [[label-outlived-referent]] [[unknown-stays-unknown]]
+    _memo = set()
+    try:
+        _mp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chronicle_swept.json")
+        with open(_mp, encoding="utf-8") as _fh:
+            _blob = json.load(_fh)
+        if isinstance(_blob, dict):
+            _memo = set(_blob.keys())
+    except Exception:
+        _memo = set()   # unreadable memory => cannot claim ANY reel is already swept
     for reel_dir in _report_skipped + _ordered:
         if os.path.basename(reel_dir) in skip:
             skipped += 1
-            st = {"reel": os.path.basename(reel_dir), "runs": 0, "candidates": 0,
-                  "classified": 0, "pages": 0, "note": "already-swept"}
+            _nm = os.path.basename(reel_dir)
+            st = {"reel": _nm, "runs": 0, "candidates": 0, "classified": 0, "pages": 0,
+                  "note": ("already-swept" if _nm in _memo else "not targeted this run")}
             stats.append(st)
             if on_reel:
                 try:

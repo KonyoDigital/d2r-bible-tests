@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2097",
+  "ver": "v2098",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2097: The two rows leave the board with their four painters and 27 CSS rules and the pass now reports into the drawer that owns its button. The never-created guard learned that a parent-document lookup must resolve in the other file rather than being called dead.",
+  "note": "v2098: The sweep labelled every reel in the callers skip set already-swept, so a targeted run reported untargeted reels as done - the memory never gained an entry, retention held them as unread, and the next sweep skipped them again. Twelve of his reels were stranded that way.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
