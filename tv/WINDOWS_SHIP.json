@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2109",
+  "ver": "v2110",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2109: The board half of the tooltip work. The OS grey box is replaced on bible.html too, as a second SKIN on the card that already exists rather than a second element - the ruling v1618 already made. Not one line of the item driver changed: it is scarred code, so the prose lane is a separate listener on the same element, and it defers to the item card BY SELECTOR rather than by timing, because 672 elements carry both an item anchor and a title. It opens above the theatre, which the item lane does not, and the title is borrowed for one hover and always given back.",
+  "note": "v2110: The fleet banner answered the wrong question on the one machine that matters most. The behind count measures commits against GitHub, which on the machine where the tree is edited is permanently zero - while the running process can be several ships stale. That is exactly the state he photographed: the footer said console v2105, agent v2106, board v2106 - relaunch, while the banner carrying the RELAUNCH button stayed hidden. The console has measured running-versus-disk since v2072 and printed it in the footer; the banner never asked. It asks now, and was verified against the live console at v2107 running with v2109 on disk.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

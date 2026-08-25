@@ -19828,7 +19828,14 @@ class TestV2107ItFetchesItselfButAsksBeforeRestarting(unittest.TestCase):
     def test_a_torn_connection_reads_as_success_not_failure(self):
         # execv kills the socket mid-reply; treating that as an error would tell him the
         # relaunch failed at the moment it worked
-        body = _between(self, self.ui, "stage === 'ready'", "go.disabled = false;",
+        # ANCHOR ON THE BRANCH, NOT THE NAME. `stage === 'ready'` now appears TWICE — v2110
+        # added an early-return with the same test inside look() — so `find()` landed on the
+        # first mention and sliced a region that never contained the relaunch code at all.
+        # That is exactly the failure _between's own comment records ("an anchor that matched
+        # the FIRST mention of a name instead of its definition, twice"): the helper reports a
+        # missing needle honestly, but it cannot know I aimed it at the wrong occurrence.
+        # The trailing brace is unique to the branch. [[source-reading-guard]]
+        body = _between(self, self.ui, "stage === 'ready'){", "go.disabled = false;",
                         what="the relaunch branch")
         self.assertIn("relaunching…", body,
                       "the catch no longer reports the torn connection as the relaunch it is")
@@ -19940,6 +19947,46 @@ class TestV2109TheBoardHintWearsTheSameSkin(unittest.TestCase):
                       "already put back")
         for hook in ("pagehide", "focusout", "Escape"):
             self.assertIn(hook, body, "the %s exit path is gone — a borrowed title could strand" % hook)
+
+
+class TestV2110UpToDateIsNotTheSameAsRunningIt(unittest.TestCase):
+    """v2110 — the banner answered the wrong question on the one machine that matters most.
+
+    `behind` counts commits against origin. On the machine where the tree is EDITED that is
+    permanently 0, while the running process can be several ships stale — which is exactly the
+    state Konyo photographed: the footer read "CONSOLE V2105, AGENT V2106, BOARD V2106 —
+    RELAUNCH" while the fleet banner, the one surface carrying a RELAUNCH button, stayed
+    hidden because `behind === 0`.
+
+    The console has measured this since v2072 (`status.drift`: "the process is serving Python
+    it has never executed") and printed it in the footer. The banner simply never asked.
+    Plumbing built on both ends and not joined. [[the-unjoined-end]]
+
+    Verified against the LIVE console at v2107-running / v2109-on-disk: the banner reads
+    "v2109 is on disk — this window is still running the old one" with RELAUNCH NOW.
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
+            self.app = f.read()
+
+    def test_a_zero_behind_count_does_not_end_the_check(self):
+        body = _between(self, self.ui, "if (!j || !j.ok || !j.behind){", "bar.hidden = true; return;",
+                        what="the up-to-date branch of the fleet check")
+        self.assertIn("/api/status", body,
+                      "the banner gives up as soon as it is level with GitHub, which on his own "
+                      "machine is always — and never notices the process is running old code")
+        self.assertIn("drift", body, "the banner does not consult the running-vs-disk measurement")
+        self.assertIn("armRelaunch", body,
+                      "a detected drift no longer offers the relaunch that resolves it")
+
+    def test_the_measurement_it_depends_on_still_exists(self):
+        self.assertIn("def drift_state", self.app,
+                      "drift_state() is gone — the banner would silently stop noticing stale runs")
+        self.assertIn('"drift": drift_state()', self.app,
+                      "drift is no longer published on /api/status, so the banner cannot read it")
 
 
 if __name__ == "__main__":

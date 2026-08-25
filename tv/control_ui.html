@@ -10588,7 +10588,25 @@
       try {
         var r = await fetch(API + '/api/update');
         var j = await r.json();
-        if (!j || !j.ok || !j.behind){ if (stage !== 'ready') bar.hidden = true; return; }
+        if (!j || !j.ok || !j.behind){
+          if (stage === 'ready') return;
+          /* v2110 — BEING UP TO DATE WITH GITHUB IS NOT THE SAME AS RUNNING WHAT IS ON DISK.
+             `behind` counts commits against origin. On the machine where the tree is EDITED it is
+             always 0 while the running process can be several ships stale — which is precisely
+             the state Konyo was looking at when the footer read "CONSOLE V2105, AGENT V2106,
+             BOARD V2106 — RELAUNCH". The console already measures that (`status.drift`, v2072:
+             "the process is serving Python it has never executed") and says so in the footer; the
+             banner simply was not listening, so the one surface with a RELAUNCH button stayed
+             hidden in the case that needs it most. Two different questions, both answered here.
+             [[the-unjoined-end]] */
+          try {
+            var sr = await fetch(API + '/api/status');
+            var sj = await sr.json();
+            var dr = sj && sj.drift;
+            if (dr && dr.drift === true && dr.disk){ armRelaunch(dr.disk); return; }
+          } catch (e){}
+          bar.hidden = true; return;
+        }
         if (!j.dirty && !pulledThisSession){
           pulledThisSession = true;             // once per launch: a loop that re-pulls is a loop
           txt.textContent = 'a newer console is on GitHub — fetching it…';
