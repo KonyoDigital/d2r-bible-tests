@@ -14,6 +14,17 @@ import json
 import os
 import sys
 import tempfile
+# ⚠ v2122 — THE NATALYA SUFFIXES MOVED, AND THAT IS THE POINT OF THE FIXTURE, NOT AN ACCIDENT.
+# The set catalogue says Natalya's Mark IS a "Scissors Suwayyah" (a CLAW) and Natalya's Soul a
+# "Mesh Boots"; the roster had them swapped and v2119 corrected it. So:
+#   · SYNTHETIC fixtures below use "Natalya's Soul (boots)" — the roster's current spelling. These
+#     cases are about FOLDING a bare pipeline name onto its roster piece and about TIME ORDERING;
+#     the suffix is incidental to both, and pinning a spelling the roster no longer has made five
+#     of them fail on a legitimate data correction.
+#   · The REAL-reading case names "Natalya's Mark (claws)", because the stored 2026-08-21 Remaining
+#     reading recorded the game's own base (Scissors Suwayyah) and its DERIVED label was corrected
+#     to agree with it.
+# [[label-outlived-referent]] [[feedback-blind-fixture-green-gate]]
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -52,10 +63,10 @@ class TestTheGuardCanActuallyReachTheNames(TempDirCase):
     """THE DEFECT THAT MADE THIS FILE. Raw pipeline names vs suffixed roster names."""
 
     def test_a_bare_pipeline_name_is_folded_onto_its_suffixed_roster_piece(self):
-        _reading(self._tmp, ["Natalya's Soul (claws)"])
+        _reading(self._tmp, ["Natalya's Soul (boots)"])
         # exactly how the pipeline spells it in chron_evidence.json — no suffix
         out = cl.denied({"Natalya's Soul": [{"frame": "f_1787177277865.jpg"}]})
-        self.assertEqual([d["name"] for d in out["denied"]], ["Natalya's Soul (claws)"],
+        self.assertEqual([d["name"] for d in out["denied"]], ["Natalya's Soul (boots)"],
                          "a bare name must fold onto its roster piece — comparing the two "
                          "conventions directly is what made the first cut always agree")
 
@@ -74,24 +85,24 @@ class TestTimeOrderingProtectsARealFind(TempDirCase):
     the finds it exists to protect."""
 
     def test_a_sighting_older_than_the_page_is_denied(self):
-        _reading(self._tmp, ["Natalya's Soul (claws)"], ms=1787307553811)
-        out = cl.denied({"Natalya's Soul (claws)": [{"frame": "f_1787177277865.jpg"}]})
+        _reading(self._tmp, ["Natalya's Soul (boots)"], ms=1787307553811)
+        out = cl.denied({"Natalya's Soul (boots)": [{"frame": "f_1787177277865.jpg"}]})
         self.assertEqual(len(out["denied"]), 1)
         self.assertEqual(out["superseded"], [])
         self.assertFalse(out["ok"])
 
     def test_a_sighting_NEWER_than_the_page_is_superseded_not_denied(self):
-        _reading(self._tmp, ["Natalya's Soul (claws)"], ms=1787307553811)
-        out = cl.denied({"Natalya's Soul (claws)": [{"frame": "f_1787999999999.jpg"}]})
+        _reading(self._tmp, ["Natalya's Soul (boots)"], ms=1787307553811)
+        out = cl.denied({"Natalya's Soul (boots)": [{"frame": "f_1787999999999.jpg"}]})
         self.assertEqual(out["denied"], [],
                          "he found it AFTER the page was shot — denying it would delete a real find")
-        self.assertEqual([d["name"] for d in out["superseded"]], ["Natalya's Soul (claws)"])
+        self.assertEqual([d["name"] for d in out["superseded"]], ["Natalya's Soul (boots)"])
         self.assertTrue(out["ok"])
         self.assertIn("older than the fact", out["say"])
 
     def test_the_newest_sighting_decides_not_the_oldest(self):
-        _reading(self._tmp, ["Natalya's Soul (claws)"], ms=1787307553811)
-        out = cl.denied({"Natalya's Soul (claws)": [
+        _reading(self._tmp, ["Natalya's Soul (boots)"], ms=1787307553811)
+        out = cl.denied({"Natalya's Soul (boots)": [
             {"frame": "f_1787177277865.jpg"}, {"frame": "f_1787999999999.jpg"}]})
         self.assertEqual(out["denied"], [],
                          "one look after the page is enough — a stale sighting alongside a fresh "
@@ -99,8 +110,8 @@ class TestTimeOrderingProtectsARealFind(TempDirCase):
 
     def test_the_frame_beats_the_reel_because_a_reel_is_a_whole_session(self):
         # reel STARTED before the page, but this frame was captured after it.
-        _reading(self._tmp, ["Natalya's Soul (claws)"], ms=1787307553811)
-        out = cl.denied({"Natalya's Soul (claws)": [
+        _reading(self._tmp, ["Natalya's Soul (boots)"], ms=1787307553811)
+        out = cl.denied({"Natalya's Soul (boots)": [
             {"reel": "s_1787177267889_92273", "frame": "f_1787999999999.jpg"}]})
         self.assertEqual(out["denied"], [],
                          "a reel id is when the session STARTED; the frame is when the item was "
@@ -116,10 +127,10 @@ class TestUnknownStaysUnknown(TempDirCase):
         self.assertIsNone(cl.missing_names("sets"))
 
     def test_a_sighting_with_no_readable_time_is_flagged_not_denied(self):
-        _reading(self._tmp, ["Natalya's Soul (claws)"])
-        out = cl.denied({"Natalya's Soul (claws)": [{"frame": "screenshot.png"}]})
+        _reading(self._tmp, ["Natalya's Soul (boots)"])
+        out = cl.denied({"Natalya's Soul (boots)": [{"frame": "screenshot.png"}]})
         self.assertEqual(out["denied"], [])
-        self.assertEqual([d["name"] for d in out["undated"]], ["Natalya's Soul (claws)"])
+        self.assertEqual([d["name"] for d in out["undated"]], ["Natalya's Soul (boots)"])
         self.assertIn("not evidence", out["say"])
 
     def test_an_empty_rows_file_is_a_failed_recording_not_a_finished_grail(self):
@@ -184,16 +195,42 @@ class TestAgainstTheRealRosterAndTheRealReading(unittest.TestCase):
         self.assertEqual(bad, [], "a missing row that is not a roster piece would silently shrink "
                                   "the subtraction and inflate the owned count")
 
-    def test_the_live_evidence_denies_exactly_the_row_found_by_hand(self):
+    def test_the_live_evidence_and_the_page_now_name_DIFFERENT_pieces(self):
+        """v2122 — WHAT THIS CASE MEASURES CHANGED, AND THE CHANGE IS THE FINDING.
+
+        It used to assert that his live evidence denies exactly one row, found by eye on
+        2026-08-21. That row was `Natalya's Soul (claws)` — a string the roster no longer has.
+        The 2026-08-21 Remaining reading recorded the GAME's own base for it, "Scissors Suwayyah",
+        and the set catalogue says a Scissors Suwayyah IS Natalya's Mark. So the reading's derived
+        label was corrected to `Natalya's Mark (claws)` (v2119, #114) and the two sides stopped
+        meeting: the READER saw Natalya's Soul; the GAME's page says he is missing Natalya's Mark.
+
+        Different pieces, so nothing is denied — and that is CORRECT, not a broken veto. It also
+        means the earlier retraction of Soul was made against a mislabelled row, which is exactly
+        the class #129 is open on.
+
+        The no-denial half alone would be vacuous, so the veto is proven to still BITE on the row
+        the page actually names. [[feedback-contradiction-is-the-finding]]"""
         ev_path = os.path.join(HERE, "chron_evidence.json")
         if not os.path.isfile(ev_path):
             self.skipTest("no chron_evidence.json on this machine")
         with open(ev_path, encoding="utf-8") as fh:
             ev = json.load(fh)
+
+        r = cl.load("sets")
+        self.assertIn("Natalya's Mark (claws)", r["names"],
+                      "the corrected reading no longer names the Suwayyah row this case is about")
+
         out = cl.denied(ev.get("sets") or {})
-        self.assertEqual([d["name"] for d in out["denied"]], ["Natalya's Soul (claws)"],
-                         "this is the row found by eye on 2026-08-21; the guard must find it "
-                         "without a hand")
+        self.assertEqual([d["name"] for d in out["denied"]], [],
+                         "his evidence names Natalya's Soul and the page names Natalya's Mark — "
+                         "denying across two different pieces would destroy a real find")
+
+        # AND THE VETO STILL BITES. Same page, a sighting of the row it DOES name, timed before it.
+        bite = cl.denied({"Natalya's Mark (claws)": [{"frame": "f_1787177277865.jpg"}]})
+        self.assertEqual([d["name"] for d in bite["denied"]], ["Natalya's Mark (claws)"],
+                         "the veto no longer fires on the row the game's own page lists as "
+                         "missing — this case would be asserting nothing")
 
 
 class TestANotFoundReadingExpires(unittest.TestCase):
@@ -292,7 +329,7 @@ class TestThePhantomNamer(TempDirCase):
     """`--phantoms` names the board rows the game denies. Tested because an untested CLI branch is
     a branch that works until the one evening he needs it."""
 
-    def _run(self, board_names, remaining=("Natalya's Soul (claws)",), counts=None):
+    def _run(self, board_names, remaining=("Natalya's Soul (boots)",), counts=None):
         import control_app as ca
         _reading(self._tmp, list(remaining))
         payload = json.dumps({"ok": True,
@@ -314,8 +351,8 @@ class TestThePhantomNamer(TempDirCase):
         return rc, buf.getvalue()
 
     def test_it_names_the_row_the_game_denies(self):
-        rc, out = self._run(["Natalya's Soul (claws)", "Aldur's Rhythm (mace)"])
-        self.assertIn("Natalya's Soul (claws)", out)
+        rc, out = self._run(["Natalya's Soul (boots)", "Aldur's Rhythm (mace)"])
+        self.assertIn("Natalya's Soul (boots)", out)
         self.assertIn("the rows to untick", out)
         self.assertEqual(rc, 1, "a board carrying a denied row must not exit clean")
 
