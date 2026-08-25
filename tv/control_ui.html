@@ -1086,6 +1086,49 @@
   #itip .itip-go { margin-top: 5px; font-family: var(--mono, monospace); font-size: var(--fs-2xs);
     letter-spacing: .4px; color: #8f8f8f; opacity: .85; }
   @media (prefers-reduced-motion: reduce){ #itip { transition: opacity .12s; transform: none; } }
+
+  /* ══ v2105 — THE PROSE LANE: the same card, carrying the words a `title=` used to carry ══════
+     v1616 called the OS grey box "the one thing on this console that does not look like this
+     console" and replaced it FOR ITEMS. This is that ruling applied to every remaining hint —
+     Konyo again: "all these tooltips are like regular windows i want them HD art upgraded for
+     allround and across the platform be creative with it just like the mouse cursor."
+     THE GAUNTLET IS THE WATERMARK, and it is the SAME FILE the cursor wears —
+     /art/hd_cursor_hand32.png. "Just like the mouse cursor" answered with the cursor itself
+     rather than with a lookalike.
+     v1618 settled the shape of this work in advance: "no need to create a new one just sync the
+     current one" — so this is a LANE on #itip, not a second element. [[copy-drift]]
+     Each color-mix is preceded by a flat rgba of the same intent, so an engine without it still
+     gets a framed bubble rather than a transparent one. */
+  #itip.tip-say { max-width: min(340px, calc(100vw - 24px)); padding: 9px 12px 10px; text-align: left;
+    border-color: rgba(240,192,96,.62);
+    border-color: color-mix(in srgb, var(--gold-bright) 62%, transparent);
+    background: radial-gradient(130% 150% at 50% 0%, rgba(240,192,96,.10), transparent 60%),
+                linear-gradient(180deg,#1c140a,#100b06);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.78),
+                inset 0 0 0 2px rgba(240,192,96,.14),
+                0 14px 42px rgba(0,0,0,.82), 0 0 22px rgba(240,192,96,.13); }
+  #itip.tip-say > :not(.itip-say) { display: none; }   /* the item body is built by innerHTML */
+  #itip .itip-say { display: none; }
+  #itip.tip-say .itip-say { display: block; position: relative; z-index: 1;
+    font-family: var(--mono); font-size: var(--fs-2xs);   /* the 13px floor (v1504), via the token */
+    font-weight: var(--fw-medium); line-height: var(--lh-snug); letter-spacing: var(--ls-tight);
+    color: var(--text);
+    /* pre-WRAP, not pre-line: pre-line collapses the runs of spaces that keep a multi-line hint
+       (world : mac) in columns, which is exactly what the native box preserved */
+    white-space: pre-wrap; overflow-wrap: break-word;
+    padding-right: 26px; }                               /* the gauntlet's gutter */
+  #itip.tip-say::after { content:""; position:absolute; right:7px; bottom:6px; width:21px; height:21px;
+    background: url("/art/hd_cursor_hand32.png") center/contain no-repeat;
+    opacity:.14; filter: sepia(.75) saturate(.7); pointer-events:none; z-index:0; }
+  /* the beak — it is what says WHICH control this describes */
+  #itip.tip-say::before { content:""; position:absolute; width:9px; height:9px; z-index:2;
+    background:#1a1209; border:1px solid rgba(240,192,96,.62);
+    border-color: color-mix(in srgb, var(--gold-bright) 62%, transparent);
+    transform: rotate(45deg); }
+  #itip.tip-say.tip-side-right::before { left:-5.5px; top:calc(50% - 5px); border-right:0; border-top:0; }
+  #itip.tip-say.tip-side-left::before  { right:-5.5px; top:calc(50% - 5px); border-left:0; border-bottom:0; }
+  #itip.tip-say.tip-side-below::before { top:-5.5px; left:20px; border-right:0; border-bottom:0; }
+  #itip.tip-say.tip-side-above::before { bottom:-5.5px; left:20px; border-left:0; border-top:0; }
   /* the item's own art, INLINE in the title — it rotates with the item, so it is sized in `em`
      and rides the line rather than sitting in a fixed box the next item would not fit */
   .hh-i { height: 1.12em; width: auto; vertical-align: -.16em; margin-right: .4em; }
@@ -6263,6 +6306,10 @@
      No art path → the card renders WITHOUT a picture rather than a torn placeholder. */
   var _itemTip = (function(){
     var el = null, cur = null;
+    /* v2105 — THE PROSE LANE'S STATE. The title is BORROWED, never taken: it lives in
+       data-tip-held for the length of one hover, so a stuck steal is visible in the DOM and a
+       spec can assert there are zero at rest. */
+    var sayHost = null, sayHeld = null, sayTimer = null, sayWarm = 0, sayTouch = 0;
     function ensure(){
       if (el) return el;
       el = document.createElement('div'); el.id = 'itip';
@@ -6329,6 +6376,12 @@
           if (!d || !d.name){ return this.hide(); }
           el.innerHTML = build(d);
         }
+        /* the ITEM card wins over the prose lane: 672 elements on the board carry BOTH a
+           data-arttip/data-itip and a title, and today they show the rich card with the OS box
+           on top of it. Shed the prose skin before painting the item. */
+        el.classList.remove('tip-say','tip-side-right','tip-side-left','tip-side-below','tip-side-above');
+        el.setAttribute('aria-hidden', 'true');
+        this.release();
         el.classList.add('on');
       },
       move: function(x, y){
@@ -6340,7 +6393,81 @@
         el.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
         el.style.top  = Math.max(8, Math.min(top,  window.innerHeight - h - 8)) + 'px';
       },
-      hide: function(){ if (el){ el.classList.remove('on'); cur = null; } },
+      touched: function(){ sayTouch = Date.now(); },
+      release: function(){
+        if (sayHost){ try {
+          /* refuse to clobber a title a re-render already put back */
+          if (sayHeld !== null && !sayHost.hasAttribute('title')) sayHost.setAttribute('title', sayHeld);
+          sayHost.removeAttribute('data-tip-held');
+          sayHost.removeAttribute('aria-describedby');
+        } catch(e){} }
+        sayHost = null; sayHeld = null;
+      },
+      hide: function(){
+        clearTimeout(sayTimer); sayTimer = null;
+        if (el && el.classList.contains('tip-say')) sayWarm = Date.now();   // warm: the next hint opens fast
+        if (el){
+          el.classList.remove('on','tip-say','tip-side-right','tip-side-left','tip-side-below','tip-side-above');
+          el.setAttribute('aria-hidden', 'true');
+        }
+        cur = null;
+        this.release();
+      },
+      /* ELEMENT-ANCHORED, not cursor-following. The item card follows the cursor; a bubble with a
+         beak must not — bible.html's v643 scar is exactly this ("it looks like randomly opening
+         windows"), and the beak is what makes the tip mean THAT control. */
+      anchor: function(node){
+        ensure();
+        var w = el.offsetWidth || 160, h = el.offsetHeight || 40,
+            vw = window.innerWidth, vh = window.innerHeight,
+            r = node.getBoundingClientRect(), side, x, y;
+        var fitsR = r.right + 14 + w <= vw - 8, fitsL = r.left - w - 14 >= 8;
+        side = fitsR ? 'right' : (fitsL ? 'left' : null);
+        if (side && r.width <= 520){
+          x = (side === 'left') ? (r.left - w - 14) : (r.right + 14);
+          y = Math.min(Math.max(8, r.top + r.height / 2 - h / 2), vh - h - 8);
+        } else {                                   /* a wide bar gets it below — never over itself */
+          side = (r.bottom + 12 + h <= vh - 8) ? 'below' : 'above';
+          x = Math.min(Math.max(8, r.left), vw - w - 8);
+          y = (side === 'below') ? (r.bottom + 12) : Math.max(8, r.top - h - 12);
+        }
+        el.classList.remove('tip-side-right','tip-side-left','tip-side-below','tip-side-above');
+        el.classList.add('tip-side-' + side);
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+      },
+      /* v2105 — the same card, carrying the words a native `title=` used to carry. */
+      say: function(node, viaFocus){
+        if (!node) return this.hide();
+        if (node === sayHost) return;                            /* fires on every mousemove */
+        if (!viaFocus && Date.now() - sayTouch < 700) return;     /* a tap is not a hover */
+        var txt = node.getAttribute('title');
+        if (txt === null) txt = node.getAttribute('data-tip-held');
+        if (!txt || !txt.trim()) return this.hide();
+        this.hide();
+        ensure();
+        sayHost = node;
+        if (viaFocus){ sayHeld = null; }   /* focus never steals: no native box opens on focus */
+        else {
+          sayHeld = txt;
+          /* stolen NOW, not when the timer fires: the native box's own ~1s clock started at the
+             first mouse event, and an attribute that is absent cannot open one. */
+          try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}
+        }
+        var self = this, wait = viaFocus ? 0 : ((Date.now() - sayWarm < 600) ? 40 : 380);
+        clearTimeout(sayTimer);
+        sayTimer = setTimeout(function(){
+          if (sayHost !== node || !node.isConnected) return;
+          el.className = 'tip-say';
+          el.removeAttribute('aria-hidden');       /* describedby must point at a visible node */
+          el.setAttribute('role', 'tooltip');
+          if (!el.querySelector('.itip-say')){
+            var d2 = document.createElement('div'); d2.className = 'itip-say'; el.appendChild(d2);
+          }
+          el.querySelector('.itip-say').textContent = txt;
+          try { node.setAttribute('aria-describedby', 'itip'); } catch(e){}
+          self.anchor(node); el.classList.add('on'); self.anchor(node);   /* measure, then place */
+        }, wait);
+      },
       /* teardown — no stray card left in the DOM (a spec can assert this, and a panel that
          rebuilds the whole shell can call it) */
       destroy: function(){ if (el && el.parentNode){ el.parentNode.removeChild(el); } el = null; cur = null; }
@@ -6353,20 +6480,38 @@
       document.addEventListener('mousemove', function(e){
         last.x = e.clientX; last.y = e.clientY;
         var node = e.target && e.target.closest && e.target.closest('[data-itip]');
-        if (node){ _itemTip.show(node); _itemTip.move(e.clientX, e.clientY); }
+        if (node){ _itemTip.show(node); _itemTip.move(e.clientX, e.clientY); return; }
+        /* v2105 — THE PROSE LANE. It has to live HERE and not in a second listener: this handler
+           hides on every move that is not over an item, so a sibling listener's tip would be
+           killed on the very next mousemove. The iframe is excluded BY NAME — #tvd-eng covers the
+           whole board pane and its own title fires the moment the pointer crosses it. */
+        var hint = e.target && e.target.closest && e.target.closest('[title],[data-tip-held]');
+        if (hint && !hint.matches('iframe,html,body')) _itemTip.say(hint);
         else _itemTip.hide();
       }, true);
       // keyboard parity: the same surfaces are focusable buttons, so focus must open the card too
       document.addEventListener('focusin', function(e){
         var node = e.target && e.target.closest && e.target.closest('[data-itip]');
-        if (!node) return;
-        var r = node.getBoundingClientRect();
-        _itemTip.show(node); _itemTip.move(r.left + r.width / 2, r.bottom);
+        if (node){
+          var r = node.getBoundingClientRect();
+          _itemTip.show(node); _itemTip.move(r.left + r.width / 2, r.bottom);
+          return;
+        }
+        /* v2105 — sighted KEYBOARD users GAIN something they never had: a native tooltip does not
+           open on focus in any browser, so `title` has always been mouse-only for them. This path
+           never removes the attribute, because there is no native box to suppress. */
+        var hint = e.target && e.target.closest && e.target.closest('[title],[data-tip-held]');
+        if (hint && !hint.matches('iframe,html,body')) _itemTip.say(hint, true);
       });
       document.addEventListener('focusout', function(){ _itemTip.hide(); });
       document.addEventListener('scroll', function(){ _itemTip.hide(); }, true);
       window.addEventListener('blur', function(){ _itemTip.hide(); });
       document.addEventListener('keydown', function(e){ if (e.key === 'Escape') _itemTip.hide(); });
+      /* a tap synthesises a hover; `title` never showed on touch anyway, so suppress the lane
+         briefly after one rather than flashing a bubble the finger is already covering */
+      document.addEventListener('touchstart', function(){ _itemTip.touched(); }, { passive: true, capture: true });
+      /* leaving the page mid-hover must not strand a borrowed title */
+      window.addEventListener('pagehide', function(){ _itemTip.release(); });
     } catch(e){ /* a hover affordance must never break the console it decorates */ }
   })();
 

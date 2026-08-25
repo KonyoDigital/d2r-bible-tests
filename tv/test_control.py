@@ -19672,5 +19672,79 @@ class TestV2104OnePlaceStatesHowManyRunewordsExist(unittest.TestCase):
         )
 
 
+class TestV2105TheHintWearsTheConsolesSkin(unittest.TestCase):
+    """v2105 — Konyo: "all these tooltips are like regular windows i want them HD art
+    upgraded for allround and across the platform be creative with it just like the mouse
+    cursor" — and, when asked which: "the cursor mouse floating tooltips im talking about".
+
+    v1616 already called the native box "the one thing on this console that does not look
+    like this console" and replaced it FOR ITEMS. This is that ruling applied to the rest.
+    v1618 settled the shape in advance: "no need to create a new one just sync the current
+    one" — so it is a LANE on #itip, never a second element. [[copy-drift]]
+
+    Measured on the pixels before this guard was written: hovering a real control gave
+    `tip-say on tip-side-left`, 340x56, mono 13px, `pre-wrap`; the host title was borrowed
+    so no native box could open; aria-describedby pointed at the tip; and on leaving, the
+    title came back with ZERO stray [data-tip-held] left on the page.
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+
+    def test_there_is_ONE_tooltip_element_not_two(self):
+        # a second floating card is how the two skins drift apart
+        self.assertIn(".tip-say", self.ui, "the prose lane is gone")
+        self.assertEqual(
+            self.ui.count("el.id = 'itip'"), 1,
+            "something creates a second tooltip element; the prose lane must be a LANE on "
+            "#itip, which is what v1618 asked for in as many words",
+        )
+
+    def test_the_native_box_is_suppressed_by_REMOVING_the_attribute(self):
+        # CSS cannot hide a native tooltip; only the absent attribute stops it opening
+        self.assertIn("removeAttribute('title')", self.ui,
+                      "nothing removes `title`, so the OS grey box still opens over the skin")
+        self.assertIn("data-tip-held", self.ui,
+                      "the borrowed title is not parked anywhere — a stuck steal would be "
+                      "invisible and unassertable")
+
+    def test_the_title_is_BORROWED_and_always_given_back(self):
+        # _between, not a byte count: this file's own ratchet forbids new byte-counted
+        # slices, and it is right to — a window a later comment outgrows comes back empty,
+        # and assertNotIn PASSES on an empty string. [[source-reading-guard]]
+        body = _between(self, self.ui, "release: function()", "hide: function()",
+                        what="the release path")
+        self.assertIn("setAttribute('title'", body, "release does not restore the title")
+        self.assertIn("hasAttribute('title')", body,
+                      "release does not check first, so it can clobber a title that a "
+                      "re-render already put back")
+        # every exit path must run it
+        for hook in ("pagehide", "focusout", "Escape"):
+            self.assertIn(hook, self.ui, "the %s exit path is gone" % hook)
+
+    def test_screen_readers_and_keyboards_are_not_worse_off(self):
+        self.assertIn("aria-describedby", self.ui,
+                      "the tip is shown without describing its anchor to assistive tech")
+        self.assertIn("_itemTip.say(hint, true)", self.ui,
+                      "focus does not open the tip. A native tooltip never opens on focus in "
+                      "any browser, so this path is the one thing sighted keyboard users GAIN "
+                      "— and it must never steal the attribute, because no native box is racing it")
+
+    def test_the_item_card_wins_over_the_prose_lane(self):
+        # 672 elements on the board carry BOTH an item anchor and a title
+        body = _between(self, self.ui,
+                        "var node = e.target && e.target.closest && e.target.closest('[data-itip]');",
+                        "}, true);", what="the mousemove handler")
+        a, b = body.find("_itemTip.show(node)"), body.find("_itemTip.say(hint")
+        self.assertGreater(a, -1, "the item lane is gone from the handler")
+        self.assertGreater(b, -1, "the prose lane is gone from the handler")
+        self.assertLess(a, b, "the prose lane is consulted before the item card, so an element "
+                              "carrying both would get the sentence instead of its item card")
+        self.assertIn("iframe,html,body", self.ui,
+                      "the board iframe is not excluded — #tvd-eng covers the whole pane and its "
+                      "own title would fire the moment the pointer crossed it")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

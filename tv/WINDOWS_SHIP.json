@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2104",
+  "ver": "v2105",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2104: His DAILY TASK FORCE read complete at 99 of 100. The panel was right - it prints the derived total, 99. The 100 came from the AI PROMPT, which told Sonnet in words that the denominator was a round hundred, so the model wrote a sentence around a number the app never believed. Four rendered surfaces printed the same literal and three more carried it as a fallback, including one that would have SUPPRESSED the CHRONICLE COMPLETE moment at 99 made. Every reader now asks the roster. Also: the ONE STEP rows wear the runewords own picture instead of a raw target emoji this project already ruled means nothing could be resolved.",
+  "note": "v2105: The native title box - the OS grey rectangle - is replaced across the console by a lane on the tooltip card that already existed. v1616 called that box the one thing on this console that does not look like this console and replaced it for ITEMS only; this applies the same ruling to every remaining hint. It is a LANE on the existing element, never a second one, which is what v1618 asked for. The title is BORROWED for the length of one hover and always given back. No mass edit: a delegated handler reads whatever title is there, so it also covers the ones built inside JS strings.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
