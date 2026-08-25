@@ -12264,6 +12264,13 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
     both directions, because a veto only ever seen pass is a veto nobody has seen work — and pin the
     two rows it must NEVER eat, which is the more dangerous half: withholding a real find on
     evidence nobody has is worse than the defect it was built for.
+    ⚠ v2119 — THE FIXTURE NAME MOVED, AND THE REASON MATTERS. This class used
+    "Natalya's Soul (claws)", which stopped being a roster piece when v2116/v2119 corrected the
+    Natalya slots (Mark IS the Scissors Suwayyah; Soul is the Mesh Boots). `denied()` folds BOTH
+    sides through the roster and drops what will not fold (`{c for c in (...) if c}`), so the
+    fixture quietly became "an unfoldable name is not denied" — which is NOT what this class is
+    for, and it went red honestly. The row v1923 was actually built for is the CLAWS one, so the
+    fixture now names it correctly. [[label-outlived-referent]]
     [[feedback-blind-fixture-green-gate]] [[stale-reading]]
     """
 
@@ -12275,7 +12282,7 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
             return json.dumps({"ok": True, "applied": {"uniques": 0, "sets": 0, "skipped": 0}})
         return _ejs
 
-    def _run(self, rows, remaining=("Natalya's Soul (claws)",)):
+    def _run(self, rows, remaining=("Natalya's Mark (claws)",)):
         import tempfile
         import control_app as ca
         tmp = tempfile.mkdtemp(prefix="veto-")
@@ -12303,12 +12310,12 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
 
     def test_a_denied_row_never_reaches_the_board(self):
         out, sent = self._run([
-            {"name": "Natalya's Soul (claws)", "seen": [{"frame": "f_1787177277865.jpg"}]},
+            {"name": "Natalya's Mark (claws)", "seen": [{"frame": "f_1787177277865.jpg"}]},
             {"name": "Aldur's Rhythm (mace)", "seen": [{"frame": "f_1787177277865.jpg"}]},
         ])
         self.assertEqual(sent, ["Aldur's Rhythm (mace)"],
                          "the denied row was handed to the board anyway")
-        self.assertEqual(out.get("withheld"), ["Natalya's Soul (claws)"])
+        self.assertEqual(out.get("withheld"), ["Natalya's Mark (claws)"])
         self.assertIn("still lists them as missing", out.get("withheldWhy", ""))
 
     def test_a_row_the_game_never_listed_passes_through_untouched(self):
@@ -12324,25 +12331,25 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
         """The dangerous half. He keeps playing; the page ages. A find made after the reading must
         survive, or the safeguard starts deleting the finds it exists to protect."""
         out, sent = self._run([
-            {"name": "Natalya's Soul (claws)", "seen": [{"frame": "f_1787999999999.jpg"}]},
+            {"name": "Natalya's Mark (claws)", "seen": [{"frame": "f_1787999999999.jpg"}]},
         ])
-        self.assertEqual(sent, ["Natalya's Soul (claws)"],
+        self.assertEqual(sent, ["Natalya's Mark (claws)"],
                          "seen AFTER the Remaining page — the page is older than the fact")
         self.assertNotIn("withheld", out)
 
     def test_an_UNDATED_sighting_is_not_withheld_either(self):
         """Order unknown is not evidence for the accusation. [[unknown-stays-unknown]]"""
         out, sent = self._run([
-            {"name": "Natalya's Soul (claws)", "seen": [{"frame": "screenshot.png"}]},
+            {"name": "Natalya's Mark (claws)", "seen": [{"frame": "screenshot.png"}]},
         ])
-        self.assertEqual(sent, ["Natalya's Soul (claws)"])
+        self.assertEqual(sent, ["Natalya's Mark (claws)"])
         self.assertNotIn("withheld", out)
 
     def test_with_no_remaining_page_on_file_nothing_is_withheld(self):
         out, sent = self._run(
-            [{"name": "Natalya's Soul (claws)", "seen": [{"frame": "f_1787177277865.jpg"}]}],
+            [{"name": "Natalya's Mark (claws)", "seen": [{"frame": "f_1787177277865.jpg"}]}],
             remaining=())
-        self.assertEqual(sent, ["Natalya's Soul (claws)"],
+        self.assertEqual(sent, ["Natalya's Mark (claws)"],
                          "no reading on file must mean the veto is silent, never that it denies "
                          "everything or approves everything on its own authority")
         self.assertNotIn("withheld", out)
