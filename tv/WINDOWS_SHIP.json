@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2119",
+  "ver": "v2120",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2119: Queue 114 70 107 111 118 119 120. A set piece named one item and wore another slot: the roster bound Natalya Mark to boots and Natalya Soul to claws while the set catalogue says Mark is a Scissors Suwayyah and Soul is Mesh Boots, which is the claws-shows-boots-art he reported. Fixed at the roster, the stored reading derived label, the missing list and the base index, with a one-time migration so a tick already written under the old spelling is not stranded, and a new guard that compares every piece slot to its own base. The crafts room drew a 99 percent bar over the words zero of four craft types ready. An anchor carrying both a rich card and a native title showed both. The advanced drawer scrolled to the wrong place because the rail is static and can never be an offsetParent. The shadow floor sentence read the agent blob which is empty exactly when the console is off air.",
+  "note": "v2120: Queue 113 80 53 23 110 105 88 66 61 42. A store that parsed but held the wrong shape was treated as a clean empty and then overwritten, which is the data-loss class v2115 closed for corrupt files and left open for valid JSON of the wrong type. The reel price counted reels the sweep would never read, because v2098 made the skip note conditional and the filter still named only the old word. The disk refusal quoted a hardcoded 8GB beside a constant it guards on. The grail wall jumped back to row one on the first tick because it returned before binding its own scroll listener. A shell route reported success when the function merely existed. The in-app auto pull ignored the pin both launchers honour, and the Mac launcher had a second pull site that ignored it too. The tab strip could still clip silently at narrow widths. The vault tab carried a tint nothing consumed under a comment saying it did.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

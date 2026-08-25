@@ -195,7 +195,14 @@ def main(argv=None):
     # touched, INCLUDING the ones it skipped as already-swept, so a single targeted reel priced as
     # "440 page read(s) across 18 reel(s)" — the pages were right and the reels described a
     # different set entirely. Both halves of a price he acts on have to name the same thing.
-    _priced = [r for r in (quote.get("reels") or []) if (r or {}).get("note") != "already-swept"]
+    # v2120 (#80) — PIN THE LAW, NOT THE LABEL. v2098 made the skip note CONDITIONAL
+    # ("already-swept" if it is in memory, "not targeted this run" otherwise) and this filter still
+    # named only the old word — so on a targeted --reel sweep EVERY OTHER REEL came back into the
+    # price, which is v1834's "440 pages across 18 reels" for a one-reel read, printed at him as
+    # what it will cost. A reel the sweep would actually READ carries no note at all; the only
+    # other note a non-skip path emits is "no-index", a zero-frame reel that reads nothing and is
+    # correctly excluded too. [[label-outlived-referent]]
+    _priced = [r for r in (quote.get("reels") or []) if not (r or {}).get("note")]
     _nreels = len(_priced) if _priced else _fmt((quote.get("totals") or {}).get("reels"))
     print("\nthe free pass says: %s page read(s) across %s reel(s), %s classify — %s"
           % (_fmt(quote.get("wouldReadPages")), _nreels,

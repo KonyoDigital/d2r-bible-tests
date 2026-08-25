@@ -20237,6 +20237,55 @@ class TestV2115AnUnreadableStoreIsNotAnEmptyOne(unittest.TestCase):
             pass
         return mod
 
+    def test_valid_JSON_of_the_WRONG_SHAPE_is_also_unknown(self):
+        """v2119 (#113) — the hole this class left open, and it is the same data-loss class.
+
+        The three cases above feed TRUNCATED json, an ABSENT file and a REPAIRED dict — all of
+        which the parser rejects or accepts wholesale. None feeds a file that PARSES FINE and
+        holds the wrong thing. `_json_store_load` discarded the unreadable mark BEFORE testing the
+        shape and then only swapped the RETURN value, so a store holding `[]` (or a string, a
+        number, or null) read as a clean empty dict, `_store_write_blocked()` answered False, and
+        the next save overwrote the only copy.
+
+        Parsing is not reading: the shape is part of the read. [[unknown-stays-unknown]]"""
+        import json as _json
+        import tempfile
+        ca = self._mod()
+        for payload, why in (("[]", "a list"), ('"x"', "a string"), ("42", "a number"),
+                             ("null", "a null")):
+            d = tempfile.mkdtemp(prefix="shape-")
+            path = os.path.join(d, "store.json")
+            with io.open(path, "w", encoding="utf-8") as fh:
+                fh.write(payload)
+            before = io.open(path, encoding="utf-8").read()
+
+            got = ca._json_store_load(path, {})
+            self.assertEqual(got, {}, "%s should still hand the caller a usable empty" % why)
+            self.assertTrue(ca._store_write_blocked(path),
+                            "%s parsed, so the store was treated as a CLEAN empty and the next "
+                            "save is free to overwrite the only copy" % why)
+
+            # and the bytes must actually survive a save attempt, not merely be flagged
+            try:
+                ca._vault_json_save(path, {"wiped": True})
+            except Exception:
+                pass
+            self.assertEqual(io.open(path, encoding="utf-8").read(), before,
+                             "%s was overwritten despite being unreadable-by-shape" % why)
+
+    def test_a_correctly_shaped_store_still_loads_and_is_writable(self):
+        """The mirror. A guard that refuses everything is the same defect wearing a helmet —
+        this class must be seen NOT firing. [[feedback-blind-fixture-green-gate]]"""
+        import tempfile
+        ca = self._mod()
+        d = tempfile.mkdtemp(prefix="shape-ok-")
+        path = os.path.join(d, "store.json")
+        with io.open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"a": 1}')
+        self.assertEqual(ca._json_store_load(path, {}), {"a": 1})
+        self.assertFalse(ca._store_write_blocked(path),
+                         "a store that read perfectly is being refused writes")
+
     def test_a_corrupt_store_is_read_as_unknown_and_never_overwritten(self):
         import tempfile
         ca = self._mod()

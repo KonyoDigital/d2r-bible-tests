@@ -53,7 +53,10 @@ cd "$REPO"
 #
 # ONLY on a clean tree, and only fast-forward: a machine mid-edit keeps its
 # work and is told why it is not updating. Never a rebase, never a merge.
-if command -v git >/dev/null 2>&1 && [ -d "$REPO/.git" ]; then
+# v2120 (#88) — AND THIS ONE HONOURS THE PIN TOO. There are two pull sites in this file; the
+# v1418 block 35 lines below tests TV_NO_AUTO_PULL and this one did not, so it ran FIRST and
+# pulled on a machine deliberately held back. The Windows launcher has always honoured it.
+if command -v git >/dev/null 2>&1 && [ -d "$REPO/.git" ] && [ -z "${TV_NO_AUTO_PULL:-}" ]; then
   if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
     echo "📺 local tracked edits — NOT auto-pulling. Commit or stash them to rejoin the fleet."
   else

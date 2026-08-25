@@ -18899,6 +18899,12 @@ window.renderHighValueFinds = renderHighValueFinds;
 (function _v42_sanitizeWishlistOwned() {
   const beforeWish = wishlist.size;
   const beforeOwned = owned.size;
+  /* v2120 (#42) — AND KEEP THE NAMES, NOT JUST THE COUNT. The warning below promises "if a name
+     you own is in this list" and there was no list: `beforeOwned` is a COUNT, and the warn printed
+     how many were KEPT. The sixteen-unique class this warning exists to expose was therefore
+     visible only as a number, and a number cannot be grepped, pasted or checked against his game.
+     [[unknown-stays-unknown]] */
+  const _ownedBefore = new Set(owned), _wishBefore = new Set(wishlist);
   wishlist = new Set([...wishlist].filter(n => typeof n === 'string' && n && ITEM_REGISTRY[n]));
   // v342.16 — keep account-shared trackables (runes / essences / Worldstone shards / Colossal statues /
   // SUNDER CHARMS) that the vault registers as owned but that aren't calc ITEMS/EXTRA — so they survive a
@@ -18947,8 +18953,13 @@ window.renderHighValueFinds = renderHighValueFinds;
     /* v2082 — SAY WHAT WAS DROPPED, NOT WHY. "items renamed/removed in a data update" was a GUESS,
        and for sixteen names it was the wrong one — they were current items this page offers. A
        warning that asserts a cause it cannot know is how a real defect gets read as housekeeping. */
+    const _oGone = [..._ownedBefore].filter(n => !owned.has(n));
+    const _wGone = [..._wishBefore].filter(n => !wishlist.has(n));
     console.warn('[bible] dropped ' + wDrift + ' wishlist + ' + oDrift + ' owned entry(s) that no '
-      + 'catalogue on this page recognises' + (oDrift ? ' — ' + [...owned].length + ' owned kept' : '')
+      + 'catalogue on this page recognises'
+      + (_oGone.length ? ' — OWNED DROPPED: ' + _oGone.join(', ') : '')
+      + (_wGone.length ? ' — WISHLIST DROPPED: ' + _wGone.join(', ') : '')
+      + ' (' + owned.size + ' owned kept)'
       + '. If a name you own is in this list, the catalogues disagree and that is a defect, not tidying.');
     persist();
   }
@@ -39429,7 +39440,12 @@ function renderJournal(){
   window.gfWallRestore=function(root){
     try {
       [].forEach.call((root||document).querySelectorAll('.gf-wall[data-wall]'), function(det){
-        var st=_wallOpen[det.getAttribute('data-wall')];
+        /* v2120 (#23) — CREATE the state rather than bail out of it. Reading the map directly
+           meant the FIRST paint (map empty) returned here, BEFORE the scroll listener below was
+           ever bound — so nothing recorded st.top until a re-render had already happened, and the
+           re-render that matters is the first ✓. He opens the wall, scrolls to what he is hunting,
+           ticks it, and the drawer he is working inside jumps back to row 1 of ~398. */
+        var st=_wallState(det);
         if(!st) return;
         var inp=det.querySelector('.gf-wall-filter');
         if(inp && st.q){ inp.value=st.q; window.gfWallFilter(inp); }
@@ -45314,7 +45330,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2119', name:'v2119 - the slot, the disk and the drawer', date:'2026-08-25', note:'Queue 114 70 107 111 118 119 120. A set piece named one item and wore another slot: the roster bound Natalya Mark to boots and Natalya Soul to claws while the set catalogue says Mark is a Scissors Suwayyah and Soul is Mesh Boots, which is the claws-shows-boots-art he reported. Fixed at the roster, the stored reading derived label, the missing list and the base index, with a one-time migration so a tick already written under the old spelling is not stranded, and a new guard that compares every piece slot to its own base. The crafts room drew a 99 percent bar over the words zero of four craft types ready. An anchor carrying both a rich card and a native title showed both. The advanced drawer scrolled to the wrong place because the rail is static and can never be an offsetParent. The shadow floor sentence read the agent blob which is empty exactly when the console is off air.' };
+  window.D2R_BUILD = { id:'v2120', name:'v2120 - the price, the pin and the plain tab', date:'2026-08-25', note:'Queue 113 80 53 23 110 105 88 66 61 42. A store that parsed but held the wrong shape was treated as a clean empty and then overwritten, which is the data-loss class v2115 closed for corrupt files and left open for valid JSON of the wrong type. The reel price counted reels the sweep would never read, because v2098 made the skip note conditional and the filter still named only the old word. The disk refusal quoted a hardcoded 8GB beside a constant it guards on. The grail wall jumped back to row one on the first tick because it returned before binding its own scroll listener. A shell route reported success when the function merely existed. The in-app auto pull ignored the pin both launchers honour, and the Mac launcher had a second pull site that ignored it too. The tab strip could still clip silently at narrow widths. The vault tab carried a tint nothing consumed under a comment saying it did.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -827,6 +827,15 @@ def fleet_pull():
     """
     out = {"ok": False, "pulled": False, "msg": "", "before": "", "after": "", "ver": ""}
     try:
+        # v2120 (#105) — THE PIN THE LAUNCHERS HONOUR APPLIES TO THE IN-APP DOOR TOO.
+        # start_tvd_mac.sh and start_tvd_win.ps1 both check TV_NO_AUTO_PULL; `grep TV_NO_AUTO_PULL
+        # control_app.py` returned NOTHING, and the fleet banner POSTs /api/update once per launch
+        # with no click. So a machine deliberately pinned to a version pulled anyway, through a
+        # door nobody thought of as a launcher. [[copy-drift]]
+        if os.environ.get("TV_NO_AUTO_PULL"):
+            out["msg"] = ("TV_NO_AUTO_PULL is set on this machine — the pin the launchers honour "
+                          "applies to the in-app door too")
+            return out
         if not os.path.isdir(os.path.join(REPO, ".git")):
             out["msg"] = "this install is not a git checkout — update it the way you installed it"
             return out
@@ -11219,7 +11228,8 @@ def mini_start(seconds=None, test=False, focus=None):
         _free = _shd.disk_usage(HIST_DIR).free / 1e9
         if _free < ON_AIR_FLOOR_GB:
             return {"ok": False, "mode": "off", "seconds": secs, "secondsAsked": asked,
-                    "error": "DISK TOO FULL to record — %.1fGB free, need 8GB. Free ~%.0fGB and press MINI again." % (_free, 9 - _free)}
+                    "error": "DISK TOO FULL to record — %.1fGB free, need %.0fGB. Free ~%.0fGB and press MINI again."
+                    % (_free, ON_AIR_FLOOR_GB, ON_AIR_FLOOR_GB + 1 - _free)}
     except Exception:
         pass
     if _stop_inflight:
@@ -11527,8 +11537,26 @@ def _json_store_load(path, empty):
     try:
         with open(path, encoding="utf-8") as fh:
             d = json.load(fh)
+        if not isinstance(d, type(empty)):
+            # v2119 (#113) — PARSING IS NOT READING. The shape is part of the read, and a shape we
+            # did not expect is UNKNOWN, not empty. This discarded the unreadable mark FIRST and
+            # then merely swapped the RETURN value, so a file holding a valid JSON list — or a
+            # string, a number, or null — read as a clean empty dict, _store_write_blocked() said
+            # False, and the very next save overwrote the only copy. That is the sentence
+            # TestV2082.test_6 already proved on the scar ledger, re-opened in the shared helper
+            # that now sits under vault_ledger.json, vault_swept.json, chronicle_swept.json and
+            # chronicle_reads.json. [[unknown-stays-unknown]]
+            _UNREADABLE.add(path)
+            try:
+                print("⚠ %s parsed but holds a %s, not a %s — treating it as UNKNOWN, not empty; "
+                      "writes to it are refused until it reads clean"
+                      % (os.path.basename(path), type(d).__name__, type(empty).__name__),
+                      flush=True)
+            except Exception:
+                pass
+            return empty
         _UNREADABLE.discard(path)
-        return d if isinstance(d, type(empty)) else empty
+        return d
     except FileNotFoundError:
         _UNREADABLE.discard(path)          # absent is a fact, and it is the honest empty
         return empty
@@ -14963,7 +14991,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2119",
+        "ver": "v2120",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

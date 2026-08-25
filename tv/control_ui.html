@@ -4764,11 +4764,14 @@
      was the last surface still painting a ROOM with the item-name gold, which made it read as the
      identical colour to the "Grail Uniques" row directly beneath it. Three surfaces name the
      runeword room — the tab, the home chip, the task-force row — and all three now say --rar-rune. */
-  /* v2092 — the vault tab carries the vault's own gold, so it reads as itself in the strip.
-     Deliberately NOT joined to the .55-opacity "tools + tvd" rule above: it sits between those two
-     and it is the one tab he went looking for and could not find. Dimming it would re-create the
-     problem this ship exists to fix. */
-  .head-tabs .ht[data-tab="vault"] { --ht-q: #f0c060; }
+  /* v2120 (#61) — REMOVED, NOT JOINED. v2092 declared `--ht-q: #f0c060` here with a comment
+     saying the vault tab "carries the vault's own gold, so it reads as itself". It never did:
+     all four rules that CONSUME --ht-q (base, :hover, .shell-on, :focus-visible) name only funi,
+     fsets and forge, so nothing ever read this and the tab painted base --gold-dim.
+     Deleted rather than wired up, because v1625 already ruled the vault PLAIN on the v1615 law —
+     a STASH is a container, not an item quality — and tests/v1625_tab_quality_tints.spec.ts pins
+     it in the PLAIN list. What was wrong here was the COMMENT, not the paint.
+     [[label-outlived-referent]] */
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
   /* v1631 — the Forge TAB wears the RUNE colour, not the runeword-name gold. See the token block:
@@ -4820,7 +4823,13 @@
 
   @media (max-width: 1250px){
     .topbar .brand { flex: 1 1 auto; min-width: 0; overflow: hidden; }
-    .topbar .head-tabs { flex: 1 1 0; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    /* v2120 (#66) — NO SILENT SCROLL AT ANY WIDTH. `overflow-x:auto` with `scrollbar-width:none`
+       is the exact pair that hid TV·D (v2093): a tab that runs out of room does not shrink, wrap
+       or hint — it is simply NOT THERE. This rule is (0,2,0) and v2093's fix on `.head-tabs` is
+       (0,1,0), so it has been quietly winning overflow-x back at every width <=1250; only
+       `flex-wrap: wrap` from the weaker rule has been holding the line.
+       [[d2r-css-last-rule-wins]] [[visual-regression-detector]] */
+    .topbar .head-tabs { flex: 1 1 0; gap: 4px; min-width: 0; overflow-x: visible; }
     .topbar .head-tabs::-webkit-scrollbar { height: 0; display: none; }
     .topbar .head-tabs .ht { letter-spacing: var(--ls-tight); } }   /* v2100 — padding + `flex:0 0 auto` dropped: the measured layer below owns both, and this !important could not be overridden from there */
   @media (max-width: 1080px){ .topbar .head-tabs .ht { font-size: var(--fs-xs); } }   /* v2100 — padding dropped, see above */
@@ -12046,7 +12055,15 @@
       if (!w || !w.document) return false;
       if (typeof w.switchTab === 'function'){
         w.switchTab(tab);
-        return true;
+        /* v2120 (#110) — SUCCESS IS THE BOARD MOVING, NOT THE FUNCTION EXISTING. switchTab
+           no-ops SILENTLY when its button or pane is missing (`if (!_tabBtn || !_tabEl) return;`),
+           so "it is defined" and "it routed" are different facts and this returned the first for
+           the second — the caller then cancelled its retry on a route that never happened.
+           [[the-unjoined-end]] */
+        try {
+          var act = w.document.querySelector('.tab.active');
+          return !!(act && act.getAttribute('data-tab') === tab);
+        } catch (e) { return true; }   // cross-document read refused -> do not invent a failure
       }
       // board still booting — stamp hash so hash router picks it up when ready
       try { w.history.replaceState(null, '', '#' + tab); } catch(e){
