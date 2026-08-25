@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2128",
+  "ver": "v2129",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2128: The orphan fold borrowed the deleters on off switch, so the documented way to stop pruning also silenced a remedy that deletes nothing and moves frames instead. The fold overlap refusal used exact intervals, and the leftovers of an already sealed session lie outside that reels remaining span by construction, so the one case the module names as harmful was the one it could never refuse. A reel that has lost its jpegs contributed no window at all, so every cluster in its span read eligible. And the owned prune asked seven catalogues whether a name is real and never asked the one store that records his own filing decision.",
+  "note": "v2129: The in flight check was given a default consequence sentence when it was split out, so the orphan fold refused with a reason naming a relaunch it does not perform. It has no default now and each caller states its own. Also a spec planted a set piece string the corrected roster no longer has, so the repair correctly left it alone and the case tested nothing.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

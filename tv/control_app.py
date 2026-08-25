@@ -10646,7 +10646,7 @@ def drift_may_relaunch():
     return nothing_in_flight()
 
 
-def nothing_in_flight(consequence="a relaunch now would throw that away"):
+def nothing_in_flight(consequence=None):
     """Is anything reading or writing footage right now? -> (ok, why). NO on/off switch.
 
     v2128 (#33) — SPLIT OUT OF retention_may_act, which the orphan FOLD was borrowing whole.
@@ -10659,6 +10659,10 @@ def nothing_in_flight(consequence="a relaunch now would throw that away"):
     The prune switch itself is untouched, and so is his ruling that the prune stays automatic.
     [[copy-drift]]
     """
+    # v2129 (#155) — NO DEFAULT CONSEQUENCE. The first cut defaulted to "a relaunch now would throw
+    # that away", so the orphan FOLD — which does not relaunch anything — refused with a sentence
+    # naming a feature it is not. A shared check must not guess what its caller was about to do:
+    # with no consequence supplied it states the fact and stops. [[label-outlived-referent]]
     busy = []
     try:
         if _CHRON_JOB.get("running"):
@@ -10673,7 +10677,7 @@ def nothing_in_flight(consequence="a relaunch now would throw that away"):
         # could not tell -> do not act. An unmeasurable state is never a green light.
         return False, "could not tell what is running (%s)" % str(e)[:80]
     if busy:
-        return False, " and ".join(busy) + " — " + consequence
+        return False, " and ".join(busy) + (" — " + consequence if consequence else "")
     return True, "nothing in flight"
 
 
@@ -14996,7 +15000,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2128",
+        "ver": "v2129",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

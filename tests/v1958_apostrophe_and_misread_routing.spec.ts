@@ -207,7 +207,14 @@ test('★★★ the repair retracts the game-found date it just rejected', async
      SEEN RED: against the pre-v1963 file this test's final assertion fails (the date survives). */
   const r = await page.evaluate(() => {
     const w: any = window;
-    const piece = "Natalya's Soul (claws)";
+    /* v2129 — THE PIECE THIS PLANTS MUST BE ONE THE GAME'S PAGE ACTUALLY NAMES, and that string
+       moved. The repair falls back to window._SET_MISSING when the caller passes an empty map, and
+       v2119 corrected the Natalya slots against the set catalogue (Mark IS the Scissors Suwayyah;
+       Soul is the Mesh Boots) — so the 2026-08-21 Remaining reading now names
+       "Natalya's Mark (claws)" and the old string is in no missing list at all. Planting a name
+       the game does not call missing tests nothing: the repair correctly leaves it alone.
+       Same case, current spelling. [[label-outlived-referent]] */
+    const piece = "Natalya's Mark (claws)";
     const sp = JSON.parse(localStorage.getItem('d2r_setPieces') || '[]');
     if (sp.indexOf(piece) < 0) { sp.push(piece); localStorage.setItem('d2r_setPieces', JSON.stringify(sp)); }
     const gf = JSON.parse(localStorage.getItem('d2r_gameFound') || '{}');

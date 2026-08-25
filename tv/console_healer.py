@@ -254,7 +254,7 @@ def _remedy_fold_orphan_footage():
         # frames into the reel their own stamp names deletes nothing, so borrowing
         # retention_may_act meant TV_AUTO_PRUNE=0 — the documented way to stop the prune — also
         # silenced the fold, with a refusal naming a feature the fold is not. [[copy-drift]]
-        ok, why = _ca.nothing_in_flight()
+        ok, why = _ca.nothing_in_flight("folding now would move frames out from under it")
         if not ok:
             return None, "not folding while %s" % why
     except Exception:

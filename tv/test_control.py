@@ -20705,6 +20705,24 @@ class TestV2128TheFoldDoesNotBorrowTheDeletersSwitch(unittest.TestCase):
                         "nothing_in_flight no longer performs the in-flight checks it exists for: "
                         "%r" % sorted(names))
 
+    def test_each_caller_supplies_its_OWN_consequence(self):
+        """#155 — a shared check must not guess what its caller was about to do. The first cut
+        defaulted to "a relaunch now would throw that away", so the FOLD refused with a sentence
+        naming a relaunch it does not perform. [[label-outlived-referent]]"""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca, console_healer as ch, inspect
+        sig = inspect.signature(ca.nothing_in_flight)
+        self.assertIsNone(sig.parameters["consequence"].default,
+                          "nothing_in_flight has a DEFAULT consequence again — every caller that "
+                          "forgets one now refuses with another feature's sentence")
+        fold = inspect.getsource(ch._remedy_fold_orphan_footage)
+        self.assertIn("nothing_in_flight(\"", fold,
+                      "the fold calls the shared check with no consequence, so its refusal will "
+                      "carry whatever the default happens to be")
+        self.assertNotIn("relaunch", fold.split("nothing_in_flight(")[1][:120],
+                         "the fold's refusal still names a RELAUNCH — folding moves frames, it "
+                         "does not restart anything")
+
     def test_the_prune_still_asks_the_same_thing(self):
         """The split must not have changed what the DELETER checks."""
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
