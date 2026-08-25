@@ -19746,5 +19746,93 @@ class TestV2105TheHintWearsTheConsolesSkin(unittest.TestCase):
                       "own title would fire the moment the pointer crossed it")
 
 
+class TestV2107TheDrawerOpensWHEREHeCanSeeIt(unittest.TestCase):
+    """v2107 — Konyo, for the third time about this panel: "advanced settings is still not
+    rendering when clicked on.. nothing collapses it shows an arrow down.. but nothing there."
+
+    It WAS rendering, in full, below the fold. Measured at the size control_app.py actually
+    creates the window (1120x660): the rail is 490px tall holding 1,191px of content, so with
+    the drawer open `g5-eyes-card` landed at y=510 and `shadow-adv` at y=752 — against a
+    viewport that ends at 660. v2076 anticipated this and added a scrollIntoView, but chose
+    `block:'nearest'` "so it moves the least it can", and for a card one pixel inside the
+    viewport the least is one pixel. Nothing moved and the panel read as empty.
+
+    After `block:'start'`, at the same 1120x660: the card is at y=180 with all 188px visible
+    and the switches at y=422 with all 96px visible. [[visual-regression-detector]]
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+
+    def test_opening_ADVANCED_brings_it_to_the_top_not_merely_nearest(self):
+        body = _between(self, self.ui, "window._advOpened = function", "\n  };",
+                        what="the ADVANCED open handler")
+        code = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
+        # A RATIO IS THE WRONG BOUND HERE. This handler is deliberately ~80% explanation, so
+        # "code must be >25% of the block" fails on a correct strip. What actually needs proving
+        # is that the strip left executable code behind, not how much prose it removed.
+        self.assertGreater(len(code.strip()), 80,
+                           "the comment strip left almost nothing — it ate the handler")
+        self.assertIn("function", code, "the strip removed the handler itself, not its comments")
+        self.assertIn("scrollIntoView", code, "opening ADVANCED no longer scrolls it into view")
+        self.assertNotIn(
+            "block: 'nearest'", code,
+            "back to `nearest`, which moves the least it can — at his 1120x660 window that is "
+            "nothing, and the drawer opens entirely below the fold while looking empty",
+        )
+        self.assertIn("block: 'start'", code,
+                      "the drawer no longer comes to the top of the rail")
+
+
+class TestV2107ItFetchesItselfButAsksBeforeRestarting(unittest.TestCase):
+    """v2107 — Konyo, watching the banner report a version skew: "cant it automate that too
+    and auto update?"
+
+    It can, and the two halves are NOT equally safe. The PULL is fast-forward-only on a clean
+    tree, touches nothing running, and is undone by a checkout — asking him to press a button
+    to fetch bytes was ceremony. The RELAUNCH replaces the process, and control_app's own
+    `drift_may_relaunch()` already spells out why that must not be automatic: it refuses while
+    a sweep is reading, while a mini is recording, and while the agent is alive — "the one that
+    means HE IS FILMING. Restarting then both interrupts the session and ORPHANS the frames of
+    the session it kills."
+    """
+
+    def setUp(self):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as f:
+            self.ui = f.read()
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
+            self.app = f.read()
+
+    def test_it_pulls_without_being_asked(self):
+        self.assertIn("pulledThisSession", self.ui,
+                      "the automatic pull is gone — he is back to pressing a button to fetch bytes")
+        self.assertIn("a newer console is on GitHub — fetching it…", self.ui,
+                      "nothing tells him a fetch is happening on its own")
+
+    def test_it_pulls_ONCE_per_launch(self):
+        # a checker that re-pulls every tick is a loop, not an update
+        self.assertIn("pulledThisSession = true", self.ui,
+                      "the once-per-launch latch is gone; the poll would re-pull every 30 minutes")
+
+    def test_the_RESTART_is_still_his_click(self):
+        self.assertIn("'/api/relaunch'", self.ui, "the relaunch action is gone from the banner")
+        self.assertIn("stage === 'ready'", self.ui,
+                      "the button no longer distinguishes 'fetch it' from 'run it'")
+        # and the safety that makes this defensible must still exist server-side
+        self.assertIn("def drift_may_relaunch", self.app,
+                      "the gate that refuses to restart while he is filming is gone")
+        self.assertIn("TV_AUTO_RELAUNCH", self.app,
+                      "auto-relaunch stopped being opt-in — restarting him unasked is not an update")
+
+    def test_a_torn_connection_reads_as_success_not_failure(self):
+        # execv kills the socket mid-reply; treating that as an error would tell him the
+        # relaunch failed at the moment it worked
+        body = _between(self, self.ui, "stage === 'ready'", "go.disabled = false;",
+                        what="the relaunch branch")
+        self.assertIn("relaunching…", body,
+                      "the catch no longer reports the torn connection as the relaunch it is")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

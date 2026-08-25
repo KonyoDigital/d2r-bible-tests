@@ -10569,36 +10569,83 @@
   (function(){
     var bar = $('fleet-bar'), txt = $('fleet-txt'), go = $('fleet-go'), x = $('fleet-x');
     if (!bar || !txt || !go || !x) return;
-    var muted = false;
+    var muted = false, stage = 'behind', pulledThisSession = false;
     x.onclick = function(){ muted = true; bar.hidden = true; };   // until the next launch, not forever
+    /* v2107 — IT PULLS ITSELF NOW. Konyo, seeing the banner do its job: "cant it automate that too
+       and auto update?" It can, and the two halves are not equally safe, so they are not treated
+       the same:
+         · THE PULL is automatic. It is fast-forward-only on a clean tree, touches nothing that is
+           running, and is undone by a checkout. Asking him to press a button to fetch bytes was
+           ceremony.
+         · THE RELAUNCH stays his click. `os.execv` replaces this process — and control_app's own
+           `drift_may_relaunch()` already spells out why that must never be automatic by default:
+           it refuses while a chronicle or vault sweep is reading, while a mini is recording, and
+           while the agent is alive, "which is the one that means HE IS FILMING. Restarting then
+           both interrupts the session and ORPHANS the frames of the session it kills."
+       So: fetch without asking, run without surprising him. [[unknown-stays-unknown]] */
     async function look(){
       if (muted) return;
       try {
         var r = await fetch(API + '/api/update');
         var j = await r.json();
-        if (!j || !j.ok || !j.behind){ bar.hidden = true; return; }
+        if (!j || !j.ok || !j.behind){ if (stage !== 'ready') bar.hidden = true; return; }
+        if (!j.dirty && !pulledThisSession){
+          pulledThisSession = true;             // once per launch: a loop that re-pulls is a loop
+          txt.textContent = 'a newer console is on GitHub — fetching it…';
+          go.hidden = true; bar.hidden = false;
+          try {
+            var pr = await fetch(API + '/api/update', { method: 'POST' });
+            var pj = await pr.json();
+            if (pj && pj.ok && pj.pulled){ armRelaunch(pj.ver); return; }
+            if (pj && pj.ok){ bar.hidden = true; return; }   // already unified after all
+          } catch (e){ /* fall through to the announcement */ }
+        }
+        stage = 'behind';
         txt.textContent = 'this console is ' + j.behind + ' commit' + (j.behind > 1 ? 's' : '')
           + ' behind the fleet' + (j.ver ? ' (running ' + j.ver + ')' : '')
           + (j.latest ? ' — latest: "' + j.latest + '"' : '')
           + (j.dirty ? ' · local edits block the update' : '');
         go.hidden = !!j.dirty;     // nothing to offer when a pull cannot be safe
+        go.textContent = 'UPDATE NOW';
         go.disabled = false;
         bar.hidden = false;
       } catch (e){ /* offline is not news — the bar stays as it was */ }
     }
+    function armRelaunch(ver){
+      stage = 'ready';
+      txt.textContent = (ver ? ver : 'a newer console') + ' is on disk — this window is still running '
+        + 'the old one. Relaunch to use it.';
+      go.textContent = 'RELAUNCH NOW';
+      go.hidden = false; go.disabled = false; bar.hidden = false;
+    }
     go.onclick = async function(){
       go.disabled = true;
+      if (stage === 'ready'){
+        /* HIS CLICK, on purpose. The route refuses on its own while a sweep is reading or a mini
+           is recording and says which — surface that instead of a generic failure, because
+           "it did not restart" and "it protected a run in flight" are different facts. */
+        txt.textContent = 'relaunching…';
+        try {
+          var rr = await fetch(API + '/api/relaunch', { method: 'POST' });
+          var rj = await rr.json();
+          if (rj && rj.ok) return;                       // the process is replacing itself
+          txt.textContent = (rj && rj.busy)
+            ? ('not now — ' + (rj.why || 'something is still running'))
+            : ('could not relaunch — ' + ((rj && (rj.why || rj.msg)) || 'unknown reason'));
+        } catch (e){
+          /* execv tears this connection down mid-flight; that is a SUCCESS, not a failure */
+          txt.textContent = 'relaunching…';
+          return;
+        }
+        go.disabled = false;
+        return;
+      }
       txt.textContent = 'pulling from GitHub…';
       try {
         var r = await fetch(API + '/api/update', { method: 'POST' });
         var j = await r.json();
-        if (j && j.ok && j.pulled){
-          /* the RUNNING process still holds the old code — say exactly that rather than
-             letting a green tick imply the new version is already on screen */
-          txt.textContent = 'updated on disk to ' + (j.ver || 'the latest')
-            + ' — RELAUNCH TV DIABLO to actually run it';
-          go.hidden = true;
-        } else if (j && j.ok){
+        if (j && j.ok && j.pulled){ armRelaunch(j.ver); return; }
+        if (j && j.ok){
           txt.textContent = j.msg || 'already unified with origin/main';
           go.hidden = true;
         } else {
@@ -11501,11 +11548,24 @@
   });
 
   window._advOpened = function (det) {
+    /* v2107 — `nearest` MOVES THE LEAST IT CAN, AND AT HIS WINDOW HEIGHT THE LEAST IS NOTHING.
+       Konyo, again: "advanced settings is still not rendering when clicked on.. nothing collapses
+       it shows an arrow down.. but nothing there."
+
+       Measured at the size control_app.py actually creates the window — 1120x660 — with the drawer
+       open: the rail is 490px tall holding 1,191px of content, `g5-eyes-card` lands at y=510 and
+       `shadow-adv` at y=752. The viewport ends at 660. So the drawer WAS rendering, in full, below
+       the fold — v2076 saw this coming and added a scrollIntoView, but chose `block:'nearest'`
+       ("so it moves the least it can"), which for a card already one pixel inside the viewport
+       moves it one pixel. The panel opened and nothing appeared to be in it.
+
+       `block:'start'` on the DETAILS puts ⚙ ADVANCED at the top of the rail, so its content fills
+       the space below instead of starting past the bottom of it. The card is what he came for; the
+       summary he already clicked does not need to stay in view. */
     try {
-      var lead = document.getElementById('g5-eyes-card');
-      var target = (lead && !lead.hidden) ? lead : det;
+      var target = det || document.getElementById('g5-eyes-card');
       if (target && target.scrollIntoView) {
-        target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+        target.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'smooth' });
       }
     } catch (e) {}
   };
