@@ -4236,6 +4236,7 @@ try {
     <button class="tab" data-tab="session">⚡ SESSIONS</button><!-- v901 — console home: Auto Intake + plan + live feed (TV·D merged) -->
     <button class="tab" data-tab="tools">🧰 tools</button>
     <button class="tab" data-tab="forge">🔨 Forge</button>
+    <button class="tab" data-tab="crafts">⚗️ Crafts</button>
     <button class="tab" data-tab="funi">🏆 F·uniques</button>
     <button class="tab" data-tab="fsets">🧩 F·sets</button>
     <button class="tab" data-tab="vault">🎒 Vault</button><!-- v2084 — Konyo: "the VAULT MANAGER it needs a MAIN TAB of its own inbetween tools and TV-D tab on top". After the forge cluster so those three rooms stay adjacent. -->
@@ -4959,8 +4960,8 @@ try {
 .tvf-stat span{font-family:var(--mono);font-size:9px;letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--text-dim);white-space:nowrap}
 @media(max-width:640px){.tvf-spine{padding:11px 14px}.tvf-title{font-size:22px}.tvf-emblem{width:44px;height:44px;font-size:22px}.tvf-purpose{white-space:normal}}
 /* forge-head family variant — the three forge siblings borrow the emblem box + gold serif accent */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head.tvf-head{display:flex;align-items:flex-start;gap:14px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head.tvf-head .tvf-emblem{margin-top:2px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-head.tvf-head{display:flex;align-items:flex-start;gap:14px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-head.tvf-head .tvf-emblem{margin-top:2px}
 /* v1672 — the three Forge-family page headers wear the SAME art as their tab in the strip
    (Konyo: "the subtab forge and image hd art you created to be synced"). Sized in em so it
    tracks the emblem's own font-size instead of pinning a pixel value that drifts. */
@@ -4973,12 +4974,12 @@ try {
 .tvf-emblem .tvf-emblem-i{width:1em;height:1em;vertical-align:-.12em;object-fit:contain}
 /* v1685 — MOVED `#tab-forge .forge-title{color:var(--q-runeword)}` OUT OF HERE, down beside its
    two siblings at :7921. It sat at this line from v1672 and never once painted: the family rule
-   `:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{…color:#f0c060}` (:7422) has the SAME
+   `:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-title{…color:#f0c060}` (:7422) has the SAME
    specificity — :is() takes its most specific argument, an id, so both are (1,1,0) — and comes
    LATER, so source order handed it the win. #tab-funi and #tab-fsets look right only because
    their overrides happen to be written after :7422. Measured: the Forge title computed
    rgb(240,192,96) chrome gold, not the #c7b377 v1672's own message claimed it had taken. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head.tvf-head .forge-headtxt{min-width:0;flex:1 1 auto}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-head.tvf-head .forge-headtxt{min-width:0;flex:1 1 auto}
 /* v775 — >1500 the container centers at 1500 but the sticky header band stayed full-width, so the nav
    row + search drifted off the content column. Cap them to the same 1472 content column (1500 − 28 pad). */
 @media(min-width:1501px){
@@ -5029,6 +5030,10 @@ body.app-ctx .tabs .tab[data-tab="tools"]{opacity:.62;flex:0 1 auto !important;f
 body.app-ctx .tabs .tab[data-tab="session"],body.app-ctx .tabs .tab[data-tab="tools"],
 body.app-ctx .tabs .tab[data-tab="forge"],body.app-ctx .tabs .tab[data-tab="funi"],
 body.app-ctx .tabs .tab[data-tab="vault"],
+/* v2094 — crafts joins the app-context re-show list. Without this the tab is built and the
+   room renders, but the CONSOLE never shows the button: app-ctx hides every tab except the
+   ones named here. Exactly the half-landed move the eagle now watches for. */
+body.app-ctx .tabs .tab[data-tab="crafts"],
 body.app-ctx .tabs .tab[data-tab="fsets"]{
   display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
   letter-spacing:var(--ls-normal)}
@@ -5064,14 +5069,14 @@ body.app-ctx .tabs, body.app-ctx .tabs::before, body.app-ctx .tabs::after,
 body.app-ctx .tab.active, body.app-ctx .tvf-console-pill{animation:none !important}
 /* v878 (army board #6) — forge/funi/fsets card walls skip offscreen paint (their per-card
    shine/ember animations stop painting below the fold too) */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-card{content-visibility:auto;contain-intrinsic-size:auto 120px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card{content-visibility:auto;contain-intrinsic-size:auto 120px}
 body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:none !important}   /* dev routines off in the console */
 body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 
 
 /* v778 — dock clearance: the family cards land ABOVE the live-measured MF dock when scrolled to
    (only .boss-card + deep targets carried the bottom guard). Cheap scroll-margin, zero layout shift. */
-#tab-session .sc-card,#tab-session .sc-mission,:is(#tab-forge,#tab-funi,#tab-fsets) .f-card,:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero,:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed{scroll-margin-bottom:calc(var(--dock-h,84px) + 24px)}
+#tab-session .sc-card,#tab-session .sc-mission,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-hero,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed{scroll-margin-bottom:calc(var(--dock-h,84px) + 24px)}
 </style>
 <div class="tab-content" id="tab-tools">
   <div class="tvf-spine" id="tools-spine">
@@ -7692,25 +7697,25 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 </div>
 <div class="tab-content" id="tab-forge">
 <style>
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-head{margin:2px 0 4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{font-size:42px;font-weight:var(--fw-bold);letter-spacing:.5px;color:#f0c060;line-height:var(--lh-tightest)}   /* v775 — GOLD family accent (was --best green on Forge / #4ade80 on Sets); one sibling title colour */
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-head{margin:2px 0 4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-title{font-size:42px;font-weight:var(--fw-bold);letter-spacing:.5px;color:#f0c060;line-height:var(--lh-tightest)}   /* v775 — GOLD family accent (was --best green on Forge / #4ade80 on Sets); one sibling title colour */
 /* v552 — Chronicle progress meter */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-progress{display:flex;align-items:center;gap:13px;margin:14px 0 2px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-track{flex:1 1 auto;height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#5fc97a,#8fe6a0);box-shadow:0 0 10px -1px rgba(95,201,122,.6);transition:width .6s cubic-bezier(.3,.9,.4,1)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl{flex:0 0 auto;font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text-dim,#b6a888);white-space:nowrap;letter-spacing:var(--ls-tight)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-progress{display:flex;align-items:center;gap:13px;margin:14px 0 2px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-track{flex:1 1 auto;height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#5fc97a,#8fe6a0);box-shadow:0 0 10px -1px rgba(95,201,122,.6);transition:width .6s cubic-bezier(.3,.9,.4,1)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-lbl{flex:0 0 auto;font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text-dim,#b6a888);white-space:nowrap;letter-spacing:var(--ls-tight)}
 /* v620 (Konyo: "tallies can be a lot nicer… HD style") — the NUMBERS are the heroes: Cinzel gold-
    gradient counters, the label text stays quiet. One shared class across every meter tally. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl b{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:16px;font-weight:var(--fw-semibold);background:linear-gradient(180deg,#f6e3ab,#d4a849 56%,#a07a2a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.55));letter-spacing:var(--ls-tight)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-lbl b{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:16px;font-weight:var(--fw-semibold);background:linear-gradient(180deg,#f6e3ab,#d4a849 56%,#a07a2a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.55));letter-spacing:var(--ls-tight)}
 :is(#tab-fsets) .fp-lbl b{background:linear-gradient(180deg,#c9f2d4,#6fd68a 56%,#2f7a44);-webkit-background-clip:text;background-clip:text}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::before{content:'';position:absolute;right:0;top:0;bottom:0;width:7px;border-radius:6px;background:rgba(255,255,255,.55);filter:blur(3px);animation:fpTip 2.6s ease-in-out infinite}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill::before{content:'';position:absolute;right:0;top:0;bottom:0;width:7px;border-radius:6px;background:rgba(255,255,255,.55);filter:blur(3px);animation:fpTip 2.6s ease-in-out infinite}
 @keyframes fpTip{0%,100%{opacity:.25}50%{opacity:.85}}
-@media (prefers-reduced-motion:reduce){:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::before{animation:none}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl b{color:#8fe6a0;font-size:14px}
+@media (prefers-reduced-motion:reduce){:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill::before{animation:none}}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-lbl b{color:#8fe6a0;font-size:14px}
 /* v1474 — the reconciliation note: says WHY the bar (99) and the ONE STEP pill (91) differ, right
    where both are read. Dim on purpose — it is a footnote to the number, not a second number. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-note{font-size:var(--fs-meta,11.5px);font-weight:var(--fw-regular);color:var(--text-dim,#8d8068);letter-spacing:var(--ls-normal);cursor:help}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:11.5px;font-weight:var(--fw-semibold);color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a);border:1px solid rgba(210,255,222,.7);padding:1px 9px;border-radius:9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(20,70,35,.45),0 1px 3px rgba(0,0,0,.55)}   /* v620 — forged-coin percent */
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-note{font-size:var(--fs-meta,11.5px);font-weight:var(--fw-regular);color:var(--text-dim,#8d8068);letter-spacing:var(--ls-normal);cursor:help}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-pct{margin-left:9px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-size:11.5px;font-weight:var(--fw-semibold);color:#0e1a10;background:linear-gradient(180deg,#b7ecc4,#6fd68a);border:1px solid rgba(210,255,222,.7);padding:1px 9px;border-radius:9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(20,70,35,.45),0 1px 3px rgba(0,0,0,.55)}   /* v620 — forged-coin percent */
 /* v1719 — THE FORGE TAB SCROLLED SIDEWAYS ON HIS PHONE, AND IT WAS THIS LINE.
    `.fp-lbl` is `flex:0 0 auto` + `white-space:nowrap`, so the progress label can neither shrink
    nor wrap. On his REAL profile it reads "📜 99 / 99 runewords forged · all 99 planned here
@@ -7720,12 +7725,12 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
    it (measured the same with and without an owned base).
    Desktop is untouched: this only wraps below 520px, where the row has no space to be a row. */
 @media (max-width:520px){
-  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-progress{flex-wrap:wrap}
-  :is(#tab-forge,#tab-funi,#tab-fsets) .fp-lbl{flex:1 1 100%;white-space:normal}
+  :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-progress{flex-wrap:wrap}
+  :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-lbl{flex:1 1 100%;white-space:normal}
 }
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:var(--lh-normal)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sub{font-size:13.5px;color:var(--text-dim,#9a8c72);margin-top:6px;max-width:860px;line-height:var(--lh-normal)}
 /* toggle sub-tab bar — equal-width, stretched symmetric across the row */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:8px;margin:14px 0 18px;width:100%;flex-wrap:wrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tabs{display:flex;gap:8px;margin:14px 0 18px;width:100%;flex-wrap:wrap}
 /* ══ v1747 — THE TALLY SEARCH BAR ═══════════════════════════════════════════════════════════════
    Konyo: "a search bar that i can sometimes casually while i farm one by one search for it and
    tally without needing to visually look for it. just a easy type it in style."
@@ -7753,43 +7758,43 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 :is(#tab-funi,#tab-fsets) .tsrch-go:hover{border-color:var(--gold-bright);color:var(--gold-bright)}
 :is(#tab-funi,#tab-fsets) .tsrch-go.on{border-color:var(--best);color:var(--best);background:rgba(102,255,136,.10)}
 :is(#tab-funi,#tab-fsets) .tsrch-none{padding:9px 11px;font-size:var(--fs-micro);color:var(--text-dim)}   /* v709 (Grok forge wave A2) — the 80px towers competed with the tasks; one ~38px chip rail */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 auto;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:6px 14px;border-radius:999px;border:1px solid rgba(122,101,66,.55);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));color:#b7a888;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}  /* v685 — inactive tiles one step brighter (label + border): ONE STEP/MAKE NOW/PIPELINE/CRAFTS dissolved into the background next to the framed ALL */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab:active{transform:translateY(0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .ft-emoji{font-size:15px;line-height:var(--lh-none);filter:saturate(1.15)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .ft-lbl{font-size:var(--fs-meta);font-weight:var(--fw-bold);letter-spacing:.4px;white-space:nowrap;text-transform:uppercase;opacity:.92}
-:is(#tab-forge,#tab-funi,#tab-fsets) .ft-ct{font-size:var(--fs-body);font-weight:var(--fw-black);padding:0 9px;border-radius:9px;background:rgba(255,255,255,.07);line-height:var(--lh-normal);min-width:26px;text-align:center}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 auto;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:6px 14px;border-radius:999px;border:1px solid rgba(122,101,66,.55);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));color:#b7a888;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease,box-shadow .16s ease}  /* v685 — inactive tiles one step brighter (label + border): ONE STEP/MAKE NOW/PIPELINE/CRAFTS dissolved into the background next to the framed ALL */
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab:hover{background:rgba(255,255,255,.07);color:var(--text,#e8dcc0);transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.55)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab:active{transform:translateY(0)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .ft-emoji{font-size:15px;line-height:var(--lh-none);filter:saturate(1.15)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .ft-lbl{font-size:var(--fs-meta);font-weight:var(--fw-bold);letter-spacing:.4px;white-space:nowrap;text-transform:uppercase;opacity:.92}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .ft-ct{font-size:var(--fs-body);font-weight:var(--fw-black);padding:0 9px;border-radius:9px;background:rgba(255,255,255,.07);line-height:var(--lh-normal);min-width:26px;text-align:center}
 /* persistent per-bucket accent so the tabs are scannable at a glance even when inactive */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-all   .ft-ct{color:#e8c878;background:rgba(232,200,120,.12)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-pipe  .ft-ct{color:#9fd4ff;background:rgba(91,159,208,.12)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-ct{color:var(--q-orange);background:rgba(255,168,0,.12)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-all   .ft-ct{color:#e8c878;background:rgba(232,200,120,.12)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-now   .ft-ct{color:#8fe0a0;background:rgba(95,201,122,.12)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-pipe  .ft-ct{color:#9fd4ff;background:rgba(91,159,208,.12)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-step  .ft-ct{color:#e9d07a;background:rgba(205,177,87,.12)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-ct{color:var(--q-orange);background:rgba(255,168,0,.12)}
 /* active = filled capsule + a top accent rail in the bucket colour + a soft outer glow */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on{box-shadow:inset 0 0 0 1px currentColor,0 3px 16px -6px currentColor}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-ct{color:#fff;background:rgba(255,255,255,.16);box-shadow:0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-step.on{border-color:rgba(205,177,87,.65);background:rgba(205,177,87,.14);color:#e9d07a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(255,168,0,.65);background:rgba(255,168,0,.14);color:var(--q-orange)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.on .ft-lbl{color:inherit}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.on{box-shadow:inset 0 0 0 1px currentColor,0 3px 16px -6px currentColor}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.on .ft-ct{color:#fff;background:rgba(255,255,255,.16);box-shadow:0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-all.on{border-color:rgba(232,200,120,.65);background:rgba(232,200,120,.13);color:#e8c878}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-now.on{border-color:rgba(95,201,122,.65);background:rgba(95,201,122,.14);color:#8fe0a0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-pipe.on{border-color:rgba(91,159,208,.65);background:rgba(91,159,208,.14);color:#9fd4ff}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-step.on{border-color:rgba(205,177,87,.65);background:rgba(205,177,87,.14);color:#e9d07a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(255,168,0,.65);background:rgba(255,168,0,.14);color:var(--q-orange)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.on .ft-lbl{color:inherit}
 /* v1625 ITEM2 — CRAFTED IS ORANGE. The chip's LABEL, not just its count badge, carries the craft
    quality, resting AND lit. Measured before this rule: label rgb(183,168,136) in both states while
    the badge was already rgb(255,168,0) — the quality lived on the number and nowhere else. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft,
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-lbl,
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on,
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on .ft-lbl{color:var(--q-orange)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft{border-color:rgba(255,168,0,.38)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(255,168,0,.65);background:rgba(255,168,0,.14)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft,
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft .ft-lbl,
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on,
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on .ft-lbl{color:var(--q-orange)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft{border-color:rgba(255,168,0,.38)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-craft.on{border-color:rgba(255,168,0,.65);background:rgba(255,168,0,.14)}
 /* an empty bucket recedes so the eye lands on what actually has tasks */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty{opacity:.42}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-empty{opacity:.42}
 /* v709 — the honest cross-mode courtesy strip on the runs views */
 :is(#tab-funi,#tab-fsets) .fu-basehunt{margin:0 0 12px;padding:8px 14px;border:1px dashed rgba(224,185,106,.4);border-radius:9px;color:var(--text-muted);font-size:var(--fs-meta);cursor:pointer;transition:border-color .14s,color .14s}
 :is(#tab-funi,#tab-fsets) .fu-basehunt:hover{border-color:rgba(224,185,106,.75);color:var(--gold-bright)}
 :is(#tab-funi,#tab-fsets) .fu-basehunt b{color:var(--rune,#ff7d3c)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab.ft-empty.on{opacity:.72}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab.ft-empty.on{opacity:.72}
 /* 2026-08-13 — Konyo: "the forge color should be like the tab color also for the sub tab and
    related." Repaints the FORGE ROOM's own neutral/inactive chip chrome (border+label) and the
    .ft-all "ALL" chip — which represents the room itself, not a filter — in --rune, scoped to
@@ -7802,13 +7807,13 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 #tab-forge .forge-tab:hover{color:var(--rune)}
 #tab-forge .forge-tab.ft-all .ft-ct{color:var(--rune);background:rgba(255,125,60,.14)}
 #tab-forge .forge-tab.ft-all.on{border-color:rgba(255,125,60,.65);background:rgba(255,125,60,.14);color:var(--rune)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:var(--q-orange)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-craft .forge-sec-h{color:var(--q-orange)}
 /* v1409 — ✓ crafted action on every craft recipe row */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid rgba(255,255,255,.05)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow .f-craft-made{margin-left:auto;font-size:11px;padding:4px 10px;flex:0 0 auto}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked .f-craft-made{opacity:.85}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-step{border-left:3px solid rgba(255,168,0,.55)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid rgba(255,255,255,.05)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow .f-craft-made{margin-left:auto;font-size:11px;padding:4px 10px;flex:0 0 auto}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow.locked .f-craft-made{opacity:.85}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craft-step{border-left:3px solid rgba(255,168,0,.55)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-upgrade{border-left-color:#e0b96a}
 /* v511 — Forge legend: floating hammer FAB + key popup (above the toolbox FABs) */
 /* ── v1788 — THE INBOX FAB. Konyo: "where is the INBOX i want like a floating little box maybe that
    i can click on the right corner. with the inbox notifications like a cool widget just like the
@@ -7946,9 +7951,9 @@ body:has(#tab-forge.active) .forge-legend-pop.open{display:block}
 .forge-legend-pop .flp-sec>b{color:#e8dcc0;display:block;margin-bottom:3px;font-size:12.5px}
 .forge-legend-pop .flp-sec>div{color:#9a8c72;margin:3px 0}
 .forge-legend-pop .f-ideal,.forge-legend-pop .f-alt,.forge-legend-pop .f-hand,.forge-legend-pop .f-need,.forge-legend-pop .f-eth,.forge-legend-pop .f-sup,.forge-legend-pop .f-tier{display:inline-block;margin-right:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-unlock{background:rgba(224,185,106,.08);border-radius:6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-unlock b{color:#e0b96a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-tier{font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-unlock{background:rgba(224,185,106,.08);border-radius:6px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-unlock b{color:#e0b96a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-tier{font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:1px 7px;border-radius:5px;background:rgba(224,185,106,.14);color:#e0b96a;margin-left:4px;vertical-align:middle}
 /* v528 — TOOLS legend map: a floating compass FAB (mirrors the Forge legend) that appears only on the
    Tools tab and pops a clickable map of every section — a head-start on where to click first. */
 .tools-legend-fab{position:fixed;bottom:172px;right:24px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid #d9b25a;background:radial-gradient(circle at 50% 35%,#2a2014,#120d08);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:25px;box-shadow:0 2px 14px rgba(0,0,0,.55),0 0 14px rgba(217,178,90,.28);transition:transform .15s,border-color .15s;animation:tlpop .4s cubic-bezier(.2,.9,.3,1.4)}
@@ -7970,42 +7975,42 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .tools-legend-pop .tlp-close{position:absolute;top:9px;right:12px;color:#8a7d64;cursor:pointer;font-size:16px;line-height:var(--lh-none)}
 .tools-legend-pop .tlp-close:hover{color:#fff}
 /* DO NOW — the login orientation feed */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-donow{margin:4px 0 24px;border:1px solid rgba(232,200,120,.34);border-radius:14px;background:linear-gradient(180deg,rgba(232,200,120,.07),rgba(255,255,255,.012));padding:16px 18px 12px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-donow-h{display:flex;align-items:baseline;gap:11px;font-size:18px;font-weight:var(--fw-bold);color:var(--best,#66ff88);margin-bottom:12px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-sub{font-size:11.5px;font-weight:var(--fw-normal);color:var(--text-dim,#9a8c72);font-style:italic}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid rgba(255,255,255,.05)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-item:first-of-type{border-top:0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-num{flex:0 0 26px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(232,200,120,.16);color:var(--best,#66ff88);font-weight:var(--fw-bold);font-size:var(--fs-body)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-now .fd-num{background:rgba(95,201,122,.18);color:#8fe0a0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-pipe .fd-num{background:rgba(91,159,208,.18);color:#9fd4ff}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-craft .fd-num{background:rgba(255,168,0,.18);color:var(--q-orange)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-body{flex:1;min-width:0;font-size:13.5px;color:var(--text,#e0d4b6);line-height:var(--lh-normal)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-body b{color:var(--best,#66ff88)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-one{padding-top:3px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-steps{margin:0;padding-left:18px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-steps li{margin:2px 0;padding-left:3px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-steps .f-cube{font-family:monospace;font-size:var(--fs-meta);color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fd-more{font-size:12px;color:var(--text-dim,#9a8c72);padding:9px 0 2px;border-top:1px solid rgba(255,255,255,.05);font-style:italic}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-donow{margin:4px 0 24px;border:1px solid rgba(232,200,120,.34);border-radius:14px;background:linear-gradient(180deg,rgba(232,200,120,.07),rgba(255,255,255,.012));padding:16px 18px 12px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-donow-h{display:flex;align-items:baseline;gap:11px;font-size:18px;font-weight:var(--fw-bold);color:var(--best,#66ff88);margin-bottom:12px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-sub{font-size:11.5px;font-weight:var(--fw-normal);color:var(--text-dim,#9a8c72);font-style:italic}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid rgba(255,255,255,.05)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-item:first-of-type{border-top:0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-num{flex:0 0 26px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(232,200,120,.16);color:var(--best,#66ff88);font-weight:var(--fw-bold);font-size:var(--fs-body)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-now .fd-num{background:rgba(95,201,122,.18);color:#8fe0a0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-pipe .fd-num{background:rgba(91,159,208,.18);color:#9fd4ff}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-craft .fd-num{background:rgba(255,168,0,.18);color:var(--q-orange)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-body{flex:1;min-width:0;font-size:13.5px;color:var(--text,#e0d4b6);line-height:var(--lh-normal)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-body b{color:var(--best,#66ff88)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-one{padding-top:3px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-steps{margin:0;padding-left:18px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-steps li{margin:2px 0;padding-left:3px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-steps .f-cube{font-family:monospace;font-size:var(--fs-meta);color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fd-more{font-size:12px;color:var(--text-dim,#9a8c72);padding:9px 0 2px;border-top:1px solid rgba(255,255,255,.05);font-style:italic}
 /* atomic Make-now cards — big, single, "boom" tasks */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atom{position:relative}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:var(--lh-none);opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-restore{margin-top:8px;text-align:center}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atom{position:relative}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-skip{position:absolute;top:9px;right:11px;width:23px;height:23px;border-radius:6px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.03);color:var(--text-dim,#9a8c72);font-size:12px;cursor:pointer;line-height:var(--lh-none);opacity:.45;transition:opacity .12s,color .12s,border-color .12s,background .12s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-skip:hover{opacity:1;color:#e0556a;border-color:rgba(224,85,106,.55);background:rgba(224,85,106,.12)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-restore{margin-top:8px;text-align:center}
 /* v533 — always-visible restore bar under the tabs (shows whenever you have skipped tasks) */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-restore-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 12px;padding:8px 12px;background:rgba(224,185,106,.08);border:1px solid rgba(224,185,106,.35);border-radius:9px;font-size:12px;color:#cdbf9f}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-restore-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 12px;padding:8px 12px;background:rgba(224,185,106,.08);border:1px solid rgba(224,185,106,.35);border-radius:9px;font-size:12px;color:#cdbf9f}
 /* v532 — ✅ Completed tab: the "done" list + clear/restore tools */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-mini{font-size:11.5px;padding:5px 11px;border-radius:8px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-btn-mini{font-size:11.5px;padding:5px 11px;border-radius:8px}
 /* v537.2 — make the one-click undo unmistakable: amber CTA + a brief pulse when it appears */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-restore-top .f-undo-last{background:linear-gradient(180deg,#f2c664,#d9ac4c);color:#1a140a;font-weight:var(--fw-bold);border:none;box-shadow:0 0 0 1px rgba(224,168,74,.55),0 2px 12px -2px rgba(224,168,74,.75);animation:fUndoPulse 1.5s ease-in-out 3}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-restore-top .f-undo-last:hover{filter:brightness(1.08)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-restore-top .f-undo-last{background:linear-gradient(180deg,#f2c664,#d9ac4c);color:#1a140a;font-weight:var(--fw-bold);border:none;box-shadow:0 0 0 1px rgba(224,168,74,.55),0 2px 12px -2px rgba(224,168,74,.75);animation:fUndoPulse 1.5s ease-in-out 3}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-restore-top .f-undo-last:hover{filter:brightness(1.08)}
 @keyframes fUndoPulse{0%,100%{box-shadow:0 0 0 1px rgba(224,168,74,.55),0 2px 12px -2px rgba(224,168,74,.75)}50%{box-shadow:0 0 0 2px rgba(240,200,100,.9),0 2px 20px 2px rgba(240,200,100,.85)}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donetools{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donetools{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
 /* v1633 — THE ROOM ACCENT. Konyo, on the Forge's Completed subtab: "needs to be color synced
    this color for runewords right? it looks a litle off compared to the updated tab color we
    picked". He is right that it looks foreign, and the cause is not the item names — those are
    already correct (a completed runeword's NAME is FontColorGoldYellow #C7B377 in game, the same
    gold as a unique; the game gives runewords no colour of their own, and six specs pin that).
-   The cause is that EVERY rule below is written `:is(#tab-forge,#tab-funi,#tab-fsets)` — ONE
+   The cause is that EVERY rule below is written `:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets)` — ONE
    declaration painting THREE rooms — with the rail and tick hardcoded to a green literal. So the
    Completed panel rendered byte-identical in Forge, F·Uniques and F·Sets, and carried the accent
    of none of them. v1631 gave each TAB its colour and this shared block never heard about it.
@@ -8014,113 +8019,113 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-forge{--room:var(--rune)}
 #tab-funi{--room:var(--q-unique)}
 #tab-fsets{--room:var(--q-set)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--room,#6fbf6f);border-radius:8px;margin-bottom:6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-doneck{color:var(--room,#6fbf6f);font-weight:var(--fw-bold);flex:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donename{font-weight:var(--fw-semibold);font-size:13.5px;flex:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donedate{font-size:10.5px;color:var(--text-dim,#7a6f58);font-family:var(--mono,monospace);flex:1}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn{font-size:10.5px;font-weight:var(--fw-semibold);color:#cdbf9f;background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donebtn:hover{color:#fff;border-color:color-mix(in srgb,var(--room,#8fe6a0) 70%,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .ft-done.on{border-color:#6fbf6f;color:#8fe6a0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftnow-lbl{font-size:12.5px;font-weight:var(--fw-semibold);color:var(--q-orange);margin:14px 0 8px;letter-spacing:.2px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--room,#6fbf6f);border-radius:8px;margin-bottom:6px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-doneck{color:var(--room,#6fbf6f);font-weight:var(--fw-bold);flex:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donename{font-weight:var(--fw-semibold);font-size:13.5px;flex:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donedate{font-size:10.5px;color:var(--text-dim,#7a6f58);font-family:var(--mono,monospace);flex:1}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donebtn{font-size:10.5px;font-weight:var(--fw-semibold);color:#cdbf9f;background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donebtn:hover{color:#fff;border-color:color-mix(in srgb,var(--room,#8fe6a0) 70%,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .ft-done.on{border-color:#6fbf6f;color:#8fe6a0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-craftnow-lbl{font-size:12.5px;font-weight:var(--fw-semibold);color:var(--q-orange);margin:14px 0 8px;letter-spacing:.2px}
 /* Crafts filter — a COLUMN per craft type, slots stacked vertically under the type title */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-top:2px solid var(--cw-c,#b48ce0);border-radius:12px;padding:10px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-h{display:flex;align-items:flex-start;gap:9px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);min-height:64px;box-sizing:border-box}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-h-t{display:flex;flex-direction:column;min-width:0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-name{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:var(--cw-c,#b48ce0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-gem{font-size:10.5px;color:var(--text-dim,#9a8c72);line-height:var(--lh-snug)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-tile{display:block;padding:7px 10px;background:rgba(0,0,0,.25);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:8px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-slot{font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-rec{font-size:var(--fs-meta);color:var(--text-dim,#9a8c72);margin-top:2px;line-height:var(--lh-snug)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .craftcol-rec b{color:var(--rune)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-craftcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px;align-items:start}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-top:2px solid var(--cw-c,#b48ce0);border-radius:12px;padding:10px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-h{display:flex;align-items:flex-start;gap:9px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);min-height:64px;box-sizing:border-box}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-h-t{display:flex;flex-direction:column;min-width:0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-name{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:var(--cw-c,#b48ce0)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-gem{font-size:10.5px;color:var(--text-dim,#9a8c72);line-height:var(--lh-snug)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-tile{display:block;padding:7px 10px;background:rgba(0,0,0,.25);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:8px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-slot{font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-rec{font-size:var(--fs-meta);color:var(--text-dim,#9a8c72);margin-top:2px;line-height:var(--lh-snug)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .craftcol-rec b{color:var(--rune)}
 /* Craft accordion (v495) — collapsing dropdown of slots + recipes per craft type */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-craftacc{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc{background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:12px;overflow:hidden;transition:border-color .15s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc.open{background:rgba(255,255,255,.03);border-color:var(--cw-c,#b48ce0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h{position:relative;display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;user-select:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h:hover{background:rgba(255,255,255,.025)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-chev{font-size:12px;color:var(--cw-c,#b48ce0);width:12px;flex:none;transition:transform .15s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h img,:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-h>span:nth-child(2){width:34px;height:34px;object-fit:contain;flex:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-t{display:flex;flex-direction:column;min-width:0;flex:1}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-name{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:var(--cw-c,#b48ce0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-sub{font-size:var(--fs-meta);color:var(--text-dim,#9a8c72);line-height:var(--lh-snug);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-badge{font-size:var(--fs-meta);font-weight:var(--fw-semibold);color:var(--text-dim,#9a8c72);background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);border-radius:20px;padding:3px 10px;flex:none;white-space:nowrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow{display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-slotart{flex:none;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);border-radius:6px;border:1px solid var(--sc,#3a2f1e);box-shadow:0 0 8px -2px var(--sc,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-slotart img{max-width:24px;max-height:24px;object-fit:contain;filter:drop-shadow(0 0 2px var(--sc,transparent))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.ready{border-left:3px solid #6fbf6f}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked{opacity:.55}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-slot{font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0);min-width:62px;flex:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:var(--lh-normal);display:flex;flex-wrap:wrap;align-items:center;gap:5px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec b{color:var(--rune)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-craftacc{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc{background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:12px;overflow:hidden;transition:border-color .15s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc.open{background:rgba(255,255,255,.03);border-color:var(--cw-c,#b48ce0)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h{position:relative;display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;user-select:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h:hover{background:rgba(255,255,255,.025)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-chev{font-size:12px;color:var(--cw-c,#b48ce0);width:12px;flex:none;transition:transform .15s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h img,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h>span:nth-child(2){width:34px;height:34px;object-fit:contain;flex:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-t{display:flex;flex-direction:column;min-width:0;flex:1}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-name{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:var(--cw-c,#b48ce0)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-sub{font-size:var(--fs-meta);color:var(--text-dim,#9a8c72);line-height:var(--lh-snug);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-badge{font-size:var(--fs-meta);font-weight:var(--fw-semibold);color:var(--text-dim,#9a8c72);background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);border-radius:20px;padding:3px 10px;flex:none;white-space:nowrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow{display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,.22);border:1px solid var(--border,#3a2f1e);border-radius:8px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-slotart{flex:none;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);border-radius:6px;border:1px solid var(--sc,#3a2f1e);box-shadow:0 0 8px -2px var(--sc,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-slotart img{max-width:24px;max-height:24px;object-fit:contain;filter:drop-shadow(0 0 2px var(--sc,transparent))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow.ready{border-left:3px solid #6fbf6f}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow.locked{opacity:.55}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow-slot{font-size:var(--fs-body);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0);min-width:62px;flex:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow-rec{font-size:11.5px;color:var(--text-dim,#9a8c72);flex:1;line-height:var(--lh-normal);display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow-rec b{color:var(--rune)}
 /* v516 — craft ingredient chips: each ingredient (rune · base · jewel) carries its own HD art + a
    floating cursor tooltip. Hover any of them for the rich card (rune stats / base options / jewel). */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:7px;background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);cursor:help;white-space:nowrap;max-width:100%}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-img{width:18px;height:18px;object-fit:contain;flex:none;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl{width:18px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-r{color:var(--rune)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-gl-j{color:var(--q-magic)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune{border-color:rgba(224,168,42,.4)} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-rune b{color:var(--rune);font-weight:var(--fw-semibold)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base{border-color:rgba(159,176,255,.32);flex-wrap:wrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cbnames{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cbn{color:#b9c4ff} :is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-base .f-cdot{color:var(--text-dim,#6f6450);opacity:.7}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cing-jewel{border-color:rgba(159,176,255,.32);color:#b9c4ff}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-rec .f-cplus{color:var(--text-dim,#6f6450);font-weight:var(--fw-semibold);margin:0 1px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow-st{font-size:10.5px;font-weight:var(--fw-semibold);flex:none;white-space:nowrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.ready .f-craftrow-st{color:#9fe6a0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craftrow.locked .f-craftrow-st{color:var(--text-dim,#9a8c72)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:7px;background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);cursor:help;white-space:nowrap;max-width:100%}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-img{width:18px;height:18px;object-fit:contain;flex:none;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-gl{width:18px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-gl-r{color:var(--rune)} :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-gl-j{color:var(--q-magic)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-rune{border-color:rgba(224,168,42,.4)} :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-rune b{color:var(--rune);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-base{border-color:rgba(159,176,255,.32);flex-wrap:wrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-base .f-cbnames{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-base .f-cbn{color:#b9c4ff} :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-base .f-cdot{color:var(--text-dim,#6f6450);opacity:.7}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cing-jewel{border-color:rgba(159,176,255,.32);color:#b9c4ff}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow-rec .f-cplus{color:var(--text-dim,#6f6450);font-weight:var(--fw-semibold);margin:0 1px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow-st{font-size:10.5px;font-weight:var(--fw-semibold);flex:none;white-space:nowrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow.ready .f-craftrow-st{color:#9fe6a0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftrow.locked .f-craftrow-st{color:var(--text-dim,#9a8c72)}
 /* One-step directive chips + hover-tooltip items (flagship) */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getlead{font-weight:var(--fw-bold);font-size:12px;padding:2px 9px;border-radius:7px;letter-spacing:.3px;white-space:nowrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-get-base{color:#e9d07a;background:rgba(233,208,122,.15)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-get-rune{color:#e0b96a;background:rgba(224,185,106,.15)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-get-cube{color:#9fd4ff;background:rgba(159,212,255,.15)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip{font-size:12.5px;font-weight:var(--fw-semibold);color:var(--text,#e8dcc0);background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);padding:2px 9px;border-radius:7px;cursor:help}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-base{color:#cdb988;border-color:rgba(205,185,136,.4)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getlead{font-weight:var(--fw-bold);font-size:12px;padding:2px 9px;border-radius:7px;letter-spacing:.3px;white-space:nowrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-get-base{color:#e9d07a;background:rgba(233,208,122,.15)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-get-rune{color:#e0b96a;background:rgba(224,185,106,.15)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-get-cube{color:#9fd4ff;background:rgba(159,212,255,.15)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip{font-size:12.5px;font-weight:var(--fw-semibold);color:var(--text,#e8dcc0);background:rgba(255,255,255,.05);border:1px solid var(--border,#3a2f1e);padding:2px 9px;border-radius:7px;cursor:help}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip-base{color:#cdb988;border-color:rgba(205,185,136,.4)}
 /* v519 — role badges inside a base chip: ideal / 1H / merc / caster / endgame. Compact, colour-coded. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-base{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rbwrap{display:inline-flex;gap:3px;align-items:center}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb{font-size:8.5px;font-weight:var(--fw-bold);letter-spacing:.3px;text-transform:uppercase;padding:1px 4px;border-radius:4px;line-height:var(--lh-snug);border:1px solid transparent}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-ideal{color:#ffe08a;background:rgba(255,200,80,.14);border-color:rgba(255,200,80,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-1h{color:#8fe6a0;background:rgba(95,200,110,.14);border-color:rgba(95,200,110,.45)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-merc{color:#7fb0ff;background:rgba(90,150,255,.16);border-color:rgba(120,160,255,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-cast{color:#c79bff;background:rgba(160,120,230,.16);border-color:rgba(160,120,230,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-2h{color:#d2b48c;background:rgba(180,140,90,.14);border-color:rgba(180,140,90,.45)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-end{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rb-exc{color:#bda6e0;background:rgba(150,130,200,.12);border-color:rgba(150,130,200,.4)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip-base{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rbwrap{display:inline-flex;gap:3px;align-items:center}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb{font-size:8.5px;font-weight:var(--fw-bold);letter-spacing:.3px;text-transform:uppercase;padding:1px 4px;border-radius:4px;line-height:var(--lh-snug);border:1px solid transparent}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb-ideal{color:#ffe08a;background:rgba(255,200,80,.14);border-color:rgba(255,200,80,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb-1h{color:#8fe6a0;background:rgba(95,200,110,.14);border-color:rgba(95,200,110,.45)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb-merc{color:#7fb0ff;background:rgba(90,150,255,.16);border-color:rgba(120,160,255,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb-cast{color:#c79bff;background:rgba(160,120,230,.16);border-color:rgba(160,120,230,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb-2h{color:#d2b48c;background:rgba(180,140,90,.14);border-color:rgba(180,140,90,.45)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb-end{color:#ffc14d;background:rgba(255,170,40,.14);border-color:rgba(255,170,40,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rb-exc{color:#bda6e0;background:rgba(150,130,200,.12);border-color:rgba(150,130,200,.4)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip:hover{background:rgba(232,200,120,.13);border-color:rgba(232,200,120,.55);color:#f0e0b0}
 /* v676 — off-meta ready-base warning + the BIS line */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-offmeta{color:#e9b96e;font-weight:var(--fw-bold);font-size:11.5px;letter-spacing:var(--ls-tight)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-bisline{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin-left:6px;font-weight:var(--fw-bold);color:#ffe08a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-offmeta{color:#e9b96e;font-weight:var(--fw-bold);font-size:11.5px;letter-spacing:var(--ls-tight)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-bisline{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin-left:6px;font-weight:var(--fw-bold);color:#ffe08a}
 /* v675 — the IDEAL base chip on one-step cards yells like a Make-now pick */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-ideal{border-color:rgba(255,215,106,.75);background:linear-gradient(135deg,rgba(255,215,106,.16),rgba(201,155,63,.10));box-shadow:0 0 12px rgba(255,215,106,.28);font-weight:var(--fw-bold);font-size:var(--fs-body);color:#ffe08a!important}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getchip-ideal:hover{box-shadow:0 0 16px rgba(255,215,106,.45)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-getsub b{color:#cdb988;font-style:normal}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip-ideal{border-color:rgba(255,215,106,.75);background:linear-gradient(135deg,rgba(255,215,106,.16),rgba(201,155,63,.10));box-shadow:0 0 12px rgba(255,215,106,.28);font-weight:var(--fw-bold);font-size:var(--fs-body);color:#ffe08a!important}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getchip-ideal:hover{box-shadow:0 0 16px rgba(255,215,106,.45)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getsub{font-size:11.5px;color:var(--text-dim,#9a8c72);font-style:italic;margin-top:5px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-getsub b{color:#cdb988;font-style:normal}
 /* One-step full-journey arc: do-this-now segment lit, downstream dimmed */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-journey{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:5px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg{font-size:12.5px;color:var(--text-dim,#9a8c72);background:rgba(255,255,255,.03);border:1px solid var(--border,#3a2f1e);padding:3px 9px;border-radius:7px;display:inline-flex;align-items:center;gap:5px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg b{color:var(--text,#d8cba8)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg-now{color:var(--best,#66ff88);background:rgba(232,200,120,.14);border-color:rgba(232,200,120,.5);font-weight:var(--fw-semibold)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-jseg-now b{color:var(--best,#66ff88)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-jarrow{color:var(--text-dim,#7a6f55);font-size:var(--fs-body)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atom .f-cardtitle{font-size:15.5px;line-height:var(--lh-normal);padding-right:26px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rwbig{font-size:1.13em;font-weight:var(--fw-bold);letter-spacing:.2px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rwbig img{width:19px!important;height:19px!important;vertical-align:-4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-journey{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:5px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-jseg{font-size:12.5px;color:var(--text-dim,#9a8c72);background:rgba(255,255,255,.03);border:1px solid var(--border,#3a2f1e);padding:3px 9px;border-radius:7px;display:inline-flex;align-items:center;gap:5px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-jseg b{color:var(--text,#d8cba8)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-jseg-now{color:var(--best,#66ff88);background:rgba(232,200,120,.14);border-color:rgba(232,200,120,.5);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-jseg-now b{color:var(--best,#66ff88)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-jarrow{color:var(--text-dim,#7a6f55);font-size:var(--fs-body)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atom .f-cardtitle{font-size:15.5px;line-height:var(--lh-normal);padding-right:26px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rwbig{font-size:1.13em;font-weight:var(--fw-bold);letter-spacing:.2px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rwbig img{width:19px!important;height:19px!important;vertical-align:-4px}
 /* v1624 — the run/quick-win thumbnail is a control now: it opens the thing it is a picture of */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-runart{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;transition:filter .12s,box-shadow .12s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-runart:hover{filter:brightness(1.18);box-shadow:0 0 0 1px rgba(240,192,96,.45)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-runart:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(6,5,4,.9),0 0 0 3px rgba(240,192,96,.65)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-artglyph{font-size:22px;line-height:1}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-runart{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;transition:filter .12s,box-shadow .12s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-runart:hover{filter:brightness(1.18);box-shadow:0 0 0 1px rgba(240,192,96,.45)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-runart:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(6,5,4,.9),0 0 0 3px rgba(240,192,96,.65)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-artglyph{font-size:22px;line-height:1}
 /* v557 — layered make-now card: action line → recipe row → dim sub-row (Fable-5 clarity pass) */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomact{font-size:16px;line-height:var(--lh-normal)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomact .f-in{font-size:12.5px;color:var(--text-dim,#9a8c72);font-weight:var(--fw-regular);margin:0 2px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin:7px 0 2px;padding:6px 10px;background:rgba(0,0,0,.22);border:1px solid rgba(233,208,122,.14);border-radius:9px;width:fit-content;max-width:100%}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-reclbl{font-size:9.5px;font-weight:var(--fw-bold);letter-spacing:.6px;text-transform:uppercase;color:#b7a476;margin-right:7px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomsubrow{margin-top:6px;font-size:12px;line-height:var(--lh-normal);color:var(--text-dim,#9a8c72);border-left:2px solid rgba(255,255,255,.09);padding-left:9px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-recipe{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;vertical-align:middle}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-recipe img{width:17px;height:17px;vertical-align:-3px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomact{font-size:16px;line-height:var(--lh-normal)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomact .f-in{font-size:12.5px;color:var(--text-dim,#9a8c72);font-weight:var(--fw-regular);margin:0 2px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin:7px 0 2px;padding:6px 10px;background:rgba(0,0,0,.22);border:1px solid rgba(233,208,122,.14);border-radius:9px;width:fit-content;max-width:100%}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-reclbl{font-size:9.5px;font-weight:var(--fw-bold);letter-spacing:.6px;text-transform:uppercase;color:#b7a476;margin-right:7px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomsubrow{margin-top:6px;font-size:12px;line-height:var(--lh-normal);color:var(--text-dim,#9a8c72);border-left:2px solid rgba(255,255,255,.09);padding-left:9px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-recipe{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;vertical-align:middle}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-recipe img{width:17px;height:17px;vertical-align:-3px}
 /* v558 — MOTION LAYER: living embers, completion celebration, action animations (all reduced-motion-safe) */
 .forge-hero .fh-done{margin-left:8px;border-color:rgba(95,201,122,.55);color:#8fe6a0;background:rgba(95,201,122,.08)}
 .forge-hero .fh-done:hover{background:rgba(95,201,122,.16)}
@@ -8138,11 +8143,11 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 @keyframes fStepDone{40%{transform:scale(1.012);box-shadow:0 0 18px -4px rgba(159,212,255,.55)}}
 .f-spark{position:absolute;top:50%;left:56px;width:5px;height:5px;border-radius:50%;background:#ffe9a0;box-shadow:0 0 6px 1px rgba(255,220,120,.85);pointer-events:none;animation:fSpark .55s ease-out forwards}
 @keyframes fSpark{100%{transform:translate(var(--dx,40px),var(--dy,-50px)) scale(.2);opacity:0}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill{position:relative;overflow:hidden}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::after{content:"";position:absolute;top:0;left:-40%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:fpShine 4.6s ease-in-out 1s infinite}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill{position:relative;overflow:hidden}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill::after{content:"";position:absolute;top:0;left:-40%;width:32%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:fpShine 4.6s ease-in-out 1s infinite}
 @keyframes fpShine{0%{left:-40%}30%,100%{left:120%}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-track{background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),rgba(255,255,255,.13) calc(25% - 1px),rgba(255,255,255,.13) 25%)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill.fp-celebrate{animation:fpCelebrate 1.2s ease}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-track{background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),rgba(255,255,255,.13) calc(25% - 1px),rgba(255,255,255,.13) 25%)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill.fp-celebrate{animation:fpCelebrate 1.2s ease}
 @keyframes fpCelebrate{0%,100%{filter:brightness(1)}30%{filter:brightness(1.6);box-shadow:0 0 18px 1px rgba(120,230,150,.9)}}
 /* v907 — DAILY TASK FORCE rows (the console motherboard design, board-native) */
 .sc-tf-rows{display:flex;flex-direction:column;gap:7px;padding:4px 0 2px}
@@ -8235,11 +8240,11 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .chron-epic.ce-done .fe-txt{animation-duration:3.4s}
 @media (prefers-reduced-motion:reduce){.chron-epic,.chron-epic .fe-rune,.chron-toast .ct-bar i{animation:none!important}}
 @keyframes ftOut{100%{transform:translateX(-50%) translateY(14px);opacity:0}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*{animation:fRecIn .3s ease both}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(2){animation-delay:.05s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(3){animation-delay:.1s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(4){animation-delay:.15s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(5){animation-delay:.2s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(6){animation-delay:.25s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(7){animation-delay:.3s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*{animation:fRecIn .3s ease both}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(2){animation-delay:.05s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(3){animation-delay:.1s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(4){animation-delay:.15s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(5){animation-delay:.2s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(6){animation-delay:.25s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*:nth-child(7){animation-delay:.3s}
 @keyframes fRecIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:1;transform:translateY(0)}}
 @media (prefers-reduced-motion: reduce){
-  .forge-hero,.forge-hero::after,.forge-hero .fh-ember,:is(#tab-forge,#tab-funi,#tab-fsets) .f-card,:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill::after,:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomrecipe>*,.forge-hero .fh-artwrap{animation:none!important}
+  .forge-hero,.forge-hero::after,.forge-hero .fh-ember,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill::after,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomrecipe>*,.forge-hero .fh-artwrap{animation:none!important}
 }
 /* v559 — GRAIL FORGES (Uniques/Sets) — farm cards, piece chips, run lists (shell classes shared via :is()) */
 .gf-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
@@ -8344,18 +8349,18 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .ibx-fold>summary:hover{color:var(--text,#f4e8d0)}
 .ibx-fold>summary b{color:var(--text,#f4e8d0)}
 .ibx-fold .ibx-list{padding:0 12px 10px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomic-ic{font-size:22px;line-height:var(--lh-none)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:var(--fw-regular)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomic-ic{font-size:22px;line-height:var(--lh-none)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomsub{font-size:12px;color:var(--text-dim,#9a8c72);font-weight:var(--fw-regular)}
 /* v550 — inline HD-art logo + hover-art on runeword & base names in the Forge */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-artname{white-space:nowrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-artname img,:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle img{vertical-align:middle;width:18px;height:18px;object-fit:contain;margin-right:3px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atomprog{display:inline-block;margin-top:4px;font-size:var(--fs-meta);font-weight:var(--fw-semibold);color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:var(--lh-relaxed);text-align:center}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-artname{white-space:nowrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-artname img,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardtitle img{vertical-align:middle;width:18px;height:18px;object-fit:contain;margin-right:3px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atomprog{display:inline-block;margin-top:4px;font-size:var(--fs-meta);font-weight:var(--fw-semibold);color:#9fd4ff;background:rgba(159,212,255,.12);padding:1px 9px;border-radius:9px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-atom .f-cube{font-family:monospace;font-size:11.5px;color:#e9d07a;background:rgba(233,208,122,.1);padding:0 5px;border-radius:3px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-empty{margin-top:8px;padding:30px 22px;border:1px dashed var(--border,#3a2f1e);border-radius:12px;color:var(--text-dim,#9a8c72);font-size:14px;line-height:var(--lh-relaxed);text-align:center}
 /* v685 — SEALED CHRONICLE celebration: at 99/99 the Forge's proudest state was a void whose only
    visible control was the red erase button. The seal fills it — engraved gold, next-hunt pointers. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed{margin:18px 0 8px;padding:44px 26px 40px;border:1px solid rgba(212,168,71,.4);border-radius:14px;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(240,192,96,.09),rgba(0,0,0,0) 65%),linear-gradient(180deg,rgba(26,20,10,.6),rgba(14,11,6,.4));box-shadow:inset 0 1px 0 rgba(255,220,140,.12),0 10px 30px -18px rgba(0,0,0,.8)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-crest{font-size:40px;line-height:var(--lh-none);margin-bottom:12px;filter:drop-shadow(0 0 18px rgba(240,192,96,.45))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed{margin:18px 0 8px;padding:44px 26px 40px;border:1px solid rgba(212,168,71,.4);border-radius:14px;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(240,192,96,.09),rgba(0,0,0,0) 65%),linear-gradient(180deg,rgba(26,20,10,.6),rgba(14,11,6,.4));box-shadow:inset 0 1px 0 rgba(255,220,140,.12),0 10px 30px -18px rgba(0,0,0,.8)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-crest{font-size:40px;line-height:var(--lh-none);margin-bottom:12px;filter:drop-shadow(0 0 18px rgba(240,192,96,.45))}
 /* v2077 — THE SEALED TITLE SPOKE A LANGUAGE THIS PAGE DOES NOT SPEAK. Konyo: 'SEALED should be
    different.. something changed template style.. typography'. MEASURED against the page's own
    serif vocabulary (h2 / .boss-name / .sec-h, all --serif-display):
@@ -8369,23 +8374,23 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    It now speaks the page's language and is simply the LOUDEST voice in it: same face, same
    weight, same tracking discipline, larger and brighter because 99/99 forged is the proudest
    state on the board. [[visual-regression-detector]] */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-title{font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);letter-spacing:var(--ls-tight);font-size:clamp(24px,2.6vw,30px);color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.4);margin-bottom:6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-sub{color:var(--text-dim,#9a8c72);font-size:13.5px;line-height:var(--lh-relaxed);margin-bottom:20px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btns{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn{padding:9px 18px;border:1px solid rgba(212,168,71,.45);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.13),rgba(240,192,96,.04));color:var(--gold-bright,#f0c060);font-size:var(--fs-body);cursor:pointer;transition:background .15s ease,transform .12s ease}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn:hover{background:rgba(240,192,96,.2);transform:translateY(-1px)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft{border-color:rgba(255,168,0,.55);background:linear-gradient(180deg,rgba(255,168,0,.13),rgba(255,168,0,.04));color:var(--q-orange)}   /* v1625 ITEM3a */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft:hover{background:rgba(255,168,0,.2)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-title{font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);letter-spacing:var(--ls-tight);font-size:clamp(24px,2.6vw,30px);color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.4);margin-bottom:6px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-sub{color:var(--text-dim,#9a8c72);font-size:13.5px;line-height:var(--lh-relaxed);margin-bottom:20px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btns{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn{padding:9px 18px;border:1px solid rgba(212,168,71,.45);border-radius:9px;background:linear-gradient(180deg,rgba(240,192,96,.13),rgba(240,192,96,.04));color:var(--gold-bright,#f0c060);font-size:var(--fs-body);cursor:pointer;transition:background .15s ease,transform .12s ease}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn:hover{background:rgba(240,192,96,.2);transform:translateY(-1px)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft{border-color:rgba(255,168,0,.55);background:linear-gradient(180deg,rgba(255,168,0,.13),rgba(255,168,0,.04));color:var(--q-orange)}   /* v1625 ITEM3a */
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft:hover{background:rgba(255,168,0,.2)}
 /* v1633 — Konyo: "also color is synced here on the bottom too for the F-Uniques". The two routes
    framed themselves in the right colours but printed their LABELS in the card's default cream, so
    F·Sets read green and F·Uniques read as chrome — the same item, two answers. Both now take
    their quality from the TOKEN, frame and text together, and the literals are gone with them. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{--fsq:var(--q-unique);color:var(--fsq);border-color:color-mix(in srgb,var(--fsq) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 13%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni:hover{background:color-mix(in srgb,var(--fsq) 20%,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set{--fsq:var(--q-set);color:var(--fsq);border-color:color-mix(in srgb,var(--fsq) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 11%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:color-mix(in srgb,var(--fsq) 18%,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni .fs-rt-t,
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set .fs-rt-t{color:var(--fsq)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{--fsq:var(--q-unique);color:var(--fsq);border-color:color-mix(in srgb,var(--fsq) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 13%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni:hover{background:color-mix(in srgb,var(--fsq) 20%,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set{--fsq:var(--q-set);color:var(--fsq);border-color:color-mix(in srgb,var(--fsq) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 11%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set:hover{background:color-mix(in srgb,var(--fsq) 18%,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni .fs-rt-t,
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-set .fs-rt-t{color:var(--fsq)}
 /* v2079 — ONE SPELLING, AND IT IS THE ONE THE PAGE ALREADY HAD. v2073 fixed the flat-cream wall
    by inventing `.gp-nm-uni` / `.gp-nm-set` — three new rules sitting a few hundred lines below
    these two, which had been colouring item names in these exact two tabs since v1625 and were the
@@ -8413,16 +8418,16 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    ("best run: Normal Andariel"), and the set PIECE itself, which had the colour but never the glow.
    The glow uses currentColor so it can never drift from whatever quality the name carries — one
    rule, every rarity, no second palette. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .fs-setname{color:var(--q-set);font-weight:var(--fw-semibold)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .gf-boss{color:var(--acc-intel);font-weight:var(--fw-semibold)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fs-piece,
-:is(#tab-forge,#tab-funi,#tab-fsets) .fs-setname,
-:is(#tab-forge,#tab-funi,#tab-fsets) .gf-boss{
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fs-setname{color:var(--q-set);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .gf-boss{color:var(--acc-intel);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fs-piece,
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fs-setname,
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .gf-boss{
   text-shadow:0 0 4px color-mix(in srgb,currentColor 55%,transparent),
               0 0 10px color-mix(in srgb,currentColor 50%,transparent),
               0 1px 1px rgba(0,0,0,.55);
 }
-:is(#tab-forge,#tab-funi,#tab-fsets) .fs-setname:hover{filter:brightness(1.18)}   /* v1625 ITEM5 — beats the (1,2,0) .f-cardtitle .f-rwbig rule that renders later in this sheet */
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fs-setname:hover{filter:brightness(1.18)}   /* v1625 ITEM5 — beats the (1,2,0) .f-cardtitle .f-rwbig rule that renders later in this sheet */
 #tab-fsets .fs-piece:hover{filter:brightness(1.18);text-decoration:underline}
 #tab-fsets .fs-piece:focus-visible{outline:2px solid var(--q-set);outline-offset:2px}
 /* v1644 ITEM1 — the two BEST-FARM heroes named a boss in bare cream (measured rgb(244,232,208))
@@ -8431,7 +8436,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    would be a lie here; the token the run rows already use for a boss name is --best, so the heroes
    adopt THAT. Same hover/focus affordance as .fs-piece, routed to the boss card (openBossDetail),
    which is what the run row's own boss surface routes to — no item arttip, a boss has none. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--acc-intel,#6fb8e8);cursor:pointer;text-decoration:none;border-radius:5px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-name .fh-boss{color:var(--acc-intel,#6fb8e8);cursor:pointer;text-decoration:none;border-radius:5px}
 /* v1656 — the hero's boss portrait sits ON the name, sized to the display type it lives in. The
    best-run rows use 19-23px for a body-sized line; this line is var(--fs-display), so it takes a
    larger glyph and a little more air, and vertical-align keeps it on the baseline instead of
@@ -8439,8 +8444,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .fh-artgo{cursor:pointer;display:inline-block;line-height:0}
 .fh-artgo:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:6px}
 .fh-boss .fh-boss-i{width:26px;height:26px;vertical-align:-5px;margin-right:7px;border-radius:4px;object-fit:cover}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:hover{filter:brightness(1.18);text-decoration:underline}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--acc-intel);outline-offset:2px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-name .fh-boss:hover{filter:brightness(1.18);text-decoration:underline}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--acc-intel);outline-offset:2px}
 /* v1729 — A GLOW THE SAME COLOUR AS ITS BASE IS NOT A GLOW.
    Konyo: "even the F-Uniques tab looks dull and matt colored compared to other sections".
    Measured: Forge's title paints #ff7d3c and F·Sets' #00fc00 — both inherently vivid and neither
@@ -8532,42 +8537,42 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 /* v777 — the ✕ dismiss on a completed row is position:absolute (correct on a .f-card, which is
    position:relative). A .f-donerow was NOT positioned, so all 99 escaped to the nearest positioned
    ancestor and STACKED at the tab's top-right — reading as one stray × close. Anchor them per-row. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow{position:relative}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-donerow .f-skip{position:static;top:auto;right:auto;flex:none;opacity:.55}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donerow{position:relative}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-donerow .f-skip{position:static;top:auto;right:auto;flex:none;opacity:.55}
 /* v777 — SEALED completed-state: the 99/99 hero owns the view; the full roll folds behind ONE disclosure. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{margin-top:8px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done{margin-top:8px}
 /* v1630 ITEM C — the SEALED card was a 44px-padded box holding a crest, one title line, two
    lines of prose and two centred pills, with roughly half its height empty. It is the reward
    surface for finishing the entire runeword chronicle and it read as an empty panel.
    Structure fills the height instead of padding: a diagonal wax stamp behind the content, the
    99/99 promoted to a trophy figure, and the two routes anchored in a footer band that spans
    the width. Scoped to .forge-sealed-done — the not-yet-sealed .forge-sealed is untouched. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{position:relative;overflow:hidden;padding:30px 30px 0;text-align:left}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done{position:relative;overflow:hidden;padding:30px 30px 0;text-align:left}
 /* DECORATIVE ONLY: pointer-events:none + aria-hidden in the markup, and z-index 0 keeps it
    BEHIND the routes band (z-index 2) so it can never eat a click on the reward surface. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-stamp{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-19deg);pointer-events:none;user-select:none;z-index:0;white-space:nowrap;font-family:var(--serif-display,serif);font-variant-caps:small-caps;text-transform:uppercase;font-size:clamp(44px,9vw,88px);letter-spacing:.22em;line-height:var(--lh-none);padding:.1em .34em .14em;color:rgba(212,168,71,.115);border:5px double rgba(212,168,71,.13);border-radius:16px;text-shadow:0 1px 0 rgba(0,0,0,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-donetop{position:relative;z-index:1;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-stamp{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-19deg);pointer-events:none;user-select:none;z-index:0;white-space:nowrap;font-family:var(--serif-display,serif);font-variant-caps:small-caps;text-transform:uppercase;font-size:clamp(44px,9vw,88px);letter-spacing:.22em;line-height:var(--lh-none);padding:.1em .34em .14em;color:rgba(212,168,71,.115);border:5px double rgba(212,168,71,.13);border-radius:16px;text-shadow:0 1px 0 rgba(0,0,0,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-donetop{position:relative;z-index:1;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
 /* the trophy figure — the count used to be buried mid-sentence in the title */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig{flex:none;min-width:150px;text-align:center;padding:14px 18px 12px;border:1px solid rgba(212,168,71,.34);border-radius:13px;background:linear-gradient(180deg,rgba(240,192,96,.09),rgba(240,192,96,.02));box-shadow:inset 0 1px 0 rgba(255,220,140,.14)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-n{display:block;font-family:var(--serif-display,serif);font-size:56px;line-height:var(--lh-none);color:var(--gold-bright,#f0c060);text-shadow:0 0 26px rgba(240,192,96,.45)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-of{display:block;margin-top:4px;font-family:var(--mono);font-size:13px;color:var(--gold-dim,#c8a24a);letter-spacing:var(--ls-wide)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-lab{display:block;margin-top:7px;font-family:var(--mono);font-size:var(--fs-meta);text-transform:uppercase;letter-spacing:var(--ls-label);color:var(--text-dim,#9a8c72)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-doneline{flex:1 1 300px;min-width:260px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-crest{font-size:26px;margin-bottom:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-title{margin-bottom:8px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-sub{margin-bottom:0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig{flex:none;min-width:150px;text-align:center;padding:14px 18px 12px;border:1px solid rgba(212,168,71,.34);border-radius:13px;background:linear-gradient(180deg,rgba(240,192,96,.09),rgba(240,192,96,.02));box-shadow:inset 0 1px 0 rgba(255,220,140,.14)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-n{display:block;font-family:var(--serif-display,serif);font-size:56px;line-height:var(--lh-none);color:var(--gold-bright,#f0c060);text-shadow:0 0 26px rgba(240,192,96,.45)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-of{display:block;margin-top:4px;font-family:var(--mono);font-size:13px;color:var(--gold-dim,#c8a24a);letter-spacing:var(--ls-wide)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-fig-lab{display:block;margin-top:7px;font-family:var(--mono);font-size:var(--fs-meta);text-transform:uppercase;letter-spacing:var(--ls-label);color:var(--text-dim,#9a8c72)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-doneline{flex:1 1 300px;min-width:260px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-crest{font-size:26px;margin-bottom:4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-title{margin-bottom:8px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-sub{margin-bottom:0}
 /* the routes band: anchored footer that spans the card, not two pills floating in dead space */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{position:relative;z-index:2;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:26px -30px 0;padding:20px 30px;border-top:1px solid rgba(212,168,71,.22);background:linear-gradient(180deg,rgba(0,0,0,.24),rgba(0,0,0,.34))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes .fs-btn{display:block;width:100%;max-width:420px;text-align:left;padding:12px 16px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-rt-t{display:block;font-size:var(--fs-body);font-weight:var(--fw-semibold)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-rt-s{display:block;margin-top:2px;font-size:var(--fs-meta);opacity:.72}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{position:relative;z-index:2;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:26px -30px 0;padding:20px 30px;border-top:1px solid rgba(212,168,71,.22);background:linear-gradient(180deg,rgba(0,0,0,.24),rgba(0,0,0,.34))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes .fs-btn{display:block;width:100%;max-width:420px;text-align:left;padding:12px 16px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-rt-t{display:block;font-size:var(--fs-body);font-weight:var(--fw-semibold)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-rt-s{display:block;margin-top:2px;font-size:var(--fs-meta);opacity:.72}
 @media (prefers-reduced-motion: no-preference){
-  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-stamp{animation:fsStampIn .5s cubic-bezier(.2,1.5,.4,1) both}
+  :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-stamp{animation:fsStampIn .5s cubic-bezier(.2,1.5,.4,1) both}
   @keyframes fsStampIn{from{opacity:0;transform:translate(-50%,-50%) rotate(-19deg) scale(1.5)}to{opacity:1;transform:translate(-50%,-50%) rotate(-19deg) scale(1)}}
 }
 @media (max-width:640px){
-  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done{padding:24px 18px 0}
-  :is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{margin:22px -18px 0;padding:16px 18px}
+  :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done{padding:24px 18px 0}
+  :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-done .fs-routes{margin:22px -18px 0;padding:16px 18px}
 }
 /* 2026-08-13 — "and related": the Forge SEALED hero (trophy figure, "Chronicle Sealed" title,
    wax stamp) is part of the room's own gold chrome, repainted in --rune same as the title/tvf-
@@ -8576,13 +8581,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-forge .forge-sealed-done .fs-fig-n{color:var(--rune);text-shadow:0 0 26px rgba(255,125,60,.45)}
 #tab-forge .forge-sealed-done .fs-title{color:var(--rune);text-shadow:0 0 22px rgba(255,125,60,.4)}
 #tab-forge .forge-sealed-done .fs-stamp{color:rgba(255,125,60,.14);border-color:rgba(255,125,60,.16)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll{margin:14px 0 8px;border:1px solid color-mix(in srgb,var(--room,#d4a847) 26%,transparent);border-radius:12px;background:linear-gradient(180deg,rgba(26,20,10,.4),rgba(14,11,6,.22));overflow:hidden}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary{cursor:pointer;list-style:none;padding:12px 16px;font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--room,#c8a24a);display:flex;align-items:center;gap:9px;user-select:none;transition:color .14s,background .14s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary:hover{color:var(--room,#f0c060);background:color-mix(in srgb,var(--room,#f0c060) 7%,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::-webkit-details-marker{display:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::before{content:'▸';font-size:11px;transition:transform .16s ease}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll[open]>summary::before{transform:rotate(90deg)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sealed-roll .fsr-body{padding:2px 14px 12px;border-top:1px solid color-mix(in srgb,var(--room,#d4a847) 16%,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-roll{margin:14px 0 8px;border:1px solid color-mix(in srgb,var(--room,#d4a847) 26%,transparent);border-radius:12px;background:linear-gradient(180deg,rgba(26,20,10,.4),rgba(14,11,6,.22));overflow:hidden}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-roll>summary{cursor:pointer;list-style:none;padding:12px 16px;font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--room,#c8a24a);display:flex;align-items:center;gap:9px;user-select:none;transition:color .14s,background .14s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-roll>summary:hover{color:var(--room,#f0c060);background:color-mix(in srgb,var(--room,#f0c060) 7%,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::-webkit-details-marker{display:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-roll>summary::before{content:'▸';font-size:11px;transition:transform .16s ease}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-roll[open]>summary::before{transform:rotate(90deg)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed-roll .fsr-body{padding:2px 14px 12px;border-top:1px solid color-mix(in srgb,var(--room,#d4a847) 16%,transparent)}
 /* v686 ⚡ SESSION COCKPIT */
 #tab-session .sc-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:6px 0 14px}
 #tab-session .sc-title{font-family:var(--serif-display);font-variant-caps:small-caps;letter-spacing:var(--ls-label);font-size:26px;color:var(--gold-bright);text-shadow:0 0 18px rgba(240,192,96,.35)}
@@ -8731,55 +8736,55 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .tqu-btn{position:relative}
 /* v546 — "Do this one thing" hero banner */
 /* v552 — FLAGSHIP HERO: the single "do this one thing" — big, HD art, animated, impossible to miss */
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero{position:relative;display:flex;align-items:center;gap:16px;margin:14px 0 20px;padding:16px 20px;border:1px solid var(--tone,rgba(233,208,122,.4));border-radius:16px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tonec,#e9d07a) 17%,transparent),rgba(255,255,255,.012) 62%);box-shadow:0 5px 26px -6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);animation:fhIn .5s cubic-bezier(.2,.9,.3,1.2)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero::after{content:"";position:absolute;top:0;left:-60%;width:42%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.10),transparent);transform:skewX(-18deg);animation:fhShine 6s ease-in-out 1.4s infinite;pointer-events:none}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero-now{--tone:rgba(95,201,122,.5);--tonec:#5fc97a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero-pipe{--tone:rgba(91,159,208,.5);--tonec:#5b9fd0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-hero-step{--tone:rgba(233,208,122,.5);--tonec:#e9d07a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-artwrap{position:relative;flex:0 0 auto;width:58px;height:58px;border-radius:13px;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.09),rgba(0,0,0,.34));border:1px solid color-mix(in srgb,var(--tonec) 42%,transparent);display:flex;align-items:center;justify-content:center;animation:fhArtGlow 3.4s ease-in-out infinite}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-hero{position:relative;display:flex;align-items:center;gap:16px;margin:14px 0 20px;padding:16px 20px;border:1px solid var(--tone,rgba(233,208,122,.4));border-radius:16px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tonec,#e9d07a) 17%,transparent),rgba(255,255,255,.012) 62%);box-shadow:0 5px 26px -6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);animation:fhIn .5s cubic-bezier(.2,.9,.3,1.2)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-hero::after{content:"";position:absolute;top:0;left:-60%;width:42%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.10),transparent);transform:skewX(-18deg);animation:fhShine 6s ease-in-out 1.4s infinite;pointer-events:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-hero-now{--tone:rgba(95,201,122,.5);--tonec:#5fc97a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-hero-pipe{--tone:rgba(91,159,208,.5);--tonec:#5b9fd0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-hero-step{--tone:rgba(233,208,122,.5);--tonec:#e9d07a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-artwrap{position:relative;flex:0 0 auto;width:58px;height:58px;border-radius:13px;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.09),rgba(0,0,0,.34));border:1px solid color-mix(in srgb,var(--tonec) 42%,transparent);display:flex;align-items:center;justify-content:center;animation:fhArtGlow 3.4s ease-in-out infinite}
 @keyframes fhArtGlow{0%,100%{box-shadow:0 0 16px -5px color-mix(in srgb,var(--tonec) 60%,transparent)}50%{box-shadow:0 0 24px -2px color-mix(in srgb,var(--tonec) 78%,transparent)}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-art{display:flex;align-items:center;justify-content:center}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-art img{max-width:48px;max-height:48px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-art .f-glyph{font-size:32px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-icobadge{position:absolute;bottom:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#140f09;border:1px solid color-mix(in srgb,var(--tonec) 60%,transparent);display:flex;align-items:center;justify-content:center;font-size:var(--fs-body);box-shadow:0 1px 4px rgba(0,0,0,.55)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-main{flex:1 1 auto;min-width:0;position:relative;z-index:1}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-lead{font-size:10.5px;font-weight:var(--fw-bold);letter-spacing:.8px;text-transform:uppercase;color:var(--tonec,#e9d07a)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name{font-family:var(--serif-display,serif);font-size:var(--fs-display);font-weight:var(--fw-semibold);line-height:var(--lh-tightest);margin:2px 0 3px;color:var(--text,#e8dcc2)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-name img{width:23px;height:23px;vertical-align:-4px;margin-right:5px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-body{font-size:var(--fs-body);line-height:var(--lh-snug);color:var(--text-dim,#b6a888)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta{flex:0 0 auto;white-space:nowrap;background:color-mix(in srgb,var(--tonec) 22%,transparent);border:1px solid color-mix(in srgb,var(--tonec) 55%,transparent);color:#fff;font-weight:var(--fw-bold);font-size:var(--fs-body);padding:10px 17px;position:relative;z-index:1;box-shadow:0 2px 12px -2px color-mix(in srgb,var(--tonec) 55%,transparent)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta:hover{filter:brightness(1.13)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta-arw{display:inline-block;transition:transform .15s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .fh-cta:hover .fh-cta-arw{transform:translateX(3px)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-art{display:flex;align-items:center;justify-content:center}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-art img{max-width:48px;max-height:48px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-art .f-glyph{font-size:32px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-icobadge{position:absolute;bottom:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#140f09;border:1px solid color-mix(in srgb,var(--tonec) 60%,transparent);display:flex;align-items:center;justify-content:center;font-size:var(--fs-body);box-shadow:0 1px 4px rgba(0,0,0,.55)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-main{flex:1 1 auto;min-width:0;position:relative;z-index:1}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-lead{font-size:10.5px;font-weight:var(--fw-bold);letter-spacing:.8px;text-transform:uppercase;color:var(--tonec,#e9d07a)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-name{font-family:var(--serif-display,serif);font-size:var(--fs-display);font-weight:var(--fw-semibold);line-height:var(--lh-tightest);margin:2px 0 3px;color:var(--text,#e8dcc2)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-name img{width:23px;height:23px;vertical-align:-4px;margin-right:5px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-body{font-size:var(--fs-body);line-height:var(--lh-snug);color:var(--text-dim,#b6a888)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-cta{flex:0 0 auto;white-space:nowrap;background:color-mix(in srgb,var(--tonec) 22%,transparent);border:1px solid color-mix(in srgb,var(--tonec) 55%,transparent);color:#fff;font-weight:var(--fw-bold);font-size:var(--fs-body);padding:10px 17px;position:relative;z-index:1;box-shadow:0 2px 12px -2px color-mix(in srgb,var(--tonec) 55%,transparent)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-cta:hover{filter:brightness(1.13)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-cta-arw{display:inline-block;transition:transform .15s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-cta:hover .fh-cta-arw{transform:translateX(3px)}
 @keyframes fhIn{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes fhShine{0%{left:-60%}20%,100%{left:135%}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-empty-sm{padding:18px;font-size:var(--fs-body);margin-top:0}
-@media (max-width:760px){:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tabs{flex-wrap:wrap}:is(#tab-forge,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 40%}:is(#tab-forge,#tab-funi,#tab-fsets) .forge-title{font-size:34px}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec{margin:20px 0 6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-h{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:var(--fw-bold);padding:7px 0 10px;border-bottom:1px solid var(--border,#3a2f1e);margin-bottom:12px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-empty-sm{padding:18px;font-size:var(--fs-body);margin-top:0}
+@media (max-width:760px){:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tabs{flex-wrap:wrap}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-tab{flex:1 1 40%}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-title{font-size:34px}}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec{margin:20px 0 6px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-h{display:flex;align-items:baseline;gap:9px;font-size:16px;font-weight:var(--fw-bold);padding:7px 0 10px;border-bottom:1px solid var(--border,#3a2f1e);margin-bottom:12px}
 /* v775 — right-gutter so a right-aligned .forge-sec-sub clears the fixed corner FAB stack (.nav-widget +
    .help-btn own the rightmost ~64px). Placed AFTER the base rule so it wins on source order; desktop-only. */
-@media(min-width:701px){:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-h{padding-right:66px}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-ct{font-size:12px;font-weight:var(--fw-semibold);padding:1px 8px;border-radius:11px;background:rgba(255,255,255,.06);color:var(--text-dim,#9a8c72)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-sub{font-size:11.5px;font-weight:var(--fw-normal);color:var(--text-dim,#9a8c72);margin-left:auto}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-now .forge-sec-h{color:#8fe0a0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-pipe .forge-sec-h{color:#9fd4ff}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-step .forge-sec-h{color:#e9d07a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-sec-defer .forge-sec-h{color:#b9a98a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .forge-note{font-size:12px;color:var(--text-dim,#9a8c72);margin:-4px 0 12px;font-style:italic}
+@media(min-width:701px){:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-h{padding-right:66px}}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-ct{font-size:12px;font-weight:var(--fw-semibold);padding:1px 8px;border-radius:11px;background:rgba(255,255,255,.06);color:var(--text-dim,#9a8c72)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-sub{font-size:11.5px;font-weight:var(--fw-normal);color:var(--text-dim,#9a8c72);margin-left:auto}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-now .forge-sec-h{color:#8fe0a0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-pipe .forge-sec-h{color:#9fd4ff}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-step .forge-sec-h{color:#e9d07a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sec-defer .forge-sec-h{color:#b9a98a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-note{font-size:12px;color:var(--text-dim,#9a8c72);margin:-4px 0 12px;font-style:italic}
 /* v552 — application-style task cards: HD art, hover lift, staggered entrance */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-card{position:relative;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border,#3a2f1e);border-left-width:4px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.032),rgba(255,255,255,.008));transition:transform .12s ease,box-shadow .16s ease,border-color .16s ease;animation:fCardIn .34s ease both}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:hover{transform:translateY(-2px);box-shadow:0 7px 22px -8px rgba(0,0,0,.55)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card{position:relative;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border,#3a2f1e);border-left-width:4px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.032),rgba(255,255,255,.008));transition:transform .12s ease,box-shadow .16s ease,border-color .16s ease;animation:fCardIn .34s ease both}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card:hover{transform:translateY(-2px);box-shadow:0 7px 22px -8px rgba(0,0,0,.55)}
 @keyframes fCardIn{0%{opacity:0;transform:translateY(7px)}100%{opacity:1;transform:translateY(0)}}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(1){animation-delay:.01s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(2){animation-delay:.05s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(3){animation-delay:.09s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(4){animation-delay:.13s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(5){animation-delay:.17s}:is(#tab-forge,#tab-funi,#tab-fsets) .f-card:nth-of-type(6){animation-delay:.21s}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-now{border-left-color:#5fc97a}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-now:hover{border-color:rgba(95,201,122,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card:nth-of-type(1){animation-delay:.01s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card:nth-of-type(2){animation-delay:.05s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card:nth-of-type(3){animation-delay:.09s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card:nth-of-type(4){animation-delay:.13s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card:nth-of-type(5){animation-delay:.17s}:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card:nth-of-type(6){animation-delay:.21s}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-now{border-left-color:#5fc97a}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-now:hover{border-color:rgba(95,201,122,.5)}
 /* v1696 — the "no verified source yet" group. Deliberately MUTED, not blue: a run card's blue rail
    means "here is where to farm this", and this card's whole point is that no such place is known. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-nosrc{border-left-color:rgba(233,208,122,.28)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe{border-left-color:#5b9fd0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-pipe:hover{border-color:rgba(91,159,208,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-step{border-left-color:#cdb157}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-nosrc{border-left-color:rgba(233,208,122,.28)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-pipe{border-left-color:#5b9fd0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-pipe:hover{border-color:rgba(91,159,208,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-step{border-left-color:#cdb157}
 /* v2081 — THE ONE CARD KIND WHOSE COLOUR SAID NOTHING. Measured on a render with a full stash:
    .f-now  rgb(95,201,122) green · .f-pipe rgb(91,159,208) blue · .f-step rgb(205,177,87) gold ·
    .f-craft rgb(58,47,30) — that is var(--border), the fallback for a card with NO rule. `.f-craft`
@@ -8787,47 +8792,47 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    all exist and are different classes, which is exactly why it reads as present. So every cube
    craft sat in the make-now feed beside meaning-bearing runeword cards carrying the absence of a
    colour. Orange is the crafts identity already (--q-orange, .ft-craft). */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft{border-left-color:var(--q-orange)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-step:hover{border-color:rgba(205,177,87,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-defer{border-left-color:#6b5f48;opacity:.62}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart{flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:9px;overflow:hidden}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd{position:relative;flex:0 0 48px;width:48px;height:48px;overflow:visible;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.07),rgba(0,0,0,.32));border:1px solid rgba(255,255,255,.08);border-radius:11px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd .f-art{max-width:42px;max-height:42px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-hd .f-atomic-ic{font-size:26px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardart-badge{position:absolute;bottom:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:#140f09;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:var(--fs-meta);box-shadow:0 1px 3px rgba(0,0,0,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craft{border-left-color:var(--q-orange)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-step:hover{border-color:rgba(205,177,87,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-defer{border-left-color:#6b5f48;opacity:.62}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardart{flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:9px;overflow:hidden}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardart-hd{position:relative;flex:0 0 48px;width:48px;height:48px;overflow:visible;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.07),rgba(0,0,0,.32));border:1px solid rgba(255,255,255,.08);border-radius:11px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardart-hd .f-art{max-width:42px;max-height:42px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardart-hd .f-atomic-ic{font-size:26px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardart-badge{position:absolute;bottom:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:#140f09;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:var(--fs-meta);box-shadow:0 1px 3px rgba(0,0,0,.5)}
 /* v1644 ITEM2 — .f-cardart-badge is pinned absolute inside the 48px art box, so every user of it
    printed a stamp ON TOP of the sprite. Decorative glyphs (⚡, the atom's own step icon) are gone
    outright; the INFORMATIONAL ones (run rank, pieces-left/✅) keep their information but move OFF
    the art into the title line as this pill. v1636 did this for F·Uniques Quick Wins only — this is
    the same treatment reaching its siblings. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-rankpill{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-right:6px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);font-size:var(--fs-meta);font-weight:var(--fw-bold);color:var(--text-muted,#b5a48a);vertical-align:1px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-art{max-width:40px;max-height:40px;object-fit:contain}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-glyph{font-size:22px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardbody{flex:1;min-width:0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle{font-size:var(--fs-title);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtitle b{color:var(--acc-intel,#6fb8e8)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardmeta{font-size:12.5px;color:var(--text-dim,#a89a80);margin-top:3px;line-height:var(--lh-normal)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardmeta b{color:var(--text,#d8cba8)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cardtell{font-size:11.5px;color:var(--text-dim,#9a8c72);margin-top:3px;font-style:italic}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-recipe,:is(#tab-forge,#tab-funi,#tab-fsets) .f-recipe-inline{margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:2px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-recipe-inline{display:inline-flex;margin-top:0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-hand{font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:1px 6px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;vertical-align:middle;margin-left:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-eth{font-size:var(--fs-micro);font-weight:var(--fw-semibold);color:#9fd4ff}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-sup{font-size:var(--fs-micro);font-weight:var(--fw-semibold);color:#8fe0a0}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-ideal{font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:1px 6px;border-radius:5px;background:rgba(143,224,160,.14);color:#8fe0a0;margin-left:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-alt{font-size:var(--fs-micro);font-weight:var(--fw-semibold);padding:1px 6px;border-radius:5px;background:rgba(233,208,122,.12);color:#e9d07a;margin-left:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-star{font-size:var(--fs-micro);font-weight:var(--fw-bold);color:#e9d07a;margin-left:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-need{font-size:10.5px;font-weight:var(--fw-bold);padding:1px 7px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;margin-left:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-steps{margin-top:6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-step{font-size:12.5px;color:var(--text-dim,#a89a80);line-height:var(--lh-normal);margin:3px 0;padding-left:4px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-step b{color:var(--text,#d8cba8)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-stepn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(159,212,255,.18);color:#9fd4ff;font-size:var(--fs-micro);font-weight:var(--fw-bold);margin-right:6px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cube{font-family:monospace;font-size:var(--fs-meta);color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-cta{margin-top:9px;display:flex;gap:7px}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn{font-size:11.5px;font-weight:var(--fw-semibold);padding:4px 11px;border-radius:7px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.04);color:var(--text-dim,#b3a486);cursor:pointer}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn:hover{background:rgba(255,255,255,.09);color:var(--text,#e8dcc0)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-go{border-color:rgba(95,201,122,.5);color:#8fe0a0;background:rgba(95,201,122,.1)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-btn-go:hover{background:rgba(95,201,122,.2)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rankpill{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-right:6px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);font-size:var(--fs-meta);font-weight:var(--fw-bold);color:var(--text-muted,#b5a48a);vertical-align:1px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-art{max-width:40px;max-height:40px;object-fit:contain}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-glyph{font-size:22px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardbody{flex:1;min-width:0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardtitle{font-size:var(--fs-title);font-weight:var(--fw-semibold);color:var(--text,#e8dcc0)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardtitle b{color:var(--acc-intel,#6fb8e8)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardmeta{font-size:12.5px;color:var(--text-dim,#a89a80);margin-top:3px;line-height:var(--lh-normal)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardmeta b{color:var(--text,#d8cba8)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cardtell{font-size:11.5px;color:var(--text-dim,#9a8c72);margin-top:3px;font-style:italic}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-recipe,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-recipe-inline{margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:2px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-recipe-inline{display:inline-flex;margin-top:0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-hand{font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:1px 6px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;vertical-align:middle;margin-left:4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-eth{font-size:var(--fs-micro);font-weight:var(--fw-semibold);color:#9fd4ff}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-sup{font-size:var(--fs-micro);font-weight:var(--fw-semibold);color:#8fe0a0}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-ideal{font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:1px 6px;border-radius:5px;background:rgba(143,224,160,.14);color:#8fe0a0;margin-left:4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-alt{font-size:var(--fs-micro);font-weight:var(--fw-semibold);padding:1px 6px;border-radius:5px;background:rgba(233,208,122,.12);color:#e9d07a;margin-left:4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-star{font-size:var(--fs-micro);font-weight:var(--fw-bold);color:#e9d07a;margin-left:4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-need{font-size:10.5px;font-weight:var(--fw-bold);padding:1px 7px;border-radius:5px;background:rgba(159,212,255,.13);color:#9fd4ff;margin-left:4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-steps{margin-top:6px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-step{font-size:12.5px;color:var(--text-dim,#a89a80);line-height:var(--lh-normal);margin:3px 0;padding-left:4px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-step b{color:var(--text,#d8cba8)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-stepn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(159,212,255,.18);color:#9fd4ff;font-size:var(--fs-micro);font-weight:var(--fw-bold);margin-right:6px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cube{font-family:monospace;font-size:var(--fs-meta);color:#e9d07a;background:rgba(233,208,122,.1);padding:0 4px;border-radius:3px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-cta{margin-top:9px;display:flex;gap:7px}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-btn{font-size:11.5px;font-weight:var(--fw-semibold);padding:4px 11px;border-radius:7px;border:1px solid var(--border,#3a2f1e);background:rgba(255,255,255,.04);color:var(--text-dim,#b3a486);cursor:pointer}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-btn:hover{background:rgba(255,255,255,.09);color:var(--text,#e8dcc0)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-btn-go{border-color:rgba(95,201,122,.5);color:#8fe0a0;background:rgba(95,201,122,.1)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-btn-go:hover{background:rgba(95,201,122,.2)}
 /* v1635 — THE CRAFT ✕ GETS ITS OWN SKIN. v1634 shipped forgeUncraft() adding .gp-rm-armed, but the
    only rule for that class is `.gf-piece .gp-rm.gp-rm-armed` (~:3836) which can never match a
    .f-btn inside .f-craftrow — measured rest borderColor rgb(58,47,30) → armed borderColor
@@ -8841,11 +8846,25 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    3.18:1 — over the 3:1 floor, but with no margin, on a control you have to FIND before you can
    undo. Lifted toward --text-muted by a derived mix (no fresh hex) → 3.80:1 measured. Deliberately
    short of --text-muted itself (6:1): this is destructive, it should be findable, not loud. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-unchron{color:color-mix(in srgb,var(--text-muted) 20%,var(--text-dim))}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-unchron:hover{color:#ff9a9a;border-color:rgba(224,106,106,.5)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-craft-unchron.gp-rm-armed{border-color:#e06a6a;color:#ff9a9a;background:rgba(224,106,106,.14)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craft-unchron{color:color-mix(in srgb,var(--text-muted) 20%,var(--text-dim))}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craft-unchron:hover{color:#ff9a9a;border-color:rgba(224,106,106,.5)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craft-unchron.gp-rm-armed{border-color:#e06a6a;color:#ff9a9a;background:rgba(224,106,106,.14)}
 </style>
 <div id="forge-body"></div>
+</div>
+
+<!-- v2094 — THE CRAFTS ROOM. Konyo: "CRAFTS tab make also put it next to FORGE main tab. and
+     separate between the runeword chronicle and the crafts.. but with the exact same logic coding
+     for MAKE NOW ONE STEP completed. i want it rendering the same way with the same structure
+     exactly.. just move them and separate between the two so they are parallel".
+     PARALLEL, NOT FORKED — and this markup is the proof. The Forge pane is a <style> block and an
+     EMPTY #forge-body; renderForge builds the hero, the chips and every section into it. So the
+     second room is one empty container: the SAME renderer fills it, the SAME stylesheet dresses it
+     (the :is() scope above simply gained #tab-crafts, 353 rules at once), and the only difference
+     is which half of forgeScan()'s payload each room may see. Copying the renderer would have meant
+     keeping 195 craft mentions in step across two copies forever. [[copy-drift]] -->
+<div class="tab-content" id="tab-crafts">
+<div id="crafts-body"></div>
 </div>
 <!-- v559 — GRAIL FORGES: two ADDITIVE pillars sharing the Forge shell. Forge itself untouched. -->
 <div class="tab-content" id="tab-funi">
@@ -26802,6 +26821,10 @@ function switchTab(name) {
      with nothing beneath it, and dead space filling most of the frame".
      Opening it on entry — not only when a chip asks — is what makes all three doors agree.
      [[the-unjoined-end]] [[visual-regression-detector]] */
+  /* v2094 — the crafts room renders on entry, the same way every other room does. renderForge
+     writes the whole surface (hero, chips, sections) into #crafts-body, so without this the tab
+     opens empty on a fresh load — the exact "closed drawer" defect v2087 fixed for the vault. */
+  if (name === "crafts"){ try { if (typeof window.renderCrafts === 'function') window.renderCrafts(); } catch(e){} }
   if (name === "vault"){ try {
     var _vc = document.getElementById('mule-vault-card');
     if (_vc && _vc.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
@@ -37243,7 +37266,7 @@ function renderJournal(){
     if (!pick) return '';
     // v557 — after a filter-switch CTA, glide to the first task card so the click lands ON the action
     if (pick.act.indexOf('forgeSetFilter')===0 || pick.act.indexOf("window.forgeSetFilter")===0){
-      pick.act += ";setTimeout(function(){var c=document.querySelector(':is(#tab-forge,#tab-funi,#tab-fsets) .f-card');if(c)c.scrollIntoView({block:'center',behavior:'smooth'});},180)";
+      pick.act += ";setTimeout(function(){var c=document.querySelector(':is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-card');if(c)c.scrollIntoView({block:'center',behavior:'smooth'});},180)";
     }
     return '<div class="forge-hero forge-hero-'+pick.tone+'">'
       + '<span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span><span class="fh-ember"></span>'   // v558 — living forge embers (decorative, reduced-motion-safe)
@@ -37686,7 +37709,22 @@ function renderJournal(){
   }
 
   var _forgeFilter='all';   // mutually-exclusive sub-tab filter: all | now | pipeline | onestep | crafts
-  window.forgeSetFilter=function(f){ _forgeFilter=(f===_forgeFilter && f!=='all')?'all':f; renderForge(); };
+  /* v2094 — CRAFTS GET THEIR OWN ROOM, AND THEIR OWN CHIPS.
+     Konyo: "CRAFTS tab make also put it next to FORGE main tab. and separate between the runeword
+     chronicle and the crafts.. but with the exact same logic coding for MAKE NOW ONE STEP
+     completed. i want it rendering the same way with the same structure exactly.. just move them
+     and separate between the two so they are parallel".
+     PARALLEL, NOT FORKED. Both rooms are rendered by renderForge — the same 583-line function, the
+     same sections, the same card markup, the same stylesheet (the :is() scope simply gains
+     #tab-crafts). What differs is TWO lines: which container it writes into, and which half of
+     forgeScan()'s payload it is allowed to see. Copying the renderer would have been copy-drift
+     with 195 craft mentions to keep in step. [[copy-drift]] */
+  var _craftsFilter='all';  // the crafts room keeps its OWN chip state, so the two do not fight
+  window.forgeSetFilter=function(f, scope){
+    if (scope === 'crafts'){ _craftsFilter=(f===_craftsFilter && f!=='all')?'all':f; renderForge('crafts'); return; }
+    _forgeFilter=(f===_forgeFilter && f!=='all')?'all':f; renderForge();
+  };
+  window.renderCrafts=function(){ return renderForge('crafts'); };
   // v660 — "✓ got the base" (Konyo: 'lets say i did get a runeword base… clicking i have the base with a
   // checkmark style and then it automatically ascends to MAKE NOW'). Registers the card's recommended base
   // at the word's exact socket count (the same registry the AI intake writes: owned + EXTRA_ITEMS socketed
@@ -37957,9 +37995,29 @@ function renderJournal(){
     return items;
   }
 
-  function renderForge(){
-    var box=document.getElementById('forge-body'); if(!box) return;
+  function renderForge(_scope){
+    /* v2094 — ONE RENDERER, TWO ROOMS. _scope is 'crafts' or (default) the runeword chronicle. */
+    var _isCrafts = (_scope === 'crafts');
+    var box=document.getElementById(_isCrafts ? 'crafts-body' : 'forge-body'); if(!box) return;
     var s=forgeScan(); var H=[];
+    /* THE WHOLE SPLIT IS HERE. forgeScan() already returns crafts as its own collection
+       ({now, pipeline, onestep, crafts, farm, counts}), so separating the two rooms is a matter of
+       showing each one only its own half — every section below then builds itself from what is
+       left, unchanged. The 99 runewords never enter the crafts room and no craft enters the
+       chronicle, which is what made MAKE NOW read as messy: it was listing Caster Amulet beside
+       runeword atoms. Copy the keys rather than name them, so a future field on the payload is not
+       silently dropped by this filter. */
+    (function(){
+      var _s2={}; for (var _k in s){ if (Object.prototype.hasOwnProperty.call(s,_k)) _s2[_k]=s[_k]; }
+      /* MEASURED, not assumed: forgeScan() returns
+             now, pipeline, onestep, crafts, counts, farm, ladder, craftOnestep, craftTypes
+         — so the craft half is THREE collections, not one. The first cut split on `crafts` alone
+         and left craftOnestep/craftTypes feeding the chronicle. Name both halves explicitly and
+         copy everything else through untouched. [[unknown-stays-unknown]] */
+      if (_isCrafts){ _s2.now=[]; _s2.pipeline=[]; _s2.onestep=[]; _s2.farm=[]; _s2.ladder=[]; }
+      else { _s2.crafts=[]; _s2.craftOnestep=[]; _s2.craftTypes=[]; }
+      s=_s2;
+    })();
     var liveNow=s.now.filter(function(t){return !t.deferred;});
     var deferred=s.now.filter(function(t){return t.deferred;});
     var total=liveNow.length+s.pipeline.length+s.onestep.length+s.crafts.length;
@@ -37982,24 +38040,35 @@ function renderJournal(){
     // ready crafts invisible because Completed never renders the Make-now craft feed.
     var _sT691=0, _sM691=0, _sealed691=false;
     try { _sT691=Object.keys(RUNEWORD_TIP).length; _sM691=_madeRw().length; _sealed691=(_sT691>0 && _sM691>=_sT691); } catch(e){}
-    if (_forgeFilter==='all' && !total && !(s.farm||[]).length && nowCount===0){
-      if (_sealed691) _forgeFilter='completed';
+    /* v2094 — these two auto-selects must act on the ACTIVE ROOM's chip, not always the
+       chronicle's. Rendering the crafts room would otherwise rewrite _forgeFilter as a side
+       effect, so opening Crafts silently moved the Forge tab's selection. One local, written
+       back to whichever room asked for the render. */
+    var _F = (_isCrafts ? _craftsFilter : _forgeFilter);
+    /* v2094 — ...and this one belongs to the CHRONICLE only. It asks "is there any runeword work
+       left?" and lands on Completed when there is none. The crafts room has no runeword work BY
+       CONSTRUCTION, so it auto-selected Completed on every render, drew the (empty) runeword
+       Completed list and returned — measured: crafts-body 0 chars while Forge drew 140,911. The
+       room that owns the question is the one that may answer it. */
+    if (!_isCrafts && _F==='all' && !total && !(s.farm||[]).length && nowCount===0){
+      if (_sealed691) _F='completed';
     }
     // v1411 — Ready crafts are Make-now work, but ONLY auto-land on ⚒ Make now when the
     // runeword chronicle is SEALED. Forcing 'now' on an open chronicle hid 🌾 farm / one-step
     // words from the DOM (v604 coverage invariant: every unmade word must remain visible).
     // On All (unsealed), crafts still render inside the Make-now section via show('now').
-    if ((s.crafts||[]).length > 0 && _sealed691 && (_forgeFilter==='all' || _forgeFilter==='completed')){
-      _forgeFilter='now';
+    if ((s.crafts||[]).length > 0 && _sealed691 && (_F==='all' || _F==='completed')){
+      _F='now';
     }
-    var F=_forgeFilter, show=function(k){ return F==='all'||F===k; };
+    if (_isCrafts) { _craftsFilter=_F; } else { _forgeFilter=_F; }
+    var F=_F, show=function(k){ return F==='all'||F===k; };
     // v1712 — publish the RESOLVED view (not the raw _forgeFilter): three code paths above can rewrite
     // the filter after it was set — the sealed-chronicle landing, the crafts auto-land, and the empty-all
     // fallback. Stamping it here, at the single point where the render commits to a view, is the only
     // place that cannot disagree with what is actually on screen. The runeword hover card reads this to
     // decide whether to draw its base row (ONE STEP only, Konyo's ask).
     try { window._FORGE_VIEW = F; } catch(e){}
-    H.push('<div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" src="art/ui_tab_forge.png" alt="" onerror="this.outerHTML=&#39;&#128296;&#39;"></span><div class="forge-headtxt"><div class="forge-title">Forge</div>'
+    H.push('<div class="forge-head tvf-head"><span class="tvf-emblem"><img class="tvf-emblem-i" '+(_isCrafts?'art/logo_cube.png':'art/ui_tab_forge.png')+' alt="" onerror="this.outerHTML=&#39;'+(_isCrafts?'&#9879;':'&#128296;')+'&#39;"></span><div class="forge-headtxt"><div class="forge-title">'+(_isCrafts?'Crafts':'Forge')+'</div>'
       +'<div class="forge-sub">Your live task plan — synced to Runes · Gems · Vault · Chronicle. Mark anything ✓ created and it leaves this list automatically.</div></div></div>');
     // v552 — slim Chronicle progress meter (at-a-glance "how far am I" — the dashboard's north-star bar)
     try {
@@ -38036,9 +38105,18 @@ function renderJournal(){
         + '\n= ' + _workable + ' workable in the Forge  → the ONE STEP pill'
         + '\n+ craft types → the ALL pill'
         + '\n\nThis bar counts runewords only, so it reads ' + _rwTotal + '.';
+      /* v2094 — the bar belongs to whichever room drew it. The chronicle counts runewords
+         forged; the crafts room counts craft TYPES with everything they need. Rendering the
+         crafts room used to show "0 / 99 runewords forged" under a title that said Crafts —
+         a right number under a word naming a different quantity. [[label-outlived-referent]] */
+      var _cReadyN = _isCrafts ? (typeof CRAFTS!=='undefined'&&CRAFTS?CRAFTS.filter(function(c){
+            return (s.crafts||[]).some(function(x){ return x.craft===c.key; }); }).length:0) : 0;
+      var _cTotN   = _isCrafts ? ((typeof CRAFTS!=='undefined'&&CRAFTS)?CRAFTS.length:0) : 0;
       H.push('<div class="forge-progress" title="'+_recon.replace(/"/g,'&quot;')+'"><div class="fp-track"><div class="fp-fill" style="width:'+_rwPct+'%"></div></div>'
-        +'<div class="fp-lbl">📜 <b>'+_rwMadeN+'</b> / '+_rwTotal+' runewords forged'
-        + (_ladN ? '<span class="fp-note" title="'+_recon.replace(/"/g,'&quot;')+'"> · '
+        +'<div class="fp-lbl">'+(_isCrafts
+            ? '\u2697\ufe0f <b>'+_cReadyN+'</b> / '+_cTotN+' craft types ready'
+            : '\ud83d\udcdc <b>'+_rwMadeN+'</b> / '+_rwTotal+' runewords forged')
+        + ((_ladN && !_isCrafts) ? '<span class="fp-note" title="'+_recon.replace(/"/g,'&quot;')+'"> · '
              + (_incLad ? 'all ' + _workable + ' planned here (' + _ladN + ' ladder-only included)'
                         : _workable + ' workable here, ' + _ladN + ' ladder-only')
              + '</span>' : '')
@@ -38046,7 +38124,7 @@ function renderJournal(){
     } catch(e){}
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
     var tab=function(key,emoji,label,cls,n){
-      return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="window.forgeSetFilter(\''+key+'\')" title="show only '+label+'">'
+      return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="window.forgeSetFilter(\''+key+'\''+(_isCrafts?",\'crafts\'":'')+')" title="show only '+label+'">'
         +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+label+'</span><span class="ft-ct">'+n+'</span></button>';
     };
     var _doneHidden=_doneSet(), _doneN=_madeRw().filter(function(n){ return !_doneHidden.has(n); }).length;   // v532
@@ -38071,7 +38149,12 @@ function renderJournal(){
     if (F!=='completed'){ var _ld=_lastDone(); if (_ld) _rbits+='<span>✅ <b>'+_doneN+'</b> created</span><button class="f-btn f-btn-mini f-undo-last" title="put your most recently created runeword ('+_fEsc(_ld)+') back into the task list" onclick="window.forgeUndoLastDone()">↩ Undo last: '+_fEsc(_ld)+'</button><button class="f-btn f-btn-mini" onclick="window.forgeSetFilter(\'completed\')" title="see every created runeword — restore or clear any">✅ see all</button>'; }
     if (_rbits) H.push('<div class="forge-restore-top">'+_rbits+'</div>');
     // v546 — "Do this one thing" hero banner: one highest-leverage move, above the cards (not on the Completed view).
-    if (F!=='completed'){ var _hero=_forgeHero(s); if (_hero) H.push(_hero); }
+    /* v2094 — the 👉 DO THIS ONE THING hero is a RUNEWORD recommendation ('Archon Plate —
+       unlocks 19 runewords'), and it read globals rather than only the payload, so emptying
+       s.farm did not keep it out of the crafts room. A chronicle recommendation under a title
+       that says Crafts is worse than no recommendation. The crafts room earns its own hero
+       later; until it has one, it shows none rather than someone else's. */
+    if (!_isCrafts && F!=='completed'){ var _hero=_forgeHero(s); if (_hero) H.push(_hero); }
     // v634.2 — TOP-of-forge 🪜 pill (Konyo: "the toggle for ladder should be somewhere on the top"):
     // one glance says how many ladder words remain; click toggles the plan preview. v634.3 — when ON,
     // the WHOLE plan section renders right here (top of forge); OFF locks it back to the bottom chips.
@@ -38163,6 +38246,12 @@ function renderJournal(){
           +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button>'
           +'</div></div>');
       } else if (F !== 'crafts') {
+        /* v2094 — the empty state must speak the room's language. This one says "No runeword tasks
+           queued ... Crafts are always available below" — the CHRONICLE pointing at where the crafts
+           live, which is meaningless once he is standing in the crafts room. */
+        if (_isCrafts){
+          H.push('<div class="forge-empty">\u2697\ufe0f <b>Nothing to cube right now.</b> Tally Perfect gems and slot runes, and the types below light up \u2713 make now.</div>');
+        } else
         H.push('<div class="forge-empty">✅ <b>No runeword tasks queued.</b> Everything your runes &amp; bases can build is already ✓ created — or still needs a tally.<br>⚗️ <b>Crafts are always available below</b> · tally Perfect gems + slot runes to light ✓ make now.</div>');
       }
     }
@@ -38170,7 +38259,7 @@ function renderJournal(){
     // words remaining (fresh tallies / no bases), saying "everything is ✓ created" was the same lie class
     // as the throw-out "✓ forged" — fall through so 🌾 Furthest out still shows every remaining word.
     if (!total){
-      H.push('<div class="forge-empty forge-empty-sm">No actionable task yet — no owned base or ready runes for the words below. Tally runes/gems or intake bases in the Vault; everything still open is listed under 🌾 Furthest out.</div>');
+      H.push('<div class="forge-empty forge-empty-sm">No actionable task yet — no owned base or ready runes for '+(_isCrafts?'the craft types':'the words')+' below. Tally runes/gems or intake bases in the Vault; everything still open is listed under 🌾 Furthest out.</div>');
     }
     // ── MAKE NOW — atomic, one-at-a-time tasks. A multi-step chain shows ONLY its current step; tick "✓ did it"
     // and the next step replaces it. Crafts & ready forges are single "boom" tasks. Full chains live in 🔧 Pipeline.
@@ -38452,7 +38541,11 @@ function renderJournal(){
     // CRAFTS (own section) — v495: a collapsing accordion per craft TYPE. Click a card → drops down its
     // slots + recipes, each marked ✓ make-now (gem + rune in hand) or "need <rune>". Stays in-tab.
     // v1409 — always on All + Crafts filters (and Make now already surfaces ready crafts above).
-    if ((show('crafts') || show('all')) && typeof CRAFTS!=='undefined' && CRAFTS && CRAFTS.length){
+    /* v2094 — THE ⚗️ SECTION BELONGS TO THE CRAFTS ROOM ONLY. `order` is built from the global
+       CRAFTS constant, not from forgeScan()'s payload, so emptying s.crafts could never keep it
+       out of the chronicle — measured: the Forge room still rendered 4 craft nodes with
+       s.crafts=0. The room, not the data, has to gate this one. */
+    if (_isCrafts && (show('crafts') || show('all')) && typeof CRAFTS!=='undefined' && CRAFTS && CRAFTS.length){
       // v1183 — ALWAYS show ALL FOUR craft types as the reference (Konyo: "where is the Blood craft?").
       // A craft used to vanish entirely when you owned 0 of its Perfect gem (Blood needs a Perfect Ruby);
       // now every craft always shows, its slots marked ✓ make-now or "need <gem/rune>". Makeable types
@@ -38545,8 +38638,14 @@ function renderJournal(){
   window.forgeScan=forgeScan;
   var _renderForgeInner=renderForge;
   // v1411 — every Forge paint also refreshes d2r_craftReady (Sessions MAKE NOW / console chips)
-  renderForge=function(){
-    _renderForgeInner();
+  /* v2094 — THE WRAPPER MUST FORWARD THE ROOM. This v1411 wrapper reassigns renderForge to add
+     the craft-readiness write, and it took NO arguments — so renderForge('crafts') resolved to
+     THIS and the scope was swallowed: every crafts render painted the chronicle instead.
+     Measured before the fix: renderCrafts() filled forge-body with 140,911 chars and left
+     crafts-body at 0. A wrapper that drops its arguments is invisible until someone adds one.
+     [[the-unjoined-end]] */
+  renderForge=function(_scope){
+    _renderForgeInner(_scope);
     try { if (typeof _writeCraftReady==='function') _writeCraftReady(); } catch(e){}
   };
   window.renderForge=renderForge;
@@ -38613,7 +38712,7 @@ function renderJournal(){
 <script id="v559-grail-forges-js">
 /* ═══ v559 — GRAIL FORGES: Forge·Uniques + Forge·Sets ═══════════════════════════════════════════════
    Two ADDITIVE pillars sharing the flagship Forge shell (hero / KPI tiles / meter / cards — CSS shared
-   via the :is(#tab-forge,#tab-funi,#tab-fsets) scope). The runeword Forge is UNTOUCHED.
+   via the :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) scope). The runeword Forge is UNTOUCHED.
    • Uniques: ITEMS (tiers grail/high/common) — each missing unique mapped to its BEST farm source
      (max kills-per-hour ÷ odds), grouped into RUN cards. Found-state = the SAME d2r_owned the
      Calculator ✓ uses (toggleOwned) — tick anywhere, synced everywhere.
@@ -41673,7 +41772,7 @@ function renderJournal(){
        SENTENCES stay each forge's own, because pieces-and-sets is not finds. */
     /* v1925 — NO INLINE GRADIENT. Konyo: "make sure its a unified CSS between the individual
        chronicles related."
-       The stylesheet ALREADY unifies them — `:is(#tab-forge,#tab-funi,#tab-fsets) .fp-fill` at
+       The stylesheet ALREADY unifies them — `:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill` at
        ~7626 gives all three siblings one gradient, and F·Uniques uses it by passing no colour.
        F·Sets passed '#4ade80,#86efac' as an INLINE style, and inline beats the stylesheet, so the
        one tab opted itself out of the rule written to keep them the same. Measured side by side:
@@ -43159,9 +43258,9 @@ html{overflow-x:clip}
 
 /* 4 · EMBER SUB-TABS — forge/grail-forge filter tiles + boss chips + the main nav: hover lift,
       the ACTIVE one breathes a soft gold ring. Scoped to include F-Uniques + F-Sets. */
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-filter .f-ftile,.boss-chip,.rwc-chip{transition:transform .16s cubic-bezier(.2,.9,.3,1.3),box-shadow .2s ease}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-filter .f-ftile:hover,.boss-chip:hover,.rwc-chip:hover{transform:translateY(-2px)}
-:is(#tab-forge,#tab-funi,#tab-fsets) .f-filter .f-ftile.on,.rwc-chip.on{animation:v639Breathe 2.6s ease-in-out infinite}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-filter .f-ftile,.boss-chip,.rwc-chip{transition:transform .16s cubic-bezier(.2,.9,.3,1.3),box-shadow .2s ease}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-filter .f-ftile:hover,.boss-chip:hover,.rwc-chip:hover{transform:translateY(-2px)}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-filter .f-ftile.on,.rwc-chip.on{animation:v639Breathe 2.6s ease-in-out infinite}
 @keyframes v639Breathe{0%,100%{box-shadow:0 0 0 0 rgba(255,224,138,.0),0 0 12px -4px rgba(255,224,138,.35)}50%{box-shadow:0 0 0 3px rgba(255,224,138,.12),0 0 18px -3px rgba(255,224,138,.55)}}
 .tabs .tab{transition:transform .16s ease,text-shadow .2s ease}
 .tabs .tab:hover{transform:translateY(-1.5px);text-shadow:0 0 10px rgba(255,224,138,.4)}
@@ -44825,7 +44924,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2093', name:'v2093 - The strip fits and the eagle learns the joint', date:'2026-08-25', note:'Seven tabs no longer fit the console header so TV-D scrolled silently out of view - the strip now wraps and the clock puts its date beside the time. The eagle gains a surfaces-agree check with five arms all proven red.' };
+  window.D2R_BUILD = { id:'v2094', name:'v2094 - Crafts get their own room beside the Forge', date:'2026-08-25', note:'The cube-crafts left the runeword chronicle for a parallel tab rendered by the same function, the same stylesheet and the same card structure - only which container it writes to and which half of the payload it may see are different. Measured before and after on an identical seeded world: 91 runeword cards plus 36 craft cards equals the 127 the single room used to draw, with nothing lost and no leakage either way.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

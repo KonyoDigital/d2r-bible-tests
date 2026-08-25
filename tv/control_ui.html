@@ -4741,6 +4741,10 @@
         <nav class="head-tabs" id="head-tabs">
           <button class="ht" type="button" data-tab="session"><img class="ht-i" src="/art/ui_tab_session.png" alt="" onerror="this.remove()"> Sessions</button>
           <button class="ht" type="button" data-tab="forge"><img class="ht-i" src="/art/ui_tab_forge.png" alt="" onerror="this.remove()"> Forge</button>
+          <!-- v2094 — the console mirrors the board: Crafts sits beside Forge here too, so the
+               two surfaces cannot disagree about which rooms exist. The eagle's "surfaces agree"
+               check fails if a console tab has no board room, or if J1 stops walking one. -->
+          <button class="ht" type="button" data-tab="crafts"><img class="ht-i" src="/art/logo_cube.png" alt="" onerror="this.remove()"> Crafts</button>
           <button class="ht" type="button" data-tab="funi"><img class="ht-i" src="/art/ui_tab_funi.png" alt="" onerror="this.remove()"> F·Uniques</button>
           <button class="ht" type="button" data-tab="fsets"><img class="ht-i" src="/art/ui_tab_fsets.png" alt="" onerror="this.remove()"> F·Sets</button>
           <button class="ht" type="button" data-tab="tools"><img class="ht-i" src="/art/ui_tab_tools.png" alt="" onerror="this.remove()"> Tools</button>
