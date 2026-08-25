@@ -531,13 +531,17 @@ def _check_the_two_surfaces_agree():
     # a tooltip pass. Deleting the board copies would have silently downgraded a real capability.
     # Tighten this to "absent from the board" only once the drawer drives the real orchestration.
     # [[the-unjoined-end]] [[unknown-stays-unknown]]
-    tools_i = board.find('id="tab-tools"')
-    tools_end = board.find('id="tab-forge"', tools_i) if tools_i >= 0 else -1
-    if tools_i >= 0 and tools_end > tools_i:
-        tools_pane = board[tools_i:tools_end]
-        for cid in ("shadow-ai", "tip-pass"):
-            if ('id="%s"' % cid) in tools_pane:
-                faults.append("#%s is back in the Tools tab — he asked twice for it to leave" % cid)
+    # v2097 — TIGHTENED, now that the move is actually finished. This asked only "not in Tools"
+    # because deleting the rows would have dropped a capability: /api/shadow ignores `lane`, so the
+    # drawer's Tooltip button performed no pass. v2095 wired that button to the board's real
+    # toggleTooltipPass through the iframe, and v2097 removed the rows, their four painters and 27
+    # CSS rules. So the invariant is now the strong one: NEITHER switch may exist on the board at
+    # all — the drawer beside the Grok eyes is their only home, which is where he asked twice for
+    # them to be. [[the-unjoined-end]]
+    for cid in ("shadow-ai", "tip-pass"):
+        if ('id="%s"' % cid) in board:
+            faults.append("#%s is on the BOARD again — ⚙ ADVANCED is its only home now, and two "
+                          "copies is exactly how the last one hid" % cid)
 
     for cid in ("sadv-sha", "sadv-tip"):
         n = ui.count('id="%s"' % cid)

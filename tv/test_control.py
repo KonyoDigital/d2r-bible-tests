@@ -11591,18 +11591,48 @@ class TestNoLookupOfAnElementThatIsNeverCreated(unittest.TestCase):
     stripper's own test sits beside this one. [[feedback-suspect-the-instrument]]"""
 
     @staticmethod
-    def _missing(src):
+    def _missing(src, other_ids=None):
+        """v2097 — A CROSS-DOCUMENT LOOKUP IS NOT A DEAD ONE, BUT IT STILL HAS TO RESOLVE.
+
+        The board runs inside the console's #tvd-eng iframe, so `window.parent.document
+        .getElementById('sadv-tip-say')` reaches a real element that lives in control_ui.html.
+        This sweep only ever read ONE file, so it called that dead and went red on a lookup that
+        works — caught the moment v2097 routed the tooltip pass's status into the drawer that now
+        owns its button.
+
+        Exempting it would have been the lazy fix and would have hidden a typo forever. Instead the
+        receiver is captured: a lookup on `parent.document` must resolve in the OTHER document, and
+        is reported against THAT file's ids. A bare `document.` lookup is checked here as before.
+        [[source-reading-guard]]"""
         import re
         s = TestNoOptionalCallToAFunctionThatCannotExist._strip_js_comments(src)
         ids = set(re.findall(r"\bid\s*=\s*[\\]?['\"]([\w-]+)", s))
-        got = set(re.findall(r"getElementById\(\s*['\"]([\w-]+)['\"]\s*\)", s))
-        return sorted(got - ids)
+        here, cross = set(), set()
+        for m in re.finditer(r"([\w.]*?)\bgetElementById\(\s*['\"]([\w-]+)['\"]\s*\)", s):
+            (cross if "parent" in m.group(1) else here).add(m.group(2))
+        dead = here - ids
+        if cross:
+            # a cross-document lookup is dead only if the OTHER document does not declare it
+            dead |= (cross - (other_ids if other_ids is not None else set()))
+        return sorted(dead)
+
+    @staticmethod
+    def _ids_of(path):
+        import re
+        try:
+            src = open(path, encoding="utf-8").read()
+        except Exception:
+            return set()
+        s = TestNoOptionalCallToAFunctionThatCannotExist._strip_js_comments(src)
+        return set(re.findall(r"\bid\s*=\s*[\\]?['\"]([\w-]+)", s))
 
     def test_the_board_looks_up_nothing_it_never_creates(self):
         p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
         if not os.path.isfile(p):
             self.skipTest("bible.html is not on this machine")
-        dead = self._missing(open(p, encoding="utf-8").read())
+        console_ids = self._ids_of(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                "control_ui.html"))
+        dead = self._missing(open(p, encoding="utf-8").read(), other_ids=console_ids)
         self.assertEqual(dead, [], "these ids are looked up and never created, so every branch "
                                    "behind them is silent: %s" % ", ".join(dead))
 

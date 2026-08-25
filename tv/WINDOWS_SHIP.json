@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2096",
+  "ver": "v2097",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2096: The chips were still summing the combined payload so Forge ALL read the craft count and drew a crafts pill while Crafts COMPLETED read the 99 runewords. Each chip now counts the room it is in, and the sealed chronicle routes to the crafts room instead of pointing below itself.",
+  "note": "v2097: The two rows leave the board with their four painters and 27 CSS rules and the pass now reports into the drawer that owns its button. The never-created guard learned that a parent-document lookup must resolve in the other file rather than being called dead.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
