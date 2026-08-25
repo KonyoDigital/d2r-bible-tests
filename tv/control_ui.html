@@ -7441,6 +7441,23 @@
                     + (_rt.lockedMb ? Math.round(_rt.lockedMb) + 'MB' : '?') + ') await a sweep')
                  : '');
     }
+    /* v2124 (#147) — AND A STALE FIGURE MUST SAY SO WHERE HE ACTUALLY READS IT. v2123 stamped the
+       age onto the hover title, and the hover is not what he looks at when he is deciding whether
+       he can record — the footer line is. Only a STALE reading gets the suffix: a fresh number
+       needs no caveat, and caveating everything is how a caveat stops being read.
+       Threshold is 5 min against a 900s poll, so "stale" means the watcher has genuinely not
+       come round rather than a few seconds of drift. [[stale-reading]] */
+    try {
+      if (_rt.checked && typeof _rt.freeGb === 'number') {
+        var _staleS = Math.round((Date.now() - _rt.checked) / 1000);
+        if (_staleS > 300) {
+          _lbl += ' (disk read ' + (_staleS < 5400 ? Math.round(_staleS / 60) + ' min'
+                                                   : Math.round(_staleS / 3600) + 'h') + ' ago)';
+        }
+      } else if (_rt.freedMb || (typeof _rt.freeGb === 'number')) {
+        _lbl += ' (disk read: age UNKNOWN)';
+      }
+    } catch (e) {}
     $('foot-ver').textContent = _lbl;
     try {
       // The rows themselves, on hover — the footer says HOW MANY, the title says WHICH.

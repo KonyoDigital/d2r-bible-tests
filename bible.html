@@ -33171,6 +33171,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // in UNI-WEAPONS: a Grand Charm has no "charm" in its name, so JEWELRY_RE missed it. Now charms/
     // skillers → UNI-SMALL, runeword + socketed bases → SOCKETED, jewelry → UNI-SMALL, crafted by slot.
     var ex = (typeof EXTRA_ITEMS!=='undefined') ? EXTRA_ITEMS[name] : null;
+    /* ══ v2124 (#134) — FILING AN ITEM MUST NOT CHANGE WHERE THE RULES SAY IT BELONGS ═══════════
+       MEASURED on his live board, before and after registering the same name:
+
+           Shako          bases  "white base — still needed for Lore, Nadir"   ->  uni-armor
+           Monarch        bases                                               ->  uni-armor
+           Archon Plate   bases                                               ->  uni-armor
+           Phase Blade    bases                                               ->  uni-weap
+           Colossus Blade bases                                               ->  uni-weap
+           Hydra Bow      bases                                               ->  uni-weap
+
+       FIVE OF SEVEN bases moved locker purely by being vaulted. The white-base branch below is
+       gated on `!ex`, and `_tvExtraRemember` writes the name straight into EXTRA_ITEMS — so the
+       assembler files using the BEFORE answer and renderVaultAudit, which calls this same function
+       AFTER, gets the AFTER answer and flags its own filing as a misroute. That is what Konyo saw:
+       "filed in SOCKETED — belongs in UNI-ARMOR", one issue, one auto-fixable, on an item the
+       system had just filed itself.
+
+       A TV-vault entry records THAT HE HAS ONE, not that the name is a catalogue unique. Only a
+       row that claims a real rarity may suppress the base branch; a synthetic `rarity:'basic'`
+       vault row must not. The classifier reads the same answer whether or not the item has been
+       filed. [[the-unjoined-end]] [[feedback-contradiction-is-the-finding]] */
+    var _exIsCatalogue = !!(ex && String(ex.rarity || '').toLowerCase() !== 'basic');
     if (ex){
       var xcat = (ex.cat||'').toLowerCase();
       var xb = (ex.base||'').toLowerCase();
@@ -33272,7 +33294,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // weapon, wrong for a white base. (Surfaced when the full 1297-catalog audit included all 498 bases.)
     var _bareBaseClean = (typeof _artSlotClean==='function') ? _artSlotClean(name) : String(name).replace(/\s*\([^)]*\)\s*$/,'');
     var _bareQ = _bareBaseClean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();   // v574 — "Superior Flail" is a Flail
-    if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean] || BASE_CLASS[_bareQ]) && !it && !ex && !itip){
+    if (typeof BASE_CLASS!=='undefined' && (BASE_CLASS[name] || BASE_CLASS[_bareBaseClean] || BASE_CLASS[_bareQ]) && !it && !_exIsCatalogue && !itip){
       // v524 — GENERALISED (was v502 orb/throwing-only): a white base is a SOCKETED keeper ONLY if it can hold
       // a runeword. The single source of truth _isRunewordBase (= _baseRunewords>0, same as the Forge) covers
       // ALL 500+ bases — circlets (gems/jewels only), orbs, throwing weapons, javelins, and any other non-RW
@@ -45360,7 +45382,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2123', name:'v2123 - the disk figure says how old it is', date:'2026-08-25', note:'The console disk reading is polled every 900 seconds and it is the number he acts on when deciding whether he can record. Measured tonight on his live console, the footer said 4.7GB free and BELOW the floor while the disk actually held 8.3GB, because space had been freed since the last poll, which would have sent him hunting for room he already had. The gate itself was never wrong because the on route re-measures for itself. Only the sentence he reads was wrong. The disk sentence now carries the age of the thing it measured, and an unstamped reading says UNKNOWN rather than reading as fresh.' };
+  window.D2R_BUILD = { id:'v2124', name:'v2124 - filing an item stops changing where it belongs', date:'2026-08-25', note:'The vault classifier gave a different answer once the item had been filed, because the white base branch is gated on the extras table and the vault register writes the name straight into it. Measured on his live board, five of seven bases moved locker purely by being vaulted, so the assembler filed with one answer and the integrity auditor, which calls the same function afterwards, got another and flagged the systems own filing as a misroute. A vault entry records that he has one, not that the name is a catalogue unique.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

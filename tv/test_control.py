@@ -20487,6 +20487,75 @@ class TestV2115AnUnreadableStoreIsNotAnEmptyOne(unittest.TestCase):
                          "store for the life of the process")
 
 
+class TestV2124FilingAnItemDoesNotChangeWhereItBelongs(unittest.TestCase):
+    """#134 — Konyo asked to simulate inside the vault manager and the manager contradicted itself:
+    it filed Shako to SOCKETED and then, on the same page, VAULT INTEGRITY said
+    "filed in SOCKETED — belongs in UNI-ARMOR · 1 auto-fixable".
+
+    Both doors call the SAME classifier, so the disagreement was not two rules — it was ONE rule
+    answering differently before and after the item was filed. `suggestMule`'s white-base branch is
+    gated on `!ex` (EXTRA_ITEMS[name]) and `_tvExtraRemember` writes the name straight into
+    EXTRA_ITEMS, so registering an item removed it from the branch that had just routed it.
+
+    MEASURED on his live board, before -> after registering the same name:
+
+        Shako / Monarch / Archon Plate      bases -> uni-armor
+        Phase Blade / Colossus Blade / Hydra Bow   bases -> uni-weap
+
+    FIVE OF SEVEN moved. A vault row records THAT HE HAS ONE, never that the name is a catalogue
+    unique — so only a row claiming a real rarity may suppress the base branch.
+    [[feedback-contradiction-is-the-finding]] [[the-unjoined-end]]"""
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        self.body = _between(self, board, "function suggestMule(name){", "window.suggestMule",
+                             what="suggestMule")
+        self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        self.code = re.sub(r"(?m)^\s*//.*$", "", self.code)
+        self.assertGreater(len(self.code.strip()), 2000, "the comment strip ate suggestMule")
+
+    def test_the_base_branch_is_not_suppressed_by_a_vault_row(self):
+        self.assertIn("_exIsCatalogue", self.code,
+                      "the white-base branch is gated on the raw extras lookup again, so filing an "
+                      "item moves where the rules say it belongs and the auditor flags the "
+                      "assembler's own filing")
+        self.assertNotIn("&& !it && !ex && !itip", self.code,
+                         "the raw `!ex` gate is back — a TV-vault row now suppresses the base "
+                         "branch exactly as it did before #134")
+
+    def test_only_a_REAL_rarity_may_suppress_it(self):
+        # _between, not a byte count: this file's own ratchet forbids new byte-counted slices, and
+        # it is right to — a window a later comment outgrows comes back empty, and assertIn on an
+        # empty string fails for the wrong reason while assertNotIn PASSES.
+        decl = _between(self, self.code, "var _exIsCatalogue", ";",
+                        what="the _exIsCatalogue declaration")
+        self.assertIn("rarity", decl,
+                      "the flag no longer asks what the row CLAIMS TO BE — any vault row would "
+                      "suppress the base branch again")
+        self.assertIn("basic", decl,
+                      "the synthetic vault rarity is not excluded, so a base he has vaulted still "
+                      "reads as a catalogue item")
+
+    def test_the_behaviour_itself_is_pinned_in_a_spec_that_RUNS_it(self):
+        """#148 — a Python grep cannot call suggestMule. This class can only prove the SHAPE of the
+        fix; the invariant that matters is behavioural (same name, same answer, before and after
+        filing) and it needs a browser. Point at the spec that does it, so deleting that spec is
+        visible here rather than silent."""
+        spec = os.path.join(os.path.dirname(HERE), "tests",
+                            "v2124_filing_does_not_move_the_locker.spec.ts")
+        self.assertTrue(os.path.isfile(spec),
+                        "the behavioural half of #134 has no spec — this class greps source and "
+                        "would stay green while suggestMule answered differently before and after "
+                        "a filing, which is the actual defect")
+        with io.open(spec, encoding="utf-8") as fh:
+            body = fh.read()
+        self.assertIn("suggestMule", body, "the spec no longer calls the classifier")
+        self.assertIn("_tvExtraRemember", body,
+                      "the spec no longer files the item between the two readings, so it cannot "
+                      "see the answer move")
+
+
 class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
     """MEASURED tonight, on his live console: the footer said "4.7GB free, BELOW the 8GB floor"
     while the disk actually held 8.3GB. 3.6GB had been freed since the retention watcher last
@@ -20505,6 +20574,20 @@ class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
                              what="the disk sentence's age stamp")
         self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
         self.assertGreater(len(self.code.strip()), 80, "the comment strip ate the block")
+
+    def test_the_VISIBLE_footer_warns_when_the_reading_is_stale(self):
+        """#147 — v2123 stamped the age on the HOVER title, and the hover is not what he reads when
+        he is deciding whether he can record. Only a stale reading is caveated: caveating a fresh
+        number is how a caveat stops being read."""
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        code = re.sub(r"/\*.{0,4000}?\*/", " ", ui, flags=re.S)
+        self.assertGreater(len(code), len(ui) * 0.5, "the comment strip ate the console")
+        self.assertIn("disk read ", code,
+                      "the visible footer never says the disk figure is old — only the hover does, "
+                      "and he does not hover before deciding he needs to free space")
+        self.assertIn("age UNKNOWN", code,
+                      "an unstamped disk reading renders on the footer as though it were fresh")
 
     def test_it_reads_the_stamp_the_measurement_carries(self):
         self.assertIn("_rt.checked", self.code,
@@ -20548,8 +20631,17 @@ class TestV2122TheRenameMigrationMovesEveryStoreThatKeysOnThePiece(unittest.Test
     def setUp(self):
         with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
             board = fh.read()
-        self.body = _between(self, board, "d2r_pieceAlias_v", "catch(e){}",
+        # #145 — END AT THE FLAG WRITE, NOT THE FIRST catch(e){}. The migration has several inner
+        # try/catch blocks, so the old end-marker cut the slice off long before
+        # `setItem('d2r_pieceAlias_v2')` — the one-shot flag was outside the window and unpinned.
+        self.body = _between(self, board, "d2r_pieceAlias_v", "window.D2R_PROFILE==='ladder'",
                              what="the piece-rename migration")
+        # ⚠ AND THE SLICE MUST BE THE MIGRATION, NOT THE FILE. My first widening ended on a marker
+        # that lives 5MB later, so the "window" swallowed most of bible.html and every store name
+        # matched somewhere else entirely — a slice too WIDE proves as little as one too NARROW.
+        self.assertLess(len(self.body), 4000,
+                        "the migration slice is %d chars — it has run past the migration and is "
+                        "matching names from the rest of the board" % len(self.body))
         self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
         self.assertGreater(len(self.code.strip()), 200, "the comment strip ate the migration")
 
@@ -20638,6 +20730,11 @@ class TestV2118TheApplyActuallyFiles(unittest.TestCase):
         # uniques-or-sets and a BASE lands in NEITHER (toggleOwned routes an unknown grail name to
         # the physical vault, recorded in res.vaulted), so the one case that most needs filing was
         # the one that never filed. Pinning the old spelling would have kept that green.
+        for _part in ("res.uniques.length", "res.sets.length", "res.vaulted"):
+            self.assertIn(_part, guard,
+                          "the batch-filing condition dropped %s — filing must fire for a found "
+                          "unique, a found set piece AND a vaulted base, and pinning only the "
+                          "newest of the three lets the other two be removed silently" % _part)
         self.assertIn(
             "res.vaulted", guard,
             "the assembler runs even when the apply landed nothing, which churns the vault "

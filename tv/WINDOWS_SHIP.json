@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2123",
+  "ver": "v2124",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2123: The console disk reading is polled every 900 seconds and it is the number he acts on when deciding whether he can record. Measured tonight on his live console, the footer said 4.7GB free and BELOW the floor while the disk actually held 8.3GB, because space had been freed since the last poll, which would have sent him hunting for room he already had. The gate itself was never wrong because the on route re-measures for itself. Only the sentence he reads was wrong. The disk sentence now carries the age of the thing it measured, and an unstamped reading says UNKNOWN rather than reading as fresh.",
+  "note": "v2124: The vault classifier gave a different answer once the item had been filed, because the white base branch is gated on the extras table and the vault register writes the name straight into it. Measured on his live board, five of seven bases moved locker purely by being vaulted, so the assembler filed with one answer and the integrity auditor, which calls the same function afterwards, got another and flagged the systems own filing as a misroute. A vault entry records that he has one, not that the name is a catalogue unique.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
