@@ -15590,12 +15590,29 @@ class TestV2058ThePruneStaysOffUntilItCanSeeATooltip(unittest.TestCase):
         import control_app
         return control_app
 
-    def test_the_prune_loop_refuses_to_run(self):
+    def test_the_prune_may_only_run_WITH_the_per_frame_proof(self):
+        """v2154 REPLACES "it must be off" WITH "it must be proven".
+
+        v2058's own words were not "never prune again" — they were "OFF until it can prove, per
+        frame, that it is not deleting a panel. Disk is not worth a name." A permanent OFF is a
+        different rule from the one that was written, and it left 609 MB locked and ON AIR
+        refusing below the floor, which is the cost side he actually feels.
+
+        So the law is now conditional, and the condition is the one v2058 named. If the switch is
+        on, _prune_once MUST consult the panel gate. If it does not, this fails whichever way the
+        switch is set."""
         ca = self._ca()
-        self.assertFalse(ca._PRUNE_SAFE_TO_RUN,
-                         "the prune is armed again — it deletes the frames that carry item names")
-        self.assertFalse(ca._PRUNE_STATS.get("enabled"),
-                         "the enabled flag is back on")
+        names = set(ca._prune_once.__code__.co_names)
+        consults = bool({"stash_screen_open", "stash_screen_open_cached", "panel_gate"} & names)
+        if ca._PRUNE_SAFE_TO_RUN or ca._PRUNE_STATS.get("enabled"):
+            self.assertTrue(consults,
+                            "the prune is armed and _prune_once still never asks whether the "
+                            "frame it is deleting shows a stash panel — that is the v2037 defect "
+                            "exactly, and it costs item names, not disk")
+            self.assertIn("_PANEL_UNKNOWN", names,
+                          "armed without the UNKNOWN sentinel: the gate's own 'not a panel' answer "
+                          "is None, so a gate that could not be ASKED would read as one that said "
+                          "no, and an unmeasured frame would be deleted as a spare one")
 
     def test_the_refusal_is_CODE_not_only_a_flag(self):
         """A flag is data and data gets flipped. The loop must refuse on its own."""
@@ -16904,17 +16921,59 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         self.assertFalse(ok, "it would restart him without being asked")
         self.assertIn("opt-in", why)
 
-    def test_it_refuses_while_the_AGENT_is_alive(self):
-        """The check the relaunch route does NOT make, and the one that means he is filming."""
+    def test_it_refuses_while_he_is_ACTUALLY_FILMING(self):
+        """The check the relaunch route does NOT make, and the one that means he is filming.
+
+        ⚠ v2155 CORRECTS THE PROXY, NOT THE PROTECTION. This asserted that a live AGENT PROCESS
+        blocks a relaunch. The protection is right — killing a session mid-film orphans its
+        frames, because the reel fold runs at seal (v2071) — but `_agent_alive()` is true whenever
+        the process merely exists, and v1823 had already recorded what that costs: "He plays with
+        the console capturing, so a session was live almost whenever he was at the machine ... 'A
+        session exists' is a proxy; 'this directory is still growing' is the fact."
+
+        Measured on his live console right after v2153 armed auto-relaunch: mode 'off',
+        engineAlive True, ZERO frames written in three minutes, drift True with v2154 on disk —
+        and it refused every 300s because a process existed. This test was pinning that.
+
+        Both halves of the real fact still refuse, and both are asserted here."""
+        import unittest.mock as mock
+        ca = self._ca()
+        # (a) ON AIR
+        for mode in ("live", "sim"):
+            with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+                 mock.patch.object(ca, "_agent_mode", mode), \
+                 mock.patch.object(ca, "_agent_alive", lambda: True), \
+                 mock.patch.object(ca, "mini_state", lambda: {"running": False}):
+                ok, why = ca.drift_may_relaunch()
+            self.assertFalse(ok, "it would have restarted the console while ON AIR (%s) — and "
+                                 "orphaned the frames of the session it killed" % mode)
+            self.assertIn("ON AIR", why)
+        # (b) off air by the mode, but frames are still landing
+        with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "_agent_mode", "off"), \
+             mock.patch.object(ca, "_agent_alive", lambda: True), \
+             mock.patch.object(ca, "_reel_is_growing", lambda *a, **k: True), \
+             mock.patch.object(ca, "mini_state", lambda: {"running": False}):
+            ok, why = ca.drift_may_relaunch()
+        self.assertFalse(ok, "frames are still landing and it would have restarted anyway")
+        self.assertIn("mid-film", why)
+
+    def test_an_IDLE_agent_does_not_block_forever(self):
+        """The other side of the same correction, and the reason the feature did nothing. If this
+        cannot pass, auto-relaunch is armed onto a permanently-true refusal and he will ask a
+        third time. [[feedback-blind-fixture-green-gate]]"""
         import unittest.mock as mock
         ca = self._ca()
         with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "_agent_mode", "off"), \
              mock.patch.object(ca, "_agent_alive", lambda: True), \
+             mock.patch.object(ca, "_reel_is_growing", lambda *a, **k: False), \
+             mock.patch.object(ca, "_CHRON_JOB", {"running": False}), \
+             mock.patch.object(ca, "_VAULT_JOB", {"running": False}), \
+             mock.patch.object(ca, "board_identity_drift", lambda: {"state": "ok", "why": ""}), \
              mock.patch.object(ca, "mini_state", lambda: {"running": False}):
             ok, why = ca.drift_may_relaunch()
-        self.assertFalse(ok, "it would have restarted the console while he was filming — and "
-                             "orphaned the frames of the session it killed")
-        self.assertIn("filming", why)
+        self.assertTrue(ok, "an agent that merely EXISTS still blocks the relaunch: %s" % why)
 
     def test_it_refuses_while_a_sweep_is_reading(self):
         import unittest.mock as mock
@@ -22005,6 +22064,296 @@ class _ExecSpy(object):
 
     def __getattr__(self, name):
         return getattr(self._real, name)
+
+
+class TestV2154ThePanelFrameSURVIVESTheSignature(unittest.TestCase):
+    """THE BEHAVIOURAL HALF. Everything else about this defect is checked by reading the source.
+
+    The v2058 measurement, on his own reel_s_1787520892804_95400: three frames that produced three
+    DIFFERENT owned rows —
+        f_1787520897795 -> "Sullied Grand Charm of Blight"
+        f_1787520899289 -> "Chaotic Grand Charm of Incineration"
+        f_1787520901207 -> "Chaotic Grand Charm"
+    — had pairwise sig_diff 0.00000 at tol=28. A D2R hover tooltip moves the whole-frame jpeg
+    signature by literally zero, and a stash GRID prints no names, so the tooltip is the only place
+    a name exists. A replay dropped 67 frames from that reel including four witness frames, each
+    the SECOND distinct session for one of his owned rows — four rows would have fallen below the
+    two-witness bar and never been proposed at all.
+
+    This drives the REAL _prune_once with a signature that says "identical" for every frame — the
+    blind instrument, reproduced — and a panel gate that recognises the ones carrying names. If the
+    proof is wired, those frames survive their own signature.
+    [[feedback-suspect-the-instrument]] [[feedback-verify-not-proxy]]
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self.frames = []
+        base = time.time() - 4000          # comfortably past the grace
+        for i in range(6):
+            q = os.path.join(self.tmp, "f_17875208%05d.jpg" % (97795 + i))
+            with io.open(q, "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xe0" + bytes([i]) * 400)
+            os.utime(q, (base + i, base + i))
+            self.frames.append(q)
+        # THE BLIND INSTRUMENT: every frame's signature is identical, exactly as measured.
+        import vault_retro as vr
+        import chronicle_retro as cr
+        self._sig0 = vr.DEFAULT_SIG
+        self._diff0 = cr.sig_diff
+        vr.DEFAULT_SIG = lambda q: "SAME"
+        cr.sig_diff = lambda a, b, tol=28: 0.0
+
+    def tearDown(self):
+        import vault_retro as vr
+        import chronicle_retro as cr
+        vr.DEFAULT_SIG = self._sig0
+        cr.sig_diff = self._diff0
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run(self, gate):
+        import unittest.mock as mock
+        with mock.patch.object(self.ca, "stash_screen_open_cached", gate):
+            return self.ca._prune_once(hist_dir=self.tmp, grace_s=1, floor=1, batch=99)
+
+    def test_a_frame_the_gate_calls_a_PANEL_is_never_deleted(self):
+        """The three name-carrying frames survive a signature that calls them duplicates."""
+        panels = set(self.frames[1:4])
+        dropped, freed, why = self._run(lambda q: "stash" if q in panels else None)
+        alive = {q for q in self.frames if os.path.exists(q)}
+        self.assertTrue(panels <= alive,
+                        "the prune deleted a frame the panel gate called a panel — that is the "
+                        "v2037 defect, and it costs the only copy of an item name")
+
+    def test_it_STILL_DELETES_a_true_duplicate_which_is_why_this_is_not_vacuous(self):
+        """Seen red for its own reason. A pruner that keeps everything is the stall, not the fix:
+        609 MB locked and ON AIR refusing below the floor. [[feedback-blind-fixture-green-gate]]"""
+        dropped, freed, why = self._run(lambda q: None)
+        self.assertGreater(dropped, 0,
+                           "nothing was deleted even though the gate cleared every frame — the "
+                           "prune is a no-op and the disk never comes back")
+        self.assertGreater(freed, 0, "bytes freed must be real, not an estimate")
+
+    def test_a_gate_that_CANNOT_ANSWER_keeps_the_frame(self):
+        """The gate's own 'not a panel' answer is None. If a gate that THREW were collapsed into
+        that, an unmeasured frame would be deleted as a spare one. An unmeasured frame is not a
+        spare one. [[unknown-stays-unknown]]"""
+        def angry(q):
+            raise RuntimeError("OCR unavailable")
+        dropped, freed, why = self._run(angry)
+        self.assertEqual(dropped, 0,
+                         "the panel gate could not answer for a single frame and the prune "
+                         "deleted them anyway")
+        self.assertTrue(all(os.path.exists(q) for q in self.frames))
+
+    def test_a_surviving_panel_becomes_the_new_ANCHOR(self):
+        """If a kept panel did not become the anchor, the group would keep comparing against a
+        frame from before it and the NEXT frame after a panel would be judged against stale
+        evidence. Keeping a frame must not corrupt the run."""
+        panels = {self.frames[2]}
+        self._run(lambda q: "stash" if q in panels else None)
+        self.assertTrue(os.path.exists(self.frames[2]))
+        # frame 3 is compared against the panel that survived, not against frame 1
+        self.assertFalse(os.path.exists(self.frames[3]) and os.path.exists(self.frames[4]),
+                         "nothing at all was pruned around the kept panel")
+
+
+class TestV2155FilmingIsAFACTNotAProcess(unittest.TestCase):
+    """THE PROXY THAT MADE v2153's ARMED SWITCH DO NOTHING.
+
+    nothing_in_flight() refused whenever `_agent_alive()` — true whenever the TVD agent PROCESS is
+    up. v1823 had already written down what that costs, about the sweeper: "He plays with the
+    console capturing, so a session was live almost whenever he was at the machine: the sweeper
+    never got a window ... The guard was checking the wrong thing. 'A session exists' is a proxy;
+    'this directory is still growing' is the fact." The same proxy was still in this guard.
+
+    MEASURED ON HIS LIVE CONSOLE, immediately after v2153 armed auto-relaunch:
+        mode 'off' · engineAlive True · ZERO frames written in the previous three minutes
+        drift True, v2154 on disk, "this window is running v2153 while v2154 is on disk"
+        and the relaunch refused, every 300 seconds, because a process existed.
+    He had asked for the feature twice. Arming it onto a permanently-true refusal would have been
+    the third time it did not happen. [[feedback-verify-not-proxy]] [[the-unjoined-end]]
+
+    What is genuinely protected is a session MID-FILM — the reel fold runs at seal (v2071), so
+    killing one orphans its frames. Both halves are measurable, and both still refuse.
+
+    ⚠ THIS IS A SHARED GUARD. drift_may_relaunch, the healer's orphan fold and retention_may_act
+    all call it, and all three want the same question: is footage being written right now.
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def _quiet(self, ca):
+        import unittest.mock as mock
+        return [
+            mock.patch.object(ca, "_CHRON_JOB", {"running": False}),
+            mock.patch.object(ca, "_VAULT_JOB", {"running": False}),
+            mock.patch.object(ca, "mini_state", lambda: {"running": False}),
+        ]
+
+    def test_an_agent_that_merely_EXISTS_off_air_and_quiet_does_NOT_block(self):
+        """THE CASE THAT WAS BROKEN, and the whole reason the switch did nothing."""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+        with contextlib.ExitStack() as st:
+            for p_ in self._quiet(ca):
+                st.enter_context(p_)
+            st.enter_context(mock.patch.object(ca, "_agent_mode", "off"))
+            st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: True))
+            st.enter_context(mock.patch.object(ca, "_reel_is_growing", lambda *a, **k: False))
+            ok, why = ca.nothing_in_flight()
+        self.assertTrue(ok, "an idle agent still blocks everything: %s" % why)
+
+    def test_ON_AIR_still_blocks(self):
+        """Seen red for its own reason. Killing a live session orphans its frames — the fold runs
+        at seal. [[feedback-blind-fixture-green-gate]]"""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+        for mode in ("live", "sim"):
+            with contextlib.ExitStack() as st:
+                for p_ in self._quiet(ca):
+                    st.enter_context(p_)
+                st.enter_context(mock.patch.object(ca, "_agent_mode", mode))
+                st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: True))
+                ok, why = ca.nothing_in_flight()
+            self.assertFalse(ok, "it would restart him while ON AIR (%s)" % mode)
+            self.assertIn("ON AIR", why)
+
+    def test_FRAMES_STILL_LANDING_blocks_even_when_the_mode_says_off(self):
+        """A session can be sealing, or the mode can lag the capture. The directory is the fact."""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+        with contextlib.ExitStack() as st:
+            for p_ in self._quiet(ca):
+                st.enter_context(p_)
+            st.enter_context(mock.patch.object(ca, "_agent_mode", "off"))
+            st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: True))
+            st.enter_context(mock.patch.object(ca, "_reel_is_growing", lambda *a, **k: True))
+            ok, why = ca.nothing_in_flight()
+        self.assertFalse(ok, "frames are still landing and it would restart anyway")
+        self.assertIn("mid-film", why)
+
+    def test_UNMEASURABLE_still_refuses(self):
+        """Conservative in the right direction: a state we cannot read is never a green light."""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+
+        def angry(*a, **k):
+            raise RuntimeError("cannot stat the hist dir")
+
+        with contextlib.ExitStack() as st:
+            for p_ in self._quiet(ca):
+                st.enter_context(p_)
+            st.enter_context(mock.patch.object(ca, "_agent_mode", "off"))
+            st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: True))
+            st.enter_context(mock.patch.object(ca, "_reel_is_growing", angry))
+            ok, why = ca.nothing_in_flight()
+        self.assertFalse(ok, "it acted on a state it could not measure")
+
+    def test_the_SWEEPS_still_block_because_they_always_did(self):
+        """The change is only about the agent. A paid read must still never be thrown away."""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+        for job, word in (("_CHRON_JOB", "chronicle"), ("_VAULT_JOB", "vault")):
+            with contextlib.ExitStack() as st:
+                st.enter_context(mock.patch.object(ca, "_CHRON_JOB", {"running": job == "_CHRON_JOB"}))
+                st.enter_context(mock.patch.object(ca, "_VAULT_JOB", {"running": job == "_VAULT_JOB"}))
+                st.enter_context(mock.patch.object(ca, "mini_state", lambda: {"running": False}))
+                st.enter_context(mock.patch.object(ca, "_agent_mode", "off"))
+                st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: False))
+                ok, why = ca.nothing_in_flight()
+            self.assertFalse(ok, "a %s sweep is reading and it would restart anyway" % word)
+            self.assertIn(word, why)
+
+
+class TestV2155TheRunningStampIsNotReadFromDisk(unittest.TestCase):
+    """#175 — the surface that exists to say "this window is behind the disk" READ THE DISK.
+
+    `_app_ver()` used `inspect.getsource(status_payload)`, which opens control_app.py and slices
+    it at the function's co_firstlineno. So the instant a version bump edits that file, a
+    still-running process began reporting the version ON DISK — the one it is not running — and
+    if the bump moved any line above the function, the slice landed on unrelated code, the regex
+    missed, and it returned the literal string "v?". Measured on his live console: fleet.ver "v?"
+    while the process ran v2151 and the disk carried v2153.
+
+    A reading carries the age of the thing it MEASURED, never of the fetch. [[stale-reading]]
+    And the compiled constant is already in memory, where an edit underneath cannot reach it —
+    ask the code object, never the text. [[source-reading-guard]]
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def test_it_answers_from_MEMORY_when_the_file_underneath_has_MOVED(self):
+        """THE CASE THAT WAS BROKEN. A running process must keep reporting what it is running,
+        even while control_app.py on disk says something else — which is the normal state of
+        affairs for every second between a bump and a relaunch."""
+        ca = self._ca()
+        import inspect as _inspect
+        before = ca._app_ver()
+        self.assertRegex(before, r"^v\d", "the running stamp is not even a version: %r" % before)
+
+        def liar(*a, **k):
+            # the file on disk now carries a DIFFERENT stamp, exactly as it does after a bump
+            return 'def status_payload():\n    return {"ver": "v9999"}\n'
+
+        real = _inspect.getsource
+        _inspect.getsource = liar
+        try:
+            during = ca._app_ver()
+        finally:
+            _inspect.getsource = real
+        self.assertEqual(during, before,
+                         "the running stamp followed the FILE to %r. That is the drift watcher "
+                         "inverted: the surface that exists to say 'this window is behind the "
+                         "disk' was reading the disk to answer it." % during)
+
+    def test_it_survives_the_file_being_UNREADABLE(self):
+        """The other half of the same defect: getsource raising gave 'v?', an answer that looks
+        like a measurement and is not one."""
+        ca = self._ca()
+        import inspect as _inspect
+
+        def angry(*a, **k):
+            raise OSError("could not get source")
+
+        real = _inspect.getsource
+        _inspect.getsource = angry
+        try:
+            got = ca._app_ver()
+        finally:
+            _inspect.getsource = real
+        self.assertRegex(got, r"^v\d",
+                         "an unreadable file still costs the running stamp: %r" % got)
+
+    def test_it_agrees_with_the_payload_it_MIRRORS(self):
+        """Parity is the whole contract: the doctor's ver and status_payload's ver are one fact.
+        Reading them from two different places is how they came to disagree."""
+        ca = self._ca()
+        try:
+            paid = (ca.status_payload() or {}).get("ver")
+        except Exception:
+            paid = None
+        if paid:
+            self.assertEqual(ca._app_ver(), paid,
+                             "the doctor's stamp and the payload's stamp disagree")
+
+    def test_it_does_not_READ_A_FILE_at_all(self):
+        """Pin the mechanism, not just the answer: the moment this reaches for the filesystem
+        again it can go stale again, and the symptom (a right-looking version) is invisible."""
+        ca = self._ca()
+        names = set(ca._app_ver.__code__.co_names)
+        self.assertNotIn("getsource", names,
+                         "_app_ver reads the source file again — that is #175 exactly")
+        self.assertNotIn("inspect", names, "_app_ver reaches for inspect again")
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

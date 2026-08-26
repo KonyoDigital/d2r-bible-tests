@@ -10830,7 +10830,13 @@ _PRUNE_FLOOR = 200         # below this many loose frames there is nothing worth
 _PRUNE_LOCK = threading.Lock()
 # v2058 — flipped to True only when _prune_once refuses to delete a frame the panel gate calls a
 # stash panel. Until then the loop does not run, whatever the enabled flag says.
-_PRUNE_SAFE_TO_RUN = False
+# v2154 — ARMED, because the condition v2058 named is now met. Its own words were not "never
+# prune again": "OFF until it can prove, per frame, that it is not deleting a panel. Disk is not
+# worth a name." _prune_once now asks stash_screen_open_cached before every delete and KEEPS the
+# frame both when the gate calls it a panel and when the gate cannot answer. The cost of leaving
+# it off is the thing he actually feels — #136: 11 reels and 609 MB locked, ON AIR refusing below
+# the 8 GB floor, so he could not even record the next extract.
+_PRUNE_SAFE_TO_RUN = True
 # ── v2058 — THE PRUNE IS OFF. IT WAS EATING THE ONLY FRAMES THAT CARRY ITEM NAMES. ───────────
 # v2037 deleted a frame when `sig_diff(kept, this) <= 0.02`, using sig_diff at its DEFAULT tol=28.
 # At that tolerance a D2R hover tooltip moves the whole-frame jpeg_sig by LITERALLY ZERO — and a
@@ -10856,10 +10862,27 @@ _PRUNE_SAFE_TO_RUN = False
 # dedupe. _prune_once never calls panel_gate at all, and it runs UPSTREAM of that workaround.
 #
 # OFF until it can prove, per frame, that it is not deleting a panel. Disk is not worth a name.
+# v2154 — a sentinel distinct from None, because the gate's own "not a panel" answer IS None.
+# Collapsing "the gate said no" into "the gate could not be asked" is how an unmeasured frame
+# gets deleted as a spare one. [[unknown-stays-unknown]]
+_PANEL_UNKNOWN = object()
+_PRUNE_KEPT = {"n": 0, "why": {}}
+
+
+def _prune_note(path, why):
+    """Record WHY a frame the signature called a duplicate was kept anyway."""
+    try:
+        with _PRUNE_LOCK:
+            _PRUNE_KEPT["n"] += 1
+            _PRUNE_KEPT["why"][why] = int(_PRUNE_KEPT["why"].get(why, 0)) + 1
+    except Exception:
+        pass
+
+
 _PRUNE_STATS = {"passes": 0, "framesDropped": 0, "bytesFreed": 0,
-                "lastSay": "OFF (v2058) — the 0.02 rule cannot see a hover tooltip and was "
-                           "deleting the frames that carry item names",
-                "enabled": False}
+                "lastSay": "armed (v2154) — every delete is cleared by the panel gate first; "
+                           "a frame it calls a panel, or cannot answer for, is kept",
+                "enabled": True}
 
 
 def prune_stats():
@@ -10992,8 +11015,34 @@ def nothing_in_flight(consequence=None):
             busy.append("a vault sweep is reading")
         if (mini_state() or {}).get("running"):
             busy.append("a mini is recording")
-        if _agent_alive():
-            busy.append("the agent is alive — he is filming")
+        # ── v2155 — ASK WHETHER FOOTAGE IS BEING WRITTEN, NOT WHETHER A PROCESS EXISTS. ──────
+        # `_agent_alive()` is true whenever the TVD agent process is up, and v1823 already wrote
+        # down what that costs, about the sweeper: "He plays with the console capturing, so a
+        # session was live almost whenever he was at the machine: the sweeper never got a window,
+        # and three finished reels sat unread for hours while the guard did exactly what it said
+        # on the tin. The guard was checking the wrong thing. 'A session exists' is a proxy;
+        # 'this directory is still growing' is the fact."
+        #
+        # The same proxy was still here, and it is why auto-relaunch did nothing after v2153 armed
+        # it. MEASURED on his live console: mode 'off', engineAlive True, ZERO frames written in
+        # the previous three minutes, drift True with v2154 on disk — and the relaunch refused,
+        # every 300 seconds, because a process existed. He asked for this feature twice; arming it
+        # onto a permanently-true refusal would have been the third time it did not happen.
+        #
+        # What must actually be protected is a session MID-FILM, because the reel fold runs at
+        # seal (v2071), so killing one orphans its frames. Both halves of that are measurable:
+        # `_agent_mode` says whether he is on air, and _reel_is_growing says whether frames are
+        # still landing. An agent that merely EXISTS, off air, writing nothing, is not filming.
+        # ⚠ Conservative in the right direction: unmeasurable still refuses.
+        # [[feedback-verify-not-proxy]] [[the-unjoined-end]]
+        if _agent_mode in ("live", "sim"):
+            busy.append("the console is ON AIR (%s) — you are filming" % _agent_mode)
+        elif _agent_alive():
+            try:
+                if _reel_is_growing(HIST_DIR):
+                    busy.append("frames are still landing — a session is mid-film")
+            except Exception:
+                busy.append("could not tell whether frames are still landing")
     except Exception as e:
         # could not tell -> do not act. An unmeasurable state is never a green light.
         return False, "could not tell what is running (%s)" % str(e)[:80]
@@ -11414,6 +11463,41 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
             kept_sig = None          # unreadable breaks the group; it is never absorbed
             continue
         if kept_sig is not None and _cr.sig_diff(kept_sig, sg) <= max_diff:
+            # ── v2154 — PROVE, PER FRAME, THAT THIS IS NOT A PANEL. ──────────────────────────
+            # This is the condition v2058 named when it switched the prune off: "OFF until it can
+            # prove, per frame, that it is not deleting a panel. Disk is not worth a name."
+            #
+            # The signature above CANNOT see a hover tooltip. Measured on his own reel
+            # (reel_s_1787520892804_95400), three frames that produced three DIFFERENT owned rows:
+            #     f_1787520897795 -> "Sullied Grand Charm of Blight"
+            #     f_1787520899289 -> "Chaotic Grand Charm of Incineration"
+            #     f_1787520901207 -> "Chaotic Grand Charm"
+            # pairwise sig_diff at tol=28: 0.00000, 0.00000, 0.00000. All three "identical", two
+            # deleted — and a stash GRID prints no names, so the tooltip is the ONLY place a name
+            # exists at all. A full replay dropped 67 frames from that reel including FOUR witness
+            # frames, each the SECOND distinct session for one of his owned rows, so four rows
+            # would have fallen below the two-witness bar and never been proposed.
+            #
+            # v2032 had already written the rule down — "THE DEDUPE THAT MAKES A HELD GRID CHEAP
+            # MAKES A HOVER PASS INVISIBLE" — and the sweep works around it by adding every
+            # panel_gate frame on top of the dedupe (control_app.py:12710). _prune_once ran
+            # UPSTREAM of that workaround and never called the gate at all. It calls it now.
+            #
+            # stash_screen_open_cached is memoised on (size, mtime), and the sweep has usually
+            # already gated these frames, so the proof is ~0s on the second look. When it cannot
+            # answer, the frame is KEPT: an unmeasured frame is not a spare one.
+            # [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+            _panel = _PANEL_UNKNOWN
+            try:
+                _panel = stash_screen_open_cached(q)
+            except Exception:
+                _panel = _PANEL_UNKNOWN
+            if _panel is _PANEL_UNKNOWN or _panel is not None:
+                kept = "the panel gate could not answer" if _panel is _PANEL_UNKNOWN else \
+                       "the panel gate calls it a panel"
+                _prune_note(q, kept)
+                kept_sig = sg        # it survives, so it becomes the new anchor
+                continue
             try:
                 sz = os.stat(q).st_size
                 if not dry_run:
@@ -15334,7 +15418,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2153",
+        "ver": "v2155",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -15498,11 +15582,38 @@ def _bible_ver():
 
 
 def _app_ver():
-    """Doctor's ver mirrors status_payload's stamp (parity-locked to tv_diablo.VERSION)
-    so it can never drift from the ship tag — read the literal, spawn nothing."""
+    """The RUNNING stamp, read out of the loaded code object. Spawns nothing, touches no file.
+
+    v2155 (#175) — IT WAS READING THE DISK AND CALLING IT THE RUNNING VERSION.
+    `inspect.getsource()` opens the FILE and slices it at the function's co_firstlineno, so the
+    moment a version bump edits control_app.py the still-running process starts reporting the
+    version ON DISK — the one it is NOT running — and if the bump also moved any line above this
+    function, the slice lands on unrelated code, the regex misses, and it reports the literal
+    string "v?". Measured on his live console: fleet.ver "v?" while the process was running v2151
+    and the disk had v2153.
+
+    That is the whole point of the drift watcher inverted: the surface that exists to say "this
+    window is behind the disk" was reading the disk to answer it. A reading carries the age of
+    the thing it MEASURED, never of the fetch. [[stale-reading]]
+
+    The literal is already in memory — status_payload's own code object carries it in co_consts,
+    which is the compiled value this process is actually serving and cannot be changed by an edit
+    underneath it. Ask the code object, never the text. [[source-reading-guard]]
+    """
+    def _find(code, depth=0):
+        try:
+            for k in code.co_consts:
+                if isinstance(k, str) and re.match(r"^v[\d][\d.]*$", k):
+                    return k
+                if depth < 4 and hasattr(k, "co_consts"):
+                    hit = _find(k, depth + 1)
+                    if hit:
+                        return hit
+        except Exception:
+            pass
+        return None
     try:
-        m = re.search(r'"ver": "(v[\d.]+)"', inspect.getsource(status_payload))
-        return m.group(1) if m else "v?"
+        return _find(status_payload.__code__) or "v?"
     except Exception:
         return "v?"
 
