@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2133",
+  "ver": "v2134",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2133: The board prose tooltip shipped on a flat eleven pixel token while the console twin sits on a clamp with a thirteen pixel floor, and the board is loaded inside the console through the engine iframe, so opening the shell put the same sentence on one screen in two sizes. That is the complaint the whole tooltip arc exists to answer, reintroduced by the fix for it. No gate could see it because the console type floor is console only by construction and the visual lock never checked size on either surface, so both were honest and blind at once. Both surfaces now declare a hint floor and the lock enforces it.",
+  "note": "v2134: The item card footer set its visibility as an inline style, and an inline declaration outranks every stylesheet rule, so the prose lane hide for that footer was present and correct and could never apply. A footer left from the last card stayed visible when the prose lane took over the shared tooltip, printing the same sentence twice. Visibility is a class now so the cascade decides, with no important anywhere. Also the accordion spec called the toggle function directly and never pressed the header he actually presses, so removing that wiring would have left it green.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

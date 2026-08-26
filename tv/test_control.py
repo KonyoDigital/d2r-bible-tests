@@ -20755,10 +20755,37 @@ class TestV2132TheBorrowedSentenceIsGivenBackOnScreen(unittest.TestCase):
                                 "wipes children it did not create")
 
     def test_the_prose_lane_does_not_also_wear_it(self):
+        """⚠ v2134 — MY FIRST VERSION OF THIS ASSERTED THE RULE EXISTED, and the rule could never
+        win. v2132 set `go.style.display='block'`, and an INLINE declaration outranks every
+        stylesheet rule — so `#arttip.tip-say .att-go{display:none}` was present, correct and
+        unreachable, and a footer left from the last card stayed visible when the prose lane took
+        over the shared #arttip. The sentence printed twice.
+
+        A guard that checks for a rule must also check that nothing outranks it.
+        [[d2r-css-last-rule-wins]]"""
         with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
             board = fh.read()
-        self.assertIn("#arttip.tip-say .att-go{display:none}", board,
-                      "the prose lane IS the sentence; showing the footer there would print it twice")
+        self.assertIn("#arttip.tip-say .att-go,\n#arttip.tip-say .att-go.on{display:none}", board,
+                      "the prose lane no longer hides the footer in BOTH states — showing it there "
+                      "prints the same sentence twice")
+        self.assertIn("#arttip .att-go.on{display:block}", board,
+                      "the footer's visible state is not a class, so it is being set some other way")
+
+    def test_visibility_is_never_set_INLINE(self):
+        """The specific mechanism that defeated the rule above. An inline display wins over the
+        cascade, so the prose lane's hide can never apply."""
+        # ⚠ SCOPE IT TO THE FUNCTION THAT OWNS THE BEHAVIOUR. My first cut asserted over the whole
+        # lane slice and matched `img.style.display = 'none'` — the art card's own image error
+        # handler, which is unrelated and correct. A slice too WIDE fails for the wrong reason just
+        # as surely as one too narrow proves nothing.
+        foot = _between(self, self.code, "function _artFoot(txt)", "function _artHold",
+                        what="the footer writer")
+        self.assertNotIn("style.display", foot,
+                         "the footer sets `style.display` again — an inline declaration outranks "
+                         "the stylesheet, so #arttip.tip-say's hide becomes unreachable and a stale "
+                         "footer shows under the prose lane")
+        self.assertIn("classList.toggle('on'", foot,
+                      "the footer's visibility is no longer a class the cascade can override")
 
 
 class TestV2131TheVaultRoomHasExactlyOneReachableDoor(unittest.TestCase):

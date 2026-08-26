@@ -1255,11 +1255,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
    --fs-meta, not the prose lane's 13px: this sits INSIDE the item card, whose own micro type
    (.att-info, .att-desc) is 10.5px, so it matches the card it belongs to rather than the other
    lane. [[copy-drift]] */
+/* v2134 — VISIBILITY IS A CLASS, NOT AN INLINE STYLE. v2132 set `go.style.display='block'`, and an
+   inline declaration beats any stylesheet rule — so `#arttip.tip-say .att-go{display:none}` could
+   never win, and a footer left from the last item card stayed VISIBLE when the prose lane took over
+   the shared #arttip. The sentence would then print twice: once as the lane's own text and once as
+   a stale footer under it. The rule was right and unreachable, which is the worst kind.
+   `.att-go.on` (1,2,1) is beaten by `#arttip.tip-say .att-go.on` (1,3,1) — the cascade decides,
+   with no !important anywhere. [[d2r-css-last-rule-wins]] */
 #arttip .att-go{display:none;margin-top:7px;padding-top:6px;
   border-top:1px solid rgba(212,168,71,.22);
   font-family:var(--mono,monospace);font-size:var(--fs-meta);
   line-height:var(--lh-snug);color:var(--text-dim,#9a8e78);text-align:center}
-#arttip.tip-say .att-go{display:none}   /* the prose lane IS the sentence; it needs no footer */
+#arttip .att-go.on{display:block}
+#arttip.tip-say .att-go,
+#arttip.tip-say .att-go.on{display:none}   /* the prose lane IS the sentence; it needs no footer */
 #arttip .att-type{color:#c9c9c9;font-size:10.5px;margin-bottom:3px}
 #arttip .att-meta{color:#8f8f8f;font-size:9.5px;margin-bottom:5px}
 #arttip .att-core{color:#6aa6ff;margin:2px 0}
@@ -26325,7 +26334,10 @@ window._jewelTipHtml = _jewelTipHtml;
           if (!go){ go = document.createElement('div'); go.className = 'att-go'; tip.appendChild(go); }
           var t = String(txt || '').trim();
           go.textContent = t;
-          go.style.display = t ? 'block' : 'none';
+          /* v2134 — a CLASS, never `style.display`. An inline value outranks every stylesheet rule,
+             which is how the prose lane's own hide became unreachable. */
+          go.classList.toggle('on', !!t);
+          try { go.style.removeProperty('display'); } catch(e){}
         } catch(e){}
       }
       function _artHold(el){
@@ -45468,7 +45480,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2133', name:'v2133 - one sentence, one size, one screen', date:'2026-08-26', note:'The board prose tooltip shipped on a flat eleven pixel token while the console twin sits on a clamp with a thirteen pixel floor, and the board is loaded inside the console through the engine iframe, so opening the shell put the same sentence on one screen in two sizes. That is the complaint the whole tooltip arc exists to answer, reintroduced by the fix for it. No gate could see it because the console type floor is console only by construction and the visual lock never checked size on either surface, so both were honest and blind at once. Both surfaces now declare a hint floor and the lock enforces it.' };
+  window.D2R_BUILD = { id:'v2134', name:'v2134 - a rule that was right and unreachable', date:'2026-08-26', note:'The item card footer set its visibility as an inline style, and an inline declaration outranks every stylesheet rule, so the prose lane hide for that footer was present and correct and could never apply. A footer left from the last card stayed visible when the prose lane took over the shared tooltip, printing the same sentence twice. Visibility is a class now so the cascade decides, with no important anywhere. Also the accordion spec called the toggle function directly and never pressed the header he actually presses, so removing that wiring would have left it green.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -20,16 +20,23 @@ test('opening a craft accordion in Crafts fills the Crafts body, not the Forge b
   const r = await page.evaluate(() => {
     const w = window as any;
     w.switchTab('crafts');
-    const key = (typeof w.CRAFTS !== 'undefined' && w.CRAFTS && w.CRAFTS[0])
-      ? (w.CRAFTS[0].k || w.CRAFTS[0].key || w.CRAFTS[0].name) : null;
-    if (!key) return { err: 'no craft type to open — CRAFTS is empty, so nothing was measured' };
+
+    /* v2134 — CLICK THE HEADER, do not call the function. Calling forgeCraftToggle directly skips
+       the accordion header's own onclick, so removing that wiring — the thing he actually presses —
+       would leave this spec green. The header is `.f-craftacc-h[role=button]`; there are four, one
+       per craft type. Verified on the live board: clicking the first takes #crafts-body 0 -> 9 rows
+       while #forge-body stays at 0. */
+    const head = document.querySelector('#tab-crafts .f-craftacc-h') as HTMLElement | null;
+    if (!head) return { err: 'no .f-craftacc-h in #tab-crafts — the accordion header he presses is '
+                             + 'gone, so nothing was measured' };
 
     const rows = (id: string) => document.querySelectorAll('#' + id + ' .f-craftrow').length;
     const before = { crafts: rows('crafts-body'), forge: rows('forge-body') };
-    w.forgeCraftToggle(key);                       // the accordion header's own onclick
+    head.click();
     const after = { crafts: rows('crafts-body'), forge: rows('forge-body') };
     return {
-      key, before, after,
+      key: (head.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+      before, after,
       room: (document.querySelector('.tab.active') as HTMLElement | null)?.getAttribute('data-tab'),
     };
   });
@@ -68,7 +75,7 @@ test('the toggle does not blindly fill Crafts from another room either', async (
     if (!key) return { err: 'no craft type to open' };
     const rows = (id: string) => document.querySelectorAll('#' + id + ' .f-craftrow').length;
     const before = rows('crafts-body');
-    w.forgeCraftToggle(key);
+    w.forgeCraftToggle(key);   // the FUNCTION here on purpose: Forge renders no accordion header
     return { key, before, after: rows('crafts-body'),
              room: (document.querySelector('.tab.active') as HTMLElement | null)?.getAttribute('data-tab') };
   });
