@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2140",
+  "ver": "v2141",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2140: the only sweep-named check sat in SLOW so the ten-minute eagle never ran it, and it measured vault stash density rather than whether extract was moving",
+  "note": "v2141: the F-Uniques and F-Sets buttons opened a hidden file picker and asked him to photograph the page; both halves of the automatic path already existed and had never been joined",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

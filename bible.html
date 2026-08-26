@@ -9128,7 +9128,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   <!-- CHRONICLE PHOTO INTAKE (board-side). Two buttons, never one: the caller STATES the ledger,
        because a Sets page tallied as Uniques is worse than no tally at all. -->
   <div style="margin-top:8px">
-    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff" onclick="window._chronShotPick('uniques')" title="photograph the in-game Chronicle UNIQUES page — read as EVIDENCE, nothing is registered until you press register">📜 Read my Chronicle · UNIQUES</button>
+    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff" onclick="window._chronShotPick('uniques')" title="films your in-game Chronicle UNIQUES page as a short MINI — it stops itself, the reader sweeps it, and nothing registers until you approve it">📜 Read my Chronicle · UNIQUES</button>
     
   </div>
   <input type="file" id="chron-shot-file" accept="image/*" multiple style="display:none" onchange="window.chronicleShotIntake(this.files)">
@@ -9153,7 +9153,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
      era fixed was the REPORT NODE, and _chronShotReport still fans out to every
      .chron-shot-report container, so a read started anywhere still renders where he is
      standing. Only the extra door goes. -->
-    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff;margin-left:6px" onclick="window._chronShotPick('sets')" title="photograph the in-game Chronicle SETS page — read as evidence, nothing registers until you press register">🧩 Read my Chronicle · SETS</button>
+    <button class="f-btn" style="border-color:rgba(181,140,255,.5);color:#c9a6ff;margin-left:6px" onclick="window._chronShotPick('sets')" title="films your in-game Chronicle SETS page as a short MINI — it stops itself, the reader sweeps it, and nothing registers until you approve it">🧩 Read my Chronicle · SETS</button>
   </div>
   <!-- the SETS read renders HERE when he is on this tab — the Uniques tab's report element is
        display:none with its whole tab, so a shared one would have shown him nothing. -->
@@ -42035,10 +42035,58 @@ function renderJournal(){
     });
   }
 
+  /* v2141 — NO MORE PHOTOGRAPHING. Konyo: "the manual aspect of this should be removed and was
+     coded to the AI readers and automated engines... i dont want a manual photograph upload
+     option. it should be automatically a MINI onair for that specific and individual chronicle."
+
+     This opened a hidden file picker and asked him to hand over screenshots. Everything needed to
+     do it properly already existed on both sides and had simply never been joined: the console
+     takes POST /api/mini {focus}, mini_start() normalises the focus and lets it pick the duration
+     AND the ceiling (v1744), a reel sealed with focus=chronicle-uniques/sets is a STRONGER
+     declaration than any paid classify (control_app:9479), and chronicle_retro._declared_kind
+     accepts exactly those two focuses — which is what makes such a reel free to classify and puts
+     it straight in front of the auto-sweep. So the button films the page instead of asking him to.
+
+     The upload capability is NOT deleted: chronicleShotIntake stays, and
+     tests/v1540_chronicle_photo_intake.spec.ts drives it directly rather than through this
+     button. What is gone is the UI offering it to him. */
   window._chronShotPick = function(ledger){
-    window._chronShotLedger = (ledger === 'sets') ? 'sets' : 'uniques';
-    var f = document.getElementById('chron-shot-file');
-    if (f) { f.value = ''; f.click(); }
+    var isSets = (ledger === 'sets');
+    window._chronShotLedger = isSets ? 'sets' : 'uniques';
+    var LABEL = isSets ? 'SETS' : 'UNIQUES';
+    var focus = isSets ? 'chronicle-sets' : 'chronicle-uniques';
+    /* _shadowOnConsole() is the board's existing answer to "am I inside the console" — this file
+       already carries that regex in six places and a seventh helps nobody. [[copy-drift]] */
+    var onConsole = false;
+    try { onConsole = !!(window._shadowOnConsole && window._shadowOnConsole()); } catch (e) {}
+    if (!onConsole) {
+      /* Name the missing door. A silent fallback to the picker would quietly restore the very
+         thing he asked to remove. */
+      _chronShotReport('this films your Chronicle instead of photographing it, so it needs the ' +
+        'console \u2014 open the board inside TV DIABLO and press it again.');
+      return;
+    }
+    _chronShotReport('\uD83C\uDFAC starting a MINI on your Chronicle <b>' + LABEL + '</b> page\u2026');
+    /* RELATIVE, like _laneStartReel's /api/on right below: the console serves this board on
+       17772 or 17771 and a hardcoded port would work on one of them. The difference from that
+       function is deliberate — the lanes go ON AIR unbounded, a Chronicle page is a MINI that
+       stops itself, which is what he asked for. */
+    fetch('/api/mini', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ focus: focus })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || d.ok === false) {
+        _chronShotReport('the console refused: <b>' +
+          String((d && (d.why || d.error)) || 'no reason given') + '</b>');
+        return;
+      }
+      var secs = d.seconds || d.secondsLeft || null;
+      _chronShotReport('\uD83C\uDFAC filming your Chronicle <b>' + LABEL + '</b> page' +
+        (secs ? ' for <b>' + secs + 's</b>' : '') + ' \u2014 it stops itself, the reader sweeps it ' +
+        'on its own, and nothing registers until you approve it.');
+    }).catch(function (e) {
+      _chronShotReport('could not reach the console: <b>' + String((e && e.message) || e) + '</b>');
+    });
   };
 
   /* Writes to EVERY report container, because there is one per Forge tab and only the tab he is
@@ -45640,7 +45688,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2140', name:'v2140 - the eagle can finally see the extract', date:'2026-08-26', note:'the only sweep-named check sat in SLOW so the ten-minute eagle never ran it, and it measured vault stash density rather than whether extract was moving' };
+  window.D2R_BUILD = { id:'v2141', name:'v2141 - the Chronicle button films it instead of asking', date:'2026-08-26', note:'the F-Uniques and F-Sets buttons opened a hidden file picker and asked him to photograph the page; both halves of the automatic path already existed and had never been joined' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
