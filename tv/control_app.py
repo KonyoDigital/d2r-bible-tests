@@ -11217,7 +11217,19 @@ def nothing_in_flight(consequence=None):
                 _e = sweep_eta()
             except Exception:
                 _e = None
-            if _e and _e.get("ok"):
+            # v2178 — and THE REFUSAL EXPIRES. See _CHRON_SWEEP_MAX_MS: an interlock that cannot
+            # time out let a runaway sweep hold the door shut against the very build that fixes it.
+            _el = None
+            try:
+                _el = int((_e or {}).get("elapsedMs") or 0)
+            except Exception:
+                _el = 0
+            if _el and _el > _CHRON_SWEEP_MAX_MS:
+                print("   \u23f3 a chronicle sweep has been reading for %d minute(s), past the %d "
+                      "minute ceiling — it no longer blocks a relaunch. The read it protects is "
+                      "older than the build waiting to replace it."
+                      % (_el // 60000, _CHRON_SWEEP_MAX_MS // 60000), flush=True)
+            elif _e and _e.get("ok"):
                 busy.append("a chronicle sweep is reading (%s)" % _e["say"])
             elif _e and _e.get("say"):
                 busy.append("a chronicle sweep is reading — %s" % _e["say"])
@@ -14356,6 +14368,15 @@ _CHRON_HUNT_MAX_NAMES = int(os.environ.get("TV_CHRON_HUNT_NAMES") or 8)
 # v2175.3 — the hunt memory's ceiling. `ts` was written and never read, so the file grew with
 # every name that ever came back empty. Pruning the oldest can only ever cost one re-hunt.
 _CHRON_HUNT_MEM_MAX = int(os.environ.get("TV_CHRON_HUNT_MEM_MAX") or 4000)
+# ⚠ v2178 — A SAFETY INTERLOCK WITH NO EXPIRY IS A PERMANENT LOCK.
+# `nothing_in_flight` refuses a relaunch while a chronicle sweep is running, which is right: a
+# relaunch mid-read throws away reads he paid for. But `running` had NO CEILING, and the v2174 hunt
+# loop made `running` true forever — so the build that FIXES the loop could never be installed,
+# because the loop itself was holding the door shut. Measured on his console: phase "hunting",
+# elapsed 4,263,319 ms = 71 MINUTES, and a relaunch banner he could not act on.
+# Past this ceiling the protection expires and SAYS SO. The read being protected is by then worth
+# less than the build waiting to replace it. [[the-unjoined-end]]
+_CHRON_SWEEP_MAX_MS = int(os.environ.get("TV_CHRON_SWEEP_MAX_MS") or 45 * 60 * 1000)
 
 
 def _chron_calibration(reel_dirs):
@@ -14798,6 +14819,10 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
                     if _nm not in (got or {}):
                         _hunt_mem["%s|%s" % (led, _nm)] = {
                             "empty": True, "fp": _fp, "ts": int(time.time() * 1000)}
+                # v2178 — BANK AFTER EACH LEDGER, not only at the end. Now that a long sweep can be
+                # interrupted by a relaunch (the refusal expires), whatever the uniques hunt has
+                # already paid for must survive being cut off during the sets hunt.
+                _chron_hunt_memory_save(_hunt_mem)
     except Exception as e:
         # ⚠ v2175.3 — SAVE ON THE WAY OUT TOO. This `return` used to jump over the save below, so
         # a uniques hunt that came back empty and then threw on the SETS hunt banked nothing: the
@@ -16374,7 +16399,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2177",
+        "ver": "v2178",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

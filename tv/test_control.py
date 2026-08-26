@@ -23611,6 +23611,87 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
                          "cannot see a tooltip covering the tab strip")
 
 
+class TestV2178TheInterlockCannotBecomeAPermanentLock(unittest.TestCase):
+    """⚠ A SAFETY INTERLOCK WITH NO EXPIRY IS A PERMANENT LOCK, AND IT LOCKED OUT ITS OWN FIX.
+
+    `nothing_in_flight` refuses a relaunch while a chronicle sweep is running. That is correct —
+    a relaunch mid-read throws away reads he paid for. But `running` had no ceiling, and the v2174
+    hunt loop made `running` true forever. So the build that FIXES the loop could never be
+    installed, because the loop was holding the door shut against it.
+
+    Measured on his live console at 02:20: phase "hunting", elapsedMs 4,263,319 = 71 MINUTES,
+    huntNames 10, and a relaunch banner he could not act on (its button was also 94% off screen —
+    v2177). Two independent locks on the same door.
+
+    The shape to remember: when the thing a guard protects can be produced FOREVER by a defect,
+    the guard becomes that defect's shield. Every wait-for-quiet interlock needs a ceiling, and
+    crossing it must be SAID rather than silently ignored. [[the-unjoined-end]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+
+    def _flight(self, elapsed_ms, ceiling_ms=None):
+        import unittest.mock as mock
+        ca = self.ca
+        eta = {"ok": False, "running": True, "elapsedMs": elapsed_ms, "phase": "hunting",
+               "say": "hunting 10 held names across the film"}
+        with mock.patch.object(ca, "_CHRON_JOB", {"running": True, "phase": "hunting"}), \
+             mock.patch.object(ca, "_VAULT_JOB", {}), \
+             mock.patch.object(ca, "sweep_eta", lambda *a, **k: eta), \
+             mock.patch.object(ca, "mini_state", lambda *a, **k: {}), \
+             mock.patch.object(ca, "_CHRON_SWEEP_MAX_MS",
+                               ceiling_ms if ceiling_ms is not None else ca._CHRON_SWEEP_MAX_MS):
+            return ca.nothing_in_flight("relaunching now would throw away a paid read")
+
+    def test_a_normal_read_still_blocks_a_relaunch(self):
+        """The guard must keep doing its job — this is the half that must NOT change."""
+        ok, why = self._flight(90 * 1000)
+        self.assertFalse(ok, "a sweep 90 seconds in no longer blocks a relaunch — the ceiling was "
+                             "set so low it disarmed the protection entirely")
+        self.assertIn("chronicle sweep", (why or "").lower())
+
+    def test_a_sweep_past_the_ceiling_RELEASES_the_door(self):
+        """His actual state: 71 minutes in phase 'hunting', buying nothing, blocking its own fix."""
+        ok, why = self._flight(4263319)          # the number measured on his console
+        self.assertTrue(ok, "a sweep running 71 minutes STILL blocks the relaunch (%r). The hunt "
+                            "loop keeps `running` true forever, so the build that stops the loop "
+                            "can never be installed — the defect is holding the door shut against "
+                            "its own fix." % (why,))
+
+    def test_the_ceiling_is_ABOVE_a_real_sweep_and_BELOW_the_runaway(self):
+        """⚠ PIN THE LAW, NOT THE NUMBER — and prove the number is not above its own ceiling.
+
+        A threshold that no real signal can reach is an absent one that looks tuned
+        (STILL_MAX_DIFF=0.22 against a signal whose maximum was 0.133). So: the ceiling must sit
+        above a long-but-honest sweep and below the runaway that was actually observed."""
+        ca = self.ca
+        self.assertLess(ca._CHRON_SWEEP_MAX_MS, 4263319,
+                        "the ceiling (%d ms) is above the 71-minute runaway measured on his "
+                        "console, so it could never have fired on the case it exists for"
+                        % ca._CHRON_SWEEP_MAX_MS)
+        self.assertGreater(ca._CHRON_SWEEP_MAX_MS, 15 * 60 * 1000,
+                           "the ceiling is under 15 minutes — an ordinary long sweep would be "
+                           "interrupted and its paid reads thrown away")
+
+    def test_crossing_the_ceiling_is_SAID_not_silently_ignored(self):
+        """A guard that stands down without a word is indistinguishable from one that never ran."""
+        import io as _io, contextlib
+        buf = _io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self._flight(4263319)
+        out = buf.getvalue()
+        self.assertIn("no longer blocks a relaunch", out,
+                      "the interlock stood down in silence — nothing on any surface says why the "
+                      "protection stopped applying, so a real bug and a working ceiling look the "
+                      "same. [[feedback-silence-is-not-evidence]]")
+        self.assertIn("71 minute", out.replace("minutes", "minute"),
+                      "the message does not say HOW LONG, which is the one fact that makes the "
+                      "stand-down auditable")
+
+
 class TestV2177APageLevelGridTrackMustBeAbleToShrink(unittest.TestCase):
     """⚠ 455 PIXELS OF HIS CONSOLE WERE OFF THE RIGHT EDGE AND NOTHING COULD SCROLL TO THEM.
 
