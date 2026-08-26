@@ -35,6 +35,15 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 async function world(page: any) {
   await page.goto(URL);
   await page.waitForTimeout(1500);
+  // v2144 (#151) — SUPPRESS THE OWNER SEED, then reload so the suppression is in force at boot.
+  // bible.html:3793 treats navigator.webdriver + file:// as an "automated" world and seeds it with
+  // ALL 99 RUNEWORDS FORGED. Two of the three names this spec applies below — Monarch and Phase
+  // Blade — are WHITE BASES, and in that world they are correctly __throwout, so vaultAutoAssign
+  // files nothing and every door reports ".vm-cell visible 0". The doors were fine; the world was
+  // wrong. Measured in exactly CI's world: rwMade 99 without the flag, 0 with it.
+  await page.evaluate(() => localStorage.setItem('d2r_rwProfile', 'fresh'));
+  await page.goto(URL);
+  await page.waitForTimeout(1500);
 }
 
 test('the do-now vault chip lands him in the room the card actually lives in', async ({ page }) => {

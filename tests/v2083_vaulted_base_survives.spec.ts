@@ -33,6 +33,14 @@ async function cleanWorld(page: any) {
     const ks: string[] = [];
     for (let i = 0; i < localStorage.length; i++) ks.push(localStorage.key(i) as string);
     ks.forEach((k) => { if (/d2r_/.test(k)) localStorage.removeItem(k); });
+    // v2144 (#151) — SUPPRESS THE OWNER SEED. bible.html:3793 treats
+    // navigator.webdriver && location protocol file: as an "automated" world and seeds it with
+    // ALL 99 RUNEWORDS FORGED, so every white base is correctly __throwout and suggestMule files
+    // nothing. suggestMule is RIGHT; the fixture was asking it about a world where the answer is
+    // legitimately "nothing to file". Measured in exactly CI's world (webdriver forced true, real
+    // file:// URL): rwMade 99 without this line, 0 with it. The flag is read bare by
+    // bible.html:17357, so setting the bare key before the reload is what suppresses the seed.
+    localStorage.setItem('d2r_rwProfile', 'fresh');
   });
 }
 

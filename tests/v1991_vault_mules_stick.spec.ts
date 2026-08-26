@@ -56,7 +56,15 @@ function payload() {
 test('a swept item reaches a mule AND is still there after a reload', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1200);
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('d2r_ownerClaim', '*'); });
+  // v2144 (#151) — d2r_rwProfile='fresh' suppresses the automated world's 99-runeword seed, which
+  // otherwise makes every white base correctly __throwout so suggestMule files nothing. Measured in
+  // CI's world: rwMade 99 without it, 0 with it. Read bare by bible.html:17357, so it must be set
+  // before the reload below.
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('d2r_ownerClaim', '*');
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  });
   await page.goto(URL);
   await page.waitForTimeout(1600);
 
