@@ -445,11 +445,52 @@ def resolve_all(proposal, ledgers=("uniques", "sets")):
         nf_seen = ((proposal or {}).get("notFoundSeen") or {}).get(led) or {}
         nf_flat = set((proposal or {}).get("notFound", {}).get(led) or ())
         for nm in found:
-            if nm not in nf_flat and nm not in nf_seen:
+            # v2152 — AN EMPTY RECEIPT BUCKET IS NOT A NOT-FOUND READING.
+            # `nm in nf_seen` was membership on the KEY, and merge_proposals mints keys with no
+            # rows: its receipt copy does
+            #     out.setdefault("notFoundSeen", {}).setdefault(led, {}).setdefault(nm, [])
+            # before it appends, so a source carrying `{nm: []}` leaves `{nm: []}` behind even
+            # though nothing was ever recorded. That key then satisfied this test, the resolver
+            # was handed ([], receipts=[]) and answered `undatable`, and the name was counted as
+            # a contradiction it has no evidence for. A name reachable ONLY through an empty
+            # bucket has no not-found reading at all. A name in the flat `notFound` list still
+            # counts with no receipts — that is the honest `undatable` case v1921 exists for.
+            if nm not in nf_flat and not (nf_seen.get(nm) or []):
                 continue
             r = resolve_contested(found.get(nm) or [], nf_seen.get(nm) or [])
             out.setdefault(led, {})[nm] = r
     return out
+
+
+def not_found_datable(proposal, ledgers=("uniques", "sets")):
+    """Can the not-found readings in this proposal be ORDERED against the found ones?
+
+    v2152 — IT WAS COUNTING TWO DIFFERENT POPULATIONS AND COMPARING THEM.
+    `readings` counted NAMES in `notFound[led]`; `withReceipts` counted KEYS in
+    `notFoundSeen[led]` — and those keys are not a subset. A receipt for a name that is not in
+    `notFound` padded the second number, so `withReceipts >= readings` could go True while a
+    not-found name carried no reel and no frame at all, and the panel then said out loud that
+    "every not-found reading carries a receipt and can be ordered". That is the exact sentence
+    the 12-vs-1 claim was made under.
+
+    Joined BY NAME now: a reading has a receipt when THAT name has a non-empty bucket.
+    """
+    total = 0
+    withr = 0
+    for led in ledgers:
+        seen = ((proposal or {}).get("notFoundSeen") or {}).get(led) or {}
+        for nm in ((proposal or {}).get("notFound") or {}).get(led) or ():
+            total += 1
+            if seen.get(nm):
+                withr += 1
+    ok = (total == 0 or withr >= total)
+    return {"readings": total, "withReceipts": withr, "ok": ok,
+            "say": ("every not-found reading carries a receipt and can be ordered against the "
+                    "found ones" if ok else
+                    "%d of %d not-found reading(s) carry NO reel or frame, so they cannot be "
+                    "ordered against anything and must not be quoted as contradicting a find. "
+                    "They were banked before receipts existed; the next sweep records them and "
+                    "they become usable." % (total - withr, total))}
 
 
 def arithmetic(board_found, roster_total, ledger="sets", reading=None):

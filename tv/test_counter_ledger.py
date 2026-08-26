@@ -393,5 +393,95 @@ class TestThePhantomNamer(TempDirCase):
         self.assertIn("the sample was capped", out)
 
 
+
+class TestV2152WhatTheSecondEyeFoundInV2150(unittest.TestCase):
+    """A cross-family review of v2150 returned four findings. All four reproduced; all four fixed.
+
+    v2150 consolidated the contested rule into derive_contested and its commit said "One source
+    now. Both callers use it." The review's answer: *"'One source now. Both callers use it.' is
+    already false."* resolve_all still walked the same inclusion set with its own copy, and the
+    chain tests reach the resolver through it — two places for the next edit to miss, which is
+    the defect v2150 claimed to have closed. These cases hold the corrected shape.
+    """
+
+    def test_an_EMPTY_receipt_bucket_is_not_a_not_found_reading(self):
+        """merge_proposals mints keys before it appends:
+            out.setdefault("notFoundSeen", {}).setdefault(led, {}).setdefault(nm, [])
+        so a source carrying {nm: []} leaves {nm: []} behind with nothing recorded. Membership on
+        the KEY then admitted the name, the resolver was handed ([], []) and said `undatable`, and
+        a name with no not-found evidence at all was counted as a contradiction. MERGE-ONLY:
+        proposal_from_pages never writes one side without the other."""
+        import counter_ledger as cl
+        prop = {"uniques": {"Windforce": [{"reel": "s_1", "frame": "f_1.jpg", "lane": "claude"}]},
+                "sets": {}, "notFound": {"uniques": [], "sets": []},
+                "notFoundSeen": {"uniques": {"Windforce": []}}}
+        self.assertEqual(cl.resolve_all(prop), {},
+                         "an empty receipt bucket must not put a name in front of the resolver")
+
+    def test_a_FLAT_not_found_with_no_receipts_is_STILL_counted(self):
+        """Seen red for its own reason: the fix above must not throw away the honest `undatable`
+        case. A name banked before receipts existed carries no reel and no frame, and that is
+        exactly the population v1921 added the field to describe. [[unknown-stays-unknown]]"""
+        import counter_ledger as cl
+        prop = {"uniques": {"Windforce": [{"reel": "s_1", "frame": "f_1.jpg", "lane": "claude"}]},
+                "sets": {}, "notFound": {"uniques": ["Windforce"], "sets": []},
+                "notFoundSeen": {}}
+        r = (cl.resolve_all(prop).get("uniques") or {}).get("Windforce")
+        self.assertIsNotNone(r, "a flat notFound name must still reach the resolver")
+        self.assertEqual(r["verdict"], "undatable")
+
+    def test_notFoundDatable_JOINS_BY_NAME(self):
+        """It compared two different populations: `readings` counted NAMES in notFound[led],
+        `withReceipts` counted KEYS in notFoundSeen[led] — and those keys are not a subset. A
+        receipt for a name that is NOT in notFound padded the second number, so withReceipts >=
+        readings could go True while a not-found name carried no reel and no frame, and the panel
+        then said out loud that every not-found reading can be ordered. That is the exact sentence
+        the 12-vs-1 claim was made under."""
+        import counter_ledger as cl
+        prop = {"uniques": {"A": [{"frame": "f_1.jpg"}]}, "sets": {},
+                "notFound": {"uniques": ["A"], "sets": []},
+                "notFoundSeen": {"uniques": {"B": [{"frame": "f_1.jpg"}]}}}
+        d = cl.not_found_datable(prop)
+        self.assertEqual((d["readings"], d["withReceipts"]), (1, 0),
+                         "B is not a not-found name and must not count as A's receipt")
+        self.assertFalse(d["ok"], "A carries no receipt, so these readings cannot be ordered")
+
+    def test_the_HONEST_case_still_reads_ok(self):
+        """The mirror, so the guard is not just 'always False'."""
+        import counter_ledger as cl
+        prop = {"uniques": {"A": [{"frame": "f_1.jpg"}]}, "sets": {},
+                "notFound": {"uniques": ["A"], "sets": []},
+                "notFoundSeen": {"uniques": {"A": [{"reel": "s_9", "frame": "f_9.jpg"}]}}}
+        d = cl.not_found_datable(prop)
+        self.assertEqual((d["readings"], d["withReceipts"], d["ok"]), (1, 1, True))
+
+    def test_a_resolver_that_cannot_be_consulted_SAYS_SO(self):
+        """The per-name swallow turned every name `undatable`, which is != "found", so a resolver
+        that could not be imported silently rebuilt the padded membership count and left
+        contestedExpired empty — the 64 coming back with nothing on screen to explain it, on the
+        exact path that writes his screen. A degraded answer is allowed; one that looks identical
+        to a measured answer is not. [[unknown-stays-unknown]]"""
+        import builtins
+        import chronicle_retro as cr
+        real = builtins.__import__
+
+        def boom(name, *a, **k):
+            if name == "counter_ledger":
+                raise ImportError("simulated")
+            return real(name, *a, **k)
+
+        prop = {"uniques": {"X": [{"frame": "f_1.jpg"}]}, "sets": {},
+                "notFound": {"uniques": ["X"], "sets": []}, "notFoundSeen": {}}
+        builtins.__import__ = boom
+        try:
+            cr.derive_contested(prop)
+        finally:
+            builtins.__import__ = real
+        self.assertIs(prop.get("resolverOk"), False,
+                      "a resolver that never ran must not read as one that ran and agreed")
+        self.assertIsNone(prop["notFoundDatable"]["ok"],
+                          "ok must be None — unknown, not False and not True")
+        self.assertIn("could not be consulted", prop["notFoundDatable"]["say"])
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

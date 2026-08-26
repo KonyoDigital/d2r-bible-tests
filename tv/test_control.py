@@ -21762,5 +21762,130 @@ class TestV2145TheBoardIsTheSameWorldItWasLastLaunch(unittest.TestCase):
         got = self.ca._board_identity_remember(self.CLAIMED)
         self.assertIsNone(got, "a write that did not land must not answer as if it did")
 
+
+class TestV2151TheLIARCannotHideAReelFromEITHERCONSUMER(unittest.TestCase):
+    """#167's own red-test, written as the issue specified it.
+
+    Its words: "plant a fixture where chron_autoread.json 'reels' contains every dir and
+    chronicle_swept.json has no entry (or pages: 0). _unswept_chron_reels and
+    chronicle_autoreel_tick must BOTH return that reel. If only the tick does, you shipped the
+    same split under a new name."
+
+    That test did not exist. `_unswept_chron_reels` appeared NOWHERE in this suite, so the
+    second consumer of the private seen-set — the one that builds the offer he actually sees —
+    was joined to the shared rule with nothing holding it there. A join with no guard is the
+    same shape as the defect it repaired. [[the-unjoined-end]]
+
+    The stall it encodes, measured on his tree while 11 reels sat waiting for days:
+        chron_autoread.json "reels"   36 ids, all 30 dirs marked done, 6 of them ghosts
+        chronicle_swept.json          only 3 reels with pages >= 1; 27 of 30 still owed a read
+        the retention panel           "11 reel(s) (609 MB) are waiting on a sweep"
+    The private list was the only one of the three that decided whether to read.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._path0 = control_app._CHRON_AUTOREAD_PATH
+        self._swept0 = control_app._CHRON_SWEPT_PATH
+        self._hist0 = os.environ.get("TV_HIST")
+        self._swepte0 = os.environ.get("TV_CHRON_SWEPT")
+        self.hist = os.path.join(self.tmp, "hist")
+        os.makedirs(self.hist, exist_ok=True)
+        os.environ["TV_HIST"] = self.hist
+        self.swept = os.path.join(self.tmp, "chronicle_swept.json")
+        os.environ["TV_CHRON_SWEPT"] = self.swept
+        control_app._CHRON_SWEPT_PATH = self.swept
+        control_app._CHRON_AUTOREAD_PATH = os.path.join(self.tmp, "autoread.json")
+        for k in ("done", "reels"):
+            control_app._CHRON_AUTOREAD[k] = None
+        control_app._CHRON_AUTOREAD["tries"] = {}
+        control_app._CHRON_AUTOREAD["skipped"] = {}
+
+    def tearDown(self):
+        for env, old in (("TV_HIST", self._hist0), ("TV_CHRON_SWEPT", self._swepte0)):
+            if old is None:
+                os.environ.pop(env, None)
+            else:
+                os.environ[env] = old
+        self.ca._CHRON_AUTOREAD_PATH = self._path0
+        self.ca._CHRON_SWEPT_PATH = self._swept0
+        for k in ("done", "reels"):
+            self.ca._CHRON_AUTOREAD[k] = None
+        self.ca._CHRON_AUTOREAD["tries"] = {}
+        self.ca._CHRON_AUTOREAD["skipped"] = {}
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    RID = "reel_s_1786998496819_31092"
+
+    def _plant(self, swept_entry):
+        """A reel on disk that DECLARES a chronicle focus, the private list calling it done, and
+        the durable memory saying otherwise."""
+        d = os.path.join(self.hist, self.RID)
+        os.makedirs(d, exist_ok=True)
+        with io.open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"focus": "chronicle-uniques", "sessionId": self.RID,
+                                 "frames": [{"file": "f_1.jpg"}, {"file": "f_2.jpg"}]}))
+        for n in ("f_1.jpg", "f_2.jpg"):
+            with io.open(os.path.join(d, n), "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xe0jpegish")
+        # THE LIAR: the private seen-set claims every dir is done
+        with io.open(self.ca._CHRON_AUTOREAD_PATH, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"reels": [self.RID], "done": None}))
+        self.ca._CHRON_AUTOREAD["reels"] = None
+        # THE DURABLE MEMORY: never swept, or sealed at 0 pages
+        with io.open(self.swept, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({} if swept_entry is None else {self.RID: swept_entry}))
+        return d
+
+    def test_never_swept_is_owed_by_BOTH_consumers(self):
+        self._plant(None)
+        self.assertTrue(self.ca._chron_reel_owes_a_read(self.RID),
+                        "a reel with no durable entry has never been read")
+        offer = [r.get("reel") or r.get("id") or r.get("rid")
+                 for r in (self.ca._unswept_chron_reels(limit=8) or [])]
+        self.assertIn(self.RID, [str(x) for x in offer],
+                      "_unswept_chron_reels still believes the PRIVATE list. This is the OTHER "
+                      "consumer #167 named: fixing only the tick ships the identical split under "
+                      "a new name.")
+
+    def test_a_ZERO_PAGE_SEAL_is_still_owed(self):
+        """retention's rule, in its own words: a 0-page seal is 'this reader found nothing', not
+        'done'. reel_retention.MIN_PAGES = 1. Do not invent a fourth definition."""
+        self._plant({"ts": 1, "pages": 0, "classified": 0})
+        self.assertTrue(self.ca._chron_reel_owes_a_read(self.RID),
+                        "sealed at 0 pages must still owe a read")
+
+    def test_a_REAL_read_is_NOT_owed_which_is_why_this_guard_is_not_vacuous(self):
+        """Seen red for its own reason. A rule that owes forever would re-read his whole hist on
+        every tick and cost real money. [[feedback-blind-fixture-green-gate]]"""
+        self._plant({"ts": 1, "pages": 42, "classified": 400})
+        self.assertFalse(self.ca._chron_reel_owes_a_read(self.RID),
+                         "pages >= 1 means the reader read it AND it yielded — that is done")
+        offer = [r.get("reel") or r.get("id") or r.get("rid")
+                 for r in (self.ca._unswept_chron_reels(limit=8) or [])]
+        self.assertNotIn(self.RID, [str(x) for x in offer],
+                         "a reel that yielded 42 pages must not be offered again")
+
+    def test_the_THREE_SURFACES_cannot_disagree(self):
+        """The finding was that two surfaces answered one question differently. Neither is
+        averaged: they are made to ask the same function. [[feedback-contradiction-is-the-finding]]
+        """
+        self._plant(None)
+        mem = self.ca._chron_swept_mem()
+        rule = self.ca._chron_reel_owes_a_read(self.RID, mem)
+        offered = self.RID in [str(r.get("reel") or r.get("id") or r.get("rid"))
+                               for r in (self.ca._unswept_chron_reels(limit=8) or [])]
+        counted = self.ca._chron_owed_count() if hasattr(self.ca, "_chron_owed_count") else None
+        self.assertTrue(rule, "the shared rule says this reel is done — the fixture is wrong")
+        self.assertEqual(rule, offered,
+                         "the RULE and the OFFER disagree about one reel, which is the exact "
+                         "shape of the 40-hour stall")
+        if counted is not None:
+            self.assertGreaterEqual(counted, 1,
+                                    "the owed COUNT the eagle reads disagrees with the rule")
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

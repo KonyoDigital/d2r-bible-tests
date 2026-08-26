@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2150",
+  "ver": "v2152",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2150: The contested rule existed twice and only one copy was ever fixed. proposal_from_pages learned to ask resolve_contested whether the NEWEST look says found and to leave such a name out of contested; merge_proposals recomputed the same field at its tail with the original membership-only rule. Every sweep after the first goes through the merge, so the unfixed copy was the one writing his screen: his live proposal said 64 contested where the resolver says 34, thirty names all sets and every one of them a name whose newest reading FOUND it. The merge also never wrote contestedResolved, contestedExpired or notFoundDatable, so the console card that reports exactly this population had no field to render from and could not appear at all. One derivation now, two callers.",
+  "note": "v2152: A cross-family review of v2150 answered that its own claim, one source now and both callers use it, was already false. It was right: counter_ledger.resolve_all still walked the same found-intersect-notFound set with its own copy of the inclusion rule, and the chain tests reach the resolver through it, so the next edit to who counts as contested had two places to miss. derive_contested now delegates to resolve_all outright. Three more from the same review, each reproduced first: an empty notFoundSeen bucket minted a contradiction from no evidence because membership was tested on the KEY and merge_proposals creates keys before it appends; notFoundDatable compared two different populations, names in notFound against KEYS in notFoundSeen, so a receipt for an unrelated name could declare every reading orderable; and the per-name resolver swallow silently rebuilt the padded count when counter_ledger could not be imported, which looked identical to a measured answer. resolverOk is published and ok goes None rather than False.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
