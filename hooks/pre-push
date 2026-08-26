@@ -172,24 +172,72 @@ fi
 # ⚠ An unreachable eye is an EMPTY SEAT, never agreement, and a look from the family that WROTE the
 # code is not a second eye — tv/second_eye_ledger.py enforces both, and refuses on "no record" too,
 # because a skip is not a pass.
-_se_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-if [ "$_se_branch" = "main" ]; then
-  _prev_ver="$(git show origin/main:tv/WINDOWS_SHIP.json 2>/dev/null \
-                 | python3 -c 'import json,sys; print((json.load(sys.stdin) or {}).get("ver") or "")' 2>/dev/null || true)"
-  _this_ver="$(python3 -c 'import json,io; print((json.load(io.open("'"$REPO"'/tv/WINDOWS_SHIP.json",encoding="utf-8")) or {}).get("ver") or "")' 2>/dev/null || true)"
-  if [ -n "$_prev_ver" ] && [ -n "$_this_ver" ] && [ "$_prev_ver" != "$_this_ver" ]; then
-    if ! python3 "$REPO/tv/second_eye_ledger.py" --check "$_prev_ver" >/dev/null 2>&1; then
-      python3 "$REPO/tv/second_eye_ledger.py" --check "$_prev_ver" || true
-      echo "pre-push: \u274c $_this_ver may not ship while $_prev_ver has never been looked at by a"
-      echo "          different model family. Render it, hand the pixels to Grok COLD (no hint of what"
-      echo "          it should show), and record what came back:"
+# v2143.1 — READ THE REF LINES ONCE, HERE, and feed both consumers from the variable. git hands a
+# pre-push hook `<local_ref> <local_sha> <remote_ref> <remote_sha>` on STDIN, and until now the only
+# reader was the loop near the bottom. That left the second-eye gate below guessing from the branch
+# it happened to be standing on, which an adversarial pass broke in one command:
+# `git push origin wip:main` publishes to main while `git rev-parse --abbrev-ref HEAD` says "wip",
+# so the gate skipped itself entirely. Slurping here also closes the LATENT stdin-inheritance hazard
+# this file documents at the top: with the lines in a variable, nothing a gate child does to stdin
+# can leave the loop at EOF.
+_PUSH_REFS="$(cat)"
+# Derive the refs being PUSHED, not the branch I happen to be standing on.
+_se_local=""; _se_remote=""
+while read -r _lr _ls _rr _rs; do
+  [ "$_rr" = "refs/heads/main" ] || continue
+  [ -z "$_ls" ] && continue
+  [ "$_ls" = "0000000000000000000000000000000000000000" ] && continue   # deletion, nothing ships
+  _se_local="$_ls"; _se_remote="$_rs"
+done <<< "$_PUSH_REFS"
+
+if [ -n "$_se_local" ]; then
+  _se_ver_at() {   # the stamped version at a commit, or empty
+    git show "$1:tv/WINDOWS_SHIP.json" 2>/dev/null \
+      | python3 -c 'import json,sys
+try:
+    d = json.load(sys.stdin) or {}
+    v = str(d.get("ver") or "").strip()
+    print(v if v else "")
+except Exception:
+    print("")' 2>/dev/null || true
+  }
+  # THE COMMIT BEING PUSHED, and THE COMMIT ALREADY ON MAIN. Not the working tree (which can hold
+  # edits that are not shipping, and a reverted file made a version-bumping push look like a
+  # test commit), and not the local origin/main ref (which is stale, and is simply absent in a
+  # clone whose remote is not named "origin" — that skipped the gate entirely).
+  _this_ver="$(_se_ver_at "$_se_local")"
+  _prev_ver=""
+  if [ "$_se_remote" != "0000000000000000000000000000000000000000" ] && [ -n "$_se_remote" ]; then
+    _prev_ver="$(_se_ver_at "$_se_remote")"
+  fi
+
+  if [ -z "$_this_ver" ]; then
+    # ⚠ UNREADABLE IS A REFUSAL, NOT A SKIP. Every way of failing to read a version used to
+    # degrade to silence, so a WINDOWS_SHIP.json that would not parse DELETED this gate instead
+    # of tripping it. Unknown exits non-zero here, like everywhere else in this repo.
+    echo "pre-push: ❌ cannot read the version stamp in the commit being pushed, so I cannot tell"
+    echo "          whether this is a ship. Refusing rather than guessing."
+    echo "          (deliberate exception: git push --no-verify)"
+    exit 1
+  fi
+
+  if [ -n "$_prev_ver" ] && [ "$_prev_ver" != "$_this_ver" ]; then
+    if ! gate_run "second-eye" "python3 tv/second_eye_ledger.py --check $_prev_ver --gate" 30 -- \
+         python3 "$REPO/tv/second_eye_ledger.py" --check "$_prev_ver" --gate; then
+      echo "pre-push: ❌ $_this_ver may not ship while $_prev_ver has never been looked at by a"
+      echo "          different model family. Render it, hand the pixels to Grok COLD (no hint of"
+      echo "          what it should show), and record what came back. To see the state:"
       echo "              python3 tv/second_eye_ledger.py --audit"
       echo "          A dead CLI does not count — an unreachable eye is an empty seat, not agreement."
       echo "          (deliberate exception: git push --no-verify)"
       exit 1
     fi
-    echo "pre-push: \u2705 the second eye looked at $_prev_ver."
+    echo "pre-push: ✅ the second eye looked at $_prev_ver."
   fi
+  # ⚠ KNOWN AND DELIBERATE LIMIT: a batched push crossing several version stamps is judged on the
+  # BOUNDARY version only — the one that was actually live and therefore actually lookable. The
+  # intermediate stamps never shipped on their own, so nothing ever displayed them to a second eye.
+  # Written down rather than left as a silent hole. [[unknown-stays-unknown]]
 fi
 
 if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
@@ -430,7 +478,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       deploy=1
     fi
   fi
-done
+done <<< "$_PUSH_REFS"
 
 # ── 1. Smoke gate (blocks the push on failure) ───────────────────────────────
 if [ "$run" -eq 0 ]; then

@@ -55,16 +55,39 @@ AUTHOR_FAMILY = "anthropic"
 
 
 def family_of(model):
-    """anthropic / xai / openai / ... or None when the id says nothing recognisable.
+    """anthropic / xai / openai / ... or None when the id does not say ONE recognisable family.
 
-    None is deliberately NOT treated as "some other family" — an unrecognised model cannot be
-    shown to be a different one, and [[unknown-stays-unknown]] applies to provenance too.
+    None is deliberately NOT "some other family" — an unrecognised model cannot be SHOWN to be a
+    different one, and [[unknown-stays-unknown]] applies to provenance too.
+
+    ⚠ v2143.1 — AN ADVERSARIAL PASS LAUNDERED CLAUDE AS XAI THROUGH THIS FUNCTION. The first cut
+    walked an ordered list of substrings and returned the first hit, with "claude" scanned LAST.
+    So `grok-mcp/claude-opus-5` matched "grok" and came back "xai" — the author's own model
+    satisfying a gate whose entire purpose is that the author's family does not count. Order can
+    never be load-bearing here. Every family is now matched, and:
+      · if MORE THAN ONE matches, the id is AMBIGUOUS and returns None. An id naming two families
+        cannot be shown to be either one, so it must not buy a pass.
+      · a single match returns that family, whichever it is.
     """
     m = str(model or "").lower()
-    for needle, fam in _FAMILY:
-        if needle in m:
-            return fam
-    return None
+    hits = sorted({fam for needle, fam in _FAMILY if needle in m})
+    if len(hits) != 1:
+        return None                       # zero = unrecognised, two+ = ambiguous. Both are UNKNOWN.
+    return hits[0]
+
+
+def norm_version(v):
+    """v2143 — ONE canonical spelling. The writer stored whatever it was handed and the reader
+    normalised, so a real cross-family look recorded as "2142" was invisible to `--check v2142`
+    while `--audit` cheerfully listed it as OK — two commands, opposite verdicts, and the refusal
+    message stating a falsehood. Both ends call this now.
+    """
+    t = str(v or "").strip().lower()
+    if not t:
+        return ""
+    if t.startswith("v"):
+        t = t[1:]
+    return ("v" + t) if t.isdigit() else ""
 
 
 def current_version(here=None):
@@ -94,9 +117,14 @@ def _rows(path=None):
                 if not ln:
                     continue
                 try:
-                    out.append(json.loads(ln))
+                    row = json.loads(ln)
                 except Exception:
                     continue          # one bad line must not blind the whole ledger
+                if isinstance(row, dict):
+                    out.append(row)   # ...and a line that PARSES but is not an object is one of
+                                      # those bad lines. It used to reach every consumer and
+                                      # traceback --audit, which is the recovery command the
+                                      # refusal message tells him to run.
     except Exception:
         return []
     return out
@@ -111,7 +139,7 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
     failures is visible instead of looking like nobody tried.
     """
     row = {
-        "version": str(version or "").strip(),
+        "version": norm_version(version) or str(version or "").strip(),
         "ts": int(time.time() * 1000),
         "model": str(model or ""),
         "family": family_of(model),
@@ -140,13 +168,32 @@ def looked_at(version, path=None):
     and that family is not the one that wrote the code. Anything else is kept in the ledger and
     excluded here — recorded, but never mistaken for agreement.
     """
-    v = str(version or "").strip()
-    hits = [r for r in _rows(path)
-            if r.get("version") == v
-            and r.get("reached")
-            and r.get("family")
-            and r.get("family") != AUTHOR_FAMILY]
-    return sorted(hits, key=lambda r: -(r.get("ts") or 0))
+    v = norm_version(version)
+    if not v:
+        return []                          # a version we cannot name cannot be shown to be looked at
+    out = []
+    for r in _rows(path):
+        if not isinstance(r, dict):
+            continue                       # a line that parses but is not an object must not crash
+        if norm_version(r.get("version")) != v:
+            continue
+        # ⚠ v2143.1 — RE-DERIVED, NOT TRUSTED. The first cut read the row's own `family` field, so
+        # a hand-written line claiming family:"xai" satisfied the gate — the exact forgery this
+        # ledger was introduced to make impossible, and I had told him it was. The stored field is
+        # now evidence for a human reading the file; the DECISION is made from the model id alone.
+        fam = family_of(r.get("model"))
+        if not fam or fam == AUTHOR_FAMILY:
+            continue
+        # ⚠ strict True, not truthiness: the STRING "false" is truthy, and an adversarial pass used
+        # exactly that to count an empty seat as a reached one.
+        if r.get("reached") is not True:
+            continue
+        # ⚠ a row must be bound to something. A hollow {version, model, reached} line proved a
+        # look had happened while carrying no trace of one.
+        if not (str(r.get("answerHead") or "").strip() or (r.get("images") or [])):
+            continue
+        out.append(r)
+    return sorted(out, key=lambda r: -(r.get("ts") or 0))
 
 
 def owes_a_look(version, path=None):
@@ -186,6 +233,20 @@ def _encoding_safe():
 def main(argv):
     _encoding_safe()
     argv = list(argv or [])
+
+    # ⚠ v2143.1 — THE GATE MUST NOT BE REDIRECTABLE BY THE PUSHER'S ENVIRONMENT. LEDGER_PATH honours
+    # TV_SECOND_EYE_LEDGER so tests can point it at a fixture, and an adversarial pass showed that a
+    # one-word prefix on the push command therefore disarms the whole thing with no --no-verify and
+    # no trace. `--gate` (which is what hooks/pre-push passes) pins the canonical path and ignores
+    # the variable entirely. Tests keep the seam by calling the functions with an explicit `path=`.
+    global LEDGER_PATH
+    if "--gate" in argv:
+        LEDGER_PATH = os.path.join(HERE, ".second_eye.jsonl")
+
+    # ⚠ and --check must not be swallowed by --audit appearing anywhere in argv, which printed
+    # "OWES A LOOK" and then exited 0 — a refusal that reads as a pass.
+    if "--check" in argv:
+        return _cmd_check(argv)
     if "--audit" in argv:
         rows = audit()
         if not rows:
@@ -197,9 +258,21 @@ def main(argv):
                   % (mark, s["version"], s["looks"], s["empty"], s["author"]))
         return 0
 
-    if "--check" in argv:
+    print(__doc__.strip().split("\n")[0])
+    print("usage: second_eye_ledger.py --audit | --check [vNNNN] [--gate]")
+    return 0
+
+
+def _cmd_check(argv):
+    if True:
         i = argv.index("--check")
         want = argv[i + 1] if len(argv) > i + 1 else current_version()
+        # ⚠ the hook interpolates a value it read off disk straight into argv. An adversarial pass
+        # set it to "--audit" and turned the check into a printed pass. Anything that is not a
+        # version is UNKNOWN, and unknown exits non-zero.
+        if want is not None and not norm_version(want):
+            print("second eye: %r is not a version — refusing rather than guessing." % (want,))
+            return 2
         if not want:
             print("second eye: cannot tell which version to check — no version given and "
                   "WINDOWS_SHIP.json did not yield one.")
@@ -225,9 +298,6 @@ def main(argv):
               % (want, r.get("model"), r.get("family"), r.get("verdict")))
         return 0
 
-    print(__doc__.strip().split("\n")[0])
-    print("usage: second_eye_ledger.py --audit | --check [vNNNN]")
-    return 0
 
 
 if __name__ == "__main__":

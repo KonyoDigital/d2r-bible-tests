@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2143",
+  "ver": "v2144",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2143: the craft name was crushed to zero width at his own window size, the fold affordance read as broken text to a different model family, and nothing anywhere recorded whether a second eye had ever looked",
+  "note": "v2144: an adversarial fleet reproduced 44 of 44 findings against the second-eye gate, including the forgery I had told him was impossible",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

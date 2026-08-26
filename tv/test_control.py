@@ -21455,17 +21455,73 @@ class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
         self.L.record("v9999", "some-unlabelled-model", "clean", reached=True, path=self.led)
         self.assertTrue(self.L.owes_a_look("v9999", self.led))
 
+    def test_a_FORGED_family_field_does_not_satisfy_it(self):
+        """v2143.1 — I told him a courier could not forge one. An adversarial fleet proved it could.
+
+        looked_at() read the row's OWN `family` field, so a hand-written line claiming
+        family:"xai" with no model at all sailed through — the exact forgery the ledger exists to
+        make impossible. The decision is now made from the model id alone; the stored field is
+        evidence for a human reading the file, never input to the verdict.
+        """
+        with io.open(self.led, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"version": "v9999", "model": "", "family": "xai",
+                                 "reached": True, "answerHead": "x"}) + "\n")
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_claude_cannot_launder_itself_through_a_grok_shaped_id(self):
+        """family_of() walked an ordered list and returned the FIRST hit, with 'claude' scanned
+        LAST — so `grok-mcp/claude-opus-5` came back "xai" and the author's own model satisfied a
+        gate whose whole point is that the author's family does not count. An id naming two
+        families is AMBIGUOUS and buys nothing."""
+        self.assertIsNone(self.L.family_of("grok-mcp/claude-opus-5"))
+        self.assertEqual(self.L.family_of("grok-4-1-fast-reasoning"), "xai")
+        self.assertEqual(self.L.family_of("claude-opus-5"), "anthropic")
+
+    def test_reached_as_the_STRING_false_is_not_a_reached_seat(self):
+        """`reached` was a truthiness test, and the string "false" is truthy."""
+        with io.open(self.led, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"version": "v9999", "model": "grok-4",
+                                 "reached": "false", "answerHead": "x"}) + "\n")
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_a_row_bound_to_no_evidence_does_not_count(self):
+        """A hollow {version, model, reached} line proved a look had happened while carrying no
+        trace of one. A row must name the images it saw or carry the head of the raw answer."""
+        with io.open(self.led, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"version": "v9999", "model": "grok-4", "reached": True}) + "\n")
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_a_json_line_that_is_not_an_object_does_not_crash_the_readers(self):
+        """It reached every consumer and tracebacked --audit, which is the recovery command the
+        refusal message tells him to run."""
+        with io.open(self.led, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps("i am not an object") + "\n")
+        self.L.record("v9999", "grok-4-1-fast-reasoning", "clean",
+                      answer_head="a real answer", reached=True, path=self.led)
+        self.assertFalse(self.L.owes_a_look("v9999", self.led))
+        self.assertTrue(any(a["version"] == "v9999" for a in self.L.audit(self.led)))
+
+    def test_check_and_audit_cannot_disagree_about_a_bare_number(self):
+        """A real look recorded as "2142" was invisible to --check v2142 while --audit called it
+        OK — two commands, opposite verdicts, and the refusal message stating a falsehood."""
+        with io.open(self.led, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"version": "9999", "model": "grok-4-1-fast-reasoning",
+                                 "reached": True, "answerHead": "real"}) + "\n")
+        self.assertFalse(self.L.owes_a_look("v9999", self.led))
+        self.assertFalse(self.L.owes_a_look("9999", self.led))
+
     def test_a_real_reached_cross_family_look_satisfies_it(self):
         """And it must be able to go GREEN, or it is a gate nobody can ever pass."""
         self.L.record("v9999", "grok-4-1-fast-reasoning", "findings",
-                      findings=["the ellipsis reads as clipped text"], reached=True, path=self.led)
+                      findings=["the ellipsis reads as clipped text"], reached=True,
+                      answer_head="Multiple cards end with literal ellipses", path=self.led)
         self.assertFalse(self.L.owes_a_look("v9999", self.led))
 
     def test_findings_do_not_have_to_be_clean_to_count_as_LOOKED_AT(self):
         """The order is "ask what can be perfected", not "get a clean bill". A verdict with
         findings still means a different family looked, which is the thing being tracked."""
         self.L.record("v9999", "grok-4-1-fast-reasoning", "findings",
-                      findings=["x"], reached=True, path=self.led)
+                      findings=["x"], reached=True, answer_head="what it said", path=self.led)
         rows = self.L.looked_at("v9999", self.led)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["verdict"], "findings")
@@ -21484,7 +21540,8 @@ class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
     def test_a_corrupt_line_does_not_blind_the_whole_ledger(self):
         with io.open(self.led, "w", encoding="utf-8") as fh:
             fh.write("{not json at all\n")
-        self.L.record("v9999", "grok-4-1-fast-reasoning", "clean", reached=True, path=self.led)
+        self.L.record("v9999", "grok-4-1-fast-reasoning", "clean", reached=True,
+                      answer_head="a real answer", path=self.led)
         self.assertFalse(self.L.owes_a_look("v9999", self.led),
                          "one unparseable line must not hide a real look")
 
