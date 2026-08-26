@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2148",
+  "ver": "v2149",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2148: v2146 gave the vault the v694 yield, and the hover-restore could not hold itself up at 1440 or 1120, his own window. The 20px lip is the dock-inner top edge so pointing at it does summon the dock, but control-dock has a 14px bottom padding that is pointer-events none for the corner FABs, so once fully restored the inner ends 2px ABOVE the cursor that summoned it. Hover drops, the dock falls, the lip returns under the cursor, hover fires again. translateY alternated 0 to 6 across a full 4s sample with the mouse held still. A dock-inner after-element bridges the hit box across that padding, spanning only the inner own width so the gutters keep their click-through. At 901 and 375 the dock wraps taller and was always flat, which is why every narrow check was clean.",
+  "note": "v2149: #163. v2135 shipped the settled-card fold in five files with zero tests, and the defect it predicted was already live: push() takes needsHim as an explicit sixth argument so the renderer never greps its own prose, and the cost of that choice is that omitting it renders the card LOUD. Rank 4.5 contestedExpired omitted it while its own next-action sentence says the rows are not contradictions and are not listed above, the same nothing-to-do shape as rank 3.5 which passes false. So a card saying nothing needs him sat permanently expanded. Fixed, and the whole fold map is now pinned by a spec that EXECUTES the shipped renderer against the shipped stylesheet rather than reading the source, because two different source parsers each gave a wrong answer, the second by splitting the call on commas inside a comment.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

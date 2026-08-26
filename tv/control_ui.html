@@ -15219,7 +15219,15 @@ function escC(s) {
       push(4.5, 'ok', '\u2713 ' + ceAll.length + ' were read both ways and the NEWEST look says found',
         escC(ceAll.slice(0, 8).join(', ')) + (ceAll.length > 8 ? ' \u2026' : ''),
         'not contradictions \u2014 the not-found reading is older and has expired, so they are not '
-        + 'listed above.');
+        + 'listed above.',
+        /* v2149 — THE SIXTH ARGUMENT WAS FORGOTTEN HERE, AND ONLY HERE.
+           This card is class 'ok' and its own next-action sentence says the rows are not
+           contradictions and are not listed above — the same shape as rank 3.5's "nothing to do",
+           which passes false. It stayed loud purely because push()'s needsHim was omitted, which
+           is the exact failure mode v2135 chose an explicit argument to avoid: omit it and the
+           card is loud by default. The fold map is pinned by a spec now, so the next omission is
+           caught instead of shipped. */
+        false);
     }
     if (cal && cal.ok === null && cal.say) {
       /* UNKNOWN IS NOT AGREEMENT, and it must not be silent either — a check that did not run looks
