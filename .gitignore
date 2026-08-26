@@ -59,6 +59,14 @@ tv/__pycache__/
 /.tvd_identity.json
 /.tvd_beacon.json
 tv/.tvd_identity.json
+
+# v2146 — WHICH WORLD THE BOARD CAME BACK AS. Same class as .tvd_identity.json directly above, and
+# nearly the same near-miss: v2145 added this file and did NOT ignore it, so the first time the
+# console wrote it a `git add -A` would have staged a per-install identity into a PUBLIC repo — the
+# exact thing the note above records happening once already. Caught by a cross-family review before
+# the file was ever written. The .tmp is the atomic-write partner and must go too.
+tv/.board_identity.json
+tv/.board_identity.json.tmp
 # v1597 — the beacon's own last-result record. Per-install and machine-specific (attempts,
 # failures, the IP-dependent verdict), exactly like .tvd_identity.json beside it. Committing
 # it would push one machine's beacon history onto every other machine that pulls.

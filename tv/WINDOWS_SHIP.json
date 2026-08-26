@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2145",
+  "ver": "v2146",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2145: auto-relaunch is armed, and the condition he attached to it is met: a relaunch that returns a different world is now reported instead of silently stranding his vault",
+  "note": "v2146: the dock covered the lower two thirds of the first locker row at his arrival scroll, clipping SETS-TAL-IK to SE",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

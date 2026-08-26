@@ -27321,6 +27321,10 @@ function switchTab(name) {
      writes the whole surface (hero, chips, sections) into #crafts-body, so without this the tab
      opens empty on a fresh load — the exact "closed drawer" defect v2087 fixed for the vault. */
   if (name === "crafts"){ try { if (typeof window.renderCrafts === 'function') window.renderCrafts(); } catch(e){} }
+  /* v2146 (#123) — the dock yields while he is IN the vault room, and returns when he leaves.
+     Toggled for every tab (not only set on entry) so leaving the room cannot strand the dock in
+     its yielded position — the mirror of the v694 add/remove pair above. */
+  try { document.documentElement.classList.toggle('vault-open', name === 'vault'); } catch(e){}
   if (name === "vault"){ try {
     var _vc = document.getElementById('mule-vault-card');
     if (_vc && _vc.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
@@ -32223,8 +32227,19 @@ body::before{
 .sec-h-peek .pk-dim{ color:var(--text-dim); font-size:11px }
 /* v694 🏓R6 — the dock YIELDS while a golden item card is open (it was eating TOP-6-SOURCES and
    the Quick take — 'the task failing at the last inch'). Slides to a grip; hover peeks it back. */
-html.detail-open .control-dock, html.runs-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
-html.detail-open .control-dock:hover, html.runs-open .control-dock:hover{ transform:none; opacity:1 }
+/* v2146 (#123) — AND THE VAULT ROOM. v694's own note beside this rule is "you cannot mule what
+   you cannot see", and the vault shelf was simply never added to the list. Measured at 1470x923 at
+   the vault tab's ARRIVAL scroll (scrollY 0, no scrolling of mine): #control-dock .dock-inner is
+   fixed at top 791 / bottom 909, and the first .vault-mule row straddles it at top 773 / bottom
+   915 — so the dock's glass bar covers the lower two thirds of that row. Looked at on the pixels:
+   SETS-TAL-IK is clipped to "SE" and the names of SETS-REST, UNI-WEAPONS, UNI-ARMOR and UNI-SMALL
+   are hidden behind it.
+   ⚠ NOT a click-blocking defect, and the difference matters. The issue said the lockers were
+   unclickable, measured with ONE elementFromPoint per locker at the plate centre — a SAMPLE, not a
+   verdict. Real dispatched clicks all LAND. This is a seeing problem, so the fix is the one that
+   already exists for seeing problems here. */
+html.detail-open .control-dock, html.runs-open .control-dock, html.vault-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
+html.detail-open .control-dock:hover, html.runs-open .control-dock:hover, html.vault-open .control-dock:hover{ transform:none; opacity:1 }
 .control-dock{ transition:transform .25s ease, opacity .25s ease }
 /* v694 🏓R6 — expanding a Tools work card OWNS the viewport (expand-without-scroll was the round-6
    diagnosis: 'you cannot mule what you cannot see') */
@@ -45735,7 +45750,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2145', name:'v2145 - the board remembers which world it came back as', date:'2026-08-26', note:'auto-relaunch is armed, and the condition he attached to it is met: a relaunch that returns a different world is now reported instead of silently stranding his vault' };
+  window.D2R_BUILD = { id:'v2146', name:'v2146 - the dock yields in the vault room', date:'2026-08-26', note:'the dock covered the lower two thirds of the first locker row at his arrival scroll, clipping SETS-TAL-IK to SE' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
