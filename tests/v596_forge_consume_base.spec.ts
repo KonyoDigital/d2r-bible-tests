@@ -16,19 +16,47 @@ test('✓ created consumes the planned base from the vault; un-mark restores it'
     // pinned Chronicle written below (the v578.1 lesson).
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
-  await page.goto(URL); await page.waitForTimeout(1500);
+  /* v2134 — WAIT FOR THE BOARD, NOT FOR A DURATION. This spec used two flat 1500ms waits and a
+     500ms one. Routine I runs SIX shards in parallel on one runner, so a fixed wait that is ample
+     on a quiet machine is a coin-flip on a loaded one — and #162 is exactly that: `preTaskHasBase`
+     false twice on CI while the same fixture passes 5/5 locally at these very timings.
+
+     ⚠ WAITING ON THE ASSERTION WOULD MAKE IT VACUOUS. What is waited for here is the PRECONDITION —
+     the board's own API being present, and the socket-base entry `_ensureSocketBaseEntry` writes.
+     Whether forgeScan then PLANS Insight on that base is the claim, and it is still asserted cold.
+     [[feedback-blind-fixture-green-gate]] */
+  await page.goto(URL);
+  await page.waitForFunction(() => {
+    const w = window as any;
+    return typeof w.forgeScan === 'function'
+        && typeof w.rwToggleMade === 'function'
+        && typeof w._ensureSocketBaseEntry === 'function'
+        && w.RUNEWORD_TIP && Object.keys(w.RUNEWORD_TIP).length > 50;
+  }, null, { timeout: 20000 });
   await page.evaluate(() => {
     const w: any = window;
     const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Insight') made[n] = 'x'; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     localStorage.setItem('d2r_rwProfile', 'fresh');
   });
-  await page.reload(); await page.waitForTimeout(1500);
+  await page.reload();
+  await page.waitForFunction(() => {
+    const w = window as any;
+    return typeof w.forgeScan === 'function' && typeof w._ensureSocketBaseEntry === 'function'
+        && w.RUNEWORD_TIP && Object.keys(w.RUNEWORD_TIP).length > 50;
+  }, null, { timeout: 20000 });
   await page.evaluate(() => { (window as any).switchTab && (window as any).switchTab('tools'); (window as any).renderVault && (window as any).renderVault(); });
   const r = await page.evaluate(async () => {
     const w: any = window;
     w._ensureSocketBaseEntry('Colossus Voulge (4os)');
-    await new Promise((res) => setTimeout(res, 500));
+    /* the registration is the PRECONDITION: _ownedBases() only yields labels that are in the
+       in-memory owned set AND carry cat:'Socketed bases' in EXTRA_ITEMS. Wait for that fact rather
+       than for 500ms — but NOT for the plan itself, which is what this spec is here to test. */
+    for (let i = 0; i < 100; i++) {
+      const e = w.EXTRA_ITEMS && w.EXTRA_ITEMS['Colossus Voulge (4os)'];
+      if (e && e.cat === 'Socketed bases') break;
+      await new Promise((res) => setTimeout(res, 50));
+    }
     const ownedList = () => JSON.parse(localStorage.getItem('d2r_owned') || '[]');
     const preTask = [...w.forgeScan().now].find((t: any) => t.rw === 'Insight');
     const ownedBefore = ownedList().includes('Colossus Voulge (4os)');
