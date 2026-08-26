@@ -1231,6 +1231,25 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #arttip.tip-rich .att-name{font-size:var(--fs-body);font-weight:var(--fw-semibold);margin-bottom:1px}
 #arttip .att-info{font-family:var(--mono,monospace);font-size:10.5px;color:var(--text-dim,#9a8e78);line-height:var(--lh-normal);margin-top:4px}
 #arttip .att-desc{font-family:var(--mono,monospace);font-size:10.5px;line-height:var(--lh-normal);margin-top:5px}
+/* ══ v2132 — THE SENTENCE THE CARD BORROWED, GIVEN BACK AS ITS FOOTER ════════════════════════════
+   v2119 stopped the OS grey box opening on top of the rich card by BORROWING the anchor's `title`
+   (#107) — which was right, and had a cost nobody had paid: on the mouse path that sentence then
+   went nowhere. MEASURED on the live board: 987 of 5010 art anchors carry BOTH attributes, so for
+   987 anchors the hint they were written to carry became invisible the moment the art card claimed
+   the hover.
+
+   This is not a new treatment — it is the one BOTH surfaces already use. The console's #itip has
+   `.itip-go` ("click to open the boss run") and this very card hand-rolls the same footer for boss
+   rows. Same idea, applied to the text the card took.
+
+   --fs-meta, not the prose lane's 13px: this sits INSIDE the item card, whose own micro type
+   (.att-info, .att-desc) is 10.5px, so it matches the card it belongs to rather than the other
+   lane. [[copy-drift]] */
+#arttip .att-go{display:none;margin-top:7px;padding-top:6px;
+  border-top:1px solid rgba(212,168,71,.22);
+  font-family:var(--mono,monospace);font-size:var(--fs-meta);
+  line-height:var(--lh-snug);color:var(--text-dim,#9a8e78);text-align:center}
+#arttip.tip-say .att-go{display:none}   /* the prose lane IS the sentence; it needs no footer */
 #arttip .att-type{color:#c9c9c9;font-size:10.5px;margin-bottom:3px}
 #arttip .att-meta{color:#8f8f8f;font-size:9.5px;margin-bottom:5px}
 #arttip .att-core{color:#6aa6ff;margin:2px 0}
@@ -26286,16 +26305,36 @@ window._jewelTipHtml = _jewelTipHtml;
          clear paths below (left the anchor, mouseout, left the document, click) all route through
          _artFree, so there is no path that hides the card and keeps the title. */
       var _artHeld = null;
+      /* v2132 — and the borrowed sentence becomes the card's FOOTER. Written on EVERY hold, and
+         CLEARED when there is nothing to say — the art lane never wipes children it did not create,
+         so a footer left from the previous card would otherwise ride along onto an item that has no
+         title at all. That is the one way this can lie, so it is handled first. */
+      function _artFoot(txt){
+        try {
+          var go = tip.querySelector('.att-go');
+          if (!go){ go = document.createElement('div'); go.className = 'att-go'; tip.appendChild(go); }
+          var t = String(txt || '').trim();
+          go.textContent = t;
+          go.style.display = t ? 'block' : 'none';
+        } catch(e){}
+      }
       function _artHold(el){
         try {
-          if (!el || !el.hasAttribute('title')) return;
+          if (!el){ _artFoot(''); return; }
+          var t = el.getAttribute('title');
+          if (t === null) t = el.getAttribute('data-tip-held');
+          if (!t || !t.trim()){ _artFoot(''); return; }
           if (_artHeld && _artHeld !== el) _artFree();
-          el.setAttribute('data-tip-held', el.getAttribute('title'));
-          el.removeAttribute('title');
+          if (el.hasAttribute('title')){
+            el.setAttribute('data-tip-held', t);
+            el.removeAttribute('title');
+          }
           _artHeld = el;
+          _artFoot(t);
         } catch(e){}
       }
       function _artFree(){
+        try { _artFoot(''); } catch(e){}
         try {
           var el = _artHeld; _artHeld = null;
           if (!el) return;
@@ -45419,7 +45458,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2131', name:'v2131 - a forwarding address nobody could see', date:'2026-08-26', note:'The console carried a line telling him the mule manager lives in its own vault tab, and it sat inside a column that is hidden on the default sessions view at his own request, so it was born unreachable and measured zero by zero. The room has had a real labelled button in the header since v2092, visible on every view, so the hidden duplicate is removed rather than moved. Guarded both ways because deleting a sign is only safe while the door still exists.' };
+  window.D2R_BUILD = { id:'v2132', name:'v2132 - the sentence the card borrowed, given back on screen', date:'2026-08-26', note:'Stopping the OS grey box opening over the rich item card meant borrowing the anchor title, which was right and had a cost nobody had paid. On the mouse path that sentence then went nowhere, and measured on the live board, 987 of 5010 art anchors carry both attributes, so for those the hint they were written to carry became invisible the moment the card claimed the hover. It is rendered as the cards own footer now, the same treatment the console tooltip already uses, and cleared whenever there is nothing to say so the last cards sentence cannot ride onto an item that has no title.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

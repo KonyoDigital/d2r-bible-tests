@@ -20718,6 +20718,49 @@ class TestV2131TheDemoGateCountsItsOwnJourneys(unittest.TestCase):
                       "the summary no longer derives its denominator from the journeys that ran")
 
 
+class TestV2132TheBorrowedSentenceIsGivenBackOnScreen(unittest.TestCase):
+    """v2119 stopped the OS grey box opening over the rich card by BORROWING the anchor's `title`
+    (#107). That was right and it had a cost nobody had paid: on the MOUSE path the sentence then
+    went nowhere. MEASURED on the live board: 987 of 5010 art anchors carry BOTH attributes, so for
+    987 anchors the hint they were written to carry became invisible the moment the card claimed the
+    hover.
+
+    Not a new treatment — the console's #itip already does exactly this with `.itip-go`, and this
+    card hand-rolls the same footer for boss rows. [[copy-drift]]
+
+    ⚠ THE ONE WAY THIS CAN LIE is a stale footer riding onto the next card: the art lane never wipes
+    children it did not create. So the clear is asserted as hard as the write.
+    Verified in a browser: with a title -> footer "OPEN THE ID CARD", title attribute null, card on;
+    then a titleless anchor -> footer "" and hidden."""
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        self.body = _between(self, board, "function _artFoot(txt)", "document.addEventListener('mouseover'",
+                             what="the art lane's footer + hold")
+        self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
+        self.code = re.sub(r"(?m)^\s*//.*$", "", self.code)
+        self.assertGreater(len(self.code.strip()), 200, "the comment strip ate the lane")
+
+    def test_the_borrowed_text_is_rendered(self):
+        self.assertIn("_artFoot(t)", self.code,
+                      "the anchor's sentence is borrowed and never shown — on the mouse path it "
+                      "simply disappears, which is what taking the title costs if nothing gives "
+                      "it back")
+
+    def test_an_anchor_with_nothing_to_say_CLEARS_it(self):
+        self.assertGreaterEqual(self.code.count("_artFoot('')"), 2,
+                                "the footer is written but not cleared, so the last card's sentence "
+                                "rides onto an item that has no title at all — the art lane never "
+                                "wipes children it did not create")
+
+    def test_the_prose_lane_does_not_also_wear_it(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        self.assertIn("#arttip.tip-say .att-go{display:none}", board,
+                      "the prose lane IS the sentence; showing the footer there would print it twice")
+
+
 class TestV2131TheVaultRoomHasExactlyOneReachableDoor(unittest.TestCase):
     """#60 — v2091 put a "the mule manager lives in its own VAULT tab" line inside #hd-vault, and
     v1674 hides that whole column on the default Sessions view at his own request. So the note was
