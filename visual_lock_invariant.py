@@ -33,7 +33,11 @@ SURFACES = {
                           # LS/LH-LOCK (v1344) — the bible's letter-spacing + line-height token scale
                           # (console-mirrored role names; the approved deliberate normalization).
                           "ls": ["tight", "snug", "normal", "wide", "label", "wider", "widest"],
-                          "lh": ["none", "tightest", "tight", "snug", "normal", "relaxed", "loose"]},
+                          "lh": ["none", "tightest", "tight", "snug", "normal", "relaxed", "loose"],
+                          # v2133 — the HINT lane's floor. Both surfaces carry the same prose
+                          # tooltip and the board is iframed INTO the console, so they share one
+                          # screen and must share one floor.
+                          "typeFloor": [("#arttip.tip-say .att-say", 13)]},
     "tv/control_ui.html": {"path": os.path.join(ROOT, "tv", "control_ui.html"),
                            "fw": ["normal", "medium", "semibold", "bold"],
                            # STRUCTURE-LOCK (v1343+): the console's shared spacing/structure rhythm —
@@ -44,7 +48,8 @@ SURFACES = {
                            # LS/LH-LOCK (v1347) — the console's letter-spacing + line-height scales,
                            # SAME role-names as the bible so both surfaces share one vocabulary.
                            "ls": ["tight", "snug", "normal", "wide", "label", "wider", "widest"],
-                           "lh": ["none", "tightest", "tight", "snug", "normal", "relaxed", "loose"]},
+                           "lh": ["none", "tightest", "tight", "snug", "normal", "relaxed", "loose"],
+                           "typeFloor": [("#itip.tip-say .itip-say", 13)]},
 }
 
 RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-agnostic
@@ -227,6 +232,41 @@ def check():
         for tok in cfg.get("lh", []):
             if not re.search(r"--lh-" + re.escape(tok) + r": *\S", text):
                 failures.append(f"{name}  MISSING :root token --lh-{tok} (the line-height scale source of truth)")
+
+        # ══ v2133 — THE HINT LANE HAS A TYPE FLOOR, AND NOTHING WAS CHECKING IT ══════════════════
+        # The board's prose tooltip shipped on --fs-meta (a flat 11px) while the console's twin sits
+        # on --fs-2xs = clamp(13px,1vw,15px) — 14.4px at 1440. #tvd-eng loads the BOARD inside the
+        # CONSOLE, so with the shell open both are on one screen: a 14.4px hint above an 11px one,
+        # the same sentence in two sizes. That is the "does not look like this console" complaint
+        # the whole tooltip arc exists to answer, reintroduced by the fix for it.
+        #
+        # ⚠ NO EXISTING GATE COULD SEE IT, and that is the reason this check is here rather than a
+        # note: TestV1504TypeFloor is console-ONLY by construction (its 13px mandate is written for
+        # a fullscreen surface), and everything else in this file locks weight, structure, ls/lh and
+        # the grail wall's colours — never SIZE. The board simply had no type floor to fail, so
+        # `rc 0` was honest and blind at the same time. [[gate-blind-to-unexercised-input]]
+        for sel, floor in cfg.get("typeFloor", []):
+            m = re.search(re.escape(sel) + r"\s*\{[^}]*?font-size:\s*var\(\s*(--[a-z0-9-]+)\s*\)", text, re.S)
+            if not m:
+                failures.append(f"{name}  {sel} no longer sets font-size from a token — a raw value "
+                                f"here is how the two hint lanes drifted apart in the first place")
+                continue
+            tok = m.group(1)
+            tv = re.search(re.escape(tok) + r":\s*([^;]+);", text)
+            if not tv:
+                failures.append(f"{name}  {sel} reads {tok}, which :root does not define")
+                continue
+            raw = tv.group(1)
+            # a clamp()'s FLOOR is its first argument; a flat value is its own floor
+            px = re.search(r"clamp\(\s*([0-9.]+)px", raw) or re.search(r"([0-9.]+)px", raw)
+            if not px:
+                failures.append(f"{name}  {sel} reads {tok} = {raw.strip()!r}, which is not a px floor")
+                continue
+            got = float(px.group(1))
+            if got < floor:
+                failures.append(f"{name}  {sel} resolves to {got:g}px via {tok} — below the {floor:g}px "
+                                f"hint floor the CONSOLE twin holds. The board is iframed INTO the "
+                                f"console, so this puts the same sentence on one screen in two sizes")
     return failures
 
 

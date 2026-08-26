@@ -1205,7 +1205,17 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #arttip.tip-say > :not(.att-say){display:none}
 #arttip .att-say{display:none}
 #arttip.tip-say .att-say{display:block;position:relative;z-index:1;
-  font-family:var(--mono,monospace);font-size:var(--fs-meta);font-weight:var(--fw-medium);
+  font-family:var(--mono,monospace);
+  /* v2133 — 13px, NOT --fs-meta's 11px. The console's twin resolves --fs-2xs = clamp(13px,1vw,15px)
+     — 14.4px at 1440 — and #tvd-eng loads THIS FILE inside that console, so the shell being open
+     puts both lanes on one screen: hover a console button for a 14.4px hint, hover a board control
+     an inch below for an 11px one. The same sentence in two sizes is the "does not look like this
+     console" complaint that started the whole tooltip arc, reintroduced by the fix for it.
+     Flat 13px against the console's clamp is deliberate — the console clamps because it lives
+     fullscreen; the board does not. EQUAL FLOOR is the promise, not pixel-equality.
+     ⚠ .att-go stays on --fs-meta: it is a FRAGMENT inside the item card, whose own micro type is
+     10.5-11px throughout, not prose. [[copy-drift]] */
+  font-size:var(--fs-body);font-weight:var(--fw-medium);
   line-height:var(--lh-snug);letter-spacing:var(--ls-tight);color:var(--text,#f4e8d0);
   /* pre-WRAP, not pre-line: pre-line collapses the runs of spaces that keep a multi-line hint in
      columns, which is exactly what the native box preserved */
@@ -45458,7 +45468,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2132', name:'v2132 - the sentence the card borrowed, given back on screen', date:'2026-08-26', note:'Stopping the OS grey box opening over the rich item card meant borrowing the anchor title, which was right and had a cost nobody had paid. On the mouse path that sentence then went nowhere, and measured on the live board, 987 of 5010 art anchors carry both attributes, so for those the hint they were written to carry became invisible the moment the card claimed the hover. It is rendered as the cards own footer now, the same treatment the console tooltip already uses, and cleared whenever there is nothing to say so the last cards sentence cannot ride onto an item that has no title.' };
+  window.D2R_BUILD = { id:'v2133', name:'v2133 - one sentence, one size, one screen', date:'2026-08-26', note:'The board prose tooltip shipped on a flat eleven pixel token while the console twin sits on a clamp with a thirteen pixel floor, and the board is loaded inside the console through the engine iframe, so opening the shell put the same sentence on one screen in two sizes. That is the complaint the whole tooltip arc exists to answer, reintroduced by the fix for it. No gate could see it because the console type floor is console only by construction and the visual lock never checked size on either surface, so both were honest and blind at once. Both surfaces now declare a hint floor and the lock enforces it.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
