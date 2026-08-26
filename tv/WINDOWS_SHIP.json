@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2149",
+  "ver": "v2150",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2149: #163. v2135 shipped the settled-card fold in five files with zero tests, and the defect it predicted was already live: push() takes needsHim as an explicit sixth argument so the renderer never greps its own prose, and the cost of that choice is that omitting it renders the card LOUD. Rank 4.5 contestedExpired omitted it while its own next-action sentence says the rows are not contradictions and are not listed above, the same nothing-to-do shape as rank 3.5 which passes false. So a card saying nothing needs him sat permanently expanded. Fixed, and the whole fold map is now pinned by a spec that EXECUTES the shipped renderer against the shipped stylesheet rather than reading the source, because two different source parsers each gave a wrong answer, the second by splitting the call on commas inside a comment.",
+  "note": "v2150: The contested rule existed twice and only one copy was ever fixed. proposal_from_pages learned to ask resolve_contested whether the NEWEST look says found and to leave such a name out of contested; merge_proposals recomputed the same field at its tail with the original membership-only rule. Every sweep after the first goes through the merge, so the unfixed copy was the one writing his screen: his live proposal said 64 contested where the resolver says 34, thirty names all sets and every one of them a name whose newest reading FOUND it. The merge also never wrote contestedResolved, contestedExpired or notFoundDatable, so the console card that reports exactly this population had no field to render from and could not appear at all. One derivation now, two callers.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1110,6 +1110,75 @@ def _is_piece_not_set(name):
     return n in _PIECE_BARE
 
 
+def derive_contested(prop):
+    """Set contested / contestedResolved / contestedExpired / notFoundDatable on `prop`.
+
+    v2150 — THIS RULE EXISTED TWICE AND ONLY ONE COPY WAS EVER FIXED.
+
+    proposal_from_pages learned to ask `resolve_contested` whether the NEWEST look says
+    found, and to leave such a name OUT of `contested` — its comment says listing it "would
+    rebuild the very padding that produced the wrong claim". merge_proposals recomputed the
+    same field at its tail with the ORIGINAL rule, `if _nm in _nf`, which asks only whether
+    the name appears in notFound at all. Every sweep after the first goes through the merge,
+    so the fixed copy is not the one that writes his screen.
+
+    Measured on his live chron_last_result.json: contested said 64 (uniques 13, sets 51);
+    the resolver says 34 (uniques 13, sets 21). Thirty names, all sets, every one of them a
+    name whose newest reading FOUND it. And the three fields that would have explained the
+    number - contestedResolved, contestedExpired, notFoundDatable - were absent entirely,
+    because the merge never wrote them. contestedExpired being absent is why the console
+    verdict card that reports exactly this ("N were read both ways and the NEWEST look says
+    found") could never render on his machine: the field it reads did not exist.
+    [[copy-drift]] [[the-unjoined-end]]
+
+    One source now. Both callers use it.
+    """
+    contested = {}
+    resolved = {}
+    for _led in ("uniques", "sets"):
+        _nf = set(prop.get("notFound", {}).get(_led) or ())
+        _seen = (prop.get("notFoundSeen") or {}).get(_led) or {}
+        for _nm in (prop.get(_led) or {}):
+            if _nm not in _nf and _nm not in _seen:
+                continue
+            try:
+                import counter_ledger as _clg
+                _r = _clg.resolve_contested(prop[_led].get(_nm) or [], _seen.get(_nm) or [])
+            except Exception:
+                _r = {"verdict": "undatable", "say": "the resolver could not be consulted"}
+            resolved.setdefault(_led, {})[_nm] = _r
+            # A name whose NEWEST look says found is not contested — it is settled, and listing it
+            # would rebuild the very padding that produced the wrong claim.
+            if _r.get("verdict") != "found":
+                contested.setdefault(_led, []).append(_nm)
+    prop["contested"] = {k: sorted(v) for k, v in contested.items()}
+    prop["contestedResolved"] = resolved
+    # ⚠ AND SAY WHEN THE NOT-FOUND SIDE CANNOT BE DATED AT ALL. Receipts for not-found readings
+    # (`notFoundSeen`) arrived in v1921; every proposal banked before that carries a flat list of
+    # NAMES with no reel, no frame and no time. Such a reading cannot contradict anything, and the
+    # danger is that it looks exactly like one that can — which is how "12 of your 36" got said out
+    # loud about a set of readings not one of which could be ordered.
+    #
+    # So the proposal states its own evidential reach. A consumer that wants to call something
+    # contested has to look at this first. [[unknown-stays-unknown]]
+    _nf_total = sum(len(prop.get("notFound", {}).get(l) or ()) for l in ("uniques", "sets"))
+    _nf_withreceipts = sum(len((prop.get("notFoundSeen") or {}).get(l) or {})
+                           for l in ("uniques", "sets"))
+    prop["notFoundDatable"] = {
+        "readings": _nf_total, "withReceipts": _nf_withreceipts,
+        "ok": (_nf_total == 0 or _nf_withreceipts >= _nf_total),
+        "say": ("every not-found reading carries a receipt and can be ordered against the found "
+                "ones" if (_nf_total == 0 or _nf_withreceipts >= _nf_total) else
+                "%d of %d not-found reading(s) carry NO reel or frame, so they cannot be ordered "
+                "against anything and must not be quoted as contradicting a find. They were banked "
+                "before receipts existed; the next sweep records them and they become usable."
+                % (_nf_total - _nf_withreceipts, _nf_total))}
+    prop["contestedExpired"] = {
+        led: sorted(n for n, r in (resolved.get(led) or {}).items() if r.get("verdict") == "found")
+        for led in ("uniques", "sets")
+        if any(r.get("verdict") == "found" for r in (resolved.get(led) or {}).values())}
+    return prop
+
 def proposal_from_pages(pages):
     """Fold read pages into ONE proposal per ledger, keeping every name's evidence.
 
@@ -1232,50 +1301,7 @@ def proposal_from_pages(pages):
     # and it expires the instant a later look disagrees. The comment above already said so and the
     # code compared two sets as flat membership anyway, which is the same as not knowing it.
     # v1921 put the receipts in `notFoundSeen`; this is the consumer that makes them mean something.
-    contested = {}
-    resolved = {}
-    for _led in ("uniques", "sets"):
-        _nf = set(prop.get("notFound", {}).get(_led) or ())
-        _seen = (prop.get("notFoundSeen") or {}).get(_led) or {}
-        for _nm in (prop.get(_led) or {}):
-            if _nm not in _nf and _nm not in _seen:
-                continue
-            try:
-                import counter_ledger as _clg
-                _r = _clg.resolve_contested(prop[_led].get(_nm) or [], _seen.get(_nm) or [])
-            except Exception:
-                _r = {"verdict": "undatable", "say": "the resolver could not be consulted"}
-            resolved.setdefault(_led, {})[_nm] = _r
-            # A name whose NEWEST look says found is not contested — it is settled, and listing it
-            # would rebuild the very padding that produced the wrong claim.
-            if _r.get("verdict") != "found":
-                contested.setdefault(_led, []).append(_nm)
-    prop["contested"] = {k: sorted(v) for k, v in contested.items()}
-    prop["contestedResolved"] = resolved
-    # ⚠ AND SAY WHEN THE NOT-FOUND SIDE CANNOT BE DATED AT ALL. Receipts for not-found readings
-    # (`notFoundSeen`) arrived in v1921; every proposal banked before that carries a flat list of
-    # NAMES with no reel, no frame and no time. Such a reading cannot contradict anything, and the
-    # danger is that it looks exactly like one that can — which is how "12 of your 36" got said out
-    # loud about a set of readings not one of which could be ordered.
-    #
-    # So the proposal states its own evidential reach. A consumer that wants to call something
-    # contested has to look at this first. [[unknown-stays-unknown]]
-    _nf_total = sum(len(prop.get("notFound", {}).get(l) or ()) for l in ("uniques", "sets"))
-    _nf_withreceipts = sum(len((prop.get("notFoundSeen") or {}).get(l) or {})
-                           for l in ("uniques", "sets"))
-    prop["notFoundDatable"] = {
-        "readings": _nf_total, "withReceipts": _nf_withreceipts,
-        "ok": (_nf_total == 0 or _nf_withreceipts >= _nf_total),
-        "say": ("every not-found reading carries a receipt and can be ordered against the found "
-                "ones" if (_nf_total == 0 or _nf_withreceipts >= _nf_total) else
-                "%d of %d not-found reading(s) carry NO reel or frame, so they cannot be ordered "
-                "against anything and must not be quoted as contradicting a find. They were banked "
-                "before receipts existed; the next sweep records them and they become usable."
-                % (_nf_total - _nf_withreceipts, _nf_total))}
-    prop["contestedExpired"] = {
-        led: sorted(n for n, r in (resolved.get(led) or {}).items() if r.get("verdict") == "found")
-        for led in ("uniques", "sets")
-        if any(r.get("verdict") == "found" for r in (resolved.get(led) or {}).values())}
+    derive_contested(prop)
     prop["setGroups"] = {k: sorted(v) for k, v in prop["setGroups"].items()}
     prop["pageKeys"] = sorted(_pk)
     return prop
@@ -1539,14 +1565,15 @@ def merge_proposals(base, incoming):
     # proposal_from_pages already sorts these to lists before returning; the merger must end in the
     # same shape or the two halves of one contract disagree.
     out["notFound"] = {k: sorted(v) for k, v in (out.get("notFound") or {}).items()}
-    # and recompute the contradiction over the MERGED evidence, which is the only place it is true
-    _con = {}
-    for _led in ("uniques", "sets"):
-        _nf = set(out.get("notFound", {}).get(_led) or ())
-        for _nm in (out.get(_led) or {}):
-            if _nm in _nf:
-                _con.setdefault(_led, []).append(_nm)
-    out["contested"] = {k: sorted(v) for k, v in _con.items()}
+    # and recompute the contradiction over the MERGED evidence, which is the only place it is true.
+    # v2150 — THROUGH THE SHARED DERIVATION, not a second copy of the rule. What stood here asked
+    # only `if _nm in _nf`, so a name whose newest look says FOUND was still called contested — the
+    # padding proposal_from_pages had already been fixed to stop producing. Since every sweep after
+    # the first arrives through this merge, the unfixed copy was the one his screen read: 64 where
+    # the resolver says 34. It also left contestedResolved / contestedExpired / notFoundDatable
+    # unset, which is why the console's "read both ways, newest says found" card had no field to
+    # render from. [[copy-drift]]
+    derive_contested(out)
     out["setGroups"] = {k: sorted(v) for k, v in (out.get("setGroups") or {}).items()}
     # DERIVED, never accumulated — the whole point. Both are now answers to "what can this ledger
     # prove", which is a question a re-merge cannot change.

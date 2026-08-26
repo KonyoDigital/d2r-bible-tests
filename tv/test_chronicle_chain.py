@@ -459,5 +459,83 @@ class TestANotFoundReceiptSurvivesTheWholeChain(unittest.TestCase):
                          "not be expired away")
 
 
+
+class TestV2150TheMergeAsksTheResolverToo(unittest.TestCase):
+    """THE CONTESTED RULE EXISTED TWICE AND ONLY ONE COPY WAS EVER FIXED.
+
+    proposal_from_pages learned to ask resolve_contested whether the NEWEST look says found, and
+    to leave such a name out of `contested`. merge_proposals recomputed the same field at its tail
+    with the original rule — `if _nm in _nf`, membership only. EVERY SWEEP AFTER THE FIRST goes
+    through the merge, so the unfixed copy was the one that wrote his screen.
+
+    Measured on his live chron_last_result.json before this fix:
+        contested            64   (uniques 13, sets 51)
+        the resolver says    34   (uniques 13, sets 21)
+        contestedResolved / contestedExpired / notFoundDatable   ALL ABSENT
+    Thirty names, every one a set whose newest reading FOUND it. And because contestedExpired was
+    never written by the merge, the console verdict card that reports exactly this population
+    ("N were read both ways and the NEWEST look says found") had no field to render from — it
+    could not appear on his machine at all. [[copy-drift]] [[the-unjoined-end]]
+    """
+
+    OLD_NF = {"reel": "s_1787000000000_1", "frame": "f_1787000000000.jpg",
+              "resp": {"ledger": "sets", "lane": "grok", "notFound": ["Natalya's Soul (claws)"]}}
+    NEW_FOUND = {"reel": "s_1787999999999_9", "frame": "f_1787999999999.jpg",
+                 "resp": {"ledger": "sets", "lane": "claude", "found": ["Natalya's Soul (claws)"]}}
+    REAL_NF = {"reel": "s_1788999999999_9", "frame": "f_1788999999999.jpg",
+               "resp": {"ledger": "sets", "lane": "grok", "notFound": ["Griswold's Valor"]}}
+    OLD_FOUND = {"reel": "s_1787000000000_2", "frame": "f_1787000000001.jpg",
+                 "resp": {"ledger": "sets", "lane": "claude", "found": ["Griswold's Valor"]}}
+
+    def _merged(self):
+        sys.path.insert(0, HERE)
+        import chronicle_retro as cr
+        return cr.merge_proposals(
+            cr.proposal_from_pages([self.OLD_NF, self.OLD_FOUND]),
+            cr.proposal_from_pages([self.NEW_FOUND, self.REAL_NF]))
+
+    def test_an_expired_not_found_is_not_contested_AFTER_A_MERGE(self):
+        m = self._merged()
+        con = set((m.get("contested") or {}).get("sets") or ())
+        self.assertNotIn("Natalya's Soul (claws)", con,
+                         "the newest look FOUND this, so the old not-found has expired. Counting "
+                         "it is the padding that made 64 out of 34.")
+
+    def test_the_merge_still_reports_a_REAL_contradiction(self):
+        """Seen red for its own reason. A merge that expires everything is as useless as one that
+        expires nothing. [[feedback-blind-fixture-green-gate]]"""
+        m = self._merged()
+        con = set((m.get("contested") or {}).get("sets") or ())
+        self.assertIn("Griswold's Valor", con,
+                      "the NEWER look says not-found — a real contradiction, not an expired one")
+
+    def test_the_merge_writes_the_fields_that_EXPLAIN_the_number(self):
+        """A count he cannot audit is worse than no count. contestedExpired is the field the
+        console card renders from; absent, the card cannot exist. [[unknown-stays-unknown]]"""
+        m = self._merged()
+        self.assertIsNotNone(m.get("contestedResolved"), "contestedResolved dropped by the merge")
+        self.assertIsNotNone(m.get("notFoundDatable"), "notFoundDatable dropped by the merge")
+        exp = m.get("contestedExpired") or {}
+        self.assertIn("Natalya's Soul (claws)", set(exp.get("sets") or ()),
+                      "the name that left `contested` must REAPPEAR as expired — it is explained, "
+                      "not hidden, or the drop from 64 to 34 looks like data loss")
+
+    def test_BOTH_DERIVATIONS_AGREE_which_is_the_whole_point(self):
+        """The copy-drift guard. One source, two callers: whatever proposal_from_pages says about
+        a body of evidence, merge_proposals must say about the same body. If these two can ever
+        disagree, the fixed copy is not the one his screen reads — which is exactly what happened.
+        """
+        sys.path.insert(0, HERE)
+        import chronicle_retro as cr
+        pages = [self.OLD_NF, self.OLD_FOUND, self.NEW_FOUND, self.REAL_NF]
+        direct = cr.proposal_from_pages(pages)
+        merged = cr.merge_proposals(cr.proposal_from_pages(pages), {})
+        for field in ("contested", "contestedExpired"):
+            self.assertEqual(
+                {k: sorted(v) for k, v in (direct.get(field) or {}).items()},
+                {k: sorted(v) for k, v in (merged.get(field) or {}).items()},
+                "%s disagrees between the direct build and the merged one — the rule has drifted "
+                "into two copies again" % field)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
