@@ -9994,13 +9994,20 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
     # v2029 — 24 -> 23. Converting the v2028 gate-body read to an anchored slice removed one,
     # so the ratchet moves down as its own docstring instructs: "Lower the number as sites
     # are converted; never raise it." A debt ceiling that only ever holds is not a ratchet.
-    LIMIT = 23
+    LIMIT = 22
 
     def test_no_new_byte_counted_slices(self):
         import re as _re
         here = os.path.dirname(os.path.abspath(__file__))
-        src = open(os.path.join(here, "test_control.py"), encoding="utf-8").read()
-        found = _re.findall(r"\[i:i \+ \d+\]|\[i:i\+\d+\]", src)
+        with open(os.path.join(here, "test_control.py"), encoding="utf-8") as _fh:
+            src = _fh.read()
+        # ⚠ v2163 — CODE ONLY. This counted matches in the WHOLE FILE, so the moment a comment
+        # explaining the ban quoted the pattern it was counting its own documentation and went
+        # red pointing at itself. It caught a real new slice of mine and then stayed red on the
+        # sentence describing the fix. A scanner that reads prose is measuring the wrong thing.
+        # [[feedback-comments-vs-code]] [[source-reading-guard]]
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        found = _re.findall(r"\[i:i \+ \d+\]|\[i:i\+\d+\]", code)
         self.assertLessEqual(len(found), self.LIMIT,
                              "%d byte-counted source slices, up from %d. Use _between(self, src, "
                              "start, end) instead — it refuses an empty or truncated slice rather "
@@ -21490,9 +21497,54 @@ class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
         sys.path.insert(0, HERE)
         import second_eye_ledger
         self.L = second_eye_ledger
+        # ── v2162 — GUARD THE FIXTURE, NOT THE CALL SITE. ────────────────────────────────────
+        # Every case here passes `path=self.led`, which is correct and is also a rule that has to
+        # be REMEMBERED at each call. A case added later that forgets the argument falls through
+        # to module-level LEDGER_PATH — the LIVE ledger — and this file's own history says that
+        # happens: I emptied his real .second_eye.jsonl TWICE while testing this gate and lost the
+        # v2142 row, recovering it from a /tmp copy. The live path is repointed for the life of the
+        # class so a forgotten argument lands in the temp dir instead of his record.
+        # [[feedback-fixtures-never-touch-live-data]]
+        self._live_path0 = second_eye_ledger.LEDGER_PATH
+        second_eye_ledger.LEDGER_PATH = self.led
+        self._live_env0 = os.environ.get("TV_SECOND_EYE_LEDGER")
+        os.environ["TV_SECOND_EYE_LEDGER"] = self.led
+        # and remember the real file's bytes, so the class can PROVE it did not touch them
+        self._live_real = os.path.join(HERE, ".second_eye.jsonl")
+        try:
+            with io.open(self._live_real, "rb") as fh:
+                self._live_bytes0 = fh.read()
+        except Exception:
+            self._live_bytes0 = None
 
     def tearDown(self):
+        self.L.LEDGER_PATH = self._live_path0
+        if self._live_env0 is None:
+            os.environ.pop("TV_SECOND_EYE_LEDGER", None)
+        else:
+            os.environ["TV_SECOND_EYE_LEDGER"] = self._live_env0
+        # ⚠ THE CHECK RUNS IN tearDown so it covers EVERY case in the class, including ones written
+        # after this comment. A guard that only runs where it was remembered is the defect again.
+        if self._live_bytes0 is not None:
+            try:
+                with io.open(self._live_real, "rb") as fh:
+                    now = fh.read()
+            except Exception:
+                now = None
+            assert now == self._live_bytes0, (
+                "a case in this class wrote to the LIVE second-eye ledger (%s). That file is the "
+                "record of which ships a different model family actually looked at; a test that "
+                "edits it can forge a pass or destroy a real one." % self._live_real)
         shutil.rmtree(self.d, ignore_errors=True)
+
+    def test_a_FORGOTTEN_path_argument_lands_in_the_fixture(self):
+        """The failure this setUp exists to prevent, exercised on purpose: call the writer with NO
+        path and prove the bytes went to the temp file rather than his record."""
+        self.L.record("v0000", "grok-4-1-fast-reasoning", "clean", answer_head="x")
+        with io.open(self.led, encoding="utf-8") as fh:
+            body = fh.read()
+        self.assertIn("v0000", body,
+                      "a path-less write did not land in the fixture — it went somewhere else")
 
     def test_no_record_at_all_is_a_REFUSAL_not_a_shrug(self):
         """A skip is not a pass — the whole reason six ships went unlooked-at."""
@@ -22549,12 +22601,22 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
 
     def test_a_READABLE_board_gives_the_real_pairs(self):
         """Seen red for its own reason — a tally that always answers None is as useless as one
-        that invents numbers. [[feedback-blind-fixture-green-gate]]"""
+        that invents numbers. [[feedback-blind-fixture-green-gate]]
+
+        ⚠ v2163 CORRECTS THIS FIXTURE. It used to inject `runewordsMade`, `runewordsTotal` and
+        `uniquesTotal` that `board_ownership` DID NOT EMIT — the JS returned only
+        {foundLog, owned, setPieces}. So it pinned a roster of my own invention while the real
+        read fell through to `c.get("uniquesTotal") or 403`, a hardcoded guess sitting under a
+        docstring that said "never a guess", and runewords came back None every single time.
+        A cross-family review found it. The board is asked for its own totals now, and
+        test_the_board_ACTUALLY_EMITS_what_the_tally_reads keeps this fixture honest.
+        """
         import unittest.mock as mock
         ca = self._ca()
         with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
                 "ok": True, "boardLoaded": True, "owner": True,
                 "counts": {"foundLog": 390, "owned": 278, "setPieces": 120,
+                           "uniquesTotal": 403, "setsTotal": 135,
                            "runewordsMade": 99, "runewordsTotal": 99}}):
             t = ca.grail_tally()
         self.assertTrue(t["ok"], "a readable board still reported nothing: %s" % t.get("why"))
@@ -22562,15 +22624,98 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
         self.assertEqual(t["uniques"], {"have": 278, "total": 403})
         self.assertEqual(t["runewords"], {"have": 99, "total": 99})
 
+    def test_the_board_ACTUALLY_EMITS_what_the_tally_reads(self):
+        """THE GUARD THE LAST FIXTURE NEEDED. Every key grail_tally reads must be a key the board
+        JS actually returns, or the fixture above is pinning my imagination. This is the join, and
+        it is the exact shape that let a hardcoded 403 hide behind a green test."""
+        ca = self._ca()
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        # ⚠ NOT a byte window. `src[i:i+9000]` is exactly the char-count slice this repo's own
+        # meta-guard refuses — it caught this test the first time it ran. A fixed span measures
+        # whatever happens to sit inside it and goes silently wrong when the file grows.
+        # _between refuses an empty or truncated slice instead of measuring nothing.
+        # [[source-reading-guard]]
+        js = _between(self, src, "def board_ownership(", "def board_tick(",
+                      what="the board ownership reader")
+        for key in ("uniquesTotal", "setsTotal", "runewordsTotal", "runewordsMade",
+                    "setPieces", "owned"):
+            self.assertIn(key, js,
+                          "grail_tally reads counts[%r] and board_ownership never emits it — the "
+                          "real read silently gets None while the fixture injects a number" % key)
+
+    def test_no_denominator_is_INVENTED_when_the_board_cannot_say(self):
+        """`c.get("uniquesTotal") or 403` was the defect: absent OR ZERO both became 403. A total
+        the board cannot state is None, and the surface renders that bar indeterminate rather than
+        painting a proportion nobody measured. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
+                "ok": True, "boardLoaded": True, "owner": True,
+                "counts": {"owned": 278, "setPieces": 120}}):
+            t = ca.grail_tally()
+        self.assertTrue(t["ok"])
+        self.assertEqual(t["uniques"], {"have": 278, "total": None},
+                         "it invented a uniques total the board never gave")
+        self.assertEqual(t["sets"], {"have": 120, "total": None})
+
+    def test_a_GUEST_world_is_refused_even_when_the_board_IS_loaded(self):
+        """v2157 checked boardLoaded and stopped. A board that IS loaded but unclaimed reads its
+        own per-install keys, which are empty BY CONSTRUCTION — so the tally would publish
+        {have: 0} under his nickname and it would look like a fact. Same zero, one condition
+        further in."""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
+                "ok": True, "boardLoaded": True, "owner": False,
+                "counts": {"owned": 0, "setPieces": 0}}):
+            t = ca.grail_tally()
+        self.assertFalse(t["ok"], "it published a guest world's zeros as his progress")
+        self.assertIn("GUEST", t["why"])
+
+    def test_a_DRIFTED_world_is_refused_too(self):
+        """A world we would refuse to relaunch into is a world we must not quote numbers from."""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
+                "ok": True, "boardLoaded": True, "owner": True,
+                "worldDrift": {"state": "drift", "why": "different install"},
+                "counts": {"owned": 3, "setPieces": 1}}):
+            t = ca.grail_tally()
+        self.assertFalse(t["ok"])
+        self.assertIn("drifted", t["why"])
+
+    def test_the_SERVER_stores_the_tally_or_the_tooltip_can_never_have_data(self):
+        """THE OTHER HALF, and it was missing. The beacon posted `tally` from v2157 and the
+        Cloudflare worker built its record from a fixed key list that did not include it — so the
+        field was dropped on arrival and the roster could never show anything, however well the
+        console computed it. Built on both ends, never joined, silent by construction.
+        [[plumbing-with-no-tap]]"""
+        repo = os.path.dirname(HERE)
+        wk = os.path.join(repo, "functions", "api", "console.js")
+        if not os.path.isfile(wk):
+            self.skipTest("the console worker is not in this checkout")
+        with io.open(wk, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("body.tally", src,
+                      "the worker never reads body.tally — the roster cannot render a field the "
+                      "server does not store")
+        self.assertIn("tally:", src, "the worker does not store it on the record")
+
     def test_a_MISSING_TOTAL_is_None_not_a_guess(self):
         """A pair with no denominator still shows the count — the tooltip renders that bar
         indeterminate rather than pretending to a proportion."""
         import unittest.mock as mock
         ca = self._ca()
+        # v2163 — `owner: True` added. This fixture predates the guest-world rule, and without it
+        # the whole tally is now (correctly) refused, so the assertion below was measuring the
+        # refusal rather than the denominator. A fixture that stops exercising its own rule is the
+        # failure it was written to catch. [[feedback-blind-fixture-green-gate]]
         with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
-                "ok": True, "boardLoaded": True,
+                "ok": True, "boardLoaded": True, "owner": True,
                 "counts": {"setPieces": 120, "owned": 278, "runewordsMade": 61}}):
             t = ca.grail_tally()
+        self.assertTrue(t["ok"], "the fixture no longer reaches the denominator rule")
         self.assertEqual(t["runewords"], {"have": 61, "total": None},
                          "it invented a runeword total")
 
@@ -22640,6 +22785,101 @@ class TestV2160NothingShippedKillsByNamePattern(unittest.TestCase):
                           "%s no longer asks the port who holds it — a half-dead listener would "
                           "now hold :17772 with nothing to clear it" % name)
             self.assertIn("kill ", src, "%s does not kill the holder it found" % name)
+
+
+class TestV2162EveryTickCanBeAskedWhy(unittest.TestCase):
+    """The evidence was banked and unreachable.
+
+    His ledger holds the reel, the frame, the lane, the confidence and often the game's own First
+    Found date and dropper for 298 uniques and 134 sets. NOTHING COULD ASK IT BY NAME. board_tick
+    presses the same toggle his hand presses and records nothing about why; the proposal that
+    justified the tick was written to disk and never read back per item. Both ends built, never
+    joined. [[plumbing-with-no-tap]]
+
+    A tick he cannot audit is a tick he has to trust, and the witness rules exist precisely so
+    that he does not have to.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self.PROP = {
+            "uniques": {"Andariel's Visage": [
+                {"reel": "reel_A", "frame": "f_1.jpg", "lane": "claude", "conf": 0.9,
+                 "foundAt": "05/18/2026, 23:24", "droppedBy": "The Cow King"},
+                {"reel": "reel_B", "frame": "f_2.jpg", "lane": "grok", "conf": 0.8},
+            ]},
+            "sets": {"Aldur's Advance": [
+                {"reel": "reel_A", "frame": "f_3.jpg", "lane": "claude", "conf": 0.9}]},
+        }
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _with(self, prop):
+        import unittest.mock as mock
+        return mock.patch.object(self.ca, "_chron_evidence_load", lambda: prop)
+
+    def test_it_names_the_reels_and_the_lanes_that_earned_the_tick(self):
+        with self._with(self.PROP):
+            r = self.ca.evidence_for("Andariel's Visage")
+        self.assertTrue(r["ok"], r.get("why"))
+        self.assertEqual(r["ledger"], "uniques")
+        self.assertEqual(r["count"], 2)
+        self.assertEqual(sorted(r["reels"]), ["reel_A", "reel_B"])
+        self.assertEqual(sorted(r["lanes"]), ["claude", "grok"])
+        self.assertEqual(r["droppedBy"], "The Cow King")
+        self.assertIn("2 sightings", r["say"])
+        self.assertIn("2 reels", r["say"])
+
+    def test_a_name_with_NOTHING_banked_says_which_fact_that_is(self):
+        """"Nothing was banked for this name" is a fact ABOUT THE TICK — he ticked it by hand, or
+        before the ledger existed. It is not an error, and it must not read as one, nor as an
+        empty list that looks like "no evidence exists anywhere". [[unknown-stays-unknown]]"""
+        with self._with(self.PROP):
+            r = self.ca.evidence_for("Nothing Here")
+        self.assertFalse(r["ok"])
+        self.assertIn("ticked by hand", r["why"])
+        self.assertNotIn("sightings", r)
+
+    def test_an_UNREADABLE_ledger_is_a_DIFFERENT_answer_from_an_absent_name(self):
+        """The two must never collapse: one is about the item, the other is about the machine."""
+        import unittest.mock as mock
+
+        def boom():
+            raise IOError("ledger is corrupt")
+
+        with mock.patch.object(self.ca, "_chron_evidence_load", boom):
+            r = self.ca.evidence_for("Andariel's Visage")
+        self.assertFalse(r["ok"])
+        self.assertIn("could not be read", r["why"])
+        self.assertNotIn("ticked by hand", r["why"])
+
+    def test_it_searches_BOTH_ledgers_and_reports_which_one_answered(self):
+        with self._with(self.PROP):
+            r = self.ca.evidence_for("Aldur's Advance")
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["ledger"], "sets",
+                         "it found a SET under the uniques ledger, which would mislabel the tick")
+
+    def test_an_empty_name_is_refused_rather_than_matching_everything(self):
+        with self._with(self.PROP):
+            r = self.ca.evidence_for("")
+        self.assertFalse(r["ok"])
+
+    def test_the_route_exists_so_the_console_can_actually_ASK(self):
+        """The half that was missing last time: a lookup nothing can call is the same defect."""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('path.startswith("/api/evidence")', src,
+                      "evidence_for has no route — nothing can ask it")
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertIn("/api/evidence?name=", ui,
+                      "the console never calls the route — built on both ends, never joined")
+        self.assertIn("ch-ev", ui, "no surface offers the evidence to him")
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

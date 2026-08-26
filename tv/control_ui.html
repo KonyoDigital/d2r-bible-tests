@@ -2502,6 +2502,26 @@
   /* v1520 — THE PROPOSAL REVIEW. Two columns that mean opposite things, so they are coloured as
      opposites: what WOULD be added reads in the good state, what is HELD reads in the needs state.
      Neither is an alarm — a held name is the system being careful, not a failure. */
+  /* ── v2162 — THE EVIDENCE BEHIND A TICK. Opens under the row it belongs to, closes on a
+     second press. The name is styled as a door (dotted underline) so it reads as askable rather
+     than as decoration — a control that looks clickable but is not, and one that is clickable but
+     does not look it, are the same defect. */
+  .ch-ev { cursor: pointer; border-bottom: 1px dotted rgba(240,192,96,.5); }
+  .ch-ev:hover, .ch-ev:focus-visible { color: var(--gold-bright); outline: none; }
+  .ch-ev-row > td { padding: 0 !important; background: rgba(0,0,0,.30); }
+  .ch-ev-body {
+    padding: 8px 12px 10px; border-left: 2px solid var(--gold-dim);
+    font: var(--fw-regular) var(--fs-2xs)/1.5 var(--mono);
+  }
+  .ch-ev-say { color: var(--text); font-weight: var(--fw-semibold); margin-bottom: 6px; }
+  .ch-ev-s { display: flex; gap: 10px; align-items: baseline; color: var(--gold-dim);
+             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ch-ev-lane { color: var(--mint); min-width: 52px; }
+  .ch-ev-reel { opacity: .8; overflow: hidden; text-overflow: ellipsis; }
+  .ch-ev-fr   { opacity: .6; }
+  .ch-ev-cf   { margin-left: auto; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .ch-ev-more, .ch-ev-drop { margin-top: 5px; opacity: .7; color: var(--gold-dim); }
+  .ch-ev-none { color: var(--gold-dim); }
   .chron-review { margin-top: 10px; border-top: 1px solid rgba(198,166,100,.16); padding-top: 9px; }
   .chron-run { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
     font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); letter-spacing: var(--ls-label);
@@ -12866,7 +12886,13 @@
       return '<tr data-name="' + esc(nm) + '">'
         + '<td>' + (act ? ('<input type="checkbox" class="ch-row-chk" data-name="' + esc(nm) + '"' + (sel ? ' checked' : '') + '>') : '') + '</td>'
         + '<td>' + art + '</td>'
-        + '<td><b>' + esc(nm) + '</b></td>'
+        /* v2162 — THE NAME IS THE DOOR TO ITS EVIDENCE. His banked ledger already holds the
+           reel, the frame, the lane, the confidence and often the game's own First Found date
+           for 298 uniques and 134 sets — and until now nothing could ask it BY NAME. A tick he
+           cannot audit is a tick he has to trust, and the witness rules exist so that he does
+           not have to. [[plumbing-with-no-tap]] */
+        + '<td><b class="ch-ev" role="button" tabindex="0" data-name="' + esc(nm) + '"'
+        + ' title="what earned this tick">' + esc(nm) + '</b></td>'
         + '<td><span class="ch-tier ' + tCls + '">' + esc(tier) + '</span></td>'
         + '<td><span class="ch-status s-' + esc(st) + '">' + esc(chStatusLabel(st)) + '</span></td>'
         + '<td style="opacity:.75;font-size:var(--fs-xs)">' + esc(why) + (x.seenCount ? (' · ×' + x.seenCount) : '') + '</td>'
@@ -16666,6 +16692,57 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       return st;
     } catch (e) { return null; }
   };
+  /* v2162 — ask the console why a name is ticked, and show it under the row. One delegated
+     listener, because the table is re-rendered constantly and markers do not survive a repaint. */
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('.ch-ev');
+    if (b) { _chronEvidence(b); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var b = e.target && e.target.closest && e.target.closest('.ch-ev');
+    if (!b) return;
+    e.preventDefault(); _chronEvidence(b);
+  });
+  async function _chronEvidence(b) {
+    var tr = b.closest('tr'); if (!tr) return;
+    var nm = b.getAttribute('data-name') || '';
+    var open = tr.nextElementSibling && tr.nextElementSibling.classList
+               && tr.nextElementSibling.classList.contains('ch-ev-row');
+    if (open) { tr.nextElementSibling.remove(); return; }   // a second press closes it
+    var row = document.createElement('tr');
+    row.className = 'ch-ev-row';
+    var cols = tr.children.length || 7;
+    row.innerHTML = '<td colspan="' + cols + '"><div class="ch-ev-body">asking…</div></td>';
+    tr.parentNode.insertBefore(row, tr.nextSibling);
+    var body = row.querySelector('.ch-ev-body');
+    try {
+      var r = await fetch('/api/evidence?name=' + encodeURIComponent(nm), { cache: 'no-store' });
+      var j = await r.json();
+      if (!j || !j.ok) {
+        /* honest-absent: "nothing was banked for this name" is a fact ABOUT THE TICK — he ticked
+           it by hand, or before the ledger existed — and it is not the same as an error. */
+        body.innerHTML = '<span class="ch-ev-none">' + escC((j && j.why) || 'no answer') + '</span>';
+        return;
+      }
+      var sg = (j.sightings || []).slice(0, 8).map(function (x) {
+        return '<div class="ch-ev-s"><span class="ch-ev-lane">' + escC(String(x.lane || '?'))
+          + '</span><span class="ch-ev-reel">' + escC(String(x.reel || '?')) + '</span>'
+          + '<span class="ch-ev-fr">' + escC(String(x.frame || '?')) + '</span>'
+          + (typeof x.conf === 'number'
+             ? ('<span class="ch-ev-cf">' + escC(String(Math.round(x.conf * 100))) + '%</span>')
+             : '') + '</div>';
+      }).join('');
+      body.innerHTML = '<div class="ch-ev-say">' + escC(j.say || '') + '</div>' + sg
+        + ((j.sightings || []).length > 8
+           ? ('<div class="ch-ev-more">… and ' + ((j.sightings || []).length - 8) + ' more</div>')
+           : '')
+        + (j.droppedBy ? ('<div class="ch-ev-drop">dropped by ' + escC(j.droppedBy) + '</div>') : '');
+    } catch (e2) {
+      body.innerHTML = '<span class="ch-ev-none">could not reach the console</span>';
+    }
+  }
+
   window._chronRun = async function () {
     var body = document.getElementById('chron-body');
     var btn = document.getElementById('chron-run');

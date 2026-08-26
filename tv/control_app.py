@@ -1240,7 +1240,9 @@ _beacon_state_load()   # startup: carry the verdict across restarts
 # would put a confidently wrong number under another person's name, which is the worst version of
 # this feature. So an unreadable board reports None, and the roster says "not reported yet".
 # [[unknown-stays-unknown]] [[stale-reading]]
-_TALLY_TOTALS = {"sets": 135, "runewords": None}   # runewords total is asked of the board
+# v2163 — the hardcoded totals are GONE. The comment beside them said the runeword total "is
+# asked of the board" and nothing asked it; the sets total was a constant the board never agreed
+# to. Both are read from the board now, and absent means None.
 
 
 def grail_tally():
@@ -1260,15 +1262,36 @@ def grail_tally():
         out["why"] = ("the board window is showing the console rail, so its ledger is not "
                       "readable from here — these counts are UNKNOWN, not zero")
         return out
+    # ── v2163 — A GUEST WORLD'S ZEROS ARE NOT HIS PROGRESS. ─────────────────────────────────
+    # v2157 checked `boardLoaded` and stopped there. A board that IS loaded but is an unclaimed
+    # GUEST world reads its own per-install keys, which are empty by construction — so the tally
+    # would publish {have: 0, total: 135} under his nickname and it would look like a fact. That
+    # is the same zero the boardLoaded check was written to avoid, one condition further in.
+    # A world we would refuse to relaunch into is a world we must not quote numbers from.
+    if not own.get("owner"):
+        out["why"] = ("this board is an unclaimed GUEST world — its keys are empty by "
+                      "construction, so these counts would be zeros, not his progress")
+        return out
+    _wd = own.get("worldDrift")
+    if isinstance(_wd, dict) and _wd.get("state") == "drift":
+        out["why"] = "the board's world has drifted, so its counts describe a different store"
+        return out
     c = own.get("counts") or {}
 
     def _pair(have, total):
+        """A count with the board's OWN denominator, or None for it. NEVER a fallback constant.
+
+        v2163 — this was `c.get("uniquesTotal") or 403` under a docstring saying "never a guess",
+        and `board_ownership` did not emit uniquesTotal at all, so every real read used 403. The
+        board is asked for its totals now; where it cannot answer, the total is None and the
+        surface renders that bar indeterminate rather than inventing a proportion.
+        """
         if not isinstance(have, int):
             return None
-        return {"have": have, "total": total if isinstance(total, int) else None}
+        return {"have": have, "total": total if isinstance(total, int) and total > 0 else None}
 
-    out["sets"] = _pair(c.get("setPieces"), _TALLY_TOTALS["sets"])
-    out["uniques"] = _pair(c.get("owned"), c.get("uniquesTotal") or 403)
+    out["sets"] = _pair(c.get("setPieces"), c.get("setsTotal"))
+    out["uniques"] = _pair(c.get("owned"), c.get("uniquesTotal"))
     out["runewords"] = _pair(c.get("runewordsMade"), c.get("runewordsTotal"))
     out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
     if not out["ok"]:
@@ -9446,7 +9469,24 @@ def board_ownership(sample=0, dump_stores=False):
              % ("true" if dump_stores else "false"))
           + "return JSON.stringify({ok:true,owner:owner,pfx:pfx,boardLoaded:boardLoaded,"
           "route:route,"
-          "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length},"
+          # v2163 — ASK THE BOARD FOR ITS OWN TOTALS. v2157 published a fleet tally whose
+          # denominators it INVENTED: `c.get("uniquesTotal") or 403` with a docstring saying
+          # "never a guess", and a comment claiming the runeword total "is asked of the board"
+          # when nothing asked it — runewords came back None on every real read. A cross-family
+          # review caught both. The board already knows these numbers (_gUniqueRoster, the set
+          # roster, _rwTotalN); they are read from IT rather than restated here, so the console
+          # and the board cannot disagree about how many there are. null where the board cannot
+          # say, never a fallback constant. [[copy-drift]] [[unknown-stays-unknown]]
+          "var _n=function(f){try{var v=f();return (typeof v==='number'&&v>0)?v:"
+          "(v&&v.length?v.length:null);}catch(e){return null;}};"
+          "var uniT=_n(function(){return window._gUniqueRoster&&window._gUniqueRoster();});"
+          "var setT=_n(function(){return window._gSetRoster&&window._gSetRoster();});"
+          "var rwT=_n(function(){return window._rwTotalN&&window._rwTotalN();});"
+          "var rwMade=(function(){try{var m=raw('d2r_rwMade');"
+          "if(Array.isArray(m))return m.length;"
+          "if(m&&typeof m==='object')return Object.keys(m).length;return null;}catch(e){return null;}})();"
+          "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length,"
+          "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
           "stores:stores,dates:dates,gameFound:gameFound});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
@@ -13985,6 +14025,78 @@ def _stamp_math_broke(where, exc):
 # name a LANE. [[label-outlived-referent]]
 
 
+def evidence_for(name, ledger=None):
+    """WHY does the board believe he has this? -> the sightings that earned the tick.
+
+    v2162 — Konyo: every found-tick should carry its evidence, visible in the console.
+
+    The evidence was already there and already rich — his banked ledger holds 298 uniques and 134
+    sets, each with the reel, the frame, the lane that read it, the confidence, and often the
+    game's own First Found date and dropper. NOTHING COULD ASK IT BY NAME. `board_tick` presses
+    the same toggle his hand presses and records nothing about why; the proposal that justified
+    the tick was written to disk and never read back per item. Built on both ends, never joined.
+    [[plumbing-with-no-tap]]
+
+    A tick he cannot audit is a tick he has to trust, and the whole point of the witness rules is
+    that he does not have to.
+
+    Returns `ok: False` with a reason rather than an empty list, because "no evidence was banked
+    for this name" and "the ledger could not be read" are different facts and only one of them is
+    about the item. [[unknown-stays-unknown]]
+    """
+    n = str(name or "").strip()
+    if not n:
+        return {"ok": False, "why": "no name given"}
+    try:
+        prop = _chron_evidence_load() or {}
+    except Exception as e:
+        return {"ok": False, "why": "the evidence ledger could not be read: %s" % str(e)[:80]}
+    if not isinstance(prop, dict) or not prop:
+        return {"ok": False, "why": "no evidence ledger has been banked yet"}
+    leds = (ledger,) if ledger in ("uniques", "sets") else ("uniques", "sets")
+    for led in leds:
+        book = prop.get(led)
+        if not isinstance(book, dict):
+            continue
+        sightings = book.get(n)
+        if not isinstance(sightings, list) or not sightings:
+            continue
+        reels, lanes, frames = [], [], []
+        found_at = dropped_by = None
+        for sg in sightings:
+            if not isinstance(sg, dict):
+                continue
+            r = sg.get("reel")
+            if r and r not in reels:
+                reels.append(r)
+            l = sg.get("lane")
+            if l and l not in lanes:
+                lanes.append(l)
+            if sg.get("frame"):
+                frames.append(sg.get("frame"))
+            found_at = found_at or sg.get("foundAt")
+            dropped_by = dropped_by or sg.get("droppedBy")
+        try:
+            import counter_ledger as _clg
+            wit = _clg.witnesses(sightings) if hasattr(_clg, "witnesses") else None
+        except Exception:
+            wit = None
+        return {"ok": True, "name": n, "ledger": led,
+                "sightings": sightings, "count": len(sightings),
+                "reels": reels, "lanes": lanes, "frames": frames[:24],
+                "foundAt": found_at, "droppedBy": dropped_by,
+                "witnesses": wit,
+                # the one-line answer, so a surface does not have to compose it and drift
+                "say": ("%d sighting%s across %d reel%s, read by %s%s"
+                        % (len(sightings), "" if len(sightings) == 1 else "s",
+                           len(reels), "" if len(reels) == 1 else "s",
+                           " and ".join(lanes) or "an unnamed lane",
+                           (" — the game dates it %s" % found_at) if found_at else ""))}
+    return {"ok": False, "name": n,
+            "why": "nothing banked for this name — it was ticked by hand, or before the evidence "
+                   "ledger existed, or it is spelled differently in the ledger"}
+
+
 def _chron_evidence_merge(prop):
     """Fold this sweep's proposal into everything read so far, persist, and return the MERGED view.
 
@@ -14448,6 +14560,27 @@ def sweep_eta(job=None):
         # ⚠ NOT an ETA of zero. Nothing has been probed yet, so nothing has been measured.
         out["why"] = "no frame has been probed yet, so there is no rate"
         out["say"] = "reading — measuring"
+        return out
+    # ── v2163 — ONE SAMPLE IS NOT A RATE. ───────────────────────────────────────────────────
+    # A cross-family review put a number on it: done=1 at the 3s floor with 10,000 frames to go
+    # projects EIGHT HOURS off a single slow probe, and the surface renders it as confidently as
+    # any other figure. The docstring's promise — "etaMs came from an observed rate" — was true
+    # and worthless. A first probe pays for a cold model, a cold cache and a crop; three is the
+    # smallest number that can show a trend rather than a startup cost.
+    if out["done"] < 3:
+        out["why"] = "only %d frame(s) probed — too few to call a rate" % out["done"]
+        out["say"] = "reading — measuring"
+        return out
+    # ...and a run whose counter has passed its own denominator is FINISHING, not "0s left".
+    # `_frames_total` swallows a per-reel listdir failure, so an undercounted denominator with
+    # probes still ticking produced ok:true and "9999 of 240 frames — about 0s left" while the
+    # read was plainly still going. Saying "about 0s left" about a job that is still running is
+    # the one sentence a progress meter must never produce. [[unknown-stays-unknown]]
+    if out["done"] >= out["total"]:
+        out["pct"] = 100.0
+        out["why"] = ("more frames were probed than this run counted, so the denominator is "
+                      "wrong — reporting progress, not a finish time")
+        out["say"] = "reading — finishing"
         return out
     rate = out["done"] / (out["elapsedMs"] / 60000.0)      # frames per minute
     out["ratePerMin"] = round(rate, 2)
@@ -15689,7 +15822,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2161",
+        "ver": "v2163",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -17381,6 +17514,19 @@ class Handler(BaseHTTPRequestHandler):
             # v1537 — which link of the read chain broke, on THIS machine. Free, read-only.
             self._json(200, reader_health())
             return
+        if path.startswith("/api/evidence"):
+            # v2162 — WHY DOES THE BOARD BELIEVE HE HAS THIS? The sightings that earned the tick,
+            # by name. GET so a surface can link to it and he can paste one into a browser.
+            try:
+                import urllib.parse as _up
+                _q = _up.parse_qs(_up.urlparse(path).query or "")
+                _nm = (_q.get("name") or [""])[0]
+                _led = (_q.get("ledger") or [None])[0]
+            except Exception:
+                _nm, _led = "", None
+            self._json(200, evidence_for(_nm, _led))
+            return
+
         if path == "/api/chronicle_visits":
             # v1522 — the Chronicle panels he opened in game, as an offer. Read-only, costs nothing.
             # v1820 — now the MERGED offer: journalled visits AND reels he focused on the Chronicle

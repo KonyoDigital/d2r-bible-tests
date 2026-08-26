@@ -121,6 +121,34 @@ export async function onRequestPost(context) {
     nickname: String(body.nickname || '').slice(0, 40),
     install: String(body.install || '').slice(0, 12),
     reads: Number(body.reads || 0) || 0,
+    // v2163 — WHAT THIS MACHINE HAS, so the fleet roster can show each person's progress on
+    // hover of their name. Konyo asked for his cousin's and his wife's live chronicle numbers.
+    //
+    // ⚠ THE CLIENT SHIPPED THIS FIELD IN v2157 AND NOTHING HERE STORED IT. A cross-family review
+    // found it: the beacon posted `tally`, this worker built `rec` from a fixed key list, and the
+    // field was dropped on arrival — so the tooltip could never have had data no matter how well
+    // the console computed it. Built on both ends, never joined, and silent by construction.
+    // [[plumbing-with-no-tap]]
+    //
+    // COUNTS ONLY, and shaped here rather than trusted: numbers are clamped and anything that is
+    // not a number becomes null. No item names ever cross this boundary — a roster says how many,
+    // never which. The client already omits the field entirely when its board was unreadable, so
+    // absent means "not reported", never zero.
+    tally: (function (t) {
+      if (!t || typeof t !== 'object') return null;
+      const pair = (p) => {
+        if (!p || typeof p !== 'object') return null;
+        const have = Number(p.have);
+        const total = Number(p.total);
+        if (!Number.isFinite(have) || have < 0) return null;
+        return { have: Math.min(have, 100000),
+                 total: (Number.isFinite(total) && total > 0) ? Math.min(total, 100000) : null };
+      };
+      const at = Number(t.at);
+      const out = { sets: pair(t.sets), uniques: pair(t.uniques), runewords: pair(t.runewords),
+                    at: Number.isFinite(at) ? at : null };
+      return (out.sets || out.uniques || out.runewords) ? out : null;
+    })(body.tally),
     ip: request.headers.get('CF-Connecting-IP') || '',
     country: cf.country || '',
     city: cf.city || '',
