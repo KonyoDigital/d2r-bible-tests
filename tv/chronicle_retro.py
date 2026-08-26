@@ -1159,20 +1159,33 @@ def derive_contested(prop):
             "say": "the resolver could not be consulted (%s), so these readings were never "
                    "ordered against the found ones" % str(_e)[:70]}
 
+    # v2153 — AND NOW IT ACTUALLY DOES NOT RE-WALK. v2152 wrote the comment above and then
+    # re-walked the names anyway, with `if _nm not in _nf and not (_seen.get(_nm) or [])` — the
+    # SAME expression as resolve_all's inclusion test. A review put it plainly: "derive_contested
+    # still re-walks the names with a copied inclusion rule after telling itself not to ... the
+    # next edit to who counts as contested has two places to miss — the defect v2152 claims to
+    # have closed." Twice now the claim outran the code. `resolved` already IS the answer to
+    # "which names were in contention, and what does the ordering say": contested is simply the
+    # ones it did not settle as `found`. [[copy-drift]]
     contested = {}
-    for _led in ("uniques", "sets"):
-        _nf = set((prop.get("notFound") or {}).get(_led) or ())
-        _seen = (prop.get("notFoundSeen") or {}).get(_led) or {}
-        _r_led = resolved.get(_led) or {}
-        for _nm in (prop.get(_led) or {}):
-            if _nm not in _nf and not (_seen.get(_nm) or []):
-                continue
-            _r = _r_led.get(_nm) or {"verdict": "undatable",
-                                     "say": "the resolver could not be consulted"}
-            # A name whose NEWEST look says found is not contested — it is settled, and listing it
-            # would rebuild the very padding that produced the wrong claim.
-            if _r.get("verdict") != "found":
-                contested.setdefault(_led, []).append(_nm)
+    if resolver_ok:
+        for _led in ("uniques", "sets"):
+            for _nm, _r in ((resolved.get(_led) or {})).items():
+                # A name whose NEWEST look says found is not contested — it is settled, and
+                # listing it would rebuild the very padding that produced the wrong claim.
+                if (_r or {}).get("verdict") != "found":
+                    contested.setdefault(_led, []).append(_nm)
+    else:
+        # DEGRADED, AND SAID OUT LOUD. With no resolver we cannot know which contradictions
+        # expired, and the two failure directions are not symmetric: under-reporting hides real
+        # contradictions, over-reporting rebuilds the padding. This takes the conservative side —
+        # plain membership, the pre-resolver answer — and `resolverOk: False` travels with it so
+        # no surface can mistake this for a measured number. [[unknown-stays-unknown]]
+        for _led in ("uniques", "sets"):
+            _nf = set((prop.get("notFound") or {}).get(_led) or ())
+            for _nm in (prop.get(_led) or {}):
+                if _nm in _nf:
+                    contested.setdefault(_led, []).append(_nm)
     prop["contested"] = {k: sorted(v) for k, v in contested.items()}
     prop["contestedResolved"] = resolved
     prop["resolverOk"] = resolver_ok

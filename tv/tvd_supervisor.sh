@@ -34,7 +34,24 @@ PORT=17772
 #
 # Announcing-only is the honest resting state until the guard detects a new claimed world AND
 # drift_may_relaunch consults it. Set TV_AUTO_RELAUNCH=1 by hand to override.
-export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-0}"
+# v2153 — ARMED. Konyo, twice: "it can definitely relaunch to other new builds", and then
+# "its still not auto relaunching for the newer updates. we said it should relaunch by itself
+# based on updates we do. automatically."
+#
+# It was armed at v2145 and I DISARMED it at v2146, because the world guard it leans on could not
+# yet tell two different CLAIMED stores apart — so a relaunch that came back as a new WebKit store
+# would have read as the same world and his vault could have been stranded silently. That was the
+# right call then. v2147 rebuilt the guard on d2r_lsrRoute's install id, and drift_may_relaunch()
+# now REFUSES on drift. The reason for the 0 is gone, so the 0 goes.
+#
+# What still stops it, every one of them checked before any execv:
+#   * the board's world has drifted           -> refuse (v2147)
+#   * a chronicle sweep is reading            -> refuse
+#   * a vault sweep is reading                -> refuse
+#   * a mini is recording                     -> refuse
+#   * the agent is alive, i.e. HE IS FILMING  -> refuse (killing it orphans that reel's frames)
+# Set TV_AUTO_RELAUNCH=0 by hand to go back to announce-only.
+export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"
 
 while true; do
   if [ ! -f "$PAUSE_FLAG" ]; then

@@ -43,19 +43,26 @@ const TABS = ['session', 'forge', 'crafts', 'funi', 'fsets', 'tools', 'vault', '
 /* v1631 — the Forge tab maps to --rune, not --q-unique. A TAB labels a room; the Forge's room is
    where runes become words. Runeword NAMES stay gold (the game has no runeword colour, so quality
    decides it) — that rule lives in its own specs and is untouched here. */
-const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', forge: '--rune' };
+/* v2153 (#71) — CRAFTS JOINS, AND THIS FILE ALREADY ARGUED THE CASE.
+   The note below said crafts was "a pending product decision rather than an oversight", then laid
+   out the whole decision: by v1631's rule that a TAB labels a ROOM, the Crafts room makes CRAFTED
+   items and the game has a colour for those. The board's own craft chip has been pinned --q-orange
+   (#ffa800) resting AND lit since v1625_board_quality_surfaces, on Konyo's instruction "for crafts
+   in purple it can be changed to match the orange line ingame in diablo ii". The console strip
+   simply had not been wired: no --ht-q declaration, and all four consumer lists named only
+   funi/fsets/forge. That is not a taste call left open, it is two surfaces disagreeing about one
+   room — the exact thing v2094 added the tab to prevent. Wired in v2153 and pinned here.
+   The console names it --rar-orange and the board names it --q-orange; both are #ffa800. */
+const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', forge: '--rune',
+                                         crafts: '--q-orange' };
 /* v2092 — vault joins the plain list on the v1615 rule at the top of this file: a STASH is a
    container, not an item quality, so it stays chrome exactly like session/tools/tvd. (The CSS
    declares `--ht-q: #f0c060` on that tab, but the rule that consumes --ht-q names only
    funi/fsets/forge, so nothing reads it — the tab paints the base --gold-dim. Reported as a dead
    declaration, not asserted here; either way the tab is plain.)
-   ⚠ crafts is in NEITHER map, and that is a pending product decision rather than an oversight.
-   By this file's own v1631 reasoning — "a TAB labels a ROOM", which is why forge wears --rune —
-   the Crafts room makes CRAFTED items and the game has a colour for those (--q-orange, which
-   tests/v1625_board_quality_surfaces.spec.ts already pins on the board's own craft chip). The
-   console's strip does not tint it yet. Listing it as PLAIN would lock in "crafts must never be
-   orange", which contradicts that; listing it as TINTED would red on a change this file cannot
-   make. It is left out until the strip's tint set is decided. */
+   ⚠ crafts WAS in neither map — see the v2153 note above the TINTED map. It is TINTED now, and
+   vault remains the only newcomer that is deliberately PLAIN: a room that MAKES a quality gets
+   that quality; a room that HOLDS things does not. */
 const PLAIN = ['session', 'tools', 'tvd', 'vault'];
 // every quality colour the board declares — a plain tab must match NONE of them
 const QUALITIES = ['--q-unique', '--q-set', '--q-rare', '--q-magic', '--q-orange', '--rune'];

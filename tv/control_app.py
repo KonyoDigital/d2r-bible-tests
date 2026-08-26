@@ -15086,6 +15086,14 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     "denial": _denial,
                     # v1923 — what this proposal is ALLOWED to conclude from its not-found side.
                     "notFoundDatable": prop.get("notFoundDatable"),
+                    # v2153 — AND WHETHER THE THING THAT DECIDED IT EVER RAN. v2152 published
+                    # `resolverOk` onto the proposal and stopped there: control_app never put it
+                    # in this payload and no UI mentioned it, so the flag that distinguishes "we
+                    # ordered these readings" from "the resolver could not be consulted and this
+                    # is the conservative membership count" existed only in memory. A review found
+                    # it in the same pass that found me citing this exact class. It travels now.
+                    # [[plumbing-with-no-tap]]
+                    "resolverOk": prop.get("resolverOk"),
                     # v1930 — `contestedResolved` (the per-name verdict detail) was here and no UI
                     # ever read it. It is DERIVABLE — `contestedExpired` is computed from it in
                     # chronicle_retro — and it drives no decision he makes, so it is dropped from
@@ -15326,7 +15334,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2152",
+        "ver": "v2153",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

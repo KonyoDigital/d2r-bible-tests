@@ -4863,12 +4863,28 @@
      a STASH is a container, not an item quality — and tests/v1625_tab_quality_tints.spec.ts pins
      it in the PLAIN list. What was wrong here was the COMMENT, not the paint.
      [[label-outlived-referent]] */
+  /* v2153 (#71) — THE CRAFTS TAB JOINS THE TINT SET, and this is a ruling that was already made
+     rather than a new one. tests/v1625_tab_quality_tints.spec.ts left `crafts` out of BOTH its
+     maps and said why: "a pending product decision rather than an oversight ... By this file's own
+     v1631 reasoning — a TAB labels a ROOM, which is why forge wears --rune — the Crafts room makes
+     CRAFTED items and the game has a colour for those (--q-orange, which
+     tests/v1625_board_quality_surfaces.spec.ts already pins on the board's own craft chip)."
+     The board already paints its craft chip #ffa800, resting AND lit, on Konyo's own instruction
+     ("for crafts in purple it can be changed to match the orange line ingame in diablo ii"). So
+     the console NOT tinting it was the two surfaces disagreeing about one room — which is the
+     exact thing v2094 added this tab to prevent. --rar-orange (#ffa800) is the console's name for
+     the board's --q-orange (#ffa800): same colour, per-surface token naming, verified equal.
+     ⚠ NOT vault. Vault stays PLAIN on the v1615 law — a STASH is a container, not an item
+     quality — and v2120 deleted its dead declaration for that reason. A room that makes a quality
+     gets the quality; a room that holds things does not. */
+  .head-tabs .ht[data-tab="crafts"] { --ht-q: var(--rar-orange); }
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
   /* v1631 — the Forge TAB wears the RUNE colour, not the runeword-name gold. See the token block:
      the game has no runeword colour, so "runeword gold" can only ever equal F·Uniques, and Konyo
      needs the two tabs to differ. Runeword NAMES are untouched and still gold everywhere. */
   .head-tabs .ht[data-tab="forge"] { --ht-q: var(--rar-rune); }
+  .head-tabs .ht[data-tab="crafts"],
   .head-tabs .ht[data-tab="funi"],
   .head-tabs .ht[data-tab="fsets"],
   .head-tabs .ht[data-tab="forge"] {
@@ -4876,6 +4892,7 @@
     border-color: color-mix(in srgb, var(--ht-q) 34%, transparent); }
   /* the base :hover forces var(--gold) and would stomp the tint back to chrome — a tinted tab
      BRIGHTENS its own quality instead of reverting to a colour it is not. */
+  .head-tabs .ht[data-tab="crafts"]:hover,
   .head-tabs .ht[data-tab="funi"]:hover,
   .head-tabs .ht[data-tab="fsets"]:hover,
   .head-tabs .ht[data-tab="forge"]:hover {
@@ -4886,6 +4903,7 @@
      `#head-tabs .ht.shell-on { border-color: var(--gold-hi); box-shadow: ...gold... }` (1,2,0), and
      a class-only rule here loses to it — measured: the tinted gradient painted but the border and
      the glow snapped back to chrome gold, so a lit F·Sets tab was green wearing a gold ring. */
+  #head-tabs .ht[data-tab="crafts"].shell-on,
   #head-tabs .ht[data-tab="funi"].shell-on,
   #head-tabs .ht[data-tab="fsets"].shell-on,
   #head-tabs .ht[data-tab="forge"].shell-on {
@@ -4893,6 +4911,7 @@
     background: linear-gradient(180deg, color-mix(in srgb, var(--ht-q) 84%, white), color-mix(in srgb, var(--ht-q) 90%, black));
     border-color: color-mix(in srgb, var(--ht-q) 84%, white);
     box-shadow: 0 0 12px color-mix(in srgb, var(--ht-q) 30%, transparent); }
+  .head-tabs .ht[data-tab="crafts"]:focus-visible,
   .head-tabs .ht[data-tab="funi"]:focus-visible,
   .head-tabs .ht[data-tab="fsets"]:focus-visible,
   .head-tabs .ht[data-tab="forge"]:focus-visible {
@@ -15190,6 +15209,19 @@ function escC(s) {
       push(1.5, 'unk', '\u23f3 the not-found readings here cannot be dated', escC(nfd.say),
         'nothing is wrong with the finds above \u2014 it means no not-found reading in this batch '
         + 'may be used to argue against one. Sweep again and they arrive with receipts.');
+    }
+    /* v2153 — NULL IS NOT FALSE, AND IT IS NOT FINE EITHER. v2152 made notFoundDatable.ok go
+       `null` when the resolver could not be consulted, precisely so a degraded answer would stop
+       looking like a measured one — and then this reader tested `=== false`, which JSON `null`
+       fails. So the one state the change existed to surface rendered NOTHING, and the contested
+       count above it still painted as though it had been ordered. The calibration block two
+       cards down already had this right (`cal.ok === null` at its own push), which is what makes
+       it a miss rather than an unknown. [[unknown-stays-unknown]] */
+    if ((nfd && nfd.ok === null) || res.resolverOk === false) {
+      push(1.6, 'unk', '\u2696 the contradiction check did not run',
+        escC((nfd && nfd.say) || 'the resolver could not be consulted'),
+        'the count above is the CONSERVATIVE one \u2014 plain membership, with nothing ordered by '
+        + 'date \u2014 so treat it as an upper bound rather than a measurement.');
     }
     /* v1930 — TWO MORE THINGS THAT WERE COMPUTED AND THROWN AWAY, and one of them is mine.
        A payload-reach sweep over the sweep RESULT found seven keys no UI has ever read. Two matter:

@@ -21887,5 +21887,124 @@ class TestV2151TheLIARCannotHideAReelFromEITHERCONSUMER(unittest.TestCase):
             self.assertGreaterEqual(counted, 1,
                                     "the owed COUNT the eagle reads disagrees with the rule")
 
+
+class TestV2153TheRELAUNCHACTUALLYHAPPENSWhenArmed(unittest.TestCase):
+    """Konyo, twice: "it can definitely relaunch to other new builds", then later
+    "its still not auto relaunching for the newer updates. we said it should relaunch by itself
+    based on updates we do. automatically."
+
+    HE WAS RIGHT AND THE REASON WAS MINE. It was armed at v2145 and I DISARMED it at v2146,
+    because the world guard it leans on could not yet tell two different CLAIMED stores apart, so
+    a relaunch returning a new WebKit store would have read as the same world and his vault could
+    have been stranded silently. v2147 rebuilt that guard on d2r_lsrRoute's install id and
+    drift_may_relaunch() refuses on drift. The reason for the 0 was gone and the 0 stayed.
+
+    ⚠ THE SHAPE THIS GUARDS. Every piece was already built and joined — _drift_loop is registered
+    and running (tvd-version-drift), _drift_once compares the running stamp against the disk
+    stamp every 300s, the loop announces, and it calls drift_may_relaunch() before any execv. One
+    env default was the whole difference between "announces forever" and "picks up the build".
+    A switch is not a feature until something proves the path behind it executes.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def _clear(self, ca):
+        """Nothing in flight, no drift, armed."""
+        import unittest.mock as mock
+        return [
+            mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}),
+            mock.patch.object(ca, "_agent_alive", lambda: False),
+            mock.patch.object(ca, "mini_state", lambda: {"running": False}),
+            mock.patch.object(ca, "_CHRON_JOB", {"running": False}),
+            mock.patch.object(ca, "_VAULT_JOB", {"running": False}),
+            mock.patch.object(ca, "board_identity_drift", lambda: {"state": "ok", "why": "same"}),
+        ]
+
+    def test_ARMED_and_all_clear_it_SAYS_YES(self):
+        """The case that was never true on his machine. If this cannot go True, every refusal
+        below is measuring a switch that is simply off. [[feedback-blind-fixture-green-gate]]"""
+        import contextlib
+        ca = self._ca()
+        with contextlib.ExitStack() as st:
+            for p_ in self._clear(ca):
+                st.enter_context(p_)
+            ok, why = ca.drift_may_relaunch()
+        self.assertTrue(ok, "armed, nothing in flight, world in sync — and it STILL refuses: %s" % why)
+
+    def test_the_SHIPPED_LAUNCHERS_default_to_armed(self):
+        """The switch lives in two shell files and the default is the whole feature. A silent
+        revert to :-0 would put it back to announcing forever with every test above still green,
+        because they set the env by hand."""
+        import io as _io
+        here = os.path.dirname(os.path.abspath(__file__))
+        for name in ("tvd_supervisor.sh", "start_tvd_mac.sh"):
+            path = os.path.join(here, name)
+            with _io.open(path, encoding="utf-8") as fh:
+                src = fh.read()
+            self.assertIn('export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"', src,
+                          "%s no longer arms auto-relaunch by default, so a new build is "
+                          "announced and never picked up" % name)
+
+    def test_a_DRIFTED_WORLD_still_blocks_it(self):
+        """The v2147 guard is the reason arming is safe at all. If it stops being consulted,
+        arming stops being safe, and this is the case that says so."""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+        with contextlib.ExitStack() as st:
+            for p_ in self._clear(ca)[:-1]:
+                st.enter_context(p_)
+            st.enter_context(mock.patch.object(
+                ca, "board_identity_drift",
+                lambda: {"state": "drift", "why": "the board came back as a DIFFERENT install: "
+                                                  "install-ZZZ (profile 'main'), was install-AAA"}))
+            ok, why = ca.drift_may_relaunch()
+        self.assertFalse(ok, "it would relaunch a board that is already in the wrong world")
+        self.assertIn("drifted", why)
+
+    def test_the_LOOP_reaches_execv_once_it_is_allowed(self):
+        """Drive the real _drift_loop body once with execv stubbed. The decision going True is not
+        the same fact as the loop ACTING on it — that is the joint this whole class is about."""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+        calls = []
+        with contextlib.ExitStack() as st:
+            for p_ in self._clear(ca):
+                st.enter_context(p_)
+            st.enter_context(mock.patch.object(ca, "_drift_once", lambda: True))
+            st.enter_context(mock.patch.object(
+                ca, "drift_state", lambda: {"disk": "v9999", "running": "v9998",
+                                            "say": "drifted"}))
+            st.enter_context(mock.patch.object(ca, "stop_agent", lambda **k: None))
+            st.enter_context(mock.patch.object(
+                ca, "os", _ExecSpy(ca.os, calls)))
+            st.enter_context(mock.patch.object(ca, "_DRIFT_EVERY_S", 0.01))
+            t = threading.Thread(target=ca._drift_loop, daemon=True)
+            t.start()
+            for _ in range(200):
+                if calls:
+                    break
+                time.sleep(0.01)
+        self.assertTrue(calls, "the loop decided it MAY relaunch and then never called execv — "
+                               "the switch is armed and the path behind it does nothing")
+
+
+class _ExecSpy(object):
+    """os, with execv recorded instead of performed. Everything else passes through."""
+
+    def __init__(self, real, calls):
+        self._real = real
+        self._calls = calls
+
+    def execv(self, *a, **k):
+        self._calls.append(a)
+        raise SystemExit(0)          # stand in for "this process image is gone"
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

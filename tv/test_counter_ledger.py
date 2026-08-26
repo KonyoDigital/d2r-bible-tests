@@ -442,16 +442,29 @@ class TestV2152WhatTheSecondEyeFoundInV2150(unittest.TestCase):
                 "notFound": {"uniques": ["A"], "sets": []},
                 "notFoundSeen": {"uniques": {"B": [{"frame": "f_1.jpg"}]}}}
         d = cl.not_found_datable(prop)
-        self.assertEqual((d["readings"], d["withReceipts"]), (1, 0),
-                         "B is not a not-found name and must not count as A's receipt")
-        self.assertFalse(d["ok"], "A carries no receipt, so these readings cannot be ordered")
+        # v2153 CORRECTS THIS EXPECTATION. It pinned readings=1, which was this function's OLD
+        # population — the flat list only. A review showed that is the same desync in the other
+        # direction: B carries a not-found RECEIPT, so B *is* a not-found reading; it just is not
+        # on the flat list, which merge_proposals copies in a separate loop. Both count now.
+        # What must never happen is B's receipt being credited to A, and that is what is asserted.
+        self.assertEqual(d["readings"], 2, "A (flat) and B (receipt) are both not-found readings")
+        self.assertEqual(d["withReceipts"], 0,
+                         "B's frame f_1.jpg carries no 13-digit epoch, so sighting_time cannot "
+                         "order it — a non-empty bucket is not an ORDERABLE receipt")
+        self.assertFalse(d["ok"], "neither reading can be ordered against the found ones")
 
     def test_the_HONEST_case_still_reads_ok(self):
         """The mirror, so the guard is not just 'always False'."""
         import counter_ledger as cl
-        prop = {"uniques": {"A": [{"frame": "f_1.jpg"}]}, "sets": {},
+        # v2153 — THE FRAME NAMES HAD TO BECOME REAL. This fixture used "f_9.jpg", and
+        # sighting_time needs a 13-digit epoch, so it returned None and the resolver would have
+        # answered `undatable` — the test pinned ok=True on receipts nothing can order, which is
+        # the very claim this field exists to prevent. A guard whose fixture cannot exercise the
+        # rule is not a guard. [[feedback-blind-fixture-green-gate]]
+        prop = {"uniques": {"A": [{"frame": "f_1787177277865.jpg"}]}, "sets": {},
                 "notFound": {"uniques": ["A"], "sets": []},
-                "notFoundSeen": {"uniques": {"A": [{"reel": "s_9", "frame": "f_9.jpg"}]}}}
+                "notFoundSeen": {"uniques": {"A": [{"reel": "s_9",
+                                                    "frame": "f_1787000000000.jpg"}]}}}
         d = cl.not_found_datable(prop)
         self.assertEqual((d["readings"], d["withReceipts"], d["ok"]), (1, 1, True))
 

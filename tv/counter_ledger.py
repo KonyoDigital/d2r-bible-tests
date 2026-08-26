@@ -455,7 +455,16 @@ def resolve_all(proposal, ledgers=("uniques", "sets")):
             # a contradiction it has no evidence for. A name reachable ONLY through an empty
             # bucket has no not-found reading at all. A name in the flat `notFound` list still
             # counts with no receipts — that is the honest `undatable` case v1921 exists for.
-            if nm not in nf_flat and not (nf_seen.get(nm) or []):
+            # v2153 — `None` IS NOT `[]`. The v2152 rule collapsed them with `or []`, and a
+            # review pointed out they mean opposite things: `[]` is the key merge_proposals mints
+            # with setdefault BEFORE it appends (no reading was ever recorded), while an explicit
+            # `None` is "receipts UNKNOWN for a name we do have a not-found trace for". Dropping
+            # the second deletes a name from `contested` AND from `contestedExpired` with nothing
+            # saying anything was lost — quieter than the padded count this was written to stop.
+            # [[unknown-stays-unknown]]
+            _bucket = nf_seen.get(nm)
+            _unknown = (nm in nf_seen and _bucket is None)
+            if nm not in nf_flat and not _unknown and not (_bucket or []):
                 continue
             r = resolve_contested(found.get(nm) or [], nf_seen.get(nm) or [])
             out.setdefault(led, {})[nm] = r
@@ -479,9 +488,22 @@ def not_found_datable(proposal, ledgers=("uniques", "sets")):
     withr = 0
     for led in ledgers:
         seen = ((proposal or {}).get("notFoundSeen") or {}).get(led) or {}
-        for nm in ((proposal or {}).get("notFound") or {}).get(led) or ():
+        flat = ((proposal or {}).get("notFound") or {}).get(led) or ()
+        # v2153 — THE SAME POPULATION resolve_all LOOKS AT, not just the flat list. A review
+        # measured the desync: a name whose only not-found trace is a RECEIPT (absent from the
+        # flat list) gave readings=0, and `total == 0` then declares "every not-found reading
+        # carries a receipt and can be ordered" while resolve_all had just ordered one this
+        # function never counted. merge_proposals copies `notFound` and `notFoundSeen` in
+        # SEPARATE loops, so that shape is ordinary, not a toy.
+        names = set(flat) | {nm for nm, v in seen.items() if v}
+        for nm in names:
             total += 1
-            if seen.get(nm):
+            # ...and a non-empty bucket is not an ORDERABLE receipt. sighting_time needs a
+            # 13-digit epoch in the frame name; a row like {"frame": "f_1.jpg"} returns None and
+            # the resolver answers `undatable`. Counting it as a receipt is how this function came
+            # to say "can be ordered" about readings the resolver cannot order. The question in
+            # the docstring is whether they can be ORDERED, so ask the thing that orders them.
+            if any(sighting_time(x) is not None for x in (seen.get(nm) or [])):
                 withr += 1
     ok = (total == 0 or withr >= total)
     return {"readings": total, "withReceipts": withr, "ok": ok,

@@ -116,6 +116,15 @@ const LOUD_FIXTURE = {
   contestedExpired: { uniques: ['Gheed’s Fortune'], sets: [] },
 };
 const UNKNOWN_FIXTURE = { calibration: { ok: null, say: 'the cross-check did not run' } };
+/* v2153 — rank 1.6, the state that could not render. notFoundDatable.ok goes null when the
+   resolver could not be consulted; the reader tested `=== false`, which JSON null fails, so the
+   one state the flag existed to surface painted nothing. It needs its own fixture because ok:null
+   and ok:false are mutually exclusive, exactly like calibration's 1 and 5. */
+const RESOLVER_DOWN_FIXTURE = {
+  notFoundDatable: { readings: null, withReceipts: null, ok: null,
+                     say: 'the resolver could not be consulted' },
+  resolverOk: false,
+};
 
 // rank -> does this card fold? Derived by EXECUTION below, pinned here as the law.
 const FOLDS: Record<string, boolean> = {
@@ -128,11 +137,14 @@ const FOLDS: Record<string, boolean> = {
   '4': true,     // superseded
   '4.5': true,   // contestedExpired — THE ONE THAT WAS WRONG
   '5': false,    // the cross-check did not run
+  '1.6': false,  // v2153 — the CONTRADICTION check did not run; unknown must reach him
 };
 
 test('every rank folds exactly as the finding says it should', async ({ page }) => {
   await mount(page);
-  const cards = [...await render(page, LOUD_FIXTURE), ...await render(page, UNKNOWN_FIXTURE)];
+  const cards = [...await render(page, LOUD_FIXTURE),
+                 ...await render(page, UNKNOWN_FIXTURE),
+                 ...await render(page, RESOLVER_DOWN_FIXTURE)];
 
   const seen = cards.map((c) => c.rank).sort();
   expect(seen.length, `only ${seen.length} cards rendered (${seen}) — the fixture does not reach `
