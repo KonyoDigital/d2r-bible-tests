@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2134",
+  "ver": "v2135",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2134: The item card footer set its visibility as an inline style, and an inline declaration outranks every stylesheet rule, so the prose lane hide for that footer was present and correct and could never apply. A footer left from the last card stayed visible when the prose lane took over the shared tooltip, printing the same sentence twice. Visibility is a class now so the cascade decides, with no important anywhere. Also the accordion spec called the toggle function directly and never pressed the header he actually presses, so removing that wiring would have left it green.",
+  "note": "v2135: The cockpit verdict cards had no hierarchy at all. The headline the body and the next action all resolved to the same size at every viewport, the action line comment claimed it was dimmer than the finding and measured it was not dimmer by any amount, the good card carried the highest contrast headline in the region so the loudest text sat on cards he cannot act on, and the unknown card headline used the same colour as every other card body. Four cards stacked five hundred and twenty nine pixels of which two hundred and twenty six were cards whose own action reads nothing to do, inside a window where the standby hero already takes three hundred and forty. Cards that need nothing from him now fold to their headline, which keeps the count and the fact.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -3175,25 +3175,78 @@
      as part of the console and follows the theme. Nothing here is fixed-position and nothing
      overlaps: it is a block in normal flow above .chron-cols, which is what makes it survive the
      narrow viewport the render gate checks. */
+  /* ══ v2135 — THE VERDICT STACK. MEASURED, THEN REBUILT ═══════════════════════════════════════
+     Konyo, three times with screenshots: "the whole TV-D the bottom area all the data is very
+     messy looking, polish it and perfect it" · "i want it all formated and structured and clear
+     if i need it. IF ITS AUTOMATED AND NOTHING FOR ME TO SEE HIDE IT"
+
+     WHAT WAS MEASURED, not asserted — on his live console at 1120x660:
+       · head / body / action all resolve to the SAME SIZE. Ratio 1.00 at every viewport.
+       · the action's own comment said "Dimmer than the finding". It was not dimmer BY ANY AMOUNT:
+         both were exactly var(--muted). The comment described an intention, not the pixels.
+       · .ok carried the HIGHEST-contrast headline (~10.7:1) — brighter than .bad (~6.5:1) — so the
+         loudest text in the region sat on the cards he cannot act on.
+       · .unk's headline colour WAS var(--muted), the same value as every other card's body, so an
+         unknown finding shouted exactly as loud as a red card's name list.
+       · four cards stacked 529px, of which 226px (43%) was cards whose own action reads
+         "nothing to do", inside a 660px window where the STANDBY hero already takes ~340px.
+
+     ⚠ THERE IS NO SIZE AXIS LEFT. --fs-2xs already sits ON the 13px floor (TestV1504TypeFloor) and
+     --fs-3xs is REFERENCED TWICE IN THIS FILE AND DEFINED NOWHERE — both uses fall back to
+     --fs-2xs, so the "smaller" they ask for has never once rendered. Defining it would breach the
+     floor. So hierarchy here is built from WEIGHT, TRACKING and COLOUR only. */
   .chron-warns { margin: 0 0 10px; display: grid; gap: 6px; }
   .chron-warn { padding: 8px 11px; border-radius: 9px; border: 1px solid transparent;
     font: var(--fw-medium) var(--fs-2xs)/1.5 var(--mono); }
-  .chron-warn b { display: block; margin-bottom: 2px; font-weight: var(--fw-bold); }
-  .chron-warn span { display: block; color: var(--muted); overflow-wrap: anywhere; }
-  /* the next action. Dimmer than the finding and italic, because it is the answer to the finding
-     rather than a second finding — two equally loud lines read as two problems. */
+  /* THE FINDING. Tracking is the only axis that can separate it from the body without growing the
+     card — his window cannot afford a taller stack. */
+  .chron-warn b { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px;
+    margin-bottom: 3px; font-weight: var(--fw-bold); letter-spacing: var(--ls-snug); }
+  .chron-warn span, .chron-warn .cw-body { display: block; color: var(--muted);
+    overflow-wrap: anywhere; }
+  /* THE NEXT ACTION — now actually demoted, which the old rule only claimed. --st-idle is the
+     token defined for "absence of state, not a state" and was unused in this region; --muted is
+     the BODY's colour, so reusing it here is what made the two lines equally loud. */
   .chron-warn em.chron-todo { display: block; margin-top: 5px; font-style: italic;
-    color: var(--muted); font-weight: var(--fw-medium); }
+    color: var(--st-idle); font-weight: var(--fw-medium); letter-spacing: var(--ls-tight); }
+  /* SETTLED = the machine already handled it and there is nothing for him to do. His rule, applied
+     literally — but the HEADLINE STAYS, because it carries the count and the fact. Only the
+     explanation folds. A collapsed card that hides WHAT it is would be silent, not quiet. */
+  .chron-warn.settled { opacity: .78; }
+  .chron-warn.settled > .cw-body, .chron-warn.settled > span,
+  .chron-warn.settled > em.chron-todo { display: none; }
+  .chron-warn.settled.cw-open { opacity: 1; }
+  .chron-warn.settled.cw-open > .cw-body, .chron-warn.settled.cw-open > span,
+  .chron-warn.settled.cw-open > em.chron-todo { display: block; }
+  .chron-warn.settled > b { margin-bottom: 0; cursor: pointer; }
+  .chron-warn.settled > b:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  /* the age of the reading the denial rests on, kept ON the headline so folding cannot hide it —
+     it is rendered in exactly ONE place in this whole console and it is what says whether the
+     denial can be trusted at all. */
+  .chron-warn .cw-age { margin-left: auto; font-weight: var(--fw-medium); opacity: .72;
+    letter-spacing: var(--ls-tight); white-space: nowrap; }
+  /* the fold affordance sits at the END of the row, after the age — as its own flex item it can
+     never be orphaned onto a third line the way an ::after on a wrapping block was. */
+  .chron-warn.settled > b::after { content: '\2026'; opacity: .55; margin-left: 2px; }
+  .chron-warn.settled.cw-open > b::after { content: '\2212'; }
   .chron-warn.bad { border-color: color-mix(in srgb, var(--st-broken) 55%, transparent);
     background: color-mix(in srgb, var(--st-broken) 11%, transparent); color: var(--st-broken); }
   .chron-warn.warn { border-color: color-mix(in srgb, var(--st-needs) 50%, transparent);
     background: color-mix(in srgb, var(--st-needs) 9%, transparent); color: var(--st-needs); }
-  .chron-warn.ok { border-color: color-mix(in srgb, var(--st-good) 45%, transparent);
-    background: color-mix(in srgb, var(--st-good) 9%, transparent); color: var(--st-good); }
+  /* v2135 — .ok IS QUIETER THAN .bad NOW. Measured: its headline was the highest-contrast text in
+     the whole region (~10.7:1 vs .bad's ~6.5:1), so the loudest thing on the panel was a card he
+     cannot act on. A settled good outcome is the LEAST urgent thing here. */
+  .chron-warn.ok { border-color: color-mix(in srgb, var(--st-good) 32%, transparent);
+    background: color-mix(in srgb, var(--st-good) 6%, transparent);
+    color: color-mix(in srgb, var(--st-good) 72%, var(--muted)); }
   /* UNKNOWN gets its own muted look on purpose: it must not read as an alarm, and it must not
      read as a pass either. [[unknown-stays-unknown]] */
-  .chron-warn.unk { border-color: color-mix(in srgb, var(--muted) 40%, transparent);
-    background: color-mix(in srgb, var(--muted) 7%, transparent); color: var(--muted); }
+  /* v2135 — ON --st-idle, NOT --muted. --muted is the BODY's colour and the ACTION's colour, so an
+     unknown card's headline was rendering at exactly the same value as every other card's prose:
+     an unmeasured finding shouted as loud as a red card's name list. --st-idle is defined for
+     precisely this ("absence of state, not a state") and was unused here. */
+  .chron-warn.unk { border-color: color-mix(in srgb, var(--st-idle) 40%, transparent);
+    background: color-mix(in srgb, var(--st-idle) 7%, transparent); color: var(--st-idle); }
   /* the per-row flag. display:block so a long name and a long badge never share a line and
      collide — the collision class the second eye catches and a text assertion never does. */
   .chron-flag { display: block; margin: 3px 0 0; padding: 1px 7px; border-radius: 999px;
@@ -15025,6 +15078,27 @@ function escC(s) {
      protection from the code side and carries nothing at the only moment that matters, which is
      the moment he is looking at a green `register 302` button.
      It goes ABOVE the columns, because a warning under the thing it warns about is decoration. */
+  /* v2135 — WHICH SETTLED CARDS HE HAS OPENED, kept OUTSIDE the renderer so a poll cannot slam
+     one shut under his cursor. This strip is rebuilt on every sweep repaint; a card he opened
+     thirty seconds ago must still be open after. Same lesson as the grail wall (v2120 #23), whose
+     scroll position was lost for exactly this reason. Deliberately NOT persisted to disk: which
+     explanation he had open is a property of this sitting, not of his board. */
+  var _cwOpen = {};
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('.chron-warn.settled > b');
+    if (!b) return;
+    var card = b.parentNode, k = card.getAttribute('data-cw');
+    var nowOpen = !card.classList.contains('cw-open');
+    card.classList.toggle('cw-open', nowOpen);
+    if (k) { if (nowOpen) _cwOpen[k] = 1; else delete _cwOpen[k]; }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var b = e.target && e.target.closest && e.target.closest('.chron-warn.settled > b');
+    if (!b) return;
+    e.preventDefault(); b.click();
+  });
+
   function _chronWarnStrip(res) {
     var out = [], den = res.denial || {}, cal = res.calibration || {}, con = res.contested || {};
     var d = den.denied || [], und = den.undated || [], sup = den.superseded || [];
@@ -15038,21 +15112,41 @@ function escC(s) {
        ALREADY withholds a denied row (chronicle_apply does it on the write path), so the answer to
        "what do I do" is usually "nothing". A warning that makes him hunt for a checkbox that does
        not exist is worse than no warning. [[grok-second-eye]] */
-    function push(rank, cls, head, body, todo) {
-      out.push([rank, '<div class="chron-warn ' + cls + '"><b>' + head + '</b><span>' + body
-        + '</span>' + (todo ? '<em class="chron-todo">\u2192 ' + todo + '</em>' : '') + '</div>']);
+    /* v2135 — push() carries ONE new fact: whether this finding wants HIM. It is passed in
+       explicitly rather than sniffed from the todo text at render time, because "does this need
+       him" is a property of the finding, not of how its sentence happens to be worded — and a
+       renderer that greps its own prose for "nothing to do" is exactly the class of guess this
+       codebase keeps paying for. Cards that do NOT want him render SETTLED: headline visible,
+       body and action folded, and he can open one. [[the-unjoined-end]] */
+    function push(rank, cls, head, body, todo, needsHim) {
+      var settled = (needsHim === false);
+      var key = 'w' + rank;
+      var open = settled && _cwOpen[key];
+      out.push([rank, '<div class="chron-warn ' + cls + (settled ? ' settled' : '')
+        + (open ? ' cw-open' : '') + '" data-rank="' + rank + '" data-cw="' + key + '">'
+        + '<b'
+        + (settled ? ' role="button" tabindex="0" title="tap to see why — nothing here needs you"' : '')
+        + '>' + head + '</b><span>' + body + '</span>'
+        + (todo ? '<em class="chron-todo">\u2192 ' + todo + '</em>' : '') + '</div>']);
     }
     if (d.length) {
       var age = (den.reading && den.reading.ageDays != null)
         ? (den.reading.ageDays < 1 ? 'today' : den.reading.ageDays.toFixed(1) + ' days old') : 'of unknown age';
-      push(0, 'bad', '\u26d4 the game itself denies ' + d.length + ' of these',
+      /* v2135 — THE AGE RIDES ON THE HEADLINE, and that is not cosmetic. `den.reading.ageDays` is
+         rendered in exactly ONE place in this entire console — the body of this card — and it is
+         the fact that says whether the denial can be trusted at all: a page shot TODAY denying a
+         row is a different claim from one 'of unknown age' denying it. This card is SETTLED (the
+         register already withholds these rows, so there is nothing for him to do), and folding it
+         with the age inside would have hidden the calibration along with the noise.
+         Quiet is fine. Silent is not. */
+      push(0, 'bad', '\u26d4 the game itself denies ' + d.length + ' of these'
+        + ' <span class="cw-age">\u00b7 its page is ' + escC(age) + '</span>',
         escC(d.map(function (x) { return x.name; }).join(', '))
-        + ' \u2014 its own Remaining page (' + escC(age) + ') was shot AFTER these were seen and '
-        + 'still lists them as missing.',
+        + ' \u2014 that page was shot AFTER these were seen and still lists them as missing.',
         'nothing to do \u2014 register already holds ' + (d.length === 1 ? 'it' : 'them')
         + ' back and will name ' + (d.length === 1 ? 'it' : 'them') + ' when you press it. '
         + 'Record a new Remaining page after you find ' + (d.length === 1 ? 'it' : 'them')
-        + ' and the denial lifts.');
+        + ' and the denial lifts.', false);
     }
     if (cal && cal.ok === false && cal.say) {
       push(1, 'bad', '\u2696 the board and the game do not add up', escC(cal.say),
@@ -15083,7 +15177,7 @@ function escC(s) {
         + ' on the missing list and you found ' + (sup.length === 1 ? 'it' : 'them') + ' since',
         escC(sup.map(function (x) { return x.name; }).join(', '))
         + ' \u2014 seen AFTER the page was shot, so the page is simply older than the fact.',
-        'nothing to do \u2014 ' + (sup.length === 1 ? 'it stands' : 'these stand') + '.');
+        'nothing to do \u2014 ' + (sup.length === 1 ? 'it stands' : 'these stand') + '.', false);
     }
     /* v1923 — AND SAY WHEN THE NOT-FOUND EVIDENCE CANNOT BE DATED. This is the block that exists
        because of a wrong answer given out loud: "12 of your 36 set pieces are ones the game shows
@@ -15117,7 +15211,7 @@ function escC(s) {
         escC(nd.slice(0, 8).map(function (x) {
           return x.name + (x.foundAt ? ' \u00b7 ' + x.foundAt : '');
         }).join('  \u2014  ')) + (nd.length > 8 ? ' \u2026 and ' + (nd.length - 8) + ' more' : ''),
-        'these are the game\u2019s OWN dates, not when the reader saw them \u2014 nothing to do.');
+        'these are the game\u2019s OWN dates, not when the reader saw them \u2014 nothing to do.', false);
     }
     var ce = res.contestedExpired || {};
     var ceAll = [].concat(ce.uniques || [], ce.sets || []);
