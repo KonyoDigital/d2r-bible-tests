@@ -22195,8 +22195,16 @@ class TestV2154ThePanelFrameSURVIVESTheSignature(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _run(self, gate):
+        """`gate` is the OLD two-state shape (None = not a panel). v2172 replaced the pruner's
+        dependency with stash_panel_verdict, which returns "panel"/"no"/"unknown" — so this
+        adapts, and a gate that RAISES maps to "unknown", which is what these cases mean by it."""
         import unittest.mock as mock
-        with mock.patch.object(self.ca, "stash_screen_open_cached", gate):
+
+        def _verdict(q):
+            v = gate(q)              # may raise; the pruner treats that as unknown
+            return "no" if v is None else "panel"
+
+        with mock.patch.object(self.ca, "stash_panel_verdict", _verdict):
             return self.ca._prune_once(hist_dir=self.tmp, grace_s=1, floor=1, batch=99)
 
     def test_a_frame_the_gate_calls_a_PANEL_is_never_deleted(self):
@@ -22606,12 +22614,30 @@ class TestV2156TheReadSaysHowLongIsLeft(unittest.TestCase):
         meter sat there — honest, and useless. The phase gets its own sentence, and that sentence
         carries the fact he actually wants while waiting: nothing is being PAID for yet."""
         ca = self._ca()
-        e = ca.sweep_eta({"running": True, "phase": "hunting", "huntNames": 12})
+        e = ca.sweep_eta({"running": True, "phase": "hunting", "huntNames": 12, "pagesRead": 125})
         self.assertFalse(e["ok"], "the hunt cannot produce a frame-based ETA")
         self.assertIn("hunting", e["say"])
         self.assertIn("12", e["say"], "it does not say how many names it is hunting")
-        self.assertIn("paid", e["say"], "it does not say that nothing is being paid for yet")
         self.assertIsNone(e["etaMs"])
+        # ⚠ v2171 CORRECTS WHAT THIS USED TO ASSERT. It required the sentence to say nothing was
+        # being paid for — and that was FALSE: chronicle_hunt.hunt() calls the same paid reader
+        # (chronicle_hunt.py:229). Caught on his live console at 26.8 minutes into a hunt with
+        # classified:0 and pagesRead:125, so the meter told him he was spending nothing while he
+        # had spent 125 pages. A wrong number is bad; a wrong statement about his SPEND is worse.
+        self.assertIn("125", e["say"], "it does not report the pages the hunt has actually read")
+        self.assertNotIn("no page is being paid", e["say"],
+                         "it still claims the hunt spends nothing — it uses the paid reader")
+
+    def test_a_hunt_that_has_read_NOTHING_says_that_instead(self):
+        ca = self._ca()
+        e = ca.sweep_eta({"running": True, "phase": "hunting", "huntNames": 3, "pagesRead": 0})
+        # v2173 gave the hunt a real ceiling (names x MAX_PER_NAME), so a hunt that has read
+        # nothing now says so WITH its denominator rather than as a bare phrase — strictly more
+        # informative, and the assertion follows the better sentence.
+        self.assertIn("0 of at most", e["say"])
+        self.assertIn("3 names", e["say"])
+        self.assertNotIn("None", e["say"])
+        self.assertFalse(e["ok"], "it produced a finish time from zero pages")
 
     def test_the_hunt_says_something_useful_even_with_NO_name_count(self):
         ca = self._ca()
@@ -23470,6 +23496,458 @@ class TestV2170WhatTheReviewBrokeInMyOwnFIXES(unittest.TestCase):
         self.assertIn("max(1,", code,
                       "a zero expected count still falls through to the raw frame total while the "
                       "estimate reports itself calibrated")
+
+
+class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
+    """v2058's condition, and the instrument it actually needed.
+
+    Its rule was "OFF until it can prove, PER FRAME, that it is not deleting a panel". v2154 armed
+    the prune on `stash_screen_open(...) is not None` — wrong, because that function answers None
+    for "this is not a stash screen" AND for states where it COULD NOT MEASURE. v2161 disarmed it
+    again for exactly that. The gate has always counted its own blind states; nothing had ever
+    asked them PER FRAME.
+
+    ⚠ AND THIS DOES NOT ARM THE PRUNE. A hover tooltip that hides the tab strip while the OCR lane
+    is healthy still yields canons==[] with NO counter moving, so it answers "no" — the v2058 case
+    is still open and the prune stays OFF. This is the instrument, not the arming.
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def _frame(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        q = os.path.join(d, "f_1700000000000.jpg")
+        with io.open(q, "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xe0jpegish")
+        return q
+
+    def test_a_clean_NO_is_a_no(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        q = self._frame()
+        with mock.patch.object(ca, "stash_screen_open", lambda p: None), \
+             mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertEqual(ca.stash_panel_verdict(q), "no")
+
+    def test_a_PANEL_is_a_panel(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        q = self._frame()
+        with mock.patch.object(ca, "stash_screen_open", lambda p: "stash"), \
+             mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertEqual(ca.stash_panel_verdict(q), "panel")
+
+    def test_a_SILENT_OCR_is_UNKNOWN_not_a_no(self):
+        """The state the gate's own comment describes: the crop was made and the OCR returned zero
+        lines — gameplay, or his live session holding the OCR worker. Frame-level it cannot tell
+        them apart, so it must not read as a verdict about his footage."""
+        import unittest.mock as mock
+        ca = self._ca()
+        q = self._frame()
+
+        def _silent(p):
+            ca._GATE_SILENT[0] += 1      # what the real gate does before returning None
+            return None
+
+        with mock.patch.object(ca, "stash_screen_open", _silent), \
+             mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertEqual(ca.stash_panel_verdict(q), "unknown",
+                             "a silent OCR read as a measured 'not a panel' — that is the frame "
+                             "with his only copy of an item name being called a spare")
+
+    def test_a_BROKEN_gate_is_UNKNOWN_not_a_no(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        q = self._frame()
+
+        def _broke(p):
+            ca._GATE_BROKE["n"] += 1
+            return None
+
+        with mock.patch.object(ca, "stash_screen_open", _broke), \
+             mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertEqual(ca.stash_panel_verdict(q), "unknown")
+
+    def test_the_CACHE_remembers_that_a_read_was_BLIND(self):
+        """⚠ THE HALF THAT WOULD HAVE UNDONE THE REST. The gate memoises on (size, mtime), so a
+        cached None carried no memory of whether that read was blind — a second look at a frame
+        first read while the OCR lane was down would come back a confident 'no', and the frame
+        would be deleted on it. The cache row carries the flag."""
+        import unittest.mock as mock
+        ca = self._ca()
+        q = self._frame()
+        cache = {}
+
+        def _silent(p):
+            ca._GATE_SILENT[0] += 1
+            return None
+
+        with mock.patch.object(ca, "stash_screen_open", _silent), \
+             mock.patch.object(ca, "_gate_cache", lambda: cache):
+            first = ca.stash_panel_verdict(q)
+        # second look: the reader is healthy now, but the CACHED row must still say unknown
+        with mock.patch.object(ca, "stash_screen_open",
+                               lambda p: self.fail("it re-read instead of using the cache")), \
+             mock.patch.object(ca, "_gate_cache", lambda: cache):
+            second = ca.stash_panel_verdict(q)
+        self.assertEqual(first, "unknown")
+        self.assertEqual(second, "unknown",
+                         "the cached answer forgot the read was blind, so a frame first seen "
+                         "while the OCR lane was down now reads as a confident 'no'")
+
+    def test_the_prune_is_STILL_OFF_because_the_tooltip_case_is_open(self):
+        """The instrument is not the arming. A tooltip hiding the tab strip while the OCR lane is
+        healthy still yields no canons with no counter moving. Until that is separable, the flag
+        stays False — and this test is what stops a future pass reading the new verdict as
+        permission. [[unknown-stays-unknown]]"""
+        ca = self._ca()
+        self.assertFalse(ca._PRUNE_SAFE_TO_RUN,
+                         "the prune was armed on the strength of a three-state gate that still "
+                         "cannot see a tooltip covering the tab strip")
+
+
+class TestV2174TheHuntStopsRebuyingWhatCameBackEmpty(unittest.TestCase):
+    """MEASURED ON HIS OWN LOG, and it is the answer to "its been 8+ hours and still chronicle is
+    reading":
+
+        28 hunt passes · 3,434 PAID reads · 2 new sightings   =   1,717 reads per sighting
+
+    pass after pass reading `hunt done: 144 read(s), new sightings for 0 name`.
+
+    The mechanism is the alphabetical cap. `held_by[led][:8]` takes the SAME first eight names on
+    every run, because nothing about them changed — the hunt fails, the sweep ends, the next sweep
+    starts, and it buys the identical 144 reads again. Forever, on his subscription.
+
+    v1524 already wrote the law for REELS: "a sealed reel never changes: re-reading one buys
+    nothing and costs a subscription read per still-run." The hunt never got the same memory.
+
+    ⚠ The fingerprint is deliberately COARSE — reel ids and their frame counts. One that changed
+    on anything at all would make the memory useless (every run looks new); one that never changed
+    would make a real retry impossible. New footage, or a reel that grew, is exactly the event
+    that can turn an empty hunt into a hit.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._mem0 = control_app._CHRON_HUNT_MEM_PATH
+        control_app._CHRON_HUNT_MEM_PATH = os.path.join(self.tmp, "hunt_mem.json")
+
+    def tearDown(self):
+        self.ca._CHRON_HUNT_MEM_PATH = self._mem0
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _hist(self, reels):
+        h = os.path.join(self.tmp, "hist")
+        os.makedirs(h, exist_ok=True)
+        for rid, nframes in reels.items():
+            d = os.path.join(h, rid)
+            os.makedirs(d, exist_ok=True)
+            for i in range(nframes):
+                with io.open(os.path.join(d, "f_17000000000%02d.jpg" % i), "wb") as fh:
+                    fh.write(b"\xff\xd8\xff\xe0x")
+        return h
+
+    def test_the_fingerprint_MOVES_when_new_footage_arrives(self):
+        """A retry must still be possible — that is what makes the skip safe rather than a wall."""
+        h1 = self._hist({"reel_s_1787000000001_1": 3})
+        a = self.ca._chron_hunt_fingerprint({}, h1)
+        with io.open(os.path.join(h1, "reel_s_1787000000001_1", "f_1700000000099.jpg"), "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xe0x")
+        b = self.ca._chron_hunt_fingerprint({}, h1)
+        self.assertIsNotNone(a)
+        self.assertNotEqual(a, b, "a reel that GREW did not move the fingerprint, so a name that "
+                                  "might now be findable would never be hunted again")
+
+    def test_the_fingerprint_HOLDS_when_nothing_changed(self):
+        """Seen red for its own reason: a fingerprint that moves every run is no memory at all —
+        the loop would keep re-buying exactly as before. [[feedback-blind-fixture-green-gate]]"""
+        h = self._hist({"reel_s_1787000000001_1": 3, "reel_s_1787000000002_2": 2})
+        self.assertEqual(self.ca._chron_hunt_fingerprint({}, h),
+                         self.ca._chron_hunt_fingerprint({}, h))
+
+    def test_the_memory_round_trips(self):
+        mem = {"sets|Angelic Halo (ring)": {"empty": True, "fp": "abc123", "ts": 1}}
+        self.assertTrue(self.ca._chron_hunt_memory_save(mem))
+        self.assertEqual(self.ca._chron_hunt_memory(), mem)
+
+    def test_an_UNREADABLE_memory_is_empty_not_a_crash(self):
+        with io.open(self.ca._CHRON_HUNT_MEM_PATH, "w", encoding="utf-8") as fh:
+            fh.write("{ not json")
+        self.assertEqual(self.ca._chron_hunt_memory(), {},
+                         "a corrupt memory must read as 'nothing remembered', which costs one "
+                         "extra hunt — never as a crash in the sweep")
+
+    def test_LESS_film_than_before_can_never_force_a_paid_retry(self):
+        """⚠ THE SECOND EYE'S BEST FINDING: an EQUALITY fingerprint asks the wrong question.
+
+        The question a paid retry has to answer is "is there MORE to look at than when I last
+        paid?" — and a hash can only answer "is it different?". Different is not more:
+
+          · a reel deleted or archived changes the hash, so every remembered name is bought
+            again for strictly LESS film. Removing footage cannot turn a miss into a hit.
+          · one reel's listdir failing transiently made it read -1 instead of 18, moving the
+            hash and re-buying all eight names on a stumble that meant nothing.
+
+        So the level is stored and the skip asks `more_to_search`."""
+        ca = self.ca
+        was = {"frames": 400, "newest": 1000.0}
+        self.assertFalse(ca._chron_hunt_more_to_search(was, {"frames": 220, "newest": 1000.0}),
+                         "a reel was archived and the hunt paid to search LESS film")
+        self.assertFalse(ca._chron_hunt_more_to_search(was, dict(was)),
+                         "nothing changed and it still bought the read")
+        self.assertTrue(ca._chron_hunt_more_to_search(was, {"frames": 401, "newest": 1000.0}),
+                        "ONE new frame arrived and the hunt refused to look — that is the "
+                        "failure mode a memory must never have")
+        self.assertTrue(ca._chron_hunt_more_to_search(was, {"frames": 400, "newest": 1002.0}),
+                        "frames were replaced IN PLACE (same count, new pixels) and it skipped")
+
+    def test_an_UNMEASURED_level_never_skips_and_is_never_recorded(self):
+        """⚠ `None == None` WAS TRUE, SO A FINGERPRINT WE FAILED TO TAKE SKIPPED FOREVER.
+
+        The old code stored `fp: null` when the count threw and then compared it with `==` — an
+        unknown wearing a measurement's clothes, granting a permanent skip. Both halves are
+        asserted: an unknown never suppresses a read, and an unknown is never written down as
+        the thing a future skip will be judged against. [[unknown-stays-unknown]]"""
+        ca = self.ca
+        for now in (None, "abc", {}, 7):
+            self.assertTrue(ca._chron_hunt_more_to_search({"frames": 9, "newest": 1.0}, now),
+                            "an unmeasurable level (%r) suppressed a paid read" % (now,))
+        self.assertTrue(ca._chron_hunt_more_to_search(None, {"frames": 9, "newest": 1.0}),
+                        "a name with no recorded level was skipped")
+
+    def test_a_name_the_hunt_ANSWERED_for_is_not_filed_as_empty(self):
+        """⚠ `not got.get(name)` FILES A REAL ANSWER AS A MISS. If the hunt returns {"Shako": []}
+        or {"Shako": {}} — an answer, just an empty one — the old line recorded Shako as never
+        hunted-and-empty, and every later sweep at this level skipped it. Absence from the
+        answer is the question, not falsiness inside it."""
+        got = {"Shako": [], "Occy": {}}
+        held = ["Shako", "Occy", "Griffon"]
+        recorded = [n for n in held if n not in (got or {})]
+        self.assertEqual(recorded, ["Griffon"],
+                         "a name the hunt answered for was filed as empty (%r)" % recorded)
+        old = [n for n in held if not (got or {}).get(n)]
+        self.assertNotEqual(old, recorded,
+                            "this test cannot fail — the old rule and the new one agree on this "
+                            "fixture, so it is not exercising the defect")
+
+    def test_the_memory_SURVIVES_a_crash_and_a_second_sweep(self):
+        """⚠ `open(path,"w")` LOSES THE WHOLE MEMORY TWO WAYS, and losing it restores the loop.
+
+        A crash between truncate and dump leaves partial JSON that the next read cannot parse;
+        it returns {} and the next save writes back only that pass's names. And two overlapping
+        sweeps each read, each add, and the second to finish overwrites the first. Same shape as
+        the four programs that whole-file-wrote pt_signals.json every 17 seconds."""
+        import unittest.mock as mock, tempfile, json as _j
+        ca = self.ca
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "m.json")
+        with mock.patch.dict(os.environ, {"TV_CHRON_HUNT_MEM": f}):
+            ca._chron_hunt_memory_save({"uniques|A": {"empty": True, "fp": {"frames": 1}, "ts": 1}})
+            # a SECOND sweep that loaded before A saved, and knows nothing about A
+            ca._chron_hunt_memory_save({"uniques|B": {"empty": True, "fp": {"frames": 1}, "ts": 2}})
+            mem = ca._chron_hunt_memory()
+        self.assertEqual(sorted(mem), ["uniques|A", "uniques|B"],
+                         "the second save erased the first sweep's empties, so those names are "
+                         "bought again — last writer wins is how the memory silently empties")
+        self.assertFalse(os.path.isfile(f + ".tmp"),
+                         "the temp file was left behind; a crash mid-write must leave the "
+                         "PREVIOUS good memory in place, never a half-written one")
+
+    def test_the_memory_is_BOUNDED_so_it_cannot_grow_forever(self):
+        """`ts` was written and never read — the file grew with every name that ever came back
+        empty, and nothing pruned it. It is the pruning key now: newest kept, oldest dropped,
+        which can only ever cost one re-hunt."""
+        import unittest.mock as mock, tempfile
+        ca = self.ca
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        big = {"uniques|n%04d" % i: {"empty": True, "fp": {"frames": 1}, "ts": i}
+               for i in range(60)}
+        with mock.patch.dict(os.environ, {"TV_CHRON_HUNT_MEM": os.path.join(d, "m.json"),
+                                          "TV_CHRON_HUNT_MEM_MAX": "10"}):
+            with mock.patch.object(ca, "_CHRON_HUNT_MEM_MAX", 10):
+                ca._chron_hunt_memory_save(big)
+                mem = ca._chron_hunt_memory()
+        self.assertEqual(len(mem), 10, "the memory is unbounded (%d keys kept)" % len(mem))
+        self.assertIn("uniques|n0059", mem, "pruning kept the OLDEST instead of the newest")
+        self.assertNotIn("uniques|n0000", mem, "the oldest entry survived the prune")
+
+    def test_a_hunt_that_THREW_still_banks_what_it_already_paid_for(self):
+        """⚠ The `except` around the hunt `return`ed over the save, so a uniques hunt that came
+        back empty and then threw on the SETS hunt banked nothing — the empties it had already
+        paid for were discarded and the next sweep bought them again. The failing half is
+        exactly when re-buying hurts most. [[the-unjoined-end]]"""
+        import re as _re
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.index("def _chron_hunt_held(")
+        j = src.index("\ndef ", i + 10)
+        body = "\n".join(L for L in src[i:j].split("\n")
+                         if not L.strip().startswith("#"))
+        k = body.index('report["skipped"] = "hunt failed:')
+        window = body[max(0, k - 400):k]
+        self.assertIn("_chron_hunt_memory_save", window,
+                      "the hunt's failure path returns without saving the empties it already "
+                      "bought, so the next sweep pays for them a second time")
+
+    def test_the_memory_NEVER_lands_in_his_live_tree(self):
+        """⚠ MY OWN NEW STATE FILE SHIPPED WITHOUT ISOLATION, and the suite proved it in one run:
+        the hunt tests wrote a REAL tv/chron_hunt_memory.json, one test recorded its names as
+        empty, and the NEXT test's hunt skipped them and found nothing — two focused-hunt cases
+        red for a reason unrelated to what they test.
+
+        v1858 wrote this exact paragraph about chronicle_swept.json ("anything but a unittest
+        therefore wrote his REAL memory") and I added a sixth live-state file without attaching
+        the lesson to it. [[feedback-fixtures-never-touch-live-data]]"""
+        import unittest.mock as mock, tempfile
+        ca = self.ca
+        live = os.path.join(HERE, "chron_hunt_memory.json")
+        before = os.path.isfile(live)
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        with mock.patch.dict(os.environ, {"TV_CHRON_HUNT_MEM": os.path.join(d, "m.json")}):
+            ca._chron_hunt_memory_save({"sets|X": {"empty": True, "fp": "z", "ts": 1}})
+            self.assertEqual(ca._chron_hunt_memory().get("sets|X", {}).get("fp"), "z")
+        self.assertEqual(os.path.isfile(live), before,
+                         "the hunt memory wrote into his live tree — a throwaway name marked "
+                         "'already empty' in his real memory stops a REAL hunt from ever running")
+        # and TV_HIST alone must be enough to move it, because that is how the suite isolates
+        h = os.path.join(d, "hist")
+        os.makedirs(h, exist_ok=True)
+        with mock.patch.dict(os.environ, {"TV_HIST": h}, clear=False):
+            os.environ.pop("TV_CHRON_HUNT_MEM", None)
+            self.assertNotEqual(os.path.abspath(ca._chron_hunt_mem_path()), os.path.abspath(live),
+                                "TV_HIST does not move the hunt memory, so any harness that sets "
+                                "only TV_HIST still writes his real one")
+
+    def test_the_hunt_CONSULTS_the_memory_and_RECORDS_empties(self):
+        """The join. A memory nothing reads is the 1,717-reads-per-sighting loop with a file
+        beside it, and one nothing writes never fills. [[plumbing-with-no-tap]]"""
+        n = set(self.ca._chron_hunt_held.__code__.co_names)
+        self.assertIn("_chron_hunt_memory", n, "the hunt does not consult the memory")
+        self.assertIn("_chron_hunt_memory_save", n, "the hunt never records what came back empty")
+        self.assertIn("_chron_hunt_fingerprint", n, "the skip is not keyed to the evidence, so it "
+                                                    "would never allow a legitimate retry")
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        blk = _between(self, src, "_hunt_mem = _chron_hunt_memory()", "report[\"hunted\"]",
+                       what="the hunt's skip")
+        code = "\n".join(l for l in blk.split("\n") if not l.lstrip().startswith("#"))
+        self.assertIn("skippedAlreadyEmpty", code,
+                      "the skip is silent — a silent skip is how the last stall hid for 40 hours")
+
+
+class TestV2175EveryPaidLaneRemembersWhatItAlreadyBOUGHT(unittest.TestCase):
+    """THE LAW, not the instance.
+
+    Konyo, after the hunt burned 3,434 paid reads for 2 sightings: "its even better. more
+    architectural and intelligent smart AI coding so engines work around this so not only in the
+    future it doesnt happen on this (scar it) but in general other relations to this need proper
+    eye management and coding."
+
+    So: this repo has lanes that SPEND — each read is a subscription call against his account —
+    and every one of them must be able to answer "have I already bought this and got nothing?"
+    before spending again. Three had that memory. The hunt did not, and it re-bought the same
+    eight names every sweep, forever, because nothing about them had changed:
+
+        28 hunt passes · 3,434 PAID reads · 2 new sightings   =   1,717 reads per sighting
+
+    The law is registered here rather than remembered. A FOURTH paid lane cannot ship without
+    naming what stops it re-buying — that is what this test refuses.
+
+    ⚠ AND A MEMORY IS NOT ENOUGH ON ITS OWN. The hunt's memory failed silently on its first
+    version (`io.open` in a module that does not import `io`, swallowed by a bare except), so the
+    file was never written and the loop would have continued untouched. Hence the second half:
+    console_doctor watches the COST, not the code. A guard on the fix is not a guard on the spend.
+    """
+
+    # lane -> (module that spends, the thing that stops it re-buying)
+    PAID_LANES = {
+        "chronicle sweep": ("chronicle_retro.py", "chronicle_swept.json"),
+        "name hunt":       ("chronicle_hunt.py", "chron_hunt_memory.json"),
+        "vault sweep":     ("vault_retro.py", "vault_swept.json"),
+    }
+
+    def test_every_module_that_SPENDS_is_in_the_registry(self):
+        """If a new module starts calling a paid reader, it appears here and this goes red until
+        someone says what stops it re-buying. That is the point."""
+        import glob
+        here = os.path.dirname(os.path.abspath(__file__))
+        spenders = set()
+        for path in glob.glob(os.path.join(here, "*.py")):
+            base = os.path.basename(path)
+            if base.startswith("test_"):
+                continue
+            with io.open(path, encoding="utf-8", errors="replace") as fh:
+                src = fh.read()
+            code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+            if "read_page(" in code or "_oneshot(" in code:
+                spenders.add(base)
+        known = {m for m, _ in self.PAID_LANES.values()} | {
+            "control_app.py",          # the orchestrator: it OWNS the memories, it is not a lane
+            # ⚠ FOUND BY THIS TEST ON ITS FIRST RUN, which is the whole point of writing it as a
+            # law. tv_diablo is the READER, not a lane: it never decides WHAT to buy — the sweep
+            # and the hunt hand it a page. Its one self-directed spend is the crop-refused retry
+            # (crop first, full frame once if the crop answer is refused), bounded at exactly one
+            # extra read per page and pinned by the case below. If that ever becomes a loop, this
+            # module needs a memory like the others.
+            "tv_diablo.py",
+        }
+        unregistered = spenders - known
+        self.assertFalse(unregistered,
+                         "these modules call a PAID reader and are not in PAID_LANES, so nothing "
+                         "says what stops them buying the same thing twice: %s"
+                         % sorted(unregistered))
+
+    def test_every_registered_lane_NAMES_what_stops_it_rebuying(self):
+        ca_dir = os.path.dirname(os.path.abspath(__file__))
+        for lane, (mod, memory) in self.PAID_LANES.items():
+            self.assertTrue(os.path.isfile(os.path.join(ca_dir, mod)),
+                            "%s: its module %s is gone" % (lane, mod))
+            with io.open(os.path.join(ca_dir, "control_app.py"), encoding="utf-8") as fh:
+                orch = fh.read()
+            self.assertIn(memory, orch,
+                          "%s spends real money and nothing in control_app names %s — the thing "
+                          "that stops it re-buying what already came back empty" % (lane, memory))
+
+    def test_the_READER_retry_is_bounded_at_one_extra_page(self):
+        """tv_diablo is exempt from needing a memory ONLY because it does not choose what to buy.
+        Its one self-directed spend is the crop-refused retry. Bounded at one; if it ever loops,
+        the exemption above is wrong and this is where that shows."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(here, "tv_diablo.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        # the retry is a straight-line `if refused: read the full frame once` — never in a loop
+        for marker in ("_crop_answer_refused(", "_oneshot("):
+            self.assertIn(marker, code, "the read lane no longer looks like itself: %r" % marker)
+        blk = _between(self, code, "if (_read_path != ap and _crop_answer_refused(",
+                       "if not _crop_answer_refused(", what="the crop-refused retry")
+        self.assertEqual(blk.count("_oneshot("), 1,
+                         "the crop-refused retry buys more than one extra page — that is a lane "
+                         "deciding its own spend, and it needs a memory like the others")
+        for kw in ("while ", "for "):
+            self.assertNotIn(kw, blk, "the crop retry sits inside a loop: %r" % kw)
+
+    def test_the_COST_is_watched_not_just_the_code(self):
+        """The hunt's first memory failed silently and the loop would have continued. An eye on
+        the spend catches that; an eye on the source does not. [[feedback-verify-not-proxy]]"""
+        here = os.path.dirname(os.path.abspath(__file__))
+        import console_doctor as cd
+        names = [n for n, _f in getattr(cd, "CHECKS", [])]
+        self.assertIn("hunt economy", names,
+                      "no eagle check watches what the hunt is paying per sighting")
+        st, say = cd._check_the_hunt_is_buying_something()
+        self.assertIn(st, ("ok", "missing", "unknown"))
+        self.assertTrue(say and len(say) > 20, "the check reports nothing a person can act on")
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

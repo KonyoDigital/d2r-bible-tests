@@ -11773,15 +11773,17 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
             # already gated these frames, so the proof is ~0s on the second look. When it cannot
             # answer, the frame is KEPT: an unmeasured frame is not a spare one.
             # [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
-            _panel = _PANEL_UNKNOWN
+            # v2172 — THREE ANSWERS, NOT TWO. `stash_screen_open` returns None for BOTH "not a
+            # stash screen" and "I could not look", and v2154 read the second as the first and
+            # shipped a deleter on it. stash_panel_verdict separates them with a per-frame delta
+            # over the gate's own blind counters, so only a MEASURED "no" can lead to a delete.
             try:
-                _panel = stash_screen_open_cached(q)
+                _v = stash_panel_verdict(q)
             except Exception:
-                _panel = _PANEL_UNKNOWN
-            if _panel is _PANEL_UNKNOWN or _panel is not None:
-                kept = "the panel gate could not answer" if _panel is _PANEL_UNKNOWN else \
-                       "the panel gate calls it a panel"
-                _prune_note(q, kept)
+                _v = "unknown"
+            if _v != "no":
+                _prune_note(q, "the panel gate calls it a panel" if _v == "panel"
+                            else "the panel gate could not look")
                 kept_sig = sg        # it survives, so it becomes the new anchor
                 continue
             try:
@@ -13959,6 +13961,67 @@ def stash_screen_open_cached(frame_path):
     return val
 
 
+def stash_panel_verdict(frame_path):
+    """Is this frame a stash PANEL? -> "panel" | "no" | "unknown". Never collapses the last two.
+
+    v2172 — THE CONDITION v2058 SET, FINALLY MET. Its rule was "OFF until it can prove, per frame,
+    that it is not deleting a panel", and v2154 armed the prune on `stash_screen_open(...) is not
+    None`, which was wrong: that function answers None for "this is not a stash screen" AND for at
+    least two states where it COULD NOT MEASURE. v2161 disarmed it again for that reason. The
+    tooltip case is the one that matters — `stash_chrome_canons` comes back empty when a HOVER
+    TOOLTIP covers the tab strip, and the tooltip is the only place an item name exists.
+
+    The gate already counts its own blind states; nothing had ever asked them PER FRAME:
+        _GATE_SILENT   the crop was made and the OCR returned zero lines — gameplay, or his live
+                       session holding the OCR worker. The gate's own comment says the frame-level
+                       answer "cannot tell them apart and stays None, which is the safe direction".
+        gate_failures() the gate FAILED rather than refused (import or read broke).
+    A delta across those two, around one call, separates "the gate said no" from "the gate could
+    not look". The same delta trick the run-level warning at :13107 already uses, per frame.
+
+    ⚠ THE CACHE HAD TO REMEMBER IT TOO. stash_screen_open_cached memoises on (size, mtime), so a
+    cached None carried no memory of whether that read was blind — and a second look at a frame
+    first read while the OCR lane was down would have come back a confident "no". The cache row
+    carries the blind flag now.
+
+    ⚠ AND THIS STILL DOES NOT COVER EVERYTHING. A tooltip that hides the tab strip while the OCR
+    lane is healthy yields canons==[] with NO counter moving, so it answers "no" — the v2058 case
+    remains open, which is why the prune stays disarmed. This is the instrument, not the arming.
+    """
+    _g0 = (_GATE_SILENT[0], gate_failures())
+    try:
+        val, blind = _stash_gate_read(frame_path)
+    except Exception:
+        return "unknown"
+    if blind or _GATE_SILENT[0] != _g0[0] or gate_failures() != _g0[1]:
+        return "unknown"
+    return "no" if val is None else "panel"
+
+
+def _stash_gate_read(frame_path):
+    """(verdict, blind) for ONE frame, memoised — `blind` says the gate could not look."""
+    global _GATE_CACHE_DIRTY
+    try:
+        st = os.stat(frame_path)
+        key = frame_path
+        sig = [int(st.st_size), int(st.st_mtime)]
+    except Exception:
+        b0 = (_GATE_SILENT[0], gate_failures())
+        v = stash_screen_open(frame_path)
+        return v, (_GATE_SILENT[0] != b0[0] or gate_failures() != b0[1])
+    c = _gate_cache()
+    hit = c.get(key)
+    if isinstance(hit, list) and len(hit) >= 4 and hit[0] == sig[0] and hit[1] == sig[1]:
+        return hit[2], bool(hit[3])
+    b0 = (_GATE_SILENT[0], gate_failures())
+    val = stash_screen_open(frame_path)
+    blind = (_GATE_SILENT[0] != b0[0] or gate_failures() != b0[1])
+    with _GATE_LOCK:
+        c[key] = [sig[0], sig[1], val, bool(blind)]
+        _GATE_CACHE_DIRTY = True
+    return val, blind
+
+
 def stash_screen_open(frame_path):
     """HARDCODED: is this frame actually the stash, with the panels open? Not a model's opinion.
 
@@ -14290,6 +14353,9 @@ def _chron_fold(prop):
 # subscription chasing reader debris. The fold already retires the debris; this budget is what stops
 # the remainder from becoming open-ended.
 _CHRON_HUNT_MAX_NAMES = int(os.environ.get("TV_CHRON_HUNT_NAMES") or 8)
+# v2175.3 — the hunt memory's ceiling. `ts` was written and never read, so the file grew with
+# every name that ever came back empty. Pruning the oldest can only ever cost one re-hunt.
+_CHRON_HUNT_MEM_MAX = int(os.environ.get("TV_CHRON_HUNT_MEM_MAX") or 4000)
 
 
 def _chron_calibration(reel_dirs):
@@ -14434,6 +14500,183 @@ def _chron_calibration(reel_dirs):
 
 
 
+_CHRON_HUNT_MEM_PATH = os.path.join(HERE, "chron_hunt_memory.json")
+
+
+def _chron_hunt_mem_path():
+    """Where the hunt's empty-memory lives — with the SAME isolation the other five live-state
+    files have.
+
+    ⚠ v2175.1 — MY OWN NEW FILE SHIPPED WITHOUT IT, and the suite proved it within one run: the
+    hunt tests wrote a REAL tv/chron_hunt_memory.json, one test recorded its names as empty, and
+    the NEXT test's hunt skipped them and found nothing. Two focused-hunt cases went red for a
+    reason that had nothing to do with what they were testing. v1858 wrote this exact paragraph
+    about chronicle_swept.json — "anything but a unittest therefore wrote his REAL memory" — and I
+    added a sixth state file without the lesson attached to it.
+    [[feedback-fixtures-never-touch-live-data]]
+
+    PRECEDENCE, copied deliberately from _chron_swept_path: EXPLICIT BEATS AMBIENT. An env var or
+    a patched module global is a deliberate instruction; TV_HIST is a statement about the FOOTAGE
+    that only implies where state should live.
+    """
+    p = os.environ.get("TV_CHRON_HUNT_MEM")
+    if p:
+        return p
+    g = globals().get("_CHRON_HUNT_MEM_PATH")
+    if g and g != os.path.join(HERE, "chron_hunt_memory.json"):
+        return g                      # a test patched the global: that is deliberate
+    # ⚠ v2175.2 — FOLLOW THE SWEEP MEMORY, do not re-derive the isolation. My first cut walked
+    # TV_HIST itself and STILL wrote his live tree during a full suite run, because the callers
+    # that reach here do not all set TV_HIST — I had rebuilt half of an isolation that already
+    # existed, and got the half wrong. _chron_swept_path() is the file that decides whether a reel
+    # is re-read; it has had every override since v1858 and the whole suite already isolates it.
+    # These two memories answer the same question about money, so they live in the same place and
+    # move together by construction. [[copy-drift]]
+    try:
+        return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())),
+                            "chron_hunt_memory.json")
+    except Exception:
+        return g or os.path.join(HERE, "chron_hunt_memory.json")
+
+
+def _chron_hunt_memory():
+    """{ledger|name: {empty, fp, ts}} — which hunts have already come back empty, and against what.
+
+    v2174 — the hunt's twin of chronicle_swept.json. v1524 wrote the rule for reels; the hunt paid
+    1,717 subscription reads per new sighting on his machine for want of it.
+    """
+    try:
+        with open(_chron_hunt_mem_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except FileNotFoundError:
+        return {}                       # first run — nothing remembered yet, and that is fine
+    except Exception as e:
+        # ⚠ NOT a silent {}. An unreadable memory costs one extra hunt, which is money, and it
+        # must not look like "nothing was ever empty". Say it once.
+        print("   \u26a0 the hunt memory could not be read (%s) — this run may re-buy a hunt that "
+              "already came back empty" % str(e)[:80], flush=True)
+        return {}
+
+
+def _chron_hunt_memory_save(mem):
+    # ⚠ v2174.1 — THIS SAID `io.open` AND control_app DOES NOT IMPORT `io`. The NameError went
+    # straight into the bare `except` below and the function returned False every single time, so
+    # the memory NEVER PERSISTED and the 144-read loop would have continued untouched — a silent
+    # except hiding a NameError, inside the fix for a silent loop. Caught by its own test asserting
+    # the return value rather than trusting it. A writer that cannot write must SAY SO.
+    # ⚠ v2175.3 — MERGE, THEN REPLACE ATOMICALLY. The second eye found two ways the old
+    # `open(path,"w")` LOST the whole memory, and losing it restores the 144-read loop exactly:
+    #   · a crash or a full disk between truncate and dump leaves partial JSON. The next read
+    #     cannot parse it, returns {}, and the next save writes back only THIS pass's names —
+    #     every earlier empty forgotten, all of them bought again.
+    #   · two sweeps that overlap each read the file, each add their own names, and the second
+    #     one to finish writes its copy over the first's. Last writer wins, silently.
+    # A whole-file write of accumulated state is the shape that erased pt_signals.json every 17
+    # seconds. Re-read at the moment of writing, union, then os.replace, which is atomic.
+    path = _chron_hunt_mem_path()
+    try:
+        merged = _chron_hunt_memory()          # whatever landed while this sweep was hunting
+        merged.update(mem or {})
+        # v2175.3 — AND BOUND IT. `ts` was written and never read, so the file grew forever with
+        # every name that ever came back empty. Now it is the pruning key: keep the newest
+        # _CHRON_HUNT_MEM_MAX, which can only ever cost one re-hunt of the oldest names.
+        if len(merged) > _CHRON_HUNT_MEM_MAX:
+            merged = dict(sorted(
+                merged.items(),
+                key=lambda kv: (kv[1] or {}).get("ts", 0) if isinstance(kv[1], dict) else 0,
+                reverse=True)[:_CHRON_HUNT_MEM_MAX])
+        tmp = path + ".tmp"
+        d = os.path.dirname(path)
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(merged, fh, indent=1, sort_keys=True)
+        os.replace(tmp, path)
+        return True
+    except Exception as e:
+        print("   \u26a0 the hunt memory could not be SAVED (%s) — the next sweep will re-buy "
+              "these reads" % str(e)[:80], flush=True)
+        try:
+            os.remove(path + ".tmp")
+        except Exception:
+            pass
+        return False
+
+
+def _chron_hunt_fingerprint(prop, hist_dir):
+    """How much evidence there is to search — a LEVEL, not an identity. -> {"frames","newest"} | None
+
+    ⚠ v2175.3 — THIS USED TO BE A HASH COMPARED WITH `==`, AND EQUALITY IS THE WRONG QUESTION.
+    The question a paid retry has to answer is "is there MORE to look at than last time I paid?",
+    and a hash can only answer "is it different?". Different is not the same as more:
+
+      · a reel deleted or archived CHANGES the hash, so every remembered name was bought again —
+        for strictly LESS film. Removing footage cannot turn a miss into a hit. Ever.
+      · one reel's listdir failing transiently made that reel read `-1` instead of `18`, moving
+        the hash and re-buying all eight names on a stumble that meant nothing.
+
+    So the memory now stores the LEVEL and the caller retries only when it RISES. Shrinking is
+    free, a stumble costs nothing, and growth — the one event that can make a hunt worth paying
+    for — still forces the retry. `newest` catches frames REPLACED IN PLACE, which leave the
+    count identical while genuinely changing what is on screen.
+
+    ⚠ AND UNMEASURABLE IS NOT A LEVEL. This returns None when it cannot count, and None must never
+    satisfy a skip — the old code compared `None == None` and skipped forever on a fingerprint it
+    had failed to take, which is precisely the unknown-worn-as-a-reading shape.
+    [[unknown-stays-unknown]] [[feedback-threshold-above-the-ceiling]]
+
+    `prop` is deliberately unread: the hunt searches FILM for held names, so only the film is the
+    search space. A proposal that grew without new frames cannot make a re-read find anything the
+    last read missed. The argument stays for call-site symmetry with the rest of the hunt lane.
+    """
+    try:
+        import chronicle_retro as _cr
+        h = hist_dir or os.environ.get("TV_HIST") or HIST_DIR
+        frames = 0
+        newest = 0.0
+        for d in sorted(_cr.reel_dirs(h) or [], key=lambda x: str(x)):
+            try:
+                names = [x for x in os.listdir(d) if x.startswith("f_") and x.endswith(".jpg")]
+            except Exception:
+                # ⚠ ONE UNREADABLE REEL POISONS THE WHOLE READING. Refusing here is what makes a
+                # stumble cost one hunt instead of writing a confident wrong level into memory.
+                return None
+            frames += len(names)
+            for x in names:
+                try:
+                    m = os.path.getmtime(os.path.join(str(d), x))
+                except Exception:
+                    return None
+                if m > newest:
+                    newest = m
+        return {"frames": frames, "newest": round(newest, 3)}
+    except Exception:
+        return None
+
+
+def _chron_hunt_more_to_search(prev_fp, now_fp):
+    """Is there MORE film than when this name last came back empty? -> True | False
+
+    The skip rule, in one place so both the hunt and its tests ask the same question. UNKNOWN on
+    either side answers True — "I cannot tell" must buy the read, never suppress it.
+    """
+    # ⚠ `isinstance(x, dict)` IS NOT "x IS A READING". An empty {} passes it and then reads as
+    # frames=-1/newest=0 — zero film, so nothing can ever be "more", so it skips forever. Caught
+    # by this function's own test, one layer below the defect it was written to fix: the shape
+    # repeats at every level of the same lane. The keys must actually BE there.
+    def _level(x):
+        return (isinstance(x, dict) and "frames" in x and "newest" in x)
+    if not _level(now_fp) or not _level(prev_fp):
+        return True                      # unmeasured: never skip on it
+    try:
+        if int(now_fp.get("frames", -1)) > int(prev_fp.get("frames", -1)):
+            return True
+        return float(now_fp.get("newest", 0)) > float(prev_fp.get("newest", 0)) + 0.5
+    except Exception:
+        return True
+
+
 def _chron_hunt_held(prop, applied, hist_dir, read_page):
     """Go back and look again for the names the gate held, then re-gate with whatever came back.
 
@@ -14479,8 +14722,44 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
     # The cap is per ledger, not shared: a long uniques list must not starve the sets hunt of every
     # read, which is the shape that made this uniques-only in effect even after it stopped being so
     # in the filter.
+    # ── v2174 — A HUNT THAT ALREADY CAME BACK EMPTY IS NOT RE-BOUGHT. ───────────────────────
+    # MEASURED ON HIS OWN LOG, and it is the answer to "its been 8+ hours and still chronicle is
+    # reading":
+    #     28 hunt passes · 3,434 PAID reads · 2 new sightings   =   1,717 reads per sighting
+    # with pass after pass reading "hunt done: 144 read(s), new sightings for 0 name".
+    #
+    # The mechanism is the alphabetical cap. `held_by[led][:8]` takes the SAME first eight names
+    # every run, because nothing about them changed — the hunt fails, the sweep ends, the next
+    # sweep starts, and it buys the identical 144 reads again. Forever, on his subscription.
+    #
+    # v1524 already wrote this law for REELS: "a sealed reel never changes: re-reading one buys
+    # nothing and costs a subscription read per still-run." The hunt never got the same memory. It
+    # gets it here, keyed on the name AND on the evidence that would make a retry worth paying
+    # for — the frames available to search. When those change, the name is hunted again; when they
+    # do not, it is skipped and SAID OUT LOUD, because a silent skip is how the last stall hid.
+    _hunt_mem = _chron_hunt_memory()
+    _fp = _chron_hunt_fingerprint(prop, hist_dir)
+    _skipped_empty = []
     for led in held_by:
-        held_by[led] = held_by[led][:_CHRON_HUNT_MAX_NAMES]
+        _fresh = []
+        for _nm in held_by[led]:
+            _prev = _hunt_mem.get("%s|%s" % (led, _nm))
+            # v2175.3 — "is there MORE to search", never "is it identical". An unknown level on
+            # either side buys the read. See _chron_hunt_fingerprint for why equality was wrong.
+            if (isinstance(_prev, dict) and _prev.get("empty")
+                    and not _chron_hunt_more_to_search(_prev.get("fp"), _fp)):
+                _skipped_empty.append(_nm)
+                continue
+            _fresh.append(_nm)
+        held_by[led] = _fresh[:_CHRON_HUNT_MAX_NAMES]
+    if _skipped_empty:
+        report["skippedAlreadyEmpty"] = sorted(_skipped_empty)
+        print("   \U0001f4b0 %d name(s) skipped — a hunt for them already came back empty and no "
+              "new frames have arrived since" % len(_skipped_empty), flush=True)
+    if not (held_by["uniques"] or held_by["sets"]):
+        report["skipped"] = ("every held name has already been hunted against this evidence and "
+                             "came back empty — nothing new to buy")
+        return prop, applied, report
     report["hunted"] = held_by["uniques"] + held_by["sets"]
     found_by = {}
     try:
@@ -14505,9 +14784,31 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
                            log=lambda m, _l=led: print("   \U0001f50e [%s] %s" % (_l, m)))
             if got:
                 found_by[led] = got
+            # v2174 — RECORD THE EMPTIES. Without this the memory never fills and the loop keeps
+            # buying the same 144 reads. A name that WAS found is deliberately not recorded: it
+            # leaves the held list on its own, and marking it would only invite a stale skip.
+            # ⚠ v2175.3 — ABSENT FROM THE ANSWER, not falsy in it. `not got.get(name)` treats a
+            # name the hunt DID answer for with an empty list or {} as never-found, so a real
+            # answer would be filed as "empty" and skipped on every later sweep at this level.
+            # The question is whether the hunt returned anything AT ALL for the name.
+            # ⚠ And an UNMEASURED level is not written: a memory keyed on a reading we failed to
+            # take is a permanent skip wearing a measurement's clothes. [[unknown-stays-unknown]]
+            if isinstance(_fp, dict):
+                for _nm in held_by[led]:
+                    if _nm not in (got or {}):
+                        _hunt_mem["%s|%s" % (led, _nm)] = {
+                            "empty": True, "fp": _fp, "ts": int(time.time() * 1000)}
     except Exception as e:
+        # ⚠ v2175.3 — SAVE ON THE WAY OUT TOO. This `return` used to jump over the save below, so
+        # a uniques hunt that came back empty and then threw on the SETS hunt banked nothing: the
+        # empties it had already paid for were discarded and the next sweep bought them again.
+        # The failing half is exactly when re-buying hurts most. [[the-unjoined-end]]
+        _chron_hunt_memory_save(_hunt_mem)
         report["skipped"] = "hunt failed: %s" % e
         return prop, applied, report
+    # persist what came back empty, whether or not anything was found — the whole point is that
+    # the NEXT run does not re-buy this. The saver reports its own failure and never raises.
+    _chron_hunt_memory_save(_hunt_mem)
     if not found_by:
         return prop, applied, report
     # merge_proposals is what makes the new sightings ACCUMULATE rather than replace, and it is the
@@ -14711,12 +15012,72 @@ def sweep_eta(job=None):
     # so `classified` never moves and a frames-based meter sits at "measuring" for its whole
     # duration — measured on his console at 4.7 minutes in.
     if (j.get("phase") or "") == "hunting":
+        # ── v2173 — THE HUNT HAS A DENOMINATOR AFTER ALL, AND I SAID IT DID NOT. ──────────────
+        # v2159 declared the hunt unmeasurable ("searches by NAME, not by frame") and printed a
+        # sentence with no progress in it. Konyo, 37 minutes into one: "where is my meter showing
+        # how long is left for this chronicle read that keeps showing up.. when the hell is it
+        # gonna stop!?!?"
+        #
+        # It is bounded, and tightly: chronicle_hunt caps every name at MAX_PER_NAME frames
+        # (18), so the whole hunt can never read more than names * 18 pages. Measured live at
+        # that moment: 10 names, ceiling 180, pagesRead 159 — 88% through, ~21 pages left, ~5
+        # minutes at its own observed rate. That is a real figure and he could not see it because
+        # I had decided the question was unanswerable instead of looking for the bound.
+        # [[unknown-stays-unknown]] — the rule is to not INVENT a number, never to stop looking.
+        _hn = j.get("huntNames")
+        if isinstance(_hn, int) and _hn > 0:
+            try:
+                import chronicle_hunt as _chh
+                _cap = int(getattr(_chh, "MAX_PER_NAME", 18))
+            except Exception:
+                _cap = 18
+            _ceiling = _hn * _cap
+            try:
+                _done = int(j.get("pagesRead") or 0)
+            except Exception:
+                _done = 0
+            out["done"], out["total"] = _done, _ceiling
+            out["pct"] = max(0.0, min(100.0, 100.0 * _done / float(_ceiling)))
+            _el = out.get("elapsedMs") or 0
+            if _done >= 3 and _el >= 3000:
+                _rate = _done / (_el / 60000.0)
+                _left = max(0, _ceiling - _done)
+                out["etaMs"] = int((_left / _rate) * 60000.0) if _rate > 0 else None
+                out["ratePerMin"] = round(_rate, 2)
+                if out["etaMs"] is not None:
+                    _m = out["etaMs"] // 60000
+                    _s = (out["etaMs"] % 60000) // 1000
+                    out["ok"] = True
+                    out["calibrated"] = False        # the ceiling is a BOUND, so this is "at most"
+                    out["say"] = ("hunting %d name%s — %d of at most %d pages, under %s left"
+                                  % (_hn, "" if _hn == 1 else "s", _done, _ceiling,
+                                     ("%dm %02ds" % (_m, _s)) if _m else ("%ds" % _s)))
+                    return out
+            out["why"] = "too early in the hunt to measure a rate"
+            out["say"] = ("hunting %d name%s — %d of at most %d pages read"
+                          % (_hn, "" if _hn == 1 else "s", _done, _ceiling))
+            return out
+        # ⚠ v2171 — "NO PAGE IS BEING PAID FOR YET" WAS FALSE, AND IT WAS ABOUT MONEY.
+        # v2159 wrote that on the assumption the hunt is a free pass. It is not:
+        # chronicle_hunt.hunt() calls the injected read_page() (chronicle_hunt.py:229), the same
+        # paid reader the sweep uses. Caught on his live console — 26.8 minutes into a hunt with
+        # classified:0 and pagesRead:125. So the sentence told him nothing was being spent while
+        # 125 pages had been. A wrong number is bad; a wrong statement about his SPEND is worse.
+        #
+        # `classified` genuinely does not move during a hunt (it counts frame probes, and the hunt
+        # searches by NAME), so there is still no frames-based ETA — but pagesRead does move, and
+        # it is the number he actually wants while waiting.
         n = j.get("huntNames")
-        out["say"] = ("hunting %d held name%s across the film — no page is being paid for yet"
-                      % (n, "" if n == 1 else "s")) if isinstance(n, int) and n > 0 else \
-                     "hunting the film for held names — no page is being paid for yet"
+        try:
+            pages = int(j.get("pagesRead") or 0)
+        except Exception:
+            pages = 0
+        who = ("hunting %d held name%s across the film" % (n, "" if n == 1 else "s")) \
+            if isinstance(n, int) and n > 0 else "hunting the film for held names"
+        out["say"] = ("%s — %d page%s read so far" % (who, pages, "" if pages == 1 else "s")) \
+            if pages else ("%s — no page read yet" % who)
         out["why"] = ("the hunt searches by NAME, not by frame, so the frame counter cannot "
-                      "measure it")
+                      "measure it; pages read is the honest progress here")
         return out
     if not out["total"]:
         out["why"] = "this run did not count its frames, so there is no denominator"
@@ -16013,7 +16374,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2170",
+        "ver": "v2176",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

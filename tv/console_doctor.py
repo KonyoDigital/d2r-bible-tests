@@ -587,6 +587,76 @@ def _check_the_two_surfaces_agree():
                 "left a second copy" % len([t for t in shell if t not in NATIVE]))
 
 
+def _check_the_hunt_is_buying_something():
+    """Is the name-hunt still paying for reads that find nothing? -> (state, say)
+
+    v2174 — MEASURED ON HIS OWN LOG, and it is why "chronicle is reading" never stopped:
+
+        28 hunt passes · 3,434 PAID reads · 2 new sightings   =   1,717 reads per sighting
+
+    with pass after pass reading "hunt done: 144 read(s), new sightings for 0 name". The hunt took
+    the same first eight held names alphabetically every run, failed, and the next sweep bought the
+    identical 144 reads. Nothing watched the ECONOMY of it, so it ran for hours looking exactly
+    like healthy activity — the console said "a chronicle sweep is reading", which was true.
+
+    v2174 gave the hunt a memory of what came back empty. This is the eye on it: if the ratio
+    climbs again, something has broken the memory (an unwritable file, a fingerprint that moves
+    every run) and he is paying for it. A guard on the FIX is not the same as a guard on the COST.
+    """
+    log = os.path.join(HERE, "control_app.log")
+    if not os.path.isfile(log):
+        return "unknown", "no console log on this machine, so the hunt's cost cannot be read"
+    try:
+        with open(log, encoding="utf-8", errors="replace") as fh:
+            txt = fh.read()[-2000000:]          # the tail is the recent behaviour
+    except Exception as e:
+        return "unknown", "the console log could not be read (%s)" % str(e)[:60]
+    import re as _re
+    passes = _re.findall(r"hunt done: (\d+) read\(s\), new sightings for (\d+) name", txt)
+    if not passes:
+        # ⚠ v2175.3 — "I CANNOT PARSE IT" IS NOT "NOTHING IS HAPPENING". This branch returned a
+        # confident green, so one edit to the hunt's log line would have retired the check in
+        # silence while the loop it was built for kept spending. If the log shows the hunt STARTING
+        # and no pass line can be read, that is UNKNOWN and it must say so. A guard that cannot
+        # fail is the same defect as one that is always red. [[feedback-blind-fixture-green-gate]]
+        if _re.search(r"hunting\s+\S", txt) or "HIT " in txt:
+            return "unknown", ("the hunt is running in the log but no 'hunt done:' line can be "
+                               "parsed, so its cost cannot be read — the line this check reads "
+                               "may have changed (chronicle_hunt.py, log('hunt done: ...'))")
+        return "ok", "no hunt has run in the recent log — nothing is being bought"
+    reads = sum(int(a) for a, _ in passes)
+    sightings = sum(int(b) for _, b in passes)
+
+    # ⚠ v2175.3 — PIN THE LAW, NOT THE NUMBER. The floor was `reads < 200` and ONE REAL PASS OF
+    # THE VERY LOOP THIS CHECK EXISTS FOR IS 144 READS (8 names x 18 frames, measured). So the
+    # trigger sat above its own per-pass ceiling: nothing could fire until the loop had already
+    # paid twice, and on a log rotated per run it could never fire at all. Same shape as
+    # STILL_MAX_DIFF=0.22 against a signal whose maximum is 0.133.
+    # [[feedback-threshold-above-the-ceiling]]
+    #
+    # The law is not a read count. It is: THE HUNT WENT BACK AND BOUGHT AGAIN, AND STILL BROUGHT
+    # NOTHING HOME. One empty pass is a normal miss. Two is the loop, at any price.
+    if sightings == 0 and len(passes) >= 2:
+        return "missing", ("the hunt has run %d pass(es) for %d PAID read(s) and found NOTHING. "
+                           "That is the v2174 loop: it is re-buying names that already came back "
+                           "empty. Check the hunt memory is being written (tv/chron_hunt_memory"
+                           ".json, or beside chronicle_swept.json under TV_HIST)."
+                           % (len(passes), reads))
+    # ⚠ NOT `and reads < 200`. A single pass with sightings==0 falls past every branch below and
+    # reaches the `%.0f` tail with per=None, which raises inside a health check — the doctor
+    # reporting an exception instead of a verdict. One pass is a miss at ANY price.
+    if len(passes) < 2:
+        return "ok", ("%d hunt pass(es), %d paid read(s), %d sighting(s) — a single pass is a "
+                      "miss, not a loop" % (len(passes), reads, sightings))
+    per = reads / float(sightings) if sightings else None
+    if per and per > 400:
+        return "missing", ("the hunt is paying %.0f reads per new sighting (%d reads, %d "
+                           "sighting(s)). The empty-hunt memory is not holding — a name that "
+                           "found nothing is being bought again." % (per, reads, sightings))
+    return "ok", ("the hunt is paying %.0f read(s) per new sighting across %d pass(es)"
+                  % (per, len(passes)))
+
+
 def _check_the_reel_extract_is_moving():
     """v2139 — IS THE EXTRACT ACTUALLY MOVING, and do the two memories still agree?
 
@@ -662,6 +732,7 @@ CHECKS = [
     ("subscription", _check_subscription_burn),
     ("unattended reel", _check_a_reel_is_not_recording_unattended),
     ("reel extract", _check_the_reel_extract_is_moving),
+    ("hunt economy", _check_the_hunt_is_buying_something),
     ("sweep would find", _check_the_sweep_would_find_something),
     ("board is claimed", _check_the_board_world_is_claimed),
     ("visual lock", _check_the_visual_lock_holds),

@@ -11075,6 +11075,22 @@
         + 'the old one. Relaunch to use it.';
       go.textContent = 'RELAUNCH NOW';
       go.hidden = false; go.disabled = false; bar.hidden = false;
+      /* ── v2173 — SHOW THE WAIT WITHOUT MAKING HIM ASK FOR IT. ─────────────────────────────
+         The meter only appeared AFTER he pressed RELAUNCH and got refused, so the common case —
+         a read is running, the relaunch is blocked, and the banner just says "relaunch to use
+         it" — showed him nothing. His words, 37 minutes into one: "where is my meter showing how
+         long is left for this chronicle read that keeps showing up.. when the hell is it gonna
+         stop!?!?" He should not have to press a button to find out why he is waiting.
+         If a read is in flight, start the waiter now: it paints the meter and relaunches by
+         itself the moment the read lets go. If nothing is running, this does nothing and the
+         banner behaves exactly as before. */
+      (async function(){
+        try {
+          var r = await fetch(API + '/api/chronicle_sweep', { cache: 'no-store' });
+          var st = await r.json();
+          if (st && st.running) _updWaitForRead();
+        } catch (e) { /* offline: the banner still offers the button */ }
+      })();
     }
     go.onclick = async function(){
       go.disabled = true;
