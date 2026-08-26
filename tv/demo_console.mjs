@@ -790,7 +790,10 @@ async function j10_headerGeometry(page) {
     console.log('── what failed (repeated here because the gate only shows the tail) ──');
     for (const r of failed) console.log(`   ❌ ${r.name} — ${r.detail || '(no detail)'}`);
   }
-  process.exitCode = pass === 9 ? 0 : 1;
+  // v2131 — DERIVED, NOT HARDCODED. This read `pass === 9`, so adding J10 made a 10/10 run exit 1
+  // and the pre-push gate refused a push whose own summary said every journey passed. The count of
+  // journeys is not the contract; "none of them failed" is.
+  process.exitCode = (results.length && pass === results.length) ? 0 : 1;
 }
 
 main().catch((e) => {

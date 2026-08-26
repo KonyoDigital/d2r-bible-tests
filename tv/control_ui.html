@@ -5435,10 +5435,14 @@
                Same defect as v2090 in Tools, other direction. [[the-unjoined-end]]
                Static child of #hd-vault: vaultPaint writes #vault-sub and #vault-body, and nothing
                sets innerHTML on #hd-vault itself, so this line is never repainted away. -->
-          <div class="chron-idle" style="opacity:.72;font-size:.86em;margin:2px 0 6px">
-            this reads your <b>sealed reels</b> · the <b>mule manager</b> (which mule holds what)
-            lives on the board, in its own <b>🎒 VAULT</b> tab
-          </div>
+          <!-- v2131 (#60) — THE FORWARDING ADDRESS WAS 0x0 WHERE HE LOOKS, AND THE ROOM NOW HAS A
+               DOOR. v2091 added this line INSIDE #hd-vault, and v1674 hides that whole column on
+               the default Sessions view at his own request — so it was born unreachable: measured
+               live at v2130, `data-view=sessions`, box 0x0, offsetParent null.
+               Removed rather than moved, because v2092 put a real 🎒 Vault button in #head-tabs
+               that IS visible on every view (measured in the same pass). A second signpost for a
+               room that already has a labelled door is furniture, and un-hiding it here would undo
+               v1674. [[the-unjoined-end]] [[plumbing-with-no-tap]] -->
           <div class="vault-body" id="vault-body">
             <div class="chron-idle">tap to price it — no model call, nothing written</div>
           </div>

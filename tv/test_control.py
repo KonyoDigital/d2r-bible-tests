@@ -20690,6 +20690,60 @@ class TestV2128TheFoldRefusesWhatIsAlreadyCovered(unittest.TestCase):
                              "(hollow=%s) — the fold can no longer do its job at all" % hollow)
 
 
+class TestV2131TheDemoGateCountsItsOwnJourneys(unittest.TestCase):
+    """v2130 added J10 and the runner still exited on `pass === 9`, so a 10/10 run — its own summary
+    printing "DEMOS: 10/10 ✅" — exited 1 and hooks/pre-push refused the push. A gate that fails a
+    green run is the mirror of one that passes a red one, and it is worse: it trains you to bypass.
+
+    The count of journeys is not the contract. "None of them failed" is."""
+
+    def _src(self):
+        with io.open(os.path.join(HERE, "demo_console.mjs"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_exit_code_is_derived_from_the_results(self):
+        src = re.sub(r"(?m)^\s*//.*$", "", self._src())
+        self.assertNotIn("pass === 9", src,
+                         "the demo runner exits on a hardcoded journey count again — adding one "
+                         "journey makes every green run fail the push")
+        self.assertIn("pass === results.length", src,
+                      "the exit code no longer asks whether every journey that RAN passed")
+
+    def test_the_summary_line_is_derived_too(self):
+        src = self._src()
+        self.assertNotIn("${pass}/9", src,
+                         "the summary prints a hardcoded denominator, so it will misreport the "
+                         "moment a journey is added or removed")
+        self.assertIn("${pass}/${results.length}", src,
+                      "the summary no longer derives its denominator from the journeys that ran")
+
+
+class TestV2131TheVaultRoomHasExactlyOneReachableDoor(unittest.TestCase):
+    """#60 — v2091 put a "the mule manager lives in its own VAULT tab" line inside #hd-vault, and
+    v1674 hides that whole column on the default Sessions view at his own request. So the note was
+    born unreachable. MEASURED live at v2130: data-view=sessions, box 0x0, offsetParent null, while
+    the 🎒 Vault button v2092 added to #head-tabs was visible in the same pass.
+
+    Removed rather than moved: a second signpost for a room that already has a labelled door is
+    furniture, and un-hiding it there would undo v1674."""
+
+    def setUp(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def test_the_unreachable_duplicate_is_gone(self):
+        code = re.sub(r"<!--.*?-->", " ", self.ui, flags=re.S)
+        self.assertNotIn("the <b>mule manager</b>", code,
+                         "the hidden forwarding note is back inside #hd-vault, where the default "
+                         "view renders it at 0x0")
+
+    def test_and_the_REAL_door_is_still_there(self):
+        """Deleting the sign is only safe while the door exists. [[the-unjoined-end]]"""
+        self.assertIn('data-tab="vault"', self.ui,
+                      "the 🎒 Vault button is gone from #head-tabs — removing the signpost left "
+                      "the room with NO door at all, which is strictly worse than a hidden sign")
+
+
 class TestV2130AQueuedCraftChipIsNamedByItsGem(unittest.TestCase):
     """#102 — v2106 dropped the '⚗️ ' prefix from the QUEUED craft chips so the gem's own art
     identifies them, and nothing pinned it. The existing coverage (v1621) asserts four chips whose

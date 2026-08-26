@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2130",
+  "ver": "v2131",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2130: The queued craft chips lead with the gems own art and a comment above them claimed the alembic survives as the fallback. It does not. The fallback is the Hells Forge quest medallion, so the sentence described a picture the console does not serve, which is the same defect as a comment describing a call that does not exist. Also added the first spec that actually hovers a dual attribute anchor, because every guard on the tooltip work so far has been a source grep and none of them can see a hover.",
+  "note": "v2131: The console carried a line telling him the mule manager lives in its own vault tab, and it sat inside a column that is hidden on the default sessions view at his own request, so it was born unreachable and measured zero by zero. The room has had a real labelled button in the header since v2092, visible on every view, so the hidden duplicate is removed rather than moved. Guarded both ways because deleting a sign is only safe while the door still exists.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
