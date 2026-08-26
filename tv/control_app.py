@@ -9516,10 +9516,17 @@ def _unswept_chron_reels(limit=8):
         dirs = _cr.reel_dirs(hist, newest_first=True) or []
     except Exception:
         return out
-    seen = _chron_reels_seen()
+    # v2139 — THE SAME DEFINITION AS THE LOOP, not a second copy. This function is the OTHER
+    # consumer of the private seen-set, and fixing only chronicle_autoreel_tick would have shipped
+    # the identical split under a new name: the loop would read a reel that this offer still
+    # called done. One rule, _chron_reel_owes_a_read, asked from both. [[the-unjoined-end]]
+    _mem = _chron_swept_mem()
+    _retired = _chron_reels_retired()
     for d in dirs:
         rid = os.path.basename(str(d))
-        if rid in seen:
+        if rid in _retired:
+            continue
+        if not _chron_reel_owes_a_read(rid, _mem):
             continue
         try:
             with open(os.path.join(str(d), "index.json"), encoding="utf-8") as fh:
@@ -9618,6 +9625,7 @@ def _chron_autoread_save():
     """
     payload = {"done": sorted(_chron_autoread_done()),
                "reels": sorted(_chron_reels_seen()),
+               "retired": dict(_chron_reels_retired()),   # v2139 — added HERE, per this docstring
                "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {})}
     try:
         try:
@@ -9728,6 +9736,106 @@ def chronicle_autoread_tick():
 _CHRON_AUTOREEL_ON = os.environ.get("TV_CHRON_AUTOREEL", "1") != "0"
 
 
+def _chron_swept_mem():
+    """The sweep's OWN durable memory: {reel_id: {ts, classified, pages, ...}}.
+
+    v2139.1 — THIS WAS A THIRD READER OF THAT FILE AND IT BYPASSED EVERY SEAM. It joined the path
+    itself from HERE, so it ignored TV_CHRON_SWEPT, ignored a mock.patch.object on
+    _CHRON_SWEPT_PATH, and ignored TV_HIST — all three of which _chron_swept_path() honours on
+    purpose, in that precedence, with a comment explaining why the deliberate one wins. His gate
+    caught it: two fixtures that patch the path still got the LIVE memory, so a reel the test had
+    set up as unswept read as swept and no sweep started. That is a fixture reaching live data
+    [[feedback-fixtures-never-touch-live-data]] and a second copy of a routine that already
+    existed [[copy-drift]]. Delegate; do not re-derive.
+    """
+    d = _chron_swept_load()
+    return d if isinstance(d, dict) else {}
+
+
+def _chron_reel_owes_a_read(rid, mem=None):
+    """v2139 — ONE definition of "this reel still owes a read", shared with retention.
+
+    THE STALL THIS FIXES, measured on his tree 2026-08-26 while 11 reels sat waiting for days:
+
+        chron_autoread.json "reels"   36 ids — claims ALL 30 reels on disk are done, leaving 0
+        chronicle_swept.json          24 ids — claims 18 of the 30, leaving 12
+        the retention panel                  — told him 11 were waiting on a sweep
+
+    The autoread's PRIVATE list was the outlier, it held 6 ids for reels that no longer exist, and
+    it is the only one of the three that decides whether to read. So `chronicle_autoreel_tick`
+    answered "no unswept reel" every 20 seconds, never reached its per-reel loop (which is why
+    `tries` and `skipped` were both empty), and read nothing — while the panel said 11 waiting.
+    Two surfaces answering one question differently IS the finding, so neither is averaged: the
+    private list stops being authoritative and the DURABLE memory decides.
+
+    reel_retention.py already had this right and nobody asked it — `plan()` calls a missing entry
+    "never chronicle-swept" and a `pages < MIN_PAGES` entry "sealed with 0 pages — that is 'this
+    reader found nothing', not 'done'". run_gates.py:255 guards the same rule from the other side.
+    Same test here, so the sweeper, the panel and retention can no longer disagree.
+    """
+    e = (_chron_swept_mem() if mem is None else mem).get(str(rid))
+    if not isinstance(e, dict):
+        return True                       # never swept at all
+    try:
+        pages = int(e.get("pages") or 0)
+    except Exception:
+        pages = 0
+    if pages >= 1:
+        return False                      # read, and it yielded — done
+    # A 0-PAGE SEAL IS NOT "DONE", BUT IT IS ALSO NOT WORK. retention says it exactly: "that is
+    # 'this reader found nothing', not 'done'; the engine reopens these when the prompt improves."
+    # Re-reading one under the SAME prompt spends money to find the same nothing — measured on his
+    # tree, 15 of 30 reels are in this state and every one of them was sealed by the current
+    # p1839. So reopen only when the reader has actually changed, which _chron_seal_stands already
+    # answers for the retro sweep. With this in place the sweeper owes 12 and the panel says 11 —
+    # the one apart is held by retention's own "recent" rule, so the two finally agree.
+    return not _chron_seal_stands(e)
+
+
+def _chron_owed_count(hist_dir=None):
+    """How many reels the auto-sweep still owes a read, by the SAME rule the loop uses.
+
+    v2139 — the panel counts reels that have never been read at all; the sweeper also owes the
+    ones sealed by an OLDER reader. Both are true and they are different numbers (measured: 11 vs
+    19), so the panel now says both rather than letting him find the gap himself. A number that
+    disagrees with another number on the same screen is the thing this console keeps getting
+    wrong, and the fix is never to average them.
+    """
+    try:
+        import chronicle_retro as _cr
+        _h = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+        _dirs = _cr.reel_dirs(_h, newest_first=True) or []
+    except Exception:
+        return None                      # cannot tell -> say nothing, never guess
+    _mem = _chron_swept_mem()
+    return sum(1 for d in _dirs if _chron_reel_owes_a_read(os.path.basename(str(d)), _mem))
+
+
+def _chron_reels_retired():
+    """Reels the loop GAVE UP on — durable, and deliberately NOT the same thing as 'read'.
+
+    v2139 — the give-up path used to call _chron_reels_mark(), folding a reel it never managed to
+    read into the same list as reels it read successfully. That is how a failure became a silent
+    permanent skip, and why the panel could keep counting a reel as waiting forever while the
+    sweeper considered it finished. Retirement is now its own record, with the reason and count.
+    """
+    if _CHRON_AUTOREAD.get("retired") is None:
+        out = {}
+        try:
+            with open(_CHRON_AUTOREAD_PATH, encoding="utf-8") as fh:
+                out = (json.load(fh) or {}).get("retired") or {}
+        except Exception:
+            out = {}
+        _CHRON_AUTOREAD["retired"] = out if isinstance(out, dict) else {}
+    return _CHRON_AUTOREAD["retired"]
+
+
+def _chron_reel_retire(reel_id, why, tries):
+    _chron_reels_retired()[str(reel_id)] = {
+        "why": str(why)[:180], "tries": int(tries), "at": int(time.time() * 1000)}
+    _chron_autoread_save()
+
+
 def _chron_reels_seen():
     """Reel ids already swept, persisted beside the visit marks in the same file."""
     if _CHRON_AUTOREAD.get("reels") is None:
@@ -9793,11 +9901,19 @@ def chronicle_autoreel_tick():
         dirs = _cr.reel_dirs(hist, newest_first=True) or []
     except Exception as e:
         return {"ok": False, "why": "could not list reels: %s" % e}
-    seen = _chron_reels_seen()
+    _mem = _chron_swept_mem()
+    _retired = _chron_reels_retired()
+    _owed = 0
     for d in dirs:
         rid = os.path.basename(str(d))
-        if rid in seen:
+        if rid in _retired:
             continue
+        # v2139 — the DURABLE memory decides, not this loop's private list. See
+        # _chron_reel_owes_a_read: the private list claimed all 30 reels done while the panel
+        # said 11 were waiting, so this loop answered "no unswept reel" for days.
+        if not _chron_reel_owes_a_read(rid, _mem):
+            continue
+        _owed += 1
         # the ONE reel a live session actually protects: the one still receiving frames
         if _reel_is_growing(str(d)):
             _CHRON_AUTOREAD["skipped"][rid] = "still growing — not final yet"
@@ -9814,7 +9930,7 @@ def chronicle_autoreel_tick():
         # its reason kept. Retired is not the same as swept — it is on the record, and it stops.
         tries = _CHRON_AUTOREAD["tries"].get(rid, 0) + 1
         if tries > _CHRON_AUTOREAD_MAX_TRIES:
-            _chron_reels_mark(rid)
+            _chron_reel_retire(rid, "the sweep started but never wrote a result", tries - 1)
             _CHRON_AUTOREAD["skipped"][rid] = ("gave up after %d attempts — the sweep started but "
                                                "never wrote a result" % (tries - 1))
             return {"ok": False, "retired": rid, "tries": tries - 1,
@@ -9832,7 +9948,29 @@ def chronicle_autoreel_tick():
         # the sweep marks it once its result is on disk — see _chron_sweep_run. Marking here
         # would burn the reel at START, which is what this comment used to describe and not do.
         return {"ok": True, "swept": rid, "start": r}
-    return {"ok": True, "idle": True, "why": "no unswept reel"}
+    return {"ok": True, "idle": True, "owed": _owed, "retired": len(_retired),
+            "why": "no unswept reel" if not _owed else
+                   "%d reel(s) owe a read but none could be started" % _owed}
+
+
+_CHRON_AUTOREAD_SAY = {"last": None}
+
+
+def _chron_autoread_watch(msg):
+    """v2139 — SAY IT WHEN IT CHANGES, and only then.
+
+    This loop swallowed every exception and printed nothing, so an auto-sweep that had answered
+    "no unswept reel" every 20 seconds for DAYS looked exactly like an auto-sweep doing its job.
+    He found it by reading a tooltip, which is the wrong way round. Logging every tick would be
+    1,700 lines a day and would be ignored just as completely, so the watchdog speaks only when
+    the answer moves. [[feedback-silence-is-not-evidence]]
+    """
+    try:
+        if msg and msg != _CHRON_AUTOREAD_SAY["last"]:
+            _CHRON_AUTOREAD_SAY["last"] = msg
+            print("   \U0001F985 reel auto-sweep: %s" % msg, flush=True)
+    except Exception:
+        pass
 
 
 def _chron_autoread_loop():
@@ -9844,11 +9982,19 @@ def _chron_autoread_loop():
             # there is no visit left to read does the watchdog look at the bigger object.
             if not (isinstance(v, dict) and v.get("ok") and v.get("read")):
                 try:
-                    chronicle_autoreel_tick()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                    r = chronicle_autoreel_tick()
+                    if isinstance(r, dict):
+                        if r.get("swept"):
+                            _chron_autoread_watch("reading %s" % r.get("swept"))
+                        elif r.get("retired"):
+                            _chron_autoread_watch("retired %s — %s"
+                                                  % (r.get("retired"), r.get("why")))
+                        else:
+                            _chron_autoread_watch(r.get("why") or "idle")
+                except Exception as e:
+                    _chron_autoread_watch("tick raised %s: %s" % (type(e).__name__, str(e)[:120]))
+        except Exception as e:
+            _chron_autoread_watch("loop raised %s: %s" % (type(e).__name__, str(e)[:120]))
 
 
 _CHRON_QUOTE = {"sig": None, "res": None}
@@ -10968,9 +11114,14 @@ def _retention_once():
         return None
     if free_gb >= ON_AIR_FLOOR_GB:
         with _PRUNE_LOCK:
-            _RETENTION.update(dict(base, say="%.1fGB free — above the %.0fGB floor, so nothing is "
-                                             "deleted. %d reel(s) (%.0f MB) are waiting on a sweep."
-                                             % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb)))
+            _owed = _chron_owed_count()
+            _extra = (_owed - len(waiting)) if isinstance(_owed, int) else 0
+            _tail = ("" if _extra <= 0 else
+                     " %d more were sealed by an older reader and will be re-read." % _extra)
+            _RETENTION.update(dict(base, owedARead=_owed,
+                                   say="%.1fGB free — above the %.0fGB floor, so nothing is "
+                                       "deleted. %d reel(s) (%.0f MB) are waiting on a sweep.%s"
+                                       % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb, _tail)))
         return None
     if not cands:
         with _PRUNE_LOCK:
@@ -15000,7 +15151,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2138",
+        "ver": "v2139",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

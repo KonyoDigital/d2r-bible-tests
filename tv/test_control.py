@@ -7868,10 +7868,35 @@ class TestWaitingFootageIsVisible(unittest.TestCase):
         self.assertEqual(ca.chronicle_offer(limit=8)["spent"], 0)
 
     def test_a_reel_already_swept_is_not_offered_again(self):
-        self._reel("reel_s_1787177179114_91449", "chronicle-uniques")
-        ca._CHRON_AUTOREAD["reels"] = {"reel_s_1787177179114_91449"}
-        offers = ca.chronicle_offer(limit=8)["visits"]
-        self.assertFalse([o for o in offers if o.get("reel") == "reel_s_1787177179114_91449"])
+        """v2139 — PINNED TO THE LAW, NOT TO THE OLD MECHANISM.
+
+        This used to seed only `_CHRON_AUTOREAD["reels"]` — the loop's PRIVATE list — and assert
+        the reel was not offered. That encoded the exact defect that stalled his extract for 40
+        hours: the private list claimed all 30 reels on disk were done while the durable memory
+        had 12 of them never swept and the panel told him 11 were waiting. A reel is "already
+        swept" when the SWEEP'S OWN memory says a page was read, not when a side-list says so.
+        The private-list-only case is now covered by the opposite assertion in
+        TestV2139TheSweeperAndThePanelShareOneDefinition, where it must be OFFERED.
+        """
+        rid = "reel_s_1787177179114_91449"
+        self._reel(rid, "chronicle-uniques")
+        # OWN THE PATH FOR THIS TEST. Two wrong turns before this one, both worth recording:
+        # writing TV_HIST/chronicle_swept.json proves nothing (the harness redirects live-state
+        # files away from his tree, so _chron_swept_path() ignores TV_HIST), and writing to
+        # _chron_swept_path() directly poisons a file the whole process shares — that took three
+        # other tests down with it. Patch the global to a file inside this test's own tmp.
+        swept = os.path.join(self.tmp, "swept-fixture.json")
+        with io.open(swept, "w", encoding="utf-8") as fh:
+            json.dump({rid: {"ts": 1787177179114, "classified": 4, "pages": 3,
+                             "promptVer": "p1839", "agentVer": "v2139"}}, fh)
+        _p0 = ca._CHRON_SWEPT_PATH
+        try:
+            ca._CHRON_SWEPT_PATH = swept
+            offers = ca.chronicle_offer(limit=8)["visits"]
+        finally:
+            ca._CHRON_SWEPT_PATH = _p0
+        self.assertFalse([o for o in offers if o.get("reel") == rid],
+                         "a reel the durable memory says was READ must not be offered again")
 
     def test_a_mini_focused_somewhere_ELSE_is_never_offered(self):
         # the vault sweep owns stash/rune/gem minis; guessing a ledger for one of those is the
@@ -21213,6 +21238,133 @@ class TestV2118TheApplyActuallyFiles(unittest.TestCase):
         self.assertNotIn("assign[n] =", code,
                          "someone wrote the filing inline again — `assign` is a let inside the "
                          "vault IIFE, so it is undefined in this scope and silently does nothing")
+
+
+class TestV2139TheSweeperAndThePanelShareOneDefinition(unittest.TestCase):
+    """The auto-sweep answered "no unswept reel" every 20s for DAYS while the panel said 11 waiting.
+
+    Measured on his tree 2026-08-26 — three memories, three answers, of 30 reels on disk:
+        chron_autoread.json "reels"   36 ids -> claims ALL 30 done, leaving 0   <- gated the loop
+        chronicle_swept.json          24 ids -> claims 18, leaving 12
+        the retention panel                  -> told him 11 were waiting
+    The private list was the outlier AND the only one of the three that decided whether to read.
+    """
+
+    def _mem(self):
+        return {
+            "read_ok":      {"pages": 3, "classified": 2, "promptVer": "p1839"},
+            "zero_current": {"pages": 0, "classified": 0, "promptVer": "p1839"},
+            "zero_stale":   {"pages": 0, "classified": 0, "promptVer": "p0001"},
+        }
+
+    def test_a_reel_never_swept_owes_a_read(self):
+        self.assertTrue(ca._chron_reel_owes_a_read("no_entry_at_all", self._mem()))
+
+    def test_a_reel_that_yielded_pages_is_done(self):
+        self.assertFalse(ca._chron_reel_owes_a_read("read_ok", self._mem()))
+
+    def test_zero_pages_under_the_CURRENT_reader_is_not_work(self):
+        """Re-reading it spends money to find the same nothing — 15 of his 30 sit in this state."""
+        import tv_diablo as _tvd
+        self.assertEqual(self._mem()["zero_current"]["promptVer"], _tvd.PROMPT_VER,
+                         "this fixture must track the live PROMPT_VER or it stops testing the rule")
+        self.assertFalse(ca._chron_reel_owes_a_read("zero_current", self._mem()))
+
+    def test_zero_pages_under_an_OLDER_reader_is_reopened(self):
+        """retention's own words: the engine reopens these when the prompt improves."""
+        self.assertTrue(ca._chron_reel_owes_a_read("zero_stale", self._mem()))
+
+    def test_BOTH_consumers_see_a_reel_the_private_list_calls_done(self):
+        """The test Grok prescribed: fix only the tick and this goes RED.
+
+        "plant a fixture where chron_autoread.json "reels" contains every dir and
+        chronicle_swept.json has no entry (or pages: 0). _unswept_chron_reels and
+        chronicle_autoreel_tick must both return that reel. If only the tick does, you shipped
+        the same split under a new name."
+        """
+        tmp = tempfile.mkdtemp()
+        hist = os.path.join(tmp, "hist")
+        rid = "reel_s_1700000000000_1"
+        rd = os.path.join(hist, rid)
+        os.makedirs(rd)
+        # reel_dirs DROPS a directory with no frames, by design (chronicle_retro.py:reel_dirs,
+        # v1607) — so a frameless fixture makes this test pass for the wrong reason. Checked the
+        # instrument before believing the red.
+        with io.open(os.path.join(rd, "f_000001.jpg"), "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xd9")
+        with io.open(os.path.join(rd, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"focus": "chronicle-uniques", "frames": ["f_000001.jpg"]}, fh)
+        # ...and _reel_is_growing(quiet_s=90) calls a reel that received a frame in the last 90s
+        # "still being written", so a freshly created fixture is skipped as LIVE footage. Backdate
+        # past the quiet window or this asserts against the wrong refusal.
+        _old = time.time() - 3600
+        for _f in (os.path.join(rd, "f_000001.jpg"), os.path.join(rd, "index.json"), rd):
+            os.utime(_f, (_old, _old))
+        state = os.path.join(tmp, "autoread.json")
+        with io.open(state, "w", encoding="utf-8") as fh:
+            json.dump({"done": [], "reels": [rid], "retired": {}, "skipped": {}}, fh)
+        # chronicle_swept.json is deliberately ABSENT under TV_HIST -> the durable memory has no
+        # entry, so this reel owes a read while the private list insists it is done.
+        old_path, old_hist = ca._CHRON_AUTOREAD_PATH, os.environ.get("TV_HIST")
+        old_state = dict(ca._CHRON_AUTOREAD)
+        old_start, old_sweep = ca.chronicle_sweep_start, ca.chronicle_sweep_state
+        started = []
+        try:
+            ca._CHRON_AUTOREAD_PATH = state
+            os.environ["TV_HIST"] = hist
+            ca._CHRON_AUTOREAD.update({"done": None, "reels": None, "retired": None,
+                                       "skipped": {}, "tries": {}, "reads": 0, "lastTs": 0})
+            ca.chronicle_sweep_state = lambda *a, **k: {"running": False}
+            ca.chronicle_sweep_start = lambda **k: (started.append(k.get("reel_id")),
+                                                    {"ok": True})[1]
+
+            offered = ca._unswept_chron_reels(limit=8)
+            self.assertTrue(any(rid in json.dumps(o, default=str) for o in offered),
+                            "_unswept_chron_reels still trusts the private seen-set — that is the "
+                            "same split under a new name")
+
+            ca._CHRON_AUTOREAD["tries"] = {}
+            ca.chronicle_autoreel_tick()
+            self.assertEqual(started, [rid],
+                             "the loop must start the reel the durable memory says still owes")
+        finally:
+            ca._CHRON_AUTOREAD_PATH = old_path
+            ca.chronicle_sweep_start, ca.chronicle_sweep_state = old_start, old_sweep
+            if old_hist is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old_hist
+            ca._CHRON_AUTOREAD.clear(); ca._CHRON_AUTOREAD.update(old_state)
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_one_writer_round_trips_the_retired_key(self):
+        """v1900's docstring warned this file had been un-marked TWICE by a writer missing a key.
+
+        `retired` is the third key. If the single writer does not carry it, a reel retired for a
+        named reason silently becomes never-swept again on the next save — the v1784 defect, a
+        third time, in the very file that says "a new key is added here and both marks get it".
+        """
+        d = tempfile.mkdtemp()
+        path = os.path.join(d, "chron_autoread.json")
+        old_path = ca._CHRON_AUTOREAD_PATH
+        old_state = dict(ca._CHRON_AUTOREAD)
+        try:
+            ca._CHRON_AUTOREAD_PATH = path
+            ca._CHRON_AUTOREAD.update({"done": set(), "reels": set(), "retired": None,
+                                       "skipped": {}, "lastTs": 0, "reads": 0, "tries": {}})
+            ca._chron_reel_retire("reel_x", "the sweep started but never wrote a result", 2)
+            with io.open(path, encoding="utf-8") as fh:
+                on_disk = json.load(fh)
+            self.assertIn("retired", on_disk, "the ONE writer dropped the new key")
+            self.assertIn("reel_x", on_disk["retired"])
+            self.assertEqual(on_disk["retired"]["reel_x"]["tries"], 2)
+            self.assertNotIn("reel_x", on_disk.get("reels") or [],
+                             "a give-up must never be filed as a successful read")
+        finally:
+            ca._CHRON_AUTOREAD_PATH = old_path
+            ca._CHRON_AUTOREAD.clear()
+            ca._CHRON_AUTOREAD.update(old_state)
+            shutil.rmtree(d, ignore_errors=True)
 
 
 if __name__ == "__main__":
