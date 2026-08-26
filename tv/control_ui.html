@@ -267,7 +267,33 @@
     height: 100dvh;
     width: 100vw;
     display: grid;
-    grid-template-columns: 1fr clamp(238px, 23vw, 430px);   /* v1175 R3 — the rail breathes at fullscreen (was max 360px → KAI-eye/Tabs cramped on wide screens) */
+    /* ⚠ v2177 — `minmax(0, 1fr)`, NOT `1fr`. A bare `1fr` track carries an automatic minimum of
+       MIN-CONTENT, so the widest thing inside it sets a floor the track can never go below. The
+       head area holds eight tabs; its min-content is 1287px. Measured live in HIS OWN 1120px
+       window (control_app.py:3518 width=1120):
+
+           .shell  grid-template-columns computed to  1286.77px 257.594px   = 1575px of page
+           html.scrollWidth 1120 == innerWidth 1120,  html/body overflow-x: hidden
+           -> 455px of the console exists past the right edge and NOTHING CAN SCROLL TO IT
+
+           TAB          left  right   reachable
+           F·Sets        858   1008   yes
+           Tools        1012   1152   HALF CLIPPED
+           Vault        1156   1297   NO — entirely off screen
+           TV·D         1301   1432   NO — entirely off screen
+           RELAUNCH NOW 1114   1254   6 of its 140 pixels visible
+           ✕ (dismiss)  1264   1294   NO
+
+       The grid is the single cause of all of it: the blown-out track stretches every stretched
+       row — which is why the fleet bar measured 1287 wide in a 1120 window and pushed its own
+       action button off the edge. `scrollWidth == innerWidth` with content beyond it means GONE,
+       not scrolled. [[visual-regression-detector]]
+
+       ⚠ AND THIS FILE ALREADY KNEW. v1464, ~30 lines below, fixes the identical class at ≤900px
+       and says so in the same words: "31 elements stranded right-of-viewport, invisible and
+       unreachable". It was fixed for one breakpoint and never swept to the template that runs at
+       every other width. [[feedback-generalize-fixes]] */
+    grid-template-columns: minmax(0, 1fr) clamp(238px, 23vw, 430px);   /* v1175 R3 — the rail breathes at fullscreen */
     grid-template-rows: auto minmax(0, 1fr) auto auto auto;   /* v903 — the dash row */
     grid-template-areas:
       "head  head"
@@ -1300,7 +1326,7 @@
   /* ── stacked layout on narrow / portrait ── */
   @media (max-width: 900px) {
     .shell {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);   /* v2177 — same min-content floor as the main template */
       /* v1464 — THE REAL CLIPPING BUG. `.home-dash` is `grid-area: dash`, but this ≤900px
          template never declared a `dash` area, so Chromium auto-placed the dash into an
          IMPLICIT COLUMN outside the named grid. Measured in headless Chromium at 858 CSS px:

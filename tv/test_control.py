@@ -23611,6 +23611,131 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
                          "cannot see a tooltip covering the tab strip")
 
 
+class TestV2177APageLevelGridTrackMustBeAbleToShrink(unittest.TestCase):
+    """⚠ 455 PIXELS OF HIS CONSOLE WERE OFF THE RIGHT EDGE AND NOTHING COULD SCROLL TO THEM.
+
+    Measured live at the width control_app.py opens the window (1120):
+
+        .shell  grid-template-columns  ->  1286.77px 257.594px   = 1575px of page
+        html.scrollWidth 1120 == innerWidth 1120, html/body overflow-x: hidden
+
+        Vault        left 1156  right 1297   entirely off screen
+        TV·D         left 1301  right 1432   entirely off screen
+        RELAUNCH NOW left 1114  right 1254   6 of its 140 pixels visible
+
+    Vault is the vault manager; TV·D runs the chronicle sweep. `scrollWidth == innerWidth` with
+    content beyond it means GONE, not scrolled.
+
+    THE CAUSE: a bare `1fr` grid track carries an automatic minimum of MIN-CONTENT, so the widest
+    child sets a floor the track can never go below and drags the whole page open. `minmax(0, 1fr)`
+    removes the floor. One declaration; the same fix v1464 already made at ≤900px and never swept
+    to the template governing every other width. [[feedback-generalize-fixes]]
+
+    WHY THIS IS A PYTHON TEST AND NOT A RENDER TEST: the blow-out only engages once the head
+    content exceeds the track's share, and under Playwright's font metrics the tab strip is 750px
+    against his 1223px — both templates resolve identically there, so the Playwright spec
+    (tests/v2177_*.spec.ts) is green on the broken tree by construction and says so in its own
+    header. What IS deterministic across every machine is the DECLARATION.
+    """
+
+    UI = os.path.join(HERE, "control_ui.html")
+
+    @staticmethod
+    def _css(src):
+        """The <style> blocks with comments removed.
+
+        ⚠ COMMENTS FIRST, ALWAYS. Four guards in one earlier session went red on the PROSE
+        explaining the very defect they were built to catch — and the fix comment for THIS defect
+        quotes `grid-template-columns: 1fr clamp(...)` verbatim, so a scanner that reads its own
+        documentation would fail forever pointing at itself. [[source-reading-guard]]
+        """
+        import re as _re
+        blocks = _re.findall(r"<style[^>]*>(.*?)</style>", src, _re.S | _re.I)
+        css = "\n".join(blocks)
+        return _re.sub(r"/\*.*?\*/", " ", css, flags=_re.S)
+
+    def _decls(self):
+        import re as _re
+        src = io.open(self.UI, encoding="utf-8").read()
+        css = self._css(src)
+        self.assertGreater(len(css), 20000,
+                           "the <style> extraction returned %d chars — the parser lost the "
+                           "stylesheet, so every assertion below is vacuous" % len(css))
+        # each rule that sets grid-template-columns, with the selector that owns it
+        out = []
+        for m in _re.finditer(r"([^{}]+)\{([^{}]*grid-template-columns\s*:[^{}]*)\}", css):
+            sel = " ".join(m.group(1).split())[-160:]
+            for d in _re.findall(r"grid-template-columns\s*:\s*([^;}]+)", m.group(2)):
+                out.append((sel, " ".join(d.split())))
+        return out
+
+    def test_the_parser_actually_finds_the_shell(self):
+        """A scanner that matches nothing passes everything. Anchor it on the known rule first."""
+        decls = self._decls()
+        self.assertGreater(len(decls), 12,
+                           "only %d grid-template-columns declarations parsed out of the console "
+                           "— the regex is not reaching the stylesheet" % len(decls))
+        shell = [d for sel, d in decls if _sel_targets_shell(sel)]
+        self.assertTrue(shell,
+                        "no .shell grid-template-columns declaration was found. Either the shell "
+                        "stopped being a grid or this guard has lost its subject — both mean it "
+                        "is measuring nothing.")
+
+    def test_no_page_level_track_carries_a_min_content_floor(self):
+        """The law: a track that must SHRINK has to say minmax(0, ...). `1fr` alone cannot."""
+        bad = []
+        for sel, decl in self._decls():
+            if not _sel_targets_shell(sel):
+                continue
+            for track in _split_tracks(decl):
+                if track == "1fr" or track == "auto":
+                    bad.append((sel, decl, track))
+        self.assertEqual(bad, [], "\n".join(
+            "  %s { grid-template-columns: %s }   <- the `%s` track cannot go below its "
+            "min-content, so the widest child drags the page past the window" % (s_, d, t)
+            for s_, d, t in bad) or "")
+
+    def test_this_guard_goes_RED_on_the_shape_it_forbids(self):
+        """⚠ A GATE NEVER SEEN RED IS MEASURING NOTHING. Feed it the pre-fix declaration."""
+        self.assertIn("1fr", _split_tracks("1fr clamp(238px, 23vw, 430px)"),
+                      "the track splitter does not even see the bare 1fr it exists to catch")
+        self.assertNotIn("1fr", _split_tracks("minmax(0, 1fr) clamp(238px, 23vw, 430px)"),
+                         "the splitter reports a bare 1fr inside minmax(0, 1fr) — it is splitting "
+                         "on commas inside the function and would fail the FIXED tree")
+        # and the comment-stripper must not let the fix's own prose in
+        fake = ("<style>/* .shell { grid-template-columns: 1fr clamp(1px, 2vw, 3px); } */\n"
+                ".shell { grid-template-columns: minmax(0, 1fr) 40px; }</style>")
+        css = self._css(fake)
+        self.assertNotIn("1fr clamp", css,
+                         "the comment stripper left a commented-out declaration in the CSS — this "
+                         "guard would fail on the paragraph explaining its own fix")
+
+
+def _sel_targets_shell(sel):
+    """Is this rule sizing the PAGE shell (the grid the whole console lives in)?"""
+    s = sel.strip()
+    return s.endswith(".shell") or ".shell" == s or s.split()[-1].endswith(".shell")
+
+
+def _split_tracks(decl):
+    """Split a grid-template-columns value into tracks WITHOUT splitting inside functions."""
+    out, buf, depth = [], "", 0
+    for ch in decl.strip():
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        if ch.isspace() and depth == 0:
+            if buf:
+                out.append(buf)
+                buf = ""
+            continue
+        buf += ch
+    if buf:
+        out.append(buf)
+    return out
+
+
 class TestV2174TheHuntStopsRebuyingWhatCameBackEmpty(unittest.TestCase):
     """MEASURED ON HIS OWN LOG, and it is the answer to "its been 8+ hours and still chronicle is
     reading":

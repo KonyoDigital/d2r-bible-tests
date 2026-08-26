@@ -443,7 +443,13 @@ _LIVE_STATE = (".board_identity.json",   # v2147 — a test that forgets to patc
                #   _BOARD_ID_PATH would otherwise mutate his real world record unseen
                "chron_last_result.json", "chronicle_swept.json", "chron_autoread.json",
                "chron_evidence.json", "vault_swept.json", "sessions.jsonl",
-               "chron_reads.json", "vault_last_result.json")   # v1895 — new live state joins on day one
+               "chron_reads.json", "vault_last_result.json",
+               # v2177 — the hunt memory, the SIXTH live-state file, joins on day one. It records
+               # which paid hunts came back empty; a throwaway test name marked "already empty" in
+               # his real memory stops a REAL hunt from ever running until new footage arrives.
+               # Its own suite wrote his live copy once before isolation landed, which is why
+               # review_lite blocked the push that added it. [[feedback-fixtures-never-touch-live-data]]
+               "chron_hunt_memory.json")   # v1895 — new live state joins on day one
 
 
 def _console_is_running(port=17772):
