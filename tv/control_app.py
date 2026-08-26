@@ -9231,10 +9231,18 @@ def chronicle_apply(proposal=None):
     except Exception as _wde:
         return {"ok": False, "why": "the board's world could not be checked (%s), so nothing was "
                                     "written" % str(_wde)[:80]}
-    if isinstance(_wd_open, dict) and _wd_open.get("state") == "drift":
+    # ⚠ v2168 — "unknown" IS NOT "ok" HERE EITHER. v2167 closed this class in the DELETER and
+    # left it open in the WRITER, under a commit titled "unknown stops reading as ok". A board
+    # whose world has never been recorded gets ticks written into it and ok:True reported back —
+    # the v2043 stranding with a success message on top. Found by a review lens over that very
+    # commit. The two lanes now answer the same way. [[unknown-stays-unknown]]
+    _st_open = _wd_open.get("state") if isinstance(_wd_open, dict) else None
+    if _st_open != "ok":
         return {"ok": False, "worldDrift": _wd_open,
-                "why": "the board is not the world these finds were read against — %s. Nothing "
-                       "was written." % str(_wd_open.get("why"))[:150]}
+                "why": "the board's world is %s — %s. Nothing was written, because a tick that "
+                       "lands in a world he cannot reach is worse than one not written."
+                       % (_st_open or "unreadable",
+                          str((_wd_open or {}).get("why"))[:140])}
     # v1923 — AND THE GAME GETS A VETO ON THE WAY OUT. Flagging a row in the panel and then writing
     # it anyway would make the whole counter-ledger decoration: the flag would say "you do not have
     # this" while the button put it on his board regardless. So the withholding happens HERE, on the
@@ -10146,7 +10154,20 @@ def _chron_reel_retire(reel_id, why, tries):
 
 
 def _chron_reels_seen():
-    """Reel ids already swept, persisted beside the visit marks in the same file."""
+    """Reel ids already swept, persisted beside the visit marks in the same file.
+
+    ⚠ v2169 — IT IS A RECORD, NOT AN AUTHORITY, AND IT MUST STOP LYING ANYWAY.
+    v2139/v2151 took this list out of every gate — the tick, the offer, the owed count and
+    retention all ask the DURABLE memory now, and none of them reads this. The 40-hour stall is
+    fixed. But the file still claimed 36 reels done while 30 exist on disk: SIX GHOSTS, ids for
+    footage that is gone. #167 was reopened on exactly that, and correctly — the gate is joined
+    and the record still disagrees with the disk.
+
+    "Nothing reads it" is not a reason to leave a lie in a file. It is the reason the lie survived
+    the first time: a record nobody gates on is a record nobody checks, until someone does. The
+    ghosts are dropped on load, so the number a human reads matches the footage that exists.
+    [[label-outlived-referent]] [[stale-reading]]
+    """
     if _CHRON_AUTOREAD.get("reels") is None:
         seen = set()
         try:
@@ -10154,6 +10175,22 @@ def _chron_reels_seen():
                 seen = set(str(x) for x in (json.load(fh) or {}).get("reels") or [])
         except Exception:
             seen = set()
+        # drop ids whose footage is gone. Only when the hist dir is READABLE — an unreadable one
+        # would make every id look like a ghost and silently empty his record.
+        try:
+            _h = os.environ.get("TV_HIST") or HIST_DIR
+            if seen and os.path.isdir(_h):
+                import chronicle_retro as _cr
+                _live = {os.path.basename(str(d)) for d in (_cr.reel_dirs(_h) or [])}
+                if _live:
+                    _ghosts = seen - _live
+                    if _ghosts:
+                        seen = seen & _live
+                        _CHRON_AUTOREAD["ghostsDropped"] = sorted(_ghosts)
+                        print("   \u267b %d stale reel id(s) dropped from the autoread record — "
+                              "their footage is gone" % len(_ghosts), flush=True)
+        except Exception:
+            pass                       # cannot check -> keep the record exactly as it was
         _CHRON_AUTOREAD["reels"] = seen
     return _CHRON_AUTOREAD["reels"]
 
@@ -14569,6 +14606,58 @@ def _chron_result_load():
         return False
 
 
+def _classify_ratio():
+    """What fraction of a reel's frames actually reach a PAID classify call. -> (ratio, n_reels).
+
+    v2168 — THE METER'S DENOMINATOR WAS THE WRONG POPULATION. `runFramesTotal` counted every
+    `f_*.jpg` on disk, while the numerator (`classified`) only ticks for frames that survive the
+    still-run grouping and reach a probe. Measured across his own swept reels: 6,061 frames on
+    disk, 1,903 classified — 31.4%. So the bar could never pass ~31%, and the time left was
+    inflated about threefold, on the exact feature he asked for by name.
+
+    The ratio is not a constant to hard-code — that is the 403 mistake. It is measured from his
+    OWN banked reels, and when there is nothing to measure it from the caller is told so and the
+    estimate is presented as an upper bound rather than a figure. [[unknown-stays-unknown]]
+    """
+    try:
+        mem = _chron_swept_mem() or {}
+    except Exception:
+        return None, 0
+    hist = os.environ.get("TV_HIST") or HIST_DIR
+    per = []
+    try:
+        import chronicle_retro as _cr
+        for d in (_cr.reel_dirs(hist) or []):
+            e = mem.get(os.path.basename(str(d)))
+            if not isinstance(e, dict):
+                continue
+            c = int(e.get("classified") or 0)
+            if c <= 0:
+                continue
+            try:
+                f = sum(1 for x in os.listdir(d) if x.startswith("f_") and x.endswith(".jpg"))
+            except Exception:
+                continue
+            if f > 0:
+                per.append(min(1.0, c / float(f)))
+    except Exception:
+        return None, 0
+    n = len(per)
+    if n < 2:
+        return None, n            # too little of his own history to calibrate from
+    # ⚠ v2170 — THE MEDIAN, NOT THE POOL. A pooled sum(classified)/sum(frames) is dominated by
+    # whichever reel happens to be biggest. Measured on his tree: 18 reels pooled to 0.314, and
+    # ONE of them (reel_s_1787520892804_95400, 1217/1270 = 0.958) supplied 64% of every classified
+    # count — without it the pool is 0.143. Both sit inside any sane band, so a range check cannot
+    # see it. The median asks what a TYPICAL reel does, which is the question the meter is really
+    # putting. A review measured the poisoning; the band alone was not protection.
+    per.sort()
+    r = per[n // 2] if n % 2 else (per[n // 2 - 1] + per[n // 2]) / 2.0
+    if not (0.01 <= r <= 1.0):
+        return None, n            # a ratio outside that band is not a measurement, it is noise
+    return r, n
+
+
 def sweep_eta(job=None):
     """How far through the current read, and how long is left. -> a dict that never guesses.
 
@@ -14672,7 +14761,14 @@ def sweep_eta(job=None):
         m = out["etaMs"] // 60000
         sec = (out["etaMs"] % 60000) // 1000
         left_s = ("%dm %02ds" % (m, sec)) if m else ("%ds" % sec)
-        out["say"] = "%d of %d frames — about %s left" % (out["done"], out["total"], left_s)
+        # v2168 — AN UNCALIBRATED DENOMINATOR IS AN UPPER BOUND, AND SAYS SO. When his own reels
+        # can supply the classify ratio the total is the EXPECTED number of paid reads and the
+        # figure is a figure; when they cannot, the total is every frame on disk, which only ~31%
+        # of the time becomes a read — so the answer is "at most", not a time.
+        out["calibrated"] = bool(j.get("runRatio"))
+        out["say"] = ("%d of %d frames — about %s left" % (out["done"], out["total"], left_s)
+                      if out["calibrated"] else
+                      "%d frames read — at most %s left" % (out["done"], left_s))
     else:
         out["why"] = "the observed rate was zero"
         out["say"] = "reading — measuring"
@@ -15127,13 +15223,27 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     pass
         except Exception:
             _frames_total = 0
+        # v2168 — CALIBRATE THE DENOMINATOR AGAINST HIS OWN HISTORY. Frames on disk is the wrong
+        # population: only ~31% of them reach a paid classify call on his reels, so a raw count
+        # made the bar top out near a third and inflated the time left about threefold.
+        _ratio, _ratio_n = _classify_ratio()
+        # ⚠ v2170 — `or` TREATS 0 AS ABSENT. `_expected = 0` (a tiny reel times a small ratio)
+        # fell through to the raw frame count below while runRatio stayed set, so the estimate
+        # called itself CALIBRATED while using the uncalibrated denominator — the exact inflation
+        # this was written to remove, wearing the label of the fix. max(1, ...) keeps it truthful.
+        _expected = max(1, int(round(_frames_total * _ratio))) if (_ratio and _frames_total) else None
         with _CHRON_LOCK:
             _CHRON_JOB["reelsTotal"] = len(reels)
             _CHRON_JOB["phase"] = "reading"
+            _CHRON_JOB["runFramesOnDisk"] = _frames_total or None
+            _CHRON_JOB["runRatio"] = round(_ratio, 4) if _ratio else None
+            _CHRON_JOB["runRatioReels"] = _ratio_n
             _CHRON_JOB["runStartedTs"] = int(time.time() * 1000)
             _CHRON_JOB["runBaseClassified"] = int(_CHRON_JOB.get("classified") or 0)
             # 0 would read as "this run looks at no frames", which is a claim. None is "not counted".
-            _CHRON_JOB["runFramesTotal"] = _frames_total or None
+            # the EXPECTED number of paid reads when his history can say; otherwise the raw
+            # frame count, which the estimate then presents as an UPPER BOUND rather than a figure
+            _CHRON_JOB["runFramesTotal"] = _expected or (_frames_total or None)
             _CHRON_JOB["runReels"] = [os.path.basename(str(_d)) for _d in reels]
 
         def _tick(**kw):
@@ -15903,7 +16013,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2167",
+        "ver": "v2170",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

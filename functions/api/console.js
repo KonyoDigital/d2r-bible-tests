@@ -145,7 +145,12 @@ export async function onRequestPost(context) {
                  total: (Number.isFinite(total) && total > 0) ? Math.min(total, 100000) : null };
       };
       const at = Number(t.at);
-      const out = { sets: pair(t.sets), uniques: pair(t.uniques), runewords: pair(t.runewords),
+      // ⚠ v2168 — CARRY `ok`. The tooltip reads `if (!t || !t.ok)` and renders "no counts
+      // reported yet", so a record stored WITHOUT that field failed the test and the feature
+      // stayed invisible even though the numbers had arrived intact. Third joint of the same
+      // feature to be built on both ends and not joined; found by a review lens.
+      const out = { ok: true,
+                    sets: pair(t.sets), uniques: pair(t.uniques), runewords: pair(t.runewords),
                     at: Number.isFinite(at) ? at : null };
       return (out.sets || out.uniques || out.runewords) ? out : null;
     })(body.tally),

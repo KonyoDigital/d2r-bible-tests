@@ -10995,38 +10995,75 @@
        ⚠ It never shows a proportion it did not measure: the server answers ok:false with a reason
        while it is still measuring, and the bar goes indeterminate rather than resting at 0%,
        because a bar on empty reads as "nothing is happening". [[unknown-stays-unknown]] */
+    /* v2170 — POLL THE READ, PAINT THE WAIT, AND RELAUNCH WHEN IT IS FREE.
+       ⚠ REWRITTEN, because v2168's fix did not work and a review proved it. That version cleared
+       the timer and set it to null at the top of the not-running branch, THEN handled a busy
+       relaunch by calling this function again with a "do not restart" flag — but the flag was
+       only honoured `if (_updWaitTimer)`, and the timer had just been nulled. So it fell through,
+       zeroed the try counter and ticked immediately: the same ~100 req/s flood against his live
+       console, under a comment claiming it had been fixed. The guard was dead code at its only
+       call site.
+       The recursion is gone entirely now. ONE timer, started once; `tick` never restarts it and
+       never calls this function. It is cleared in exactly two places: a relaunch that succeeded,
+       and the ceiling. A busy relaunch simply leaves the interval running — the next tick tries
+       again on its own, 2.5s later, which is what "wait for it" always meant. */
     var _updWaitTimer = null;
-    async function _updWaitForRead(){
+    var _updWaitTries = 0;
+    function _updWaitStop(msg){
+      if (_updWaitTimer) { clearInterval(_updWaitTimer); _updWaitTimer = null; }
+      var wrap = $('fleet-eta');
+      if (wrap) wrap.hidden = true;
+      if (msg) { txt.textContent = msg; go.disabled = false; }
+    }
+    function _updWaitForRead(){
       var wrap = $('fleet-eta'), say = $('fleet-eta-say');
       if (!wrap) return;
-      if (_updWaitTimer) { clearInterval(_updWaitTimer); _updWaitTimer = null; }
+      /* Already waiting? Say so and leave the running timer alone. Pressing the button again
+         must not zero the ceiling — mashing it used to keep the wait alive forever. */
+      if (_updWaitTimer) { wrap.hidden = false; return; }
+      _updWaitTries = 0;
       wrap.hidden = false;
       var fill = wrap.querySelector('.fbe-bar > i');
+      var busy = false;                       // one tick at a time; a hung fetch must not stack
       var tick = async function(){
+        if (busy) return;
+        busy = true;
         try {
+          _updWaitTries += 1;                 // ⚠ counted HERE, so every path is bounded
+          if (_updWaitTries > 480) {          // ~20 minutes
+            _updWaitStop('still busy after 20 minutes — press RELAUNCH NOW when you are ready');
+            return;
+          }
           var r = await fetch(API + '/api/chronicle_sweep', { cache: 'no-store' });
           var st = await r.json();
           var e = (st && st.eta) || {};
-          if (!st || !st.running) {
-            clearInterval(_updWaitTimer); _updWaitTimer = null;
-            wrap.hidden = true;
-            txt.textContent = 'the read finished — relaunching…';
-            try {
-              var rr2 = await fetch(API + '/api/relaunch', { method: 'POST' });
-              var rj2 = await rr2.json();
-              if (rj2 && rj2.ok) return;                 // replacing itself
-              if (rj2 && rj2.busy) { txt.textContent = 'not now — ' + (rj2.why || 'still busy');
-                                     _updWaitForRead(); return; }
-              txt.textContent = 'ready — press RELAUNCH NOW';
-              go.disabled = false;
-            } catch (e2) { return; }                     // execv tore the socket down: success
-            return;
+          if (st && st.running) {
+            var pct = (typeof e.pct === 'number') ? Math.max(0, Math.min(100, e.pct)) : null;
+            wrap.classList.toggle('fbe-unk', pct === null);
+            if (fill) fill.style.width = (pct === null ? 100 : pct.toFixed(1)) + '%';
+            if (say) say.textContent = e.say || 'reading';
+            return;                          // still reading — the interval brings us back
           }
-          var pct = (typeof e.pct === 'number') ? Math.max(0, Math.min(100, e.pct)) : null;
-          wrap.classList.toggle('fbe-unk', pct === null);
-          if (fill) fill.style.width = (pct === null ? 100 : pct.toFixed(1)) + '%';
-          if (say) say.textContent = e.say || 'reading';
-        } catch (e3) { /* offline mid-wait is not news; keep the last painted state */ }
+          /* the read is done. Try the relaunch ONCE per tick; a refusal is not a reason to
+             hammer, so we fall out and the SAME interval tries again in 2.5s. */
+          if (say) say.textContent = 'the read finished — relaunching…';
+          var rr = await fetch(API + '/api/relaunch', { method: 'POST' });
+          var rj = await rr.json();
+          if (rj && rj.ok) { _updWaitStop(); return; }   // the process is replacing itself
+          if (rj && rj.busy) {
+            txt.textContent = 'not now — ' + (rj.why || 'something is still running');
+            wrap.classList.add('fbe-unk');
+            if (fill) fill.style.width = '100%';
+            if (say) say.textContent = 'waiting for it to finish';
+            return;                          // NO recursion. The interval is still running.
+          }
+          _updWaitStop('could not relaunch — ' + ((rj && (rj.why || rj.msg)) || 'unknown reason'));
+        } catch (e2) {
+          /* execv tears the socket down mid-flight, which is a SUCCESS; anything else is offline
+             and not news. Either way the ceiling above still bounds this. */
+        } finally {
+          busy = false;
+        }
       };
       tick();
       _updWaitTimer = setInterval(tick, 2500);

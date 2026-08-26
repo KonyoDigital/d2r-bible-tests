@@ -12349,14 +12349,22 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
         cap = []
         old_env = os.environ.get("TV_REMAINING_DIR")
         os.environ["TV_REMAINING_DIR"] = tmp
-        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"), ca._ejs)
+        old = (ca.__dict__.get("_MAIN_WIN"), ca.__dict__.get("_WINDOW_LIVE"), ca._ejs,
+               ca.board_identity_drift)
         ca.__dict__["_MAIN_WIN"] = object()
         ca.__dict__["_WINDOW_LIVE"] = True
         ca._ejs = self._fake_board(ca, cap)
+        # v2168 — SAY WHICH WORLD. chronicle_apply refuses to write into a board whose world is
+        # anything but confirmed, and a temp fixture has recorded none — so without this the apply
+        # now refuses for a reason that has nothing to do with the game's veto, and every case in
+        # this class would pass or fail for the wrong reason. The fixture states the precondition
+        # it was always silently relying on. [[unknown-stays-unknown]]
+        ca.board_identity_drift = lambda: {"state": "ok", "why": "same claimed world"}
         try:
             out = ca.chronicle_apply({"wouldAdd": {"uniques": [], "sets": rows}, "held": []})
         finally:
-            ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"], ca._ejs = old
+            (ca.__dict__["_MAIN_WIN"], ca.__dict__["_WINDOW_LIVE"], ca._ejs,
+             ca.board_identity_drift) = old
             if old_env is None:
                 os.environ.pop("TV_REMAINING_DIR", None)
             else:
@@ -22611,6 +22619,46 @@ class TestV2156TheReadSaysHowLongIsLeft(unittest.TestCase):
         self.assertIn("hunting", e["say"])
         self.assertNotIn("None", e["say"], "it printed a None into a sentence he reads")
 
+    def test_the_denominator_is_PAID_READS_not_frames_on_disk(self):
+        """v2168 — THE METER COULD NEVER REACH 100%.
+
+        runFramesTotal counted every f_*.jpg on disk while `classified` only ticks for frames that
+        survive the still-run grouping and reach a PAID probe. Measured across his own swept
+        reels: 6,061 frames on disk, 1,903 classified — 31.4%. So the bar topped out near a third
+        and the time left was inflated about threefold, on the feature he asked for by name.
+
+        The ratio is measured from HIS reels rather than hard-coded — hard-coding it is the 403
+        mistake — and when there is too little history to measure, the estimate says "at most"
+        instead of pretending to a figure. [[unknown-stays-unknown]]"""
+        ca = self._ca()
+        r, n = ca._classify_ratio()
+        if r is None:
+            self.assertLess(n, 2, "it refused to calibrate despite having %d reels to learn "
+                                  "from — the ratio is measurable and was not measured" % n)
+            self.skipTest("this tree has too little swept history to calibrate from")
+        self.assertGreater(r, 0.01, "a ratio that low is noise, not a measurement")
+        self.assertLessEqual(r, 1.0, "more frames were classified than exist on disk")
+        self.assertGreaterEqual(n, 2, "one reel is not a calibration")
+
+    def test_an_UNCALIBRATED_estimate_says_AT_MOST_rather_than_a_time(self):
+        """The honest presentation when his history cannot supply the ratio: the denominator is
+        then every frame on disk, which is an UPPER BOUND, so the sentence is an upper bound too.
+        A figure and a bound must not read the same."""
+        import time as _t
+        ca = self._ca()
+        now = int(_t.time() * 1000)
+        base = {"running": True, "phase": "reading", "runStartedTs": now - 60000,
+                "runBaseClassified": 0, "runFramesTotal": 240, "classified": 60}
+        loose = ca.sweep_eta(dict(base))                      # no runRatio -> not calibrated
+        tight = ca.sweep_eta(dict(base, runRatio=0.314))      # calibrated
+        self.assertTrue(loose["ok"] and tight["ok"])
+        self.assertIn("at most", loose["say"],
+                      "an uncalibrated denominator was reported as a figure: %s" % loose["say"])
+        self.assertNotIn("at most", tight["say"],
+                         "a calibrated estimate hedged when it did not need to: %s" % tight["say"])
+        self.assertIs(loose["calibrated"], False)
+        self.assertIs(tight["calibrated"], True)
+
     def test_it_rides_on_the_state_the_console_ALREADY_polls(self):
         """No new route and no second source of truth about one number. [[copy-drift]]"""
         ca = self._ca()
@@ -22821,12 +22869,36 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
         wk = os.path.join(repo, "functions", "api", "console.js")
         if not os.path.isfile(wk):
             self.skipTest("the console worker is not in this checkout")
+        # ⚠ v2168 — EXECUTE THE WORKER'S COERCION, do not grep it. The previous version asserted
+        # the strings "body.tally" and "tally:" were present — both were, while the stored record
+        # was missing the `ok` field the tooltip tests (`if (!t || !t.ok)`), so every roster hover
+        # said "no counts reported yet" with the numbers sitting right there. A guard that greps
+        # cannot see a SHAPE. This runs the real expression through node and inspects the object.
+        # [[source-reading-guard]] [[feedback-verify-not-proxy]]
+        import subprocess, shutil, re as _re
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed — the worker cannot be executed here")
         with io.open(wk, encoding="utf-8") as fh:
             src = fh.read()
-        self.assertIn("body.tally", src,
-                      "the worker never reads body.tally — the roster cannot render a field the "
-                      "server does not store")
-        self.assertIn("tally:", src, "the worker does not store it on the record")
+        expr = _between(self, src, "tally: (function (t) {", "})(body.tally),",
+                        what="the worker's tally coercion")
+        js = ("const f = (function (t) {" + expr.split("(function (t) {", 1)[1] + "});"
+              "const got = f({ok:true, at:1787760000000,"
+              " sets:{have:120,total:135}, uniques:{have:278,total:403},"
+              " runewords:{have:99,total:99}});"
+              "console.log(JSON.stringify(got));")
+        r = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, "the worker's tally expression did not run: %s"
+                         % (r.stderr or "")[-300:])
+        got = json.loads((r.stdout or "null").strip())
+        self.assertTrue(got, "the worker dropped a well-formed tally entirely")
+        self.assertIs(got.get("ok"), True,
+                      "the stored record has no `ok`, and the tooltip reads `if (!t || !t.ok)` — "
+                      "so every roster hover says 'no counts reported yet' with the numbers "
+                      "sitting right there. Stored shape was: %s" % json.dumps(got)[:160])
+        self.assertEqual(got.get("sets"), {"have": 120, "total": 135})
+        self.assertEqual(got.get("uniques"), {"have": 278, "total": 403})
 
     def test_a_MISSING_TOTAL_is_None_not_a_guess(self):
         """A pair with no denominator still shows the count — the tooltip renders that bar
@@ -23157,6 +23229,24 @@ class TestV2164TheDeleterAsksTheWorldGuardToo(unittest.TestCase):
             self.assertFalse(ok, "it deleted footage against a %s world" % state)
             self.assertIn(state, why)
 
+    def test_the_APPLY_refuses_an_UNKNOWN_world_too_not_only_a_drifted_one(self):
+        """v2168. v2167 was titled "unknown stops reading as ok" and closed the class in the
+        DELETER while leaving it open in the WRITER — chronicle_apply still refused only on
+        "drift". So a board whose world has never been recorded got ticks written into it with
+        ok:True reported back: the v2043 stranding with a success message on top. Found by a
+        review lens reading that very commit's claim against its code."""
+        import unittest.mock as mock
+        ca = self._ca()
+        prop = {"apply": {"uniques": ["Shako"], "sets": [], "completeSets": []},
+                "uniques": {"Shako": [{"reel": "r", "frame": "f", "lane": "claude"}]},
+                "sets": {}, "held": ["Shako"]}
+        with mock.patch.dict(ca.__dict__, {"_MAIN_WIN": object(), "_WINDOW_LIVE": True}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "unknown", "why": "never recorded"}):
+            r = ca.chronicle_apply(prop)
+        self.assertFalse(r.get("ok"), "it wrote ticks into a world nobody has ever identified")
+        self.assertIn("unknown", str(r.get("why")))
+
     def test_the_APPLY_refuses_an_OPEN_board_that_is_in_the_wrong_world(self):
         """v2167, and the reason the co_names test above is not enough on its own.
 
@@ -23176,9 +23266,210 @@ class TestV2164TheDeleterAsksTheWorldGuardToo(unittest.TestCase):
                                lambda: {"state": "drift", "why": "install-ZZZ, was install-AAA"}):
             r = ca.chronicle_apply(prop)
         self.assertFalse(r.get("ok"), "it wrote ticks into a world he cannot reach")
-        self.assertIn("not the world", str(r.get("why")),
+        # v2168 reworded this: the refusal names the STATE, because the writer now refuses on
+        # anything that is not "ok" rather than on drift alone.
+        self.assertIn("drift", str(r.get("why")),
                       "it refused for some other reason, so this test proves nothing: %s"
                       % str(r.get("why"))[:120])
+
+
+class TestV2169TheAutoreadRecordStopsLying(unittest.TestCase):
+    """#167 was reopened, and correctly.
+
+    v2139/v2151 took the private seen-set out of every GATE — the tick, the offer, the owed count
+    and retention all ask the durable memory now, and none of them reads it. The 40-hour stall is
+    fixed and stays fixed. But the FILE still claimed 36 reels done while 30 existed on disk:
+    six GHOSTS, ids for footage that is gone.
+
+    "Nothing reads it" is not a reason to leave a lie in a file. It is the reason the lie survived
+    the first time — a record nobody gates on is a record nobody checks, until someone does, and
+    the number a human reads must match the footage that exists.
+    [[label-outlived-referent]] [[stale-reading]]
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._path0 = control_app._CHRON_AUTOREAD_PATH
+        self._hist0 = os.environ.get("TV_HIST")
+        self.hist = os.path.join(self.tmp, "hist")
+        os.makedirs(self.hist, exist_ok=True)
+        os.environ["TV_HIST"] = self.hist
+        control_app._CHRON_AUTOREAD_PATH = os.path.join(self.tmp, "autoread.json")
+        for k in ("reels", "done", "ghostsDropped"):
+            control_app._CHRON_AUTOREAD[k] = None
+
+    def tearDown(self):
+        if self._hist0 is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._hist0
+        self.ca._CHRON_AUTOREAD_PATH = self._path0
+        for k in ("reels", "done", "ghostsDropped"):
+            self.ca._CHRON_AUTOREAD[k] = None
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _plant(self, on_disk, in_record):
+        # ⚠ FRAMES, not just an index. reel_dirs() does not recognise a directory that holds only
+        # index.json — measured: it returns [] for one. A fixture whose reels the scanner cannot
+        # see never reaches the rule it is testing, and the prune (correctly) skips when it sees
+        # no live reels at all. [[feedback-blind-fixture-green-gate]]
+        for r in on_disk:
+            d = os.path.join(self.hist, r)
+            os.makedirs(d, exist_ok=True)
+            with io.open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"sessionId": r,
+                                     "frames": [{"file": "f_1700000000000.jpg"}]}))
+            for n in ("f_1700000000000.jpg", "f_1700000000001.jpg"):
+                with io.open(os.path.join(d, n), "wb") as fh:
+                    fh.write(b"\xff\xd8\xff\xe0jpegish")
+        with io.open(self.ca._CHRON_AUTOREAD_PATH, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"reels": list(in_record), "done": None}))
+        self.ca._CHRON_AUTOREAD["reels"] = None
+
+    def test_ids_whose_footage_is_GONE_are_dropped(self):
+        real = ["reel_s_1787000000001_1", "reel_s_1787000000002_2"]
+        self._plant(real, real + ["reel_s_1786000000009_9", "reel_s_1786000000008_8"])
+        seen = self.ca._chron_reels_seen()
+        self.assertEqual(seen, set(real),
+                         "the record still names footage that does not exist — the same shape "
+                         "that let it claim 36 reels done against 30 on disk")
+        self.assertEqual(len(self.ca._CHRON_AUTOREAD.get("ghostsDropped") or []), 2)
+
+    def test_a_record_that_MATCHES_the_disk_is_left_alone(self):
+        """Seen red for its own reason: a prune that always fires would be as wrong as one that
+        never does. [[feedback-blind-fixture-green-gate]]"""
+        real = ["reel_s_1787000000001_1", "reel_s_1787000000002_2"]
+        self._plant(real, real)
+        self.assertEqual(self.ca._chron_reels_seen(), set(real))
+        self.assertFalse(self.ca._CHRON_AUTOREAD.get("ghostsDropped"))
+
+    def test_an_UNREADABLE_hist_dir_leaves_the_record_UNTOUCHED(self):
+        """⚠ THE DANGEROUS DIRECTION. If the footage directory cannot be listed, every id looks
+        like a ghost and a naive prune would silently EMPTY his record. It keeps the record
+        exactly as it was and drops nothing. [[unknown-stays-unknown]]"""
+        real = ["reel_s_1787000000001_1", "reel_s_1787000000002_2"]
+        self._plant(real, real + ["reel_s_1786000000009_9"])
+        os.environ["TV_HIST"] = os.path.join(self.tmp, "not-there")
+        self.ca._CHRON_AUTOREAD["reels"] = None
+        seen = self.ca._chron_reels_seen()
+        self.assertEqual(len(seen), 3,
+                         "an unreadable footage directory emptied his record — every id looked "
+                         "like a ghost")
+        self.assertFalse(self.ca._CHRON_AUTOREAD.get("ghostsDropped"))
+
+    def test_the_private_list_still_gates_NOTHING(self):
+        """The half #167 was actually about, pinned so it cannot come back: no decision reads it."""
+        ca = self.ca
+        for fn in ("chronicle_autoreel_tick", "_unswept_chron_reels", "_chron_owed_count"):
+            f = getattr(ca, fn, None)
+            self.assertIsNotNone(f, "%s vanished" % fn)
+            self.assertNotIn("_chron_reels_seen", set(f.__code__.co_names),
+                             "%s decides from the PRIVATE list again — that is the 40-hour "
+                             "stall" % fn)
+
+
+class TestV2170WhatTheReviewBrokeInMyOwnFIXES(unittest.TestCase):
+    """A review of v2168 found that two of its three fixes did not work. Both are corrected here.
+
+    1. THE FLOOD WAS STILL THERE. v2168 claimed to stop a runaway poller by refusing re-entry —
+       but the not-running branch cleared the timer and set it to null BEFORE the busy branch
+       called back in, so the `if (_updWaitTimer)` guard was skipped every time. The guard was
+       dead code at its only call site, under a comment saying it had been fixed. Measured shape:
+       ~100 GET + ~100 POST per second against :17772 while he plays.
+    2. THE CALIBRATION WAS POISONED BY ONE REEL. A pooled sum(classified)/sum(frames) gave 0.314
+       across 18 reels — and reel_s_1787520892804_95400 alone (1217/1270 = 0.958) supplied 64% of
+       every classified count. Without it the pool is 0.143. Both sit inside any sane band, so a
+       range check could never see it.
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def test_the_waiter_cannot_call_ITSELF(self):
+        """The defect was structural: a function that re-enters itself from inside its own tick
+        has no interval at all. Assert on the shipped block that the only call is the entry point
+        — recursion here costs him request-per-second against a console he is filming on."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(here, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        blk = _between(self, ui, "var _updWaitTimer = null;", "function armRelaunch(ver)",
+                       what="the relaunch waiter")
+        code = "\n".join(l for l in blk.split("\n") if not l.lstrip().startswith("//"))
+        occurrences = code.count("_updWaitForRead(")
+        definitions = code.count("function _updWaitForRead(")
+        self.assertEqual(occurrences - definitions, 0,
+                         "the waiter calls itself %d time(s) — that is the flood: the not-running "
+                         "branch nulls the timer first, so any re-entry guard is skipped and the "
+                         "next tick fires with no delay" % (occurrences - definitions))
+
+    def test_the_waiter_counts_every_path_toward_its_ceiling(self):
+        """v2168 incremented the counter in the interval wrapper, so any path that restarted the
+        timer zeroed it — mash the button and the ceiling never elapses."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(here, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        blk = _between(self, ui, "var _updWaitTimer = null;", "function armRelaunch(ver)",
+                       what="the relaunch waiter")
+        ti = blk.index("var tick = async function")
+        self.assertIn("_updWaitTries += 1", blk[ti:],
+                      "the try counter is not incremented inside tick(), so a path that restarts "
+                      "the timer resets the ceiling")
+
+    def test_the_ratio_is_a_MEDIAN_so_one_reel_cannot_own_it(self):
+        """Measured poisoning: 17 ordinary reels and one huge outlier. A pooled ratio follows the
+        outlier; the median follows the typical reel, which is the question the meter is asking."""
+        import unittest.mock as mock, tempfile
+        ca = self._ca()
+        d = tempfile.mkdtemp()
+        hist = os.path.join(d, "hist")
+        os.makedirs(hist, exist_ok=True)
+        mem, dirs = {}, []
+        for i in range(17):                        # ordinary: 10 of 100 frames -> 0.10
+            rid = "reel_s_178700000%04d_1" % i
+            p_ = os.path.join(hist, rid)
+            os.makedirs(p_, exist_ok=True)
+            for k in range(100):
+                io.open(os.path.join(p_, "f_17000000000%02d.jpg" % k), "wb").write(b"x")
+            mem[rid] = {"classified": 10}
+            dirs.append(p_)
+        rid = "reel_s_1787999999999_9"              # the outlier: 1200 of 1250 -> 0.96
+        p_ = os.path.join(hist, rid)
+        os.makedirs(p_, exist_ok=True)
+        for k in range(1250):
+            io.open(os.path.join(p_, "f_1800000%06d.jpg" % k), "wb").write(b"x")
+        mem[rid] = {"classified": 1200}
+        dirs.append(p_)
+        try:
+            with mock.patch.dict(os.environ, {"TV_HIST": hist}), \
+                 mock.patch.object(ca, "_chron_swept_mem", lambda: mem):
+                r, n = ca._classify_ratio()
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertEqual(n, 18)
+        pooled = (17 * 10 + 1200) / float(17 * 100 + 1250)   # ~0.46, dragged by one reel
+        self.assertLess(r, pooled * 0.6,
+                        "the ratio followed the outlier (%.3f vs pooled %.3f) — one reel owns the "
+                        "calibration and the band cannot see it" % (r, pooled))
+        self.assertAlmostEqual(r, 0.10, places=2)
+
+    def test_a_ZERO_expected_never_passes_as_CALIBRATED(self):
+        """`_expected or _frames_total` treats 0 as absent, so a tiny reel times a small ratio fell
+        through to the RAW frame count while runRatio stayed set — the estimate called itself
+        calibrated while using the uncalibrated denominator. The label of the fix on the defect."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(here, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        blk = _between(self, src, "_expected = ", "_CHRON_JOB[\"reelsTotal\"]",
+                       what="the expected-reads calculation")
+        code = "\n".join(l for l in blk.split("\n") if not l.lstrip().startswith("#"))
+        self.assertIn("max(1,", code,
+                      "a zero expected count still falls through to the raw frame total while the "
+                      "estimate reports itself calibrated")
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
