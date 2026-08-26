@@ -9189,7 +9189,18 @@ def _board_identity_of(payload):
         return None
     if not payload.get("boardLoaded"):
         return None                    # cannot see it. UNKNOWN is not a new world.
-    return {"owner": bool(payload.get("owner")), "pfx": payload.get("pfx")}
+    # v2147 — THE INSTALL IS THE IDENTITY, not the ownership flag. {owner, pfx} could not tell two
+    # different CLAIMED stores apart, because a claimed board publishes pfx:'' — which made the
+    # guard blind to the exact failure it exists for. The route carries the install id and the
+    # profile; without a v:2 route we cannot NAME the world, and a world we cannot name must not be
+    # asserted to be the same one. [[unknown-stays-unknown]]
+    route = payload.get("route")
+    if not isinstance(route, dict) or not route.get("id"):
+        return None
+    return {"owner": bool(payload.get("owner")),
+            "pfx": payload.get("pfx"),
+            "id": str(route.get("id")),
+            "profile": route.get("p")}
 
 
 def _board_identity_last():
@@ -9224,12 +9235,21 @@ def _board_identity_remember(payload):
         return None
     now = int(time.time() * 1000)
     prev = _board_identity_last()
-    rec = {"owner": ident["owner"], "pfx": ident["pfx"], "lastSeen": now,
+    rec = {"owner": ident["owner"], "pfx": ident["pfx"],
+           "id": ident.get("id"), "profile": ident.get("profile"), "lastSeen": now,
            "firstSeen": (prev or {}).get("firstSeen") or now,
            "seenCount": ((prev or {}).get("seenCount") or 0) + 1,
            "previous": None}
-    if prev and (prev.get("owner") != ident["owner"] or prev.get("pfx") != ident["pfx"]):
+    # v2147 — A DRIFT IS A DIFFERENT INSTALL, NOT A DIFFERENT FLAG. The first cut compared owner
+    # and pfx, so the moment he did the thing the check ASKED for — pressing "This browser is mine"
+    # on a guest world — it recorded a drift and the eagle said "anything applied in the old one is
+    # unreachable from this one", which is false: he had just connected this install to the claimed
+    # keys. A gate that cries wolf at the remedy teaches him to ignore it. Same install claiming
+    # itself, or switching profile, is a TRANSITION; only a different install id is a drift.
+    _same_install = bool(prev) and prev.get("id") and prev.get("id") == ident.get("id")
+    if prev and not _same_install and prev.get("id"):
         rec["previous"] = {"owner": prev.get("owner"), "pfx": prev.get("pfx"),
+                           "id": prev.get("id"), "profile": prev.get("profile"),
                            "lastSeen": prev.get("lastSeen")}
         rec["firstSeen"] = now
         rec["seenCount"] = 1
@@ -9241,7 +9261,12 @@ def _board_identity_remember(payload):
             json.dump(rec, _fh)
         os.replace(_tmp, _BOARD_ID_PATH)
     except Exception:
-        pass
+        # v2147 — DO NOT RETURN AS IF IT LANDED. The first cut swallowed the write error and handed
+        # back `rec`, so a missing parent directory produced a caller that believed the world was
+        # recorded while last() stayed None — and the NEXT successful write of a different world
+        # then looked like a first sighting rather than a change. Silence about a failed write is
+        # how a drift becomes invisible. [[feedback-silence-is-not-evidence]]
+        return None
     return rec
 
 
@@ -9258,10 +9283,15 @@ def board_identity_drift():
                        "is something to compare the next launch against"}
     prev = rec.get("previous")
     if prev:
+        # v2147 — NAME WHAT ACTUALLY CHANGED. This printed owner and pfx, which are IDENTICAL on
+        # both sides of the case that matters (two different CLAIMED stores both publish owner=True
+        # pfx=''), so the alarm described nothing and the reader could not tell which world his
+        # vault was in. The install id is the thing that moved, so the install id is what it says.
         return {"state": "drift",
-                "why": "the board came back as a DIFFERENT world: owner=%s pfx=%r, was owner=%s "
-                       "pfx=%r. Anything applied in the old one is unreachable from this one."
-                       % (rec.get("owner"), rec.get("pfx"), prev.get("owner"), prev.get("pfx"))}
+                "why": "the board came back as a DIFFERENT install: %s (profile %r), was %s "
+                       "(profile %r). Anything applied in the old one is unreachable from this one."
+                       % (rec.get("id"), rec.get("profile"),
+                          prev.get("id"), prev.get("profile"))}
     if not rec.get("owner") and rec.get("pfx"):
         return {"state": "drift",
                 "why": "the board is in an UNCLAIMED guest world (pfx=%r) — anything applied here "
@@ -9319,6 +9349,15 @@ def board_ownership(sample=0, dump_stores=False):
           # keys — claimed, safe, and reported as doomed. `boardLoaded` separates "I cannot see"
           # from "it is a guest world". [[unknown-stays-unknown]]
           "var boardLoaded=(typeof window._D2R_PFX==='string');"
+          # v2147 — SEND THE ROUTE. A cross-family review found the world identity was {owner, pfx}
+          # only, and a CLAIMED board publishes pfx:'' — so a brand-new claimed store was
+          # byte-identical to the old one and the drift guard answered "ok" over an empty vault:
+          # blind to the exact case it was written for. d2r_lsrRoute already carries the install id
+          # and the profile (bible.html:3903), and that file's own note says a reader that finds no
+          # route, a v:1 route, or an id it does not recognise must resolve UNKNOWN.
+          "var route=null;try{var _r=raw('d2r_lsrRoute');"
+          "if(_r&&typeof _r==='object'&&_r.v===2)route={id:_r.id||null,p:_r.p||null,"
+          "m:_r.m||null,pfx:(typeof _r.pfx==='string'?_r.pfx:null)};}catch(_rr){}"
           "var owner=!!window._D2R_OWNER, pfx=(boardLoaded?window._D2R_PFX:null);"
           "var stores=null,gameFound=null;"
           "try{var _gp=raw('d2r_gameFound');if(_gp&&typeof _gp==='object'&&!Array.isArray(_gp))gameFound=_gp;}catch(_g){}"
@@ -9328,6 +9367,7 @@ def board_ownership(sample=0, dump_stores=False):
              "catch(_e){nn=v?1:0;}stores[k]=nn;}}catch(_s){stores={err:String(_s)}}}"
              % ("true" if dump_stores else "false"))
           + "return JSON.stringify({ok:true,owner:owner,pfx:pfx,boardLoaded:boardLoaded,"
+          "route:route,"
           "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
           "stores:stores,dates:dates,gameFound:gameFound});"
@@ -10912,6 +10952,18 @@ def drift_may_relaunch():
     """
     if os.environ.get("TV_AUTO_RELAUNCH") != "1":
         return False, "auto-relaunch is opt-in (TV_AUTO_RELAUNCH=1); announcing only"
+    # v2147 — AND IT ASKS THE WORLD GUARD. The whole reason auto-relaunch was allowed to be armed is
+    # that a relaunch returning a DIFFERENT world would be noticed — and the decision never consulted
+    # the thing doing the noticing, so an already-drifted world did not block the next execv. A
+    # guard nothing asks is decoration. If the board is already in a world we did not expect,
+    # restarting it is the last thing that should happen automatically.
+    try:
+        _d = board_identity_drift()
+        if isinstance(_d, dict) and _d.get("state") == "drift":
+            return False, ("the board's world has drifted — %s. Not relaunching automatically "
+                           "while that is true." % str(_d.get("why"))[:160])
+    except Exception:
+        pass
     return nothing_in_flight()
 
 
@@ -15274,7 +15326,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2146",
+        "ver": "v2147",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

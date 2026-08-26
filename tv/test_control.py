@@ -21625,26 +21625,61 @@ class TestV2145TheBoardIsTheSameWorldItWasLastLaunch(unittest.TestCase):
         self.ca._BOARD_ID_PATH = self._p0
         shutil.rmtree(self.d, ignore_errors=True)
 
-    CLAIMED = {"ok": True, "boardLoaded": True, "owner": True, "pfx": None}
-    GUEST = {"ok": True, "boardLoaded": True, "owner": False, "pfx": "I-abc123-"}
+    # v2147 — THE ROUTE IS PART OF THE IDENTITY NOW. {owner, pfx} could not tell two different
+    # CLAIMED stores apart (a claimed board publishes pfx:''), which made the guard blind to the
+    # exact case it exists for. d2r_lsrRoute carries the install id and profile.
+    CLAIMED = {"ok": True, "boardLoaded": True, "owner": True, "pfx": "",
+               "route": {"id": "install-AAA", "p": "main", "m": "owner", "pfx": ""}}
+    # the SAME install, claimed — this is the remedy, not a drift
+    CLAIMED_SAME = {"ok": True, "boardLoaded": True, "owner": True, "pfx": "",
+                    "route": {"id": "install-AAA", "p": "main", "m": "owner", "pfx": ""}}
+    # a DIFFERENT install that is ALSO claimed — the v2043 shape with the guest prefix stripped off,
+    # and the case the first cut of this guard reported as "ok" over an empty vault
+    CLAIMED_OTHER = {"ok": True, "boardLoaded": True, "owner": True, "pfx": "",
+                     "route": {"id": "install-ZZZ", "p": "main", "m": "owner", "pfx": ""}}
+    GUEST = {"ok": True, "boardLoaded": True, "owner": False, "pfx": "I-abc123-",
+             "route": {"id": "install-AAA", "p": "main", "m": "guest", "pfx": "I-abc123-"}}
+    NO_ROUTE = {"ok": True, "boardLoaded": True, "owner": True, "pfx": ""}
 
     def test_a_world_nobody_has_seen_is_UNKNOWN_not_ok(self):
         self.assertEqual(self.ca.board_identity_drift()["state"], "unknown")
 
     def test_the_same_claimed_world_twice_is_ok(self):
         self.ca._board_identity_remember(self.CLAIMED)
-        self.ca._board_identity_remember(self.CLAIMED)
+        self.ca._board_identity_remember(self.CLAIMED_SAME)
         self.assertEqual(self.ca.board_identity_drift()["state"], "ok")
 
-    def test_coming_back_as_a_DIFFERENT_world_is_a_drift(self):
-        """The v2043 failure, which was silent by construction."""
+    def test_a_DIFFERENT_CLAIMED_INSTALL_is_a_drift(self):
+        """THE CASE THE FIRST CUT WAS BLIND TO, and the whole reason this guard exists.
+
+        WebKit comes back as a NEW store that is still claimed. Identity was {owner, pfx} and a
+        claimed board publishes pfx:'', so both worlds looked identical and the eagle reported
+        "the board is CLAIMED — what is applied persists" over an empty vault. That is v2043 with
+        the guest prefix stripped off.
+        """
         self.ca._board_identity_remember(self.CLAIMED)
-        self.ca._board_identity_remember(self.GUEST)
+        self.ca._board_identity_remember(self.CLAIMED_OTHER)
         d = self.ca.board_identity_drift()
         self.assertEqual(d["state"], "drift")
-        self.assertIn("DIFFERENT world", d["why"])
-        self.assertIn("I-abc123-", d["why"])   # names the world it is in NOW
-        self.assertIn("was owner=True", d["why"])   # ...and the one it used to be
+        self.assertIn("install-ZZZ", d["why"])   # the world it is in NOW
+        self.assertIn("install-AAA", d["why"])   # ...and the one his vault is in
+
+    def test_CLAIMING_a_guest_world_is_the_remedy_NOT_a_drift(self):
+        """He presses "This browser is mine" — the thing the check asked him to do — and the first
+        cut answered MISSING with "anything applied in the old one is unreachable from this one",
+        which is false: he had just connected THIS install to the claimed keys. A gate that cries
+        wolf at its own remedy teaches him to ignore it."""
+        self.ca._board_identity_remember(self.GUEST)
+        self.ca._board_identity_remember(self.CLAIMED)      # same install id, now claimed
+        self.assertEqual(self.ca.board_identity_drift()["state"], "ok")
+
+    def test_a_payload_with_no_ROUTE_cannot_name_the_world(self):
+        """bible.html's own note: a reader that finds no route, a v:1 route, or an id it does not
+        recognise must resolve UNKNOWN. A world we cannot name must not be asserted to be the same
+        one we saw last time."""
+        self.assertIsNone(self.ca._board_identity_of(self.NO_ROUTE))
+        self.ca._board_identity_remember(self.NO_ROUTE)
+        self.assertEqual(self.ca.board_identity_drift()["state"], "unknown")
 
     def test_an_unclaimed_guest_world_is_a_drift_even_on_its_own(self):
         self.ca._board_identity_remember(self.GUEST)
@@ -21659,28 +21694,73 @@ class TestV2145TheBoardIsTheSameWorldItWasLastLaunch(unittest.TestCase):
         self.ca._board_identity_remember({"ok": False, "why": "the board window is not open"})
         self.assertEqual(before, self.ca._board_identity_last())
 
-    def test_the_eagle_check_reports_the_drift(self):
-        """A detector nothing consults is decoration."""
-        import console_doctor as cd
-        self.ca._board_identity_remember(self.CLAIMED)
-        self.ca._board_identity_remember(self.GUEST)
-        src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
-        i = src.index("def _check_the_board_world_is_claimed")
-        body = src[i:src.index("\ndef ", i + 10)]
-        # PIN THE JOIN, NOT THE CALL. The first cut asserted the doctor contained the string
-        # "board_identity_drift" — and when the verdict correctly moved ONTO the payload (the
-        # doctor talks over HTTP and does not import control_app), this guard failed while the
-        # feature was working better. Assert that the doctor CONSULTS the verdict and that the
-        # producer SENDS it; either half missing is the unjoined end.
-        self.assertIn("worldDrift", body,
-                      "the eagle's board check never looks at the drift verdict")
-        prod = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        self.assertIn('"worldDrift"', prod,
-                      "nothing ever puts the drift verdict on the payload the doctor reads")
-        self.assertIn("board is claimed", [n for n, _ in cd.CHECKS])
-        self.assertNotIn("board is claimed", cd.SLOW,
-                         "a check in SLOW never runs on the ten-minute timer")
+    def test_the_eagle_check_reports_the_drift_THROUGH_THE_DOOR(self):
+        """v2147 — THE OLD VERSION OF THIS TEST GREPPED A STRING, AND THAT IS WHY TWO DEFECTS SHIPPED.
 
+        It asserted that "worldDrift" appeared in both files and that the check was registered
+        outside SLOW. Both were true while the branch it named was UNREACHABLE: a closed board
+        answers ok:False, and the doctor's early return fired before the drift was ever read. A
+        cross-family review found it by posting a payload; my test never did.
+
+        So this one drives the real door — it replaces the doctor's own _post with a stub and hands
+        the check the exact payload shapes the console produces. [[the-unjoined-end]]
+        """
+        import console_doctor as cd
+        DRIFT = {"state": "drift", "why": "the board came back as a DIFFERENT world"}
+        cases = [
+            ("a CLOSED board carrying a drift verdict — the relaunch moment",
+             {"ok": False, "why": "the board window is not open", "worldDrift": DRIFT}, cd.MISSING),
+            ("an OPEN claimed board carrying a drift verdict",
+             {"ok": True, "boardLoaded": True, "owner": True, "pfx": "",
+              "counts": {}, "worldDrift": DRIFT}, cd.MISSING),
+            ("an OPEN claimed board with no drift",
+             {"ok": True, "boardLoaded": True, "owner": True, "pfx": "", "counts": {},
+              "worldDrift": {"state": "ok", "why": "same claimed world"}}, cd.OK),
+            ("an UNCLAIMED guest world is still MISSING, as v2044 had it",
+             {"ok": True, "boardLoaded": True, "owner": False, "pfx": "I-abc-",
+              "counts": {"foundLog": 3}}, cd.MISSING),
+        ]
+        _post0 = cd._post
+        try:
+            for label, payload, want in cases:
+                cd._post = lambda *a, **k: payload
+                state, why = cd._check_the_board_world_is_claimed()
+                self.assertEqual(state, want, "%s -> %s (%s)" % (label, state, why[:70]))
+        finally:
+            cd._post = _post0
+
+    def test_the_drift_check_is_registered_and_not_in_SLOW(self):
+        """A check in SLOW never runs on the ten-minute eagle timer, so it is decoration."""
+        import console_doctor as cd
+        self.assertIn("board is claimed", [n for n, _ in cd.CHECKS])
+        self.assertNotIn("board is claimed", cd.SLOW)
+
+    def test_the_relaunch_decision_ASKS_the_guard(self):
+        """v2147 — arming auto-relaunch was justified by "a relaunch into a different world would be
+        noticed", and the decision never consulted the thing doing the noticing."""
+        drift = {"state": "drift", "why": "the board came back as a DIFFERENT world"}
+        _d0 = self.ca.board_identity_drift
+        _env0 = os.environ.get("TV_AUTO_RELAUNCH")
+        try:
+            os.environ["TV_AUTO_RELAUNCH"] = "1"
+            self.ca.board_identity_drift = lambda *a, **k: drift
+            ok, why = self.ca.drift_may_relaunch()
+            self.assertFalse(ok, "a drifted world must not be relaunched automatically")
+            self.assertIn("drifted", why)
+        finally:
+            self.ca.board_identity_drift = _d0
+            if _env0 is None:
+                os.environ.pop("TV_AUTO_RELAUNCH", None)
+            else:
+                os.environ["TV_AUTO_RELAUNCH"] = _env0
+
+    def test_a_failed_write_does_not_report_success(self):
+        """It returned `rec` after swallowing the write error, so a caller believed the world was
+        recorded while last() stayed None — and the next different world then read as a FIRST
+        sighting rather than a change."""
+        self.ca._BOARD_ID_PATH = os.path.join(self.d, "no", "such", "dir", "x.json")
+        got = self.ca._board_identity_remember(self.CLAIMED)
+        self.assertIsNone(got, "a write that did not land must not answer as if it did")
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

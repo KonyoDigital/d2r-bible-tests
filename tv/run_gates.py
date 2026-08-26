@@ -439,7 +439,9 @@ def _claim_the_tree():
 # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
 # chron_reads.json joins it for the same reason: it is live state added this week and the list did
 # not follow.
-_LIVE_STATE = ("chron_last_result.json", "chronicle_swept.json", "chron_autoread.json",
+_LIVE_STATE = (".board_identity.json",   # v2147 — a test that forgets to patch
+               #   _BOARD_ID_PATH would otherwise mutate his real world record unseen
+               "chron_last_result.json", "chronicle_swept.json", "chron_autoread.json",
                "chron_evidence.json", "vault_swept.json", "sessions.jsonl",
                "chron_reads.json", "vault_last_result.json")   # v1895 — new live state joins on day one
 

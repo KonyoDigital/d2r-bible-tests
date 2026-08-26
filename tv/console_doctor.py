@@ -86,6 +86,14 @@ def _check_the_board_world_is_claimed():
     got = _post("/api/board_ownership", {"sample": 0})
     if not got:
         return UNKNOWN, "the console did not answer — nobody asked, so nothing is known"
+    # v2147 — ASK THE MEMORY FIRST. The v2145 branch that "reports drift even when the board is
+    # closed" was UNREACHABLE: a closed window answers ok:False, and both early returns below fired
+    # before it. Measured by injecting worldDrift onto that payload — still UNKNOWN. And a closed
+    # board is precisely the moment a relaunch just happened, so the remembered world is the only
+    # thing that can speak. The verdict is read before anything is allowed to give up.
+    _d = got.get("worldDrift") if isinstance(got, dict) else None
+    if isinstance(_d, dict) and _d.get("state") == "drift":
+        return MISSING, _d.get("why")
     if not got.get("ok"):
         return UNKNOWN, "the board refused the read: %s" % str(got.get("why"))[:90]
     # v2055 — "THE BOARD IS NOT OPEN" IS NOT "THE BOARD IS DOOMED".
