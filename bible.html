@@ -44754,6 +44754,16 @@ window._renderStashFresh = function(){
           out.pixelLaneError = String(payload.pixelLaneError);
         }
       } catch(e){ out.skipped.push('could not ledger the pixel evidence: ' + (e && e.message || e)); }
+      /* v2142 (#169) — ASK FOR THE REPAINT. Every _rec above appends to d2r_chronicleInboxLog and
+         then nothing told the inbox to redraw, so a payload could apply perfectly and leave the
+         panel showing the previous state — measured: the log contained "22 square(s) never move"
+         while #inbox-panel held ZERO .ibx-eye-row elements. The board got away with it because the
+         inbox CARD HEADER's onclick happens to call renderInbox() right after toggleCardCollapse
+         (bible.html:6450), so opening it by hand repainted; anything that opens it another way, or
+         does not open it at all, saw stale pixels. A writer that records rows and never asks for a
+         repaint is built on both ends and joined on neither. [[the-unjoined-end]] */
+      try { window.renderInbox && window.renderInbox(); } catch (e) {}
+      try { window.renderInboxBadge && window.renderInboxBadge(); } catch (e) {}
       return out;
   };
 
@@ -45688,7 +45698,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2141', name:'v2141 - the Chronicle button films it instead of asking', date:'2026-08-26', note:'the F-Uniques and F-Sets buttons opened a hidden file picker and asked him to photograph the page; both halves of the automatic path already existed and had never been joined' };
+  window.D2R_BUILD = { id:'v2142', name:'v2142 - the apply asks the inbox to repaint', date:'2026-08-26', note:'every _rec appended to the log and nothing told the inbox to redraw, so a room-only payload applied perfectly and left the panel showing the previous state' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

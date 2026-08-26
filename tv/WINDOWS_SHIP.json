@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2141",
+  "ver": "v2142",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2141: the F-Uniques and F-Sets buttons opened a hidden file picker and asked him to photograph the page; both halves of the automatic path already existed and had never been joined",
+  "note": "v2142: every _rec appended to the log and nothing told the inbox to redraw, so a room-only payload applied perfectly and left the panel showing the previous state",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
