@@ -21510,6 +21510,58 @@ class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
         self.assertFalse(self.L.owes_a_look("v9999", self.led))
         self.assertFalse(self.L.owes_a_look("9999", self.led))
 
+    def test_a_model_id_that_merely_MENTIONS_a_family_does_not_count(self):
+        """v2145 — family_of("not-grok") returned "xai": the id says it is NOT grok and the gate
+        read it as grok. The needle was a substring; it is now a leading TOKEN."""
+        self.assertIsNone(self.L.family_of("not-grok"))
+        self.assertIsNone(self.L.family_of("fake-grok"))
+        self.assertEqual(self.L.family_of("grok-4-1-fast-reasoning"), "xai")
+
+    def test_real_other_families_are_not_discarded(self):
+        """It was too NARROW as well as too wide — o3 and mixtral both returned None, so two
+        genuine cross-family looks would have been thrown away."""
+        self.assertEqual(self.L.family_of("o3"), "openai")
+        self.assertEqual(self.L.family_of("mixtral"), "mistral")
+
+    def test_THE_HONEST_PATH_WORKS(self):
+        """The worst finding of the second pass: record(..., findings=[...]) — the natural way to
+        write down what the other family said — produced a row looked_at REFUSED, because only
+        answerHead and images counted as evidence. Do the look, call the writer, still blocked. A
+        gate that fails correct behaviour teaches the bypass."""
+        self.L.record("v9999", "grok-4-1-fast-reasoning", "findings",
+                      findings=["the ellipsis reads as clipped text"], reached=True, path=self.led)
+        self.assertFalse(self.L.owes_a_look("v9999", self.led))
+
+    def test_an_empty_string_is_not_an_image(self):
+        with io.open(self.led, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"version": "v9999", "model": "grok-4",
+                                 "reached": True, "images": [""]}) + "\n")
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_audit_and_check_cannot_contradict_each_other(self):
+        """The test that CLAIMED this never called audit(), and audit() still used the rules the
+        verdict had abandoned — measured contradicting in both directions. audit() is also the
+        recovery command the refusal prints, so a contradiction there lands on the screen he reads
+        when he is already blocked."""
+        cases = [
+            ({"version": "v9999", "model": "", "family": "xai",
+              "reached": True, "answerHead": "x"}, True),          # forged -> both must refuse
+            ({"version": "9999", "model": "grok-4-1-fast-reasoning",
+              "reached": True, "answerHead": "real"}, False),      # bare number -> both must accept
+        ]
+        for row, expect_owes in cases:
+            d = tempfile.mkdtemp()
+            led = os.path.join(d, "l.jsonl")
+            with io.open(led, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row) + "\n")
+            owes = self.L.owes_a_look("v9999", led)
+            rows = [x for x in self.L.audit(led) if x["version"] == "v9999"]
+            looks = rows[0]["looks"] if rows else 0
+            self.assertEqual(owes, expect_owes, "check disagrees with the fixture: %s" % row)
+            self.assertEqual(owes, looks == 0,
+                             "--check and --audit disagree about %s" % row)
+            shutil.rmtree(d, ignore_errors=True)
+
     def test_a_real_reached_cross_family_look_satisfies_it(self):
         """And it must be able to go GREEN, or it is a gate nobody can ever pass."""
         self.L.record("v9999", "grok-4-1-fast-reasoning", "findings",
@@ -21544,6 +21596,90 @@ class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
                       answer_head="a real answer", path=self.led)
         self.assertFalse(self.L.owes_a_look("v9999", self.led),
                          "one unparseable line must not hide a real look")
+
+
+class TestV2145TheBoardIsTheSameWorldItWasLastLaunch(unittest.TestCase):
+    """Auto-relaunch is only safe if a relaunch that returns a DIFFERENT world is noticed.
+
+    Konyo, arming it: "just make sure the other profile locking of the chronicles and everything is
+    connected to the profile and pc related to it.. so nothing ever gets deleted or regressed. i
+    want that like in eagle eye and watchdog... its not even architecture it's connecting and
+    integrating whats already there."
+
+    The parts existed and did not talk. board_ownership() can READ the world; console_doctor's
+    "board is claimed" check can JUDGE the world it is shown. Neither REMEMBERED, so nothing could
+    tell "claimed, as always" from "claimed, but a DIFFERENT world than the one his vault is in" —
+    which is the whole of v2043, where throwaway storage minted a fresh install id every launch and
+    stranded the vault while every surface looked healthy.
+    """
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._p0 = control_app._BOARD_ID_PATH
+        control_app._BOARD_ID_PATH = os.path.join(self.d, ".board_identity.json")
+
+    def tearDown(self):
+        self.ca._BOARD_ID_PATH = self._p0
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    CLAIMED = {"ok": True, "boardLoaded": True, "owner": True, "pfx": None}
+    GUEST = {"ok": True, "boardLoaded": True, "owner": False, "pfx": "I-abc123-"}
+
+    def test_a_world_nobody_has_seen_is_UNKNOWN_not_ok(self):
+        self.assertEqual(self.ca.board_identity_drift()["state"], "unknown")
+
+    def test_the_same_claimed_world_twice_is_ok(self):
+        self.ca._board_identity_remember(self.CLAIMED)
+        self.ca._board_identity_remember(self.CLAIMED)
+        self.assertEqual(self.ca.board_identity_drift()["state"], "ok")
+
+    def test_coming_back_as_a_DIFFERENT_world_is_a_drift(self):
+        """The v2043 failure, which was silent by construction."""
+        self.ca._board_identity_remember(self.CLAIMED)
+        self.ca._board_identity_remember(self.GUEST)
+        d = self.ca.board_identity_drift()
+        self.assertEqual(d["state"], "drift")
+        self.assertIn("DIFFERENT world", d["why"])
+        self.assertIn("I-abc123-", d["why"])   # names the world it is in NOW
+        self.assertIn("was owner=True", d["why"])   # ...and the one it used to be
+
+    def test_an_unclaimed_guest_world_is_a_drift_even_on_its_own(self):
+        self.ca._board_identity_remember(self.GUEST)
+        self.assertEqual(self.ca.board_identity_drift()["state"], "drift")
+
+    def test_a_payload_that_cannot_SEE_the_board_never_overwrites_the_record(self):
+        """A closed board is not a new world. Overwriting here would erase the very comparison the
+        record exists to make, precisely when a relaunch has just happened."""
+        self.ca._board_identity_remember(self.CLAIMED)
+        before = self.ca._board_identity_last()
+        self.ca._board_identity_remember({"ok": True, "boardLoaded": False})
+        self.ca._board_identity_remember({"ok": False, "why": "the board window is not open"})
+        self.assertEqual(before, self.ca._board_identity_last())
+
+    def test_the_eagle_check_reports_the_drift(self):
+        """A detector nothing consults is decoration."""
+        import console_doctor as cd
+        self.ca._board_identity_remember(self.CLAIMED)
+        self.ca._board_identity_remember(self.GUEST)
+        src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        i = src.index("def _check_the_board_world_is_claimed")
+        body = src[i:src.index("\ndef ", i + 10)]
+        # PIN THE JOIN, NOT THE CALL. The first cut asserted the doctor contained the string
+        # "board_identity_drift" — and when the verdict correctly moved ONTO the payload (the
+        # doctor talks over HTTP and does not import control_app), this guard failed while the
+        # feature was working better. Assert that the doctor CONSULTS the verdict and that the
+        # producer SENDS it; either half missing is the unjoined end.
+        self.assertIn("worldDrift", body,
+                      "the eagle's board check never looks at the drift verdict")
+        prod = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        self.assertIn('"worldDrift"', prod,
+                      "nothing ever puts the drift verdict on the payload the doctor reads")
+        self.assertIn("board is claimed", [n for n, _ in cd.CHECKS])
+        self.assertNotIn("board is claimed", cd.SLOW,
+                         "a check in SLOW never runs on the ten-minute timer")
 
 
 if __name__ == "__main__":

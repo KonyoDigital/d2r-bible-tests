@@ -17,6 +17,26 @@ export TV_OCR="${TV_OCR:-1}"
 # instead of the 1fps reel (Konyo 2026-07-20: "where are all the SCREENSHOTS?")
 export TV_FILM="${TV_FILM:-1}"
 
+# v2145 — THE CONSOLE FOLLOWS THE SHIPPED BUILD. Konyo: "yes it can definitely relaunch to other
+# new builds. just make sure the other profile locking of the chronicles and everything is
+# connected to the profile and pc related to it.. so nothing ever gets deleted or regressed."
+#
+# Fixing the reel extract in v2139 made this necessary: sweeps actually run now, and POST
+# /api/relaunch correctly refuses while one is reading ("relaunching now would throw away a paid
+# read"), so his window sat on v2139 while origin was at v2144. The drift watcher (v2072) has
+# always been able to catch up on its own; it just refused to act without this flag.
+#
+# WHAT MAKES IT SAFE TO ARM, all pre-existing and all still in force:
+#   · it refuses while a chronicle or vault sweep is reading (nothing_in_flight)
+#   · it refuses while _agent_alive() — HE IS FILMING. A restart then orphans that session's
+#     frames, because the reel fold runs at seal (v2071).
+#   · webview.start(private_mode=False) means the board's storage survives the restart (v928/v2043)
+#   · and v2145 remembers WHICH WORLD the board came back as, so a relaunch that returns a
+#     different one is reported by the eagle instead of silently stranding his vault — which is
+#     exactly the condition he attached to this.
+# Set TV_AUTO_RELAUNCH=0 to go back to announce-only.
+export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"
+
 # ── TCC SAFEGUARD (2026-07-20 WindowServer-crash lesson) ────────────────────
 # Finder/double-click launches capture wallpaper-only: the wrapper .app is
 # unsigned, so macOS strips its Screen Recording grant on a crash and silently

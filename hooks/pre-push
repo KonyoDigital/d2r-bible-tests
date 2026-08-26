@@ -221,6 +221,22 @@ except Exception:
     exit 1
   fi
 
+  # ⚠ v2145 — AN EMPTY _prev_ver USED TO BE A SILENT SKIP, and the second eye measured the way
+  # through: publish once with a WINDOWS_SHIP.json that parses but has no "ver" key (or one that
+  # does not parse at all), and the NEXT push — a real ship — finds prev empty and the gate never
+  # runs. A genuine first publish is different: the remote sha is all-zeros, there is no previous
+  # version because there is no previous commit, and skipping is correct. Those two are now told
+  # apart instead of sharing an exit.
+  if [ -z "$_prev_ver" ] \
+     && [ -n "$_se_remote" ] \
+     && [ "$_se_remote" != "0000000000000000000000000000000000000000" ]; then
+    echo "pre-push: ❌ origin/main is at a commit whose version stamp cannot be read, so I cannot"
+    echo "          tell which version is currently live or whether anyone looked at it."
+    echo "          Refusing rather than skipping — a version nobody can name is not a version"
+    echo "          anybody looked at."
+    echo "          (deliberate exception: git push --no-verify)"
+    exit 1
+  fi
   if [ -n "$_prev_ver" ] && [ "$_prev_ver" != "$_this_ver" ]; then
     if ! gate_run "second-eye" "python3 tv/second_eye_ledger.py --check $_prev_ver --gate" 30 -- \
          python3 "$REPO/tv/second_eye_ledger.py" --check "$_prev_ver" --gate; then

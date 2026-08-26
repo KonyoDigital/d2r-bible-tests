@@ -46,6 +46,18 @@ if HERE not in sys.path:
 REGISTRY = {
     # ---- control_app: the live-state family. All six default under _fixture_root_for_state(),
     # which honours TV_HIST *at import only* — an isolated harness must set TV_HIST BEFORE import.
+    # ---- second_eye_ledger: which shipped versions a DIFFERENT model family actually looked at.
+    "second_eye_ledger.py:LEDGER_PATH": (
+        "TV_SECOND_EYE_LEDGER", "import-bound",
+        "MEASURED v2145: env honoured at import only (a later os.environ[...] is a no-op — checked "
+        "by setting it after import and re-reading), and 5 call-time readers of the ATTRIBUTE. So "
+        "the safe redirects are mock.patch.object(second_eye_ledger, 'LEDGER_PATH', tmp) or, "
+        "better, passing path= into record()/looked_at()/audit(), which every unit test here does. "
+        "⚠ THE ENV VAR IS ALSO AN ATTACK SURFACE, which is why it is import-bound on purpose: an "
+        "adversarial pass showed that TV_SECOND_EYE_LEDGER=/tmp/x on the PUSH COMMAND redirected "
+        "the evidence file and disarmed hooks/pre-push's second-eye gate with no --no-verify and "
+        "no trace. `--gate`, which the hook passes, re-pins the canonical path for exactly that "
+        "reason. Do not make this call-time to 'fix' the gate — that would restore the hole."),
     "control_app.py:_GATE_CACHE_PATH": (
         "TV_GATE_CACHE", "import-bound",
         "v1941 — memoised stash-gate verdicts (crop+OCR) for SEALED, immutable frames. Derived "

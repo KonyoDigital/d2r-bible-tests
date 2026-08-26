@@ -41,12 +41,18 @@ LEDGER_PATH = os.environ.get("TV_SECOND_EYE_LEDGER") or os.path.join(HERE, ".sec
 
 # The families that count as a SECOND eye for work authored by Claude. Derived from the model id
 # rather than trusted from a caller, because "which family looked at this" is the whole question.
+# ⚠ v2145 — TOO NARROW AS WELL AS TOO WIDE. The second eye measured family_of("o3") and
+# family_of("mixtral") as None, so two real other-family looks would have been discarded. Matched
+# as whole TOKENS of the model id, and the id must LEAD with one (see family_of).
 _FAMILY = (
     ("grok", "xai"),
-    ("gpt", "openai"),
+    ("gpt", "openai"), ("o3", "openai"), ("o4", "openai"),
     ("gemini", "google"),
     ("llama", "meta"),
-    ("mistral", "mistral"),
+    ("mistral", "mistral"), ("mixtral", "mistral"),
+    ("deepseek", "deepseek"),
+    ("qwen", "qwen"),
+    ("command", "cohere"),
     ("claude", "anthropic"),
 )
 
@@ -69,10 +75,22 @@ def family_of(model):
         cannot be shown to be either one, so it must not buy a pass.
       · a single match returns that family, whichever it is.
     """
+    import re as _re
     m = str(model or "").lower()
-    hits = sorted({fam for needle, fam in _FAMILY if needle in m})
+    toks = [t for t in _re.split(r"[^a-z0-9]+", m) if t]
+    if not toks:
+        return None
+    hits = sorted({fam for needle, fam in _FAMILY if needle in toks})
     if len(hits) != 1:
         return None                       # zero = unrecognised, two+ = ambiguous. Both are UNKNOWN.
+    # ⚠ v2145 — AND THE FIRST TOKEN MUST BE THE FAMILY. A substring needle said
+    # family_of("not-grok") == "xai": the id says it is NOT grok and the gate read it as grok. The
+    # id must LEAD with the family, so "grok-4" qualifies and "not-grok", "fake-grok" and
+    # "grok-emulator-by-someone-else" do not. Combined with the ambiguity rule above,
+    # "grok-mcp/claude-opus-5" still returns None because two families appear.
+    lead = {needle: fam for needle, fam in _FAMILY}.get(toks[0])
+    if lead != hits[0]:
+        return None
     return hits[0]
 
 
@@ -161,6 +179,21 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
     return row
 
 
+def _has_evidence(row):
+    """Is this row bound to anything a person could go and check?
+
+    Any ONE of: the head of the raw answer, a named image, or a finding the other family made.
+    Empty strings do not count in any of them — measured: images:[""] satisfied the first cut.
+    """
+    if str(row.get("answerHead") or "").strip():
+        return True
+    if any(str(i or "").strip() for i in (row.get("images") or [])):
+        return True
+    if any(str(f or "").strip() for f in (row.get("findings") or [])):
+        return True
+    return False
+
+
 def looked_at(version, path=None):
     """The rows that COUNT as a second-eye look at `version`, newest first.
 
@@ -190,7 +223,14 @@ def looked_at(version, path=None):
             continue
         # ⚠ a row must be bound to something. A hollow {version, model, reached} line proved a
         # look had happened while carrying no trace of one.
-        if not (str(r.get("answerHead") or "").strip() or (r.get("images") or [])):
+        #
+        # v2145 — TWO CORRECTIONS FROM THE SECOND EYE, and the first is the serious one:
+        #   · FINDINGS ARE EVIDENCE. record(..., findings=[...]) — the natural way to write down
+        #     what the other family said — produced a row this refused, because only answerHead and
+        #     images counted. So the honest path was: do the look, call the writer, and still be
+        #     blocked. A gate that fails the correct behaviour trains the bypass.
+        #   · images:[""] used to pass. An empty string in a list is not an image.
+        if not _has_evidence(r):
             continue
         out.append(r)
     return sorted(out, key=lambda r: -(r.get("ts") or 0))
@@ -202,18 +242,33 @@ def owes_a_look(version, path=None):
 
 
 def audit(path=None):
-    """Every version mentioned in the ledger, and whether it was really seen. For the report."""
+    """Every version mentioned in the ledger, and whether it was really seen.
+
+    ⚠ v2145 — THIS USED THE RULES `looked_at` HAD ALREADY ABANDONED, and the second eye measured
+    both directions of the resulting contradiction: a forged row (model:"", family:"xai") that
+    --check REFUSED was listed here as "OK looks=1", and a real look recorded as version "9999"
+    that --check ACCEPTED was listed here as OWED. The test named
+    test_check_and_audit_cannot_disagree_about_a_bare_number never called audit(), so the
+    disagreement it claimed to close was still there, both ways.
+
+    audit() is also the recovery command the refusal message tells him to run, which makes a
+    contradiction here worse than one anywhere else: it is the screen he reads when he is already
+    blocked. One rule, asked from both. [[feedback-contradiction-is-the-finding]]
+    """
     seen = {}
     for r in _rows(path):
-        v = r.get("version") or "?"
-        s = seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0, "looks": 0})
-        s["attempts"] += 1
-        if not r.get("reached"):
-            s["empty"] += 1
-        elif r.get("family") == AUTHOR_FAMILY:
-            s["author"] += 1
-        elif r.get("family"):
-            s["looks"] += 1
+        v = norm_version(r.get("version")) or (str(r.get("version") or "?").strip() or "?")
+        st = seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0, "looks": 0})
+        st["attempts"] += 1
+        fam = family_of(r.get("model"))          # re-derived, exactly as the verdict does it
+        if r.get("reached") is not True:
+            st["empty"] += 1
+        elif fam == AUTHOR_FAMILY:
+            st["author"] += 1
+        elif fam and _has_evidence(r):
+            st["looks"] += 1
+        else:
+            st["empty"] += 1                     # unidentifiable, or bound to nothing
     return sorted(seen.values(), key=lambda s: s["version"])
 
 
@@ -294,8 +349,14 @@ def _cmd_check(argv):
             print("second eye: %s OWES A LOOK — %s" % (want, why))
             return 1
         r = looked_at(want)[0]
+        # v2145 — PRINT WHAT THE VERDICT USED. This line read the STORED `family` field, which
+        # looked_at had just refused to trust: a row {model:"grok-4", family:"anthropic"} counted
+        # (re-derived xai) and then announced itself as "looked at by grok-4 (anthropic)". A
+        # success message that contradicts the rule that produced it is how a reader learns to
+        # stop believing the messages. [[label-outlived-referent]]
         print("second eye: %s was looked at by %s (%s) — %s"
-              % (want, r.get("model"), r.get("family"), r.get("verdict")))
+              % (want, r.get("model"), family_of(r.get("model")),
+                 r.get("verdict") or "no verdict recorded"))
         return 0
 
 

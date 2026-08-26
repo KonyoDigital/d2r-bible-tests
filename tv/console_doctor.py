@@ -94,9 +94,17 @@ def _check_the_board_world_is_claimed():
     # launch" — about a world that was claimed, on disk, and perfectly safe. After the night his
     # ledger actually was emptied, that is the last sentence that should ever be shown wrongly.
     if got.get("boardLoaded") is False:
+        # v2145 — A CLOSED BOARD IS EXACTLY WHEN A RELAUNCH HAPPENED, so ask the REMEMBERED world
+        # before giving up. Konyo armed auto-relaunch on the condition that nothing gets deleted or
+        # regressed; what could regress is the board coming back as a DIFFERENT world, and that is
+        # knowable from the record even with the window shut.
+        _d = got.get("worldDrift") if isinstance(got, dict) else None
+        if isinstance(_d, dict) and _d.get("state") == "drift":
+            return MISSING, _d.get("why")
         return UNKNOWN, ("the board is not open in the window — ownership lives in bible.html's "
                          "globals, so it cannot be read from the console rail. Open the board to "
-                         "find out.")
+                         "find out."
+                         + ("" if not _d else "  Last recorded: " + str(_d.get("why"))[:120]))
     if "owner" not in got:
         # v2044 added the field. An older console cannot answer, and MUST NOT read as a pass.
         return UNKNOWN, ("this console predates the ownership field (v2044) — restart it to find "
@@ -104,7 +112,14 @@ def _check_the_board_world_is_claimed():
     counts = got.get("counts") or {}
     total = sum(int(counts.get(k) or 0) for k in ("foundLog", "owned", "setPieces"))
     if got.get("owner"):
-        return OK, "the board is CLAIMED — it writes the bare keys, so what is applied persists"
+        # "claimed" and "the SAME world his vault is in" are different facts, and only the second
+        # survives a relaunch. v2043 was silent precisely because the first one stayed true.
+        _d = got.get("worldDrift") if isinstance(got, dict) else None
+        if isinstance(_d, dict) and _d.get("state") == "drift":
+            return MISSING, _d.get("why")
+        _tail = "" if not (isinstance(_d, dict) and _d.get("state") == "ok") else " · " + str(_d.get("why"))
+        return OK, ("the board is CLAIMED — it writes the bare keys, so what is applied persists"
+                    + _tail)
     return MISSING, ("the board is an UNCLAIMED guest world (prefix %r) holding %d ledger entries — "
                      "anything applied here is lost on the next launch. Open the board and press "
                      "'This browser is mine'." % (got.get("pfx"), total))

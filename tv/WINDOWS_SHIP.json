@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2144",
+  "ver": "v2145",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2144: an adversarial fleet reproduced 44 of 44 findings against the second-eye gate, including the forgery I had told him was impossible",
+  "note": "v2145: auto-relaunch is armed, and the condition he attached to it is met: a relaunch that returns a different world is now reported instead of silently stranding his vault",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

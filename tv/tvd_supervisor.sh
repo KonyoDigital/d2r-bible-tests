@@ -14,6 +14,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 PAUSE_FLAG="$HERE/.tvd_supervisor_pause"
 LOG="$HERE/control_app.log"
 PORT=17772
+# v2145 — the headless console the supervisor revives follows the shipped build too, under the same
+# guards as the window (refuses while a sweep reads or while he is filming). TV_AUTO_RELAUNCH=0
+# returns it to announce-only.
+export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"
 
 while true; do
   if [ ! -f "$PAUSE_FLAG" ]; then

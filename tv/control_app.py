@@ -9108,7 +9108,14 @@ def chronicle_apply(proposal=None):
         return {"ok": False, "why": "the sweep found nothing at all — nothing to apply or queue"}
     w = globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
-        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+        # v2145 — a CLOSED board is exactly when a relaunch happened, so the remembered world
+        # still has something to say even though this read cannot.
+        _closed = {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+        try:
+            _closed["worldDrift"] = board_identity_drift()
+        except Exception:
+            pass
+        return _closed
     # v1923 — AND THE GAME GETS A VETO ON THE WAY OUT. Flagging a row in the panel and then writing
     # it anyway would make the whole counter-ledger decoration: the flag would say "you do not have
     # this" while the button put it on his board regardless. So the withholding happens HERE, on the
@@ -9166,6 +9173,102 @@ def chronicle_apply(proposal=None):
             "another Remaining page after you find one and it will stop being denied."
             % (len(_withheld), ", ".join(_withheld)))
     return out
+
+
+_BOARD_ID_PATH = os.path.join(HERE, ".board_identity.json")
+
+
+def _board_identity_of(payload):
+    """The board's WORLD as a comparable dict, or None when the payload cannot say.
+
+    A CLAIMED world has `owner` true and `pfx` None — the ledgers live in bare keys. An unclaimed
+    one has `pfx = 'I<installId>'`-shaped: a per-install GUEST world, where an apply returns ok:true,
+    writes real rows, and they are unreachable from the next load.
+    """
+    if not isinstance(payload, dict) or not payload.get("ok"):
+        return None
+    if not payload.get("boardLoaded"):
+        return None                    # cannot see it. UNKNOWN is not a new world.
+    return {"owner": bool(payload.get("owner")), "pfx": payload.get("pfx")}
+
+
+def _board_identity_last():
+    try:
+        with open(_BOARD_ID_PATH, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else None
+    except Exception:
+        return None
+
+
+def _board_identity_remember(payload):
+    """v2145 — REMEMBER WHICH WORLD THE BOARD CAME BACK AS.
+
+    Konyo, arming auto-relaunch: "just make sure the other profile locking of the chronicles and
+    everything is connected to the profile and pc related to it.. so nothing ever gets deleted or
+    regressed. i want that like in eagle eye and watchdog... its not even architecture it's
+    connecting and integrating whats already there".
+
+    He is right that the parts existed. board_ownership() can READ the world; console_doctor's
+    "board is claimed" check can JUDGE the world it is shown. Neither REMEMBERED, so nothing could
+    tell "claimed, as always" from "claimed, but a DIFFERENT world than the one his vault is in".
+    That distinction is the whole of v2043: webview.start() without private_mode=False handed the
+    board throwaway storage, it minted a fresh install id every launch, and the vault was stranded
+    in the previous world while every surface looked healthy.
+
+    Auto-relaunch turns that from a once-in-a-while accident into a thing that can happen on a
+    timer, so this is its pre-condition. One small JSON file, written only when the board answered.
+    """
+    ident = _board_identity_of(payload)
+    if ident is None:
+        return None
+    now = int(time.time() * 1000)
+    prev = _board_identity_last()
+    rec = {"owner": ident["owner"], "pfx": ident["pfx"], "lastSeen": now,
+           "firstSeen": (prev or {}).get("firstSeen") or now,
+           "seenCount": ((prev or {}).get("seenCount") or 0) + 1,
+           "previous": None}
+    if prev and (prev.get("owner") != ident["owner"] or prev.get("pfx") != ident["pfx"]):
+        rec["previous"] = {"owner": prev.get("owner"), "pfx": prev.get("pfx"),
+                           "lastSeen": prev.get("lastSeen")}
+        rec["firstSeen"] = now
+        rec["seenCount"] = 1
+    # atomic tmp + os.replace, the same shape _kai_write_report_atomic uses: a reader never sees a
+    # half file, and a crash mid-write leaves the previous COMPLETE record rather than a stub.
+    try:
+        _tmp = _BOARD_ID_PATH + ".tmp"
+        with open(_tmp, "w", encoding="utf-8") as _fh:
+            json.dump(rec, _fh)
+        os.replace(_tmp, _BOARD_ID_PATH)
+    except Exception:
+        pass
+    return rec
+
+
+def board_identity_drift():
+    """What the eagle asks: did the board come back as a DIFFERENT world than last time?
+
+    "unknown" when nothing has ever been recorded — never "ok", because a world nobody has seen
+    cannot be shown to be the same one. [[unknown-stays-unknown]]
+    """
+    rec = _board_identity_last()
+    if not rec:
+        return {"state": "unknown",
+                "why": "the board's world has never been recorded — open the board once so there "
+                       "is something to compare the next launch against"}
+    prev = rec.get("previous")
+    if prev:
+        return {"state": "drift",
+                "why": "the board came back as a DIFFERENT world: owner=%s pfx=%r, was owner=%s "
+                       "pfx=%r. Anything applied in the old one is unreachable from this one."
+                       % (rec.get("owner"), rec.get("pfx"), prev.get("owner"), prev.get("pfx"))}
+    if not rec.get("owner") and rec.get("pfx"):
+        return {"state": "drift",
+                "why": "the board is in an UNCLAIMED guest world (pfx=%r) — anything applied here "
+                       "is lost on the next load. Claim it." % rec.get("pfx")}
+    return {"state": "ok",
+            "why": "the board has come back as the same claimed world %d time(s)"
+                   % (rec.get("seenCount") or 1)}
 
 
 def board_ownership(sample=0, dump_stores=False):
@@ -9237,7 +9340,18 @@ def board_ownership(sample=0, dump_stores=False):
         return {"ok": False, "why": "the board did not answer in time — its ledger is UNREAD, "
                                     "which is not the same as empty"}
     try:
-        return json.loads(raw)
+        _out = json.loads(raw)
+        # remember WHICH WORLD answered, so a relaunch returning a different one is NOTICED, and
+        # put the verdict ON THE PAYLOAD. console_doctor talks to this over HTTP and deliberately
+        # does not import control_app — asking it to would have meant a bare `ca` in a scope that
+        # never binds it, which is a NameError a try/except swallows into a check that silently
+        # never fires. One side decides, the answer travels. [[the-unjoined-end]]
+        try:
+            _board_identity_remember(_out)
+            _out["worldDrift"] = board_identity_drift()
+        except Exception:
+            pass
+        return _out
     except Exception:
         return {"ok": False, "why": "the board answered something unreadable"}
 
@@ -15160,7 +15274,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2144",
+        "ver": "v2145",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
