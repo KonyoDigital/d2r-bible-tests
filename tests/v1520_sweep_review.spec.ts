@@ -116,13 +116,43 @@ test.describe('v1520 — the review he decides from', () => {
     expect(await page.textContent('#chron-note')).toMatch(/nothing has been written/i);
   });
 
-  test('a running sweep shows progress instead of an empty panel', async ({ page }) => {
+  /* v2166 — THIS PINNED THE FRACTION THAT WAS LYING. It asserted "reel 1 of 3" from
+     reelsDone/reelsTotal — but reelsDone is ACCUMULATED by the sweep's _tick for the life of the
+     process (and the vault lane writes the same dict) while reelsTotal is assigned per run.
+     Measured live on his console mid-sweep: reelsDone 30, reelsTotal 1, rendered as "reel 30 of
+     1". The fixture here fed a tidy 1 and 3, so the spec was green about a surface that could not
+     be right. A fixture that can only ever produce the sane case cannot see the defect.
+     [[gate-blind-to-unexercised-input]] [[label-outlived-referent]]
+
+     v2156 replaced it with a meter driven by ONE quantity — frames probed this run out of frames
+     this run will look at — which refuses rather than guessing. That is what is asserted now. */
+  test('a running sweep shows measured progress, not a fraction of two different things',
+       async ({ page }) => {
     await open(page, { running: true, phase: 'reading', reelsDone: 1, reelsTotal: 3,
-                       classified: 4, pagesRead: 2, error: null, lanes: ['claude'], result: null });
+                       classified: 4, pagesRead: 2, error: null, lanes: ['claude'], result: null,
+                       eta: { ok: true, done: 58, total: 240, pct: 24.2, ratePerMin: 9.4,
+                              say: '58 of 240 frames — about 19m 21s left' } });
     const body = await page.textContent('#chron-body');
-    expect(body).toMatch(/reel 1 of 3/);
+    expect(body).toMatch(/58 of 240 frames/);
+    expect(body).toMatch(/about 19m 21s left/);
     expect(body).toMatch(/4 frames classified/);
+    expect(body, 'the reelsDone/reelsTotal fraction is back — it reads "reel 30 of 1" on his '
+      + 'machine because the two counters measure different things')
+      .not.toMatch(/reel \d+ of \d+/);
     expect(await page.isHidden('#chron-review')).toBe(true);
+  });
+
+  test('a sweep that has not measured yet says so instead of showing 0%', async ({ page }) => {
+    /* The state the meter exists for: a bar resting at 0% reads as "nothing is happening" when
+       the honest answer is "nothing has been MEASURED yet". [[unknown-stays-unknown]] */
+    await open(page, { running: true, phase: 'reading', reelsDone: 0, reelsTotal: 1,
+                       classified: 0, pagesRead: 0, error: null, lanes: [], result: null,
+                       eta: { ok: false, done: 0, total: null, pct: null, etaMs: null,
+                              why: 'no frame has been probed yet, so there is no rate',
+                              say: 'reading — measuring' } });
+    const body = await page.textContent('#chron-body');
+    expect(body).toMatch(/measuring/);
+    expect(body, 'it printed a finish time it never measured').not.toMatch(/left/);
   });
 
   test('★ a refused START names the refusal instead of falling silent', async ({ page }) => {

@@ -9217,6 +9217,24 @@ def chronicle_apply(proposal=None):
         except Exception:
             pass
         return _closed
+    # ── v2167 — AND AN OPEN BOARD IN THE WRONG WORLD IS REFUSED, NOT JUST ANNOTATED. ─────────
+    # v2145 attached worldDrift to the CLOSED-window answer and stopped there, so a board that was
+    # open and in a DIFFERENT install still got written to. v2164's own test asserted only that
+    # this function MENTIONS board_identity_drift — a co_names check, which the annotation
+    # satisfied — so "all three lanes ask the same question" was true of the source text and false
+    # of the behaviour. A cross-family review found it. [[feedback-verify-not-proxy]]
+    #
+    # Writing ticks into a world he cannot reach is the v2043 failure with a button on it: the
+    # apply reports success, the board shows the items, and the next load has none of them.
+    try:
+        _wd_open = board_identity_drift()
+    except Exception as _wde:
+        return {"ok": False, "why": "the board's world could not be checked (%s), so nothing was "
+                                    "written" % str(_wde)[:80]}
+    if isinstance(_wd_open, dict) and _wd_open.get("state") == "drift":
+        return {"ok": False, "worldDrift": _wd_open,
+                "why": "the board is not the world these finds were read against — %s. Nothing "
+                       "was written." % str(_wd_open.get("why"))[:150]}
     # v1923 — AND THE GAME GETS A VETO ON THE WAY OUT. Flagging a row in the panel and then writing
     # it anyway would make the whole counter-ledger decoration: the flag would say "you do not have
     # this" while the button put it on his board regardless. So the withholding happens HERE, on the
@@ -11218,16 +11236,27 @@ def nothing_in_flight(consequence=None):
             # deadlocked the relaunch.
             pass
         elif _alive:
+            # ⚠ v2166 — A MISSING FOOTAGE DIR IS AN ANSWER; AN UNREADABLE ONE IS NOT.
+            # v2161 collapsed both into UNKNOWN and refused. CI caught what this machine could
+            # not: on a runner there IS no hist dir, so every case answered "could not be read"
+            # and four tests that pass on his Mac failed there — a fixture blind to its own host.
+            # And the reasoning was wrong beyond the test: a directory that does not exist holds
+            # no footage, so nothing can be landing in it. That is MEASURED, not unknown, and
+            # treating it as unknown would deadlock auto-relaunch on a fresh machine forever —
+            # the same permanent-refusal shape v2155 was written to remove.
+            # A dir that EXISTS and cannot be read is the genuinely unknown case, and it refuses.
             _grow = None
             try:
-                _grow = _reel_is_growing(HIST_DIR)
                 if not os.path.isdir(HIST_DIR):
-                    _grow = None               # True here would be a measurement of nothing
+                    _grow = False              # no directory, no footage, nothing landing
+                else:
+                    _grow = _reel_is_growing(HIST_DIR)
+                    os.listdir(HIST_DIR)       # readable? _reel_is_growing swallows this itself
             except Exception:
-                _grow = None
+                _grow = None                   # it is there and we cannot read it
             if _grow is None:
-                busy.append("the footage directory could not be read, so whether frames are "
-                            "still landing is UNKNOWN")
+                busy.append("the footage directory is there but could not be read, so whether "
+                            "frames are still landing is UNKNOWN")
             elif _grow:
                 busy.append("frames are still landing — a session is mid-film")
     except Exception as e:
@@ -11473,10 +11502,18 @@ def retention_may_act():
     # saying out loud: the deleter has no reason of its own to notice.
     try:
         _wd = board_identity_drift()
-        if isinstance(_wd, dict) and _wd.get("state") == "drift":
-            return False, ("the board's world has drifted — %s. Nothing is deleted while what was "
-                           "applied may be stranded in the world before it."
-                           % str(_wd.get("why"))[:150])
+        _st = (_wd or {}).get("state") if isinstance(_wd, dict) else None
+        # ⚠ v2167 — "unknown" IS NOT "ok", AND v2164's COMMENT SAID SO WHILE THE CODE DID NOT.
+        # It refused only on "drift" and let "unknown" fall through to the busy check — so a first
+        # boot, or a deleted .board_identity.json, deleted footage against a world nobody has ever
+        # shown to be the one the ticks were applied to. board_identity_drift's own docstring is
+        # explicit: "unknown when nothing has ever been recorded — never ok". A cross-family
+        # review found my comment claiming UNMEASURABLE IS NOT A GREEN LIGHT directly above code
+        # that treated it as one. [[unknown-stays-unknown]]
+        if _st != "ok":
+            return False, ("the board's world is %s — %s. Nothing is deleted until the world this "
+                           "footage belongs to has been confirmed."
+                           % (_st or "unreadable", str((_wd or {}).get("why"))[:140]))
     except Exception as _we:
         # UNMEASURABLE IS NOT A GREEN LIGHT, and least of all here: this is the one switch in the
         # tree where being wrong has no undo.
@@ -15866,7 +15903,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2165",
+        "ver": "v2167",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

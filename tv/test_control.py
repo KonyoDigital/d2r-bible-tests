@@ -16955,10 +16955,15 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
             self.assertFalse(ok, "it would have restarted the console while ON AIR (%s) — and "
                                  "orphaned the frames of the session it killed" % mode)
             self.assertIn("ON AIR", why)
-        # (b) off air by the mode, but frames are still landing
+        # (b) off air by the mode, but frames are still landing.
+        # A REAL directory: the code checks isdir first, so without one the mock below is never
+        # reached — green here, red on a CI runner that has no hist dir. [[test-venue]]
+        import tempfile as _tf
+        _hist = _tf.mkdtemp()
         with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
              mock.patch.object(ca, "_agent_mode", "off"), \
              mock.patch.object(ca, "_agent_alive", lambda: True), \
+             mock.patch.object(ca, "HIST_DIR", _hist), \
              mock.patch.object(ca, "_reel_is_growing", lambda *a, **k: True), \
              mock.patch.object(ca, "mini_state", lambda: {"running": False}):
             ok, why = ca.drift_may_relaunch()
@@ -17794,10 +17799,17 @@ class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
     def test_BELOW_the_floor_with_everything_clear_it_acts_or_this_is_all_theatre(self):
         """The reachability half. A cycle that can never act cannot be shown to refuse correctly.
         [[feedback-blind-fixture-green-gate]]"""
+        import unittest.mock as mock
         root, hist = self._tree()
         ca = self._bind(root, hist, floor=9999.0)
         before = self._reels(hist)
-        ca._retention_once()
+        # v2167 — SAY WHICH WORLD. The deleter refuses on anything that is not a CONFIRMED world,
+        # and a temp tree has never recorded one, so without this it now refuses for a reason that
+        # has nothing to do with what this test is about. The fixture states the precondition it
+        # was always silently relying on. [[unknown-stays-unknown]]
+        with mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "same claimed world"}):
+            ca._retention_once()
         self.assertLess(self._reels(hist), before,
                         "nothing was deleted below the floor with clear ledgers and nothing in "
                         "flight — every refusal case below would then pass vacuously")
@@ -18752,12 +18764,20 @@ class TestV2082TheReviewOfV2080(unittest.TestCase):
         prev = os.environ.get("TV_AUTO_PRUNE")
         self.addCleanup(lambda: os.environ.__setitem__("TV_AUTO_PRUNE", prev) if prev
                         else os.environ.pop("TV_AUTO_PRUNE", None))
-        for spelling in ("1", "yes", "on", "true", ""):
-            os.environ["TV_AUTO_PRUNE"] = spelling
-            ok, _why = ca.retention_may_act()
-            self.assertTrue(ok, "TV_AUTO_PRUNE=%r disarmed it — he asked for automatic" % spelling)
-        os.environ.pop("TV_AUTO_PRUNE", None)
-        self.assertTrue(ca.retention_may_act()[0], "unset disarmed it")
+        # v2167 — this test is about the SWITCH, so the world and the busy check are held clear.
+        # Otherwise an unconfirmed world (a test machine has none) refuses first and the switch is
+        # never actually exercised — the assertion would pass or fail for the wrong reason.
+        import unittest.mock as mock
+        with mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "same claimed world"}), \
+             mock.patch.object(ca, "nothing_in_flight", lambda *a, **k: (True, "clear")):
+            for spelling in ("1", "yes", "on", "true", ""):
+                os.environ["TV_AUTO_PRUNE"] = spelling
+                ok, _why = ca.retention_may_act()
+                self.assertTrue(ok, "TV_AUTO_PRUNE=%r disarmed it — he asked for automatic"
+                                % spelling)
+            os.environ.pop("TV_AUTO_PRUNE", None)
+            self.assertTrue(ca.retention_may_act()[0], "unset disarmed it")
 
     def test_1c_the_off_switch_is_read_the_same_way_as_its_siblings(self):
         """Three env switches decide whether something acts on his world. Two are opt-in and one is
@@ -22243,10 +22263,20 @@ class TestV2155FilmingIsAFACTNotAProcess(unittest.TestCase):
 
     def _quiet(self, ca):
         import unittest.mock as mock
+        import tempfile
+        # ⚠ v2166 — A REAL HIST_DIR, because the code checks isdir BEFORE it asks whether frames
+        # are landing. Without this the isdir short-circuit answers first and a mocked
+        # _reel_is_growing is never reached — which passed on his Mac (his hist dir exists) and
+        # failed on CI (a runner has none). Caught by running the suite with TV_HIST pointed at a
+        # path that does not exist, which is what a runner actually looks like.
+        # [[feedback-blind-fixture-green-gate]] [[test-venue]]
+        if not getattr(self, "_hist_tmp", None):
+            self._hist_tmp = tempfile.mkdtemp()
         return [
             mock.patch.object(ca, "_CHRON_JOB", {"running": False}),
             mock.patch.object(ca, "_VAULT_JOB", {"running": False}),
             mock.patch.object(ca, "mini_state", lambda: {"running": False}),
+            mock.patch.object(ca, "HIST_DIR", self._hist_tmp),
         ]
 
     def test_an_agent_that_merely_EXISTS_off_air_and_quiet_does_NOT_block(self):
@@ -22330,6 +22360,41 @@ class TestV2155FilmingIsAFACTNotAProcess(unittest.TestCase):
         unreadable HIST_DIR produced the sentence "frames are still landing — a session is
         mid-film". Refusing is correct; saying that is a fabricated measurement, and the except
         branch guarding it was dead for the real function. [[unknown-stays-unknown]]"""
+        import contextlib, unittest.mock as mock, tempfile, shutil, stat
+        ca = self._ca()
+        # ⚠ v2166 — THE FIXTURE HAD TO BECOME WHAT ITS NAME SAYS. It used a MISSING directory and
+        # asserted a refusal, which passed only because v2161 collapsed missing and unreadable
+        # into one answer. CI then failed four cases on a runner that HAS no hist dir, and the
+        # collapse was wrong beyond the test: a directory that does not exist holds no footage, so
+        # nothing can be landing in it. This makes the directory genuinely unreadable.
+        d = tempfile.mkdtemp()
+        blocked = os.path.join(d, "hist")
+        os.makedirs(blocked, exist_ok=True)
+        os.chmod(blocked, 0)
+        try:
+            if os.access(blocked, os.R_OK):      # running as root, or a filesystem without modes
+                self.skipTest("this filesystem cannot make a directory unreadable")
+            with contextlib.ExitStack() as st:
+                for p_ in self._quiet(ca):
+                    st.enter_context(p_)
+                st.enter_context(mock.patch.object(ca, "_agent_mode", "off"))
+                st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: True))
+                st.enter_context(mock.patch.object(ca, "HIST_DIR", blocked))
+                ok, why = ca.nothing_in_flight()
+        finally:
+            os.chmod(blocked, stat.S_IRWXU)
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertFalse(ok, "it acted while the footage directory was unreadable")
+        self.assertIn("UNKNOWN", why,
+                      "it claimed frames were landing from a directory it could not read: %s" % why)
+
+    def test_a_MISSING_footage_dir_does_not_block_forever(self):
+        """THE CASE CI FOUND AND THIS MACHINE COULD NOT. On a runner there is no hist dir at all,
+        and v2161 answered UNKNOWN and refused — so four cases that pass on his Mac failed there.
+        Beyond the test, the reasoning was wrong: a directory that does not exist holds no
+        footage, so nothing can be landing in it. That is MEASURED. Treating it as unknown would
+        deadlock auto-relaunch on a fresh machine forever, which is the permanent-refusal shape
+        v2155 exists to remove. [[feedback-blind-fixture-green-gate]]"""
         import contextlib, unittest.mock as mock, tempfile
         ca = self._ca()
         gone = os.path.join(tempfile.mkdtemp(), "not-there")
@@ -22340,9 +22405,7 @@ class TestV2155FilmingIsAFACTNotAProcess(unittest.TestCase):
             st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: True))
             st.enter_context(mock.patch.object(ca, "HIST_DIR", gone))
             ok, why = ca.nothing_in_flight()
-        self.assertFalse(ok, "it acted while the footage directory was unreadable")
-        self.assertIn("UNKNOWN", why,
-                      "it claimed frames were landing from a directory it could not read: %s" % why)
+        self.assertTrue(ok, "a machine with no footage directory can never relaunch: %s" % why)
 
     def test_the_SWEEPS_still_block_because_they_always_did(self):
         """The change is only about the agent. A paid read must still never be thrown away."""
@@ -22654,25 +22717,38 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
             seen["js"] = code
             return None                      # board_ownership handles a None answer on its own
 
-        with mock.patch.dict(control_app.__dict__, {"_MAIN_WIN": object(), "_WINDOW_LIVE": True}), \
-             mock.patch.object(control_app, "_ejs", _capture):
-            control_app.board_ownership(0)
+        # ⚠ BOTH MODES. dump_stores=True injects a second branch into the same script, and a
+        # guard that only ever exercises one of them is a guard with a blind half — exactly the
+        # shape that let the first break through. [[gate-blind-to-unexercised-input]]
+        for dump in (False, True):
+            seen.clear()
+            with mock.patch.dict(control_app.__dict__,
+                                 {"_MAIN_WIN": object(), "_WINDOW_LIVE": True}), \
+                 mock.patch.object(control_app, "_ejs", _capture):
+                control_app.board_ownership(0, dump_stores=dump)
 
-        js = seen.get("js")
-        self.assertTrue(js, "board_ownership never handed a script to the window")
-        self.assertIn("JSON.stringify", js, "that is not the ownership script")
-        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
-            fh.write(js)
-            tmp = fh.name
-        try:
-            r = subprocess.run([node, "--check", tmp], capture_output=True, text=True, timeout=30)
-        finally:
-            os.unlink(tmp)
-        self.assertEqual(r.returncode, 0,
-                         "the board ownership script does not PARSE, so board_ownership answers "
-                         "ok:false to every caller:\n%s" % (r.stderr or "")[-400:])
-        for key in ("uniquesTotal", "setsTotal", "runewordsTotal", "runewordsMade"):
-            self.assertIn(key, js, "the script the window receives never emits %r" % key)
+            js = seen.get("js")
+            self.assertTrue(js, "board_ownership handed the window no script (dump_stores=%s)" % dump)
+            self.assertIn("JSON.stringify", js, "that is not the ownership script")
+            with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False,
+                                             encoding="utf-8") as fh:
+                fh.write(js)
+                tmp = fh.name
+            try:
+                r = subprocess.run([node, "--check", tmp], capture_output=True, text=True,
+                                   timeout=30)
+            finally:
+                os.unlink(tmp)
+            self.assertEqual(r.returncode, 0,
+                             "the board ownership script does not PARSE (dump_stores=%s), so "
+                             "board_ownership answers ok:false to every caller:\n%s"
+                             % (dump, (r.stderr or "")[-400:]))
+            for key in ("uniquesTotal", "setsTotal", "runewordsTotal", "runewordsMade"):
+                self.assertIn(key, js, "the script never emits %r (dump_stores=%s)" % (key, dump))
+            # ...and DEFINED BEFORE USED, which parsing alone does not prove: `var` hoists, so a
+            # helper referenced above its definition parses fine and is undefined at run time.
+            self.assertLess(js.find("var _n=function"), js.find("uniT"),
+                            "the helpers are used before they are defined (dump_stores=%s)" % dump)
 
     def test_the_board_ACTUALLY_EMITS_what_the_tally_reads(self):
         """THE GUARD THE LAST FIXTURE NEEDED. Every key grail_tally reads must be a key the board
@@ -23020,7 +23096,9 @@ class TestV2164TheDeleterAsksTheWorldGuardToo(unittest.TestCase):
                                lambda: {"state": "drift", "why": "install-ZZZ, was install-AAA"}):
             ok, why = ca.retention_may_act()
         self.assertFalse(ok, "it would delete footage while what was applied may be stranded")
-        self.assertIn("drifted", why)
+        # v2167 reworded this: the refusal now names the STATE ("drift" / "unknown"), because it
+        # refuses on anything that is not "ok" rather than on drift alone.
+        self.assertIn("drift", why)
 
     def test_an_UNCHECKABLE_world_stops_it_too(self):
         """This is the one switch in the tree where being wrong has no undo, so unmeasurable is
@@ -23049,8 +23127,8 @@ class TestV2164TheDeleterAsksTheWorldGuardToo(unittest.TestCase):
         self.assertTrue(ok, "an unchanged world still blocks the deleter: %s" % why)
 
     def test_ALL_THREE_LANES_ask_the_same_question(self):
-        """The join, pinned. If a fourth lane is added that can delete or write his ledger and it
-        does not ask, this is where that shows up — one rule, every caller."""
+        """The join, pinned by NAME — necessary, and on its own not sufficient. See the
+        behavioural test below, which is what actually caught chronicle_apply."""
         ca = self._ca()
         for fn in ("drift_may_relaunch", "retention_may_act", "chronicle_apply"):
             f = getattr(ca, fn, None)
@@ -23058,6 +23136,49 @@ class TestV2164TheDeleterAsksTheWorldGuardToo(unittest.TestCase):
             self.assertIn("board_identity_drift", set(f.__code__.co_names),
                           "%s can act on his world and never asks whether it is the world it "
                           "thinks it is" % fn)
+
+    def test_the_DELETER_refuses_an_UNKNOWN_world_not_only_a_drifted_one(self):
+        """v2167. v2164 refused only on "drift" and let "unknown" fall through — so a FIRST BOOT,
+        or a deleted .board_identity.json, deleted footage against a world nobody has ever shown
+        to be the one the ticks were applied to. board_identity_drift's own docstring is explicit:
+        "unknown when nothing has ever been recorded — never ok".
+
+        ⚠ And v2164's comment said UNMEASURABLE IS NOT A GREEN LIGHT directly above the code that
+        treated it as one. A cross-family review found the contradiction between the sentence and
+        the branch. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        ca = self._ca()
+        for state in ("drift", "unknown"):
+            with mock.patch.dict(os.environ, {"TV_AUTO_PRUNE": "1"}), \
+                 mock.patch.object(ca, "board_identity_drift",
+                                   lambda st=state: {"state": st, "why": "%s world" % st}), \
+                 mock.patch.object(ca, "nothing_in_flight", lambda *a, **k: (True, "clear")):
+                ok, why = ca.retention_may_act()
+            self.assertFalse(ok, "it deleted footage against a %s world" % state)
+            self.assertIn(state, why)
+
+    def test_the_APPLY_refuses_an_OPEN_board_that_is_in_the_wrong_world(self):
+        """v2167, and the reason the co_names test above is not enough on its own.
+
+        v2145 attached worldDrift to the CLOSED-window answer and stopped, so a board that was
+        OPEN and in a different install still got written to. The name-level check passed on that
+        annotation, so "all three lanes ask the same question" was true of the source text and
+        false of the behaviour. Writing ticks into a world he cannot reach is the v2043 failure
+        with a button on it: the apply reports success, the board shows the items, and the next
+        load has none of them. [[feedback-verify-not-proxy]]"""
+        import unittest.mock as mock
+        ca = self._ca()
+        prop = {"apply": {"uniques": ["Shako"], "sets": [], "completeSets": []},
+                "uniques": {"Shako": [{"reel": "r", "frame": "f", "lane": "claude"}]},
+                "sets": {}, "held": ["Shako"]}
+        with mock.patch.dict(ca.__dict__, {"_MAIN_WIN": object(), "_WINDOW_LIVE": True}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "drift", "why": "install-ZZZ, was install-AAA"}):
+            r = ca.chronicle_apply(prop)
+        self.assertFalse(r.get("ok"), "it wrote ticks into a world he cannot reach")
+        self.assertIn("not the world", str(r.get("why")),
+                      "it refused for some other reason, so this test proves nothing: %s"
+                      % str(r.get("why"))[:120])
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
