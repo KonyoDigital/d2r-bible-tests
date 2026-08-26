@@ -9623,6 +9623,15 @@ def _chron_autoread_save():
     It MAKES ITS PARENT and it SAYS SO WHEN IT CANNOT (v1899's lesson, one ship earlier): losing
     these marks is not cosmetic, it is re-reading reels that have already been paid for.
     """
+    # v2139 — NO FILTER HERE, DELIBERATELY, AND THIS IS THE SECOND ATTEMPT. The first version of
+    # this ship "self-healed" the list by dropping any id the durable memory did not vouch for.
+    # His suite refused it in one line: "a visit mark wiped the swept reels again — v1762, a third
+    # time." The private list can legitimately hold a reel the durable memory does not, and
+    # dropping it means RE-READING FOOTAGE HE HAS ALREADY PAID FOR — which is the exact cost v1762
+    # existed to prevent. Nothing gates on this list any more (every decision moved to
+    # _chron_reel_owes_a_read), so a stale entry is now inert rather than a stall, and the eagle
+    # reports the disagreement as context. An inert lie is not worth resurrecting a three-time
+    # defect to tidy away. [[feedback-generalize-fixes]]
     payload = {"done": sorted(_chron_autoread_done()),
                "reels": sorted(_chron_reels_seen()),
                "retired": dict(_chron_reels_retired()),   # v2139 — added HERE, per this docstring
@@ -15151,7 +15160,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2139",
+        "ver": "v2140",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

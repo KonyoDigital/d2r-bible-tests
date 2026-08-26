@@ -21337,6 +21337,52 @@ class TestV2139TheSweeperAndThePanelShareOneDefinition(unittest.TestCase):
             ca._CHRON_AUTOREAD.clear(); ca._CHRON_AUTOREAD.update(old_state)
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_the_writer_never_drops_a_reel_the_list_recorded(self):
+        """v1762, guarded from the other side. THIS TEST EXISTS BECAUSE I BROKE IT.
+
+        The first cut of v2139 filtered the saved "reels" list down to ids the durable memory
+        vouched for and called it self-healing. His suite answered in one line — "a visit mark
+        wiped the swept reels again — v1762, a third time" — because the private list can
+        legitimately hold a reel the durable memory does not, and dropping it means RE-READING
+        FOOTAGE HE HAS ALREADY PAID FOR, which is the cost v1762 existed to prevent. The list is
+        inert now that every decision moved to _chron_reel_owes_a_read, so the right amount of
+        tidying is none, and the eagle reports the disagreement as context instead.
+        """
+        d = tempfile.mkdtemp()
+        state = os.path.join(d, "chron_autoread.json")
+        swept = os.path.join(d, "swept.json")
+        with io.open(swept, "w", encoding="utf-8") as fh:
+            json.dump({"vouched": {"pages": 3, "promptVer": "p1839"}}, fh)
+        old = (ca._CHRON_AUTOREAD_PATH, ca._CHRON_SWEPT_PATH, dict(ca._CHRON_AUTOREAD))
+        try:
+            ca._CHRON_AUTOREAD_PATH, ca._CHRON_SWEPT_PATH = state, swept
+            ca._CHRON_AUTOREAD.update({"done": set(), "retired": {}, "skipped": {},
+                                       "reels": {"vouched", "only_in_the_private_list"}})
+            ca._chron_autoread_save()
+            with io.open(state, encoding="utf-8") as fh:
+                on_disk = json.load(fh)
+            self.assertIn("only_in_the_private_list", on_disk["reels"],
+                          "dropping it means re-reading footage he already paid for")
+            self.assertIn("vouched", on_disk["reels"])
+        finally:
+            ca._CHRON_AUTOREAD_PATH, ca._CHRON_SWEPT_PATH = old[0], old[1]
+            ca._CHRON_AUTOREAD.clear(); ca._CHRON_AUTOREAD.update(old[2])
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_the_eagle_can_actually_see_this_fault_on_its_timer(self):
+        """The whole reason it ran 40 hours unnoticed: the only sweep-named check is in SLOW.
+
+        _eagle_once calls console_doctor.run(include_slow=False), so a check in SLOW never fires
+        on the ten-minute timer. This one must be registered AND outside SLOW, or it is decoration.
+        """
+        import console_doctor as cd
+        names = [n for n, _ in cd.CHECKS]
+        self.assertIn("reel extract", names, "the check is not registered at all")
+        self.assertNotIn("reel extract", cd.SLOW,
+                         "a check in SLOW never runs on the eagle timer — that is the defect")
+        cheap = [n for n in names if n not in cd.SLOW]
+        self.assertIn("reel extract", cheap)
+
     def test_the_one_writer_round_trips_the_retired_key(self):
         """v1900's docstring warned this file had been un-marked TWICE by a writer missing a key.
 

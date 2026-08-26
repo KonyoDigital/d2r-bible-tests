@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2139",
+  "ver": "v2140",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2139: the reel auto-sweep had a private idea of which reels were done, it said all of them, and it was the only one of three memories that decided whether to read",
+  "note": "v2140: the only sweep-named check sat in SLOW so the ten-minute eagle never ran it, and it measured vault stash density rather than whether extract was moving",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

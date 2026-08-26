@@ -564,12 +564,81 @@ def _check_the_two_surfaces_agree():
                 "left a second copy" % len([t for t in shell if t not in NATIVE]))
 
 
+def _check_the_reel_extract_is_moving():
+    """v2139 — IS THE EXTRACT ACTUALLY MOVING, and do the two memories still agree?
+
+    THE FAULT THIS EXISTS FOR ran for 40 hours with every lamp green. The reel auto-sweep's
+    private list claimed all 30 reels on disk were done; the durable memory had 12 of them never
+    swept; the retention panel told him 11 were waiting. The loop asked only the private list, so
+    it answered "no unswept reel" every 20 seconds and read nothing. He found it by reading a
+    tooltip.
+
+    The eagle could not have caught it. Its only sweep-named check, "sweep would find", is in SLOW
+    and _eagle_once calls run(include_slow=False) — so on the ten-minute timer it never ran at all
+    — and its subject is vault stash-panel density, not whether extract is moving. A gate joined to
+    its caller and unjoined from its subject. Meanwhile "disk headroom" returned OK sixteen times
+    while this was silent. [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+
+    CHEAP BY CONSTRUCTION so it can live on the timer: one directory listing and one small JSON
+    read. No model call, no du, no subprocess.
+    """
+    try:
+        import control_app as ca
+        import chronicle_retro as cr
+    except Exception as e:
+        return UNKNOWN, "could not import the sweep modules: %s" % str(e)[:90]
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    if not os.path.isdir(hist):
+        return UNKNOWN, "no frames/hist on this machine"
+    try:
+        dirs = [os.path.basename(str(d)) for d in (cr.reel_dirs(hist, newest_first=True) or [])]
+    except Exception as e:
+        return UNKNOWN, "could not list reels: %s" % str(e)[:90]
+    if not dirs:
+        return OK, "no reels on disk — nothing to extract"
+    try:
+        mem = ca._chron_swept_mem()
+        owed = [r for r in dirs if ca._chron_reel_owes_a_read(r, mem)]
+        private = ca._chron_reels_seen()
+    except Exception as e:
+        return UNKNOWN, "could not read the sweep memory: %s" % str(e)[:90]
+
+    # THE SPLIT is CONTEXT, NOT THE VERDICT — and saying otherwise would be the same mistake
+    # twice. Before v2139 the private list GATED the loop, so a split meant "these will never be
+    # started" and was the whole fault. v2139 moved every decision onto the durable memory, so the
+    # private list is now write-only: a stale entry is a file that lies, not a stall. Reporting it
+    # as MISSING would be a label that outlived its referent — a true count under a sentence that
+    # stopped being true — which is the class this console keeps paying for. So it rides in `why`,
+    # and the fault that can still hurt him is the one that decides the verdict.
+    split = [r for r in owed if r in private]
+    tail = ("" if not split else
+            " · the auto-sweep's own list still calls %d of them done — inert since v2139, "
+            "nothing gates on it" % len(split))
+    if not owed:
+        return OK, "all %d reel(s) have been read%s" % (len(dirs), tail)
+
+    # OWED BUT NOT MOVING. The AGE is the finding — "the loop is alive" is not evidence that it is
+    # doing anything, which is exactly how this went unnoticed for two days.
+    try:
+        last = os.path.getmtime(ca._chron_swept_path())
+    except Exception:
+        return UNKNOWN, ("%d reel(s) owe a read and the sweep memory cannot be read, so its age "
+                         "is unknown" % len(owed))
+    hours = (time.time() - last) / 3600.0
+    if hours > 2.0:
+        return MISSING, ("%d of %d reel(s) owe a read and nothing has been banked for %.1f hours%s"
+                         % (len(owed), len(dirs), hours, tail))
+    return OK, ("%d reel(s) owe a read, last banked %.1fh ago — the loop is working through them%s"
+                % (len(owed), hours, tail))
+
+
 CHECKS = [
     ("version drift", _check_version_drift),
     ("lane intent", _check_lane_intent),
     ("disk headroom", _check_disk_headroom),
     ("subscription", _check_subscription_burn),
     ("unattended reel", _check_a_reel_is_not_recording_unattended),
+    ("reel extract", _check_the_reel_extract_is_moving),
     ("sweep would find", _check_the_sweep_would_find_something),
     ("board is claimed", _check_the_board_world_is_claimed),
     ("visual lock", _check_the_visual_lock_holds),
