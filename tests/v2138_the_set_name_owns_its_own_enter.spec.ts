@@ -23,8 +23,11 @@ async function seed(page: any) {
     const card = document.getElementById('set-tracker-card');
     if (card && card.classList.contains('collapsed')) w.toggleCardCollapse('set-tracker-card');
     const sets = w.__allSets();
-    sets[0].pieces.forEach((p: string) => w.setPieces.add(p));
-    try { w.persist(); } catch (e) {}
+    // `setPieces` is a top-level let/const — a global BINDING, not a property of window, so
+    // w.setPieces is undefined and .add threw. Filed as #168. Use the real door instead: the same
+    // toggleSetPiece the piece rows call, which is genuinely on window (bible.html:22372) and
+    // also files the tick the way a real tick is filed.
+    sets[0].pieces.forEach((p: string) => w.toggleSetPiece(p));
     w.renderSetTracker();
     w.__drops = 0;
     w.openDrop = () => { w.__drops++; };

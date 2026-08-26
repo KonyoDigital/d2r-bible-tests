@@ -58,6 +58,12 @@ test.describe('v1680 — the Item Set Tracker holds the whole roster', () => {
     await openTracker(page);
     const m = await page.evaluate(() => {
       const all = (window as any).__allSets();
+      // v2137 folds a COMPLETED set down to its header — a finished set is a trophy, not a task,
+      // and its rows are the one thing on this screen he never needs to read again. Its pieces are
+      // still reachable: the header is a role=button that opens the card. So open every folded
+      // trophy before measuring, because the law here is "no piece is unreachable", not "no piece
+      // is ever hidden". Measuring the folded state instead would forbid the fold he asked for.
+      document.querySelectorAll('.set-card.complete').forEach((c) => c.classList.add('sc-open'));
       return {
         dataSets: all.length,
         dataPieces: all.reduce((n, s) => n + s.pieces.length, 0),
