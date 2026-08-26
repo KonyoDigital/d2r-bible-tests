@@ -128,3 +128,6 @@ tv/.ship_receipt.json
 tv/.console_scars.json
 tv/*.healer_bak
 tv/*.corrupt
+
+# runtime record of which shipped versions a DIFFERENT model family actually looked at
+tv/.second_eye.jsonl

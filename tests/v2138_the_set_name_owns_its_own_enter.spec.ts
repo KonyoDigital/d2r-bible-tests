@@ -36,6 +36,9 @@ async function seed(page: any) {
   expect(complete, 'the seed must produce a completed card, or this spec proves nothing').toBeGreaterThan(0);
 }
 
+// The seed produces MANY completed cards, not one — CI failed with "strict mode violation" on a
+// bare locator. Both the focus targets and this reader must therefore name the SAME card, and the
+// first one is the card querySelector returns below.
 const read = (page: any) => page.evaluate(() => {
   const c = document.querySelector('#set-tracker .set-card.complete')!;
   return { open: c.classList.contains('sc-open'), drops: (window as any).__drops };
@@ -43,7 +46,7 @@ const read = (page: any) => page.evaluate(() => {
 
 test('Enter on a finished set NAME opens its ID card and does not fold the card', async ({ page }) => {
   await seed(page);
-  await page.locator('#set-tracker .set-card.complete .set-card-name').focus();
+  await page.locator('#set-tracker .set-card.complete .set-card-name').first().focus();
   const before = await read(page);
   await page.keyboard.press('Enter');
   const after = await read(page);
@@ -53,7 +56,7 @@ test('Enter on a finished set NAME opens its ID card and does not fold the card'
 
 test('Enter on the HEADER itself still folds, and does not open the ID card', async ({ page }) => {
   await seed(page);
-  await page.locator('#set-tracker .set-card.complete .set-card-header').focus();
+  await page.locator('#set-tracker .set-card.complete .set-card-header').first().focus();
   const before = await read(page);
   await page.keyboard.press('Enter');
   const after = await read(page);

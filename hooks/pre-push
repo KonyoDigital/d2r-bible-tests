@@ -151,6 +151,47 @@ if ! gate_run "version-stamp" "python3 tv/version_stamp_gate.py" 30 -- \
   exit 1
 fi
 
+# ── THE SECOND EYE OWES A LOOK ────────────────────────────────────────────────────────────────
+# Konyo's standing order since 2026-07-15 is one Grok pass after every ship — "its like ping pong.
+# you fix and ship and then ask it what can be perfected". On 2026-08-26 v2137 through v2142 shipped
+# and ZERO ran. He asked whether the second eye was going; the honest answer was no, and NOTHING HAD
+# NOTICED, because nothing was keeping score. He then asked the question that produced this gate:
+# "okay but now your doing it not youself? and for the future too?"
+#
+# A standing order that lives in my memory is one that lapses silently, exactly as the console-demo
+# gate did until v2119 moved it in here. So it moves in here too.
+#
+# WHAT IT CHECKS: the version ALREADY ON origin/main must have been looked at by a different model
+# family before a NEW version may ship. It cannot ask about the version being pushed — that one has
+# not been deployed yet, by construction — so it asks about the last one, which is precisely the
+# check that would have stopped six unverified ships in a row.
+#
+# It stays silent on a push that does not change the stamps: a test:/ci: commit is not a ship and
+# does not owe anyone a look.
+#
+# ⚠ An unreachable eye is an EMPTY SEAT, never agreement, and a look from the family that WROTE the
+# code is not a second eye — tv/second_eye_ledger.py enforces both, and refuses on "no record" too,
+# because a skip is not a pass.
+_se_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [ "$_se_branch" = "main" ]; then
+  _prev_ver="$(git show origin/main:tv/WINDOWS_SHIP.json 2>/dev/null \
+                 | python3 -c 'import json,sys; print((json.load(sys.stdin) or {}).get("ver") or "")' 2>/dev/null || true)"
+  _this_ver="$(python3 -c 'import json,io; print((json.load(io.open("'"$REPO"'/tv/WINDOWS_SHIP.json",encoding="utf-8")) or {}).get("ver") or "")' 2>/dev/null || true)"
+  if [ -n "$_prev_ver" ] && [ -n "$_this_ver" ] && [ "$_prev_ver" != "$_this_ver" ]; then
+    if ! python3 "$REPO/tv/second_eye_ledger.py" --check "$_prev_ver" >/dev/null 2>&1; then
+      python3 "$REPO/tv/second_eye_ledger.py" --check "$_prev_ver" || true
+      echo "pre-push: \u274c $_this_ver may not ship while $_prev_ver has never been looked at by a"
+      echo "          different model family. Render it, hand the pixels to Grok COLD (no hint of what"
+      echo "          it should show), and record what came back:"
+      echo "              python3 tv/second_eye_ledger.py --audit"
+      echo "          A dead CLI does not count — an unreachable eye is an empty seat, not agreement."
+      echo "          (deliberate exception: git push --no-verify)"
+      exit 1
+    fi
+    echo "pre-push: \u2705 the second eye looked at $_prev_ver."
+  fi
+fi
+
 if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
   echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
   echo "            actually does. Fix it, or say why it is now correct, then push again."

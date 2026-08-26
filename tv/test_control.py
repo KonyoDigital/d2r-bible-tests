@@ -21413,5 +21413,81 @@ class TestV2139TheSweeperAndThePanelShareOneDefinition(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
+    """His standing order — one Grok pass after every ship — lapsed for SIX versions and nothing noticed.
+
+    v2137 through v2142 shipped on 2026-08-26 with zero cross-family looks. He asked whether the
+    second eye was running, the honest answer was no, and the reason nothing caught it is that
+    nothing was keeping score. He then asked "okay but now your doing it not youself? and for the
+    future too?" — so it stopped being a thing I remember and became a thing that refuses.
+
+    Every assertion below is a way the gate could quietly fail OPEN, which is the only failure mode
+    that matters for a gate.
+    """
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.led = os.path.join(self.d, ".second_eye.jsonl")
+        sys.path.insert(0, HERE)
+        import second_eye_ledger
+        self.L = second_eye_ledger
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def test_no_record_at_all_is_a_REFUSAL_not_a_shrug(self):
+        """A skip is not a pass — the whole reason six ships went unlooked-at."""
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_an_UNREACHABLE_eye_is_an_empty_seat_never_agreement(self):
+        """A dead CLI must never read as "it looked and was happy"."""
+        self.L.record("v9999", "grok-4-1-fast-reasoning", "clean", reached=False, path=self.led)
+        self.assertTrue(self.L.owes_a_look("v9999", self.led),
+                        "an eye that was never reached cannot satisfy the gate")
+
+    def test_a_look_from_the_family_that_WROTE_it_is_not_a_second_eye(self):
+        """Claude reviewing Claude shares the blind spot by construction."""
+        self.L.record("v9999", "claude-opus-5", "clean", reached=True, path=self.led)
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_a_model_whose_family_cannot_be_identified_does_not_count(self):
+        """Unknown provenance is UNKNOWN, not "probably someone else"."""
+        self.L.record("v9999", "some-unlabelled-model", "clean", reached=True, path=self.led)
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_a_real_reached_cross_family_look_satisfies_it(self):
+        """And it must be able to go GREEN, or it is a gate nobody can ever pass."""
+        self.L.record("v9999", "grok-4-1-fast-reasoning", "findings",
+                      findings=["the ellipsis reads as clipped text"], reached=True, path=self.led)
+        self.assertFalse(self.L.owes_a_look("v9999", self.led))
+
+    def test_findings_do_not_have_to_be_clean_to_count_as_LOOKED_AT(self):
+        """The order is "ask what can be perfected", not "get a clean bill". A verdict with
+        findings still means a different family looked, which is the thing being tracked."""
+        self.L.record("v9999", "grok-4-1-fast-reasoning", "findings",
+                      findings=["x"], reached=True, path=self.led)
+        rows = self.L.looked_at("v9999", self.led)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["verdict"], "findings")
+
+    def test_a_look_at_a_DIFFERENT_version_does_not_cover_this_one(self):
+        """Six ships went past on the strength of one old pass; that must not be possible."""
+        self.L.record("v9998", "grok-4-1-fast-reasoning", "clean", reached=True, path=self.led)
+        self.assertTrue(self.L.owes_a_look("v9999", self.led))
+
+    def test_the_version_reader_finds_the_real_key_in_the_ship_json(self):
+        """`ver`, measured — not `version`, which was my first guess and returned None."""
+        v = self.L.current_version(HERE)
+        self.assertIsNotNone(v, "the ledger cannot tell which version shipped")
+        self.assertRegex(v, r"^v\d+$")
+
+    def test_a_corrupt_line_does_not_blind_the_whole_ledger(self):
+        with io.open(self.led, "w", encoding="utf-8") as fh:
+            fh.write("{not json at all\n")
+        self.L.record("v9999", "grok-4-1-fast-reasoning", "clean", reached=True, path=self.led)
+        self.assertFalse(self.L.owes_a_look("v9999", self.led),
+                         "one unparseable line must not hide a real look")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

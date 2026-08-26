@@ -969,19 +969,39 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .set-card.complete.sc-open > .set-pieces{display:block}
 /* the tracker is a GRID, whose default align-items:normal STRETCHES every card to its row
    height — so a folded card sitting beside a full one measured 146px of box around 78px of
-   header. The fix is ROW PURITY, not align-self: finished sets are ordered last (see
-   renderSetTracker) and the boundary card below starts a fresh row, so a row is now either
-   all-hunting or all-folded. Stretch is then WANTED — it keeps a two-line set name from
-   making its neighbours look stunted. Restore align-self:start here if that order ever goes. */
+   header. Ordering finished sets last (see renderSetTracker) plus the boundary rule below makes
+   every row uniformly hunting-or-finished, which handles the STATIC case.
+
+   ⚠ v2143 — BUT ROW PURITY IS NOT ENOUGH, AND I ONLY SAW IT BY LOOKING. The moment he OPENS one
+   completed card, its row is mixed again: the open card grows to its full piece list and every
+   folded card beside it is stretched to match, becoming a tall box with a header floating at the
+   top and nothing under it. Caught on a 1120px crop with Sigon's Complete Steel open — Iratha's
+   Finery, Naj's Ancient Vestige and Orphan's Call beside it were all dead space. My own
+   measurement missed it because it asserted row purity and never exercised the OPEN state in a
+   mixed row, which is the same blind fixture class as the rest of this file.
+   [[gate-blind-to-unexercised-input]] [[visual-regression-detector]]
+
+   So a FOLDED finished card opts out of the stretch and keeps its natural height; an OPEN one
+   still stretches, so a two-line set name cannot make its open neighbours look stunted. */
+.set-card.complete:not(.sc-open){align-self:start}
 /* ...and the BOUNDARY row must not mix them. With the finished sets ordered last, exactly one
    row still held a tall hunting card beside short folded ones — the void again, just smaller.
    The first complete card that follows an unfinished one is forced to column 1, so it starts a
    fresh row and every row is now uniformly tall or uniformly short. */
 .set-card:not(.complete) + .set-card.complete{grid-column:1}
 .set-card.complete > .set-card-header{cursor:pointer}
-.set-card.complete > .set-card-header::after{content:'\2026';margin-left:6px;opacity:.6;
-  color:var(--best);font-weight:var(--fw-bold)}
-.set-card.complete.sc-open > .set-card-header::after{content:'\2212'}
+/* v2143 — THE ELLIPSIS READ AS BROKEN TEXT, NOT AS A CONTROL. Asked cold, with no hint of what
+   the panel should show, a different model family reported these cards under "is any text clipped,
+   cut off mid-word, or ellipsised?" and quoted "5 / 5 pieces · complete ...". I wrote that ellipsis
+   as the expand affordance, so I read it as obviously-a-control every time I looked at it — which
+   is exactly the blind spot a same-family review cannot cover. Six other to-sum headers in this
+   file already use a circled chevron that rotates on open (.to-chev, :32592); this is that, in the
+   completed-set green, so the fold now looks like every other fold in the app. [[grok-second-eye]] */
+.set-card.complete > .set-card-header::after{content:'\25be';margin-left:auto;flex:0 0 auto;
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;
+  border:1px solid rgba(102,255,136,.45);border-radius:50%;background:rgba(102,255,136,.07);
+  color:var(--best);font-weight:var(--fw-bold);transition:transform .18s}
+.set-card.complete.sc-open > .set-card-header::after{transform:rotate(180deg)}
 .set-card.complete > .set-card-header:focus-visible{outline:2px solid var(--best);outline-offset:2px}
 .set-pieces{display:flex;flex-direction:column;gap:3px}
 .set-piece{display:flex;align-items:center;gap:6px;font-size:var(--fs-meta);cursor:pointer;padding:2px 4px;border-radius:3px;transition:background .15s}
@@ -8261,7 +8281,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-craftacc{display:flex;flex-direction:column;gap:10px;margin-top:8px}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc{background:rgba(255,255,255,.015);border:1px solid var(--border,#3a2f1e);border-left:3px solid var(--cw-c,#b48ce0);border-radius:12px;overflow:hidden;transition:border-color .15s}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc.open{background:rgba(255,255,255,.03);border-color:var(--cw-c,#b48ce0)}
-:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h{position:relative;display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;user-select:none}
+:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;user-select:none}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h:hover{background:rgba(255,255,255,.025)}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-chev{font-size:12px;color:var(--cw-c,#b48ce0);width:12px;flex:none;transition:transform .15s}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h img,:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-h>span:nth-child(2){width:34px;height:34px;object-fit:contain;flex:none}
@@ -8270,10 +8290,27 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-sub{font-size:var(--fs-meta);color:var(--text-dim,#9a8c72);line-height:var(--lh-snug);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* ══ v2136 — THE BEST-TO-MAKE LINE. One per craft type, in that craft's own gem colour, so the
    four cells are told apart by hue as well as by words — his "more colorful (not just color)".
-   It spans the full row BELOW the header's flex line (grid-column:1/-1) so a long recommendation
-   can never squeeze the name or the make-now badge; that collision is the one a text assertion
-   cannot see. [[visual-regression-detector]] */
-.f-craftacc-bis{grid-column:1/-1;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;
+   It takes the full row BELOW the header's flex line so a long recommendation can never squeeze
+   the name or the make-now badge; that collision is the one a text assertion cannot see.
+   [[visual-regression-detector]]
+
+   ⚠ v2143 — THIS COMMENT DESCRIBED SOMETHING THAT NEVER HAPPENED. It said grid-column:1/-1 did
+   the spanning. The parent .f-craftacc-h is display:flex, and grid-column is inert on a flex
+   child — so the BEST panel stayed ON the header's line and its max-content basis crushed
+   .f-craftacc-t (flex:1 1 0; min-width:0) to nothing. Measured on the clean tree, the width of
+   .f-craftacc-name with the panel present vs removed:
+        1440   338 / 285 / 354 / 314   vs 1189
+        1120    18 /   0 /  34 /   0   vs  869      <- control_app.py:3417 opens his board at 1120
+         901     0 /   0 /   0 /   0   vs  650
+         375     0 /   0 /   0 /   0   vs  132
+   At his own window width the name box is ZERO WIDE and the text spills out of it, painting under
+   the make-now badge — the exact collision the sentence above promised could never happen.
+   flex-wrap:wrap on the header plus flex:1 0 100% here is what actually forces the row; the name
+   returns to 869 at 1120. And note the trap: the overlap assertion this begs for is GREEN while
+   broken, because a 0-width box cannot geometrically intersect anything while its text spills.
+   Assert the NAME'S WIDTH and the BEST line's top edge instead. [[label-outlived-referent]]
+   [[gate-blind-to-unexercised-input]] */
+.f-craftacc-bis{flex:1 0 100%;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;
   margin:6px 0 0;padding:6px 9px;border-radius:7px;
   border:1px solid color-mix(in srgb,var(--cbis,var(--gold-bright)) 34%,transparent);
   background:color-mix(in srgb,var(--cbis,var(--gold-bright)) 9%,transparent)}
@@ -45698,7 +45735,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2142', name:'v2142 - the apply asks the inbox to repaint', date:'2026-08-26', note:'every _rec appended to the log and nothing told the inbox to redraw, so a room-only payload applied perfectly and left the panel showing the previous state' };
+  window.D2R_BUILD = { id:'v2143', name:'v2143 - the second eye stops depending on my memory', date:'2026-08-26', note:'the craft name was crushed to zero width at his own window size, the fold affordance read as broken text to a different model family, and nothing anywhere recorded whether a second eye had ever looked' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

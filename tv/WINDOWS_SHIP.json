@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2142",
+  "ver": "v2143",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2142: every _rec appended to the log and nothing told the inbox to redraw, so a room-only payload applied perfectly and left the panel showing the previous state",
+  "note": "v2143: the craft name was crushed to zero width at his own window size, the fold affordance read as broken text to a different model family, and nothing anywhere recorded whether a second eye had ever looked",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
