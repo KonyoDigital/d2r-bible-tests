@@ -3947,6 +3947,12 @@ try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.t
   document.addEventListener('click', function (e) {
     var h = e.target && e.target.closest && e.target.closest('.set-card.complete > .set-card-header');
     if (!h) return;
+    /* v2138 — A CONTROL INSIDE THE HEADER OWNS ITS OWN ACTIVATION. .set-card-name is itself a
+       role=button that opens the set ID card. Its inline onclick calls stopPropagation so the
+       CLICK never reached here, but nothing generalises that to the next control someone adds
+       to this header. Bail on any interactive descendant that is not the header itself. */
+    var _own = e.target.closest && e.target.closest('a,button,[role="button"],summary,input');
+    if (_own && _own !== h) return;
     var card = h.parentNode, k = _scKey(card);
     var open = !card.classList.contains('sc-open');
     card.classList.toggle('sc-open', open);
@@ -3956,6 +3962,11 @@ try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.t
     if (e.key !== 'Enter' && e.key !== ' ') return;
     var h = e.target && e.target.closest && e.target.closest('.set-card.complete > .set-card-header');
     if (!h) return;
+    /* v2138 — and the KEYBOARD half is where it actually bit. .set-card-name stops propagation on
+       click but its inline onkeydown does not, so Enter on a finished set name opened its ID card
+       AND folded the card underneath it. Measured: drops=1 and open flipped from false to true in
+       one keystroke. Only the header's OWN Enter toggles. */
+    if (h !== e.target) return;
     e.preventDefault(); h.click();
   });
   /* re-apply his choices after any repaint that rebuilt the cards */
@@ -45629,7 +45640,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2137', name:'v2137 - the finished sets step aside', date:'2026-08-26', note:'completed sets fold and sort last so no row is left half empty; the vault subtitle stops clipping mid sentence; the ledger gets the chevron its five siblings already had; the push gate stops leaking a headless console' };
+  window.D2R_BUILD = { id:'v2138', name:'v2138 - a control inside the header owns its own Enter', date:'2026-08-26', note:'Enter on a finished set name opened its ID card AND folded the card underneath it; only the header itself toggles now, with a spec that pins both halves' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
