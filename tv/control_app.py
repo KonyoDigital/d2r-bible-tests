@@ -9460,6 +9460,24 @@ def board_ownership(sample=0, dump_stores=False):
           "if(_r&&typeof _r==='object'&&_r.v===2)route={id:_r.id||null,p:_r.p||null,"
           "m:_r.m||null,pfx:(typeof _r.pfx==='string'?_r.pfx:null)};}catch(_rr){}"
           "var owner=!!window._D2R_OWNER, pfx=(boardLoaded?window._D2R_PFX:null);"
+          # ⚠ v2164 — THESE ARE STATEMENTS AND THEY LIVE HERE, ABOVE THE RETURN. v2163 appended
+          # them INSIDE the `JSON.stringify({...})` object literal, right after `route:route,`, so
+          # the whole script was a SyntaxError and board_ownership returned ok:false to every
+          # caller — the tally, the world-identity remember, the doctor. Parse-time, so the
+          # function's own try/catch never ran and the `_n` try/catch was theatre.
+          #
+          # My guard grepped the PYTHON source for "uniquesTotal" and found it, because the string
+          # was there. A string being present is not a script that parses — the same blind shape
+          # as the fixture I had just corrected. test_the_board_js_PARSES builds this script and
+          # runs node --check on it. [[source-reading-guard]]
+          "var _n=function(f){try{var v=f();return (typeof v==='number'&&v>0)?v:"
+          "(v&&v.length?v.length:null);}catch(e){return null;}};"
+          "var uniT=_n(function(){return window._gUniqueRoster&&window._gUniqueRoster();});"
+          "var setT=_n(function(){return window._gSetRoster&&window._gSetRoster();});"
+          "var rwT=_n(function(){return window._rwTotalN&&window._rwTotalN();});"
+          "var rwMade=(function(){try{var m=raw('d2r_rwMade');"
+          "if(Array.isArray(m))return m.length;"
+          "if(m&&typeof m==='object')return Object.keys(m).length;return null;}catch(e){return null;}})();"
           "var stores=null,gameFound=null;"
           "try{var _gp=raw('d2r_gameFound');if(_gp&&typeof _gp==='object'&&!Array.isArray(_gp))gameFound=_gp;}catch(_g){}"
           + ("if(%s){stores={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);"
@@ -9477,14 +9495,6 @@ def board_ownership(sample=0, dump_stores=False):
           # roster, _rwTotalN); they are read from IT rather than restated here, so the console
           # and the board cannot disagree about how many there are. null where the board cannot
           # say, never a fallback constant. [[copy-drift]] [[unknown-stays-unknown]]
-          "var _n=function(f){try{var v=f();return (typeof v==='number'&&v>0)?v:"
-          "(v&&v.length?v.length:null);}catch(e){return null;}};"
-          "var uniT=_n(function(){return window._gUniqueRoster&&window._gUniqueRoster();});"
-          "var setT=_n(function(){return window._gSetRoster&&window._gSetRoster();});"
-          "var rwT=_n(function(){return window._rwTotalN&&window._rwTotalN();});"
-          "var rwMade=(function(){try{var m=raw('d2r_rwMade');"
-          "if(Array.isArray(m))return m.length;"
-          "if(m&&typeof m==='object')return Object.keys(m).length;return null;}catch(e){return null;}})();"
           "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length,"
           "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
@@ -11447,6 +11457,31 @@ def retention_may_act():
     _sw = str(os.environ.get("TV_AUTO_PRUNE", "")).strip().lower()
     if _sw in ("0", "off", "false", "no", "none", "never"):
         return False, "auto-prune is switched off (TV_AUTO_PRUNE=%s) — reporting only" % _sw
+    # ── v2164 — THE DELETER ASKS THE WORLD GUARD TOO. ────────────────────────────────────────
+    # Konyo: "make sure the other profile locking of the chronicles and everything is connected to
+    # the profile and pc related to it, so nothing ever gets deleted or regressed."
+    #
+    # drift_may_relaunch consults board_identity_drift (v2147) and chronicle_apply consults it.
+    # THIS did not — and it is the only one of the three that DELETES. The sequence that costs
+    # him footage: a sweep reads a reel, the proposal is applied to the board, the board comes
+    # back as a DIFFERENT install (the v2043 failure), the ticks are now in a world he cannot
+    # reach — and retention, seeing a reel that both lanes have "given up its information", frees
+    # the last copy of the evidence for data that did not survive. Each step correct on its own.
+    #
+    # A world we would refuse to RELAUNCH into is a world we must not DELETE against. The reels
+    # are keyed by console-side files rather than by the board, which is exactly why this needed
+    # saying out loud: the deleter has no reason of its own to notice.
+    try:
+        _wd = board_identity_drift()
+        if isinstance(_wd, dict) and _wd.get("state") == "drift":
+            return False, ("the board's world has drifted — %s. Nothing is deleted while what was "
+                           "applied may be stranded in the world before it."
+                           % str(_wd.get("why"))[:150])
+    except Exception as _we:
+        # UNMEASURABLE IS NOT A GREEN LIGHT, and least of all here: this is the one switch in the
+        # tree where being wrong has no undo.
+        return False, ("the board's world could not be checked (%s), so nothing is deleted"
+                       % str(_we)[:80])
     # ── v2117 — I FLIPPED THIS TO OPT-IN AND BACKED IT OUT, because it is HIS CALL ─────────
     # Queue #28 argues this should be opt-in, and the safety reasoning is genuinely strong: it is
     # the one action here with no undo, its two siblings ARE opt-in, and `_retention_loop` measures
@@ -14081,8 +14116,17 @@ def evidence_for(name, ledger=None):
             wit = _clg.witnesses(sightings) if hasattr(_clg, "witnesses") else None
         except Exception:
             wit = None
+        # v2164 — BOUND THE PAYLOAD, KEEP THE COUNT HONEST. `sightings` went back whole while
+        # `frames` was already capped at 24 — an inconsistency I introduced and then found by
+        # measuring my own worst case: "Bloodmoon" carries 104 sightings, an 18.5 KB response, and
+        # evidence ACCUMULATES by design (4,402 sightings banked today), so the ceiling only ever
+        # rises. `count` stays the TRUE total and `truncated` says the list was trimmed, because a
+        # capped list presented as the whole is the quiet half of this defect: he would read 24
+        # and believe that is all the evidence there is. [[unknown-stays-unknown]]
+        _CAP = 24
         return {"ok": True, "name": n, "ledger": led,
-                "sightings": sightings, "count": len(sightings),
+                "sightings": sightings[:_CAP], "count": len(sightings),
+                "truncated": len(sightings) > _CAP,
                 "reels": reels, "lanes": lanes, "frames": frames[:24],
                 "foundAt": found_at, "droppedBy": dropped_by,
                 "witnesses": wit,
@@ -15822,7 +15866,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2163",
+        "ver": "v2165",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -17519,7 +17563,11 @@ class Handler(BaseHTTPRequestHandler):
             # by name. GET so a surface can link to it and he can paste one into a browser.
             try:
                 import urllib.parse as _up
-                _q = _up.parse_qs(_up.urlparse(path).query or "")
+                # ⚠ v2164 — `path` IS ALREADY QUERY-STRIPPED (do_GET does
+                # `self.path.split("?", 1)[0]`), so urlparse(path).query was ALWAYS "" and the
+                # name was ALWAYS empty: every evidence request answered "no name given". The
+                # feature was dead on arrival and looked wired from both ends. Read the RAW path.
+                _q = _up.parse_qs(_up.urlparse(self.path).query or "")
                 _nm = (_q.get("name") or [""])[0]
                 _led = (_q.get("ledger") or [None])[0]
             except Exception:

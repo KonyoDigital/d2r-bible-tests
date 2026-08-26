@@ -22624,6 +22624,56 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
         self.assertEqual(t["uniques"], {"have": 278, "total": 403})
         self.assertEqual(t["runewords"], {"have": 99, "total": 99})
 
+    def test_the_board_js_PARSES(self):
+        """THE GUARD THAT WOULD HAVE CAUGHT v2163, and the one I did not write.
+
+        v2163 appended the totals helpers INSIDE the `JSON.stringify({...})` object literal —
+        right after `route:route,` — so the whole script was a SyntaxError and board_ownership
+        returned ok:false to EVERY caller: the tally, the world-identity remember, the doctor.
+        Parse-time, so the function's own try/catch never ran.
+
+        My other guard grepped the PYTHON source for "uniquesTotal" and found it, because the
+        string WAS there. A string being present is not a script that parses.
+        [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+
+        ⚠ AND IT DOES NOT REBUILD THE SCRIPT FROM THE SOURCE TEXT. My first two attempts at this
+        guard did, and both failed on their own reconstruction — once on words quoted inside a
+        COMMENT, once on a `+ (...)` branch the regex flattened. A test that re-derives what the
+        code composes is testing the re-derivation. This INTERCEPTS the real script on its way to
+        the window, which is the only string that matters. [[feedback-verify-not-proxy]]
+        """
+        import subprocess, shutil, tempfile
+        import unittest.mock as mock
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed — the JS cannot be parsed here")
+        import control_app
+        seen = {}
+
+        def _capture(w, code, timeout=4.0):
+            seen["js"] = code
+            return None                      # board_ownership handles a None answer on its own
+
+        with mock.patch.dict(control_app.__dict__, {"_MAIN_WIN": object(), "_WINDOW_LIVE": True}), \
+             mock.patch.object(control_app, "_ejs", _capture):
+            control_app.board_ownership(0)
+
+        js = seen.get("js")
+        self.assertTrue(js, "board_ownership never handed a script to the window")
+        self.assertIn("JSON.stringify", js, "that is not the ownership script")
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+            fh.write(js)
+            tmp = fh.name
+        try:
+            r = subprocess.run([node, "--check", tmp], capture_output=True, text=True, timeout=30)
+        finally:
+            os.unlink(tmp)
+        self.assertEqual(r.returncode, 0,
+                         "the board ownership script does not PARSE, so board_ownership answers "
+                         "ok:false to every caller:\n%s" % (r.stderr or "")[-400:])
+        for key in ("uniquesTotal", "setsTotal", "runewordsTotal", "runewordsMade"):
+            self.assertIn(key, js, "the script the window receives never emits %r" % key)
+
     def test_the_board_ACTUALLY_EMITS_what_the_tally_reads(self):
         """THE GUARD THE LAST FIXTURE NEEDED. Every key grail_tally reads must be a key the board
         JS actually returns, or the fixture above is pinning my imagination. This is the join, and
@@ -22834,6 +22884,32 @@ class TestV2162EveryTickCanBeAskedWhy(unittest.TestCase):
         self.assertIn("2 sightings", r["say"])
         self.assertIn("2 reels", r["say"])
 
+    def test_the_payload_is_BOUNDED_but_the_count_stays_TRUE(self):
+        """v2164, found by measuring my own worst case rather than waiting for it to hurt:
+        "Bloodmoon" carries 104 sightings — an 18.5 KB response — and evidence ACCUMULATES by
+        design (4,402 banked today), so the ceiling only rises. `frames` was already capped at 24
+        and `sightings` was not, which was my own inconsistency.
+
+        A capped list presented as the whole is the quiet half of the defect: he would read 24 and
+        believe that is all the evidence there is. So `count` stays the TRUE total and `truncated`
+        says the list was trimmed. [[unknown-stays-unknown]]"""
+        many = {"uniques": {"Bloodmoon": [
+            {"reel": "r%d" % i, "frame": "f%d.jpg" % i, "lane": "claude"} for i in range(104)]}}
+        with self._with(many):
+            r = self.ca.evidence_for("Bloodmoon")
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["count"], 104, "the true count must survive the cap")
+        self.assertLessEqual(len(r["sightings"]), 24, "the payload is unbounded")
+        self.assertTrue(r["truncated"], "it trimmed the list and did not say so")
+        self.assertIn("104 sightings", r["say"], "the sentence must quote the TRUE count")
+
+    def test_a_SHORT_list_is_not_marked_truncated(self):
+        """Seen red for its own reason — always-true `truncated` would be as useless as never."""
+        with self._with(self.PROP):
+            r = self.ca.evidence_for("Andariel's Visage")
+        self.assertFalse(r["truncated"])
+        self.assertEqual(len(r["sightings"]), r["count"])
+
     def test_a_name_with_NOTHING_banked_says_which_fact_that_is(self):
         """"Nothing was banked for this name" is a fact ABOUT THE TICK — he ticked it by hand, or
         before the ledger existed. It is not an error, and it must not read as one, nor as an
@@ -22869,6 +22945,36 @@ class TestV2162EveryTickCanBeAskedWhy(unittest.TestCase):
             r = self.ca.evidence_for("")
         self.assertFalse(r["ok"])
 
+    def test_the_route_reads_the_name_from_the_RAW_path(self):
+        """v2164 — THE FEATURE WAS DEAD ON ARRIVAL AND LOOKED WIRED FROM BOTH ENDS.
+
+        do_GET does `path = self.path.split("?", 1)[0]` before dispatch, so the handler's
+        `urlparse(path).query` was ALWAYS "" and the name was ALWAYS empty: every evidence request
+        answered "no name given" while the UI fetched a perfectly good URL. A cross-family review
+        found it. The route must read `self.path`, which still has the query on it.
+
+        This asserts the SOURCE reads the raw path AND that the parse actually yields the name,
+        because "it mentions self.path" and "it extracts the name" are different claims."""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        blk = _between(self, src, 'path.startswith("/api/evidence")', "self._json(200, evidence_for",
+                       what="the evidence route")
+        # ⚠ CODE ONLY — the comment above the fix QUOTES the broken expression, and a scan that
+        # reads prose fails on the sentence describing the repair. That is the fourth time in one
+        # session that a guard has read its own documentation as code.
+        # [[feedback-comments-vs-code]]
+        blk = "\n".join(l for l in blk.split("\n") if not l.lstrip().startswith("#"))
+        self.assertIn("urlparse(self.path)", blk,
+                      "the route parses the already-stripped `path`, so the name is always empty "
+                      "and every request answers 'no name given'")
+        self.assertNotIn("urlparse(path)", blk, "it still reads the stripped path")
+        # and prove the parse yields the name, not just that the right symbol appears
+        import urllib.parse as _up
+        raw = "/api/evidence?name=" + _up.quote("Andariel's Visage") + "&ledger=uniques"
+        q = _up.parse_qs(_up.urlparse(raw).query or "")
+        self.assertEqual((q.get("name") or [""])[0], "Andariel's Visage")
+        self.assertEqual((q.get("ledger") or [None])[0], "uniques")
+
     def test_the_route_exists_so_the_console_can_actually_ASK(self):
         """The half that was missing last time: a lookup nothing can call is the same defect."""
         with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
@@ -22880,6 +22986,78 @@ class TestV2162EveryTickCanBeAskedWhy(unittest.TestCase):
         self.assertIn("/api/evidence?name=", ui,
                       "the console never calls the route — built on both ends, never joined")
         self.assertIn("ch-ev", ui, "no surface offers the evidence to him")
+
+
+class TestV2164TheDeleterAsksTheWorldGuardToo(unittest.TestCase):
+    """Konyo: "make sure the other profile locking of the chronicles and everything is connected
+    to the profile and pc related to it, so nothing ever gets deleted or regressed."
+
+    Three lanes can act on his footage and his ledger: the RELAUNCH (os.execv), the APPLY (writes
+    ticks to the board) and RETENTION (deletes reels). Two of the three consulted
+    board_identity_drift. The one that did not was the only one that DELETES.
+
+    The sequence that costs him footage, with every step correct on its own:
+        1. a sweep reads a reel and banks its evidence
+        2. the proposal is applied to the board
+        3. the board comes back as a DIFFERENT install — the v2043 failure
+        4. the ticks are now in a world he cannot reach
+        5. retention sees a reel both lanes have "given up its information" and frees the last
+           copy of the evidence for data that did not survive
+    The reels are keyed by CONSOLE-side files, not by the board, which is exactly why this had to
+    be said out loud: the deleter has no reason of its own to notice.
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def test_a_DRIFTED_world_stops_the_deleter(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.dict(os.environ, {"TV_AUTO_PRUNE": "1"}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "drift", "why": "install-ZZZ, was install-AAA"}):
+            ok, why = ca.retention_may_act()
+        self.assertFalse(ok, "it would delete footage while what was applied may be stranded")
+        self.assertIn("drifted", why)
+
+    def test_an_UNCHECKABLE_world_stops_it_too(self):
+        """This is the one switch in the tree where being wrong has no undo, so unmeasurable is
+        never a green light. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        ca = self._ca()
+
+        def boom():
+            raise RuntimeError("the board window is gone")
+
+        with mock.patch.dict(os.environ, {"TV_AUTO_PRUNE": "1"}), \
+             mock.patch.object(ca, "board_identity_drift", boom):
+            ok, why = ca.retention_may_act()
+        self.assertFalse(ok)
+        self.assertIn("could not be checked", why)
+
+    def test_an_OK_world_does_not_block_it_which_is_why_this_is_not_vacuous(self):
+        """Seen red for its own reason: a deleter that never runs is the 609MB stall, not a fix.
+        [[feedback-blind-fixture-green-gate]]"""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.dict(os.environ, {"TV_AUTO_PRUNE": "1"}), \
+             mock.patch.object(ca, "board_identity_drift", lambda: {"state": "ok", "why": "same"}), \
+             mock.patch.object(ca, "nothing_in_flight", lambda *a, **k: (True, "nothing in flight")):
+            ok, why = ca.retention_may_act()
+        self.assertTrue(ok, "an unchanged world still blocks the deleter: %s" % why)
+
+    def test_ALL_THREE_LANES_ask_the_same_question(self):
+        """The join, pinned. If a fourth lane is added that can delete or write his ledger and it
+        does not ask, this is where that shows up — one rule, every caller."""
+        ca = self._ca()
+        for fn in ("drift_may_relaunch", "retention_may_act", "chronicle_apply"):
+            f = getattr(ca, fn, None)
+            self.assertIsNotNone(f, "%s vanished" % fn)
+            self.assertIn("board_identity_drift", set(f.__code__.co_names),
+                          "%s can act on his world and never asks whether it is the world it "
+                          "thinks it is" % fn)
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

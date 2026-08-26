@@ -16734,8 +16734,14 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
              : '') + '</div>';
       }).join('');
       body.innerHTML = '<div class="ch-ev-say">' + escC(j.say || '') + '</div>' + sg
-        + ((j.sightings || []).length > 8
-           ? ('<div class="ch-ev-more">… and ' + ((j.sightings || []).length - 8) + ' more</div>')
+        /* v2164 — COUNT FROM `count`, NOT FROM THE LIST. The server caps `sightings` at 24 while
+           `count` stays the true total, so subtracting from the LIST length would have printed
+           "and 16 more" about a name with 104 sightings — a right-looking number under a word
+           that stopped being true the moment the payload was bounded.
+           [[label-outlived-referent]] */
+        + ((Number(j.count) || 0) > 8
+           ? ('<div class="ch-ev-more">… and ' + ((Number(j.count) || 0) - 8) + ' more'
+              + (j.truncated ? ' (the console sent the first 24)' : '') + '</div>')
            : '')
         + (j.droppedBy ? ('<div class="ch-ev-drop">dropped by ' + escC(j.droppedBy) + '</div>') : '');
     } catch (e2) {
