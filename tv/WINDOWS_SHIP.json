@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2136",
+  "ver": "v2137",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2136: He asked to be told the best craft of each type in its own cell, and named blood gloves and caster amulets himself while saying safety and hit power still needed research. The research was never missing. Every craft type already carried a best in slot recommendation with its affix reasoning, and the forge scan even copied it onto every row it built, and nothing on the board ever read either one. Four researched answers computed and discarded. They render now, one per craft type, each wearing that craft gem colour. The slot label is derived from the recommendation itself rather than from the separate slot order list, because on blood those two disagreed and the headline named a ring above a reason arguing for gloves.",
+  "note": "v2137: completed sets fold and sort last so no row is left half empty; the vault subtitle stops clipping mid sentence; the ledger gets the chevron its five siblings already had; the push gate stops leaking a headless console",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

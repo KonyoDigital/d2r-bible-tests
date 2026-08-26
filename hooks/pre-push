@@ -271,8 +271,23 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
       # which does not matter here: J1-J9 exercise the UI and its routes, not the capture.
       echo "pre-push: ▶  :17772 is silent — starting a headless console for the gate (his window is not touched)."
       _own_console=""
+      # A run that dies between here and the stop below LEAKS a console that survives for days.
+      # It binds whatever port is free — one was found alive on :17994 at 1d11h — so a leak is
+      # invisible on :17772 and nothing ever notices. Reap our own leaked pid first, BY PID, and
+      # only after confirming that pid really is a gate console (a recycled pid must not be hit).
+      _stale=$(cat /tmp/tvd_gate_console.pid 2>/dev/null || true)
+      if [ -n "$_stale" ] && ps -p "$_stale" >/dev/null 2>&1; then
+        case "$(ps -o args= -p "$_stale" 2>/dev/null)" in
+          *control_app.py*--no-open*)
+            kill "$_stale" 2>/dev/null || true
+            echo "pre-push: 🧹 reaped a leaked gate console (pid $_stale) left by an earlier run." ;;
+        esac
+      fi
+      rm -f /tmp/tvd_gate_console.pid
       ( cd "$REPO/tv" && nohup python3 control_app.py --no-open >/tmp/tvd_gate_console.log 2>&1 & echo $! > /tmp/tvd_gate_console.pid ) || true
       _own_console=$(cat /tmp/tvd_gate_console.pid 2>/dev/null || true)
+      # and stop it on EVERY exit path — a failing gate below exits before the explicit kill
+      trap '"'"'if [ -n "$_own_console" ]; then kill "$_own_console" 2>/dev/null || true; rm -f /tmp/tvd_gate_console.pid; fi'"'"' EXIT INT TERM
       _up=0
       for _i in $(seq 1 40); do
         sleep 1
@@ -294,6 +309,7 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
       if [ -n "$_own_console" ]; then
         kill "$_own_console" 2>/dev/null || true
         rm -f /tmp/tvd_gate_console.pid
+        _own_console=""
       fi
       [ "$_demo_rc" = "0" ] || exit 1
     fi

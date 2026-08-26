@@ -959,6 +959,30 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .set-items-card .set-bonus-row .zd-v{color:var(--best)}
 .set-card-progress{font-family:ui-monospace,monospace;font-size:var(--fs-meta);color:var(--text-muted);margin:0}
 .set-card.complete .set-card-progress{color:var(--best)}
+/* ══ v2137 — A COMPLETED SET FOLDS ITSELF ════════════════════════════════════════════════════
+   Konyo: "and for completeled sets the title make it so its collaped by default".
+   A set he has finished is a trophy, not a task: its five piece rows are the one thing on this
+   screen he never needs to read again, and they push the sets he is still hunting off the fold.
+   The HEADER stays — name, class and the N/N — so the fold hides the finished work, never the
+   fact that it is finished. Same rule as the TV·D verdict cards: quiet, not silent. */
+.set-card.complete > .set-pieces{display:none}
+.set-card.complete.sc-open > .set-pieces{display:block}
+/* the tracker is a GRID, whose default align-items:normal STRETCHES every card to its row
+   height — so a folded card sitting beside a full one measured 146px of box around 78px of
+   header. The fix is ROW PURITY, not align-self: finished sets are ordered last (see
+   renderSetTracker) and the boundary card below starts a fresh row, so a row is now either
+   all-hunting or all-folded. Stretch is then WANTED — it keeps a two-line set name from
+   making its neighbours look stunted. Restore align-self:start here if that order ever goes. */
+/* ...and the BOUNDARY row must not mix them. With the finished sets ordered last, exactly one
+   row still held a tall hunting card beside short folded ones — the void again, just smaller.
+   The first complete card that follows an unfinished one is forced to column 1, so it starts a
+   fresh row and every row is now uniformly tall or uniformly short. */
+.set-card:not(.complete) + .set-card.complete{grid-column:1}
+.set-card.complete > .set-card-header{cursor:pointer}
+.set-card.complete > .set-card-header::after{content:'\2026';margin-left:6px;opacity:.6;
+  color:var(--best);font-weight:var(--fw-bold)}
+.set-card.complete.sc-open > .set-card-header::after{content:'\2212'}
+.set-card.complete > .set-card-header:focus-visible{outline:2px solid var(--best);outline-offset:2px}
 .set-pieces{display:flex;flex-direction:column;gap:3px}
 .set-piece{display:flex;align-items:center;gap:6px;font-size:var(--fs-meta);cursor:pointer;padding:2px 4px;border-radius:3px;transition:background .15s}
 .set-piece:hover{background:rgba(255,255,255,.04)}
@@ -3910,6 +3934,43 @@ try {
 // 4 of 5 family tabs (#session/#forge/#funi/#fsets) were being clobbered to #tools here before
 // the router ever saw them. Plain-browser refresh still homes to tools (v680 behavior intact).
 try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.test(window.location.search || ''); var _tv680 = (_h680 === '#tvd-on' || _h680 === '#tvd-off' || _h680 === '#session');   /* v905 — explicit #tvd is the SMOOTH TOGGLE, never coerced */ if ((!_h680 || _h680 === '#') || (_app680 && _tv680)) { try { window.history.replaceState(null, '', '#session'); } catch(eH){} }   /* v906 — SITE and console land HOME on Sessions, hand in hand */ else if (_h680 && _h680 !== '#tools' && _h680 !== '#tvd' && !_tv680 && !_app680 && _h680.indexOf('/') < 0) window.history.replaceState(null, '', '#tools'); /* v918 — #tvd is USER INTENT on the site too (v768 law); the normalizer must not eat it */ } catch(e){ try { window.location.hash = 'tools'; } catch(e2){} }
+/* v2137 — WHICH COMPLETED SETS HE HAS OPENED. Kept in a closure map rather than on the element,
+   because the tracker re-renders on every tick and a card he opened would otherwise snap shut
+   under his cursor — the same defect the grail wall carried until v2120 and the verdict cards
+   until v2135. Not persisted: which trophy he was looking at is a property of this sitting. */
+(function(){
+  var _scOpen = {};
+  function _scKey(card){
+    var h = card.querySelector('.set-card-header');
+    return (h ? (h.textContent || '') : '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  }
+  document.addEventListener('click', function (e) {
+    var h = e.target && e.target.closest && e.target.closest('.set-card.complete > .set-card-header');
+    if (!h) return;
+    var card = h.parentNode, k = _scKey(card);
+    var open = !card.classList.contains('sc-open');
+    card.classList.toggle('sc-open', open);
+    if (k) { if (open) _scOpen[k] = 1; else delete _scOpen[k]; }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var h = e.target && e.target.closest && e.target.closest('.set-card.complete > .set-card-header');
+    if (!h) return;
+    e.preventDefault(); h.click();
+  });
+  /* re-apply his choices after any repaint that rebuilt the cards */
+  window._scRestore = function(){
+    try {
+      document.querySelectorAll('.set-card.complete').forEach(function(card){
+        var h = card.querySelector('.set-card-header');
+        if (h && !h.hasAttribute('tabindex')) { h.setAttribute('role','button'); h.setAttribute('tabindex','0'); }
+        if (_scOpen[_scKey(card)]) card.classList.add('sc-open');
+      });
+    } catch (e) {}
+  };
+  try { document.addEventListener('DOMContentLoaded', window._scRestore); } catch(e){}
+})();
+
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -22129,7 +22190,16 @@ function _setEmblemArt(set){
 function renderSetTracker() {
   const el = document.getElementById('set-tracker');
   if (!el) return;
-  el.innerHTML = __allSets().map(set => {
+  /* v2137 — FINISHED SETS GO LAST. Folding them was only half the job: the tracker is a grid,
+     so three short folded cards sitting in row 1 beside two full-height ones left a dead void
+     the height of the tallest card — measured 130px of card in a 300px row. Ordering them to
+     the end puts the sets he is still hunting first AND groups the folded ones into their own
+     short rows, so the space is actually reclaimed. Stable sort: within each group the data
+     order is untouched. */
+  el.innerHTML = __allSets().slice().sort((a, b) => {
+    const _done = st => st.pieces.filter(p => setPieces.has(p)).length === st.pieces.length;
+    return (_done(a) ? 1 : 0) - (_done(b) ? 1 : 0);
+  }).map(set => {
     const have = set.pieces.filter(p => setPieces.has(p)).length;
     const complete = have === set.pieces.length;
     const pieces = set.pieces.map(p => {
@@ -22161,7 +22231,7 @@ function renderSetTracker() {
       ? `<div class="set-card-name set-card-open" role="button" tabindex="0" title="open the ${_setDisp} ID card" onclick="event.stopPropagation();window.openDrop('${_setEsc}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_setEsc}')}">${_setDisp}${complete?' ✓':''} <span class="set-open-caret">↗</span></div>`
       : `<div class="set-card-name">${_setDisp}${complete?' ✓':''}</div>`;
     return `<div class="set-card ${complete?'complete':''}">
-      <div class="set-card-header">
+      <div class="set-card-header"${complete?' role="button" tabindex="0" title="show or hide the pieces of this completed set"':''}>
         <span class="sec-h-art set-card-emblem">${_setEmblemArt(set)}</span>
         <div class="set-card-title-block">
           ${nameHtml}
@@ -22171,6 +22241,9 @@ function renderSetTracker() {
       <div class="set-pieces">${pieces}</div>
     </div>`;
   }).join('');
+  /* v2137 — the render REBUILDS every card, so which completed sets he had open is re-applied
+     here rather than once at DOMContentLoaded. Markers do not survive a re-render. */
+  try { if (window._scRestore) window._scRestore(); } catch (e) {}
 }
 function toggleSetPiece(piece) {
   // v644 — set pieces chronicle into the same found ledger
@@ -32472,7 +32545,11 @@ body{
 .to-hd-top{display:flex;align-items:center;gap:10px}
 .to-st{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:var(--fw-semibold);font-size:19px;line-height:var(--lh-tightest);letter-spacing:var(--ls-normal);text-transform:uppercase;white-space:nowrap;background:linear-gradient(180deg,#f6e3ab,#d4a849 56%,#a07a2a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.55))}
 .to-ct{font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:var(--fw-semibold);font-size:12.5px;color:#1a1206;background:linear-gradient(180deg,#f0d489,#c89a3e);border:1px solid rgba(255,234,175,.75);border-radius:50%;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(90,60,10,.55),0 1px 3px rgba(0,0,0,.6)}
-.to-subt{color:#a8946c;font-size:11.5px;font-style:italic;letter-spacing:var(--ls-tight);max-width:64ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* v2137 — max-width:64ch CLIPPED A SENTENCE WHILE THE ROW WAS MOSTLY EMPTY. "...a re-read under
+   target is kept as a spare, not a discard" (103 chars) ellipsised at "kept as..." with the
+   decorative .to-rule taking ~900px beside it. The cap is gone; .to-rule is flex:1 with a 40px
+   floor, so the subtitle takes what it needs and ellipsis stays as the NARROW-screen fallback. */
+.to-subt{color:#a8946c;font-size:11.5px;font-style:italic;letter-spacing:var(--ls-tight);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .to-rule{flex:1;min-width:40px;height:1px;margin:0 2px;background:linear-gradient(90deg,rgba(212,168,71,.55),rgba(212,168,71,.14) 62%,transparent);position:relative}
 .to-rule::before{content:'';position:absolute;left:-1px;top:-2.5px;width:6px;height:6px;transform:rotate(45deg);background:linear-gradient(135deg,#f0d489,#a87c28);box-shadow:0 0 7px rgba(212,168,71,.8)}
 @media (max-width:860px){.to-st{font-size:16px;white-space:normal}.to-subt{display:none}.to-rule{min-width:16px}}
@@ -36173,7 +36250,9 @@ window.renderRoutingLedger = function(){
     + '<span class="to-subt">' + (rows.length >= 400
         ? 'the most recent 400 decisions — older ones have been dropped'
         : 'every decision the board made — what went where, and why') + '</span></span>'
-    + '<span class="to-rule"></span></summary><div style="margin-top:8px">'];
+    /* v2137 — the only one of six to-sum headers with no expand cue, so the ledger read as a
+       dead banner while it is a <details> he can open. Same chevron as its five siblings. */
+    + '<span class="to-rule"></span><span class="to-chev">\u25be</span></summary><div style="margin-top:8px">'];
   sorted.forEach(function(r){
     var p = PILL[r.status] || [String(r.status || 'read'), 'var(--text-dim,#8a7d64)'];
     var tgt = r.target ? (' \u2192 <b>' + esc(r.target) + '</b>') : (r.store ? (' \u2192 ' + esc(r.store)) : '');
@@ -43814,8 +43893,29 @@ html{overflow-x:clip}
 .gf-tick{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-right:5px;border:1px solid rgba(95,201,122,.55);border-radius:5px;color:#8fe6a0;font-size:var(--fs-micro);font-weight:var(--fw-semibold);cursor:pointer;background:rgba(95,201,122,.08);flex:0 0 auto;transition:transform .14s cubic-bezier(.2,.9,.3,1.4),background .14s ease}
 .gf-tick:hover{background:rgba(95,201,122,.28);transform:scale(1.18)}
 .gf-allgrid{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;content-visibility:auto;contain-intrinsic-size:auto 600px}
-.gf-allgrid .gf-piece.gf-miss{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 4px;border:1px solid rgba(233,208,122,.28);border-radius:7px;background:rgba(233,208,122,.04);color:var(--text,#d8cdb6);font-size:var(--fs-meta);cursor:help}
+.gf-allgrid .gf-piece.gf-miss{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 4px;border:1px solid rgba(233,208,122,.28);border-radius:7px;background:rgba(233,208,122,.04);color:var(--text,#d8cdb6);cursor:help}
+/* ══ v2137 — TOP AND BOTTOM NOW READ AT ONE SIZE ═════════════════════════════════════════════
+   Konyo: "color sync the title names and make it unified here the top titles compared to the
+   bottom are differently colored as iff they were added to.. i want a typography check and fix".
+
+   MEASURED, and it is NOT colour — which is why it survived a colour fix:
+       TOP    set-card chips   .gf-nm   rgb(0,252,0) w700  12px    84 of them
+       BOTTOM the missing wall .gp-nm   rgb(0,252,0) w700  11px   135 of them
+   Identical hue, identical weight, DIFFERENT SIZE. He read a 1px step at the same hue as a
+   colour difference, because at that scale it reads as weight rather than as size.
+
+   They are two REGIONS, not two states: the set cards (.gf-chips < .f-cardtitle) and the
+   "every missing piece" wall (.gf-allgrid < .gf-wall). The wall was overriding the shared
+   .gf-piece size down to --fs-meta.
+
+   Fixed by REMOVING the override rather than shrinking the cards — unify upward so nothing he
+   already reads gets smaller. The wall grows ~1px per chip and that is the whole cost.
+   ⚠ RESIDUAL, named rather than hidden: .gf-piece's own size is a RAW `font-size:12px` (:8435),
+   and a raw value beside a token is exactly how these two drifted apart without either being
+   edited. Tokenising it touches every wall on the board, so it is not folded into a typography
+   pass for one tab. [[d2r-css-last-rule-wins]] */
 .gf-allgrid .gf-piece.gf-miss:hover{border-color:rgba(233,208,122,.6)}
+
 .gp-date{font-size:9px;color:var(--text-dim,#9a8c72);margin-left:5px;font-family:var(--mono,monospace)}
 /* v1913 — the GAME's date reads as the storyline fact it is; the ledger stamp stays in the title. */
 .gp-date.gp-ingame{color:var(--gold-dim,#a07830)}
@@ -45529,7 +45629,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2136', name:'v2136 - the best one to make, which the data already knew', date:'2026-08-26', note:'He asked to be told the best craft of each type in its own cell, and named blood gloves and caster amulets himself while saying safety and hit power still needed research. The research was never missing. Every craft type already carried a best in slot recommendation with its affix reasoning, and the forge scan even copied it onto every row it built, and nothing on the board ever read either one. Four researched answers computed and discarded. They render now, one per craft type, each wearing that craft gem colour. The slot label is derived from the recommendation itself rather than from the separate slot order list, because on blood those two disagreed and the headline named a ring above a reason arguing for gloves.' };
+  window.D2R_BUILD = { id:'v2137', name:'v2137 - the finished sets step aside', date:'2026-08-26', note:'completed sets fold and sort last so no row is left half empty; the vault subtitle stops clipping mid sentence; the ledger gets the chevron its five siblings already had; the push gate stops leaking a headless console' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
