@@ -8196,6 +8196,22 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-t{display:flex;flex-direction:column;min-width:0;flex:1}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-name{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:var(--cw-c,#b48ce0)}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-sub{font-size:var(--fs-meta);color:var(--text-dim,#9a8c72);line-height:var(--lh-snug);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ══ v2136 — THE BEST-TO-MAKE LINE. One per craft type, in that craft's own gem colour, so the
+   four cells are told apart by hue as well as by words — his "more colorful (not just color)".
+   It spans the full row BELOW the header's flex line (grid-column:1/-1) so a long recommendation
+   can never squeeze the name or the make-now badge; that collision is the one a text assertion
+   cannot see. [[visual-regression-detector]] */
+.f-craftacc-bis{grid-column:1/-1;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;
+  margin:6px 0 0;padding:6px 9px;border-radius:7px;
+  border:1px solid color-mix(in srgb,var(--cbis,var(--gold-bright)) 34%,transparent);
+  background:color-mix(in srgb,var(--cbis,var(--gold-bright)) 9%,transparent)}
+.f-craftacc-bis .fcb-tag{flex:0 0 auto;font-size:var(--fs-micro);font-weight:var(--fw-bold);
+  letter-spacing:var(--ls-label);text-transform:uppercase;
+  color:var(--cbis,var(--gold-bright));opacity:.9}
+.f-craftacc-bis .fcb-slot{flex:0 0 auto;font-weight:var(--fw-semibold);
+  color:var(--cbis,var(--gold-bright))}
+.f-craftacc-bis .fcb-why{flex:1 1 220px;min-width:0;font-size:var(--fs-meta);
+  color:var(--text-muted);line-height:var(--lh-snug)}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-badge{font-size:var(--fs-meta);font-weight:var(--fw-semibold);color:var(--text-dim,#9a8c72);background:rgba(0,0,0,.3);border:1px solid var(--border,#3a2f1e);border-radius:20px;padding:3px 10px;flex:none;white-space:nowrap}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-badge.has{color:#9fe6a0;border-color:rgba(120,200,120,.4)}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-craftacc-body{padding:4px 13px 12px;display:flex;flex-direction:column;gap:6px;border-top:1px solid rgba(255,255,255,.06)}
@@ -38391,6 +38407,39 @@ function renderJournal(){
     h+='<span class="f-craftacc-chev">'+(open?'▾':'▸')+'</span>'+art;
     h+='<div class="f-craftacc-t"><span class="f-craftacc-name">Create '+_fEsc(ck)+(c.star?' <span class="cw-tile-star">★ YOURS</span>':'')+'</span><span class="f-craftacc-sub">'+_fEsc(c.gem)+' · '+_fEsc(c.tell||'')+'</span></div>';
     h+='<span class="f-craftacc-badge'+(d.readyN?' has':'')+'">'+d.readyN+' / '+d.total+' make now</span>';
+    /* ══ v2136 — THE BEST ONE TO MAKE, WHICH THIS DATA HAS CARRIED ALL ALONG ═══════════════════
+       Konyo: "i priorly asked you to make the best of each to make me and tell me to craft blood
+       rings (dual leech) which is the best of that specific tier … and each to their own individual
+       cell.. so its more colorful … it should tell me to craft the best of the best for that
+       specific cell." And for Safety and Hit Power: "you have to research and find out what the
+       best two are best to craft … i still have not crafted the other two."
+
+       THE RESEARCH WAS NEVER MISSING — it was never RENDERED. Every CRAFTS entry carries `bis`
+       (the specific best craft, with the affix reasoning) and `best` (the slot order), and
+       forgeScan even copies `bis:c.bis` onto every row it builds (bible.html:37916). Grepping the
+       board, NOTHING read either one. Four researched recommendations, computed and discarded.
+       [[plumbing-with-no-tap]]
+
+       It wears the craft's own gem colour, so the four cells differ by more than their words —
+       his "more colorful (not just color)". The BEST slot is named first because that is the
+       answer to "what do I make", and the reasoning follows it. */
+    if (c.bis){
+      /* ⚠ THE SLOT COMES OUT OF THE RECOMMENDATION, NOT OUT OF `best[0]`. Measured on the live
+         board: Blood's best[0] is 'Ring' while its own bis sentence recommends GLOVES — so a
+         headline built from best[0] read "Blood Ring" above a reason that argued for gloves. A
+         label naming one thing over an explanation naming another is the defect this whole arc
+         has been removing; deriving it from the sentence makes them agree BY CONSTRUCTION rather
+         than by luck. Every bis string opens with its slot, before an " on " or a dash.
+         (His own words cover both: "blood rings (dual leech) … and also Blood gloves which also
+         are top notch" — so this picks the one the DATA argues for, not a favourite.)
+         [[label-outlived-referent]] */
+      var _bisSlot = String(c.bis || '').split(/\s+\u2014\s+|\s+on\s+/)[0].trim();
+      if (!_bisSlot || _bisSlot.length > 28) _bisSlot = (c.best && c.best.length) ? c.best[0] : '';
+      h+='<div class="f-craftacc-bis" style="--cbis:'+_fEsc(c.color||'var(--gold-bright)')+'">'
+        + '<span class="fcb-tag">BEST</span>'
+        + (_bisSlot ? '<b class="fcb-slot">'+_fEsc(ck)+' '+_fEsc(_bisSlot)+'</b>' : '')
+        + '<span class="fcb-why">'+_fEsc(c.bis)+'</span></div>';
+    }
     h+='<button class="f-skip" title="skip '+_fEsc(ck)+' crafts" onclick="event.stopPropagation();window.forgeSkip(\'craft|'+_fJs(ck)+'\')">✕</button>';
     h+='</div>';
     if (open){
@@ -45480,7 +45529,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2135', name:'v2135 - the verdict stack, measured then rebuilt', date:'2026-08-26', note:'The cockpit verdict cards had no hierarchy at all. The headline the body and the next action all resolved to the same size at every viewport, the action line comment claimed it was dimmer than the finding and measured it was not dimmer by any amount, the good card carried the highest contrast headline in the region so the loudest text sat on cards he cannot act on, and the unknown card headline used the same colour as every other card body. Four cards stacked five hundred and twenty nine pixels of which two hundred and twenty six were cards whose own action reads nothing to do, inside a window where the standby hero already takes three hundred and forty. Cards that need nothing from him now fold to their headline, which keeps the count and the fact.' };
+  window.D2R_BUILD = { id:'v2136', name:'v2136 - the best one to make, which the data already knew', date:'2026-08-26', note:'He asked to be told the best craft of each type in its own cell, and named blood gloves and caster amulets himself while saying safety and hit power still needed research. The research was never missing. Every craft type already carried a best in slot recommendation with its affix reasoning, and the forge scan even copied it onto every row it built, and nothing on the board ever read either one. Four researched answers computed and discarded. They render now, one per craft type, each wearing that craft gem colour. The slot label is derived from the recommendation itself rather than from the separate slot order list, because on blood those two disagreed and the headline named a ring above a reason arguing for gloves.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

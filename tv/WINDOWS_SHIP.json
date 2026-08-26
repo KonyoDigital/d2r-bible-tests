@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2135",
+  "ver": "v2136",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2135: The cockpit verdict cards had no hierarchy at all. The headline the body and the next action all resolved to the same size at every viewport, the action line comment claimed it was dimmer than the finding and measured it was not dimmer by any amount, the good card carried the highest contrast headline in the region so the loudest text sat on cards he cannot act on, and the unknown card headline used the same colour as every other card body. Four cards stacked five hundred and twenty nine pixels of which two hundred and twenty six were cards whose own action reads nothing to do, inside a window where the standby hero already takes three hundred and forty. Cards that need nothing from him now fold to their headline, which keeps the count and the fact.",
+  "note": "v2136: He asked to be told the best craft of each type in its own cell, and named blood gloves and caster amulets himself while saying safety and hit power still needed research. The research was never missing. Every craft type already carried a best in slot recommendation with its affix reasoning, and the forge scan even copied it onto every row it built, and nothing on the board ever read either one. Four researched answers computed and discarded. They render now, one per craft type, each wearing that craft gem colour. The slot label is derived from the recommendation itself rather than from the separate slot order list, because on blood those two disagreed and the headline named a ring above a reason arguing for gloves.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
