@@ -129,8 +129,30 @@ test('auto-assign never overrides a home he chose by hand', async ({ page }) => 
        filing through it is the same path a real drag or plate-click takes. It rejects anything
        muleById() does not know, so the target is picked from real assigned ids only — '__keep' is
        not a mule and would silently no-op. */
+    /* v2146 (#151) — PICK A REAL MULE, not merely one that happens to be assigned already.
+       This looked only at the values in d2r_muleAssign, so the fixture could find a second mule
+       only when the four bases had landed on two DIFFERENT lockers. Once #151 stopped the
+       automated world seeding all 99 runewords, they legitimately landed together and the test
+       died on its own non-vacuity guard — "the fixture found no second mule to move it to". The
+       guard was right: nothing was tested. The premise was what was wrong.
+       The roster is real state (d2r_muleRoster, bible.html:33103), vaultAssign rejects any id
+       muleById() does not know, so a roster id is exactly as faithful as a scraped one and does
+       not depend on how auto-assign happened to distribute. [[feedback-blind-fixture-green-gate]] */
+    /* d2r_muleRoster is only WRITTEN when the roster changes (bible.html:33118 falls back to
+       DEFAULT_ROSTER in memory), so on a clean world the key is absent. The rendered lockers
+       always carry their real id in data-vault-mule (bible.html:34354), so read those too —
+       a source that exists only sometimes is not a source. */
+    const roster: string[] = (() => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(P + 'd2r_muleRoster') || 'null');
+        if (Array.isArray(stored) && stored.length) return stored.map((m: any) => m && m.id);
+      } catch (e) {}
+      return Array.from(document.querySelectorAll('[data-vault-mule]'))
+        .map((el) => el.getAttribute('data-vault-mule') as string);
+    })();
     const other = Object.keys(ma).map((k) => ma[k])
-      .find((id) => id && id !== before && id !== '__keep');
+        .find((id) => id && id !== before && id !== '__keep')
+      || roster.find((id: string) => id && id !== before && id !== '__keep');
     if (other) { try { w.vaultAssign(name, other); } catch (e) {} }
     const filed = JSON.parse(localStorage.getItem(P + 'd2r_muleAssign') || '{}')[name];
     try { w.vaultAutoAssign && w.vaultAutoAssign(); } catch (e) {}

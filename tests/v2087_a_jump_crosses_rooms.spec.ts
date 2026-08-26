@@ -41,7 +41,18 @@ async function world(page: any) {
   // Blade — are WHITE BASES, and in that world they are correctly __throwout, so vaultAutoAssign
   // files nothing and every door reports ".vm-cell visible 0". The doors were fine; the world was
   // wrong. Measured in exactly CI's world: rwMade 99 without the flag, 0 with it.
-  await page.evaluate(() => localStorage.setItem('d2r_rwProfile', 'fresh'));
+  // ⚠ CLEAR FIRST, THEN FLAG. The load above already ran as an "automated" world and PERSISTED
+  // its seed; setting the flag afterwards only stops the world being seeded AGAIN — it does not
+  // undo what localStorage already holds. Reproduced locally at 1440x1000 and at Playwright's
+  // 1280x720 default and it came back clean both times, while CI stayed red on the same commit.
+  // An ordering difference I cannot reproduce is not something to reason about when it can be
+  // REMOVED: wipe every d2r_ key, set the flag, then reload into a world with one possible state.
+  await page.evaluate(() => {
+    const ks: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) ks.push(localStorage.key(i) as string);
+    ks.forEach((k) => { if (/d2r_/.test(k)) localStorage.removeItem(k); });
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  });
   await page.goto(URL);
   await page.waitForTimeout(1500);
 }
