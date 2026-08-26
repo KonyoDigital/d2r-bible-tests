@@ -32240,6 +32240,23 @@ body::before{
    already exists for seeing problems here. */
 html.detail-open .control-dock, html.runs-open .control-dock, html.vault-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
 html.detail-open .control-dock:hover, html.runs-open .control-dock:hover, html.vault-open .control-dock:hover{ transform:none; opacity:1 }
+/* v2148 — THE RESTORE COULD NOT HOLD ITSELF UP AT HIS OWN WINDOW WIDTH.
+   The yield above leaves a 20px lip, and that lip is .dock-inner's top edge, so pointing at it
+   fires :hover and the dock springs back. But .control-dock carries `padding-bottom:14px` that is
+   pointer-events:none (the side gutters must stay click-through for the corner FABs), so once the
+   dock is fully restored its .dock-inner ends 2px ABOVE the cursor that just summoned it —
+   measured at 1120: inner bottom 886, cursor 888. Hover is lost, the dock falls, the lip returns
+   under the cursor, hover fires again. translateY alternated 0<->6/7 for a full 4s sample with the
+   mouse held perfectly still, at 1440 AND at 1120 — his window. At 901/375 the dock wraps taller,
+   the cursor stays inside, and it is a flat 0, which is why every narrow check was clean.
+   This bridges .dock-inner's hit box across that padding. It spans only the inner's own width, so
+   the gutters — and the corner FABs in them — keep their click-through. */
+html.detail-open .control-dock .dock-inner::after,
+html.runs-open  .control-dock .dock-inner::after,
+html.vault-open .control-dock .dock-inner::after{
+  content:''; position:absolute; left:0; right:0; bottom:-18px; height:18px;
+  pointer-events:auto;
+}
 .control-dock{ transition:transform .25s ease, opacity .25s ease }
 /* v694 🏓R6 — expanding a Tools work card OWNS the viewport (expand-without-scroll was the round-6
    diagnosis: 'you cannot mule what you cannot see') */
@@ -45750,7 +45767,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2147', name:'v2147 - the board knows which world it woke up in', date:'2026-08-26', note:'The v2043 guard was blind to the case it exists for: identity was owner+pfx, and two DIFFERENT claimed stores both publish owner=True pfx empty, so a new WebKit store read as the SAME world and the eagle reported what is applied persists over an empty vault. Identity is now the d2r_lsrRoute install id plus profile. Claiming a guest world is the remedy, not a drift. A payload carrying no route resolves UNKNOWN instead of asserting sameness. The doctor reads worldDrift BEFORE the closed-board return, so that branch is reachable at all. drift_may_relaunch refuses on drift, and .board_identity.json joins _LIVE_STATE.' };
+  window.D2R_BUILD = { id:'v2148', name:'v2148 - the summoned dock stays up', date:'2026-08-26', note:'v2146 gave the vault the v694 yield, and the hover-restore could not hold itself up at 1440 or 1120, his own window. The 20px lip is the dock-inner top edge so pointing at it does summon the dock, but control-dock has a 14px bottom padding that is pointer-events none for the corner FABs, so once fully restored the inner ends 2px ABOVE the cursor that summoned it. Hover drops, the dock falls, the lip returns under the cursor, hover fires again. translateY alternated 0 to 6 across a full 4s sample with the mouse held still. A dock-inner after-element bridges the hit box across that padding, spanning only the inner own width so the gutters keep their click-through. At 901 and 375 the dock wraps taller and was always flat, which is why every narrow check was clean.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

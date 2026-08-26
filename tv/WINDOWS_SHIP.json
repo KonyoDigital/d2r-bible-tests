@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2147",
+  "ver": "v2148",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2147: The v2043 guard was blind to the case it exists for: identity was owner+pfx, and two DIFFERENT claimed stores both publish owner=True pfx empty, so a new WebKit store read as the SAME world and the eagle reported what is applied persists over an empty vault. Identity is now the d2r_lsrRoute install id plus profile. Claiming a guest world is the remedy, not a drift. A payload carrying no route resolves UNKNOWN instead of asserting sameness. The doctor reads worldDrift BEFORE the closed-board return, so that branch is reachable at all. drift_may_relaunch refuses on drift, and .board_identity.json joins _LIVE_STATE.",
+  "note": "v2148: v2146 gave the vault the v694 yield, and the hover-restore could not hold itself up at 1440 or 1120, his own window. The 20px lip is the dock-inner top edge so pointing at it does summon the dock, but control-dock has a 14px bottom padding that is pointer-events none for the corner FABs, so once fully restored the inner ends 2px ABOVE the cursor that summoned it. Hover drops, the dock falls, the lip returns under the cursor, hover fires again. translateY alternated 0 to 6 across a full 4s sample with the mouse held still. A dock-inner after-element bridges the hit box across that padding, spanning only the inner own width so the gutters keep their click-through. At 901 and 375 the dock wraps taller and was always flat, which is why every narrow check was clean.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
