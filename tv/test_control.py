@@ -22256,6 +22256,42 @@ class TestV2155FilmingIsAFACTNotAProcess(unittest.TestCase):
             ok, why = ca.nothing_in_flight()
         self.assertFalse(ok, "it acted on a state it could not measure")
 
+    def test_a_STALE_live_mode_with_a_DEAD_agent_does_not_deadlock_it(self):
+        """v2161, found by a cross-family review of v2155. `_agent_mode` is written only by
+        start/stop, so after a CRASH it stays "live" while _agent_alive() is False — and v2155's
+        guard would refuse "ON AIR" on every tick for the life of the process. The relaunch he
+        asked for twice would never fire again: the exact failure v2155 fixed, re-introduced
+        facing the other way. A mode with no process behind it is a stale label, not a state.
+        [[label-outlived-referent]]"""
+        import contextlib, unittest.mock as mock
+        ca = self._ca()
+        with contextlib.ExitStack() as st:
+            for p_ in self._quiet(ca):
+                st.enter_context(p_)
+            st.enter_context(mock.patch.object(ca, "_agent_mode", "live"))
+            st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: False))
+            ok, why = ca.nothing_in_flight()
+        self.assertTrue(ok, "a crashed agent whose mode still says live blocks forever: %s" % why)
+
+    def test_an_UNREADABLE_footage_dir_does_not_CLAIM_frames_are_landing(self):
+        """The same review: _reel_is_growing never raises — it returns True on exception — so an
+        unreadable HIST_DIR produced the sentence "frames are still landing — a session is
+        mid-film". Refusing is correct; saying that is a fabricated measurement, and the except
+        branch guarding it was dead for the real function. [[unknown-stays-unknown]]"""
+        import contextlib, unittest.mock as mock, tempfile
+        ca = self._ca()
+        gone = os.path.join(tempfile.mkdtemp(), "not-there")
+        with contextlib.ExitStack() as st:
+            for p_ in self._quiet(ca):
+                st.enter_context(p_)
+            st.enter_context(mock.patch.object(ca, "_agent_mode", "off"))
+            st.enter_context(mock.patch.object(ca, "_agent_alive", lambda: True))
+            st.enter_context(mock.patch.object(ca, "HIST_DIR", gone))
+            ok, why = ca.nothing_in_flight()
+        self.assertFalse(ok, "it acted while the footage directory was unreadable")
+        self.assertIn("UNKNOWN", why,
+                      "it claimed frames were landing from a directory it could not read: %s" % why)
+
     def test_the_SWEEPS_still_block_because_they_always_did(self):
         """The change is only about the agent. A paid read must still never be thrown away."""
         import contextlib, unittest.mock as mock
@@ -22354,6 +22390,256 @@ class TestV2155TheRunningStampIsNotReadFromDisk(unittest.TestCase):
         self.assertNotIn("getsource", names,
                          "_app_ver reads the source file again — that is #175 exactly")
         self.assertNotIn("inspect", names, "_app_ver reaches for inspect again")
+
+
+class TestV2156TheReadSaysHowLongIsLeft(unittest.TestCase):
+    """Konyo: "when does the read finish? do we have a time estimate ... like the session meter
+    same style kinda but visual diagram rendering it. like how long left for it to finish so i
+    know."
+
+    ⚠ THE COUNTERS ALREADY ON SCREEN COULD NOT ANSWER IT, AND WERE PRINTING NONSENSE.
+    _chronPaint rendered "reading — reel {reelsDone} of {reelsTotal}". `reelsDone` is ACCUMULATED
+    by the sweep's _tick for the life of the process — and the vault lane writes into the same
+    dict — while `reelsTotal` is assigned per run. Measured live on his console mid-sweep:
+        reelsDone 30, reelsTotal 1
+    So his screen read "reel 30 of 1". Two different quantities wearing a matched pair of names,
+    rendered as a fraction. [[label-outlived-referent]]
+
+    The estimate is computed from ONE quantity instead: frames probed THIS RUN
+    (classified - runBaseClassified) out of frames this run will look at (runFramesTotal).
+
+    ⚠ AND IT REFUSES RATHER THAN GUESSING. A sweep spends a subscription read per frame and can
+    run for an hour; a meter showing a confident 0:00 while it is still measuring is worse than
+    one that says it does not know yet. Every field may be None and `ok` says whether the number
+    below it was measured. [[unknown-stays-unknown]]
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def _job(self, **kw):
+        j = {"running": True, "runStartedTs": int(time.time() * 1000) - 60000,
+             "runBaseClassified": 0, "runFramesTotal": 240, "classified": 60}
+        j.update(kw)
+        return j
+
+    def test_a_measured_run_gives_a_real_estimate(self):
+        ca = self._ca()
+        e = ca.sweep_eta(self._job())
+        self.assertTrue(e["ok"], "a run with a rate and a denominator still refuses: %s" % e.get("why"))
+        self.assertEqual((e["done"], e["total"]), (60, 240))
+        self.assertAlmostEqual(e["pct"], 25.0, places=1)
+        # 60 frames in 60s -> 60/min -> 180 left -> ~3 minutes
+        self.assertGreater(e["etaMs"], 150000)
+        self.assertLess(e["etaMs"], 220000)
+        self.assertIn("left", e["say"])
+
+    def test_NOTHING_PROBED_YET_is_not_an_eta_of_zero(self):
+        """The trap this whole shape exists to avoid: 0 done would divide to a rate of 0 and a
+        naive implementation prints 0:00, which reads as ABOUT TO FINISH."""
+        ca = self._ca()
+        e = ca.sweep_eta(self._job(classified=0))
+        self.assertFalse(e["ok"])
+        self.assertIsNone(e["etaMs"], "it produced an ETA from zero observations")
+        self.assertIn("no rate", e["why"])
+        self.assertIn("measuring", e["say"])
+
+    def test_no_denominator_says_so(self):
+        """runFramesTotal is None when the run could not count its frames. 0 would be a CLAIM —
+        'this run looks at no frames' — so the absence is carried as None."""
+        ca = self._ca()
+        e = ca.sweep_eta(self._job(runFramesTotal=None))
+        self.assertFalse(e["ok"])
+        self.assertIsNone(e["pct"], "a percentage with no denominator")
+        self.assertIn("denominator", e["why"])
+
+    def test_too_early_to_measure_a_rate(self):
+        ca = self._ca()
+        e = ca.sweep_eta(self._job(runStartedTs=int(time.time() * 1000) - 500))
+        self.assertFalse(e["ok"])
+        self.assertIn("measuring", e["say"])
+
+    def test_not_running_is_not_a_zero_percent_read(self):
+        ca = self._ca()
+        e = ca.sweep_eta({"running": False})
+        self.assertFalse(e["ok"])
+        self.assertIsNone(e["pct"])
+        self.assertIn("no read in flight", e["say"])
+
+    def test_the_percentage_cannot_exceed_100_however_the_counters_drift(self):
+        """The defect this replaces was a fraction that read 30 of 1. Whatever the counters do,
+        the BAR must stay inside its own box."""
+        ca = self._ca()
+        e = ca.sweep_eta(self._job(classified=9999))
+        self.assertLessEqual(e["pct"], 100.0)
+        self.assertGreaterEqual(e["pct"], 0.0)
+
+    def test_the_HUNT_is_not_reported_as_a_stalled_read(self):
+        """v2159. The hunt searches the film for held NAMES; it never probes frames, so
+        `classified` does not move and a frames-based meter says "measuring" for its whole
+        duration. MEASURED on his console: 4.7 minutes in, phase 'hunting', classified 0, and the
+        meter sat there — honest, and useless. The phase gets its own sentence, and that sentence
+        carries the fact he actually wants while waiting: nothing is being PAID for yet."""
+        ca = self._ca()
+        e = ca.sweep_eta({"running": True, "phase": "hunting", "huntNames": 12})
+        self.assertFalse(e["ok"], "the hunt cannot produce a frame-based ETA")
+        self.assertIn("hunting", e["say"])
+        self.assertIn("12", e["say"], "it does not say how many names it is hunting")
+        self.assertIn("paid", e["say"], "it does not say that nothing is being paid for yet")
+        self.assertIsNone(e["etaMs"])
+
+    def test_the_hunt_says_something_useful_even_with_NO_name_count(self):
+        ca = self._ca()
+        e = ca.sweep_eta({"running": True, "phase": "hunting"})
+        self.assertIn("hunting", e["say"])
+        self.assertNotIn("None", e["say"], "it printed a None into a sentence he reads")
+
+    def test_it_rides_on_the_state_the_console_ALREADY_polls(self):
+        """No new route and no second source of truth about one number. [[copy-drift]]"""
+        ca = self._ca()
+        st = ca.chronicle_sweep_state()
+        self.assertIn("eta", st, "the console would have to ask a second endpoint for this")
+        self.assertIn("ok", st["eta"] or {})
+
+
+class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
+    """Konyo: "for my cuzin and me and my wife is there a way for it to render our live chronicle
+    feed numbers .. im at 120/135 sets 278/403 uniques .. 99/99 runewords .. my cuzin is 116/135
+    sets .. render in a tooltip cursor floating image when on the name of that PC and nickname"
+
+    ⚠ THE COUNTS ARE ONLY READABLE SOMETIMES, AND THE FAILURE LOOKS LIKE DATA.
+    board_ownership() reaches into the board WINDOW. When he is looking at the console RAIL rather
+    than the board, `window._D2R_PFX` does not exist, and the read comes back boardLoaded:false
+    with counts that are NOT his ledger — measured live on his machine while writing this:
+
+        {"foundLog": 390, "owned": 5, "setPieces": 120}   boardLoaded: false
+
+    setPieces 120 happens to be exactly right. `owned: 5` is not his uniques figure by two orders
+    of magnitude. Publishing that would put "5 / 403" under a person's name in a roster his family
+    reads, and it would look like a fact. An unreadable board reports None. [[unknown-stays-unknown]]
+    """
+
+    def _ca(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        return control_app
+
+    def test_an_UNREADABLE_board_reports_nothing_rather_than_zeros(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
+                "ok": True, "boardLoaded": False,
+                "counts": {"foundLog": 390, "owned": 5, "setPieces": 120}}):
+            t = ca.grail_tally()
+        self.assertFalse(t["ok"], "it published counts from a board it could not read")
+        for k in ("sets", "uniques", "runewords"):
+            self.assertIsNone(t[k], "%s came back as a number from an unreadable board" % k)
+        self.assertIn("UNKNOWN", t["why"])
+
+    def test_a_REFUSED_read_reports_nothing(self):
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership",
+                               lambda *a, **k: {"ok": False, "why": "the board refused"}):
+            t = ca.grail_tally()
+        self.assertFalse(t["ok"])
+        self.assertIsNone(t["sets"])
+
+    def test_a_READABLE_board_gives_the_real_pairs(self):
+        """Seen red for its own reason — a tally that always answers None is as useless as one
+        that invents numbers. [[feedback-blind-fixture-green-gate]]"""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
+                "ok": True, "boardLoaded": True, "owner": True,
+                "counts": {"foundLog": 390, "owned": 278, "setPieces": 120,
+                           "runewordsMade": 99, "runewordsTotal": 99}}):
+            t = ca.grail_tally()
+        self.assertTrue(t["ok"], "a readable board still reported nothing: %s" % t.get("why"))
+        self.assertEqual(t["sets"], {"have": 120, "total": 135})
+        self.assertEqual(t["uniques"], {"have": 278, "total": 403})
+        self.assertEqual(t["runewords"], {"have": 99, "total": 99})
+
+    def test_a_MISSING_TOTAL_is_None_not_a_guess(self):
+        """A pair with no denominator still shows the count — the tooltip renders that bar
+        indeterminate rather than pretending to a proportion."""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
+                "ok": True, "boardLoaded": True,
+                "counts": {"setPieces": 120, "owned": 278, "runewordsMade": 61}}):
+            t = ca.grail_tally()
+        self.assertEqual(t["runewords"], {"have": 61, "total": None},
+                         "it invented a runeword total")
+
+    def test_the_tally_is_CACHED_so_a_heartbeat_does_not_cost_him_frames(self):
+        """grail_tally evaluates JS inside the board window. The beacon fires on a heartbeat; doing
+        this per beat would cost him frames while he plays."""
+        ca = self._ca()
+        self.assertGreaterEqual(ca._TALLY_TTL_S, 60,
+                                "the tally cache is short enough to run on every heartbeat")
+        names = set(ca._console_beacon.__code__.co_names)
+        self.assertIn("_tally_cached", names,
+                      "the beacon calls grail_tally directly — that is a board eval per heartbeat")
+
+
+class TestV2160NothingShippedKillsByNamePattern(unittest.TestCase):
+    """HIS STANDING RULE, AND IT HAS COST REAL PROCESSES.
+
+    `pkill -f <pattern>` matches ANY process whose command line merely CONTAINS the pattern — a
+    grep, an editor, a shell that scrolled it, a sibling harness. His live console has been taken
+    down that way twice, and a session of mine killed its own two shells with a name pattern while
+    hunting an orphan.
+
+    Two shipped scripts still did it — tvd_supervisor.sh and tvd-scan.sh, both firing
+    `pkill -f "control_app.py --no-open"` to free :17772. The question those lines actually have is
+    "something half-dead is holding the port", so they ask the PORT who holds it and kill that pid.
+    When nothing holds it there is nothing to kill, which is the common case and used to be a blind
+    volley into the process table.
+
+    ⚠ COMMENTS ARE NOT CODE. This guard strips comment lines before it looks, because three of the
+    surviving matches in this repo are prose explaining why not to do it — and a scanner that reads
+    its own documentation sits red forever pointing at itself. [[feedback-comments-vs-code]]
+    """
+
+    def test_no_shipped_script_uses_pkill(self):
+        import glob
+        here = os.path.dirname(os.path.abspath(__file__))
+        repo = os.path.dirname(here)
+        targets = sorted(glob.glob(os.path.join(here, "*.sh"))
+                         + glob.glob(os.path.join(repo, "hooks", "*")))
+        checked = 0
+        for path in targets:
+            if os.path.isdir(path):
+                continue
+            try:
+                with io.open(path, encoding="utf-8", errors="replace") as fh:
+                    src = fh.read()
+            except Exception:
+                continue
+            checked += 1
+            for n, line in enumerate(src.split("\n"), 1):
+                bare = line.split("#", 1)[0]          # CODE only — prose explains the ban
+                self.assertNotIn("pkill", bare,
+                                 "%s:%d kills by NAME PATTERN — it cannot tell his live console "
+                                 "from a grep that happens to contain the string. Ask the PORT "
+                                 "who holds it and kill that pid.\n    %s"
+                                 % (os.path.basename(path), n, line.strip()[:100]))
+        self.assertGreater(checked, 2, "the guard scanned almost nothing — it proves nothing")
+
+    def test_the_replacement_actually_asks_the_port(self):
+        """Seen red for its own reason: deleting the pkill and killing NOTHING would also pass the
+        test above, and would leave a half-dead process holding :17772 forever."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        for name in ("tvd_supervisor.sh", "tvd-scan.sh"):
+            with io.open(os.path.join(here, name), encoding="utf-8") as fh:
+                src = fh.read()
+            self.assertIn("lsof -nP -iTCP", src,
+                          "%s no longer asks the port who holds it — a half-dead listener would "
+                          "now hold :17772 with nothing to clear it" % name)
+            self.assertIn("kill ", src, "%s does not kill the holder it found" % name)
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

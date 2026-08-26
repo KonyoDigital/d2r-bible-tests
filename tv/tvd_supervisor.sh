@@ -58,8 +58,21 @@ while true; do
     # port not answering? bring up the headless console.
     if ! curl -s -o /dev/null -m 3 "http://127.0.0.1:$PORT/api/status" 2>/dev/null; then
       # make sure no half-dead headless lingers, then relaunch headless
-      pkill -f "control_app.py --no-open" 2>/dev/null
-      sleep 1
+      # ── v2160 — KILL BY PORT, NEVER BY NAME PATTERN. `pkill -f "control_app.py --no-open"`
+      # matches ANY process whose command line merely CONTAINS that string — a grep, an editor, a
+      # shell that scrolled it, a sibling harness. It is his standing rule for exactly this
+      # reason, and it has already cost real processes: a session of mine killed its own two
+      # shells with a name pattern, and his live console has been taken down twice the same way.
+      #
+      # The question this code actually has is "something half-dead is holding :$PORT" — so ask
+      # the PORT who holds it and kill THAT pid. When nothing holds it there is nothing to kill,
+      # which is the common case and used to be a blind volley into the process table.
+      _holder="$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null | head -1)"
+      if [ -n "$_holder" ]; then
+        kill "$_holder" 2>/dev/null
+        sleep 1
+        kill -0 "$_holder" 2>/dev/null && kill -9 "$_holder" 2>/dev/null
+      fi
       nohup python3 "$HERE/control_app.py" --no-open >> "$LOG" 2>&1 &
       disown 2>/dev/null || true
     fi

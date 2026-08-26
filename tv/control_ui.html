@@ -4450,6 +4450,94 @@
   .fleet-head { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--gold-dim); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .fleet-refresh { margin-left: auto; padding: 2px 7px; }
+  /* ── v2157 — THE FLEET TOOLTIP. Floats beside the cursor on the person's name, shows what
+     that machine last reported, and NEVER invents a bar: an unknown total renders the track
+     dimmed and full rather than a proportion nobody measured. [[unknown-stays-unknown]] */
+    /* ── v2158 — THE FLAGSHIP READ METER, INLINE IN THE UPDATE BANNER. Sits between the message
+     and the button, so the thing he is waiting on and the thing he wants to press are one line.
+     Indeterminate (full width, sheened, drifting) while the server is still measuring — never a
+     bar resting at 0%, which reads as "stalled". [[unknown-stays-unknown]] */
+  .fb-eta { display: inline-flex; align-items: center; gap: 9px; min-width: 0; flex: 1 1 190px; }
+  .fb-eta .fbe-bar {
+    position: relative; height: 6px; flex: 1 1 70px; min-width: 54px;
+    border-radius: 999px; overflow: hidden;
+    background: rgba(0,0,0,.42); border: 1px solid rgba(240,192,96,.22);
+  }
+  .fb-eta .fbe-bar > i {
+    display: block; height: 100%; width: 0; border-radius: 999px;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+    box-shadow: 0 0 10px rgba(240,192,96,.45);
+    transition: width .7s cubic-bezier(.3,.9,.3,1);
+    position: relative;
+  }
+  /* the sheen that makes it read as WORKING rather than parked */
+  @media (prefers-reduced-motion: no-preference) {
+    .fb-eta .fbe-bar > i::after {
+      content: ''; position: absolute; inset: 0; border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
+      animation: fbeSheen 1.5s linear infinite;
+    }
+    .fb-eta.fbe-unk .fbe-bar > i { animation: fbeDrift 2s ease-in-out infinite; }
+  }
+  @keyframes fbeSheen { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  @keyframes fbeDrift { 0%,100% { opacity: .30; } 50% { opacity: .62; } }
+  .fb-eta.fbe-unk .fbe-bar > i { opacity: .34; box-shadow: none; }
+  /* ⚠ v2158 — 30ch CLIPPED THE ANSWER. Rendered, the two real states read "58 of 240 frames —
+     abou…" and "228 of 240 frames — abo…": the meter ate the exact words he asked for. The
+     longest real string is "228 of 240 frames — about 19m 21s left" at 37 characters. The say now
+     gets the room and the left-hand message yields instead, because the message repeats what the
+     meter already says. A text assertion sees the full string either way — this is only visible
+     on the pixels. [[visual-regression-detector]] */
+  .fb-eta .fbe-say {
+    font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); color: var(--gold-bright);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 0 1 auto; min-width: 0;
+  }
+  /* while the meter is up the message is redundant — let it shrink first */
+  .fleet-bar:has(.fb-eta:not([hidden])) .fb-txt { flex: 0 1 auto; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 760px) { .fb-eta .fbe-say { display: none; } }
+.fleet-row.has-ftt { position: relative; cursor: default; }
+  .fleet-row .ftt {
+    position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 60;
+    min-width: 232px; max-width: 300px; padding: 9px 11px;
+    background: linear-gradient(180deg, rgba(20,15,8,.98), rgba(9,7,4,.99));
+    border: 1px solid var(--gold-dim); border-radius: var(--hd-radius);
+    box-shadow: 0 10px 26px rgba(0,0,0,.66);
+    opacity: 0; visibility: hidden; transform: translateY(4px);
+    transition: opacity .16s, transform .16s, visibility .16s;
+    pointer-events: none;
+  }
+  .fleet-row.has-ftt:hover .ftt, .fleet-row.has-ftt:focus-visible .ftt {
+    opacity: 1; visibility: visible; transform: translateY(0);
+  }
+  .ftt .ftt-h {
+    font: var(--fw-semibold) var(--fs-xs)/1.2 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--gold-bright);
+    margin-bottom: 7px;
+  }
+  /* v2157 — 62px CLIPPED "RUNEWORDS" INTO THE NUMBER. Caught on the render, not by a text
+     assertion: the label and the count are separate cells, so nothing overlapped in the DOM and
+     every textContent check would have passed while the two words touched on screen. Measured at
+     the shipped type size the longest label needs ~75px. min-content on the first column lets it
+     size to the real longest word instead of a guess that goes stale the next time a label is
+     added. [[visual-regression-detector]] */
+  .ftt .ftt-row { display: grid; grid-template-columns: minmax(62px, min-content) auto 1fr;
+                  align-items: center; gap: 8px; margin-bottom: 5px; }
+  .ftt .ftt-l { white-space: nowrap; }
+  .ftt .ftt-l { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); color: var(--gold-dim);
+                text-transform: uppercase; letter-spacing: var(--ls-snug); }
+  .ftt .ftt-n { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); color: var(--text);
+                font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ftt .ftt-bar { height: 5px; border-radius: 999px; background: rgba(255,255,255,.07);
+                  border: 1px solid rgba(240,192,96,.14); overflow: hidden; }
+  .ftt .ftt-bar > i { display: block; height: 100%; border-radius: 999px;
+                      background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright)); }
+  .ftt .ftt-bar.ftt-unk > i { opacity: .2;
+                      background: repeating-linear-gradient(90deg, var(--gold-dim) 0 3px, transparent 3px 6px); }
+  .ftt .ftt-none { font: var(--fw-regular) var(--fs-2xs)/1.45 var(--mono); color: var(--gold-dim); }
+  .ftt .ftt-age { margin-top: 6px; font: var(--fw-regular) var(--fs-2xs)/1 var(--mono);
+                  color: var(--gold-dim); opacity: .7; }
   .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -4877,6 +4965,51 @@
      ⚠ NOT vault. Vault stays PLAIN on the v1615 law — a STASH is a container, not an item
      quality — and v2120 deleted its dead declaration for that reason. A room that makes a quality
      gets the quality; a room that holds things does not. */
+  /* ── v2156 — THE READ METER. Same language as the stage meters (.m): a quiet gradient panel,
+     an uppercase tracked label, one big number. It differs in one deliberate way — when the
+     estimate is NOT measurable the bar goes INDETERMINATE (full width, dimmed, drifting) rather
+     than sitting at 0%%, because a bar resting on empty reads as "nothing has happened" and the
+     honest state is "nothing has been MEASURED yet". [[unknown-stays-unknown]] */
+  .chron-eta {
+    background: linear-gradient(180deg, rgba(16,13,8,.82), rgba(6,5,3,.86));
+    border: 1px solid var(--edge); border-radius: var(--hd-radius);
+    padding: 11px 13px; box-shadow: inset 0 1px 0 rgba(240,192,96,.08);
+  }
+  .chron-eta .ce-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .chron-eta .ce-h {
+    font: var(--fw-semibold) var(--fs-xs)/1.2 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--gold-dim);
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .chron-eta .ce-t {
+    font: var(--fw-semibold) var(--fs-lg)/1 var(--serif); color: var(--gold);
+    flex: 0 0 auto; font-variant-numeric: tabular-nums;
+  }
+  .chron-eta .ce-bar {
+    position: relative; height: 7px; margin: 8px 0 7px; border-radius: 999px; overflow: hidden;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(240,192,96,.14);
+  }
+  .chron-eta .ce-bar > i {
+    display: block; height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+    box-shadow: 0 0 10px rgba(240,192,96,.35);
+    transition: width .6s cubic-bezier(.3,.9,.3,1);
+  }
+  .chron-eta .ce-bar.ce-idle > i {
+    opacity: .28; box-shadow: none;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .chron-eta .ce-bar.ce-idle > i { animation: ceDrift 1.9s ease-in-out infinite; }
+  }
+  @keyframes ceDrift { 0%,100% { transform: translateX(-34%); } 50% { transform: translateX(34%); } }
+  .chron-eta .ce-say {
+    font: var(--fw-medium) var(--fs-xs)/1.35 var(--mono); color: var(--text);
+  }
+  .chron-eta .ce-sub {
+    margin-top: 3px; font: var(--fw-regular) var(--fs-2xs)/1.4 var(--mono);
+    color: var(--gold-dim); opacity: .75;
+  }
   .head-tabs .ht[data-tab="crafts"] { --ht-q: var(--rar-orange); }
   .head-tabs .ht[data-tab="funi"]  { --ht-q: var(--rar-unique); }
   .head-tabs .ht[data-tab="fsets"] { --ht-q: var(--rar-set); }
@@ -5169,6 +5302,14 @@
     <div class="fleet-bar" id="fleet-bar" hidden>
       <span class="fb-ic">⟳</span>
       <span class="fb-txt" id="fleet-txt"></span>
+      <!-- v2158 — THE WAIT, RENDERED. Konyo: "i cant relaunch. but i also want the meter showing
+           me how long is left for those reels in time wise ... rendering obviously next to it ...
+           like a cool flagship loading type style". The refusal is correct — a relaunch mid-read
+           throws away a paid page — but "let it finish, then press again" made him the poller. -->
+      <span class="fb-eta" id="fleet-eta" hidden>
+        <span class="fbe-bar"><i></i></span>
+        <span class="fbe-say" id="fleet-eta-say"></span>
+      </span>
       <button class="fb-go" id="fleet-go" type="button">UPDATE NOW</button>
       <button class="fb-x" id="fleet-x" type="button" aria-label="dismiss until next launch">✕</button>
     </div>
@@ -10830,6 +10971,47 @@
         bar.hidden = false;
       } catch (e){ /* offline is not news — the bar stays as it was */ }
     }
+    /* v2158 — poll the READ, paint the meter, and relaunch the instant it is free.
+       ⚠ It never shows a proportion it did not measure: the server answers ok:false with a reason
+       while it is still measuring, and the bar goes indeterminate rather than resting at 0%,
+       because a bar on empty reads as "nothing is happening". [[unknown-stays-unknown]] */
+    var _updWaitTimer = null;
+    async function _updWaitForRead(){
+      var wrap = $('fleet-eta'), say = $('fleet-eta-say');
+      if (!wrap) return;
+      if (_updWaitTimer) { clearInterval(_updWaitTimer); _updWaitTimer = null; }
+      wrap.hidden = false;
+      var fill = wrap.querySelector('.fbe-bar > i');
+      var tick = async function(){
+        try {
+          var r = await fetch(API + '/api/chronicle_sweep', { cache: 'no-store' });
+          var st = await r.json();
+          var e = (st && st.eta) || {};
+          if (!st || !st.running) {
+            clearInterval(_updWaitTimer); _updWaitTimer = null;
+            wrap.hidden = true;
+            txt.textContent = 'the read finished — relaunching…';
+            try {
+              var rr2 = await fetch(API + '/api/relaunch', { method: 'POST' });
+              var rj2 = await rr2.json();
+              if (rj2 && rj2.ok) return;                 // replacing itself
+              if (rj2 && rj2.busy) { txt.textContent = 'not now — ' + (rj2.why || 'still busy');
+                                     _updWaitForRead(); return; }
+              txt.textContent = 'ready — press RELAUNCH NOW';
+              go.disabled = false;
+            } catch (e2) { return; }                     // execv tore the socket down: success
+            return;
+          }
+          var pct = (typeof e.pct === 'number') ? Math.max(0, Math.min(100, e.pct)) : null;
+          wrap.classList.toggle('fbe-unk', pct === null);
+          if (fill) fill.style.width = (pct === null ? 100 : pct.toFixed(1)) + '%';
+          if (say) say.textContent = e.say || 'reading';
+        } catch (e3) { /* offline mid-wait is not news; keep the last painted state */ }
+      };
+      tick();
+      _updWaitTimer = setInterval(tick, 2500);
+    }
+
     function armRelaunch(ver){
       stage = 'ready';
       txt.textContent = (ver ? ver : 'a newer console') + ' is on disk — this window is still running '
@@ -10848,9 +11030,19 @@
           var rr = await fetch(API + '/api/relaunch', { method: 'POST' });
           var rj = await rr.json();
           if (rj && rj.ok) return;                       // the process is replacing itself
-          txt.textContent = (rj && rj.busy)
-            ? ('not now — ' + (rj.why || 'something is still running'))
-            : ('could not relaunch — ' + ((rj && (rj.why || rj.msg)) || 'unknown reason'));
+          if (rj && rj.busy) {
+            /* v2158 — WAIT FOR IT, AND SHOW THE WAIT. He asked twice for this feature and then
+               hit a banner that told him to keep pressing a button. The read is the thing he is
+               waiting on and the console already knows how far through it is, so it renders the
+               meter and presses the button itself the moment the read lets go. */
+            /* SHORT, because the meter beside it carries the detail and the row has one line
+               to share. The full reason still reaches him — it is the meter's own say. */
+            txt.textContent = 'not now — a read is in flight';
+            _updWaitForRead();
+          } else {
+            txt.textContent = 'could not relaunch — '
+              + ((rj && (rj.why || rj.msg)) || 'unknown reason');
+          }
         } catch (e){
           /* execv tears this connection down mid-flight; that is a SUCCESS, not a failure */
           txt.textContent = 'relaunching…';
@@ -14947,16 +15139,57 @@ function escC(s) {
         box.innerHTML = '<div class="fleet-none">fleet unreachable — ' + escC((j && j.error) || 'no answer') + '</div>';
         return;
       }
-      var rows = (j.online || []).map(function (m) {
+      /* ── v2157 — WHAT EACH PERSON HAS, ON HOVER. ─────────────────────────────────────────
+         Konyo: "for my cuzin and me and my wife is there a way for it to render our live
+         chronicle feed numbers .. im at 120/135 sets 278/403 uniques .. 99/99 runewords .. my
+         cuzin is 116/135 sets .. render in a tooltip cursor floating image when on the name of
+         that PC and nickname"
+
+         ⚠ A MISSING TALLY MUST NOT RENDER AS ZERO. The counts come from each machine's own
+         board, and a console showing the console RAIL cannot read its board's ledger at all —
+         measured live, that path returns owned:5 while the real figure is in the hundreds.
+         Putting "5 / 403" under another person's name is worse than putting nothing, so a
+         machine that has not reported says so, and a reported one carries the AGE of what it
+         reported. [[unknown-stays-unknown]] [[stale-reading]] */
+      var _bar = function (lab, p) {
+        if (!p || typeof p.have !== 'number') return '';
+        var t = (typeof p.total === 'number' && p.total > 0) ? p.total : null;
+        var pct = t ? Math.max(0, Math.min(100, 100 * p.have / t)) : null;
+        return '<div class="ftt-row"><span class="ftt-l">' + escC(lab) + '</span>'
+          + '<span class="ftt-n">' + escC(String(p.have)) + (t ? (' / ' + escC(String(t))) : '')
+          + '</span>'
+          + '<span class="ftt-bar' + (pct === null ? ' ftt-unk' : '') + '"><i style="width:'
+          + (pct === null ? 100 : pct.toFixed(1)) + '%"></i></span></div>';
+      };
+      var _tip = function (m) {
+        var t = m.tally;
+        if (!t || !t.ok) {
+          return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
+            + '</div><div class="ftt-none">no counts reported yet'
+            + (t && t.why ? (' — ' + escC(String(t.why).slice(0, 90))) : '')
+            + '</div></div>';
+        }
+        var bars = _bar('sets', t.sets) + _bar('uniques', t.uniques)
+                 + _bar('runewords', t.runewords);
+        return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
+          + '</div>' + (bars || '<div class="ftt-none">reported no counts</div>')
+          + '<div class="ftt-age">as of ' + escC(_fleetSince(t.at ? new Date(t.at).toISOString() : m.t))
+          + '</div></div>';
+      };
+      var _row = function (m, online) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
-        return '<div class="fleet-row on"><span class="fleet-dot"></span><b>' + escC(nameFor) + '</b>'
-          + '<span class="fleet-meta">' + escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle')
-          + ' · ' + escC(m.ver || '') + ' · ' + escC(_fleetSince(m.t)) + '</span></div>';
-      }).concat((j.offline || []).map(function (m) {
-        var nameFor = (m.nickname || '').trim() || m.machine || '?';
-        return '<div class="fleet-row"><span class="fleet-dot off"></span><b>' + escC(nameFor) + '</b>'
-          + '<span class="fleet-meta">offline · last seen ' + escC(_fleetSince(m.t)) + '</span></div>';
-      }));
+        var meta = online
+          ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
+             + ' · ' + escC(_fleetSince(m.t)))
+          : ('offline · last seen ' + escC(_fleetSince(m.t)));
+        return '<div class="fleet-row' + (online ? ' on' : '') + ' has-ftt" tabindex="0">'
+          + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
+          + '<b>' + escC(nameFor) + '</b>'
+          + '<span class="fleet-meta">' + meta + '</span>'
+          + _tip(m) + '</div>';
+      };
+      var rows = (j.online || []).map(function (m) { return _row(m, true); })
+        .concat((j.offline || []).map(function (m) { return _row(m, false); }));
       box.innerHTML = rows.length ? rows.join('')
         : '<div class="fleet-none">no console has ever checked in</div>';
     } catch (e) {
@@ -16025,10 +16258,37 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var run = document.getElementById('chron-run');
     if (!rev) return;
     if (st.running) {
-      var done = st.reelsDone || 0, tot = st.reelsTotal || 0;
-      if (body) body.innerHTML = '<div class="chron-idle">📜 reading — reel ' + escC(String(done)) + ' of '
-        + escC(String(tot)) + ' · ' + escC(String(st.classified || 0)) + ' frames classified · '
-        + escC(String(st.pagesRead || 0)) + ' pages read</div>';
+      /* ── v2156 — HOW LONG IS LEFT, AND NEVER A NUMBER IT DID NOT MEASURE. ────────────────
+         Konyo: "when does the read finish? do we have a time estimate ... like the session meter
+         same style kinda but visual diagram rendering it. like how long left for it to finish so
+         i know."
+
+         ⚠ WHAT STOOD HERE PRINTED "reel 30 of 1". `reelsDone` is accumulated by the sweep's
+         _tick for the life of the PROCESS — and the vault lane writes into the same dict — while
+         `reelsTotal` is assigned per run. Two different quantities wearing a matched pair of
+         names, rendered as a fraction. Measured live on his console mid-sweep: reelsDone 30,
+         reelsTotal 1. [[label-outlived-referent]]
+
+         The server now computes the estimate from ONE quantity — frames probed this run, out of
+         frames this run will look at — and says `ok:false` with a reason whenever it cannot. A
+         bar that fills to a guess is worse than a bar that says it is still measuring. */
+      var e = st.eta || {};
+      var pct = (typeof e.pct === 'number') ? Math.max(0, Math.min(100, e.pct)) : null;
+      var head = e.ok
+        ? ('📜 reading · ' + escC(String(e.done)) + ' of ' + escC(String(e.total)) + ' frames')
+        : '📜 reading';
+      var sub = escC(String(e.say || 'measuring'));
+      var h = '<div class="chron-eta">'
+        + '<div class="ce-top"><span class="ce-h">' + head + '</span>'
+        + '<span class="ce-t">' + (pct === null ? '—' : (pct.toFixed(0) + '%')) + '</span></div>'
+        + '<div class="ce-bar' + (pct === null ? ' ce-idle' : '') + '">'
+        + '<i style="width:' + (pct === null ? 100 : pct) + '%"></i></div>'
+        + '<div class="ce-say">' + sub + '</div>'
+        + '<div class="ce-sub">' + escC(String(st.classified || 0)) + ' frames classified · '
+        + escC(String(st.pagesRead || 0)) + ' pages read'
+        + (e.ratePerMin ? (' · ' + escC(String(e.ratePerMin)) + ' frames/min') : '')
+        + '</div></div>';
+      if (body) body.innerHTML = h;
       if (run) { run.disabled = true; run.textContent = 'sweeping…'; }
       rev.hidden = true;
       return;

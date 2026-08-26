@@ -1225,6 +1225,81 @@ def _beacon_status():
 _beacon_state_load()   # startup: carry the verdict across restarts
 
 
+# ── v2157 — WHAT EACH MACHINE HAS, FOR THE FLEET ROSTER ───────────────────────────────────────
+# Konyo: "for my cuzin and me and my wife is there a way for it to render our live chronicle feed
+# numbers .. im at 120/135 sets 278/403 uniques .. 99/99 runewords .. my cuzin is 116/135 sets ..
+# render in a tooltip cursor floating image when on the name of that PC and nickname"
+#
+# The roster already exists — /api/fleet carries machine, nickname, platform, ver, install, city
+# for every console that has beaconed. What it never carried is what that person HAS.
+#
+# ⚠ AND THE COUNTS ARE ONLY READABLE SOMETIMES. board_ownership() reaches into the board WINDOW,
+# and when he is looking at the console rail rather than the board, `window._D2R_PFX` does not
+# exist and the read comes back boardLoaded:false with counts that are NOT his ledger — measured
+# live: owned:5 while his real uniques figure is in the hundreds. Publishing that as "5 / 403"
+# would put a confidently wrong number under another person's name, which is the worst version of
+# this feature. So an unreadable board reports None, and the roster says "not reported yet".
+# [[unknown-stays-unknown]] [[stale-reading]]
+_TALLY_TOTALS = {"sets": 135, "runewords": None}   # runewords total is asked of the board
+
+
+def grail_tally():
+    """{sets:{have,total}, uniques:{have,total}, runewords:{have,total}, ok, why} — never a guess."""
+    out = {"ok": False, "why": None, "sets": None, "uniques": None, "runewords": None,
+           "at": int(time.time() * 1000)}
+    try:
+        own = board_ownership(0) or {}
+    except Exception as e:
+        out["why"] = "the board could not be read: %s" % str(e)[:70]
+        return out
+    if not own.get("ok"):
+        out["why"] = str(own.get("why") or "the board refused the read")[:120]
+        return out
+    if not own.get("boardLoaded"):
+        # THE CASE THAT MUST NOT BECOME ZEROS.
+        out["why"] = ("the board window is showing the console rail, so its ledger is not "
+                      "readable from here — these counts are UNKNOWN, not zero")
+        return out
+    c = own.get("counts") or {}
+
+    def _pair(have, total):
+        if not isinstance(have, int):
+            return None
+        return {"have": have, "total": total if isinstance(total, int) else None}
+
+    out["sets"] = _pair(c.get("setPieces"), _TALLY_TOTALS["sets"])
+    out["uniques"] = _pair(c.get("owned"), c.get("uniquesTotal") or 403)
+    out["runewords"] = _pair(c.get("runewordsMade"), c.get("runewordsTotal"))
+    out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
+    if not out["ok"]:
+        out["why"] = "the board answered but carried no counts"
+    return out
+
+
+_TALLY_CACHE = {"t": 0.0, "val": None}
+_TALLY_TTL_S = 180.0
+
+
+def _tally_cached():
+    """grail_tally(), at most every 3 minutes.
+
+    The beacon fires on a heartbeat and grail_tally() evaluates JS inside the board WINDOW — that
+    is not free, and doing it per heartbeat would make a roster feature cost him frames while he
+    plays. A three-minute figure is fine for "what does my cousin have"; it is not fine to present
+    it as live, so the payload carries `at` and the roster renders the age. [[stale-reading]]
+    """
+    now = time.time()
+    if _TALLY_CACHE["val"] is not None and (now - _TALLY_CACHE["t"]) < _TALLY_TTL_S:
+        return dict(_TALLY_CACHE["val"])
+    try:
+        v = grail_tally()
+    except Exception as e:
+        v = {"ok": False, "why": "tally failed: %s" % str(e)[:70], "at": int(now * 1000)}
+    _TALLY_CACHE["t"] = now
+    _TALLY_CACHE["val"] = v
+    return dict(v)
+
+
 def _console_beacon(event="hb"):
     """v875 (Konyo: 'a tracker so I know whose console is online — like the site visits') —
     phone the presence beacon home. Never blocks a caller; never raises into one.
@@ -1283,6 +1358,9 @@ def _console_beacon(event="hb"):
             # instead of konyo-3. The hostname still rides along as the technical fallback.
             "nickname": (st.get("identity") or {}).get("nickname") or "",
             "install": ((st.get("identity") or {}).get("id") or "")[:12],
+            # v2157 — what this machine HAS, so the fleet roster can show each person's progress
+            # on hover. Absent rather than zeroed when the board is not readable.
+            "tally": (lambda t: t if t.get("ok") else None)(_tally_cached()),
             # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
@@ -10836,7 +10914,22 @@ _PRUNE_LOCK = threading.Lock()
 # frame both when the gate calls it a panel and when the gate cannot answer. The cost of leaving
 # it off is the thing he actually feels — #136: 11 reels and 609 MB locked, ON AIR refusing below
 # the 8 GB floor, so he could not even record the next extract.
-_PRUNE_SAFE_TO_RUN = True
+# ⚠ v2161 — DISARMED AGAIN, AND v2154's CLAIM WAS WRONG. A cross-family review of v2155 broke
+# the proof: `stash_screen_open` returns None for "this is not a stash screen" AND for at least
+# two states where it COULD NOT MEASURE — and one of them is the exact frame this whole guard
+# exists to protect. `stash_chrome_canons` comes back empty when a HOVER TOOLTIP covers the tab
+# strip, the fallback finds no inventory title, and the function returns None. A tooltip covering
+# the strip is a tooltip on screen, and the tooltip is the only place an item name exists.
+#
+# So `_panel is not None` cannot mean "the gate said no". v2154 read a None that means
+# "don't know" as one that means "not a panel", and shipped a deleter on it. That is the same
+# instrument-blindness v2058 recorded, one layer up. [[feedback-suspect-the-instrument]]
+#
+# The gate DOES already count its own two blind states — `_GATE_SILENT` (crop made, zero OCR
+# lines: gameplay, or the OCR lane held by his live session) and `gate_failures()` (import/read
+# broke). A per-frame delta across those two is the honest next step and it is small. It is not
+# done here, because arming on an unproven claim is what this comment is apologising for.
+_PRUNE_SAFE_TO_RUN = False
 # ── v2058 — THE PRUNE IS OFF. IT WAS EATING THE ONLY FRAMES THAT CARRY ITEM NAMES. ───────────
 # v2037 deleted a frame when `sig_diff(kept, this) <= 0.02`, using sig_diff at its DEFAULT tol=28.
 # At that tolerance a D2R hover tooltip moves the whole-frame jpeg_sig by LITERALLY ZERO — and a
@@ -10880,9 +10973,10 @@ def _prune_note(path, why):
 
 
 _PRUNE_STATS = {"passes": 0, "framesDropped": 0, "bytesFreed": 0,
-                "lastSay": "armed (v2154) — every delete is cleared by the panel gate first; "
-                           "a frame it calls a panel, or cannot answer for, is kept",
-                "enabled": True}
+                "lastSay": "OFF (v2161) — the panel gate answers None both for 'not a stash "
+                           "screen' and for 'a tooltip covered the tab strip', and the tooltip is "
+                           "where item names live. It cannot yet prove a delete is safe.",
+                "enabled": False}
 
 
 def prune_stats():
@@ -11010,7 +11104,20 @@ def nothing_in_flight(consequence=None):
     busy = []
     try:
         if _CHRON_JOB.get("running"):
-            busy.append("a chronicle sweep is reading")
+            # v2156 — AND SAY HOW LONG. Konyo, looking at this exact banner: "when does the read
+            # finish? do we have a time estimate ... so i know." A refusal that names a condition
+            # he cannot see the end of is a refusal he can only wait out blind.
+            _e = None
+            try:
+                _e = sweep_eta()
+            except Exception:
+                _e = None
+            if _e and _e.get("ok"):
+                busy.append("a chronicle sweep is reading (%s)" % _e["say"])
+            elif _e and _e.get("say"):
+                busy.append("a chronicle sweep is reading — %s" % _e["say"])
+            else:
+                busy.append("a chronicle sweep is reading")
         if _VAULT_JOB.get("running"):
             busy.append("a vault sweep is reading")
         if (mini_state() or {}).get("running"):
@@ -11035,14 +11142,44 @@ def nothing_in_flight(consequence=None):
         # still landing. An agent that merely EXISTS, off air, writing nothing, is not filming.
         # ⚠ Conservative in the right direction: unmeasurable still refuses.
         # [[feedback-verify-not-proxy]] [[the-unjoined-end]]
-        if _agent_mode in ("live", "sim"):
+        # ── v2161 — THE SAME REVIEW FOUND BOTH ENDS OF THIS WRONG. ──────────────────────────
+        # (a) A STALE MODE DEADLOCKS IT FOREVER. `_agent_mode` is written only by start/stop, so
+        #     after a CRASH it stays "live" while `_agent_alive()` is False — and v2155's guard
+        #     would then refuse "ON AIR" on every tick for the life of the process. The relaunch
+        #     he asked for twice would never fire again, which is the very failure v2155 fixed,
+        #     re-introduced facing the other way. A mode with no process behind it is a stale
+        #     label, not a state. [[label-outlived-referent]]
+        # (b) `_reel_is_growing` RETURNS TRUE ON EXCEPTION — it never raises — so an unreadable
+        #     HIST_DIR produced the sentence "frames are still landing — a session is mid-film".
+        #     Refusing is right; SAYING THAT is a fabricated measurement, and the except-branch
+        #     below it was dead for the real function (only a mocked one reached it).
+        _mode_live = _agent_mode in ("live", "sim")
+        _alive = False
+        try:
+            _alive = bool(_agent_alive())
+        except Exception:
+            busy.append("could not tell whether the agent is alive")
+            _alive = True                      # unmeasurable is never a green light
+        if _mode_live and _alive:
             busy.append("the console is ON AIR (%s) — you are filming" % _agent_mode)
-        elif _agent_alive():
+        elif _mode_live and not _alive:
+            # the label outlived the process. Deliberately adds NOTHING to `busy`: a mode with no
+            # process behind it is not a session to protect, and treating it as one is what
+            # deadlocked the relaunch.
+            pass
+        elif _alive:
+            _grow = None
             try:
-                if _reel_is_growing(HIST_DIR):
-                    busy.append("frames are still landing — a session is mid-film")
+                _grow = _reel_is_growing(HIST_DIR)
+                if not os.path.isdir(HIST_DIR):
+                    _grow = None               # True here would be a measurement of nothing
             except Exception:
-                busy.append("could not tell whether frames are still landing")
+                _grow = None
+            if _grow is None:
+                busy.append("the footage directory could not be read, so whether frames are "
+                            "still landing is UNKNOWN")
+            elif _grow:
+                busy.append("frames are still landing — a session is mid-film")
     except Exception as e:
         # could not tell -> do not act. An unmeasurable state is never a green light.
         return False, "could not tell what is running (%s)" % str(e)[:80]
@@ -14119,6 +14256,17 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
     try:
         with _CHRON_LOCK:
             _CHRON_JOB["phase"] = "hunting"
+            # v2159 — SAY WHAT THE HUNT IS DOING. The read meter measures frames probed, and the
+            # hunt does not probe frames — it searches the film for a list of HELD NAMES, so its
+            # progress has a different denominator entirely. Measured live on his console: 4.7
+            # minutes in, phase 'hunting', classified 0, and the meter therefore said "measuring"
+            # with no end in sight. Honest, and useless.
+            #
+            # The count of names travels so the meter can say what is happening and, just as
+            # importantly, that NOTHING IS BEING PAID FOR YET — the hunt is the free pass that
+            # decides which pages are worth a read. "It is not stuck, and it is not spending"
+            # is the answer he actually wants while he waits. [[unknown-stays-unknown]]
+            _CHRON_JOB["huntNames"] = len(held_by["uniques"]) + len(held_by["sets"])
         for led in ("uniques", "sets"):
             if not held_by[led]:
                 continue
@@ -14228,6 +14376,95 @@ def _chron_result_load():
         return False
 
 
+def sweep_eta(job=None):
+    """How far through the current read, and how long is left. -> a dict that never guesses.
+
+    v2156 — Konyo: "when does the read finish? do we have a time estimate ... so i know."
+
+    THE HONEST SHAPE MATTERS MORE THAN THE NUMBER. A sweep spends a subscription read per frame
+    and can run for an hour; a meter that shows a confident 0:00 while it is still measuring is
+    worse than one that says it does not know yet. So every field can be None, and `ok` says
+    whether the ETA below it was computed or merely shaped:
+
+        ok False + why   -> not measurable yet. The surface must show the reason, not a zero.
+        ok True          -> done/total are real counts and etaMs came from an observed rate.
+
+    The rate is measured over THIS RUN only (runStartedTs, runBaseClassified), because
+    `classified` accumulates for the life of the process and the vault lane writes into the same
+    dict — the pair `reelsDone`/`reelsTotal` read 30 and 1 on his live console mid-sweep, which is
+    why they are not used here. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    """
+    j = dict(job) if isinstance(job, dict) else None
+    if j is None:
+        with _CHRON_LOCK:
+            j = dict(_CHRON_JOB)
+    out = {"ok": False, "running": bool(j.get("running")), "done": None, "total": None,
+           "pct": None, "etaMs": None, "elapsedMs": None, "ratePerMin": None,
+           "phase": j.get("phase"), "why": None, "say": None}
+    if not j.get("running"):
+        out["why"] = "no sweep is running"
+        out["say"] = "no read in flight"
+        return out
+    started = j.get("runStartedTs") or j.get("startedTs") or 0
+    try:
+        started = int(started)
+    except Exception:
+        started = 0
+    now = int(time.time() * 1000)
+    out["elapsedMs"] = max(0, now - started) if started else None
+    total = j.get("runFramesTotal")
+    base = j.get("runBaseClassified")
+    try:
+        done = int(j.get("classified") or 0) - int(base or 0)
+    except Exception:
+        done = None
+    if done is not None and done >= 0:
+        out["done"] = done
+    if isinstance(total, int) and total > 0:
+        out["total"] = total
+    if out["total"] and out["done"] is not None:
+        out["pct"] = max(0.0, min(100.0, 100.0 * out["done"] / float(out["total"])))
+    # v2159 — THE HUNT IS A DIFFERENT JOB WITH A DIFFERENT DENOMINATOR, and it must not be
+    # reported as a stalled read. It searches the film for held NAMES rather than probing frames,
+    # so `classified` never moves and a frames-based meter sits at "measuring" for its whole
+    # duration — measured on his console at 4.7 minutes in.
+    if (j.get("phase") or "") == "hunting":
+        n = j.get("huntNames")
+        out["say"] = ("hunting %d held name%s across the film — no page is being paid for yet"
+                      % (n, "" if n == 1 else "s")) if isinstance(n, int) and n > 0 else \
+                     "hunting the film for held names — no page is being paid for yet"
+        out["why"] = ("the hunt searches by NAME, not by frame, so the frame counter cannot "
+                      "measure it")
+        return out
+    if not out["total"]:
+        out["why"] = "this run did not count its frames, so there is no denominator"
+        out["say"] = "reading — size unknown"
+        return out
+    if not out["elapsedMs"] or out["elapsedMs"] < 3000:
+        out["why"] = "less than 3s of run to measure a rate from"
+        out["say"] = "reading — measuring"
+        return out
+    if not out["done"]:
+        # ⚠ NOT an ETA of zero. Nothing has been probed yet, so nothing has been measured.
+        out["why"] = "no frame has been probed yet, so there is no rate"
+        out["say"] = "reading — measuring"
+        return out
+    rate = out["done"] / (out["elapsedMs"] / 60000.0)      # frames per minute
+    out["ratePerMin"] = round(rate, 2)
+    left = max(0, out["total"] - out["done"])
+    out["etaMs"] = int((left / rate) * 60000.0) if rate > 0 else None
+    out["ok"] = out["etaMs"] is not None
+    if out["ok"]:
+        m = out["etaMs"] // 60000
+        sec = (out["etaMs"] % 60000) // 1000
+        left_s = ("%dm %02ds" % (m, sec)) if m else ("%ds" % sec)
+        out["say"] = "%d of %d frames — about %s left" % (out["done"], out["total"], left_s)
+    else:
+        out["why"] = "the observed rate was zero"
+        out["say"] = "reading — measuring"
+    return out
+
+
 def chronicle_sweep_state():
     # v1763 — a fresh process reports the LAST sweep, not "idle, nothing here". "No sweep has run"
     # and "the process that ran it has restarted" are different facts and only one of them is true.
@@ -14251,6 +14488,13 @@ def chronicle_sweep_state():
         # cannot tell from a fresh one.
         st["resultTs"] = _CHRON_JOB.get("resultTs") or _CHRON_JOB.get("restoredFrom")
         st["resultFromDisk"] = bool(_CHRON_JOB.get("restoredFrom"))
+        # v2156 — the ETA rides on the state the console already polls, so no new route and no
+        # second source of truth about one number. [[copy-drift]]
+        try:
+            st["eta"] = sweep_eta(st)
+        except Exception as _e:
+            st["eta"] = {"ok": False, "why": "the estimate could not be computed: %s"
+                                             % str(_e)[:70], "say": "reading"}
         st["autoreadReads"] = int(_CHRON_AUTOREAD.get("reads") or 0)
         st["autoreadTries"] = dict(_CHRON_AUTOREAD.get("tries") or {})
     except Exception:
@@ -14647,9 +14891,36 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             _g5 = None
         hist = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
         reels = _cr.reel_dirs(hist)[:limit] if limit else _cr.reel_dirs(hist)
+        # ── v2156 — HOW LONG IS LEFT. Konyo: "when does the read finish? do we have a time
+        # estimate ... so i know." He was looking at a banner that said a sweep was reading and
+        # gave him no way to tell whether that meant seconds or an hour.
+        #
+        # ⚠ THE COUNTERS ALREADY THERE COULD NOT ANSWER IT. `reelsDone` is ACCUMULATED by _tick
+        # across the whole process lifetime (and the vault lane writes it too), while `reelsTotal`
+        # is assigned per run. Live, mid-sweep, they read `reelsDone: 30, reelsTotal: 1` — done
+        # thirty times the total. A progress bar off that pair shows 3000%. Two different
+        # quantities wearing a matched pair of names. [[label-outlived-referent]]
+        #
+        # So this records a per-run BASELINE and a per-run DENOMINATOR that are the same quantity:
+        # frames probed, out of frames this run will look at. A directory listing, no reads.
+        _frames_total = 0
+        try:
+            for _d in reels:
+                try:
+                    _frames_total += sum(1 for _n in os.listdir(_d)
+                                         if _n.startswith("f_") and _n.endswith(".jpg"))
+                except Exception:
+                    pass
+        except Exception:
+            _frames_total = 0
         with _CHRON_LOCK:
             _CHRON_JOB["reelsTotal"] = len(reels)
             _CHRON_JOB["phase"] = "reading"
+            _CHRON_JOB["runStartedTs"] = int(time.time() * 1000)
+            _CHRON_JOB["runBaseClassified"] = int(_CHRON_JOB.get("classified") or 0)
+            # 0 would read as "this run looks at no frames", which is a claim. None is "not counted".
+            _CHRON_JOB["runFramesTotal"] = _frames_total or None
+            _CHRON_JOB["runReels"] = [os.path.basename(str(_d)) for _d in reels]
 
         def _tick(**kw):
             with _CHRON_LOCK:
@@ -15418,7 +15689,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2155",
+        "ver": "v2161",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -18316,8 +18587,12 @@ class Handler(BaseHTTPRequestHandler):
                 # one-click way to do the exact thing the other path refuses. Same question, same
                 # answer, whoever is asking. [[copy-drift]]
                 try:
-                    if _agent_alive():
-                        _busy.append("the agent is alive — you are filming")
+                    # v2155 — the route asked whether a PROCESS existed too. Same correction
+                    # as nothing_in_flight: what must not be interrupted is a session MID-FILM.
+                    if _agent_mode in ("live", "sim"):
+                        _busy.append("the console is ON AIR (%s) — you are filming" % _agent_mode)
+                    elif _agent_alive() and _reel_is_growing(HIST_DIR):
+                        _busy.append("frames are still landing — a session is mid-film")
                 except Exception:
                     _busy.append("could not tell whether the agent is alive")
                 if _busy:

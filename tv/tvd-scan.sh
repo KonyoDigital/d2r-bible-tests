@@ -8,7 +8,11 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 touch "$HERE/.tvd_supervisor_pause"          # tell the supervisor to stand down
-pkill -f "control_app.py --no-open" 2>/dev/null   # free :17772 (headless only)
+# v2160 — free :17772 by asking the PORT who holds it, never by name pattern. `pkill -f` matches
+# any command line containing the string, which is how a name-volley takes down a shell, an editor
+# or his live console. Kill the listener, or kill nothing.
+_h="$(lsof -nP -iTCP:17772 -sTCP:LISTEN -t 2>/dev/null | head -1)"
+[ -n "$_h" ] && { kill "$_h" 2>/dev/null; sleep 1; kill -0 "$_h" 2>/dev/null && kill -9 "$_h" 2>/dev/null; }
 # also free a stuck primary if nothing is answering (best-effort, never kill user tools)
 sleep 1
 
