@@ -354,10 +354,35 @@ class TestLaw19ForPythonToo(unittest.TestCase):
             "Listed so the next reader sees it rather than rediscovering it.",
     }
 
+    # ⚠ v2210 — control_app.py JOINED THE WATCH, and it went red on its first run for exactly the
+    # reason it exists: `auto_relaunch_set` had been sitting there since v2153 with ZERO production
+    # callers. He could not turn auto-relaunch off from the console at all — the only way was an env
+    # var, in a process launchd starts. Built on both ends, never joined, and every lamp green.
+    #
+    # Measured before adding it, so the blast radius was known rather than hoped for: 69 public
+    # top-level defs in control_app.py, exactly ONE orphan. Cost 7.12s per pass; _orphans() is
+    # memoized on the class because both test methods call it, against a 120s budget in run_gates.
+    #
+    # ⚠ KNOWN BLIND SPOT, named here rather than left to be rediscovered: _orphans() greps RAW TEXT,
+    # so a mention inside a COMMENT counts as a caller. With comments and docstrings stripped,
+    # control_app.py yields a second orphan — `gate_failures`, whose only non-def occurrences are
+    # prose (a `#` comment and a docstring) and whose real callers live in test_control.py, which
+    # does not count by design. TestTheSymbolDetectorCanFail in this same file already pins that
+    # class for the JS side. Do not "fix" it by widening the grep without proving the new reach.
+    # [[feedback-comments-vs-code]] [[source-reading-guard]]
     WATCH = ("vault_corpus.py", "vault_retro.py", "lane_lock.py", "reel_retention.py",
-             "stash_eye.py", "counter_ledger.py")
+             "stash_eye.py", "counter_ledger.py", "control_app.py")
+
+    _ORPHAN_CACHE = None
 
     def _orphans(self):
+        if TestLaw19ForPythonToo._ORPHAN_CACHE is not None:
+            return TestLaw19ForPythonToo._ORPHAN_CACHE
+        found = self._orphans_uncached()
+        TestLaw19ForPythonToo._ORPHAN_CACHE = found
+        return found
+
+    def _orphans_uncached(self):
         import ast
         here = os.path.dirname(os.path.abspath(__file__))
         prod = [f for f in os.listdir(here)

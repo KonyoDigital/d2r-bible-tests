@@ -11765,6 +11765,39 @@ def auto_relaunch_set(on):
         return False
 
 
+def _auto_relaunch_state():
+    """The four facts behind "will this console restart itself", kept APART. -> dict
+
+    Modelled on `_shadow_state()`, and for the same reason: a single boolean would collapse three
+    different worlds into one lamp, and he would have no way to tell "I turned it off" from "an env
+    var in the launcher is overruling my switch" from "nobody has ever chosen".
+
+      saved      True | False | None   the persisted choice. ⚠ None REACHES THE WIRE AS JSON null,
+                                       because "never chosen" is not "off". [[unknown-stays-unknown]]
+      env        True | False | None   TV_AUTO_RELAUNCH, read through _env_tristate so that
+                                       true/yes/on are honoured and "" stays UNSET.
+      effective  True | False          what actually happens.
+      why        a sentence naming WHICH of the three decided, plus the variable's name so the UI
+                 quotes it instead of hardcoding a string that can go stale.
+
+    ⚠ `effective` IS THE SAME EXPRESSION AS drift_may_relaunch's, not a re-derivation. Two copies of
+    a precedence rule is how v2178 shipped half a fix, and a status panel that disagrees with the
+    behaviour it reports is worse than no panel. [[copy-drift]]
+    """
+    env = _env_tristate("TV_AUTO_RELAUNCH")
+    saved = auto_relaunch_setting()
+    effective = env if env is not None else (True if saved is None else saved)
+    if env is not None:
+        why = ("TV_AUTO_RELAUNCH is set in this console's environment and overrules the switch — "
+               "auto-relaunch is %s" % ("ON" if env else "OFF"))
+    elif saved is None:
+        why = "never chosen — the default since v2153 is ON"
+    else:
+        why = ("you switched it %s" % ("on" if saved else "off"))
+    return {"saved": saved, "env": env, "effective": bool(effective), "why": why,
+            "envName": "TV_AUTO_RELAUNCH"}
+
+
 def sweep_past_its_ceiling(job=None, say=True):
     """Has the running sweep outlived the protection it is owed? -> (past, elapsed_ms|None)
 
@@ -17428,7 +17461,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2209",
+        "ver": "v2210",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -19533,6 +19566,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._json(200, {"ok": False, "msg": "update check failed: %s" % e})
             return
+        if path == "/api/auto_relaunch":
+            # ⚠ DELIBERATELY NOT BESIDE GET /api/shadow. That one lives INSIDE the block marked
+            # "GROK EYES (G5) — REMOVABLE (delete this stanza)", so a future removal of G5 would
+            # silently take auto-relaunch control with it.
+            self._json(200, _auto_relaunch_state())
+            return
         if path == "/api/doctor":
             # v801 (Grok R7) — Windows self-diagnosis: fast, read-only, never spawns the CLI.
             self._json(200, doctor_payload())
@@ -20466,6 +20505,25 @@ class Handler(BaseHTTPRequestHandler):
                 threading.Thread(target=_exec_soon, daemon=True).start()
             except Exception as _e:
                 self._json(200, {"ok": False, "why": "relaunch refused: %s" % str(_e)[:200]})
+            return
+        if path == "/api/auto_relaunch":
+            # v2210 — THE OTHER END OF A SWITCH THAT HAD NO HANDLE. `auto_relaunch_set` has existed
+            # since v2153 with ZERO callers outside its own tests: the console could decide to
+            # restart itself and he had no way to tell it not to, short of exporting an env var into
+            # a process launchd starts. Built on both ends, never joined. [[the-unjoined-end]]
+            #
+            # ⚠ NOT bool(want). `bool("false")` is True and `bool(0)` is False, and this is the one
+            # route in this file whose wrong answer restarts his console mid-recording. A value that
+            # is not literally true or false is REFUSED, not guessed at.
+            want = body.get("on")
+            if want is not True and want is not False:
+                self._json(200, {"ok": False,
+                                 "why": "say {\"on\": true} or {\"on\": false} — got %r, and a "
+                                        "value I have to guess at is not a value I will act on"
+                                        % (want,)})
+                return
+            ok = auto_relaunch_set(want)
+            self._json(200, dict(_auto_relaunch_state(), ok=bool(ok), changed=bool(ok)))
             return
         if path == "/api/restart":
             if _stop_inflight:

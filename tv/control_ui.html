@@ -4666,10 +4666,25 @@
     background: var(--text-muted, #b5a48a); box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
   .shadow-adv-sw[aria-pressed="true"] .shadow-adv-dot { background: #8fe6a0; box-shadow: 0 0 8px rgba(143,230,160,.7); }
   .shadow-adv-ic { flex: none; font-size: var(--fs-lg); line-height: 1; opacity: .9; }
+  .shadow-adv-sw { align-items: flex-start; }   /* the label wraps now, so top-align the dot+icon */
   .shadow-adv-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .shadow-adv-t b { font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-tight); }
+  /* ⚠ v2210 — THESE SENTENCES WERE BEING CUT IN HALF, AT EVERY WIDTH, ON ALL THREE SWITCHES.
+     Measured through CDP on a live console: `white-space:nowrap` over a `<small>` that carries a
+     whole explanatory sentence gives scrollWidth 295-419px inside a clientWidth of 158-271px.
+     At 1120 — the width control_app.py opens his window at — the shadow switch showed 177px of a
+     295px sentence, so "ON · waiting for a reel — it…" was the entire message he could read. The
+     ellipsis made it look deliberate rather than broken, which is why it survived.
+
+     This is not decoration: the sentence is the ONLY place the panel distinguishes "you switched it
+     off" from "an env var is overruling you" from "the console did not answer". A control whose
+     four states are told apart by text that is 60% cut has one state as far as he is concerned.
+
+     Let it WRAP. The drawer is a vertical rail with room to grow, and a two-line switch is a
+     smaller cost than an unreadable one. Found while adding a THIRD switch to this component —
+     in-territory, broken, and the fix was known. [[visual-regression-detector]] */
   .shadow-adv-t small { font-size: var(--fs-2xs); color: var(--text-muted, #b5a48a);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
   .adv-sec-h-rest { margin-top: 14px; color: var(--text-muted, #b5a48a);
     border-bottom-color: var(--edge, rgba(255,255,255,.14)); }
   .g5-eyes-card { margin-top: 8px; padding: 8px 9px; border: 1px solid rgba(185,162,224,.28);
@@ -5898,7 +5913,7 @@
              `open` is the hardcoded default he asked for. The toggle is also PERSISTED, so if he
              ever does close it deliberately that survives too — a default may fill an unanswered
              question, never overrule an answered one. [[unknown-stays-unknown]] -->
-        <details class="sig-adv" id="sig-adv" open ontoggle="try { localStorage.setItem('d2r_advOpen', this.open ? '1' : '0'); } catch(e) {} if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._shadowAdvRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
+        <details class="sig-adv" id="sig-adv" open ontoggle="try { localStorage.setItem('d2r_advOpen', this.open ? '1' : '0'); } catch(e) {} if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._shadowAdvRefresh(); } catch(e) {} try { window._autoRelaunchRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
           <summary>⚙ ADVANCED</summary>
           <!-- v2076 — THE CONTROL THAT DECIDES WHETHER THE THIRD EYE RUNS WAS 20th OF 25.
                Konyo, twice: "when i click ADVANCED settings to toggle grok eyes ... i dont see it at
@@ -5976,6 +5991,27 @@
                     title="hover an item while a reel rolls — the reader fires on the tooltip text">
               <span class="shadow-adv-dot"></span><span class="shadow-adv-ic">🔎</span>
               <span class="shadow-adv-t"><b>Tooltip pass</b><small id="sadv-tip-say">checking…</small></span>
+            </button>
+          </div>
+          <!-- v2210 — ⟲ THE SWITCH THAT HAD NO HANDLE. `auto_relaunch_set` shipped in v2153 and
+               sat until now with ZERO production callers: the console could decide to restart
+               itself onto a new build, and the only way to tell it not to was exporting
+               TV_AUTO_RELAUNCH into a process launchd starts. He asked for auto-relaunch and got
+               it; he never got the way back. [[the-unjoined-end]]
+
+               IT LIVES HERE, ABOVE ⚙ RARE PATHS, ON PURPOSE. That strip is eight one-shot ACTIONS;
+               this is a POLICY WITH PERSISTENT STATE, which is the switch idiom above. And it sits
+               directly over ⟲ relaunch, which does the same thing by hand.
+
+               FOUR STATES, NONE COLLAPSED — the same discipline as the two switches above: an env
+               override DISABLES the switch and says which variable is winning, "never chosen" is
+               not "off", and a route that does not answer reads UNKNOWN rather than OFF. -->
+          <div class="adv-sec-h adv-sec-h-rest">⟲ WHEN THE CONSOLE RESTARTS ITSELF</div>
+          <div class="shadow-adv" id="auto-relaunch-adv">
+            <button type="button" class="shadow-adv-sw" id="sadv-auto" aria-pressed="false"
+                    title="when a newer build is on disk, should this console restart itself onto it — or only say so and wait for you?">
+              <span class="shadow-adv-dot"></span><span class="shadow-adv-ic">⟲</span>
+              <span class="shadow-adv-t"><b>Auto-relaunch</b><small id="sadv-auto-say">checking…</small></span>
             </button>
           </div>
           <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
@@ -12213,6 +12249,66 @@
         .catch(function () { if (say) say.textContent = 'UNKNOWN — the console did not answer'; });
     });
   });
+
+  /* v2210 — THE AUTO-RELAUNCH SWITCH. Four states kept apart, because collapsing them is how a
+     status lamp starts lying: an env var overruling the switch is not the same as the switch being
+     off, "never chosen" is not "off", and "the console did not answer" is not "off" either.
+     [[unknown-stays-unknown]] The payload names its own variable (`envName`) so this file does not
+     hardcode a string that can go stale. */
+  function _autoRelaunchPaint(j, err) {
+    var btn = document.getElementById('sadv-auto');
+    var say = document.getElementById('sadv-auto-say');
+    if (!btn || !say) return;
+    if (err || !j) {
+      /* An unreachable route means I COULD NOT ASK. Painting that as OFF would tell him the
+         console will sit still when it may be about to restart itself. */
+      btn.setAttribute('aria-pressed', 'false');
+      btn.disabled = true;
+      say.textContent = 'UNKNOWN — the console did not answer';
+      return;
+    }
+    var envName = j.envName || 'TV_AUTO_RELAUNCH';
+    btn.setAttribute('aria-pressed', j.effective ? 'true' : 'false');
+    if (j.env !== null && j.env !== undefined) {
+      /* the switch is REAL but powerless right now — say which variable is winning, and disable it
+         rather than letting a click look like it did something */
+      btn.disabled = true;
+      say.textContent = envName + ' is set in this console\'s environment — it overrules the '
+        + 'switch, which is ' + (j.effective ? 'ON' : 'OFF') + ' right now';
+      return;
+    }
+    btn.disabled = false;
+    if (j.saved === null || j.saved === undefined) {
+      say.textContent = 'never chosen — the default is ON, so a new build on disk restarts this window';
+    } else if (j.saved === false) {
+      say.textContent = 'you switched it off — new builds are announced, never applied';
+    } else {
+      say.textContent = 'ON — a new build on disk restarts this window';
+    }
+  }
+
+  window._autoRelaunchRefresh = function () {
+    return fetch(API + '/api/auto_relaunch')
+      .then(function (r) { return r.json(); })
+      .then(function (j) { _autoRelaunchPaint(j, null); return j; })
+      .catch(function (e) { _autoRelaunchPaint(null, e); return null; });
+  };
+
+  (function () {
+    var el = document.getElementById('sadv-auto');
+    if (!el) return;
+    el.addEventListener('click', function () {
+      if (el.disabled) return;
+      var want = el.getAttribute('aria-pressed') !== 'true';
+      var say = document.getElementById('sadv-auto-say');
+      if (say) say.textContent = want ? 'switching on…' : 'switching off…';
+      fetch(API + '/api/auto_relaunch', { method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ on: want }) })
+        .then(function () { return window._autoRelaunchRefresh(); })
+        .catch(function () { if (say) say.textContent = 'UNKNOWN — the console did not answer'; });
+    });
+  })();
 
   /* v2190 — restore his choice on load. Absent means never chosen, and the default is OPEN. */
   try {

@@ -2191,5 +2191,96 @@ class TestV1936ACalibrationTableCannotOutliveItsConstant(unittest.TestCase):
                       "the older table upstream is the only story a reader finds")
 
 
+class TestV2210AMachineWithoutGrokStillReadsAndRegisters(unittest.TestCase):
+    """Konyo, mid-arc: "dont forget my cuzin doesnt have grok eyes.. it needs to read and register
+    by default on CLAUDE".
+
+    HE IS POINTING AT A SCAR THIS PROJECT HAS ALREADY PAID FOR TWICE. The third eye was hardwired to
+    Grok, ON by default, and therefore PERMANENTLY EMPTY on every machine but his — every lamp
+    green. And G5 sat `mode=primary` on this console for weeks with `calls: 0`, because a lane that
+    never ATTEMPTS never records a failure.
+
+    So this class asks the question from the COUSIN'S side, in three parts, and each one is a
+    different way the same wrong answer could arrive:
+
+      1. does a read still happen?           (two_lane_read with no Grok lane)
+      2. is the absent lane STATED?          ("grok didn't run" must never read as "grok agreed")
+      3. can a name still GROUND?            (the tier floors must be reachable on Claude alone)
+
+    Part 3 is the one nothing else guards, and it is the one that could break silently: raise
+    CONFLUENCE_FLOOR above what Claude-only evidence can reach, and his cousin's vault quietly stops
+    registering while his own keeps working. Nobody would see it here.
+    """
+
+    def _claude(self, found):
+        def _lane(path, kind):
+            return {"ledger": "uniques", "found": list(found), "notFound": [], "kind": kind}
+        return _lane
+
+    def test_the_read_happens_with_no_grok_lane_at_all(self):
+        out = cr.two_lane_read("p.png", "uniques", self._claude(["Shako", "Occulus"]), None)
+        self.assertEqual(sorted(out.get("found") or []), ["Occulus", "Shako"],
+                         "a machine with no Grok read NOTHING — Claude is the primary lane and "
+                         "must not depend on a second eye existing")
+        self.assertEqual(out.get("lanesRan"), ["claude"])
+
+    def test_an_absent_second_eye_is_STATED_never_implied(self):
+        out = cr.two_lane_read("p.png", "uniques", self._claude(["Shako"]), None)
+        self.assertEqual(out.get("laneNote"), "grok-silent",
+                         "the payload does not say the second eye was absent. 'grok did not run' "
+                         "and 'grok agreed' are different facts, and only one of them means the "
+                         "name has a second witness")
+        self.assertNotIn("cross-lane", (out.get("lanes") or {}).get("Shako") or [],
+                         "a missing lane was credited as agreement — the exact shape of the "
+                         "empty-seat scar")
+        # and a lane that RAISES must not be mistaken for one that disagreed
+        def _boom(path, kind):
+            raise RuntimeError("grok CLI not on PATH")
+        out = cr.two_lane_read("p.png", "uniques", self._claude(["Shako"]), _boom)
+        self.assertEqual(out.get("lanesRan"), ["claude"])
+        self.assertEqual(out.get("laneNote"), "grok-silent")
+
+    def test_claude_only_evidence_can_still_reach_every_floor(self):
+        """⚠ THE ONE THAT COULD BREAK SILENTLY. `cross-lane` needs two DIFFERENT model families and
+        is therefore unreachable on a machine with one. If a floor is ever set above what the
+        remaining tiers can reach, his cousin's vault stops grounding anything and his own keeps
+        working — and the difference is invisible from here.
+
+        Measured today: three cross-reel sightings score 1.65 against a 1.00 floor, and the game's
+        own printed date scores 1.00 on its own. Cross-lane is a BONUS. This test is what keeps it
+        one.
+        """
+        reachable_without_grok = [t for t in cr.WITNESS_TIER if t != "cross-lane"]
+        self.assertIn("printed", reachable_without_grok)
+
+        # the strongest thing a one-lane machine can present: three reels, and the game's own date
+        best_one_lane = cr.confluence(["cross-reel", "cross-reel-3+", "printed"])
+        self.assertGreaterEqual(
+            best_one_lane, cr.CONFLUENCE_FLOOR,
+            "a machine with only Claude can reach at most %.2f confluence and the floor is %.2f — "
+            "his cousin's vault would refuse every item while his own registers normally, and "
+            "nothing on this machine would show it" % (best_one_lane, cr.CONFLUENCE_FLOOR))
+
+        # and REPETITION ALONE, with no printed date, must still be enough — most items never carry
+        # an in-game date at all
+        repetition_only = cr.confluence(["cross-reel", "cross-reel-3+"])
+        self.assertGreaterEqual(
+            repetition_only, cr.CONFLUENCE_FLOOR,
+            "three separate sessions seeing the same item score %.2f against a %.2f floor, so on a "
+            "one-lane machine only items carrying an in-game Chronicle date could ever ground. "
+            "Most items do not carry one." % (repetition_only, cr.CONFLUENCE_FLOOR))
+
+    def test_cross_lane_is_worth_less_than_the_evidence_a_lone_machine_can_gather(self):
+        """A second eye must be a BONUS, not the top of the scale, or the machine that has one is
+        playing a different game from the machine that does not."""
+        self.assertLess(cr.WITNESS_TIER["cross-lane"], cr.WITNESS_TIER["printed"],
+                        "cross-lane outranks the GAME'S OWN printed date. A second model agreeing "
+                        "is weaker evidence than the game saying so, always")
+        self.assertLess(cr.WITNESS_TIER["cross-lane"], cr.WITNESS_TIER["cross-reel-3+"],
+                        "cross-lane outranks three independent sessions. It must not, or the "
+                        "machine with Grok grounds on less evidence than the machine without")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

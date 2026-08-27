@@ -50,8 +50,11 @@ export TV_FILM="${TV_FILM:-1}"
 #     the board comes back WITHOUT private_mode=False — v2043 exactly — and auto-relaunch would then
 #     repeat that every _DRIFT_EVERY_S (300s) instead of once.
 #
-# Announcing-only is the honest resting state until the guard detects a new claimed world AND
-# drift_may_relaunch consults it. Set TV_AUTO_RELAUNCH=1 by hand to override.
+# Announcing-only WAS the resting state, and this sentence outlived it — v2153 armed auto-relaunch
+# ON BY DEFAULT, and the line 17 rows below already says so. Kept, corrected rather than deleted,
+# because the reasoning above it is still the reason the guard is careful:
+#   auto-relaunch is ON unless something turns it off. TV_AUTO_RELAUNCH=0 turns it off;
+#   TV_AUTO_RELAUNCH=1 is only needed to force it back on OVER a saved OFF.
 # v2153 — ARMED. Konyo, twice: "it can definitely relaunch to other new builds", and then
 # "its still not auto relaunching for the newer updates. we said it should relaunch by itself
 # based on updates we do. automatically."

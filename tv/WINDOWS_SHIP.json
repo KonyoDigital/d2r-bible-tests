@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2209",
+  "ver": "v2210",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2209: a persisted prior no longer double-counts as a second witness",
+  "note": "v2210: auto-relaunch is his to turn off from the console, and the switch labels stopped being cut in half",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

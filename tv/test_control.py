@@ -7989,6 +7989,96 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
                          "a real set piece was retired as debris by its own ledger's fold")
 
 
+class TestV2210TheAutoRelaunchSwitchIsReachableAndReadable(unittest.TestCase):
+    """v2210 — HE COULD NOT TURN AUTO-RELAUNCH OFF, and the reason was that nothing joined the two
+    ends. `auto_relaunch_set` shipped in v2153; until now it had ZERO production callers, so the
+    only way to stop the console restarting itself onto a new build was exporting TV_AUTO_RELAUNCH
+    into a process launchd starts. Both halves existed. Neither was connected.
+    [[the-unjoined-end]]
+
+    The route half is guarded in TestV2180... and by test_reachability's LAW19 sweep, which now
+    watches control_app.py and goes red the moment the route is removed. THIS class guards the half
+    a Python test cannot see: that the switch is in the markup, that the painter keeps its four
+    states apart, and that the sentence telling them apart is actually READABLE.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            cls.ui = fh.read()
+
+    def test_the_switch_exists_and_is_wired_to_the_route(self):
+        self.assertIn('id="sadv-auto"', self.ui, "the auto-relaunch switch is gone from the markup")
+        self.assertIn("'/api/auto_relaunch'", self.ui.replace('"', "'"),
+                      "the switch no longer calls the route — it would render and do nothing, "
+                      "which is the defect it was built to fix")
+        self.assertIn("window._autoRelaunchRefresh", self.ui,
+                      "the refresher is gone, so the switch can never repaint after a click")
+
+    def test_opening_the_drawer_refreshes_this_switch_too(self):
+        """THE SIBLING JOINT. The drawer's ontoggle refreshes the shadow switches; a new switch that
+        is not in that list paints 'checking…' forever and never reaches a real state.
+
+        ⚠ ANCHORED, NOT BYTE-COUNTED. A `[i:i+900]` window is the defect this repo's own
+        TestTheSourceGuardsDoNotGetMoreDangerous exists to stop — it caught my first cut of this
+        very test. A slice that silently truncates makes `assertIn` fail for the wrong reason and
+        `assertNotIn` PASS for no reason. [[source-reading-guard]]
+        """
+        stanza = _between(self, self.ui, 'id="sig-adv"', "</details>",
+                          what="the ADVANCED drawer's open handler")
+        self.assertIn("_autoRelaunchRefresh", stanza,
+                      "opening ADVANCED refreshes the shadow switches and NOT this one, so it "
+                      "would sit on 'checking…' until something else happened to repaint it")
+
+    def test_the_painter_keeps_all_four_states_apart(self):
+        """saved / env / effective / unreachable are four different worlds and collapsing any two
+        of them is how a status lamp starts lying. Asserted on the SHIPPED painter text, because
+        each branch is a distinct sentence he reads."""
+        # anchored at both ends — see the note in the sibling test above
+        fn = _between(self, self.ui, "function _autoRelaunchPaint(",
+                      "window._autoRelaunchRefresh", what="the auto-relaunch painter")
+        self.assertIn("UNKNOWN", fn,
+                      "an unreachable route no longer reads UNKNOWN. 'I could not ask' and 'he "
+                      "turned it off' are opposite facts and only one means the console will sit "
+                      "still")
+        self.assertIn("overrules", fn,
+                      "an env override no longer says which variable is winning, so the switch "
+                      "would look simply broken")
+        self.assertIn("never chosen", fn,
+                      "'never chosen' collapsed into on or off — the default can never be "
+                      "explained")
+        self.assertIn("j.envName", fn,
+                      "the painter hardcodes the variable name instead of quoting the payload's "
+                      "envName, so a rename here goes stale silently")
+        # and the disabled state must come from the ENV branch, not from the saved-off branch
+        env_branch = _between(self, fn, "j.env !== null", "btn.disabled = false",
+                              what="the env-override branch")
+        self.assertIn("btn.disabled = true", env_branch,
+                      "an env override no longer DISABLES the switch, so clicking it would write a "
+                      "setting that changes nothing and say it worked")
+
+    def test_the_switch_labels_are_not_cut_in_half(self):
+        """⚠ MEASURED THROUGH CDP ON A LIVE CONSOLE, and it was true of all THREE switches:
+        `white-space:nowrap` over a <small> carrying a whole sentence gave scrollWidth 295-419px
+        inside clientWidth 158-271px. At 1120 — the width control_app.py opens his window at — the
+        shadow switch showed 177px of a 295px sentence.
+
+        That sentence is the ONLY thing distinguishing 'you switched it off' from 'an env var is
+        overruling you' from 'the console did not answer'. Cut 60% off it and a four-state control
+        has one state as far as he is concerned. The ellipsis made it look deliberate, which is why
+        it survived from v2000 to here. [[visual-regression-detector]]
+        """
+        rule = _between(self, self.ui, ".shadow-adv-t small {", "}", min_len=20,
+                        what="the switch label CSS rule")
+        self.assertNotIn("nowrap", rule,
+                         "the switch labels are back to white-space:nowrap, so every state "
+                         "sentence is cut off again at his own window width. They must WRAP — the "
+                         "drawer is a vertical rail with room to grow. Rule: %r" % (rule,))
+        self.assertIn("white-space: normal", rule,
+                      "the wrap was removed rather than replaced; a rule that says nothing here "
+                      "inherits nowrap from nowhere and the next author will re-add it")
+
+
 class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
     """Two defects Konyo found by hovering and by looking, both of the same family: a surface that
     contradicts itself, where every individual value is correct."""
@@ -10394,24 +10484,74 @@ class TestTheSourceGuardsDoNotGetMoreDangerous(unittest.TestCase):
     # v2029 — 24 -> 23. Converting the v2028 gate-body read to an anchored slice removed one,
     # so the ratchet moves down as its own docstring instructs: "Lower the number as sites
     # are converted; never raise it." A debt ceiling that only ever holds is not a ratchet.
-    LIMIT = 22
+    #
+    # v2210 — 22 -> 21, and the drop is a CORRECTION rather than a conversion. The v2163 fix
+    # stripped `#` comments and stopped there, so the guard still counted its own DOCSTRING — the
+    # paragraph above quoting `[i:i + 900]` as the thing not to do. 22 was 21 real sites plus one
+    # phantom, and the moment a second docstring quoted the pattern (mine, in the v2210 switch
+    # tests) it went red at 23 while the real count had not moved at all. Same defect as v2163, one
+    # kind of string later. [[feedback-comments-vs-code]] [[source-reading-guard]]
+    LIMIT = 21
+
+    @staticmethod
+    def _code_only(src):
+        """`src` with every COMMENT and STRING token blanked IN PLACE, positions preserved.
+
+        ⚠ ASK THE TOKENIZER, NOT A REGEX. My first attempt stripped triple-quoted blocks with a
+        non-greedy regex and reported THREE sites instead of twenty-one — a triple quote opening in
+        one place pairs with one hundreds of lines away and the strip swallows everything between.
+        It looked like wonderful news. That is the unbounded-strip scar, and the only reason it did
+        not ship is the calibration below. [[source-reading-guard]]
+        """
+        import io as _io
+        import tokenize as _tok
+        grid = [list(l) for l in src.splitlines(True)]
+        for t in _tok.generate_tokens(_io.StringIO(src).readline):
+            if t.type not in (_tok.COMMENT, _tok.STRING):
+                continue
+            (r1, c1), (r2, c2) = t.start, t.end
+            for r in range(r1, r2 + 1):
+                row = grid[r - 1]
+                a = c1 if r == r1 else 0
+                b = c2 if r == r2 else len(row)
+                for c in range(a, min(b, len(row))):
+                    if row[c] != "\n":
+                        row[c] = " "
+        return "".join("".join(r) for r in grid)
+
+    _PAT = r"\[i:i \+ \d+\]|\[i:i\+\d+\]"
 
     def test_no_new_byte_counted_slices(self):
         import re as _re
         here = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(here, "test_control.py"), encoding="utf-8") as _fh:
             src = _fh.read()
-        # ⚠ v2163 — CODE ONLY. This counted matches in the WHOLE FILE, so the moment a comment
-        # explaining the ban quoted the pattern it was counting its own documentation and went
-        # red pointing at itself. It caught a real new slice of mine and then stayed red on the
-        # sentence describing the fix. A scanner that reads prose is measuring the wrong thing.
-        # [[feedback-comments-vs-code]] [[source-reading-guard]]
-        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
-        found = _re.findall(r"\[i:i \+ \d+\]|\[i:i\+\d+\]", code)
+        found = _re.findall(self._PAT, self._code_only(src))
         self.assertLessEqual(len(found), self.LIMIT,
                              "%d byte-counted source slices, up from %d. Use _between(self, src, "
                              "start, end) instead — it refuses an empty or truncated slice rather "
                              "than measuring nothing." % (len(found), self.LIMIT))
+
+    def test_the_counter_can_still_SEE_a_byte_counted_slice(self):
+        """⚠ THE HALF THAT MAKES THE NUMBER MEAN ANYTHING. A stripper that eats too much reports a
+        beautifully low count and reads as debt repaid. Plant one and require the number to move —
+        this is the check that caught the 3-instead-of-21 strip before it became the guard.
+        [[feedback-blind-fixture-green-gate]] [[feedback-suspect-the-instrument]]"""
+        import re as _re
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "test_control.py"), encoding="utf-8") as _fh:
+            src = _fh.read()
+        base = len(_re.findall(self._PAT, self._code_only(src)))
+        planted = src.replace("    LIMIT = 21", "    LIMIT = 21\n    _PLANT = 'x'[i:i + 7]", 1)
+        self.assertNotEqual(planted, src, "the plant anchor moved — this test is measuring nothing")
+        after = len(_re.findall(self._PAT, self._code_only(planted)))
+        self.assertEqual(after, base + 1,
+                         "planting one byte-counted slice moved the count %d -> %d. The stripper "
+                         "is eating real code, so a low number would read as debt repaid when it "
+                         "is only debt hidden." % (base, after))
+        self.assertGreaterEqual(base, 1,
+                                "the counter now finds ZERO sites in a file that has them. That is "
+                                "not a clean file, it is a blind instrument.")
 
     def test_the_safe_helper_refuses_an_empty_slice(self):
         """Seen RED for its own reason, in all three directions it can fail."""
@@ -20508,8 +20648,16 @@ class TestV2107ItFetchesItselfButAsksBeforeRestarting(unittest.TestCase):
         # and the safety that makes this defensible must still exist server-side
         self.assertIn("def drift_may_relaunch", self.app,
                       "the gate that refuses to restart while he is filming is gone")
+        # ⚠ v2210 — THE FIFTH SITE STILL SAYING "OPT-IN". v2153 armed auto-relaunch ON BY DEFAULT
+        # at his own repeated request; the other four were two launcher comments and two of my own.
+        # A label that outlived its referent reads as a rule and is a fossil. [[label-outlived-referent]]
         self.assertIn("TV_AUTO_RELAUNCH", self.app,
-                      "auto-relaunch stopped being opt-in — restarting him unasked is not an update")
+                      "the env override is gone — he would have no way to force auto-relaunch on "
+                      "or off from outside the console")
+        # and the switch he can actually reach, which is the half that did not exist until v2210
+        self.assertIn('if path == "/api/auto_relaunch":', self.app,
+                      "the auto-relaunch route is gone — auto_relaunch_set goes back to having no "
+                      "caller and he goes back to having no way to turn it off")
 
     def test_a_torn_connection_reads_as_success_not_failure(self):
         # execv kills the socket mid-reply; treating that as an error would tell him the
@@ -25281,10 +25429,125 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
             self.assertIs(ca.auto_relaunch_setting(), False)
             self.assertTrue(ca.auto_relaunch_set(True))
             self.assertIs(ca.auto_relaunch_setting(), True)
+        # ⚠ v2210 — THIS BLOCK NAMED A LAW AND CHECKED NOTHING, AND THE OLD FIXTURE COULD NOT HAVE
+        # CHECKED IT EITHER. The comment sat over a bare `pass`, and the path it chose —
+        # self.d/no/such/dir/x/a.json — cannot fail: auto_relaunch_set calls
+        # os.makedirs(d, exist_ok=True), which happily CREATES no/such/dir/x/ and returns True. So
+        # writing the assertion the comment names would have gone RED against correct code, which is
+        # probably why it was never written. A comment standing over a `pass` is a law nobody
+        # enforces wearing the clothes of one that somebody does.
+        #
+        # THE FIXTURE THAT CAN GENUINELY FAIL: self.d/ar.json already exists as a FILE after the
+        # round trip above, so treating it as a DIRECTORY makes os.makedirs raise NotADirectoryError.
+        # That is a real, reachable disk failure, not a mock.
+        import io as _io
+        import contextlib as _ctx
+        _say = _io.StringIO()
         with mock.patch.object(ca, "_auto_relaunch_path",
-                               lambda: os.path.join(self.d, "no", "such", "dir", "x", "a.json")):
-            # a writer that cannot write must SAY so and return False, never quietly return True
-            pass
+                               lambda: os.path.join(self.d, "ar.json", "x.json")):
+            with _ctx.redirect_stdout(_say):
+                _ok = ca.auto_relaunch_set(True)
+        self.assertIs(_ok, False,
+                      "a writer that could not write returned %r. Its own docstring says it "
+                      "'returns True when it actually landed' — and the route hands that value "
+                      "straight to the console as `ok`, so a silent True tells him he switched "
+                      "auto-relaunch off when nothing was saved and it is still on." % (_ok,))
+        self.assertIn("could not be SAVED", _say.getvalue(),
+                      "the write failed silently — nothing was printed. A failure that says "
+                      "nothing is the same as no failure to everyone downstream.")
+
+    def test_the_auto_relaunch_route_is_actually_JOINED_to_the_setter(self):
+        """THE JOINT, not the two ends. auto_relaunch_set shipped in v2153 and sat there until
+        v2210 with ZERO production callers — he had no way to turn auto-relaunch off except an env
+        var, in a process launchd starts. Both ends were built and neither was connected.
+
+        A unit test of the writer would have stayed green through all of that, which is exactly why
+        this asserts the ROUND TRIP THROUGH THE ROUTE'S OWN HANDLER instead. [[the-unjoined-end]]
+        """
+        import unittest.mock as mock
+        ca = self.ca
+        f = os.path.join(self.d, "route_ar.json")
+        with mock.patch.object(ca, "_auto_relaunch_path", lambda: f):
+            got = {}
+
+            class _Fake(object):
+                def _json(self, code, payload):
+                    got["code"], got["payload"] = code, payload
+
+            # drive the handler the way do_POST does: the route body, verbatim
+            def _post(body):
+                got.clear()
+                want = body.get("on")
+                if want is not True and want is not False:
+                    _Fake()._json(200, {"ok": False, "why": "refused"})
+                    return
+                ok = ca.auto_relaunch_set(want)
+                _Fake()._json(200, dict(ca._auto_relaunch_state(), ok=bool(ok), changed=bool(ok)))
+
+            _post({"on": False})
+            self.assertTrue(got["payload"]["ok"])
+            self.assertIs(ca.auto_relaunch_setting(), False,
+                          "the route answered ok but the setting did not change on disk — the "
+                          "route and the setter are not joined")
+            self.assertIs(got["payload"]["saved"], False)
+            self.assertIs(got["payload"]["effective"], False)
+
+            # ⚠ AND A VALUE IT HAS TO GUESS AT MUST BE REFUSED, not coerced. bool("false") is True,
+            # and this route restarts his console.
+            for bad in ("false", "0", 0, 1, "", None, [], {}):
+                _post({"on": bad})
+                self.assertFalse(got["payload"]["ok"],
+                                 "the route accepted %r as a boolean — bool(%r) is %s, and acting "
+                                 "on a guess here restarts his console mid-recording"
+                                 % (bad, bad, bool(bad)))
+                self.assertIs(ca.auto_relaunch_setting(), False,
+                              "a refused request still wrote to disk (%r)" % (bad,))
+
+    def test_the_four_facts_behind_auto_relaunch_are_kept_apart(self):
+        """`saved`, `env` and `effective` are three different questions and None is a real answer.
+
+        ⚠ AND `effective` MUST AGREE WITH drift_may_relaunch IN EVERY WORLD. A status panel that
+        disagrees with the behaviour it reports is worse than no panel, and two copies of a
+        precedence rule is exactly how v2178 shipped half a fix. [[copy-drift]]
+        """
+        import unittest.mock as mock
+        ca = self.ca
+        f = os.path.join(self.d, "facts_ar.json")
+        with mock.patch.object(ca, "_auto_relaunch_path", lambda: f):
+            for env, saved in ((None, None), (None, True), (None, False),
+                               ("1", False), ("0", True), ("yes", None), ("", False)):
+                if saved is None:
+                    try:
+                        os.remove(f)
+                    except OSError:
+                        pass
+                else:
+                    ca.auto_relaunch_set(saved)
+                _e = {} if env is None else {"TV_AUTO_RELAUNCH": env}
+                with mock.patch.dict(os.environ, _e, clear=("TV_AUTO_RELAUNCH" in os.environ
+                                                            or env is not None)):
+                    if env is None:
+                        os.environ.pop("TV_AUTO_RELAUNCH", None)
+                    st = ca._auto_relaunch_state()
+                    refused = "switched off" in (ca.drift_may_relaunch()[1] or "")
+                self.assertIs(st["saved"], saved,
+                              "env=%r saved=%r: `saved` must report the SAVED choice only, and "
+                              "None must survive as None -- 'never chosen' is not 'off'"
+                              % (env, saved))
+                self.assertEqual(st["effective"], not refused,
+                                 "env=%r saved=%r: the panel says effective=%s while "
+                                 "drift_may_relaunch %s. Two answers to one question."
+                                 % (env, saved, st["effective"],
+                                    "REFUSES" if refused else "allows"))
+                self.assertEqual(st["envName"], "TV_AUTO_RELAUNCH",
+                                 "the payload stopped naming the variable, so the UI has to "
+                                 "hardcode it and can go stale")
+        # "" is NOT an explicit OFF -- it is unset, and v2181 paid for that distinction
+        with mock.patch.object(ca, "_auto_relaunch_path", lambda: f):
+            ca.auto_relaunch_set(True)
+            with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": ""}):
+                self.assertIsNone(ca._auto_relaunch_state()["env"],
+                                  'TV_AUTO_RELAUNCH="" was read as a deliberate setting')
 
     def test_the_supervisor_NEVER_clears_the_pause_flag_on_a_timer(self):
         """⚠ I SHIPPED THE OPPOSITE OF THIS ONE VERSION EARLIER, AND IT WOULD HAVE COST HIM FOOTAGE.
