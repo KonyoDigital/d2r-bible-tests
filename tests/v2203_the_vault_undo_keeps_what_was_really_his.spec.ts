@@ -23,7 +23,9 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 const PRE = ['Waterwalk', "Cow King's Leathers (set)", 'Nagelring', 'Raven Frost',
              'Laying of Hands (bramble mitts)'];
-const LIVE = ['Enigma', 'Goldwrap', 'Magefist'];
+// items a reader actually SAW in his stash (tv/vault_seen.json). NOT live-registered — his board
+// has one d2r_tvExtraItems entry — so these survive only if the undo honours the stash evidence.
+const LIVE = ['Enigma', 'Goldwrap', 'Magefist', 'Dwarf Star', 'Wraithstep'];
 
 const SEED = `(function(){
   var R = window.ITEM_REGISTRY || {}, names = Object.keys(R);
@@ -34,7 +36,13 @@ const SEED = `(function(){
   var sp = setp.slice(0, 120);
   var PRE = ${JSON.stringify(PRE)}, LIVE = ${JSON.stringify(LIVE)};
   var owned = Object.keys(fl).concat(sp).concat(PRE).concat(LIVE);
-  var tvx = {}; LIVE.forEach(function(n){ tvx[n] = { rarity:'basic', base:n, cat:'tv' }; });
+  // ⚠ EMPTY, ON PURPOSE. An audit caught this spec passing on a generosity the product does not
+  // have: "spec plants tvx for known uniques; product does not". It seeded d2r_tvExtraItems for
+  // Enigma/Goldwrap/Magefist so they survived, while his real board carries exactly ONE entry — so
+  // the test proved nothing about the four items the undo would actually have deleted (Goldwrap,
+  // Magefist, Dwarf Star, Wraithstep, all in tv/vault_seen.json). They must now survive on the
+  // STASH-EVIDENCE keep list alone. [[feedback-blind-fixture-green-gate]]
+  var tvx = {};
   window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
   window.LSR.setItem('d2r_setPieces', JSON.stringify(sp));
   window.LSR.setItem('d2r_owned', JSON.stringify(owned));
@@ -75,13 +83,18 @@ test('the undo drops only what came from found-ever, and keeps everything else',
       + `items also appear in the found-ever ledger, so dropping on that alone destroys them.`)
       .toContain(n);
   }
-  // ⚠ AND ANYTHING THAT ARRIVED LEGITIMATELY SINCE. A TV DIABLO registration is stash evidence.
+  // ⚠ THE FOUR THE AUDIT NAMED BEFORE ANYONE MEASURED THEM. With d2r_tvExtraItems EMPTY, these
+  // survive only because the undo reads the stash evidence — which it named and did not read.
   for (const n of LIVE) {
-    expect(r.list, `"${n}" was registered live by TV DIABLO — real stash evidence — and the undo `
-      + `threw it away`).toContain(n);
+    expect(r.list, `"${n}" is in tv/vault_seen.json — a reader SAW it in his stash — and the undo `
+      + `deleted it. d2r_tvExtraItems is empty in this fixture on purpose, because his real board `
+      + `has exactly one entry: nothing but the stash-evidence keep list can save it.`)
+      .toContain(n);
   }
   expect(r.n, `the undo left ${r.n} items; only the ${PRE.length + LIVE.length} with an independent `
     + `claim should survive`).toBe(PRE.length + LIVE.length);
+  expect(r.report.dropped, 'the undo dropped nothing, so none of the above is being exercised')
+    .toBeGreaterThan(300);
 
   // he suspected this outright: "im pretty sure the 400 items are all duplicates"
   expect(r.distinct, `d2r_owned carries ${r.n - r.distinct} duplicate row(s). It is a SET by `

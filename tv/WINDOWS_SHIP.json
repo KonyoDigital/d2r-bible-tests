@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2206",
+  "ver": "v2207",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2206: a held sweep lock is a structured flag, not a phrase the caller greps",
+  "note": "v2207: an additive restore that routes through the registrar, so rolled names survive a reload",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

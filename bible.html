@@ -37621,6 +37621,95 @@ function renderJournal(){
      not "restore the five" — it is "drop the names that came only from the found-ever ledger and
      have no independent claim". Anything he has ticked by hand since also survives, because a hand
      tick writes EXTRA_ITEMS the same way. [[unknown-stays-unknown]] */
+  /* ══ v2207 — PUT BACK WHAT THE UNDO TOOK. ADDITIVE ONLY; IT CAN NEVER DELETE ═══════════════
+     Konyo, looking at his vault: "its still not fixed right? because earlier we had like 300+
+     items. now we only have like my 5 items from the previous version... like those 17 items arent
+     here."
+
+     He is right. The v2205 undo ran on his board BEFORE the stash-evidence keep list existed — his
+     console serves bible.html straight from the working tree, so it picked up the undo the moment
+     it was written and stripped the vault to a handful. Then it STAMPED ITSELF DONE, so the
+     corrected version cannot re-run. A cross-family review named that exact failure mode before it
+     happened: "List written small, flag stamped -> next load hits 'already done' -> PERMANENT LOSS,
+     no retry."
+
+     ⚠ SO THIS PASS ONLY ADDS. It restores the names that have a real claim — the five his 14:39
+     ledger snapshot recorded, and the seventeen a reader actually SAW in his stash
+     (tv/vault_seen.json, lane:'stash') — and touches nothing else. An additive repair cannot
+     compound the error it is repairing, which is the only property that matters here.
+
+     ⚠ AND IT IS NOT A BACKFILL. It does not read d2r_foundLog. That conflation is what started
+     this: found-ever is not physically-in-your-stash. These 22 names are the ones with evidence.
+     [[unknown-stays-unknown]] */
+  (function(){
+    var BACK = 'd2r_vaultEvidenceRestore_v2207';
+    try {
+      if (window.LSR.getItem(BACK)) return;
+      var owned = [];
+      try { owned = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || []; } catch(e){}
+      var have = {};
+      owned.forEach(function(n){ have[String(n)] = 1; });
+      var EVIDENCE = [
+        /* his 14:39 ledger snapshot — genuinely his before any of this */
+        'Waterwalk', "Cow King's Leathers (set)", 'Nagelring', 'Raven Frost',
+        'Laying of Hands (bramble mitts)',
+        /* tv/vault_seen.json — a reader SAW these in his stash, one witness each */
+        'Bone Break', 'Bone Knife', 'Bone Visor',
+        'Chaotic Grand Charm of Greed', 'Chaotic Grand Charm of Pestilence',
+        'Death Loop', 'Dread Grasp', 'Dwarf Star', 'Enigma', 'Goldwrap',
+        'Grand Charm of Inertia', 'Magefist', 'Obsession',
+        'Steel Grand Charm of Balance', 'Storm Scarab', 'Tome of Identify', 'Wraithstep'
+      ];
+      /* ⚠⚠ GO THROUGH THE ONE DOOR. Writing d2r_owned directly does NOT work and the measurement
+         proved it: a direct write restored 22 names and the very next reload left 10. Twelve of the
+         seventeen stash-evidence rows are ROLLED names — "Chaotic Grand Charm of Greed",
+         "Steel Grand Charm of Balance", "Tome of Identify", "Storm Scarab" — magic/rare items and
+         consumables that are in no catalogue and never will be. The load-time prune recognises only
+         catalogue uniques and set pieces, so it deleted them again.
+
+         tvVaultRegister is the door that already solves this: it canonicalises the name, and for
+         anything the catalogue does not know it writes an EXTRA_ITEMS entry via _tvExtraRemember —
+         the "universe guarantee" — which is exactly what makes the prune's _EXTRA_ITEM_SET clause
+         recognise a rolled name. It also routes the item to a mule, which is the point of putting
+         it back at all.
+
+         So this restores through the product's own path rather than reaching around it. That is the
+         difference between an item that survives one load and an item that is actually in the
+         vault. [[the-unjoined-end]] */
+      if (typeof window.tvVaultRegister !== 'function') return;   /* too early — try next load */
+      var added = [], failed = [];
+      EVIDENCE.forEach(function(n){
+        if (have[n]) return;
+        try {
+          var r = window.tvVaultRegister(n);
+          if (r && r.ok) { added.push(n); have[n] = 1; }
+          else { failed.push(n); }
+        } catch(e){ failed.push(n); }
+      });
+      if (!added.length) {
+        try { window.LSR.setItem(BACK, JSON.stringify({added: 0, failed: failed.length})); } catch(e){}
+        return;
+      }
+      /* ⚠ VERIFY THEY SURVIVED THE ROUND TRIP, not merely that the call returned ok. */
+      var _back = [];
+      try { _back = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || []; } catch(e){}
+      var _bs = {}; _back.forEach(function(n){ _bs[n] = 1; });
+      var _lost = added.filter(function(n){ return !_bs[n]; });
+      if (_lost.length) {
+        try { console.warn('[vault] v2207: ' + _lost.length + ' item(s) did not persist — NOT '
+                           + 'stamping, it will retry: ' + _lost.slice(0,4).join(', ')); } catch(e){}
+        return;                                   /* no stamp -> next load tries again */
+      }
+      try { window.LSR.setItem(BACK, JSON.stringify({at: Date.now(), added: added.length,
+                                                     names: added, failed: failed})); } catch(e){}
+      window._vaultEvidenceRestore_v2207 = { added: added.length, names: added };
+      try { console.info('[vault] v2207 restored ' + added.length + ' evidenced item(s)'); } catch(e){}
+      try { renderVault(); } catch(e){}
+    } catch(e){
+      try { console.warn('[vault] v2207 restore failed: ' + (e && e.message || e)); } catch(e2){}
+    }
+  })();
+
   (function(){
     /* v2205 — a NEW key on purpose: v2203 already stamped itself on his board after running
        incorrectly, so reusing it would leave the vault at 322 forever. */
@@ -37665,11 +37754,51 @@ function renderJournal(){
 
       /* the five he genuinely held before v2200, from the 14:39 snapshot — these are NOT dropped
          even though they also appear in the found-ever ledger */
+      /* ⚠⚠ v2206 — THE UNDO NAMED THE STASH EVIDENCE AND NEVER READ IT.
+         An audit caught this as a P0 and it is exactly right: the drop rule is "canon is in the
+         found-ever ledger", and almost everything he PHYSICALLY holds is also in that ledger. So
+         the only survivors were five hardcoded names and a live map — and his board carries exactly
+         ONE d2r_tvExtraItems entry. It named the casualties before I measured them: Goldwrap,
+         Magefist, Dwarf Star, Wraithstep. All four are in tv/vault_seen.json, which is the ONE
+         record of what a reader actually SAW IN HIS STASH.
+
+         ⚠ AND IT CAUGHT THE FAILURE IN MY GUARD, NOT ONLY IN THE CODE: "spec plants tvx for known
+         uniques; product does not". My spec seeded d2r_tvExtraItems with Enigma/Goldwrap/Magefist
+         so they survived, while the product has no such entries. The test passed on a generosity
+         the product does not have — a fixture that cannot reproduce the real case.
+         [[feedback-blind-fixture-green-gate]]
+
+         These seventeen are the stash-evidence rows as of 2026-08-27 (lane:'stash', one witness
+         each). They are BAKED because the board cannot reach tv/vault_seen.json — it is server-side
+         — and this is a one-time, one-machine repair. That is a real limit and it is stated rather
+         than hidden: on any other machine this list is inert, which is correct, because the bad
+         backfill it undoes is retired and cannot run there. The durable fix is the console serving
+         this evidence so no list needs baking. [[unknown-stays-unknown]] */
       var KEEP_PRE = {};
-      ['Waterwalk', "Cow King's Leathers (set)", 'Nagelring', 'Raven Frost',
-       'Laying of Hands (bramble mitts)'].forEach(function(n){ KEEP_PRE[_canon(n)] = 1; });
+      [
+        /* the five his 14:39 ledger snapshot recorded as genuinely his */
+        'Waterwalk', "Cow King's Leathers (set)", 'Nagelring', 'Raven Frost',
+        'Laying of Hands (bramble mitts)',
+        /* and the seventeen a reader actually SAW in his stash (tv/vault_seen.json) */
+        'Bone Break', 'Bone Knife', 'Bone Visor',
+        'Chaotic Grand Charm of Greed', 'Chaotic Grand Charm of Pestilence',
+        'Death Loop', 'Dread Grasp', 'Dwarf Star', 'Enigma', 'Goldwrap',
+        'Grand Charm of Inertia', 'Magefist', 'Obsession',
+        'Steel Grand Charm of Balance', 'Storm Scarab', 'Tome of Identify', 'Wraithstep'
+      ].forEach(function(n){ KEEP_PRE[_canon(n)] = 1; });
       var tvx = {};
       try { tvx = JSON.parse(window.LSR.getItem('d2r_tvExtraItems') || '{}') || {}; } catch(e){}
+      /* ⚠⚠ v2206 — AND A NAME HE FILED TO A MULE IS A NAME HE DECIDED HE OWNS.
+         A cross-family review of this undo refused it outright: "Yes — this undo can delete genuine
+         stash items. Drop is canon-in-fromLedger, and almost everything he actually holds is also in
+         the found ledger. The only exceptions are the 5-name KEEP list and the live map." It is
+         right. A sixth item acquired since the 14:39 snapshot, never live-registered, would be
+         deleted — and the `owned.length < 100` guard means there is no second chance.
+         d2r_muleAssign records HIS OWN DECISION about where an item lives. v2128 reached for exactly
+         this store to stop the load-time prune deleting hand-filed names; the same argument applies
+         here, and it costs nothing. */
+      var _mine = {};
+      try { _mine = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}') || {}; } catch(e){}
 
       /* ⚠ AND DE-DUPLICATE WHILE WE ARE HERE. He suspected it — "im pretty sure the 400 items
          are all duplicates" — and the measurement agreed: the seeded reproduction kept 14 rows for
@@ -37689,6 +37818,7 @@ function renderJournal(){
         _seenName[n] = 1;
         if (KEEP_PRE[c]) { kept.push(n); return; }
         if (tvx[n]) { kept.push(n); return; }        // registered live by TV DIABLO, or hand-ticked
+        if (_mine[n]) { kept.push(n); return; }      // he filed it to a mule himself — his decision
         if (fromLedger[c]) { dropped.push(n); return; }   // came ONLY from found-ever
         kept.push(n);                                 // unexplained -> KEEP. Never delete on a guess.
       });
@@ -37696,7 +37826,18 @@ function renderJournal(){
         try { window.LSR.setItem(UNDONE, JSON.stringify({dropped:0})); } catch(e){}
         return;
       }
+      /* ⚠ VERIFY THE WRITE BEFORE STAMPING. The same review: "List written small/empty, flag not
+         stamped -> next load hits 'under 100, do nothing' -> PERMANENT LOSS, no retry." There is no
+         transaction here, so the order matters: write, READ IT BACK, and only stamp if what landed
+         is what we meant. A half-applied undo that stamps itself done is unrecoverable. */
       window.LSR.setItem('d2r_owned', JSON.stringify(kept));
+      var _back = [];
+      try { _back = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || []; } catch(e){}
+      if (_back.length !== kept.length) {
+        try { console.warn('[vault] undo write did not land (' + _back.length + ' vs ' + kept.length
+                           + ') — NOT stamping, so the next load retries'); } catch(e){}
+        return;                                    // no stamp -> it will try again
+      }
       /* ⚠ RECORD THE NAMES. v2200's failure to do this is why it could not be reversed. */
       try {
         window.LSR.setItem(UNDONE, JSON.stringify({
@@ -46387,7 +46528,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2206', name:'v2206 - lock', date:'2026-08-27', note:'a held sweep lock is a structured flag, not a phrase the caller greps' };
+  window.D2R_BUILD = { id:'v2207', name:'v2207 - the vault restore puts back what a reader saw', date:'2026-08-27', note:'an additive restore that routes through the registrar, so rolled names survive a reload' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
