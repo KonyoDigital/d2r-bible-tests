@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2208",
+  "ver": "v2209",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2208: the registrar and the prune now ask ONE catalogue question, and the restore only runs where damage happened",
+  "note": "v2209: a persisted prior no longer double-counts as a second witness",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

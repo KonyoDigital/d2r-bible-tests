@@ -45,6 +45,7 @@ tests drive every law from fixtures with zero JPEGs and zero vision calls.
 
 import glob
 import os
+import re
 import json
 import time
 
@@ -381,6 +382,7 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
     # count distinct recordings. Falls back to the session id for evidence written before v1792.
     sessions = sorted({str(e.get(witness_field) or e.get("session"))
                        for e in ev if (e.get(witness_field) or e.get("session"))})
+    sessions = _fold_bare_sessions(sessions)
     best = max([_conf_of(e.get("conf")) for e in ev] or [0.0])
     base = {"sessions": sessions, "witnesses": len(sessions), "sightings": len(ev), "bestConf": best}
     if not ev:
@@ -403,6 +405,58 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
 
 # ── THE FOLD (law 1) ────────────────────────────────────────────────────────────
 
+_BUCKET_RE = re.compile(r"^(.*)#\d+$")
+
+
+def _fold_bare_sessions(ids):
+    """Drop a BARE session id when that same session also appears with a re-look bucket.
+
+    ⚠ THIS IS A LIVE DOUBLE-COUNT, AND IT IS REPRODUCIBLE ON HIS OWN FILE. A fresh sighting carries
+    `witness` = "<sid>#<bucket>" (minted at the re-look loop, ~:750). A sighting PERSISTED by an
+    earlier sweep carries no `witness` key at all, because _witness_rows ships only
+    {session, frame, lane, conf} — so the fallback above reads its bare `session`. "sA" and "sA#0"
+    are different strings, so ONE look counts as TWO witnesses. Measured, with his real rows:
+
+        fresh alone                 witnesses=1  ['s_1787512325134_62795#0']
+        fresh + its own prior       witnesses=2  ['s_…62795', 's_…62795#0']
+        2 recordings + their priors witnesses=4  ['sA','sA#0','sB','sB#0']  pass=True
+
+    That last line is the damage: two recordings clearing a THREE-witness bar. And the prior-fold
+    that is supposed to stop a sighting arriving twice cannot — it keys on (session, frame), and
+    every persisted frame is None (17 of 17 in tv/vault_seen.json today).
+
+    THE RULE: a row that does not say WHICH look it came from cannot be SHOWN to be a different
+    look from the buckets of its own session, so it must not be counted beside them. A session with
+    only bare rows still counts once — pre-v1792 evidence is unchanged, which is why this does not
+    quietly re-grade old sightings.
+
+    ⚠ AND IT IS FAIL-CLOSED, NOT [[unknown-stays-unknown]] — I labelled it wrongly and the review
+    was right to say so. An unbucketed row IS unknown, and this resolves that unknown to "not an
+    extra witness" rather than leaving it unresolved. The direction is chosen, not neutral, and here
+    is why it is the right one: the KEEP bar's wrong answer is CLAIMING HE OWNS SOMETHING HE DOES
+    NOT, and a refused sighting is not destroyed — v2051 banks it as `unsure`, so one more look
+    grounds it. Over-counting is unrecoverable in the way that matters; under-counting costs a
+    second look. The honest cost is real: given a bare prior that truly was bucket 0 and a fresh
+    sighting that is bucket 1, this counts one where two happened. That case needs a partial re-read
+    of one reel, it has never been observed, and it resolves itself the next time the reel is swept
+    whole. Named here so the next person can challenge it rather than discover it.
+
+    ⚠ MEASURED BEFORE SHIPPING, because this can only ever LOWER a count: across
+    tv/vault_accum.json and tv/vault_last_result.json, ZERO rows change today. The collision needs a
+    name to hold both a persisted prior and a fresh sighting from the same session, which is what a
+    re-sweep produces — so this lands before it has grounded anything, not after.
+    """
+    # ⚠ `"#" in i` IS NOT A BUCKET TEST — same review. The minter writes "%s#%d", so a look id ends
+    # in "#" plus digits; any other "#" belongs to the session name and must not be split on.
+    ids = {str(i) for i in (ids or []) if str(i)}
+    bucketed = set()
+    for i in ids:
+        m = _BUCKET_RE.match(i)
+        if m:
+            bucketed.add(m.group(1))
+    return sorted(i for i in ids if not (not _BUCKET_RE.match(i) and i in bucketed))
+
+
 def _witness_rows(evidence):
     """The provenance the board shows when he asks WHY it thinks he owns this. Sorted = stable."""
     # v1786 — CARRY conf. These rows are not only what the board shows: control_app re-gates a
@@ -412,9 +466,24 @@ def _witness_rows(evidence):
     # provenance never carried. It was fail-CLOSED only because the console posts an empty body
     # today; the moment anything posted the engine's own proposal back, apply would refuse
     # everything. Found by an adversarial review of this lane.
-    rows = [{"session": e.get("session"), "frame": e.get("frame"), "lane": e.get("lane"),
+    # v2209 — CARRY THE WITNESS ID, AND ONLY WHEN THERE IS ONE. Dropping it is what made a
+    # persisted prior fall back to its bare session and double-count against its own fresh sighting
+    # (see _fold_bare_sessions). The fold repairs rows already on disk; this stops new ones losing
+    # the identity at all.
+    #
+    # ⚠ THE FIRST CUT WROTE `e.get("witness") or e.get("session")`, AND A CROSS-FAMILY REVIEW KILLED
+    # IT IN ONE SENTENCE: after a single persist round-trip every row would SAY it has a look id,
+    # so "never had a bucket" and "bucket unknown" become the same string and the fold's own premise
+    # stops being true of its own output. A fallback that manufactures the missing fact is
+    # [[unknown-stays-unknown]] broken by the fix for it. Absent stays absent.
+    rows = []
+    for e in evidence:
+        r = {"session": e.get("session"), "frame": e.get("frame"), "lane": e.get("lane"),
              "conf": e.get("conf")}
-            for e in evidence]
+        w = e.get("witness")
+        if w:                      # falsy ("" / None) is NOT a look id; it stays absent
+            r["witness"] = w
+        rows.append(r)
     return sorted(rows, key=lambda r: (str(r["session"]), str(r["frame"]), str(r["lane"])))
 
 

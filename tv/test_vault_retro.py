@@ -406,5 +406,132 @@ class TestApplyPayloadCannotSilentlyDropAField(unittest.TestCase):
         self.assertTrue(any(x.get("session") for x in w), "no witness carries a session")
 
 
+class TestV2208APersistedPriorIsNotASecondWitness(unittest.TestCase):
+    """One look must count ONCE, however many times it has been written down.
+
+    THE DEFECT, measured on his own tv/vault_seen.json: a fresh sighting carries
+    witness="<sid>#<bucket>"; a sighting persisted by an earlier sweep carries no `witness` key at
+    all (_witness_rows shipped only session/frame/lane/conf), so gate() fell back to its bare
+    session. "sA" and "sA#0" are different strings -> one look, two witnesses. And the prior-fold
+    that should have caught the duplicate keys on (session, frame), while every persisted frame is
+    None -- 17 of 17 on his disk today.
+
+    The damage is not cosmetic: at his THREE-read bar, two recordings plus their own priors reached
+    four and PASSED.
+    """
+
+    def test_a_look_and_its_own_persisted_prior_are_one_witness(self):
+        look = {"session": "sA", "witness": "sA#0", "frame": "f1.png", "lane": "stash",
+                "conf": 0.97, "count": 1, "kind": "item", "ts": 1}
+        prior = {"session": "sA", "frame": None, "lane": "stash", "conf": 0.97}   # no `witness`
+        got = v.gate([look, prior], 0.55, 2)
+        self.assertEqual(got["witnesses"], 1,
+                         "a sighting and the persisted copy of that same sighting counted as two "
+                         "witnesses (%s)" % (got["sessions"],))
+        self.assertFalse(got["pass"], "one look cleared a two-witness bar")
+
+    def test_the_measured_case_two_recordings_do_not_reach_three(self):
+        def look(sid):
+            return {"session": sid, "witness": sid + "#0", "frame": "f1.png", "lane": "stash",
+                    "conf": 0.97, "count": 1, "kind": "item", "ts": 1}
+        def prior(sid):
+            return {"session": sid, "frame": None, "lane": "stash", "conf": 0.97}
+        ev = [look("sA"), look("sB"), prior("sA"), prior("sB")]
+        got = v.gate(ev, 0.55, 3)
+        self.assertEqual(got["witnesses"], 2,
+                         "two recordings reported %d witnesses (%s) -- this is the exact shape that "
+                         "grounded an item on half the evidence"
+                         % (got["witnesses"], got["sessions"]))
+        self.assertFalse(got["pass"], "two recordings passed a THREE-witness bar")
+
+    def test_real_re_look_buckets_still_count_separately(self):
+        """The repair must not swallow the thing v1792 built. Three buckets are three looks."""
+        ev = [{"session": "sA", "witness": "sA#%d" % i, "frame": "f%d.png" % i, "lane": "stash",
+               "conf": 0.97, "count": 1, "kind": "item", "ts": i} for i in range(3)]
+        got = v.gate(ev, 0.55, 3)
+        self.assertEqual(got["witnesses"], 3, "re-look buckets stopped counting as separate looks")
+        self.assertTrue(got["pass"])
+
+    def test_pre_v1792_evidence_is_untouched(self):
+        """Rows that NEVER carried a bucket must keep counting exactly as they did.
+
+        A fold that also collapsed these would silently re-grade every old sighting -- the opposite
+        error, and a much quieter one.
+        """
+        ev = [{"session": s, "frame": "f.png", "lane": "stash", "conf": 0.97, "count": 1,
+               "kind": "item", "ts": 1} for s in ("sA", "sB", "sC")]
+        got = v.gate(ev, 0.55, 3)
+        self.assertEqual(got["witnesses"], 3)
+        self.assertTrue(got["pass"])
+
+    def test_a_bare_prior_from_a_session_with_no_fresh_look_still_counts(self):
+        """It is only unshowable as a SEPARATE look from buckets of ITS OWN session."""
+        ev = [{"session": "sA", "witness": "sA#0", "frame": "f1.png", "lane": "stash",
+               "conf": 0.97, "count": 1, "kind": "item", "ts": 1},
+              {"session": "sB", "frame": None, "lane": "stash", "conf": 0.97}]
+        got = v.gate(ev, 0.55, 2)
+        self.assertEqual(got["witnesses"], 2, "a prior from a DIFFERENT session was discarded -- "
+                                              "the fold is too wide and is destroying evidence")
+        self.assertTrue(got["pass"])
+
+    def test_multi_digit_buckets_fold_on_the_session_not_the_prefix(self):
+        got = v.gate([{"session": "sA", "witness": "sA#10", "frame": "f.png", "lane": "stash",
+                       "conf": 0.9, "count": 1, "kind": "item", "ts": 1},
+                      {"session": "sA", "frame": None, "lane": "stash", "conf": 0.9}], 0.55, 2)
+        self.assertEqual(got["witnesses"], 1)
+
+    def test_the_provenance_now_carries_the_witness_id(self):
+        """The fold repairs rows already on disk; this stops NEW ones losing the identity.
+
+        Without it every sweep keeps writing priors that can only fall back to a bare session, so
+        the defect regenerates itself from the fix's own output.
+        """
+        ev = [{"session": "sA", "witness": "sA#2", "frame": "f.png", "lane": "stash", "conf": 0.9}]
+        rows = v._witness_rows(ev)
+        self.assertEqual(rows[0].get("witness"), "sA#2",
+                         "_witness_rows dropped the witness id again -- the next persisted prior "
+                         "will double-count exactly as before")
+
+    def test_a_missing_witness_id_is_not_manufactured(self):
+        """ABSENT STAYS ABSENT. The first cut wrote `e.get("witness") or e.get("session")`, and a
+        cross-family review killed it: after ONE persist round-trip every row would SAY it has a
+        look id, so "never had a bucket" and "bucket unknown" become the same string -- and the
+        fold's own premise stops being true of its own output. A fallback that manufactures the
+        missing fact is the bug wearing the fix's name."""
+        rows = v._witness_rows([{"session": "sB", "frame": "f.png", "lane": "stash", "conf": 0.9}])
+        self.assertNotIn("witness", rows[0],
+                         "a sighting with no look id was given one (%r) -- it now claims a "
+                         "provenance it never had" % (rows[0].get("witness"),))
+        # an EMPTY witness is not a look id either
+        rows = v._witness_rows([{"session": "sB", "witness": "", "frame": "f.png",
+                                 "lane": "stash", "conf": 0.9}])
+        self.assertNotIn("witness", rows[0], "an empty-string witness was shipped as an id")
+
+    def test_a_hash_in_the_session_name_is_not_a_bucket(self):
+        """`"#" in i` is not a bucket test -- same review. The minter writes "<sid>#<digits>", so
+        only a trailing #digits is a look id. Anything else belongs to the session name, and
+        splitting on it would fold two unrelated sessions into one witness."""
+        # "s#weird" is a session whose NAME contains a hash; "s#weird#1" is its bucket 1
+        self.assertEqual(v._fold_bare_sessions(["s#weird", "s#weird#1"]), ["s#weird#1"])
+        # and two genuinely different sessions that merely share a hash must both survive
+        self.assertEqual(v._fold_bare_sessions(["a#x", "b#y"]), ["a#x", "b#y"])
+
+    def test_a_round_trip_through_the_store_does_not_inflate_the_count(self):
+        """END TO END, because the two halves above can each be right and still not join.
+
+        gate -> _witness_rows -> back into gate must report the SAME number of witnesses. That is
+        the property the defect broke, and neither unit test alone asserts it.
+        """
+        ev = [{"session": "sA", "witness": "sA#0", "frame": "f1.png", "lane": "stash",
+               "conf": 0.97, "count": 1, "kind": "item", "ts": 1}]
+        first = v.gate(ev, 0.55, 2)["witnesses"]
+        persisted = v._witness_rows(ev)
+        again = v.gate(list(ev) + list(persisted), 0.55, 2)["witnesses"]
+        self.assertEqual(first, again,
+                         "writing a sighting down and reading it back changed the witness count "
+                         "%d -> %d" % (first, again))
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
