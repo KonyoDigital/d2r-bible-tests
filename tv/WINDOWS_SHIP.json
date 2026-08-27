@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2198",
+  "ver": "v2199",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2198: the vault router reads the whole item registry, not the calculator subset",
+  "note": "v2199: the shelf shows his real reels first and the AI READS rows stop being sliced",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
