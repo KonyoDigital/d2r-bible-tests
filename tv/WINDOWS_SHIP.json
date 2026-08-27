@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2205",
+  "ver": "v2206",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2205: a set piece he owns survives the load prune, and the undo folds names the way they are stored",
+  "note": "v2206: a held sweep lock is a structured flag, not a phrase the caller greps",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
