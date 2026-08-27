@@ -19149,7 +19149,53 @@ window.renderHighValueFinds = renderHighValueFinds;
     try { return !!(typeof findSetPiece === 'function' && findSetPiece(n)); }
     catch(e){ return false; }          /* unresolvable -> fall through to the clauses below */
   };
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _maKeep[n] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n) || _isSetPieceName(n))));   // v659 — chronicle-seeded uniques + extras survive the prune · v2128 — + his own mule filing
+  /* ── v2208 — THE PAGE KNOWS MORE CATALOGUES THAN EITHER SIDE OF THIS WAS ASKING ─────────────
+     Measured on a real load, registering the seventeen names a reader saw in his stash: THREE of
+     them got a `rarity:'basic'` placeholder written over a real catalogue entry —
+
+         Enigma      RUNEWORDS[..]      -> stub    a runeword rendered as a nameless basic
+         Obsession   RUNEWORDS[..]      -> stub    same
+         Bone Break  SUNDER_CHARMS[..]  -> stub    and its ID card stopped being a .material-card
+
+     Bone Break is the one that had a witness: `openDrop('Bone Break')` rendered
+     `.gic-card.extra-item-card` instead of `.gic-card.material-card`, so the sunder charm's rich
+     card became a generic vault tile. The ART was still correct — which is exactly why nothing
+     downstream of "does the picture load" could see it. Two shipped specs did, and blocked the push.
+
+     THE CAUSE IS ONE QUESTION ASKED WITH TOO FEW CATALOGUES. tvVaultRegister's universe guarantee
+     tests ITEMS + d2rItemLookup + EXTRA_ITEMS. This prune tests ITEM_REGISTRY + _UNI_EXTRA +
+     _GRAIL_SEED + _EXTRA_ITEM_SET + _ROSTER_NORM + _maKeep + two regexes + set pieces. NEITHER asks
+     RUNEWORDS (101) or SUNDER_CHARMS (6), and the two lists are not the same list — which is how a
+     name can be "unknown" to the registrar and "unknown" to the prune for different reasons.
+
+     ⚠ AND THE TWO SIDES MUST MOVE TOGETHER. Teaching only the registrar to skip the stub would
+     delete Enigma on the next reload, because the stub is what the prune was recognising — that is
+     v2205/#48 exactly, one catalogue over. So this is ONE predicate, used by BOTH: skipping the
+     stub is safe precisely because the same function is what keeps the name here.
+
+     RUNEWORDS (:14970) and SUNDER_CHARMS (:9991) are both declared above this line; MATERIALS
+     (:25960) is NOT, and is deliberately left out — _SHARED_KEEP already covers what it holds
+     (essences, shards, statues, the sunders). [[copy-drift]] [[the-unjoined-end]] */
+  var _CATALOGUE_NORM = null;
+  window.d2rCatalogueKnows = function(n){
+    n = String(n || '').trim();
+    if (!n) return false;
+    if (_CATALOGUE_NORM === null) {
+      /* built once, and only from consts that actually exist at call time — a catalogue declared
+         later in the file must read as "not asked", never as "said no". */
+      var m = {};
+      try { if (typeof RUNEWORDS !== 'undefined' && RUNEWORDS)
+              [].forEach.call(RUNEWORDS, function(r){ var k = r && (r.n || r.name);
+                if (k) m[_norm(k)] = 'runeword'; }); } catch(e){}
+      try { if (typeof SUNDER_CHARMS !== 'undefined' && SUNDER_CHARMS)
+              [].forEach.call(SUNDER_CHARMS, function(c){ if (c && c.n) m[_norm(c.n)] = 'sunder'; });
+      } catch(e){}
+      if (Object.keys(m).length) _CATALOGUE_NORM = m;     /* else retry on the next call */
+      else return false;
+    }
+    return _CATALOGUE_NORM[_norm(n)] || false;
+  };
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _maKeep[n] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n) || _isSetPieceName(n) || window.d2rCatalogueKnows(n))));   // v659 — chronicle-seeded uniques + extras survive the prune · v2128 — + his own mule filing · v2208 — + runewords and sunder charms
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
@@ -34637,8 +34683,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try {
         /* v2198 — a name in the 547-row registry IS known. Counting only the calculator's 320
            meant 227 real items were declared unknown and given a basic stub. */
+        /* v2208 — AND THE TWO CATALOGUES NEITHER SIDE WAS ASKING. Enigma and Obsession are
+           RUNEWORDS and Bone Break is a SUNDER CHARM; all three were given a rarity:'basic'
+           placeholder that shadowed their real card. d2rCatalogueKnows is the SAME function the
+           load-time prune keeps them by, so skipping the stub here cannot make them vanish on the
+           next reload — the pair moves together or not at all. [[copy-drift]] */
         var _known = (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === name; }))
           || (typeof d2rItemLookup === 'function' && !!d2rItemLookup(name))
+          || (typeof window.d2rCatalogueKnows === 'function' && !!window.d2rCatalogueKnows(name))
           || (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]);
         if (!_known && typeof EXTRA_ITEMS !== 'undefined'){
           /* v1991 — REMEMBER IT ACROSS RELOADS, not just for this tab. Writing EXTRA_ITEMS[name]
@@ -37645,6 +37697,30 @@ function renderJournal(){
     var BACK = 'd2r_vaultEvidenceRestore_v2207';
     try {
       if (window.LSR.getItem(BACK)) return;
+      /* ⚠ v2208 — ONLY A BOARD THAT WAS ACTUALLY DAMAGED. This shipped with no gate at all, so it
+         put twenty-two items into EVERY board that loads the page — including a fresh one that has
+         never seen a stash reader, and including every Playwright fixture. A repair that runs where
+         there was nothing to repair is not a repair; it is the v2200 mistake with a different list.
+
+         ⚠⚠ AND THE OBVIOUS GATE IS THE WRONG ONE — my own regression spec caught it. Gating on
+         `d2r_vaultBackfill_v2200` looks right (the undo below gates on exactly that) and is inert:
+         the v2200 migration is RETIRED and its retirement STAMPS THE FLAG on every board that loads
+         the page. So the flag means "this page has loaded once", not "this board lost items", and
+         the gate would have delayed the restore by a single reload rather than preventing it.
+         [[label-outlived-referent]]
+
+         THE HONEST MARKER IS THE DAMAGE ITSELF: an undo that actually DROPPED names. Both undos
+         record `droppedN`, and both stamp {droppedN: 0} on a board where there was nothing to drop
+         — so the number, not the flag's presence, is the fact. His board reads several hundred; a
+         fresh one reads zero and is left alone. */
+      var _damaged = 0;
+      ['d2r_vaultBackfillUndo_v2205', 'd2r_vaultBackfillUndo_v2203'].forEach(function(k){
+        try {
+          var d = JSON.parse(window.LSR.getItem(k) || 'null');
+          if (d && typeof d.droppedN === 'number') _damaged = Math.max(_damaged, d.droppedN);
+        } catch(e){}
+      });
+      if (_damaged <= 0) return;      /* nothing was ever taken from this board */
       var owned = [];
       try { owned = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || []; } catch(e){}
       var have = {};
@@ -46528,7 +46604,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2207', name:'v2207 - the vault restore puts back what a reader saw', date:'2026-08-27', note:'an additive restore that routes through the registrar, so rolled names survive a reload' };
+  window.D2R_BUILD = { id:'v2208', name:'v2208 - a placeholder stopped being written over a real item', date:'2026-08-27', note:'the registrar and the prune now ask ONE catalogue question, and the restore only runs where damage happened' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
