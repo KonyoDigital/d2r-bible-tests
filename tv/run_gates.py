@@ -449,7 +449,9 @@ _LIVE_STATE = (".board_identity.json",   # v2147 — a test that forgets to patc
                # his real memory stops a REAL hunt from ever running until new footage arrives.
                # Its own suite wrote his live copy once before isolation landed, which is why
                # review_lite blocked the push that added it. [[feedback-fixtures-never-touch-live-data]]
-               "chron_hunt_memory.json")   # v1895 — new live state joins on day one
+               "chron_hunt_memory.json",
+               # v2189 — the board's tally, POSTed by bible.html. Live state naming his counts.
+               "board_tally.json")   # v1895 — new live state joins on day one
 
 
 def _console_is_running(port=17772):

@@ -5847,7 +5847,20 @@
       <div class="rail-secondary">
         <!-- v865 (Konyo) — OFF/STOP absorbed into the smart ON AIR toggle; RESTART demoted.
              The utility strip keeps the rare paths one small click away, out of the flow. -->
-        <details class="sig-adv" ontoggle="if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._shadowAdvRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
+        <!-- ⚠ v2190 — OPEN BY DEFAULT, AND IT REMEMBERS. Konyo: "the advanced settings keep
+             vanishing.. needs to be hardcodded."
+
+             A bare <details> has no memory: its open state is per-document, so EVERY page load
+             closed it. That was survivable while the console was relaunched by hand a few times a
+             week — and v2180 made auto-relaunch actually work, so the window now reloads itself
+             whenever a build lands and the panel shut every single time. A fix that made one
+             thing right made this one worse, which is only visible from his chair.
+             [[two-fixes-broke-each-other]]
+
+             `open` is the hardcoded default he asked for. The toggle is also PERSISTED, so if he
+             ever does close it deliberately that survives too — a default may fill an unanswered
+             question, never overrule an answered one. [[unknown-stays-unknown]] -->
+        <details class="sig-adv" id="sig-adv" open ontoggle="try { localStorage.setItem('d2r_advOpen', this.open ? '1' : '0'); } catch(e) {} if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._shadowAdvRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
           <summary>⚙ ADVANCED</summary>
           <!-- v2076 — THE CONTROL THAT DECIDES WHETHER THE THIRD EYE RUNS WAS 20th OF 25.
                Konyo, twice: "when i click ADVANCED settings to toggle grok eyes ... i dont see it at
@@ -12098,6 +12111,16 @@
         .catch(function () { if (say) say.textContent = 'UNKNOWN — the console did not answer'; });
     });
   });
+
+  /* v2190 — restore his choice on load. Absent means never chosen, and the default is OPEN. */
+  try {
+    var _sa = document.getElementById('sig-adv');
+    if (_sa) {
+      var _v = null;
+      try { _v = localStorage.getItem('d2r_advOpen'); } catch (e) { _v = null; }
+      _sa.open = (_v === null) ? true : (_v === '1');
+    }
+  } catch (e) {}
 
   window._advOpened = function (det) {
     /* v2107 — `nearest` MOVES THE LEAST IT CAN, AND AT HIS WINDOW HEIGHT THE LEAST IS NOTHING.

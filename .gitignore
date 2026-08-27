@@ -99,6 +99,9 @@ tv/chronicle_swept.json
 # test, because remembering is not a mechanism.
 tv/chron_hunt_memory.json
 tv/auto_relaunch.json
+# v2189 — the board's own tally, handed over by bible.html so the fleet numbers work on Windows
+# too. Live state, and it names his progress: never committed to a PUBLIC repo.
+tv/board_tally.json
 
 # v1711 — the G5 stats ledger is per-machine runtime counters, like the budget file
 tv/g5_stats.json

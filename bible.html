@@ -41378,6 +41378,121 @@ function renderJournal(){
       working:rows.filter(function(r){return r.left>0;}).sort(function(a,b){ return a.left-b.left || b.pieces.length-a.pieces.length; }),
       done:rows.filter(function(r){return r.left===0;}) };
   };
+
+  /* ── v2188 — PERSIST THE TALLY THE BOARD ALREADY COMPUTES ──────────────────────────────────
+     Konyo, looking at his own row in the console's fleet panel: "no counts reported. might be a
+     bug here where it should fetch the numbers for chronicles and show them."
+
+     It was four separate joints of one feature, each built on both ends and never joined. This is
+     the one that mattered: `grail_tally()` in control_app can only answer when the app window is
+     SHOWING bible.html, because it reads the ledger by running JS in that window. He lives on the
+     console rail, so `boardLoaded` was false and the tally was refused every single time — the
+     feature could essentially never populate.
+
+     The counts do exist on disk (WebKit's localstorage.sqlite3, 84 keys, readable while the app
+     runs). What is NOT on disk is the RULE: uniques are counted against the in-page roster via
+     funiScan(), so any console-side re-derivation would be a second definition of his progress,
+     free to drift from the board's. Measured while diagnosing this: foundLog minus setPieces minus
+     runewords gives 277 where he says 278 — close enough to look right and wrong enough to be a
+     lie under his name.
+
+     So the board writes down what it already knows, once, and the console reads that one key.
+     One definition, where it belongs. [[copy-drift]] [[unknown-stays-unknown]]
+
+     Routed through LSR so a ladder profile keeps its own tally — a profile toggle must never
+     change a count that belongs to the other profile. [[d2r-ladder-doctrine]] */
+  /* v2192 — Konyo's ruling, 2026-08-27: the chronicle counts 99 runewords. See the note inside
+     __tallyPersist for the three lists that disagree and why none of them is the answer. */
+  var RUNEWORD_CHRONICLE_TOTAL = 99;
+  window.RUNEWORD_CHRONICLE_TOTAL = RUNEWORD_CHRONICLE_TOTAL;
+
+  window.__tallyPersist = function(){
+    try {
+      var fu = (typeof window.funiScan === 'function') ? window.funiScan() : null;
+      var fs = (typeof window.fsetsScan === 'function') ? window.fsetsScan() : null;
+      /* ⚠ v2188.1 — `JSON.parse(null || '{}')` IS A ZERO WEARING A MEASUREMENT'S CLOTHES.
+         A review walked it: if d2r_rwMade is absent, that expression yields {} and the count
+         becomes 0 — and 0 is truthy as an object, so the "nothing to say" guard below let it
+         through and OVERWROTE a good tally from five minutes ago with runewords:0. The reader
+         then published 0/99 under his name. Absent is not zero. */
+      var rwRaw = null;
+      try { rwRaw = window.LSR.getItem('d2r_rwMade'); } catch(e){ rwRaw = null; }
+      var rw = null;
+      if (rwRaw) { try { var _p = JSON.parse(rwRaw); if (_p && typeof _p === 'object') rw = _p; }
+                   catch(e){ rw = null; } }
+      /* ⚠ AND `typeof x === 'number'` ADMITS NaN's cousins AND NEGATIVES. A count is a
+         non-negative integer or it is not a count. */
+      var pair = function(have, total){
+        if (typeof have !== 'number' || !isFinite(have) || have < 0 || Math.floor(have) !== have)
+          return null;
+        var t = (typeof total === 'number' && isFinite(total) && total > 0
+                 && Math.floor(total) === total) ? total : null;
+        return { have: have, total: t };
+      };
+      /* ⚠ v2188.1 — STAMP WHOSE PROGRESS THIS IS. The payload was {sets,uniques,runewords,at}
+         with nothing saying which install or profile produced it, so a reader that resolved a
+         DIFFERENT route — a profile switched without the board being reopened, a second store on
+         the machine — would publish the previous person's numbers under this name and could not
+         possibly tell. The reader now requires this to match the route it read.
+         [[d2r-ladder-doctrine]] [[unknown-stays-unknown]] */
+      var who = null;
+      try { var _rt = JSON.parse(window.LSR.getItem('d2r_lsrRoute') || 'null');
+            if (_rt && _rt.v === 2) who = { id: _rt.id || null, p: _rt.p || null,
+                                            pfx: (typeof _rt.pfx === 'string' ? _rt.pfx : null) };
+      } catch(e){ who = null; }
+      if (!who) return false;          // no route means no way to say whose this is
+      var out = {
+        v: 1,
+        who: who,
+        sets: fs ? pair(fs.havePieces, fs.totalPieces) : null,
+        uniques: fu ? pair(fu.found, fu.chronTotal || fu.total) : null,
+        /* ⚠ v2192 — HIS RULING, PINNED, BECAUSE THREE LISTS DISAGREE AND NONE OF THEM IS RIGHT.
+           Konyo: "i have 99 runewords check again verify that and make sure the console is
+           hardcoded with it for chronicle."
+
+           Measured in this file and in his own store:
+             window.RUNEWORDS      101   the FARM roster — carries variants ("Spirit (sword)"
+                                         and "Spirit (shield)" are two rows for one runeword)
+             RUNEWORD_TIP           97   what the chronicle KPI divides by today
+             his d2r_rwMade         99   what he has actually made
+             of those 99, 97 appear in RUNEWORD_TIP
+
+           So my first cut published 99/101 (the farm roster) and the board's own KPI would say
+           97/97. The comment beside that KPI still claims "(99/99)" — a label that outlived its
+           referent: the map drifted to 97 and the sentence did not move. [[label-outlived-referent]]
+
+           He plays the game and he is the authority on how many runewords count for his
+           chronicle. It is a named constant, so the number has ONE home and the next person can
+           see what it is and why. [[feedback-state-the-bar-not-the-routes]] */
+        runewords: rw ? pair(Object.keys(rw).length, RUNEWORD_CHRONICLE_TOTAL) : null,
+        at: Date.now()
+      };
+      /* Nothing to say is not the same as zero: if no scan answered, do not write a row of nulls
+         over a good one from five minutes ago. */
+      /* nothing to say is not the same as zero — and a row of nulls must never land on top of a
+         good tally written five minutes ago. */
+      if (!out.sets && !out.uniques && !out.runewords) return false;
+      window.LSR.setItem('d2r_tally', JSON.stringify(out));
+      /* ⚠ v2189 — AND HAND IT TO THE CONSOLE, which is what makes this work on Windows.
+         The console reads the Mac's WebKit store off disk; EdgeChromium on Windows keeps
+         localStorage in a LevelDB it cannot read at all. This page is served BY the console, so
+         it is same-origin and can simply give the numbers over. Fire-and-forget: a console that
+         is not listening must never break the board. */
+      try {
+        fetch('/api/board_tally', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(out) }).catch(function(){});
+      } catch(e){}
+      return true;
+    } catch(e){ return false; }
+  };
+  try {
+    /* once the roster is up, then on a slow beat — the scans are cheap and this is the only
+       writer, so a stale tally can only ever be one beat old. */
+    setTimeout(function(){ try { window.__tallyPersist(); } catch(e){} }, 4000);
+    setInterval(function(){ try { window.__tallyPersist(); } catch(e){} }, 60000);
+  } catch(e){}
+
   // v560 — a set's farm source comes from its AGGREGATE entry in ITEMS (tier 'set'), stem-matched by name.
   /* v1557 — one normalisation for both sides of the set-name match. Set names and their drop-data
      aggregates disagree about possessives, class suffixes and the word "set"; this is the only
@@ -45767,7 +45882,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2187', name:'v2187 - the prune rule is inverted with respect to risk', date:'2026-08-27', note:'He asked me to build the OCR liveness canary that would make the auto prune worth arming. I built it, and building it proved two things he needs before he decides anything. First, the rule is inverted with respect to risk. The prune deletes on a measured no, and no means OCR returned LINES and no stash panel was found, which is exactly what a tooltip covering the tab strip produces. On a stash screen the tooltip is the only place an item name appears, because a grid prints no names at all. So the single verdict this deletes on is the frame most likely to hold the last copy of a name, while the provably blank frames are the ones it keeps. Measured on his thirty reels with a 140 frame random sample and a full reel in mtime order, corroborated by the console own authority within one point: about five percent measured no, seven percent panel, and eighty eight percent SILENT, meaning the crop was made and OCR returned zero lines. The disk is in that eighty eight percent and a blank frame cannot carry a name. Second, freeing the blank frames needs proof the OCR lane was alive at that moment, otherwise no text on this frame and the reader was busy are the same observation, and the canary I built for that does not hold up. A cross family review returned six findings, four critical, and the one that blocks it is architectural rather than a bug: the blind counters are process globals and the console runs sweeps on other threads that move them, so a sweep ticking the silent counter inside the gate own delta collapses a tooltip frame into the deletable class. Per read counters are the prerequisite. Three of my own successive fixes to the canary broke each other, including one where consecutive silent frames vetoed one another so nothing could ever qualify, and silent frames come in runs of fifty nine on his reels. The attempt is deliberately kept out of the tree rather than half landed. This ship is comment only: the whole finding now sits at the arming switch so nobody flips it without reading what it costs.' };
+  window.D2R_BUILD = { id:'v2192', name:'v2192 - the gate answers for its own read, and his runeword ruling is pinned', date:'2026-08-27', note:'Two things he called critical. First, the blind state of the stash gate is a per call receipt now instead of a process counter. Every reader used to snapshot the global silent and broke counters before and after a call and treat any movement as this frame was blind, which is correct alone and false in the console, because chronicle and vault sweeps run on other threads and gate their own frames. A sibling thread ticking the counter inside the window answered for a frame it never touched, and in the direction that costs him footage: a tooltip frame, text present and the only place an item name lives on a stash screen, collapses out of the measured no and into the class the prune is allowed to delete. A cross family review called this architectural rather than a bug and it was right, because no care around the delta fixes a counter that belongs to the process. The read now stamps a receipt on a thread local and the three call sites ask that. The run level counters stay, because every frame this sweep probed came back silent is a different and still useful fact about the lane. Proven red by putting the delta back: the guard fails and names the tooltip case. This was the prerequisite blocking the whole auto prune arc. Second, his runeword ruling. Three lists disagree and none of them was right: the farm roster holds 101 because variants are separate rows, the chronicle map holds 97, and he has made 99. The comment beside the board own KPI still claims 99 of 99, a label that outlived its referent when the map drifted to 97. He plays the game and he is the authority, so 99 is a named constant now with the evidence written beside it.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -263,13 +263,25 @@ async function j5_threeEyes(page) {
       eyes, status,
       detailsExists: !!det,
       detailsClosed: det ? det.open === false : null,
+      // v2192 — the SHIPPED default, read off the markup rather than the live node, so a stored
+      // preference from a previous run cannot make this pass or fail by accident.
+      detailsOpenDefault: det ? det.hasAttribute('open') : null,
     };
   });
   if (!r.eyes.every(Boolean)) throw new Error(`missing eye element(s): ${JSON.stringify(r.eyes)}`);
   if (!r.status.every((t) => t.length > 0)) throw new Error(`empty eye status text: ${JSON.stringify(r.status)}`);
   if (!r.detailsExists) throw new Error('⚙ advanced <details> missing');
-  if (!r.detailsClosed) throw new Error('⚙ advanced <details> is open (should default closed)');
-  record(name, true, `3 eyes present, status=[${r.status.join(' | ')}], ⚙ advanced closed`);
+  // ⚠ v2192 — THE RULING FLIPPED, AND IT IS HIS RULING BOTH TIMES. This asserted the panel
+  // defaults CLOSED. Konyo, 2026-08-27: "the advanced settings keep vanishing.. needs to be
+  // hardcodded." A bare <details> has no memory, so every page load closed it — and v2180 made
+  // auto-relaunch actually work, so the window now reloads itself whenever a build lands and the
+  // panel shut every single time. The law this guards is not "closed", it is "the console does
+  // what he last told it to": OPEN by default, and a deliberate close still persists.
+  if (r.detailsOpenDefault !== true) {
+    throw new Error('⚙ advanced <details> does not default OPEN — it will vanish on every '
+      + 'auto-relaunch, which is what he reported');
+  }
+  record(name, true, `3 eyes present, status=[${r.status.join(' | ')}], ⚙ advanced open by default`);
 }
 
 async function j6_signalPanel(page) {

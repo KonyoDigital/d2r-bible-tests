@@ -149,9 +149,18 @@ export async function onRequestPost(context) {
       // reported yet", so a record stored WITHOUT that field failed the test and the feature
       // stayed invisible even though the numbers had arrived intact. Third joint of the same
       // feature to be built on both ends and not joined; found by a review lens.
-      const out = { ok: true,
+      // ⚠ v2188 — AND CARRY THE REFUSAL. `ok: true` was hardcoded and a tally with no pairs
+      // returned null, so a machine that CANNOT count was indistinguishable from one that never
+      // reported — and the tooltip is built to render `t.why`. That is the FOURTH joint of this
+      // one feature built on both ends and not joined (this comment said "third"). A refusal
+      // carries no item data: a short reason string and nulls. [[the-unjoined-end]]
+      const out = { ok: t.ok === true,
                     sets: pair(t.sets), uniques: pair(t.uniques), runewords: pair(t.runewords),
                     at: Number.isFinite(at) ? at : null };
+      if (!out.ok) {
+        const why = (typeof t.why === 'string') ? t.why.replace(/\s+/g, ' ').trim() : '';
+        return why ? { ok: false, why: why.slice(0, 160), at: out.at } : null;
+      }
       return (out.sets || out.uniques || out.runewords) ? out : null;
     })(body.tally),
     ip: request.headers.get('CF-Connecting-IP') || '',

@@ -14610,8 +14610,14 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
         """Run one prune pass with a FAKE fingerprint, so the test measures the POLICY."""
         import unittest.mock as mock
         import control_app, vault_retro
+        # ⚠ v2193 — THIS CLASS MEASURES THE SIGNATURE POLICY, so the panel gate must not be the
+        # thing deciding. It used to run the REAL gate over synthetic jpegs, which answered by
+        # accident; now an unstamped read is correctly UNKNOWN and every frame would be kept, so
+        # these cases would silently stop measuring anything. The gate is pinned to a measured
+        # "not a panel" and the signature does the deciding, which is what they are about.
         with mock.patch.object(vault_retro, "DEFAULT_SIG",
-                               lambda q: sigs.get(os.path.basename(q))):
+                               lambda q: sigs.get(os.path.basename(q))), \
+             mock.patch.object(control_app, "stash_panel_verdict", lambda _q: "no"):
             kw.setdefault("floor", 0)
             kw.setdefault("grace_s", 0.0)
             kw.setdefault("batch", 500)
@@ -22762,25 +22768,53 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
         return control_app
 
     def test_an_UNREADABLE_board_reports_nothing_rather_than_zeros(self):
-        import unittest.mock as mock
-        ca = self._ca()
-        with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
-                "ok": True, "boardLoaded": False,
-                "counts": {"foundLog": 390, "owned": 5, "setPieces": 120}}):
-            t = ca.grail_tally()
-        self.assertFalse(t["ok"], "it published counts from a board it could not read")
-        for k in ("sets", "uniques", "runewords"):
-            self.assertIsNone(t[k], "%s came back as a number from an unreadable board" % k)
-        self.assertIn("UNKNOWN", t["why"])
-
-    def test_a_REFUSED_read_reports_nothing(self):
+        """THE CASE THAT MUST NOT BECOME ZEROS. v2189 adds a banked-tally fallback, so this pins
+        the floor explicitly: nothing banked, no store — UNKNOWN, never 0."""
         import unittest.mock as mock
         ca = self._ca()
         with mock.patch.object(ca, "board_ownership",
-                               lambda *a, **k: {"ok": False, "why": "the board refused"}):
+                               lambda *a, **k: {"ok": True, "boardLoaded": False}), \
+             mock.patch.object(ca, "board_tally_load", lambda: None), \
+             mock.patch.object(ca, "_webkit_localstorage_dbs", lambda: []):
+            t = ca.grail_tally()
+        self.assertFalse(t["ok"])
+        for k in ("sets", "uniques", "runewords"):
+            self.assertIsNone(t[k], "%s came back as a zero rather than unknown" % k)
+        self.assertIn("UNKNOWN", t["why"])
+
+    def test_a_REFUSED_read_with_NOTHING_BANKED_reports_nothing(self):
+        """v2189 — a refused LIVE read is no longer the end of the story: the board hands its
+        tally over (/api/board_tally) and the console banks it, so a refusal falls back to what
+        the board last said. This still asserts the floor — with nothing banked and no store on
+        disk, it must report nothing rather than zeros."""
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.object(ca, "board_ownership",
+                               lambda *a, **k: {"ok": False, "why": "the board refused"}), \
+             mock.patch.object(ca, "board_tally_load", lambda: None), \
+             mock.patch.object(ca, "_webkit_localstorage_dbs", lambda: []):
             t = ca.grail_tally()
         self.assertFalse(t["ok"])
         self.assertIsNone(t["sets"])
+
+    def test_a_REFUSED_read_still_reports_what_the_BOARD_last_said(self):
+        """The whole point of v2188/v2189: he lives on the console rail, so the live read refuses
+        every time, and the fleet tooltip read "no counts reported yet" forever."""
+        import unittest.mock as mock
+        ca = self._ca()
+        who = {"id": "c5c2c92d", "p": "main", "pfx": ""}
+        banked = {"v": 1, "who": who, "route": who,
+                  "sets": {"have": 120, "total": 135},
+                  "uniques": {"have": 278, "total": 403},
+                  "runewords": {"have": 99, "total": 101}, "at": 1787812443039}
+        with mock.patch.object(ca, "board_ownership",
+                               lambda *a, **k: {"ok": False, "why": "the board refused"}), \
+             mock.patch.object(ca, "board_tally_load", lambda: banked), \
+             mock.patch.object(ca, "_webkit_localstorage_dbs", lambda: []):
+            t = ca.grail_tally()
+        self.assertTrue(t["ok"], "a refused live read still reports nothing, so the feature is "
+                                 "exactly as dead as it was (%r)" % (t,))
+        self.assertEqual(t["uniques"], {"have": 278, "total": 403})
 
     def test_a_READABLE_board_gives_the_real_pairs(self):
         """Seen red for its own reason — a tally that always answers None is as useless as one
@@ -23572,11 +23606,22 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
             fh.write(b"\xff\xd8\xff\xe0jpegish")
         return q
 
+    @staticmethod
+    def _heard(ca, val):
+        """A read that HEARD OCR lines and reached `val`, stamping its receipt as the real gate
+        does. v2193 made an unstamped read UNKNOWN — fail closed — so a fixture that only returns
+        a value is no longer simulating a read at all."""
+        def _f(_p):
+            ca._GATE_HEARD[0] += 1
+            ca._gate_stamp(heard=True)
+            return val
+        return _f
+
     def test_a_clean_NO_is_a_no(self):
         import unittest.mock as mock
         ca = self._ca()
         q = self._frame()
-        with mock.patch.object(ca, "stash_screen_open", lambda p: None), \
+        with mock.patch.object(ca, "stash_screen_open", self._heard(ca, None)), \
              mock.patch.object(ca, "_gate_cache", lambda: {}):
             self.assertEqual(ca.stash_panel_verdict(q), "no")
 
@@ -23584,7 +23629,7 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
         import unittest.mock as mock
         ca = self._ca()
         q = self._frame()
-        with mock.patch.object(ca, "stash_screen_open", lambda p: "stash"), \
+        with mock.patch.object(ca, "stash_screen_open", self._heard(ca, "stash")), \
              mock.patch.object(ca, "_gate_cache", lambda: {}):
             self.assertEqual(ca.stash_panel_verdict(q), "panel")
 
@@ -23597,7 +23642,11 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
         q = self._frame()
 
         def _silent(p):
-            ca._GATE_SILENT[0] += 1      # what the real gate does before returning None
+            # v2191 — what the real gate does before returning None. It bumps the run counter AND
+            # stamps a per-call receipt; the verdict reads the RECEIPT, because the counter belongs
+            # to the process and any sibling thread can move it.
+            ca._GATE_SILENT[0] += 1
+            ca._gate_stamp(silent=True)
             return None
 
         with mock.patch.object(ca, "stash_screen_open", _silent), \
@@ -23613,6 +23662,7 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
 
         def _broke(p):
             ca._GATE_BROKE["n"] += 1
+            ca._gate_stamp(broke=True)   # v2191 — the per-call receipt is what the verdict reads
             return None
 
         with mock.patch.object(ca, "stash_screen_open", _broke), \
@@ -23631,6 +23681,7 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
 
         def _silent(p):
             ca._GATE_SILENT[0] += 1
+            ca._gate_stamp(silent=True)   # v2191 — stamp the receipt, as the real gate does
             return None
 
         with mock.patch.object(ca, "stash_screen_open", _silent), \
@@ -23825,6 +23876,560 @@ class TestV2185TheValidatorCarriedTheDefectItValidatesAgainst(unittest.TestCase)
                          "a second copy of the receipts>=readings rule is back in counter_ledger. "
                          "There is exactly ONE definition — not_found_datable — and every caller "
                          "must ask it: %s" % hits)
+
+
+def _code_only(src):
+    """Source with comments AND docstrings removed.
+
+    ⚠ STRIPPING `#` LINES IS NOT ENOUGH, and this file has been bitten by that repeatedly: a
+    docstring explaining WHY a symbol is avoided contains that symbol, so a scanner looking for it
+    finds its own explanation and passes forever. [[source-reading-guard]]
+    """
+    import ast as _ast
+    try:
+        tree = _ast.parse(src)
+    except Exception:
+        return "\n".join(L for L in src.split("\n") if not L.strip().startswith("#"))
+    drop = set()
+    for node in _ast.walk(tree):
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef, _ast.Module)):
+            body = getattr(node, "body", None) or []
+            if (body and isinstance(body[0], _ast.Expr)
+                    and isinstance(getattr(body[0], "value", None), _ast.Constant)
+                    and isinstance(body[0].value.value, str)):
+                for ln in range(body[0].lineno, (body[0].end_lineno or body[0].lineno) + 1):
+                    drop.add(ln)
+    return "\n".join(L for i, L in enumerate(src.split("\n"), 1)
+                     if i not in drop and not L.strip().startswith("#"))
+
+
+class TestV2191TheGateAnswersForITSOWNReadNotTheProcess(unittest.TestCase):
+    """⚠ THE ARCHITECTURAL BLOCKER, REMOVED. Konyo: "this is critical do this first."
+
+    Every reader of the stash gate asked the same question the same wrong way: snapshot
+    `_GATE_SILENT` / `gate_failures()` before the call, snapshot after, treat any movement as
+    "this frame was blind". Correct alone; false in the console, which runs chronicle and vault
+    sweeps on OTHER THREADS that gate their own frames.
+
+    The damage is directional and it costs footage: a sibling thread ticking _GATE_SILENT inside
+    the window turns a frame that WAS read into "unknown" — and a TOOLTIP frame (text present, and
+    the only place an item name appears on a stash screen, because a grid prints none) collapses
+    out of the measured "no" and into the class the prune is allowed to delete.
+
+    A cross-family review named this as architectural rather than a bug and it was right: no care
+    around the delta fixes a counter that belongs to the process. The answer is a per-call receipt
+    on a threading.local. The RUN-level counters stay, because "every frame this sweep probed came
+    back silent -> the lane is down" is a different and still useful fact.
+    [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.frame = os.path.join(self.d, "f_1787000000001.jpg")
+        io.open(self.frame, "wb").write(b"\xff\xd8\xff\xe0" + b"x" * 400)
+
+    def test_a_SIBLING_THREAD_cannot_turn_a_read_frame_into_unknown(self):
+        """The exact defect: another sweep ticks the global mid-read and this frame's verdict flips
+        from a measured "no" to "unknown" — which is what makes it deletable."""
+        import unittest.mock as mock
+
+        def _noisy(path):
+            # a concurrent sweep, gating ITS frame while ours is in flight
+            self.ca._GATE_SILENT[0] += 7
+            self.ca._GATE_BROKE["n"] += 3
+            self.ca._gate_stamp(heard=True)      # OUR read heard lines
+            return None                          # ...and found no panel: a measured "no"
+
+        with mock.patch.object(self.ca, "stash_screen_open", _noisy), \
+             mock.patch.object(self.ca, "_gate_cache", lambda: {}):
+            v = self.ca.stash_panel_verdict(self.frame)
+        self.assertEqual(v, "no",
+                         "a sibling thread moving the process counters turned a frame this read "
+                         "measured into 'unknown'. That is the tooltip case: text present, no "
+                         "panel, and now in the class the prune may delete.")
+
+    def test_a_frame_THIS_read_could_not_see_is_still_unknown(self):
+        """The half that must not be lost — the receipt must still report real blindness."""
+        import unittest.mock as mock
+
+        def _silent(path):
+            self.ca._GATE_SILENT[0] += 1
+            self.ca._gate_stamp(silent=True)     # OUR read went silent
+            return None
+
+        with mock.patch.object(self.ca, "stash_screen_open", _silent), \
+             mock.patch.object(self.ca, "_gate_cache", lambda: {}):
+            self.assertEqual(self.ca.stash_panel_verdict(self.frame), "unknown",
+                             "a genuinely silent read was reported as a measured 'not a panel'")
+
+    def test_a_read_that_STAMPS_NOTHING_is_unknown_not_a_measured_no(self):
+        """⚠ MY FIRST RECEIPT FAILED **OPEN**, IN THE ONE DIRECTION THAT COSTS HIM DATA.
+
+        _gate_receipt_begin() planted silent=False/broke=False on a shared per-thread slot before
+        the read, and most of stash_screen_open's exits stamp nothing. So a frame the gate never
+        classified came back blind=False, which stash_panel_verdict turns into a measured "no" —
+        the class the pruner may DELETE. The docstring claimed "an absent receipt is UNKNOWN"; the
+        planted fields made that unreachable. Caught by a review before it shipped.
+
+        `stamped` starts False and only an explicit outcome sets it. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        with mock.patch.object(self.ca, "stash_screen_open", lambda p: None), \
+             mock.patch.object(self.ca, "_gate_cache", lambda: {}):
+            self.assertEqual(self.ca.stash_panel_verdict(self.frame), "unknown",
+                             "a read that recorded NOTHING was published as a measured "
+                             "'not a panel', which is the frame the pruner is allowed to delete")
+
+    def test_a_gate_that_BROKE_rides_the_receipt_not_just_the_counter(self):
+        """The failure channel was still only the process counter, so a gate that broke and
+        returned None became a confident "no"."""
+        import unittest.mock as mock
+        ca = self.ca
+
+        def _broke(p):
+            ca._GATE_BROKE["n"] += 1
+            ca._gate_stamp(broke=True)
+            return None
+
+        with mock.patch.object(ca, "stash_screen_open", _broke), \
+             mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertEqual(ca.stash_panel_verdict(self.frame), "unknown")
+
+    def test_a_NESTED_read_cannot_steal_the_outer_frames_verdict(self):
+        """One slot per THREAD meant a read that nested another read had its answer overwritten by
+        the inner one. Each call owns its receipt and the previous is restored."""
+        import unittest.mock as mock
+        ca = self.ca
+        other = os.path.join(self.d, "other.jpg")
+        io.open(other, "wb").write(b"\xff\xd8" + b"y" * 200)
+        cache = {}
+
+        def _outer(p):
+            if p == self.frame:
+                def _inner(q):
+                    ca._GATE_SILENT[0] += 1
+                    ca._gate_stamp(silent=True)
+                    return None
+                with mock.patch.object(ca, "stash_screen_open", _inner):
+                    ca._stash_gate_read(other)        # nested, same thread
+                ca._GATE_HEARD[0] += 1
+                ca._gate_stamp(heard=True)            # the OUTER read heard lines
+            return None
+
+        with mock.patch.object(ca, "stash_screen_open", _outer), \
+             mock.patch.object(ca, "_gate_cache", lambda: cache):
+            self.assertEqual(ca.stash_panel_verdict(self.frame), "no",
+                             "the outer frame inherited the NESTED read's silence and became "
+                             "unknown — one receipt slot per thread is a race with itself")
+
+    def test_a_PRE_v2193_cache_row_is_not_believed(self):
+        """A single wrong all-clear does not stay local: the row is stored and every later look at
+        those bytes, on any thread, returns it without re-reading. Poison is permanent and shared,
+        so rows from a build whose detection could produce one are retired."""
+        import unittest.mock as mock
+        ca = self.ca
+        st = os.stat(self.frame)
+        old = {self.frame: [int(st.st_size), int(st.st_mtime), None, False]}   # no schema tag
+        with mock.patch.object(ca, "stash_screen_open", lambda p: None), \
+             mock.patch.object(ca, "_gate_cache", lambda: old):
+            self.assertEqual(ca.stash_panel_verdict(self.frame), "unknown",
+                             "a pre-v2193 cached all-clear was believed, so a frame that may hold "
+                             "the only copy of a name stays deletable forever")
+
+    def test_the_gate_still_gives_REAL_answers(self):
+        """⚠ THE HALF THAT MUST NOT BE LOST. Failing closed everywhere would make every frame
+        unknown, which keeps his disk full and looks like caution."""
+        import unittest.mock as mock
+        ca = self.ca
+
+        def _heard(val):
+            def _f(p):
+                ca._GATE_HEARD[0] += 1
+                ca._gate_stamp(heard=True)
+                return val
+            return _f
+
+        with mock.patch.object(ca, "stash_screen_open", _heard(None)), \
+             mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertEqual(ca.stash_panel_verdict(self.frame), "no")
+        with mock.patch.object(ca, "stash_screen_open", _heard("stash")), \
+             mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertEqual(ca.stash_panel_verdict(self.frame), "panel")
+
+    def test_a_read_that_recorded_NOTHING_is_unknown_not_fine(self):
+        """An absent receipt is UNKNOWN. If a future exit path forgets to stamp one, the frame must
+        NOT come back as a confident answer — fail closed, or the omission is invisible."""
+        import unittest.mock as mock
+
+        def _forgetful(path):
+            return None                          # stamps no receipt at all
+
+        r = self.ca._gate_receipt_begin()
+        try:
+            _forgetful(self.frame)          # a path that records nothing at all
+        finally:
+            self.ca._gate_receipt_end(r)
+        self.assertTrue(self.ca._gate_blind(r),
+                        "a read that recorded nothing reports itself as measured")
+
+    def test_NO_reader_brackets_the_gate_with_the_process_counters_any_more(self):
+        """The class, not the instance. Three call sites used the delta; a fourth would be silent."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        import re as _re
+        bad = _re.findall(r"_GATE_SILENT\[0\]\s*!=|gate_failures\(\)\s*!=", src)
+        self.assertEqual(bad, [],
+                         "a reader is bracketing the gate with the PROCESS counters again (%d "
+                         "site(s)). That answer belongs to whatever every other thread happened "
+                         "to be doing. Use _gate_receipt()." % len(bad))
+
+
+class TestV2188TheFleetTallyCanActuallyBeReported(unittest.TestCase):
+    """⚠ FOUR JOINTS OF ONE FEATURE, EACH BUILT ON BOTH ENDS AND NEVER JOINED.
+
+    Konyo, looking at his own row in the console's fleet panel: "no counts reported. might be a
+    bug here where it should fetch the numbers for chronicles and show them."
+
+      1. grail_tally() answers only when the app window is SHOWING bible.html, because it reads
+         the ledger by running JS in that window. He lives on the console rail, so `boardLoaded`
+         was false EVERY TIME and the feature could never populate.
+      2. the beacon sent `tally: None` whenever the tally was not ok, so the reason never left the
+         machine — and the tooltip is built to render it.
+      3. the worker hardcoded `ok: true` and returned null unless a count survived, dropping the
+         refusal a second time.
+      4. (v2168, already fixed) the worker did not carry `ok` at all.
+
+    The counts DO exist on disk — WebKit's localstorage.sqlite3, 84 keys, readable while the app
+    runs. What is NOT on disk is the RULE: uniques are counted against the in-page roster via
+    funiScan(). Measured while diagnosing this, a console-side re-derivation (foundLog minus
+    setPieces minus runewords) gave 277 where he says 278 — close enough to look right and wrong
+    enough to be a lie under his name. So the board writes down what it already computed and the
+    console reads that one key. [[copy-drift]] [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, True)
+
+    def _store(self, rows):
+        """A WebKit-shaped localstorage.sqlite3 with UTF-16 values, like the real one."""
+        import sqlite3
+        # a fresh file per call — the reader is invoked more than once per test and the old
+        # version reused one path, so the second CREATE TABLE blew up inside a lambda
+        db = os.path.join(self.d, "ls-%d.sqlite3" % len(os.listdir(self.d)))
+        con = sqlite3.connect(db)
+        con.execute("CREATE TABLE ItemTable (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB)")
+        for k, v in rows.items():
+            con.execute("INSERT INTO ItemTable VALUES (?,?)",
+                        (k, json.dumps(v).encode("utf-16-le")))
+        con.commit()
+        con.close()
+        return db
+
+    def _with(self, rows):
+        """The store, plus the console's own identity — the reader checks that the route belongs
+        to THIS install before believing anything it finds."""
+        import unittest.mock as mock, contextlib
+        st = contextlib.ExitStack()
+        # v2188.3 — the reader tries EVERY store on the machine, so the fixture supplies a list.
+        # And a store only counts as the BOARD's if one of its own ledgers is present — a foreign
+        # WebKit origin has none — so every fixture carries one.
+        rows = dict(rows)
+        rows.setdefault("d2r_setPieces", ["Angelic Halo"])
+        db = self._store(rows)
+        st.enter_context(mock.patch.object(self.ca, "_webkit_localstorage_dbs", lambda: [db]))
+        st.enter_context(mock.patch.object(self.ca, "_webkit_localstorage_db", lambda: db))
+        st.enter_context(mock.patch.object(self.ca, "status_payload",
+                                           lambda: {"identity": {"id": "c5c2c92d"}}))
+        return st
+
+    ROUTE = {"v": 2, "owner": True, "id": "c5c2c92d", "m": "owner", "p": "main", "pfx": ""}
+    WHO = {"id": "c5c2c92d", "p": "main", "pfx": ""}
+    TALLY = {"v": 1, "who": WHO,
+             "sets": {"have": 120, "total": 135},
+             "uniques": {"have": 278, "total": 403},
+             "runewords": {"have": 99, "total": 99}, "at": 1787800000000}
+
+    def setUpIdentity(self):
+        import unittest.mock as mock
+        return mock.patch.object(self.ca, "status_payload",
+                                 lambda: {"identity": {"id": "c5c2c92d"}})
+
+    def test_the_saved_tally_is_read_through_the_ROUTE(self):
+        with self._with({"d2r_lsrRoute": self.ROUTE, "d2r_tally": self.TALLY}):
+            t = self.ca._tally_from_board_store()
+        self.assertTrue(t and t.get("ok"), "the board's saved tally was not read (%r)" % (t,))
+        self.assertEqual(t["sets"], {"have": 120, "total": 135})
+        self.assertEqual(t["uniques"], {"have": 278, "total": 403})
+        self.assertEqual(t["runewords"], {"have": 99, "total": 99})
+
+    def test_a_LADDER_prefix_reads_the_ladder_tally_not_the_main_one(self):
+        """A profile toggle must never publish the other profile's count under his name."""
+        rows = {"d2r_lsrRoute": dict(self.ROUTE, pfx="L\u00b7", p="ladder"),
+                "d2r_tally": self.TALLY,
+                "L\u00b7d2r_tally": dict(self.TALLY,
+                                         who={"id": "c5c2c92d", "p": "ladder", "pfx": "L\u00b7"},
+                                         uniques={"have": 12, "total": 403}),
+                "L\u00b7d2r_setPieces": ["Angelic Halo"]}
+        with self._with(rows):
+            t = self.ca._tally_from_board_store()
+        self.assertEqual(t["uniques"]["have"], 12,
+                         "the ladder profile published the MAIN profile's uniques count")
+
+    def test_a_route_it_does_not_UNDERSTAND_is_refused_not_guessed(self):
+        """⚠ A reader that guesses a prefix publishes another world's numbers under his name. v:1,
+        absent, or a non-string pfx must all resolve UNKNOWN. [[unknown-stays-unknown]]"""
+        for label, rows in (
+            ("no route at all", {"d2r_tally": self.TALLY}),
+            ("a v:1 route", {"d2r_lsrRoute": {"v": 1}, "d2r_tally": self.TALLY}),
+            ("pfx is not a string", {"d2r_lsrRoute": dict(self.ROUTE, pfx=None),
+                                     "d2r_tally": self.TALLY}),
+        ):
+            with self._with(rows):
+                self.assertIsNone(self.ca._tally_from_board_store(),
+                                  "%s still produced a tally — the prefix was guessed" % label)
+
+    def test_a_tally_with_no_counts_says_so_rather_than_zeroing(self):
+        with self._with({"d2r_lsrRoute": self.ROUTE,
+                         "d2r_tally": {"v": 1, "who": self.WHO, "sets": None,
+                                       "uniques": None, "runewords": None, "at": 1}}):
+            t = self.ca._tally_from_board_store()
+        self.assertFalse(t["ok"])
+        self.assertIn("no counts", t["why"])
+        for k in ("sets", "uniques", "runewords"):
+            self.assertIsNone(t[k], "%s came back as a zero rather than unknown" % k)
+
+    def test_a_have_that_is_not_an_int_is_dropped_not_coerced(self):
+        with self._with({"d2r_lsrRoute": self.ROUTE,
+                         "d2r_tally": {"v": 1, "who": self.WHO,
+                                       "sets": {"have": "120", "total": 135},
+                                       "uniques": {"have": 278, "total": 0},
+                                       "runewords": None, "at": 1}}):
+            t = self.ca._tally_from_board_store()
+        self.assertIsNone(t["sets"], "a string count was published as a number")
+        self.assertEqual(t["uniques"], {"have": 278, "total": None},
+                         "a total of 0 must render the bar indeterminate, not divide by zero")
+
+    def test_a_tally_stamped_for_a_DIFFERENT_world_is_refused(self):
+        """⚠ THE FINDING THAT MATTERS MOST: publishing someone else's progress under his name.
+
+        Three routes to it, all the same shape — a number whose provenance nobody checked:
+          · a profile switched without the board being reopened, so the old tally sits under a new
+            route
+          · a second WebKit store on the machine winning the newest-mtime pick
+          · a torn read pairing one profile's route with another's counts
+        The writer stamps {id, p, pfx} and this refuses any disagreement."""
+        for label, who in (
+            ("a different profile", {"id": "c5c2c92d", "p": "ladder", "pfx": ""}),
+            ("a different install", {"id": "deadbeef", "p": "main", "pfx": ""}),
+            ("a different prefix", {"id": "c5c2c92d", "p": "main", "pfx": "L\u00b7"}),
+        ):
+            with self._with({"d2r_lsrRoute": self.ROUTE, "d2r_tally": dict(self.TALLY, who=who)}):
+                self.assertIsNone(self.ca._tally_from_board_store(),
+                                  "a tally stamped for %s was published anyway" % label)
+
+    def test_an_UNSTAMPED_tally_is_refused(self):
+        """An older board wrote tallies with no `who`. Provenance we cannot establish is UNKNOWN,
+        and an unknown must not be published under a name. [[unknown-stays-unknown]]"""
+        t = dict(self.TALLY)
+        t.pop("who")
+        with self._with({"d2r_lsrRoute": self.ROUTE, "d2r_tally": t}):
+            self.assertIsNone(self.ca._tally_from_board_store())
+
+    def test_a_FOREIGN_webkit_store_is_not_mistaken_for_the_board(self):
+        """⚠ THE GATE I FIRST WROTE FOR THIS WOULD HAVE KILLED THE FEATURE. It compared the
+        console's own install id to the board's route id — and measured on his machine those are
+        DIFFERENT identifiers for different things (console 23d0486747ce…, board c5c2c92d9fd0…),
+        with no .board_identity.json to bridge them. It could never have passed, and it would have
+        shipped looking like caution. [[feedback-blind-fixture-green-gate]]
+
+        What actually discriminates a foreign WebKit origin is that it is not a board: no route,
+        or no board ledger of any kind."""
+        import unittest.mock as mock
+        foreign = {"d2r_lsrRoute": self.ROUTE, "d2r_tally": self.TALLY}   # route+tally, NO ledger
+        db = self._store(foreign)
+        with mock.patch.object(self.ca, "_webkit_localstorage_dbs", lambda: [db]), \
+             mock.patch.object(self.ca, "status_payload",
+                               lambda: {"identity": {"id": "c5c2c92d"}}):
+            self.assertIsNone(self.ca._tally_from_board_store(),
+                              "a store carrying no board ledger was read as his board")
+
+    def test_it_tries_EVERY_store_not_just_the_newest(self):
+        """A busier WebKit origin being NEWER must not make the feature permanently unknown while
+        his board's store sits on disk untouched."""
+        import unittest.mock as mock
+        foreign = self._store({"d2r_lsrRoute": dict(self.ROUTE, id="ffffffff", p="other")})
+        his = self._store({"d2r_lsrRoute": self.ROUTE, "d2r_tally": self.TALLY,
+                           "d2r_setPieces": ["Angelic Halo"]})
+        with mock.patch.object(self.ca, "_webkit_localstorage_dbs", lambda: [foreign, his]), \
+             mock.patch.object(self.ca, "status_payload",
+                               lambda: {"identity": {"id": "c5c2c92d"}}):
+            t = self.ca._tally_from_board_store()
+        self.assertTrue(t and t.get("ok"),
+                        "a foreign store winning the mtime race made the feature refuse forever "
+                        "instead of trying the next one (%r)" % (t,))
+        self.assertEqual(t["uniques"], {"have": 278, "total": 403})
+
+    def test_a_bool_is_not_a_count(self):
+        """⚠ isinstance(False, int) is True in Python, so False would publish as a count of 0 —
+        an unknown wearing a measurement's clothes, in the one place that must never happen."""
+        with self._with({"d2r_lsrRoute": self.ROUTE,
+                         "d2r_tally": dict(self.TALLY,
+                                           sets={"have": False, "total": 135},
+                                           uniques={"have": True, "total": True},
+                                           runewords={"have": -3, "total": 99})}):
+            t = self.ca._tally_from_board_store()
+        self.assertIsNone(t["sets"], "False was published as a count of 0")
+        self.assertIsNone(t["uniques"], "True was published as a count of 1")
+        self.assertIsNone(t["runewords"], "a NEGATIVE count was published")
+
+    def test_the_runeword_total_is_HIS_ruling_not_a_list_that_drifted(self):
+        """⚠ THREE LISTS DISAGREE AND NONE OF THEM IS THE ANSWER.
+
+        Measured in bible.html and in his own store:
+            window.RUNEWORDS   101   the FARM roster — variants are separate rows
+                                     ("Spirit (sword)" and "Spirit (shield)")
+            RUNEWORD_TIP        97   what the chronicle KPI divides by today
+            his d2r_rwMade      99   what he has actually made
+
+        My first cut published 99/101 off the farm roster. The board's own KPI would say 97/97 —
+        and the comment beside it still claims "(99/99)", a label that outlived its referent when
+        the map drifted to 97. [[label-outlived-referent]]
+
+        Konyo, who plays the game: "i have 99 runewords ... make sure the console is hardcoded
+        with it for chronicle." It is a named constant so the number has ONE home."""
+        b = io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        self.assertIn("var RUNEWORD_CHRONICLE_TOTAL = 99;", b,
+                      "his runeword ruling is gone or has changed value — the chronicle would go "
+                      "back to dividing by a list that drifts")
+        blk = _between(self, b, "window.__tallyPersist", "// v560 — a set")
+        self.assertIn("RUNEWORD_CHRONICLE_TOTAL", blk,
+                      "the tally does not use his pinned total")
+        self.assertNotIn("window.RUNEWORDS.length", blk,
+                         "the tally is back on the FARM roster, which counts variants twice and "
+                         "reads 101")
+
+    def test_the_page_never_writes_a_zero_it_did_not_measure(self):
+        """⚠ `JSON.parse(null || '{}')` yields {} and a count of 0 — and 0-in-an-object is truthy,
+        so the writer's own "nothing to say" guard let it through and OVERWROTE a good tally.
+        Absent is not zero."""
+        b = io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        blk = _between(self, b, "window.__tallyPersist", "// v560 — a set")
+        self.assertNotIn("getItem('d2r_rwMade') || '{}'", blk,
+                         "an absent runeword ledger still parses to {} and publishes 0")
+        self.assertIn("if (rwRaw)", blk,
+                      "the writer does not distinguish an ABSENT ledger from an empty one")
+        self.assertIn("have < 0", blk, "the writer accepts a negative count")
+
+    def test_it_works_with_NO_webkit_store_at_all_which_is_WINDOWS(self):
+        """⚠ Konyo: "make it integrated to windows too." — and he was right that the first design
+        could not be.
+
+        The Mac reader excavates WebKit's localstorage.sqlite3. pywebview on Windows is
+        EdgeChromium, whose localStorage is a LevelDB store it cannot read at ALL, so his cousin's
+        PC would have shown "no counts reported yet" forever no matter what shipped.
+
+        bible.html is SERVED BY the console, so it is same-origin and can simply hand the numbers
+        over (/api/board_tally). That removes the platform-specific excavation from the critical
+        path, and leaves ONE definition of his progress — the board's. [[copy-drift]]"""
+        import unittest.mock as mock
+        ca = self.ca
+        who = {"id": "c5c2c92d", "p": "main", "pfx": ""}
+        banked = {"v": 1, "who": who, "route": who,
+                  "sets": {"have": 120, "total": 135},
+                  "uniques": {"have": 278, "total": 403},
+                  "runewords": {"have": 99, "total": 101}, "at": 1787812443039}
+        with mock.patch.object(ca, "board_tally_load", lambda: banked), \
+             mock.patch.object(ca, "_webkit_localstorage_dbs", lambda: []):
+            t = ca._tally_from_board_store()
+        self.assertTrue(t and t.get("ok"),
+                        "with no WebKit store — which is every Windows machine — the fleet tally "
+                        "is still unavailable (%r)" % (t,))
+        self.assertEqual(t["uniques"], {"have": 278, "total": 403})
+
+    def test_the_banked_tally_must_still_say_whose_it_is(self):
+        """The POST route is a door from the page into the console; it may not become a way to
+        publish an unstamped number under his name."""
+        import unittest.mock as mock
+        ca = self.ca
+        for label, banked in (
+            ("no who at all", {"v": 1, "sets": {"have": 1, "total": 2}}),
+            ("who is not a dict", {"v": 1, "who": "me", "route": "me",
+                                   "sets": {"have": 1, "total": 2}}),
+        ):
+            with mock.patch.object(ca, "board_tally_load", lambda b=banked: b), \
+                 mock.patch.object(ca, "_webkit_localstorage_dbs", lambda: []):
+                self.assertIsNone(ca._tally_from_board_store(),
+                                  "%s was published anyway" % label)
+
+    def test_the_banked_file_round_trips_and_is_LIVE_STATE(self):
+        import unittest.mock as mock
+        ca = self.ca
+        f = os.path.join(self.d, "bt.json")
+        with mock.patch.object(ca, "_board_tally_path", lambda: f):
+            self.assertIsNone(ca.board_tally_load())
+            self.assertTrue(ca.board_tally_save({"v": 1, "sets": {"have": 3, "total": 4}}))
+            self.assertEqual(ca.board_tally_load()["sets"], {"have": 3, "total": 4})
+        # v2184's law: anything the console writes at runtime must be gitignored AND untracked
+        sys.path.insert(0, HERE)
+        import run_gates
+        self.assertIn("board_tally.json", getattr(run_gates, "_LIVE_STATE", ()),
+                      "the board tally is written at runtime and is not registered as live state, "
+                      "so `git add -A` will publish his counts to a PUBLIC repo")
+
+    def test_a_MISSING_store_is_None_not_a_crash(self):
+        import unittest.mock as mock
+        with mock.patch.object(self.ca, "_webkit_localstorage_dbs", lambda: []):
+            self.assertIsNone(self.ca._tally_from_board_store())
+        with mock.patch.object(self.ca, "_webkit_localstorage_dbs",
+                               lambda: [os.path.join(self.d, "nope.sqlite3")]):
+            self.assertIsNone(self.ca._tally_from_board_store())
+
+    def test_the_reader_takes_a_WAL_SAFE_snapshot_and_never_writes(self):
+        """⚠ `copyfile` IS NOT A SNAPSHOT OF A LIVE SQLITE DB, and my first version used it.
+
+        WebKit runs this store in WAL mode, so the newest writes live in `-wal` and a bare file
+        copy sees a checkpointed PAST — or, mid-write, a torn mix of new route pages and old tally
+        pages. A review named the exact damage: resolve the OLD profile's prefix against the NEW
+        profile's counts and publish the previous person's progress. sqlite's own backup() walks
+        the WAL; `mode=ro` guarantees this reader can never write to his board's store."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        # v2189 — the snapshot moved into its own function when the reader learned to try every
+        # store; the property is unchanged and the anchor follows it.
+        body = _between(self, src, "def _board_store_snapshot(", "\ndef ")
+        self.assertIn(".backup(", body,
+                      "the reader does not take a WAL-aware snapshot, so it can pair one "
+                      "profile's route with another profile's counts")
+        self.assertIn("mode=ro", body,
+                      "the reader opens his live store WRITABLE")
+        self.assertNotIn("copyfile", body,
+                         "a plain file copy is back — it misses the -wal and can tear")
+
+    def test_the_beacon_sends_the_REFUSAL_so_the_reason_can_be_shown(self):
+        """The tooltip renders `t.why`; the beacon used to send None and throw it away."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        body = _between(self, src, '"machine": _sock.gethostname()', '"lastBeacon"')
+        self.assertIn('"tally": _tally_cached()', body,
+                      "the beacon still drops a not-ok tally, so the fleet tooltip can never say "
+                      "WHY a machine has no counts")
+
+    def test_the_board_persists_the_tally_it_already_computes(self):
+        """The rule for uniques lives in the page (funiScan against the roster), so the board is
+        the only place that may state it. If this writer goes, the console has nothing to read."""
+        b = io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        self.assertIn("window.__tallyPersist", b,
+                      "bible.html no longer writes its tally, so the fleet numbers cannot work "
+                      "from any view except the board itself")
+        blk = _between(self, b, "window.__tallyPersist", "// v560 — a set")
+        self.assertIn("funiScan", blk, "the persisted uniques count is not the board's own")
+        self.assertIn("fsetsScan", blk, "the persisted sets count is not the board's own")
+        self.assertIn("LSR.setItem", blk,
+                      "the tally is written unrouted, so a ladder profile would overwrite main's")
 
 
 class TestV2184EveryLiveStateFileIsGitignored(unittest.TestCase):

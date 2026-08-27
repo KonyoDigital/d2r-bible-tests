@@ -1245,6 +1245,282 @@ _beacon_state_load()   # startup: carry the verdict across restarts
 # to. Both are read from the board now, and absent means None.
 
 
+def _board_tally_path():
+    return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())), "board_tally.json")
+
+
+def board_tally_save(t):
+    """Bank what the BOARD says its counts are. -> True when it landed.
+
+    ⚠ v2189 — WINDOWS. The first cut read the numbers out of WebKit's localstorage.sqlite3, which
+    works on his Mac and CANNOT work on his cousin's PC: pywebview there is EdgeChromium, whose
+    localStorage is a LevelDB store, not SQLite. Konyo: "make it integrated to windows too."
+
+    bible.html is SERVED BY this console, so it is same-origin with this API and can simply hand
+    the numbers over. That removes the platform-specific excavation entirely, works on both, and
+    leaves ONE definition of his progress — the board's — instead of a reader that re-derives it.
+    [[copy-drift]] [[dual-machine-setup]]
+    """
+    p = _board_tally_path()
+    try:
+        d = os.path.dirname(p)
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(t, fh, indent=1, sort_keys=True)
+        os.replace(tmp, p)
+        return True
+    except Exception as e:
+        print("   \u26a0 the board tally could not be saved (%s)" % str(e)[:70], flush=True)
+        return False
+
+
+def board_tally_load():
+    try:
+        with open(_board_tally_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def _webkit_localstorage_dbs():
+    """EVERY board-shaped WebKit localStorage store, newest first. -> [path]
+
+    ⚠ v2188.2 — THIS RETURNED ONLY THE NEWEST AND THAT COULD KILL THE FEATURE OUTRIGHT. A review
+    pointed out the consequence of pairing a single-candidate pick with strict provenance checks:
+    if a busier WebKit origin (Safari, another pywebview app) happens to be newer, the one
+    candidate fails the checks and the reader returns UNKNOWN forever, while his board's store sits
+    on disk untouched. A list, tried in order, is the difference between "we could not identify it"
+    and "we did not look". [[feedback-blind-fixture-green-gate]]
+    """
+    import glob as _glob
+    pats = [os.path.expanduser("~/Library/WebKit/com.apple.python3/WebsiteData/Default/*/*/"
+                               "LocalStorage/localstorage.sqlite3"),
+            os.path.expanduser("~/Library/WebKit/*/WebsiteData/Default/*/*/"
+                               "LocalStorage/localstorage.sqlite3")]
+    seen, out = set(), []
+    for pat in pats:
+        for f in _glob.glob(pat):
+            rp = os.path.realpath(f)
+            if rp in seen:
+                continue
+            seen.add(rp)
+            try:
+                out.append((os.path.getmtime(f), f))
+            except Exception:
+                continue
+    out.sort(key=lambda x: -x[0])
+    return [f for _, f in out[:8]]          # newest first, bounded
+
+
+def _webkit_localstorage_db():
+    """The newest store. Kept for callers that only want a path; prefer the plural."""
+    l = _webkit_localstorage_dbs()
+    return l[0] if l else None
+
+
+def _board_store_snapshot(db):
+    """A consistent, read-only in-memory copy of one store. -> sqlite3.Connection | None
+
+    ⚠ backup() OVER mode=ro, NOT copyfile. WebKit runs these in WAL mode: a bare file copy sees a
+    checkpointed PAST, or mid-write a torn mix of new route pages and old tally pages — which is
+    precisely how one profile's route gets paired with another profile's counts.
+    """
+    import sqlite3 as _sq
+    from urllib.parse import quote as _q
+    try:
+        # ⚠ THE PATH IS NOT A URI. A space, ?, # or % in it made connect() throw, and the throw
+        # was swallowed into a silent UNKNOWN. quote() it.
+        uri = "file:" + _q(os.path.abspath(db)) + "?mode=ro"
+        src = _sq.connect(uri, uri=True, timeout=2.0)
+    except Exception:
+        return None
+    try:
+        con = _sq.connect(":memory:")
+        try:
+            src.backup(con)
+        except Exception:
+            con.close()
+            return None
+        return con
+    finally:
+        try:
+            src.close()
+        except Exception:
+            pass
+
+
+def _store_read_all(db, keys_prefixed, keys_bare=()):
+    """Read a route plus some routed keys out of ONE store, in a single snapshot. -> dict | None
+
+    Everything comes from the SAME image, so a route can never be paired with another snapshot's
+    values.
+    """
+    con = _board_store_snapshot(db)
+    if con is None:
+        return None
+    try:
+        cur = con.cursor()
+
+        def _get(k):
+            try:
+                cur.execute("SELECT value FROM ItemTable WHERE key=?", (k,))
+            except Exception:
+                return None
+            r = cur.fetchone()
+            if not r or r[0] is None:
+                return None
+            b = r[0]
+            for enc in ("utf-16-le", "utf-8"):
+                try:
+                    return json.loads(b.decode(enc) if isinstance(b, (bytes, bytearray))
+                                      else str(b))
+                except Exception:
+                    continue
+            return None
+
+        rt = _get("d2r_lsrRoute")
+        # ⚠ A ROUTE MUST BE COMPLETE TO BE A ROUTE. Requiring only `v == 2` let a foreign store
+        # with {v:2, pfx:...} through, and then `who.get('id') != route.get('id')` compared
+        # None to None and called that agreement. Absent is not a match.
+        if not (isinstance(rt, dict) and rt.get("v") == 2
+                and isinstance(rt.get("pfx"), str)
+                and isinstance(rt.get("id"), str) and rt["id"]
+                and isinstance(rt.get("p"), str) and rt["p"]):
+            return None
+        # ⚠ IS THIS THE BOARD'S STORE? A complete route is necessary and not sufficient — the
+        # discriminator against a foreign WebKit origin is that the board's own ledgers are here.
+        # Any ONE of them is enough; requiring all would refuse a brand-new board.
+        is_board = any(_get(rt["pfx"] + k) is not None
+                       for k in ("d2r_grailFarm", "d2r_setPieces", "d2r_rwMade", "d2r_foundLog"))
+        out = {"route": rt, "vals": {}, "isBoard": bool(is_board)}
+        for k in keys_prefixed:
+            out["vals"][k] = _get(rt["pfx"] + k)
+        for k in keys_bare:
+            out["vals"][k] = _get(k)
+        return out
+    except Exception:
+        return None
+    finally:
+        try:
+            con.close()                      # ⚠ this was never closed
+        except Exception:
+            pass
+
+
+def _board_store_get(key, prefixed=True, want_route=False):
+    """One value from the first board store that identifies itself. -> obj | (obj, route) | None"""
+    for db in _webkit_localstorage_dbs():
+        got = _store_read_all(db, (key,) if prefixed else (), () if prefixed else (key,))
+        if not got:
+            continue
+        val = got["vals"].get(key)
+        return (val, got["route"]) if want_route else val
+    return None
+
+
+def _same_id(a, b):
+    """Are these two identifiers THE SAME? -> bool
+
+    ⚠ v2188.2 — THIS WAS A BIDIRECTIONAL startswith AND THAT IS NOT IDENTITY. A review put it
+    exactly: "10" vs "1", "abc" vs "abcdef", a truncated stamp vs a full id — all "looks similar
+    at the front", all accepted. The beacon truncates the install id to 12 chars, which is the
+    only reason a prefix ever seemed reasonable; compare on that common length instead, and only
+    when BOTH sides actually have one.
+    """
+    if not isinstance(a, str) or not isinstance(b, str) or not a or not b:
+        return False
+    n = min(len(a), len(b), 12)
+    if n < 8:
+        return False                         # too short to identify anything
+    return a[:n] == b[:n]
+
+
+def _tally_from_board_store():
+    """The tally the BOARD wrote down, read off disk. -> dict | None
+
+    This is what makes the fleet numbers work at all: grail_tally() can only run JS in the app
+    window, and that window shows the console rail almost always, so the live path refused every
+    time. The board persists what it already computed (bible.html, window.__tallyPersist) and this
+    reads that one key — no second definition of his progress, and no dependency on which view
+    happens to be open.
+
+    Every store on the machine is tried, and each must IDENTIFY ITSELF before a single number is
+    believed: a complete route, a tally stamped with the same {id, p, pfx}, and an install id that
+    matches this console's own. [[unknown-stays-unknown]]
+    """
+    # ⚠ v2188.3 — DO NOT COMPARE THE CONSOLE'S INSTALL ID TO THE BOARD'S. I wrote that gate to
+    # close "a foreign WebKit store wins the newest-mtime pick", and MEASURING IT ON HIS MACHINE
+    # showed it would have refused his own numbers forever:
+    #
+    #     console identity.id   23d0486747ce4c58b445532a16ae6f7a
+    #     board d2r_lsrRoute.id c5c2c92d9fd049a38dfe2e46728e5eca
+    #
+    # They are different identifiers for different things — the console's own install, and the
+    # board world's. There is no .board_identity.json on this machine to bridge them either. A
+    # gate that can never pass is the same defect as one that always does, and this one would
+    # have shipped looking like caution. [[feedback-blind-fixture-green-gate]]
+    #
+    # What actually discriminates a foreign store is whether it IS a board: Safari's store for
+    # some website has no d2r_lsrRoute and none of the board's ledgers. That is the check.
+
+    def _pair(p):
+        # ⚠ bool IS AN int IN PYTHON: isinstance(False, int) is True, and False would publish as a
+        # count of 0. Negatives are not counts either.
+        if not isinstance(p, dict):
+            return None
+        have = p.get("have")
+        if isinstance(have, bool) or not isinstance(have, int) or have < 0:
+            return None
+        tot = p.get("total")
+        if isinstance(tot, bool) or not isinstance(tot, int) or tot <= 0:
+            tot = None
+        return {"have": have, "total": tot}
+
+    # ── the board's own POST, banked by this console. Works on every platform. ──────────────
+    banked = board_tally_load()
+    cands = []
+    if isinstance(banked, dict):
+        cands.append((banked, banked.get("route") if isinstance(banked.get("route"), dict)
+                      else banked.get("who")))
+    # ── and, on macOS only, the persisted WebKit store, so a board that has not POSTed since
+    #    this console started still has something to say. Windows has no equivalent and says so.
+    for db in _webkit_localstorage_dbs():
+        got = _store_read_all(db, ("d2r_tally",))
+        if got and got.get("isBoard") and isinstance(got["vals"].get("d2r_tally"), dict):
+            cands.append((got["vals"]["d2r_tally"], got["route"]))
+
+    for t, route in cands:
+        if not isinstance(t, dict) or not isinstance(route, dict):
+            continue
+        who = t.get("who")
+        if not isinstance(who, dict):
+            continue                         # unstamped: provenance unknown, never published
+        # ⚠ EXACT, TYPED AGREEMENT. Raw `!=` made True == 1 and None == None pass, and made a
+        # route whose id was JSON-typed differently from the stamp refuse forever.
+        if not (_same_id(who.get("id"), route.get("id"))
+                and isinstance(who.get("p"), str) and who["p"] == route.get("p")
+                and isinstance(who.get("pfx"), str) and who["pfx"] == route.get("pfx")):
+            continue
+        at = t.get("at")
+        if isinstance(at, bool) or not isinstance(at, int) or at <= 0:
+            at = None
+        elif at > (time.time() + 86400) * 1000:
+            at = None                        # a clock from the future dates nothing
+        out = {"ok": False, "why": None, "sets": _pair(t.get("sets")),
+               "uniques": _pair(t.get("uniques")), "runewords": _pair(t.get("runewords")),
+               "at": at, "source": "board-store", "profile": route.get("p")}
+        out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
+        if not out["ok"]:
+            out["why"] = "the board has written a tally but it carries no counts"
+        return out
+    return None
+
+
 def grail_tally():
     """{sets:{have,total}, uniques:{have,total}, runewords:{have,total}, ok, why} — never a guess."""
     out = {"ok": False, "why": None, "sets": None, "uniques": None, "runewords": None,
@@ -1255,12 +1531,30 @@ def grail_tally():
         out["why"] = "the board could not be read: %s" % str(e)[:70]
         return out
     if not own.get("ok"):
+        # v2188 — a closed window is not a reason to have no numbers either; the last tally the
+        # board wrote is still true of the world it wrote it in, and it carries its own `at`.
+        _ds = _tally_from_board_store()
+        if _ds and _ds.get("ok"):
+            return _ds
         out["why"] = str(own.get("why") or "the board refused the read")[:120]
         return out
     if not own.get("boardLoaded"):
-        # THE CASE THAT MUST NOT BECOME ZEROS.
-        out["why"] = ("the board window is showing the console rail, so its ledger is not "
-                      "readable from here — these counts are UNKNOWN, not zero")
+        # THE CASE THAT MUST NOT BECOME ZEROS — and, until v2188, the case that was ALWAYS true.
+        # He lives on the console rail, so this refused every time and the fleet tooltip read "no
+        # counts reported yet" forever. The board writes its own tally down now; read that.
+        _ds = _tally_from_board_store()
+        if _ds and _ds.get("ok"):
+            return _ds
+        # ⚠ v2188.3 — THE DISK FALLBACK IS macOS-ONLY, AND THE MESSAGE MUST SAY SO. It reads
+        # WebKit's localstorage.sqlite3; pywebview on Windows uses EdgeChromium with a different
+        # store entirely, so on his cousin's PC the fallback finds nothing and the mac sentence
+        # ("open the board once and it will write one") would be advice that cannot work.
+        out["why"] = (("the board window is showing the console rail; on Windows the counts can "
+                       "only be read while the board itself is open, so these are UNKNOWN, not "
+                       "zero") if IS_WIN else
+                      ("the board window is showing the console rail and no saved tally is on "
+                       "disk yet, so these counts are UNKNOWN, not zero — open the board once "
+                       "and it will write one"))
         return out
     # ── v2163 — A GUEST WORLD'S ZEROS ARE NOT HIS PROGRESS. ─────────────────────────────────
     # v2157 checked `boardLoaded` and stopped there. A board that IS loaded but is an unclaimed
@@ -1383,7 +1677,15 @@ def _console_beacon(event="hb"):
             "install": ((st.get("identity") or {}).get("id") or "")[:12],
             # v2157 — what this machine HAS, so the fleet roster can show each person's progress
             # on hover. Absent rather than zeroed when the board is not readable.
-            "tally": (lambda t: t if t.get("ok") else None)(_tally_cached()),
+            # ⚠ v2188 — SEND THE REFUSAL TOO, NOT None. The fleet tooltip is built to render
+            # `t.why` ("no counts reported yet — <reason>"), and this line threw the reason away,
+            # so every machine showed the bare sentence with nothing to act on. Konyo, looking at
+            # his own row: "no counts reported. might be a bug here where it should fetch the
+            # numbers". A refusing tally carries NO item data — {ok:false, why, sets:null,
+            # uniques:null, runewords:null} — so it is safe on a public worker, and it is the
+            # difference between a dead label and one that says what to do.
+            # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+            "tally": _tally_cached(),
             # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
@@ -14035,6 +14337,7 @@ def _gate_broke(where, exc):
     the log it is trying to warn in.
     """
     _GATE_BROKE["n"] += 1
+    _gate_stamp(broke=True)                   # v2193 — the failure channel rides the receipt too
     if not _GATE_BROKE["said"]:
         _GATE_BROKE["said"] = True
         print("   \u26a0 the stash template gate FAILED (%s: %s) — it is refusing frames because it "
@@ -14050,6 +14353,95 @@ def gate_failures():
 # something. Two numbers rather than one, because a run where every single probe is silent is an OCR
 # lane that is down, and a run where most are silent and some are not is ordinary gameplay footage.
 # One number could not separate those and the gate would keep answering "not a stash" either way.
+# ⚠ v2191 — THE BLIND STATE IS NOW A PER-CALL RECEIPT, NOT A PROCESS COUNTER.
+# Konyo: "this is critical do this first."
+#
+# _GATE_SILENT and _GATE_BROKE are module globals, and every reader of them asks the same
+# question the same wrong way: snapshot before the call, snapshot after, treat any movement as
+# "this frame was blind". That works alone and is false in the console, which runs chronicle and
+# vault sweeps on other threads that gate their own frames. A sweep ticking _GATE_SILENT inside
+# another reader's delta makes a frame that WAS read look unmeasurable — and, in the direction
+# that costs him footage, makes a TOOLTIP frame (text present, the only place an item name lives)
+# collapse into the deletable class.
+#
+# That is the finding that blocked the whole auto-prune arc: a cross-family review named it
+# architectural rather than a bug, and it was right — no amount of care around the delta fixes a
+# counter that belongs to the process. A threading.local carries the answer for THIS call on THIS
+# thread, so the question "was this frame read?" is answered by the read itself.
+#
+# The counters stay, because a RUN-level count is a different and still useful fact ("every frame
+# this sweep probed came back silent -> the lane is down"). What changes is that per-frame truth
+# no longer comes from them. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+import threading as _threading_gate
+_GATE_LAST = _threading_gate.local()
+
+
+def _gate_receipt_begin():
+    """Start a receipt for ONE read and return it. Push it; the caller must pop.
+
+    ⚠ v2193 — THE FIRST VERSION FAILED **OPEN**, WHICH IS THE ONE DIRECTION THAT COSTS HIM DATA.
+    It planted silent=False/broke=False on a shared per-thread slot before the read, and most of
+    stash_screen_open's exits stamp nothing — so a frame the gate never classified came back
+    `blind=False`, which `stash_panel_verdict` turns into a measured "no", which is the class the
+    pruner may DELETE. The docstring claimed "an absent receipt is UNKNOWN"; the planted fields
+    made that unreachable. A review caught it before it shipped.
+
+    Three properties now, and each closes one of its findings:
+      · DEFAULT IS UNMEASURED. `stamped` starts False and only an explicit outcome sets it, so a
+        path that returns without saying anything reads as UNKNOWN and the frame is kept.
+      · ONE OBJECT PER CALL, ON A STACK. A read that nests another read on the same thread used to
+        have its slot overwritten by the inner one and inherited the inner verdict. Each call owns
+        its own receipt and the previous one is restored.
+      · `broke` IS ON THE RECEIPT. The failure channel was still only the process counter, so a
+        gate that broke and returned None became a confident "no".
+    """
+    st = getattr(_GATE_LAST, "stack", None)
+    if st is None:
+        st = _GATE_LAST.stack = []
+    r = {"stamped": False, "silent": False, "broke": False, "heard": False}
+    st.append(r)
+    return r
+
+
+def _gate_receipt_end(r):
+    """Pop the receipt this call owns, restoring whatever was underneath it."""
+    st = getattr(_GATE_LAST, "stack", None)
+    if st:
+        try:
+            st.remove(r)
+        except ValueError:
+            pass
+    return r
+
+
+def _gate_stamp(**kw):
+    """Record an outcome on the read currently in flight on this thread. Never raises."""
+    try:
+        st = getattr(_GATE_LAST, "stack", None)
+        if not st:
+            return
+        r = st[-1]
+        r.update(kw)
+        r["stamped"] = True
+    except Exception:
+        pass
+
+
+def _gate_blind(r):
+    """Was the frame this receipt describes UNMEASURABLE? -> bool
+
+    Unstamped counts as blind: "nobody recorded what happened" and "it was fine" must never read
+    the same, least of all in the instrument a deleter consults. [[unknown-stays-unknown]]
+    """
+    if not isinstance(r, dict):
+        return True
+    return bool(not r.get("stamped") or r.get("silent") or r.get("broke"))
+
+
+# v2193 — the gate cache row schema. Bumping this retires every row written by a build whose
+# blindness detection could produce a wrong all-clear; they are re-read rather than believed.
+_GATE_ROW_V = 3
+
 _GATE_SILENT = [0]
 _GATE_HEARD = [0]
 
@@ -14149,8 +14541,11 @@ def stash_panel_verdict(frame_path):
                        session holding the OCR worker. The gate's own comment says the frame-level
                        answer "cannot tell them apart and stays None, which is the safe direction".
         gate_failures() the gate FAILED rather than refused (import or read broke).
-    A delta across those two, around one call, separates "the gate said no" from "the gate could
-    not look". The same delta trick the run-level warning at :13107 already uses, per frame.
+    ⚠ v2191 — IT IS NO LONGER A DELTA ACROSS THOSE TWO. Those are PROCESS counters and the console
+    gates frames on several threads at once, so a sibling sweep moving them inside this call's
+    window answered for a frame it never touched. The read stamps a per-call receipt on a
+    threading.local and this asks THAT. The counters remain for the run-level warning, where "every
+    frame this sweep probed came back silent" is a genuine fact about the lane.
 
     ⚠ THE CACHE HAD TO REMEMBER IT TOO. stash_screen_open_cached memoises on (size, mtime), so a
     cached None carried no memory of whether that read was blind — and a second look at a frame
@@ -14158,15 +14553,23 @@ def stash_panel_verdict(frame_path):
     carries the blind flag now.
 
     ⚠ AND THIS STILL DOES NOT COVER EVERYTHING. A tooltip that hides the tab strip while the OCR
-    lane is healthy yields canons==[] with NO counter moving, so it answers "no" — the v2058 case
-    remains open, which is why the prune stays disarmed. This is the instrument, not the arming.
+    lane is healthy yields canons==[] and nothing blind to report, so it answers "no" — the v2058
+    case remains open. What v2191 removed is the CROSS-THREAD half of it (a sibling sweep could
+    also produce a wrong answer here); the tooltip itself still reads as a measured "not a panel",
+    which is why the prune's rule must stop deleting on "no" before it can be armed. This is the
+    instrument, not the arming.
     """
-    _g0 = (_GATE_SILENT[0], gate_failures())
+    # ⚠ v2191 — THE DELTA IS GONE. This bracketed the call with PROCESS-GLOBAL counters, so a
+    # chronicle or vault sweep on another thread ticking _GATE_SILENT inside this window turned a
+    # frame that HAD been read into "unknown". In the direction that costs him footage that is
+    # worse than it sounds: a TOOLTIP frame — text present, and the only place an item name lives
+    # on a stash screen — collapses out of "no" and into the class the prune may delete.
+    # `_stash_gate_read` reports the blind flag from the read's OWN receipt now.
     try:
         val, blind = _stash_gate_read(frame_path)
     except Exception:
         return "unknown"
-    if blind or _GATE_SILENT[0] != _g0[0] or gate_failures() != _g0[1]:
+    if blind:
         return "unknown"
     return "no" if val is None else "panel"
 
@@ -14179,18 +14582,33 @@ def _stash_gate_read(frame_path):
         key = frame_path
         sig = [int(st.st_size), int(st.st_mtime)]
     except Exception:
-        b0 = (_GATE_SILENT[0], gate_failures())
-        v = stash_screen_open(frame_path)
-        return v, (_GATE_SILENT[0] != b0[0] or gate_failures() != b0[1])
+        _r = _gate_receipt_begin()
+        try:
+            v = stash_screen_open(frame_path)
+        finally:
+            _gate_receipt_end(_r)
+        return v, _gate_blind(_r)
     c = _gate_cache()
     hit = c.get(key)
-    if isinstance(hit, list) and len(hit) >= 4 and hit[0] == sig[0] and hit[1] == sig[1]:
+    # ⚠ v2193 — ROWS WRITTEN BEFORE THE RECEIPT FAILED CLOSED ARE NOT TRUSTED. A review pointed
+    # out that a single wrong all-clear does not stay local: `_stash_gate_read` stores
+    # [size, mtime, verdict, blind] and every later look at those bytes, on any thread, returns
+    # the stored answer without re-reading. A poisoned `(None, False)` is therefore permanent and
+    # shared. The row now carries a schema tag; anything older simply misses and is re-read, which
+    # costs one crop and closes the window. (v2172 made the same move for the same reason.)
+    if (isinstance(hit, list) and len(hit) >= 5 and hit[4] == _GATE_ROW_V
+            and hit[0] == sig[0] and hit[1] == sig[1]):
         return hit[2], bool(hit[3])
-    b0 = (_GATE_SILENT[0], gate_failures())
-    val = stash_screen_open(frame_path)
-    blind = (_GATE_SILENT[0] != b0[0] or gate_failures() != b0[1])
+    # v2191/v2193 — the read reports on ITSELF, into a receipt this call owns. No other thread can
+    # move the answer, a nested read cannot overwrite it, and a path that records nothing is BLIND.
+    _r = _gate_receipt_begin()
+    try:
+        val = stash_screen_open(frame_path)
+    finally:
+        _gate_receipt_end(_r)
+    blind = _gate_blind(_r)
     with _GATE_LOCK:
-        c[key] = [sig[0], sig[1], val, bool(blind)]
+        c[key] = [sig[0], sig[1], val, bool(blind), _GATE_ROW_V]
         _GATE_CACHE_DIRTY = True
     return val, blind
 
@@ -14250,8 +14668,10 @@ def stash_screen_open(frame_path):
             # back silent, the lane is down, not his footage. So it is counted, and the counter is
             # read out at the end of a sweep. [[feedback-silence-is-not-evidence]]
             _GATE_SILENT[0] += 1
+            _gate_stamp(silent=True)          # v2193 — THIS call, on THIS thread
             return None
         _GATE_HEARD[0] += 1
+        _gate_stamp(heard=True)
         if is_boot_screen(lines):
             return None          # the reconnect splash is not a stash, however much text it carries
         # v1860 — ADMISSION COUNTS THE LABELS; IT DOES NOT ASK WHICH TAB IS SELECTED.
@@ -16560,7 +16980,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2187",
+        "ver": "v2192",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -18777,6 +19197,45 @@ class Handler(BaseHTTPRequestHandler):
             # ONLY fast-forward, and ONLY on a clean tree: a machine mid-edit keeps its work and
             # is told why it is not updating. Never a merge, never a rebase, never a reset.
             self._json(200, fleet_pull())
+            return
+        if path == "/api/board_tally":
+            # ⚠ v2189 — THE BOARD HANDS OVER ITS OWN COUNTS, so this works on Windows too.
+            # bible.html is served by this console, so it is same-origin and can just POST. The
+            # numbers are NEVER re-derived here: uniques are counted against the in-page roster
+            # and only the board may state that. This route banks what it is told, after checking
+            # the shape — a count is a non-negative int, and `bool` is an int in Python.
+            def _pair(q):
+                if not isinstance(q, dict):
+                    return None
+                h = q.get("have")
+                if isinstance(h, bool) or not isinstance(h, int) or h < 0:
+                    return None
+                tt = q.get("total")
+                if isinstance(tt, bool) or not isinstance(tt, int) or tt <= 0:
+                    tt = None
+                return {"have": h, "total": tt}
+
+            _who = body.get("who")
+            if not isinstance(_who, dict) or not isinstance(_who.get("pfx"), str) \
+                    or not isinstance(_who.get("id"), str) or not _who.get("id") \
+                    or not isinstance(_who.get("p"), str) or not _who.get("p"):
+                self._json(200, {"ok": False, "why": "the tally must say whose it is "
+                                                     "({id, p, pfx}) or it cannot be published"})
+                return
+            _t = {"v": 1, "who": _who, "route": _who,
+                  "sets": _pair(body.get("sets")), "uniques": _pair(body.get("uniques")),
+                  "runewords": _pair(body.get("runewords")),
+                  "at": int(time.time() * 1000)}
+            if not (_t["sets"] or _t["uniques"] or _t["runewords"]):
+                # nothing to say is not zero, and must not land on a good tally
+                self._json(200, {"ok": False, "why": "no readable counts in that tally"})
+                return
+            ok = board_tally_save(_t)
+            try:
+                _TALLY_CACHE["t"] = 0.0        # let the next beacon pick it up immediately
+            except Exception:
+                pass
+            self._json(200, {"ok": bool(ok)})
             return
         if path == "/api/chronicle_apply":
             # v1523 — the write. POST only, and it goes through the BOARD, which owns the ledger.
