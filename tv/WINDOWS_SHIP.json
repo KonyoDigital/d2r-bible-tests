@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2200",
+  "ver": "v2201",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2200: the vault backfills his ledger and the junk routes to throw-out",
+  "note": "v2201: a refused sweep no longer retires the reel, and the seven it wrongly retired are freed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
