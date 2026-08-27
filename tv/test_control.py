@@ -6653,7 +6653,8 @@ class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
 
     def test_a_busy_sweep_never_costs_the_reel_a_try(self):
         """The hunt holding the lock is not the reel's fault."""
-        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "why": "a sweep is already running"}
+        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "busy": True,
+                                                      "why": "a sweep is already running"}
         for _ in range(self.ca._CHRON_AUTOREAD_MAX_TRIES + 4):
             out = self.ca.chronicle_autoreel_tick()
             self.assertFalse(out.get("retired"),
@@ -6665,6 +6666,41 @@ class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
                          "said 'mark only once the sweep has taken the job'.")
         self.assertNotIn(self.rid, (self.ca._CHRON_AUTOREAD.get("retired") or {}),
                          "the reel was retired without ever being read")
+
+    def test_a_message_that_merely_MENTIONS_already_running_is_not_a_lock(self):
+        """v2206 — a cross-family review refused the substring test this used to use.
+
+        `"already running" in str(why)` reads a LOCK out of prose. Its example was concrete:
+        `RuntimeError: This event loop is already running` is a programming error, not the sweep
+        lock — and under the substring rule it would be exempted from the try counter and retried
+        every 20 seconds forever, which is the exact runaway v2204 existed to close.
+
+        The inverse is a defect too: reword the real lock message to "busy" or "in progress" and
+        genuine contention starts COUNTING, retiring a live reel in two ticks. `busy` is set only
+        where the single sweep lock is actually held, so the wording is free to change."""
+        self.ca.chronicle_sweep_start = lambda **kw: {
+            "ok": False, "why": "RuntimeError: This event loop is already running"}
+        retired = None
+        for _ in range(self.ca._CHRON_AUTOREAD_MAX_TRIES + 3):
+            out = self.ca.chronicle_autoreel_tick()
+            if out.get("retired"):
+                retired = out
+                break
+        self.assertIsNotNone(retired,
+                             "a non-lock error whose text merely CONTAINS 'already running' was "
+                             "treated as lock contention, exempted from the counter, and retried "
+                             "without bound")
+
+    def test_a_lock_refusal_is_recognised_by_the_FLAG_even_if_the_wording_changes(self):
+        """The other direction: the message is free to be reworded because nothing reads it."""
+        self.ca.chronicle_sweep_start = lambda **kw: {
+            "ok": False, "busy": True, "why": "the sweep lane is occupied right now"}
+        for _ in range(self.ca._CHRON_AUTOREAD_MAX_TRIES + 4):
+            out = self.ca.chronicle_autoreel_tick()
+            self.assertFalse(out.get("retired"),
+                             "a genuine lock refusal was counted and the reel retired, because the "
+                             "wording no longer matched a phrase nothing should be matching")
+        self.assertEqual(self.ca._CHRON_AUTOREAD["tries"].get(self.rid, 0), 0)
 
     def test_a_PERSISTENT_refusal_that_is_NOT_the_lock_still_burns_a_try(self):
         """v2201b — the runaway a cross-family review caught in my own fix.
@@ -6781,7 +6817,8 @@ class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
 
     def test_the_refusal_says_the_try_was_not_counted(self):
         """A silent non-count is the same defect wearing the fix's name."""
-        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "why": "a sweep is already running"}
+        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "busy": True,
+                                                      "why": "a sweep is already running"}
         out = self.ca.chronicle_autoreel_tick()
         self.assertTrue(out.get("triesUnchanged"),
                         "the tick refused without SAYING the try was not counted, so a reader "

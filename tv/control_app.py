@@ -10275,7 +10275,7 @@ def chronicle_autoread_tick():
         return {"ok": False, "why": "a session is live — a visit is only final once the reel stops growing"}
     try:
         if chronicle_sweep_state().get("running"):
-            return {"ok": False, "why": "a sweep is already running"}
+            return {"ok": False, "busy": True, "why": "a sweep is already running"}
     except Exception:
         pass
     try:
@@ -10636,7 +10636,7 @@ def chronicle_autoreel_tick():
     # machine. The one reel it genuinely protects is skipped individually below.
     try:
         if chronicle_sweep_state().get("running"):
-            return {"ok": False, "why": "a sweep is already running"}
+            return {"ok": False, "busy": True, "why": "a sweep is already running"}
     except Exception:
         pass
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
@@ -10715,7 +10715,12 @@ def chronicle_autoreel_tick():
             # and the bound holds. The other refusal reasons were NEVER MEASURED, and an unmeasured
             # failure mode must not inherit an exemption earned by a measured one.
             # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
-            _lock_held = "already running" in _rwhy
+            # ⚠ THE FLAG, NOT THE PROSE. This was `"already running" in _rwhy` and a cross-family
+            # review refused it in both directions: a NON-lock error whose message happens to
+            # contain that phrase would be exempted and retried without bound (the very runaway
+            # v2204 fixed), and a lock message reworded to "busy" would start counting and retire a
+            # live reel. `busy` is set only where the single sweep lock is actually held.
+            _lock_held = bool(isinstance(r, dict) and r.get("busy"))
             if _lock_held:
                 return {"ok": False, "triesUnchanged": True, "attempt": tries,
                         "why": "the lock is held by another lane, so the try was NOT counted: %s"
@@ -16197,7 +16202,14 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
     would double the spend and produce two proposals that each look like the whole truth."""
     with _CHRON_LOCK:
         if _CHRON_JOB["running"]:
-            return {"ok": False, "why": "a sweep is already running", "state": dict(_CHRON_JOB)}
+            # v2206 — `busy` is the STRUCTURED reason. A cross-family review of v2204 refused the
+            # substring test that used to read this: "lock vs fail must be a structured reason, not
+            # a substring of str(why)". `RuntimeError: This event loop is already running` would be
+            # read as a lock and retried forever; and if this sentence were ever reworded to "busy"
+            # or "in progress", real contention would COUNT and retire a live reel. The caller now
+            # tests this field, so the wording is free to change. [[unknown-stays-unknown]]
+            return {"ok": False, "busy": True, "why": "a sweep is already running",
+                    "state": dict(_CHRON_JOB)}
         lanes = _chron_lanes()
         if "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
