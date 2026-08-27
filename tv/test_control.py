@@ -6440,6 +6440,118 @@ class TestV1774AThrottledSweepSealsNothing(unittest.TestCase):
                           % fn.__name__)
 
 
+class TestV2202AReelThatHeldNothingIsNotForeverUnread(unittest.TestCase):
+    """v2202 — THE DEADLOCK UNDER THE RETIREMENTS. Fixing v2201 exposed it.
+
+    Once a refused start stopped burning a try, and once the hunt yielded the lock, his seven
+    retired reels were freed and read for real — and they were re-retired within a minute. The log
+    showed the sweep COMPLETING (it emitted its whole verdict) and yet writing nothing.
+
+    MEASURED: those seven reels hold 1, 1, 5, 6, 7, 7 and 7 frames — stubs with no chronicle page in
+    them. The sweep read them, produced classified=0 / pages=0, and `continue`d without recording
+    anything. _chron_reel_owes_a_read then saw NO ENTRY, called it "never swept", and it was read
+    again, and again, until the try counter retired it. Permanent, for any reel that genuinely
+    contains nothing.
+
+    "I looked and there was nothing" and "nobody looked" are different facts, and the absence of a
+    record was doing double duty as both. [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._hist0 = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = os.path.join(self.tmp, "hist")
+        self.rid = "reel_s_1780000000000_9"
+        self.d = os.path.join(os.environ["TV_HIST"], self.rid)
+        os.makedirs(self.d, exist_ok=True)
+        for i in range(3):
+            with open(os.path.join(self.d, "f_178000000000%d.jpg" % i), "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xe0" + b"0" * 120)
+
+    def tearDown(self):
+        if self._hist0 is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._hist0
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_a_recorded_look_that_found_nothing_stops_owing(self):
+        mem = {self.rid: {"ts": 1, "classified": 0, "pages": 0,
+                          "looked": True, "framesAtLook": 3}}
+        self.assertFalse(self.ca._chron_reel_owes_a_read(self.rid, mem),
+                         "a reel that was READ and genuinely held no chronicle page still owes a "
+                         "read, so it will be re-read forever and then retired — the deadlock")
+
+    def test_but_it_owes_again_the_moment_the_reel_GROWS(self):
+        """New frames are new evidence, and that is the only thing that makes a re-read worth
+        paying for. Same level rule as the hunt memory. [[paid-work-with-no-memory]]"""
+        mem = {self.rid: {"ts": 1, "classified": 0, "pages": 0,
+                          "looked": True, "framesAtLook": 3}}
+        with open(os.path.join(self.d, "f_1780000000009.jpg"), "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xe0" + b"0" * 120)
+        self.assertTrue(self.ca._chron_reel_owes_a_read(self.rid, mem),
+                        "the reel grew from 3 frames to 4 and is still treated as done — new "
+                        "footage is exactly the event that can turn an empty read into a hit")
+
+    def test_an_UNMEASURED_frame_count_buys_the_read_rather_than_suppressing_it(self):
+        """The half that keeps this honest: -1 means nobody counted, and an unmeasured level must
+        never be read as 'nothing changed'."""
+        mem = {self.rid: {"ts": 1, "classified": 0, "pages": 0,
+                          "looked": True, "framesAtLook": -1}}
+        self.assertTrue(self.ca._chron_reel_owes_a_read(self.rid, mem),
+                        "an unmeasured frame count silenced the reel forever")
+
+    def test_a_reel_with_NO_RECORD_still_owes(self):
+        """The distinction the whole fix rests on: no entry means nobody looked, and that must
+        still buy a read. If this ever returns False, every unread reel goes silent."""
+        self.assertTrue(self.ca._chron_reel_owes_a_read(self.rid, {}),
+                        "a reel with no record at all was treated as done")
+
+    def test_a_look_is_a_WALK_and_the_discriminator_really_discriminates(self):
+        """A reel the sweep never opened must NEVER get a look row — the same lie as the false
+        retirement reason, pointed the other way.
+
+        ⚠ THIS TEST USED TO PIN THE IMPLEMENTATION AND WENT RED WHEN THE IMPLEMENTATION IMPROVED.
+        Its first cut asserted the source contained the string "no-index" near the marker. That was
+        a PROXY for the invariant, and it broke the moment the check became structural — while the
+        product was more correct, not less. So it now proves the DISCRIMINATOR across both files:
+        the field the marker keys on must be emitted by the real walk and NOT by the skip shape.
+        [[feedback-verify-not-proxy]]
+
+        The history it guards: my first cut said `note != "no-index"`, which let through the OTHER
+        skip note — "not targeted this run" — and wrote look rows for three reels the sweep never
+        opened. TestChronicleSweepJob caught it at 6 rows where 3 were real."""
+        ca_src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        i = ca_src.find('"looked": True, "framesAtLook"')
+        self.assertGreater(i, 0, "the look record vanished — the deadlock is back")
+        window = ca_src[max(0, i - 1200):i]
+
+        FIELD = "blankRuns"
+        self.assertIn(FIELD, window,
+                      "the marker no longer keys on a field only a real walk emits, so it cannot "
+                      "tell a reel it READ from one it never opened")
+
+        cr_src = _code_only(io.open(os.path.join(HERE, "chronicle_retro.py"),
+                                    encoding="utf-8").read())
+        # the SKIP shape must not carry it...
+        j = cr_src.find('"not targeted this run"')
+        self.assertGreater(j, 0, "the skip note vanished — this test can no longer locate the "
+                                 "shape it exists to distinguish")
+        skip_shape = cr_src[max(0, j - 400):j + 120]
+        self.assertNotIn(FIELD, skip_shape,
+                         "the SKIP shape now emits %s too, so the marker's discriminator no longer "
+                         "discriminates and every un-targeted reel gets a look row it never earned"
+                         % FIELD)
+        # ...and the real walk must
+        self.assertIn(FIELD, cr_src,
+                      "%s is gone from chronicle_retro entirely, so the marker keys on a field "
+                      "nothing emits and NO look is ever recorded — the deadlock returns silently"
+                      % FIELD)
+
+
 class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
     """v2201 — SEVEN OF HIS THIRTY REELS WERE RETIRED FOR THE HUNT BEING BUSY.
 

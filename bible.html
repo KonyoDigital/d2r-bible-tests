@@ -37568,9 +37568,113 @@ function renderJournal(){
      ⚠ NEVER ON AN EMPTY LEDGER, and the flag is not burned when it does not run. On a fresh install
      or a stranger's browser there is nothing to backfill, and stamping "done" there would silence
      the migration for the one person it exists for. */
+  /* ══ v2203 — UNDO v2200. IT FILLED HIS VAULT FROM THE WRONG LEDGER ═══════════════════════════
+     Konyo caught it: "im pretty sure the 400 items are all duplicates.. and also maybe READ
+     CHRONICLE reads accidentally instead of inventory stash tooltip reads.. we said 41 items didnt
+     we? so where did all this come from lol?"
+
+     HE IS RIGHT AND IT IS MY DEFECT. Two different facts, conflated:
+         d2r_foundLog  "the found-truth" (bible.html:3836) — everything he has EVER found. 392.
+         d2r_owned     "physically in your stash" (bible.html:34625, its own words). Was FIVE.
+     Finding Shako once does not mean it is in his stash today — sold, used, muled, dropped. The
+     v2200 backfill wrote found-ever into physically-held and his vault went 5 -> 405.
+
+     THE REAL EVIDENCE FOR WHAT IS IN HIS STASH IS tv/vault_seen.json: SEVENTEEN rows, every one
+     lane:'stash', every one with exactly ONE witness. Seventeen, not four hundred.
+
+     ⚠ AND v2200 COULD NOT UNDO ITSELF — it recorded only COUNTS, never the names it added. That is
+     the second half of the same mistake: a migration that cannot name what it did cannot be
+     reversed by its own record. This one records the names.
+
+     THE RECOVERY IS EXACT, and dated. ~/d2r_ledger_backups/ledger_2026-08-27_143930.json — the last
+     snapshot before the v2200 boot at 16:08:48 — holds ledger.owned as a list of FIVE:
+         Waterwalk · Cow King's Leathers (set) · Nagelring · Raven Frost ·
+         Laying of Hands (bramble mitts)
+     The 16:09 snapshot taken minutes later reads 405. That is the damage, and its exact extent.
+
+     ⚠ WHAT THIS KEEPS. Anything registered by tvVaultRegister SINCE the backfill is real evidence
+     and must survive: those carry an EXTRA_ITEMS entry stamped cat:'📺 TV-vaulted'. So the undo is
+     not "restore the five" — it is "drop the names that came only from the found-ever ledger and
+     have no independent claim". Anything he has ticked by hand since also survives, because a hand
+     tick writes EXTRA_ITEMS the same way. [[unknown-stays-unknown]] */
+  (function(){
+    var UNDONE = 'd2r_vaultBackfillUndo_v2203';
+    try {
+      if (window.LSR.getItem(UNDONE)) return;
+      if (!window.LSR.getItem('d2r_vaultBackfill_v2200')) return;   // it never ran here
+      var owned = [];
+      try { owned = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || []; } catch(e){}
+      if (owned.length < 100) {                    // already correct, or a different machine
+        try { window.LSR.setItem(UNDONE, JSON.stringify({skipped:'owned is already small', n:owned.length})); } catch(e){}
+        return;
+      }
+      var fl = {}, sp = [];
+      try { fl = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+      try { sp = JSON.parse(window.LSR.getItem('d2r_setPieces') || '[]') || []; } catch(e){}
+      var fromLedger = {};
+      Object.keys(fl).forEach(function(n){ fromLedger[n] = 1; });
+      (Array.isArray(sp) ? sp : Object.keys(sp || {})).forEach(function(n){ fromLedger[n] = 1; });
+
+      /* the five he genuinely held before v2200, from the 14:39 snapshot — these are NOT dropped
+         even though they also appear in the found-ever ledger */
+      var KEEP_PRE = { 'Waterwalk':1, "Cow King's Leathers (set)":1, 'Nagelring':1,
+                       'Raven Frost':1, 'Laying of Hands (bramble mitts)':1 };
+      var tvx = {};
+      try { tvx = JSON.parse(window.LSR.getItem('d2r_tvExtraItems') || '{}') || {}; } catch(e){}
+
+      /* ⚠ AND DE-DUPLICATE WHILE WE ARE HERE. He suspected it — "im pretty sure the 400 items
+         are all duplicates" — and the measurement agreed: the seeded reproduction kept 14 rows for
+         8 distinct names, because a name present in BOTH the found-ever ledger and his real owned
+         list was written twice. d2r_owned is a SET by construction (the vault does owned.add(name));
+         genuine multiples live in d2r_copies. So a repeat here is corruption, not data. */
+      var kept = [], dropped = [], _seenName = {};
+      owned.forEach(function(n){
+        if (_seenName[n]) { return; }               // silent de-dupe: the second copy is not a fact
+        _seenName[n] = 1;
+        if (KEEP_PRE[n]) { kept.push(n); return; }
+        if (tvx[n]) { kept.push(n); return; }        // registered live by TV DIABLO, or hand-ticked
+        if (fromLedger[n]) { dropped.push(n); return; }   // came ONLY from found-ever
+        kept.push(n);                                 // unexplained -> KEEP. Never delete on a guess.
+      });
+      if (!dropped.length) {
+        try { window.LSR.setItem(UNDONE, JSON.stringify({dropped:0})); } catch(e){}
+        return;
+      }
+      window.LSR.setItem('d2r_owned', JSON.stringify(kept));
+      /* ⚠ RECORD THE NAMES. v2200's failure to do this is why it could not be reversed. */
+      try {
+        window.LSR.setItem(UNDONE, JSON.stringify({
+          at: Date.now(), keptN: kept.length, droppedN: dropped.length,
+          dropped: dropped.slice(0, 600),
+          why: 'v2200 sourced the vault from d2r_foundLog (found-ever) instead of stash evidence'
+        }));
+      } catch(e){}
+      window._vaultBackfillUndo_v2203 = { kept: kept.length, dropped: dropped.length };
+      try { console.info('[vault] v2203 undo: dropped ' + dropped.length + ', kept ' + kept.length); } catch(e){}
+      try { renderVault(); } catch(e){}
+    } catch(e){
+      try { console.warn('[vault] v2203 undo failed: ' + (e && e.message || e)); } catch(e2){}
+    }
+  })();
+
   (function(){
     var DONE = 'd2r_vaultBackfill_v2200';
     try {
+      /* ⚠⚠ v2203 — THIS MIGRATION IS RETIRED. IT SOURCED FROM THE WRONG LEDGER.
+         It filled the vault from d2r_foundLog, which is "the found-truth" — everything ever
+         FOUND — and wrote it into d2r_owned, which means "physically in your stash". Finding an
+         item once does not mean you still hold it. On his board that took the vault 5 -> 405 while
+         the actual stash evidence (tv/vault_seen.json) is SEVENTEEN rows.
+
+         It is left in place rather than deleted so the undo above can still recognise a machine
+         where it ran, and so this comment survives as the reason. It stamps its flag and does
+         nothing, which means a FRESH machine — his cousin's — never gets the wrong vault.
+
+         The correct source is stash/inventory evidence with witnesses. That is task #43 and it is
+         not this code. [[unknown-stays-unknown]] */
+      try { window.LSR.setItem(DONE, JSON.stringify({retired: 'v2203 — sourced from found-ever, not stash evidence'})); } catch(e){}
+      return;
+      /* eslint-disable no-unreachable */
       if (window.LSR.getItem(DONE)) return;
       if (typeof window.tvVaultRegister !== 'function') return;
       var fl = {}, sp = [];

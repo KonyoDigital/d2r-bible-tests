@@ -10401,6 +10401,29 @@ def _chron_reel_owes_a_read(rid, mem=None):
         pages = 0
     if pages >= 1:
         return False                      # read, and it yielded — done
+    # ⚠ v2202 — A RECORDED LOOK THAT FOUND NOTHING IS NOT AN UNREAD REEL.
+    # Seven of his reels (1-7 frames each) held no chronicle page at all. The sweep read them,
+    # produced pages=0, wrote nothing, and this rule then called them "never swept" — so they were
+    # read again, and again, until the try counter retired them. Permanent, for any reel that
+    # genuinely contains nothing.
+    #
+    # v2202 makes the sweep record the LOOK (looked=True, framesAtLook=N). Honour it — but re-owe
+    # the moment the reel GROWS, because new frames are new evidence and that is the only thing
+    # that makes a re-read worth paying for. Same level rule as the hunt memory, deliberately:
+    # an unmeasured frame count (-1) buys the read rather than suppressing it.
+    if e.get("looked"):
+        try:
+            _at = int(e.get("framesAtLook", -1))
+        except (TypeError, ValueError):
+            _at = -1
+        if _at < 0:
+            return True                   # cannot tell how much film it had -> look again
+        try:
+            import glob as _g3
+            _rd = os.path.join(os.environ.get("TV_HIST") or HIST_DIR, str(rid))
+            return len(_g3.glob(os.path.join(_rd, "f_*.jpg"))) > _at
+        except Exception:
+            return True                   # unmeasurable -> never skip on a guess
     # A 0-PAGE SEAL IS NOT "DONE", BUT IT IS ALSO NOT WORK. retention says it exactly: "that is
     # 'this reader found nothing', not 'done'; the engine reopens these when the prompt improves."
     # Re-reading one under the SAME prompt spends money to find the same nothing — measured on his
@@ -16819,8 +16842,48 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 break
             if st.get("note") == "already-swept" or not st.get("reel"):
                 continue
+            # ══ v2202 — RECORD THE LOOK, NOT ONLY THE FIND ═══════════════════════════════
+            # THE DEADLOCK THIS BREAKS, measured on his seven retired reels (1-7 frames each):
+            # a reel with no chronicle pages was READ, produced classified=0 / pages=0, and then
+            # `continue`d without writing anything. _chron_reel_owes_a_read sees no entry, calls it
+            # "never swept", and it is read again, and again, until the try counter retires it.
+            # PERMANENT, for any reel that genuinely contains nothing.
+            #
+            # "I looked and there was nothing" and "nobody looked" are different facts and this
+            # line collapsed them. The absence of a record was doing double duty as both, which is
+            # the same law that produced the false retirement reason one layer up.
+            # [[unknown-stays-unknown]]
+            #
+            # A reel that could not be looked at (no index) still records nothing — that one really
+            # is unknown. The distinction is the note, which chronicle_retro sets at :530.
             did_read = (st.get("classified") or 0) > 0 or (st.get("pages") or 0) > 0
-            if not did_read or st.get("note") == "no-index":
+            # ⚠ A LOOK IS A WALK, AND ONLY A WALK PRODUCES `blankRuns`.
+            # My first cut said `note != "no-index"`, which let through the OTHER skip note —
+            # "not targeted this run" (chronicle_retro:2043) — and wrote a look row for three reels
+            # the sweep never opened. TestChronicleSweepJob caught it: 6 rows where 3 were real.
+            # That is precisely the mistake this whole version exists to fix, made in the opposite
+            # direction: recording a look that never happened.
+            # The skip shape at :2042 carries the same count keys, so key VALUES cannot tell them
+            # apart. `blankRuns` / `trustedFocus` / `journalRuns` are emitted only by the real walk
+            # at :704, so their presence is the honest structural signal. [[unknown-stays-unknown]]
+            _looked = "blankRuns" in st
+            if not did_read and not _looked:
+                continue
+            if not did_read:
+                # measured zero. Keyed on the evidence that would make a re-read worth paying for —
+                # the frame count — so a reel that GROWS is looked at again, exactly like the hunt
+                # memory's level rule. A reel that does not grow is never re-bought.
+                try:
+                    import glob as _g2
+                    _rd = os.path.join(hist_dir or HIST_DIR, "reel_" + str(st["reel"]))
+                    _fn = len(_g2.glob(os.path.join(_rd, "f_*.jpg")))
+                except Exception:
+                    _fn = -1
+                swept["reel_" + str(st["reel"])] = {
+                    "ts": int(time.time() * 1000), "classified": 0, "pages": 0,
+                    "looked": True, "framesAtLook": _fn,
+                    "why": "read and found no chronicle page — measured zero, not unread",
+                    "promptVer": _tv.PROMPT_VER, "agentVer": getattr(_tv, "VERSION", "")}
                 continue
             swept["reel_" + str(st["reel"])] = {"ts": int(time.time() * 1000),
                                                 "classified": st.get("classified") or 0,
