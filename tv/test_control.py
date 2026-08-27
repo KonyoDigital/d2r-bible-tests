@@ -14629,9 +14629,20 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
         # accident; now an unstamped read is correctly UNKNOWN and every frame would be kept, so
         # these cases would silently stop measuring anything. The gate is pinned to a measured
         # "not a panel" and the signature does the deciding, which is what they are about.
+        # ⚠ v2197 — PINNED TO SILENT, NOT TO "no". The deletable class INVERTED: a measured "no"
+        # means OCR read TEXT and found no panel, which is also exactly what a tooltip covering
+        # the tab strip looks like, so "no" is KEPT now. Pinning to it here would have left every
+        # case in this class asserting against a pruner that deletes nothing — green forever and
+        # measuring no policy at all. The provably BLANK frame is the one that can go, and the
+        # canary is what proves the lane was speaking around it.
+        def _probe(_self, kg=None, t=None):
+            _self.marks.append((time.time(), True))
+            return True
+
         with mock.patch.object(vault_retro, "DEFAULT_SIG",
                                lambda q: sigs.get(os.path.basename(q))), \
-             mock.patch.object(control_app, "stash_panel_verdict", lambda _q: "no"):
+             mock.patch.object(control_app, "stash_panel_verdict", lambda _q: "unknown"), \
+             mock.patch.object(control_app.LaneCanary, "probe", _probe):
             kw.setdefault("floor", 0)
             kw.setdefault("grace_s", 0.0)
             kw.setdefault("batch", 500)
@@ -22267,10 +22278,22 @@ class TestV2154ThePanelFrameSURVIVESTheSignature(unittest.TestCase):
         import unittest.mock as mock
 
         def _verdict(q):
-            v = gate(q)              # may raise; the pruner treats that as unknown
-            return "no" if v is None else "panel"
+            v = gate(q)              # may raise; the pruner treats that as a BROKEN gate
+            # ⚠ v2197 — "not a panel" MAPS TO SILENT, NOT TO "no". "no" means OCR read TEXT and
+            # found no panel, which is also what a TOOLTIP covering the tab strip looks like — so
+            # it is KEPT now, and mapping to it would make every case here measure nothing. The
+            # deletable class is the frame that is provably BLANK.
+            return "unknown" if v is None else "panel"
 
-        with mock.patch.object(self.ca, "stash_panel_verdict", _verdict):
+        # the probe must PASS, or every deferred frame is kept for want of proof. A real console
+        # reaches this state after its first pass; here it is supplied so these cases exercise the
+        # SIGNATURE policy, which is what they are about.
+        def _probe(_self, kg=None, t=None):
+            _self.marks.append((time.time(), True))
+            return True
+
+        with mock.patch.object(self.ca, "stash_panel_verdict", _verdict), \
+             mock.patch.object(self.ca.LaneCanary, "probe", _probe):
             return self.ca._prune_once(hist_dir=self.tmp, grace_s=1, floor=1, batch=99)
 
     def test_a_frame_the_gate_calls_a_PANEL_is_never_deleted(self):
@@ -23915,6 +23938,95 @@ def _code_only(src):
                     drop.add(ln)
     return "\n".join(L for i, L in enumerate(src.split("\n"), 1)
                      if i not in drop and not L.strip().startswith("#"))
+
+
+class TestV2197ThePruneDeletesOnlyWhatIsPROVENBlank(unittest.TestCase):
+    """⚠ THE PRUNE'S RULE WAS INVERTED WITH RESPECT TO RISK, AND THE FIX NEEDED v2191 FIRST.
+
+    It deleted on a measured "no" — OCR RETURNED LINES and no stash panel found. That is exactly
+    what a TOOLTIP covering the tab strip produces with the lane perfectly healthy, and on a stash
+    screen the tooltip is the ONLY place an item name appears (the grid prints none). So the one
+    verdict it deleted on was the frame most likely to hold the last copy of a name, while the
+    provably BLANK frames were kept. Measured on his reels: ~5% deletable that way, 0.37 GB.
+
+    Now: text present -> KEEP. Deletion moves to the SILENT frames, which cannot carry a name —
+    but only where a deliberate probe proves the OCR lane was alive around them, because otherwise
+    "no text on this frame" and "the reader could not see" are the same observation.
+
+    ⚠ THIS COULD NOT HAVE BEEN BUILT BEFORE v2191/v2193. While the gate's blind state lived in
+    PROCESS counters, a sweep on another thread could flip any frame's verdict and no care here
+    would have helped. A cross-family review called that architectural and it was right.
+
+    Measured on reel_s_1784984019250_95276 (153 frames, 204.8 MB):
+        pass 1, cold cache  -> opening probe FAILS -> 0 of 59 blank freed
+        pass 2, warm        -> both probes pass    -> 59 of 59 = 37.1 MB (18%)
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+
+    def test_a_TEXT_BEARING_frame_is_never_deleted(self):
+        """The inversion, on the shipped deleter: a measured "no" must reach a KEEP."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        body = _between(self, src, "def _prune_once(", "\ndef ")
+        window = body[body.index('if _v == "no":'):body.index("_silent.append(")]
+        self.assertIn("continue", window,
+                      "a measured 'no' does not reach a keep — the prune is deleting the frames "
+                      "most likely to carry an item name, which is the v2058 tooltip case")
+        self.assertNotIn("os.remove", window, "a measured 'no' still leads to a delete")
+        self.assertEqual(body.count("os.remove("), 1,
+                         "_prune_once has %d delete sites; there is exactly ONE — the proven-blank "
+                         "path after the loop" % body.count("os.remove("))
+
+    def test_only_a_DELIBERATE_PROBE_counts_as_liveness(self):
+        """⚠ MY FIRST ATTEMPT COUNTED INCIDENTAL VERDICTS AND FAILED TWO WAYS AT ONCE.
+        A "panel" can be a CACHE HIT that consulted no OCR — a note about the last time the lane
+        spoke, read as proof it speaks now. And counting silence as a veto made consecutive silent
+        frames veto each other, and they come in runs of 59 on his reels, so nothing could ever
+        qualify. Only probes are marks."""
+        c = self.ca.LaneCanary(window_s=600)
+        t = 1000.0
+        c.marks.append((t, True)); c.marks.append((t + 20, True))
+        self.assertTrue(c.live_at(t + 10), "a frame between two passing probes was refused")
+        d = self.ca.LaneCanary(window_s=600)
+        d.marks.append((t, True)); d.marks.append((t + 20, False))
+        self.assertFalse(d.live_at(t + 10),
+                         "the nearest probe AFTER the frame failed and it was cleared anyway — "
+                         "that is a lane that died mid-pass")
+
+    def test_a_probe_with_NO_known_good_frame_fails_closed(self):
+        """Cold start: nothing has proven the lane, so nothing may be freed."""
+        import unittest.mock as mock
+        c = self.ca.LaneCanary()
+        with mock.patch.object(self.ca, "_gate_cache", lambda: {}):
+            self.assertFalse(c.probe(), "the pass claimed the lane was live with no frame to "
+                                        "prove it with")
+        self.assertEqual(len(c.marks), 1, "a failed probe left NO mark, so it cannot close a "
+                                          "dead interval")
+        self.assertFalse(c.marks[0][1])
+
+    def test_the_probe_BYPASSES_the_cache(self):
+        """⚠ A CACHED RE-READ IS A GATE THAT CANNOT FAIL: it would prove the lane alive by reading
+        a stored verdict and never touching OCR."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        body = _between(self, src, "    def probe(self", "\n    def live_at")
+        self.assertIn("stash_screen_open(", body,
+                      "the probe does not call the reader directly, so it may be answering from "
+                      "the cache and proving nothing")
+        self.assertNotIn("_stash_gate_read", body,
+                         "the probe goes through the MEMOISED reader")
+
+    def test_a_file_that_CHANGED_between_gate_and_delete_is_kept(self):
+        """Time of check is not time of use: the deferred list holds PATHS, and a capture can
+        rewrite a jpg or reuse a name in between. `except: pass` only helps if the path is GONE,
+        not if it is now a different picture."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        body = _between(self, src, "for q, _sz0, _t in _silent:", "_say =")
+        self.assertIn("_sz0", body,
+                      "the second phase deletes whatever now sits at the path, without checking "
+                      "it is the same file that was gated")
 
 
 class TestV2191TheGateAnswersForITSOWNReadNotTheProcess(unittest.TestCase):

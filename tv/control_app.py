@@ -12215,6 +12215,12 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
     old = old[:batch]
     dropped = freed = 0
     kept_sig = None
+    _canary = LaneCanary()
+    _silent = []                 # (path, size-at-gate, t) — decided after the loop
+    _known_good = None           # a frame that PROVED the lane speaks, used as the probe
+    _canary.probe()              # prove the lane BEFORE reading anything: a reel that OPENS in
+                                 # gameplay (the ordinary case, measured) has nothing bracketing
+                                 # its first silent frames on the left otherwise
     for q in old:
         try:
             sg = _vr.DEFAULT_SIG(q)
@@ -12252,27 +12258,99 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
             # stash screen" and "I could not look", and v2154 read the second as the first and
             # shipped a deleter on it. stash_panel_verdict separates them with a per-frame delta
             # over the gate's own blind counters, so only a MEASURED "no" can lead to a delete.
+            _t = time.time()
             try:
+                sg_size = os.stat(q).st_size
+            except Exception:
+                sg_size = -1
+            # ⚠ ONE ENTRY POINT, ON PURPOSE. Calling stash_panel_verdict_ex here would mean
+            # every fixture that patches stash_panel_verdict — and there are several, some older
+            # than this feature — silently stopped controlling the prune while still looking
+            # wired. The verdict comes from the patchable function; the reason comes from the
+            # receipt the read just stamped. [[the-unjoined-end]]
+            try:
+                # ⚠ CLEAR THE LAST RECEIPT FIRST. It persists per thread so a caller can ask WHY
+                # after a read finishes — which means a STALE one from an earlier frame answers
+                # for this one if this frame never produced a receipt at all (a cached verdict, or
+                # a patched gate). A leftover `broke` then marks every frame unread and the pass
+                # silently frees nothing. The absence of a receipt is itself the answer: no read
+                # happened here, so fall back to what the verdict says.
+                try:
+                    _GATE_LAST.last = None
+                except Exception:
+                    pass
                 _v = stash_panel_verdict(q)
+                _r = _gate_receipt()
+                _why = ("broke" if (isinstance(_r, dict) and _r.get("broke"))
+                        else ("silent" if _v == "unknown" else _v))
             except Exception:
-                _v = "unknown"
-            if _v != "no":
-                _prune_note(q, "the panel gate calls it a panel" if _v == "panel"
-                            else "the panel gate could not look")
-                kept_sig = sg        # it survives, so it becomes the new anchor
+                _v, _why = "unknown", "broke"
+            if _v == "panel":
+                _prune_note(q, "the panel gate calls it a panel")
+                if _known_good is None:
+                    _known_good = q          # this frame MADE the lane speak; it is the probe
+                kept_sig = sg
                 continue
-            try:
-                sz = os.stat(q).st_size
-                if not dry_run:
-                    os.remove(q)
-                dropped += 1
-                freed += sz
-            except Exception:
-                pass
+            if _v == "no":
+                # ⚠ v2197 — A MEASURED "no" IS THE RISKIEST FRAME THERE IS, AND IT WAS THE ONLY
+                # ONE THIS DELETED. "no" means OCR RETURNED LINES and no stash panel was found —
+                # and stash_panel_verdict's own docstring names the hole: a TOOLTIP covering the
+                # tab strip, with the lane perfectly healthy, yields exactly that. On a stash
+                # screen the tooltip is the ONLY place an item name appears; the grid prints none.
+                # So the single verdict this rule deleted on was the frame most likely to hold the
+                # last copy of a name, while the provably BLANK frames were the ones it kept.
+                # Inverted. Text present -> KEEP. [[feedback-suspect-the-instrument]]
+                _prune_note(q, "the gate read TEXT here and found no panel — that is also what a "
+                               "tooltip covering the tab strip looks like, and the tooltip is the "
+                               "only place an item name lives")
+                kept_sig = sg
+                continue
+            if _why == "broke":
+                # ⚠ WE NEVER LOOKED AT THIS FRAME. No proof about the lane makes an unread frame
+                # safe to delete — v2037: "an unmeasured frame is not a spare one."
+                _prune_note(q, "the panel gate BROKE on this frame — it was never read")
+                kept_sig = sg
+                continue
+            # SILENT: the crop was made and OCR returned nothing at all. Deletable ONLY if the
+            # lane can be proven alive around it — otherwise "no text on this frame" and "the
+            # reader could not see" are the same observation. Decided after the loop.
+            _silent.append((q, int(sg_size), _t))
+            if _known_good is not None and len(_silent) % _CANARY_EVERY == 0:
+                _canary.probe(_known_good)
             continue                 # kept_sig stays the ANCHOR, so the group cannot drift
         kept_sig = sg
-    return (dropped, freed,
-            "kept every frame more than %.3f from the one before it" % max_diff)
+
+    # ── v2197 — SECOND PHASE: the frames the gate was SILENT on. ────────────────────────────
+    _up = _still = 0
+    if _silent:
+        _canary.probe(_known_good)               # close the bracket on the right
+    for q, _sz0, _t in _silent:
+        if not _canary.live_at(_t):
+            _still += 1
+            _prune_note(q, "blank frame, but the OCR lane was not proven live around it")
+            continue
+        try:
+            st_now = os.stat(q)
+            # ⚠ TIME OF CHECK IS NOT TIME OF USE. The deferred list holds PATHS gated earlier in
+            # the pass; a capture can rewrite a jpg or reuse a name in between, and
+            # `except: pass` only helps if the path is GONE, not if it is now a different picture.
+            if int(st_now.st_size) != int(_sz0):
+                _still += 1
+                _prune_note(q, "the file changed between the read and the decision")
+                continue
+            sz = st_now.st_size
+            if not dry_run:
+                os.remove(q)
+            dropped += 1
+            freed += sz
+            _up += 1
+        except Exception:
+            pass
+    _say = "kept every frame more than %.3f from the one before it" % max_diff
+    if _silent:
+        _say += ("; %d blank frame(s) freed (%s), %d kept for want of that proof"
+                 % (_up, _canary.say(), _still))
+    return (dropped, freed, _say)
 
 
 # ── v2053 — THE SPACE WARDEN LOOP ────────────────────────────────────────────────────────────
@@ -14411,6 +14489,7 @@ def _gate_receipt_end(r):
             st.remove(r)
         except ValueError:
             pass
+    _GATE_LAST.last = r      # v2197 — so a caller can still ask WHY after the read finished
     return r
 
 
@@ -14441,6 +14520,10 @@ def _gate_blind(r):
 # v2193 — the gate cache row schema. Bumping this retires every row written by a build whose
 # blindness detection could produce a wrong all-clear; they are re-read rather than believed.
 _GATE_ROW_V = 3
+
+# v2197 — how many deferred frames may sit between two liveness probes. One extra OCR read each;
+# the unproven window is bounded by this many frames rather than by the length of the pass.
+_CANARY_EVERY = int(os.environ.get("TV_CANARY_EVERY") or 25)
 
 _GATE_SILENT = [0]
 _GATE_HEARD = [0]
@@ -14526,6 +14609,97 @@ def stash_screen_open_cached(frame_path):
     return val
 
 
+class LaneCanary(object):
+    """Proof, from DELIBERATE PROBES, that the OCR lane was alive around a given moment.
+
+    ⚠ v2197 — THIS IS THE SECOND ATTEMPT AND THE FIRST ONE IS WHY IT LOOKS LIKE THIS.
+    The prune must decide whether a SILENT frame (crop made, zero OCR lines) is a blank gameplay
+    frame — safe to delete — or a frame the reader could not see. One frame cannot tell those
+    apart, which is why v2172 correctly refused to. A PASS can, but only if the evidence is real:
+
+      · an incidental verdict is NOT evidence. The gate memoises on (size, mtime), so a "panel"
+        can be a CACHE HIT that consulted no OCR at all — a note about the last time the lane
+        spoke, read as proof that it speaks now.
+      · silence is NOT counter-evidence either. Counting it as a veto made consecutive silent
+        frames veto each other, and silent frames come in runs — 59 in a row on his own reel — so
+        nothing could ever qualify and the canary became decoration.
+
+      Only a deliberate UNCACHED probe of a frame known to make the lane speak is evidence, and a
+      silent frame is cleared only when the nearest probe on EACH side passed. Probes are taken at
+      both ends of a pass and every _CANARY_EVERY deferred frames, so the unproven window is
+      bounded by that many frames rather than by the whole pass.
+
+    ⚠ AND THE THING THAT MADE THIS POSSIBLE AT ALL: v2191/v2193 moved the gate's blind state onto
+    a per-call receipt. While those counters were process globals, a sweep on another thread could
+    flip this answer, and no amount of care here could have fixed it. [[unknown-stays-unknown]]
+    """
+
+    def __init__(self, window_s=None):
+        self.marks = []          # (t, live) — PROBES ONLY
+        self.window_s = float(window_s if window_s is not None
+                              else os.environ.get("TV_CANARY_WINDOW_S") or 180.0)
+
+    def known_good_frame(self):
+        """A frame the gate has already read as a panel WITHOUT going blind. -> path | None"""
+        try:
+            for path, row in (_gate_cache() or {}).items():
+                if (isinstance(row, list) and len(row) >= 5 and row[4] == _GATE_ROW_V
+                        and row[2] is not None and not row[3] and os.path.isfile(path)):
+                    return path
+        except Exception:
+            pass
+        return None
+
+    def probe(self, known_good=None, t=None):
+        """One UNCACHED read of a known-good frame. Records a mark either way. -> bool
+
+        ⚠ NEVER THROUGH _stash_gate_read. That memoises, so the probe would prove the lane alive
+        by consulting a note about the last time it was — a gate that cannot fail.
+        """
+        path = known_good or self.known_good_frame()
+        now = float(t if t is not None else time.time())
+        if not path:
+            self.marks.append((now, False))
+            return False
+        # the frame must still BE the frame the cache row describes
+        try:
+            row = (_gate_cache() or {}).get(path)
+            st = os.stat(path)
+            if not (isinstance(row, list) and len(row) >= 5
+                    and row[0] == int(st.st_size) and row[1] == int(st.st_mtime)):
+                self.marks.append((now, False))
+                return False
+        except Exception:
+            self.marks.append((now, False))
+            return False
+        r = _gate_receipt_begin()
+        try:
+            val = stash_screen_open(path)
+        except Exception:
+            _gate_receipt_end(r)
+            self.marks.append((now, False))
+            return False
+        _gate_receipt_end(r)
+        # this frame is KNOWN to be a panel, so the lane is proven only if it says so again
+        live = bool(val is not None and not _gate_blind(r))
+        self.marks.append((now, live))
+        return live
+
+    def live_at(self, t):
+        """Was the lane proven live by the nearest probe on BOTH sides of `t`? -> bool"""
+        t = float(t)
+        before = [m for m in self.marks if 0 <= (t - m[0]) <= self.window_s]
+        after = [m for m in self.marks if 0 <= (m[0] - t) <= self.window_s]
+        before.sort(key=lambda m: -m[0])
+        after.sort(key=lambda m: m[0])
+        return bool(before and after and before[0][1] and after[0][1])
+
+    def say(self):
+        n = sum(1 for _, live in self.marks if live)
+        return ("the OCR lane passed %d of %d deliberate probe(s)" % (n, len(self.marks))
+                if self.marks else "the OCR lane was never probed")
+
+
 def stash_panel_verdict(frame_path):
     """Is this frame a stash PANEL? -> "panel" | "no" | "unknown". Never collapses the last two.
 
@@ -14565,13 +14739,39 @@ def stash_panel_verdict(frame_path):
     # worse than it sounds: a TOOLTIP frame — text present, and the only place an item name lives
     # on a stash screen — collapses out of "no" and into the class the prune may delete.
     # `_stash_gate_read` reports the blind flag from the read's OWN receipt now.
+    return stash_panel_verdict_ex(frame_path)[0]
+
+
+def stash_panel_verdict_ex(frame_path):
+    """The verdict AND why it is that. -> (verdict, reason)
+
+    reason is "panel" | "no" | "silent" | "broke".
+
+    ⚠ v2197 — "unknown" IS TWO DIFFERENT FACTS AND THE PRUNE MUST NOT CONFUSE THEM.
+      · SILENT — the crop was made and OCR returned zero lines. The frame was READ and it has no
+        text on it, so it cannot carry an item name. With the lane proven alive, it is deletable.
+      · BROKE  — the read raised, or the gate reported a failure. We never looked at that frame
+        AT ALL, and no proof about the lane makes an unread frame safe to delete. v2037's case,
+        in its own words: "an unmeasured frame is not a spare one."
+    Callers that only want the three-state answer keep using stash_panel_verdict.
+    """
     try:
         val, blind = _stash_gate_read(frame_path)
     except Exception:
-        return "unknown"
+        return "unknown", "broke"
     if blind:
-        return "unknown"
-    return "no" if val is None else "panel"
+        # the receipt distinguishes them; a cached row carries the flag its original read recorded
+        r = _gate_receipt()
+        return "unknown", ("broke" if (isinstance(r, dict) and r.get("broke")) else "silent")
+    return ("no", "no") if val is None else ("panel", "panel")
+
+
+def _gate_receipt():
+    """The receipt for the read that just finished on this thread, if it is still readable."""
+    st = getattr(_GATE_LAST, "stack", None)
+    if st:
+        return st[-1]
+    return getattr(_GATE_LAST, "last", None)
 
 
 def _stash_gate_read(frame_path):
