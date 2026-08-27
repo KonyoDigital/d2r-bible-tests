@@ -986,6 +986,29 @@
      Same treatment for all of them, and the strip grows to a readable height while one is open —
      the resting look is untouched, because it only applies once you click into a text mode. */
   .brain.brain-text { justify-content: flex-start; overflow-y: auto; gap: 2px; scrollbar-width: thin; }
+  /* ══ v2199 — THE OPEN AI READS PANEL SLICED EVERY ROW IN HALF ═══════════════════════════════
+     Konyo: "when i click on AI READ on the bottom of the console it collapses open a very messy
+     and not structured looks bugged ... fix it so i can see and understand it too".
+
+     MEASURED on his own 1120px window, in the open panel:
+         .rcpt row height 13px   ·   line-height 24.75px   ·   font-size 15px
+         rows stacked at top 10, 25, 41, 56, 71, 86 - 15px apart, needing 25px
+     Each row's TEXT overflowed its own 13px box, so every line was cut through the middle and the
+     rows overlapped. 14 rows wanting ~350px were being fitted into a 232px panel.
+
+     THE CAUSE IS ONE MISSING DECLARATION. .brain is `display:flex; flex-direction:column`, and a
+     flex item defaults to `flex-shrink: 1`. So when the content is taller than the panel, flexbox
+     SQUASHES every child instead of overflowing - and `overflow-y: auto`, set right above, never
+     engages, because after the squash there is nothing to scroll. The scrollbar he needed could
+     not appear by construction.
+
+     ⚠ THE MEASUREMENT THAT LIED, AND WHY. My first probe reported "0 rows clipped, 0 outside the
+     panel" on this exact broken panel, because it compared each row's BOUNDING BOX against the
+     panel's - and the 13px box IS inside the panel. It is the text that escapes the box. The tell
+     was the row count: 14 measured against far more visibly painted. Never let a rect comparison
+     stand in for looking at the pixels. [[visual-regression-detector]] [[feedback-suspect-the-instrument]] */
+  .brain.brain-receipts > *,
+  .brain.brain-text > * { flex: none; }
   .brain.brain-text .line { white-space: pre-wrap; overflow: visible; text-overflow: clip; }
   body .ticker.tk-open { height: clamp(190px, 26vh, 340px); }
   body[data-state="off"] .ticker.tk-open { height: clamp(190px, 26vh, 340px); }
@@ -10679,7 +10702,7 @@
       var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
         + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_covPct != null ? (_covPct + '%') : '—', 'cover') + '</div>';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' grail' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-n="' + n
-        + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
+        + '" data-stub="' + (sm.stub ? '1' : '0') + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
         + heroOpen
@@ -10712,6 +10735,7 @@
         + '<div class="sh-filter-bar">'
         + '<button type="button" class="sh-chip" data-f="pin">⭐ pinned</button>'
         + '<button type="button" class="sh-chip" data-f="grail">🏆 grail</button>'
+        + '<button type="button" class="sh-chip" data-f="ghosts" id="sh-chip-ghosts">👻 empty runs</button>'
         + '<span class="sh-fdiv"></span>'
         + '<button type="button" class="sh-chip" data-f="verdict:clean">🛡 clean</button>'
         + '<button type="button" class="sh-chip" data-f="verdict:flagged">🚨 flagged</button>'
@@ -10745,7 +10769,11 @@
       _si.oninput = function(){ _shFilter(); };
       // typing must NOT trigger the theatre's single-letter shortcuts (s/f/i/space/arrows); Esc clears then blurs
       _si.onkeydown = function(e){ e.stopPropagation(); if (e.key === 'Escape'){ if (_si.value){ _si.value = ''; _shFilter(); } else { _si.blur(); } } };
-      if (SHELF_Q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin) _shFilter();   // re-apply the active search+filters after a re-render
+      /* v2199 — ALWAYS. This was gated on "is any filter active", and the ghost rule is active
+         from the first render, so gating it meant the 2,261 empty cards still painted until he
+         happened to press a chip. A hide that only happens after an interaction is not a hide.
+         [[the-unjoined-end]] */
+      _shFilter();   // re-apply search + filters (incl. the default ghost hide) after a re-render
     }
     var _ss = $('sh-sort');
     if (_ss){
@@ -10787,7 +10815,21 @@
     }).catch(function(){ if (!_had && !ov.hidden) _paintShelf(); });
   }
   var SHELF_Q = '';   // v1282 (D8) — the live shelf-search query, preserved across shelf re-renders
-  var SHELF_F = { grail: false, verdict: null, day: null, pin: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
+  /* ══ v2199 — 2,261 OF HIS 2,461 SHELF CARDS WERE EMPTY GHOSTS ═══════════════════════════
+     Konyo: "i click theatre and its like bugged.. its not letting me see the previous session
+     reals" and "THE SHELF isnt workig".
+
+     MEASURED off his own live /api/sessions: 2461 sessions, 1.66 MB. 2261 of them carry
+     stub:true with 0 frames, 0 reads and no thumb. Only 58 have footage. The shelf rendered all
+     2461 newest-first, so the top of his shelf was three GHOST cards reading 0 READS / 0 FOUND
+     and his real reels sat thousands of cards below. The shelf was not broken; it was BURIED.
+
+     ⚠ HIDDEN, NEVER SILENTLY TRUNCATED. The chip carries the count and toggles them back, so
+     "2,261 empty runs are not shown" is something the screen SAYS rather than something the
+     screen does. A list that quietly drops 92% of its rows reads as complete, which is the
+     worst possible failure for a thing whose whole promise is "every recorded run".
+     [[unknown-stays-unknown]] */
+  var SHELF_F = { grail: false, verdict: null, day: null, pin: false, ghosts: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
   var SHELF_S = 'newest';   // v1284 (D11) — the shelf sort key, preserved too
   // v1284 (D11) — SORT the run cards (composes with search+filters: reorders the whole set, filter hides the rest).
   // Reads sort keys straight off the card data-attrs; re-appends in order. Newest / longest / most-found / most-reads.
@@ -10866,7 +10908,8 @@
       + '<div class="shtl-bars">' + bars + '</div>';
   }
   function _shToggleFilter(f){
-    if (f === 'pin') SHELF_F.pin = !SHELF_F.pin;   // D26
+    if (f === 'ghosts') SHELF_F.ghosts = !SHELF_F.ghosts;   // v2199 — show the empty runs again
+    else if (f === 'pin') SHELF_F.pin = !SHELF_F.pin;   // D26
     else if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
     else if (f.indexOf('verdict:') === 0){ var v = f.slice(8); SHELF_F.verdict = (SHELF_F.verdict === v) ? null : v; }
     else if (f.indexOf('day:') === 0){ var d = f.slice(4); SHELF_F.day = (SHELF_F.day === d) ? null : d; }
@@ -10889,6 +10932,9 @@
     for (var i = 0; i < cards.length; i++){
       var c = cards[i];
       var hit = (!q || (c.getAttribute('data-search') || '').indexOf(q) >= 0)   // v1283 (D9) — search AND filters compose
+        /* v2199 — the ghost rule is the only one that is ON by default, so it is written as
+           "unless he asked for them" rather than as another opt-in filter. */
+        && (SHELF_F.ghosts || c.getAttribute('data-stub') !== '1')
         && (!SHELF_F.grail || c.getAttribute('data-grail') === '1')
         && (!SHELF_F.verdict || c.getAttribute('data-verdict') === SHELF_F.verdict)
         && (!SHELF_F.pin || c.getAttribute('data-pin') === '1')   // D26 — the ⭐ pinned filter composes with the rest
@@ -10899,10 +10945,23 @@
     var active = !!(q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin);
     var cnt = $('sh-search-count'); if (cnt) cnt.textContent = active ? (shown + ' of ' + cards.length) : '';
     var nm = $('sh-no-match'); if (nm) nm.hidden = !(active && shown === 0);
+    /* v2199 — the chip carries the NUMBER it is hiding. "empty runs" tells him a category;
+       "2,261 empty runs" tells him what the shelf is not showing him, which is the only version
+       that stops a silent 92% truncation from reading as a complete list. */
+    var _ghostN = 0, _allCards = ov.querySelectorAll('.sh-card');
+    for (var g = 0; g < _allCards.length; g++) if (_allCards[g].getAttribute('data-stub') === '1') _ghostN++;
+    var _gc = document.getElementById('sh-chip-ghosts');
+    if (_gc) {
+      _gc.hidden = !_ghostN;
+      _gc.textContent = '\ud83d\udc7b ' + _ghostN.toLocaleString() + ' empty run'
+        + (_ghostN === 1 ? '' : 's') + (SHELF_F.ghosts ? ' \u2014 shown' : ' \u2014 hidden');
+      _gc.title = _ghostN.toLocaleString() + ' recorded runs captured no frames and read nothing. '
+        + 'They are hidden so your real reels are at the top. Click to show them.';
+    }
     var chips = ov.querySelectorAll('.sh-chip');
     for (var j = 0; j < chips.length; j++){
       var f = chips[j].dataset.f || '';
-      var on = (f === 'pin' && SHELF_F.pin) || (f === 'grail' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
+      var on = (f === 'ghosts' && SHELF_F.ghosts) || (f === 'pin' && SHELF_F.pin) || (f === 'grail' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
       chips[j].classList.toggle('on', !!on);
     }
     _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set
