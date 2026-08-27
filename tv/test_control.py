@@ -23657,6 +23657,66 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
                          "cannot see a tooltip covering the tab strip")
 
 
+class TestV2184EveryLiveStateFileIsGitignored(unittest.TestCase):
+    """⚠ I COMMITTED THE RUNNING CONSOLE'S HUNT MEMORY TO A PUBLIC REPO.
+
+    v2174 created tv/chron_hunt_memory.json — live state, holding item names lifted off his own
+    reels. I did not add it to .gitignore. Hours later his console was relaunched onto the build
+    that writes it, the file appeared in the working tree, and `git add -A` swept it into a commit
+    that went to a PUBLIC GitHub repo. Ten keys of set-piece names; mild content, and entirely the
+    wrong outcome.
+
+    tv/chronicle_swept.json has been ignored for this exact reason since it was created. The rule
+    existed; what was missing was anything that ENFORCES it on the next file. run_gates._LIVE_STATE
+    is already the list of "files the console writes at runtime" — review_lite blocks a push when a
+    new one is missing from it. This closes the other half: being on that list must also mean being
+    ignored by git. Remembering is not a mechanism.
+
+    [[feedback-fixtures-never-touch-live-data]] [[feedback-generalize-fixes]]
+    """
+
+    def test_every_live_state_path_is_ignored_by_git(self):
+        import subprocess
+        sys.path.insert(0, HERE)
+        import run_gates
+        repo = os.path.dirname(HERE)
+        names = list(getattr(run_gates, "_LIVE_STATE", ()) or ())
+        self.assertGreater(len(names), 5,
+                           "run_gates._LIVE_STATE has only %d entries — this guard has lost its "
+                           "subject and would pass on an empty list" % len(names))
+        leaked = []
+        for n in names:
+            rel = os.path.join("tv", n)
+            if not os.path.exists(os.path.join(repo, rel)):
+                # not present on this machine is fine; what matters is that IF it appears, git
+                # would ignore it. check-ignore answers that without the file existing.
+                pass
+            r = subprocess.run(["git", "check-ignore", "-q", rel],
+                               cwd=repo, capture_output=True)
+            if r.returncode != 0:
+                leaked.append(rel)
+        self.assertEqual(leaked, [], "these files the console WRITES AT RUNTIME are not "
+                                     "gitignored, so `git add -A` will commit his live data to a "
+                                     "PUBLIC repo: %s" % leaked)
+
+    def test_no_live_state_file_is_currently_TRACKED(self):
+        """check-ignore is about the future; this is about right now. A file already in the index
+        keeps being committed no matter what .gitignore says."""
+        import subprocess
+        sys.path.insert(0, HERE)
+        import run_gates
+        repo = os.path.dirname(HERE)
+        tracked = subprocess.run(["git", "ls-files", "tv/"], cwd=repo,
+                                 capture_output=True, text=True).stdout.split("\n")
+        tracked = set(x.strip() for x in tracked if x.strip())
+        bad = [os.path.join("tv", n) for n in (getattr(run_gates, "_LIVE_STATE", ()) or ())
+               if os.path.join("tv", n) in tracked]
+        self.assertEqual(bad, [], "these live-state files are TRACKED by git — .gitignore does "
+                                  "nothing for a file already in the index, so every future run "
+                                  "of the console publishes his data: %s. Fix with "
+                                  "`git rm --cached <path>`." % bad)
+
+
 class TestV2182TheHuntEyeMeasuresTHISRunNotEver(unittest.TestCase):
     """⚠ THE CHECK WAS RIGHT ABOUT THE LOG AND WRONG ABOUT THE BUILD.
 

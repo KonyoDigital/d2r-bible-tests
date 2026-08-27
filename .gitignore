@@ -92,6 +92,13 @@ _worlds_probe.html
 # Machine-local by nature (his Mac and the Windows cousin have different footage) and worthless
 # to anyone else, so it never travels.
 tv/chronicle_swept.json
+# v2184 — the hunt's memory of which PAID hunts came back empty. Same reason as the line above:
+# it is live state, it names items off his own reels, and this repo is PUBLIC. I created it in
+# v2174 and did not add it here, so `git add -A` swept the running console's copy into a public
+# commit within hours. Every path in run_gates._LIVE_STATE is now required to be ignored, by a
+# test, because remembering is not a mechanism.
+tv/chron_hunt_memory.json
+tv/auto_relaunch.json
 
 # v1711 — the G5 stats ledger is per-machine runtime counters, like the budget file
 tv/g5_stats.json
