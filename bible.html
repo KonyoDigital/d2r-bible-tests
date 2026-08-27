@@ -41741,6 +41741,20 @@ function renderJournal(){
     } catch(e){ return null; }
   };
 
+  /* v2195 — is this name already in the vault? An in-memory lookup, so the common case in a
+     hundreds-long loop costs nothing and no dictionary is rewritten for a no-op. */
+  function _chAlreadyVaulted(n){
+    try {
+      var key = String(n || '').toLowerCase().replace(/[\u2019']/g, "'").trim();
+      if (!key) return false;
+      var owned = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || [];
+      for (var i = 0; i < owned.length; i++) {
+        if (String(owned[i] || '').toLowerCase().replace(/[\u2019']/g, "'").trim() === key) return true;
+      }
+    } catch(e){}
+    return false;
+  }
+
   window.chronicleApply = function(proposal){
     var add = (proposal && proposal.wouldAdd) || {};
     var res = { uniques: [], sets: [], skipped: [], unknown: [], ts: Date.now() };
@@ -41801,7 +41815,55 @@ function renderJournal(){
     } catch(e){ res.queuedError = String(e && e.message || e); }
     (add.uniques || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
-      if (_chronAlreadyUni(n)) { res.skipped.push(n); return; }   // ★ never un-find
+      if (_chronAlreadyUni(n)) {
+        /* ⚠ v2193 — "ALREADY IN THE GRAIL" IS NOT A REASON TO NOT KNOW WHERE IT PHYSICALLY IS.
+           This returned early, so an item he had already ticked never reached the vault door at
+           all. Measured by driving the REAL apply against his REAL store with his own 281 accepted
+           names: sent 281 -> uniques 0, vaulted 4, SKIPPED 279. Two hundred and seventy-nine items
+           the reader had seen in his stash, dropped at this line because the grail already knew
+           the name. That is the same false split as the if/else below, one step earlier: the grail
+           says he has ever found it, the vault says it is in his stash right now, and neither
+           answer excuses not asking the other.
+
+           The GRAIL tick is still skipped — ★ never un-find, and re-stamping a date he already has
+           would be a lie about when. Only the vault registration runs. tvVaultRegister is
+           idempotent (mode 'already') so a name that is genuinely already vaulted costs one
+           dictionary write and changes nothing. [[the-unjoined-end]] */
+        /* ⚠ v2195 — A FAILED REGISTRATION MUST NOT BE SILENT, AND MUST NOT LOOK LIKE "already".
+           A review put it exactly: a throw or an {ok:false} was indistinguishable from a name that
+           was already vaulted, earlier names in the loop had already been written, and nothing
+           recorded that anything went wrong. Over hundreds of names that is a half-filled vault
+           reported as a clean run. `res.vaultFailed` carries them out with their reason.
+
+           ⚠ AND THE NO-OP WRITE IS SKIPPED. tvVaultRegister costs a dictionary write even in
+           mode 'already', and this runs once per name over hundreds; asking the in-memory owned
+           list first turns the common case into a lookup. That also shrinks the window in which a
+           quota or serialise failure can stop the loop half-way. */
+        try {
+          if (typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n)) {
+            var _vs = window.tvVaultRegister(n);
+            if (_vs && _vs.ok) {
+              if (_vs.mode === 'new') { res.vaulted = res.vaulted || []; res.vaulted.push(n); }
+            } else {
+              res.vaultFailed = res.vaultFailed || [];
+              res.vaultFailed.push({ name: n, why: String((_vs && _vs.why) || 'no reason given').slice(0, 90) });
+            }
+          }
+        } catch(e){
+          res.vaultFailed = res.vaultFailed || [];
+          res.vaultFailed.push({ name: n, why: 'threw: ' + String(e && e.message || e).slice(0, 70) });
+        }
+        /* ⚠ THE NAME IS IN BOTH BUCKETS AND THAT IS NOT AN ACCIDENT — but the receipt has to say
+           so or the counters lie. `skipped` has always meant "the GRAIL did not move", which is
+           true and must stay true (★ never un-find). `vaulted` means "the VAULT gained it". The
+           279 names this patch exists for are both at once, so the receipt carries the overlap
+           explicitly rather than leaving a reader to subtract two numbers that measure different
+           ledgers. [[label-outlived-referent]] */
+        res.skipped.push(n);
+        res.skippedButVaulted = (res.vaulted || []).indexOf(n) >= 0
+          ? (res.skippedButVaulted || 0) + 1 : (res.skippedButVaulted || 0);
+        return;
+      }   // ★ never un-find
       // v1693 — an optional per-row HONEST date. toggleOwned always stamps window._grailStamp()
       // (i.e. now) for the ledger write; when the caller has a real in-game First Found date (read
       // off his own Chronicle screenshots, not invented), it rides through here by swapping the
@@ -41835,7 +41897,41 @@ function renderJournal(){
           _landed = Object.prototype.hasOwnProperty.call(_fl, n);
         } catch(e){ _landed = true; }   // cannot tell → do not invent a demotion
         if (_landed) res.uniques.push(n);
-        else {
+
+        /* ⚠ v2193 — THE VAULT DOOR WAS IN THE `else`, SO A FOUND ITEM COULD NEVER BE A VAULTED ONE.
+           Konyo: "we need to see vault manager flowing with traffic.. all the items within the
+           stash and inventory needs to start syncing to the console.. i want to see hundreds of
+           items eventually auto arranged."
+
+           `_landed` asks whether the GRAIL ledger ticked the name. Every real unique lands there,
+           so `_landed` was true and the vault branch below ran only for names the board does NOT
+           recognise — bases and nicknames. Measured on his own store: d2r_foundLog 390, and
+           d2r_owned FIVE, which are exactly the unrecognised ones.
+
+           Those are not two kinds of item. They are two FACTS about one item: the grail says he
+           has ever found it, the vault says it is physically in his stash right now. A chronicle
+           sighting is a STASH-PANEL sighting — that is what the gate admits — so it establishes
+           both, and writing them as if/else made them mutually exclusive by accident. His words:
+           "this grail thing though.. we created and invented that word.. its just a data coding
+           database informating and coding properly."
+
+           SIMULATED BEFORE CHANGING ANYTHING, against his real 84-key store in a real page:
+               tvVaultRegister on his 281 accepted names -> 281 ok, 0 fail
+               d2r_owned    5 -> 286        d2r_muleAssign  4 -> 279
+           The machinery was always fine. Nothing ever called it for a swept item.
+
+           tvVaultRegister is the ONE DOOR (canonical name, _tvExtraRemember so it survives the
+           load-time rebuild, and the mule suggestion); filing still happens once after the batch
+           via vaultAutoAssign, which owns the rules about equipment and hand-filed homes.
+           [[the-unjoined-end]] [[plumbing-with-no-tap]] */
+        try {
+          if (typeof window.tvVaultRegister === 'function') {
+            var _vr = window.tvVaultRegister(n);
+            if (_vr && _vr.ok) { res.vaulted = res.vaulted || []; if (!_landed) res.vaulted.push(n); }
+          }
+        } catch(e){}
+
+        if (!_landed) {
           res.vaulted = res.vaulted || []; res.vaulted.push(n);
           /* ── v2083 — "VAULTED" HELD FOR ONE PAGE-LIFE, THEN IT WAS GONE ─────────────────────
              v1987 refused a fix here and said exactly why: "chronicleApply reports `vaulted` for
@@ -45882,7 +45978,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2192', name:'v2192 - the gate answers for its own read, and his runeword ruling is pinned', date:'2026-08-27', note:'Two things he called critical. First, the blind state of the stash gate is a per call receipt now instead of a process counter. Every reader used to snapshot the global silent and broke counters before and after a call and treat any movement as this frame was blind, which is correct alone and false in the console, because chronicle and vault sweeps run on other threads and gate their own frames. A sibling thread ticking the counter inside the window answered for a frame it never touched, and in the direction that costs him footage: a tooltip frame, text present and the only place an item name lives on a stash screen, collapses out of the measured no and into the class the prune is allowed to delete. A cross family review called this architectural rather than a bug and it was right, because no care around the delta fixes a counter that belongs to the process. The read now stamps a receipt on a thread local and the three call sites ask that. The run level counters stay, because every frame this sweep probed came back silent is a different and still useful fact about the lane. Proven red by putting the delta back: the guard fails and names the tooltip case. This was the prerequisite blocking the whole auto prune arc. Second, his runeword ruling. Three lists disagree and none of them was right: the farm roster holds 101 because variants are separate rows, the chronicle map holds 97, and he has made 99. The comment beside the board own KPI still claims 99 of 99, a label that outlived its referent when the map drifted to 97. He plays the game and he is the authority, so 99 is a named constant now with the evidence written beside it.' };
+  window.D2R_BUILD = { id:'v2195', name:'v2195 - the vault arc, locked', date:'2026-08-27', note:'Locking in the vault arc after a cross family review of it returned six findings. A vault write that failed used to report that the vault already had it, because one else branch covered both the already case and the failure case, so a refusal wore a success sentence in the one surface that exists to verify. There are three outcomes and three sentences now, and a refusal says REFUSED and carries the reason. A failure mid sweep was silent and indistinguishable from a name that was already vaulted, while earlier names in the loop had already been written and nothing recorded that anything went wrong, which over hundreds of names is a half filled vault reported as a clean run; failures are carried out on the receipt with their reason. The receipt counted a newly vaulted name in both the skipped and the vaulted buckets without saying so, so the counters measured two different ledgers and looked contradictory; the overlap is named explicitly, because skipped has always meant the grail did not move and that must stay true. A no op registration cost a dictionary write for every already vaulted name over hundreds, so the common case is an in memory lookup now, which also shrinks the window where a quota failure can stop the loop half way. Four guards were added for those, and one of them was wrong at first in an instructive way: it seeded a name into the vault and the page load time accept list REBUILT the vault from its catalogues and replaced it, so the test was measuring its own fixture rather than the code. It uses a name the rebuild keeps.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -46767,7 +46863,7 @@ window._CH_PILL_MAP = {
           + '<span class="ibx-why" title="' + esc(x.triageWhy || '') + '">'
           + esc(SAY(x.triageWhy) || 'unclear read') + '</span>'
           + '<span class="ibx-act">'
-          + '<button type="button" class="ibx-b ibx-ok" onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">tick it</button>'
+          + '<button type="button" class="ibx-b ibx-ok" onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '" title="counts it in your Chronicle AND files it in the Vault \u2014 one sighting, two ledgers">tick it \u2192 Chronicle + Vault</button>'
           + '<button type="button" class="ibx-b" onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">ignore</button>'
           + '</span></div>';
       }).join('') + '</div>');
@@ -47219,7 +47315,7 @@ window._CH_PILL_MAP = {
             + '<span class="ibp-nm" data-arttip="' + _shown + '">' + _shown + _slip + '</span>'
             + '<button type="button" class="ibp-b ibp-ok" '
             + 'onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
-            + 'data-n="' + nm + '">tick it</button>'
+            + 'data-n="' + nm + '" title="counts it in your Chronicle AND files it in the Vault \u2014 one sighting, two ledgers">tick it \u2192 Chronicle + Vault</button>'
             + '<button type="button" class="ibp-b" '
             + 'onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
             + 'data-n="' + nm + '">ignore</button></div>');
@@ -47360,7 +47456,32 @@ window._CH_PILL_MAP = {
         var inbox0 = (_chLsGet(_CH_INBOX_KEY, []) || []).filter(function(x){ return !(x && String(x.name) === nm); });
         _chLsSet(_CH_INBOX_KEY, inbox0);
         _chLogSetStatus(nm, 'in-chronicle', { store: settled.store, why: settled.why });
-        return { ok:true, name: nm, remaining: inbox0.length, already: true, store: settled.store };
+        /* ⚠ v2194 — THE SAME FALSE SPLIT, A THIRD TIME. This returns early when the CHRONICLE has
+           already settled the name — and returned before the vault door, so the row he is most
+           likely to press (one he already owns, read again off a stash panel) recorded nothing
+           physical. v2193 fixed this shape at the sweep's skip and at its if/else; the button he
+           actually clicks had it too. Found by driving kaiChronicleAccept in a real page: the
+           result came back {already:true, store:'foundLog'} and d2r_owned did not move. */
+        var _v0 = 'no', _vw0 = '';
+        try {
+          if (typeof window.tvVaultRegister === 'function') {
+            var _r0 = window.tvVaultRegister(nm);
+            if (_r0 && _r0.ok) _v0 = (_r0.mode === 'already') ? 'already' : 'filed';
+            else _vw0 = String((_r0 && _r0.why) || 'no reason given').slice(0, 90);
+          } else { _vw0 = 'the vault door is not loaded'; }
+        } catch(e){ _vw0 = 'threw: ' + String(e && e.message || e).slice(0, 70); }
+        /* ⚠ v2195 — THREE OUTCOMES, THREE SENTENCES. The else fired for BOTH 'already' and 'no',
+           so a vault write that FAILED — or never ran, because tvVaultRegister was absent or threw
+           into an empty catch — told him "the Vault already had it too". A failure wearing a
+           success's words is the one thing a verifier must never do. */
+        return { ok:true, name: nm, remaining: inbox0.length, already: true,
+                 store: settled.store, chronicle: 'already', vault: _v0,
+                 say: (_v0 === 'filed')
+                        ? 'your Chronicle already had it \u2014 now filed in the Vault too'
+                        : (_v0 === 'already'
+                            ? 'your Chronicle already had it \u00b7 the Vault already had it too'
+                            : 'your Chronicle already had it \u2014 but the Vault REFUSED it'
+                              + (_vw0 ? (': ' + _vw0) : '') + ', so it is not filed') };
       }
       var inbox = window.kaiChronicleInbox({ sync: false });
       var hit = null;
@@ -47379,7 +47500,37 @@ window._CH_PILL_MAP = {
       });
       try { if (typeof _gFoundDirty === 'function') _gFoundDirty(); } catch(e){}
       try { if (typeof renderGrailProgress === 'function') renderGrailProgress(); } catch(e){}
-      return { ok:true, name: nm, remaining: inbox.length };
+
+      /* ⚠ v2194 — TWO LEDGERS, AND HE MUST BE TOLD WHICH ONE MOVED.
+         Konyo, looking at WAITING ON YOU: "is this ticking my chronicle count tally? or is it
+         asking me to tally it in my vault manager? i would like it to show the distinguish the
+         difference so i know and its clear so it can be a dual income notified and verifier for
+         me and route it and funnel it accordingly."
+
+         It ticked the CHRONICLE only, and said nothing about it. But the row he is being asked
+         about came off a STASH-PANEL read — that is what the gate admits — so the sighting
+         establishes two facts, not one: he has found it (chronicle) and it is in his stash right
+         now (vault). v2193 removed the same false split from the sweep's apply; this is the same
+         law at the button he actually presses.
+
+         The RESULT now names each ledger separately, so the surface can say what happened rather
+         than implying one thing and doing another. [[label-outlived-referent]] */
+      var _vault = 'no', _vwhy = '';
+      try {
+        if (typeof window.tvVaultRegister === 'function') {
+          var _vr = window.tvVaultRegister(nm);
+          if (_vr && _vr.ok) _vault = (_vr.mode === 'already') ? 'already' : 'filed';
+          else _vwhy = String((_vr && _vr.why) || 'no reason given').slice(0, 90);
+        } else { _vwhy = 'the vault door is not loaded'; }
+      } catch(e){ _vwhy = 'threw: ' + String(e && e.message || e).slice(0, 70); }
+      return { ok:true, name: nm, remaining: inbox.length,
+               chronicle: 'ticked', vault: _vault, vaultWhy: _vwhy || undefined,
+               say: (_vault === 'filed')
+                      ? 'counted in your Chronicle and filed in the Vault'
+                      : (_vault === 'already'
+                          ? 'counted in your Chronicle \u00b7 the Vault already had it'
+                          : 'counted in your Chronicle \u2014 but the Vault REFUSED it'
+                            + (_vwhy ? (': ' + _vwhy) : '')) };
     } catch(e){ return { ok:false, why: String(e && e.message || e) }; }
   };
   window.kaiChronicleDismiss = function(name){

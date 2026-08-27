@@ -9952,11 +9952,25 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
         i = body.find("if (_landed) res.uniques.push(n);")
         self.assertGreater(i, 0, "the receipt pushes unconditionally again")
         tail = re.sub(r"/\*.{0,8000}?\*/", " ", body[i:i + 4000], flags=re.S)
-        j = tail.find("else")
-        self.assertGreater(j, 0, "the landed check lost its else — a name that did not land is "
-                                 "silently dropped from the receipt")
+        # ⚠ v2193 — THE LAW IS THE BRANCH, NOT THE KEYWORD. This looked for a literal `else`, and
+        # this very docstring warns that pinning SHAPE rather than SEMANTICS "spends attention on a
+        # non-event". v2193 took the vault door OUT of the else — because sitting there was the
+        # defect: the door only ever opened for names the board does not recognise, so a real
+        # unique the grail had ticked could never be recorded as physically in his stash. The
+        # not-landed case is still handled, now as `if (!_landed)`. Accept either spelling and
+        # assert what actually matters.
+        j = min([x for x in (tail.find("else"), tail.find("if (!_landed)")) if x > 0] or [-1])
+        self.assertGreater(j, 0, "the landed check lost its not-landed branch — a name that did "
+                                 "not land is silently dropped from the receipt")
         self.assertIn("res.vaulted", tail[j:j + 400],
                       "the not-landed branch no longer reports a vault landing")
+        # ⚠ AND THE VAULT DOOR MUST NOT GO BACK INSIDE IT. That is the v2193 defect itself: 279 of
+        # his 281 read items never reached the vault because registration was reachable only when
+        # the grail did NOT know the name.
+        self.assertIn("tvVaultRegister", tail[:j],
+                      "the vault registration is only reachable on the not-landed branch again, "
+                      "so an item the grail already knows can never be recorded as being in his "
+                      "stash — that is the defect v2193 measured at 279 of 281")
         # v2101 — the `else 10**9` already defends the RIGHT-hand marker; the LEFT one had no
         # such guard, and a missing `res.vaulted` yields -1, which is less than anything — the
         # pin passing precisely because the branch it checks had disappeared. [[source-reading-guard]]
