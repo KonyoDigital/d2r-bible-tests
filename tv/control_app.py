@@ -11034,6 +11034,31 @@ _PRUNE_LOCK = threading.Lock()
 # lines: gameplay, or the OCR lane held by his live session) and `gate_failures()` (import/read
 # broke). A per-frame delta across those two is the honest next step and it is small. It is not
 # done here, because arming on an unproven claim is what this comment is apologising for.
+# ⚠⚠ v2187 — READ THIS BEFORE SETTING IT True. THE RULE IS INVERTED WITH RESPECT TO RISK.
+# _prune_once deletes on a MEASURED "no", and "no" means OCR RETURNED LINES and no stash panel was
+# found. stash_panel_verdict's own docstring names the hole: "a tooltip that hides the tab strip
+# while the OCR lane is healthy yields canons==[] with NO counter moving, so it answers 'no' — the
+# v2058 case remains open". On a stash screen THE TOOLTIP IS THE ONLY PLACE AN ITEM NAME APPEARS;
+# a stash GRID prints no names at all. So the one verdict this deletes on is the frame most likely
+# to hold the last copy of a name, while the provably BLANK frames are the ones it keeps.
+#
+# Measured on his 30 reels (140-frame random sample, seed 20260827, plus a full reel in mtime
+# order), and corroborated by the console's own prune_reclaimable within one point:
+#
+#     measured "no"  ~5%   <- all that arming would free today: 274 of 6832 frames, 0.37 GB
+#     panel          ~7%   kept, correctly
+#     SILENT        ~88%   kept — the crop was made and OCR returned ZERO lines
+#
+# The disk is in that 88%, and a blank frame cannot carry a name. Freeing it needs proof the OCR
+# lane was ALIVE at that moment, otherwise "no text on this frame" and "the reader was busy" are
+# the same observation. I built that proof (a LaneCanary taking deliberate uncached probes through
+# the pass) and it does NOT hold up: a cross-family review returned six findings, and the one that
+# blocks it is architectural — _GATE_SILENT and gate_failures are PROCESS GLOBALS, and the console
+# runs sweeps on other threads that move them. A sweep ticking _GATE_SILENT inside the gate's delta
+# collapses a tooltip frame into the deferrable class. Per-read counters are the prerequisite.
+# The attempt is kept out of the tree deliberately rather than half-landed. [[the-unjoined-end]]
+#
+# SO: arming today buys 0.37 GB against 47 GB free and risks the tooltip case. Do not.
 _PRUNE_SAFE_TO_RUN = False
 # ── v2058 — THE PRUNE IS OFF. IT WAS EATING THE ONLY FRAMES THAT CARRY ITEM NAMES. ───────────
 # v2037 deleted a frame when `sig_diff(kept, this) <= 0.02`, using sig_diff at its DEFAULT tol=28.
@@ -16535,7 +16560,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2186",
+        "ver": "v2187",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
