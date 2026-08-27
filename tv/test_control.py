@@ -23611,6 +23611,114 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
                          "cannot see a tooltip covering the tab strip")
 
 
+class TestV2178BothDoorsAnswerTheSameQuestion(unittest.TestCase):
+    """⚠ A FIX THAT LANDS ON ONE OF TWO DOORS LEAVES THE CLICKED ONE BROKEN.
+
+    There are two ways a relaunch is refused: `nothing_in_flight()` (the AUTOMATIC path) and the
+    `/api/relaunch` route (THE BUTTON HE PRESSES). The route builds its own busy list rather than
+    calling the function, so v2178's ceiling reached the automatic path and left the clicked one
+    deadlocked — the fix for a deadlock, deadlocked. Caught by POSTing to his live console and
+    reading the refusal come back with the ceiling already shipped.
+
+    The route's own comments record this same divergence being corrected once before, in v2111:
+    "The two paths guarded different things, and the WEAKER one is the one with a button on it."
+    Twice is a shape, not an accident, so this guard is about the CLASS: whatever the automatic
+    path refuses on, the clicked path must refuse on too. [[copy-drift]] [[the-unjoined-end]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+
+    def _route_src(self):
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.index('if path == "/api/relaunch":')
+        j = src.index('self._json(200, {"ok": False, "why": " and ".join(_busy)', i)
+        # ⚠ COMMENTS OUT FIRST. This very block explains the defect in prose that names every
+        # symbol the guard looks for, so a scanner reading its own documentation passes forever.
+        # [[source-reading-guard]]
+        return "\n".join(L for L in src[i:j].split("\n") if not L.strip().startswith("#"))
+
+    def test_BOTH_doors_call_the_SAME_helper(self):
+        """⚠ A SYMBOL-LEVEL GUARD CANNOT STOP TWO COPIES DRIFTING, and the review said so.
+
+        My first version asserted that both refusal sites mentioned `_CHRON_SWEEP_MAX_MS`. A
+        cross-family review pointed out that this still permits `>` on one door and `>=` on the
+        other, different behaviour when the clock is unreadable, and only one of them saying
+        anything. The only way two doors cannot disagree is if there is one door — so the check is
+        that both CALL it, not that both mention its parts."""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        self.assertIn("def sweep_past_its_ceiling(", src,
+                      "the shared ceiling helper is gone — the two doors are copies again")
+        route = self._route_src()
+        self.assertIn("sweep_past_its_ceiling", route,
+                      "/api/relaunch does not call the shared ceiling helper, so the button he "
+                      "presses can refuse forever while the automatic path has been released")
+        i = src.index("def nothing_in_flight(")
+        j = src.index("\ndef ", i + 10)
+        self.assertIn("sweep_past_its_ceiling", src[i:j],
+                      "nothing_in_flight no longer calls the shared helper")
+
+    def test_an_UNREADABLE_clock_never_opens_the_door(self):
+        """⚠ THE REVIEW'S FIRST FINDING, AND IT CUTS BOTH WAYS.
+
+        Every unreadable-clock path used to collapse through `or 0` or a bare except, so a
+        sweep_eta that threw or returned None recreated the permanent lock. Reading the job's own
+        `runStartedTs` removes that dependency. But the other direction matters more: an unknown
+        elapsed must never be reported as PAST the ceiling, because that would relaunch on top of
+        a read he is paying for right now. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        ca = self.ca
+        for job in ({}, {"running": True}, {"runStartedTs": None}, {"runStartedTs": ""},
+                    {"runStartedTs": "not-a-number"}, None):
+            past, el = ca.sweep_past_its_ceiling(job=job, say=False)
+            self.assertFalse(past, "an unreadable clock (%r) reported the sweep PAST its ceiling — "
+                                   "that relaunches on top of a live paid read" % (job,))
+
+    def test_a_job_state_that_cannot_be_read_still_BLOCKS_the_relaunch(self):
+        """The route's outer `except: pass` made an unreadable _CHRON_JOB read as idle, allowing a
+        relaunch mid-read — the opposite default to the ceiling check three lines above it, in the
+        same function, both silent."""
+        # ⚠ NOT A CHAR WINDOW. `route[i:i+700]` cut off mid-way through the third clause and
+        # reported it missing — a guard failing on its own REACH rather than on the code, for the
+        # fifth time in this repo. Slice between two anchors that bound the thing itself.
+        # [[source-reading-guard]]
+        route = self._route_src()
+        i = route.index("_busy = []")
+        j = route.index("if _busy:", i)
+        tail = route[i:j]
+        # ⚠ AND ITS TWO SIBLINGS. The review named the chronicle clause; sweeping for the shape
+        # found the vault job and the mini state doing the identical thing, so an unreadable
+        # answer from ANY of the three read as "idle" and allowed a relaunch on top of live work.
+        # [[feedback-generalize-fixes]]
+        self.assertNotIn("except Exception:\n                    pass", tail,
+                         "a busy check in /api/relaunch still falls through to `pass`, so an "
+                         "unreadable job state vanishes from the busy list and the relaunch is "
+                         "allowed mid-read:\n%s" % tail[:400])
+        for said in ("could not tell whether a chronicle sweep is reading",
+                     "could not tell whether a vault sweep is reading",
+                     "could not tell whether a mini is recording"):
+            self.assertIn(said, tail, "the route does not fail CLOSED on %r" % said)
+
+    def test_the_two_doors_refuse_on_the_same_conditions(self):
+        """The class, not the instance: every condition one door refuses on, the other must too."""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.index("def nothing_in_flight(")
+        j = src.index("\ndef ", i + 10)
+        fn = "\n".join(L for L in src[i:j].split("\n") if not L.strip().startswith("#"))
+        route = self._route_src()
+        for cond in ("_CHRON_JOB", "_VAULT_JOB", "mini_state", "_agent_mode",
+                     "_reel_is_growing", "sweep_past_its_ceiling"):
+            self.assertIn(cond, fn, "nothing_in_flight no longer asks about %s — this guard has "
+                                    "lost its reference side" % cond)
+            self.assertIn(cond, route,
+                          "/api/relaunch does not ask about %s while nothing_in_flight does. The "
+                          "automatic path and the BUTTON must answer the same question, or the "
+                          "one with a button on it is the weaker guard — v2111 corrected exactly "
+                          "this once already." % cond)
+
+
 class TestV2178TheInterlockCannotBecomeAPermanentLock(unittest.TestCase):
     """⚠ A SAFETY INTERLOCK WITH NO EXPIRY IS A PERMANENT LOCK, AND IT LOCKED OUT ITS OWN FIX.
 
@@ -23634,11 +23742,16 @@ class TestV2178TheInterlockCannotBecomeAPermanentLock(unittest.TestCase):
         self.ca = control_app
 
     def _flight(self, elapsed_ms, ceiling_ms=None):
-        import unittest.mock as mock
+        """v2179 — the elapsed time is stamped on the JOB, because that is where the helper reads
+        it. The first version of this fixture fed elapsedMs through a mocked sweep_eta, which is
+        exactly the derived path the review showed could shape the clock away."""
+        import unittest.mock as mock, time as _t
         ca = self.ca
         eta = {"ok": False, "running": True, "elapsedMs": elapsed_ms, "phase": "hunting",
                "say": "hunting 10 held names across the film"}
-        with mock.patch.object(ca, "_CHRON_JOB", {"running": True, "phase": "hunting"}), \
+        job = {"running": True, "phase": "hunting",
+               "runStartedTs": int(_t.time() * 1000) - int(elapsed_ms)}
+        with mock.patch.object(ca, "_CHRON_JOB", job), \
              mock.patch.object(ca, "_VAULT_JOB", {}), \
              mock.patch.object(ca, "sweep_eta", lambda *a, **k: eta), \
              mock.patch.object(ca, "mini_state", lambda *a, **k: {}), \

@@ -11189,6 +11189,53 @@ def drift_may_relaunch():
     return nothing_in_flight()
 
 
+def sweep_past_its_ceiling(job=None, say=True):
+    """Has the running sweep outlived the protection it is owed? -> (past, elapsed_ms|None)
+
+    ⚠ v2179 — ONE HELPER, BECAUSE TWO COPIES IS HOW v2178 SHIPPED HALF A FIX. The ceiling went
+    into `nothing_in_flight` while `/api/relaunch` kept its own busy list, so the automatic path
+    was released and THE BUTTON HE PRESSES stayed deadlocked. A cross-family review then pointed
+    out that a symbol-level guard cannot stop the two from drifting on `>` vs `>=`, on what they
+    do when the clock is unreadable, or on whether either of them says anything. The only way two
+    doors cannot disagree is if there is one door. [[copy-drift]] [[the-unjoined-end]]
+
+    THE CLOCK IS READ FROM THE JOB ITSELF, not from sweep_eta's derived dict. The review's first
+    finding: every unreadable-clock path collapsed to `or 0` or into a bare except, `_stale` came
+    back False, and the refusal stood — so a sweep_eta that threw, or returned None, or carried
+    elapsedMs as None/""/a string, RECREATED THE PERMANENT LOCK the ceiling exists to break.
+    `runStartedTs` is a plain int stamped when the run begins (control_app.py:15627), so the
+    elapsed time is knowable without going through anything that can shape it away.
+
+    ⚠ WHAT THIS COSTS, STATED PLAINLY. A genuinely productive sweep that crosses the ceiling also
+    becomes interruptible, and it will lose the reads in flight for the reel it is on. That is
+    accepted rather than overlooked: `chronicle_swept.json` (v1524) means a sealed reel is never
+    re-read, and v2178 banks the hunt's empties after each ledger, so an interrupted sweep resumes
+    without re-buying what it already paid for. The exposure is one reel, against a lock with no
+    exit. Progress-staleness cannot be used instead — in the runaway, `pagesRead` kept climbing
+    (330 and rising while it bought nothing), so progress looked perfect. Wall clock is the only
+    signal that separated the two.
+    """
+    try:
+        j = job if isinstance(job, dict) else _CHRON_JOB
+        started = int(j.get("runStartedTs") or j.get("startedTs") or 0)
+    except Exception:
+        started = 0
+    if not started:
+        return False, None                 # UNKNOWN is not "past" — never relaunch on a guess
+    try:
+        el = int(time.time() * 1000) - started
+    except Exception:
+        return False, None
+    if el <= 0 or el <= _CHRON_SWEEP_MAX_MS:
+        return False, el if el > 0 else None
+    if say:
+        print("   \u23f3 a chronicle sweep has been reading for %d minute(s), past the %d minute "
+              "ceiling — it no longer blocks a relaunch. The read it protects is older than the "
+              "build waiting to replace it."
+              % (el // 60000, _CHRON_SWEEP_MAX_MS // 60000), flush=True)
+    return True, el
+
+
 def nothing_in_flight(consequence=None):
     """Is anything reading or writing footage right now? -> (ok, why). NO on/off switch.
 
@@ -11217,18 +11264,10 @@ def nothing_in_flight(consequence=None):
                 _e = sweep_eta()
             except Exception:
                 _e = None
-            # v2178 — and THE REFUSAL EXPIRES. See _CHRON_SWEEP_MAX_MS: an interlock that cannot
-            # time out let a runaway sweep hold the door shut against the very build that fixes it.
-            _el = None
-            try:
-                _el = int((_e or {}).get("elapsedMs") or 0)
-            except Exception:
-                _el = 0
-            if _el and _el > _CHRON_SWEEP_MAX_MS:
-                print("   \u23f3 a chronicle sweep has been reading for %d minute(s), past the %d "
-                      "minute ceiling — it no longer blocks a relaunch. The read it protects is "
-                      "older than the build waiting to replace it."
-                      % (_el // 60000, _CHRON_SWEEP_MAX_MS // 60000), flush=True)
+            # v2178/v2179 — and THE REFUSAL EXPIRES, via the ONE helper both doors call.
+            _past, _el = sweep_past_its_ceiling()
+            if _past:
+                pass                       # the helper already said so, with the elapsed time
             elif _e and _e.get("ok"):
                 busy.append("a chronicle sweep is reading (%s)" % _e["say"])
             elif _e and _e.get("say"):
@@ -16399,7 +16438,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2178",
+        "ver": "v2179",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -19288,22 +19327,41 @@ class Handler(BaseHTTPRequestHandler):
             # It refuses while anything is in flight, because a relaunch mid-read throws away work
             # that has already been paid for on his subscription.
             try:
+                # ⚠ v2178.1 — THE CEILING MUST REACH THE BUTTON HE PRESSES, NOT ONLY THE
+                # AUTOMATIC PATH. v2178 gave `nothing_in_flight` an expiry so a runaway sweep can
+                # no longer hold the door shut against the build that fixes it — and this route
+                # builds its OWN busy list, so the fix landed on one of two doors and left the
+                # clicked one deadlocked. The comment eleven lines below already records this exact
+                # correction being made once before ("The two paths guarded different things, and
+                # the WEAKER one is the one with a button on it"), which is how I know it is the
+                # standing shape here rather than an accident. Same question, same answer, whoever
+                # is asking. [[copy-drift]] [[the-unjoined-end]]
                 _busy = []
                 try:
                     if _CHRON_JOB.get("running"):
-                        _busy.append("a chronicle sweep is reading")
+                        if not sweep_past_its_ceiling()[0]:
+                            _busy.append("a chronicle sweep is reading")
                 except Exception:
-                    pass
+                    # ⚠ v2179 — FAIL CLOSED. This was `pass`, so a _CHRON_JOB that was not a
+                    # mapping made the sweep vanish from the busy list and ALLOWED a relaunch
+                    # mid-read — the opposite default to the ceiling check three lines up, in the
+                    # same function, both silent. An unreadable job state is not an idle one.
+                    # [[unknown-stays-unknown]]
+                    _busy.append("could not tell whether a chronicle sweep is reading")
                 try:
                     if _VAULT_JOB.get("running"):
                         _busy.append("a vault sweep is reading")
                 except Exception:
-                    pass
+                    # v2179 — FAIL CLOSED, same as the chronicle clause above. The review found
+                    # one inverted default here and the sweep for its siblings found two more:
+                    # an unreadable vault job and an unreadable mini state both read as IDLE and
+                    # allowed a relaunch on top of live work. [[feedback-generalize-fixes]]
+                    _busy.append("could not tell whether a vault sweep is reading")
                 try:
                     if mini_state().get("running"):
                         _busy.append("a mini is recording")
                 except Exception:
-                    pass
+                    _busy.append("could not tell whether a mini is recording")
                 # v2111 — AND THE ONE THAT MEANS HE IS FILMING. This route checked three job
                 # flags and not `_agent_alive()`, while `drift_may_relaunch()` — the AUTOMATIC
                 # path, added later — checks it and explains exactly why: "Restarting then both
