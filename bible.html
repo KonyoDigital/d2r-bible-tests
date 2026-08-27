@@ -33241,6 +33241,70 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // still registered/owned + shown in the keep advisory, but it is NOT assigned to any mule.
   var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed's Fortune)$/i;
   var _sugFolding = false;   // v1958 re-entry guard, see below
+  /* ══ v2198 — THE ROUTING UNIVERSE IS ITEM_REGISTRY (547), NOT THE CALCULATOR'S ITEMS (320) ══
+     Konyo, measuring his own empty Vault Manager: "everywhere and anything that uses the items to
+     identify and analyze ... should get the entire database ... except runewords and sets and
+     uniques, those chronicle grails are locked already".
+
+     THE DEFECT, MEASURED. `ITEM_REGISTRY` is built from every boss drop table and holds 547 names.
+     `ITEMS` is the CALCULATOR's curated subset and holds 320 — and the file already says, thirty
+     lines above where the registry is built: "Every routing consumer reads window.ITEM_REGISTRY".
+     tvVaultRegister and suggestMule read `ITEMS`. So 227 REAL GAME ITEMS were invisible to the
+     vault router — Rixot's Keen, Biggin's Bonnet, Arctic Furs, Bane's Authority, The Dragon Chang.
+
+     WHAT THAT COST. A name the router cannot find is treated as unknown, gets an EXTRA_ITEMS
+     placeholder written for it with `rarity:'basic'`, and then the mule planner is asked about
+     THE PLACEHOLDER instead of the item. That is v2018's defect exactly ("ask the planner about
+     the ITEM, not about a stub I wrote three lines ago"), one layer up: v2018 fixed the ordering
+     and left the TABLE too small, so a real unique still arrived at the planner wearing basic.
+
+     WHY THIS IS SAFE TO WIDEN. ITEMS does not COPY the registry, it holds the SAME OBJECTS by
+     reference — `ITEM_REGISTRY[d.n] = {...}; if (!d.nc) ITEMS.push(ITEM_REGISTRY[d.n])`. So a row
+     found here has the identical shape (n, tc, qlvl, tier, sources) every caller already reads.
+
+     ⚠ ADDITIVE, AND THE GRAILS ARE LOCKED. Nothing here mutates ITEMS, ITEM_REGISTRY or
+     EXTRA_ITEMS, and no chronicle surface consults it: the uniques / sets / runewords databases
+     and their counts are untouched by construction. His ruling, and a guard holds it —
+     TestV2198TheGrailCountsDoNotMOVE. [[the-unjoined-end]] [[d2r-ladder-doctrine]] */
+  function d2rItemLookup(name){
+    var q = String(name || '').trim();
+    if (!q) return null;
+    try {
+      /* ITEMS FIRST, so every name that already resolved resolves identically. A widening that
+         changes an answer it used to get right is not a widening, it is a rewrite. */
+      if (typeof ITEMS !== 'undefined'){
+        var hit = ITEMS.find(function(i){ return i.n === q; });
+        if (hit) return hit;
+      }
+      var R = (typeof ITEM_REGISTRY !== 'undefined') ? ITEM_REGISTRY
+            : (window.ITEM_REGISTRY || null);
+      if (R && Object.prototype.hasOwnProperty.call(R, q)) return R[q];
+      /* suffix-tolerant, the same fold tvVaultRegister already does for ITEMS: 'Harlequin Crest'
+         and 'Harlequin Crest (Shako)' must never be two different verdicts. */
+      var _c = function(x){ return String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
+      var qc = _c(q);
+      if (typeof ITEMS !== 'undefined'){
+        var h2 = ITEMS.find(function(i){ return _c(i.n) === qc; });
+        if (h2) return h2;
+      }
+      if (R){
+        var keys = Object.keys(R);
+        for (var k = 0; k < keys.length; k++){ if (_c(keys[k]) === qc) return R[keys[k]]; }
+      }
+    } catch(e){}
+    return null;
+  }
+  window.d2rItemLookup = d2rItemLookup;
+  /* the count, published, so a console or a reader can ask how big its universe actually is
+     instead of assuming — and so "nobody looked" never reads the same as "nothing was there". */
+  window.d2rItemUniverseSize = function(){
+    try {
+      return { registry: Object.keys((typeof ITEM_REGISTRY !== 'undefined')
+                 ? ITEM_REGISTRY : (window.ITEM_REGISTRY || {})).length,
+               calculator: (typeof ITEMS !== 'undefined') ? ITEMS.length : 0 };
+    } catch(e){ return { registry: 0, calculator: 0 }; }
+  };
+
   function suggestMule(name){
     if (isSharedStash(name)) return null;
     /* v1958 \u2014 ROUTE A MISREAD BY THE ITEM IT IS A MISREAD OF.
@@ -33374,7 +33438,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return MAJOR_SETS.test(psn) ? {id:'sets-major', why:'set piece: '+psn} : {id:'sets-rest', why:'set piece: '+psn};
       }
     }catch(e){}
-    var it = (typeof ITEMS!=='undefined') ? ITEMS.find(function(i){return i.n===name;}) : null;
+    /* v2198 — through the WIDE resolver. Was ITEMS.find (320 curated calculator rows), so 227
+       real game items reached the planner as `it = null` and were routed by the default branch. */
+    var it = d2rItemLookup(name);
     var tip = tipOf(name);
     var isSet = (tip && tip.rarity==='set') || (it && it.tier==='set') || /\bset\b|\(any/i.test(name);
     if (isSet){
@@ -34432,6 +34498,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (typeof ITEMS !== 'undefined' && !ITEMS.some(function(i){ return i.n === name; })){
           var _qnV = _cnV(name);
           var _hitV = ITEMS.find(function(i){ return _cnV(i.n) === _qnV; });
+          /* v2198 — and the other 227. Falling through here is what wrote a `rarity:'basic'`
+             placeholder for a real unique and then asked the planner about the placeholder. */
+          if (!_hitV && typeof d2rItemLookup === 'function'){
+            var _regV = d2rItemLookup(name);
+            if (_regV && _regV.n) _hitV = _regV;
+          }
           if (_hitV) name = _hitV.n;
         }
         if (typeof window.findSetPiece === 'function'){
@@ -34474,7 +34546,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // Unknown names (RotW customs like 'Blood Shield' / 'Compendium') get a minimal reference
       // entry (the v298 EXTRA_ITEMS mechanism) so the mirror NEVER has invisible items.
       try {
+        /* v2198 — a name in the 547-row registry IS known. Counting only the calculator's 320
+           meant 227 real items were declared unknown and given a basic stub. */
         var _known = (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === name; }))
+          || (typeof d2rItemLookup === 'function' && !!d2rItemLookup(name))
           || (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]);
         if (!_known && typeof EXTRA_ITEMS !== 'undefined'){
           /* v1991 — REMEMBER IT ACROSS RELOADS, not just for this tab. Writing EXTRA_ITEMS[name]
