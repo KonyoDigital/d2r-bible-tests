@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2203",
+  "ver": "v2204",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2203: a reel that held nothing stops owing a read, and the vault gets its real contents back",
+  "note": "v2204: only a lock refusal is exempt from the try counter, and the reel level catches prune-then-capture",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
