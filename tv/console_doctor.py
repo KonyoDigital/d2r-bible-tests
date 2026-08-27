@@ -587,6 +587,13 @@ def _check_the_two_surfaces_agree():
                 "left a second copy" % len([t for t in shell if t not in NATIVE]))
 
 
+# v2183 — several times one honest pass (8 names x 18 frames = 144 reads, measured on his log),
+# and far below the 3,434 total the runaway reached. Asserted from BOTH sides by
+# TestV2182TheHuntEyeMeasuresTHISRunNotEver so it can never become a threshold above its own
+# signal. [[feedback-threshold-above-the-ceiling]]
+_ONE_PASS_IS_ABSURD = 600
+
+
 def _check_the_hunt_is_buying_something():
     """Is the name-hunt still paying for reads that find nothing? -> (state, say)
 
@@ -612,7 +619,37 @@ def _check_the_hunt_is_buying_something():
     except Exception as e:
         return "unknown", "the console log could not be read (%s)" % str(e)[:60]
     import re as _re
-    passes = _re.findall(r"hunt done: (\d+) read\(s\), new sightings for (\d+) name", txt)
+    # ⚠ v2182 — MEASURE **THIS RUN**, NOT THE WHOLE TAIL.
+    # The 2MB tail spans hours and many process lifetimes. Right after the v2176 fix landed and
+    # his console was relaunched onto it, this still reported "paying 2,149 reads per new
+    # sighting" — TRUE of the log, FALSE of the running build, because the runaway it measured had
+    # happened before the relaunch. A reading carries the age of the thing it measured, not of the
+    # fetch. And a check that stays red after the repair becomes furniture, which is the same
+    # defect as one that is always green. [[stale-reading]]
+    # ⚠ v2183 — ANCHOR THE MARKER. A plain substring search for "CONSOLE BOOT " is matched by
+    # ITEM NAMES: this log carries names an AI read off his game screenshots, and a review pointed
+    # out that one containing that text would move the slice past every real hunt line and report
+    # a live runaway as "no hunt has run". The check's OWN failure prose names the marker too, so
+    # a log that ever quoted it would blind the check permanently. Require the whole shape at the
+    # start of a line: the emoji, a version, and a pid. [[source-reading-guard]]
+    _boots = [m.start() for m in _re.finditer(
+        "(?m)^\\s*\\U0001f680 CONSOLE BOOT \\S+ pid=\\d+", txt)]
+    _window = "since this console booted"
+    if _boots:
+        txt = txt[_boots[-1]:]
+    else:
+        # No marker in the tail: either an older build is running, or the tail is long enough that
+        # the boot scrolled out. Either way the window is UNKNOWN and must be named as such rather
+        # than quietly presented as current. [[unknown-stays-unknown]]
+        _window = ("across a log window of unknown age — no CONSOLE BOOT marker in the tail, so "
+                   "this may include runs from before a fix")
+    # ⚠ v2183 — AND SO MUST THE PASS LINES BE ANCHORED, for the same reason. Unanchored, a single
+    # OCR'd line quoting the phrase counted as a second pass, and TWO passes with no sightings is
+    # exactly the trigger — so one honest miss plus one unlucky item name read as the runaway.
+    # The real line is `   🔎 [uniques] hunt done: N read(s), new sightings for M name(s)`.
+    passes = _re.findall(
+        "(?m)^\\s*\\U0001f50e \\[(?:uniques|sets)\\] hunt done: (\\d+) read\\(s\\), "
+        "new sightings for (\\d+) name", txt)
     if not passes:
         # ⚠ v2175.3 — "I CANNOT PARSE IT" IS NOT "NOTHING IS HAPPENING". This branch returned a
         # confident green, so one edit to the hunt's log line would have retired the check in
@@ -623,7 +660,7 @@ def _check_the_hunt_is_buying_something():
             return "unknown", ("the hunt is running in the log but no 'hunt done:' line can be "
                                "parsed, so its cost cannot be read — the line this check reads "
                                "may have changed (chronicle_hunt.py, log('hunt done: ...'))")
-        return "ok", "no hunt has run in the recent log — nothing is being bought"
+        return "ok", "no hunt has run %s — nothing is being bought" % _window
     reads = sum(int(a) for a, _ in passes)
     sightings = sum(int(b) for _, b in passes)
 
@@ -636,25 +673,41 @@ def _check_the_hunt_is_buying_something():
     #
     # The law is not a read count. It is: THE HUNT WENT BACK AND BOUGHT AGAIN, AND STILL BROUGHT
     # NOTHING HOME. One empty pass is a normal miss. Two is the loop, at any price.
+    # ⚠ v2183 — A SPEND THIS CHECK CANNOT ATTRIBUTE TO THE RUNNING BUILD IS UNKNOWN, NOT MISSING.
+    # Without a boot marker the window may be entirely pre-fix — which is precisely the reading
+    # that made this check wrong on his machine. Saying "missing" then is the stale verdict again,
+    # wearing more words. [[stale-reading]] [[unknown-stays-unknown]]
+    _verdict = "missing" if _boots else "unknown"
+
+    # ⚠ v2183 — AND ONE PASS IS A MISS ONLY AT A SANE PRICE. The review found that a single pass
+    # of any size returned "ok": `hunt done: 3434 read(s), new sightings for 0 name` was a miss,
+    # not a loop. One honest pass is 8 names x 18 frames = 144 reads (measured). A single pass
+    # costing several times that and bringing nothing home is not a miss, whatever the pass count.
+    if sightings == 0 and len(passes) == 1 and reads >= _ONE_PASS_IS_ABSURD:
+        return _verdict, ("a single hunt pass spent %d PAID reads %s and found NOTHING. One honest "
+                          "pass is about 144 reads (8 names x 18 frames), so this is not a miss — "
+                          "something is searching far more film than the cap should allow."
+                          % (reads, _window))
     if sightings == 0 and len(passes) >= 2:
-        return "missing", ("the hunt has run %d pass(es) for %d PAID read(s) and found NOTHING. "
-                           "That is the v2174 loop: it is re-buying names that already came back "
-                           "empty. Check the hunt memory is being written (tv/chron_hunt_memory"
-                           ".json, or beside chronicle_swept.json under TV_HIST)."
-                           % (len(passes), reads))
+        return _verdict, ("the hunt has run %d pass(es) for %d PAID read(s) %s and found "
+                           "NOTHING. That is the v2174 loop: it is re-buying names that already "
+                           "came back empty. Check the hunt memory is being written "
+                           "(tv/chron_hunt_memory.json, or beside chronicle_swept.json under "
+                           "TV_HIST)." % (len(passes), reads, _window))
     # ⚠ NOT `and reads < 200`. A single pass with sightings==0 falls past every branch below and
     # reaches the `%.0f` tail with per=None, which raises inside a health check — the doctor
     # reporting an exception instead of a verdict. One pass is a miss at ANY price.
     if len(passes) < 2:
-        return "ok", ("%d hunt pass(es), %d paid read(s), %d sighting(s) — a single pass is a "
-                      "miss, not a loop" % (len(passes), reads, sightings))
+        return "ok", ("%d hunt pass(es), %d paid read(s), %d sighting(s) %s — a single pass is "
+                      "a miss, not a loop" % (len(passes), reads, sightings, _window))
     per = reads / float(sightings) if sightings else None
     if per and per > 400:
-        return "missing", ("the hunt is paying %.0f reads per new sighting (%d reads, %d "
-                           "sighting(s)). The empty-hunt memory is not holding — a name that "
-                           "found nothing is being bought again." % (per, reads, sightings))
-    return "ok", ("the hunt is paying %.0f read(s) per new sighting across %d pass(es)"
-                  % (per, len(passes)))
+        return _verdict, ("the hunt is paying %.0f reads per new sighting (%d reads, %d "
+                           "sighting(s)) %s. The empty-hunt memory is not holding — a name that "
+                           "found nothing is being bought again."
+                           % (per, reads, sightings, _window))
+    return "ok", ("the hunt is paying %.0f read(s) per new sighting across %d pass(es) %s"
+                  % (per, len(passes), _window))
 
 
 def _check_the_reel_extract_is_moving():

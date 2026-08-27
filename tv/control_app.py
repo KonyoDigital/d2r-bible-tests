@@ -16535,7 +16535,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2181",
+        "ver": "v2183",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -19819,6 +19819,25 @@ def _win_focus_existing_console():
 
 
 def main():
+    # ⚠ v2182 — A BOOT MARKER, so a log-reading check can ask about THIS RUN.
+    # console_doctor's hunt-economy eye reads the tail of control_app.log, and the tail spans
+    # hours across many process lifetimes. Right after the v2176 fix landed it still reported
+    # "paying 2,149 reads per new sighting" — TRUE of the log, and false of the running build,
+    # because the runaway it was measuring had happened before the relaunch. A check that cannot
+    # say WHEN its evidence is from is a stale reading, and one that stays red after the repair
+    # becomes furniture, which is the same defect as one that is always green.
+    # [[stale-reading]] [[feedback-blind-fixture-green-gate]]
+    # ⚠ NOT a second `"ver": "vNNNN"` literal — bump_version.py requires EXACTLY ONE in this
+    # file and refuses the whole stamp if it finds two. The version is asked of status_payload(),
+    # which is the one place that owns it. Two guards (TestNoFunctionLoadsAnUndefinedName and
+    # TestV2010NoCallIntoANameThatIsNotThere) caught my first attempt reaching for a module-level
+    # VERSION, which lives in tv_diablo.py and has never existed here. [[copy-drift]]
+    try:
+        _bv = (status_payload() or {}).get("ver") or "?"
+    except Exception:
+        _bv = "?"
+    print("\U0001f680 CONSOLE BOOT %s pid=%d %s"
+          % (_bv, os.getpid(), time.strftime("%Y-%m-%dT%H:%M:%S")), flush=True)
     if "--board-window" in sys.argv:
         board_window()
         return

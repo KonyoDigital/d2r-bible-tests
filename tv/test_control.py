@@ -23657,6 +23657,126 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
                          "cannot see a tooltip covering the tab strip")
 
 
+class TestV2182TheHuntEyeMeasuresTHISRunNotEver(unittest.TestCase):
+    """⚠ THE CHECK WAS RIGHT ABOUT THE LOG AND WRONG ABOUT THE BUILD.
+
+    Minutes after his console was relaunched onto the v2176 fix, the hunt-economy eye still said:
+
+        the hunt is paying 2149 reads per new sighting (4298 reads, 2 sighting(s))
+
+    Every number true, of a 2MB log tail spanning hours and several process lifetimes — and the
+    runaway it measured had happened BEFORE the relaunch. A reading carries the age of the thing
+    it measured, not of the fetch. And a check that stays red after its own repair becomes
+    furniture, which is the same defect as one that is always green.
+    [[stale-reading]] [[feedback-blind-fixture-green-gate]]
+
+    control_app now prints a CONSOLE BOOT marker at startup and the eye reads only from the last
+    one. Where no marker is in the tail — an older build, or a tail long enough that it scrolled
+    out — the window is UNKNOWN and is named in the verdict rather than quietly presented as
+    current. [[unknown-stays-unknown]]
+    """
+
+    def _doctor(self):
+        import importlib.util as u, tempfile
+        spec = u.spec_from_file_location("cd_v2182", os.path.join(HERE, "console_doctor.py"))
+        m = u.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        m.HERE = d
+        return m, d
+
+    def _say(self, m, d, txt):
+        with io.open(os.path.join(d, "control_app.log"), "w", encoding="utf-8") as fh:
+            fh.write(txt)
+        return m._check_the_hunt_is_buying_something()
+
+    BOOT = "\U0001f680 CONSOLE BOOT v2183 pid=1 2026-08-27T04:00:00\n"
+    LOOP = "   \U0001f50e [uniques] hunt done: 144 read(s), new sightings for 0 name(s)\n"
+    GOOD = "   \U0001f50e [sets] hunt done: 12 read(s), new sightings for 1 name(s)\n"
+
+    def test_a_runaway_BEFORE_the_boot_does_not_condemn_the_build_running_now(self):
+        m, d = self._doctor()
+        st, say = self._say(m, d, self.LOOP * 20 + self.BOOT + self.GOOD * 2)
+        self.assertEqual(st, "ok",
+                         "the eye is still reporting a loop that happened before the console was "
+                         "relaunched onto the fix — it measured the log, not the build (%s)" % say)
+        self.assertIn("since this console booted", say,
+                      "the verdict does not say WHICH WINDOW it measured, so a reader cannot tell "
+                      "whether it is about now")
+
+    def test_a_runaway_that_CONTINUES_after_the_boot_is_still_caught(self):
+        """The half that must not be lost: scoping the window must not blind the check."""
+        m, d = self._doctor()
+        st, say = self._say(m, d, self.LOOP * 20 + self.BOOT + self.LOOP * 3)
+        self.assertEqual(st, "missing",
+                         "a loop still running under the CURRENT build was not caught — the "
+                         "window was scoped so tightly the check went blind (%s)" % say)
+        self.assertIn("432", say, "the verdict does not name the spend it measured")
+
+    OCR = "   \U0001f4e6 item read: CONSOLE BOOT Knife of the Ancients\n"
+    FAKE = "   \U0001f4e6 item read: hunt done: 0 read(s), new sightings for 0 name(s)\n"
+
+    def test_an_ITEM_NAME_cannot_move_the_window_or_forge_a_pass(self):
+        """⚠ THE REVIEW'S CRITICAL ONE, AND IT IS SPECIFIC TO THIS LOG.
+
+        control_app.log carries item names an AI read off his GAME SCREENSHOTS. Both of this
+        check's patterns were plain substrings, so:
+
+          · a name containing "CONSOLE BOOT" moved the slice past every real hunt line, and a live
+            runaway reported as "no hunt has run". The check's own failure prose names the marker
+            too, so a log that ever quoted it would blind the check permanently.
+          · a line containing "hunt done: ... new sightings for 0 name" counted as a PASS, and two
+            empty passes is exactly the trigger — one honest miss plus one unlucky item name read
+            as the runaway.
+
+        Both are anchored to the start of a line and to the shape only the emitter writes.
+        [[source-reading-guard]]"""
+        m, d = self._doctor()
+        st, say = self._say(m, d, self.BOOT + self.LOOP * 3 + self.OCR)
+        self.assertEqual(st, "missing",
+                         "an OCR'd item name containing the boot marker moved the window past a "
+                         "live runaway (%s)" % say)
+        st2, say2 = self._say(m, d, self.BOOT + self.LOOP + self.FAKE)
+        self.assertEqual(st2, "ok",
+                         "an OCR'd item name quoting the pass line was counted as a second pass, "
+                         "so ONE honest miss was reported as the loop (%s)" % say2)
+
+    def test_ONE_pass_is_a_miss_only_at_a_SANE_price(self):
+        """A single pass of ANY size returned ok — `hunt done: 3434 read(s), 0 sightings` was
+        filed as "a miss, not a loop". One honest pass is 8 names x 18 frames = 144 reads."""
+        m, d = self._doctor()
+        st, say = self._say(m, d, self.BOOT + "   \U0001f50e [uniques] hunt done: 3434 "
+                                              "read(s), new sightings for 0 name(s)\n")
+        self.assertEqual(st, "missing",
+                         "one pass spending 3434 paid reads for nothing is reported ok (%s)" % say)
+        # ⚠ pinned from BOTH sides so it can never become a threshold above its own signal
+        import importlib.util as u
+        spec = u.spec_from_file_location("cd_thr", os.path.join(HERE, "console_doctor.py"))
+        mm = u.module_from_spec(spec)
+        spec.loader.exec_module(mm)
+        self.assertGreater(mm._ONE_PASS_IS_ABSURD, 144,
+                           "the absurd-pass bar is at or below ONE HONEST PASS (144 reads), so "
+                           "every normal miss would be reported as a runaway")
+        self.assertLess(mm._ONE_PASS_IS_ABSURD, 3434,
+                        "the bar is above the largest single spend ever observed, so it could "
+                        "never fire on the case it exists for")
+
+    def test_NO_boot_marker_names_the_window_as_unknown(self):
+        """An older build writes no marker. The check must still speak, and must say that its
+        evidence may predate any fix — never present an unbounded window as current."""
+        m, d = self._doctor()
+        st, say = self._say(m, d, self.LOOP * 20)
+        self.assertEqual(st, "unknown",
+                         "a spend this check cannot attribute to the RUNNING build came back as a "
+                         "confident 'missing' — that is the stale verdict again, wearing more "
+                         "words (%s)" % say)
+        self.assertIn("unknown age", say,
+                      "with no boot marker the check reports as if the window were current, which "
+                      "is exactly the reading that made it wrong on his machine")
+        self.assertIn("before a fix", say)
+
+
 class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
     """⚠ THE ANSWER TO "why is it asking me to relaunch and not updating automatically?"
 
