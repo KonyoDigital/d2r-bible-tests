@@ -19125,7 +19125,31 @@ window.renderHighValueFinds = renderHighValueFinds;
      tree (TV extras are covered by _EXTRA_ITEM_SET, socket bases by _SOCKET_KEEP). It is here
      because the store exists and was not consulted, not because a row is dying today. */
   var _maKeep = _safeJsonParse(LS.getItem('d2r_muleAssign'), {}) || {};
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _maKeep[n] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n))));   // v659 — chronicle-seeded uniques + extras survive the prune · v2128 — + his own mule filing
+  /* ══ v2205 (#48) — A SET PIECE IN `owned` WAS DELETED ON EVERY SINGLE LOAD ══════════════════
+     MEASURED, with every migration stamped so none could interfere:
+         wrote   ["Laying of Hands (bramble mitts)", "Waterwalk", "Nagelring"]
+         reload  ["Waterwalk", "Nagelring"]
+     One of the FIVE items his 14:39 ledger snapshot records as genuinely his, gone on every load.
+
+     Not one clause above can see it:
+         _norm("Laying of Hands (bramble mitts)") = "laying of hands bramble mitts"
+         _norm("Laying of Hands")                 = "laying of hands"        <- do not match
+         ITEM_REGISTRY holds the BARE name, never the suffixed one
+         _ROSTER_NORM is the 398 UNIQUES and excludes set pieces BY CONSTRUCTION
+     So the filter has no clause that recognises a set piece at all — while tvVaultRegister
+     deliberately PUTS set pieces here (it resolves through findSetPiece, then owned.add(name)).
+     The vault writes them in; this line takes them out. Two halves of one identity rule, built
+     apart, disagreeing over a parenthetical. [[the-unjoined-end]]
+
+     ⚠ THE FIX IS THE SAME ONE v2082 ALREADY REACHED FOR, ONE CATALOGUE OVER: ask the resolver the
+     rest of the app trusts, rather than adding another hand-list. findSetPiece is the exact
+     function tvVaultRegister uses to decide a name IS a set piece, so the two can no longer drift.
+     Set pieces keep their own store as well; this only stops the vault's copy being deleted. */
+  var _isSetPieceName = function(n){
+    try { return !!(typeof findSetPiece === 'function' && findSetPiece(n)); }
+    catch(e){ return false; }          /* unresolvable -> fall through to the clauses below */
+  };
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _maKeep[n] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n) || _isSetPieceName(n))));   // v659 — chronicle-seeded uniques + extras survive the prune · v2128 — + his own mule filing
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
@@ -37598,7 +37622,9 @@ function renderJournal(){
      have no independent claim". Anything he has ticked by hand since also survives, because a hand
      tick writes EXTRA_ITEMS the same way. [[unknown-stays-unknown]] */
   (function(){
-    var UNDONE = 'd2r_vaultBackfillUndo_v2203';
+    /* v2205 — a NEW key on purpose: v2203 already stamped itself on his board after running
+       incorrectly, so reusing it would leave the vault at 322 forever. */
+    var UNDONE = 'd2r_vaultBackfillUndo_v2205';
     try {
       if (window.LSR.getItem(UNDONE)) return;
       if (!window.LSR.getItem('d2r_vaultBackfill_v2200')) return;   // it never ran here
@@ -37611,14 +37637,37 @@ function renderJournal(){
       var fl = {}, sp = [];
       try { fl = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
       try { sp = JSON.parse(window.LSR.getItem('d2r_setPieces') || '[]') || []; } catch(e){}
+      /* ⚠⚠ v2205 — COMPARE CANONICALLY. THE v2203 UNDO MATCHED RAW STRINGS AND MOSTLY MISSED.
+         MEASURED on his live board after v2203 ran: owned went 404 -> 322, not -> 8. Only 82 of
+         404 matched. The sample shows why, in his own data:
+             foundLog  "Athena's Wrath"        vs  owned  "Athena's Wrath (set piece)"
+             foundLog  "Atma<curly>s Scarab"   vs  owned  "Atma's Scarab"
+         tvVaultRegister CANONICALISES on the way in — it resolves to the roster's set-piece name
+         and folds the apostrophe byte (the v2199 fold). So `owned` holds canonical names while the
+         ledger holds raw keys, and an exact-string lookup misses nearly every one. They fell
+         through to "unexplained" and were KEPT.
+
+         My fixture used clean identical strings on both sides, so it could never reproduce this.
+         That is the fixture-does-not-match-reality class, and the only reason it was not
+         destructive is that "unexplained" KEEPS rather than deletes. [[feedback-blind-fixture-green-gate]]
+
+         The fold below is the same one d2rItemLookup uses: lowercase, apostrophe bytes folded, a
+         trailing parenthetical stripped. */
+      var _canon = function(x){
+        return String(x || '').toLowerCase()
+          .replace(/[\u2018\u2019\u02bc\u00b4`]/g, "'")
+          .replace(/\s*\([^)]*\)\s*$/, '')
+          .trim();
+      };
       var fromLedger = {};
-      Object.keys(fl).forEach(function(n){ fromLedger[n] = 1; });
-      (Array.isArray(sp) ? sp : Object.keys(sp || {})).forEach(function(n){ fromLedger[n] = 1; });
+      Object.keys(fl).forEach(function(n){ fromLedger[_canon(n)] = 1; });
+      (Array.isArray(sp) ? sp : Object.keys(sp || {})).forEach(function(n){ fromLedger[_canon(n)] = 1; });
 
       /* the five he genuinely held before v2200, from the 14:39 snapshot — these are NOT dropped
          even though they also appear in the found-ever ledger */
-      var KEEP_PRE = { 'Waterwalk':1, "Cow King's Leathers (set)":1, 'Nagelring':1,
-                       'Raven Frost':1, 'Laying of Hands (bramble mitts)':1 };
+      var KEEP_PRE = {};
+      ['Waterwalk', "Cow King's Leathers (set)", 'Nagelring', 'Raven Frost',
+       'Laying of Hands (bramble mitts)'].forEach(function(n){ KEEP_PRE[_canon(n)] = 1; });
       var tvx = {};
       try { tvx = JSON.parse(window.LSR.getItem('d2r_tvExtraItems') || '{}') || {}; } catch(e){}
 
@@ -37629,11 +37678,18 @@ function renderJournal(){
          genuine multiples live in d2r_copies. So a repeat here is corruption, not data. */
       var kept = [], dropped = [], _seenName = {};
       owned.forEach(function(n){
-        if (_seenName[n]) { return; }               // silent de-dupe: the second copy is not a fact
+        var c = _canon(n);
+        /* ⚠⚠ DE-DUPE ON THE EXACT NAME, NEVER ON THE CANON. Mixing the two cost a real item in
+           testing: "Laying of Hands" and "Laying of Hands (bramble mitts)" collapse to one canonical
+           key, so whichever came first claimed it and the other was silently skipped — replacing his
+           actual suffixed item with a bare variant and orphaning its mule assignment.
+           An EXACT repeat is corruption (d2r_owned is a Set by construction). A CANONICAL collision
+           is two genuinely different item names, and both must survive. */
+        if (_seenName[n]) { return; }
         _seenName[n] = 1;
-        if (KEEP_PRE[n]) { kept.push(n); return; }
+        if (KEEP_PRE[c]) { kept.push(n); return; }
         if (tvx[n]) { kept.push(n); return; }        // registered live by TV DIABLO, or hand-ticked
-        if (fromLedger[n]) { dropped.push(n); return; }   // came ONLY from found-ever
+        if (fromLedger[c]) { dropped.push(n); return; }   // came ONLY from found-ever
         kept.push(n);                                 // unexplained -> KEEP. Never delete on a guess.
       });
       if (!dropped.length) {
@@ -37650,6 +37706,7 @@ function renderJournal(){
         }));
       } catch(e){}
       window._vaultBackfillUndo_v2203 = { kept: kept.length, dropped: dropped.length };
+      window._vaultBackfillUndo_v2205 = { kept: kept.length, dropped: dropped.length };
       try { console.info('[vault] v2203 undo: dropped ' + dropped.length + ', kept ' + kept.length); } catch(e){}
       try { renderVault(); } catch(e){}
     } catch(e){
