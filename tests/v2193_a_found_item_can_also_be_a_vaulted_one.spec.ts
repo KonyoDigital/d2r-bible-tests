@@ -244,3 +244,24 @@ test('a no-op registration does not rewrite the store', async ({ page }) => {
   expect(calls, 'the vault door was called for a name already in the vault — hundreds of no-op '
     + 'dictionary writes per sweep').toBe(0);
 });
+
+
+test('the board never fetches when nothing is serving it', async ({ page }) => {
+  /* ⚠ v2196 — CI CAUGHT A REGRESSION I SHIPPED. The v2189 tally POST fired unconditionally, and
+     this page is also opened straight off disk — the end-to-end audit does exactly that — where a
+     relative URL resolves to file:///api/board_tally and the fetch throws "URL scheme file is not
+     supported". The .catch() swallows the REJECTION but the browser still logs a PAGE ERROR, and
+     Routine G counts those: it went 8/8 to 7/8 on my own change.
+
+     The console is what serves this page, so http(s) is exactly the condition under which a
+     console exists to receive the POST. This spec runs from file://, which is the failing case. */
+  const errors: string[] = [];
+  page.on('pageerror', (e: any) => errors.push(String(e)));
+  page.on('console', (m: any) => { if (m.type() === 'error') errors.push(m.text()); });
+  await boot(page, { d2r_owned: [], d2r_muleAssign: {} });
+  await page.evaluate(() => { try { (window as any).__tallyPersist(); } catch (e) {} });
+  await page.waitForTimeout(1200);
+  const tally = errors.filter((e) => /board_tally/i.test(e));
+  expect(tally, `the board tried to POST from file:// and logged a page error: ${JSON.stringify(tally)}`)
+    .toEqual([]);
+});

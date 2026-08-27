@@ -41478,10 +41478,19 @@ function renderJournal(){
          localStorage in a LevelDB it cannot read at all. This page is served BY the console, so
          it is same-origin and can simply give the numbers over. Fire-and-forget: a console that
          is not listening must never break the board. */
+      /* ⚠ v2196 — ONLY POST WHEN THERE IS SOMETHING TO POST TO. This fired unconditionally, and
+         the page is also opened straight off disk (the end-to-end audit does exactly that), where
+         a relative URL resolves to file:///api/board_tally and the fetch throws
+         "URL scheme file is not supported". The .catch() swallows the REJECTION but the browser
+         still logs a page error, and Routine G counts page errors — it went 8/8 to 7/8 on my own
+         change. The console is what serves this page, so http(s) is precisely the condition under
+         which a console exists to receive it. [[feedback-blind-fixture-green-gate]] */
       try {
-        fetch('/api/board_tally', { method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(out) }).catch(function(){});
+        if (location.protocol === 'http:' || location.protocol === 'https:') {
+          fetch('/api/board_tally', { method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(out) }).catch(function(){});
+        }
       } catch(e){}
       return true;
     } catch(e){ return false; }
@@ -45978,7 +45987,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2195', name:'v2195 - the vault arc, locked', date:'2026-08-27', note:'Locking in the vault arc after a cross family review of it returned six findings. A vault write that failed used to report that the vault already had it, because one else branch covered both the already case and the failure case, so a refusal wore a success sentence in the one surface that exists to verify. There are three outcomes and three sentences now, and a refusal says REFUSED and carries the reason. A failure mid sweep was silent and indistinguishable from a name that was already vaulted, while earlier names in the loop had already been written and nothing recorded that anything went wrong, which over hundreds of names is a half filled vault reported as a clean run; failures are carried out on the receipt with their reason. The receipt counted a newly vaulted name in both the skipped and the vaulted buckets without saying so, so the counters measured two different ledgers and looked contradictory; the overlap is named explicitly, because skipped has always meant the grail did not move and that must stay true. A no op registration cost a dictionary write for every already vaulted name over hundreds, so the common case is an in memory lookup now, which also shrinks the window where a quota failure can stop the loop half way. Four guards were added for those, and one of them was wrong at first in an instructive way: it seeded a name into the vault and the page load time accept list REBUILT the vault from its catalogues and replaced it, so the test was measuring its own fixture rather than the code. It uses a name the rebuild keeps.' };
+  window.D2R_BUILD = { id:'v2196', name:'v2196 - CI caught the regression I shipped', date:'2026-08-27', note:'Routine G went from all eight categories green to seven of eight on my own change, and the line that says why is one console error: Fetch API cannot load file three slashes api slash board tally, URL scheme file is not supported. The v2189 tally POST fired unconditionally, and this page is also opened straight off disk, which is exactly what the end to end audit does, so the relative URL resolved against file and the fetch threw. The catch swallowed the rejection but the browser still logged a PAGE ERROR and that audit counts page errors, so a handler that looked defensive was not. The console is what serves this page, so http or https is precisely the condition under which a console exists to receive the POST, and that is the gate now. Reproduced the audit condition locally before and after: page errors one then zero, seven of eight then eight of eight. A guard runs from file and fails if the board ever logs a board tally error again, which is the venue the regression lived in.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
