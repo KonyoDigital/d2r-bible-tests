@@ -1590,7 +1590,22 @@
     color: #d8bd7c; font: var(--fw-bold) var(--fs-xl)/1 var(--serif); letter-spacing: var(--ls-widest); }
   #th-slate.go { animation: thSlate 620ms ease-out; }
   /* v858.2 — the shelf must never bury the transport deck (📚 stays a true toggle) */
-  #th-shelfov { position: absolute; top: 0; left: 0; right: 0; bottom: clamp(54px, 9vh, 72px); z-index: 14; overflow-y: auto; background: rgba(4,6,5,.94);
+  /* v2200 — THE FILM WAS BLEEDING THROUGH THE SHELF. A cross-family cold read of the shipped
+     v2199 screenshot came back describing GAME TEXT over the shelf's activity chart — "MISS
+     stash tab", "I = ledger", "12:34:57 AM.795" — and read the search placeholder as garbled
+     ("Search runs - item . are"). I had put that whole complaint down to the row-squash; this
+     is a second, independent cause of the same "very messy" he reported.
+     MEASURED: background rgba(4,6,5,.94) with NO backdrop-filter, and .th-film sits exactly
+     behind it (both at 20,103; film 811x679 under an 811x607 overlay). 6% of live gameplay
+     footage was compositing into a text-dense reading surface.
+     .985 is this file's own precedent for a readable overlay (the session dossier), and the
+     BLUR is the half that matters: it makes any residual bleed unreadable rather than merely
+     faint, which is the difference between a texture and a competing sentence.
+     ⚠ THE SAME READ ALSO FLAGGED THE AI READS PANEL, AND THAT ONE IS NOT A DEFECT. Measured:
+     filmOverlapsBrain = false — the film does not touch that panel, whose background is an
+     opaque gradient. Two stacked regions, not translucency. A good reviewer earns a
+     measurement, not obedience. [[grok-second-eye]] */
+  #th-shelfov { position: absolute; top: 0; left: 0; right: 0; bottom: clamp(54px, 9vh, 72px); z-index: 14; overflow-y: auto; background: rgba(4,6,5,.985); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
     padding: clamp(16px,3vh,30px); display: block; }
   #th-shelfov[hidden] { display: none !important; }
   #th-shelfov .sh-head { font: var(--fw-bold) var(--fs-xl)/var(--lh-snug) var(--serif); color: #e8cf96; letter-spacing: var(--ls-wider); margin-bottom: 14px; padding-right: 48px; }

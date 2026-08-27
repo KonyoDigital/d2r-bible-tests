@@ -33509,6 +33509,37 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // simultaneously with the rest going to their mule by slot. Runes/gems/materials are NOT here (own planners).
     var _tv = (typeof _itemValue === 'function') ? _itemValue(name) : '';
     if (_tv === 'high' || _tv === 'vhigh') return {id:'shared', why:'high trade value — keep close in the shared stash'};
+    /* ══ v2200 — THE OTHER DIRECTION, WHICH WAS NEVER WIRED ═════════════════════════════════
+       Konyo: "the throwout need to be maybe be updated the database itself that way it knows to
+       throwout from the start more then 88+ im pretty sure.. lots of items are garbage including
+       uniques.. only specific items are worth keeping".
+
+       He is right, and the data to do it has been in this file the whole time. ITEM_VALUE is 505
+       names from the maxroll trade-value tiers, and its histogram says exactly what he said:
+              trash 202 · none 136 · low 101 · med 43 · high 23
+       Two thirds of the catalogue is junk. That table was consulted on ONE line — the one directly
+       above — and only ever for KEEP. Nothing asked it whether something should go.
+
+       AND NO UNIQUE COULD REACH THROW-OUT AT ALL. suggestMule has eleven __throwout exits and every
+       one of them is a set-piece, circlet, socketed-base or white-base branch; the white-base branch
+       is explicitly gated `!it && !_exIsCatalogue && !itip`, i.e. skipped for anything the registry
+       recognises. So every unique fell through to uni-weap / uni-armor / uni-small, and his mules
+       filled with items the trade data already knew were worthless.
+
+       ⚠ ONLY `trash`, DELIBERATELY — NOT `none`. "No trade value" and "throw it away" are different
+       claims: a personal-use item can be worth keeping and worth nothing to anyone else. 202 is the
+       line the data actually supports; the other 136 are his call, not mine, and moving them would
+       be me deciding something he did not ask me to decide. [[unknown-stays-unknown]]
+
+       ⚠ IT IS A DRAWER, NOT A DELETION. __throwout routes to the throw-out REVIEW pile with the
+       reason attached; the item stays owned, stays in his ledger, and v739's invariant holds. And
+       tvVaultRegister only writes assign[name] when it is empty, so anything he has placed by hand
+       is untouched. */
+    if (_tv === 'trash') {
+      return {id:'__throwout',
+              why:'trade value TRASH — the maxroll tier data rates this worthless; it stays yours '
+                + 'and stays in your ledger, this is only advice about where it should live'};
+    }
     // v325: EXTRA_ITEMS (reference finds) carry an authoritative CATEGORY — route by it so the
     // keyword fallback below can't mis-file them. Konyo caught skillers ("...Skiller (GC)") landing
     // in UNI-WEAPONS: a Grand Charm has no "charm" in its name, so JEWELRY_RE missed it. Now charms/
@@ -37501,6 +37532,105 @@ function renderJournal(){
          re-examined on every load forever, and "nothing to do" is a completed migration too. */
       try { window.LSR.setItem(DONE, String(Date.now())); } catch(e){}
     } catch(e){}
+  })();
+  /* ══ v2200 — THE VAULT HELD 5 ITEMS WHILE THE LEDGER HELD 512 ═══════════════════════════════
+     Konyo, looking at an empty Vault Manager: "all the items within the stash and inventory needs
+     to start syncing to the console ... i want to see hundreds of items eventually auto arranged".
+
+     MEASURED on his live board via /api/board_ownership:
+         d2r_foundLog   392 entries (a {name: date} MAP)
+         d2r_setPieces  120 entries (an ARRAY of names)
+         d2r_owned        5
+         d2r_muleAssign   4
+     512 names in the ledger, five items in the vault. The v2193 vault door routes an item at APPLY
+     time, so it has never run over rows that were already in the ledger when it shipped. Nothing is
+     broken; the door was simply built after the traffic had already gone past.
+
+     ⚠ TWO THINGS WOULD HAVE MADE THIS CATASTROPHIC, AND BOTH ARE SUPPRESSED BELOW.
+
+     1. renderVault is SEVEN functions, SIXTEEN innerHTML sites, two full ownedPool() rebuilds and
+        two quadratic scans. tvVaultRegister calls it once per registration. 512 of those at boot
+        would freeze his board. It is a BARE identifier inside tvVaultRegister, so window.renderVault
+        cannot shadow it — only code inside this IIFE can, which is the whole reason this migration
+        lives here and not beside the v1692/v1693 chronicle one-shots.
+
+     2. THE LEDGER IS CAPPED AT 400. The v1954 wrapper calls kaiChronicleRecord once per
+        registration and _chLogUpsert trims to 400 rows — so 512 backfill rows would have EVICTED
+        HIS ENTIRE CHRONICLE HISTORY to make room for a migration nobody needs a per-item record of.
+        Suppressed, and replaced by ONE summary row, because a silent migration is the other half of
+        the same failure. [[unknown-stays-unknown]]
+
+     ⚠ HIS HAND WINS, ALWAYS. tvVaultRegister never overwrites an existing assign[name] — all three
+     write sites are guarded by `!assign[name]`. Verified by reading them, not assumed. And this is
+     ONE SHOT, stamped: v1816's own comment next door says why — "a repair is a one-time event; a
+     rule that re-asserts itself is a policy, and he did not ask for a policy."
+
+     ⚠ NEVER ON AN EMPTY LEDGER, and the flag is not burned when it does not run. On a fresh install
+     or a stranger's browser there is nothing to backfill, and stamping "done" there would silence
+     the migration for the one person it exists for. */
+  (function(){
+    var DONE = 'd2r_vaultBackfill_v2200';
+    try {
+      if (window.LSR.getItem(DONE)) return;
+      if (typeof window.tvVaultRegister !== 'function') return;
+      var fl = {}, sp = [];
+      try { fl = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+      try { sp = JSON.parse(window.LSR.getItem('d2r_setPieces') || '[]') || []; } catch(e){}
+      /* d2r_setPieces is an ARRAY on the real board (`JSON.stringify([...setPieces])`). A fixture
+         that wrote it as a map made `new Set(obj)` throw four lines into the boot script and killed
+         every `let` below it — read the shape, do not assume it. */
+      var names = Object.keys(fl).concat(Array.isArray(sp) ? sp : Object.keys(sp || {}));
+      if (!names.length) return;
+      var seen = {}, queue = [];
+      for (var q = 0; q < names.length; q++){
+        var k = String(names[q] || '').trim();
+        if (!k || seen[k]) continue;
+        seen[k] = 1; queue.push(k);
+      }
+
+      var _rv = renderVault;                      // shadowable ONLY from inside this IIFE
+      var _kcr = window.kaiChronicleRecord;
+      var n = { fresh: 0, already: 0, throwout: 0, failed: 0 };
+      var t0 = Date.now();
+      try {
+        renderVault = function(){};
+        window.kaiChronicleRecord = function(){};
+        for (var i = 0; i < queue.length; i++){
+          try {
+            var r = window.tvVaultRegister(queue[i]);
+            if (!r || !r.ok) n.failed++;
+            else if (r.mode === 'throwout') n.throwout++;
+            else if (r.mode === 'already') n.already++;
+            else n.fresh++;
+          } catch(e){ n.failed++; }
+        }
+      } finally {
+        renderVault = _rv;                        // restored even if the loop throws
+        window.kaiChronicleRecord = _kcr;
+      }
+
+      n.ms = Date.now() - t0;
+      n.names = queue.length;
+      try { window.LSR.setItem(DONE, JSON.stringify(n)); } catch(e){}
+      window._vaultBackfill_v2200 = n;            // askable, so the result is not folklore
+
+      /* ONE row, not 512. It says what happened and how many, so the migration is visible in the
+         same ledger every other vault decision lands in. */
+      try {
+        if (typeof window.kaiChronicleRecord === 'function'){
+          window.kaiChronicleRecord({
+            name: 'vault backfill (' + n.names + ' ledger names)',
+            status: 'vault-registered', store: 'assign',
+            why: n.fresh + ' newly filed, ' + n.already + ' already in the vault, '
+               + n.throwout + ' routed to throw-out review, ' + n.failed + ' refused'
+          });
+        }
+      } catch(e){}
+      try { console.info('[vault] backfill: ' + JSON.stringify(n)); } catch(e){}
+      try { renderVault(); } catch(e){}           // ONE render, at the end
+    } catch(e){
+      try { console.warn('[vault] backfill failed: ' + (e && e.message || e)); } catch(e2){}
+    }
   })();
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ renderVault(); renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} initShotExample(); initFolderWatch(); });
   else { renderVault(); renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} initShotExample(); initFolderWatch(); }
