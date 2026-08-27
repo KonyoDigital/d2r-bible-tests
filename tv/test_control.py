@@ -6440,6 +6440,141 @@ class TestV1774AThrottledSweepSealsNothing(unittest.TestCase):
                           % fn.__name__)
 
 
+class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
+    """v2201 — SEVEN OF HIS THIRTY REELS WERE RETIRED FOR THE HUNT BEING BUSY.
+
+    chronicle_autoreel_tick used to PERSIST the try counter BEFORE asking chronicle_sweep_start to
+    take the job. The comment directly above that line already said the correct rule — "a refused
+    sweep would burn the reel. Mark only once the sweep has taken the job" — and the code did the
+    opposite, which is the comments-vs-code class exactly.
+
+    MEASURED ON HIS OWN LOG, 2026-08-27:
+        36  "reel auto-sweep: reading <reel>"
+        34  "a sweep is already running"
+    94% of every attempt never started. The hunt holds the sweep lock, so the tick picked a reel,
+    burned a try, was refused, and after two of those retired the reel with the reason
+    "the sweep started but never wrote a result".
+
+    THE REASON WAS FALSE and the proof is in the durable memory: chronicle_swept.json holds NO
+    ENTRY AT ALL for any of the seven retired reels — not even a pages=0 "found nothing". A reel
+    that was read and came back empty leaves a record; these left none, because they were never
+    read. [[feedback-comments-vs-code]] [[the-unjoined-end]]
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self._path0 = control_app._CHRON_AUTOREAD_PATH
+        self._on0 = control_app._CHRON_AUTOREEL_ON
+        self._start0 = control_app.chronicle_sweep_start
+        self._owes0 = control_app._chron_reel_owes_a_read
+        self._grow0 = control_app._reel_is_growing
+        self._auto0 = dict(control_app._CHRON_AUTOREAD)
+        self._hist0 = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = os.path.join(self.tmp, "hist")
+        os.makedirs(os.environ["TV_HIST"], exist_ok=True)
+        control_app._CHRON_AUTOREAD_PATH = os.path.join(self.tmp, "autoread.json")
+        control_app._CHRON_AUTOREEL_ON = True
+        # the REAL default shape (control_app.py:10200) — a fixture that invents its own dict
+        # crashes in _chron_autoread_save on a key the product always has
+        control_app._CHRON_AUTOREAD = {"done": None, "reels": None, "lastTs": 0, "reads": 0,
+                                       "skipped": {}, "tries": {}}
+        # a reel that is FINAL and OWES a read - the exact state his seven were in
+        self.rid = "reel_s_1780000000000_1"
+        d = os.path.join(os.environ["TV_HIST"], self.rid)
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "f_1780000000001.jpg"), "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xe0" + b"0" * 200)
+        control_app._chron_reel_owes_a_read = lambda rid, mem=None: True
+        control_app._reel_is_growing = lambda p: False
+
+    def tearDown(self):
+        self.ca._CHRON_AUTOREAD_PATH = self._path0
+        self.ca._CHRON_AUTOREEL_ON = self._on0
+        self.ca.chronicle_sweep_start = self._start0
+        self.ca._chron_reel_owes_a_read = self._owes0
+        self.ca._reel_is_growing = self._grow0
+        self.ca._CHRON_AUTOREAD = self._auto0
+        if self._hist0 is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._hist0
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_a_busy_sweep_never_costs_the_reel_a_try(self):
+        """The hunt holding the lock is not the reel's fault."""
+        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "why": "a sweep is already running"}
+        for _ in range(self.ca._CHRON_AUTOREAD_MAX_TRIES + 4):
+            out = self.ca.chronicle_autoreel_tick()
+            self.assertFalse(out.get("retired"),
+                             "a reel was RETIRED while every start was refused for a lock held by "
+                             "another lane — it was never read, and the retirement reason would "
+                             "say 'the sweep started but never wrote a result', which is false")
+        self.assertEqual(self.ca._CHRON_AUTOREAD["tries"].get(self.rid, 0), 0,
+                         "a refused start burned a try. The comment above that line has always "
+                         "said 'mark only once the sweep has taken the job'.")
+        self.assertNotIn(self.rid, (self.ca._CHRON_AUTOREAD.get("retired") or {}),
+                         "the reel was retired without ever being read")
+
+    def test_a_sweep_that_STARTS_and_dies_still_burns_one_and_still_retires(self):
+        """Seen RED for its own reason. v1766.1's runaway bound must survive the fix - a sweep that
+        always dies has to remain bounded, or this trades a wrong retirement for an infinite loop."""
+        self.ca.chronicle_sweep_start = lambda **kw: {"ok": True, "started": True}
+        retired = None
+        for _ in range(self.ca._CHRON_AUTOREAD_MAX_TRIES + 3):
+            out = self.ca.chronicle_autoreel_tick()
+            if out.get("retired"):
+                retired = out
+                break
+        self.assertIsNotNone(retired,
+                             "a sweep that STARTS every time and never writes a result was never "
+                             "retired — that is the unbounded runaway v1766.1 forbids")
+        self.assertEqual(retired.get("retired"), self.rid)
+
+    def test_the_repair_frees_only_what_was_PROVABLY_never_read(self):
+        """The seven he already lost. Undoing them is only safe if the proof is the ABSENCE of a
+        durable read record — not the reason string, which a genuine give-up also carries."""
+        rt = self.ca._chron_reels_retired()
+        rt.clear()
+        WHY = "the sweep started but never wrote a result"
+        rt["reel_NEVER_READ"] = {"why": WHY, "tries": 2, "at": 1}      # no durable entry
+        rt["reel_REAL_GIVEUP"] = {"why": WHY, "tries": 2, "at": 1}     # HAS one -> keep
+        rt["reel_OTHER_REASON"] = {"why": "something else", "tries": 2, "at": 1}
+        self.ca._CHRON_AUTOREAD["tries"]["reel_NEVER_READ"] = 2
+
+        freed = self.ca._chron_unretire_never_read(mem={"reel_REAL_GIVEUP": {"pages": 0}})
+
+        self.assertEqual(sorted(freed), ["reel_NEVER_READ"],
+                         "the repair freed the wrong set: %s" % freed)
+        self.assertIn("reel_REAL_GIVEUP", rt,
+                      "a reel whose sweep REALLY started and died was un-retired. It has a durable "
+                      "pages=0 record — the reader saying 'I looked and found nothing' — so its "
+                      "give-up was genuine, and undoing it resurrects the runaway v1766.1 stops.")
+        self.assertIn("reel_OTHER_REASON", rt,
+                      "a retirement carrying a DIFFERENT reason was undone; this repair owns one "
+                      "bug's damage, not every retirement ever made")
+        self.assertEqual(self.ca._CHRON_AUTOREAD["tries"].get("reel_NEVER_READ", 0), 0,
+                         "the reel was un-retired but kept its burned tries, so it retires again "
+                         "on the next two ticks and the repair changes nothing")
+
+    def test_the_repair_is_a_no_op_when_there_is_nothing_to_repair(self):
+        """A one-shot that keeps acting is a policy. On a machine that never hit the bug this must
+        free nothing and say nothing."""
+        self.ca._chron_reels_retired().clear()
+        self.assertEqual(self.ca._chron_unretire_never_read(mem={}), [])
+
+    def test_the_refusal_says_the_try_was_not_counted(self):
+        """A silent non-count is the same defect wearing the fix's name."""
+        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "why": "a sweep is already running"}
+        out = self.ca.chronicle_autoreel_tick()
+        self.assertTrue(out.get("triesUnchanged"),
+                        "the tick refused without SAYING the try was not counted, so a reader "
+                        "cannot tell this apart from the old behaviour")
+        self.assertIn("NOT counted", str(out.get("why") or ""))
+
+
 class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
     """v1762 — the reels sweep themselves, under a cap that makes the bill predictable.
 

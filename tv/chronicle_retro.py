@@ -1692,7 +1692,123 @@ def witnesses(sightings):
     return sorted(tags)
 
 
-def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+# ══ v2201 — THE WILSON SHADOW LANE ══════════════════════════════════════════════════════════════
+# Konyo: "maybe theres some of this and still needs to be coded to some areas Wilson score.. like we
+# had in the original achilles project. with the Badges.. and the Tier confluence."
+#
+# THE DEFECT IT ADDRESSES, measured in gate_verdict below:
+#   pass  <=>  max(conf) >= CONF_FLOOR  AND  len(witnesses) >= MIN_WITNESSES
+# Two consequences nobody chose:
+#   1. it takes the MAX confidence, so one lucky read outranks many agreeing mediocre ones;
+#   2. once past the bar, the AMOUNT of evidence stops mattering — a name seen twice at 0.6 and a
+#      name seen twenty times at 0.6 are treated identically. That is small-n overconfidence, which
+#      is the exact thing a Wilson interval exists to correct.
+#
+# A Wilson LOWER bound on "k of n looks cleared the floor" is conservative when n is small and
+# tightens as n grows:   2/2 -> 0.342   ·   5/5 -> 0.566   ·   20/20 -> 0.839
+# So more corroboration outranks less automatically, and 2-of-2 stops reading as certainty.
+#
+# ⚠⚠ THIS CHANGES NOTHING TODAY, ON PURPOSE, AND THAT IS THE WHOLE DESIGN.
+# Swapping a gate changes WHAT GROUNDS, which moves his ledger counts. His own ruling on the 64 vs
+# 34 contested number is the precedent: a figure on his screen must never move without him being
+# told why. So this computes BOTH rules, returns both, and lets the OLD one decide. The only output
+# is the list of names where they disagree — and those disagreements are the finding, not noise.
+# Nothing is switched until that list has been read. [[unknown-stays-unknown]]
+#
+# TIER CONFLUENCE is the other half he named, and it is already half-built: witnesses() returns
+# KINDS of evidence (cross-lane, cross-reel, cross-reel-3+, cross-frame, printed) — but they are
+# COUNTED, NOT WEIGHTED. `printed` is the game's own First Found line, the strongest evidence that
+# exists, and it counts exactly the same as `cross-frame`, which is two frames inside ONE reel and
+# the weakest. WITNESS_TIER below is that weighting, and it too only reports.
+_WILSON_Z = 1.96          # 95%. Stated rather than buried: a different z is a different claim.
+
+# How much each KIND of independent evidence is worth. Not a vote count — a confluence weight.
+# `printed` is the GAME saying it, which no amount of re-reading a screenshot can equal.
+WITNESS_TIER = {
+    "printed":       1.00,   # the game's own First Found line
+    "cross-reel-3+": 0.80,   # three separate recordings
+    "cross-lane":    0.70,   # two different readers agreed
+    "cross-reel":    0.55,   # two separate recordings
+    "cross-frame":   0.30,   # two frames inside ONE reel — the weakest, and today it counts as 1
+}
+
+
+def wilson_lower(k, n, z=_WILSON_Z):
+    """Lower bound of the Wilson score interval for k successes in n trials. -> float in [0,1]
+
+    n == 0 returns 0.0 — no evidence is not weak evidence, it is none. That distinction is the
+    whole reason this is here rather than k/n, which answers 1.0 for a single lucky look.
+    """
+    try:
+        k = float(k); n = float(n)
+    except (TypeError, ValueError):
+        return 0.0
+    if n <= 0 or k < 0:
+        return 0.0
+    if k > n:
+        k = n
+    p = k / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    centre = p + z2 / (2.0 * n)
+    margin = z * (((p * (1.0 - p) + z2 / (4.0 * n)) / n) ** 0.5)
+    lo = (centre - margin) / denom
+    return max(0.0, min(1.0, lo))
+
+
+def confluence(tags):
+    """Weighted strength of the KINDS of evidence behind a name. -> float
+
+    Additive on purpose and deliberately NOT capped at 1.0: two independent kinds really are worth
+    more than one, and flattening that is the thing being fixed. Unknown tags score 0 rather than a
+    default — a tag nobody has weighted is a tag nobody has thought about.
+    """
+    try:
+        return round(sum(WITNESS_TIER.get(t, 0.0) for t in (tags or [])), 3)
+    except Exception:
+        return 0.0
+
+
+def wilson_shadow(sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES,
+                  wilson_floor=None, confluence_floor=None):
+    """What the Wilson rule WOULD say. Decides nothing. -> dict
+
+    k = the looks that cleared the reader's own confidence floor
+    n = every look at this name
+    so k/n is "how much of the evidence was actually confident", and the Wilson lower bound
+    penalises that for having been measured few times.
+    """
+    sightings = list(sightings or [])
+    n = len(sightings)
+    k = 0
+    for s in sightings:
+        try:
+            if float(s.get("conf") or 0) >= conf_floor:
+                k += 1
+        except (TypeError, ValueError):
+            pass
+    lo = wilson_lower(k, n)
+    tags = witnesses(sightings)
+    conf_w = confluence(tags)
+    # The floors are chosen so the shadow AGREES with the live gate on the common case, which is
+    # what makes a disagreement worth looking at rather than noise. wilson_lower(2,2) = 0.342.
+    wf = WILSON_FLOOR if wilson_floor is None else wilson_floor
+    cf = CONFLUENCE_FLOOR if confluence_floor is None else confluence_floor
+    return {"k": k, "n": n, "wilson": round(lo, 4), "confluence": conf_w, "tags": tags,
+            "wouldPass": bool(lo >= wf and conf_w >= cf),
+            "why": ("%d of %d looks cleared %.2f -> wilson %.3f (floor %.3f); confluence %.2f "
+                    "(floor %.2f) from %s" % (k, n, conf_floor, lo, wf, conf_w, cf,
+                                              ", ".join(tags) or "nothing"))}
+
+
+# Tuned so the shadow reproduces today's verdict on the ordinary case rather than inventing a new
+# policy: 2 confident looks (the current MIN_WITNESSES bar) give wilson 0.342, and the cheapest
+# real pair of tags (cross-lane + cross-reel) gives confluence 1.25.
+WILSON_FLOOR = 0.34
+CONFLUENCE_FLOOR = 1.00
+
+
+def _gate_verdict_live(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
     """Should this name be grounded? Returns a verdict that EXPLAINS itself either way.
 
     {"pass": bool, "witnesses": [...], "why": str, "bestConf": float, "sightings": n}
@@ -1716,6 +1832,52 @@ def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNE
                        % (len(w), "" if len(w) == 1 else "es", ", ".join(w) or "none", min_witnesses)}
     return {"pass": True, "witnesses": w, "bestConf": best, "sightings": len(sightings),
             "why": "corroborated by %s" % ", ".join(w)}
+
+
+def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+    """The LIVE verdict, with the Wilson rule computed beside it and deciding nothing.
+
+    ⚠ THE LIVE ANSWER IS RETURNED UNTOUCHED. `pass` is whatever _gate_verdict_live said; the shadow
+    is attached under "shadow" and consulted by exactly one thing — the disagreement report. If a
+    future change ever makes `pass` depend on the shadow, TestV2201 goes red, because that switch is
+    his to make after reading the disagreements, not one to slip in.
+    """
+    v = _gate_verdict_live(name, sightings, conf_floor, min_witnesses)
+    try:
+        sh = wilson_shadow(sightings, conf_floor, min_witnesses)
+        sh["agrees"] = bool(sh["wouldPass"]) == bool(v.get("pass"))
+        v["shadow"] = sh
+    except Exception as _e:
+        # a shadow that fails must never take the live verdict with it
+        v["shadow"] = {"error": str(_e)[:120], "agrees": None}
+    return v
+
+
+def shadow_disagreements(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+    """Where the Wilson rule and the live gate DISAGREE, over a whole proposal. -> list
+
+    `by_name` is {name: [sightings]}. Returns only the disagreements, newest evidence first, each
+    one carrying both verdicts and both reasons — because the answer to "should we switch?" is a
+    list he can read, not a percentage.
+    """
+    out = []
+    for nm, sg in sorted((by_name or {}).items()):
+        try:
+            v = gate_verdict(nm, sg, conf_floor, min_witnesses)
+        except Exception:
+            continue
+        sh = v.get("shadow") or {}
+        if sh.get("agrees") is False:
+            out.append({
+                "name": nm,
+                "live": bool(v.get("pass")), "liveWhy": v.get("why"),
+                "wilson": sh.get("wilson"), "confluence": sh.get("confluence"),
+                "shadowPass": bool(sh.get("wouldPass")), "shadowWhy": sh.get("why"),
+                "k": sh.get("k"), "n": sh.get("n"), "tags": sh.get("tags"),
+                "direction": ("shadow would GROUND what the gate holds" if sh.get("wouldPass")
+                              else "shadow would HOLD what the gate grounds"),
+            })
+    return out
 
 
 def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):

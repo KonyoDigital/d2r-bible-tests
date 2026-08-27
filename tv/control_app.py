@@ -10449,6 +10449,61 @@ def _chron_reels_retired():
     return _CHRON_AUTOREAD["retired"]
 
 
+_FALSE_RETIREMENT = "the sweep started but never wrote a result"
+
+
+def _chron_unretire_never_read(mem=None):
+    """v2201 — UNDO THE RETIREMENTS THE v2201 BUG CAUSED. One shot, and it PROVES each one.
+
+    Until v2201 the tick persisted its try counter BEFORE asking the sweep to take the job, so a
+    refusal ("a sweep is already running", held by the hunt) burned a try. Two of those retired the
+    reel saying "the sweep started but never wrote a result". Seven of his thirty were retired that
+    way and the reason was false in every case.
+
+    ⚠ THE PROOF IS THE ABSENCE OF A DURABLE ENTRY, NOT THE REASON STRING. A reel that WAS read and
+    came back empty leaves a chronicle_swept.json entry with pages=0 — that is the reader saying "I
+    looked and there was nothing". A reel that was never read leaves nothing at all. So only a
+    retirement carrying the false reason AND having no durable entry whatsoever is undone here. A
+    genuine give-up, where the sweep really did start and die, keeps its retirement: that one has a
+    record, and undoing it would resurrect the runaway v1766.1 exists to stop.
+
+    Returns the ids it freed. Never raises — a repair that takes the console down with it is worse
+    than the state it was repairing.
+    """
+    freed = []
+    try:
+        rt = _chron_reels_retired()
+        if not rt:
+            return freed
+        _mem = _chron_swept_mem() if mem is None else mem
+        for rid, rec in list(rt.items()):
+            try:
+                if not isinstance(rec, dict):
+                    continue
+                if _FALSE_RETIREMENT not in str(rec.get("why") or ""):
+                    continue
+                if isinstance(_mem.get(str(rid)), dict):
+                    continue          # it HAS a durable record — the give-up was real, leave it
+                rt.pop(rid, None)
+                _CHRON_AUTOREAD.get("tries", {}).pop(rid, None)
+                _CHRON_AUTOREAD.get("skipped", {}).pop(rid, None)
+                freed.append(str(rid))
+            except Exception:
+                continue
+        if freed:
+            _chron_autoread_save()
+            print("   \U0001f513 %d reel(s) un-retired — they were never actually read, so the "
+                  "reason on their retirement was not true: %s"
+                  % (len(freed), ", ".join(sorted(freed)[:4])
+                     + ("" if len(freed) <= 4 else " +%d" % (len(freed) - 4))), flush=True)
+    except Exception as _e:
+        try:
+            print("   ⚠ un-retire pass failed: %s" % str(_e)[:120], flush=True)
+        except Exception:
+            pass
+    return freed
+
+
 def _chron_reel_retire(reel_id, why, tries):
     _chron_reels_retired()[str(reel_id)] = {
         "why": str(why)[:180], "tries": int(tries), "at": int(time.time() * 1000)}
@@ -10583,11 +10638,31 @@ def chronicle_autoreel_tick():
                                                "never wrote a result" % (tries - 1))
             return {"ok": False, "retired": rid, "tries": tries - 1,
                     "why": "the sweep started but never wrote a result, %d times" % (tries - 1)}
-        _CHRON_AUTOREAD["tries"][rid] = tries
+        # ⚠⚠ v2201 — A REFUSAL IS NOT AN ATTEMPT, AND THIS CODE USED TO SAY OTHERWISE.
+        # The comment eight lines above states the rule in its own words — "a refused sweep would
+        # burn the reel. Mark only once the sweep has taken the job" — and the line that used to
+        # sit here PERSISTED the try BEFORE the sweep was even asked. So a reel burned a try for
+        # something that had nothing to do with the reel.
+        #
+        # MEASURED ON HIS OWN LOG, 2026-08-27: 36 "reel auto-sweep: reading X" lines against 34
+        # "a sweep is already running" refusals. 94% of every attempt never started. The HUNT holds
+        # the sweep lock - it is the lane spending 144 reads a pass on set pieces - so the tick
+        # picked a reel, burned a try, was refused, and after two of those RETIRED the reel saying
+        # "the sweep started but never wrote a result".
+        #
+        # THAT REASON WAS FALSE. The sweep never started. SEVEN of his thirty reels were retired
+        # for the hunt being busy, and chronicle_swept.json holds NO ENTRY AT ALL for any of the
+        # seven - not even a "found nothing" - which is how a permanently retired reel proves it
+        # was never read, rather than read and empty. [[feedback-comments-vs-code]]
+        #
+        # v1766.1's runaway bound is INTACT: a sweep that always dies still burns a try each time
+        # and still retires. What no longer burns one is a lock held by a different lane.
         r = chronicle_sweep_start(limit=1, reel_id=rid)
         if not (isinstance(r, dict) and r.get("ok")):
-            return {"ok": False, "why": "sweep refused the reel: %s"
-                                        % ((isinstance(r, dict) and r.get("why")) or r)}
+            _rwhy = (isinstance(r, dict) and r.get("why")) or r
+            return {"ok": False, "triesUnchanged": True, "attempt": tries,
+                    "why": "sweep refused the reel and the try was NOT counted: %s" % _rwhy}
+        _CHRON_AUTOREAD["tries"][rid] = tries      # only now - the sweep actually took the job
         # v1763 — DO NOT BURN A REEL WHOSE FINDINGS WERE NOT KEPT. The swept marker is durable and
         # the result used to be memory-only, so a sweep could spend, find names, lose them on the
         # next restart, and then decline to read that reel ever again because it was "done". The
@@ -10622,6 +10697,16 @@ def _chron_autoread_watch(msg):
 
 
 def _chron_autoread_loop():
+    # v2201 — ONCE, BEFORE THE FIRST TICK. Seven of his reels were retired by the try-counter bug
+    # this version fixes, and a fixed tick alone would never look at them again: retirement is
+    # durable by design. The repair proves each one by the ABSENCE of a durable read record rather
+    # than by the reason string, so a genuine give-up keeps its retirement.
+    # ⚠ It costs a re-read of whatever it frees. That is the correct price: those reels were never
+    # read, so their frames are still unextracted evidence, which is exactly what he is waiting on.
+    try:
+        _chron_unretire_never_read()
+    except Exception:
+        pass
     while True:
         try:
             time.sleep(_CHRON_AUTOREAD_EVERY_S)
