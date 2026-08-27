@@ -20797,9 +20797,14 @@ class TestV2126TheWaitingBannerOpensTheRoomItNames(unittest.TestCase):
     def test_the_label_says_what_it_MEANS_not_only_where_it_goes(self):
         """His question was "what does it mean and what is it meant for?" — a state ("waiting to
         register") is not a meaning."""
-        self.assertIn("not in your grail yet", self.ui,
+        # v2199 — "grail" -> "ledger". His ruling: the word was invented and the thing is a
+        # database. The guard moves WITH the copy in the same commit; a source-text assertion left
+        # behind is a red gate that says nothing about the product.
+        self.assertIn("not in your ledger yet", self.ui,
                       "the banner no longer says these finds are NOT in his ledger yet, which is "
                       "the whole point of the proposal being read-only")
+        self.assertNotIn("not in your grail yet", self.ui,
+                         "the invented word came back on the one line he pointed at by name")
 
 
 class TestV2128TheFoldRefusesWhatIsAlreadyCovered(unittest.TestCase):

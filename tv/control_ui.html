@@ -10744,11 +10744,13 @@
         + '<button type="button" class="sh-chip" data-f="day:week">this week</button>'
         + '<button type="button" class="sh-chip" data-f="day:older">older</button>'
         + '</div>'
-        + '<div class="sh-no-match" id="sh-no-match" hidden>No runs match these filters — clear one to widen the search.</div>'
+        + '<div class="sh-no-match" id="sh-no-match" hidden>No runs match these filters — clear one to widen the search (the 👻 empty-runs chip is one of them).</div>'
       : '';
     var timelineDiv = cards ? '<div class="sh-timeline" id="sh-timeline" hidden></div>' : '';   // v1286 (D12) — activity sparkline
     ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
-      + '<div class="sh-head">🎞 THE SHELF — every recorded run</div>'
+      /* v2199 — it is NOT "every recorded run" while 2,261 of 2,461 are hidden by default.
+         A heading that contradicts the list under it is the same lie as a silent truncation. */
+      + '<div class="sh-head">🎞 THE SHELF — your reels</div>'
       + '<div class="sh-live" id="sh-live" hidden>'   // D24 — live "recording now" card, filled + shown by _shLiveRender when on-air
         + '<div class="shl-top"><span class="shl-rec"><span class="shl-dot"></span>rec</span>'
           + '<span class="shl-title">Recording now — this reel is building</span>'
@@ -10928,35 +10930,61 @@
     var inp = $('sh-search'); var q = (inp ? inp.value : '').trim().toLowerCase();
     SHELF_Q = inp ? inp.value : '';
     var now = new Date(), startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(), weekAgo = startToday - 6 * 864e5;
-    var cards = ov.querySelectorAll('.sh-card'), shown = 0;
+    var cards = ov.querySelectorAll('.sh-card'), shown = 0, _ghostSuppressed = 0;
     for (var i = 0; i < cards.length; i++){
       var c = cards[i];
-      var hit = (!q || (c.getAttribute('data-search') || '').indexOf(q) >= 0)   // v1283 (D9) — search AND filters compose
-        /* v2199 — the ghost rule is the only one that is ON by default, so it is written as
-           "unless he asked for them" rather than as another opt-in filter. */
-        && (SHELF_F.ghosts || c.getAttribute('data-stub') !== '1')
+      /* v2199 — evaluated TWICE on purpose: once without the ghost clause, once with. The
+         difference is what the ghost rule suppressed HERE, under whatever else is selected, and
+         that difference is the only honest number for the chip. */
+      var _hitNoGhost = (!q || (c.getAttribute('data-search') || '').indexOf(q) >= 0)   // v1283 (D9) — search AND filters compose
         && (!SHELF_F.grail || c.getAttribute('data-grail') === '1')
         && (!SHELF_F.verdict || c.getAttribute('data-verdict') === SHELF_F.verdict)
         && (!SHELF_F.pin || c.getAttribute('data-pin') === '1')   // D26 — the ⭐ pinned filter composes with the rest
         && _shDayHit(c, SHELF_F.day, startToday, weekAgo);
+      /* the ghost rule is ON by default, so it reads "unless he asked for them". */
+      var hit = _hitNoGhost && (SHELF_F.ghosts || c.getAttribute('data-stub') !== '1');
       c.style.display = hit ? '' : 'none';
       if (hit) shown++;
+      /* v2199 — COUNT WHAT THIS RULE ACTUALLY SUPPRESSED, not every stub on the shelf. The first
+         cut counted all data-stub cards, so with `day:today` selected the chip still announced
+         "2,261 empty runs hidden" while the honest suppressed figure was a handful — a right
+         number under a word that had stopped being true. [[label-outlived-referent]]
+         A card is suppressed BY THE GHOST RULE only when it would otherwise have passed. */
+      if (!hit && _hitNoGhost) _ghostSuppressed++;
     }
-    var active = !!(q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin);
+    /* v2199 — THE GHOST RULE IS AN ACTIVE FILTER, and hiding by default is exactly when the count
+       matters most. Note the polarity: SHELF_F.ghosts === false IS the hiding state, so the test
+       is `!SHELF_F.ghosts`. Writing `|| SHELF_F.ghosts` would have been inverted and left the "N
+       of M" silent in the only state it exists for. It also un-silences the no-match banner: an
+       all-ghost shelf used to render completely blank with nothing explaining why. */
+    var active = !!(q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin || !SHELF_F.ghosts);
     var cnt = $('sh-search-count'); if (cnt) cnt.textContent = active ? (shown + ' of ' + cards.length) : '';
     var nm = $('sh-no-match'); if (nm) nm.hidden = !(active && shown === 0);
-    /* v2199 — the chip carries the NUMBER it is hiding. "empty runs" tells him a category;
-       "2,261 empty runs" tells him what the shelf is not showing him, which is the only version
-       that stops a silent 92% truncation from reading as a complete list. */
-    var _ghostN = 0, _allCards = ov.querySelectorAll('.sh-card');
-    for (var g = 0; g < _allCards.length; g++) if (_allCards[g].getAttribute('data-stub') === '1') _ghostN++;
+    /* the chip carries the NUMBER it is hiding. "empty runs" names a category; "2,261 empty runs"
+       is what stops a 92% truncation from reading as a complete list. */
+    var _ghostN = _ghostSuppressed;
+    /* v2199 — WHEN THEY ARE SHOWN, COUNT WHAT IS SHOWING, and NEVER hide the chip in that state.
+       The first cut reported `_ghostSuppressed`, which is 0 once he switches them on, and then
+       `hidden = !0` removed the only control that switches them back off — a one-way door built
+       out of an honest number. Two different questions, so two different counts:
+           hidden  -> how many this rule is SUPPRESSING right now (composes with the other filters)
+           shown   -> how many ghost cards are actually on screen */
+    var _ghostVisible = 0;
+    for (var gv = 0; gv < cards.length; gv++) {
+      if (cards[gv].getAttribute('data-stub') === '1' && cards[gv].style.display !== 'none') _ghostVisible++;
+    }
+    var _gcN = SHELF_F.ghosts ? _ghostVisible : _ghostN;
     var _gc = document.getElementById('sh-chip-ghosts');
     if (_gc) {
-      _gc.hidden = !_ghostN;
-      _gc.textContent = '\ud83d\udc7b ' + _ghostN.toLocaleString() + ' empty run'
-        + (_ghostN === 1 ? '' : 's') + (SHELF_F.ghosts ? ' \u2014 shown' : ' \u2014 hidden');
-      _gc.title = _ghostN.toLocaleString() + ' recorded runs captured no frames and read nothing. '
-        + 'They are hidden so your real reels are at the top. Click to show them.';
+      /* hide it only when there is nothing to say AND nothing to undo */
+      _gc.hidden = (!_gcN && !SHELF_F.ghosts);
+      _gc.textContent = '\ud83d\udc7b ' + _gcN.toLocaleString() + ' empty run'
+        + (_gcN === 1 ? '' : 's') + (SHELF_F.ghosts ? ' \u2014 shown' : ' \u2014 hidden');
+      _gc.title = SHELF_F.ghosts
+        ? (_gcN.toLocaleString() + ' runs that captured no frames and read nothing are being shown. '
+           + 'Click to hide them again.')
+        : (_gcN.toLocaleString() + ' recorded runs captured no frames and read nothing. '
+           + 'They are hidden so your real reels are at the top. Click to show them.');
     }
     var chips = ov.querySelectorAll('.sh-chip');
     for (var j = 0; j < chips.length; j++){
@@ -16660,7 +16688,17 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
          PROPOSAL, with nothing written to his grail until he presses register. His words: "what
          does it mean and what is it meant for?" */
       _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> find(s) read from your reels \u2014 '
-        + '<b>not in your grail yet</b>'
+        /* v2199 — HIS RULING, given three times: "GRAIL is something we invented ... its just a
+           data coding database". This is the exact line he pointed at. The file's own word for
+           the thing is LEDGER (measured: 125 uses of ledger against 43 of record in this file,
+           and test_control's own failure message below already calls it "his ledger"), so this
+           is not a third name for one thing.
+           ⚠ NOT A SWEEP. There are 418 user-visible grail occurrences across bible.html and
+           this file, and two SILENT couplings inside them: bible.html emits the literal
+           '🏆 Grail · ' which this file PARSES, and :6519 styles a line by
+           regex-matching the prose word. A blind rename kills his rarity colours with nothing
+           going red. One line, with its guard, in one commit. [[copy-drift]] */
+        + '<b>not in your ledger yet</b>'
         + '<span class="cw-go">review &amp; register in TV\u00b7D \u2192</span>';
     }
   }

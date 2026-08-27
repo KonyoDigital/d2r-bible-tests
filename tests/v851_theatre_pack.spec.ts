@@ -115,8 +115,15 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1400);
     await page.click('#th-shelf');
     await page.waitForTimeout(400);
-    const cards = page.locator('#th-shelfov .sh-card');
-    expect(await cards.count()).toBeGreaterThan(0);
+    // v2199 — :visible, and the count is of VISIBLE cards. The shelf now hides empty ghost runs
+    // by default (2,261 of his 2,461), and the first card in DOM order is session n=1, which on
+    // his machine IS a ghost. locator.count() ignores visibility so the assertion passed, and then
+    // .first().click() waited for actionability on a display:none node and timed out — RED on the
+    // Mac gate, and SKIPPED in CI because nothing listens on 17772 there. A skip is not a pass.
+    const cards = page.locator('#th-shelfov .sh-card:visible');
+    expect(await cards.count(),
+      'no VISIBLE shelf cards — the ghost filter is hiding everything, or the shelf did not open')
+      .toBeGreaterThan(0);
     await cards.first().click();
     await page.waitForTimeout(400);
     await expect(page.locator('#th-shelfov')).toBeHidden();

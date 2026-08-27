@@ -33281,15 +33281,49 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (R && Object.prototype.hasOwnProperty.call(R, q)) return R[q];
       /* suffix-tolerant, the same fold tvVaultRegister already does for ITEMS: 'Harlequin Crest'
          and 'Harlequin Crest (Shako)' must never be two different verdicts. */
-      var _c = function(x){ return String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
+      /* ⚠ v2199 — FOLD THE APOSTROPHE BYTE. Measured on this very registry: 215 names carry a
+         STRAIGHT apostrophe (0x27) and ZERO carry a curly one, while the OCR readers lift
+         curly ones straight off in-game tooltips. Before this, d2rItemLookup("Rixot\u2019s Keen")
+         returned null while d2rItemLookup("Rixot's Keen") resolved — same item, two bytes, two
+         answers. That is the class that cost 158 of 206 names the wrong mule until v1958, and
+         it was still live in the new resolver. [[d2r-curly-apostrophe-class]] */
+      var _c = function(x){
+        return String(x||'').toLowerCase()
+          .replace(/[\u2018\u2019\u02bc\u00b4`]/g, "'")
+          .replace(/\s*\([^)]*\)\s*$/,'').trim();
+      };
       var qc = _c(q);
+      /* ⚠ the SAME ambiguity rule as the registry walk below, and it has to be here too: this
+         fold runs FIRST, so a `.find()` here returned the earliest ITEMS entry and the registry's
+         refusal was never reached. A guard placed after the shortcut that bypasses it is not a
+         guard. [[the-unjoined-end]] */
       if (typeof ITEMS !== 'undefined'){
-        var h2 = ITEMS.find(function(i){ return _c(i.n) === qc; });
-        if (h2) return h2;
+        var _h2 = null, _n2 = 0;
+        for (var z = 0; z < ITEMS.length; z++){
+          if (_c(ITEMS[z].n) !== qc) continue;
+          if (_h2 && ITEMS[z] === _h2) continue;
+          _h2 = ITEMS[z]; _n2++;
+          if (_n2 > 1) return null;
+        }
+        if (_n2 === 1) return _h2;
       }
+      /* ⚠ v2199 — AMBIGUITY IS NOT A MATCH. A cross-family review of v2198 found this: two registry
+         names can normalise to the same suffix-stripped key — "The Hand of Broc" and "The Hand of
+         Broc (gloves)", "Hellmouth" and its gloved twin — and a first-match walk returned whichever
+         was inserted first. Deterministic, but not SEMANTICALLY determined: it is a wrong object
+         rather than a miss, and the caller has no way to know. So collect the distinct candidates
+         and refuse when there is more than one. A router that says "I do not know which" gets the
+         v2018 stub path, which is a known-safe fallback; a router handed the wrong item files it
+         in the wrong drawer and looks confident doing it. [[unknown-stays-unknown]] */
       if (R){
-        var keys = Object.keys(R);
-        for (var k = 0; k < keys.length; k++){ if (_c(keys[k]) === qc) return R[keys[k]]; }
+        var keys = Object.keys(R), _hit = null, _n = 0;
+        for (var k = 0; k < keys.length; k++){
+          if (_c(keys[k]) !== qc) continue;
+          if (_hit && R[keys[k]] === _hit) continue;      // the same object under two keys is one answer
+          _hit = R[keys[k]]; _n++;
+          if (_n > 1) return null;                        // ambiguous — say nothing rather than guess
+        }
+        if (_n === 1) return _hit;
       }
     } catch(e){}
     return null;
