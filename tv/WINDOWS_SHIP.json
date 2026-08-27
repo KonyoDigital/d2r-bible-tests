@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2201",
+  "ver": "v2203",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2201: a refused sweep no longer retires the reel, and the seven it wrongly retired are freed",
+  "note": "v2203: a reel that held nothing stops owing a read, and the vault gets its real contents back",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
