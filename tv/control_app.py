@@ -11172,8 +11172,25 @@ def drift_may_relaunch():
     the session it kills, because the reel fold runs at seal (v2071). Automating a restart without
     this check would manufacture work for the module that cleans up after crashes.
     """
-    if os.environ.get("TV_AUTO_RELAUNCH") != "1":
-        return False, "auto-relaunch is opt-in (TV_AUTO_RELAUNCH=1); announcing only"
+    # ⚠ v2180 — THE ARMING MUST NOT DEPEND ON WHO LAUNCHED THE PROCESS.
+    # This read `os.environ["TV_AUTO_RELAUNCH"] != "1"`, and the ONLY thing that exports that
+    # variable is tvd_supervisor.sh:54. His live console runs with PPID 1 and `--open` — it was
+    # not started by the supervisor, so the variable was simply absent and auto-relaunch had been
+    # announcing-only the entire time, no matter what any ship did. Measured on his machine:
+    # drift {"running": "v2162", "disk": "v2179", "drift": true} with the feature "armed" since
+    # v2153. Two halves each built correctly, joined only if one happened to be the other's
+    # parent — silent by construction, which is the defining property. [[the-unjoined-end]]
+    #
+    # It is a persisted SETTING now, and the env var stays as an explicit override in both
+    # directions so a terminal run can still force it on or off. Default ON, because that is what
+    # he asked for in as many words: "it should relaunch by itself based on updates we do.
+    # automatically".
+    _arm = os.environ.get("TV_AUTO_RELAUNCH")
+    if _arm is None:
+        _arm = "0" if auto_relaunch_setting() is False else "1"
+    if _arm != "1":
+        return False, ("auto-relaunch is switched off (TV_AUTO_RELAUNCH=%s or the saved setting); "
+                       "announcing only" % _arm)
     # v2147 — AND IT ASKS THE WORLD GUARD. The whole reason auto-relaunch was allowed to be armed is
     # that a relaunch returning a DIFFERENT world would be noticed — and the decision never consulted
     # the thing doing the noticing, so an already-drifted world did not block the next execv. A
@@ -11187,6 +11204,49 @@ def drift_may_relaunch():
     except Exception:
         pass
     return nothing_in_flight()
+
+
+def _auto_relaunch_path():
+    return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())), "auto_relaunch.json")
+
+
+def auto_relaunch_setting():
+    """Is auto-relaunch on? -> True | False | None (never chosen, so the default applies)
+
+    A persisted answer, so it survives a relaunch and does not depend on which launcher started
+    the process. None is deliberately distinct from False: "he switched it off" and "nobody has
+    ever said" are different facts, and only one of them should be overridable by a new default.
+    [[unknown-stays-unknown]]
+    """
+    try:
+        with open(_auto_relaunch_path(), encoding="utf-8") as fh:
+            v = json.load(fh)
+        if isinstance(v, dict) and "on" in v:
+            return bool(v["on"])
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        print("   \u26a0 the auto-relaunch setting could not be read (%s) — using the default"
+              % str(e)[:60], flush=True)
+    return None
+
+
+def auto_relaunch_set(on):
+    """Persist the choice. Returns True when it actually landed — a writer that cannot write says so."""
+    p = _auto_relaunch_path()
+    try:
+        d = os.path.dirname(p)
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"on": bool(on), "ts": int(time.time() * 1000)}, fh, indent=1)
+        os.replace(tmp, p)
+        return True
+    except Exception as e:
+        print("   \u26a0 the auto-relaunch setting could not be SAVED (%s)" % str(e)[:60],
+              flush=True)
+        return False
 
 
 def sweep_past_its_ceiling(job=None, say=True):
@@ -16438,7 +16498,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2179",
+        "ver": "v2180",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

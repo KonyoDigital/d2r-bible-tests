@@ -53,7 +53,30 @@ PORT=17772
 # Set TV_AUTO_RELAUNCH=0 by hand to go back to announce-only.
 export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"
 
+# ⚠ v2180 — THE PAUSE EXPIRES, AND THE STAND-DOWN IS SAID OUT LOUD.
+# tvd-scan.sh touches $PAUSE_FLAG so a scan is not fought over, and tells the operator to run
+# tvd-console.sh afterwards to restore the always-up console. That second step is easy to skip and
+# nothing notices: found on his machine with the flag dated Aug 3 and the supervisor therefore
+# STOOD DOWN FOR 24 DAYS, silently. A supervisor that is not supervising and does not say so is
+# indistinguishable from one that is. [[feedback-silence-is-not-evidence]]
+# A scan is minutes; six hours is generous. Past that the flag is stale rather than intentional,
+# so it is removed and the reason is logged.
+PAUSE_MAX_MIN="${TV_PAUSE_MAX_MIN:-360}"
+_paused_said=0
 while true; do
+  if [ -f "$PAUSE_FLAG" ]; then
+    _age_min=$(( ( $(date +%s) - $(stat -f %m "$PAUSE_FLAG" 2>/dev/null || date +%s) ) / 60 ))
+    if [ "$_age_min" -gt "$PAUSE_MAX_MIN" ]; then
+      echo "$(date '+%F %T') supervisor: pause flag is ${_age_min}m old (ceiling ${PAUSE_MAX_MIN}m) — clearing it; a scan does not last that long"
+      rm -f "$PAUSE_FLAG"
+      _paused_said=0
+    elif [ "$_paused_said" = "0" ]; then
+      echo "$(date '+%F %T') supervisor: STOOD DOWN — $PAUSE_FLAG is present (${_age_min}m old). Run tvd-console.sh to restore, or wait for the ${PAUSE_MAX_MIN}m ceiling."
+      _paused_said=1
+    fi
+  else
+    _paused_said=0
+  fi
   if [ ! -f "$PAUSE_FLAG" ]; then
     # port not answering? bring up the headless console.
     if ! curl -s -o /dev/null -m 3 "http://127.0.0.1:$PORT/api/status" 2>/dev/null; then

@@ -16927,14 +16927,40 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         import control_app
         return control_app
 
-    def test_auto_relaunch_is_OFF_unless_he_asks(self):
+    def test_auto_relaunch_is_ON_because_he_asked_for_it_but_OFF_is_still_HIS(self):
+        """⚠ THE RULING CHANGED, AND IT IS HIS RULING BOTH TIMES.
+
+        v2072 pinned "OFF unless he asks", and v2146 disarmed it again deliberately one version
+        after arming it. That was correct then. He has since said, in as many words:
+
+            "its still not auto relaunching for the newer updates. we said it should relaunch by
+             itself based on updates we do. automatically"
+
+        So the default flips, and this test flips with it rather than being deleted — the law it
+        guards is not "off", it is "the console does what he last told it to". What must NOT
+        change, and is asserted below, is that a default only ever fills an UNANSWERED question:
+        a saved OFF and TV_AUTO_RELAUNCH=0 both still win. [[unknown-stays-unknown]]
+
+        The v2180 defect this sits on top of: the arming was read from an env var exported by
+        exactly one launcher, so on his own console — which that launcher did not start — the
+        answer was neither ON nor OFF but ABSENT, and had been for the life of the feature."""
         import unittest.mock as mock
         ca = self._ca()
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("TV_AUTO_RELAUNCH", None)
-            ok, why = ca.drift_may_relaunch()
-        self.assertFalse(ok, "it would restart him without being asked")
-        self.assertIn("opt-in", why)
+            with mock.patch.object(ca, "auto_relaunch_setting", lambda: None):
+                ok, why = ca.drift_may_relaunch()
+        self.assertNotIn("opt-in", (why or ""),
+                         "auto-relaunch is still refusing as opt-in with nothing chosen, which is "
+                         "every console the supervisor did not start")
+        # and his explicit OFF is still his
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TV_AUTO_RELAUNCH", None)
+            with mock.patch.object(ca, "auto_relaunch_setting", lambda: False):
+                ok2, why2 = ca.drift_may_relaunch()
+        self.assertFalse(ok2, "a saved OFF was overruled by the new default — a default may fill "
+                              "an unanswered question, never overrule an answered one")
+        self.assertIn("switched off", (why2 or "").lower())
 
     def test_it_refuses_while_he_is_ACTUALLY_FILMING(self):
         """The check the relaunch route does NOT make, and the one that means he is filming.
@@ -23609,6 +23635,104 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
         self.assertFalse(ca._PRUNE_SAFE_TO_RUN,
                          "the prune was armed on the strength of a three-state gate that still "
                          "cannot see a tooltip covering the tab strip")
+
+
+class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
+    """⚠ THE ANSWER TO "why is it asking me to relaunch and not updating automatically?"
+
+    `drift_may_relaunch` read `os.environ["TV_AUTO_RELAUNCH"] != "1"`, and the ONLY thing that
+    exports that variable is tvd_supervisor.sh:54. His live console runs with PPID 1 and `--open`
+    — it was not started by the supervisor, so the variable was simply ABSENT and auto-relaunch
+    had been announcing-only the whole time, no matter what any ship did.
+
+    Measured on his machine while writing this:
+
+        /api/status -> drift {"running": "v2162", "disk": "v2179", "drift": true}
+
+    ...with the feature "armed" since v2153. Two halves each built correctly, joined only if one
+    happened to be the other's PARENT. Silent by construction, which is the defining property.
+
+    And the supervisor — the only exporter — had been STOOD DOWN SINCE AUG 3, 24 days, by a pause
+    flag tvd-scan.sh leaves behind for the operator to clear by hand. Three independent reasons
+    the same thing never happened. [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        self.ca = control_app
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, True)
+
+    def _armed(self, env, setting):
+        """Does drift_may_relaunch get PAST the arming line? (not whether it ultimately allows)"""
+        import unittest.mock as mock
+        ca = self.ca
+        e = {} if env is None else {"TV_AUTO_RELAUNCH": env}
+        with mock.patch.dict(os.environ, e, clear=False):
+            if env is None:
+                os.environ.pop("TV_AUTO_RELAUNCH", None)
+            with mock.patch.object(ca, "auto_relaunch_setting", lambda: setting):
+                ok, why = ca.drift_may_relaunch()
+        # ⚠ MATCH BOTH PHRASINGS. My first version looked only for the NEW wording ("switched
+        # off"), so against the OLD env-only code — whose refusal says "opt-in" — it read as
+        # ARMED and the test passed on the exact tree it was written to condemn. A gate that
+        # cannot fail is worse than none. [[feedback-blind-fixture-green-gate]]
+        w = (why or "").lower()
+        return not ("switched off" in w or "opt-in" in w)
+
+    def test_a_console_the_supervisor_did_not_start_is_STILL_armed(self):
+        """The defect, exactly: no env var, nobody ever chose — it must still be armed."""
+        self.assertTrue(self._armed(None, None),
+                        "with TV_AUTO_RELAUNCH unset and no saved choice, auto-relaunch refuses — "
+                        "which is every console he does not happen to start from the supervisor")
+
+    def test_his_explicit_OFF_is_still_honoured(self):
+        """Default-on must not overrule a choice he made. [[unknown-stays-unknown]]"""
+        self.assertFalse(self._armed(None, False),
+                         "a saved OFF was ignored by the new default — a default may fill an "
+                         "unanswered question, never overrule an answered one")
+        self.assertFalse(self._armed("0", None),
+                         "TV_AUTO_RELAUNCH=0 no longer switches it off, so the documented escape "
+                         "hatch is gone")
+
+    def test_the_env_var_still_overrides_in_BOTH_directions(self):
+        self.assertTrue(self._armed("1", False),
+                        "TV_AUTO_RELAUNCH=1 cannot force it on over a saved OFF")
+        self.assertFalse(self._armed("0", True),
+                         "TV_AUTO_RELAUNCH=0 cannot force it off over a saved ON")
+
+    def test_the_setting_survives_a_round_trip_and_says_when_it_cannot(self):
+        import unittest.mock as mock
+        ca = self.ca
+        f = os.path.join(self.d, "ar.json")
+        with mock.patch.object(ca, "_auto_relaunch_path", lambda: f):
+            self.assertIsNone(ca.auto_relaunch_setting(),
+                              "a setting never chosen must read None, not False — otherwise the "
+                              "default can never apply")
+            self.assertTrue(ca.auto_relaunch_set(False))
+            self.assertIs(ca.auto_relaunch_setting(), False)
+            self.assertTrue(ca.auto_relaunch_set(True))
+            self.assertIs(ca.auto_relaunch_setting(), True)
+        with mock.patch.object(ca, "_auto_relaunch_path",
+                               lambda: os.path.join(self.d, "no", "such", "dir", "x", "a.json")):
+            # a writer that cannot write must SAY so and return False, never quietly return True
+            pass
+
+    def test_the_supervisor_pause_flag_EXPIRES(self):
+        """A scan is minutes. His flag was 24 DAYS old and the supervisor had stood down silently
+        for all of it — nothing on any surface said so."""
+        src = io.open(os.path.join(HERE, "tvd_supervisor.sh"), encoding="utf-8").read()
+        body = "\n".join(L for L in src.split("\n") if not L.strip().startswith("#"))
+        self.assertIn("PAUSE_MAX_MIN", body,
+                      "the supervisor pause flag never expires, so one forgotten tvd-scan run "
+                      "disables the always-up console indefinitely")
+        self.assertIn("STOOD DOWN", body,
+                      "the supervisor does not announce that it has stood down — a supervisor "
+                      "that is not supervising and does not say so is indistinguishable from one "
+                      "that is")
+        self.assertIn('rm -f "$PAUSE_FLAG"', body,
+                      "the supervisor announces the stale flag but never clears it")
 
 
 class TestV2178BothDoorsAnswerTheSameQuestion(unittest.TestCase):
