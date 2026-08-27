@@ -23657,6 +23657,176 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
                          "cannot see a tooltip covering the tab strip")
 
 
+class TestV2185TheValidatorCarriedTheDefectItValidatesAgainst(unittest.TestCase):
+    """⚠ audit() IS THE VALIDATOR, AND IT HELD THE PRE-v2152 RULE.
+
+    Konyo asked for this function by name, 2026-08-21, after I told him twelve of his rows were
+    contradicted and the true number was one: *"needs to update and be refreshed maybe a mechanism
+    that cheks AI that really syncs and works this has task or an engine that validates"*.
+
+    It computed its own answer as `len(notFoundSeen[led]) >= len(notFound[led])` — NAMES in one
+    population against KEYS in another, which are not a subset. v2152 fixed exactly that shape in
+    not_found_datable, forty lines up in the same file, and left this copy running. Reproduced:
+
+        notFound     = {"uniques": ["Shako"]}                        <- carries NO receipt
+        notFoundSeen = {"uniques": {"Occulus": [{"frame": ...}]}}    <- a name that is NOT not-found
+        audit()             -> notFoundDatable True
+        not_found_datable() -> ok False, readings 2, withReceipts 1
+
+    So the validator CLEARED evidence the correct function refuses, printing "every not-found
+    reading carries a receipt and can be ordered" — the exact sentence the 12-vs-1 claim was made
+    under. It also missed v2153's population fix and the ORDERABILITY check.
+
+    [[copy-drift]] [[feedback-generalize-fixes]]
+    """
+
+    def _cl(self):
+        sys.path.insert(0, HERE)
+        import counter_ledger
+        return counter_ledger
+
+    # a receipt belonging to a name that is NOT not-found, padding the count
+    PADDED = {"uniques": {}, "sets": {},
+              "notFound": {"uniques": ["Shako"], "sets": []},
+              "notFoundSeen": {"uniques": {"Occulus": [{"frame": "f_1784984130673.jpg"}]},
+                               "sets": {}}}
+    # a receipt whose frame name carries no timestamp: present, and NOT orderable
+    UNORDERABLE = {"uniques": {}, "sets": {},
+                   "notFound": {"uniques": ["Shako"], "sets": []},
+                   "notFoundSeen": {"uniques": {"Shako": [{"frame": "f_1.jpg"}]}, "sets": {}}}
+
+    def test_the_validator_and_the_definition_cannot_DISAGREE(self):
+        cl = self._cl()
+        for label, ev in (("a receipt for a name that is not not-found", self.PADDED),
+                          ("a receipt whose frame name has no timestamp", self.UNORDERABLE)):
+            a = cl.audit(evidence=ev)
+            d = cl.not_found_datable(ev)
+            self.assertEqual(
+                bool(a.get("notFoundDatable")), bool(d.get("ok")),
+                "audit() says notFoundDatable=%r while not_found_datable says ok=%r for %s. The "
+                "VALIDATOR is clearing evidence the definition refuses, in the exact sentence the "
+                "12-vs-1 wrong claim was made under."
+                % (a.get("notFoundDatable"), d.get("ok"), label))
+            self.assertFalse(a.get("notFoundDatable"),
+                             "%s was cleared as orderable" % label)
+
+    def test_the_validator_reports_the_JOINED_counts(self):
+        """The numbers it prints must be the ones it judged on, or the sentence and the verdict
+        come from different arithmetic."""
+        cl = self._cl()
+        a = cl.audit(evidence=self.PADDED)
+        d = cl.not_found_datable(self.PADDED)
+        self.assertEqual(a.get("notFoundReadings"), d["readings"])
+        self.assertEqual(a.get("notFoundWithReceipts"), d["withReceipts"])
+        self.assertIn("1 of 2", a.get("say", ""),
+                      "the verdict sentence does not quote the joined counts (%s)" % a.get("say"))
+
+    def test_clean_evidence_still_passes(self):
+        """The half that must not be lost: a real receipt on a real not-found name still clears."""
+        cl = self._cl()
+        ok_ev = {"uniques": {}, "sets": {},
+                 "notFound": {"uniques": ["Shako"], "sets": []},
+                 "notFoundSeen": {"uniques": {"Shako": [{"frame": "f_1784984130673.jpg"}]},
+                                  "sets": {}}}
+        a = cl.audit(evidence=ok_ev)
+        self.assertTrue(a.get("notFoundDatable"),
+                        "a not-found name WITH an orderable receipt was refused — the fix went too "
+                        "far and now nothing can ever be quoted (%s)" % a.get("say"))
+
+    def test_a_receipt_written_as_a_BARE_DICT_still_counts(self):
+        """⚠ v2186, from the review: `for x in (bucket or [])` walked a DICT'S KEYS. A bucket
+        written as a single unwrapped row — ordinary in older and hand-repaired evidence — made a
+        perfectly datable receipt report as undatable, which fails CLOSED and so hid itself."""
+        cl = self._cl()
+        ev = {"uniques": {}, "sets": {}, "notFound": {"uniques": ["Shako"], "sets": []},
+              "notFoundSeen": {"uniques": {"Shako": {"frame": "f_1784984130673.jpg"}}, "sets": {}}}
+        self.assertTrue(cl.not_found_datable(ev)["ok"],
+                        "a single-row receipt dict was iterated as keys, so a datable reading was "
+                        "reported unorderable")
+
+    def test_a_MALFORMED_bank_answers_instead_of_raising(self):
+        """A validator that raises has answered nothing, and every one of these shapes reached it
+        through `or {}` / `or []` guards that do not catch them."""
+        cl = self._cl()
+        for label, ev in (
+            ("a scalar bucket", {"uniques": {}, "sets": {},
+                                 "notFound": {"uniques": ["Shako"], "sets": []},
+                                 "notFoundSeen": {"uniques": {"Shako": 1}, "sets": {}}}),
+            ("notFoundSeen is a list", {"uniques": {}, "sets": {},
+                                        "notFound": {"uniques": ["Shako"], "sets": []},
+                                        "notFoundSeen": {"uniques": [{"frame": "f_1.jpg"}],
+                                                         "sets": {}}}),
+            ("notFound is a bare string", {"uniques": {}, "sets": {},
+                                           "notFound": {"uniques": "Shako", "sets": []},
+                                           "notFoundSeen": {"uniques": {}, "sets": {}}}),
+        ):
+            try:
+                cl.not_found_datable(ev)
+                cl.audit(evidence=ev)
+            except Exception as e:
+                self.fail("%s took the validator down (%s: %s)" % (label, type(e).__name__, e))
+        # and a bank that is not an object at all is UNKNOWN, not a crash
+        r = cl.audit(evidence=[1, 2])
+        self.assertIsNone(r.get("ok"))
+        self.assertIn("not a readable object", r.get("say", ""))
+
+    def test_the_payload_does_not_CONTRADICT_its_own_verdict(self):
+        """⚠ `say` read "NOTHING in this batch may be quoted as contradicting a find" while
+        realContradictions stayed FULL, so a consumer could quote exactly what the sentence
+        forbids. The COUNT is kept, because "we withheld some" and "there were none" are
+        different facts. [[unknown-stays-unknown]]"""
+        cl = self._cl()
+        src = io.open(os.path.join(HERE, "counter_ledger.py"), encoding="utf-8").read()
+        i = src.index("def audit(")
+        body = "\n".join(L for L in src[i:].split("\n") if not L.strip().startswith("#"))
+        self.assertIn("realContradictionsWithheld", body,
+                      "audit() can still hand back contradictions it has just declared unquotable")
+        self.assertIn('_cons if _led_d["ok"] else []', body,
+                      "the contradictions list is not gated on the orderability verdict")
+
+    def test_the_per_ledger_pair_cannot_reproduce_the_OLD_comparison(self):
+        """The review's first finding: `notFound` (flat length) sat beside `notFoundWithReceipts`
+        (joined), so the obvious `withReceipts >= notFound` is the pre-v2152 rule again — 1 >= 1
+        True while the verdict is False. The ANSWER travels as a boolean now."""
+        cl = self._cl()
+        a = cl.audit(evidence=self.PADDED)
+        led = a["ledgers"]["uniques"]
+        self.assertIn("notFoundOrderable", led,
+                      "the per-ledger payload makes a consumer do arithmetic to learn the verdict")
+        self.assertFalse(led["notFoundOrderable"])
+        self.assertTrue(led["notFoundWithReceipts"] >= led["notFound"],
+                        "this fixture no longer reproduces the padded comparison, so the test "
+                        "below proves nothing")
+        self.assertNotEqual(led["notFoundOrderable"],
+                            led["notFoundWithReceipts"] >= led["notFound"],
+                            "the boolean agrees with the naive comparison on the very shape that "
+                            "distinguishes them — one of them is not measuring what it claims")
+
+    def test_a_remaining_page_with_no_count_does_not_take_the_validator_down(self):
+        """`"%d" % None` raised TypeError before the verdict could be returned."""
+        import unittest.mock as mock
+        cl = self._cl()
+        with mock.patch.object(cl, "load", lambda *a, **k: {"reel": "x", "readAt": None}):
+            r = cl.audit(evidence={"uniques": {}, "sets": {}, "notFound": {}, "notFoundSeen": {}})
+        self.assertIn("UNKNOWN number of", r.get("say", ""),
+                      "a Remaining page banked without a count is not reported as unknown (%s)"
+                      % r.get("say"))
+
+    def test_NO_second_copy_of_the_rule_survives_in_this_module(self):
+        """The class, not the instance. v2152 fixed one copy and left another in the same file;
+        this refuses a third."""
+        import re as _re
+        src = io.open(os.path.join(HERE, "counter_ledger.py"), encoding="utf-8").read()
+        body = "\n".join(L for L in src.split("\n") if not L.strip().lstrip("#").startswith("#")
+                         and not L.strip().startswith("#"))
+        # the shape: comparing a len() of a receipts map against a len() of the not-found list
+        hits = _re.findall(r"len\(\s*seen\s*\)\s*>=\s*len\(|nf_receipts\s*>=\s*nf_total", body)
+        self.assertEqual(hits, [],
+                         "a second copy of the receipts>=readings rule is back in counter_ledger. "
+                         "There is exactly ONE definition — not_found_datable — and every caller "
+                         "must ask it: %s" % hits)
+
+
 class TestV2184EveryLiveStateFileIsGitignored(unittest.TestCase):
     """⚠ I COMMITTED THE RUNNING CONSOLE'S HUNT MEMORY TO A PUBLIC REPO.
 

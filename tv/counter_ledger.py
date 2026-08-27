@@ -471,6 +471,21 @@ def resolve_all(proposal, ledgers=("uniques", "sets")):
     return out
 
 
+def _receipt_rows(bucket):
+    """Whatever was banked for a name, as a list of receipt ROWS. Never raises. -> list
+
+    v2186 — `for x in (bucket or [])` walked a dict's KEYS and blew up on a scalar. Both shapes
+    occur in older and hand-repaired evidence, and a validator that raises has answered nothing.
+    """
+    if bucket is None or bucket is True or bucket is False:
+        return []
+    if isinstance(bucket, dict):
+        return [bucket]                   # a single row written unwrapped
+    if isinstance(bucket, (list, tuple, set)):
+        return [x for x in bucket if isinstance(x, dict)]
+    return []                             # a scalar is not a receipt
+
+
 def not_found_datable(proposal, ledgers=("uniques", "sets")):
     """Can the not-found readings in this proposal be ORDERED against the found ones?
 
@@ -487,8 +502,15 @@ def not_found_datable(proposal, ledgers=("uniques", "sets")):
     total = 0
     withr = 0
     for led in ledgers:
-        seen = ((proposal or {}).get("notFoundSeen") or {}).get(led) or {}
-        flat = ((proposal or {}).get("notFound") or {}).get(led) or ()
+        _p = proposal if isinstance(proposal, dict) else {}
+        _ns = _p.get("notFoundSeen")
+        seen = (_ns.get(led) if isinstance(_ns, dict) else None) or {}
+        if not isinstance(seen, dict):
+            seen = {}                     # v2186 — a LIST here used to raise on .items()
+        _nf = _p.get("notFound")
+        flat = (_nf.get(led) if isinstance(_nf, dict) else None) or ()
+        if isinstance(flat, (str, bytes)):
+            flat = ()                     # a bare string would enumerate its characters
         # v2153 — THE SAME POPULATION resolve_all LOOKS AT, not just the flat list. A review
         # measured the desync: a name whose only not-found trace is a RECEIPT (absent from the
         # flat list) gave readings=0, and `total == 0` then declares "every not-found reading
@@ -503,7 +525,13 @@ def not_found_datable(proposal, ledgers=("uniques", "sets")):
             # the resolver answers `undatable`. Counting it as a receipt is how this function came
             # to say "can be ordered" about readings the resolver cannot order. The question in
             # the docstring is whether they can be ORDERED, so ask the thing that orders them.
-            if any(sighting_time(x) is not None for x in (seen.get(nm) or [])):
+            # ⚠ v2186 — NORMALISE THE BUCKET. A review found two shapes this walked wrongly:
+            # a bucket written as a single dict {"frame": "f_1784...jpg"} iterated its KEYS, so a
+            # perfectly datable receipt reported as undatable; and a bucket holding a scalar raised
+            # TypeError out of a function whose whole job is to answer a question safely. Both are
+            # ordinary for hand-repaired or older evidence. A row is a mapping; anything else is
+            # not a receipt and is skipped rather than crashing.
+            if any(sighting_time(x) is not None for x in _receipt_rows(seen.get(nm))):
                 withr += 1
     ok = (total == 0 or withr >= total)
     return {"readings": total, "withReceipts": withr, "ok": ok,
@@ -571,32 +599,76 @@ def audit(evidence=None):
                                        "which is not the same as nothing being wrong"}
         with open(path, encoding="utf-8") as fh:
             evidence = json.load(fh)
+    # v2186 — a file holding `null`, a list, or a scalar made every `evidence.get` below raise, so
+    # a corrupt bank read as a crash rather than as "this cannot be audited". [[unknown-stays-unknown]]
+    if not isinstance(evidence, dict):
+        return {"ok": None, "say": "the banked evidence is not a readable object (%s) — it cannot "
+                                   "be audited, which is not the same as nothing being wrong"
+                                   % type(evidence).__name__}
     out = {"ledgers": {}}
-    nf_total = nf_receipts = 0
     for led in ("uniques", "sets"):
         nf = list((evidence.get("notFound") or {}).get(led) or ())
         seen = (evidence.get("notFoundSeen") or {}).get(led) or {}
-        nf_total += len(nf)
-        nf_receipts += len(seen)
         res = resolve_all(evidence, ledgers=(led,)).get(led) or {}
         counts = {}
         for v in res.values():
             counts[v["verdict"]] = counts.get(v["verdict"], 0) + 1
+        # ⚠ v2185 — PER LEDGER, THE SAME JOIN. `len(seen)` counts KEYS in notFoundSeen, which is
+        # not the population `notFound` names; the number it produced was not "how many of these
+        # readings have a receipt" but "how many receipts exist", and those differ by exactly the
+        # receipts belonging to names that are not not-found.
+        _led_d = not_found_datable(evidence, ledgers=(led,))
+        # ⚠ v2186 — DO NOT SHIP A PAIR OF NUMBERS THAT INVITE THE DEFECT BACK. The review noticed
+        # that `notFound` (the FLAT list length) sat next to `notFoundWithReceipts` (the JOINED
+        # count), so any consumer doing the obvious `withReceipts >= notFound` reproduces exactly
+        # the pre-v2152 comparison this ship removed — 1 >= 1 True while the verdict is False.
+        # The orderable ANSWER travels as a boolean, so nobody has to do arithmetic to get it.
+        _cons = sorted(n for n, v in res.items() if v["verdict"] == "not-found")
         out["ledgers"][led] = {
             "proposed": len(evidence.get(led) or {}), "notFound": len(nf),
-            "notFoundWithReceipts": len(seen), "overlap": len(res), "verdicts": counts,
-            "realContradictions": sorted(n for n, v in res.items() if v["verdict"] == "not-found"),
+            "notFoundReadings": _led_d["readings"],
+            "notFoundWithReceipts": _led_d["withReceipts"],
+            "notFoundOrderable": bool(_led_d["ok"]),
+            "overlap": len(res), "verdicts": counts,
+            # ⚠ F3 — AND THE PAYLOAD MUST NOT CONTRADICT ITS OWN VERDICT. `say` reads "NOTHING in
+            # this batch may be quoted as contradicting a find" while this list stayed full, so a
+            # consumer could quote precisely what the sentence forbids. The COUNT is kept, because
+            # "we withheld some" and "there were none" are different facts.
+            "realContradictions": _cons if _led_d["ok"] else [],
+            "realContradictionsWithheld": 0 if _led_d["ok"] else len(_cons),
         }
     r = load("sets")
     out["remainingPage"] = ({"readAt": r.get("readAt"), "reel": r.get("reel"),
                              "ageDays": r.get("ageDays"), "count": r.get("count")} if r else None)
-    out["notFoundDatable"] = (nf_total == 0 or nf_receipts >= nf_total)
+    # ⚠ v2185 — THE VALIDATOR CARRIED THE PRE-v2152 RULE, AND IT IS THE ONE FUNCTION THAT MUST NOT.
+    # This computed its own answer as `len(notFoundSeen) >= len(notFound)` — NAMES in one
+    # population against KEYS in another, which are not a subset. v2152 fixed exactly that shape
+    # in not_found_datable, forty lines up, and left this copy running. Reproduced:
+    #
+    #     notFound    = {"uniques": ["Shako"]}                       <- no receipt
+    #     notFoundSeen= {"uniques": {"Occulus": [{"frame": ...}]}}   <- a name that is NOT not-found
+    #     audit()             -> notFoundDatable True   "every not-found reading ... can be ordered"
+    #     not_found_datable() -> ok False, readings 2, withReceipts 1
+    #
+    # So THE VALIDATOR cleared evidence the correct function refuses, in the exact sentence the
+    # 12-vs-1 wrong claim was made under — the claim this whole function exists because of. It also
+    # missed v2153 (the population resolve_all actually looks at) and the ORDERABILITY check: a
+    # non-empty bucket like {"frame": "f_1.jpg"} has no 13-digit epoch, so sighting_time returns
+    # None and the resolver cannot order it, however many receipts are counted.
+    #
+    # One definition, one place. [[copy-drift]] [[feedback-generalize-fixes]]
+    _d = not_found_datable(evidence)
+    nf_total, nf_receipts = _d["readings"], _d["withReceipts"]
+    out["notFoundDatable"] = bool(_d["ok"])
+    out["notFoundReadings"] = nf_total
+    out["notFoundWithReceipts"] = nf_receipts
     out["ok"] = out["notFoundDatable"] and out["remainingPage"] is not None
     bits = []
     if not out["notFoundDatable"]:
-        bits.append("⚠ %d of %d not-found reading(s) carry NO reel or frame. NOTHING in this batch "
-                    "may be quoted as contradicting a find — this is the exact evidence a wrong "
-                    "claim of 12 was once made from, where the true number was 1."
+        bits.append("⚠ %d of %d not-found reading(s) cannot be ordered — no reel, no frame, or a "
+                    "frame whose name carries no timestamp. NOTHING in this batch may be quoted as "
+                    "contradicting a find — this is the exact evidence a wrong claim of 12 was "
+                    "once made from, where the true number was 1."
                     % (nf_total - nf_receipts, nf_total))
     else:
         bits.append("every not-found reading carries a receipt and can be ordered (%d)" % nf_total)
@@ -604,8 +676,11 @@ def audit(evidence=None):
         bits.append("no Remaining page has ever been recorded, so the game cannot deny anything")
     else:
         age = out["remainingPage"].get("ageDays")
-        bits.append("the game's Remaining page lists %d missing and is %s"
-                    % (out["remainingPage"]["count"],
+        # v2186 — `"%d" % None` raised TypeError here, so a Remaining page banked without a count
+        # took the whole validator down instead of returning a verdict about it.
+        _cnt = out["remainingPage"].get("count")
+        bits.append("the game's Remaining page lists %s missing and is %s"
+                    % (("%d" % _cnt) if isinstance(_cnt, int) else "an UNKNOWN number of",
                        ("%.1f days old" % age) if age is not None else "of UNKNOWN age"))
     out["say"] = "  ".join(bits)
     return out
