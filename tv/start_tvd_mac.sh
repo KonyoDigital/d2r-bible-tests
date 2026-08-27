@@ -69,7 +69,12 @@ export TV_FILM="${TV_FILM:-1}"
 #   * a mini is recording                     -> refuse
 #   * the agent is alive, i.e. HE IS FILMING  -> refuse (killing it orphans that reel's frames)
 # Set TV_AUTO_RELAUNCH=0 by hand to go back to announce-only.
-export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"
+# ⚠ v2181 — NO BLANKET EXPORT, same reason as tvd_supervisor.sh. Forcing the variable here
+# outranks the SAVED setting, so a switch he turned off in the console would come back on the
+# next time he launched from this script. control_app defaults the arming to ON (v2180), so the
+# export bought nothing and cost him the ability to say no. A value a human already set is
+# passed through untouched.
+[ -n "${TV_AUTO_RELAUNCH:-}" ] && export TV_AUTO_RELAUNCH
 
 # ── TCC SAFEGUARD (2026-07-20 WindowServer-crash lesson) ────────────────────
 # Finder/double-click launches capture wallpaper-only: the wrapper .app is

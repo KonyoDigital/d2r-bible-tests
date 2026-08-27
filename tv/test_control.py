@@ -22100,19 +22100,39 @@ class TestV2153TheRELAUNCHACTUALLYHAPPENSWhenArmed(unittest.TestCase):
             ok, why = ca.drift_may_relaunch()
         self.assertTrue(ok, "armed, nothing in flight, world in sync — and it STILL refuses: %s" % why)
 
-    def test_the_SHIPPED_LAUNCHERS_default_to_armed(self):
-        """The switch lives in two shell files and the default is the whole feature. A silent
-        revert to :-0 would put it back to announcing forever with every test above still green,
-        because they set the env by hand."""
+    def test_the_DEFAULT_lives_where_the_DECISION_is_made(self):
+        """⚠ THIS GUARD USED TO PIN THE DEFAULT INTO TWO SHELL LAUNCHERS, AND THAT WAS THE BUG.
+
+        It asserted both launchers carry `export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"`. Its
+        INTENT was right and is kept: the default is the whole feature, and a silent revert would
+        put it back to announcing forever while every env-setting test above stayed green. But
+        pinning it into the LAUNCHERS is what made auto-relaunch depend on who started the process
+        — his own console runs with PPID 1 and was started by neither script, so the variable was
+        absent and the feature never ran (v2180). And a blanket export outranks the SAVED setting,
+        so a console started by either script would have overridden a switch he turned off himself.
+
+        So the default now lives in `drift_may_relaunch`, which is the code that decides, and the
+        launchers only pass through a value a human actually set. This asserts both halves."""
         import io as _io
         here = os.path.dirname(os.path.abspath(__file__))
         for name in ("tvd_supervisor.sh", "start_tvd_mac.sh"):
-            path = os.path.join(here, name)
-            with _io.open(path, encoding="utf-8") as fh:
-                src = fh.read()
-            self.assertIn('export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"', src,
-                          "%s no longer arms auto-relaunch by default, so a new build is "
-                          "announced and never picked up" % name)
+            with _io.open(os.path.join(here, name), encoding="utf-8") as fh:
+                body = "\n".join(L for L in fh.read().split("\n")
+                                 if not L.strip().startswith("#"))
+            self.assertNotIn('export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"', body,
+                             "%s forces TV_AUTO_RELAUNCH=1 on every console it starts, which "
+                             "silently overrules his own saved OFF" % name)
+        # and the default itself is still ON, asked of the decider rather than of a shell file
+        import unittest.mock as mock
+        ca = self._ca()
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TV_AUTO_RELAUNCH", None)
+            with mock.patch.object(ca, "auto_relaunch_setting", lambda: None):
+                ok, why = ca.drift_may_relaunch()
+        self.assertNotIn("switched off", (why or "").lower(),
+                         "with nothing set anywhere the arming defaults to OFF, so a new build is "
+                         "announced and never picked up — the exact complaint this feature exists "
+                         "to answer")
 
     def test_a_DRIFTED_WORLD_still_blocks_it(self):
         """The v2147 guard is the reason arming is safe at all. If it stops being consulted,
@@ -23702,6 +23722,81 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
         self.assertFalse(self._armed("0", True),
                          "TV_AUTO_RELAUNCH=0 cannot force it off over a saved ON")
 
+    def test_the_WHOLE_precedence_matrix(self):
+        """⚠ A CROSS-FAMILY REVIEW WALKED THIS TABLE AND FOUND FIVE WRONG CELLS.
+
+        `os.environ.get(x) != "1"` is not a boolean read. Measured against the intended contract:
+        TV_AUTO_RELAUNCH=true / yes / on all armed OFF, and TV_AUTO_RELAUNCH="" read as a
+        deliberate OFF rather than as unset. A flag a person types by hand must accept the
+        spellings a person types, and an empty string is nobody saying anything.
+
+        The contract, in one line: an explicit env var wins; otherwise his saved choice; otherwise
+        ON, because he asked for automatic. Every cell below is that sentence."""
+        M = [
+            # env,        saved, armed?  why this cell exists
+            (None,        None,  True,  "nothing chosen anywhere — his stated default"),
+            (None,        True,  True,  "he switched it on"),
+            (None,        False, False, "he switched it OFF and nothing may overrule that"),
+            ("1",         None,  True,  "explicit terminal override on"),
+            ("true",      None,  True,  "a person types 'true'"),
+            ("yes",       None,  True,  "a person types 'yes'"),
+            ("on",        None,  True,  "a person types 'on'"),
+            ("0",         None,  False, "explicit terminal override off"),
+            ("false",     None,  False, "a person types 'false'"),
+            ("no",        None,  False, "a person types 'no'"),
+            ("off",       None,  False, "a person types 'off'"),
+            ("",          None,  True,  "EMPTY IS NOT SET — it must not read as a deliberate off"),
+            ("   ",       None,  True,  "whitespace is not a decision either"),
+            ("banana",    None,  True,  "an unrecognised value is not a decision; the saved/default applies"),
+            ("banana",    False, False, "...and with a saved OFF underneath it, OFF still wins"),
+            ("1",         False, True,  "an explicit env ON is what a terminal override is FOR"),
+            ("0",         True,  False, "and it works the other way too"),
+            ("",          False, False, "empty falls through to his saved OFF"),
+        ]
+        bad = []
+        for env, saved, want, why in M:
+            got = self._armed(env, saved)
+            if got != want:
+                bad.append("  env=%-8r saved=%-5r -> armed=%-5s want=%-5s   (%s)"
+                           % (env, saved, got, want, why))
+        self.assertEqual(bad, [], "precedence cells are wrong:\n" + "\n".join(bad))
+
+    def test_an_UNREADABLE_saved_choice_does_not_silently_become_ON(self):
+        """⚠ The default applies to "never chosen", NOT to "chosen, and we cannot read it".
+
+        The first cut returned None for a corrupt or wrong-shaped file, and None means the default
+        applies, which is ON. So a saved OFF that became unreadable — truncated write, permissions
+        change, `{"on": null}` — quietly switched itself back on and relaunched him. The only
+        reason the file exists is that he chose something. [[unknown-stays-unknown]]"""
+        import unittest.mock as mock, json as _j
+        ca = self.ca
+        f = os.path.join(self.d, "ar.json")
+        with mock.patch.object(ca, "_auto_relaunch_path", lambda: f):
+            for content in ('{', '[]', 'null', 'true', '{"ts": 1}', '{"on": null}',
+                            '{"on": "false"}', '{"on": 0}'):
+                io.open(f, "w", encoding="utf-8").write(content)
+                self.assertIs(ca.auto_relaunch_setting(), False,
+                              "a present-but-unreadable setting (%s) came back as %r — anything "
+                              "other than False lets the ON default apply to a choice he may have "
+                              "made the other way"
+                              % (content, ca.auto_relaunch_setting()))
+            # and the shapes we actually write still round-trip
+            io.open(f, "w", encoding="utf-8").write(_j.dumps({"on": True, "ts": 1}))
+            self.assertIs(ca.auto_relaunch_setting(), True)
+            io.open(f, "w", encoding="utf-8").write(_j.dumps({"on": False, "ts": 1}))
+            self.assertIs(ca.auto_relaunch_setting(), False)
+
+    def test_the_supervisor_does_not_overrule_his_switch(self):
+        """tvd_supervisor.sh exported TV_AUTO_RELAUNCH=1 unconditionally, and the env var outranks
+        the saved choice — so any console it started would have overridden a switch HE turned off.
+        The arming default is ON in control_app now, so the export bought nothing and cost him the
+        ability to say no."""
+        src = io.open(os.path.join(HERE, "tvd_supervisor.sh"), encoding="utf-8").read()
+        body = "\n".join(L for L in src.split("\n") if not L.strip().startswith("#"))
+        self.assertNotIn('export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"', body,
+                         "the supervisor still forces TV_AUTO_RELAUNCH=1 on every console it "
+                         "starts, which silently overrules his own saved OFF")
+
     def test_the_setting_survives_a_round_trip_and_says_when_it_cannot(self):
         import unittest.mock as mock
         ca = self.ca
@@ -23719,20 +23814,45 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
             # a writer that cannot write must SAY so and return False, never quietly return True
             pass
 
-    def test_the_supervisor_pause_flag_EXPIRES(self):
-        """A scan is minutes. His flag was 24 DAYS old and the supervisor had stood down silently
-        for all of it — nothing on any surface said so."""
+    def test_the_supervisor_NEVER_clears_the_pause_flag_on_a_timer(self):
+        """⚠ I SHIPPED THE OPPOSITE OF THIS ONE VERSION EARLIER, AND IT WOULD HAVE COST HIM FOOTAGE.
+
+        v2180 found $PAUSE_FLAG dated Aug 3 on his machine, read it as a forgotten leftover from a
+        tvd-scan run, and made it self-clear after six hours. Then tvd-console.sh — the script
+        whose entire job is clearing that flag — turned out to REFUSE BY DEFAULT, saying why:
+
+            "the console this restores is HEADLESS, and a headless launch does NOT hold the macOS
+             Screen Recording grant: ON AIR refuses, nothing records, Theatre plays black.
+             On 2026-08-03 that cost a night of farming footage."
+
+        That is the date on the flag. It is not forgotten, it is DELIBERATE, and it is the only
+        thing keeping the supervisor from putting a console on :17772 that cannot record. An
+        expiry would have re-caused that incident unattended, six hours after any scan. The same
+        script already says "no tty is not consent"; a timer is a worse version of the consent
+        this system deliberately requires.
+
+        The lesson is the CrossOver one: ask what a thing DOES before removing it, not what it
+        looks like it costs. [[crossover-is-the-diablo-install]]
+
+        What survives is the half that was genuinely missing: the supervisor SAYS it has stood
+        down, and how old the flag is. [[feedback-silence-is-not-evidence]]"""
         src = io.open(os.path.join(HERE, "tvd_supervisor.sh"), encoding="utf-8").read()
         body = "\n".join(L for L in src.split("\n") if not L.strip().startswith("#"))
-        self.assertIn("PAUSE_MAX_MIN", body,
-                      "the supervisor pause flag never expires, so one forgotten tvd-scan run "
-                      "disables the always-up console indefinitely")
+        self.assertNotIn('rm -f "$PAUSE_FLAG"', body,
+                         "the supervisor clears its own pause flag. That flag is what stops a "
+                         "HEADLESS console taking :17772 without the Screen Recording grant — "
+                         "clearing it on a timer re-causes the 2026-08-03 lost-footage incident, "
+                         "unattended. Only tvd-console.sh --force may clear it.")
+        self.assertNotIn("PAUSE_MAX_MIN", body,
+                         "a ceiling on the pause flag is back; see this test's docstring for what "
+                         "it costs")
         self.assertIn("STOOD DOWN", body,
                       "the supervisor does not announce that it has stood down — a supervisor "
                       "that is not supervising and does not say so is indistinguishable from one "
                       "that is")
-        self.assertIn('rm -f "$PAUSE_FLAG"', body,
-                      "the supervisor announces the stale flag but never clears it")
+        self.assertIn("Screen Recording", body,
+                      "the stand-down message does not say WHY the flag is there, so the next "
+                      "person to read the log will do exactly what I did and remove it")
 
 
 class TestV2178BothDoorsAnswerTheSameQuestion(unittest.TestCase):

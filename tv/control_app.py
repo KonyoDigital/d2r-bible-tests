@@ -11185,12 +11185,18 @@ def drift_may_relaunch():
     # directions so a terminal run can still force it on or off. Default ON, because that is what
     # he asked for in as many words: "it should relaunch by itself based on updates we do.
     # automatically".
-    _arm = os.environ.get("TV_AUTO_RELAUNCH")
-    if _arm is None:
-        _arm = "0" if auto_relaunch_setting() is False else "1"
-    if _arm != "1":
-        return False, ("auto-relaunch is switched off (TV_AUTO_RELAUNCH=%s or the saved setting); "
-                       "announcing only" % _arm)
+    # PRECEDENCE, stated once so it cannot drift: his SAVED choice wins, an explicit env var
+    # overrides it (that is what a terminal override is for), and the default only fills the case
+    # where neither has said anything. v2181 moved the saved choice ABOVE the env var for the
+    # supervisor's sake: tvd_supervisor.sh exported TV_AUTO_RELAUNCH=1 unconditionally, so any
+    # console it started would have overridden a switch he had turned off himself. The supervisor
+    # no longer exports it; a human typing it in a terminal still wins.
+    _env = _env_tristate("TV_AUTO_RELAUNCH")
+    _saved = auto_relaunch_setting()
+    _on = _env if _env is not None else (True if _saved is None else _saved)
+    if not _on:
+        return False, ("auto-relaunch is switched off (%s); announcing only"
+                       % ("TV_AUTO_RELAUNCH" if _env is not None else "the saved setting"))
     # v2147 — AND IT ASKS THE WORLD GUARD. The whole reason auto-relaunch was allowed to be armed is
     # that a relaunch returning a DIFFERENT world would be noticed — and the decision never consulted
     # the thing doing the noticing, so an already-drifted world did not block the next execv. A
@@ -11204,6 +11210,25 @@ def drift_may_relaunch():
     except Exception:
         pass
     return nothing_in_flight()
+
+
+def _env_tristate(name):
+    """An env var as True / False / None, where None means NOT SET. -> True|False|None
+
+    ⚠ v2181 — `os.environ.get(x) != "1"` IS NOT A BOOLEAN READ. A cross-family review walked the
+    matrix and found three wrong cells: TV_AUTO_RELAUNCH=true / yes / on all read as OFF, and
+    TV_AUTO_RELAUNCH="" read as an explicit OFF rather than as unset. A flag a person types by
+    hand has to accept the spellings a person types. [[unknown-stays-unknown]]
+    """
+    v = os.environ.get(name)
+    if v is None or not str(v).strip():
+        return None                       # absent, or empty — nobody said anything
+    t = str(v).strip().lower()
+    if t in ("1", "true", "yes", "on", "y"):
+        return True
+    if t in ("0", "false", "no", "off", "n"):
+        return False
+    return None                           # an unrecognised value is not a decision
 
 
 def _auto_relaunch_path():
@@ -11221,14 +11246,26 @@ def auto_relaunch_setting():
     try:
         with open(_auto_relaunch_path(), encoding="utf-8") as fh:
             v = json.load(fh)
-        if isinstance(v, dict) and "on" in v:
-            return bool(v["on"])
     except FileNotFoundError:
-        return None
+        return None                       # never chosen — the default may apply
     except Exception as e:
-        print("   \u26a0 the auto-relaunch setting could not be read (%s) — using the default"
-              % str(e)[:60], flush=True)
-    return None
+        # ⚠ v2181 — A FILE THAT EXISTS BUT CANNOT BE READ IS NOT "NEVER CHOSEN".
+        # The first cut returned None here, and None means the default applies, which is ON. So a
+        # saved OFF that became unreadable — corrupt JSON, a permissions change, a truncated
+        # write — silently turned itself back ON and relaunched him. The only reason this file
+        # exists is that he chose something; if we cannot tell WHAT, we must not guess.
+        print("   \u26a0 the auto-relaunch setting EXISTS but could not be read (%s) — refusing to "
+              "auto-relaunch until it can be, rather than assuming the default" % str(e)[:60],
+              flush=True)
+        return False
+    if isinstance(v, dict) and isinstance(v.get("on"), bool):
+        return v["on"]
+    # present, parsed, and not the shape we write: same reasoning as above, and say so.
+    # `bool(v["on"])` used to turn null into False and the string "false" into True.
+    print("   \u26a0 the auto-relaunch setting is present but not readable as on/off (%r) — "
+          "refusing to auto-relaunch until it is" % (v if not isinstance(v, dict) else v.get("on")),
+          flush=True)
+    return False
 
 
 def auto_relaunch_set(on):
@@ -16498,7 +16535,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2180",
+        "ver": "v2181",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

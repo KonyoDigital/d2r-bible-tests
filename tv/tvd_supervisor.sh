@@ -51,27 +51,39 @@ PORT=17772
 #   * a mini is recording                     -> refuse
 #   * the agent is alive, i.e. HE IS FILMING  -> refuse (killing it orphans that reel's frames)
 # Set TV_AUTO_RELAUNCH=0 by hand to go back to announce-only.
-export TV_AUTO_RELAUNCH="${TV_AUTO_RELAUNCH:-1}"
+# ⚠ v2181 — NO BLANKET EXPORT. This forced TV_AUTO_RELAUNCH=1 on every console the supervisor
+# started, and the env var outranks the saved setting — so a switch HE turned off would have been
+# overridden by whichever launcher happened to start the app. The arming default is ON in
+# control_app now (v2180), so this export bought nothing and cost him the ability to say no.
+# A value already in the environment is still passed through, because that is a human choosing.
+[ -n "${TV_AUTO_RELAUNCH:-}" ] && export TV_AUTO_RELAUNCH
 
-# ⚠ v2180 — THE PAUSE EXPIRES, AND THE STAND-DOWN IS SAID OUT LOUD.
-# tvd-scan.sh touches $PAUSE_FLAG so a scan is not fought over, and tells the operator to run
-# tvd-console.sh afterwards to restore the always-up console. That second step is easy to skip and
-# nothing notices: found on his machine with the flag dated Aug 3 and the supervisor therefore
-# STOOD DOWN FOR 24 DAYS, silently. A supervisor that is not supervising and does not say so is
-# indistinguishable from one that is. [[feedback-silence-is-not-evidence]]
-# A scan is minutes; six hours is generous. Past that the flag is stale rather than intentional,
-# so it is removed and the reason is logged.
-PAUSE_MAX_MIN="${TV_PAUSE_MAX_MIN:-360}"
+# ⚠ v2181 — THE PAUSE MUST **NOT** EXPIRE. I SHIPPED AN EXPIRY AND IT WAS WRONG.
+# v2180 found $PAUSE_FLAG dated Aug 3 on his machine, called it a forgotten leftover from a
+# tvd-scan run, and made it self-clear after six hours. Then I read tvd-console.sh — the script
+# whose whole job is clearing this flag — and it REFUSES BY DEFAULT, in its own words:
+#
+#     "the console this restores is HEADLESS, and a headless launch does NOT hold the macOS
+#      Screen Recording grant: ON AIR refuses, nothing records, Theatre plays black.
+#      On 2026-08-03 that cost a night of farming footage."
+#
+# That is the date on the flag. It is not forgotten — it is DELIBERATE, and it is the only thing
+# standing between the supervisor and putting a console on :17772 that cannot record. An expiry
+# would have re-caused the exact incident it was set for, unattended, six hours after any scan.
+# tvd-console.sh already refuses without --force and says "no tty is not consent"; a timer is a
+# worse version of the consent this system deliberately requires.
+#
+# What survives from v2180 is the half that was actually missing: the supervisor SAYS it has
+# stood down, and how old the flag is. A supervisor that is not supervising and does not say so
+# is indistinguishable from one that is — but saying so is the fix, not acting on its own.
+# [[feedback-silence-is-not-evidence]] [[crossover-is-the-diablo-install]] — ask what a thing
+# DOES before removing it.
 _paused_said=0
 while true; do
   if [ -f "$PAUSE_FLAG" ]; then
     _age_min=$(( ( $(date +%s) - $(stat -f %m "$PAUSE_FLAG" 2>/dev/null || date +%s) ) / 60 ))
-    if [ "$_age_min" -gt "$PAUSE_MAX_MIN" ]; then
-      echo "$(date '+%F %T') supervisor: pause flag is ${_age_min}m old (ceiling ${PAUSE_MAX_MIN}m) — clearing it; a scan does not last that long"
-      rm -f "$PAUSE_FLAG"
-      _paused_said=0
-    elif [ "$_paused_said" = "0" ]; then
-      echo "$(date '+%F %T') supervisor: STOOD DOWN — $PAUSE_FLAG is present (${_age_min}m old). Run tvd-console.sh to restore, or wait for the ${PAUSE_MAX_MIN}m ceiling."
+    if [ "$_paused_said" = "0" ]; then
+      echo "$(date '+%F %T') supervisor: STOOD DOWN — $PAUSE_FLAG is present (${_age_min}m old). This is deliberate: clearing it lets a HEADLESS console take :17772, which does NOT hold Screen Recording. Restore only with: bash tv/tvd-console.sh --force"
       _paused_said=1
     fi
   else
