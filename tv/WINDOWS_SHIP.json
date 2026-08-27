@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2197",
+  "ver": "v2198",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2197: the prune deletes only what is PROVEN blank - the rule was inverted with respect to risk",
+  "note": "v2198: the vault router reads the whole item registry, not the calculator subset",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
