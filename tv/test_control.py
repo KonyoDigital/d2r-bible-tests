@@ -6496,6 +6496,42 @@ class TestV2202AReelThatHeldNothingIsNotForeverUnread(unittest.TestCase):
                         "the reel grew from 3 frames to 4 and is still treated as done — new "
                         "footage is exactly the event that can turn an empty read into a hit")
 
+    def test_a_PRUNE_PLUS_CAPTURE_that_leaves_the_count_unchanged_still_re_owes(self):
+        """The hole a cross-family review aimed at and never got to deliver — its seat timed out
+        after two findings. "Frames can be DELETED by a separate pruning process — what happens
+        then?"
+
+        Deleting alone is fine: fewer frames means less to search, so `count > framesAtLook` stays
+        false and it correctly does not re-owe. The hole is prune-THEN-capture: three frames go, three
+        arrive, the COUNT is unchanged and the content is not. _chron_hunt_more_to_search already
+        keys on frames OR newest-mtime for exactly this reason; the count-only version here was a
+        weaker level than the one this file already uses. [[unknown-stays-unknown]]"""
+        import time as _t
+        old_dir_mtime = os.stat(self.d).st_mtime
+        mem = {self.rid: {"ts": 1, "classified": 0, "pages": 0, "looked": True,
+                          "framesAtLook": 3, "dirMtimeAtLook": old_dir_mtime}}
+        self.assertFalse(self.ca._chron_reel_owes_a_read(self.rid, mem),
+                         "unchanged reel already owes — the fixture proves nothing")
+        # prune one, capture one: the COUNT returns to 3, the directory moved
+        os.remove(os.path.join(self.d, "f_1780000000000.jpg"))
+        _t.sleep(0.02)
+        with open(os.path.join(self.d, "f_1780000000077.jpg"), "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xe0" + b"0" * 120)
+        self.assertEqual(len(glob.glob(os.path.join(self.d, "f_*.jpg"))), 3,
+                         "the fixture did not actually restore the count, so it is not testing "
+                         "the prune-then-capture case at all")
+        self.assertTrue(self.ca._chron_reel_owes_a_read(self.rid, mem),
+                        "three frames were replaced by three different frames and the reel is "
+                        "still treated as read. A count that stands still while the content moves "
+                        "is the weaker level this file already knew not to use.")
+
+    def test_a_record_with_NO_dir_stamp_falls_back_to_the_count_and_does_not_thrash(self):
+        """Records written before the dir stamp existed must not suddenly re-owe forever."""
+        mem = {self.rid: {"ts": 1, "classified": 0, "pages": 0,
+                          "looked": True, "framesAtLook": 3}}      # no dirMtimeAtLook
+        self.assertFalse(self.ca._chron_reel_owes_a_read(self.rid, mem),
+                         "an older look-record with no directory stamp now re-owes on every tick")
+
     def test_an_UNMEASURED_frame_count_buys_the_read_rather_than_suppressing_it(self):
         """The half that keeps this honest: -1 means nobody counted, and an unmeasured level must
         never be read as 'nothing changed'."""
@@ -6629,6 +6665,46 @@ class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
                          "said 'mark only once the sweep has taken the job'.")
         self.assertNotIn(self.rid, (self.ca._CHRON_AUTOREAD.get("retired") or {}),
                          "the reel was retired without ever being read")
+
+    def test_a_PERSISTENT_refusal_that_is_NOT_the_lock_still_burns_a_try(self):
+        """v2201b — the runaway a cross-family review caught in my own fix.
+
+        My first cut exempted EVERY non-ok return from counting a try. The MEASURED failure was lock
+        contention (34 of 36 attempts). But that same branch also swallowed a bad reel_id, a disk
+        error, a dead worker, a non-dict return and an exception — all of them PERSISTENT. With the
+        try never incrementing, the tick would pick that reel every 20 seconds FOREVER and never
+        retire it: exactly the runaway v1766.1's counter exists to bound, re-entered through a
+        different door.
+
+        An unmeasured failure mode must not inherit an exemption earned by a measured one.
+        [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]"""
+        self.ca.chronicle_sweep_start = lambda **kw: {"ok": False, "why": "no such reel on disk"}
+        retired = None
+        for _ in range(self.ca._CHRON_AUTOREAD_MAX_TRIES + 3):
+            out = self.ca.chronicle_autoreel_tick()
+            if out.get("retired"):
+                retired = out
+                break
+        self.assertIsNotNone(retired,
+                             "a refusal that is NOT the lock — a bad reel, a disk error, a dead "
+                             "worker — never burned a try, so the reel is retried every tick "
+                             "forever and can never retire. That is the runaway.")
+        self.assertEqual(retired.get("retired"), self.rid)
+
+    def test_a_non_dict_return_is_treated_as_the_reel_s_problem_not_the_lock_s(self):
+        """The shape check matters: `not isinstance(r, dict)` used to land in the same exempt branch
+        as the lock, so a crashed or mis-typed start was retried without bound."""
+        self.ca.chronicle_sweep_start = lambda **kw: None
+        seen_counted = False
+        for _ in range(self.ca._CHRON_AUTOREAD_MAX_TRIES + 3):
+            out = self.ca.chronicle_autoreel_tick()
+            if out.get("triesCounted"):
+                seen_counted = True
+            if out.get("retired"):
+                break
+        self.assertTrue(seen_counted,
+                        "a None return from the sweep was treated as a lock refusal and never "
+                        "counted, so it retries unbounded")
 
     def test_a_sweep_that_STARTS_and_dies_still_burns_one_and_still_retires(self):
         """Seen RED for its own reason. v1766.1's runaway bound must survive the fix - a sweep that

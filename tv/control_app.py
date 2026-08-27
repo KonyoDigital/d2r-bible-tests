@@ -10421,7 +10421,25 @@ def _chron_reel_owes_a_read(rid, mem=None):
         try:
             import glob as _g3
             _rd = os.path.join(os.environ.get("TV_HIST") or HIST_DIR, str(rid))
-            return len(_g3.glob(os.path.join(_rd, "f_*.jpg"))) > _at
+            if len(_g3.glob(os.path.join(_rd, "f_*.jpg"))) > _at:
+                return True               # more film than when we looked -> worth paying again
+            # ⚠ COUNT ALONE IS A WEAKER LEVEL THAN THE ONE THIS FILE ALREADY USES.
+            # _chron_hunt_more_to_search keys on frames OR newest-mtime, precisely because a count
+            # can stand still while the content moves: the pruner deletes three frames, a capture
+            # adds three, and the total is unchanged. A cross-family review of v2201 aimed at this
+            # ("frames can be DELETED by a separate pruning process — what happens then?") and its
+            # seat timed out before it could deliver the point, so it is answered here instead.
+            # The directory's own mtime moves on ANY add or remove and costs one stat, rather than
+            # one per frame on a 2,388-frame reel. [[unknown-stays-unknown]]
+            _dm = e.get("dirMtimeAtLook")
+            if _dm is None:
+                return False              # older record, no dir stamp -> count is all we have
+            # ⚠ STRICT, NOT +0.5. I copied the tolerance from _chron_hunt_more_to_search, where it
+            # guards a NEWEST-FILE mtime that can wobble between runs. A DIRECTORY mtime moves only
+            # when an entry is actually added or removed, so a tolerance here just blinds it: a
+            # prune-then-capture inside half a second becomes invisible, which is the exact case
+            # this comparison was added for. The guard caught it.
+            return os.stat(_rd).st_mtime > float(_dm)
         except Exception:
             return True                   # unmeasurable -> never skip on a guess
     # A 0-PAGE SEAL IS NOT "DONE", BUT IT IS ALSO NOT WORK. retention says it exactly: "that is
@@ -10681,11 +10699,32 @@ def chronicle_autoreel_tick():
         # v1766.1's runaway bound is INTACT: a sweep that always dies still burns a try each time
         # and still retires. What no longer burns one is a lock held by a different lane.
         r = chronicle_sweep_start(limit=1, reel_id=rid)
-        if not (isinstance(r, dict) and r.get("ok")):
-            _rwhy = (isinstance(r, dict) and r.get("why")) or r
-            return {"ok": False, "triesUnchanged": True, "attempt": tries,
-                    "why": "sweep refused the reel and the try was NOT counted: %s" % _rwhy}
-        _CHRON_AUTOREAD["tries"][rid] = tries      # only now - the sweep actually took the job
+        _ok = isinstance(r, dict) and r.get("ok")
+        if not _ok:
+            _rwhy = str((isinstance(r, dict) and r.get("why")) or r)
+            # ⚠⚠ ONLY THE LOCK IS EXEMPT. A cross-family review of v2201 caught this and it is the
+            # runaway v1766.1 exists to bound, reintroduced through a different door: my first cut
+            # exempted EVERY non-ok return from counting a try. The MEASURED failure was lock
+            # contention (34 of 36 attempts). But that same branch also swallows a bad reel_id, a
+            # disk error, a dead worker, a non-dict return and an exception — all of them
+            # PERSISTENT. With the try never incrementing, the tick would pick that reel every 20
+            # seconds forever and never retire it.
+            #
+            # "a sweep is already running" is the one refusal that is provably not about this reel:
+            # another lane holds the single lock. Everything else might be the reel, so it counts,
+            # and the bound holds. The other refusal reasons were NEVER MEASURED, and an unmeasured
+            # failure mode must not inherit an exemption earned by a measured one.
+            # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+            _lock_held = "already running" in _rwhy
+            if _lock_held:
+                return {"ok": False, "triesUnchanged": True, "attempt": tries,
+                        "why": "the lock is held by another lane, so the try was NOT counted: %s"
+                               % _rwhy}
+            _CHRON_AUTOREAD["tries"][rid] = tries   # anything else might be the reel — it counts
+            _chron_autoread_save()
+            return {"ok": False, "triesCounted": tries, "attempt": tries,
+                    "why": "sweep refused the reel and the try WAS counted (not a lock): %s" % _rwhy}
+        _CHRON_AUTOREAD["tries"][rid] = tries      # the sweep actually took the job
         # v1763 — DO NOT BURN A REEL WHOSE FINDINGS WERE NOT KEPT. The swept marker is durable and
         # the result used to be memory-only, so a sweep could spend, find names, lose them on the
         # next restart, and then decline to read that reel ever again because it was "done". The
@@ -16879,9 +16918,13 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     _fn = len(_g2.glob(os.path.join(_rd, "f_*.jpg")))
                 except Exception:
                     _fn = -1
+                try:
+                    _dmt = os.stat(_rd).st_mtime
+                except Exception:
+                    _dmt = None
                 swept["reel_" + str(st["reel"])] = {
                     "ts": int(time.time() * 1000), "classified": 0, "pages": 0,
-                    "looked": True, "framesAtLook": _fn,
+                    "looked": True, "framesAtLook": _fn, "dirMtimeAtLook": _dmt,
                     "why": "read and found no chronicle page — measured zero, not unread",
                     "promptVer": _tv.PROMPT_VER, "agentVer": getattr(_tv, "VERSION", "")}
                 continue
