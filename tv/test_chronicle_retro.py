@@ -2270,6 +2270,55 @@ class TestV2210AMachineWithoutGrokStillReadsAndRegisters(unittest.TestCase):
             "one-lane machine only items carrying an in-game Chronicle date could ever ground. "
             "Most items do not carry one." % (repetition_only, cr.CONFLUENCE_FLOOR))
 
+    def test_switching_grok_ON_only_ADDS_and_never_weakens_the_claude_verdict(self):
+        """Konyo: "make sure witnesses are claude only based by default and when switched on".
+
+        The default half is the three tests above. THIS is the other half, and it is the one a
+        second eye can quietly break: turning Grok on must never REMOVE a name Claude found, never
+        lower a witness count, and never make an item that grounded stop grounding. A second opinion
+        that can subtract is not a second opinion, it is a veto nobody asked for.
+        """
+        claude = self._claude(["Shako", "Occulus", "Skin of the Vipermagi"])
+
+        def grok_sees_less(path, kind):
+            return {"ledger": "uniques", "found": ["Shako"], "notFound": [], "kind": kind}
+
+        def grok_sees_other(path, kind):
+            return {"ledger": "uniques", "found": ["Gheed's Fortune"], "notFound": [], "kind": kind}
+
+        alone = cr.two_lane_read("p.png", "uniques", claude, None)
+        less = cr.two_lane_read("p.png", "uniques", claude, grok_sees_less)
+        other = cr.two_lane_read("p.png", "uniques", claude, grok_sees_other)
+
+        for name in (alone.get("found") or []):
+            self.assertIn(name, less.get("found") or [],
+                          "%r was found by Claude and DISAPPEARED once Grok was switched on. The "
+                          "second lane is a union, never an intersection -- a name only one lane "
+                          "saw is kept as a one-lane sighting for the gate to judge." % (name,))
+            self.assertIn(name, other.get("found") or [],
+                          "%r vanished when Grok reported a different name entirely" % (name,))
+
+        # a name only Grok saw is ADDED, and marked as Grok-only rather than merged into agreement
+        self.assertIn("Gheed's Fortune", other.get("found") or [],
+                      "a name only the second eye saw was discarded -- then switching Grok on buys "
+                      "nothing, which is worse than not having it")
+        self.assertEqual((other.get("laneAgreement") or {}).get("grokOnly"), ["Gheed's Fortune"])
+        self.assertEqual(sorted((other.get("laneAgreement") or {}).get("claudeOnly") or []),
+                         ["Occulus", "Shako", "Skin of the Vipermagi"],
+                         "a Claude-only name was silently upgraded to agreed")
+
+        # and the witness count for a Claude-only name must not FALL when Grok joins
+        w_alone = cr.witnesses([{"lane": "claude", "reel": "rA"}, {"lane": "claude", "reel": "rB"}])
+        w_both = cr.witnesses([{"lane": "claude", "reel": "rA"}, {"lane": "claude", "reel": "rB"},
+                              {"lane": "grok", "reel": "rA"}])
+        self.assertTrue(set(w_alone) <= set(w_both),
+                        "turning Grok on REMOVED a witness tag: %s -> %s. Adding evidence must "
+                        "never subtract from what was already established."
+                        % (sorted(w_alone), sorted(w_both)))
+        self.assertIn("cross-lane", w_both, "the second lane contributed no cross-lane tag at all")
+        self.assertGreaterEqual(cr.confluence(w_both), cr.confluence(w_alone),
+                                "switching the second eye on LOWERED the confluence score")
+
     def test_cross_lane_is_worth_less_than_the_evidence_a_lone_machine_can_gather(self):
         """A second eye must be a BONUS, not the top of the scale, or the machine that has one is
         playing a different game from the machine that does not."""

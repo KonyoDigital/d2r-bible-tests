@@ -32954,6 +32954,8 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
    ever describe the mule it is filling; the count of mules is a different fact and it used
    to have nowhere to live, so 61 items and 200 items looked identical. */
 .vm-mules{margin-left:4px;font-size:var(--fs-micro,10px);color:var(--gold-bright,#f0c060);opacity:.9;letter-spacing:.2px;white-space:nowrap}
+/* v2212 — a bar that could not be measured must not look like a measured zero. */
+.vg-unknown{background:repeating-linear-gradient(45deg,rgba(181,164,138,.35) 0 4px,transparent 4px 8px)!important;width:100%!important}
 .vm-tools{display:flex;gap:2px;opacity:0;transition:opacity .15s}
 .vault-mule:hover .vm-tools{opacity:1}
 .vm-tool{background:none;border:none;color:var(--text-dim,#756657);cursor:pointer;font-size:var(--fs-meta);padding:2px 4px}
@@ -34531,8 +34533,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          Now both ask _muleLoad — the same span, one definition. `mules` is how many mule characters
          this locker really needs; `pct` fills the CURRENT one and only saturates when that one is
          genuinely full. */
+      /* ⚠ SHARED STASH IS NOT A MULE. It is five account-wide tabs, and the drill-down returns to
+         its own 5-page view before the packer is ever reached — so mule arithmetic on this card
+         would be answering a question the other surface never asks. Same review, finding 4. */
+      var _isMule = (m.id !== 'shared');
       var _ld = null;
-      try { _ld = _muleLoad(items.concat(magicItems)); } catch(e){ _ld = null; }
+      try { if (_isMule && typeof _muleLoad === 'function') _ld = _muleLoad(items.concat(magicItems)); }
+      catch(e){ _ld = null; }
+      /* ⚠ AND A MISSING LOADER MUST NOT READ AS "IT FITS". The v2211 catch fell back to muleN = 1,
+         so if _muleLoad were ever out of scope a locker holding 300 items would paint a tidy full
+         bar and no badge — the old clamp wearing the new denominator, silently. Unknown is its own
+         state now. [[unknown-stays-unknown]] */
+      var _known = !!_ld;
       var muleN = _ld ? (_ld.mules.length || 1) : 1;
       var cells = _ld ? _ld.cells : total;
       var capCells = _ld ? _ld.capCells : 140;
@@ -34544,10 +34556,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          mule) both leave the last mule 29% full, so the two gauges painted identically. That is the
          same false equivalence the clamp used to produce, one layer down. A locker that has already
          spilled reads HOT whatever its last mule looks like. */
-      var pct = Math.min(100, Math.round(((cells - (muleN - 1) * capCells) / capCells) * 100));
+      var pct = _ld ? _ld.lastPct : 0;
       if (!isFinite(pct) || pct < 0) pct = 0;
-      var _spilled = muleN > 1;
-      var cap = capCells;
+      var _spilled = _known && muleN > 1;
+      /* v2212 — `cap` is GONE rather than re-pointed. It used to mean 40 (a mule's inventory) and
+         nothing has read it since the gauge stopped dividing by it; leaving it assigned 140 under
+         the old name is a label waiting to be believed. [[label-outlived-referent]] */
       // v230: runes + materials (essences/shards/keys/organs/statues) live in RoW's
       // infinite shared stash — they are no longer muled, so no linked-tally lockers.
       var linked='';
@@ -34615,17 +34629,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
         + '<span class="vm-count"'
-          + ' title="'+total+' item'+(total===1?'':'s')+' · '+cells+' of '+(muleN*capCells)
-          + ' cells across '+muleN+' mule'+(muleN===1?'':'s')+' (each mule = a 10x10 stash + a 10x4 '
-          + 'inventory = '+capCells+' cells). Open the locker to see the packing.">'
+          + ' title="'+total+' item'+(total===1?'':'s')
+          + (_known ? (' · '+cells+' cells, packed across '+muleN+' mule'+(muleN===1?'':'s')
+                       + ' (each = a 10x10 stash + a 10x4 inventory = '+capCells+' cells). '
+                       + 'Open the locker to see the packing.')
+                    : (_isMule ? ' · the packer could not be asked, so the mule count is UNKNOWN'
+                               : ' · the SHARED STASH is account-wide, not a mule — it is not packed'))
+          + '">'
           + total + (muleN > 1 ? '<span class="vm-mules" title="this locker does not fit on one '
                                  + 'mule — it needs '+muleN+'">×'+muleN+'🧍</span>' : '')
           + '</span>'
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
         + '</div>'
-        + '<div class="vm-gauge" title="'+(_spilled ? ('this locker needs '+muleN+' mules — the bar shows how full the LAST one is')
-             : (pct+'% of one mule (a 10x10 stash + a 10x4 inventory = '+capCells+' cells)'))
-             + '"><div class="vm-gauge-fill'+((pct>=85||_spilled)?' vg-hot':'')+'" style="width:'+pct+'%"></div></div>'
+        + '<div class="vm-gauge" title="'
+             + (!_known ? 'UNKNOWN — the packer could not be asked, so this bar is not a reading'
+                : _spilled ? ('this locker needs '+muleN+' mules · the bar is mule '+muleN+', which holds '
+                              + _ld.lastCells + ' of ' + capCells + ' cells')
+                : (pct+'% of one mule — '+_ld.lastCells+' of '+capCells+' cells (a 10x10 stash + a 10x4 inventory)'))
+             + '"><div class="vm-gauge-fill'+((pct>=85||_spilled)?' vg-hot':'')+(!_known?' vg-unknown':'')+'" style="width:'+(_known?pct:0)+'%"></div></div>'
         + (m.note?'<div class="vm-note">'+esc(m.note)+'</div>':'')
         + '<div class="vm-body">'
         + setRows
@@ -36181,9 +36202,33 @@ window.vaultAutoAssign = function(){
     var cells = 0;
     sized.forEach(function(it){ cells += (it.w||1) * (it.h||1); });
     var first = mules[0] || {stash:[], inv:[]};
+    /* ⚠ v2212 — OCCUPANCY IS COUNTED FROM THE PLACED RECTANGLES, NOT INFERRED FROM THE TOTAL.
+       v2211 computed the last mule's fill as `cells - (muleN-1)*140`, which silently assumes every
+       finished mule used all 140 of its cells. Rectangle packing does not do that. A cross-family
+       review predicted the counterexample and the measurement confirmed it exactly:
+
+           16 Colossus Blades (2x4)  ->  mule 1 holds 120 cells, mule 2 holds 8
+           the subtraction says      ->  (128 - 140) / 140  =  negative, clamped to 0%
+           the truth is              ->  8 / 140  =  6%
+
+       So the bar read EMPTY for a mule that has something in it, and the "how full the LAST one
+       is" tooltip was false for every locker whose earlier mules wasted space — which is most of
+       them. The packer already knows where every rectangle went; asking it is both correct and
+       cheaper than re-deriving. [[unknown-stays-unknown]] */
+    var _occ = function(m){
+      var t = 0;
+      (m.stash || []).concat(m.inv || []).forEach(function(x){ t += (x.w||1) * (x.h||1); });
+      return t;
+    };
+    var last = mules[mules.length - 1] || {stash:[], inv:[]};
     return { sized: sized, phys: sized.length, cells: cells, mules: mules, rem: rem,
              firstCount: first.stash.length + first.inv.length,
-             /* what the FIRST mule actually has room for, in cells — the honest denominator */
+             /* the LAST mule's real occupancy, and its fill as a percentage — ONE definition, so
+                the card cannot drift from the packer the way the whole v2211 fix existed to stop */
+             lastCells: _occ(last),
+             lastPct: Math.max(0, Math.min(100, Math.round(_occ(last) / 140 * 100))),
+             placedCells: mules.reduce(function(a, m){ return a + _occ(m); }, 0),
+             /* what one mule has room for, in cells — the honest denominator */
              capCells: 140 };
   }
   window._muleLoad = _muleLoad;
@@ -46676,7 +46721,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2211', name:'v2211 - the locker card counts cells, not items', date:'2026-08-28', note:'one packer for the shelf and the drill-down, so 61 items stop claiming to fit in one mule' };
+  window.D2R_BUILD = { id:'v2212', name:'v2212 - the bar reads the rectangles, not a perfect pack', date:'2026-08-28', note:'the shelf gauge asks the packer where every item actually went' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

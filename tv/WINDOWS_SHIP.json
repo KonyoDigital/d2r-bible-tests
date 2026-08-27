@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2211",
+  "ver": "v2212",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2211: one packer for the shelf and the drill-down, so 61 items stop claiming to fit in one mule",
+  "note": "v2212: the shelf gauge asks the packer where every item actually went",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

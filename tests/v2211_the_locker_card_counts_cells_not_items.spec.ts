@@ -101,14 +101,22 @@ test.describe('v2211 the locker card counts cells, not items', () => {
           if (!card) return null;
           const fill = card.querySelector('.vm-gauge-fill');
           const badge = card.querySelector('.vm-mules');
+          const w = fill ? (fill.getAttribute('style') || '') : '';
+          const m = w.match(/width:\s*(\d+)%/);
           return { hot: !!(fill && fill.classList.contains('vg-hot')),
-                   badge: !!badge, badgeText: badge ? (badge.textContent || '') : '' };
+                   badge: !!badge, badgeText: badge ? (badge.textContent || '') : '',
+                   barPct: m ? parseInt(m[1], 10) : null };
         };
+        // ⚠ ASK THE LOADER ABOUT WHAT THE CARD ACTUALLY PACKED, not about what we planted. A
+        // locker holds whatever was already filed there too — measured, 26 items where 24 were
+        // planted — so comparing the painted bar against _muleLoad(ourPlants) fails on a correct
+        // build and reads as a defect. [[feedback-suspect-the-instrument]]
+        const asg = JSON.parse(W.LSR.getItem('d2r_muleAssign') || '{}');
+        const inLocker = (id: string) => Object.keys(asg).filter((k) => asg[k] === id);
+        const wl = W._muleLoad(inLocker('uni-weap')), sl = W._muleLoad(inLocker('uni-small'));
         return { weap: read('uni-weap'), small: read('uni-small'),
-                 weapMules: W._muleLoad(landedBig).mules.length,
-                 weapCells: W._muleLoad(landedBig).cells,
-                 smallMules: W._muleLoad(landedSmall).mules.length,
-                 smallCells: W._muleLoad(landedSmall).cells,
+                 weapMules: wl.mules.length, weapCells: wl.cells, weapLastPct: wl.lastPct,
+                 smallMules: sl.mules.length, smallCells: sl.cells, smallLastPct: sl.lastPct,
                  nBig: landedBig.length, nSmall: landedSmall.length };
       });
 
@@ -130,6 +138,16 @@ test.describe('v2211 the locker card counts cells, not items', () => {
       expect(r.small!.hot, 'a locker holding ' + r.smallCells + ' cells of a 140-cell mule renders '
         + 'hot — a warning that is on for everything means nothing').toBe(false);
       expect(r.small!.badge, 'a one-mule locker carries a mule-count badge').toBe(false);
+
+      // ⚠ AND THE BAR ITSELF MUST BE THE PACKER'S NUMBER. Asserting _muleLoad.lastPct against the
+      // rectangles proves the LOADER is right and says nothing about what the card renders — I put
+      // the v2211 subtraction back into the card and the loader-level test stayed green. This reads
+      // the width the shelf actually painted. [[feedback-blind-fixture-green-gate]]
+      expect(r.weap!.barPct, 'the shelf painted no width at all on a spilled locker').not.toBeNull();
+      expect(r.weap!.barPct, 'the bar shows ' + r.weap!.barPct + '% while the packer says the last '
+        + 'mule is ' + r.weapLastPct + '% full. The card is deriving its own number again, which is '
+        + 'the whole defect this version exists to close.').toBe(r.weapLastPct);
+      expect(r.small!.barPct).toBe(r.smallLastPct);
     });
 
   test('the drill-down subtitle is UNCHANGED by the extraction', async ({ page }) => {
@@ -144,6 +162,69 @@ test.describe('v2211 the locker card counts cells, not items', () => {
         + (n > 1 ? (' across ' + n + ' mules · ' + l.firstCount + ' on this one') : '');
     });
     expect(r).toBe('40 items total across 3 mules · 15 on this one');
+  });
+
+  test('the bar reads the PLACED rectangles, not the total minus a perfect pack', async ({ page }) => {
+    // v2212 — a cross-family review predicted this counterexample and the measurement confirmed it
+    // exactly. v2211 computed the last mule's fill as `cells - (muleN-1)*140`, which assumes every
+    // finished mule used all 140 of its cells. Rectangle packing does not do that:
+    //
+    //     16 Colossus Blades (2x4)  ->  mule 1 holds 120 cells, mule 2 holds 8
+    //     the subtraction says          (128 - 140)/140  =  negative, clamped to 0%
+    //     the truth is                  8/140            =  6%
+    //
+    // So the bar read EMPTY for a mule with something in it, and the tooltip's "how full the LAST
+    // one is" was false for every locker whose earlier mules wasted space — which is most of them.
+    const r = await page.evaluate(() => {
+      const L = (window as any)._muleLoad;
+      const occ = (m: any) => (m.stash || []).concat(m.inv || [])
+        .reduce((s: number, x: any) => s + (x.w || 1) * (x.h || 1), 0);
+      const of = (name: string, k: number) => {
+        const a: string[] = []; for (let i = 0; i < k; i++) a.push(name);
+        const l = L(a);
+        const last = l.mules[l.mules.length - 1];
+        return { mules: l.mules.length, perMule: l.mules.map(occ),
+                 lastCells: l.lastCells, lastPct: l.lastPct,
+                 truePct: Math.round(occ(last) / 140 * 100),
+                 oldPct: Math.max(0, Math.min(100,
+                   Math.round(((l.cells - (l.mules.length - 1) * 140) / 140) * 100))) };
+      };
+      return { sixteen: of('Colossus Blade', 16), forty: of('Colossus Blade', 40),
+               rings: of('Nagelring', 40) };
+    });
+
+    // the fixture must actually waste space in an earlier mule, or there is nothing to catch
+    expect(r.sixteen.perMule[0], 'mule 1 packed all 140 cells, so the old subtraction would have '
+      + 'been right and this test proves nothing').toBeLessThan(140);
+
+    expect(r.sixteen.lastPct, 'the bar does not match the rectangles actually placed on the last '
+      + 'mule').toBe(r.sixteen.truePct);
+    expect(r.forty.lastPct).toBe(r.forty.truePct);
+    expect(r.rings.lastPct).toBe(r.rings.truePct);
+
+    // and the OLD formula must be demonstrably wrong here, or the fix is cosmetic
+    expect(r.sixteen.oldPct, 'the v2211 subtraction agrees with the truth on this fixture, so it '
+      + 'was never the defect the comment claims').not.toBe(r.sixteen.truePct);
+    expect(r.sixteen.lastCells).toBeGreaterThan(0);
+
+    // the contrast his question was about, now visible on the BAR and not only the badge
+    expect(r.forty.lastPct).not.toBe(r.rings.lastPct);
+  });
+
+  test('the SHARED stash is not given mule arithmetic', async ({ page }) => {
+    // The drill-down returns to its own 5-page account-wide view before the packer is reached, so
+    // packing the shelf card for it would answer a question the other surface never asks.
+    const r = await page.evaluate(() => {
+      const card = document.querySelector('[data-vault-mule="shared"]');
+      if (!card) return null;
+      const t = (card.querySelector('.vm-count') || {} as any).getAttribute
+        ? card.querySelector('.vm-count')!.getAttribute('title') || '' : '';
+      return { badge: !!card.querySelector('.vm-mules'), title: t };
+    });
+    expect(r, 'the shared locker is gone from the shelf').not.toBeNull();
+    expect(r!.badge, 'the SHARED STASH carries a mule-count badge — it is five account-wide tabs, '
+      + 'not a mule character').toBe(false);
+    expect(r!.title).toContain('not a mule');
   });
 
   test('an empty locker does not divide by nothing', async ({ page }) => {
