@@ -15231,6 +15231,10 @@ def _chron_fold(prop):
 # subscription chasing reader debris. The fold already retires the debris; this budget is what stops
 # the remainder from becoming open-ended.
 _CHRON_HUNT_MAX_NAMES = int(os.environ.get("TV_CHRON_HUNT_NAMES") or 8)
+# v2201 — how many sweeps in a row the hunt may yield to the reel lane before running anyway.
+# A yield that is never bounded is the starvation it was written to fix, pointed the other way.
+_CHRON_HUNT_YIELD_MAX = int(os.environ.get("TV_CHRON_HUNT_YIELD_MAX") or 6)
+_CHRON_HUNT_YIELDS = 0
 # v2175.3 — the hunt memory's ceiling. `ts` was written and never read, so the file grew with
 # every name that ever came back empty. Pruning the oldest can only ever cost one re-hunt.
 _CHRON_HUNT_MEM_MAX = int(os.environ.get("TV_CHRON_HUNT_MEM_MAX") or 4000)
@@ -15647,6 +15651,47 @@ def _chron_hunt_held(prop, applied, hist_dir, read_page):
         report["skipped"] = ("every held name has already been hunted against this evidence and "
                              "came back empty — nothing new to buy")
         return prop, applied, report
+    # ══ v2201 — EXTRACT BEATS HUNT, BECAUSE THE HUNT WAS STARVING IT ═══════════════════════════
+    # The hunt is a PHASE INSIDE the sweep, so while it re-reads film for held names it holds the
+    # one lock every reel sweep needs. Measured on his log: 36 auto-sweep attempts, 34 refused with
+    # "a sweep is already running" — 94% starved. Combined with the try-counter bug this version
+    # fixes, that starvation became SEVEN PERMANENT RETIREMENTS.
+    #
+    # The two lanes are not equal and should never have competed as if they were. A reel that owes
+    # a FIRST read is unextracted evidence; the hunt is re-reading film already on disk for names
+    # it has usually already failed to find (measured: 4,838 paid reads for 2 sightings over six
+    # days). His own design says so — "extract first, then prune". So extract takes the lock.
+    #
+    # ⚠ BOUNDED, OR IT IS JUST THE STARVATION POINTING THE OTHER WAY. If reels could never be
+    # satisfied the hunt would never run again, which is the same failure wearing the other lane's
+    # name. After _CHRON_HUNT_YIELD_MAX consecutive yields the hunt runs anyway and SAYS it did,
+    # so a reel lane that is itself stuck cannot silently kill the hunt.
+    try:
+        # ⚠ hist_dir, NOT the default. _chron_owed_count() with no argument falls back to TV_HIST
+        # and then to his REAL frames directory — so this call made _chron_hunt_held read his live
+        # footage, and two hunt tests that pass hist_dir="/nowhere" started answering differently
+        # on his machine than on a runner. Green in one venue, red in the other, for a reason that
+        # had nothing to do with the hunt. The function is HANDED the directory; use it.
+        # [[feedback-fixtures-never-touch-live-data]] [[test-venue]]
+        _owed_now = _chron_owed_count(hist_dir)
+    except Exception:
+        _owed_now = None                    # cannot tell -> do not yield on a guess
+    if _owed_now:
+        global _CHRON_HUNT_YIELDS
+        _CHRON_HUNT_YIELDS += 1
+        if _CHRON_HUNT_YIELDS <= _CHRON_HUNT_YIELD_MAX:
+            report["skipped"] = ("%d reel(s) still owe a FIRST read — extract takes the lock, the "
+                                 "hunt yields (%d of %d consecutive)"
+                                 % (_owed_now, _CHRON_HUNT_YIELDS, _CHRON_HUNT_YIELD_MAX))
+            report["huntYielded"] = _CHRON_HUNT_YIELDS
+            print("   \U0001f91d hunt yields to %d reel(s) that owe a first read (%d/%d)"
+                  % (_owed_now, _CHRON_HUNT_YIELDS, _CHRON_HUNT_YIELD_MAX), flush=True)
+            return prop, applied, report
+        report["huntRanDespiteOwed"] = _owed_now
+        print("   \U0001f6a8 hunt ran anyway — it has yielded %d times in a row and %d reel(s) STILL "
+              "owe a first read, so the reel lane is stuck, not merely busy"
+              % (_CHRON_HUNT_YIELDS, _owed_now), flush=True)
+    _CHRON_HUNT_YIELDS = 0
     report["hunted"] = held_by["uniques"] + held_by["sets"]
     found_by = {}
     try:

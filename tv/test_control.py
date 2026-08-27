@@ -6533,6 +6533,32 @@ class TestV2201ARefusedSweepDoesNotBurnTheReel(unittest.TestCase):
                              "retired — that is the unbounded runaway v1766.1 forbids")
         self.assertEqual(retired.get("retired"), self.rid)
 
+    def test_the_hunt_YIELDS_to_a_reel_that_owes_a_first_read(self):
+        """v2201 — the starvation half. The hunt is a PHASE INSIDE the sweep, so while it re-reads
+        film it holds the one lock every reel sweep needs. On his log that was 34 refusals out of
+        36 attempts. Extract is unextracted evidence; the hunt is re-reading film already on disk
+        for names it has usually already failed to find. Extract takes the lock."""
+        import chronicle_retro  # noqa: F401
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        i = src.find("_CHRON_JOB[\"phase\"] = \"hunting\"")
+        self.assertGreater(i, 0, "the hunting phase vanished — this test is measuring nothing")
+        window = src[max(0, i - 2600):i]
+        self.assertIn("_chron_owed_count", window,
+                      "the hunt starts without asking whether any reel owes a FIRST read, so it "
+                      "takes the lock ahead of unextracted evidence — the starvation that turned "
+                      "into seven permanent retirements")
+        self.assertIn("_CHRON_HUNT_YIELD_MAX", window,
+                      "the yield is UNBOUNDED. A reel lane that is itself stuck would then kill "
+                      "the hunt forever, which is the same starvation pointing the other way.")
+
+    def test_the_yield_bound_is_a_real_number_not_a_ceiling_above_the_signal(self):
+        """A bound larger than anything that can happen is an absent bound.
+        [[feedback-threshold-above-the-ceiling]]"""
+        self.assertGreaterEqual(self.ca._CHRON_HUNT_YIELD_MAX, 1)
+        self.assertLessEqual(self.ca._CHRON_HUNT_YIELD_MAX, 50,
+                             "a yield bound this high can never be reached in a session, so the "
+                             "hunt would never recover from a stuck reel lane")
+
     def test_the_repair_frees_only_what_was_PROVABLY_never_read(self):
         """The seven he already lost. Undoing them is only safe if the proof is the ABSENCE of a
         durable read record — not the reason string, which a genuine give-up also carries."""
