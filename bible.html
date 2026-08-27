@@ -32950,6 +32950,10 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vm-icon{font-size:17px;line-height:var(--lh-none)}
 .vm-name{font-family:var(--mono,monospace);font-weight:var(--fw-semibold);font-size:12.5px;letter-spacing:var(--ls-normal);color:var(--gold-bright,#f0c060);flex:1;text-shadow:0 1px 0 rgba(0,0,0,.7)}
 .vm-count{font-family:var(--mono,monospace);font-size:var(--fs-meta);color:var(--text-muted,#b5a48a)}
+/* v2211 — a locker that needs more than one mule SAYS so on the shelf. The gauge can only
+   ever describe the mule it is filling; the count of mules is a different fact and it used
+   to have nowhere to live, so 61 items and 200 items looked identical. */
+.vm-mules{margin-left:4px;font-size:var(--fs-micro,10px);color:var(--gold-bright,#f0c060);opacity:.9;letter-spacing:.2px;white-space:nowrap}
 .vm-tools{display:flex;gap:2px;opacity:0;transition:opacity .15s}
 .vault-mule:hover .vm-tools{opacity:1}
 .vm-tool{background:none;border:none;color:var(--text-dim,#756657);cursor:pointer;font-size:var(--fs-meta);padding:2px 4px}
@@ -34520,7 +34524,30 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // of grail `owned`/`assign`, so they render straight from the magicFinds map, not from byMule).
       var magicItems=(m.id==='magic-rare' && typeof magicFinds==='object' && magicFinds) ? Object.keys(magicFinds).sort() : [];
       var total=items.length+magicItems.length;
-      var cap=40, pct=Math.min(100, Math.round(total/cap*100));
+      /* ══ v2211 — THE GAUGE MEASURES CELLS AND STOPS PRETENDING ONE MULE IS ENOUGH ══════════
+         It was `cap = 40` with `Math.min(100, …)`: item COUNT against the INVENTORY alone, then
+         clamped. A locker holding 61 and one holding 200 painted the same bar, and the drill-down
+         two clicks away had been packing across as many mules as the category needs since v405.
+         Now both ask _muleLoad — the same span, one definition. `mules` is how many mule characters
+         this locker really needs; `pct` fills the CURRENT one and only saturates when that one is
+         genuinely full. */
+      var _ld = null;
+      try { _ld = _muleLoad(items.concat(magicItems)); } catch(e){ _ld = null; }
+      var muleN = _ld ? (_ld.mules.length || 1) : 1;
+      var cells = _ld ? _ld.cells : total;
+      var capCells = _ld ? _ld.capCells : 140;
+      /* fill of the LAST mule, so a full first mule reads 100% and the overflow is told by muleN
+         rather than by a bar that cannot go past its own end.
+
+         ⚠ AND THE BAR ALONE STILL COULD NOT TELL THEM APART — measured, which is the only reason I
+         caught it: 40 Colossus Blades (320 cells, THREE mules) and 40 Nagelrings (40 cells, one
+         mule) both leave the last mule 29% full, so the two gauges painted identically. That is the
+         same false equivalence the clamp used to produce, one layer down. A locker that has already
+         spilled reads HOT whatever its last mule looks like. */
+      var pct = Math.min(100, Math.round(((cells - (muleN - 1) * capCells) / capCells) * 100));
+      if (!isFinite(pct) || pct < 0) pct = 0;
+      var _spilled = muleN > 1;
+      var cap = capCells;
       // v230: runes + materials (essences/shards/keys/organs/statues) live in RoW's
       // infinite shared stash — they are no longer muled, so no linked-tally lockers.
       var linked='';
@@ -34587,10 +34614,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+(total===0?' vm-empty':'')+'" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
         + '<span class="vm-icon">'+(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
-        + '<span class="vm-count">'+total+'</span>'
+        + '<span class="vm-count"'
+          + ' title="'+total+' item'+(total===1?'':'s')+' · '+cells+' of '+(muleN*capCells)
+          + ' cells across '+muleN+' mule'+(muleN===1?'':'s')+' (each mule = a 10x10 stash + a 10x4 '
+          + 'inventory = '+capCells+' cells). Open the locker to see the packing.">'
+          + total + (muleN > 1 ? '<span class="vm-mules" title="this locker does not fit on one '
+                                 + 'mule — it needs '+muleN+'">×'+muleN+'🧍</span>' : '')
+          + '</span>'
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
         + '</div>'
-        + '<div class="vm-gauge"><div class="vm-gauge-fill'+(pct>=85?' vg-hot':'')+'" style="width:'+pct+'%"></div></div>'
+        + '<div class="vm-gauge" title="'+(_spilled ? ('this locker needs '+muleN+' mules — the bar shows how full the LAST one is')
+             : (pct+'% of one mule (a 10x10 stash + a 10x4 inventory = '+capCells+' cells)'))
+             + '"><div class="vm-gauge-fill'+((pct>=85||_spilled)?' vg-hot':'')+'" style="width:'+pct+'%"></div></div>'
         + (m.note?'<div class="vm-note">'+esc(m.note)+'</div>':'')
         + '<div class="vm-body">'
         + setRows
@@ -36093,6 +36128,66 @@ window.vaultAutoAssign = function(){
   // v405 — one D2R mule character = personal stash (10×10 = 100 cells) + inventory (10×4 = 40 cells) = 140
   // cells. A category that overflows 140 cells SPILLS onto the next mule of the same kind (Mule 2, 3…), so
   // "97 items in one mule" can never happen — they auto-distribute across as many mule toons as it takes.
+  /* ══ v2211 — ONE PACKER, TWO SURFACES. Konyo, looking at a locker card: "how are 61 items
+     fitting in one mule?... it sort of needs to be like TETRIS game... it needs to OPEN ANOTHER
+     MULE for items if there is no room."
+
+     THE PACKING WAS ALREADY RIGHT AND THE CARD WAS NOT. openMuleCard has spilled across as many
+     mule characters as a category needs since v405 — each mule is a 10x10 stash plus a 10x4
+     inventory, 140 cells — while the shelf card computed `total = items.length + magicItems.length`
+     against a flat `cap = 40` and then clamped the gauge with Math.min(100, ...). Three separate
+     lies in one line:
+
+       · it counted ITEMS, not CELLS. A Colossus Blade is 8 cells and a ring is 1; 40 rings fit in
+         one mule and 40 colossus blades need three.
+       · 40 is the INVENTORY on its own. The stash it sits beside holds 100 more.
+       · the clamp meant the bar was saturated for every value above the cap, so a locker holding
+         61 and one holding 200 painted identically, and `vg-hot` fired the same at 41 as at 300.
+
+     So the card was answering a different question from the drill-down two clicks away, and his
+     was the right reading of a wrong number.
+
+     ⚠ THE FIX IS AN EXTRACTION, NOT A SECOND CALCULATION. Writing a cell count into the card would
+     have made two copies of the packing rule, and they would disagree the first time either moved
+     — which is exactly how the card and the drill-down came to disagree in the first place. This
+     span now exists in ONE place and both surfaces call it. [[copy-drift]] */
+  function _muleLoad(names){
+    /* v403 — a QUANTITY base owned xN takes N SEPARATE grid slots: each physical copy packs on its
+       own, assorted alongside the other units (Konyo's 3 Threshers = 3 cells). */
+    var sized = [];
+    (names || []).forEach(function(n){
+      var s = vaultSize(n); var t = tipOf(n);
+      var cc = Math.max(1, Math.min(copyCount(n) || 1, _MULE_COPY_CAP));
+      for (var _ci = 0; _ci < cc; _ci++){
+        sized.push({n:n, w:s[0], h:s[1], area:s[0]*s[1], set:(t&&t.setName)||'', ct:cc});
+      }
+    });
+    /* v211: same-set pieces pack as NEIGHBORS — sort groups sets together first (first-fit places
+       consecutive items adjacently), then big-first within a group */
+    sized.sort(function(a,b){
+      if (a.set !== b.set) return a.set ? (b.set ? (a.set<b.set?-1:1) : -1) : 1;
+      if (a.n !== b.n) return b.area-a.area || (a.n<b.n?-1:1);   // keep copies of the same base adjacent
+      return b.area-a.area || b.h-a.h;
+    });
+    /* v405 — pack across as many mule characters as needed: stash(10x10) then inventory(10x4).
+       Greedily fill mule 1, spill the rest onto mule 2, and so on. */
+    var mules = [], rem = sized.slice(), guard = 0;
+    do {
+      var st = packGrid(rem, 10, 10);
+      var iv = packGrid(st.left, 10, 4);
+      mules.push({ stash: st.placed, inv: iv.placed });
+      rem = iv.left;
+    } while (rem.length && ++guard < 80);
+    var cells = 0;
+    sized.forEach(function(it){ cells += (it.w||1) * (it.h||1); });
+    var first = mules[0] || {stash:[], inv:[]};
+    return { sized: sized, phys: sized.length, cells: cells, mules: mules, rem: rem,
+             firstCount: first.stash.length + first.inv.length,
+             /* what the FIRST mule actually has room for, in cells — the honest denominator */
+             capCells: 140 };
+  }
+  window._muleLoad = _muleLoad;
+
   window._muleSetPage = function(i){ var n = _muleTotalPages || 1; _mulePage = ((i % n) + n) % n; window.openMuleCard(openMuleId); };
   var _muleTotalPages = 1;
   window.openMuleCard = function(muleId){
@@ -36110,31 +36205,8 @@ window.vaultAutoAssign = function(){
     // v363 — SHARED STASH gets its own 5-page auto-assorted view (not the mule stash+inventory layout).
     if (muleId === 'shared'){ _renderSharedStash(box); return; }
     var names = Object.keys(assign).filter(function(n){return assign[n]===muleId;}).sort();
-    // v211: same-set pieces pack as NEIGHBORS — sort groups sets together first
-    // (first-fit places consecutive items adjacently), then big-first within a group
-    // v403 — a QUANTITY base owned ×N takes N SEPARATE grid slots: each physical copy packs on its own,
-    // assorted alongside the other units (Konyo's 3 Threshers = 3 cells). Expand by copyCount (mule cap 3).
-    var sized=[];
-    names.forEach(function(n){
-      var s=vaultSize(n); var t=tipOf(n); var cc=Math.max(1, Math.min(copyCount(n)||1, _MULE_COPY_CAP));
-      for (var _ci=0; _ci<cc; _ci++){ sized.push({n:n,w:s[0],h:s[1],area:s[0]*s[1],set:(t&&t.setName)||'',ct:cc}); }
-    });
-    sized.sort(function(a,b){
-      if (a.set !== b.set) return a.set ? (b.set ? (a.set<b.set?-1:1) : -1) : 1;
-      if (a.n !== b.n) return b.area-a.area || (a.n<b.n?-1:1);   // keep copies of the same base adjacent
-      return b.area-a.area || b.h-a.h;
-    });
-    var _physN = sized.length;   // total PHYSICAL items (copies counted) for the header/goldbox
-    // v405 — pack EVERY item across as many mule characters as needed: each mule = stash(10×10) then
-    // inventory(10×4). Greedily fill mule 1 fully, spill the rest onto mule 2, and so on. `_muleTotalPages`
-    // is the number of mule toons this category needs; `_mulePage` is the one currently shown.
-    var _mules = [], _rem = sized.slice(), _guard = 0;
-    do {
-      var _st = packGrid(_rem, 10, 10);
-      var _iv = packGrid(_st.left, 10, 4);
-      _mules.push({ stash: _st.placed, inv: _iv.placed });
-      _rem = _iv.left;
-    } while (_rem.length && ++_guard < 80);
+    var _load = _muleLoad(names);
+    var sized = _load.sized, _physN = _load.phys, _mules = _load.mules, _rem = _load.rem;
     _muleTotalPages = _mules.length || 1;
     if (_mulePage >= _muleTotalPages) _mulePage = _muleTotalPages - 1;
     if (_mulePage < 0) _mulePage = 0;
@@ -46604,7 +46676,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2210', name:'v2210 - the switch that had no handle', date:'2026-08-27', note:'auto-relaunch is his to turn off from the console, and the switch labels stopped being cut in half' };
+  window.D2R_BUILD = { id:'v2211', name:'v2211 - the locker card counts cells, not items', date:'2026-08-28', note:'one packer for the shelf and the drill-down, so 61 items stop claiming to fit in one mule' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

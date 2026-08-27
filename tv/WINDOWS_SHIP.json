@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2210",
+  "ver": "v2211",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2210: auto-relaunch is his to turn off from the console, and the switch labels stopped being cut in half",
+  "note": "v2211: one packer for the shelf and the drill-down, so 61 items stop claiming to fit in one mule",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
