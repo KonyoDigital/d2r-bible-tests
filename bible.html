@@ -32701,7 +32701,35 @@ body{
    slate so they never read as an in-game item-quality colour (no gold/yellow/blue confusion). */
 .vk-chip.vk-chip-count{color:#9aa7b8;background:rgba(120,135,160,.10);border-color:rgba(140,155,180,.3);text-transform:uppercase;letter-spacing:.4px;font-size:10.5px}
 .vk-reason{font-size:var(--fs-meta);line-height:var(--lh-normal);color:var(--text-dim)}
-.vault-dock{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;border:1px dashed rgba(212,168,71,.35);border-radius:10px;background:rgba(212,168,71,.03);margin-bottom:14px;align-items:center}
+/* v2240 (#41) — ONE ORGANISED BOX, NOT A RAGGED PILL WALL.
+   Konyo: "flagship, symmetric, one organised box instead of a ragged pill wall."
+
+   THE CAUSE WAS `flex-wrap`. Inline flow sizes every chip to its own text, so a column edge exists
+   only by accident — and his real dock holds 215 names spanning 6 to 24 characters, which is a
+   17-character ragged edge by construction. MEASURED on the catalogue, not guessed.
+
+   A grid with auto-fill gives every chip the same width and a true column, and it stays honest at
+   any viewport: the track count falls out of the available space rather than a breakpoint someone
+   has to maintain. 168px fits the longest real name at this font without ellipsis on a normal
+   window, and the ellipsis below is the safety net for the rest, never the plan.
+
+   ⚠ BOUNDED HEIGHT ON PURPOSE. 215 chips in an unbounded box pushes the mule shelf — the thing he
+   is sorting INTO — off the screen, so the dock would grow at the expense of its own destination.
+   Ten rows then scroll. */
+.vault-dock{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;min-height:44px;max-height:min(52vh,420px);overflow-y:auto;overscroll-behavior:contain;padding:10px;border:1px dashed rgba(212,168,71,.35);border-radius:10px;background:rgba(212,168,71,.03);margin-bottom:14px;align-content:start}
+/* the empty-state line is a single cell, so it must span every column or it sits in column one */
+.vault-dock:empty{display:flex;align-items:center}
+/* v2240 — a chip in a grid cell fills its track: that IS the symmetry. inline-flex sized itself to
+   its own text, which is precisely the ragged edge being removed. */
+/* ⚠ box-sizing IS LOAD-BEARING HERE. .vault-chip carries padding:4px 11px 4px 5px, so a bare
+   width:100% adds 16px to every track and the last column is clipped by the dock border —
+   with a horizontal scrollbar to match. MEASURING MISSED IT: all 215 chips came back at an
+   identical 204px, which reads as perfect symmetry and was in fact uniformly too wide. Only
+   looking at the render showed the right column cut off. [[visual-regression-detector]] */
+.vault-dock > .vault-chip{display:flex;box-sizing:border-box;width:100%;min-width:0;justify-content:space-between}
+/* the name must ellipsise rather than widen its track — one long name would otherwise set the
+   width of EVERY column, and the wall returns wearing a grid. The full name stays in `title`. */
+.vault-dock > .vault-chip > span:not(.d2art-wrap){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
@@ -47025,7 +47053,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2240', name:'v2240 - Crop Reaches Him', date:'2026-08-28', note:'The tooltip crop that named an item is now clickable on the row, and it outlives the reel it came from' };
+  window.D2R_BUILD = { id:'v2241', name:'v2241 - Dock Is One Box', date:'2026-08-28', note:'The unsorted dock is a grid of equal chips instead of a ragged pill wall, and a chip can no longer overflow its own column' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

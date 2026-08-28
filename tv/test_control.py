@@ -28523,5 +28523,58 @@ class TestV2240AnOverFullGridSaysSo(unittest.TestCase):
         self.assertIn(".vd-gridfault{", s, "the fault line has no style, so it renders unstyled")
 
 
+class TestV2241TheUnsortedDockIsOneBox(unittest.TestCase):
+    """#41 — Konyo: "flagship, symmetric, one organised box instead of a ragged pill wall."
+
+    THE CAUSE WAS flex-wrap. Inline flow sizes every chip to its own text, so a column edge existed
+    only by accident — and his real dock holds 215 names spanning 6 to 24 characters, an 18-character
+    ragged edge BY CONSTRUCTION. Measured on the catalogue, not guessed.
+
+    ⚠ AND THE FIRST CUT WAS CLIPPED WHILE MEASURING PERFECT. width:100% plus the chip's own
+    padding:4px 11px 4px 5px overflowed every track: all 215 chips returned an IDENTICAL 204px, which
+    reads as ideal symmetry and was uniformly too wide, so the last column sat under the dock border
+    with a horizontal scrollbar. The number said perfect; the pixels said clipped. Only looking
+    caught it. [[visual-regression-detector]]"""
+
+    def _bible(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_the_dock_is_a_GRID_not_inline_flow(self):
+        s = self._bible()
+        self.assertIn("grid-template-columns:repeat(auto-fill,minmax(168px,1fr))", s,
+                      "the dock is back on inline flow — the ragged wall returns")
+        self.assertNotIn(".vault-dock{display:flex;flex-wrap:wrap", s,
+                         "the old flex-wrap dock rule is back")
+
+    def test_a_chip_cannot_OVERFLOW_its_track(self):
+        # The whole defect in one property. Without it every column is padding-width too wide and
+        # the last one is clipped, while every measurement still reports identical widths.
+        s = self._bible()
+        chip = _between(self, s, ".vault-dock > .vault-chip{", "}",
+                        what="the dock chip rule", min_len=20)
+        self.assertIn("box-sizing:border-box", chip,
+                      "the dock chip has no border-box, so padding pushes it past its track")
+
+    def test_a_long_name_ellipsises_instead_of_widening_every_column(self):
+        # One long name must not set the width of all six columns — that is the wall in a grid.
+        s = self._bible()
+        self.assertIn("text-overflow:ellipsis", s,
+                      "a long item name will widen its track and re-ragged the dock")
+
+    def test_the_dock_HEIGHT_is_bounded(self):
+        # 215 chips unbounded pushes the mule shelf — the thing he is sorting INTO — off screen.
+        s = self._bible()
+        self.assertIn("max-height:min(52vh,420px)", s, "the dock can grow without limit again")
+        self.assertIn("overflow-y:auto", s, "a bounded dock with no scroll hides items outright")
+
+    def test_the_empty_state_still_reads(self):
+        # :empty on a grid puts the message in column one; it needs flex to centre.
+        s = self._bible()
+        self.assertIn(".vault-dock:empty{display:flex", s,
+                      "the perfect-order message is back in a grid cell instead of centred")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
