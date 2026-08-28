@@ -209,25 +209,49 @@ def main(argv=None):
     import sys as _sys
     argv = list(argv if argv is not None else _sys.argv[1:])
     want = [a for a in argv if not a.startswith("-")]
+    # ── v2231 (#58) — RUN ON SYNTHETIC REELS WHEN ASKED ────────────────────────────────────────
+    # The transcript used to depend on HIS footage, and on 2026-08-28 the prune deleted two of the
+    # reels it names. `--synthetic` builds the whole tree in ~140 KB — real JPEGs with genuinely
+    # distinct signatures, because jpeg_sig reads the bytes and the sweep dedupes on them.
+    # Verified: all six scenarios reproduce exactly, merge-max included.
+    _hist, _tmp = None, None
+    if "--synthetic" in argv:
+        import tempfile
+        import vault_fixture_reels as _vf
+        _tmp = tempfile.mkdtemp(prefix="vault-sim-")
+        _hist, _why = _vf.materialise(_tmp)
+        if not _hist:
+            print("⚪ UNKNOWN — could not build the synthetic reels: %s" % _why)
+            return 2
+        _ok, _w = _vf.signatures_are_distinct(_hist)
+        if not _ok:
+            # a fixture whose frames share a fingerprint proves a WEAKER rule than the one asserted
+            print("🔴 the synthetic frames are not distinct: %s" % _w)
+            return 1
+        _reels = list(_vf.REELS)
     scns = [s for s in SCENARIOS if not want or s["id"] in want]
     if not scns:
         print("no scenario named %s. known: %s" % (want, ", ".join(s["id"] for s in SCENARIOS)))
         return 2
     bad = []
-    print("THE VAULT LANE, ON HIS OWN REELS — no vision calls, no writes.")
+    print("THE VAULT LANE, ON %s — no vision calls, no writes."
+          % ("SYNTHETIC REELS" if "--synthetic" in argv else "HIS OWN REELS"))
     print("Assertions live in tv/test_vault_lane.py; this is the transcript.\n")
     for scn in scns:
         print("\u2500\u2500 %s" % scn["id"])
         print("   %s" % scn["say"])
         print("   EXPECT: %s" % scn.get("expect", "(unstated)"))
-        built = build(scn)
+        if _hist:
+            scn = dict(scn)
+            scn["reels"] = _reels[:len(scn.get("reels") or [1])]
+        built = build(scn, hist_dir=_hist)
         if not built["script"]:
             print("   \u26a0 NO FRAMES — his reels for this scenario are not in this checkout, so "
                   "nothing was exercised. This is not a pass.")
             bad.append(scn["id"])
             print()
             continue
-        prop = run(built)
+        prop = run(built, hist_dir=_hist)
         for line in explain(prop):
             print("   %s" % line)
         if not prop.get("ok"):

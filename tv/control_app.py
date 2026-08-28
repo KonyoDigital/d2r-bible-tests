@@ -9631,13 +9631,58 @@ def _receipts_stream():
                     "reason": (str(r.get("gateReason") or "") or None)}
             held = _gp is False
 
+            # ══ v2230 (#56) — SEEN IS NOT REGISTERED, AND THE STRIP DID NOT SAY WHICH ═══════════
+            # He watched the AI READS strip report gems seen ON THE FLOOR and asked whether it had
+            # registered them by accident. MEASURED: it had not — vault_seen.json (17 rows) and
+            # chron_evidence.json (16) hold zero gem-shaped names, and vault_retro has no "floor"
+            # surface, so a correctly-classified floor frame is already rejected. He confirmed:
+            # "yea thats what i saw".
+            #
+            # So the data was right and the SURFACE was not. The strip honestly reports what the
+            # reader SAW — it looks at every frame, including gameplay — and nothing distinguished
+            # "seen and shown" from "seen and BANKED". A true statement wearing a bigger label, and
+            # he reasonably read it as a registration and had to ask. [[label-outlived-referent]]
+            #
+            # ⚠ ONE AUTHORITY. The answer comes from vault_retro.OWNERSHIP_SURFACES, the same tuple
+            # the writer consults, so the chip can never disagree with what actually banks. A second
+            # list here is how the panel and the writer drift — see #167, closed today.
+            # ⚠⚠ SCENE AND OWNERSHIP-SURFACE ARE DIFFERENT VOCABULARIES, and my first cut of this
+            # conflated them. `scene` says what the FRAME SHOWS (loot, gameplay, intake, town, kai);
+            # vault_retro.OWNERSHIP_SURFACES lists the vault lane's FOCUS declarations (stash,
+            # inventory, equipment, runes, gems, materials). Testing one against the other returned
+            # banked=False for ALL 21 live receipts INCLUDING scene=intake — the lane that actually
+            # registers. THE COUNT WAS THE TELL: 21 of 21, on a strip whose whole job is to show
+            # reads that landed.
+            #
+            # Shipping that would have replaced a missing label with a WRONG one, which is worse: he
+            # would have seen "not registered" beside reads that were. So this now answers only
+            # where it can, and says UNKNOWN otherwise. [[unknown-stays-unknown]]
+            _SEEN_ONLY = ("loot", "gameplay", "town", "transition", "session_end")
+            _sl = (scene or "").lower()
+            if _sl in _SEEN_ONLY:
+                _own = {"banked": False, "scene": _sl,
+                        "why": "read from the %s view — seen, not registered" % _sl}
+            else:
+                try:
+                    _surfaces = getattr(_vault_retro(), "OWNERSHIP_SURFACES", ())
+                except Exception:
+                    _surfaces = ()
+                if _sl and _sl in _surfaces:
+                    _own = {"banked": True, "scene": _sl,
+                            "why": "read from %s, an ownership surface" % _sl}
+                else:
+                    # intake, kai, watchdog, unnamed — this receipt does not carry the fact, and
+                    # guessing it is how a true strip starts lying.
+                    _own = {"banked": None, "scene": _sl or None,
+                            "why": "this receipt does not record whether the read was banked"}
+
             # 🛡 watchdog → one flag receipt, routes to the flag panel
             if lane == "watchdog":
                 wd = r.get("watchdog") if isinstance(r.get("watchdog"), dict) else {}
                 rule = str(wd.get("rule") or "")
                 note = str(r.get("note") or "")
                 out.append({"id": "%s:%s:0" % (engine, frame_key), "engine": engine, "kind": kind,
-                            "ts": ts, "refs": _refs(), "gate": gate, "held": held,
+                            "ts": ts, "refs": _refs(), "gate": gate, "held": held, "own": _own,
                             "diablo": {"label": ("WATCHDOG: " + (note or rule))[:70]} if (rule or note) else None,
                             "route": {"type": "flag", "target": rule} if rule else ({"type": "session", "target": sid} if sid else None)})
                 continue
@@ -9682,7 +9727,7 @@ def _receipts_stream():
                 else:
                     _tail = ""
                 out.append({"id": "%s:%s:0" % (engine, frame_key), "engine": engine, "kind": kind,
-                            "ts": ts, "refs": _refs(), "gate": gate, "held": held,
+                            "ts": ts, "refs": _refs(), "gate": gate, "held": held, "own": _own,
                             "empty": (not tot),
                             "diablo": {"label": ("ROUTED " + tab + _tail).strip()} if tab else None,
                             "route": {"type": "session", "target": sid} if sid else None})
@@ -9697,7 +9742,7 @@ def _receipts_stream():
             names = [str(n).strip() for n in names if isinstance(n, str) and str(n).strip()]
             for i, nm in enumerate(names):
                 out.append({"id": "%s:%s:%d" % (engine, frame_key, i), "engine": engine, "kind": kind,
-                            "ts": ts, "refs": _refs(itemName=nm), "gate": gate, "held": held,
+                            "ts": ts, "refs": _refs(itemName=nm), "gate": gate, "held": held, "own": _own,
                             "diablo": diablo,
                             "route": {"type": "item", "target": nm}})   # client grounds name→dossier|checker
     except Exception:
@@ -18349,7 +18394,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2229",
+        "ver": "v2231",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

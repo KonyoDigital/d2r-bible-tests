@@ -101,6 +101,14 @@ GATES = [
     # cut passed it as the 4th POSITIONAL, so it landed in `needs_app` and the gate registered with
     # an empty why — which test_every_gate_says_what_it_protects caught immediately, exactly as it
     # exists to. A gate nobody can triage is the one people start ignoring.
+    # v2231 (#58) — the synthetic reels must keep fingerprinting distinctly, or the vault
+    # scenarios silently prove a weaker rule: vault_retro dedupes by signature, so two identical
+    # frames are ONE witness. This is the property the whole fixture rests on.
+    Gate("vault-fixture-reels", [sys.executable, os.path.join(HERE, "vault_fixture_reels.py")], 60,
+         why="v2231 — the vault suite runs on ~140 KB of synthetic footage instead of 123 MB of his "
+             "reels, after the prune deleted two of them and sent nine cases to a permanent skip. "
+             "If the generated frames stop being distinct, the scenarios keep passing while "
+             "proving less than they claim."),
     Gate("corroborate-selftest", [sys.executable, os.path.join(HERE, "corroborate.py"),
                                   "--selftest"], 60,
          why="v2228 — the cross-engine invariants must be able to REFUSE. Every serious defect on "

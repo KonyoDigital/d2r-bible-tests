@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2229",
+  "ver": "v2231",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2229: a free-space history so more-than-yesterday becomes answerable",
+  "note": "v2231: a suite proving how the vault decides must not hold his disk hostage",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

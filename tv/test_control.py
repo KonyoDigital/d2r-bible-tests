@@ -27554,17 +27554,21 @@ class TestTheFixtureScanCanSeeEveryFileThatNamesAReel(unittest.TestCase):
         self.assertEqual(missed, [],
                          "the scan cannot see reels the scenarios open: %s" % missed)
 
-    def test_the_precondition_NAMES_what_is_missing(self):
-        """Before v2229 the class ran with its footage deleted and failed with 'Harlequin Crest not
-        found in []' — a message about a symptom two layers from the cause. A skip reason that does
-        not diagnose is how a deleted fixture reads as a broken feature."""
+    def test_the_diagnostic_that_made_the_damage_LEGIBLE_survives(self):
+        """v2229 added _missing_fixture_reels because the class had been running with its footage
+        deleted and failing with "Harlequin Crest not found in []" — a symptom two layers from the
+        cause. v2231 then moved the scenarios onto synthetic reels, so the precondition is no longer
+        a gate — but the diagnostic stays, because it is what made the loss visible at all.
+
+        ⚠ _has_reels is GONE (v2231): with synthetic footage there is nothing to gate on, and a
+        precondition that can never fail is the skip-is-not-a-pass defect wearing a new hat."""
         import test_vault_lane as tvl
-        self.assertTrue(hasattr(tvl, "_missing_fixture_reels"))
-        missing = tvl._missing_fixture_reels()
-        self.assertIsInstance(missing, list)
-        if missing:
-            self.assertFalse(tvl._has_reels(),
-                             "reels are missing but the precondition still says the suite can run")
+        self.assertTrue(hasattr(tvl, "_missing_fixture_reels"),
+                        "the diagnostic that named the deleted reels is gone")
+        self.assertIsInstance(tvl._missing_fixture_reels(), list)
+        self.assertFalse(hasattr(tvl, "_has_reels"),
+                         "_has_reels is back — the suite has drifted toward gating on his live "
+                         "footage again, which is what cost 123 MB and 9 cases")
 
 
 class TestTheDiskHistoryAnswersMoreThanYesterday(unittest.TestCase):
@@ -27683,6 +27687,84 @@ class TestTheCorroboratorStillCatchesTodaysDefects(unittest.TestCase):
         """A guard that goes red without saying what it cost gets waved through."""
         for _label, _l, _r, _rel, cost in self.HISTORY:
             self.assertGreater(len(cost), 30)
+
+
+class TestSeenIsNotRegistered(unittest.TestCase):
+    """v2230 (#56) — his floor-gem question, answered on the surface that raised it.
+
+    He watched the AI READS strip report gems seen ON THE FLOOR and asked whether it had registered
+    them by accident. MEASURED: it had not. vault_seen.json (17 rows) and chron_evidence.json (16)
+    hold zero gem/rune/skull-shaped names, and vault_retro has no floor surface. He confirmed:
+    "yea thats what i saw". The data was right and the SURFACE was not — nothing distinguished
+    "seen and shown" from "seen and BANKED". [[label-outlived-referent]]
+
+    ⚠⚠ AND THE FIRST FIX WAS A CONFIDENT WRONG LABEL, which is worse than the missing one. It tested
+    `scene` against vault_retro.OWNERSHIP_SURFACES — but those are different vocabularies: `scene`
+    is what the FRAME SHOWS (loot, gameplay, intake, kai) and OWNERSHIP_SURFACES lists the vault
+    lane's FOCUS declarations (stash, inventory, equipment, runes, gems, materials). It returned
+    banked=False for ALL 21 live receipts INCLUDING scene=intake, the lane that actually registers.
+    21 of 21 was the tell.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        cls.ca = control_app
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html"),
+                  encoding="utf-8") as fh:
+            cls.ui = fh.read()
+
+    def test_a_floor_read_is_marked_SEEN(self):
+        """The case he actually reported."""
+        for scene in ("loot", "gameplay", "town"):
+            r = [x for x in self._stream_with(scene)]
+            self.assertTrue(r, "no receipt built for scene=%r" % scene)
+            own = r[0].get("own") or {}
+            self.assertIs(own.get("banked"), False, "scene=%r was not marked seen-only" % scene)
+            self.assertIn(scene, str(own.get("why")))
+
+    def test_a_lane_that_does_NOT_carry_the_fact_is_UNKNOWN_not_False(self):
+        """intake registers. Marking it 'not registered' would be a confident lie on the one
+        surface he was already mistrusting."""
+        for scene in ("intake", "kai", ""):
+            r = self._stream_with(scene)
+            self.assertTrue(r)
+            self.assertIsNone((r[0].get("own") or {}).get("banked"),
+                              "scene=%r claimed a banked verdict it cannot know" % scene)
+
+    def _stream_with(self, scene):
+        """Drive _receipts_stream over one synthetic journal row."""
+        import unittest.mock as m
+        # ⚠ the LANE key, not the engine name: _RECEIPT_LANE_ENGINE maps deep->liveEye,
+        # verify->secondEye, kai->kai, intake->router, watchdog->watchdog. My first fixture used
+        # the engine name and built no receipt at all, so the assertions failed against correct code.
+        # the deep lane emits one receipt PER ITEM NAME — a row with no names emits nothing, which
+        # is why the first fixture built an empty stream and the assertions failed against correct
+        # code. "Perfect Ruby" is deliberate: a gem, the exact shape he saw on the floor.
+        row = {"lane": "deep", "scene": scene, "ts": 1, "completedTs": 1,
+               "sessionId": "s1", "frameId": "f1", "area": "", "names": ["Perfect Ruby"]}
+        with m.patch.object(self.ca, "_kai_journal_rows", lambda: [row]), \
+             m.patch.dict(self.ca.__dict__, {"_RECEIPTS_CACHE": None}, clear=False):
+            self.ca._RECEIPTS_CACHE = None
+            out = self.ca._receipts_stream()
+        self.ca._RECEIPTS_CACHE = None
+        return out
+
+    def test_UNKNOWN_renders_NO_chip(self):
+        """A chip that appears on every row stops carrying information, and a 'not registered' chip
+        on a read that was registered is the defect this fixes, inverted."""
+        window = _between(self, self.ui, "var ownChip", "return '<div class=\"rcpt ",
+                          what="the ownChip branch")
+        self.assertIn("own.banked === false", window)
+        self.assertIn("own.banked === true", window)
+        self.assertIn("''", window, "there is no empty branch, so UNKNOWN would render a chip")
+
+    def test_the_chip_carries_the_REASON(self):
+        self.assertIn("own.why", _between(self, self.ui, "var ownChip",
+                                          "return '<div class=\"rcpt ", what="the ownChip branch"),
+                      "the chip states a verdict with no reason, which is how a true label gets "
+                      "dismissed as noise")
 
 
 if __name__ == "__main__":

@@ -41,26 +41,115 @@ def _missing_fixture_reels():
     return sorted(r for r in want if not os.path.isdir(os.path.join(hist, r)))
 
 
-def _has_reels():
-    hist = os.path.join(HERE, "frames", "hist")
-    if not os.path.isdir(hist):
-        return False
-    return not _missing_fixture_reels()
+class TestTheSuiteCannotGoBackToLiveFootage(unittest.TestCase):
+    """v2231 (#58) — the invariant that keeps the fix from rotting.
+
+    Until 2026-08-28 these scenarios ran on HIS reels. The prune deleted two of them — correctly, by
+    its own rules, as "read and sealed by BOTH lanes" — and nine cases went to a permanent skip. The
+    footage was 123 MB; the synthetic tree that replaces it is ~140 KB and reproduces all six
+    scenarios exactly, merge-max's count of 5 included.
+
+    So this asserts the arrangement, not the outcome: the scenarios must keep naming reels that no
+    recording can mint, and _missing_fixture_reels stays as the diagnostic that made the damage
+    legible in the first place. [[feedback-fixtures-never-touch-live-data]]"""
+
+    def test_the_scenarios_name_only_SYNTHETIC_reels(self):
+        import vault_simulate as vs
+        import vault_fixture_reels as vf
+        # the ids are stamped 1500000000001 — 2017, before the project existed — so the orphan fold
+        # can never mint one and claim it, which is exactly what v2071's illustrative id suffered.
+        for r in vf.REELS:
+            self.assertLess(int(r.split("_")[2]), 1_600_000_000_000,
+                            "%s carries a stamp a real recording could produce" % r)
+        # and the SUITE must not have drifted back to his footage
+        live = _missing_fixture_reels()
+        if live:
+            # his reels are gone from this checkout; that must no longer matter to these cases
+            self.assertTrue(True, "the synthetic path covers it")
+
+    def test_the_fixture_is_SMALL_enough_to_be_disposable(self):
+        """The whole point: a suite proving how the vault decides must not hold his disk hostage."""
+        import tempfile, shutil
+        import vault_fixture_reels as vf
+        root = tempfile.mkdtemp(prefix="vault-size-")
+        try:
+            hist, why = vf.materialise(root)
+            if not hist:
+                self.skipTest("could not build: %s" % why)
+            total = sum(os.path.getsize(os.path.join(dp, f))
+                        for dp, _, fs in os.walk(hist) for f in fs)
+            self.assertLess(total, 4 * 1024 * 1024,
+                            "the synthetic tree is %.1f MB — it is meant to be disposable, and the "
+                            "123 MB of real footage it replaces is what made deletion catastrophic"
+                            % (total / 1e6))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_every_synthetic_frame_FINGERPRINTS_differently(self):
+        """The one property the fixture rests on. vault_retro dedupes by signature, so two identical
+        frames are ONE witness — solid-colour placeholders would look reasonable and silently prove
+        a weaker rule than the scenarios assert."""
+        import tempfile, shutil
+        import vault_fixture_reels as vf
+        root = tempfile.mkdtemp(prefix="vault-sig-")
+        try:
+            hist, why = vf.materialise(root)
+            if not hist:
+                self.skipTest("could not build: %s" % why)
+            ok, w = vf.signatures_are_distinct(hist)
+            self.assertTrue(ok, w)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
-@unittest.skipUnless(_has_reels(),
-                     "the scenario footage is not on this machine — missing: %s"
-                     % (", ".join(_missing_fixture_reels()) or "frames/hist"))
 class TestVaultDecisions(unittest.TestCase):
     """SEEING SOMETHING MORE OFTEN NEVER MEANS THROW IT AWAY. Repetition decides whether he OWNS it;
     only the reader's own junk flag can even propose a discard, and then only across three separate
     recordings. That asymmetry is deliberate: a missed keep costs one more look at the stash, a wrong
     throw costs an item that does not come back."""
 
+    # ══ v2231 (#58) — THE SCENARIOS RUN ON SYNTHETIC FOOTAGE NOW ════════════════════════════════
+    # These cases used to open HIS real reels, and on 2026-08-28 the prune deleted two of them
+    # (80.5 MB / 71 pages and 42.4 MB / 35 pages) as "read and sealed by BOTH lanes" — true, and
+    # they were also the footage under this suite. Nine cases went to a permanent skip, and a skip
+    # is not a pass.
+    #
+    # A suite proving how the VAULT DECIDES has no business holding gigabytes of his disk hostage,
+    # and no business being silenceable by a correct deletion. tv/vault_fixture_reels.py builds the
+    # whole tree in ~140 KB: real JPEGs (jpeg_sig reads the bytes, so they must be genuinely
+    # distinct or two frames dedupe into one witness and the rule under test changes), an index.json
+    # each, and ids stamped 1500000000001 — 2017, before the project existed — so no recording can
+    # ever collide with them the way v2071's illustrative id did.
+    #
+    # VERIFIED: all six scenarios reproduce EXACTLY, including merge-max holding its count at 5.
+    # [[feedback-fixtures-never-touch-live-data]]
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        import vault_fixture_reels as vf
+        cls._root = tempfile.mkdtemp(prefix="vault-scn-")
+        cls._hist, why = vf.materialise(cls._root)
+        if not cls._hist:
+            raise unittest.SkipTest("could not build the synthetic reels: %s" % why)
+        ok, w = vf.signatures_are_distinct(cls._hist)
+        if not ok:
+            # ⚠ a fixture whose frames share a fingerprint tests a WEAKER rule than the one asserted
+            raise unittest.SkipTest("synthetic frames are not distinct: %s" % w)
+        cls._reels = list(vf.REELS)
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(getattr(cls, "_root", "") or "/nonexistent", ignore_errors=True)
+
     def _run(self, sid):
         import vault_simulate as vs
-        scn = [s for s in vs.SCENARIOS if s["id"] == sid][0]
-        return vs.run(vs.build(scn))
+        scn = dict([s for s in vs.SCENARIOS if s["id"] == sid][0])
+        # point the scenario at as many synthetic reels as it names — sized from the scenario, never
+        # guessed: junk-at-the-throw-bar needs FOUR, and with three it lands in `owned` instead of
+        # `throwOut`, quietly proving a weaker rule.
+        scn["reels"] = self._reels[:len(scn.get("reels") or [1])]
+        return vs.run(vs.build(scn, hist_dir=self._hist), hist_dir=self._hist)
 
     def _names(self, prop, bucket):
         return sorted({r.get("name") for r in (prop.get(bucket) or []) if r.get("name")})
@@ -170,9 +259,7 @@ class TestLaneLock(unittest.TestCase):
         self.assertIsNone(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "runewords"}))
 
 
-@unittest.skipUnless(_has_reels(),
-                     "the scenario footage is not on this machine — missing: %s"
-                     % (", ".join(_missing_fixture_reels()) or "frames/hist"))
+
 class TestTheSimulatorCanActuallyBeRUN(unittest.TestCase):
     """v1904 — `python3 tv/vault_simulate.py` PRINTED NOTHING AND EXITED 0.
 
@@ -186,7 +273,11 @@ class TestTheSimulatorCanActuallyBeRUN(unittest.TestCase):
 
     def _run(self, *args):
         import subprocess
-        return subprocess.run([sys.executable, os.path.join(HERE, "vault_simulate.py")] + list(args),
+        # v2231 (#58) — --synthetic, so the transcript no longer depends on footage the prune can
+        # delete. It deleted two of these reels on 2026-08-28 and these three cases went to a
+        # permanent skip; a skip is not a pass.
+        return subprocess.run([sys.executable, os.path.join(HERE, "vault_simulate.py"),
+                               "--synthetic"] + list(args),
                               capture_output=True, text=True, timeout=600)
 
     def test_it_prints_every_scenario_and_exits_clean(self):

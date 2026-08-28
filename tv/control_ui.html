@@ -956,6 +956,14 @@
   .brain .line.mind-good  { color: #a9e6ba; }
   .brain .line.mind-good .k { filter: drop-shadow(0 0 5px rgba(102,255,136,.55)); }
   .brain .line.mind-read  { color: #b7ecc4; }
+  /* v2230 — the SEEN chip is dim and factual, never alarming: a floor read is the reader doing
+     its job, not a fault. The REGISTERED chip is the one that carries weight. */
+  .rcpt-seen { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); color: #8a7d64;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px; padding: 2px 6px; margin-left: 6px; white-space: nowrap; }
+  .rcpt-banked { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); color: #9ec7a6;
+    background: rgba(102,255,136,.08); border: 1px solid rgba(102,255,136,.28);
+    border-radius: 6px; padding: 2px 6px; margin-left: 6px; white-space: nowrap; }
   .brain .line.mind-scene { color: #9db8d8; }
   .brain .line.mind-scene .k { filter: drop-shadow(0 0 5px rgba(120,160,220,.5)); }
   .brain .line.mind-ocr   { color: #c7b6e6; }
@@ -6654,11 +6662,25 @@
     /* v1943 — an EMPTY routing is dimmed, so a row that carried nothing cannot pass at a glance
        for one that carried something. 45 of his 46 intakes counted zero and every one of them wore
        exactly the chrome of the single success. */
+    /* ══ v2230 (#56) — SEEN IS NOT REGISTERED ═══════════════════════════════════════════════
+       He watched this strip report gems seen ON THE FLOOR and asked whether it had registered them
+       by accident. It had not — the durable stores hold zero gem-shaped names — and he confirmed
+       that is what he saw. The data was right; the SURFACE was not. Nothing here distinguished
+       "seen and shown" from "seen and BANKED", so a true row wore a bigger label than it earned
+       and he had to ask. [[label-outlived-referent]]
+       ⚠ null is UNKNOWN and gets NO chip: most lanes do not carry the fact, and a "not registered"
+       chip on a read that WAS registered is worse than the silence it replaces. */
+    var own = r.own || {};
+    var ownChip = (own.banked === false)
+      ? '<span class="rcpt-seen" title="' + esc(own.why || 'seen, not registered') + '">👁 seen</span>'
+      : (own.banked === true
+         ? '<span class="rcpt-banked" title="' + esc(own.why || 'registered') + '">🗄 registered</span>'
+         : '');
     return '<div class="rcpt ' + eng.cls + (go ? ' rc-go' : '') + (refs.frameId ? ' rc-art' : '')
       + (held ? ' rc-held' : '') + (r.empty ? ' rc-empty' : '') + '"'
       + ' data-id="' + esc(r.id || '') + '"' + (refs.frameId ? (' data-frame="' + esc(refs.frameId) + '"') : '')
       + (go ? (' data-rtype="' + esc(r.route.type) + '" data-rtarget="' + esc(r.route.target) + '"') : '') + '>'
-      + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t">' + esc(txt) + '</span>' + chip
+      + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t">' + esc(txt) + '</span>' + chip + ownChip
       + (go ? '<span class="rcpt-arrow">→</span>' : '') + '</div>';
   }
   // event delegation, bound once: click → route into the board · hover → floating captured frame
