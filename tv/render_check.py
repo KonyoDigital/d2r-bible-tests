@@ -118,6 +118,51 @@ TARGETS = {
                        "with an ellipsis rather than hard-clipped, so the cut is visible to him",
         },
     },
+    "vault-full": {
+        "why": "a locker packed until it is FULL — the v2216 state the other targets never reach",
+        # ⚠ THIS TARGET EXISTS BECAUSE A COLD CROSS-FAMILY READ FOUND NOTHING TO READ. Asked with no
+        # hint whether anything on the vault reported a capacity or a fullness, a different model
+        # family answered CANNOT TELL — and it was right: the "vault" target seeds 18 weapons across
+        # eleven lockers, so no locker ever fills, no gauge ever goes hot, and the entire v2216
+        # subject (FULL is not 100%; fifteen 2x4 weapons sit at 120 of 140 cells) was never once on
+        # screen for the gate to look at. Real data, right gate, still blind.
+        # [[gate-blind-to-unexercised-input]] [[feedback-blind-fixture-green-gate]]
+        "seed": """(function(){
+            localStorage.setItem('d2r_ownerClaim','*');
+            var W=['Windforce','Doombringer','The Grandfather','Breath of the Dying','Stormlash',
+                   'Bonehew','Steeldriver','Earth Shifter','Lightsabre','Tomb Reaver','Eaglehorn',
+                   'Widowmaker','Buriza-Do Kyanon','Gimmershred','Lacerator','Warshrike','Hellrack',
+                   'Silver-Edged Axe','Astreon\\u2019s Iron Ward','Bloodtree Stump','Boneslayer Blade',
+                   'Brainhew','Cranebeak','Death Cleaver','Demonlimb','Djinn Slayer','Doomslinger',
+                   'Ethereal Edge','Executioner\\u2019s Justice','Fleshripper'];
+            W.forEach(function(n){
+              try{ window.tvVaultRegister(n); window.vaultAssign(n,'uni-weap'); }catch(e){} });
+            return 1; })()""",
+        "activate": """(function(){
+            var t=[].slice.call(document.querySelectorAll('.tab[data-tab]')).filter(function(x){
+              return /vault/i.test(x.getAttribute('data-tab')||'');})[0];
+            if(t) t.click();
+            try{ window.renderVault && window.renderVault(); }catch(e){}
+            /* PROVE THE STATE, NOT JUST THE ELEMENT. A target that renders eleven cheerful
+               half-empty lockers would pass every geometry check while measuring the exact
+               opposite of what it exists for — which is how v2216 went unlooked-at for ten
+               versions. So: at least one gauge must actually be HOT (full, or spilled onto a
+               second mule), or this target refuses and says so. */
+            var hot=[].slice.call(document.querySelectorAll('.vm-gauge')).filter(function(g){
+              var f=g.querySelector('.vm-gauge-fill');
+              var t=g.getAttribute('title')||'';
+              return (f && /vg-hot/.test(f.className)) || /FULL|needs \d+ mules/.test(t);
+            });
+            if(!hot.length) return false;
+            var r=hot[0].getBoundingClientRect();
+            return !!(r.width>0 && r.height>0); })()""",
+        "sel": ".vm-gauge, [data-vault-mule]",
+        "truncation_ok": {
+            "vm-cell-name": "the name label inside a 10x10-grid tile — the cell is 28px by design, "
+                            "the item is read from its art and its tooltip, and the full name is "
+                            "in the title attribute",
+        },
+    },
     "inbox": {
         "why": "the chronicle inbox — the rows he answers",
         "seed": """(function(){

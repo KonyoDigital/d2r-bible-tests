@@ -10224,6 +10224,170 @@ def board_tick(name, kind, want):
         return {"ok": False, "why": "the board answered something unreadable"}
 
 
+_UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
+
+
+def ui_fault_record(kind, why=None, where=None, path=None):
+    """Append one fault the UI reported about ITSELF. Append-only, capped, never raises.
+
+    ⚠ v2228 — THE CONSOLE HAD NO WAY TO SAY IT WAS BROKEN. He found the black-screen stage himself,
+    twice, and reported it with screenshots; nothing in the tree knew. A UI fault that only a human
+    can notice is a fault that gets noticed late and reported as a mystery, which is exactly how
+    this one arrived. His instruction: "watch dog it and eagle eye it."
+    """
+    p = path or _UI_FAULTS
+    row = {"at": int(time.time() * 1000), "kind": str(kind or "")[:40],
+           "why": str(why or "")[:200], "where": str(where or "")[:120]}
+    try:
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        # cap: keep the last 200 so a loop cannot fill his disk with its own complaints
+        try:
+            with open(p, encoding="utf-8") as fh:
+                lines = fh.readlines()
+            if len(lines) > 200:
+                with open(p, "w", encoding="utf-8") as fh:
+                    fh.writelines(lines[-200:])
+        except Exception:
+            pass
+    except Exception:
+        return None
+    return row
+
+
+def ui_faults_recent(hours=24, path=None):
+    """-> (rows, why). Rows newest-last. UNKNOWN is None, never an empty list."""
+    p = path or _UI_FAULTS
+    if not os.path.exists(p):
+        return [], "no fault has ever been reported"      # measured empty, not unreadable
+    try:
+        cut = time.time() * 1000 - hours * 3600_000
+        out = []
+        with open(p, encoding="utf-8") as fh:
+            for ln in fh:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    r = json.loads(ln)
+                except Exception:
+                    continue
+                if isinstance(r, dict) and (r.get("at") or 0) >= cut:
+                    out.append(r)
+        return out, None
+    except Exception as e:
+        return None, "the fault log will not parse (%s)" % str(e)[:70]
+
+
+_DISK_HISTORY = os.path.join(HERE, "disk_history.jsonl")
+_DISK_HISTORY_KEEP = 2000          # ~90 days at the retention cadence
+
+
+def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible_mb=None,
+                        pruned_mb=None, path=None):
+    """Append one free-space reading. Append-only, capped, never raises.
+
+    ⚠ v2229 — HE ASKED "how come i have 15 gigabytes more today than yesterday? is the pruning
+    working?" AND NEITHER OF US COULD ANSWER IT FROM THE SYSTEM. reel_retention reports freeGb at
+    READ TIME only; searching every JSON in tv/ found the key in exactly one unrelated file. The
+    panel could say "30.0GB free" with total confidence and could not say whether that was up, down
+    or flat. A number he makes storage decisions on, with no history. [[stale-reading]]
+
+    It also left a contradiction unresolvable: my own note from the day before recorded 39.9 GB and
+    the live reading was 30.0 — DOWN ten, while his impression was UP fifteen. With no series,
+    neither reading could check the other, and I refused to pick a side.
+
+    ⚠ `prunedMb` COMES FROM OUR OWN COUNTER, so the panel can never imply we freed space we did not.
+    The honest answer that day was that the pruner had deleted NOTHING, ever, and could not have:
+    the entire reel corpus was 8.9 GB against a claimed 15 GB gain.
+    """
+    p = path or _DISK_HISTORY
+    row = {"at": int(time.time() * 1000), "freeGb": round(float(free_gb), 2),
+           "floorGb": floor_gb, "histBytes": hist_bytes, "reels": reels,
+           "eligibleMb": eligible_mb, "prunedMb": pruned_mb}
+    try:
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row) + "\n")
+        try:
+            with open(p, encoding="utf-8") as fh:
+                lines = fh.readlines()
+            if len(lines) > _DISK_HISTORY_KEEP:
+                with open(p, "w", encoding="utf-8") as fh:
+                    fh.writelines(lines[-_DISK_HISTORY_KEEP:])
+        except Exception:
+            pass
+    except Exception:
+        return None
+    return row
+
+
+def disk_delta(hours=24, path=None):
+    """How the disk has moved, and how much of it was US. -> dict
+
+    ⚠ EVERY FIELD CAN BE None, AND None MEANS UNKNOWN. A series with a hole must not report a delta
+    of zero: "we have no reading from then" and "it did not move" are opposite facts, and this is
+    the exact question he asked. [[unknown-stays-unknown]]
+    """
+    p = path or _DISK_HISTORY
+    out = {"now": None, "then": None, "deltaGb": None, "hours": hours,
+           "prunedMbInWindow": None, "why": None, "samples": 0}
+    if not os.path.exists(p):
+        out["why"] = "no free-space history has been recorded yet — this is UNKNOWN, not unchanged"
+        return out
+    try:
+        rows = []
+        with open(p, encoding="utf-8") as fh:
+            for ln in fh:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    r = json.loads(ln)
+                except Exception:
+                    continue
+                if isinstance(r, dict) and isinstance(r.get("freeGb"), (int, float)):
+                    rows.append(r)
+    except Exception as e:
+        out["why"] = "the history will not parse (%s)" % str(e)[:70]
+        return out
+    if not rows:
+        out["why"] = "the history exists but holds no readable reading"
+        return out
+    out["samples"] = len(rows)
+    now = rows[-1]
+    out["now"] = now.get("freeGb")
+    cut = time.time() * 1000 - hours * 3600_000
+    older = [r for r in rows if (r.get("at") or 0) <= cut]
+    if not older:
+        # ⚠ THE HOLE CASE. The series does not reach back that far; say so rather than comparing
+        # against the oldest thing we happen to have and calling it "yesterday".
+        span_h = (now.get("at", 0) - rows[0].get("at", 0)) / 3600_000.0
+        out["why"] = ("the history only reaches back %.1fh, so a %dh comparison is UNKNOWN"
+                      % (span_h, hours))
+        return out
+    then = older[-1]
+    out["then"] = then.get("freeGb")
+    out["deltaGb"] = round((out["now"] or 0) - (out["then"] or 0), 2)
+    inwin = [r for r in rows if (r.get("at") or 0) > cut]
+    pruned = [r.get("prunedMb") for r in inwin if isinstance(r.get("prunedMb"), (int, float))]
+    out["prunedMbInWindow"] = round(sum(pruned), 1) if pruned else 0.0
+    return out
+
+
+def disk_delta_say(hours=24, path=None):
+    """One sentence he can read, which never claims we freed space we did not. -> str"""
+    d = disk_delta(hours, path)
+    if d.get("now") is None or d.get("deltaGb") is None:
+        return "free space: %s" % (d.get("why") or "UNKNOWN")
+    mv = d["deltaGb"]
+    word = "up" if mv > 0 else ("down" if mv < 0 else "flat")
+    ours = d.get("prunedMbInWindow") or 0
+    tail = (" and none of it was us" if ours <= 0 else
+            " — %.0f MB of that was our pruning" % ours)
+    return ("%.1fGB free — %s%s since %dh ago (%.1fGB then)%s"
+            % (d["now"], word, ("" if mv == 0 else " %.1fGB" % abs(mv)), hours, d["then"], tail))
+
+
 def board_restore_dates(stamp_prefix=""):
     """Rewrite foundLog stamps that match stamp_prefix from d2r_gameFound (in-game Chronicle).
     Names with no game date are left as they are."""
@@ -12681,13 +12845,32 @@ def _retention_once():
     cands = p.get("candidates") or []
     # v2006's scar, honoured: ONE SIDE DECIDES. The floor travels on the payload so the board can
     # never compare a rounded number against python's unrounded one and disagree about the same fact.
+    # v2229 — bank this reading before anything branches on it, so the series exists whether the
+    # pass acts, refuses or reports. A history with holes at exactly the interesting moments is the
+    # defect one level up.
+    try:
+        disk_history_append(free_gb, ON_AIR_FLOOR_GB,
+                            hist_bytes=None, reels=len(p.get("kept") or []) + len(cands),
+                            eligible_mb=round(p.get("freeMb") or 0, 1), pruned_mb=0)
+    except Exception:
+        pass
     base = {"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
             "floorGb": ON_AIR_FLOOR_GB,
             "lockedBehindASweep": len(waiting), "lockedMb": waiting_mb,
             "lockedChron": len(_w_chron), "lockedChronMb": _chron_mb,
             "lockedVault": len(_w_vault), "lockedVaultMb": _vault_mb,
             "eligible": len(cands), "eligibleMb": round(p.get("freeMb") or 0, 1),
-            "unreadable": p.get("unreadable") or []}
+            "unreadable": p.get("unreadable") or [],
+            # v2229 (#53) — THE TREND, ATTRIBUTED. He asked "how come i have 15 gigabytes more today
+            # than yesterday? is the pruning working?" and nothing in the tree could answer either
+            # half: no series existed, and the panel had no way to say how much of any change was
+            # OURS. Both halves ride here now, and `diskTrend` says UNKNOWN rather than "unchanged"
+            # when the series does not reach back far enough. [[stale-reading]]
+            #
+            # ⚠ AND IT IS READ, not merely computed. LAW 19 caught disk_delta_say with no caller
+            # minutes after I wrote it — the same unjoined shape I spent today removing elsewhere.
+            "diskTrend": disk_delta(24),
+            "diskTrendSay": disk_delta_say(24)}
     if p.get("unreadable"):
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base, say="HELD — %s will not parse. Nothing is deleted while "
@@ -12746,9 +12929,19 @@ def _retention_once():
         _RETENTION.update(dict(base, freedMb=round(r.get("freedMb") or 0, 1),
                                removed=list(r.get("removed") or []),
                                say=("freed %.0f MB by removing %d reel(s) that had already given "
-                                    "up their information; tombstones written to %s"
+                                    "up their information; tombstones written to %s.%s"
                                     % (r.get("freedMb") or 0, len(r.get("removed") or []),
-                                       os.path.basename(str(r.get("tombstonePath")))))))
+                                       os.path.basename(str(r.get("tombstonePath"))),
+                                       # ⚠ v2227 — AND WHAT IS STILL WAITING, EVEN ON THE DAY IT
+                                       # ACTED. Once v2226 let the pass delete above the floor, this
+                                       # sentence became the ONLY one he sees on a working day, and
+                                       # it dropped the locked-behind-a-sweep story entirely. On his
+                                       # tree that story was never "the pruner is broken" — it was
+                                       # reels nobody had read. A guard caught the loss, which is
+                                       # exactly what it was written for. [[the-unjoined-end]]
+                                       ("" if not waiting else
+                                        " %d reel(s) (%.0f MB) are still waiting on a sweep%s."
+                                        % (len(waiting), waiting_mb, _lane_say))))))
     return r
 
 
@@ -18156,7 +18349,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2226",
+        "ver": "v2229",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20400,6 +20593,22 @@ class Handler(BaseHTTPRequestHandler):
             # ONLY fast-forward, and ONLY on a clean tree: a machine mid-edit keeps its work and
             # is told why it is not updating. Never a merge, never a rebase, never a reset.
             self._json(200, fleet_pull())
+            return
+        if path == "/api/ui_fault":
+            # v2228 — the UI reporting a fault ABOUT ITSELF. Display-side problems (a stage that
+            # opened and never filled) are invisible to every server-side check, so the client has
+            # to say so. Shape-checked and capped; it can only ever append a small row.
+            _k = str((body or {}).get("kind") or "").strip()
+            if not _k:
+                self._json(400, {"ok": False, "why": "a fault must name its kind"})
+                return
+            _row = ui_fault_record(_k, (body or {}).get("why"), (body or {}).get("where"))
+            try:
+                print("   \u26a0 UI FAULT reported by the console: %s \u2014 %s"
+                      % (_k, str((body or {}).get("why"))[:120]), flush=True)
+            except Exception:
+                pass
+            self._json(200, {"ok": bool(_row), "recorded": _row})
             return
         if path == "/api/board_tally":
             # ⚠ v2189 — THE BOARD HANDS OVER ITS OWN COUNTS, so this works on Windows too.

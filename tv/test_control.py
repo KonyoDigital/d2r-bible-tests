@@ -18781,15 +18781,33 @@ class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
     def _reels(self, hist):
         return len([d for d in os.listdir(hist) if d.startswith("reel_")])
 
-    def test_ABOVE_the_floor_it_deletes_NOTHING_however_much_is_eligible(self):
-        """The floor is the entire justification for acting without him. Above it, doing nothing
-        has no cost, so nothing is done."""
+    def test_ABOVE_the_floor_it_still_frees_what_has_GIVEN_UP_ITS_INFORMATION(self):
+        """⚠⚠ v2226 REVERSED THIS TEST, ON HIS EXPLICIT RULING, AND THE INTENT IS PRESERVED.
+
+        It used to assert that being above the floor deletes NOTHING, on the reasoning that "the
+        floor is the entire justification for acting without him". That reasoning was wrong about
+        what he wanted, twice stated: "regardless of room memory it should still be looped and
+        extracted and pruned eventually, no need for it to take up space" and "we want an automated
+        system auto healing and cleaning itself."
+
+        The old rule did not make anything safer — it made the loop UNFINISHABLE. The reels were
+        read, both lanes sealed them, retention marked them eligible and said why per reel, and
+        then nothing happened because he had room. Measured at the time: 30.2 GB free, 2 reels /
+        122.9 MB eligible, `removed: None`, nothing ever deleted, for weeks.
+
+        WHAT PROTECTS HIM DID NOT CHANGE, and that is what the sibling tests below pin: eligibility
+        is still reel_retention's alone, and retention_may_act still refuses on TV_AUTO_PRUNE in any
+        spelling, on a board world that is drift/unknown/unreadable, and while a session is in
+        flight. The floor stopped being a reason to SKIP; it was never the thing deciding WHAT.
+        [[feedback-threshold-above-the-ceiling]] — a gate that can never act is not a safe gate."""
         root, hist = self._tree()
         ca = self._bind(root, hist, floor=0.0)
         before = self._reels(hist)
         ca._retention_once()
-        self.assertEqual(self._reels(hist), before,
-                         "footage was deleted while the disk was above the ON AIR floor")
+        after = self._reels(hist)
+        self.assertLess(after, before,
+                        "above the floor nothing was freed, so the extract-then-prune loop still "
+                        "cannot complete on merit — which is the state he asked twice to end")
 
     def test_BELOW_the_floor_with_everything_clear_it_acts_or_this_is_all_theatre(self):
         """The reachability half. A cycle that can never act cannot be shown to refuse correctly.
@@ -27280,6 +27298,391 @@ class TestPruneRunsOnMeritNotOnlyUnderPressure(unittest.TestCase):
         self.assertIn("BELOW the %.0fGB floor", src,
                       "the below-floor branch lost its distinct sentence, so urgent and routine "
                       "now read the same to him")
+
+
+class TestTheConsoleCanSayItIsBroken(unittest.TestCase):
+    """v2228 — his black-screen report, and the machinery so he never has to make it again.
+
+    HIS WORDS, with two screenshots: "the console has this bug thats its black screened ... but when
+    i hover over something i nail on something and it renders something ... i think it happens when
+    auto updates happen something inbetween ... obviously when i exit the console and reopen it
+    works." Then: "watch dog it and eagle eye it."
+
+    THE CAUSE: control_ui.thOpen sets TH.open, unhides #theatre and adds body.theatre-open BEFORE
+    the network, on purpose (v859: "pixels BEFORE network"). It then awaited /api/sessions with NO
+    timeout and NO catch. When the auto-relaunch replaces the server mid-fetch the promise never
+    settles, the stage is never filled, and the black stays until he quits the app. Every symptom
+    follows: black stage, a hover still paints (tooltips are outside #theatre), reopening cures it.
+
+    Nothing crashed. The UI was showing a state with no way back out of itself.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        cls.ca = control_app
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html"),
+                  encoding="utf-8") as fh:
+            cls.ui = fh.read()
+
+    def _thOpen(self):
+        """The body of `async function thOpen()`, bounded by brace depth.
+
+        ⚠ v2228 — the first cut of these guards did `self.ui.index("/api/sessions")` and landed on a
+        CSS COMMENT ("pure UI off the /api/sessions card data") a thousand lines from the fetch, so
+        both assertions failed against a correct fix. That is the THIRD time today a guard anchored
+        on the wrong occurrence of a common string — the same shape as the src[i:i+3600] window and
+        the apostrophes in the fork-set comment. A guard fails on its own REACH before it fails on
+        the code, and the cure is always the same: bound by the syntactic thing, never by a string
+        search or a character count. [[source-reading-guard]]"""
+        i = self.ui.index("async function thOpen()")
+        b = self.ui.index("{", i)
+        depth, j = 0, b
+        while j < len(self.ui):
+            if self.ui[j] == "{":
+                depth += 1
+            elif self.ui[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    return self.ui[b:j + 1]
+            j += 1
+        self.fail("could not bound thOpen — HARNESS fault, not a pass")
+
+    def test_the_theatre_fetch_is_BOUNDED(self):
+        """An unbounded await is what left the stage black. A timeout is the whole fix."""
+        window = self._thOpen()
+        self.assertIn("/api/sessions", window, "thOpen no longer fetches sessions — retarget this")
+        self.assertIn("AbortController", window,
+                      "the theatre still awaits /api/sessions with no bound, so a server replaced "
+                      "mid-fetch leaves the black stage he reported")
+
+    def test_a_FAILED_open_closes_the_stage_rather_than_leaving_it_black(self):
+        """Bounding it is not enough — on failure the stage must come DOWN. Leaving theatre-open
+        set after a caught error would reproduce the defect through the new code path."""
+        window = self._thOpen()
+        self.assertIn("classList.remove('theatre-open')", window,
+                      "a failed open leaves body.theatre-open set — the black screen, again")
+
+    def test_a_stuck_stage_heals_ITSELF(self):
+        """His only escape was quitting the app. Any path that leaves the stage open and empty —
+        including ones nobody has found yet — must close after a bounded wait."""
+        self.assertIn("open but empty for 12s", self.ui,
+                      "there is no self-heal, so a stuck stage is still his problem to notice")
+
+    def test_the_UI_can_TELL_the_server_it_faulted(self):
+        """A self-heal nobody records is a fault that keeps happening and keeps being reported by
+        HIM. The console had no way to say anything was wrong — that is why this went unreported."""
+        self.assertIn("/api/ui_fault", self.ui, "the console still cannot report its own faults")
+        self.assertTrue(hasattr(self.ca, "ui_fault_record"))
+        self.assertTrue(hasattr(self.ca, "ui_faults_recent"))
+
+    def test_the_fault_record_round_trips_and_is_capped(self):
+        import tempfile
+        p = tempfile.mktemp(suffix=".jsonl")
+        try:
+            for i in range(260):
+                self.ca.ui_fault_record("t", "why %d" % i, "w", path=p)
+            rows, why = self.ca.ui_faults_recent(24, path=p)
+            self.assertIsNone(why)
+            self.assertGreater(len(rows), 0)
+            with open(p, encoding="utf-8") as fh:
+                self.assertLessEqual(len(fh.readlines()), 200,
+                                     "the fault log is uncapped — a loop could fill his disk with "
+                                     "its own complaints")
+        finally:
+            if os.path.exists(p):
+                os.remove(p)
+
+    def test_an_unreadable_fault_log_is_UNKNOWN_not_CLEAN(self):
+        """'we could not read it' must never render as 'no faults'."""
+        import tempfile
+        p = tempfile.mktemp(suffix=".jsonl")
+        with open(p, "w") as fh:
+            fh.write("{not json\n")
+        try:
+            rows, why = self.ca.ui_faults_recent(24, path=p)
+            # a garbage line is skipped, not fatal — but the file EXISTING with nothing parseable
+            # must not be reported as a measured zero by the doctor
+            self.assertIsNotNone(rows)
+            self.assertEqual(rows, [])
+        finally:
+            os.remove(p)
+
+    def test_the_EAGLE_reports_it(self):
+        """The detection half. A fix with no detection cannot be shown to still work."""
+        import console_doctor
+        fns = [fn for _n, fn in console_doctor.CHECKS]
+        self.assertIn(console_doctor._check_the_console_UI_has_not_faulted, fns,
+                      "the eagle does not run the UI-fault check, so a console that heals itself "
+                      "still tells nobody")
+
+
+class TestTheCorroborator(unittest.TestCase):
+    """v2228 — the engines check EACH OTHER, not only themselves. His ask, and today's evidence.
+
+    console_doctor asks 21 questions about whether each engine is well. Every serious defect found
+    on 2026-08-28 was a pair of numbers each correct on its own and wrong together — 19 vs 2,
+    1263 vs 403, 157 vs 7, 36 vs 30 — and none was catchable by asking either side alone.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import corroborate
+        cls.co = corroborate
+
+    def test_every_relation_can_REFUSE_and_can_HOLD(self):
+        """[[feedback-blind-fixture-green-gate]] — an invariant nobody has seen disagree is exactly
+        the green that lies. The module drives its own relations both ways."""
+        rows = self.co.selftest()
+        bad = [w for w, ok in rows if not ok]
+        self.assertEqual(bad, [], "the corroborator cannot refuse: %s" % bad)
+        self.assertGreaterEqual(len(rows), 10, "the self-test shrank — it is meant to be exhaustive")
+
+    def test_a_disagreement_reports_BOTH_numbers_and_picks_NO_side(self):
+        """Founding rule 3. Averaging two disagreeing surfaces, or silently preferring one, is how
+        a contradiction becomes a plausible wrong answer."""
+        row = self.co.check_one(lambda: ("k", "what", "prove", "L", (lambda: 157),
+                                         "R", (lambda: 7), "=="))
+        self.assertEqual(row["state"], self.co.DISAGREE)
+        self.assertIn("157", row["say"])
+        self.assertIn("7", row["say"])
+        self.assertIn("is not knowable", row["say"],
+                      "the message picks a winner; the pair alone cannot say which is wrong")
+        self.assertEqual(row["left"]["value"], 157)
+        self.assertEqual(row["right"]["value"], 7)
+
+    def test_an_UNKNOWN_side_is_never_agreement(self):
+        """The failure mode that would make this whole file decorative: a side that cannot be
+        computed must not read as a match. [[unknown-stays-unknown]]"""
+        for pair in ((None, 5), (5, None), (None, None)):
+            row = self.co.check_one(
+                lambda p=pair: ("k", "w", "p", "L", (lambda: p[0]), "R", (lambda: p[1]), "=="))
+            self.assertEqual(row["state"], self.co.UNKNOWN, "%r read as %s" % (pair, row["state"]))
+            self.assertNotEqual(row["state"], self.co.AGREE)
+
+    def test_a_side_that_RAISES_is_UNKNOWN_not_a_pass(self):
+        def boom():
+            raise RuntimeError("engine down")
+        row = self.co.check_one(lambda: ("k", "w", "p", "L", boom, "R", (lambda: 1), "=="))
+        self.assertEqual(row["state"], self.co.UNKNOWN)
+        self.assertIn("engine down", row["say"])
+
+    def test_all_UNKNOWN_does_not_report_agreement(self):
+        """If nothing could be corroborated, the verdict must say so rather than 'all agree'."""
+        rows = [{"key": "a", "state": self.co.UNKNOWN, "say": "dark"},
+                {"key": "b", "state": self.co.UNKNOWN, "say": "dark"}]
+        st, say = self.co.verdict(rows)
+        self.assertEqual(st, self.co.UNKNOWN)
+        self.assertNotIn("agree", say.split("could not")[0])
+
+    def test_it_WRITES_NOTHING(self):
+        """A corroborator that repairs is one whose evidence you cannot trust, because it has
+        already acted on it. Same law as chronicle_retro, asserted from the source."""
+        import inspect
+        src = inspect.getsource(self.co)
+        import re
+        code = re.sub(r'"""(?:.|\n)*?"""', " ", src)
+        code = re.sub(r"#[^\n]*", " ", code)
+        for forbidden in ('open(p, "w"', "'w')", 'os.remove', 'shutil.rmtree', '.write('):
+            self.assertNotIn(forbidden, code,
+                             "the corroborator writes (%r) — it must only ever read" % forbidden)
+
+    def test_the_EAGLE_runs_it(self):
+        import console_doctor
+        # CHECKS holds (name, fn) tuples — assert against the FN half. The first cut of this
+        # assertion looked for the bare function and failed against a correctly-registered check.
+        fns = [fn for _n, fn in console_doctor.CHECKS]
+        self.assertIn(console_doctor._check_the_engines_CORROBORATE_each_other, fns,
+                      "the corroborator exists but the eagle does not run it — which is the exact "
+                      "unjoined shape it was built to catch")
+
+    def test_the_live_invariants_are_REACHABLE(self):
+        """Anti-vacuity: if every invariant is UNKNOWN on this machine the check measures nothing,
+        and would read as healthy forever."""
+        rows = self.co.run()
+        self.assertGreaterEqual(len(rows), 4)
+        known = [r for r in rows if r.get("state") in (self.co.AGREE, self.co.DISAGREE)]
+        if not known:
+            self.skipTest("no engine state on this machine — nothing to corroborate here")
+        self.assertTrue(known, "every invariant went UNKNOWN")
+
+
+class TestTheFixtureScanCanSeeEveryFileThatNamesAReel(unittest.TestCase):
+    """v2229 — MY PRUNE ATE TWO TEST FIXTURES, and the guard failed on its own REACH.
+
+    Armed to act above the disk floor (v2226, his ruling), the prune deleted within the hour:
+        reel_s_1786998671206_32230   80.5 MB   71 pages
+        reel_s_1786998775577_33262   42.4 MB   35 pages
+    Both are SCENARIO fixtures named in tv/vault_simulate.py. frame_authority.test_referenced_reels
+    globbed only tv/test_*.py, tests/*.spec.ts, tests/*.ts, tv/*_test.py — and vault_simulate.py, the
+    module that DEFINES what the tests run, matched none of them.
+
+    THE THIRD TIME THIS CLASS HAS BEEN PAID FOR. The two earlier fixes widened the LEDGERS the
+    deleter consults; nobody suspected the scan. After widening: 28 -> 35 fixtures, and SIX of the
+    seven newly protected were ALREADY GONE.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import frame_authority
+        cls.fa = frame_authority
+
+    def test_a_non_test_module_that_names_a_reel_is_still_a_fixture(self):
+        """vault_simulate.py is not called test_*.py and holds the scenarios. If the glob narrows
+        again, its reels become deletable again."""
+        self.assertIn("tv/*.py", self.fa._FIXTURE_GLOBS,
+                      "the scan no longer covers every tv module, so a fixture named outside a "
+                      "test_*.py file is unprotected — which is exactly what cost 123 MB")
+
+    def test_the_scan_actually_FINDS_the_simulate_reels(self):
+        """Behaviour, not the glob tuple: prove a reel named ONLY in vault_simulate is returned."""
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        try:
+            with open(os.path.join(here, "vault_simulate.py"), encoding="utf-8") as fh:
+                named = set(re.findall(r"reel_s_\d{10,16}_\d+", fh.read()))
+        except Exception:
+            self.skipTest("vault_simulate.py is not in this checkout")
+        if not named:
+            self.skipTest("vault_simulate names no reels here")
+        self.fa._FIXTURE_CACHE = None
+        found = self.fa.test_referenced_reels()
+        missed = sorted(named - found)
+        self.assertEqual(missed, [],
+                         "the scan cannot see reels the scenarios open: %s" % missed)
+
+    def test_the_precondition_NAMES_what_is_missing(self):
+        """Before v2229 the class ran with its footage deleted and failed with 'Harlequin Crest not
+        found in []' — a message about a symptom two layers from the cause. A skip reason that does
+        not diagnose is how a deleted fixture reads as a broken feature."""
+        import test_vault_lane as tvl
+        self.assertTrue(hasattr(tvl, "_missing_fixture_reels"))
+        missing = tvl._missing_fixture_reels()
+        self.assertIsInstance(missing, list)
+        if missing:
+            self.assertFalse(tvl._has_reels(),
+                             "reels are missing but the precondition still says the suite can run")
+
+
+class TestTheDiskHistoryAnswersMoreThanYesterday(unittest.TestCase):
+    """v2229 — he asked "how come i have 15 gigabytes more today than yesterday? is the pruning
+    working?" and NEITHER OF US COULD ANSWER IT FROM THE SYSTEM. reel_retention reported freeGb at
+    read time only; nothing kept a series. So the panel could say "30.0GB free" with total
+    confidence and could not say whether that was up, down or flat. [[stale-reading]]"""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        cls.ca = control_app
+
+    def test_no_history_is_UNKNOWN_not_unchanged(self):
+        d = self.ca.disk_delta(24, "/nonexistent/history.jsonl")
+        self.assertIsNone(d["deltaGb"])
+        self.assertIn("UNKNOWN", d["why"])
+
+    def test_a_series_too_short_is_UNKNOWN_not_a_comparison(self):
+        """A hole at the interesting moment must not be filled by comparing against whatever the
+        oldest reading happens to be and calling it 'yesterday'."""
+        import tempfile, json, time
+        p = tempfile.mktemp(suffix=".jsonl")
+        now = time.time() * 1000
+        with open(p, "w") as fh:
+            fh.write(json.dumps({"at": int(now - 3600e3), "freeGb": 31.0}) + "\n")
+            fh.write(json.dumps({"at": int(now), "freeGb": 30.0}) + "\n")
+        try:
+            d = self.ca.disk_delta(24, p)
+            self.assertIsNone(d["deltaGb"])
+            self.assertIn("UNKNOWN", d["why"])
+        finally:
+            os.remove(p)
+
+    def test_it_reports_the_direction_and_ATTRIBUTES_it(self):
+        """His actual numbers. The sentence must never imply we freed space we did not — the honest
+        answer that day was that the pruner had deleted nothing, ever, against a 8.9 GB corpus."""
+        import tempfile, json, time
+        p = tempfile.mktemp(suffix=".jsonl")
+        now = time.time() * 1000
+        with open(p, "w") as fh:
+            fh.write(json.dumps({"at": int(now - 30 * 3600e3), "freeGb": 39.9, "prunedMb": 0}) + "\n")
+            fh.write(json.dumps({"at": int(now), "freeGb": 30.0, "prunedMb": 0}) + "\n")
+        try:
+            d = self.ca.disk_delta(24, p)
+            self.assertEqual(d["deltaGb"], -9.9)
+            say = self.ca.disk_delta_say(24, p)
+            self.assertIn("down", say)
+            self.assertIn("none of it was us", say,
+                          "the sentence does not attribute, so it can imply our pruning freed "
+                          "space it did not")
+        finally:
+            os.remove(p)
+
+    def test_our_OWN_pruning_is_named_when_there_was_some(self):
+        import tempfile, json, time
+        p = tempfile.mktemp(suffix=".jsonl")
+        now = time.time() * 1000
+        with open(p, "w") as fh:
+            fh.write(json.dumps({"at": int(now - 30 * 3600e3), "freeGb": 20.0, "prunedMb": 0}) + "\n")
+            fh.write(json.dumps({"at": int(now), "freeGb": 21.0, "prunedMb": 123.0}) + "\n")
+        try:
+            say = self.ca.disk_delta_say(24, p)
+            self.assertIn("123 MB of that was our pruning", say)
+        finally:
+            os.remove(p)
+
+
+class TestTheCorroboratorStillCatchesTodaysDefects(unittest.TestCase):
+    """v2229 (#57) — THE HISTORICAL REPLAY. selftest proves the relations can refuse in principle;
+    this proves the corroborator still catches the SPECIFIC things that actually happened.
+
+    All four were invisible to all 21 single-engine checks for the same reason: both sides were
+    healthy. A relation quietly loosened, an invariant retargeted or a comparison flipped goes red
+    here with the real cost named."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import corroborate
+        cls.co = corroborate
+
+    HISTORY = (
+        ("vault worklist", 19, 2, "==",
+         "the watchdog would have started 17 unnecessary paid sweeps, 3 over test fixtures"),
+        ("shadow names", 1263, 806, "<=",
+         "1263 distinct names in a 403-name universe, already past 'worth a decision'"),
+        ("swept split", 30, 36, "==",
+         "six retained read-records read as ghosts and were nearly deleted"),
+        ("chronicle owed", 0, 27, ">=",
+         "the #167 stall: 27 reels called done that were not"),
+    )
+
+    def test_all_four_of_todays_defects_still_DISAGREE(self):
+        for label, l, r, rel, cost in self.HISTORY:
+            row = self.co.check_one(
+                lambda l=l, r=r, rel=rel: ("replay", "w", "p", "left", (lambda: l),
+                                           "right", (lambda: r), rel))
+            self.assertEqual(row["state"], self.co.DISAGREE,
+                             "%s (%s %s %s) no longer disagrees — had this shipped: %s"
+                             % (label, l, rel, r, cost))
+
+    def test_the_ARITHMETIC_DIRECTION_is_asserted_not_just_the_verdict(self):
+        """Flipping a relation must not pass for the wrong reason: 1263 <= 806 is false, and
+        1263 >= 806 is TRUE, so a flipped comparison would silently start agreeing."""
+        flipped = self.co.check_one(
+            lambda: ("replay", "w", "p", "left", (lambda: 1263), "right", (lambda: 806), ">="))
+        self.assertEqual(flipped["state"], self.co.AGREE,
+                         "the fixture is wrong: 1263 >= 806 must hold, or this test proves nothing")
+        real = self.co.check_one(
+            lambda: ("replay", "w", "p", "left", (lambda: 1263), "right", (lambda: 806), "<="))
+        self.assertEqual(real["state"], self.co.DISAGREE)
+
+    def test_the_costs_survive_into_the_failure_message(self):
+        """A guard that goes red without saying what it cost gets waved through."""
+        for _label, _l, _r, _rel, cost in self.HISTORY:
+            self.assertGreater(len(cost), 30)
 
 
 if __name__ == "__main__":

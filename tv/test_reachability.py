@@ -202,6 +202,14 @@ EXTERNAL_SYMBOLS = {
     # them is what keeps the new typeof-undefined coverage honest — a gate that cries wolf on
     # legitimate feature detection is a gate people learn to skip.
     ("bible.html", "AbortController"): "browser API — feature-detected, not ours to declare",
+    # v2229 — the same API, now in the CONSOLE too. thOpen() bounds its /api/sessions fetch with an
+    # AbortController so a server replaced mid-fetch cannot leave the theatre stage black forever —
+    # the defect he reported twice with screenshots. It is feature-detected for the same reason as
+    # the three above, and pywebview's WebKit is exactly the kind of engine where that matters.
+    # ⚠ the key is the SURFACE LABEL, which carries the tv/ prefix — SURFACES[0][0] is
+    # "tv/control_ui.html". My first cut keyed it "control_ui.html" and the gate stayed red against
+    # a correct allowlisting. Read the label, never assume it.
+    ("tv/control_ui.html", "AbortController"): "browser API — feature-detected, not ours to declare",
     ("bible.html", "ResizeObserver"): "browser API — feature-detected, not ours to declare",
     # v1695 — the third of the same kind, and it had been failing this gate as a standing red.
     # Verified at the source rather than waved through by category: bible.html:39053 guards

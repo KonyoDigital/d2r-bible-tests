@@ -10239,7 +10239,53 @@
     try { $('th-caption').textContent = '🎞 loading the reel…'; } catch (e) {}
     try { thRibbon(); thCoachOnce(); } catch (e) {}   // v940.5 — banner + one-time keyboard hint
     thLit();
-    var r = await fetch('/api/sessions'); var j = await r.json();
+    /* ══ v2228 — A STAGE THAT CANNOT LOAD ITS REEL MUST NOT SIT BLACK FOREVER ═══════════════
+       HIS REPORT, 2026-08-28, with two screenshots: "the console has this bug thats its black
+       screened ... but when i hover over something i nail on something and it renders something ...
+       i think it happens when auto updates happen something inbetween ... obviously when i exit the
+       console and reopen it works."
+
+       THE CAUSE, and it is four lines above: v859 opens the theatre BEFORE the network on purpose
+       ("pixels BEFORE network: the theatre shell opens instantly") — TH.open, #theatre unhidden and
+       body.theatre-open all set, which is a full-bleed BLACK stage. Then this line awaited
+       /api/sessions with NO timeout and NO catch. When the auto-relaunch replaces the server
+       process mid-fetch, the promise never settles, the function never reaches the code that fills
+       the stage, and the black stays up for as long as he leaves the window open.
+
+       Every symptom follows: black (the stage is genuinely open and empty), a hover still paints
+       (tooltips live outside #theatre at a higher z-index), and reopening cures it (a fresh boot
+       starts with the theatre closed). Nothing was crashed and nothing was corrupt — the UI was
+       showing a state that had no way back out of itself. [[unknown-stays-unknown]]
+
+       So: bound it, and on failure CLOSE the stage and say why, rather than leaving him with a
+       black rectangle and no account of it. */
+    var r, j;
+    try {
+      var _ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var _to = setTimeout(function(){ try { _ac && _ac.abort(); } catch(e){} }, 8000);
+      r = await fetch('/api/sessions', _ac ? { signal: _ac.signal } : undefined);
+      clearTimeout(_to);
+      j = await r.json();
+    } catch (_e) {
+      /* ⚠ CLOSE IT. Leaving theatre-open set would keep the black stage he reported. */
+      try {
+        TH.open = false;
+        $('theatre').hidden = true;
+        document.body.classList.remove('theatre-open');
+      } catch (e) {}
+      try {
+        $('th-caption').textContent = '🎞 could not reach the console — the stage was closed rather '
+          + 'than left black. Try again in a moment.';
+      } catch (e) {}
+      try {
+        console.warn('[theatre] /api/sessions did not answer (%s) — stage closed', String(_e));
+        fetch('/api/ui_fault', {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({kind:'theatre-open-no-sessions',
+            why:'/api/sessions did not answer: ' + String(_e).slice(0,120),
+            where:'control_ui thOpen'})});
+      } catch (e) {}
+      return;
+    }
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
     if (!TH.sessions.length){
       $('theatre').hidden = false; TH.open = true;
@@ -17726,6 +17772,43 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   tick();
   setInterval(tick, 15000);
 })();
+
+  /* ══ v2228 — AND A STAGE THAT IS ALREADY STUCK MUST GET ITSELF OUT ═══════════════════════════
+     The catch above fixes the path that CAUSES it. This covers the ones nobody has found yet: any
+     route that leaves body.theatre-open set with nothing on the stage. His only escape today is to
+     quit the app and reopen — which he did, and which is why this went unreported for so long.
+     A self-healing console was the whole ask. */
+  try {
+    setInterval(function(){
+      try {
+        if (!document.body.classList.contains('theatre-open')) return;
+        var th = document.getElementById('theatre');
+        if (!th || th.hidden) {                      /* class set, stage hidden = inconsistent */
+          document.body.classList.remove('theatre-open');
+          return;
+        }
+        var film = th.querySelector('.th-film, #th-film, img, video, canvas');
+        var painted = film && film.getBoundingClientRect().height > 40;
+        if (painted) { window._thEmptyFor = 0; return; }
+        window._thEmptyFor = (window._thEmptyFor || 0) + 1;
+        if (window._thEmptyFor >= 4) {               /* ~12s of an open stage with nothing on it */
+          window._thEmptyFor = 0;
+          document.body.classList.remove('theatre-open');
+          th.hidden = true;
+          try { window.TH && (window.TH.open = false); } catch(e){}
+          console.warn('[theatre] open but empty for 12s — closed itself rather than staying black');
+          /* v2228 — AND TELL THE SERVER. A self-heal nobody records is a fault that keeps
+             happening and keeps being reported by him instead of by the machine. */
+          try {
+            fetch('/api/ui_fault', {method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({kind:'theatre-stuck-black',
+                why:'the stage was open with nothing on it for 12s and closed itself',
+                where:'control_ui thOpen / self-heal'})});
+          } catch(e){}
+        }
+      } catch(e){}
+    }, 3000);
+  } catch(e){}
 </script>
 </body>
 </html>

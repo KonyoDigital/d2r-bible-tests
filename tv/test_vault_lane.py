@@ -17,11 +17,40 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 
+def _missing_fixture_reels():
+    """Which reels the SCENARIOS need that are not on disk. -> sorted list
+
+    ⚠ v2229 — THIS PRECONDITION USED TO CHECK ONE REEL AND SPEAK FOR ALL OF THEM. It tested only
+    reel_s_1786998496819_31092, so when the prune deleted reel_s_1786998671206_32230 and
+    reel_s_1786998775577_33262 on 2026-08-28 this class still RAN and five cases failed with
+    "Harlequin Crest not found in []" — a message that says nothing about the actual cause, which
+    was that the footage underneath had been deleted an hour earlier.
+
+    A sentinel that samples one of N is a sample, not a precondition. Ask vault_simulate what its
+    scenarios actually open and name every absentee, so the skip reason IS the diagnosis.
+    [[feedback-blind-fixture-green-gate]] [[regression-guard]]"""
+    try:
+        import vault_simulate as vs
+    except Exception:
+        return []                                  # cannot ask -> let the cases run and speak
+    want = set()
+    for scn in getattr(vs, "SCENARIOS", []):
+        for r in (scn.get("reels") or []):
+            want.add(str(r))
+    hist = os.path.join(HERE, "frames", "hist")
+    return sorted(r for r in want if not os.path.isdir(os.path.join(hist, r)))
+
+
 def _has_reels():
-    return os.path.isdir(os.path.join(HERE, "frames", "hist", "reel_s_1786998496819_31092"))
+    hist = os.path.join(HERE, "frames", "hist")
+    if not os.path.isdir(hist):
+        return False
+    return not _missing_fixture_reels()
 
 
-@unittest.skipUnless(_has_reels(), "his sealed reels are not in this checkout")
+@unittest.skipUnless(_has_reels(),
+                     "the scenario footage is not on this machine — missing: %s"
+                     % (", ".join(_missing_fixture_reels()) or "frames/hist"))
 class TestVaultDecisions(unittest.TestCase):
     """SEEING SOMETHING MORE OFTEN NEVER MEANS THROW IT AWAY. Repetition decides whether he OWNS it;
     only the reader's own junk flag can even propose a discard, and then only across three separate
@@ -141,7 +170,9 @@ class TestLaneLock(unittest.TestCase):
         self.assertIsNone(cr.chronicle_kind({"scene": "chronicle", "chronicleTab": "runewords"}))
 
 
-@unittest.skipUnless(_has_reels(), "his sealed reels are not in this checkout")
+@unittest.skipUnless(_has_reels(),
+                     "the scenario footage is not on this machine — missing: %s"
+                     % (", ".join(_missing_fixture_reels()) or "frames/hist"))
 class TestTheSimulatorCanActuallyBeRUN(unittest.TestCase):
     """v1904 — `python3 tv/vault_simulate.py` PRINTED NOTHING AND EXITED 0.
 

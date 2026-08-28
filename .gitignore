@@ -151,3 +151,9 @@ tv/*.corrupt
 
 # runtime record of which shipped versions a DIFFERENT model family actually looked at
 tv/.second_eye.jsonl
+
+# v2228 — faults the console reports about ITSELF. Runtime, per-machine, never committed.
+tv/ui_faults.jsonl
+
+# v2229 — the free-space series. Runtime, per-machine, never committed.
+tv/disk_history.jsonl

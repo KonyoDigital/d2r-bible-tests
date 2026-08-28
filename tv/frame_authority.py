@@ -250,6 +250,27 @@ def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
     return out
 
 
+# ⚠⚠ v2229 — A TEST'S FIXTURES DO NOT ALL LIVE IN FILES CALLED test_*.py, AND THAT COST FOOTAGE.
+# On 2026-08-28, within an hour of the prune being armed to act above the disk floor, it deleted
+# reel_s_1786998671206_32230 (80.5 MB, 71 pages) and reel_s_1786998775577_33262 (42.4 MB, 35 pages)
+# as "read and sealed by BOTH lanes". Both are named as SCENARIO fixtures in tv/vault_simulate.py —
+# the module that DEFINES what test_vault_lane.py runs — and vault_simulate.py matched none of the
+# four globs, so test_referenced_reels never saw them. Five cases went red immediately.
+#
+# reel_s_1786998496819_31092 survived the same pass ONLY because test_vault_lane.py happens to name
+# it directly in its skipUnless. That is luck, not protection.
+#
+# This is the THIRD time this class has been paid for. The docstring below records the first two,
+# and both fixes widened the LEDGERS the deleter consults; the reach of the SCAN was never the
+# suspect. A guard fails on its own reach before it fails on the code.
+#
+# So: every .py under tv/ and everything under tests/. The scan is keyed on (size, mtime) and cost
+# 28 ms over the old set; widening it is cheap and the failure it prevents is irreversible. Holding
+# a reel too long costs disk. The other direction costs footage that does not come back.
+# [[source-reading-guard]] [[feedback-blind-fixture-green-gate]]
+_FIXTURE_GLOBS = ("tv/*.py", "tests/*.spec.ts", "tests/*.ts", "tests/*.py")
+
+
 def test_referenced_reels(repo=None):
     """Reel ids the TEST SUITE opens by name. A reel a test reads is a FIXTURE, whatever the ledgers
     say about it.
@@ -286,7 +307,7 @@ def test_referenced_reels(repo=None):
     try:
         stamp = tuple(sorted(
             (f, os.stat(f).st_size, int(os.stat(f).st_mtime))
-            for pat in ("tv/test_*.py", "tests/*.spec.ts", "tests/*.ts", "tv/*_test.py")
+            for pat in _FIXTURE_GLOBS
             for f in glob.glob(os.path.join(root, pat))))
     except OSError:
         stamp = None
@@ -294,7 +315,7 @@ def test_referenced_reels(repo=None):
     if stamp is not None and cached and cached[0] == stamp:
         return set(cached[1])
     out = set()
-    for pat in ("tv/test_*.py", "tests/*.spec.ts", "tests/*.ts", "tv/*_test.py"):
+    for pat in _FIXTURE_GLOBS:
         for f in glob.glob(os.path.join(root, pat)):
             try:
                 with open(f, encoding="utf-8", errors="replace") as fh:

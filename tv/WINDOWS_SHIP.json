@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2226",
+  "ver": "v2229",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2226: a reel that has given up its information goes whether or not the disk is tight",
+  "note": "v2229: a free-space history so more-than-yesterday becomes answerable",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

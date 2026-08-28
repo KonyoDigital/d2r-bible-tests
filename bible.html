@@ -8174,6 +8174,13 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
    the cap exists for. The correct precedent was two rules away: .nav-widget.open .nav-panel already
    uses calc(100vh - var(--dock-h,84px) - 130px). */
 .inbox-sticky.has{max-height:calc(100vh - var(--dock-h,84px) - 40px);overflow:auto;padding-right:64px}
+/* v2227 (#52) — CLEAR THE TOP CHROME. `top:8px` pinned this panel 108px under the page header at
+   901px, burying its own heading. The fallback is the measured height rather than 0, so a machine
+   where the observer never runs still clears the chrome instead of hiding the title. And the
+   max-height above now subtracts the same number, or a panel that starts lower would run off the
+   bottom by exactly as much as it gained at the top. */
+.inbox-sticky.has{top:calc(var(--hdr-h,282px) + 8px);
+                  max-height:calc(100vh - var(--hdr-h,282px) - var(--dock-h,84px) - 48px)}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
 .inbox-sticky .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
@@ -46598,6 +46605,34 @@ try {
     } catch(e){}
   };
   if (_dockEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_dockSync).observe(_dockEl); }
+  /* ══ v2227 (#52) — AND THE TOP CHROME NEEDS THE SAME NUMBER, for the same reason ═══════════
+     MEASURED at 901px on a scrolled Sessions tab: `.header` is `position:sticky; top:0; z-index:100`
+     and spans 0 -> 282. `#inbox-sticky` is `position:sticky; top:8px`, so it pins at 174 and its
+     first 108px sit UNDER the header. That band is exactly its own heading — the "Waiting on you"
+     title and the sub-line saying how many names need him — so the panel he is meant to act on
+     renders headless, opening on a bare row.
+
+     This is why the DOM and the pixels disagreed for hours: every reading said the header was
+     present, in the sticky, painted, scrollTop 0 — all true. `elementFromPoint` at its centre
+     returns `tab`. Nothing was broken; something else was on top. The contradiction WAS the
+     finding, and closing it needed the DOM read and the capture taken at the same moment.
+
+     The dock already solved this shape below the fold. Same mechanism, other end, so there is one
+     way to ask how tall the chrome is. [[copy-drift]] [[d2r-css-last-rule-wins]] */
+  var _hdrEl = document.querySelector('.header'), _hdrHLast = 0;
+  var _hdrSync = function(){
+    try {
+      if (!_hdrEl) return;
+      var h = Math.round(_hdrEl.getBoundingClientRect().height);
+      if (h < 40) return;                                  /* not laid out yet — do not publish a lie */
+      if (_hdrHLast && Math.abs(h - _hdrHLast) < 4) return;  /* ignore reflow thrash, as the dock does */
+      _hdrHLast = h;
+      document.documentElement.style.setProperty('--hdr-h', h + 'px');
+    } catch(e){}
+  };
+  _hdrSync();
+  if (_hdrEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_hdrSync).observe(_hdrEl); }
+  try { window.addEventListener('resize', _hdrSync); } catch(e){}
   /* ...and re-measure when the dock COLLAPSES, which a ResizeObserver cannot see: the transform
      leaves its box the same size. Without this the fix above would only apply on the next resize. */
   try {
@@ -46844,7 +46879,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2226', name:'v2226 - extract then prune, on merit rather than only under pressure', date:'2026-08-28', note:'a reel that has given up its information goes whether or not the disk is tight' };
+  window.D2R_BUILD = { id:'v2229', name:'v2229 - my prune ate two test fixtures because the fixture scan could not see them', date:'2026-08-28', note:'a free-space history so more-than-yesterday becomes answerable' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

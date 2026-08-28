@@ -1009,7 +1009,73 @@ def _check_the_reel_extract_is_moving():
                 % (len(owed), hours, tail + _ret))
 
 
+def _check_the_console_UI_has_not_faulted():
+    """Has the console reported a fault about ITSELF recently?
+
+    ⚠ v2228 — THE EAGLE COULD NOT SEE THE SCREEN, so a display-side failure was invisible to every
+    check here. He found the black-screen stage himself, twice, and reported it with screenshots
+    while nothing in the tree knew anything was wrong. His instruction: "watch dog it and eagle
+    eye it."
+
+    The console now POSTs /api/ui_fault when it heals itself, and this reads that record. A fault
+    that healed is still a fault — the point is that it stops being HIS job to notice.
+    """
+    try:
+        import control_app as ca
+        rows, why = ca.ui_faults_recent(24)
+    except Exception as e:
+        return UNKNOWN, "the fault log could not be read: %s" % str(e)[:80]
+    if rows is None:
+        return UNKNOWN, why or "the fault log is unreadable — which is not the same as no faults"
+    if not rows:
+        return OK, "the console has reported no fault about itself in 24h"
+    import collections
+    by = collections.Counter(r.get("kind") for r in rows)
+    top = ", ".join("%s x%d" % (k, n) for k, n in by.most_common(3))
+    newest = rows[-1]
+    return MISSING, ("the console healed itself from %d fault(s) in 24h (%s) — most recently: %s. "
+                     "It recovered, but this is the class he had to report by hand."
+                     % (len(rows), top, str(newest.get("why"))[:110]))
+
+
+def _check_the_engines_CORROBORATE_each_other():
+    """Do the engines agree with EACH OTHER, not merely with themselves?
+
+    ⚠ v2228 — THE GAP THE OTHER TWENTY CHECKS CANNOT SEE. Every check above asks whether ONE engine
+    is well. Every serious defect found on 2026-08-28 was a pair of numbers that were each correct
+    and wrong TOGETHER, and not one of them could have been caught by asking either side alone:
+
+        19 vs 2      the vault watchdog against reel_retention — seventeen unnecessary paid sweeps,
+                     three of them over test fixtures
+        1263 vs 403  the shadow ledger against the item universe — arithmetically impossible, and it
+                     had already crossed the threshold that says "the record is worth a decision"
+        157 vs 7     two payload fields both named `owned`
+        36 vs 30     the sweep memory against the disk — nearly six read-records deleted as ghosts
+
+    His words: "the system needs an eagle eye corroborator, the engines all communicating."
+
+    tv/corroborate.py holds the invariants and NEVER writes, never averages, and never picks a side.
+    UNKNOWN on either side is UNKNOWN here, never agreement.
+    """
+    try:
+        sys.path.insert(0, HERE)
+        import corroborate as _co
+        st, say = _co.verdict()
+    except Exception as e:
+        return UNKNOWN, "the corroborator could not run: %s" % str(e)[:90]
+    if st == _co.DISAGREE:
+        return MISSING, say
+    if st == _co.UNKNOWN:
+        return UNKNOWN, say
+    return OK, say
+
+
 CHECKS = [
+    # ⚠ v2228 — (NAME, FN) TUPLES. My first cut added these two as BARE FUNCTIONS and broke the
+    # `for n, fn in CHECKS` unpacking in nine places at once, including the healer's recheck map.
+    # THE COUNT WAS THE TELL: nine errors from one edit is a shape mistake, not nine defects.
+    ("engines corroborate", _check_the_engines_CORROBORATE_each_other),
+    ("console UI faults", _check_the_console_UI_has_not_faulted),
     ("version drift", _check_version_drift),
     ("lane intent", _check_lane_intent),
     ("disk headroom", _check_disk_headroom),

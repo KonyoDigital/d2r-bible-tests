@@ -95,6 +95,19 @@ GATES = [
              "seed is his HISTORY, so the guards are the four REFUSALS: report-only unless "
              "--write, never shrink, never seed a piece the game lists as missing, never seed a "
              "name a boot one-shot owns"),
+    # v2228 — the corroborator proves its own relations can both hold and refuse. An
+    # invariant nobody has seen disagree is the green that lies, so this runs every push.
+    # v2228 — ⚠ `why` IS A KEYWORD (name, argv, timeout, needs_app, cwd, why, skip_ok). My first
+    # cut passed it as the 4th POSITIONAL, so it landed in `needs_app` and the gate registered with
+    # an empty why — which test_every_gate_says_what_it_protects caught immediately, exactly as it
+    # exists to. A gate nobody can triage is the one people start ignoring.
+    Gate("corroborate-selftest", [sys.executable, os.path.join(HERE, "corroborate.py"),
+                                  "--selftest"], 60,
+         why="v2228 — the cross-engine invariants must be able to REFUSE. Every serious defect on "
+             "2026-08-28 was a pair of numbers each correct alone and wrong together (19 vs 2, "
+             "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
+             "self-test stops going red on demand, the corroborator would report agreement whatever "
+             "the engines actually said."),
     Gate("test_store_isolation", [sys.executable, os.path.join(HERE, "test_store_isolation.py")], 60,
          why="v1965 — a non-owner browser gets its own world (I·<id8>· keys) so a guest's grail "
              "never lands in his. That set was right for every store that existed when it was "
