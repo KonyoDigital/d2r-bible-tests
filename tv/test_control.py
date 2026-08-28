@@ -28785,5 +28785,160 @@ class TestV2245TheApproxMarkerExplainsItself(unittest.TestCase):
                       "the explanation is no longer keyed on the approx flag")
 
 
+class TestV2246EveryIconControlHasAName(unittest.TestCase):
+    """A cold read of v2245 said "the meaning of the ? buttons is not visually indicated". Fair, and
+    the same class of half-signal v2245 had just fixed on the footprint marker — a control that
+    announces itself without explaining itself.
+
+    ⚠ AND MY FIRST MEASUREMENT OF THE CLASS WAS WRONG BY 5x. It zipped two independent findall
+    results — one over <button ...> tags, one over their inner text — which assumes a 1:1
+    correspondence that nested markup breaks, so tags were paired with the wrong bodies. It reported
+    24 unnamed controls; one finditer with both groups reported 5. THE COUNT WAS THE TELL: two
+    measurements of one thing disagreed, and the disagreement was the instrument.
+    [[feedback-suspect-the-instrument]]"""
+
+    def _unnamed(self):
+        import io as _io, os as _os, re as _re
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        out = []
+        # ⚠ `<button\b([^>]*)>` IS BLIND HERE and a sabotage proved it. These buttons are built in
+        # JS strings whose attributes carry ternaries — `'+(have>=want?' disabled':'')+'`. The `>` in
+        # `have>=want` ends the tag early, `=want?' disabled'` lands in what the guard calls "visible
+        # text", it contains letters, and the guard concludes the button names itself. The two `+`
+        # steppers were invisible while the two `−` steppers (which use `<=`) were not.
+        #
+        # ⚠ AND MY FIRST REPAIR OVERCORRECTED: blanking every quoted run also blanked `${s.name}` and
+        # `esc(c[1])`, so nine buttons that DO render a name read as empty. A static reader cannot
+        # tell "no text" from "text computed at runtime" unless it keeps the interpolation.
+        # So: find the tag end at the first `>` that is not half of a JS operator, and keep the body
+        # exactly as written. [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+        for m in _re.finditer(r"<button\b.*?</button>", s, _re.S):
+            chunk = m.group(0)
+            end = -1
+            for k in range(1, len(chunk) - 1):
+                if chunk[k] == ">" and chunk[k + 1] != "=" and chunk[k - 1] not in "=!<-":
+                    end = k
+                    break
+            if end < 0:
+                continue                      # no tag end found — say nothing rather than guess
+            body = chunk[end + 1:-len("</button>")]
+            txt = _re.sub(r"<[^>]*>", "", body).strip()
+            if _re.search(r"[A-Za-z0-9$]", txt):
+                continue                      # renders words, or an interpolation that will
+            tag = chunk[:end]
+            if "aria-label" in tag or 'title="' in tag or "aria-hidden" in tag:
+                continue
+            out.append((s.count("\n", 0, m.start()) + 1, txt[:6]))
+        return out
+
+    def test_no_icon_only_control_is_nameless(self):
+        bad = self._unnamed()
+        self.assertEqual(bad, [],
+                         "%d icon-only button(s) carry no accessible name — a glyph alone tells a "
+                         "screen reader nothing and a new reader very little: %s" % (len(bad), bad[:5]))
+
+    def test_the_steppers_say_WHICH_count_they_move(self):
+        # have -1 / have +1 / want -1 / want +1 are four identical glyphs. "minus" is not a label
+        # when two different numbers are one pixel apart.
+        import io as _io, os as _os
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        for want in ("one fewer copy of", "one more copy of", "want one fewer", "want one more"):
+            # ⚠ assertIn(phrase) alone is blind: renaming the ATTRIBUTE keeps the phrase in the file
+            # and the test green. A sabotage that swapped aria-label= for data-x= passed. Pin BOTH.
+            self.assertIn('aria-label="' + want, s,
+                          "a vault stepper no longer NAMES which count it moves: %r" % want)
+
+    def test_a_DECORATIVE_control_is_hidden_rather_than_named(self):
+        # bd-sigil is hidden and does nothing. Giving it a label would put a phantom control in the
+        # tab order; the honest fix is to hide it from assistive tech too.
+        import io as _io, os as _os
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        i = s.index('id="bd-sigil"')
+        tag = s[i - 20:i + 150]
+        self.assertIn('aria-hidden="true"', tag, "the decorative sigil is exposed to assistive tech")
+        self.assertIn('tabindex="-1"', tag, "the decorative sigil is still reachable by keyboard")
+
+
+class TestV2246ChoosersAndTypedFieldsAreNamedToo(unittest.TestCase):
+    """The button sweep found 5 nameless icon controls. Sweeping the SIBLING class — <select> and
+    typed <input>, the other two things a person operates — found 5 more: three cube-up choosers
+    reading "From my stash I can cube up to [___]" where the sentence names the control and the
+    control names nothing, a simulate-runs box between two spans, and a Quality picker whose
+    <label> sits beside it without a `for=`, which is decoration, not an association.
+
+    ⚠ MY SCANNER ALSO REPORTED 17, AND 12 OF THOSE WERE PROSE — a comment describing an <input
+    type=file> that v1975 REMOVED, and two JS lines mentioning a <select> in words. Same trap as
+    [[feedback-comments-vs-code]]: this file documents its own markup, so a regex over it reads the
+    documentation as the thing. This guard skips a match that sits after `//` on its line.
+    It therefore measures RENDERED-LOOKING TAGS, not "every select in the file" — that is its reach,
+    and a bare attribute-less <select> in real markup would slip past it."""
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    @staticmethod
+    def _is_prose(s, start):
+        line_start = s.rfind("\n", 0, start) + 1
+        if "//" in s[line_start:start]:
+            return True
+        # ⚠ THE LINE IS NOT ENOUGH. A /* */ block's CONTINUATION lines start with plain
+        # spaces, so a line-local test called two of them real markup. Ask whether the position
+        # is INSIDE a block instead — the last opener beats the last closer. Anchored, not a
+        # strip: an unbounded comment-strip once ate 16.9%% of this file. [[source-reading-guard]]
+        return s.rfind("/*", 0, start) > s.rfind("*/", 0, start)
+
+    def test_no_chooser_is_nameless(self):
+        import re as _re
+        s = self._src()
+        bad = []
+        for m in _re.finditer(r"<select\b([^>]*)>", s):
+            a = m.group(1)
+            if not a.strip() or self._is_prose(s, m.start()):
+                continue                       # prose, or a tag with no attributes at all
+            if "aria-label" in a or "title=" in a:
+                continue
+            bad.append((s.count("\n", 0, m.start()) + 1, a[:60]))
+        self.assertEqual(bad, [],
+                         "%d <select> carry no accessible name — the sentence around a chooser is "
+                         "not its name: %s" % (len(bad), bad[:4]))
+
+    def test_no_typed_field_is_nameless(self):
+        import re as _re
+        s = self._src()
+        bad = []
+        for m in _re.finditer(r"<input\b([^>]*)>", s):
+            a = m.group(1)
+            if self._is_prose(s, m.start()):
+                continue
+            if _re.search(r'type="?(hidden|checkbox|radio|range)', a):
+                continue                       # not typed into
+            if "hidden" in a or "display:none" in a:
+                continue                       # driven by a labelled button, never focused
+            # ⚠ A PLACEHOLDER IS NOT A NAME. It IS exposed as a fallback, which is why this guard
+            # first accepted it and stayed green over 21 fields — and then a live DOM probe found
+            # 13 of them nameless, because the probe asked the question the way a person meets it:
+            # the placeholder DISAPPEARS the moment you type, so tabbing back into a half-filled
+            # box leaves nothing at all. Weak-by-design is not the same as absent, but it is not a
+            # name either. [[the-unjoined-end]]
+            if "aria-label" in a or "title=" in a:
+                continue
+            bad.append((s.count("\n", 0, m.start()) + 1, a[:60]))
+        self.assertEqual(bad, [],
+                         "%d typed <input> carry no accessible name that survives typing "
+                         "(a placeholder does not): %s" % (len(bad), bad[:4]))
+
+    def test_the_cube_up_choosers_say_WHICH_thing_they_pick(self):
+        # Two gem selects sit side by side. "gem" names neither of them.
+        s = self._src()
+        for want in ("which rune to cube up to", "which gem to cube up to",
+                     "which gem quality to cube up to", "how many runs to simulate"):
+            self.assertIn(want, s, "a chooser lost its name: %r" % want)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

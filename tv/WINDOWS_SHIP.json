@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2245",
+  "ver": "v2246",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2245: An unresolved footprint now says what is unknown and why, instead of showing a bare question mark",
+  "note": "v2246: Icon-only controls carried no accessible name, and my first count of them was wrong by five times",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

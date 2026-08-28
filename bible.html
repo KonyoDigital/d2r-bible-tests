@@ -4403,7 +4403,7 @@ try {
         <!-- v1466 — THE PROFILE SIGIL, beside the world switches on purpose: those two pills say
              WHICH WORLD (mac/windows · main/ladder), this says WHICH INSTALL. Same generator and
              same id as the console header, so one machine wears one crest in both surfaces. -->
-        <button id="bd-sigil" class="bd-sigil" type="button" hidden>
+        <button id="bd-sigil" class="bd-sigil" type="button" hidden aria-hidden="true" tabindex="-1">
           <span class="bs-glyph" id="bs-glyph">·</span><span class="bs-name" id="bs-name">—</span><span class="bs-code" id="bs-code"></span>
         </button>
         <div class="masthead-rule"></div>
@@ -4426,15 +4426,15 @@ try {
 
   <div class="mf-preset-bar">
     <span class="mf-preset-label">⚡ MF quick set</span>
-    <button class="mf-preset-chip" data-mf="0" onclick="setMFPreset(0)" type="button">0</button>
-    <button class="mf-preset-chip" data-mf="100" onclick="setMFPreset(100)" type="button">100</button>
-    <button class="mf-preset-chip" data-mf="250" onclick="setMFPreset(250)" type="button">250</button>
-    <button class="mf-preset-chip" data-mf="400" onclick="setMFPreset(400)" type="button">400</button>
+    <button class="mf-preset-chip" data-mf="0" aria-label="magic find 0 percent" onclick="setMFPreset(0)" type="button">0</button>
+    <button class="mf-preset-chip" data-mf="100" aria-label="magic find 100 percent" onclick="setMFPreset(100)" type="button">100</button>
+    <button class="mf-preset-chip" data-mf="250" aria-label="magic find 250 percent" onclick="setMFPreset(250)" type="button">250</button>
+    <button class="mf-preset-chip" data-mf="400" aria-label="magic find 400 percent" onclick="setMFPreset(400)" type="button">400</button>
     <button class="mf-preset-chip mf-preset-chip-mine" data-mf="553" onclick="setMFPreset(553)" type="button" title="Full MF swap with Shako (Konyolock)">553 ⭐</button>
     <button class="mf-preset-chip mf-preset-chip-mine" data-mf="699" onclick="setMFPreset(699)" type="button" title="Konyolock primary MF loadout">699 ⭐</button>
-    <button class="mf-preset-chip" data-mf="800" onclick="setMFPreset(800)" type="button">800</button>
-    <button class="mf-preset-chip" data-mf="1000" onclick="setMFPreset(1000)" type="button">1000</button>
-    <input type="number" class="mf-number-input" id="mfNumberInput" min="0" max="1000" step="1" placeholder="exact"/>
+    <button class="mf-preset-chip" data-mf="800" aria-label="magic find 800 percent" onclick="setMFPreset(800)" type="button">800</button>
+    <button class="mf-preset-chip" data-mf="1000" aria-label="magic find 1000 percent" onclick="setMFPreset(1000)" type="button">1000</button>
+    <input type="number" class="mf-number-input" id="mfNumberInput" aria-label="exact magic find percent" min="0" max="1000" step="1" placeholder="exact"/>
     <span style="font-size:9px;color:var(--gold-dim);font-family:var(--mono);opacity:.7;margin-left:auto">click preset · type exact · ⌨️ shift+1-6 · ? for shortcuts</span>
   </div>
 
@@ -4474,7 +4474,7 @@ try {
   </div>
   <div class="gsearch-wrap" title="Search a boss, act, zone, super-unique or item — Enter to jump">
     <span class="gsearch-ic-lead">🔍</span>
-    <input id="gsearch-input" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
+    <input id="gsearch-input" aria-label="search the whole bible" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
     <div id="gsearch-results" class="gsearch-results" hidden></div>
     <div id="gsearch-scrim" hidden onclick="try{var b=document.getElementById('gsearch-results');b.hidden=true;b.innerHTML='';this.hidden=true;document.getElementById('gsearch-input').blur();}catch(e){}"></div><!-- v696 P1: search owns focus — click-away closes -->
   </div>
@@ -4721,7 +4721,7 @@ try {
 
 <div class="tab-content" id="tab-calc">
   <div class="lead"><strong>🔍 Pick any item → see best farm + runs needed.</strong> ⭐ Star items to highlight across all boss tables + prioritize in hero card.</div>
-  <input class="search-box" id="item-search" placeholder="search: shako · soj · tyrael's · fathom · arachnid · mara's · griffon's...">
+  <input class="search-box" id="item-search" aria-label="search unique and set items" placeholder="search: shako · soj · tyrael's · fathom · arachnid · mara's · griffon's...">
   <div class="filter-row">
     <button class="filter-pill active" data-filter="all">all</button>
     <button class="filter-pill" data-filter="grail">grail-tier</button>
@@ -5570,7 +5570,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         <div class="cubeup-panel">
           <div class="cubeup-row">
             <span style="font-size:var(--fs-body);color:var(--text-muted)">From my stash I can cube up to</span>
-            <select id="rune-cubeup-target" onchange="window.renderRuneStash()"></select>
+            <select id="rune-cubeup-target" aria-label="which rune to cube up to" onchange="window.renderRuneStash()"></select>
             <span class="cubeup-result" id="cubeup-result">—</span>
           </div>
           <div class="cubeup-note">Cascades every lower rune up the chain (3→1 for El–Lem, 2→1 for Pul–Cham). Rune math only — each cube step also consumes the gem listed in that rune's recipe.</div>
@@ -5618,8 +5618,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         <div class="cubeup-panel">
           <div class="cubeup-row">
             <span style="font-size:var(--fs-body);color:var(--text-muted)">From my stash I can cube up to</span>
-            <select id="gem-cubeup-type" onchange="window.renderGemStash()"></select>
-            <select id="gem-cubeup-q" onchange="window.renderGemStash()"></select>
+            <select id="gem-cubeup-type" aria-label="which gem to cube up to" onchange="window.renderGemStash()"></select>
+            <select id="gem-cubeup-q" aria-label="which gem quality to cube up to" onchange="window.renderGemStash()"></select>
             <span class="cubeup-result" id="gem-cubeup-result">—</span>
           </div>
           <div class="cubeup-note">Cascades every lower grade of that gem type up the 3-to-1 chain (Chipped → Flawed → Normal → Flawless → Perfect).</div>
@@ -5645,7 +5645,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
         <div class="rwc-progress" id="rwc-progress"></div>
         <div class="rwc-profile" id="rwc-profile"></div>
         <div class="rwc-filters" id="rwc-filters"></div>
-        <input id="rwc-search" class="arw-filter" type="text" placeholder="search a runeword, rune, or base… (try 'enigma', 'jah', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderRunewordChronicle&&window.renderRunewordChronicle()">
+        <input id="rwc-search" aria-label="search runewords by name, rune or base" class="arw-filter" type="text" placeholder="search a runeword, rune, or base… (try 'enigma', 'jah', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderRunewordChronicle&&window.renderRunewordChronicle()">
         <div class="rwc-list" id="rwc-list"></div>
       </div>
     </div>
@@ -5679,7 +5679,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
     <div class="boss-body">
       <div class="arw-wrap">
-        <input id="all-rw-filter" class="arw-filter" type="text" placeholder="filter by name, rune, or base… (try 'enigma', 'jah', 'aura', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderAllRunewords&&window.renderAllRunewords()">
+        <input id="all-rw-filter" aria-label="filter all runewords" class="arw-filter" type="text" placeholder="filter by name, rune, or base… (try 'enigma', 'jah', 'aura', 'helms')" autocomplete="off" spellcheck="false" oninput="window.renderAllRunewords&&window.renderAllRunewords()">
         <div class="arw-list" id="all-rw-list"></div>
       </div>
     </div>
@@ -5702,7 +5702,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
           <button class="iv-tab" data-ivtab="magic" onclick="window.renderItemValues('magic')">Magic items</button>
         </div>
         <div class="iv-tiers" id="iv-tiers"></div>
-        <input id="iv-filter" class="arw-filter" type="text" placeholder="filter by name… (try 'charm', 'sorceress', 'circlet', 'jah')" autocomplete="off" spellcheck="false" oninput="window.renderItemValues()">
+        <input id="iv-filter" aria-label="filter these items" class="arw-filter" type="text" placeholder="filter by name… (try 'charm', 'sorceress', 'circlet', 'jah')" autocomplete="off" spellcheck="false" oninput="window.renderItemValues()">
         <div class="arw-list" id="iv-list"></div>
       </div>
     </div>
@@ -5720,7 +5720,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
     <div class="boss-body">
       <div class="arw-wrap">
-        <input id="rw-bases-filter" class="arw-filter" type="text" placeholder="filter by base, slot, or runeword… (try 'archon', 'spirit', 'caster', 'insight')" autocomplete="off" spellcheck="false" oninput="window.renderRwBases&&window.renderRwBases()">
+        <input id="rw-bases-filter" aria-label="filter runeword bases" class="arw-filter" type="text" placeholder="filter by base, slot, or runeword… (try 'archon', 'spirit', 'caster', 'insight')" autocomplete="off" spellcheck="false" oninput="window.renderRwBases&&window.renderRwBases()">
         <div class="rwb-list" id="rw-bases-list"></div>
       </div>
     </div>
@@ -6396,7 +6396,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     <div class="boss-body">
       <div class="arw-wrap">
         <div class="hcr-controls">
-          <input id="horadric-filter" class="arw-filter" type="text" placeholder="filter recipes… (try 'socket', 'unique', 'ring', 'perfect emerald', 'cow')" autocomplete="off" spellcheck="false" oninput="window.renderHoradricRecipes&&window.renderHoradricRecipes()">
+          <input id="horadric-filter" aria-label="filter cube recipes" class="arw-filter" type="text" placeholder="filter recipes… (try 'socket', 'unique', 'ring', 'perfect emerald', 'cow')" autocomplete="off" spellcheck="false" oninput="window.renderHoradricRecipes&&window.renderHoradricRecipes()">
           <button type="button" id="horadric-ready-toggle" class="hcr-toggle" aria-pressed="false" title="Show only recipes you hold every rune &amp; gem for, from your live Rune + Gem Stash tallies above" onclick="window.toggleHoradricReady&&window.toggleHoradricReady()">🎒 Cubeable now <span class="hcr-toggle-n">0</span></button>
         </div>
         <div class="hcr-hint">Tied to your <strong>🧮 Rune Stash</strong> + <strong>💠 Gem Stash</strong> tallies above — green <span class="hcr-status hcr-ready" style="position:static">✓ cubeable</span> means you already hold every rune &amp; gem the recipe lists (base items / potions aren't tracked).</div>
@@ -6527,7 +6527,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
     <div class="boss-body">
       <div class="arw-wrap">
-        <input id="hvf-filter" class="arw-filter" type="text" placeholder="filter… (try 'amulet', 'jewel', 'eth', 'caster', 'crafted', 'base')" autocomplete="off" spellcheck="false" oninput="window.renderHighValueFinds&&window.renderHighValueFinds()">
+        <input id="hvf-filter" aria-label="filter by base" class="arw-filter" type="text" placeholder="filter… (try 'amulet', 'jewel', 'eth', 'caster', 'crafted', 'base')" autocomplete="off" spellcheck="false" oninput="window.renderHighValueFinds&&window.renderHighValueFinds()">
         <div class="hcr-list" id="hvf-list"></div>
       </div>
     </div>
@@ -9292,7 +9292,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       </div>
       <div class="vault-find">
         <span class="vault-find-ic">🔎</span>
-        <input id="vault-find-input" class="vault-find-input" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
+        <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
@@ -19599,10 +19599,10 @@ function renderHero() {
       <button class="hero-control-chip" data-hero-mode="speed" data-active="false" onclick="setHeroDiversity('speed')">⚡ raw fastest</button>
       <button class="hero-control-chip" data-hero-mode="tier" data-active="false" onclick="setHeroDiversity('tier')">🏆 ubers first</button>
       <span class="hero-control-label" style="margin-left:14px">show:</span>
-      <button class="hero-control-chip" data-hero-count="5" data-active="false" onclick="setHeroCount(5)">5</button>
-      <button class="hero-control-chip" data-hero-count="10" data-active="false" onclick="setHeroCount(10)">10</button>
-      <button class="hero-control-chip" data-hero-count="15" data-active="true" onclick="setHeroCount(15)">15</button>
-      <button class="hero-control-chip" data-hero-count="20" data-active="false" onclick="setHeroCount(20)">20</button>
+      <button class="hero-control-chip" data-hero-count="5" aria-label="show 5 bosses in the path" data-active="false" onclick="setHeroCount(5)">5</button>
+      <button class="hero-control-chip" data-hero-count="10" aria-label="show 10 bosses in the path" data-active="false" onclick="setHeroCount(10)">10</button>
+      <button class="hero-control-chip" data-hero-count="15" aria-label="show 15 bosses in the path" data-active="true" onclick="setHeroCount(15)">15</button>
+      <button class="hero-control-chip" data-hero-count="20" aria-label="show 20 bosses in the path" data-active="false" onclick="setHeroCount(20)">20</button>
     </div>`;
     $('hero-picks').insertAdjacentHTML('beforebegin', controlsHtml);
   }
@@ -20201,7 +20201,7 @@ function renderItemDetailCard(itemName) {
         <div class="gic-sim-box">
           <div class="gic-sim-controls">
             <span class="gic-sim-label">@ <strong>${best.boss}</strong> · 1:${best.chance.toLocaleString()}</span>
-            <input class="gic-sim-input" type="number" id="gic-sim-runs" value="${best.r50}" min="1" max="100000">
+            <input class="gic-sim-input" type="number" id="gic-sim-runs" aria-label="how many runs to simulate" value="${best.r50}" min="1" max="100000">
             <span class="gic-sim-label">runs · 20 simulated sessions</span>
             <button class="gic-sim-btn" onclick="window.runGicSim(${best.chance})">🎲 simulate</button>
           </div>
@@ -21741,7 +21741,7 @@ function renderDetail() {
         <button class="puv-trial-chip" data-trials="500" onclick="setPuvTrials(500)">500</button>
         <button class="puv-trial-chip" data-trials="2000" onclick="setPuvTrials(2000)">2000</button>
         <span class="puv-sim-label" style="margin-left:14px">runs each:</span>
-        <input class="puv-sim-input" type="number" id="puv-runs" value="500" min="1" max="100000">
+        <input class="puv-sim-input" type="number" id="puv-runs" aria-label="how many runs per trial" value="500" min="1" max="100000">
         <button class="puv-sim-btn" onclick="window.runPuvSim(${best.adjustedChance}, ${best.kph})">🎲 RUN</button>
       </div>
       <div class="puv-sim-result" id="puv-sim-result">
@@ -25481,7 +25481,7 @@ try { setTimeout(function(){ try { window._syncCreateNowAiArt(); } catch(e){} },
       +'<button class="ask-chip" onclick="window.askBibleQuick(\'What high runes am I closest to cubing up to, and what should I work toward?\')">⬆️ What to cube toward</button>'
       +'<button class="ask-chip" onclick="window.askBibleQuick(\'Given my stash, what is the single best thing to build next and exactly how?\')">🎯 Best next build</button>'
       +'</div><div id="ask-thread" class="ask-thread"></div>'
-      +'<div class="ask-input-row"><input id="ask-input" class="ask-input" type="text" placeholder="Ask anything — e.g. can I make Spirit? what am I close to?" autocomplete="off" onkeydown="if(event.key===\'Enter\'){window.askBible(this.value);this.value=\'\'}">'
+      +'<div class="ask-input-row"><input id="ask-input" aria-label="ask the bible a question" class="ask-input" type="text" placeholder="Ask anything — e.g. can I make Spirit? what am I close to?" autocomplete="off" onkeydown="if(event.key===\'Enter\'){window.askBible(this.value);this.value=\'\'}">'
       +'<button class="ask-send" onclick="var i=document.getElementById(\'ask-input\');window.askBible(i.value);i.value=\'\'">Ask&nbsp;→</button></div>'
       +'<div class="ask-note">Reads your live tallies on this device and answers with Claude Sonnet · the same key powers the 📸 intake · answers can be imperfect — verify against the recipe tools.</div>'
       +'</div></div>';
@@ -29903,7 +29903,7 @@ _v41_whenReady(() => {
 
 <div id="v42-palette-overlay" role="dialog" aria-modal="true" aria-label="Command palette">
   <div id="v42-palette">
-    <input id="v42-palette-input" type="text" placeholder="jump to boss, item, MF, tab… (try 'shak' or 'meph' or 'mf 750')" autocomplete="off" spellcheck="false">
+    <input id="v42-palette-input" aria-label="jump to anything in the bible" type="text" placeholder="jump to boss, item, MF, tab… (try 'shak' or 'meph' or 'mf 750')" autocomplete="off" spellcheck="false">
     <div id="v42-palette-list"></div>
     <div id="v42-palette-footer">
       <span><span class="v42-pal-kbd">↑↓</span> navigate</span>
@@ -34118,13 +34118,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var have=copyCount(n), want=multiKeep[n], s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
       return '<div class="vmk-row" data-mk="'+esc(n)+'">'+art(n)
         +'<span class="vmk-name" data-arttip="'+esc(n)+'"'+s+' onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+esc(n)+'</span>'
-        +'<span class="vmk-grp"><span class="vmk-grp-lbl">have</span><button class="vmk-step" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',-1)"'+(have<=0?' disabled':'')+'>−</button><span class="vmk-num'+(have>=want?' vmk-have-full':'')+'">'+have+'</span><button class="vmk-step" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',1)"'+(have>=want?' disabled':'')+'>+</button></span>'
-        +'<span class="vmk-grp"><span class="vmk-grp-lbl">want</span><button class="vmk-step" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',-1)">−</button><span class="vmk-num">'+want+'</span><button class="vmk-step" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',1)">+</button></span>'
+        +'<span class="vmk-grp"><span class="vmk-grp-lbl">have</span><button class="vmk-step" aria-label="one fewer copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',-1)"'+(have<=0?' disabled':'')+'>−</button><span class="vmk-num'+(have>=want?' vmk-have-full':'')+'">'+have+'</span><button class="vmk-step" aria-label="one more copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',1)"'+(have>=want?' disabled':'')+'>+</button></span>'
+        +'<span class="vmk-grp"><span class="vmk-grp-lbl">want</span><button class="vmk-step" aria-label="want one fewer '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',-1)">−</button><span class="vmk-num">'+want+'</span><button class="vmk-step" aria-label="want one more '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',1)">+</button></span>'
         +'<button class="vmk-rm" onclick="window.vaultMultiKeepRemove(\''+jsArg(n)+'\')" title="remove from multi-copy keepers (back to single)">✕</button></div>';
     }).join('');
     el.innerHTML='<details class="vmk-det"><summary class="vmk-sum to-sum"><span class="to-emblem">📦</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Multi-copy Keepers</span></span><span class="to-subt">staples you want several of — targets editable; a re-read under target is kept as a spare, not a discard</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vmk-body">'
       +(rows||'<div style="padding:8px 4px;color:#8a9aa8;font-size:12px">No multi-copy items yet — add one below.</div>')
-      +'<div class="vmk-add"><input id="vmk-add-input" type="text" autocomplete="off" placeholder="Add an item to collect spares of (e.g. Gore Rider)" onkeydown="if(event.key===\'Enter\')window.vaultMultiKeepAdd()"><button onclick="window.vaultMultiKeepAdd()">+ Add</button></div></div></details>';
+      +'<div class="vmk-add"><input id="vmk-add-input" aria-label="add an item to collect spares of" type="text" autocomplete="off" placeholder="Add an item to collect spares of (e.g. Gore Rider)" onkeydown="if(event.key===\'Enter\')window.vaultMultiKeepAdd()"><button onclick="window.vaultMultiKeepAdd()">+ Add</button></div></div></details>';
   }
   window.vaultCopyAdjust=function(n,d){ var want=multiTarget(n), nv=Math.max(0,Math.min(want,copyCount(n)+d)); if(nv<=1){ delete copies[n]; } else { copies[n]=nv; } try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
   window.vaultTargetBump=function(n,d){ var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } multiKeep[n]=nt; if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
@@ -35425,7 +35425,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function renderAIItemChecker(){
     var wrap=document.getElementById('aic-wrap'); if(!wrap) return;
     var it=_aicItem;
-    var affixRows=(it.mods||[]).map(function(m,i){ return '<div class="aic-affix-row"><input class="aic-input" value="'+esc(m)+'" oninput="window.aicSetAffix('+i+',this.value)" placeholder="e.g. +2 to All Skills"><button class="aic-x" onclick="window.aicDelAffix('+i+')" title="remove">✕</button></div>'; }).join('');
+    var affixRows=(it.mods||[]).map(function(m,i){ return '<div class="aic-affix-row"><input class="aic-input" aria-label="affix on this item" value="'+esc(m)+'" oninput="window.aicSetAffix('+i+',this.value)" placeholder="e.g. +2 to All Skills"><button class="aic-x" onclick="window.aicDelAffix('+i+')" title="remove">✕</button></div>'; }).join('');
     var artSrc=(typeof _magicArtSrc==='function')?(_magicArtSrc(it.base||it.name||'')||''):'';
     wrap.innerHTML=''
       + '<div class="aic-drop" id="aic-drop" onclick="var f=document.getElementById(\'aic-file\');f&&f.click()">📥 <b>Drop a magic/rare item screenshot</b> here, or click to pick a file — the AI reads what it can; edit anything below.</div>'
@@ -35434,9 +35434,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<div class="aic-grid">'
       +   '<div class="aic-panel"><h4>Item</h4>'
       +     (artSrc?'<img class="aic-art" src="'+esc(artSrc)+'" alt="" loading="lazy">':'')
-      +     '<div class="aic-field"><label>Name</label><input class="aic-input" value="'+esc(it.name||'')+'" oninput="window.aicSetField(\'name\',this.value)" placeholder="rolled name (optional)"></div>'
-      +     '<div class="aic-field"><label>Base</label><input class="aic-input" value="'+esc(it.base||'')+'" oninput="window.aicSetField(\'base\',this.value)" placeholder="e.g. Crystal Sword"></div>'
-      +     '<div class="aic-field"><label>Quality</label><select class="aic-input" onchange="window.aicSetField(\'q\',this.value)">'
+      +     '<div class="aic-field"><label>Name</label><input class="aic-input" aria-label="rolled name of this item" value="'+esc(it.name||'')+'" oninput="window.aicSetField(\'name\',this.value)" placeholder="rolled name (optional)"></div>'
+      +     '<div class="aic-field"><label>Base</label><input class="aic-input" aria-label="base type of this item" value="'+esc(it.base||'')+'" oninput="window.aicSetField(\'base\',this.value)" placeholder="e.g. Crystal Sword"></div>'
+      +     '<div class="aic-field"><label>Quality</label><select class="aic-input" aria-label="quality of this item" onchange="window.aicSetField(\'q\',this.value)">'
       +        ['magic','rare','crafted'].map(function(q){ return '<option value="'+q+'"'+(it.q===q?' selected':'')+'>'+q+'</option>'; }).join('')
       +     '</select></div>'
       +   '</div>'
@@ -36089,7 +36089,7 @@ window.renderLaneLocks = function(){
        + '<span class="vll-where">' + esc(WHERE[r.lane] || r.lane || 'locked') + '</span>'
        /* v1985 — the character/mule label is HIS to type; the film never carries it. Empty shows a
           prompt rather than a fabricated name, so "not told yet" and "told" never look alike. */
-       + '<input class="vll-who" type="text" value="' + esc(r.where || '') + '"'
+       + '<input class="vll-who" aria-label="which character or mule holds this" type="text" value="' + esc(r.where || '') + '"'
        + ' placeholder="which character / mule?" maxlength="40"'
        + ' title="Yours to fill — the reels do not record which character an item is on, so the board will not guess."'
        + ' onchange="window._laneLockSetWhere(' + JSON.stringify(n).replace(/"/g,'&quot;') + ',this.value)">'
@@ -40811,7 +40811,7 @@ function renderJournal(){
     var H=['<details class="gf-wall" data-wall="'+esc(_wk)+'"'+(_ws && _ws.open ? ' open' : '')
       +' ontoggle="window.gfWallToggled(this)">'
       +'<summary class="gf-wall-sum"><span class="gf-wall-emblem">📿</span><span class="gf-wall-hd"><span class="gf-wall-t">'+title+'</span><span class="gf-wall-sub">'+sub+'</span></span><span class="gf-wall-ct">'+entries.length+'</span><span class="gf-wall-chev">▾</span></summary>'
-      +'<div class="gf-wall-body"><input class="gf-wall-filter" type="text" value="'
+      +'<div class="gf-wall-body"><input class="gf-wall-filter" aria-label="filter this wall" type="text" value="'
       +esc((_ws && _ws.q) || '')+'" placeholder="🔍 type to filter '+entries.length+'…" oninput="window.gfWallFilter(this)">'
       +'<div class="gf-allgrid">'];
     /* v2073 — THE WALL WAS THE ONE PLACE AN ITEM WAS NOT ITS OWN COLOUR. Konyo, looking at both
@@ -41238,7 +41238,7 @@ function renderJournal(){
     var isUni = (kind !== 'sets');
     return '<div class="tsrch" data-tsk="' + (isUni ? 'uni' : 'sets') + '">'
       + '<div class="tsrch-h"><span class="tsrch-ico">🔎</span>'
-      + '<input class="tsrch-i" type="search" autocomplete="off" spellcheck="false"'
+      + '<input class="tsrch-i" aria-label="search this list and tick items off" type="search" autocomplete="off" spellcheck="false"'
       + ' placeholder="' + (isUni ? 'type a unique — tick it off without hunting for it'
                                   : 'type a set piece — tick it off without hunting for it') + '"'
       + ' oninput="window._tallySearchRun(this)" onkeydown="window._tallySearchKey(event,this)">'
@@ -42048,7 +42048,7 @@ function renderJournal(){
         +(s.chronTotal?'<span class="gs-t gs-t-pc"><b>'+_uniLeft+'</b><i>still missing</i></span>':'')
         +'<span class="gs-t gs-t-work"><b>'+_thisMon+'</b><i>this month</i></span>'
         +'</div>'
-        +'<div class="gf-find"><input type="search" id="gf-found-q" placeholder="filter '+s.found+' finds — type a name…" oninput="window._gfFilter(this.value)" autocomplete="off"><span class="gf-find-n" id="gf-found-n"></span></div>'
+        +'<div class="gf-find"><input type="search" id="gf-found-q" aria-label="filter your finds" placeholder="filter '+s.found+' finds — type a name…" oninput="window._gfFilter(this.value)" autocomplete="off"><span class="gf-find-n" id="gf-found-n"></span></div>'
         +'<div class="gf-chips" id="gf-found-chips">');
       var own=_ownedNames();
       var _flU=_flog(); var _ownF=_ownedNames();
@@ -44089,7 +44089,7 @@ function renderJournal(){
         +'<span class="gs-t gs-t-pc"><b>'+s.havePieces+'</b><i>of '+s.totalPieces+' pieces</i></span>'
         +'</div>');
 
-      H.push('<div class="gf-find"><input type="search" id="gs-found-q" placeholder="filter your sets and pieces — type a name…" oninput="window._gsFilter(this.value)" autocomplete="off"><span class="gf-find-n" id="gs-found-n"></span></div>'
+      H.push('<div class="gf-find"><input type="search" id="gs-found-q" aria-label="filter your sets and pieces" placeholder="filter your sets and pieces — type a name…" oninput="window._gsFilter(this.value)" autocomplete="off"><span class="gf-find-n" id="gs-found-n"></span></div>'
         +'<div id="gs-found-blocks">');
 
       if (sealed.length) {
@@ -45556,7 +45556,7 @@ window._renderStashFresh = function(){
           var cls = r.delta>0?'up':'down';
           return '<tr><td>'+String(r.k).replace(/</g,'&lt;')+'</td><td class="same">'+r.before+'</td>'
             + '<td class="'+cls+'">'+(r.delta>0?'+':'')+r.delta+'</td>'
-            + '<td><input type="number" min="0" step="1" data-key="'+String(r.k).replace(/"/g,'&quot;')+'" value="'+r.after+'"></td></tr>';
+            + '<td><input type="number" min="0" step="1" aria-label="new count for '+String(r.k).replace(/"/g,'&quot;')+'" data-key="'+String(r.k).replace(/"/g,'&quot;')+'" value="'+r.after+'"></td></tr>';
         }).join('')
       + '</tbody></table>';
     modal.classList.add('open');
@@ -46607,7 +46607,7 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
       } else {
         oB.innerHTML = ops.map(function(op, idx){
           var btns = '';
-          if (op.pin) btns += '<button type="button" class="sc-act" data-pin="'+esc(op.pin)+'">🎯</button>';
+          if (op.pin) btns += '<button type="button" class="sc-act" aria-label="pin this mission" title="pin this mission" data-pin="'+esc(op.pin)+'">🎯</button>';
           if (op.act) btns += '<button type="button" class="sc-act sc-ops-go" data-i="'+idx+'">'+esc(op.act)+'</button>';
           return '<div class="sc-ops-row'+(op.blocker?' blocker':'')+'">'
             + '<span class="sc-ops-n">'+(idx+1)+'</span>'
@@ -47100,7 +47100,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2245', name:'v2245 - Unknown Names Itself', date:'2026-08-28', note:'An unresolved footprint now says what is unknown and why, instead of showing a bare question mark' };
+  window.D2R_BUILD = { id:'v2246', name:'v2246 - Every Control Named', date:'2026-08-28', note:'Icon-only controls carried no accessible name, and my first count of them was wrong by five times' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
