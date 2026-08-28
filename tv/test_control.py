@@ -28576,5 +28576,115 @@ class TestV2241TheUnsortedDockIsOneBox(unittest.TestCase):
                       "the perfect-order message is back in a grid cell instead of centred")
 
 
+class TestV2242EveryRealBaseHasAFootprint(unittest.TestCase):
+    """Konyo, looking at a locker: "the blackhand key is 2 celled and its same sized as the bartucs
+    cut-throat which also isnt logical... i want them related to the items themselves and their
+    relevant sizes, just like it is coded backend."
+
+    ⚠ HE SAW TWO ITEMS; UNDERNEATH WERE 71 BASES. Blackhand Key's base is "Grave Wand" and matches
+    the wand rule. Bartuc's is "Greater Talons" — ASSASSIN CLAWS — and claws appeared in no rule at
+    all, so it fell to the {w:1,h:2} default and came out the same size. Measuring the class found
+    71 of 318 codex bases (24%) matching nothing and silently taking that default.
+    THE COUNT WAS THE TELL."""
+
+    def _cells_misses(self):
+        import io as _io, os as _os, re as _re
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        body = _between(self, s, "function _itemCells(name)", "window._itemCells = _itemCells",
+                        what="the footprint resolver")
+        rules = _re.findall(r"/\\b\(([^)]+)\)\\b/\.test\(s\)", body)
+        m = _re.search(r"const ITEM_CODEX *= *\{", s)
+        i, d = m.end() - 1, 0
+        while i < len(s):
+            if s[i] == "{":
+                d += 1
+            elif s[i] == "}":
+                d -= 1
+                if d == 0:
+                    break
+            i += 1
+        ent = _re.findall(r'"((?:[^"\\]|\\.){3,60})" *: *\{[^{}]*?"base" *: *"([^"]*)"',
+                          s[m.end() - 1:i + 1])
+        miss = set()
+        for name, base in ent:
+            if not base:
+                continue
+            t = (base + " " + name).lower()
+            t = t + " " + _re.sub(r"(\w)s\b", r"\1", t)
+            if not any(_re.search(r"\b(%s)\b" % a, t) for a in rules):
+                miss.add(base)
+        return rules, ent, miss
+
+    def test_almost_every_real_base_now_resolves(self):
+        rules, ent, miss = self._cells_misses()
+        self.assertGreater(len(rules), 20, "the rule list collapsed — the parse is measuring nothing")
+        self.assertGreater(len(ent), 250, "the codex parse collapsed")
+        self.assertLessEqual(len(miss), 16,
+                             "%d bases match no footprint rule and silently take the default "
+                             "(was 71 before v2242): %s" % (len(miss), sorted(miss)[:8]))
+
+    def test_what_REMAINS_unmatched_is_legitimately_underivable(self):
+        # ⚠ NOT 'the rest are fine' — the rest are SET NAMES used as a base ("Tal Rasha set (any
+        # piece)"), which have no single footprint, plus bare "charm" which spans Gheed's Fortune
+        # (Grand, 1x3) and Annihilus (Small, 1x1). Those must stay unresolved rather than be given a
+        # confident guess. [[unknown-stays-unknown]]
+        _rules, _ent, miss = self._cells_misses()
+        for b in miss:
+            self.assertTrue(("'" in b) or ("Immortal King" in b) or ("Orphan" in b)
+                            or ("Event /" in b) or (b == "charm"),
+                            "%r is a REAL base with no footprint rule — it will render at the "
+                            "default size while looking measured" % b)
+
+    def test_CLAWS_specifically_are_no_longer_the_default(self):
+        # Pin the law by the instance he reported. A rule list can be edited without anyone noticing
+        # the one case that started it.
+        import io as _io, os as _os
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        self.assertIn("talon|cestus|katar|suwayyah|scissors|claw", s,
+                      "assassin claws are back on the default footprint")
+
+    def test_the_DEFAULT_marks_itself_as_a_guess(self):
+        # A guess indistinguishable from a measurement is how 71 bases rendered at a confident size
+        # nobody had established.
+        import io as _io, os as _os
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        self.assertIn("var cells = {w:1,h:2,approx:true}", s,
+                      "the fallback footprint no longer marks itself unmeasured")
+
+    def test_the_three_NAMED_unique_charms_resolve(self):
+        # Annihilus, Gheed's Fortune and Hellfire Torch are the only charms with their own names, so
+        # no "grand charm" / "small charm" string exists anywhere to match — they landed on the
+        # default and rendered identically while being 1, 3 and 2 cells. A closed set of three, so
+        # they are named explicitly rather than turned into a category.
+        import io as _io, os as _os
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        for pat, why in (("\\bannihilus\\b", "Annihilus (small charm, 1x1)"),
+                         ("gheed", "Gheed's Fortune (grand charm, 1x3)"),
+                         ("hellfire torch", "Hellfire Torch (large charm, 1x2)")):
+            self.assertIn(pat, s, "%s is back on the default footprint" % why)
+
+    def test_the_SIX_shapes_are_all_reachable(self):
+        # Konyo: "there are only 5-6 shapes i think in general.. maximum 8 cells and smallest 1 box."
+        # Measured: 1x1, 1x2, 1x3, 2x2, 2x3, 2x4 — six, spanning 1 to 8 cells. A rule set that could
+        # only ever emit two sizes is what made every tile look alike.
+        import io as _io, os as _os, re as _re
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        body = _between(self, s, "function _itemCells(name)", "window._itemCells = _itemCells",
+                        what="the footprint resolver")
+        shapes = set(_re.findall(r"cells = \{w:(\d+),h:(\d+)", body))
+        self.assertGreaterEqual(len(shapes), 6,
+                                "the resolver can only emit %d distinct shapes: %s"
+                                % (len(shapes), sorted(shapes)))
+        areas = sorted(int(w) * int(h) for w, h in shapes)
+        self.assertEqual(areas[0], 1, "nothing renders at the 1-cell minimum")
+        self.assertEqual(areas[-1], 8, "nothing renders at the 8-cell maximum")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

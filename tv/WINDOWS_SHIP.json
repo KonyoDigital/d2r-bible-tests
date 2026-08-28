@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2241",
+  "ver": "v2242",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2241: The unsorted dock is a grid of equal chips instead of a ragged pill wall, and a chip can no longer overflow its own column",
+  "note": "v2242: Seventy-one bases matched no footprint rule and rendered at a size nobody had established",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
