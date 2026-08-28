@@ -646,6 +646,37 @@ def _check_the_board_store_did_not_come_up_empty():
                      "python3 ~/d2r_ledger_backups/restore_ledger.py --apply")
 
 
+def _check_the_shadow_gate_is_learning():
+    """The Wilson lane, in the console. Konyo: "make it self improving and really accurate so its
+    locked and locks in the console."
+
+    It accumulates on every sweep through apply_proposal — the one door every proposal passes — so
+    its sample is not a function of which call sites someone remembered to wire. This is where the
+    record becomes visible, because a lane that only answers when asked by hand is a lane nobody
+    asks.
+
+    ⚠ IT NEVER PROMOTES ITSELF, and this check never recommends that it should. Reaching the
+    threshold means the record is worth reading. A gate that switched on its own agreement
+    statistics would be marking its own homework, and the failure lands as a wrong verdict written
+    into his grail — the one place a wrong answer is invisible.
+    """
+    try:
+        sys.path.insert(0, HERE)
+        import shadow_ledger as _sl
+        st = _sl.state()
+    except Exception as e:
+        return UNKNOWN, "the shadow lane could not be asked: %s" % str(e)[:90]
+    if not st.get("ok"):
+        return MISSING, st.get("say") or "the shadow ledger is unreadable"
+    state = st.get("state")
+    if state == "empty":
+        return UNKNOWN, st.get("say")
+    if state == "disagrees":
+        return MISSING, st.get("say")
+    # thin and agrees are both OK — one of them is just younger
+    return OK, st.get("say")
+
+
 def _check_the_locked_lanes_still_refuse():
     """He ruled it plainly: equipment and inventory are never to be told to move. The BOARD has
     carried _LOCKED_LANES since v1712; the engine that PRODUCES the suggestions did not until
@@ -944,8 +975,24 @@ def _check_the_reel_extract_is_moving():
     tail = ("" if not split else
             " · the auto-sweep's own list still calls %d of them done — inert since v2139, "
             "nothing gates on it" % len(split))
+    # v2221 — NAME THE RETAINED ENTRIES. chronicle_swept.json holds MORE entries than there are
+    # reels on disk (36 vs 30, measured 2026-08-28) and nothing said why, so the file read as a
+    # record that disagrees with the disk — which is what #167 was reopened on, and what nearly got
+    # them "cleaned". They are reads whose footage was later pruned: pages 22/35/21/22/22/140, the
+    # extract-then-prune loop working. An unexplained true number invites a destructive fix.
+    try:
+        _sp = ca._chron_swept_split(mem, dirs)
+        _ret = ("" if not _sp.get("retained") else
+                " · %d more entr%s retained for footage since pruned (the read is the record)"
+                % (_sp["retained"], "y" if _sp["retained"] == 1 else "ies"))
+    except Exception:
+        _ret = ""
+    # ⚠ v2225 — _ret rides on EVERY return below, not only the clean one. The first cut appended it
+    # to the OK path alone, so the moment any reel owed a read the explanation for the 36-vs-30 gap
+    # vanished — exactly when he is most likely to be reading the line and most likely to conclude
+    # the record disagrees with the disk. An explanation that disappears under load is not one.
     if not owed:
-        return OK, "all %d reel(s) have been read%s" % (len(dirs), tail)
+        return OK, "all %d reel(s) have been read%s%s" % (len(dirs), tail, _ret)
 
     # OWED BUT NOT MOVING. The AGE is the finding — "the loop is alive" is not evidence that it is
     # doing anything, which is exactly how this went unnoticed for two days.
@@ -957,9 +1004,9 @@ def _check_the_reel_extract_is_moving():
     hours = (time.time() - last) / 3600.0
     if hours > 2.0:
         return MISSING, ("%d of %d reel(s) owe a read and nothing has been banked for %.1f hours%s"
-                         % (len(owed), len(dirs), hours, tail))
+                         % (len(owed), len(dirs), hours, tail + _ret))
     return OK, ("%d reel(s) owe a read, last banked %.1fh ago — the loop is working through them%s"
-                % (len(owed), hours, tail))
+                % (len(owed), hours, tail + _ret))
 
 
 CHECKS = [
@@ -979,6 +1026,7 @@ CHECKS = [
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
     ("store emptied", _check_the_board_store_did_not_come_up_empty),
+    ("shadow gate", _check_the_shadow_gate_is_learning),
     ("locked lanes", _check_the_locked_lanes_still_refuse),
     ("surfaces agree", _check_the_two_surfaces_agree),
     ("the other doctors", _check_the_other_doctors),

@@ -7989,6 +7989,74 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
                          "a real set piece was retired as debris by its own ledger's fold")
 
 
+class TestV2218AScratchConsoleCannotWriteHisDecisions(unittest.TestCase):
+    """2026-08-28. He asked why the console was still asking him to relaunch when auto-relaunch is
+    supposed to do it by itself. It was OFF — and I turned it off.
+
+    Testing the new POST /api/auto_relaunch on a scratch console bound to port 17931 wrote
+    tv/auto_relaunch.json, which is a FILE IN THE REPO TREE that every console process shares. A
+    test on a throwaway port silently changed the behaviour of the console he actually uses, and
+    the only symptom was a banner he had to keep dismissing for a day.
+
+    THIS PROJECT HAS A PORT DISCIPLINE AND IT DID NOTHING HERE, because the collision was not a
+    port — it was STATE. The same rule now covers the files.
+
+    ⚠ DECISIONS ONLY. Evidence (swept sets, tallies, vault stores) stays shared on purpose: a
+    scratch console reading his real evidence is the entire point of being able to test against it.
+    What must never leak is a CHOICE — something that changes what the primary does while he is not
+    looking.
+    """
+
+    def setUp(self):
+        import control_app
+        self.ca = control_app
+        self._port = self.ca.CONTROL_PORT
+        self.addCleanup(setattr, self.ca, "CONTROL_PORT", self._port)
+
+    def test_the_primary_writes_the_real_file(self):
+        self.ca.CONTROL_PORT = 17772
+        self.assertTrue(self.ca._is_primary_console())
+        self.assertEqual(os.path.basename(self.ca._auto_relaunch_path()), "auto_relaunch.json")
+
+    def test_a_scratch_console_writes_beside_it_never_over_it(self):
+        for port in (17931, 17999, 18080):
+            self.ca.CONTROL_PORT = port
+            self.assertFalse(self.ca._is_primary_console(),
+                             "port %s believes it is his primary console" % port)
+            name = os.path.basename(self.ca._auto_relaunch_path())
+            self.assertNotEqual(name, "auto_relaunch.json",
+                                "a console on port %s writes HIS auto-relaunch setting — this is "
+                                "exactly how I switched it off on him for a day" % port)
+            self.assertIn("scratch-%s" % port, name)
+
+    def test_the_primary_port_is_not_inferred_from_a_successful_bind(self):
+        """⚠ A scratch console started while his is already up would FAIL to bind and could then
+        believe it was primary by accident. The test is the canonical number, never the outcome."""
+        src = _between(self, open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read(),
+                       "def _is_primary_console()", "def _decision_path(",
+                       what="the primary test")
+        self.assertIn("_PRIMARY_CONTROL_PORT", src)
+        # ⚠ STRIP THE DOCSTRING FIRST. My first cut grepped the whole function and went red on the
+        # very sentence explaining why it does NOT consult a bind — the fourth time today a guard
+        # in this repo read its own prose as code. [[feedback-comments-vs-code]]
+        import re as _re
+        code = _re.sub(r'"""[\s\S]*?"""', "", src)
+        code = "\n".join(l.split("#", 1)[0] for l in code.split("\n"))
+        for word in ("bind", "listen", "socket"):
+            self.assertNotIn(word, code.lower(),
+                             "the primary test consults %r in CODE — a failed bind must never be "
+                             "able to promote a scratch console to primary" % word)
+
+    def test_EVIDENCE_is_still_shared(self):
+        """The guard must not isolate a scratch console from his real data — that would make
+        testing against reality impossible, which is worse than the defect."""
+        self.ca.CONTROL_PORT = 17931
+        for fn in (self.ca._chron_swept_path, self.ca._board_tally_path):
+            self.assertNotIn("scratch-", os.path.basename(fn()),
+                             "%s became scratch-scoped; evidence is meant to stay shared, only "
+                             "DECISIONS are isolated" % fn.__name__)
+
+
 class TestV2216AnEmptiedStoreIsAnEventNotANewUser(unittest.TestCase):
     """2026-08-28. His board's localStorage went empty overnight. The boot seed floor did exactly
     what it is for — wrote the 353 seed rows back — and the board came up reading 383 uniques and
@@ -8138,13 +8206,36 @@ class TestV2214HisProgressNumberCannotBeOverwrittenByAnotherWorld(unittest.TestC
         self.assertEqual((drops[-1]["from"], drops[-1]["to"]), (120, 117))
         self.assertTrue(drops[-1].get("at"), "the drop has no timestamp, so it cannot be explained")
 
+    def test_two_worlds_with_the_SAME_numbers_is_not_a_conflict(self):
+        """⚠ v2220 — I SHIPPED THIS ALARM CRYING WOLF AND HE CAUGHT IT. Once his board re-minted its
+        install id, two owner-looking worlds existed with IDENTICAL figures, and v2214 flagged any
+        second world at all — so his console printed "TWO worlds are both claiming to be him and
+        they disagree: 77f64154 sets=120 uniques=280 vs c5c2c92d sets=120 uniques=280" and a
+        "1 NEEDS YOU" for something that needed nothing. A sentence saying "disagree" beside two
+        matching readings.
+
+        He asked exactly the right question: "it does not technically need me for anything right?"
+        It did not. An alarm that fires when nothing is wrong is how a real alarm becomes furniture,
+        which is the thing this whole arc exists to defend. [[label-outlived-referent]]
+        """
+        second = dict(self.GUEST, pfx="")
+        self._post(self.OWNER, 120, 280, 1000)
+        self._post(second, 120, 280, 2000)          # a duplicate identity, same numbers
+        d = self._doc()
+        self.assertIsNone(d.get("contested"),
+                          "two worlds reporting the SAME figures were flagged as a conflict — that "
+                          "is the false alarm he had to ask about")
+        self.assertEqual(len(d.get("ownerWorlds") or []), 2,
+                         "the duplicate identity is not recorded at all; it is worth knowing, just "
+                         "not worth interrupting him")
+
     def test_two_worlds_both_claiming_to_be_him_is_REPORTED_not_resolved(self):
         """His actual situation: the guest world that resolved before he clicked "this browser is
         mine" ALSO posted with pfx "". "Empty prefix means owner" is a coincidence, not a decision
         procedure. [[feedback-contradiction-is-the-finding]]"""
         both = dict(self.GUEST, pfx="")
         self._post(self.OWNER, 120, 280, 1000)
-        self._post(both, 117, 266, 2000)
+        self._post(both, 117, 266, 2000)     # ⚠ DIFFERENT figures — a real divergence
         d = self._doc()
         self.assertTrue(d.get("contested"),
                         "two worlds both claim to be him and the file says nothing about it — one "
@@ -13139,7 +13230,18 @@ class TestTheTemplateClassifiesForFree(unittest.TestCase):
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
         i = src.find("def _classify_one(p):")
-        self.assertIn("claude_read", src[i:i + 3600])
+        self.assertNotEqual(i, -1, "_classify_one is gone — this guard now measures nothing")
+        # ⚠ v2225 — BOUND BY THE FUNCTION, NOT BY A BYTE COUNT. This read src[i:i+3600], and a
+        # comment added to the template branch pushed `claude_read` past 3600 — so the guard went
+        # RED against code that was correct, for a reason that had nothing to do with the fallback
+        # it exists to protect. That is this repo's recorded [[two-fixes-broke-each-other]] scar
+        # (a 243-char wrapper pushing a path past a ~200-char clip) reproduced exactly, and it is
+        # why a guard must never be scoped by a character window: prose is not a defect.
+        nxt = src.find("\ndef ", i + 1)
+        body = src[i:nxt if nxt != -1 else len(src)]
+        self.assertIn("claude_read", body,
+                      "the paid classify is no longer reachable from _classify_one, so an "
+                      "abstaining detector leaves the page unread")
 
 
 class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
@@ -26548,6 +26650,637 @@ class TestV2175EveryPaidLaneRemembersWhatItAlreadyBOUGHT(unittest.TestCase):
         st, say = cd._check_the_hunt_is_buying_something()
         self.assertIn(st, ("ok", "missing", "unknown"))
         self.assertTrue(say and len(say) > 20, "the check reports nothing a person can act on")
+
+class TestRenderGateRefusesRatherThanReadingClean(unittest.TestCase):
+    """v2221 — the render gate must never call an UNMEASURED surface a clean one.
+
+    `tv/render_check.py` is the coded visual loop Konyo asked for on 2026-08-26 ("make sure its
+    coded as a loop full set complete ... so i dont need to keep telling you after you say its
+    fixed something doesnt render"). On its FIRST day it produced two false greens and two false
+    reds, and the false greens are the half that ships:
+
+      · it reported `inbox: 0 clipped` at all four widths while all three nodes were 0x0. A
+        zero-size element cannot be clipped, cannot overflow and cannot be covered, so a hidden
+        panel scores a perfect card.
+      · its `activate` called `renderInboxBadge` and `renderInbox` — both real functions, neither
+        of which paints the sticky (`renderInboxFab` does). It returned true having painted nothing.
+
+    These assertions run `verdict()` — the PURE function — over synthetic measurements, because a
+    guard that greps render_check.py for its own refusal strings would pass on the comments that
+    explain them ([[source-reading-guard]]: 10 scars in this repo from exactly that). Nothing here
+    launches Chrome, so it runs in every venue including CI.
+    """
+
+    TV = os.path.dirname(os.path.abspath(__file__))
+    CLEAN = dict(found=3, painted=3, textLen=42, off=0, clipped=0, covered=0, broken=0)
+
+    def _v(self, **over):
+        sys.path.insert(0, self.TV)
+        import render_check
+        return render_check.verdict("1440x1000", dict(self.CLEAN, **over), "#subject")
+
+    def test_a_clean_width_is_clean(self):
+        """The baseline. Without this the rest could pass by refusing everything."""
+        self.assertEqual(self._v(), [])
+
+    def test_zero_size_is_a_refusal_not_a_clean_card(self):
+        r = self._v(painted=0, zero=3)
+        self.assertEqual(len(r), 1)
+        self.assertIn("ZERO-SIZE", r[0])
+
+    def test_zero_size_SUPPRESSES_the_numbers_below_it(self):
+        """The subtle half. A 0x0 node also reports clipped=0/covered=0, and printing those
+        beside the refusal invites reading them as facts. One refusal, no reassurance."""
+        r = self._v(painted=0, zero=3, clipped=0, covered=0, off=0)
+        self.assertEqual(len(r), 1, "a zero-size surface must yield exactly one refusal: %r" % r)
+
+    def test_a_missing_selector_is_a_refusal(self):
+        self.assertTrue(self._v(found=0))
+
+    def test_a_painted_panel_with_no_text_is_an_empty_box(self):
+        self.assertTrue(any("NO TEXT" in x for x in self._v(textLen=0)))
+
+    def test_every_damage_field_can_refuse(self):
+        """A field nobody can trip is a field that is not measured — the same defect as a gate
+        that never goes red, one column narrower."""
+        for f in ("off", "clipped", "covered", "broken"):
+            self.assertTrue(self._v(**{f: 1}), "%s can never refuse" % f)
+
+    def test_activation_is_proven_from_the_RECT_not_from_the_call_returning(self):
+        """Every target's `activate` must end by checking the node is really on screen. Read from
+        the TARGETS dict, not from the file text, so a comment about rects cannot satisfy it."""
+        sys.path.insert(0, self.TV)
+        import render_check
+        for name, spec in render_check.TARGETS.items():
+            a = spec.get("activate") or ""
+            self.assertIn("getBoundingClientRect", a,
+                          "target %r calls a painter and trusts it. A painter that runs and paints "
+                          "nothing must not read the same as an open panel." % name)
+
+    def test_designed_truncation_carries_a_REASON(self):
+        """An allowlist entry with no reason is an unexplained exemption, and an unexplained
+        exemption is how a real defect gets silenced. Same rule as test_reachability's ALLOWED."""
+        sys.path.insert(0, self.TV)
+        import render_check
+        for name, spec in render_check.TARGETS.items():
+            for cls, why in (spec.get("truncation_ok") or {}).items():
+                self.assertGreater(len(why or ""), 40,
+                                   "%s/%s is exempted from clipping with no reason worth the name"
+                                   % (name, cls))
+
+
+class TestFixedChromeGutterIsReserved(unittest.TestCase):
+    """v2221 — content must stop BEFORE the gutter the viewport-anchored chrome sits in.
+
+    Found by looking at a 901px PNG, not by any gate: `· Friday, Aug 28` sat under `#nav-widget`
+    and the `DAILY PICK` tag sat under `.help-btn` with 5px of a 9px badge buried. Clean at 1440
+    and 1120 — so a `max-width` media query would have been a guard blind to the case it was
+    written for. The help button is anchored `bottom: calc(var(--dock-h) + 14px)`, so WHICH card
+    it lands on depends on viewport HEIGHT and scroll, not width.
+
+    ⚠ This is also the limit of a rule written the same afternoon. `tv/render_check.py` stopped
+    counting `position:fixed|sticky` as a cover, because a sticky header over scrolled content is
+    the page working and reporting it at every width made the gate furniture. That rule is right
+    and it would have hidden this defect. The distinction is NOT "is the coverer fixed" — it is
+    WHETHER THE LAYOUT RESERVED THE GUTTER. A momentary overlap while scrolling is scroll state;
+    content laid out into a permanently-occupied gutter is a defect. So the invariant asserted here
+    is the RESERVE, which is scroll-independent and viewport-independent, rather than any
+    particular overlap.
+
+    PIN THE LAW, NOT THE NUMBER: the reserve must cover the widest right-anchored fixed control
+    plus its inset, whatever those become. Hardcoding 64 would go quietly wrong the day the button
+    grows.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _css(self):
+        """⚠ STRIP THE COMMENTS FIRST, AND PROVE THE STRIP DID NOT RUN AWAY.
+
+        The first cut of this guard skipped this and failed BOTH ways in one run, which is the
+        [[source-reading-guard]] scar arriving in CSS: the selector regex matched the sentence
+        `#sc-taskforce` inside the comment explaining the fix, and the `.help-btn` width regex ran
+        across a comment into a later rule and reported the button as **767px wide**. Neither was a
+        code defect; both were the guard reading its own explanation.
+
+        767 is THE COUNT IS THE TELL — no button is 767px, and a guard that cannot notice that
+        about its own output will happily assert nonsense in the other direction too. And the strip
+        is NON-GREEDY on purpose: a greedy `/*.*\*/` once ate 16.9% of this very file.
+        """
+        with open(os.path.join(self.REPO, "bible.html"), encoding="utf-8") as fh:
+            raw = fh.read()
+        css = re.sub(r"/\*.*?\*/", " ", raw, flags=re.S)
+        eaten = 1.0 - (len(css) / float(len(raw)))
+        self.assertLess(eaten, 0.25,
+                        "the comment strip removed %.1f%% of the file — it ran away, and every "
+                        "assertion below it would be about text that is not there" % (eaten * 100))
+        return css
+
+    def test_the_taskforce_card_reserves_the_right_gutter(self):
+        css = self._css()
+        m = re.search(r"#sc-taskforce[^{}]*\{[^}]*padding-right:\s*(\d+)px", css)
+        self.assertIsNotNone(
+            m, "#sc-taskforce lays content to its own right edge, which is inside the gutter the "
+               "help button and nav widget occupy. Reserve it, as .inbox-sticky.has already does.")
+        reserve = int(m.group(1))
+
+        # the widest right-anchored fixed control, from the SAME file — never a remembered number
+        worst = 0
+        # anchor on the declaration block that IMMEDIATELY follows the selector — `[^{}]*`
+        # (excluding `}` too) cannot run past the end of one rule into the next
+        # ⚠ v2225 — BOTH right-anchored controls. The docstring named #nav-widget as what buried
+        # the date, then measured only .help-btn — so the compass half of the very defect being
+        # guarded was unguarded, and the guard read as protection against both.
+        for rule in re.findall(r"(?:\.help-btn|#nav-widget)[^{}]*\{([^}]*)\}", css):
+            w = re.search(r"(?<![-a-z])width:\s*(\d+)px", rule)
+            r = re.search(r"(?<![-a-z])right:\s*(\d+)px", rule)
+            if w:
+                worst = max(worst, int(w.group(1)) + (int(r.group(1)) if r else 0))
+        self.assertGreater(worst, 0, "could not measure .help-btn — the guard lost its reach, "
+                                     "which is a HARNESS fault and must not read as a pass")
+        self.assertLess(worst, 200,
+                        "measured the help button at %dpx. No button is that wide — the regex ran "
+                        "past its own rule, and a guard that cannot notice this about its own "
+                        "output will assert nonsense in the other direction too." % worst)
+        self.assertGreaterEqual(
+            reserve, worst,
+            "the reserved gutter (%dpx) is smaller than the widest right-anchored fixed control "
+            "plus its inset (%dpx), so card content is laid out underneath it." % (reserve, worst))
+
+    def test_the_gutter_covers_every_right_anchored_container_in_the_card(self):
+        """The first cut of this fix reserved `.sc-tf-row` and two headers and MISSED `.sc-card-h`,
+        which is where the date actually lives — so the badge cleared and the date stayed buried.
+        A partial reserve reads as a fix and leaves the defect on screen."""
+        css = self._css()
+        # ⚠ NO UNBOUNDED PREFIX. `([^};]*#sc-taskforce...)` backtracked O(n^2) over a 3MB file and
+        # hung the suite for minutes — a guard that never finishes is a guard that never fails.
+        # Find the declaration by INDEX, then walk back to the `{` that opens its block.
+        i = css.find("#sc-taskforce")
+        sel = ""
+        while i != -1:
+            brace = css.find("{", i)
+            if brace != -1 and "padding-right" in css[brace:css.find("}", brace) + 1]:
+                start = css.rfind("}", 0, brace)
+                sel = css[start + 1:brace]
+                break
+            i = css.find("#sc-taskforce", i + 1)
+        self.assertTrue(sel, "no #sc-taskforce rule sets padding-right")
+        for need in (".sc-tf-row", ".sc-card-h"):
+            self.assertIn(need, sel,
+                          "%s holds content at the card's right edge and is not in the reserve" % need)
+
+
+class TestTheInboxRefreshReachesEverySurface(unittest.TestCase):
+    """v2221 — the auto-refresh must repaint the panel he is actually looking at.
+
+    v2219 was written to answer "the shadow dancers are still here.. i ticked it off". It synced the
+    store, repainted `#inbox-badge` and repainted `#inbox-panel` — and never touched `#inbox-sticky`,
+    which on the Sessions tab IS the inbox, because the FAB is hidden there by design. So the store
+    went correct, the badge went correct, and the rows under his eyes did not move. The fix was
+    built and joined to the wrong painter: [[the-unjoined-end]].
+
+    Caught by rendering the page and LOOKING at it. No gate could have: every function it called
+    exists, returns cleanly and paints something real — just not that surface.
+
+    The assertion is on the DECLARED SURFACES, so it survives a rename: find who writes
+    `#inbox-sticky`, then require the refresh to call that function.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(cls.REPO, "bible.html"), encoding="utf-8") as fh:
+            raw = fh.read()
+        # ⚠ strip comments FIRST — this file explains its own defects in prose, and every name
+        # below appears in a comment. Non-greedy; a greedy strip once ate 16.9% of this file.
+        cls.js = re.sub(r"/\*.*?\*/", " ", raw, flags=re.S)
+        cls.eaten = 1.0 - len(cls.js) / float(len(raw))
+
+    def test_the_comment_strip_did_not_run_away(self):
+        self.assertLess(self.eaten, 0.25,
+                        "the strip removed %.1f%% — every assertion below would be about text that "
+                        "is not there, and would pass by measuring nothing" % (self.eaten * 100))
+
+    def _fn(self, name):
+        """The body of `window.<name> = function(){...}`, bounded by brace depth."""
+        i = self.js.find("window.%s = function" % name)
+        self.assertNotEqual(i, -1, "%s is not defined in bible.html" % name)
+        b = self.js.index("{", i)
+        depth, j = 0, b
+        while j < len(self.js):
+            if self.js[j] == "{":
+                depth += 1
+            elif self.js[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    return self.js[b:j + 1]
+            j += 1
+        self.fail("could not bound %s — HARNESS fault, not a pass" % name)
+
+    def test_only_one_function_writes_the_sticky(self):
+        """If this ever fails, the guard below is aiming at the wrong painter and must be retaught
+        before it can be trusted — a guard whose premise moved is worse than no guard."""
+        writers = [n for n in ("renderInboxFab", "renderInbox", "renderInboxBadge")
+                   if "inbox-sticky" in self._fn(n)]
+        self.assertEqual(writers, ["renderInboxFab"],
+                         "the set of functions writing #inbox-sticky changed: %r" % writers)
+
+    def test_the_refresh_calls_the_function_that_paints_the_sticky(self):
+        body = self._fn("_inboxRefresh")
+        self.assertIn(
+            "renderInboxFab", body,
+            "_inboxRefresh syncs the store and repaints the badge and the card, but never the "
+            "Sessions sticky — which is the inbox he reads. Every function it calls is real and "
+            "paints something; none of them paints that.")
+
+    def test_the_refresh_still_syncs_BEFORE_it_paints(self):
+        """The ordering is the fix. Repainting without syncing faithfully redraws the stale queue,
+        which looks exactly like the bug and would pass the assertion above."""
+        body = self._fn("_inboxRefresh")
+        self.assertLess(body.index("kaiChronicleSync"), body.index("renderInboxFab"),
+                        "the paint runs before the sync, so it redraws the queue it was meant to "
+                        "correct")
+
+
+class TestSweptMemoryKeepsPrunedReadHistory(unittest.TestCase):
+    """v2221 — a sweep entry whose FOOTAGE is gone is the proof the read happened. Never delete it.
+
+    chronicle_swept.json held 36 entries against 30 reel dirs on his tree (2026-08-28) and nothing
+    labelled the six extras, so the file read as a record that disagrees with the disk — the exact
+    thing #167 was reopened on. I was one edit from copying v2169's rule (which drops ids whose
+    footage is gone from the PRIVATE list) onto this file. Measuring first is what stopped it: the
+    six carry pages 22, 35, 21, 22, 22 and 140. They are reels that WERE read and then pruned,
+    which is the extract-then-prune loop (#136/#3) succeeding.
+
+    The two files are not the same kind of record. The private list holds a bare id and carries no
+    information, so a stale entry is only a lie. This one holds the READ. Deleting it would destroy
+    the only surviving evidence and would make a pruned reel look unread forever.
+
+    So the fix was to NAME the number, not to shrink it — and this guard exists so the tempting
+    version cannot be shipped later by someone who sees 36-vs-30 and calls it a bug.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        cls.ca = control_app
+
+    PRUNED = {"pages": 140, "classified": 0, "ts": 1787547955354}
+
+    def test_it_splits_live_from_retained(self):
+        r = self.ca._chron_swept_split(mem={"live": {"pages": 3}, "pruned": self.PRUNED},
+                                       ids={"live"})
+        self.assertEqual((r["onDisk"], r["retained"]), (1, 1))
+        self.assertEqual(r["retainedIds"], ["pruned"])
+
+    def test_a_retained_entry_still_counts_as_READ(self):
+        """The whole point. If a pruned reel read as owing a read, the sweeper would queue footage
+        that no longer exists, forever."""
+        self.assertFalse(self.ca._chron_reel_owes_a_read("pruned", {"pruned": self.PRUNED}))
+
+    def test_an_entry_with_pages_is_never_dropped_for_having_no_footage(self):
+        """The destructive fix, asserted against. Run every routine that touches this memory over a
+        record whose dir is gone, and require the entry to survive all of them."""
+        mem = {"pruned": dict(self.PRUNED)}
+        before = dict(mem)
+        self.ca._chron_swept_split(mem=mem, ids=set())          # the labeller
+        self.ca._chron_reel_owes_a_read("pruned", mem)          # the decider
+        self.ca._chron_unretire_never_read(mem=mem)             # the repair
+        self.assertEqual(mem, before,
+                         "a routine deleted read history for a reel whose footage was pruned. The "
+                         "frames are gone; this entry is the only proof the read ever happened.")
+
+    def test_an_unlistable_reel_dir_reports_UNKNOWN_not_zero(self):
+        """`retained: 0` must mean 'we looked and there were none', never 'we could not look'."""
+        r = self.ca._chron_swept_split(mem={"a": {"pages": 1}}, ids=None)
+        if r["retained"] is not None:
+            self.assertIsInstance(r["retained"], int)       # a real listing happened
+        else:
+            self.assertIn("UNKNOWN", r["why"])
+
+    def test_the_doctor_SAYS_why_the_counts_differ(self):
+        """An unexplained true number is what invites the destructive fix. The reason must reach a
+        surface, not just exist in a helper."""
+        import console_doctor, inspect
+        src = inspect.getsource(console_doctor._check_the_reel_extract_is_moving)
+        self.assertIn("_chron_swept_split", src,
+                      "the doctor reports a reel count without ever explaining why the sweep "
+                      "memory holds more entries than there are reels")
+
+
+class TestTheVaultLaneHasAWatchdog(unittest.TestCase):
+    """v2223 — the VAULT lane had no automatic trigger at all, and its work list must match the panel.
+
+    MEASURED 2026-08-28, answering his question "when does it sweep them and extract the
+    information": `vault_sweep_start` had exactly ONE caller in control_app.py — the
+    /api/vault_sweep route. It ran only when he pressed something. vault_swept.json was last
+    written four days earlier, and 452 MB sat unread. The chronicle lane has ticked every 20s since
+    v1745; the vault lane never got a loop. [[the-unjoined-end]]
+
+    ⚠ AND THE FIRST FIX WAS WORSE THAN THE BUG. It asked its own question — "no vault_swept entry
+    and the lane would read it" — which reads as equivalent to retention's rule and is a SUPERSET:
+    19 reels against retention's 2. Thirteen were "sealed with 0 pages" (the chronicle reader found
+    nothing, held for reopen), THREE WERE TEST FIXTURES, one was too recent. It would have started
+    seventeen unnecessary paid sweeps and recreated #167 — two authorities disagreeing about "is
+    this done" — in the lane that had just been joined.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        cls.ca = control_app
+
+    def test_the_loop_is_REGISTERED_not_merely_defined(self):
+        """A loop function nobody starts is the defect this fixes, one layer up."""
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('("tvd-vault-autoread", _vault_autoread_loop)', src,
+                      "the vault watchdog exists but nothing starts it — which is exactly the "
+                      "shape it was written to fix")
+
+    # ⚠ v2225 — A SYNTHETIC PLAN, NOT HIS FOOTAGE. These two tests carry the whole v2223 lesson and
+    # both used to skipTest whenever frames/hist was absent — which is CI, and every machine but
+    # his. A test that runs nowhere proves nothing, and it reads green either way.
+    # [[regression-guard]] a SKIP IS NOT A PASS · [[feedback-blind-fixture-green-gate]]
+    PLAN = {"ok": True, "candidates": [], "kept": [
+        {"reel": "reel_A", "why": "the VAULT lane has never swept it — it still owes the vault "
+                                  "manager its stash rows"},
+        {"reel": "reel_B", "why": "sealed with 0 pages — that is 'this reader found nothing'"},
+        {"reel": "reel_C", "why": "the TEST SUITE opens this reel by name"},
+        {"reel": "reel_D", "why": "one of the 5 most recent"},
+        {"reel": "reel_E", "why": "the VAULT lane has never swept it — it still owes the vault "
+                                  "manager its stash rows"},
+    ]}
+
+    def test_its_work_list_IS_retentions_list_not_a_second_opinion(self):
+        """The whole lesson. Both must come from the same reason string, so they cannot drift."""
+        import reel_retention as rr
+        with mock.patch.object(rr, "plan", lambda *a, **k: self.PLAN):
+            mine = {os.path.basename(x) for x in (self.ca._vault_owed_reels("/tmp/h") or [])}
+        panel = {os.path.basename(str(k["reel"])) for k in self.PLAN["kept"]
+                 if "VAULT lane has never swept" in k["why"]}
+        self.assertEqual(mine, panel,
+                         "the watchdog and the panel disagree about which reels owe the vault "
+                         "lane. That is #167 reappearing: whichever surface he reads is wrong "
+                         "about the other, and the sweeper spends money on the difference.")
+
+    def test_the_work_list_returns_PATHS_because_the_grower_check_needs_one(self):
+        """⚠⚠ THE DEFECT THAT MADE v2223 DO NOTHING AT ALL, asserted directly.
+
+        reel_retention reports `reel` as a bare BASENAME. The tick handed that to
+        _reel_is_growing(), which needs a DIRECTORY and answers GROWING for anything it cannot
+        stat — so every owed reel was filed "still growing" and skipped, permanently, while the
+        tick cheerfully reported "2 owed, none startable this tick". MEASURED on his tree: zero
+        sweeps, forever. My own guards missed it because they MOCK _reel_is_growing, removing the
+        single step that was broken."""
+        import reel_retention as rr
+        with mock.patch.object(rr, "plan", lambda *a, **k: self.PLAN):
+            got = self.ca._vault_owed_reels("/tmp/h") or []
+        self.assertTrue(got, "the work list came back empty on a plan that owes two reels")
+        for x in got:
+            self.assertIn(os.sep, x,
+                          "%r is a bare basename. _reel_is_growing needs a path and treats an "
+                          "unstattable one as GROWING, which skips the reel forever." % x)
+
+    def test_it_never_queues_a_reel_the_plan_holds_for_another_reason(self):
+        """The 17 near-misses, asserted as a class: anything retention keeps for a DIFFERENT reason
+        — 0 pages, a test fixture, too recent — must not appear in the work list."""
+        import reel_retention as rr
+        with mock.patch.object(rr, "plan", lambda *a, **k: self.PLAN):
+            mine = {os.path.basename(x) for x in (self.ca._vault_owed_reels("/tmp/h") or [])}
+        for k in self.PLAN["kept"]:
+            if "VAULT lane has never swept" in k["why"]:
+                continue
+            rid = os.path.basename(str(k["reel"]))
+            self.assertNotIn(rid, mine,
+                             "%s is held because %r, not by the vault lane" % (rid, k["why"][:60]))
+
+    def test_an_unavailable_plan_is_UNKNOWN_and_the_tick_says_so(self):
+        """v2225 — this asserted `== []`, and the tick then reported {ok: True, owed: 0, why: "no
+        reel owes the vault lane a read"}: a confident measured zero over a question nobody could
+        answer. UNKNOWN must never spend money AND must never read as clean.
+
+        The version before that was worse still — an if/else that passed down either branch, so it
+        could not fail at all."""
+        self.assertIsNone(self.ca._vault_owed_reels("/nonexistent/hist/path"),
+                          "an unreadable plan must be None (UNKNOWN), never [] (measured zero)")
+        with mock.patch.object(self.ca, "_vault_owed_reels", lambda hist=None: None):
+            r = self.ca.vault_autoreel_tick()
+        self.assertFalse(r.get("ok"))
+        self.assertTrue(r.get("unknown"))
+        self.assertIsNone(r.get("owed"), "owed must be None, not 0, when nothing could be asked")
+
+    def test_the_off_switch_REFUSES_rather_than_silently_doing_nothing(self):
+        was = self.ca._VAULT_AUTOREEL_ON
+        try:
+            self.ca._VAULT_AUTOREEL_ON = False
+            r = self.ca.vault_autoreel_tick()
+            self.assertFalse(r.get("ok"))
+            self.assertIn("off", r.get("why", ""))
+        finally:
+            self.ca._VAULT_AUTOREEL_ON = was
+
+    def test_contention_does_not_burn_a_try(self):
+        """v2201's lesson, inherited rather than re-learned: a lock held by another lane retired
+        seven chronicle reels with the false reason 'the sweep started but never wrote a result'.
+
+        ⚠ The first version of THIS test grepped the source for "already running" and anchored on
+        the FIRST occurrence — the busy-check at the top of the function, not the contention branch
+        — so it failed against correct code. [[source-reading-guard]]: a guard fails on its own
+        reach before it fails on the code. Driving the function is not fooled by where a string sits.
+        """
+        real_start, real_state = self.ca.vault_sweep_start, self.ca.vault_sweep_state
+        self.ca._VAULT_AUTOREAD["tries"].pop("rrr", None)
+        try:
+            self.ca.vault_sweep_state = lambda: {"running": False}
+            self.ca.vault_sweep_start = lambda **kw: {"ok": False,
+                                                      "why": "a vault sweep is already running"}
+            with mock.patch.object(self.ca, "_vault_owed_reels", lambda hist=None: ["/tmp/reel_rrr"]), \
+                 mock.patch.object(self.ca, "_reel_is_growing", lambda p: False):
+                r = self.ca.vault_autoreel_tick()
+            self.assertEqual(r.get("deferred"), "reel_rrr")
+            self.assertNotIn("reel_rrr", self.ca._VAULT_AUTOREAD["tries"],
+                             "contention burned a try — that is the defect that retired seven "
+                             "chronicle reels with a reason that was not true")
+        finally:
+            self.ca.vault_sweep_start, self.ca.vault_sweep_state = real_start, real_state
+            self.ca._VAULT_AUTOREAD["tries"].pop("reel_rrr", None)
+            self.ca._VAULT_AUTOREAD["skipped"].pop("reel_rrr", None)
+
+    def test_a_REAL_failure_still_burns_a_try(self):
+        """The other half, or the bound is gone: a sweep that always dies must still retire."""
+        real_start, real_state = self.ca.vault_sweep_start, self.ca.vault_sweep_state
+        try:
+            self.ca.vault_sweep_state = lambda: {"running": False}
+            self.ca.vault_sweep_start = lambda **kw: {"ok": False, "why": "vault_retro exploded"}
+            with mock.patch.object(self.ca, "_vault_owed_reels", lambda hist=None: ["/tmp/reel_qqq"]), \
+                 mock.patch.object(self.ca, "_reel_is_growing", lambda p: False):
+                self.ca.vault_autoreel_tick()
+            self.assertEqual(self.ca._VAULT_AUTOREAD["tries"].get("reel_qqq"), 1,
+                             "a genuine failure did not count — the runaway bound is gone")
+        finally:
+            self.ca.vault_sweep_start, self.ca.vault_sweep_state = real_start, real_state
+            self.ca._VAULT_AUTOREAD["tries"].pop("reel_qqq", None)
+            self.ca._VAULT_AUTOREAD["skipped"].pop("reel_qqq", None)
+
+
+class TestValuesThatWereReadButNeverWritten(unittest.TestCase):
+    """v2224 — two halves each built correctly and never joined. [[the-unjoined-end]]"""
+
+    REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _bible(self):
+        with open(os.path.join(self.REPO, "bible.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_bridge_port_is_ASSIGNED_not_only_read(self):
+        """MEASURED 2026-08-28: window._tvdBridgePort was read at FIVE sites in bible.html and
+        assigned at NONE, so every read fell through to a hardcoded 17771 and every
+        `if (window._tvdBridgePort)` guard was permanently false.
+
+        It is not decorative: control_app.py:91 and tv_diablo.py:226 both read TV_PORT, and
+        tv_diablo's own bind-failure message tells him to set it. The console UI had already solved
+        this correctly (control_ui.html reads st.agentPort off the same payload) — one of two copies
+        learned the rule. [[copy-drift]]"""
+        src = self._bible()
+        reads = src.count("_tvdBridgePort")
+        writes = src.count("_tvdBridgePort =") + src.count("_tvdBridgePort=")
+        self.assertGreater(reads, 1, "the variable vanished — this guard now measures nothing")
+        self.assertGreater(writes, 0,
+                           "_tvdBridgePort is read %d time(s) and assigned NEVER, so every read "
+                           "silently falls back to the hardcoded port" % reads)
+
+    def test_the_status_payload_still_CARRIES_the_port_it_is_read_from(self):
+        """The other end of the same joint. If /api/status stops publishing agentPort, the
+        assignment above becomes a no-op and the fallback returns — silently."""
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                  encoding="utf-8") as fh:
+            ca = fh.read()
+        self.assertIn('"agentPort": AGENT_PORT', ca,
+                      "/api/status no longer publishes agentPort, so nothing can learn the port")
+
+    def test_the_template_classifier_keeps_its_REAL_confidence(self):
+        """chronicle_template.detect() returns {is_chronicle, tab, confidence, why} and the call
+        site read only `tab`, stamping conf 1.0 — a 2-of-4 vote and a 4-of-4 vote became the same
+        number and the reason was discarded. [[unknown-stays-unknown]]"""
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                  encoding="utf-8") as fh:
+            ca = fh.read()
+        self.assertIn("templateConf", ca, "the measured confidence is discarded again")
+        self.assertIn("templateWhy", ca, "the reason the frame was called Chronicle is discarded")
+
+    def test_conf_STAYS_1_0_so_no_live_gate_moves(self):
+        """⚠ The half that is easy to get wrong in the name of honesty. `conf` is a LIVE GATE —
+        chronicle_retro.py:1788 filters `conf >= conf_floor` and tv_diablo.py:4946 tests
+        `conf < 0.75`. Passing the measured value through would start DROPPING sightings that pass
+        today: a silent behaviour change wearing an honesty fix as a disguise. The real number rides
+        ALONGSIDE. Whether the floors should read it needs a measured distribution first."""
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                  encoding="utf-8") as fh:
+            ca = fh.read()
+        i = ca.index('"via": "template"')
+        window = ca[max(0, i - 400):i + 200]
+        self.assertIn('"conf": 1.0', window,
+                      "the template branch no longer stamps conf 1.0 — if that was deliberate, the "
+                      "conf_floor consumers in chronicle_retro and tv_diablo must be re-tuned "
+                      "against a measured distribution, not left to a guess")
+
+
+class TestPruneRunsOnMeritNotOnlyUnderPressure(unittest.TestCase):
+    """v2226 — HIS RULING, twice stated: "regardless of room memory it should still be looped and
+    extracted and pruned eventually, no need for it to take up space" and "we want an automated
+    system auto healing and cleaning itself."
+
+    _retention_once used to RETURN as soon as free space was above the floor, so the whole
+    extract-then-prune loop only ever completed under disk pressure. Everything upstream worked -
+    the reels were read, both lanes sealed them, reel_retention marked them eligible and said why
+    per reel - and then nothing happened, because he had room. That is not a safety property; it is
+    an unfinished loop that looked like one. Measured at the time: 30.2 GB free, 2 reels / 122.9 MB
+    eligible, `removed: None`, `freedMb: None`, nothing ever deleted.
+
+    ⚠ THESE TESTS EXIST BECAUSE THIS IS THE ONE ACTION IN THE TREE WITH NO UNDO. What may be
+    deleted did NOT change. Every assertion below pins a refusal, not the deletion.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app
+        cls.ca = control_app
+
+    def _src(self):
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                  encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_being_above_the_floor_no_longer_ends_the_pass_when_something_is_eligible(self):
+        """The change itself. Above the floor WITH candidates must fall through to the act path."""
+        src = self._src()
+        self.assertIn("_above_floor and not cands", src,
+                      "the floor early-exit is back, so extracted footage sits forever whenever he "
+                      "happens to have room - the exact state he asked twice to be rid of")
+
+    def test_TV_AUTO_PRUNE_off_still_refuses_in_every_spelling(self):
+        """v2082's scar, which must survive this change: the switch matched the byte "0" and
+        nothing else, so `off`, `false`, `no`, `OFF` all ARMED an unattended irreversible deleter."""
+        was = os.environ.get("TV_AUTO_PRUNE")
+        try:
+            for spell in ("0", "off", "OFF", "false", "no", "none", "never", " off "):
+                os.environ["TV_AUTO_PRUNE"] = spell
+                ok, why = self.ca.retention_may_act()
+                self.assertFalse(ok, "TV_AUTO_PRUNE=%r did not refuse" % spell)
+                self.assertIn("switched off", why)
+        finally:
+            if was is None:
+                os.environ.pop("TV_AUTO_PRUNE", None)
+            else:
+                os.environ["TV_AUTO_PRUNE"] = was
+
+    def test_an_unconfirmed_board_world_still_refuses(self):
+        """v2164/v2167: a world we would refuse to RELAUNCH into is a world we must not DELETE
+        against, and UNKNOWN is not ok. This is the guard that protects footage whose ticks may
+        have landed in a world he cannot reach."""
+        for state in ("drift", "unknown", "unreadable", None):
+            with mock.patch.object(self.ca, "board_identity_drift",
+                                   lambda s=state: {"state": s, "why": "test"}):
+                ok, why = self.ca.retention_may_act()
+            self.assertFalse(ok, "board world %r was treated as safe to delete against" % state)
+            self.assertIn("Nothing is deleted", why)
+
+    def test_an_unreadable_world_check_refuses_rather_than_assuming(self):
+        """UNMEASURABLE IS NOT A GREEN LIGHT, least of all here."""
+        def boom():
+            raise RuntimeError("no board")
+        with mock.patch.object(self.ca, "board_identity_drift", boom):
+            ok, why = self.ca.retention_may_act()
+        self.assertFalse(ok)
+        self.assertIn("could not be checked", why)
+
+    def test_eligibility_is_still_reel_retentions_alone(self):
+        """The change must not widen WHAT may go. _retention_once may only ever act on
+        `p["candidates"]`, which reel_retention builds from: read with pages >= 1, sealed by BOTH
+        lanes, not a fixture, not one of the five most recent, rows banked."""
+        src = self._src()
+        i = src.index("def _retention_once():")
+        body = src[i:src.index("\ndef ", i + 10)]
+        self.assertIn("apply_plan", body, "the act path is gone")
+        self.assertNotIn("shutil.rmtree", body,
+                         "_retention_once deletes directly instead of going through "
+                         "reel_retention.apply_plan, so eligibility is no longer one rule")
+
+    def test_the_floor_still_does_its_OTHER_job(self):
+        """Below the floor is URGENT, not routine, and /api/on still refuses to record. The change
+        removed the floor as a reason to SKIP; it must not have removed the floor."""
+        src = self._src()
+        self.assertIn("ON_AIR_FLOOR_GB", src)
+        self.assertIn("BELOW the %.0fGB floor", src,
+                      "the below-floor branch lost its distinct sentence, so urgent and routine "
+                      "now read the same to him")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

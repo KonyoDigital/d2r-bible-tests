@@ -102,6 +102,8 @@ tv/auto_relaunch.json
 # v2189 — the board's own tally, handed over by bible.html so the fleet numbers work on Windows
 # too. Live state, and it names his progress: never committed to a PUBLIC repo.
 tv/board_tally.json
+tv/shadow_ledger.json
+tv/.render_shots/
 
 # v1711 — the G5 stats ledger is per-machine runtime counters, like the budget file
 tv/g5_stats.json

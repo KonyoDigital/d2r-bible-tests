@@ -31,9 +31,11 @@ Everything here is pure: the caller injects the signature function and the reade
 the tests exercise the laws against fixtures without a vision model or a single JPEG.
 """
 
+import io
 import json
 import os
 import re
+import time
 
 # A "still" pair — frames this similar are the same screen held. Calibrated against sig_diff()'s own
 # scale in tv_diablo.py, where ambient render noise stays under the tolerance and opening a panel
@@ -1880,6 +1882,78 @@ def shadow_disagreements(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNE
     return out
 
 
+SHADOW_LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "shadow_ledger.json")
+
+# How much agreement is enough to be worth HIS decision. Not a promotion trigger — a reporting one.
+# 500 scored names across at least 20 separate sweeps is roughly the point at which "they agree" is
+# a statement about the rules rather than about the sample. Deliberately conservative: the cost of
+# promoting too early is a wrong verdict on his grail, and the cost of waiting is nothing.
+def _shadow_row(nm, v, sh):
+    """The one shape a shadow DISAGREEMENT takes. Built here so it exists once.
+
+    v2224 — shadow_scores and shadow_disagreements each assembled this dict independently, and a
+    measurement over the same input returned the SAME rows with the same names: ten identical keys,
+    plus `direction` on the standalone. Two implementations of one rule, one of them dark.
+
+    That is [[copy-drift]], and it is worth being precise about why the obvious fix was wrong: the
+    standalone had exactly one reference in the tree - its own def - so it read as an unjoined idea
+    whose output nobody consumed. It is not. shadow_scores already computes these rows inline and IS
+    joined: shadow_ledger.observe() eats scores["disagreements"] and console_doctor reads the
+    ledger. Joining the dark copy would have created a SECOND live path computing the same verdicts,
+    free to drift from the first - which is #167 in miniature, closed the same morning.
+
+    A low reference count is a symptom, never a diagnosis.
+    """
+    return {"name": nm,
+            "live": bool(v.get("pass")), "liveWhy": v.get("why"),
+            "shadowPass": bool(sh.get("wouldPass")), "shadowWhy": sh.get("why"),
+            "wilson": sh.get("wilson"), "confluence": sh.get("confluence"),
+            "k": sh.get("k"), "n": sh.get("n"), "tags": sh.get("tags"),
+            # which way they part: the live gate grounding a name the shadow would hold is a very
+            # different risk from the shadow grounding one the live gate holds, and averaging the
+            # two into "1 disagreement" hides the only thing worth knowing about it.
+            "direction": ("live-grounds-shadow-holds" if v.get("pass") and not sh.get("wouldPass")
+                          else "shadow-grounds-live-holds" if sh.get("wouldPass") and not v.get("pass")
+                          else "same-verdict-different-reason")}
+
+
+def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+    """Score a whole proposal under BOTH rules and return what was seen. WRITES NOTHING.
+
+    Konyo: "make it self improving and really accurate so its locked and locks in the console."
+    The lane has to accumulate to be worth anything — agreement on 23 names is a statement about how
+    little evidence his tree holds, not about the two rules. But the accumulating happens NEXT DOOR.
+
+    ⚠ THIS MODULE CANNOT WRITE, AND THAT IS LAW 1 OF THE FILE: "READ-ONLY UNTIL APPLY... NO
+    exception: this module cannot write AT ALL, and test_chronicle_retro proves it from the source
+    text." My first cut of the shadow ledger opened a file right here and the suite caught it —
+    correctly. The v1608 index recovery lives in reel_index.py for exactly this reason; the shadow
+    ledger lives in shadow_ledger.py for the same one. This function scores; the caller persists.
+    """
+    scored, dis, seen = 0, [], []
+    for nm, sg in sorted((by_name or {}).items()):
+        if not isinstance(sg, list) or not sg:
+            continue
+        try:
+            v = gate_verdict(nm, sg, conf_floor, min_witnesses)
+        except Exception:
+            continue
+        sh = v.get("shadow") or {}
+        if not sh:
+            continue
+        scored += 1
+        seen.append(nm)                       # v2225 — WHICH names, so the ledger can count DISTINCT
+        if sh.get("agrees") is False:
+            dis.append(_shadow_row(nm, v, sh))          # v2224 — the shared builder, not a copy
+    # ⚠ v2225 — `scored` is a count of SCORINGS in this one sweep and was being summed across
+    # sweeps into a field called `names`. The same handful of names re-scored every 11 seconds
+    # inflated it to 1141 when his entire evidence store holds 417 distinct names and the uniques
+    # universe is 403 - an arithmetically impossible number that read as a large, healthy sample.
+    # The names ride along so the ledger can hold a SET. [[unknown-stays-unknown]]
+    return {"scored": scored, "disagreements": dis, "names": sorted(set(seen))}
+
+
 def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
     """The gate to hand apply_proposal. Keeps the verdicts so a caller can show its reasoning."""
     seen = {}
@@ -2235,6 +2309,28 @@ def apply_proposal(proposal, existing, gate=None):
                 held.append({"ledger": ledger, "name": nm, "sightings": sightings})
         out[ledger] = merge_max((existing or {}).get(ledger) or [], passed)
     out["held"] = held
+    # ⚠ v2217 — THE SHADOW LANE IS SCORED HERE AND PERSISTED NEXT DOOR. This is the one door every
+    # proposal passes through, so attaching the scores here means the record's sample is not a
+    # function of which call sites someone remembered to wire. But LAW 1 of this file is that it
+    # cannot write at all — the suite proves it from the source text and it caught my first cut
+    # opening a file right here. So this SCORES; tv/shadow_ledger.py persists; the console calls it.
+    #
+    # ⚠ IT NEVER CHANGES `out`. The verdicts are already computed and returned untouched; a shadow
+    # that can alter the answer is not a shadow.
+    try:
+        _by = {}
+        for _ledger in ("uniques", "sets"):
+            for _nm, _sg in ((proposal or {}).get(_ledger) or {}).items():
+                if isinstance(_sg, list) and _sg:
+                    _by[_nm] = _sg
+        out["shadow"] = shadow_scores(_by) if _by else {"scored": 0, "disagreements": []}
+    except Exception as _se:
+        # ⚠ RECORDED, NOT SWALLOWED. The first cut called time.time() in a module that did not
+        # import `time`; the NameError went into a bare `except: pass`, nothing was written, and
+        # apply_proposal returned normally — the lane looked installed and learned nothing forever.
+        # [[paid-work-with-no-memory]]
+        out["shadow"] = {"scored": 0, "disagreements": [],
+                         "why": "the shadow lane could not score this sweep: %s" % str(_se)[:120]}
     return out
 
 

@@ -3841,7 +3841,34 @@ window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(windo
 // Both directions, across reloads. Moving d2r_owned into the shared set is therefore a NO-OP — it was
 // built in v1633 with a union migration and REVERTED because the merge could not survive a reload
 // (the board re-derives from the ledger). Nobody try it a fourth time.
-window._LP_FORKED = new Set(["d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+window._LP_FORKED = new Set([
+  /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
+     test_store_isolation caught these three, and it caught MY OWN work from this session. All
+     three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
+     per-world. The stamps were BARE, which means the "I already ran" recorded by one world
+     silences the migration for every other world on the machine, including a guest that never had
+     it run against its own data.
+
+     Not hypothetical: the v2207 restore shipped with a gate on d2r_vaultBackfill_v2200 that was
+     INERT for exactly this reason. The retired v2200 migration stamped that key universally, so
+     the gate read "already done" on boards where nothing had been done. That gate was re-keyed on
+     droppedN and the underlying sharing was left in place. This closes it.
+
+     The rule, so the next stamp gets it right: a flag recording WHETHER A WRITE HAPPENED belongs
+     in the same fork class as the thing written. Bare is correct only for a preference, where
+     every world looking identical is the point.
+
+     NOTE the absence of the apostrophe character in this whole comment, which is deliberate and
+     was arrived at the hard way, TWICE. test_store_isolation extracts names from this Set with a
+     regex that pairs single quotes. Draft one used apostrophes in prose. Draft two removed those
+     and then QUOTED THE REGEX ITSELF, which is made of the very character being avoided. Both
+     drafts mis-paired every quote after the first, swallowed the three names below, and left the
+     gate red against a fix that was already correct.
+
+     A guard that reads source fails on its own reach before it fails on the code, and the tell was
+     there both times: the names were provably present in the parsed blob while absent from the
+     parsed names. [[source-reading-guard]] [[d2r-curly-apostrophe-class]] */
+  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_muleRoster", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -44863,6 +44890,26 @@ html{overflow-x:clip}
 .tvz-shell.tvz-filmon .tvz-kicker,.tvz-shell.tvz-filmon .tvz-caption,.tvz-shell.tvz-filmon .tvz-stagecrt .tvb-verb{opacity:0;height:0;margin:0;overflow:hidden;pointer-events:none}
 .tvz-shell.tvz-filmon .tvz-center{justify-content:flex-start;align-items:flex-start;text-align:left;padding:clamp(12px,2vw,22px) clamp(12px,2vw,22px) 0;z-index:4}
 .tvz-shell.tvz-filmon .tvz-phase{font-size:clamp(15px,1.8vw,26px)!important;letter-spacing:var(--ls-label);line-height:var(--lh-none);opacity:.92;padding:5px 12px;border-radius:999px;background:rgba(6,5,3,.5);border:1px solid var(--tvz-edge);backdrop-filter:blur(3px);text-shadow:0 2px 8px rgba(0,0,0,.85)}
+
+/* ══ v2221 — THE TASK FORCE CARD RESERVES THE RIGHT GUTTER THE FIXED CHROME OWNS ═════════════
+   Found by LOOKING at a 901px render, not by any gate. Measured with elementFromPoint at the
+   right edge of every leaf in `#sc-taskforce`: at 901x900 the date `· Friday, Aug 28` sat under
+   `#nav-widget` and the `DAILY PICK` tag sat under `.help-btn` — 5px of a 9px badge. Clean at
+   1440 and 1120, so it is NOT a width breakpoint: the help button is anchored
+   `bottom:calc(var(--dock-h) + 14px)`, so whether it lands on this card depends on the viewport
+   HEIGHT and the scroll position, and a `max-width` media query would have been a guard blind to
+   the case it was written for.
+
+   The page already had the answer one card away — `.inbox-sticky.has{padding-right:64px}` (v1798)
+   reserves exactly this gutter for exactly this chrome. Same reserve, same number, so there is one
+   rule here and not two. 64px covers the 44px button plus its 12px inset.
+   [[visual-regression-detector]] · guard: tv/render_check.py target `taskforce` */
+#sc-taskforce .sc-tf-row,
+#sc-taskforce > .boss-header,
+#sc-taskforce > .sc-card-h,
+#sc-taskforce .sc-tf-head{padding-right:64px}
+/* the tag is `flex:0 0 auto` at the row's right end — with the reserve above it now stops before
+   the gutter instead of under it. Nothing else in the row is right-anchored. */
 </style>
 <style id="v704-sys-tray">
 /* v704 — SYSTEM TRAY (Grok wave P2): the bottom-right corner had FIVE chrome families at five
@@ -46797,7 +46844,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2216', name:'v2216 - an emptied store is an event, not a new user', date:'2026-08-28', note:'the seed rebuild that hid a real ledger loss now says it happened' };
+  window.D2R_BUILD = { id:'v2226', name:'v2226 - extract then prune, on merit rather than only under pressure', date:'2026-08-28', note:'a reel that has given up its information goes whether or not the disk is tight' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48243,6 +48290,60 @@ window._CH_PILL_MAP = {
       try { window.renderInboxBadge(); } catch(e){}
     });
   } catch(e){}
+  /* ══ v2219 — THE INBOX REPAINTS WHEN THE LEDGER MOVES, NOT ONLY WHEN HE CLICKS IT ═══════════
+     Konyo, twice in one morning: "the shadow dancers are still here.. i ticked it off" and "still
+     showing me something i ticked off". Both times the STORE was already correct — the queue was
+     empty and both names sat in d2r_foundLog with real dates — and the panel on his screen was a
+     snapshot from before. His own footer said so: "2 NEED YOU (DISK READ 10 MIN AGO)".
+
+     MEASURED: every call to renderInbox() in this file hangs off a CLICK — the card header, and
+     the two action paths. Nothing repaints on focus, on visibility, or on a timer. So a change that
+     arrives from anywhere else — a sweep applying, a restore, a tick in another tab, the console
+     writing through the bridge — leaves the old rows on screen indefinitely, and every one of them
+     looks like a stuck item he already answered.
+
+     ⚠ IT SYNCS FIRST, THEN PAINTS. kaiChronicleSync is what drops a row whose name has since become
+     settled; repainting without it would faithfully redraw the same stale queue. That ordering is
+     the whole fix — the render was never the broken half.
+
+     Cheap by construction: it only runs when the tab is VISIBLE, it is re-entrancy guarded, and the
+     interval is 45s rather than a poll. A panel that costs him frames while he plays would be a
+     worse defect than the one it fixes. */
+  var _inboxSyncing = false;
+  window._inboxRefresh = function(why){
+    if (_inboxSyncing) return;
+    if (document.hidden) return;          /* nothing to repaint that he can see */
+    _inboxSyncing = true;
+    try { window.kaiChronicleSync && window.kaiChronicleSync(); } catch(e){}
+    try { window.renderInboxBadge && window.renderInboxBadge(); } catch(e){}
+    try { window.renderInbox && window.renderInbox(); } catch(e){}
+    /* ⚠ v2221 — AND THE STICKY, WHICH IS THE ONLY ONE OF THESE HE WAS LOOKING AT.
+       v2219 repainted the badge (#inbox-badge) and the card (#inbox-panel) and stopped. Neither is
+       the Sessions sticky: `renderInbox` writes `#inbox-panel` and nothing else, and the sticky is
+       painted ONLY by `renderInboxFab`, which hands it the same string it gives the pop-up
+       (v1793). On Sessions the FAB is hidden by design (`body:has(#tab-session.active)
+       .inbox-fab.has{display:none}`), so THE STICKY *IS* THE INBOX THERE — and it was the one
+       surface the auto-refresh never reached.
+
+       That is the whole complaint v2219 was written to answer, still live: "the shadow dancers are
+       still here.. i ticked it off". The sync ran, the queue emptied, the badge updated, and the
+       panel under his eyes kept the old rows because a different function owns it.
+
+       Caught by rendering the page and LOOKING at it, not by any gate — the same unjoined-painter
+       shape as the render harness's own inbox target an hour earlier, which called two real
+       functions that both paint something else. [[the-unjoined-end]] [[plumbing-with-no-tap]] */
+    try { window.renderInboxFab && window.renderInboxFab(); } catch(e){}
+    _inboxSyncing = false;
+    return why || 'refresh';
+  };
+  try {
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) window._inboxRefresh('visible');
+    });
+    window.addEventListener('focus', function(){ window._inboxRefresh('focus'); });
+    setInterval(function(){ window._inboxRefresh('tick'); }, 45000);
+  } catch(e){}
+
   window._inboxAct = function(kind, name){
     try {
       if (kind === 'accept') window.kaiChronicleAccept(name);
@@ -50761,6 +50862,18 @@ window.tvStashAutoIntake = async function(tab, opts){
       fetch('/api/status', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
         .then(function (st) {
+          /* v2224 — THE BRIDGE PORT, LEARNED RATHER THAN ASSUMED. `window._tvdBridgePort` is read
+             at FIVE sites in this file (:48657, :48667, :49270, :50274, :50288) and was assigned
+             NOWHERE, so every one of them fell through to the hardcoded 17771 and every
+             `if (window._tvdBridgePort)` guard was permanently false. The agent port is
+             overridable — control_app.py:91 and tv_diablo.py:226 both read TV_PORT, and
+             tv_diablo's own bind-failure message TELLS him to set it ("or TV_PORT=17772"). So the
+             one scenario the variable exists for is the one the code invites, and it was the one
+             that would silently talk to the wrong port.
+             The console UI solved this correctly long ago — control_ui.html:7698 and :7964 both
+             read st.agentPort off this same payload. Two copies of one problem, one of them
+             joined. [[the-unjoined-end]] [[copy-drift]] */
+          try { if (st && st.agentPort) window._tvdBridgePort = st.agentPort; } catch (e) {}
           if (!done && st && st.identity && st.identity.id) { done = true; paint(st.identity.id, 'console'); }
         })
         .catch(function () {});

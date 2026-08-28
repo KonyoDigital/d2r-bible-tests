@@ -152,6 +152,32 @@ two cannot drift (they did: CI hand-listed 7 while the file knew 26).
 
 **Never trust a green gate you have not seen go red for the reason you care about.**
 
+### The gate set does not LOOK at the page — `tv/render_check.py` does
+
+`run_gates.py` proves the page parses, keeps its type tokens and serves the right files. **None of
+it opens the page.** Every visual defect Konyo has reported was green in all 30 gates, because the
+things they measure were all correct.
+
+```bash
+python3 tv/render_check.py           # every target at 1440/1120/901/375 -> tv/.render_shots/
+python3 tv/render_check.py vault     # one target
+python3 tv/render_check.py --prove   # ⚠ sabotage it and require each field to catch its own
+```
+
+Exit **0** clean · **1** a real defect · **2 UNKNOWN — no Chrome, which is not a pass.** It refuses
+rather than reports on: a zero-size surface, a panel that painted no text, a black capture, a
+`activate` that could not prove the panel is on screen, and a document that never settled. Designed
+truncation is allowlisted per-class **with a reason**, exactly like `test_reachability`'s ALLOWED.
+
+**It is NOT in `run_gates.py` and that is deliberate** — it needs Chrome, and a gate that skips on
+the machine where it matters is the failure §8 describes. It is a step you RUN, and
+`TestRenderGateRefusesRatherThanReadingClean` in `tv/test_control.py` guards its refusal logic as a
+pure function so the harness itself cannot rot back into a false green.
+
+**Adding a surface is a dict entry in `TARGETS`, about fifteen lines.** A surface with no target is
+not covered — it is unmeasured, and in a green run those read identically. Full method:
+[[visual-regression-detector]].
+
 ---
 
 ## 9. Things that are LOCKED — change only if he says so

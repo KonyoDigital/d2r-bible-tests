@@ -12798,3 +12798,50 @@ Registered, added to the isolation MUST_MOVE list (so a fixture that sets only `
 cannot reach his real `vault_seen.json`), and the file-layer join is now tested
 (`TestV2052TheSeenFileIsTheJoin`) — TestV2051 only ever proved the in-memory fold.
 
+
+## REG-396 — v2223's vault watchdog was INERT: a basename where a path was needed
+
+**Found by** the v2225 five-lens adversarial audit, not by any gate. 24 findings raised, 20 confirmed.
+
+`_vault_owed_reels()` returned bare reel BASENAMES from `reel_retention`, and handed them to
+`_reel_is_growing()`, which needs a DIRECTORY and answers GROWING for anything it cannot stat. Every
+owed reel was therefore filed `"still growing - not final yet"` and skipped — permanently — while the
+tick reported the reassuring `{"ok": true, "owed": 2, "why": "2 owed, none startable this tick"}`.
+
+MEASURED on his tree: **zero sweeps started, forever**, on the headline feature of that ship.
+
+**Why the guards missed it:** they `mock.patch` `_reel_is_growing`. The fixture removed the single
+step that was broken, so seven tests passed over a function that could never do its job.
+[[feedback-blind-fixture-green-gate]]
+
+Three siblings in the same function, all confirmed and all fixed in v2225:
+* the sweep was UNTARGETED — `vault_sweep_start` took no reel, so a try burned against one reel
+  could belong to a sweep that never opened it, and a retirement could name the wrong reel.
+* contention was matched on the PROSE `"unavailable" in why`, which also appears in two PERMANENT
+  failure messages, so a build that could never sweep would defer forever instead of retiring —
+  the runaway the try-bound exists to stop, re-entered through a string match.
+* an unreadable retention plan returned `[]`, which the tick rendered as `owed: 0` with
+  `"no reel owes the vault lane a read"` — a confident measured zero over an unanswered question.
+
+**Guards added:** `test_the_work_list_returns_PATHS_because_the_grower_check_needs_one` asserts the
+path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
+`skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
+
+## REG-397 — the shadow ledger counted repeat scorings as distinct names
+
+`shadow_ledger.observe()` did `names += scored` with no distinct tracking, and the chronicle sweep
+re-scores the same small proposal about every 11 seconds. His live ledger read **names=1263 across
+717 sweeps** — while `chron_evidence.json` holds **417** distinct names and `bible.html` pins the
+uniques universe at **403**. 1263 distinct was arithmetically impossible and nobody read it against
+the ceiling. THE COUNT WAS THE TELL.
+
+Not cosmetic: `ENOUGH_SWEEPS=20` was crossed in ~222 seconds, so `state()` returned `agrees` — the
+branch whose sentence is *"The record is worth a decision"* — and `console_doctor` rendered it OK.
+The lane exists to argue for changing the gate that writes his grail, and it was arguing from one
+slice counted 717 times. Scoring his ACTUAL store yields **39 disagreements**; the ledger said zero.
+
+**And the guard blessed it.** `test_it_accumulates_across_sweeps` observed the same `{"Shako"}` three
+times and asserted `names == 3`, reading "thin" only because 3 < 500.
+
+**Fixed:** `shadow_scores` reports WHICH names; the ledger holds a set; the old total survives as
+`scorings` so `scorings/names` makes re-reading visible. The inflated live ledger was moved aside.

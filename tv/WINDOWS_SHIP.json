@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2216",
+  "ver": "v2226",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2216: the seed rebuild that hid a real ledger loss now says it happened",
+  "note": "v2226: a reel that has given up its information goes whether or not the disk is tight",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1433,13 +1433,29 @@ def board_tally_merge(t):
     # every world making the claim, with its numbers and its age, so the console can say "two worlds
     # are claiming to be you" instead of quietly preferring one. A contradiction is the finding.
     # [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]]
-    if len(owners) > 1:
+    # ⚠ v2220 — CONTESTED MEANS THEY DISAGREE, NOT MERELY THAT THERE ARE TWO OF THEM. The v2214 cut
+    # flagged ANY second owner-looking world, so once his board re-minted its install id the console
+    # printed "TWO worlds are both claiming to be him and they disagree: 77f64154 sets=120
+    # uniques=280 vs c5c2c92d sets=120 uniques=280" — a sentence that says "disagree" beside two
+    # identical readings, and a "1 NEEDS YOU" for something that needed nothing.
+    #
+    # He asked the right question about it: "it does not technically need me for anything right?"
+    # No, it did not. A watchdog that fires when nothing is wrong is how a real alarm becomes
+    # furniture, which is the thing this whole arc is defending. Two worlds reporting the SAME
+    # numbers is a duplicate identity — worth recording, not worth interrupting him.
+    # [[label-outlived-referent]] [[feedback-blind-fixture-green-gate]]
+    def _figs(r):
+        return tuple((r.get(k) or {}).get("have") for k in ("sets", "uniques", "runewords"))
+
+    if len(owners) > 1 and len({_figs(r) for _, r in owners}) > 1:
         doc["contested"] = [{"route": k,
                              "sets": (r.get("sets") or {}).get("have"),
                              "uniques": (r.get("uniques") or {}).get("have"),
                              "at": r.get("at")} for k, r in owners]
     else:
         doc.pop("contested", None)
+        # still worth knowing that more than one world has spoken, without calling it a conflict
+        doc["ownerWorlds"] = [k for k, _ in owners]
     pub = owner or doc["byRoute"].get(key) or {}
     for k in ("who", "route", "sets", "uniques", "runewords", "at"):
         doc[k] = pub.get(k)
@@ -1859,6 +1875,46 @@ def _mask_cached():
     _MASK_CACHE["t"] = now
     _MASK_CACHE["val"] = v
     return dict(v) if v else None
+
+
+def _shadow_bank(applied):
+    """Persist what the Wilson shadow lane scored on this sweep. Never raises into a sweep.
+
+    Konyo: "make it self improving and really accurate so its locked and locks in the console."
+
+    chronicle_retro SCORES (it cannot write — that is law 1 of that file, proven from its source
+    text by test_chronicle_retro) and shadow_ledger PERSISTS. This is the joint, and it lives at the
+    sweep sites rather than inside apply_proposal for the same reason.
+
+    ⚠ THE OUTCOME IS RETURNED, NOT SWALLOWED. The first cut of this lane called time.time() in a
+    module that did not import `time`; the NameError went into a bare `except: pass`, nothing was
+    ever written, and the sweep returned normally — the lane looked installed and would have
+    reported "agrees so far" forever while learning nothing. [[paid-work-with-no-memory]]
+    """
+    try:
+        sc = (applied or {}).get("shadow")
+        if not isinstance(sc, dict):
+            return {"ok": False, "why": "that sweep carried no shadow result at all"}
+        if not sc.get("scored"):
+            # ⚠⚠ v2225 — A CRASH IS NOT AN EMPTY SWEEP, AND THIS COLLAPSED THEM. apply_proposal
+            # deliberately attaches `why` on its except branch — "the shadow lane could not score
+            # this sweep: <exc>" — precisely so a failure is RECORDED rather than swallowed. This
+            # branch then tested `scored` alone, found 0, and returned a generic refusal that threw
+            # that reason away. A lane crashing on every single sweep was therefore indistinguishable
+            # from one that had simply seen nothing scoreable, and shadow_ledger.state() would keep
+            # reporting "empty" - which console_doctor renders as "never been run - nothing is known
+            # yet". Forever. That is [[paid-work-with-no-memory]] reproduced ONE CALL FRAME from the
+            # comment above that claims to guard against it.
+            _why = str(sc.get("why") or "").strip()
+            if _why:
+                print("   \u26a0 the shadow lane FAILED on this sweep: %s" % _why[:150], flush=True)
+                return {"ok": False, "failed": True, "why": _why[:200]}
+            return {"ok": False, "why": "nothing scoreable in that sweep"}
+        import shadow_ledger as _sl
+        return _sl.observe(sc)
+    except Exception as e:
+        print("   \u26a0 the shadow lane could not record this sweep (%s)" % str(e)[:70], flush=True)
+        return {"ok": False, "why": str(e)[:120]}
 
 
 def _console_beacon(event="hb"):
@@ -3962,6 +4018,9 @@ def start_background_watchers(why):
         # v1745 — reads only visits whose LEDGER is known, only when no session is live and no
         # sweep is running, and never applies. See chronicle_autoread_tick.
         ("tvd-chron-autoread", _chron_autoread_loop),
+        # v2223 — the VAULT lane had no watchdog at all; its sweep ran only from
+        # /api/vault_sweep, i.e. only when he pressed it. 452 MB sat unread for four days.
+        ("tvd-vault-autoread", _vault_autoread_loop),
         # v2035 — seals a LANE-declared reel once the stash leaves the screen.
         ("tvd-stash-watch", _stash_watch_loop),
         # v2037 — prunes duplicate live frames while he records; 96% full at 5-6 GB/hour.
@@ -10632,6 +10691,42 @@ def _chron_swept_mem():
     return d if isinstance(d, dict) else {}
 
 
+def _chron_swept_split(mem=None, ids=None):
+    """Split the durable sweep memory into entries for footage that EXISTS and entries RETAINED
+    for footage since pruned. Pure — no disk unless you omit `ids`.
+
+    ⚠ THE RETAINED ENTRIES ARE NOT GHOSTS AND MUST NEVER BE DELETED. Measured on his tree
+    2026-08-28: chronicle_swept.json held 36 entries against 30 reel dirs, and the six extras
+    carried pages 22, 35, 21, 22, 22 and 140. Those are reels that WERE read and whose footage was
+    then pruned — which is the extract-then-prune loop (#136/#3) working exactly as designed. The
+    entry is the only surviving proof the read happened; the frames are gone.
+
+    I nearly deleted them. v2169 drops ids whose footage is gone from the PRIVATE list, and copying
+    that rule here looked like consistency. It is not the same rule: the private list holds a bare
+    id and carries no information, so a stale one is only a lie. This file holds the READ ITSELF.
+    The private list's ghosts were a record that lied; these are a record that is TRUE and that
+    nothing had labelled — [[label-outlived-referent]] pointing the other way, where the fix is to
+    NAME the number, never to make it smaller.
+
+    guard: TestSweptMemoryKeepsPrunedReadHistory in test_control.py
+    """
+    m = _chron_swept_mem() if mem is None else (mem or {})
+    if ids is None:
+        try:
+            import chronicle_retro as _cr
+            hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+            ids = set(os.path.basename(str(d)) for d in (_cr.reel_dirs(hist) or []))
+        except Exception:
+            return {"onDisk": None, "retained": None, "retainedIds": [],
+                    "why": "could not list the reels, so the split is UNKNOWN — not zero"}
+    ids = set(str(x) for x in ids)
+    retained = sorted(k for k in m if str(k) not in ids)
+    return {"onDisk": len([k for k in m if str(k) in ids]),
+            "retained": len(retained), "retainedIds": retained,
+            "why": "%d entr%s kept for footage that has since been pruned — the read is the record, "
+                   "the frames are gone" % (len(retained), "y" if len(retained) == 1 else "ies")}
+
+
 def _chron_reel_owes_a_read(rid, mem=None):
     """v2139 — ONE definition of "this reel still owes a read", shared with retention.
 
@@ -11971,8 +12066,50 @@ def _env_tristate(name):
     return None                           # an unrecognised value is not a decision
 
 
+# ── v2218 — A SCRATCH CONSOLE MUST NOT WRITE HIS DECISIONS ────────────────────────────────────
+# 2026-08-28. He asked why the console was still begging him to relaunch when auto-relaunch is
+# supposed to handle it. It was OFF — saved off at 23:37:46 the night before, by ME: I was testing
+# the new POST /api/auto_relaunch on a scratch console bound to port 17931, and auto_relaunch.json
+# is a FILE IN THE REPO TREE that every console process shares. A test on a throwaway port silently
+# changed the behaviour of the one he actually uses, and the only symptom was a banner he had to
+# click for a day.
+#
+# There is a port discipline in this project (never bind :17772, kill by port never by name) and it
+# did exactly nothing here, because the collision was not a port — it was STATE. So the same rule
+# now covers the files: a console that is not the primary writes its DECISIONS beside them under a
+# scratch name, and reads them from there too.
+#
+# ⚠ DECISIONS ONLY. Evidence (swept sets, tallies, vault stores) is deliberately still shared — a
+# scratch console reading his real evidence is the whole point of being able to test against it.
+# What must never leak is a CHOICE: something that changes what the primary does when he is not
+# looking. [[process-port-discipline]] [[feedback-fixtures-never-touch-live-data]]
+_PRIMARY_CONTROL_PORT = 17772
+
+
+def _is_primary_console():
+    """Is this the console he actually uses? -> bool
+
+    Anything not on the canonical port is a scratch/test process. Deliberately NOT inferred from
+    "did I manage to bind it" — a scratch console started while his is up would fail to bind and
+    could then believe it was primary by accident.
+    """
+    try:
+        return int(CONTROL_PORT) == _PRIMARY_CONTROL_PORT
+    except Exception:
+        return False
+
+
+def _decision_path(name):
+    """A runtime DECISION file — his if this is the primary console, scratch-scoped otherwise."""
+    d = os.path.dirname(os.path.abspath(_chron_swept_path()))
+    if _is_primary_console():
+        return os.path.join(d, name)
+    stem, ext = os.path.splitext(name)
+    return os.path.join(d, "%s.scratch-%s%s" % (stem, CONTROL_PORT, ext))
+
+
 def _auto_relaunch_path():
-    return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())), "auto_relaunch.json")
+    return _decision_path("auto_relaunch.json")
 
 
 def auto_relaunch_setting():
@@ -12525,16 +12662,30 @@ def _retention_once():
         return None
     # STEP 1 — what is waiting on a SWEEP. This is the honest answer to "why is nothing prunable",
     # and it is reported whether or not anything is deleted, because it is usually the real story.
-    waiting = [k for k in (p.get("kept") or [])
-               if "never chronicle-swept" in (k.get("why") or "")
-               or "VAULT lane has never swept" in (k.get("why") or "")]
+    # ⚠ v2223 — NAME THE LANE. These are two different readers and this list merged them into one
+    # word. Measured 2026-08-28: the payload said `lockedBehindASweep: 2, lockedMb: 452.5` beside
+    # `owedARead: 0`, and both were TRUE — the chronicle reader owed nothing, the VAULT lane owed
+    # two reels. Printed as one phrase, "2 reel(s) are waiting on a sweep" next to "nothing owes a
+    # read" reads as a broken system, and he reasonably concluded nothing was working.
+    # [[label-outlived-referent]]: a right number under a word that names the wrong quantity.
+    _w_chron = [k for k in (p.get("kept") or []) if "never chronicle-swept" in (k.get("why") or "")]
+    _w_vault = [k for k in (p.get("kept") or []) if "VAULT lane has never swept" in (k.get("why") or "")]
+    waiting = _w_chron + _w_vault
     waiting_mb = round(sum(k.get("mb") or 0 for k in waiting), 1)
+    _chron_mb = round(sum(k.get("mb") or 0 for k in _w_chron), 1)
+    _vault_mb = round(sum(k.get("mb") or 0 for k in _w_vault), 1)
+    _lane_bits = []
+    if _w_chron: _lane_bits.append("%d on the chronicle reader (%.0f MB)" % (len(_w_chron), _chron_mb))
+    if _w_vault: _lane_bits.append("%d on the vault lane (%.0f MB)" % (len(_w_vault), _vault_mb))
+    _lane_say = (" — " + " · ".join(_lane_bits)) if _lane_bits else ""
     cands = p.get("candidates") or []
     # v2006's scar, honoured: ONE SIDE DECIDES. The floor travels on the payload so the board can
     # never compare a rounded number against python's unrounded one and disagree about the same fact.
     base = {"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
             "floorGb": ON_AIR_FLOOR_GB,
             "lockedBehindASweep": len(waiting), "lockedMb": waiting_mb,
+            "lockedChron": len(_w_chron), "lockedChronMb": _chron_mb,
+            "lockedVault": len(_w_vault), "lockedVaultMb": _vault_mb,
             "eligible": len(cands), "eligibleMb": round(p.get("freeMb") or 0, 1),
             "unreadable": p.get("unreadable") or []}
     if p.get("unreadable"):
@@ -12543,16 +12694,38 @@ def _retention_once():
                                              "the ledgers cannot be read."
                                              % ", ".join(p["unreadable"])))
         return None
-    if free_gb >= ON_AIR_FLOOR_GB:
+    # ══ v2226 — A REEL THAT HAS GIVEN UP ITS INFORMATION GOES, WHETHER OR NOT THE DISK IS TIGHT ══
+    # Konyo, twice: "regardless of room memory it should still be looped and extracted and pruned
+    # eventually, no need for it to take up space" and "we want an automated system auto healing and
+    # cleaning itself."
+    #
+    # This block used to RETURN here whenever free space was above the floor, so the whole
+    # extract-then-prune loop only ever completed under disk pressure. Everything upstream of it
+    # worked: the reels were read, both lanes sealed them, reel_retention marked them eligible and
+    # said why per reel — and then nothing happened, because he had room. That is not a safety
+    # property, it is an unfinished loop that happened to look like one.
+    #
+    # ⚠ NOTHING ABOUT WHAT MAY BE DELETED CHANGES. Eligibility is still reel_retention's alone: read
+    # with pages >= 1, sealed by BOTH lanes, not a test fixture, not one of the five most recent, and
+    # never a reel whose rows are unbanked. retention_may_act() still has the final say and still
+    # refuses on TV_AUTO_PRUNE=off, on a board world that is anything but "ok" (including UNKNOWN),
+    # and while a session is in flight. The ONLY thing that changed is that "you have plenty of
+    # room" stopped being a reason to leave extracted footage on the disk forever.
+    #
+    # The floor keeps its other job: below it, pruning becomes URGENT rather than routine, and
+    # /api/on still refuses to record. That branch is untouched.
+    _above_floor = free_gb >= ON_AIR_FLOOR_GB
+    if _above_floor and not cands:
         with _PRUNE_LOCK:
             _owed = _chron_owed_count()
             _extra = (_owed - len(waiting)) if isinstance(_owed, int) else 0
             _tail = ("" if _extra <= 0 else
                      " %d more were sealed by an older reader and will be re-read." % _extra)
             _RETENTION.update(dict(base, owedARead=_owed,
-                                   say="%.1fGB free — above the %.0fGB floor, so nothing is "
-                                       "deleted. %d reel(s) (%.0f MB) are waiting on a sweep.%s"
-                                       % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb, _tail)))
+                                   say="%.1fGB free — above the %.0fGB floor. Nothing is eligible "
+                                       "to free. %d reel(s) (%.0f MB) are waiting on a sweep%s.%s"
+                                       % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb,
+                                          _lane_say, _tail)))
         return None
     if not cands:
         with _PRUNE_LOCK:
@@ -13794,7 +13967,175 @@ def vault_sweep_state():
     return st
 
 
-def vault_sweep_start(hist_dir=None, limit=None, force=False):
+# ══ v2223 — THE VAULT LANE GETS A WATCHDOG. IT NEVER HAD ONE. ═══════════════════════════════════
+# Konyo, 2026-08-28, looking at "2 reel(s) (452 MB) are waiting on a sweep": "when does it sweep
+# them and extract the information" — and "regardless of room memory it should still be looped and
+# extracted and pruned eventually, no need for it to take up space."
+#
+# MEASURED, and the answer was NEVER. `vault_sweep_start` had exactly ONE caller in the whole file:
+# the `/api/vault_sweep` route at :20228. It ran only when he pressed something. vault_swept.json
+# was last written 2026-08-24 03:45 — four days before he asked. Meanwhile the CHRONICLE lane has
+# had `tvd-chron-autoread` ticking every 20s since v1745.
+#
+# So one of the two readers was automatic and the other was manual, and the panel said only "waiting
+# on a sweep" without naming which — printed beside `owedARead: 0`, which made a true statement read
+# as a contradiction and as a stalled system. Both halves of this file's own #167 lesson, again:
+# [[the-unjoined-end]] for the missing loop, [[label-outlived-referent]] for the sentence.
+#
+# ⚠ EVERY REFUSAL SHAPE IS INHERITED FROM v2201 RATHER THAN REDISCOVERED. A lock held by another
+# lane must NOT burn a try: that mistake retired seven chronicle reels with the false reason "the
+# sweep started but never wrote a result" when the sweep had never started. Same bound, same
+# exemption, same single-exemption rule.
+_VAULT_AUTOREEL_ON = os.environ.get("TV_VAULT_AUTOREEL", "1") != "0"
+_VAULT_AUTOREAD_EVERY_S = 45          # slower than chronicle's 20s: a vault sweep is the dearer read
+_VAULT_AUTOREAD_MAX_TRIES = 2
+_VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired": {}}
+
+
+def _vault_owed_reels(hist=None):
+    """The reels the VAULT lane owes a read — taken from reel_retention's OWN plan, never re-derived.
+
+    ⚠⚠ THE FIRST CUT OF THIS SHIPPED A SECOND DEFINITION AND IT WAS A SUPERSET. It asked only "is
+    there a vault_swept entry, and would the lane ever read this reel" — which reads as equivalent
+    and is not. Measured against retention on his tree, 2026-08-28:
+
+        my predicate said 19 owed · retention said 2
+          13  "sealed with 0 pages" — the CHRONICLE reader found nothing; held for the engine to
+              reopen when the prompt improves, NOT the vault lane's work
+           3  "the TEST SUITE opens this reel by name"      <- fixtures
+           2  "the VAULT lane has never swept it"           <- the actual work
+           1  "one of the 5 most recent"                    <- too new to touch
+
+    So the watchdog would have started SEVENTEEN unnecessary paid vault sweeps, three of them over
+    test fixtures. And it would have recreated #167 exactly — two authorities disagreeing about "is
+    this done", in the lane I had just finished joining. The panel would say 2 and the sweeper would
+    work 19, and whichever he read would be wrong about the other.
+
+    ONE DEFINITION. The reason string is retention's, so a reel leaves this list the moment
+    retention stops calling it vault-blocked, and the panel and the sweeper cannot drift apart.
+    [[the-unjoined-end]] [[copy-drift]] [[feedback-contradiction-is-the-finding]]
+    """
+    try:
+        import reel_retention as _rr
+    except Exception:
+        return None                    # UNKNOWN. Never [] - see vault_autoreel_tick.
+    h = hist or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    try:
+        p = _rr.plan(h)
+    except Exception:
+        return None
+    if not p.get("ok"):
+        return None
+    # ⚠⚠ v2225 — PATHS, NOT BASENAMES, AND THIS IS WHY v2223 DID NOTHING AT ALL.
+    # reel_retention reports `reel` as a bare basename. The tick handed that straight to
+    # _reel_is_growing(), which needs a DIRECTORY and answers GROWING for anything it cannot stat.
+    # So every owed reel was filed "still growing - not final yet" and skipped, forever. MEASURED
+    # on his tree: the watchdog would have started ZERO sweeps, permanently, while reporting the
+    # cheerful "2 owed, none startable this tick".
+    #
+    # My own guards passed because they MOCK _reel_is_growing - a fixture that removes the very
+    # step that was broken. [[feedback-blind-fixture-green-gate]]. The path also gives the sweeper
+    # something to aim at, which is the second half of the fix below.
+    h_abs = os.path.abspath(h)
+    return [os.path.join(h_abs, os.path.basename(str(k.get("reel"))))
+            for k in (p.get("kept") or [])
+            if "VAULT lane has never swept" in (k.get("why") or "")]
+
+
+def _vault_autoread_state():
+    """What the vault watchdog has actually done. Reports UNKNOWN rather than a confident zero."""
+    try:
+        d = _VAULT_AUTOREAD
+        owed = _vault_owed_reels()
+        return {"on": bool(_VAULT_AUTOREEL_ON),
+                "everySeconds": _VAULT_AUTOREAD_EVERY_S,
+                "reads": int(d.get("reads") or 0),
+                "lastTs": d.get("lastTs") or None,
+                # None, never 0 — "we could not ask" and "nothing is owed" are opposite facts
+                "owed": (None if owed is None else len(owed)),
+                "owedWhy": ("the retention plan could not be read, so this is UNKNOWN"
+                            if owed is None else None),
+                "retired": sorted(d.get("retired") or {}),
+                "skipped": {k: str(v)[:90] for k, v in list((d.get("skipped") or {}).items())[:6]},
+                "tries": {k: v for k, v in list((d.get("tries") or {}).items())[:6]}}
+    except Exception as e:
+        return {"on": None, "why": "could not be read: %s" % str(e)[:90]}
+
+
+def vault_autoreel_tick():
+    """One pass. Starts at most one vault sweep, and every refusal carries a named reason."""
+    if not _VAULT_AUTOREEL_ON:
+        return {"ok": False, "why": "the vault auto-sweep is off (TV_VAULT_AUTOREEL=0)"}
+    try:
+        if (vault_sweep_state() or {}).get("running"):
+            return {"ok": False, "busy": True, "why": "a vault sweep is already running"}
+    except Exception:
+        pass
+    owed_list = _vault_owed_reels()
+    if owed_list is None:
+        # ⚠ v2225 — "we could not ask" is not "nothing is owed". The first cut returned [] here and
+        # the tick then reported {ok: True, owed: 0, why: "no reel owes the vault lane a read"} - a
+        # confident measured zero over an unanswered question. [[unknown-stays-unknown]]
+        return {"ok": False, "unknown": True, "owed": None,
+                "why": "the retention plan could not be read, so whether any reel owes the vault "
+                       "lane a read is UNKNOWN - not zero"}
+    owed = len(owed_list)
+    for d in owed_list:
+        rid = os.path.basename(str(d))
+        if rid in _VAULT_AUTOREAD["retired"]:
+            continue
+        if _reel_is_growing(str(d)):
+            _VAULT_AUTOREAD["skipped"][rid] = "still growing — not final yet"
+            continue
+        tries = _VAULT_AUTOREAD["tries"].get(rid, 0) + 1
+        if tries > _VAULT_AUTOREAD_MAX_TRIES:
+            _VAULT_AUTOREAD["retired"][rid] = {
+                "why": "the vault sweep started but never wrote a result",
+                "tries": tries - 1, "at": int(time.time() * 1000)}
+            return {"ok": False, "retired": rid, "owed": owed,
+                    "why": "the vault sweep started but never wrote a result, %d times" % (tries - 1)}
+        # ⚠ v2225 — AIM IT. `vault_sweep_start(limit=1)` was UNTARGETED: the work list decided only
+        # WHETHER a tick fired, then the sweeper re-derived its own list and picked whatever it
+        # liked. So a try counted against `rid` could be burned by a sweep that never opened that
+        # reel, and the retirement would name the wrong one. reel_dir is why the list carries paths.
+        r = vault_sweep_start(limit=1, reel_dir=str(d))
+        if not (isinstance(r, dict) and r.get("ok")):
+            why = str((isinstance(r, dict) and r.get("why")) or r)
+            # ⚠⚠ v2225 — KEY ON THE FLAG, NOT THE PROSE. This matched `"unavailable" in why`, and
+            # vault_sweep_start says "vault_retro unavailable" and "the primary (Claude) lane is
+            # unavailable" for two PERMANENT failures. A build that can never sweep would have been
+            # deferred forever instead of retiring - the exact runaway the try-bound exists to stop,
+            # re-entered through a string match. The chronicle lane was corrected the same way.
+            # [[feedback-comments-vs-code]]
+            if r.get("state") is not None or "already running" in why:
+                _VAULT_AUTOREAD["skipped"][rid] = why[:120]
+                return {"ok": False, "deferred": rid, "owed": owed, "why": why}
+            _VAULT_AUTOREAD["tries"][rid] = tries
+            _VAULT_AUTOREAD["skipped"][rid] = why[:120]
+            return {"ok": False, "reel": rid, "tries": tries, "owed": owed, "why": why}
+        _VAULT_AUTOREAD["tries"][rid] = tries
+        _VAULT_AUTOREAD["reads"] += 1
+        _VAULT_AUTOREAD["lastTs"] = int(time.time() * 1000)
+        return {"ok": True, "started": rid, "owed": owed}
+    return {"ok": True, "read": None, "owed": owed,
+            "why": "no reel owes the vault lane a read" if not owed else
+                   "%d owed, none startable this tick" % owed}
+
+
+def _vault_autoread_loop():
+    while True:
+        try:
+            time.sleep(_VAULT_AUTOREAD_EVERY_S)
+            _r = vault_autoreel_tick()
+            # v2225 — say it out loud when the lane retires a reel or cannot tell. Silence here is
+            # what made a permanently-idle watchdog look identical to a busy one.
+            if isinstance(_r, dict) and (_r.get("retired") or _r.get("unknown")):
+                print("   \u26a0 vault watchdog: %s" % str(_r.get("why"))[:140], flush=True)
+        except Exception:
+            pass
+
+
+def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     """Kick the background vault sweep. Refuses a second one — two sweeps over the same reels
     double the spend and produce two proposals that each look like the whole truth.
 
@@ -13817,12 +14158,12 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False):
         _VAULT_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            "result": None, "error": None, "lanes": lanes})
-    threading.Thread(target=_vault_sweep_run, args=(hist_dir, limit, force),
+    threading.Thread(target=_vault_sweep_run, args=(hist_dir, limit, force, reel_dir),
                      daemon=True, name="tvd-vault-sweep").start()
     return {"ok": True, "started": True, "lanes": lanes}
 
 
-def _vault_sweep_run(hist_dir, limit, force=False):
+def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
     try:
         _vr = _vault_retro()
         import tv_diablo as _tv
@@ -13846,6 +14187,13 @@ def _vault_sweep_run(hist_dir, limit, force=False):
         dirs = [d for d in _cr.reel_dirs(hist)
                 if force or _sealed_rec(d) is None
                 or not _vault_still_sealed(_sealed_rec(d))]
+        # v2225 — when the caller named a reel, sweep THAT ONE. The watchdog picks a reel from
+        # retention's owed list; without this the sweeper ignored the choice and re-derived its own,
+        # so the accounting named a reel the sweep may never have opened.
+        if reel_dir:
+            want = os.path.basename(os.path.normpath(str(reel_dir)))
+            dirs = [d for d in dirs if os.path.basename(os.path.normpath(str(d))) == want] or \
+                   ([str(reel_dir)] if os.path.isdir(str(reel_dir)) else [])
         _reopened = [os.path.basename(d) for d in dirs if _sealed_rec(d) is not None]
         if _reopened:
             print("   \U0001f513 %d reel(s) reopened - sealed with no rows by an older vault reader "
@@ -16674,6 +17022,9 @@ def _chron_visit_run(visit_ts):
         prop, _fold_report = _chron_fold(prop)
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
+        _sb = _shadow_bank(applied)
+        if isinstance(_sb, dict) and _sb.get("failed"):
+            print("   \u26a0 shadow lane not banked: %s" % str(_sb.get("why"))[:120], flush=True)
         with _CHRON_LOCK:
             _CHRON_JOB.update({
                 "running": False, "phase": "done",
@@ -16988,14 +17339,32 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             # reachable. [[unknown-stays-unknown]] — abstaining is an answer here, not a failure.
             try:
                 import chronicle_template as _ct
-                _tab = (_ct.detect(p) or {}).get("tab")
+                _det = _ct.detect(p) or {}
+                _tab = _det.get("tab")
                 _kind = _ct.ledger_kind_for_tab(_tab)
                 if _kind:
                     _tmpl_hits[0] += 1
-                    # the shape classifier() already understands, so nothing downstream changes
+                    # ⚠ v2224 — KEEP conf 1.0, BUT STOP DESTROYING THE REAL NUMBER. detect()
+                    # returns {is_chronicle, tab, confidence, why} and this call site read only
+                    # `tab`, so a 2-of-4 vote and a 4-of-4 vote both became 1.0 and the reason a
+                    # frame was called Chronicle was thrown away — a claim of certainty over a
+                    # measurement that existed. [[unknown-stays-unknown]]
+                    #
+                    # conf STAYS 1.0 on purpose. It is a LIVE GATE: chronicle_retro.py:1788 filters
+                    # `conf >= conf_floor` and tv_diablo.py:4946 tests `conf < 0.75`. Passing the
+                    # measured value through would start DROPPING sightings that pass today — a
+                    # silent behaviour change wearing an honesty fix as a disguise. The real value
+                    # rides alongside so the claim is auditable, and whether the floors should read
+                    # it is a tuning decision that needs a measured distribution first, not a guess.
+                    #
+                    # SAFE BY CONSTRUCTION: chronicle_template.py:553 sets `tab = tab_candidate if
+                    # is_chronicle else None`, so a non-Chronicle frame can never carry a tab and
+                    # this branch cannot fire on one.
                     return {"scene": "chronicle",
                             "chronicleTab": "uniques" if _kind.endswith("uniques") else "sets",
-                            "names": [], "conf": 1.0, "via": "template"}
+                            "names": [], "conf": 1.0, "via": "template",
+                            "templateConf": _det.get("confidence"),
+                            "templateWhy": _det.get("why")}
             except Exception as _te:
                 print("   \u26a0 template detect failed (%s) — falling back to the paid classify"
                       % str(_te)[:100])
@@ -17317,6 +17686,9 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         prop, _fold_report = _chron_fold(prop)
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
+        _sb = _shadow_bank(applied)
+        if isinstance(_sb, dict) and _sb.get("failed"):
+            print("   \u26a0 shadow lane not banked: %s" % str(_sb.get("why"))[:120], flush=True)
         # v1789 — THE FOCUSED HUNT, WIRED. Konyo: "cant like an extra AI take care of it and cross
         # reference it with specific and focused hunts for it to cross reference it here and
         # automatically grail it.. and if it still cant then leave it for me to tick off."
@@ -17387,6 +17759,9 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                   % (len(_rg), ", ".join(sorted({str(x.get("set")) for x in _rg})[:6])))
         gate = _cr.strict_gate()
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
+        _sb = _shadow_bank(applied)
+        if isinstance(_sb, dict) and _sb.get("failed"):
+            print("   \u26a0 shadow lane not banked: %s" % str(_sb.get("why"))[:120], flush=True)
         with _CHRON_LOCK:
             _CHRON_JOB.update({
                 "running": False, "phase": "done",
@@ -17781,7 +18156,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2216",
+        "ver": "v2226",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -17862,6 +18237,14 @@ def status_payload():
         "events": tail,
         "logPath": LOG_PATH,
         "agentPort": AGENT_PORT,
+        # ⚠ v2225 — THE WATCHDOG'S OWN RECORD, PUBLISHED. _VAULT_AUTOREAD was written at six sites
+        # and read by NOTHING: no route, no payload, no print, never persisted, and
+        # _vault_autoread_loop discarded the tick result. So every refusal it "carefully named" —
+        # every skip, every retirement, every deferral — went nowhere, and the lane was
+        # indistinguishable from one that had never run. That is the exact defect v1789 records
+        # about the third eye: a gate whose output nobody parses is not a gate.
+        # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+        "vaultAutoread": _vault_autoread_state(),
         "controlPort": CONTROL_PORT,
         "captureTarget": _cap if isinstance(_cap, dict) else {},
         "eyeAgeMs": _eye if _eye is not None else -1,

@@ -5,6 +5,7 @@ has opened on camera. What makes that safe to automate is not the reading — it
 read-only until Apply, merge-max, and pay-for-runs. Each has a test here that fails loudly if it is
 ever relaxed."""
 
+import io
 import json
 import os
 import shutil
@@ -16,6 +17,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console_safe  # noqa: F401,E402  — non-ASCII in the failure messages must survive a
                      # non-UTF-8 console, or the suite crashes while REPORTING
 import chronicle_retro as cr  # noqa: E402
+
+
+def _sl():
+    import shadow_ledger
+    return shadow_ledger
 
 
 def sig(v):
@@ -2328,6 +2334,191 @@ class TestV2210AMachineWithoutGrokStillReadsAndRegisters(unittest.TestCase):
         self.assertLess(cr.WITNESS_TIER["cross-lane"], cr.WITNESS_TIER["cross-reel-3+"],
                         "cross-lane outranks three independent sessions. It must not, or the "
                         "machine with Grok grounds on less evidence than the machine without")
+
+
+
+class TestV2217TheShadowLaneLearnsAndNeverPromotesItself(unittest.TestCase):
+    """Konyo: "make it self improving and really accurate so its locked and locks in the console."
+
+    The Wilson lane was implemented and agreed with the live gate on every name it had ever scored.
+    That sounds like a result and is not one — it is a statement about how little evidence his tree
+    holds (23 names), not about the two rules. So the lane ACCUMULATES: every sweep adds its scored
+    names and its disagreements to one durable record, and the console reports the record.
+
+    ⚠ IT NEVER PROMOTES ITSELF. Reaching the threshold means the record is worth HIS decision. A
+    gate that switched on its own agreement statistics is marking its own homework, and the failure
+    lands as a wrong verdict in his grail, where a wrong answer is invisible.
+    """
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        self.d = tempfile.mkdtemp()
+        self.led = os.path.join(self.d, "shadow_ledger.json")
+        self.addCleanup(shutil.rmtree, self.d, True)
+
+    def _agree(self):
+        """3 reels x 1 frame — both rules ground it. Measured."""
+        return [{"lane": "claude", "reel": r, "frame": "f1.png", "conf": 0.97}
+                for r in ("rA", "rB", "rC")]
+
+    def _disagree(self):
+        """2 reels x 3 frames — the live gate grounds it on two witness KINDS; the shadow holds it
+        at confluence 0.85 because the evidence is repetitive. Measured, and it is the shape a MINI
+        capture produces, so it WILL occur in his data."""
+        return ([{"lane": "claude", "reel": "rA", "frame": "f%d.png" % i, "conf": 0.97}
+                 for i in range(3)]
+                + [{"lane": "claude", "reel": "rB", "frame": "f%d.png" % i, "conf": 0.97}
+                   for i in range(3)])
+
+    def test_the_disagreeing_shape_really_does_disagree(self):
+        """⚠ THE FIXTURE CHECK FIRST. Every assertion below about disagreements is vacuous if this
+        shape does not actually split the two rules."""
+        v = cr.gate_verdict("X", self._disagree())
+        self.assertTrue(v["pass"], "the live gate no longer grounds this shape")
+        self.assertFalse((v.get("shadow") or {}).get("wouldPass"),
+                         "the shadow no longer holds this shape — the fixture stopped separating "
+                         "the two rules and every disagreement test below proves nothing")
+        a = cr.gate_verdict("X", self._agree())
+        self.assertTrue(a["pass"])
+        self.assertTrue((a.get("shadow") or {}).get("wouldPass"))
+
+    def test_it_counts_DISTINCT_names_not_repeat_scorings(self):
+        """⚠⚠ v2225 — THIS TEST USED TO ENCODE THE DEFECT AS CORRECT.
+
+        It observed the SAME single name three times and asserted (names, sweeps) == (3, 3), then
+        called the result "thin" only because 3 < 500. So the guard blessed counting one name three
+        times as three names, and stayed green while the field called `names` filled with repeats.
+
+        On his live tree that ran to names=1263 across 717 sweeps — while chron_evidence.json holds
+        417 distinct names and bible.html pins the uniques universe at 403. 1263 DISTINCT was
+        arithmetically impossible. It crossed ENOUGH_SWEEPS=20 in about 222 seconds, so state()
+        returned "agrees" — the branch whose sentence is "The record is worth a decision" — and
+        console_doctor rendered it OK, on one small slice re-read every eleven seconds.
+
+        The lane exists to argue for changing the gate that writes his grail. It was arguing from
+        repetition. [[unknown-stays-unknown]] [[regression-guard]]"""
+        for i in range(3):
+            r = _sl().observe(cr.shadow_scores({"Shako": self._agree()}), at=1000 + i, path=self.led)
+            self.assertTrue(r["ok"], r)
+        st = _sl().state(path=self.led)
+        self.assertEqual(st["names"], 1,
+                         "one name scored three times is ONE name; %r says otherwise" % st["names"])
+        self.assertEqual(st["sweeps"], 3, "three sweeps did happen and that number is honest")
+        self.assertEqual(st["scorings"], 3,
+                         "the old inflated total must survive under its true label, so the "
+                         "ratio scorings/names makes re-reading visible instead of silent")
+        self.assertEqual(st["disagree"], 0)
+        self.assertEqual(st["state"], "thin",
+                         "one name is not enough to be worth a decision and must not read as if "
+                         "it were")
+
+    def test_two_DIFFERENT_names_do_accumulate(self):
+        """The other half, or the fix could pass by always answering 1."""
+        _sl().observe(cr.shadow_scores({"Shako": self._agree()}), at=1, path=self.led)
+        _sl().observe(cr.shadow_scores({"Windforce": self._agree()}), at=2, path=self.led)
+        st = _sl().state(path=self.led)
+        self.assertEqual(st["names"], 2, "distinct names must still accumulate")
+
+    def test_a_disagreement_is_kept_BY_NAME_not_counted(self):
+        _sl().observe(cr.shadow_scores({"Windforce": self._disagree()}), at=1, path=self.led)
+        st = _sl().state(path=self.led)
+        self.assertEqual(st["state"], "disagrees")
+        self.assertEqual(st["disagree"], 1)
+        row = st["recent"][-1]
+        self.assertEqual(row["name"], "Windforce")
+        self.assertTrue(row["live"], "the row does not record what the LIVE gate said")
+        self.assertFalse(row["shadowPass"], "the row does not record what the SHADOW said")
+        self.assertIsNotNone(row.get("wilson"))
+        self.assertIsNotNone(row.get("confluence"))
+        self.assertIn("Windforce", st["say"],
+                      "the summary counts disagreements without naming them — a count is not "
+                      "actionable and is where a real divergence hides")
+
+    def test_the_thin_state_says_HOW_FAR_OFF(self):
+        _sl().observe(cr.shadow_scores({"Shako": self._agree()}), at=1, path=self.led)
+        say = _sl().state(path=self.led)["say"]
+        self.assertIn("SMALL SAMPLE", say,
+                      "agreement on a tiny sample is being presented as evidence the rules are "
+                      "equivalent")
+        self.assertIn("more names", say)
+
+    def test_an_unreadable_ledger_never_reads_as_agreement(self):
+        with io.open(self.led, "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        st = _sl().state(path=self.led)
+        self.assertFalse(st["ok"])
+        self.assertEqual(st["state"], "unreadable")
+        self.assertIn("not the same as", st["say"])
+        # and observing over it must REFUSE rather than silently start a new count
+        r = _sl().observe(cr.shadow_scores({"Shako": self._agree()}), at=1, path=self.led)
+        self.assertFalse(r["ok"], "a new count was started over an unreadable ledger, erasing the "
+                                  "history the record exists to build")
+
+    def test_the_sweep_door_SCORES_and_the_ledger_PERSISTS(self):
+        """THE JOINT, in the shape the architecture actually has.
+
+        chronicle_retro cannot write — law 1 of that file, proven from its source text by
+        test_sweeping_writes_nothing_anywhere, which caught my first cut opening a file inside it.
+        So apply_proposal attaches SCORES and shadow_ledger persists them.
+
+        ⚠ AND THE SCAR THIS GUARDS, which happened while writing this feature: the first cut called
+        time.time() in a module that did not import `time`; the NameError went into a bare
+        `except: pass`, nothing was written, and apply_proposal returned normally. The lane looked
+        installed and would have reported "agrees so far" forever while learning nothing. So this
+        asserts the FILE, never the call. [[paid-work-with-no-memory]]
+        """
+        prop = {"uniques": {"Windforce": self._disagree()}, "sets": {}}
+        out = cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=cr.strict_gate())
+        sc = out.get("shadow")
+        self.assertIsInstance(sc, dict, "the sweep door attached no shadow scores at all")
+        self.assertEqual(sc["scored"], 1)
+        self.assertEqual(len(sc["disagreements"]), 1,
+                         "the disagreeing shape scored as agreement — the fixture or the rule moved")
+        self.assertNotIn("ok", sc, "apply_proposal is reporting a WRITE outcome; this module must "
+                                   "not write at all")
+        self.assertFalse(os.path.exists(self.led),
+                         "scoring wrote a file — chronicle_retro must stay read-only")
+
+        r = _sl().observe(sc, at=1, path=self.led)
+        self.assertTrue(r["ok"], r)
+        self.assertTrue(os.path.exists(self.led),
+                        "observe() returned ok and the ledger was NEVER WRITTEN")
+        st = _sl().state(path=self.led)
+        self.assertEqual(st["disagree"], 1)
+        self.assertIn("Windforce", st["say"])
+
+    def test_the_console_joins_the_two_halves(self):
+        """⚠ SCORING AND PERSISTING ARE BOTH USELESS UNJOINED. control_app._shadow_bank is the
+        joint; if it stops being called after a sweep the lane silently stops learning and still
+        reports whatever it last knew. [[the-unjoined-end]]"""
+        src = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "control_app.py"), encoding="utf-8").read()
+        self.assertIn("def _shadow_bank(", src, "the joint is gone")
+        # ⚠ COUNT CALLS, NOT THE DEFINITION. `def _shadow_bank(applied):` contains the very
+        # string a naive count matches, so removing EVERY call site still left the assertion
+        # satisfied by the def line — measured: 4 call sites deleted, count still 1, test green.
+        # A guard that counts its own subject is the shape this repo keeps paying for.
+        # [[feedback-comments-vs-code]] [[feedback-suspect-the-instrument]]
+        calls = [ln for ln in src.split("\n")
+                 if "_shadow_bank(applied)" in ln and not ln.lstrip().startswith("def ")]
+        self.assertGreaterEqual(len(calls), 1,
+                                "nothing calls _shadow_bank after a sweep — the lane scores and "
+                                "nothing ever records it, silently")
+        body = src[src.index("def _shadow_bank("):src.index("def _console_beacon(")]
+        self.assertIn("shadow_ledger", body, "the joint no longer reaches the writer")
+        self.assertNotIn("except Exception:\n        pass", body,
+                         "the joint swallows its failure silently — the exact defect that made the "
+                         "first version of this lane learn nothing forever")
+
+    def test_observing_NEVER_changes_what_the_sweep_applied(self):
+        """A shadow that can alter the answer is not a shadow."""
+        prop = {"uniques": {"Shako": self._agree()}, "sets": {}}
+        with_lane = cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=cr.strict_gate())
+        without = cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=cr.strict_gate())
+        self.assertEqual(with_lane.get("uniques"), without.get("uniques"),
+                         "the applied result changed depending on whether the shadow could record")
+        self.assertEqual(with_lane.get("held"), without.get("held"))
 
 
 
