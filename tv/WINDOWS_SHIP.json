@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2231",
+  "ver": "v2234",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2231: a suite proving how the vault decides must not hold his disk hostage",
+  "note": "v2234: 498 bases were known to the page and to neither the registrar nor the prune",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

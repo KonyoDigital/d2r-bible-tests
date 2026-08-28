@@ -27767,5 +27767,128 @@ class TestSeenIsNotRegistered(unittest.TestCase):
                       "dismissed as noise")
 
 
+class TestTheDiskTrendIsACTUALLYSHOWN(unittest.TestCase):
+    """v2232 — a COLD cross-family read of his own console found NO disk reporting at all.
+
+    v2229 built disk_delta/disk_delta_say and put diskTrend + diskTrendSay on the retention payload.
+    Asked with no hint whether anything on the console reported disk or storage, a different model
+    family answered plainly: "No." The field existed and nothing rendered it.
+
+    LAW 19 had already caught disk_delta_say with no caller minutes after it was written. This is
+    the SAME unjoined end one layer further out — helper joined to payload, payload joined to
+    nothing. [[the-unjoined-end]]
+
+    AND THE REASON IT MATTERED: every existing disk line in the console is gated on being BELOW the
+    floor. He asked "how come i have 15 gigabytes more today than yesterday" while sitting at 28 GB
+    against an 8 GB floor — so the console was silent at exactly the moment he wanted an answer.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "control_ui.html"), encoding="utf-8") as fh:
+            cls.ui = fh.read()
+        with open(os.path.join(here, "control_app.py"), encoding="utf-8") as fh:
+            cls.py = fh.read()
+
+    def test_the_payload_publishes_it(self):
+        self.assertIn('"diskTrend"', self.py)
+        self.assertIn('"diskTrendSay"', self.py)
+
+    def test_the_CONSOLE_READS_it(self):
+        """The half that was missing. A published field nobody renders is not a feature."""
+        self.assertIn("diskTrend", self.ui,
+                      "the console does not read diskTrend, so the trend is computed, published, "
+                      "and invisible — which is what the cold read found")
+
+    def test_it_is_NOT_gated_on_being_below_the_floor(self):
+        """The whole point: he asked while comfortably above it."""
+        # ⚠ the end anchor is the comment that FOLLOWS the block. My first cut used an escaped
+        # string that does not exist in the file, and _between refused rather than measuring
+        # nothing — which is exactly why that helper exists and why byte offsets were banned.
+        window = _between(self, self.ui, "var _dt = _rt.diskTrend", "/* v2124 (#147)",
+                          min_len=20, what="the disk-trend branch")
+        self.assertNotIn("floorGb", window,
+                         "the trend is gated on the floor again, so it stays silent at exactly the "
+                         "moment he asked the question it exists to answer")
+
+    def test_an_UNKNOWN_trend_renders_NOTHING(self):
+        """A series too short reports UNKNOWN, and an UNKNOWN drawn as a trend would be the
+        confident-wrong-label defect a third time today."""
+        window = _between(self, self.ui, "var _dt = _rt.diskTrend", "/* v2124 (#147)",
+                          min_len=20, what="the disk-trend guard")
+        self.assertIn("typeof _dt.deltaGb === 'number'", window)
+        self.assertIn("_dt.then !== null", window,
+                      "a null baseline would render as a comparison against nothing")
+
+    def test_it_ATTRIBUTES_so_it_cannot_claim_our_pruning(self):
+        """The honest answer the day he asked was that the pruner had deleted nothing, ever, and
+        could not have — his whole reel corpus was 8.9 GB against a claimed 15 GB gain."""
+        self.assertIn("none of it us",
+                      _between(self, self.ui, "var _dt = _rt.diskTrend", "/* v2124 (#147)",
+                               min_len=20, what="the disk-trend attribution"),
+                      "the line does not attribute, so it can imply our pruning freed space it "
+                      "did not")
+
+
+class TestAWitnessSaysWhetherItHasAFrame(unittest.TestCase):
+    """v2233 (#45) — the provenance link his 20-item test depends on.
+
+    HIS ASK: "we need ledgers and tooltips pictures synced to those items backend so we know to
+    surgically fix whats needed". That requires tracing an item to WHICH REEL + FRAME, and then to
+    the picture that established the name.
+
+    MEASURED on his tree 2026-08-28 — tv/vault_seen.json, all 17 rows:
+        name / kind / lane      17/17 filled
+        witness.session         17/17
+        witness.frame            0/17   <- PRESENT AS A KEY, ALWAYS null
+        conf                     0/17
+        lastSeenTs               0/17
+    Not missing keys. Present keys with empty values, which is exactly how they survived every
+    union unnoticed.
+
+    THE LIVE PATH IS FINE: the sighting builder carries "frame": name, and vault_seen_save copies
+    witnesses whole and max-merges conf. These are folded-back PRIOR rows, written before the frame
+    was carried, and a null propagates through every merge for ever.
+
+    So the null now STATES ITS ABSENCE. A trace that finds `null` cannot tell whether the evidence
+    is old or the pipeline is broken; `frameNote` makes that answerable without a paid re-sweep.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import vault_retro
+        cls.vr = vault_retro
+
+    def test_a_recorded_frame_survives_untouched(self):
+        r = self.vr._witness_rows([{"session": "s1", "frame": "f1.jpg", "lane": "stash",
+                                    "conf": 0.9}])[0]
+        self.assertEqual(r["frame"], "f1.jpg")
+        self.assertIsNone(r["frameNote"], "a real frame must not carry an absence note")
+
+    def test_an_UNRECORDED_frame_says_so(self):
+        r = self.vr._witness_rows([{"session": "s2", "lane": "stash", "conf": 0.8}])[0]
+        self.assertIsNone(r["frame"])
+        self.assertIn("no frame was recorded", r["frameNote"],
+                      "a null frame arrives silently again — a trace cannot tell old evidence from "
+                      "a broken pipeline")
+
+    def test_it_does_not_MANUFACTURE_a_frame(self):
+        """The fix for an absence must never invent the fact. The same cross-family correction that
+        killed `e.get("witness") or e.get("session")` on the line above applies here: a fallback
+        that fills the gap makes 'never had one' and 'has one' the same string."""
+        r = self.vr._witness_rows([{"session": "s3", "lane": "stash"}])[0]
+        self.assertIsNone(r["frame"], "a frame was manufactured for a sighting that had none")
+        self.assertNotEqual(r["frame"], r["session"])
+
+    def test_an_empty_string_frame_counts_as_ABSENT(self):
+        """"" is not a frame id. Treating it as one would put an unfollowable pointer in the ledger
+        and read as provenance."""
+        r = self.vr._witness_rows([{"session": "s4", "frame": "", "lane": "stash"}])[0]
+        self.assertIsNone(r["frame"])
+        self.assertIsNotNone(r["frameNote"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

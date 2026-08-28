@@ -476,10 +476,28 @@ def _witness_rows(evidence):
     # so "never had a bucket" and "bucket unknown" become the same string and the fold's own premise
     # stops being true of its own output. A fallback that manufactures the missing fact is
     # [[unknown-stays-unknown]] broken by the fix for it. Absent stays absent.
+    # ⚠⚠ v2233 — A FRAME THAT WAS NEVER RECORDED MUST SAY SO, NOT ARRIVE AS null.
+    # MEASURED on his tree 2026-08-28: all 17 vault_seen.json rows carry `"frame": null`, and
+    # `conf: 0.0`, and `lastSeenTs: null`. Not missing keys — PRESENT keys with empty values, which
+    # is how they survived every merge unnoticed. #45's whole purpose is tracing an item back to
+    # "which reel + FRAME" and then to the picture that established the name, and the field the
+    # trace depends on is blank on every row he owns.
+    #
+    # The live sighting builder DOES carry it (`"frame": name`, ~:988) and vault_seen_save preserves
+    # what it is given, so new evidence is fine. These rows are folded-back PRIOR: written before
+    # the frame was carried, and a null propagates through every union for ever.
+    #
+    # So the null becomes a STATED absence. "no frame was recorded for this sighting" and "we have
+    # a frame and it is empty" are different facts, and only the first is true here — a trace that
+    # finds null cannot tell whether the evidence is old or the pipeline is broken.
+    # [[unknown-stays-unknown]] [[plumbing-with-no-tap]]
     rows = []
     for e in evidence:
-        r = {"session": e.get("session"), "frame": e.get("frame"), "lane": e.get("lane"),
-             "conf": e.get("conf")}
+        _f = e.get("frame")
+        r = {"session": e.get("session"),
+             "frame": _f if _f else None,
+             "frameNote": None if _f else "no frame was recorded for this sighting",
+             "lane": e.get("lane"), "conf": e.get("conf")}
         w = e.get("witness")
         if w:                      # falsy ("" / None) is NOT a look id; it stays absent
             r["witness"] = w

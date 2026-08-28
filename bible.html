@@ -19224,6 +19224,32 @@ window.renderHighValueFinds = renderHighValueFinds;
       try { if (typeof SUNDER_CHARMS !== 'undefined' && SUNDER_CHARMS)
               [].forEach.call(SUNDER_CHARMS, function(c){ if (c && c.n) m[_norm(c.n)] = 'sunder'; });
       } catch(e){}
+      /* ══ v2234 (#29) — AND THE GAME'S OWN BASES, WHICH NEITHER SIDE WAS ASKING ═══════════════
+         The comment above this function names the defect exactly: "tvVaultRegister's universe
+         guarantee tests ITEMS + d2rItemLookup + EXTRA_ITEMS. This prune tests ITEM_REGISTRY +
+         _UNI_EXTRA + _GRAIL_SEED + _EXTRA_ITEM_SET + _ROSTER_NORM + _maKeep + two regexes + set
+         pieces." v2208 added RUNEWORDS and SUNDER_CHARMS because neither list asked them.
+         BASE_CLASS is the third, and nobody noticed.
+
+         MEASURED 2026-08-28: BASE_CLASS holds 498 game bases, EXTRA_ITEMS 739 entries, and they
+         overlap on only 85. Of the 413 bases in neither, EIGHT have actually been seen by a reader
+         — Balrog Skin, Blasphemous Compendium, Conqueror Crown, Corona, Ghost Glaive, Giant
+         Thresher, Kraken Shell, Spired Helm — and every one of them is ALREADY in BASE_CLASS with a
+         correct category. Nothing was missing from the data. The catalogues that decide were simply
+         not asking the catalogue that knows.
+
+         ⚠ SO THE FIX IS NOT TO ADD EIGHT NAMES TO EXTRA_ITEMS. That would grow a second roster that
+         drifts from the first, which is the copy-drift shape this arc closed twice today. One
+         catalogue, asked by the one function both sides already call.
+
+         ⚠ AND IT MATTERS IN THE SAFE DIRECTION: the load-time prune DELETES owned entries no
+         catalogue recognises (REG — a suffix the catalogue lacked once cost 158 of 206 names the
+         wrong mule). A Spired Helm he files for a runeword base is a real thing he owns; dropping
+         it silently is the failure mode, and keeping it is the recoverable one. */
+      try {
+        if (typeof BASE_CLASS !== 'undefined' && BASE_CLASS)
+          Object.keys(BASE_CLASS).forEach(function(b){ if (b) m[_norm(b)] = 'base'; });
+      } catch(e){}
       if (Object.keys(m).length) _CATALOGUE_NORM = m;     /* else retry on the next call */
       else return false;
     }
@@ -46879,7 +46905,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2231', name:'v2231 - the vault scenarios run on synthetic footage now', date:'2026-08-28', note:'a suite proving how the vault decides must not hold his disk hostage' };
+  window.D2R_BUILD = { id:'v2234', name:'v2234 - the game bases join the catalogue both sides ask', date:'2026-08-28', note:'498 bases were known to the page and to neither the registrar nor the prune' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

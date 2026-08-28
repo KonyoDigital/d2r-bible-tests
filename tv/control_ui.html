@@ -7896,6 +7896,31 @@
                     + (_rt.lockedMb ? Math.round(_rt.lockedMb) + 'MB' : '?') + ') await a sweep')
                  : '');
     }
+    /* ══ v2232 (#53) — THE TREND, AND IT SHOWS ABOVE THE FLOOR TOO ═══════════════════════════════
+       He asked "how come i have 15 gigabytes more today than yesterday? is the pruning working?"
+       WHILE SITTING AT 28 GB against an 8 GB floor — and every disk line above is gated on being
+       BELOW the floor, so the console said nothing at exactly the moment he wanted an answer.
+
+       v2229 built disk_delta/disk_delta_say and published diskTrend + diskTrendSay, and a COLD
+       cross-family read of this very console found NO disk reporting at all: the payload had a
+       field and nothing rendered it. LAW 19 had already caught the helper with no caller; this is
+       the same unjoined end one layer further out. [[the-unjoined-end]]
+
+       ⚠ ONLY WHEN IT IS KNOWN. A series that does not reach back far enough reports UNKNOWN, and
+       an UNKNOWN rendered as a trend would be the confident-wrong-label defect again. Silence is
+       correct there — the hover still carries the reason. */
+    var _dt = _rt.diskTrend || {};
+    if (typeof _dt.deltaGb === 'number' && _dt.then !== null) {
+      var _mv = _dt.deltaGb;
+      _lbl += ' · \ud83d\udcbe ' + (_rt.freeGb != null ? _rt.freeGb + 'GB' : '?')
+            + (_mv === 0 ? ' flat' : (_mv > 0 ? ' up ' : ' down ') + Math.abs(_mv).toFixed(1) + 'GB')
+            + '/' + (_dt.hours || 24) + 'h'
+            /* ATTRIBUTED, always: this can never imply our pruning freed space it did not. The
+               honest answer the day he asked was that the pruner had deleted NOTHING, ever, and
+               could not have — his whole reel corpus was 8.9 GB against a claimed 15 GB gain. */
+            + (_dt.prunedMbInWindow ? ' (' + Math.round(_dt.prunedMbInWindow) + 'MB ours)'
+                                    : ' (none of it us)');
+    }
     /* v2124 (#147) — AND A STALE FIGURE MUST SAY SO WHERE HE ACTUALLY READS IT. v2123 stamped the
        age onto the hover title, and the hover is not what he looks at when he is deciding whether
        he can record — the footer line is. Only a STALE reading gets the suffix: a fresh number
