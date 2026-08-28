@@ -28699,5 +28699,55 @@ class TestV2242EveryRealBaseHasAFootprint(unittest.TestCase):
 
 
 
+class TestV2244DiskHistoryReachesBackADay(unittest.TestCase):
+    """He asked "how come im at 20 gigas now? another 10 giga down" and disk_delta() answered that a
+    24h comparison is UNKNOWN — while the file it was reading held 29.1GB -> 20.8GB across its
+    window. The data was there. The retention could not reach a day.
+
+    ⚠ THE COMMENT WAS WRONG BY A FACTOR OF 100. `_DISK_HISTORY_KEEP = 2000  # ~90 days at the
+    retention cadence`. MEASURED on his own file: 882 samples spanning 9.0 hours — ONE EVERY 37
+    SECONDS — so 2000 samples is twenty hours, not ninety days; ninety days would need 212,322 rows.
+    A count-based cap silently changes meaning whenever the write cadence changes, and that is
+    exactly what happened. [[label-outlived-referent]]
+
+    (The refusal itself was CORRECT and stays: 9 hours of data cannot answer a 24-hour question. The
+    defect was that it only had 9 hours.)"""
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "control_app.py"),
+                        encoding="utf-8").read()
+
+    def test_retention_is_measured_in_DAYS_not_samples(self):
+        import control_app as ca
+        self.assertTrue(hasattr(ca, "_DISK_HISTORY_DAYS"),
+                        "retention is back on a sample count, which stops meaning a duration the "
+                        "moment the cadence moves")
+        self.assertGreaterEqual(ca._DISK_HISTORY_DAYS, 2,
+                                "the window cannot reach yesterday, so 'more than yesterday' stays "
+                                "unanswerable")
+
+    def test_the_file_is_actually_TRIMMED_BY_AGE(self):
+        # A constant nobody consults is a comment. This is the join.
+        src = self._src()
+        self.assertIn("_DISK_HISTORY_DAYS * 86400000", src,
+                      "nothing trims the history by age — the days constant is inert")
+
+    def test_the_COUNT_is_a_ceiling_not_the_policy(self):
+        # The cap must survive as a runaway guard, but it must not be what decides the window.
+        import control_app as ca
+        self.assertGreaterEqual(ca._DISK_HISTORY_KEEP, 20000,
+                                "the sample ceiling is below what %d days needs at the measured "
+                                "37s cadence (~%d rows)"
+                                % (ca._DISK_HISTORY_DAYS, ca._DISK_HISTORY_DAYS * 86400 // 37))
+
+    def test_an_UNREADABLE_row_is_not_treated_as_expired(self):
+        # Dropping rows we failed to parse would silently shrink the window and look like retention.
+        src = self._src()
+        i = src.index("_DISK_HISTORY_DAYS * 86400000")
+        self.assertIn("_keep.append(_ln)", src[i:i + 700],
+                      "an unparseable row is discarded, so a parse bug would masquerade as age")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

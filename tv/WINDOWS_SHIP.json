@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2243",
+  "ver": "v2244",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2243: The unresolved-footprint flag was inert; a tile now shows a guessed size as a guess",
+  "note": "v2244: The disk history kept twenty hours while its comment claimed ninety days, so his ten-gigabyte question had no answer",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

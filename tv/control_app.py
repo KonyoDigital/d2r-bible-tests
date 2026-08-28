@@ -10329,7 +10329,22 @@ def ui_faults_recent(hours=24, path=None):
 
 
 _DISK_HISTORY = os.path.join(HERE, "disk_history.jsonl")
-_DISK_HISTORY_KEEP = 2000          # ~90 days at the retention cadence
+# ⚠ v2244 — THIS COMMENT WAS WRONG BY A FACTOR OF 100, AND THAT IS WHY HIS QUESTION HAD NO ANSWER.
+# It read "~90 days at the retention cadence". MEASURED on his own file: 882 samples spanning 9.0
+# hours — one every 37 SECONDS — so 2000 samples is TWENTY HOURS, not ninety days. Ninety days at
+# that rate would need 212,322 samples.
+#
+# It cost him a real answer. He asked "how come im at 20 gigas now? another 10 giga down" and
+# disk_delta() replied that a 24h comparison is UNKNOWN — while the file it was reading held
+# 29.1GB -> 20.8GB across its window. The data was there; the retention was too short to reach a
+# day, so the honest refusal fired on a question the history should have answered.
+#
+# RETENTION IS NOW IN DAYS, because the question is in days. A count-based cap silently changes
+# meaning whenever the write cadence changes, which is exactly what happened here.
+# [[label-outlived-referent]] [[stale-reading]]
+_DISK_HISTORY_DAYS = 14            # how far back "since yesterday" must be able to reach
+_DISK_HISTORY_KEEP = 40000         # a hard ceiling so a runaway cadence cannot fill the disk;
+                                   # at the measured 37s cadence 14 days needs ~32,700 rows
 
 
 def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible_mb=None,
@@ -10360,6 +10375,25 @@ def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible
         try:
             with open(p, encoding="utf-8") as fh:
                 lines = fh.readlines()
+            # trim by AGE first — the ceiling is a safety net, not the policy
+            if lines:
+                _cut = int(time.time() * 1000) - _DISK_HISTORY_DAYS * 86400000
+                _keep = []
+                for _ln in lines:
+                    try:
+                        if int((json.loads(_ln) or {}).get("at") or 0) >= _cut:
+                            _keep.append(_ln)
+                    except Exception:
+                        _keep.append(_ln)      # unparseable rows are not evidence of age either way
+                if len(_keep) != len(lines):
+                    lines = _keep
+                    # ⚠ open(), NOT io.open(). control_app does not import `io`, and this is the
+                    # THIRD time today I reached for it here — _footage_why had the same bug this
+                    # morning. There a bare `except Exception` swallowed the NameError and returned
+                    # a fluent, wrong sentence; here the guards caught it before it shipped, which
+                    # is the difference between a guard that reads co_names and prose that doesn't.
+                    with open(p, "w", encoding="utf-8") as fh:
+                        fh.writelines(lines)
             if len(lines) > _DISK_HISTORY_KEEP:
                 with open(p, "w", encoding="utf-8") as fh:
                     fh.writelines(lines[-_DISK_HISTORY_KEEP:])
@@ -18496,7 +18530,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2243",
+        "ver": "v2244",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
