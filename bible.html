@@ -34639,7 +34639,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _known = !!_ld;
       var muleN = _ld ? (_ld.mules.length || 1) : 1;
       var cells = _ld ? _ld.cells : total;
-      var capCells = _ld ? _ld.capCells : 140;
+      var capCells = (_ld && _ld.capCells) ? _ld.capCells : 150;   // v2239 — see MULE_CAP
       /* fill of the LAST mule, so a full first mule reads 100% and the overflow is told by muleN
          rather than by a bar that cannot go past its own end.
 
@@ -34651,7 +34651,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var pct = _ld ? _ld.lastPct : 0;
       if (!isFinite(pct) || pct < 0) pct = 0;
       var _spilled = _known && muleN > 1;
-      /* v2216 — FULL is not 100%. A mule packed with fifteen 2x4 weapons sits at 120 of 140 cells
+      /* v2216 — FULL is not 100%. A mule packed with fifteen 2x4 weapons sits at 120 of 150 cells
          and cannot take a sixteenth: the spare twenty are a strip and a band no 2x4 fits in. The
          bar said 86% and meant "no room", which is the same lie the clamp told, one layer down. */
       var _full = _known && _ld.roomLeft === false;
@@ -34727,7 +34727,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + '<span class="vm-count"'
           + ' title="'+total+' item'+(total===1?'':'s')
           + (_known ? (' · '+cells+' cells, packed across '+muleN+' mule'+(muleN===1?'':'s')
-                       + ' (each = a 10x10 stash + a 10x4 inventory = '+capCells+' cells). '
+                       + ' (each = a ' + (window.MULE_GEOM_SAY || '10x10 stash + a 10x5 inventory') + '). '
                        + 'Open the locker to see the packing.')
                     : (_isMule ? ' · the packer could not be asked, so the mule count is UNKNOWN'
                                : ' · the SHARED STASH is account-wide, not a mule — it is not packed'))
@@ -34746,7 +34746,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 : _full ? ('FULL — '+_ld.lastCells+' of '+capCells+' cells used, and the '
                            + (capCells - _ld.lastCells) + ' spare are not a shape another '
                            + _ld.biggest.w+'x'+_ld.biggest.h+' fits into')
-                : (pct+'% of one mule — '+_ld.lastCells+' of '+capCells+' cells (a 10x10 stash + a 10x4 inventory)'))
+                : (pct+'% of one mule — '+_ld.lastCells+' of '+capCells+' cells (a ' + (window.MULE_GEOM_SAY || '10x10 stash + a 10x5 inventory') + ')'))
              + '"><div class="vm-gauge-fill'+((pct>=85||_spilled||_full)?' vg-hot':'')+(!_known?' vg-unknown':'')+'" style="width:'+(_known?(_full?100:pct):0)+'%"></div></div>'
         + (m.note?'<div class="vm-note">'+esc(m.note)+'</div>':'')
         + '<div class="vm-body">'
@@ -36247,7 +36247,29 @@ window.vaultAutoAssign = function(){
          : '<div class="vm-empty" style="padding:8px 2px">' + (_sharedPage >= 3 ? '📦 spare page — kept empty as room for fresh loot while hunting' : 'nothing on this page yet') + '</div>');
   }
   var openMuleId = null, _muleReturnTab = null, _mulePage = 0;
-  // v405 — one D2R mule character = personal stash (10×10 = 100 cells) + inventory (10×4 = 40 cells) = 140
+  // ⚠ v2239 — ONE MULE GEOMETRY, STATED ONCE. Konyo, playing it: "the inventory in mules. i see
+  // that its only 4 x 10 cells but it should be 5 x 10 cells."
+  //
+  // He is the authority on his own game and this is his ruling. Base D2R ships a 10x4 inventory;
+  // he plays REIGN OF THE WARLOCK, which retunes base-game mechanics — the page says exactly that
+  // in six other places — so a mod-widened inventory is entirely ordinary and not something I can
+  // check from here.
+  //
+  // ⚠ AND IT WAS WRITTEN SEVEN TIMES. `packGrid(...,10,4)`, `capCells: MULE_CAP`, a fallback 140, and
+  // four prose sites all restated the same law independently, so changing it meant finding every
+  // copy — and missing one would leave the packer and the label disagreeing about the same mule.
+  // That is `copy-drift` with a number instead of a file. One source now; the prose derives.
+  var MULE_STASH_W = 10, MULE_STASH_H = 10;      // personal stash
+  var MULE_INV_W = 10,   MULE_INV_H = 5;         // inventory (RotW: 5 rows, not the base game's 4)
+  var MULE_CAP = MULE_STASH_W * MULE_STASH_H + MULE_INV_W * MULE_INV_H;   // 150
+  var MULE_GEOM_SAY = MULE_STASH_W + 'x' + MULE_STASH_H + ' stash + a '
+                    + MULE_INV_W + 'x' + MULE_INV_H + ' inventory = ' + MULE_CAP + ' cells';
+  // ⚠ ON window, because the two places that PRINT this geometry live in a different scope from the
+  // packer that USES it. My first cut read window.MULE_GEOM_SAY without ever setting it, so the
+  // hardcoded fallback would have won every time — a second copy of the law, in the edit whose
+  // whole purpose was deleting the copies. [[copy-drift]] [[the-unjoined-end]]
+  try { window.MULE_GEOM_SAY = MULE_GEOM_SAY; window.MULE_CAP = MULE_CAP; } catch (e) {}
+  // v405 — one mule character = personal stash + inventory
   // cells. A category that overflows 140 cells SPILLS onto the next mule of the same kind (Mule 2, 3…), so
   // "97 items in one mule" can never happen — they auto-distribute across as many mule toons as it takes.
   /* ══ v2211 — ONE PACKER, TWO SURFACES. Konyo, looking at a locker card: "how are 61 items
@@ -36295,8 +36317,8 @@ window.vaultAutoAssign = function(){
        Greedily fill mule 1, spill the rest onto mule 2, and so on. */
     var mules = [], rem = sized.slice(), guard = 0;
     do {
-      var st = packGrid(rem, 10, 10);
-      var iv = packGrid(st.left, 10, 4);
+      var st = packGrid(rem, MULE_STASH_W, MULE_STASH_H);
+      var iv = packGrid(st.left, MULE_INV_W, MULE_INV_H);
       mules.push({ stash: st.placed, inv: iv.placed });
       rem = iv.left;
     } while (rem.length && ++guard < 80);
@@ -36323,8 +36345,8 @@ window.vaultAutoAssign = function(){
     };
     var last = mules[mules.length - 1] || {stash:[], inv:[]};
     /* ⚠ v2216 — 86% CAN MEAN FULL, and a cross-family review caught it. Fifteen 2x4 weapons fill a
-       mule at 120 of 140 cells, so the bar paints 86% — and NOTHING MORE FITS. The twenty spare
-       cells are a 10x2 strip and a 10x4 inventory band that no 2x4 can occupy. A gauge reading
+       mule at 120 of 150 cells, so the bar paints 80% — and NOTHING MORE FITS. The twenty spare
+       cells are a 10x2 strip and a 10x1 inventory strip that no 2x4 can occupy. A gauge reading
        "86%" tells him he has room for two more when the answer is none, which is the same class of
        wrong as the clamp this whole arc started with: a number that is arithmetically true and
        operationally a lie. [[unknown-stays-unknown]]
@@ -36359,13 +36381,13 @@ window.vaultAutoAssign = function(){
              /* the LAST mule's real occupancy, and its fill as a percentage — ONE definition, so
                 the card cannot drift from the packer the way the whole v2211 fix existed to stop */
              lastCells: _occ(last),
-             lastPct: Math.max(0, Math.min(100, Math.round(_occ(last) / 140 * 100))),
+             lastPct: Math.max(0, Math.min(100, Math.round(_occ(last) / MULE_CAP * 100))),
              /* false when not one more of the locker's biggest item would fit — so the card can
                 say FULL instead of a percentage that promises room he does not have */
              roomLeft: _roomLeft, biggest: _big,
              placedCells: mules.reduce(function(a, m){ return a + _occ(m); }, 0),
              /* what one mule has room for, in cells — the honest denominator */
-             capCells: 140 };
+             capCells: MULE_CAP };
   }
   window._muleLoad = _muleLoad;
 
@@ -36406,7 +36428,7 @@ window.vaultAutoAssign = function(){
     var TABS=['Personal','Shared','Gems','Materials','Runes'];
     var EQ=[['eq-w1','🗡'],['eq-helm','⛑'],['eq-amu','📿'],['eq-body','🛡'],['eq-w2','🛡'],['eq-glove','🧤'],['eq-ring1','💍'],['eq-belt','〰'],['eq-ring2','💍'],['eq-boot','🥾']];
     var _muleLabel = _muleTotalPages > 1 ? (' #' + (_mulePage + 1)) : '';
-    var _muleTag = _muleTotalPages > 1 ? '<span class="vd-mule-nav" title="this category spans '+_muleTotalPages+' mule characters (each = 100-cell stash + 40-cell inventory = 140 cells). Click the arrows — or press ← → — to step through the mules.">'
+    var _muleTag = _muleTotalPages > 1 ? '<span class="vd-mule-nav" title="this category spans '+_muleTotalPages+' mule characters (each = 100-cell stash + 50-cell inventory = 150 cells). Click the arrows — or press ← → — to step through the mules.">'
       + '<button class="vd-mule-arrow" onclick="window._muleSetPage('+(_mulePage-1)+')" title="previous mule (←)">◄</button>'
       + '🧍 Mule '+(_mulePage+1)+' / '+_muleTotalPages
       + '<button class="vd-mule-arrow" onclick="window._muleSetPage('+(_mulePage+1)+')" title="next mule (→)">►</button>'
@@ -46905,7 +46927,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2238', name:'v2238 - CI Blindness Ended', date:'2026-08-28', note:'A red CI gate went unread for ten runs, the derivative cache collided on basenames, and my own invariant called a never-run eagle a disagreement' };
+  window.D2R_BUILD = { id:'v2239', name:'v2239 - Tooltip Rect Derived', date:'2026-08-28', note:'The tooltip rectangle is derived by differencing a hover pass, so the crop that named an item can sit beside it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

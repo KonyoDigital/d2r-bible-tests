@@ -595,13 +595,31 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         # the crop's global mean (the dark gridlines / dark cells of an open stash grid).
         col_mean = [c / _gh for c in col_lum]
         _gmean = (sum(col_mean) / _gw) if _gw else 0.0
-        dark_cols = sum(1 for c in col_mean if c < _gmean * 0.70)
+        # v2239 (#31) — KEEP WHERE THE GRIDLINES ARE, not only how many there were.
+        #
+        # This list has been computed on every frame since v1258 and immediately collapsed to a
+        # count. The indices ARE the lattice x-boundaries, and slot identity — "the same slot across
+        # consecutive sessions means PARKED, not merely seen" — needs exactly them. Without this the
+        # only other route was a coordinate from the AI read, which means touching the intake, and
+        # the intake is LOCKED (Sonnet + crop, do not change). [[d2r-intake-locked]]
+        #
+        # ⚠ THESE ARE CROP-RELATIVE, and saying so is the whole point of the name. `col_lum` is
+        # measured over the stash CROP, not the full frame, so an index here is a column of the crop.
+        # Turning it into a frame coordinate needs the crop's own offset, which crops_for_aspect
+        # owns. A caller that forgets that puts every item in the wrong slot with total confidence —
+        # worse than no slot at all. [[unknown-stays-unknown]]
+        dark_col_idx = [i for i, c in enumerate(col_mean) if c < _gmean * 0.70]
+        dark_cols = len(dark_col_idx)
         panel_open, not_d2r = _panel_open_from_features(fd, dark_cols)
         detail.update({
             "frac_tan": round(ft, 4), "frac_chroma": round(fc, 4),
             "frac_dark": round(fd, 4), "frac_gear": round(fg, 4),
             "frac_bright": round(fb, 4), "hue_div": hue_div,
             "dark_cols": dark_cols, "panel_open": panel_open,
+            # bounded: a full-width list on every frame would bloat every journal row that carries
+            # `detail`. 96 is well past any real lattice (his corpus spans 0-71).
+            "dark_col_idx": dark_col_idx[:96],
+            "dark_col_space": "crop",     # NEVER let a reader assume these are frame coordinates
         })
         # v1258 🛑 NOT-D2R / DESKTOP GUARD — a smoothly-lit photograph (Mac desktop
         # wallpaper captured when the Screen-Recording-TCC grab misses D2R) has

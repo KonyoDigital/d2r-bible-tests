@@ -548,6 +548,65 @@ def shadow_scores(piles, bar="keep"):
     return {"scored": scored, "disagreements": dis, "names": sorted(set(seen))}
 
 
+
+# ── THE CROP THAT NAMED IT (#45) ────────────────────────────────────────────────────────────────
+# Konyo wants the item ledger to SHOW its evidence, not merely assert it. A receipt already carries
+# a frameId; what it could not carry was the picture.
+#
+# ⚠ WHY THE CROP OUTLIVING THE REEL IS THE WHOLE POINT. Retention deletes footage once it has given
+# up its information — correctly, and it is what keeps his disk breathing. But it means the frame
+# behind every ledger entry eventually stops existing, and "71 pages were read from it" is a
+# sentence, not a picture. A 15 KB crop survives the 80 MB reel, so the evidence outlives the film.
+#
+# ⚠ AND IT IS NOT A WITNESS. The crop is the SAME look that produced the name. Counting it would
+# double the evidence for one glance — the exact defect v2209 fixed when a persisted prior started
+# counting as a second witness. It is stored for HIM to look at, and the gate never sees it.
+# [[d2r-multiwitness-corroboration]] [[the-unjoined-end]]
+CROP_DIR = "tooltip_crops"
+CROP_MAX_BYTES = 60 * 1024        # a tooltip crop that big is a mis-derived rectangle, not a tooltip
+CROP_BUDGET = 600                 # a hard ceiling on how many he accumulates; oldest are not touched
+
+
+def _crop_for(reel_dir, frame, prev_frame, out_root):
+    """Derive and store the tooltip rectangle for one frame. -> (relpath|None, why)
+
+    Never raises into a sweep, and never invents a rectangle: every refusal from tooltip_crop is
+    passed through verbatim rather than collapsed to None, so "no tooltip here" and "the frames were
+    different sizes" stay different answers.
+    """
+    if not prev_frame:
+        return None, "no previous frame in this run to difference against"
+    try:
+        import tooltip_crop as _tc
+    except Exception as e:
+        return None, "tooltip_crop did not import: %s" % str(e)[:70]
+    a = os.path.join(reel_dir, prev_frame)
+    b = os.path.join(reel_dir, frame)
+    rect, why = _tc.changed_rect(a, b)
+    if not rect:
+        return None, why
+    try:
+        os.makedirs(out_root, exist_ok=True)
+        n = len([f for f in os.listdir(out_root) if f.endswith(".jpg")])
+        if n >= CROP_BUDGET:
+            return None, ("the crop store already holds %d — at the %d ceiling, so this one was "
+                          "not written (say it, never silently skip)" % (n, CROP_BUDGET))
+    except Exception as e:
+        return None, "could not prepare the crop store: %s" % str(e)[:70]
+    dest = os.path.join(out_root, "%s__%s" % (os.path.basename(reel_dir), frame))
+    ok, w = _tc.crop_to(b, rect, dest)
+    if not ok:
+        return None, w
+    try:
+        if os.path.getsize(dest) > CROP_MAX_BYTES:
+            os.remove(dest)
+            return None, ("the crop came out larger than %d bytes, so the rectangle is wrong — "
+                          "discarded rather than filed beside an item" % CROP_MAX_BYTES)
+    except Exception:
+        pass
+    return os.path.join(CROP_DIR, os.path.basename(dest)), None
+
+
 # ── THE FOLD (law 1) ────────────────────────────────────────────────────────────
 
 _BUCKET_RE = re.compile(r"^(.*)#\d+$")
@@ -646,6 +705,20 @@ def _witness_rows(evidence):
         w = e.get("witness")
         if w:                      # falsy ("" / None) is NOT a look id; it stays absent
             r["witness"] = w
+        # v2239 (#45) — CARRY THE PICTURE, OR WHY THERE IS NONE. This is the join, and without it
+        # the whole crop lane was inert: the sweep derived a rectangle, wrote a crop, hung it on the
+        # sighting — and this builder rebuilt every row from four fields and dropped it. Both ends
+        # were correct and nothing connected them, which is the same shape that made v2223's vault
+        # watchdog skip every reel forever. The tell was the COUNT: 0 crops and 0 stated reasons on
+        # a fixture run that had produced both. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        #
+        # `cropWhy` rides along on purpose. "no tooltip on this frame" and "the crop store is full"
+        # are different answers, and a bare absence would make them one. [[unknown-stays-unknown]]
+        _c = e.get("crop")
+        if _c:
+            r["crop"] = _c
+        elif e.get("cropWhy"):
+            r["cropWhy"] = e.get("cropWhy")
         rows.append(r)
     return sorted(rows, key=lambda r: (str(r["session"]), str(r["frame"]), str(r["lane"])))
 
@@ -1120,8 +1193,16 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                         continue
                 _order = {n: i for i, n in enumerate(names)}
                 _pages.sort(key=lambda n: _order.get(n, 1 << 30))
+            # v2239 (#45) — the crop that NAMED it. `_prev_page` is the frame before this one in
+            # the run, which is what a tooltip is differenced against. Held outside the loop so a
+            # skipped/refused page still advances it — otherwise a refusal would silently make the
+            # next crop a diff across two hovers instead of one.
+            _prev_page = None
+            _crop_root = os.path.join(os.path.dirname(reel_dir), CROP_DIR)
             for name in _pages:
                 path = os.path.join(reel_dir, name)
+                _crop_rel, _crop_why = _crop_for(reel_dir, name, _prev_page, _crop_root)
+                _prev_page = name
                 resp = reader(path, surface)
                 if not isinstance(resp, dict) or resp.get("note"):
                     skipped += 1
@@ -1150,7 +1231,11 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                         continue
                     sight = {"session": sid, "witness": _wkey, "frame": name, "lane": item["lane"],
                              "conf": item["conf"], "count": item["count"], "kind": item["kind"],
-                             "ts": ts}
+                             "ts": ts,
+                             # v2239 — the picture, or WHY there is none. Never silently absent:
+                             # "no tooltip on this frame" and "the crop store is full" are
+                             # different answers and only one of them is about his footage.
+                             "crop": _crop_rel, "cropWhy": None if _crop_rel else _crop_why}
                     key = (item["name"], item["lane"])
                     evidence.setdefault(key, []).append(sight)
                     if item["throwOut"]:

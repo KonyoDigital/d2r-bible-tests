@@ -28269,5 +28269,74 @@ class TestV2238TheSimulatorDoesNotShrinkItsOwnCoverage(unittest.TestCase):
         self.assertIn("test_a_DIFFERENT_CLAIMED_INSTALL_is_a_drift", dropped)
 
 
+class TestV2239OneMuleGeometry(unittest.TestCase):
+    """Konyo, playing it: "the inventory in mules. i see that its only 4 x 10 cells but it should be
+    5 x 10 cells."
+
+    His ruling, and he is the authority on his own game — he plays Reign of the Warlock, which
+    retunes base-game mechanics (the page says so in six other places), so a mod-widened inventory
+    is ordinary and not something checkable from here.
+
+    ⚠ THE LAW WAS WRITTEN SEVEN TIMES. packGrid(...,10,4), TWO separate `capCells: 140` producers, a
+    fallback 140, and four prose sites each restated it independently. Changing the number meant
+    finding every copy, and I MISSED ONE on the first pass — the second `capCells: 140` at the
+    bottom of _muleLoad — which would have left the packer laying out 150 cells while the card
+    called it 140. That is copy-drift with a number instead of a file. [[copy-drift]]"""
+
+    def _bible(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_the_geometry_is_stated_ONCE(self):
+        import re as _re
+        s = self._bible()
+        self.assertIn("var MULE_CAP =", s, "the single capacity constant is gone")
+        self.assertEqual(len(_re.findall(r"capCells:\s*140", s)), 0,
+                         "a hardcoded 140 capacity is back — the packer and the card will disagree")
+        self.assertGreaterEqual(len(_re.findall(r"capCells:\s*MULE_CAP", s)), 2,
+                                "not every capCells producer derives from the constant")
+
+    def test_the_PACKER_uses_the_constant_not_a_literal(self):
+        # If the packer keeps its own 10x4 the layout and the label part company silently: the card
+        # says 150 while only 140 cells can ever be filled.
+        s = self._bible()
+        self.assertIn("packGrid(st.left, MULE_INV_W, MULE_INV_H)", s,
+                      "the inventory packer is back on a literal grid")
+        self.assertIn("packGrid(rem, MULE_STASH_W, MULE_STASH_H)", s,
+                      "the stash packer is back on a literal grid")
+
+    def test_the_inventory_is_FIVE_rows(self):
+        import re as _re
+        s = self._bible()
+        m = _re.search(r"MULE_INV_W\s*=\s*(\d+),\s*MULE_INV_H\s*=\s*(\d+)", s)
+        self.assertIsNotNone(m, "the inventory geometry constants are gone")
+        self.assertEqual((m.group(1), m.group(2)), ("10", "5"),
+                         "the mule inventory is not 10x5 — his ruling was 5 rows, not the base "
+                         "game's 4")
+
+    def test_the_printed_geometry_is_DERIVED_not_retyped(self):
+        # The two places that print the geometry live in a different scope from the packer, so the
+        # first cut read window.MULE_GEOM_SAY without ever setting it and the hardcoded fallback
+        # would have won every time — a second copy of the law inside the edit that deleted copies.
+        s = self._bible()
+        self.assertIn("window.MULE_GEOM_SAY = MULE_GEOM_SAY", s,
+                      "the printed geometry is no longer exported, so every caller falls back to a "
+                      "hardcoded string")
+
+    def test_the_PERCENTAGE_derives_from_the_same_capacity(self):
+        # ⚠ TWO NUMBERS FOR ONE MULE, AND THE CONTRADICTION WAS THE FINDING. After the capacity moved
+        # to 150 a live read returned placed/cap = 80% and lastPct = 86% for the SAME fifteen
+        # weapons — because lastPct still divided by a hardcoded 140. The bar and the label would
+        # have disagreed about how full his mule was, permanently, and both looked reasonable alone.
+        # [[feedback-contradiction-is-the-finding]]
+        import re as _re
+        s = self._bible()
+        self.assertEqual(len(_re.findall(r"_occ\(last\)\s*/\s*140", s)), 0,
+                         "lastPct is back on a hardcoded capacity")
+        self.assertIn("_occ(last) / MULE_CAP", s,
+                      "lastPct no longer derives from the one capacity constant")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

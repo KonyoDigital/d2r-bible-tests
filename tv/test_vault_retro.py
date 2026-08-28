@@ -634,5 +634,230 @@ class TestV2236TheVaultShadowIsJOINED(unittest.TestCase):
                          "the vault's disagreement leaked into the chronicle's record")
 
 
+class TestV2239TheTooltipRectangleIsDerived(unittest.TestCase):
+    """#45 crop half — the rectangle is DERIVED, never calibrated.
+
+    vault_retro records the property that makes it free: on a hover pass the panel is identical
+    frame to frame and only a small tooltip rectangle changes. So the rectangle IS the difference.
+    That is what separates this from #31, which needs a lattice calibrated against a real stash
+    frame AND a reader coordinate that does not exist anywhere in the chain."""
+
+    def _pair(self, **kw):
+        import tempfile
+        import vault_fixture_reels as vf
+        root = tempfile.mkdtemp(prefix="tt-")
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        pa, pb, truth, why = vf.tooltip_pair(root, **kw)
+        if not pa:
+            self.skipTest(why)
+        return root, pa, pb, truth
+
+    def test_the_derived_rect_matches_the_PLANTED_one(self):
+        # ⚠ THE TRUTH IS PLANTED ON PURPOSE. A fixture that only LOOKS right lets a finder be fifty
+        # pixels out and still pass review. Compare against the known answer, not against taste.
+        import tooltip_crop as tc
+        _root, pa, pb, truth = self._pair()
+        rect, why = tc.changed_rect(pa, pb)
+        self.assertIsNotNone(rect, "no rectangle was derived: %s" % why)
+        err = [abs(rect[i] - truth[i]) for i in range(4)]
+        self.assertLessEqual(max(err), tc.PAD + 2,
+                             "derived %s against planted %s — per-edge error %s exceeds the %dpx "
+                             "padding" % (rect, truth, err, tc.PAD))
+
+    def test_it_finds_a_tooltip_ANYWHERE_not_just_the_middle(self):
+        # A finder tuned on one position is the blind-fixture defect in geometry form.
+        import tooltip_crop as tc
+        for r in ((40, 40, 300, 340), (1100, 520, 1390, 860)):
+            _root, pa, pb, truth = self._pair(rect=r)
+            rect, why = tc.changed_rect(pa, pb)
+            self.assertIsNotNone(rect, "missed a tooltip at %s: %s" % (r, why))
+            self.assertLessEqual(max(abs(rect[i] - truth[i]) for i in range(4)), tc.PAD + 2)
+
+    def test_IDENTICAL_frames_yield_no_rectangle(self):
+        import tooltip_crop as tc
+        _root, pa, _pb, _t = self._pair()
+        rect, why = tc.changed_rect(pa, pa)
+        self.assertIsNone(rect, "it invented a rectangle from a frame against itself")
+        self.assertIn("identical", (why or "").lower())
+
+    def test_a_WHOLE_SCREEN_change_is_refused_not_cropped(self):
+        # The case that would silently ruin the feature: a reel cut or a tab change is not a
+        # tooltip, and cropping it would file a picture of the wrong thing beside an item.
+        import tempfile, os as _os
+        import tooltip_crop as tc
+        try:
+            from PIL import Image
+        except Exception:
+            self.skipTest("PIL not available")
+        root = tempfile.mkdtemp(prefix="tt2-")
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        a = _os.path.join(root, "a.jpg"); b = _os.path.join(root, "b.jpg")
+        Image.new("RGB", (800, 600), (10, 10, 10)).save(a, "JPEG", quality=88)
+        Image.new("RGB", (800, 600), (240, 240, 240)).save(b, "JPEG", quality=88)
+        rect, why = tc.changed_rect(a, b)
+        self.assertIsNone(rect, "a whole-screen change was cropped as a tooltip")
+        self.assertIn("whole screen", (why or "").lower())
+
+    def test_MISMATCHED_sizes_refuse_rather_than_resize(self):
+        import tempfile, os as _os
+        import tooltip_crop as tc
+        try:
+            from PIL import Image
+        except Exception:
+            self.skipTest("PIL not available")
+        root = tempfile.mkdtemp(prefix="tt3-")
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        a = _os.path.join(root, "a.jpg"); b = _os.path.join(root, "b.jpg")
+        Image.new("RGB", (800, 600), (10, 10, 10)).save(a, "JPEG", quality=88)
+        Image.new("RGB", (640, 480), (10, 10, 10)).save(b, "JPEG", quality=88)
+        rect, why = tc.changed_rect(a, b)
+        self.assertIsNone(rect, "it resized across a capture change and invented a rectangle")
+        self.assertIn("capture change", (why or "").lower())
+
+    def test_the_bounds_can_actually_admit_a_tooltip(self):
+        import tooltip_crop as tc
+        ok, why = tc.bounds_are_reachable()
+        self.assertTrue(ok, why)
+
+
+class TestV2239TheCropReachesTheRow(unittest.TestCase):
+    """#45 — the crop that NAMED an item must reach the row he reads, or the lane is inert.
+
+    ⚠ IT WAS INERT TWICE BEFORE THIS PASSED, both times silently:
+      1. _witness_rows rebuilds every row from four fields and dropped `crop` on the floor. Both
+         ends were correct and nothing connected them — the same shape as v2223's watchdog.
+      2. The fixture could not exercise it. vault_fixture_reels builds MAXIMALLY DISTINCT frames so
+         signatures never collide, which is right for the dedupe and exactly wrong for a hover pass:
+         every consecutive pair differed by 50-95% and tooltip_crop refused them all with "the whole
+         screen moved". Correctly. The join looked broken and was not.
+    Both times THE COUNT WAS THE TELL: 0 crops where the run should have produced 18."""
+
+    def _hover(self):
+        import tempfile
+        import vault_fixture_reels as vf
+        root = tempfile.mkdtemp(prefix="hov-")
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        d, truths, why = vf.hover_reel(root)
+        if not d:
+            self.skipTest(why)
+        return root, d, truths
+
+    def _sweep(self, d):
+        return v.sweep([d], sig=cr.jpeg_sig,
+                       reader=lambda p, s: {"items": [{"name": "Shako"}], "conf": 0.95},
+                       classify=lambda *a, **k: "stash",
+                       panel_gate=lambda p: "stash")
+
+    def test_a_hover_reel_is_not_mistaken_for_a_BLANK_capture(self):
+        # is_dead_frame calls anything flatter than 0.92 a blank capture and the sweep refuses the
+        # whole run. The first hover fixture measured 0.96-1.00 and was held every time — the check
+        # was right, the fixture was not footage.
+        _root, d, _t = self._hover()
+        import os as _os
+        fs = sorted(f for f in _os.listdir(d) if f.endswith(".jpg"))
+        flat = cr.frame_flatness(_os.path.join(d, fs[1]))
+        self.assertIsNotNone(flat, "flatness could not be measured on the fixture")
+        self.assertLess(flat, cr.DEAD_FLATNESS,
+                        "the hover fixture reads as a blank capture (%.3f >= %.2f), so no sweep "
+                        "will ever reach the crop lane" % (flat, cr.DEAD_FLATNESS))
+
+    def test_the_crop_reaches_the_WITNESS_ROW(self):
+        _root, d, _t = self._hover()
+        res = self._sweep(d)
+        rows = (res.get("owned") or []) + (res.get("unsure") or [])
+        self.assertTrue(rows, "the hover reel produced no rows at all: %s" % str(res.get("why"))[:120])
+        crops = [w for r in rows for w in (r.get("witnesses") or []) if w.get("crop")]
+        self.assertTrue(crops, "not one witness row carries a crop — the lane is inert again")
+
+    def test_a_missing_crop_still_SAYS_why(self):
+        # "no tooltip on this frame" and "the crop store is full" are different answers, and a bare
+        # absence would make them one. [[unknown-stays-unknown]]
+        _root, d, _t = self._hover()
+        res = self._sweep(d)
+        rows = (res.get("owned") or []) + (res.get("unsure") or [])
+        silent = [w for r in rows for w in (r.get("witnesses") or [])
+                  if not w.get("crop") and not w.get("cropWhy")]
+        self.assertEqual(silent, [], "%d witness row(s) have neither a crop nor a reason" % len(silent))
+
+    def test_the_crop_FILE_is_actually_written_and_small(self):
+        import os as _os
+        root, d, _t = self._hover()
+        self._sweep(d)
+        store = _os.path.join(root, "frames", "hist", v.CROP_DIR)
+        self.assertTrue(_os.path.isdir(store), "no crop store was created")
+        files = [f for f in _os.listdir(store) if f.endswith(".jpg")]
+        self.assertTrue(files, "the store is empty — nothing was written")
+        for f in files:
+            sz = _os.path.getsize(_os.path.join(store, f))
+            self.assertLessEqual(sz, v.CROP_MAX_BYTES,
+                                 "%s is %d bytes, past the %d ceiling — a mis-derived rectangle "
+                                 "was filed beside an item" % (f, sz, v.CROP_MAX_BYTES))
+
+    def test_the_crop_is_NOT_counted_as_a_witness(self):
+        # It is the SAME look that produced the name. Counting it would double the evidence for one
+        # glance — exactly the defect v2209 fixed. The gate must never read it.
+        import inspect
+        src = inspect.getsource(v.gate)
+        self.assertNotIn("crop", src, "the gate now reads the crop, so one look counts twice")
+
+
+class TestV2239WilsonReachesThePrune(unittest.TestCase):
+    """Konyo: "put wilson badge tier confluence system here too so its proves itself and then gets
+    coded.. for everywhere uncertainty this is the system needs to be implanted."
+
+    _PRUNE_SAFE_TO_RUN is a BOOLEAN over a question that is not boolean. 88% of his frames read
+    SILENT — the crop was made and OCR returned zero lines — and "no text here" and "the reader was
+    busy" are the same observation. A flag can only answer that by guessing. Wilson answers it by
+    accumulating, so arming becomes a reading he can watch instead of a switch he has to trust."""
+
+    def _clean(self, n=40):
+        return [{"readerAlive": True, "panelSaysNotOwnership": True, "sigFar": True,
+                 "tooltipRect": None} for _ in range(n)]
+
+    def test_the_floors_can_actually_be_cleared(self):
+        import prune_shadow as ps
+        ok, why = ps.floors_are_reachable()
+        self.assertTrue(ok, why)
+
+    def test_a_clean_pass_would_clear_the_bar(self):
+        # A bar nothing can clear is an absent gate wearing tuned numbers — I shipped exactly that
+        # mistake on the vault confluence floors earlier today.
+        import prune_shadow as ps
+        row = ps.score(self._clean())
+        self.assertTrue(row["wouldPass"], ps.say(row))
+
+    def test_ONE_silent_reader_in_forty_sinks_the_whole_pass(self):
+        # ⚠ THE WEAKEST CANDIDATE DECIDES, NOT THE AVERAGE. A prune is irreversible, and averaging
+        # is exactly how one bad deletion hides behind ninety good ones.
+        import prune_shadow as ps
+        row = ps.score(self._clean(39) + [{"readerAlive": False}])
+        self.assertFalse(row["wouldPass"],
+                         "a pass containing a frame whose reader never answered still cleared: %s"
+                         % ps.say(row))
+        self.assertEqual(row["confluence"], 0.0,
+                         "the weakest candidate did not decide the confluence")
+
+    def test_an_ABSENT_key_is_not_evidence(self):
+        # Defaulting a missing field to true is how a bar gets cleared by silence.
+        import prune_shadow as ps
+        self.assertEqual(ps.tags_for({}), [])
+        self.assertEqual(ps.tags_for({"readerAlive": None}), [])
+
+    def test_it_DECIDES_nothing(self):
+        import inspect
+        import prune_shadow as ps
+        src = inspect.getsource(ps)
+        for forbidden in ("os.remove", "unlink", "rmtree", "_PRUNE_SAFE_TO_RUN ="):
+            self.assertNotIn(forbidden, src,
+                             "the prune shadow does more than score: %s" % forbidden)
+
+    def test_the_bar_is_STRICTER_than_the_vault_throw_bar(self):
+        # A prune deletes footage outright; a throw-out only advises. The irreversible one must not
+        # be the looser one.
+        import prune_shadow as ps
+        self.assertGreater(ps.PRUNE_WILSON_FLOOR, v.THROWOUT_WILSON_FLOOR)
+        self.assertGreaterEqual(ps.PRUNE_CONFLUENCE_FLOOR, v.THROWOUT_CONFLUENCE_FLOOR)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

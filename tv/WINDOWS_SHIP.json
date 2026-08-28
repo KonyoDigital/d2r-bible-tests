@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2238",
+  "ver": "v2239",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2238: A red CI gate went unread for ten runs, the derivative cache collided on basenames, and my own invariant called a never-run eagle a disagreement",
+  "note": "v2239: The tooltip rectangle is derived by differencing a hover pass, so the crop that named an item can sit beside it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
