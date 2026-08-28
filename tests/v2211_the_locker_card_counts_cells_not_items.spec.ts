@@ -227,6 +227,47 @@ test.describe('v2211 the locker card counts cells, not items', () => {
     expect(r!.title).toContain('not a mule');
   });
 
+  test('a mule that cannot take one more says FULL, not 86%', async ({ page }) => {
+    // v2216 — a cross-family review predicted this and the measurement confirmed it. Fifteen 2x4
+    // weapons fill a mule at 120 of 140 cells, so the bar painted 86% — and NOTHING MORE FITS: the
+    // twenty spare cells are a 10x2 strip and a 10x4 band no 2x4 can occupy. 86% tells him he has
+    // room for two more when the answer is none. Arithmetically true, operationally a lie — the
+    // same class as the clamp this whole arc began with.
+    //
+    // ⚠ AND MY FIRST PROBE FOR IT WAS WRONG IN THE SAME WAY. It packed the candidate against the
+    // last mule's STASH only and let it land in an inventory band that was already occupied, so a
+    // full mule reported "room". The probe now re-runs the packer's own loop on the mule's real
+    // contents. [[feedback-suspect-the-instrument]]
+    const r = await page.evaluate(() => {
+      const L = (window as any)._muleLoad;
+      const mk = (n: string, k: number) => { const a: string[] = []; for (let i = 0; i < k; i++) a.push(n); return a; };
+      const one = (arr: string[]) => {
+        const l = L(arr);
+        const more = L(arr.concat([arr[0] || 'Colossus Blade']));
+        return { mules: l.mules.length, lastPct: l.lastPct, roomLeft: l.roomLeft,
+                 lastCells: l.lastCells, biggest: l.biggest,
+                 // GROUND TRUTH, from the packer itself: does one more open a new mule?
+                 oneMoreSpills: more.mules.length > l.mules.length };
+      };
+      return { full: one(mk('Colossus Blade', 15)), nearly: one(mk('Colossus Blade', 14)),
+               roomy: one(mk('Nagelring', 40)), spilled: one(mk('Colossus Blade', 16)) };
+    });
+
+    // the fixture must actually be full, or the assertion below proves nothing
+    expect(r.full.oneMoreSpills, 'fifteen 2x4 items no longer fill a mule — the packer changed and '
+      + 'this test is measuring the wrong fixture').toBe(true);
+    expect(r.full.lastPct, 'the full mule is not at the 86% that made this misleading')
+      .toBeGreaterThanOrEqual(80);
+
+    // roomLeft must agree with the packer in EVERY case, not just the interesting one
+    for (const [name, c] of Object.entries(r)) {
+      expect(c.roomLeft, `${name}: roomLeft=${c.roomLeft} but adding one more `
+        + `${c.biggest.w}x${c.biggest.h} ${c.oneMoreSpills ? 'DOES' : 'does not'} open a new mule. `
+        + `The card would ${c.roomLeft ? 'promise room that is not there' : 'claim full when it is not'}.`)
+        .toBe(!c.oneMoreSpills);
+    }
+  });
+
   test('an empty locker does not divide by nothing', async ({ page }) => {
     const r = await page.evaluate(() => {
       const l = (window as any)._muleLoad([]);

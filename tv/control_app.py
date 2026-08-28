@@ -1287,6 +1287,37 @@ def board_tally_load():
         return None
 
 
+def board_own_route_id():
+    """The install id of THE BOARD'S OWN persisted store. -> str | None
+
+    ⚠ THIS IS THE SINGLE SOURCE, and it exists because "empty prefix means owner" turned out to be
+    a coincidence rather than a rule. On his machine on 2026-08-28 TWO worlds posted with pfx "":
+    his board (c5c2c92d…) and another page (77f6415…). Any tie-break between them — newest wins,
+    biggest wins — is a guess dressed as a decision, and the guess published the wrong world's
+    117/266 as his 120/280.
+
+    The board's own store knows who the board is: `d2r_lsrRoute.id`, written by bible.html itself
+    from the route it resolved. Reading it is the difference between identifying his world and
+    inferring it. grail_tally already validates a candidate this way — a tally is only that store's
+    if its `who` matches that store's route — so this is the same rule, promoted to where the
+    publishing decision is made.
+
+    None when it cannot be established (Windows has no WebKit store, and a store that will not open
+    is unknown, not absent). A caller that gets None must say it is guessing rather than pretend.
+    [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+    """
+    try:
+        for db in _webkit_localstorage_dbs():
+            got = _store_read_all(db, ("d2r_tally",))
+            if got and got.get("isBoard"):
+                rid = (got.get("route") or {}).get("id")
+                if isinstance(rid, str) and rid:
+                    return rid
+    except Exception:
+        pass
+    return None
+
+
 def _route_key(who):
     """The world a tally belongs to: install id + profile. Never the prefix alone."""
     if not isinstance(who, dict):
@@ -1370,7 +1401,29 @@ def board_tally_merge(t):
               if isinstance(row.get("who") or row.get("route") or {}, dict)
               and (row.get("who") or row.get("route") or {}).get("pfx") == ""]
     owners.sort(key=lambda kr: (kr[1].get("at") or 0), reverse=True)
-    owner = owners[0][1] if owners else None
+    # ⚠ ASK THE BOARD WHO IT IS RATHER THAN INFERRING IT FROM THE PREFIX. Konyo, after watching the
+    # wrong world's number come back a second time: "make it synced so this doesnt happen future
+    # wise. should be one system unit with the exact same identical numbers." The board's own store
+    # carries its route id; the world whose id matches it IS his, and everything else is another
+    # page, however recently it posted or however owner-shaped it looks.
+    own = board_own_route_id()
+    owner = None
+    if own:
+        for k, row in owners:
+            w = row.get("who") or row.get("route") or {}
+            if str(w.get("id") or "") == own:
+                owner = row
+                doc["ownerId"] = own
+                break
+    if owner is None:
+        # could not establish it (no WebKit store on Windows, or the board has never posted from
+        # this machine). Fall back to the newest owner-shaped post AND say the choice was a guess,
+        # so nothing downstream reads it as identified.
+        owner = owners[0][1] if owners else None
+        doc["ownerGuessed"] = bool(owners)
+        doc.pop("ownerId", None)
+    else:
+        doc.pop("ownerGuessed", None)
     # ⚠ TWO WORLDS CAN BOTH LOOK LIKE THE OWNER, and on his machine two DID: the guest world that
     # resolved before he clicked "this browser is mine" posted with pfx "" as well, so "empty prefix
     # means owner" is not a decision procedure, it is a coincidence that held until it did not.
@@ -10005,6 +10058,15 @@ def board_ownership(sample=0, dump_stores=False):
           "var rwMade=(function(){try{var m=raw('d2r_rwMade');"
           "if(Array.isArray(m))return m.length;"
           "if(m&&typeof m==='object')return Object.keys(m).length;return null;}catch(e){return null;}})();"
+          # v2216 — DID THIS STORE COME UP EMPTY? bible.html writes d2r_storeEmptied when the boot
+          # seed floor refills a store that had plainly run before. That is the event that cost him
+          # 17 uniques on 2026-08-28 while the board displayed a plausible 383/117, and it was
+          # written down nowhere a person would look. A first-class field, not a corner of `stores`
+          # — that map is only populated on request and holds COUNTS, so a reader there would have
+          # found the number 3 and learned nothing. [[the-unjoined-end]]
+          "var storeEmptied=null;"
+          "try{var _se=raw('d2r_storeEmptied');"
+          "if(_se&&typeof _se==='object')storeEmptied={at:_se.at||null,why:String(_se.why||'')};}catch(_se2){}"
           "var stores=null,gameFound=null;"
           "try{var _gp=raw('d2r_gameFound');if(_gp&&typeof _gp==='object'&&!Array.isArray(_gp))gameFound=_gp;}catch(_g){}"
           + ("if(%s){stores={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);"
@@ -10025,7 +10087,7 @@ def board_ownership(sample=0, dump_stores=False):
           "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length,"
           "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
-          "stores:stores,dates:dates,gameFound:gameFound});"
+          "stores:stores,dates:dates,gameFound:gameFound,storeEmptied:storeEmptied});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
         raw = _ejs(w, js, timeout=8.0)
@@ -17719,7 +17781,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2214",
+        "ver": "v2216",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

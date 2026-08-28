@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2214",
+  "ver": "v2216",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2214: banked per world with a high-water mark, and a fall is reported rather than healed",
+  "note": "v2216: the seed rebuild that hid a real ledger loss now says it happened",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

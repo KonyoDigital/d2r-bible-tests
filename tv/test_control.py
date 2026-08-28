@@ -7989,6 +7989,69 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
                          "a real set piece was retired as debris by its own ledger's fold")
 
 
+class TestV2216AnEmptiedStoreIsAnEventNotANewUser(unittest.TestCase):
+    """2026-08-28. His board's localStorage went empty overnight. The boot seed floor did exactly
+    what it is for — wrote the 353 seed rows back — and the board came up reading 383 uniques and
+    117 set pieces. Plausible. Nearly unnoticed.
+
+    THE SEED FLOOR IS NOT THE BUG. THE SILENCE IS. Seeding a genuinely new install is correct;
+    seeding a store that held a ledger five minutes ago is a repair that erases the evidence of the
+    thing it repairs. Everything he held that is in NO seed was gone and nothing said so.
+
+    The mechanism is provable from his own data: "Atma's Scarab" with a STRAIGHT apostrophe is in
+    _GRAIL_SEED (Jun 19) and came back; the CURLY spelling is in no seed and did not. All 17 lost
+    uniques and all 3 lost set pieces are absent from both seeds.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(HERE, "..", "bible.html"), encoding="utf-8") as fh:
+            cls.b = fh.read()
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            cls.app = fh.read()
+        with open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8") as fh:
+            cls.doc = fh.read()
+
+    def test_the_board_records_the_event_before_it_seeds_over_it(self):
+        blk = _between(self, self.b, "var _wasEmpty =", "if (!_rwFreshFlag",
+                       what="the emptied-store detector")
+        self.assertIn("d2r_storeEmptied", blk, "the board no longer records that it seeded over an "
+                                               "emptied store — the loss goes silent again")
+        self.assertIn("_hadRun", blk,
+                      "the detector does not distinguish a store that BECAME empty from a genuinely "
+                      "new install, so it would fire on every fresh machine and be ignored")
+        for flag in ("d2r_pieceAlias_v2", "d2r_installIdCache"):
+            self.assertIn(flag, blk,
+                          "%s is no longer consulted; those bare one-time flags are what prove the "
+                          "store had run before" % flag)
+
+    def test_the_event_reaches_the_console_as_a_FIELD(self):
+        """⚠ NOT a corner of `stores`. That map is only populated on request and holds COUNTS, so a
+        reader there would have found the number 3 and learned nothing. [[the-unjoined-end]]"""
+        self.assertIn("storeEmptied:storeEmptied", self.app,
+                      "the board computes the event and the payload drops it on the way out — built "
+                      "on both ends, joined at neither")
+        self.assertIn("var storeEmptied=null;", self.app)
+
+    def test_the_doctor_reads_it_and_refuses_when_it_cannot(self):
+        fn = _between(self, self.doc, "def _check_the_board_store_did_not_come_up_empty",
+                      "def _check_the_locked_lanes_still_refuse", what="the emptied-store check")
+        self.assertIn('_post("/api/board_ownership"', fn,
+                      "the check GETs a POST-only route, so it would answer UNKNOWN forever while "
+                      "looking installed")
+        self.assertIn("boardLoaded", fn,
+                      "a board that is not loaded reads as 'fine' — the v2055 defect exactly")
+        self.assertIn("predates the storeEmptied field", fn,
+                      "an older console reads as OK instead of saying it cannot see the field")
+        self.assertIn("restore_ledger.py", fn,
+                      "the alarm does not say how to recover, which is the only thing he needs "
+                      "from it at that moment")
+
+    def test_it_is_registered_in_the_check_list(self):
+        self.assertIn("_check_the_board_store_did_not_come_up_empty)", self.doc,
+                      "the check exists and nothing runs it")
+
+
 class TestV2214HisProgressNumberCannotBeOverwrittenByAnotherWorld(unittest.TestCase):
     """2026-08-28, 07:0x. He opened the board: "hey! where is al my uniques and runeword and set
     items? i see 0/0. some bug.. broswer is wiped" — then 117/135 sets and 266/403 uniques against

@@ -537,6 +537,115 @@ def _check_his_progress_number_has_not_been_overwritten():
                 "overwrite it" % (", ".join(parts) or "nothing banked yet"))
 
 
+def _check_no_ledger_ENTRY_has_silently_vanished():
+    """His 20-minute ledger snapshots are what made 2026-08-28 recoverable. Nothing SHOUTED.
+
+    Overnight his bare d2r_foundLog went 391 -> 383 and d2r_setPieces 120 -> 117. The snapshots
+    recorded every step of it and no surface said a word, so he found out by opening the board and
+    asking "where is al my uniques and runeword and set items?". A record that captures a loss
+    without reporting it is an autopsy, not a guard.
+
+    THIS COMPARES THE TWO NEWEST SNAPSHOTS AND NAMES WHAT WENT. Names, not counts: "you are down 8"
+    is not actionable and "Atma's Scarab, Gheed's Fortune, Frostburn ..." is. The names it printed
+    that morning were the diagnosis — one carried a CURLY apostrophe and three were the exact
+    entries d2r_setRepairKept is supposed to protect, which is what turned a mystery into a class.
+
+    ⚠ IT NEVER RESTORES. Putting the entries back here would hide whatever removed them, and a
+    ledger that heals itself silently is how a defect survives for months. It reports; the restore
+    is a deliberate act through the board's own gated path. [[feedback-silence-is-not-evidence]]
+
+    ⚠ AND A SHRINKING LEDGER IS NOT THE SAME AS A CHANGING ONE. Items ARRIVE constantly — 9 set
+    pieces were registered in the very window 17 uniques vanished — so only REMOVALS are reported.
+    """
+    import glob as _glob
+    import json as _j
+    d = os.path.expanduser("~/d2r_ledger_backups")
+    if not os.path.isdir(d):
+        return UNKNOWN, ("no ledger snapshot directory — nothing to compare, so a loss would be "
+                         "invisible. `python3 ~/d2r_ledger_backups/snapshot_ledger.py` starts it")
+    files = sorted(_glob.glob(os.path.join(d, "ledger_*.json")))
+    if len(files) < 2:
+        return UNKNOWN, "fewer than two snapshots — there is nothing to compare against yet"
+
+    def _load(p):
+        try:
+            with open(p, encoding="utf-8") as fh:
+                doc = _j.load(fh)
+        except Exception:
+            return None
+        led = doc.get("ledger") if isinstance(doc.get("ledger"), dict) else doc
+        if not isinstance(led, dict):
+            return None
+        out = {}
+        for k in ("foundLog", "setPieces", "rwMade", "owned"):
+            v = led.get(k)
+            if isinstance(v, dict):
+                out[k] = set(v)
+            elif isinstance(v, list):
+                out[k] = {str(x) for x in v}
+        return out or None
+
+    new = _load(files[-1])
+    old = _load(files[-2])
+    if new is None or old is None:
+        return UNKNOWN, ("a snapshot will not parse, so the comparison is UNKNOWN — which is not "
+                         "the same as 'nothing was lost'")
+
+    lost = {}
+    for k in ("foundLog", "setPieces", "rwMade"):
+        if k in new and k in old:
+            gone = sorted(old[k] - new[k])
+            if gone:
+                lost[k] = gone
+    if not lost:
+        n = len(new.get("foundLog") or ())
+        return OK, ("nothing has disappeared between the last two snapshots (%d found-ledger "
+                    "entries, %d set pieces)" % (n, len(new.get("setPieces") or ())))
+
+    parts = []
+    for k, gone in lost.items():
+        shown = ", ".join(gone[:6]) + (" +%d more" % (len(gone) - 6) if len(gone) > 6 else "")
+        parts.append("%s lost %d: %s" % (k, len(gone), shown))
+    return MISSING, ("ENTRIES DISAPPEARED between %s and %s — %s. Nothing has been put back: "
+                     "restoring here would hide whatever removed them. To recover: "
+                     "python3 ~/d2r_ledger_backups/restore_ledger.py --file %s --apply "
+                     "(it goes through the board's own dated, merge-max, undoable apply)"
+                     % (os.path.basename(files[-2]), os.path.basename(files[-1]),
+                        " | ".join(parts), os.path.basename(files[-2])))
+
+
+def _check_the_board_store_did_not_come_up_empty():
+    """The event that cost him 17 uniques on 2026-08-28, made loud.
+
+    His board's localStorage went empty overnight; the boot seed floor refilled it from the seeds
+    compiled into bible.html, and the board came up reading a plausible 383/117. Nothing was
+    reported. The rebuild is what hid the loss — a store that had lost EVERYTHING repainted itself
+    into something that looked merely slightly behind.
+
+    bible.html now writes d2r_storeEmptied when it seeds over a store that had clearly run before.
+    This is the surface that reads it, because a flag nobody looks at is the same as no flag.
+    """
+    got = _post("/api/board_ownership", {"sample": 0})
+    if not got:
+        return UNKNOWN, "the console did not answer — nobody asked, so nothing is known"
+    if got.get("ok") is False:
+        return UNKNOWN, "the board refused the read: %s" % str(got.get("why"))[:90]
+    if not got.get("boardLoaded"):
+        return UNKNOWN, ("the board is not loaded in the window, so its store cannot be asked — "
+                         "which is not the same as 'it is fine'")
+    if "storeEmptied" not in got:
+        return UNKNOWN, ("this console predates the storeEmptied field (v2216) — restart it, or an "
+                         "emptied store stays invisible here")
+    ev = got.get("storeEmptied")
+    if not ev:
+        return OK, "the board's store has not come up empty"
+    return MISSING, ("THE BOARD'S STORE CAME UP EMPTY and was refilled from the built-in seeds. "
+                     "Anything he held that is in no seed did NOT come back — that is how 17 "
+                     "uniques and 3 set pieces went missing on 2026-08-28 while the board read a "
+                     "plausible 383/117. Recover with: "
+                     "python3 ~/d2r_ledger_backups/restore_ledger.py --apply")
+
+
 def _check_the_locked_lanes_still_refuse():
     """He ruled it plainly: equipment and inventory are never to be told to move. The BOARD has
     carried _LOCKED_LANES since v1712; the engine that PRODUCES the suggestions did not until
@@ -868,6 +977,8 @@ CHECKS = [
     ("footage has a reel", _check_footage_belongs_to_a_reel),
     ("vault stores", _check_the_vault_stores_are_readable),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
+    ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
+    ("store emptied", _check_the_board_store_did_not_come_up_empty),
     ("locked lanes", _check_the_locked_lanes_still_refuse),
     ("surfaces agree", _check_the_two_surfaces_agree),
     ("the other doctors", _check_the_other_doctors),
