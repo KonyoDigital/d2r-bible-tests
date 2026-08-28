@@ -2465,6 +2465,32 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .kbd-tip:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#1a1207;border:1px solid var(--gold-dim);color:var(--text);padding:8px 12px;border-radius:6px;white-space:nowrap;font-size:var(--fs-meta);font-family:var(--mono);z-index:200;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.6);max-width:340px;white-space:normal;width:max-content;text-align:left;font-weight:normal;letter-spacing:0;line-height:var(--lh-snug)}
   .kbd-tip:hover::before{content:"";position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--gold-dim);z-index:201;pointer-events:none}
 
+  /* v2247 — THE RAIL FABS SAY WHAT THEY ARE. Two independent cold reads (v2245, v2246) said the
+     same thing about this corner: three round controls, a glyph each, no words. They carried a
+     `title`, which is real to a pointer and to a screen reader and INVISIBLE to a person looking.
+     Same palette and geometry as .kbd-tip above — one tooltip language, not a second one — but
+     anchored to the LEFT, because a centred tip on a control 20px from the right edge runs off
+     the viewport. :focus-visible included so it is reachable from the keyboard too. */
+  /* ⚠ NO BLANKET `position:relative` HERE. The first cut had one, and because this block sits
+     AFTER .help-btn{position:fixed} at equal specificity, LAST DECLARATION WINS and the help
+     button lost its fixed positioning — it left the rail entirely. Caught by LOOKING at the
+     crop, not by any gate. A fixed or absolute element is ALREADY a containing block, so the
+     rule bought nothing and cost the control. [[d2r-css-last-rule-wins]]
+     But #nav-fab IS static, so without a containing block its tip anchored to an ancestor and
+     floated ~150px clear of the button, pointing at nothing. Scoped to the one control that
+     needs it, where `relative` cannot clobber anything. */
+  #nav-fab.fab-tip{position:relative}
+  .fab-tip:hover::after,.fab-tip:focus-visible::after{content:attr(data-tip);position:absolute;
+    right:calc(100% + 10px);top:50%;transform:translateY(-50%);background:#1a1207;
+    border:1px solid var(--gold-dim);color:var(--text);padding:6px 10px;border-radius:6px;
+    font-size:var(--fs-meta);font-family:var(--mono);z-index:9998;pointer-events:none;
+    box-shadow:0 4px 16px rgba(0,0,0,.6);width:max-content;max-width:min(260px,42vw);
+    text-align:left;font-weight:normal;letter-spacing:0;line-height:var(--lh-snug)}
+  .fab-tip:hover::before,.fab-tip:focus-visible::before{content:"";position:absolute;
+    right:calc(100% + 4px);top:50%;transform:translateY(-50%);border:6px solid transparent;
+    border-left-color:var(--gold-dim);z-index:9999;pointer-events:none}
+  @media (max-width:640px){ .fab-tip:hover::after,.fab-tip:hover::before{display:none} }
+
   /* Keyboard shortcut hint badges */
   .kbd-hint{display:inline-block;padding:1px 5px;background:rgba(255,212,128,.1);border:1px solid var(--gold-dim);color:var(--gold-bright);border-radius:3px;font-family:var(--mono);font-size:9px;font-weight:var(--fw-semibold);margin-left:6px;vertical-align:middle;opacity:.6;letter-spacing:.5px}
   .tab:hover .kbd-hint,.tab[data-tab][aria-current] .kbd-hint{opacity:1}
@@ -4403,7 +4429,7 @@ try {
         <!-- v1466 — THE PROFILE SIGIL, beside the world switches on purpose: those two pills say
              WHICH WORLD (mac/windows · main/ladder), this says WHICH INSTALL. Same generator and
              same id as the console header, so one machine wears one crest in both surfaces. -->
-        <button id="bd-sigil" class="bd-sigil" type="button" hidden aria-hidden="true" tabindex="-1">
+        <button id="bd-sigil" class="bd-sigil" type="button" hidden title="your profile crest — which install this board belongs to">
           <span class="bs-glyph" id="bs-glyph">·</span><span class="bs-name" id="bs-name">—</span><span class="bs-code" id="bs-code"></span>
         </button>
         <div class="masthead-rule"></div>
@@ -6527,7 +6553,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
     </div>
     <div class="boss-body">
       <div class="arw-wrap">
-        <input id="hvf-filter" aria-label="filter by base" class="arw-filter" type="text" placeholder="filter… (try 'amulet', 'jewel', 'eth', 'caster', 'crafted', 'base')" autocomplete="off" spellcheck="false" oninput="window.renderHighValueFinds&&window.renderHighValueFinds()">
+        <input id="hvf-filter" aria-label="filter high-value finds by name, base, category or value" class="arw-filter" type="text" placeholder="filter… (try 'amulet', 'jewel', 'eth', 'caster', 'crafted', 'base')" autocomplete="off" spellcheck="false" oninput="window.renderHighValueFinds&&window.renderHighValueFinds()">
         <div class="hcr-list" id="hvf-list"></div>
       </div>
     </div>
@@ -9538,7 +9564,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 </div>
 <button id="tvd-return-pill" type="button" onclick="window.switchTab&&window.switchTab('session')">⚡ ← Sessions</button>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-9·0</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
-<button class="help-btn" onclick="document.getElementById('help-modal').classList.add('show')" title="Help & guide">?</button>
+<button class="help-btn fab-tip" data-tip="Help &amp; guide" aria-label="help and guide" onclick="document.getElementById('help-modal').classList.add('show')" title="Help &amp; guide">?</button>
 <div class="help-modal" id="help-modal" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="help-content">
     <h3>🎯 How to use this bible</h3>
@@ -28119,7 +28145,7 @@ function buildNavWidget() {
     + `<div class="nav-chip nav-top" role="button" tabindex="0" onclick="navTop()">`
     + `<span class="nav-ic">⬆️</span><span>Back to top</span></div>`
     + `</div>`
-    + `<button class="nav-fab" id="nav-fab" aria-label="Navigation menu" title="Navigate" onclick="toggleNavPanel(event)">`
+    + `<button class="nav-fab fab-tip" id="nav-fab" data-tip="Jump to a tab" aria-label="Navigation menu" title="Navigate" onclick="toggleNavPanel(event)">`
     + `<svg class="nav-compass" viewBox="0 0 48 48" aria-hidden="true" focusable="false">`
     + `<circle class="nc-ring" cx="24" cy="24" r="20"/>`
     + `<g class="nc-ticks"><line x1="24" y1="5" x2="24" y2="10"/><line x1="24" y1="38" x2="24" y2="43"/>`
@@ -47100,7 +47126,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2246', name:'v2246 - Every Control Named', date:'2026-08-28', note:'Icon-only controls carried no accessible name, and my first count of them was wrong by five times' };
+  window.D2R_BUILD = { id:'v2247', name:'v2247 - The Guard That Stopped Looking', date:'2026-08-29', note:'A MIME wildcard read as a comment opener and blinded the whole chooser guard, and I had hidden his profile crest from assistive tech' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48375,7 +48401,9 @@ window._CH_PILL_MAP = {
       var pop = document.getElementById('inbox-pop');
       if (!fab){
         var w = document.createElement('div');
-        w.innerHTML = '<button class="inbox-fab" id="inbox-fab" type="button" '
+        w.innerHTML = '<button class="inbox-fab fab-tip" id="inbox-fab" type="button" '
+          + 'data-tip="Inbox — names the readers could not call" '
+          + 'aria-label="inbox — names the readers could not call on their own" '
           + 'title="Inbox — names the readers could not call on their own" '
           + 'onclick="window.inboxPopTog()">📥<span class="ibf-n" id="inbox-fab-n"></span></button>'
           + '<div class="inbox-pop" id="inbox-pop"></div>';

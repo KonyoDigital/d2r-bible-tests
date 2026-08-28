@@ -28850,16 +28850,32 @@ class TestV2246EveryIconControlHasAName(unittest.TestCase):
             self.assertIn('aria-label="' + want, s,
                           "a vault stepper no longer NAMES which count it moves: %r" % want)
 
-    def test_a_DECORATIVE_control_is_hidden_rather_than_named(self):
-        # bd-sigil is hidden and does nothing. Giving it a label would put a phantom control in the
-        # tab order; the honest fix is to hide it from assistive tech too.
+    def test_the_profile_SIGIL_is_not_hidden_from_assistive_tech(self):
+        """🔴 I BROKE THIS IN v2246 AND THE FIX HID THE EVIDENCE.
+
+        I read `<button id="bd-sigil" … hidden>` as decorative and gave it aria-hidden="true"
+        plus tabindex="-1", reasoning that naming a dead control would put a phantom in the tab
+        order. It is not dead. Something removes `hidden` at load; the live DOM measures it at
+        204x32, display:flex, reading "ᚱ CINDER WRAITH 59F4", with a title naming which install
+        this board belongs to. It is his PROFILE CREST — arguably the most identifying thing on
+        the page.
+
+        And aria-hidden made my own live probe SKIP it, so the probe reported 0 nameless controls
+        while one had just been removed from assistive tech entirely. A fix that silences the
+        detector that would object to it is the worst shape a fix can take.
+        [[feedback-suspect-the-instrument]]"""
         import io as _io, os as _os
         s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
                                    "bible.html"), encoding="utf-8").read()
         i = s.index('id="bd-sigil"')
-        tag = s[i - 20:i + 150]
-        self.assertIn('aria-hidden="true"', tag, "the decorative sigil is exposed to assistive tech")
-        self.assertIn('tabindex="-1"', tag, "the decorative sigil is still reachable by keyboard")
+        tag = s[i - 30:s.index(">", i) + 1]
+        self.assertNotIn('aria-hidden', tag,
+                         "the profile crest is hidden from assistive tech again — it is a real, "
+                         "visible, painted control, not decoration")
+        self.assertNotIn('tabindex="-1"', tag,
+                         "the profile crest was taken back out of the tab order")
+        self.assertIn('title="', tag,
+                      "the crest needs a name for the moment BEFORE paint() fills its spans")
 
 
 class TestV2246ChoosersAndTypedFieldsAreNamedToo(unittest.TestCase):
@@ -28890,7 +28906,20 @@ class TestV2246ChoosersAndTypedFieldsAreNamedToo(unittest.TestCase):
         # spaces, so a line-local test called two of them real markup. Ask whether the position
         # is INSIDE a block instead — the last opener beats the last closer. Anchored, not a
         # strip: an unbounded comment-strip once ate 16.9%% of this file. [[source-reading-guard]]
-        return s.rfind("/*", 0, start) > s.rfind("*/", 0, start)
+        #
+        # ⚠⚠ AND THE FIRST VERSION OF THAT TEST BLINDED THIS ENTIRE GUARD. `accept="image/*"` at
+        # bible.html:5488 is a MIME WILDCARD, not a comment opener — but a bare rfind("/*") cannot
+        # tell them apart, so every element after line 5488 read as "inside a comment". All SIX
+        # <select> in the file were classified prose and the guard examined ZERO of them while
+        # printing green. A guard that has stopped looking looks exactly like a guard with nothing
+        # to find. So an opener must sit where a comment can actually begin.
+        last_open = -1
+        k = s.find("/*")
+        while 0 <= k < start:
+            if k == 0 or s[k - 1] in " \t\n\r;{},(=+*/:":
+                last_open = k
+            k = s.find("/*", k + 2)
+        return last_open > s.rfind("*/", 0, start)
 
     def test_no_chooser_is_nameless(self):
         import re as _re
@@ -28932,12 +28961,99 @@ class TestV2246ChoosersAndTypedFieldsAreNamedToo(unittest.TestCase):
                          "%d typed <input> carry no accessible name that survives typing "
                          "(a placeholder does not): %s" % (len(bad), bad[:4]))
 
+    def test_THE_GUARD_IS_ACTUALLY_LOOKING(self):
+        """The one assertion the other two cannot make about themselves.
+
+        Both guards above answer "how many are nameless" — and 0 is the right answer whether every
+        control is named or the guard examined nothing at all. It examined NOTHING: a MIME wildcard
+        (`accept="image/*"`, bible.html:5488) read as a comment opener, so all six <select> and most
+        <input> in the file were classified prose. Green, and blind, and indistinguishable.
+
+        So: assert the REACH, not just the verdict. A skip is not a pass, and a guard that stopped
+        looking is the same defect as a gate that is always green.
+        [[regression-guard]] [[feedback-blind-fixture-green-gate]]"""
+        import re as _re
+        s = self._src()
+        for tag, floor in (("select", 4), ("input", 25)):
+            total = len(_re.findall(r"<%s\b[^>]*>" % tag, s))
+            seen = sum(1 for m in _re.finditer(r"<%s\b[^>]*>" % tag, s)
+                       if not self._is_prose(s, m.start()))
+            self.assertGreaterEqual(
+                seen, floor,
+                "the <%s> guard only examined %d of %d — it has gone blind again. Something in the "
+                "file is being read as a comment opener that is not one." % (tag, seen, total))
+            self.assertLessEqual(
+                seen, total,
+                "the <%s> guard claims to examine more elements than exist" % tag)
+
+    def test_a_MIME_wildcard_is_not_a_comment(self):
+        # the exact byte pattern that blinded it, pinned as a case rather than as a number
+        s = self._src()
+        i = s.index('accept="image/*"')
+        self.assertFalse(self._is_prose(s, i + len('accept="image/*"') + 10),
+                         'accept="image/*" is being read as a comment opener again')
+
     def test_the_cube_up_choosers_say_WHICH_thing_they_pick(self):
         # Two gem selects sit side by side. "gem" names neither of them.
         s = self._src()
         for want in ("which rune to cube up to", "which gem to cube up to",
                      "which gem quality to cube up to", "how many runs to simulate"):
             self.assertIn(want, s, "a chooser lost its name: %r" % want)
+
+
+class TestV2247TheRailFabsSayWhatTheyAre(unittest.TestCase):
+    """Two independent cold reads, v2245 and v2246, said the same thing about the right-hand rail:
+    three round controls, one glyph each, no words. They carried a `title` — real to a pointer and
+    to a screen reader, invisible to a person looking at the page. v2246 answered the accessibility
+    half and left the visual half exactly where it was.
+
+    ⚠ AND THE FIRST FIX BROKE THE HELP BUTTON. The new block opened with a blanket
+    `.fab-tip{position:relative}`. It sits AFTER `.help-btn{position:fixed}` at equal specificity,
+    so LAST DECLARATION WINS: the button lost `fixed`, left the rail, and vanished from the corner.
+    No gate caught it. A crop of the rendered corner caught it in one look.
+    [[d2r-css-last-rule-wins]] [[visual-regression-detector]]"""
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_the_tip_block_never_sets_position_on_everything(self):
+        import re as _re
+        s = self._src()
+        # a bare `.fab-tip{...position...}` selector — the exact shape that clobbered `fixed`
+        for m in _re.finditer(r"\n\s*\.fab-tip\s*\{([^}]*)\}", s):
+            self.assertNotIn("position", m.group(1),
+                             "a blanket .fab-tip rule sets position again — it will override the "
+                             "fixed positioning of any FAB declared before it")
+
+    def test_each_rail_control_carries_WORDS_not_just_a_glyph(self):
+        s = self._src()
+        for anchor, tip in (('class="help-btn fab-tip"', 'data-tip="Help &amp; guide"'),
+                            ('class="nav-fab fab-tip"', 'data-tip="Jump to a tab"'),
+                            ('class="inbox-fab fab-tip"', "data-tip=\"Inbox — names the readers could not call\"")):
+            self.assertIn(anchor, s, "a rail control lost its tip class: %r" % anchor)
+            self.assertIn(tip, s, "a rail control lost its visible label: %r" % tip)
+
+    def test_the_tip_is_anchored_LEFT_because_the_rail_is_on_the_right(self):
+        # a centred tip on a control 20px from the right edge runs off the viewport
+        s = self._src()
+        # ⚠ ANCHORED, NOT BYTE-COUNTED. My first cut read s[i-200:i+40] and cut "focus-visible" in
+        # half — a guard failing on its own reach rather than on the code. [[source-reading-guard]]
+        i = s.index(".fab-tip:hover::after")
+        rule = s[i:s.index("}", i)]
+        self.assertIn("right:calc(100% + 10px)", rule,
+                      "the rail tip is no longer anchored to the left of its control")
+        selector = rule[:rule.index("{")]
+        self.assertIn("focus-visible", selector,
+                      "the rail tip no longer appears on keyboard focus, only on hover")
+
+    def test_only_the_STATIC_fab_is_given_a_containing_block(self):
+        # #nav-fab is static, so without this its tip anchored to an ancestor and floated ~150px
+        # clear of the button, pointing at nothing. Measured on the pixels.
+        s = self._src()
+        self.assertIn("#nav-fab.fab-tip{position:relative}", s,
+                      "#nav-fab lost its containing block; its tip will detach from the button")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2246",
+  "ver": "v2247",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2246: Icon-only controls carried no accessible name, and my first count of them was wrong by five times",
+  "note": "v2247: A MIME wildcard read as a comment opener and blinded the whole chooser guard, and I had hidden his profile crest from assistive tech",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

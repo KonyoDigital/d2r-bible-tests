@@ -38,7 +38,7 @@ PROBE = r"""
     if (/[A-Za-z0-9]/.test(t)) return t.slice(0, 40);
     return null;                          // ⚠ placeholder deliberately NOT consulted
   }
-  var out = {nameless: [], named: 0, weak: []};
+  var out = {nameless: [], named: 0, weak: [], ghosted: []};
   var els = document.querySelectorAll('button, select, input:not([type=hidden])');
   for (var i = 0; i < els.length; i++){
     var el = els[i], cs = getComputedStyle(el);
@@ -48,6 +48,12 @@ PROBE = r"""
     var n = name(el), r = el.getBoundingClientRect();
     var who = el.tagName + (el.id ? '#' + el.id : '.' + String(el.className||'').slice(0,26))
             + ' [' + Math.round(r.width) + 'x' + Math.round(r.height) + ']';
+    // ⚠ A VISIBLE THING MARKED aria-hidden IS WORSE THAN A NAMELESS ONE, and it hides itself from
+    // this very probe. v2246 did exactly that to the profile crest: I called it decorative, marked
+    // it aria-hidden, and the probe then skipped it and reported a clean page. Refuse the skip.
+    if (el.getAttribute('aria-hidden') === 'true' && r.width > 0 && r.height > 0){
+      out.ghosted.push(who + ' -> ' + JSON.stringify((el.innerText||'').trim().slice(0,30)));
+    }
     if (n === null){
       out.nameless.push(who + (el.getAttribute('placeholder') ? ' (placeholder only)' : ''));
     } else {
@@ -105,15 +111,18 @@ def main():
             r = json.loads(raw)
             seen_any += r["named"]
             weak_all.extend((t, w) for w in r["weak"])
-            print("  %-11s %4d controls · named %4d · nameless %d · weak %d"
-                  % (t, r["total"], r["named"], len(r["nameless"]), len(r["weak"])))
+            for g in r.get("ghosted", []):
+                worst.append((t, "GHOSTED (visible but aria-hidden) " + g))
+            print("  %-11s %4d controls · named %4d · nameless %d · weak %d · ghosted %d"
+                  % (t, r["total"], r["named"], len(r["nameless"]), len(r["weak"]),
+                     len(r.get("ghosted", []))))
             for w in r["nameless"]:
                 worst.append((t, w))
         if not seen_any:
             print("⚪ UNKNOWN — no named control was seen at all; the page did not boot.")
             return 2
         if worst:
-            print("\n🔴 %d control(s) reach the screen with no accessible name:" % len(worst))
+            print("\n🔴 %d control(s) reach the screen without reaching a person:" % len(worst))
             for t, w in worst[:20]:
                 print("     %-10s %s" % (t, w))
             return 1
