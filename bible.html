@@ -34795,7 +34795,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          pass as a measurement — and then nothing read it, so it passed as a measurement anyway.
          A flag nobody consults is not honesty, it is a comment. [[the-unjoined-end]] */
         return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + (cl.approx ? ' vmc-approx' : '') + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
-          + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_cc>1?' ×'+_cc:'') + '"'
+          + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_cc>1?' ×'+_cc:'')
+          + (cl.approx ? ' — size not established: no footprint rule matches this base, so it is drawn at the default 1x2. Set names (\'Tal Rasha set (any piece)\') are not items and have no single size.' : ' — ' + cl.w + '×' + cl.h + ' = ' + (cl.w*cl.h) + ' cell' + (cl.w*cl.h===1?'':'s')) + '"'
           + ' onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')">'
           + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
@@ -47099,7 +47100,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2244', name:'v2244 - History Reaches A Day', date:'2026-08-28', note:'The disk history kept twenty hours while its comment claimed ninety days, so his ten-gigabyte question had no answer' };
+  window.D2R_BUILD = { id:'v2245', name:'v2245 - Unknown Names Itself', date:'2026-08-28', note:'An unresolved footprint now says what is unknown and why, instead of showing a bare question mark' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

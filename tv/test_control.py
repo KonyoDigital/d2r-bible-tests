@@ -28749,5 +28749,41 @@ class TestV2244DiskHistoryReachesBackADay(unittest.TestCase):
                       "an unparseable row is discarded, so a parse bug would masquerade as age")
 
 
+class TestV2245TheApproxMarkerExplainsItself(unittest.TestCase):
+    """v2243 gave an unresolved footprint a dashed border and a "?". That says THAT it is a guess and
+    never WHAT is unknown — half a signal, and the half that is harder to act on.
+
+    An unknown has to name itself. A resolved tile now states its size and cell count; an unresolved
+    one states that no footprint rule matches its base, and that set names are not items and have no
+    single size. [[unknown-stays-unknown]]"""
+
+    def _bible(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_an_unresolved_tile_says_WHY(self):
+        s = self._bible()
+        self.assertIn("size not established", s,
+                      "the approx tile is back to a bare ? with no explanation")
+        self.assertIn("no footprint rule matches this base", s,
+                      "it no longer names the cause, so a reader cannot act on it")
+
+    def test_a_RESOLVED_tile_states_its_size(self):
+        # Without this the tooltip only ever speaks up when something is wrong, and a reader cannot
+        # tell "measured 2x4" from "nobody looked".
+        s = self._bible()
+        self.assertIn("' = ' + (cl.w*cl.h) + ' cell'", s,
+                      "a resolved tile no longer states its own cell count")
+
+    def test_the_two_branches_are_EXCLUSIVE(self):
+        # One expression, two arms — so a tile can never claim a size AND admit it has none.
+        s = self._bible()
+        i = s.index("size not established")
+        seg = s[max(0, i - 260):i]
+        self.assertIn("cl.approx ?", seg,
+                      "the explanation is no longer keyed on the approx flag")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2244",
+  "ver": "v2245",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2244: The disk history kept twenty hours while its comment claimed ninety days, so his ten-gigabyte question had no answer",
+  "note": "v2245: An unresolved footprint now says what is unknown and why, instead of showing a bare question mark",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
