@@ -21071,15 +21071,43 @@ class TestV2107ItFetchesItselfButAsksBeforeRestarting(unittest.TestCase):
             self.app = f.read()
 
     def test_it_pulls_without_being_asked(self):
-        self.assertIn("pulledThisSession", self.ui,
-                      "the automatic pull is gone — he is back to pressing a button to fetch bytes")
+        # ⚠ v2248 — THIS USED THE LATCH AS ITS EVIDENCE, which is a proxy for the thing it cares
+        # about. The law is "a pull fires with nobody clicking", and the proof of that is a POST to
+        # /api/update inside the polling function itself, not the presence of any particular flag.
+        # [[feedback-verify-not-proxy]]
+        i = self.ui.index("async function look()")
+        body = self.ui[i:self.ui.index("\n    look();", i)]
+        self.assertIn("'/api/update', { method: 'POST' }", body,
+                      "the automatic pull is gone from the poll — he is back to pressing a button "
+                      "to fetch bytes")
         self.assertIn("a newer console is on GitHub — fetching it…", self.ui,
                       "nothing tells him a fetch is happening on its own")
 
-    def test_it_pulls_ONCE_per_launch(self):
-        # a checker that re-pulls every tick is a loop, not an update
-        self.assertIn("pulledThisSession = true", self.ui,
-                      "the once-per-launch latch is gone; the poll would re-pull every 30 minutes")
+    def test_a_repeating_pull_still_CANNOT_spin(self):
+        """v2248 — PIN THE LAW, NOT THE MECHANISM.
+
+        This test used to assert `pulledThisSession = true`, i.e. once per launch. v2107 was right
+        about the risk — "a checker that re-pulls every tick is a loop, not an update" — and wrong
+        that once-per-launch was the cure. That latch is precisely what left Dean's console 85
+        versions behind: the 30-minute check kept reporting "N behind" and nothing was allowed to
+        act on it, so the disk never changed and auto-relaunch, which watches the disk, waited
+        forever.
+
+        What actually prevents a spin is not the latch. It is that a pull needs NEWS and needs
+        TIME: it only fires when the server says behind > 0, on a clean tree, and never twice
+        inside the cooldown. A pull that changes nothing leaves `behind` at 0, so the next check
+        does not pull. v2107's protection survives; its implementation does not.
+        [[regression-guard]] [[label-outlived-referent]]"""
+        self.assertNotIn("pulledThisSession", self.ui,
+                         "the once-per-launch latch is back — a console left open will never put "
+                         "a new build on disk")
+        self.assertIn("PULL_COOLDOWN_MS", self.ui, "nothing bounds how often a pull may fire")
+        self.assertIn("lastPullMs", self.ui, "the cooldown has no clock to compare against")
+        i = self.ui.index("lastPullMs) > PULL_COOLDOWN_MS")
+        guard = self.ui[self.ui.rindex("if (", 0, i):i]
+        self.assertIn("!j.dirty", guard,
+                      "the repeating pull no longer refuses on a dirty tree — it could clobber "
+                      "uncommitted work on the one machine that edits")
 
     def test_the_RESTART_is_still_his_click(self):
         self.assertIn("'/api/relaunch'", self.ui, "the relaunch action is gone from the banner")
@@ -29054,6 +29082,172 @@ class TestV2247TheRailFabsSayWhatTheyAre(unittest.TestCase):
         s = self._src()
         self.assertIn("#nav-fab.fab-tip{position:relative}", s,
                       "#nav-fab lost its containing block; its tip will detach from the button")
+
+
+class TestV2248TheConsoleKeepsItselfCurrent(unittest.TestCase):
+    """Konyo, with his cousin on the phone: "i want deans computer and console automatically
+    updating just like mine... when you ship a version it should reautoupdate both of us."
+
+    THREE PARTS, ALL HEALTHY-LOOKING, AND THE CHAIN STILL DID NOT CLOSE:
+      · a 30-minute timer re-asked origin and the banner correctly said "you are N behind"
+      · `pulledThisSession` refused to act on that after the first time
+      · auto-relaunch watched the DISK for a new build, which therefore never arrived
+    So the banner knew, the relaunch was armed, and nothing put the bytes on disk. Dean sat at
+    v2161 against v2246 — 85 versions — with every part reporting itself fine. [[the-unjoined-end]]
+
+    ⚠ AND MY FIRST DIAGNOSIS WAS WRONG. I grepped `look()` WITH PARENTHESES, found one call site,
+    and concluded the check never repeated. `setInterval(look, …)` passes the function WITHOUT
+    parentheses, so the existing timer was invisible to the search that "proved" it absent. I then
+    added a SECOND interval on top of it. The check always repeated; only the pull did not.
+    [[feedback-suspect-the-instrument]]
+
+    ⚠ SECOND, INDEPENDENT CAUSE: ✕ on the banner set `muted`, and `look()` returned immediately
+    when muted — so one click on a strip of UI switched off auto-update for the rest of the
+    session, silently. Dismissal is now per-VERSION and never gates the pull."""
+
+    def _ui(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_ui.html"), encoding="utf-8").read()
+
+    @staticmethod
+    def _in_comment(s, at):
+        """Is this position inside a JS comment? ⚠ BOTH of this class's first two guards failed on
+        my OWN explanatory comments — the block above names `pulledThisSession` and quotes
+        `setInterval(look, …)` while describing the bug, so a plain search found the very strings
+        it was asserting absent. Third time today. [[feedback-comments-vs-code]]"""
+        line_start = s.rfind("\n", 0, at) + 1
+        if "//" in s[line_start:at]:
+            return True
+        last_open = -1
+        k = s.find("/*")
+        while 0 <= k < at:
+            if k == 0 or s[k - 1] in " \t\n\r;{},(=+*/:":
+                last_open = k
+            k = s.find("/*", k + 2)
+        return last_open > s.rfind("*/", 0, at)
+
+    def _code_hits(self, needle):
+        s = self._ui()
+        out, k = [], s.find(needle)
+        while k >= 0:
+            if not self._in_comment(s, k):
+                out.append(k)
+            k = s.find(needle, k + 1)
+        return out
+
+    def test_the_pull_is_not_once_per_launch(self):
+        s = self._ui()
+        self.assertEqual(self._code_hits("pulledThisSession"), [],
+                         "the once-per-launch pull flag is back in the CODE — a console left open "
+                         "will never put a new build on disk, and auto-relaunch will wait forever")
+        self.assertIn("lastPullMs", s, "the pull cooldown is gone")
+        self.assertIn("PULL_COOLDOWN_MS", s, "the pull cooldown constant is gone")
+
+    def test_a_pull_can_only_happen_when_behind_and_off_cooldown(self):
+        # the two conditions that make a repeating pull safe: it needs news, and it needs time
+        s = self._ui()
+        i = s.index("lastPullMs) > PULL_COOLDOWN_MS")
+        guard = s[s.rindex("if (", 0, i):i]
+        self.assertIn("!j.dirty", guard,
+                      "the repeating pull no longer refuses on a dirty tree")
+
+    def test_exactly_ONE_interval_drives_the_check(self):
+        import re as _re
+        s = self._ui()
+        n = len([m for m in _re.finditer(r"setInterval\(\s*look\b", s)
+                 if not self._in_comment(s, m.start())])
+        self.assertEqual(n, 1,
+                         "expected exactly one update-check timer, found %d — I added a second one "
+                         "on top of the existing one because my grep for `look()` could not see "
+                         "`setInterval(look, …)`" % n)
+
+    def test_dismissing_the_banner_does_not_stop_updating(self):
+        s = self._ui()
+        i = s.index("async function look()")
+        body = s[i:i + s[i:].index("\n    }")]
+        self.assertNotIn("if (muted) return", body,
+                         "✕ disables auto-update again: look() bails before it can pull")
+        self.assertIn("mutedFor", s, "the per-version dismissal is gone")
+
+
+class TestV2248TheEagleCanSeeBehindTheFleet(unittest.TestCase):
+    """Konyo: "also watchdog and eagle eye these unsynced same keywords and items should match."
+
+    They did not, and the gap was the one that mattered. The eagle's "version drift" compares the
+    RUNNING PROCESS against the TREE ON DISK. Dean's console sat at v2161 while origin was v2246 —
+    85 versions — and drift was GREEN throughout, correctly: his process and his disk agreed with
+    each other, on old bytes. Not one of the eagle's 22 checks asked whether the CHECKOUT was
+    behind ORIGIN, so every lamp was honest and the console was three months stale.
+    [[the-unjoined-end]]"""
+
+    def _doctor(self):
+        import sys as _sys, os as _os
+        _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__))))
+        import console_doctor
+        return console_doctor
+
+    def test_the_eagle_HAS_a_behind_the_fleet_check(self):
+        cd = self._doctor()
+        names = [n for n, _ in cd.CHECKS]
+        self.assertIn("behind the fleet", names,
+                      "the eagle cannot see a checkout that is behind origin — the exact state "
+                      "Dean's console was in for 85 versions with every other lamp green")
+        self.assertIn("version drift", names,
+                      "the two questions are different and BOTH are needed: process-vs-disk and "
+                      "disk-vs-origin")
+
+    def test_it_is_NOT_in_SLOW_or_it_would_never_run(self):
+        # ⚠ THE FILE ALREADY PAID FOR THIS. "sweep would find" is in SLOW, and _eagle_once calls
+        # run(include_slow=False) — so on the ten-minute timer it never ran at all. A check that
+        # fetches would have to be SLOW, which is why this one reads the ref already on disk.
+        cd = self._doctor()
+        self.assertNotIn("behind the fleet", cd.SLOW,
+                         "the fleet check went into SLOW, where the eagle's timer never reaches it")
+
+    def test_it_goes_RED_when_behind_and_says_HOW_FAR(self):
+        cd = self._doctor()
+        fn = dict(cd.CHECKS)["behind the fleet"]
+        import os as _os
+        real = _os.path.isdir
+        calls = {"n": 0}
+
+        def fake_git(*args):
+            calls["n"] += 1
+            if args[:2] == ("rev-parse", "--verify"):
+                return "abc123"
+            if args[0] == "rev-list":
+                return "7"
+            return ""
+        # the helper is defined INSIDE the check, so drive it through subprocess instead
+        import subprocess as _sp
+        real_run = _sp.run
+
+        class R:
+            def __init__(s_, out): s_.returncode, s_.stdout, s_.stderr = 0, out, ""
+
+        def fake_run(argv, **kw):
+            if argv[:2] == ("git", "rev-parse") or list(argv[:2]) == ["git", "rev-parse"]:
+                return R("abc123")
+            if "rev-list" in argv:
+                return R("7")
+            return real_run(argv, **kw)
+        _sp.run = fake_run
+        try:
+            state, why = fn()
+        finally:
+            _sp.run = real_run
+        self.assertEqual(state, cd.MISSING, "seven commits behind did not report as a fault")
+        self.assertIn("7 commits behind", why, "the fault does not say HOW FAR behind: %r" % why)
+
+    def test_it_states_the_AGE_of_what_it_compared_against(self):
+        # "0 behind" against a three-day-old ref means "0 behind what I knew three days ago"
+        cd = self._doctor()
+        state, why = dict(cd.CHECKS)["behind the fleet"]()
+        if state == cd.UNKNOWN:
+            self.skipTest("no origin ref here — nothing to state the age of")
+        self.assertTrue(("ref last refreshed" in why) or ("UNKNOWN" in why),
+                        "the answer does not carry the age of the ref it compared against: %r" % why)
 
 
 if __name__ == "__main__":

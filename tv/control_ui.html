@@ -11246,8 +11246,32 @@
   (function(){
     var bar = $('fleet-bar'), txt = $('fleet-txt'), go = $('fleet-go'), x = $('fleet-x');
     if (!bar || !txt || !go || !x) return;
-    var muted = false, stage = 'behind', pulledThisSession = false;
-    x.onclick = function(){ muted = true; bar.hidden = true; };   // until the next launch, not forever
+    var mutedFor = '', lastSeenLatest = '', stage = 'behind', lastPullMs = 0;
+    /* v2248 — IT CHECKS AGAIN. Konyo, with his cousin on the phone: "i want deans computer and
+       console automatically updating just like mine... when you ship a version it should
+       reautoupdate both of us automatically."
+
+       ⚠ THE CHECK REPEATED; THE PULL DID NOT. A 30-minute timer has always re-asked origin, so
+       every half hour the banner correctly said "you are N behind" — and a once-per-launch
+       latch refused to act on it after the first time. Auto-relaunch, meanwhile, watches the DISK for a
+       new build. So the banner knew, the relaunch was armed, and nothing ever put the new bytes on
+       disk: a console left open sat 85 versions behind while all three parts reported themselves
+       healthy. Measured on Dean's machine at v2161 against v2246. It is NOT a Windows fault —
+       start_tvd_win.ps1 and start_tvd_mac.sh pull identically at launch; he simply leaves his
+       console open for hours and Konyo relaunches constantly. [[the-unjoined-end]]
+
+       ⚠ AND THE OLD COMMENT WAS RIGHT ABOUT THE RISK, WRONG ABOUT THE CURE. "a loop that re-pulls
+       is a loop" — true, but once-per-session is not what stops a spin. What stops it: only pull
+       when the server says behind > 0, and never more than once per cooldown. A pull that changes
+       nothing leaves behind at 0, so the next check does not pull. */
+    var CHECK_EVERY_MS = 15 * 60 * 1000;   // re-ask origin four times an hour
+    var PULL_COOLDOWN_MS = 10 * 60 * 1000; // never attempt two pulls closer than this
+    /* ⚠ v2248 — ✕ HIDES THE BANNER, IT DOES NOT STOP THE UPDATES. It used to set `muted`, and
+       `look()` returns immediately when muted — so one click on a strip of UI silently switched
+       off auto-update for the rest of the session. That is a second, independent way to end up
+       85 versions behind, and nothing on screen would say so. The banner is now suppressed for
+       the CURRENT version only: a genuinely newer build shows it again. */
+    x.onclick = function(){ mutedFor = String(lastSeenLatest || 'now'); bar.hidden = true; };
     /* v2107 — IT PULLS ITSELF NOW. Konyo, seeing the banner do its job: "cant it automate that too
        and auto update?" It can, and the two halves are not equally safe, so they are not treated
        the same:
@@ -11261,10 +11285,11 @@
            both interrupts the session and ORPHANS the frames of the session it kills."
        So: fetch without asking, run without surprising him. [[unknown-stays-unknown]] */
     async function look(){
-      if (muted) return;
       try {
         var r = await fetch(API + '/api/update');
         var j = await r.json();
+        // the dismissal is per-VERSION, and it never gates the pull below
+        lastSeenLatest = (j && (j.latest || j.ver)) || lastSeenLatest;
         if (!j || !j.ok || !j.behind){
           if (stage === 'ready') return;
           /* v2110 — BEING UP TO DATE WITH GITHUB IS NOT THE SAME AS RUNNING WHAT IS ON DISK.
@@ -11284,8 +11309,8 @@
           } catch (e){}
           bar.hidden = true; return;
         }
-        if (!j.dirty && !pulledThisSession){
-          pulledThisSession = true;             // once per launch: a loop that re-pulls is a loop
+        if (!j.dirty && (Date.now() - lastPullMs) > PULL_COOLDOWN_MS){
+          lastPullMs = Date.now();              // cooldown, not once-per-launch — see above
           txt.textContent = 'a newer console is on GitHub — fetching it…';
           go.hidden = true; bar.hidden = false;
           try {
@@ -11303,7 +11328,8 @@
         go.hidden = !!j.dirty;     // nothing to offer when a pull cannot be safe
         go.textContent = 'UPDATE NOW';
         go.disabled = false;
-        bar.hidden = false;
+        // ✕ suppresses THIS version's banner only; a newer build is news again
+        bar.hidden = (mutedFor && mutedFor === String(lastSeenLatest || 'now'));
       } catch (e){ /* offline is not news — the bar stays as it was */ }
     }
     /* v2158 — poll the READ, paint the meter, and relaunch the instant it is free.
@@ -11457,7 +11483,12 @@
       }
     };
     look();
-    setInterval(look, 30 * 60 * 1000);
+    /* ⚠ AND MY FIRST DIAGNOSIS OF THIS WAS WRONG, in the way that is easiest to be wrong: I
+       grepped `look()` WITH PARENTHESES, found one call site, and concluded the check never
+       repeated. `setInterval(look, …)` passes the function WITHOUT parentheses, so the existing
+       30-minute timer below was invisible to the search that "proved" it absent. The check DID
+       repeat all along; what never repeated was the PULL. [[feedback-suspect-the-instrument]] */
+    setInterval(look, CHECK_EVERY_MS);
   })();
   $('th-export').onclick = async function(){
     try {
@@ -15721,19 +15752,37 @@ function escC(s) {
       var _w = _fr && _fr.contentWindow;
       if (_w && typeof _w.artUrl === 'function') _art = _w.artUrl;
     } catch (e) { _art = null; }
-    var tile = function (n) {
-      var u = null;
-      try { u = _art ? (_art(n) || _art(String(n).replace(/\s*\([^)]*\)\s*$/, '').trim())) : null; }
-      catch (e) { u = null; }
-      return '<div class="fx-item" title="' + escC(n) + '">'
+    /* v2248 — THE SAME PICTURES AND THE SAME HOVER CARD AS THE REST OF THE CONSOLE. Konyo:
+       "i want this HDART like the rest of the console with image cursor floating HDART also same
+       as the console."
+
+       ⚠ THIS PANEL HAD GROWN ITS OWN TWO. It asked the board for `artUrl` — the BASE map, below
+       the HD manifest — and hung the item name on a `title=`, so it drew low-res icons and an OS
+       tooltip while every other surface here draws HD art and the cursor-following item card.
+       Two copies of a routing rule only ever get fixed once, which is the v1613 lesson verbatim:
+       `thArt()` folds art/HD_ART_MANIFEST.json OVER the board's map so the HD override wins, and
+       `_itipAttr` is the one hover contract `_itemTip` binds to by delegation.
+       [[copy-drift]] [[the-unjoined-end]] */
+    thArtInit();                       // the board may still be booting; it retries and repaints
+    var tile = function (n, mine) {
+      var bare = String(n).replace(/\s*\([^)]*\)\s*$/, '').trim();
+      var u = thArt(n) || thArt(bare) || '';
+      if (!u) { try { u = (_art && (_art(n) || _art(bare))) || ''; } catch (e) { u = ''; } }
+      /* a SET piece, so the card paints it in the board's set green rather than a neutral chip.
+         `facts` carries only what this panel already computed — nothing derived, nothing invented. */
+      var itip = _itipAttr({
+        name: n, rarity: 'set', art: u,
+        facts: [[mine ? 'you have it' : 'they have it', mine ? 'they do not' : 'you do not']]
+      });
+      return '<div class="fx-item"' + itip + '>'
         + (u ? '<img class="fx-img" src="/' + escC(u) + '" alt="" loading="lazy">'
              : '<span class="fx-noimg">◻</span>')
         + '<span class="fx-name">' + escC(n) + '</span></div>';
     };
-    var col = function (title, names, why) {
+    var col = function (title, names, why, mine) {
       return '<div class="fx-col"><div class="fx-col-h">' + escC(title)
         + '<span class="fx-n">' + names.length + '</span></div>'
-        + (names.length ? names.map(tile).join('')
+        + (names.length ? names.map(function (n) { return tile(n, mine); }).join('')
                         : '<div class="fx-none">' + escC(why) + '</div>') + '</div>';
     };
     var age = function (ms) {
@@ -15746,8 +15795,8 @@ function escC(s) {
     };
     box.innerHTML = head
       + '<div class="fx-cols">'
-      + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you')
-      + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them')
+      + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', false)
+      + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', true)
       + '</div>'
       + '<div class="fx-foot">' + (j.mineN | 0) + ' / ' + (j.rosterN | 0) + ' yours · '
       + (j.theirsN | 0) + ' / ' + (j.rosterN | 0) + ' theirs · ' + (j.both | 0) + ' shared'

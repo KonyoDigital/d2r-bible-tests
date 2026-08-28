@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2247",
+  "ver": "v2248",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2247: A MIME wildcard read as a comment opener and blinded the whole chooser guard, and I had hidden his profile crest from assistive tech",
+  "note": "v2248: A console left open never pulled, the eagle could not see a checkout behind origin, and the cross-reference drew its own low-res art",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

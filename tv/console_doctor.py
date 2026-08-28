@@ -169,6 +169,64 @@ def _check_version_drift():
                      % (running, tree, running))
 
 
+def _check_behind_the_fleet():
+    """IS THIS CHECKOUT BEHIND ORIGIN? The one kind of out-of-sync nothing here could see.
+
+    ⚠ "version drift" IS A DIFFERENT QUESTION AND IT PASSES WHILE THIS FAILS. That check compares
+    the RUNNING process against the TREE ON DISK. Dean's console sat at v2161 while origin was at
+    v2246 — 85 versions — and drift was GREEN the whole time, correctly: his process and his disk
+    agreed with each other. They were simply agreeing on old bytes. Konyo, on the phone with him:
+    "there is no reason he isnt on my version and we arent synced." Nothing in these 22 checks
+    asked the only question that would have caught it. [[the-unjoined-end]]
+
+    ⚠ AND IT MUST NOT FETCH. The obvious implementation asks /api/update, which force-fetches, so
+    it would belong in SLOW — and SLOW is exactly where "sweep would find" went to die: the eagle
+    runs with include_slow=False, so a SLOW check never runs on the timer at all. This one reads
+    the origin/main ref that is already on disk, which costs nothing and runs every tick. The
+    console's own fleet banner refreshes that ref every 15 minutes (control_ui.html, v2248).
+
+    ⚠ SO THE ANSWER CARRIES THE AGE OF THE REF, NOT THE AGE OF THE READ. "0 behind" against a ref
+    last fetched three days ago means "0 behind what I knew three days ago", and saying it plainly
+    is the difference between a fact and a reassurance. [[stale-reading]]
+    """
+    import subprocess as _sp
+    import time as _t
+
+    def _git(*args):
+        try:
+            r = _sp.run(("git",) + args, cwd=ROOT, capture_output=True, text=True, timeout=15)
+            return (r.stdout or "").strip() if r.returncode == 0 else None
+        except Exception:
+            return None
+
+    if not os.path.isdir(os.path.join(ROOT, ".git")):
+        return UNKNOWN, "this install is not a git checkout, so there is no origin to be behind"
+    if _git("rev-parse", "--verify", "--quiet", "origin/main") is None:
+        return UNKNOWN, "no origin/main ref on disk yet — nothing has ever fetched here"
+
+    # how old is what we are comparing against?
+    age = ""
+    for nm in ("FETCH_HEAD", os.path.join("refs", "remotes", "origin", "main")):
+        p = os.path.join(ROOT, ".git", nm)
+        if os.path.exists(p):
+            mins = int(max(0, _t.time() - os.path.getmtime(p)) // 60)
+            age = ("%d min" % mins) if mins < 120 else ("%.1f h" % (mins / 60.0))
+            break
+    against = (" (against an origin/main ref last refreshed %s ago)" % age) if age else \
+              " (the age of that ref is UNKNOWN)"
+
+    behind = _git("rev-list", "--count", "HEAD..origin/main")
+    if behind is None or not behind.isdigit():
+        return UNKNOWN, "could not count the commits between this checkout and origin/main"
+    n = int(behind)
+    if n == 0:
+        return OK, "this checkout is level with origin/main%s" % against
+    return MISSING, ("this checkout is %d commit%s behind origin/main%s. The console pulls on its "
+                     "own every 15 minutes and restarts itself when the new build lands; if it has "
+                     "not, the fleet banner's UPDATE NOW does it, or: git pull --ff-only"
+                     % (n, "s" if n != 1 else "", against))
+
+
 def _check_lane_intent():
     """A switch he turned off that is still being counted. `has_subscription()` answers CAN it run,
     `switch_on()` answers does he WANT it to, and for a long time only the first was asked."""
@@ -1077,6 +1135,9 @@ CHECKS = [
     ("engines corroborate", _check_the_engines_CORROBORATE_each_other),
     ("console UI faults", _check_the_console_UI_has_not_faulted),
     ("version drift", _check_version_drift),
+    # v2248 — the OTHER out-of-sync: drift is process-vs-disk, this is disk-vs-origin, and
+    # Dean sat 85 versions behind with drift green because his two agreed on old bytes.
+    ("behind the fleet", _check_behind_the_fleet),
     ("lane intent", _check_lane_intent),
     ("disk headroom", _check_disk_headroom),
     ("subscription", _check_subscription_burn),
