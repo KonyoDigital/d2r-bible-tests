@@ -28684,6 +28684,19 @@ class TestV2242EveryRealBaseHasAFootprint(unittest.TestCase):
         self.assertEqual(areas[0], 1, "nothing renders at the 1-cell minimum")
         self.assertEqual(areas[-1], 8, "nothing renders at the 8-cell maximum")
 
+    def test_the_approx_flag_is_ACTUALLY_READ(self):
+        # ⚠ I CREATED THIS DEFECT IN THE SHIP THAT FIXED IT ELSEWHERE. v2242 marked an unresolved
+        # footprint approx:true so a guess could not pass as a measurement — and then nothing
+        # consulted it, so it passed as a measurement anyway. A flag nobody reads is a comment.
+        # [[the-unjoined-end]]
+        import io as _io, os as _os
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        self.assertIn("cl.approx ? ' vmc-approx' : ''", s,
+                      "the tile no longer marks an unresolved footprint — the flag is inert again")
+        self.assertIn(".vm-cell.vmc-approx{", s,
+                      "vmc-approx has no style, so an unresolved size looks identical to a measured one")
+
 
 
 if __name__ == "__main__":

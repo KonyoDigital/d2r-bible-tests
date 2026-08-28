@@ -33169,6 +33169,12 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 /* ═══ v324 — D2 INVENTORY CELL GRID: items pack as footprint-sized tiles (1x1 … 2x4 = 8 cells) ═══
    like the in-game stash. A base cell = 30px; tile spans its {w,h}. Dense flow packs them tight. */
 .vm-grid{display:grid;grid-template-columns:repeat(auto-fill,30px);grid-auto-rows:30px;grid-auto-flow:row dense;gap:3px;margin-top:4px;justify-content:start}
+/* v2243 — an UNRESOLVED footprint reads as unresolved: a dashed edge and a dimmer frame, so a
+   guessed size is visibly a guess. 14 of 318 items land here — all of them set NAMES used as
+   a base ("Tal Rasha set (any piece)" is not an item) plus bare "charm". They are not gaps
+   to be filled with a confident number; they genuinely have no single footprint. */
+.vm-cell.vmc-approx{border-style:dashed;border-color:rgba(255,255,255,.16);opacity:.82}
+.vm-cell.vmc-approx::after{content:'?';position:absolute;right:2px;bottom:1px;font:9px/1 monospace;color:rgba(255,255,255,.35);pointer-events:none}
 .vm-cell{position:relative;border:1px solid rgba(255,255,255,.10);border-radius:5px;background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.05),rgba(0,0,0,.34));overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .12s,border-color .12s}
 .vm-cell:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.5);border-color:rgba(255,255,255,.28);z-index:4}
 .vm-cell-art{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:2px;box-sizing:border-box}
@@ -34784,7 +34790,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         // v347 — duplicate/multi-keep count badge on the locker cell (top-right)
         var _cc = (typeof copyCount === 'function') ? copyCount(n) : 1;
         var _cntTag = (_cc > 1) ? '<span class="vm-cell-cnt" title="you own ' + _cc + ' of this">×' + _cc + '</span>' : '';
-        return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
+      /* v2243 — THE approx FLAG WAS INERT, WHICH IS THE DEFECT I HAD JUST SPENT THE DAY FIXING
+         ELSEWHERE. v2242 marked an unresolved footprint {w:1,h:2,approx:true} so a guess could not
+         pass as a measurement — and then nothing read it, so it passed as a measurement anyway.
+         A flag nobody consults is not honesty, it is a comment. [[the-unjoined-end]] */
+        return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + (cl.approx ? ' vmc-approx' : '') + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
           + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_cc>1?' ×'+_cc:'') + '"'
           + ' onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')">'
           + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
@@ -47089,7 +47099,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2242', name:'v2242 - Shapes Match Items', date:'2026-08-28', note:'Seventy-one bases matched no footprint rule and rendered at a size nobody had established' };
+  window.D2R_BUILD = { id:'v2243', name:'v2243 - Approx Reads As Approx', date:'2026-08-28', note:'The unresolved-footprint flag was inert; a tile now shows a guessed size as a guess' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

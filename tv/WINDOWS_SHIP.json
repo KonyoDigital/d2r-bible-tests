@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2242",
+  "ver": "v2243",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2242: Seventy-one bases matched no footprint rule and rendered at a size nobody had established",
+  "note": "v2243: The unresolved-footprint flag was inert; a tile now shows a guessed size as a guess",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
