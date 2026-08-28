@@ -122,6 +122,15 @@ GATES = [
              "the two bars on real piles — had never been executed at any size"),
     Gate("test_inventory_lattice", [sys.executable, os.path.join(HERE, "test_inventory_lattice.py")], 180,
          why="v1925 — the inventory lattice AND its refusals. A column of checkboxes in the game-creation lobby is periodic, so a lattice fitter finds a lattice in it and answers \"18 occupied, 9 free\" about a menu; every case here is a real frame from his own reel, so a loosened refusal fails here instead of on his screen"),
+    Gate("test_fleet_mask", [sys.executable, os.path.join(HERE, "test_fleet_mask.py")], 120,
+         why="v2213 — THE FLEET cross-reference turns two ledgers into 'what should I chase', and "
+             "it does that by shipping BITS over a shared roster. The dangerous failure is not a "
+             "crash: decode a mask against a roster it was not built for and every bit lands on a "
+             "neighbouring item, so the box confidently names real pieces that are simply the wrong "
+             "ones and he goes farming things his cousin already has. These pin the fingerprint "
+             "refusals, and the three-language chain — the encoder runs in the BOARD (JS), the "
+             "validator in the WORKER (JS) and the decoder here (Python), each of which can be "
+             "individually correct while the chain is wrong"),
     Gate("test_vault_doctor", [sys.executable, os.path.join(HERE, "test_vault_doctor.py")], 120,
          why="v2013 — the doctor answers 'why is the vault empty', and its three causes need three "
              "different actions from him. On his real tree it reports ONE of them, so without these "

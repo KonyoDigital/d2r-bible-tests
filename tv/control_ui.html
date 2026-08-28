@@ -4622,6 +4622,48 @@
   .ftt .ftt-none { font: var(--fw-regular) var(--fs-2xs)/1.45 var(--mono); color: var(--gold-dim); }
   .ftt .ftt-age { margin-top: 6px; font: var(--fw-regular) var(--fs-2xs)/1 var(--mono);
                   color: var(--gold-dim); opacity: .7; }
+  /* ══ v2213 — THE CROSS-REFERENCE BOX ═══════════════════════════════════════════════════
+     Two columns, nothing they both own, and every figure it shows is one it actually measured.
+     It borrows the rail's existing tokens rather than inventing a scale — a panel with its own
+     type sizes reads as bolted on, and this one sits inside THE FLEET. */
+  .fleet-clickable { cursor: pointer; border-radius: 6px; }
+  .fleet-clickable:hover { background: rgba(255,255,255,.05); }
+  .fleet-clickable:focus-visible { outline: 1px solid var(--edge-hi, rgba(255,255,255,.3)); }
+  .fleet-xref { margin-top: 8px; padding: 8px 9px; border-radius: 8px;
+    border: 1px solid var(--edge, rgba(255,255,255,.12)); background: rgba(0,0,0,.24); }
+  .fleet-xref[hidden] { display: none; }
+  .fx-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 6px; }
+  .fx-head b { color: var(--gold-bright, #f0c060); font-size: var(--fs-xs); }
+  .fx-sub { color: var(--text-muted, #b5a48a); font-size: var(--fs-2xs); flex: 1; }
+  .fx-x { background: none; border: none; color: var(--text-muted, #b5a48a); cursor: pointer;
+    font-size: var(--fs-xs); line-height: 1; padding: 2px 4px; }
+  .fx-x:hover { color: var(--text, #e8dcc8); }
+  /* the two directions sit side by side and STACK on a narrow rail rather than clipping —
+     at 901 the drawer is ~158px of usable width and two columns there would shred every name */
+  .fx-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  @media (min-width: 1200px) { .fx-cols { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } }
+  .fx-col { min-width: 0; }
+  .fx-col-h { display: flex; align-items: baseline; gap: 5px; font-size: var(--fs-2xs);
+    color: var(--text-muted, #b5a48a); text-transform: uppercase; letter-spacing: .5px;
+    border-bottom: 1px solid var(--edge, rgba(255,255,255,.1)); padding-bottom: 3px;
+    margin-bottom: 4px; }
+  .fx-n { margin-left: auto; color: var(--gold-bright, #f0c060); font-family: var(--mono, monospace); }
+  .fx-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; min-width: 0; }
+  .fx-img { width: 22px; height: 22px; object-fit: contain; flex: none; }
+  .fx-noimg { width: 22px; text-align: center; flex: none; opacity: .4; }
+  /* ⚠ WRAP, never clip. The v2210 scar in this same drawer: nowrap over a real sentence cut 60%
+     of it away at his own window width and the ellipsis made it look deliberate. An item name he
+     is supposed to go and FIND is the last thing that may be truncated. */
+  .fx-name { font-size: var(--fs-2xs); color: var(--text, #e8dcc8); white-space: normal;
+    overflow-wrap: anywhere; line-height: 1.3; min-width: 0; }
+  .fx-none, .fx-why, .fx-wait { font-size: var(--fs-2xs); color: var(--text-muted, #b5a48a);
+    font-style: italic; padding: 3px 0; white-space: normal; overflow-wrap: anywhere;
+    line-height: 1.35; }
+  .fx-why { color: var(--gold-bright, #f0c060); font-style: normal; }
+  .fx-foot { margin-top: 7px; padding-top: 5px; font-size: var(--fs-2xs);
+    color: var(--text-muted, #b5a48a); border-top: 1px solid var(--edge, rgba(255,255,255,.1));
+    white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+  .fx-age { opacity: .8; }
   .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -6073,6 +6115,9 @@
           <div class="fleet-box">
             <div class="fleet-head">🖥 THE FLEET <button class="util-btn fleet-refresh" type="button" title="re-check who is online" onclick="window._fleetRefresh(true)">↻</button></div>
             <div id="fleet-list"><div class="fleet-none">open ⚙ advanced to check the fleet…</div></div>
+            <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
+                 "what should I chase" where the hover tooltip answers "how far along is he". -->
+            <div id="fleet-xref" class="fleet-xref" hidden></div>
           </div>
         </details>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
@@ -15508,7 +15553,16 @@ function escC(s) {
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
              + ' · ' + escC(_fleetSince(m.t)))
           : ('offline · last seen ' + escC(_fleetSince(m.t)));
-        return '<div class="fleet-row' + (online ? ' on' : '') + ' has-ftt" tabindex="0">'
+        /* v2213 — CLICK A PLAYER. Konyo: "a click on the player itself will open a box and tell
+           me visually and show me which items it has cross referenced to mine that i dont have
+           already only. so its not messy." The hover tooltip stays exactly as it was — it answers
+           "how far along is he", and this answers "what should I chase". */
+        return '<div class="fleet-row' + (online ? ' on' : '') + ' has-ftt fleet-clickable"'
+          + ' tabindex="0" role="button" data-fleet-machine="' + escC(m.machine || '') + '"'
+          + ' title="click to cross-reference their set pieces against yours"'
+          + ' onclick="window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
+          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+          + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
           + '<b>' + escC(nameFor) + '</b>'
           + '<span class="fleet-meta">' + meta + '</span>'
@@ -15521,6 +15575,91 @@ function escC(s) {
     } catch (e) {
       box.innerHTML = '<div class="fleet-none">fleet unreachable</div>';
     }
+  };
+
+  /* ══ v2213 — THE FLEET CROSS-REFERENCE ═══════════════════════════════════════════════════
+     Konyo: "for me and my cuzin alone it should cross reference eachother based on what set items
+     he has that i dont. and what set items i have that he doesnt obviously... show me what he has
+     that i dont. LETS START only with the sets im at 120/135 hes at 116/135... so its not messy."
+
+     THE FLEET HAS ONLY EVER CARRIED COUNTS, and 116 does not subtract from 120 to produce names.
+     Each machine now publishes a BITMASK over the shared set roster — 135 pieces in 23 characters —
+     and the subtraction happens on HIS machine, against HIS copy of the roster, where the names
+     live. No item name crosses the network: functions/api/console.js stores an opaque string it
+     never decodes.
+
+     ⚠ NOTHING THEY BOTH OWN IS SHOWN. "so its not messy" is the requirement, not a nicety.
+
+     ⚠ AND EVERY WAY OF NOT KNOWING IS RENDERED AS NOT KNOWING. A machine that has never reported,
+     a board that cannot be read, two machines on different rosters — each of those produces an
+     EMPTY list from a naive implementation, which reads as "you are level with him" and is the one
+     wrong answer that costs him a farming session. [[unknown-stays-unknown]] [[stale-reading]] */
+  window._fleetCompare = async function (machine) {
+    var box = document.getElementById('fleet-xref');
+    if (!box) return;
+    if (!machine) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<div class="fx-wait">cross-referencing…</div>';
+    var j = null;
+    try {
+      var r = await fetch('/api/fleet_compare?machine=' + encodeURIComponent(machine),
+                          { cache: 'no-store' });
+      j = await r.json();
+    } catch (e) { j = null; }
+    if (!j) {
+      box.innerHTML = '<div class="fx-head"><b>cross-reference</b>'
+        + '<button class="fx-x" type="button" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
+        + '<div class="fx-why">the console did not answer — this is UNKNOWN, not "you are level"</div>';
+      return;
+    }
+    var head = '<div class="fx-head"><b>' + escC(j.who || machine) + '</b>'
+      + '<span class="fx-sub">set pieces · yours vs theirs</span>'
+      + '<button class="fx-x" type="button" title="close" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>';
+    if (!j.ok) {
+      box.innerHTML = head + '<div class="fx-why">' + escC(j.why || 'no answer') + '</div>';
+      return;
+    }
+    /* art comes from the BOARD, which owns artUrl — asking it is what keeps the console from
+       carrying a second copy of the art map that could drift. No board, no picture, and the row
+       still names the item. [[copy-drift]] */
+    var _art = null;
+    try {
+      var _fr = document.getElementById('tvd-eng');
+      var _w = _fr && _fr.contentWindow;
+      if (_w && typeof _w.artUrl === 'function') _art = _w.artUrl;
+    } catch (e) { _art = null; }
+    var tile = function (n) {
+      var u = null;
+      try { u = _art ? (_art(n) || _art(String(n).replace(/\s*\([^)]*\)\s*$/, '').trim())) : null; }
+      catch (e) { u = null; }
+      return '<div class="fx-item" title="' + escC(n) + '">'
+        + (u ? '<img class="fx-img" src="/' + escC(u) + '" alt="" loading="lazy">'
+             : '<span class="fx-noimg">◻</span>')
+        + '<span class="fx-name">' + escC(n) + '</span></div>';
+    };
+    var col = function (title, names, why) {
+      return '<div class="fx-col"><div class="fx-col-h">' + escC(title)
+        + '<span class="fx-n">' + names.length + '</span></div>'
+        + (names.length ? names.map(tile).join('')
+                        : '<div class="fx-none">' + escC(why) + '</div>') + '</div>';
+    };
+    var age = function (ms) {
+      if (!ms) return 'unknown';
+      var s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+      if (s < 90) return s + 's ago';
+      if (s < 5400) return Math.round(s / 60) + 'm ago';
+      if (s < 172800) return Math.round(s / 3600) + 'h ago';
+      return Math.round(s / 86400) + 'd ago';
+    };
+    box.innerHTML = head
+      + '<div class="fx-cols">'
+      + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you')
+      + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them')
+      + '</div>'
+      + '<div class="fx-foot">' + (j.mineN | 0) + ' / ' + (j.rosterN | 0) + ' yours · '
+      + (j.theirsN | 0) + ' / ' + (j.rosterN | 0) + ' theirs · ' + (j.both | 0) + ' shared'
+      + '<span class="fx-age"> · your list ' + escC(age(j.mineAt))
+      + ', theirs ' + escC(age(j.theirAt)) + '</span></div>';
   };
 
   // v1516 — 📜 THE CHRONICLE SWEEP, priced. This deliberately shows a QUOTE and not a tally: the

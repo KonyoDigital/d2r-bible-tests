@@ -7989,6 +7989,245 @@ class TestV1798TheSetsLaneHasATapEndToEnd(unittest.TestCase):
                          "a real set piece was retired as debris by its own ledger's fold")
 
 
+class TestV2214HisProgressNumberCannotBeOverwrittenByAnotherWorld(unittest.TestCase):
+    """2026-08-28, 07:0x. He opened the board: "hey! where is al my uniques and runeword and set
+    items? i see 0/0. some bug.. broswer is wiped" — then 117/135 sets and 266/403 uniques against
+    a real 120 and 280.
+
+    NOTHING WAS WIPED. Measured from his own WebKit store: foundLog 391, setPieces 120, rwMade 99,
+    identical at 07:05 and 07:18, and rendering that exact store on a clean board gives 120/135 and
+    280/403.
+
+    THE FAULT WAS THE BANKING. bible.html posts its counts to /api/board_tally; the route already
+    demanded `who = {id, p, pfx}`, so it KNEW which world was speaking — and then wrote them into
+    ONE global slot regardless. A second page in a different world posted 117/266 and replaced his.
+    Measured: board_tally.json carried route id 77f6..., his board's store is c5c2.... The console,
+    the fleet roster and his cousin's cross-reference all then reported the wrong world as him.
+
+    His ask: "this needs to get updated and locked going up like watchdog eagleeye ... so when i log
+    in now or this ever happens it saves from the 278/403 and the 120/135".
+    """
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        import control_app
+        self.ca = control_app
+        self.d = tempfile.mkdtemp()
+        self._orig = self.ca._board_tally_path
+        self.ca._board_tally_path = lambda: os.path.join(self.d, "board_tally.json")
+        self.addCleanup(setattr, self.ca, "_board_tally_path", self._orig)
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.OWNER = {"id": "c5c2c92d9fd049a38dfe2e46728e5eca", "p": "main", "pfx": ""}
+        self.GUEST = {"id": "77f641548cfa405693a0d6978946e25d", "p": "main", "pfx": "I-77f64154-"}
+
+    def _post(self, who, sets, uni, at, rw=99):
+        return self.ca.board_tally_merge({
+            "v": 1, "who": who, "route": who,
+            "sets": {"have": sets, "total": 135}, "uniques": {"have": uni, "total": 403},
+            "runewords": {"have": rw, "total": 99}, "at": at})
+
+    def _doc(self):
+        with open(self.ca._board_tally_path(), encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_a_guest_world_cannot_overwrite_his_numbers(self):
+        """THE DEFECT, exactly as it happened."""
+        self._post(self.OWNER, 120, 280, 1000)
+        self._post(self.GUEST, 117, 266, 2000)
+        d = self._doc()
+        self.assertEqual(d["sets"]["have"], 120,
+                         "a guest world's 117 replaced his 120. This is the number the fleet "
+                         "roster and his cousin's cross-reference both read.")
+        self.assertEqual(d["uniques"]["have"], 280)
+        self.assertEqual(len(d["byRoute"]), 2,
+                         "the other world's numbers were DISCARDED — they are still a fact about "
+                         "that world and must be kept, just not published as his")
+
+    def test_the_high_water_mark_is_per_world(self):
+        """Or the guest's low number drags his own best down and the watchdog is worse than none."""
+        self._post(self.OWNER, 120, 280, 1000)
+        self._post(self.GUEST, 5, 9, 2000)
+        ok = self.ca._route_key(self.OWNER)
+        d = self._doc()
+        self.assertEqual(d["high"][ok]["sets"]["have"], 120)
+        self.assertEqual(d["high"][ok]["uniques"]["have"], 280)
+
+    def test_it_only_ever_goes_UP(self):
+        self._post(self.OWNER, 120, 280, 1000)
+        self._post(self.OWNER, 117, 266, 2000)
+        self._post(self.OWNER, 118, 270, 3000)
+        hi = self._doc()["high"][self.ca._route_key(self.OWNER)]
+        self.assertEqual(hi["sets"]["have"], 120, "the high-water mark fell")
+        self.assertEqual(hi["uniques"]["have"], 280)
+
+    def test_a_real_fall_is_PUBLISHED_and_RECORDED_never_healed(self):
+        """⚠ THE HALF THAT MAKES IT HONEST. Silently republishing the high number would hide
+        whatever took it away, and a wrong number that looks right survives for weeks."""
+        self._post(self.OWNER, 120, 280, 1000)
+        self._post(self.OWNER, 117, 266, 2000)
+        d = self._doc()
+        self.assertEqual(d["sets"]["have"], 117,
+                         "the drop was auto-healed back to 120 — his screen would say 120 while "
+                         "his ledger said 117, and nobody would find out why")
+        drops = [x for x in d["drops"] if x["lane"] == "sets"]
+        self.assertTrue(drops, "a fall below the high-water mark was not recorded at all")
+        self.assertEqual((drops[-1]["from"], drops[-1]["to"]), (120, 117))
+        self.assertTrue(drops[-1].get("at"), "the drop has no timestamp, so it cannot be explained")
+
+    def test_two_worlds_both_claiming_to_be_him_is_REPORTED_not_resolved(self):
+        """His actual situation: the guest world that resolved before he clicked "this browser is
+        mine" ALSO posted with pfx "". "Empty prefix means owner" is a coincidence, not a decision
+        procedure. [[feedback-contradiction-is-the-finding]]"""
+        both = dict(self.GUEST, pfx="")
+        self._post(self.OWNER, 120, 280, 1000)
+        self._post(both, 117, 266, 2000)
+        d = self._doc()
+        self.assertTrue(d.get("contested"),
+                        "two worlds both claim to be him and the file says nothing about it — one "
+                        "was silently preferred")
+        self.assertEqual(len(d["contested"]), 2)
+        self.assertEqual({r["sets"] for r in d["contested"]}, {120, 117})
+
+    def test_the_watchdog_SAYS_when_the_number_is_below_its_best(self):
+        import console_doctor as _cd
+        orig = _cd.HERE
+        _cd.HERE = self.d
+        self.addCleanup(setattr, _cd, "HERE", orig)
+        st, why = _cd._check_his_progress_number_has_not_been_overwritten()
+        self.assertEqual(st, _cd.UNKNOWN, "no file yet must be UNKNOWN, never OK")
+        self._post(self.OWNER, 120, 280, 1000)
+        st, why = _cd._check_his_progress_number_has_not_been_overwritten()
+        self.assertEqual(st, _cd.OK, why)
+        self._post(self.OWNER, 117, 266, 2000)
+        st, why = _cd._check_his_progress_number_has_not_been_overwritten()
+        self.assertEqual(st, _cd.MISSING,
+                         "his number fell below its own best and the watchdog said nothing")
+        self.assertIn("high-water", why)
+        self.assertIn("120", why)
+
+    def test_an_unreadable_bank_is_not_an_empty_one(self):
+        import console_doctor as _cd
+        orig = _cd.HERE
+        _cd.HERE = self.d
+        self.addCleanup(setattr, _cd, "HERE", orig)
+        with open(os.path.join(self.d, "board_tally.json"), "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        st, why = _cd._check_his_progress_number_has_not_been_overwritten()
+        self.assertEqual(st, _cd.MISSING)
+        self.assertIn("UNREADABLE", why)
+
+    def test_an_older_single_slot_file_is_UPGRADED_not_discarded(self):
+        """The upgrade itself must not be what loses a number."""
+        with open(os.path.join(self.d, "board_tally.json"), "w", encoding="utf-8") as fh:
+            json.dump({"v": 1, "who": self.OWNER, "route": self.OWNER,
+                       "sets": {"have": 120, "total": 135},
+                       "uniques": {"have": 280, "total": 403}, "at": 500}, fh)
+        self._post(self.GUEST, 117, 266, 2000)
+        d = self._doc()
+        self.assertIn(self.ca._route_key(self.OWNER), d["byRoute"],
+                      "the pre-upgrade tally was thrown away by the upgrade itself")
+        self.assertEqual(d["sets"]["have"], 120,
+                         "after the upgrade the guest's number is published as his")
+
+    def test_nothing_readable_never_lands_on_a_good_number(self):
+        self._post(self.OWNER, 120, 280, 1000)
+        self.ca.board_tally_merge({"v": 1, "who": self.OWNER, "route": self.OWNER,
+                                   "sets": None, "uniques": None, "runewords": None, "at": 2000})
+        d = self._doc()
+        ok = self.ca._route_key(self.OWNER)
+        self.assertEqual(d["high"][ok]["sets"]["have"], 120,
+                         "an unreadable count was treated as a number and moved the mark")
+        self.assertFalse(d["drops"], "an unreadable count was recorded as a FALL")
+
+    def test_a_tally_that_cannot_say_whose_it_is_is_refused(self):
+        self.assertFalse(self.ca.board_tally_merge({"v": 1, "sets": {"have": 9, "total": 135}}))
+        self.assertFalse(self.ca.board_tally_merge(None))
+
+
+class TestV2213TheFleetCrossReferenceIsJoinedEndToEnd(unittest.TestCase):
+    """Konyo: "a click on the player itself will open a box and tell me visually and show me which
+    items it has cross referenced to mine that i dont have already only. so its not messy."
+
+    The maths lives in tv/test_fleet_mask.py, including the three-language chain (board JS ->
+    worker JS -> console Python). THIS class guards the JOINTS a unit test of the maths cannot see:
+    that the route exists, that the beacon carries the mask, that the worker stores it, and that the
+    row he clicks is wired to the box. Every one of those has been built on both ends and left
+    unjoined at least once in this repo. [[the-unjoined-end]]
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            cls.ui = fh.read()
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            cls.app = fh.read()
+        with open(os.path.join(HERE, "..", "functions", "api", "console.js"), encoding="utf-8") as fh:
+            cls.worker = fh.read()
+
+    def test_the_beacon_actually_carries_the_mask(self):
+        """The v2157 scar: the client shipped `tally` and the worker dropped it on arrival, so the
+        feature could never have worked no matter how well either end was written."""
+        body = _between(self, self.app, '"tally": _tally_cached(),', '"lastBeacon": prior,',
+                        what="the beacon payload")
+        self.assertIn('"masks"', body,
+                      "the beacon does not send the mask, so no machine can publish which pieces "
+                      "it holds and the box will say 'not reported yet' forever")
+        self.assertIn("_mask_cached()", body)
+
+    def test_the_worker_stores_the_mask_it_is_sent(self):
+        self.assertIn("masks:", self.worker,
+                      "the worker drops `masks` on arrival — the exact shape of the v2157 defect")
+        self.assertIn("never decodes it", self.worker,
+                      "the note explaining WHY the server only ever sees bits is gone; the next "
+                      "author has nothing telling them not to send names")
+
+    def test_the_route_exists_and_is_reachable(self):
+        self.assertIn('if path.startswith("/api/fleet_compare")', self.app,
+                      "the compare route is gone — the box would fetch a 404 and render UNKNOWN")
+        self.assertIn("def fleet_compare(", self.app)
+
+    def test_the_row_he_clicks_is_wired_to_the_box(self):
+        row = _between(self, self.ui, "var _row = function (m, online)", "var rows =",
+                       what="the fleet row builder")
+        self.assertIn("_fleetCompare", row,
+                      "the fleet row is not clickable — the feature is unreachable from the only "
+                      "place he would look for it")
+        self.assertIn("data-fleet-machine", row)
+        self.assertIn('id="fleet-xref"', self.ui, "the box the row opens does not exist")
+        self.assertIn("window._fleetCompare = async function", self.ui)
+
+    def test_the_box_refuses_rather_than_showing_an_empty_list(self):
+        """An empty box and an unknown box look identical to a person, and the difference is
+        'you are level with him' versus 'I have no idea'."""
+        fn = _between(self, self.ui, "window._fleetCompare = async function",
+                      "// v1516", what="the cross-reference renderer")
+        self.assertIn("if (!j.ok)", fn,
+                      "a refusal from the route renders as a normal result, so 'his machine never "
+                      "reported' would paint as 'he is missing nothing'")
+        self.assertIn("UNKNOWN, not", fn,
+                      "a dead fetch no longer says it is UNKNOWN; an empty box reads as parity")
+        self.assertIn("theyHaveIDont", fn)
+        self.assertIn("iHaveTheyDont", fn)
+
+    def test_both_sides_carry_their_own_age(self):
+        fn = _between(self, self.ui, "window._fleetCompare = async function",
+                      "// v1516", what="the cross-reference renderer")
+        self.assertIn("mineAt", fn)
+        self.assertIn("theirAt", fn,
+                      "the box does not say WHEN the other machine reported. A cross-reference "
+                      "against a three-day-old list is a three-day-old answer.")
+
+    def test_the_item_names_never_leave_this_machine(self):
+        fn = _between(self, self.app, "def board_set_mask()", "def _mask_cached()",
+                      what="the board mask reader")
+        self.assertIn("d2r_setPieces", fn, "the mask no longer reads the board's own set pieces")
+        self.assertIn("btoa", fn, "the board no longer encodes — names would have to travel")
+        self.assertNotIn("json.dumps(sp)", fn,
+                         "the board is serialising its piece list, which would put item names into "
+                         "the console process and from there into the beacon")
+
+
 class TestV2210TheAutoRelaunchSwitchIsReachableAndReadable(unittest.TestCase):
     """v2210 — HE COULD NOT TURN AUTO-RELAUNCH OFF, and the reason was that nothing joined the two
     ends. `auto_relaunch_set` shipped in v2153; until now it had ZERO production callers, so the

@@ -163,6 +163,41 @@ export async function onRequestPost(context) {
       }
       return (out.sets || out.uniques || out.runewords) ? out : null;
     })(body.tally),
+    // v2213 — WHICH set pieces each machine holds, as BITS over a roster both machines already
+    // have. Konyo asked THE FLEET to cross-reference him against his cousin — "show me what he has
+    // that i dont" — and counts cannot answer that: 116 does not subtract from 120 to produce
+    // names.
+    //
+    // ⚠ THE BOUNDARY THIS FILE DECLARES IS KEPT. Four lines above, `tally` says "No item names
+    // ever cross this boundary — a roster says how many, never which." A mask honours that: this
+    // worker stores an OPAQUE base64url string, never decodes it, and cannot name a single item
+    // from it. The roster that gives the bits meaning lives on his machines, and the subtraction
+    // happens there.
+    //
+    // Shape is validated, never trusted: a fingerprint, a length, and a body whose size must match
+    // that length. Anything else is dropped whole rather than stored half-understood — a mask
+    // decoded against the wrong roster names real items that are simply the wrong ones, and that
+    // failure is silent.
+    masks: (function (m) {
+      if (!m || typeof m !== 'object') return null;
+      const one = (x) => {
+        if (!x || typeof x !== 'object') return null;
+        const v = String(x.v || '').slice(0, 32);
+        const n = Number(x.n);
+        const b = String(x.b || '');
+        if (!v || !Number.isInteger(n) || n <= 0 || n > 4096) return null;
+        if (!b || b.length > 4096 || !/^[A-Za-z0-9_-]+$/.test(b)) return null;
+        // base64url of ceil(n/8) bytes, unpadded — a body that does not match its own declared
+        // length is a partial read, and a partial read of a bitmask is a wrong answer
+        if (b.length > Math.ceil((Math.ceil(n / 8) + 2) / 3) * 4) return null;
+        const out = { v: v, n: n, b: b };
+        const have = Number(x.have);
+        if (Number.isInteger(have) && have >= 0 && have <= n) out.have = have;
+        return out;
+      };
+      const sets = one(m.sets);
+      return sets ? { sets: sets } : null;
+    })(body.masks),
     ip: request.headers.get('CF-Connecting-IP') || '',
     country: cf.country || '',
     city: cf.city || '',

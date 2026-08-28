@@ -1287,6 +1287,113 @@ def board_tally_load():
         return None
 
 
+def _route_key(who):
+    """The world a tally belongs to: install id + profile. Never the prefix alone."""
+    if not isinstance(who, dict):
+        return ""
+    return "%s|%s" % (str(who.get("id") or "")[:40], str(who.get("p") or "")[:16])
+
+
+def board_tally_merge(t):
+    """Bank a posted tally WITHOUT letting one world overwrite another's numbers.
+
+    ⚠ THE DEFECT THIS EXISTS FOR, MEASURED ON HIS MACHINE 2026-08-28. He opened the board and saw
+    "0/0 ... some bug.. browser is wiped", then 117/135 sets and 266/403 uniques against a real
+    120 and 280. His ledger was never touched — foundLog 391, setPieces 120, rwMade 99, identical
+    all morning, and rendering his exact store on a clean board gives 120/135 and 280/403.
+
+    What was wrong was THIS FILE. bible.html posts its own counts here, the route already required
+    `who = {id, p, pfx}` so it KNEW which world was speaking — and then wrote them into a single
+    global slot regardless. So a second page in a different world (a browser tab, an embedded
+    iframe, a guest world that resolved before he clicked "this browser is mine") posted 117/266
+    and REPLACED his 120/280. Measured: board_tally.json carried route id 77f6…, his board's store
+    is c5c2…. The console, the fleet and his cousin's roster all then reported the wrong world's
+    number as his. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+    THREE RULES, and the third is the one he asked for:
+
+      1. BANK PER WORLD. `byRoute[id|profile]` — no world can speak for another.
+      2. THE PUBLISHED FIGURE IS THE OWNER'S. A world with an empty prefix is the owner world; a
+         guest world's numbers are kept, and reported as that world's, never as his.
+      3. A HIGH-WATER MARK PER WORLD, dated, that only ever RISES. Konyo: "this needs to get
+         updated and locked going up like watchdog eagleeye ... so when i log in now or this ever
+         happens it saves from the 278/403 and the 120/135".
+
+    ⚠ AND A FALL IS RECORDED, NEVER AUTO-HEALED. Silently restoring the high-water number would
+    hide the very thing that made it fall — which is how a wrong number survives for weeks looking
+    like a right one. A drop is written down with WHEN, WHICH WORLD posted it and HOW FAR it fell,
+    so it can be seen and explained. The high-water record is evidence, not a replacement reading.
+    [[feedback-silence-is-not-evidence]] [[stale-reading]]
+    """
+    if not isinstance(t, dict):
+        return False
+    who = t.get("who") if isinstance(t.get("who"), dict) else t.get("route")
+    key = _route_key(who)
+    if not key:
+        return False
+    doc = board_tally_load() or {}
+    if not isinstance(doc.get("byRoute"), dict):
+        # first merge on an older single-slot file: keep what is there as its own world rather
+        # than discarding it, so nothing is lost by the upgrade itself
+        prior = {}
+        pk = _route_key(doc.get("who") or doc.get("route"))
+        if pk and (doc.get("sets") or doc.get("uniques") or doc.get("runewords")):
+            prior[pk] = {k: doc.get(k) for k in ("who", "route", "sets", "uniques", "runewords", "at")}
+        doc = {"v": 2, "byRoute": prior, "high": {}, "drops": []}
+    doc.setdefault("byRoute", {})
+    doc.setdefault("high", {})
+    doc.setdefault("drops", [])
+
+    doc["byRoute"][key] = {k: t.get(k) for k in ("who", "route", "sets", "uniques", "runewords", "at")}
+
+    # the high-water mark, per world, per ledger — and a DROP is an event, not a silent overwrite
+    hi = doc["high"].setdefault(key, {})
+    for lane in ("sets", "uniques", "runewords"):
+        pair = t.get(lane)
+        if not isinstance(pair, dict) or not isinstance(pair.get("have"), int):
+            continue                      # nothing readable is not zero
+        have = pair["have"]
+        prev = hi.get(lane)
+        if not isinstance(prev, dict) or not isinstance(prev.get("have"), int):
+            hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
+            continue
+        if have > prev["have"]:
+            hi[lane] = {"have": have, "total": pair.get("total"), "at": t.get("at")}
+        elif have < prev["have"]:
+            doc["drops"].append({"route": key, "lane": lane, "from": prev["have"], "to": have,
+                                 "at": t.get("at"), "highAt": prev.get("at")})
+            doc["drops"] = doc["drops"][-40:]      # a rolling record, not a growing file
+
+    # what the rest of the console reads: the OWNER world's numbers, with the older single-slot
+    # shape kept at the top level so every existing reader keeps working unchanged
+    owners = [(k, row) for k, row in doc["byRoute"].items()
+              if isinstance(row.get("who") or row.get("route") or {}, dict)
+              and (row.get("who") or row.get("route") or {}).get("pfx") == ""]
+    owners.sort(key=lambda kr: (kr[1].get("at") or 0), reverse=True)
+    owner = owners[0][1] if owners else None
+    # ⚠ TWO WORLDS CAN BOTH LOOK LIKE THE OWNER, and on his machine two DID: the guest world that
+    # resolved before he clicked "this browser is mine" posted with pfx "" as well, so "empty prefix
+    # means owner" is not a decision procedure, it is a coincidence that held until it did not.
+    #
+    # There is no honest way to pick between them from here, so this does NOT pick silently. The
+    # newest owner-looking post is published because something has to be, and `contested` names
+    # every world making the claim, with its numbers and its age, so the console can say "two worlds
+    # are claiming to be you" instead of quietly preferring one. A contradiction is the finding.
+    # [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]]
+    if len(owners) > 1:
+        doc["contested"] = [{"route": k,
+                             "sets": (r.get("sets") or {}).get("have"),
+                             "uniques": (r.get("uniques") or {}).get("have"),
+                             "at": r.get("at")} for k, r in owners]
+    else:
+        doc.pop("contested", None)
+    pub = owner or doc["byRoute"].get(key) or {}
+    for k in ("who", "route", "sets", "uniques", "runewords", "at"):
+        doc[k] = pub.get(k)
+    doc["v"] = 2
+    return board_tally_save(doc)
+
+
 def _webkit_localstorage_dbs():
     """EVERY board-shaped WebKit localStorage store, newest first. -> [path]
 
@@ -1617,6 +1724,90 @@ def _tally_cached():
     return dict(v)
 
 
+_MASK_CACHE = {"t": 0.0, "val": None}
+_MASK_TTL_S = 300.0
+
+
+def board_set_mask():
+    """Which SET PIECES this board holds, as bits over the shared roster. -> dict | None
+
+    Konyo asked THE FLEET to cross-reference him against his cousin — "show me what he has that i
+    dont" — and the fleet has only ever carried counts. 116 cannot be subtracted from 120 to produce
+    names, so something has to travel per item.
+
+    ⚠ IT IS BITS, NOT NAMES, AND THAT IS DELIBERATE. functions/api/console.js states the boundary in
+    as many words: "No item names ever cross this boundary — a roster says how many, never which."
+    A bitmask over a roster both machines already have keeps that true — the server stores an opaque
+    string it never decodes, and the subtraction happens on HIS machine against HIS roster.
+
+    ⚠ AND THE COMPARISON IS DONE INSIDE THE BOARD, so the list of what he owns never even enters
+    this process. The console hands the board an ordered roster and gets back a count of set bits;
+    it never holds his ledger, so it cannot log it, cache it or beacon it by accident.
+
+    Returns None when the board cannot be read — an unread board is not an empty one, and a
+    None here means the beacon omits the field entirely rather than publishing an all-zero mask
+    that would read as "he owns nothing". [[unknown-stays-unknown]]
+    """
+    try:
+        import fleet_mask as _fm
+    except Exception:
+        return None
+    roster, fp = _fm.load_roster()
+    if not roster or not fp:
+        return None                       # cannot name the roster -> cannot honestly stamp a mask
+    # the same accessor board_ownership uses — a module global set when TV DIABLO opens the board.
+    # ⚠ I first wrote `_board_window()`, a function that does not exist in this file. It would have
+    # raised NameError inside the caller's `except Exception: return None`, so the mask would have
+    # been absent forever and the fleet box would have said "no mask reported yet" on every
+    # machine — a feature dead on arrival, reporting its own absence politely.
+    w = globals().get("_MAIN_WIN")
+    if w is None:
+        return None
+    js = ("(function(){try{"
+          "var R=%s;"
+          "var sp=JSON.parse((window.LSR?window.LSR.getItem('d2r_setPieces')"
+          ":localStorage.getItem('d2r_setPieces'))||'[]')||[];"
+          "var have={};for(var i=0;i<sp.length;i++){have[String(sp[i])]=1;}"
+          "var bytes=new Array(Math.ceil(R.length/8));for(var k=0;k<bytes.length;k++)bytes[k]=0;"
+          "var hits=0;"
+          "for(var j=0;j<R.length;j++){if(have[R[j]]){bytes[(j/8)|0]|=(1<<(j%%8));hits++;}}"
+          "var s='';for(var b=0;b<bytes.length;b++)s+=String.fromCharCode(bytes[b]);"
+          "var t=btoa(s).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');"
+          "return JSON.stringify({ok:true,n:R.length,have:hits,b:t});"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
+          % json.dumps(roster))
+    try:
+        raw = _ejs(w, js, timeout=8.0)
+    except Exception:
+        return None
+    if not raw:
+        return None
+    try:
+        out = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(out, dict) or out.get("ok") is not True:
+        return None
+    mask = {"v": fp, "n": out.get("n"), "have": out.get("have"), "b": out.get("b")}
+    return _fm.sanitize_for_wire(mask)
+
+
+def _mask_cached():
+    """board_set_mask(), at most every 5 minutes — same reasoning as _tally_cached, and slower
+    because a roster comparison changes far less often than a count."""
+    now = time.time()
+    if _MASK_CACHE["val"] is not None and (now - _MASK_CACHE["t"]) < _MASK_TTL_S:
+        return dict(_MASK_CACHE["val"])
+    v = None
+    try:
+        v = board_set_mask()
+    except Exception:
+        v = None
+    _MASK_CACHE["t"] = now
+    _MASK_CACHE["val"] = v
+    return dict(v) if v else None
+
+
 def _console_beacon(event="hb"):
     """v875 (Konyo: 'a tracker so I know whose console is online — like the site visits') —
     phone the presence beacon home. Never blocks a caller; never raises into one.
@@ -1686,6 +1877,14 @@ def _console_beacon(event="hb"):
             # difference between a dead label and one that says what to do.
             # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
             "tally": _tally_cached(),
+            # v2213 — WHICH set pieces, as BITS over the shared roster, so THE FLEET can subtract
+            # two ledgers and name what each of them is missing. Konyo: "show me what he has that i
+            # dont". Counts cannot answer that — 116 does not subtract from 120 to produce names.
+            # No item name crosses the wire: the board compares against the roster itself and hands
+            # back only set bits, the worker stores an opaque string it never decodes, and the
+            # subtraction happens on HIS machine against HIS copy of the roster.
+            # Absent when the board could not be read — an unread board is not an empty one.
+            "masks": (lambda _m: {"sets": _m} if _m else None)(_mask_cached()),
             # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
@@ -17303,6 +17502,65 @@ def fleet_presence(force=False):
     return out
 
 
+def fleet_compare(machine, ledger="sets"):
+    """What THEY have that HE does not, and the other way round. -> dict
+
+    Konyo: "for me and my cuzin alone it should cross reference eachother based on what set items he
+    has that i dont... show me what he has that i dont... so its not messy."
+
+    ⚠ FOUR WAYS THIS CAN HAVE NO ANSWER, AND EACH ONE SAYS SO RATHER THAN RETURNING AN EMPTY LIST:
+      · that machine has never reported a mask   -> "we have not heard from it", not "it owns none"
+      · THIS board cannot be read right now      -> a comparison needs both sides
+      · the two are on different item rosters    -> the bits would name the WRONG items
+      · the fleet itself is unreachable          -> nothing is known about anyone
+    An empty result and an unknown result look identical to a person unless the code refuses to
+    conflate them, and here the difference is "go farm these six pieces" versus "I have no idea".
+    [[unknown-stays-unknown]]
+
+    ⚠ AND BOTH SIDES CARRY THEIR OWN AGE. A cross-reference against a list his cousin's machine
+    published three days ago is a three-day-old answer, and the box says so. [[stale-reading]]
+    """
+    try:
+        import fleet_mask as _fm
+    except Exception as e:
+        return {"ok": False, "why": "the mask module is missing: %s" % str(e)[:80]}
+    machine = str(machine or "").strip()
+    if not machine:
+        return {"ok": False, "why": "no machine named — say which player to compare against"}
+
+    roster, fp = _fm.load_roster()
+    if not roster:
+        return {"ok": False, "why": "this machine cannot read its own item roster, so it cannot "
+                                    "decode anybody's progress"}
+
+    fleet = fleet_presence()
+    if not isinstance(fleet, dict) or fleet.get("ok") is False:
+        return {"ok": False, "why": "the fleet is unreachable — %s"
+                                    % str((fleet or {}).get("error") or "no answer")[:80]}
+    rows = list(fleet.get("online") or []) + list(fleet.get("offline") or [])
+    them = next((r for r in rows if str(r.get("machine") or "") == machine), None)
+    if them is None:
+        return {"ok": False, "why": "no machine called %r has ever checked in" % machine[:40]}
+
+    their_mask = ((them.get("masks") or {}) or {}).get(ledger)
+    # HIS side is read LIVE from his own board rather than from his own beacon record — the beacon
+    # is up to five minutes stale and he is sitting in front of this one.
+    mine_mask = _mask_cached()
+
+    out = _fm.compare(mine_mask, their_mask, roster, fp)
+    out["machine"] = machine
+    out["ledger"] = ledger
+    out["who"] = str(them.get("nickname") or them.get("machine") or "")[:40]
+    out["theirAt"] = them.get("t") or them.get("ts") or None
+    out["mineAt"] = int(_MASK_CACHE["t"] * 1000) if _MASK_CACHE["t"] else None
+    out["rosterN"] = len(roster)
+    if not out.get("ok") and their_mask is None:
+        out["why"] = ("%s has not reported which pieces it holds yet — that is 'we have not heard "
+                      "from it', not 'it has none'. It publishes on its next heartbeat."
+                      % (out["who"] or machine))
+    return out
+
+
 def install_identity():
     """v1465 — a STABLE, PER-INSTALL identity. Gitignored, so it never travels between PCs.
 
@@ -17461,7 +17719,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2212",
+        "ver": "v2214",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -19136,6 +19394,19 @@ class Handler(BaseHTTPRequestHandler):
             # v1496 — who is online and when each machine was last here (60s cached, read-only)
             self._json(200, fleet_presence(force=("force=1" in (self.path or ""))))
             return
+        if path.startswith("/api/fleet_compare"):
+            # v2213 — THE CROSS-REFERENCE. Konyo: "a click on the player itself will open a box and
+            # tell me visually and show me which items it has cross referenced to mine that i dont
+            # have already only. so its not messy."
+            #
+            # ⚠ THE DECODE HAPPENS HERE, ON HIS MACHINE. The masks are bits; the roster that gives
+            # them meaning is local. So item names are DERIVED here and never travelled — the
+            # boundary functions/api/console.js declares ("a roster says how many, never which")
+            # holds end to end.
+            import urllib.parse as _up
+            _q = _up.parse_qs((self.path.split("?", 1) + [""])[1])
+            self._json(200, fleet_compare((_q.get("machine") or [""])[0]))
+            return
         if path == "/api/chronicle_sweep":
             # v1519 — progress + result of the REAL sweep. GET never starts one; starting spends
             # money, and a GET that spends money is a GET a page-refresh can fire twice.
@@ -19717,7 +19988,7 @@ class Handler(BaseHTTPRequestHandler):
                 # nothing to say is not zero, and must not land on a good tally
                 self._json(200, {"ok": False, "why": "no readable counts in that tally"})
                 return
-            ok = board_tally_save(_t)
+            ok = board_tally_merge(_t)
             try:
                 _TALLY_CACHE["t"] = 0.0        # let the next beacon pick it up immediately
             except Exception:

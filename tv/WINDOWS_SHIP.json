@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2212",
+  "ver": "v2214",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2212: the shelf gauge asks the packer where every item actually went",
+  "note": "v2214: banked per world with a high-water mark, and a fall is reported rather than healed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -462,6 +462,81 @@ def _check_the_vault_stores_are_readable():
                    counts.get("vault_swept.json", 0)))
 
 
+def _check_his_progress_number_has_not_been_overwritten():
+    """THE WATCHDOG HE ASKED FOR, and the fault it was built the morning of 2026-08-28 to catch.
+
+    He opened the board and saw "0/0 ... some bug.. browser is wiped", then 117/135 sets and 266/403
+    uniques against a real 120 and 280. Nothing was wiped: his ledger read foundLog 391, setPieces
+    120, rwMade 99 all morning, and rendering that exact store on a clean board gives 120/135 and
+    280/403. What went wrong was the BANKING — bible.html posts its counts to the console and the
+    console wrote them into one global slot, so a second page in a different world overwrote his.
+    board_tally.json carried route id 77f6..., his board's store is c5c2....
+
+    His ask, verbatim: "this needs to get updated and locked going up like watchdog eagleeye should
+    be updating the real count going up once every day atleast ... so when i log in now or this ever
+    happens it saves from the 278/403 and the 120/135".
+
+    So the tally is banked per world with a per-world high-water mark, and THIS is the surface that
+    tells him when something falls. It reports, it does not heal: silently restoring the high number
+    would hide the thing that made it fall, and a wrong number that looks right survives for weeks.
+    [[feedback-silence-is-not-evidence]] [[unknown-stays-unknown]]
+    """
+    import json as _j
+    fp = os.path.join(HERE, "board_tally.json")
+    if not os.path.exists(fp):
+        return UNKNOWN, ("no board tally has ever been banked — open the board once so it can "
+                         "publish what it holds")
+    try:
+        with open(fp, encoding="utf-8") as fh:
+            doc = _j.load(fh)
+    except Exception as e:
+        return MISSING, ("board_tally.json will not parse (%s) — his progress numbers are "
+                         "UNREADABLE, which is not the same as zero" % str(e)[:50])
+    if not isinstance(doc, dict):
+        return MISSING, "board_tally.json is not an object"
+
+    if doc.get("contested"):
+        rows = doc["contested"]
+        say = " vs ".join("%s sets=%s uniques=%s"
+                          % (str(r.get("route") or "?").split("|")[0][:8],
+                             r.get("sets"), r.get("uniques")) for r in rows[:3])
+        return MISSING, ("TWO worlds are both claiming to be him and they disagree: %s. The newest "
+                         "is published, which may be the wrong one — open the board and check the "
+                         "number before trusting anything downstream (the fleet roster and his "
+                         "cousin's cross-reference both read this file)" % say)
+
+    high = doc.get("high") if isinstance(doc.get("high"), dict) else {}
+    drops = doc.get("drops") if isinstance(doc.get("drops"), list) else []
+    key = ""
+    for k, row in (doc.get("byRoute") or {}).items():
+        w = row.get("who") or row.get("route") or {}
+        if isinstance(w, dict) and w.get("pfx") == "":
+            key = k
+            break
+    below = []
+    for lane in ("sets", "uniques", "runewords"):
+        now = (doc.get(lane) or {}).get("have")
+        top = ((high.get(key) or {}).get(lane) or {}).get("have")
+        if isinstance(now, int) and isinstance(top, int) and now < top:
+            below.append("%s %d (best %d)" % (lane, now, top))
+    if below:
+        recent = drops[-1] if drops else {}
+        return MISSING, ("his published progress is BELOW its own high-water mark: %s. The last "
+                         "recorded fall was %s %s -> %s. Nothing has been auto-restored, because "
+                         "putting the number back would hide whatever took it away."
+                         % ("; ".join(below), recent.get("lane") or "?",
+                            recent.get("from"), recent.get("to")))
+    if not high:
+        return UNKNOWN, "no high-water mark banked yet — it fills on the next tally the board posts"
+    parts = []
+    for lane in ("sets", "uniques", "runewords"):
+        top = ((high.get(key) or {}).get(lane) or {}).get("have")
+        if isinstance(top, int):
+            parts.append("%s %d" % (lane, top))
+    return OK, ("his progress is at its own best: %s — banked per world, so another browser cannot "
+                "overwrite it" % (", ".join(parts) or "nothing banked yet"))
+
+
 def _check_the_locked_lanes_still_refuse():
     """He ruled it plainly: equipment and inventory are never to be told to move. The BOARD has
     carried _LOCKED_LANES since v1712; the engine that PRODUCES the suggestions did not until
@@ -792,6 +867,7 @@ CHECKS = [
     ("art corpus", _check_the_art_corpus),
     ("footage has a reel", _check_footage_belongs_to_a_reel),
     ("vault stores", _check_the_vault_stores_are_readable),
+    ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("locked lanes", _check_the_locked_lanes_still_refuse),
     ("surfaces agree", _check_the_two_surfaces_agree),
     ("the other doctors", _check_the_other_doctors),
