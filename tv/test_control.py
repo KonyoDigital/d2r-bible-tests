@@ -18800,10 +18800,21 @@ class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
         spelling, on a board world that is drift/unknown/unreadable, and while a session is in
         flight. The floor stopped being a reason to SKIP; it was never the thing deciding WHAT.
         [[feedback-threshold-above-the-ceiling]] — a gate that can never act is not a safe gate."""
+        # ⚠ THE BOARD WORLD MUST BE CONFIRMED, OR THIS TEST ONLY EVER PASSES ON HIS MAC.
+        # v2167 made the deleter refuse on anything that is not a CONFIRMED world, and a CI runner
+        # has never opened his board — so `board_identity_drift` answers "unknown" and the refusal
+        # is CORRECT. Without this mock the test asserts a deletion that must not happen there, and
+        # it went red on every CI run from v2200 for over a day while passing locally every time.
+        # The sibling BELOW-the-floor case had the mock from the start; this one was written without
+        # it. A test that only runs on one machine is a test that runs nowhere.
+        # [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+        import unittest.mock as mock
         root, hist = self._tree()
         ca = self._bind(root, hist, floor=0.0)
         before = self._reels(hist)
-        ca._retention_once()
+        with mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "same claimed world"}):
+            ca._retention_once()
         after = self._reels(hist)
         self.assertLess(after, before,
                         "above the floor nothing was freed, so the extract-then-prune loop still "
@@ -18871,8 +18882,15 @@ class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
         gone = sorted(chron)[0]
         del chron[gone]                                  # one reel nobody has ever read
         io.open(os.path.join(root, "chronicle_swept.json"), "w").write(_j.dumps(chron))
-        ca._retention_once()
-        st = ca.retention_state()
+        # ⚠ SAME HOST-MACHINE TRAP as the ABOVE-the-floor case. With no confirmed board world the
+        # `say` reports "the board's world has never been recorded — open the board once", which is
+        # a correct refusal and not the sweep story this test is about. It went red on CI from v2200
+        # for over a day and green on his Mac every time, because his board HAS been recorded.
+        import unittest.mock as mock
+        with mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "same claimed world"}):
+            ca._retention_once()
+            st = ca.retention_state()
         # v2122 (#142) — AND A SURFACE MUST READ THE SIZE, not only the count. lockedMb has been
         # published all along with nothing consuming it; "11 reel(s) await a sweep" does not tell
         # him whether clearing them would even reach the floor. [[the-unjoined-end]]
@@ -27888,6 +27906,367 @@ class TestAWitnessSaysWhetherItHasAFrame(unittest.TestCase):
         r = self.vr._witness_rows([{"session": "s4", "frame": "", "lane": "stash"}])[0]
         self.assertIsNone(r["frame"])
         self.assertIsNotNone(r["frameNote"])
+
+
+class TestV2235TheTheatreRemedy(unittest.TestCase):
+    """v2235 (#44) — REWRITTEN after I discarded the originals with a careless `git checkout`.
+
+    He found the black-screen theatre himself, twice, with screenshots, because nothing in the tree
+    could see it. v2228 fixed the cause; this remedy is the third half — a fault that keeps coming
+    back is a regression, and counting returns without ever acting is what #167 was about."""
+
+    def _healer(self):
+        import console_healer
+        return console_healer
+
+    def test_the_remedy_is_REGISTERED_under_the_check_it_serves(self):
+        # A remedy nobody can reach is the unjoined end. It must be keyed on the CHECK NAME, exactly
+        # like its siblings, or the healer will never call it.
+        h = self._healer()
+        self.assertIn("console UI faults", h.REMEDIES,
+                      "the theatre remedy is not registered under any check")
+        say, fn = h.REMEDIES["console UI faults"]
+        self.assertTrue(callable(fn))
+        self.assertTrue(str(say).strip(), "the remedy does not say what it protects")
+
+    def test_a_LIVE_fault_is_never_erased(self):
+        # ⚠ The worst possible shape for a remedy: "fixing" a fault that is still happening by
+        # deleting its record. It must refuse while the condition recurs.
+        import inspect
+        src = inspect.getsource(self._healer()._remedy_clear_a_stuck_theatre)
+        self.assertIn("if stuck:", src)
+        self.assertIn("return False", src.split("if stuck:")[1][:400],
+                      "a still-recurring theatre fault no longer blocks the clear")
+
+    def test_UNREADABLE_is_not_a_licence_to_act(self):
+        # rows is None means nobody established anything. Acting on that would be acting on a guess.
+        import inspect
+        src = inspect.getsource(self._healer()._remedy_clear_a_stuck_theatre)
+        self.assertIn("if rows is None:", src)
+        head = src.split("if rows is None:")[1][:300]
+        self.assertIn("return False", head,
+                      "an unreadable fault log no longer stops the remedy")
+
+    def test_it_cannot_reach_into_his_window(self):
+        # The honest limit: the console heals itself client-side. This may only clear a record.
+        import inspect
+        src = inspect.getsource(self._healer()._remedy_clear_a_stuck_theatre)
+        for forbidden in ("os.remove", "shutil.rmtree", "unlink", "requests.post", "urlopen"):
+            self.assertNotIn(forbidden, src,
+                             "the theatre remedy reaches further than clearing a record: %s"
+                             % forbidden)
+
+    def test_it_only_looks_at_the_LAST_HOUR(self):
+        # A remedy reading all of history would never see a clean window and could never fire.
+        import inspect
+        src = inspect.getsource(self._healer()._remedy_clear_a_stuck_theatre)
+        self.assertIn("ui_faults_recent(1)", src,
+                      "the remedy no longer scopes itself to the last hour")
+
+
+class TestV2236AHollowSessionSaysWhy(unittest.TestCase):
+    """Grok #1 item 4, open since 2026-07-19: a session whose film was reaped must SAY so instead of
+    playing an empty player. The record to answer it already existed and nothing read it."""
+
+    def test_a_session_WITH_film_explains_nothing(self):
+        st, why = ca._footage_why("s_anything", 42)
+        self.assertIsNone(st, "a run with film was handed a reason for having none")
+        self.assertIsNone(why)
+
+    def test_a_RETIRED_reel_is_named_as_retired_not_hollow(self):
+        import reel_retention as _rr, json as _json
+        try:
+            with open(_rr._tombstone_path(), encoding="utf-8") as fh:
+                reels = (_json.load(fh) or {}).get("reels") or []
+        except Exception:
+            self.skipTest("no tombstone record on this machine")
+        sid = str((reels[0] or {}).get("session") or "") if reels else ""
+        if not sid:
+            self.skipTest("the tombstone record names no session")
+        st, why = ca._footage_why(sid, 0)
+        self.assertEqual(st, "retired", "a tombstoned reel still reads as unknown: %s" % why)
+
+    def test_an_UNKNOWN_never_claims_nothing_was_ever_recorded(self):
+        # "no tombstone" is not "no footage existed" — the tombstone file is untracked runtime state
+        # and can itself be absent. [[unknown-stays-unknown]]
+        st, why = ca._footage_why("s_definitely_not_a_real_session_9", 0)
+        self.assertEqual(st, "unknown")
+        low = (why or "").lower()
+        self.assertNotIn("never recorded", low)
+        self.assertNotIn("no footage was ever", low)
+
+    def test_a_CODE_defect_cannot_wear_a_data_problems_words(self):
+        # ⚠ THE SCAR THIS FUNCTION EARNED ON ITS FIRST DAY. It called io.open() in a module with no
+        # `io`; a bare `except Exception` turned that NameError into "the retention record could not
+        # be read" — fluent, plausible, and wrong about a file that was present and valid, so every
+        # tombstoned reel read UNKNOWN and nothing looked broken. [[paid-work-with-no-memory]]
+        # ⚠ ASK THE CODE OBJECT, NOT THE TEXT. My first cut grepped the source for "io.open(" and
+        # went red on the COMMENT above that explains the bug — [[feedback-comments-vs-code]], the
+        # same defect one line away from its own description. co_names holds what the function
+        # actually references; prose cannot get into it.
+        names = ca._footage_why.__code__.co_names
+        self.assertNotIn("io", names,
+                         "_footage_why references `io`, which control_app does not import")
+        self.assertIn("open", names, "the tombstone is no longer read with the builtin open")
+        import inspect
+        self.assertIn("this is a defect in the", inspect.getsource(ca._footage_why),
+                      "a programming error can again borrow a data problem's vocabulary")
+
+    def test_the_payload_actually_CARRIES_the_reason(self):
+        import io as _io
+        src = _io.open(ca.__file__.replace(".pyc", ".py"), encoding="utf-8").read()
+        self.assertIn('"footageState": _fw_state, "footageWhy": _fw_say', src,
+                      "the theatre payload no longer carries why a run is hollow")
+
+
+class TestV2237ArtKeysMatchTheCatalogue(unittest.TestCase):
+    """13 HD art entries were filed under names the app never asks for.
+
+    ⚠ FOUND WHILE BUILDING A FIXTURE FOR SOMETHING ELSE. The unsorted-dock fixture (#41) needed real
+    item names, and pulling them out surfaced `Bul-Kathos Wedding Band` in ITEM_CODEX beside
+    `Bul-Kathos' Wedding Band` everywhere else. `_norm` folds curly apostrophes to straight but never
+    STRIPS one, and every codex/art lookup is a direct `MAP[name]`, so a key missing its apostrophe
+    is simply unreachable. Ten of them had extracted, shipped, on-disk HD art that nothing could
+    ever load, and eight of those items had no art under their real name at all.
+
+    ⚠ AND MY FIRST FIX CREATED AN ORPHAN. Correcting the ITEM_CODEX key left _HDUS still holding the
+    bare spelling, so the pair went out of step in the other direction. Caught only because the sweep
+    was re-run AFTER the fix rather than assumed. [[sweep-dont-ask]]"""
+
+    def _seg(self, var):
+        import io as _io, os as _os, re as _re
+        p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "bible.html")
+        s = _io.open(p, encoding="utf-8").read()
+        m = _re.search(r"(?:var|const) %s *= *\{" % var, s)
+        self.assertIsNotNone(m, "%s literal not found — the guard has lost its subject" % var)
+        i, d = m.end() - 1, 0
+        while i < len(s):
+            if s[i] == "{":
+                d += 1
+            elif s[i] == "}":
+                d -= 1
+                if d == 0:
+                    break
+            i += 1
+        return s[m.end() - 1:i + 1]
+
+    def test_no_art_key_is_a_near_miss_of_a_catalogue_key(self):
+        import re as _re
+        codex = set(_re.findall(r'"((?:[^"\\]|\\.){3,60})" *: *\{ *"rarity"', self._seg("ITEM_CODEX")))
+        hd = set(_re.findall(r'"((?:[^"\\]|\\.){2,60})" *:', self._seg("_HDUS")))
+        self.assertGreater(len(codex), 300, "the codex parse collapsed — a guard measuring nothing")
+        self.assertGreater(len(hd), 300, "the _HDUS parse collapsed")
+
+        def strip(x):
+            return _re.sub(r"['\u2019\u02bc\u00b4]", "", x).lower()
+
+        cs = {strip(k): k for k in codex}
+        orphans = sorted(k for k in hd
+                         if k not in codex and strip(k) in cs and cs[strip(k)] != k)
+        self.assertEqual(orphans, [],
+                         "art keyed under a name nothing looks up (differs from the catalogue only "
+                         "by apostrophes or case): %s" % orphans)
+
+    def test_the_named_thirteen_are_reachable(self):
+        # PIN THE LAW BY ITS INSTANCES TOO — the sweep above could pass on a parse that found
+        # nothing. These are the exact keys that were wrong.
+        seg = self._seg("_HDUS")
+        for real in ("Blinkbat's Form", "Culwen's Point", "Dimoak's Hew", "Griswold's Edge",
+                     "Irice's Shard", "Kinemil's Awl", "Moser's Blessed Circle", "Rixot's Keen",
+                     "Ume's Lament", "Victor's Silk", "Bul-Kathos' Wedding Band",
+                     "Eschuta's Temper", "The General's Tan Do Li Ga"):
+            self.assertIn('"%s":' % real, seg, "%s lost its HD art key again" % real)
+
+
+class TestV2237EveryItemCanShowItsPicture(unittest.TestCase):
+    """#45 — the item/art join, measured end to end rather than sampled.
+
+    MEASURED 2026-08-28: 320 catalogue entries, of which 2 are deliberate Rest-of-the-World stubs
+    (`cat:"rotw"`, empty props, `base:null` — art is routed by BASE, so a stub cannot have any). The
+    other 318 all resolve to an art entry, and every one of those files exists on disk.
+
+    ⚠ REFUTED, NOT FIXED. My first read was "3 items have no art" and it looked like a defect. The
+    correlation settles it: exactly 2 entries are rotw, exactly 2 have a null base, and they are the
+    same 2 — a stub by design, not a gap. The third was `Cow King's Leathers (set)`, a SET entry
+    rather than an item. Reporting those as broken would have sent someone hunting art that was
+    never supposed to exist. [[feedback-verify-not-proxy]]"""
+
+    def _codex_and_art(self):
+        import io as _io, os as _os, re as _re
+        p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "bible.html")
+        s = _io.open(p, encoding="utf-8").read()
+
+        def seg(var):
+            m = _re.search(r"(?:var|const) %s *= *\{" % var, s)
+            self.assertIsNotNone(m, "%s literal not found" % var)
+            i, d = m.end() - 1, 0
+            while i < len(s):
+                if s[i] == "{":
+                    d += 1
+                elif s[i] == "}":
+                    d -= 1
+                    if d == 0:
+                        break
+                i += 1
+            return s[m.end() - 1:i + 1]
+
+        cseg = seg("ITEM_CODEX")
+        ent = _re.findall(r'"((?:[^"\\]|\\.){3,60})" *: *(\{(?:[^{}]|\{[^{}]*\})*\})', cseg)
+        art = dict(_re.findall(r'"((?:[^"\\]|\\.){2,60})" *: *"([^"]+)"', seg("D2IO_ART")))
+        art.update(dict(_re.findall(r'"((?:[^"\\]|\\.){2,60})" *: *"([^"]+)"', seg("_HDUS"))))
+        return ent, art, _os.path.dirname(p)
+
+    def test_every_real_item_resolves_to_a_picture(self):
+        ent, art, root = self._codex_and_art()
+        self.assertGreater(len(ent), 250, "the codex parse collapsed — a guard measuring nothing")
+        # a stub cannot have art, and saying so is the difference between a gap and a design
+        real = [k for k, v in ent if '"base":null' not in v and "(set)" not in k]
+        missing = sorted(k for k in real if k not in art)
+        self.assertEqual(missing, [],
+                         "catalogue items with no art entry at all: %s" % missing)
+
+    def test_no_art_entry_points_at_a_file_that_is_not_there(self):
+        # ⚠ EVERY ART ENTRY, NOT JUST THE CATALOGUED ONES. My first cut scoped this to ITEM_CODEX
+        # names and so covered 320 of the 592 art keys — and a sabotage aimed at `Rixot's Keen`
+        # passed cleanly, because that item is not in the codex at all. A guard that skips 46% of
+        # its subject and reports green is the blind-fixture defect: it was RIGHT to pass, on a
+        # question far narrower than its name. A broken path is broken whether or not the codex
+        # knows the item. [[feedback-blind-fixture-green-gate]]
+        import os as _os
+        _ent, art, root = self._codex_and_art()
+        self.assertGreater(len(art), 500, "the art parse collapsed — a guard measuring nothing")
+        broken = sorted(k for k, v in art.items()
+                        if not _os.path.exists(_os.path.join(root, v)))
+        self.assertEqual(broken[:8], [],
+                         "%d art key(s) point at a file that is not there: %s"
+                         % (len(broken), broken[:8]))
+
+    def test_a_stub_is_still_declared_a_stub(self):
+        # If a rotw stub ever gains a base without gaining art, the first test starts demanding art
+        # for it. That is correct — but it must be a deliberate edit, not a drift.
+        ent, _art, _root = self._codex_and_art()
+        stubs = [k for k, v in ent if '"base":null' in v]
+        rotw = [k for k, v in ent if '"cat":"rotw"' in v]
+        self.assertEqual(sorted(stubs), sorted(rotw),
+                         "a null-base entry is no longer a rotw stub, or vice versa — the two must "
+                         "stay the same set or 'no art' stops meaning 'by design'")
+
+
+class TestV2237NeverRanIsNotZero(unittest.TestCase):
+    """⚠ MY OWN INVARIANT BROKE THE LAW ITS FILE EXISTS TO ENFORCE.
+
+    `eagle-ran-every-check` read len(_EAGLE["rows"]) and got 0 on a fresh process, then announced
+    "the eagle covered 0 of 22 checks" — a confident finding about an eagle that had simply never
+    flown. _EAGLE ships as {"checked": None, "rows": [], "say": "not measured yet"}, an explicit
+    never-ran marker I ignored.
+
+    It cost more than one wrong line: that spurious DISAGREE short-circuited verdict(), so the whole
+    corroborator reported as if nothing could be measured. With it gone, 5 of 7 invariants evaluate
+    on real data and agree. A false finding did not merely add noise — it HID the true state.
+    [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]"""
+
+    def _eagle_state(self, eagle):
+        """Read the invariant with _EAGLE set to exactly `eagle`. -> state"""
+        import corroborate as co
+        import control_app as _ca
+        old = getattr(_ca, "_EAGLE", None)
+        _ca._EAGLE = eagle
+        try:
+            rows = [r for r in co.run() if r.get("key") == "eagle-ran-every-check"]
+            self.assertEqual(len(rows), 1, "the eagle invariant is gone")
+            return rows[0]["state"], rows[0].get("say")
+        finally:
+            _ca._EAGLE = old
+
+    def test_an_eagle_that_never_flew_reports_UNKNOWN(self):
+        # ⚠ THIS TEST WAS ORDER-DEPENDENT AND I WROTE IT THAT WAY. The first cut read the LIVE
+        # _EAGLE and assumed a bare import means never-run. True in isolation; false in the full
+        # suite, where an earlier test flies the eagle — so it passed alone and failed at 1476 tests.
+        # A test that depends on what ran before it is not measuring what it claims.
+        # Set the state explicitly and cover all three cases instead of hoping for one.
+        import corroborate as co
+        import console_doctor as cd
+        state, say = self._eagle_state(
+            {"checked": None, "needsYou": None, "unknown": None, "rows": [],
+             "say": "not measured yet"})
+        self.assertEqual(state, co.UNKNOWN,
+                         "a never-run eagle produced a verdict instead of UNKNOWN: %s" % say)
+
+    def test_an_eagle_that_flew_EVERY_check_agrees(self):
+        import corroborate as co
+        import console_doctor as cd
+        n = len(cd.CHECKS)
+        state, say = self._eagle_state({"checked": n, "rows": [{}] * n, "say": "ran"})
+        self.assertEqual(state, co.AGREE, "a complete eagle pass did not agree: %s" % say)
+
+    def test_an_eagle_that_SKIPPED_checks_is_a_real_disagreement(self):
+        # The case the invariant exists for — and it must still be reachable, or the UNKNOWN fix
+        # above would have turned a working check into a permanently-silent one.
+        import corroborate as co
+        import console_doctor as cd
+        n = len(cd.CHECKS)
+        state, say = self._eagle_state({"checked": n, "rows": [{}] * (n - 3), "say": "ran"})
+        self.assertEqual(state, co.DISAGREE,
+                         "an eagle that covered %d of %d checks was not reported: %s"
+                         % (n - 3, n, say))
+
+    def test_it_asks_the_never_run_MARKER_not_the_row_count(self):
+        import inspect
+        import corroborate as co
+        src = inspect.getsource(co._inv_the_eagle_can_still_look)
+        self.assertIn('e.get("checked") is None', src,
+                      "the invariant no longer consults the explicit never-run marker")
+
+    def test_a_single_false_finding_cannot_hide_the_others(self):
+        # The deeper lesson: verdict() reports DISAGREE first, so one bad invariant masks every
+        # other state. Assert the counts are still visible in the AGREE-with-unknowns wording.
+        import corroborate as co
+        state, say = co.verdict([
+            {"key": "a", "state": co.AGREE, "say": ""},
+            {"key": "b", "state": co.UNKNOWN, "say": "no board"},
+        ])
+        self.assertEqual(state, co.AGREE)
+        self.assertIn("could not be measured", say,
+                      "an unmeasurable pair is no longer counted out loud")
+
+
+class TestV2238TheSimulatorDoesNotShrinkItsOwnCoverage(unittest.TestCase):
+    """⚠ TWO FIXES BROKE EACH OTHER, and the second one hid the first.
+
+    Fix A gave two retention tests a `board_identity_drift` mock, because a CI runner has no board
+    world and they were red for ten runs. Fix B taught ci_sim to exclude tests that TEST a stubbed
+    function rather than depend on it. Together: the mock made those same two tests look like tests
+    OF the stub, so the simulator stopped checking exactly the two whose CI failure started all of
+    this. Coverage shrank precisely where the defect had lived, and nothing said so.
+
+    The join is the distinction between MENTIONING a stubbed name and DEPENDING on the stub: a test
+    that patches it controls it itself, so my stub is inert and it must still run."""
+
+    def _dropped(self, class_name):
+        import subprocess, os as _os
+        here = _os.path.dirname(_os.path.abspath(__file__))
+        r = subprocess.run([sys.executable, _os.path.join(here, "ci_sim.py"), class_name],
+                           capture_output=True, text=True, cwd=here, timeout=300)
+        out = (r.stdout or "") + (r.stderr or "")
+        names = [ln.strip() for ln in out.splitlines()
+                 if ln.startswith("      ") and ln.strip().startswith("test_")]
+        return names, out
+
+    def test_a_test_that_PATCHES_the_stub_is_still_run(self):
+        dropped, out = self._dropped("TestV2080TheExtractPruneCycleIsClosed")
+        for must_run in ("test_ABOVE_the_floor_it_still_frees_what_has_GIVEN_UP_ITS_INFORMATION",
+                         "test_BELOW_the_floor_with_everything_clear_it_acts_or_this_is_all_theatre"):
+            self.assertNotIn(must_run, dropped,
+                             "the simulator stopped checking the test whose CI failure started this")
+        self.assertIn("Ran 10 tests", out,
+                      "the retention class no longer runs in full under simulation:\n%s" % out[-400:])
+
+    def test_a_test_that_ASSERTS_the_stub_is_still_excluded(self):
+        # The exclusion must not be neutered by the fix above, or the simulator goes back to
+        # reporting its own stubs as findings.
+        dropped, _out = self._dropped("TestV2145TheBoardIsTheSameWorldItWasLastLaunch")
+        self.assertTrue(dropped, "nothing is excluded any more — the simulator will cry wolf again")
+        self.assertIn("test_a_DIFFERENT_CLAIMED_INSTALL_is_a_drift", dropped)
 
 
 if __name__ == "__main__":

@@ -41,11 +41,18 @@ ENOUGH_SWEEPS = 20
 def _blank():
     return {"v": 1, "sweeps": 0, "names": 0, "agree": 0, "disagree": 0,
             "byDirection": {"shadowWouldGround": 0, "shadowWouldHold": 0},
-            "recent": [], "firstAt": None, "lastAt": None}
+            "byLane": {}, "recent": [], "firstAt": None, "lastAt": None}
 
 
-def observe(scores, at=None, path=None):
-    """Fold one sweep's `chronicle_retro.shadow_scores(...)` into the durable record. -> dict"""
+def observe(scores, at=None, path=None, lane="chronicle"):
+    """Fold one sweep's shadow_scores(...) into the durable record. -> dict
+
+    ⚠ `lane` KEEPS THE TWO GATES APART. The chronicle decides what to ground; the vault decides what
+    to THROW AWAY. Pooling their agreement into one ratio would let a well-behaved chronicle lane
+    vouch for a vault lane nobody had checked — one number over two different questions, which is
+    the `label-outlived-referent` shape. Counted separately, they can also DISAGREE with each other,
+    and that is a finding rather than an average.
+    """
     if not isinstance(scores, dict) or not isinstance(scores.get("scored"), int):
         return {"ok": False, "why": "that is not a shadow_scores result"}
     scored = scores["scored"]
@@ -71,6 +78,7 @@ def observe(scores, at=None, path=None):
     at = at if isinstance(at, int) else int(time.time() * 1000)
     for d in dis:
         d = dict(d, at=at)
+        d["lane"] = d.get("lane") or lane
         key = "shadowWouldGround" if d.get("shadowPass") else "shadowWouldHold"
         doc["byDirection"][key] = int(doc["byDirection"].get(key) or 0) + 1
         doc["recent"].append(d)
@@ -97,6 +105,15 @@ def observe(scores, at=None, path=None):
     doc["scorings"] = int(doc.get("scorings") or 0) + scored   # the old number, honestly labelled
     doc["agree"] = int(doc.get("agree") or 0) + (scored - len(dis))
     doc["disagree"] = int(doc.get("disagree") or 0) + len(dis)
+    # PER LANE, because the totals above pool two different questions. The chronicle decides what to
+    # GROUND; the vault decides what to THROW AWAY. A pooled ratio lets a chatty, well-behaved lane
+    # vouch for a quiet one nobody has checked — and the quiet one is the one that deletes things.
+    _bl = doc.setdefault("byLane", {})
+    _l = _bl.setdefault(str(lane), {"sweeps": 0, "scorings": 0, "agree": 0, "disagree": 0})
+    _l["sweeps"] += 1
+    _l["scorings"] += scored
+    _l["agree"] += (scored - len(dis))
+    _l["disagree"] += len(dis)
     doc["firstAt"] = doc.get("firstAt") or at
     doc["lastAt"] = at
 

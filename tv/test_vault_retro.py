@@ -533,5 +533,106 @@ class TestV2208APersistedPriorIsNotASecondWitness(unittest.TestCase):
 
 
 
+class TestV2236WilsonReachesTheVaultGate(unittest.TestCase):
+    """Konyo asked for the Wilson + confluence rule everywhere it applies. The vault gate owns the
+    only irreversible act in the app and was the one gate without it."""
+
+    def _ev(self, n, lanes=("deep", "liveEye"), conf=0.95, session=None):
+        return [{"name": "Shako", "session": session or "s%d" % i,
+                 "witness": (session or "s%d" % i) + ("#%d" % i if session else ""),
+                 "lane": lanes[i % len(lanes)], "conf": conf} for i in range(n)]
+
+    def test_the_floors_can_actually_be_cleared(self):
+        # THE SILENT FAILURE: a confluence floor above what the tier table sums to answers no
+        # forever, and "never passed" looks exactly like "never should have".
+        ok, why = v.floors_are_reachable()
+        self.assertTrue(ok, why)
+
+    def test_wilson_counts_FOLDED_WITNESSES_never_raw_sightings(self):
+        # ⚠ THE ONE THAT PROTECTS LAW 2. Four re-reads of a single frozen frame are ONE eye looking
+        # four times. Scored as n=4 they would mint a confident bound out of a single look — the
+        # systematic-misread failure the throw bar exists to prevent. If Wilson ever runs on raw
+        # sightings this test is the only thing that notices.
+        one_session = self._ev(4, session="sA")          # 4 sightings, ONE recording
+        sh = v.gate_shadow(one_session, "throwout")
+        self.assertLessEqual(sh["n"], 1,
+                             "Wilson scored %d witnesses from one recording — law 2 is repealed"
+                             % sh["n"])
+        self.assertFalse(sh["wouldPass"], "a single recording cleared the throw bar")
+
+    def test_more_evidence_sharpens_the_bound(self):
+        # His actual reason for asking: "especially with data coming through consecutively".
+        # A flat count bar stops learning the moment it is cleared; this must not.
+        seen = [v.gate_shadow(self._ev(n), "keep")["wilson"] for n in (3, 4, 6, 10, 20)]
+        self.assertEqual(seen, sorted(seen), "the bound does not sharpen: %r" % seen)
+        self.assertGreater(seen[-1], seen[0] + 0.25, "20 looks scored barely above 3")
+
+    def test_the_shadow_DECIDES_nothing(self):
+        # A shadow that anything branches on is not a shadow. gate() must not reach for it.
+        import inspect
+        src = inspect.getsource(v.gate)
+        self.assertNotIn("gate_shadow", src, "the live gate consults its own shadow")
+        self.assertNotIn("wilson", src.lower(), "the live gate reads a Wilson score")
+
+    def test_the_throw_bar_is_stricter_on_BOTH_axes(self):
+        # The asymmetry the file reasons about must survive in the shadow too, or the shadow is
+        # arguing for a policy the live gate deliberately rejected.
+        self.assertGreater(v.THROWOUT_WILSON_FLOOR, v.KEEP_WILSON_FLOOR)
+        self.assertGreater(v.THROWOUT_CONFLUENCE_FLOOR, v.KEEP_CONFLUENCE_FLOOR)
+
+    def test_ONE_statement_of_the_law_not_four(self):
+        # Spreading a rule by copying it is copy-drift with extra steps. There must be exactly one
+        # wilson_lower in the tree, and every lane must be looking at that object.
+        import confidence as cf
+        self.assertIs(cr.wilson_lower, cf.wilson_lower,
+                      "the chronicle holds its own copy of the math")
+
+    def test_no_evidence_is_not_weak_evidence(self):
+        sh = v.gate_shadow([], "keep")
+        self.assertEqual(sh["n"], 0)
+        self.assertEqual(sh["wilson"], 0.0)
+        self.assertFalse(sh["wouldPass"])
+
+
+class TestV2236TheVaultShadowIsJOINED(unittest.TestCase):
+    """A shadow nothing records is two halves each built right and never joined. [[the-unjoined-end]]"""
+
+    def test_every_sweep_carries_a_shadow_result(self):
+        # The key must EXIST on every sweep, including empty ones — an absent key and a zero score
+        # are different facts, and only one of them means "the lane ran".
+        import inspect
+        src = inspect.getsource(v.sweep)
+        self.assertIn('"shadow": _shadow', src, "sweep() no longer attaches its shadow")
+
+    def test_a_CRASH_in_the_shadow_lane_is_recorded_not_swallowed(self):
+        # The scar this exists for: a lane that crashes on every sweep reported "nothing scoreable"
+        # and read as healthy forever. [[paid-work-with-no-memory]]
+        import inspect
+        src = inspect.getsource(v.sweep)
+        self.assertIn("could not score this sweep", src,
+                      "a shadow-lane exception no longer leaves a reason behind")
+
+    def test_the_sweep_site_actually_BANKS_it(self):
+        # Building shadow_scores and never calling it is the whole defect class. Assert the call
+        # exists at the live sweep site, in the module that owns the joint.
+        import io as _io, os as _os
+        src = _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(v.__file__)),
+                                     "control_app.py"), encoding="utf-8").read()
+        self.assertIn('_shadow_bank(prop, lane="vault")', src,
+                      "the vault sweep computes a shadow that nothing persists")
+
+    def test_the_two_lanes_are_counted_APART(self):
+        import shadow_ledger as sl, tempfile, os as _os, json as _json
+        p = _os.path.join(tempfile.mkdtemp(), "sl.json")
+        sl.observe({"scored": 3, "disagreements": [], "names": ["a"]}, path=p, lane="chronicle")
+        sl.observe({"scored": 2, "disagreements": [{"name": "x", "shadowPass": True}],
+                    "names": ["x"]}, path=p, lane="vault")
+        by = _json.load(open(p)).get("byLane") or {}
+        self.assertIn("vault", by, "the vault lane is not counted separately")
+        self.assertEqual(by["vault"]["disagree"], 1)
+        self.assertEqual(by["chronicle"]["disagree"], 0,
+                         "the vault's disagreement leaked into the chronicle's record")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

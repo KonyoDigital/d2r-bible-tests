@@ -1877,8 +1877,12 @@ def _mask_cached():
     return dict(v) if v else None
 
 
-def _shadow_bank(applied):
+def _shadow_bank(applied, lane="chronicle"):
     """Persist what the Wilson shadow lane scored on this sweep. Never raises into a sweep.
+
+    ⚠ `lane` KEEPS THE CHRONICLE AND THE VAULT APART. They answer different questions — what to
+    GROUND versus what to THROW AWAY — and one pooled agreement ratio would let a well-behaved
+    chronicle lane vouch for a vault lane nobody had checked. [[label-outlived-referent]]
 
     Konyo: "make it self improving and really accurate so its locked and locks in the console."
 
@@ -1911,7 +1915,7 @@ def _shadow_bank(applied):
                 return {"ok": False, "failed": True, "why": _why[:200]}
             return {"ok": False, "why": "nothing scoreable in that sweep"}
         import shadow_ledger as _sl
-        return _sl.observe(sc)
+        return _sl.observe(sc, lane=lane)
     except Exception as e:
         print("   \u26a0 the shadow lane could not record this sweep (%s)" % str(e)[:70], flush=True)
         return {"ok": False, "why": str(e)[:120]}
@@ -11036,6 +11040,94 @@ def _chron_owed_count(hist_dir=None):
     return sum(1 for d in _dirs if _chron_reel_owes_a_read(os.path.basename(str(d)), _mem))
 
 
+
+def _footage_why(sid, reeln):
+    """WHY a session has no video. -> (state, sentence) or (None, None) when it HAS video.
+
+    ⚠ GROK #1 ITEM 4, OPEN SINCE 2026-07-19: "Old sessions whose footage was already reaped are
+    unrecoverable — should the shelf mark them 'footage retired' instead of playing hollow?"
+
+    It should, and it always could have. `footageN: 0` collapsed three different facts into one
+    zero — the reel was DELETED after giving up its information, the reel folder is present and
+    empty, and nobody has established anything either way. Only the first is a story with an ending;
+    the other two are open questions, and a shelf that renders all three as an empty player teaches
+    him that his recorder is broken. [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+
+    The record to answer it already existed and nothing read it: reel_tombstones.json carries the
+    session, the reason, the page count and the megabytes for every reel retention deleted. The two
+    reels my own prune took on 2026-08-28 are in there right now — this would have put that on his
+    shelf the moment it happened instead of two suites going quietly to a permanent skip.
+
+    UNKNOWN IS A FIRST-CLASS ANSWER HERE. A missing tombstone means retention has no record, which
+    is NOT the same as "no footage was ever captured" — the tombstone file is untracked runtime
+    state and can itself be absent. Saying "never recorded" from that would be a claim nobody
+    measured.
+    """
+    if reeln:
+        return None, None
+    sid = str(sid or "")
+    if not sid:
+        return "unknown", "this session carries no id, so its footage cannot be looked up"
+    try:
+        import reel_retention as _rr
+        path = _rr._tombstone_path()
+        with open(path, encoding="utf-8") as fh:      # ⚠ NOT io.open — see the NameError note below
+            doc = json.load(fh) or {}
+        for e in (doc.get("reels") or []):
+            if not isinstance(e, dict):
+                continue
+            if str(e.get("session") or "") != sid:
+                continue
+            bits = []
+            if e.get("pages"):
+                bits.append("%d page(s) were read from it" % int(e["pages"]))
+            if e.get("mb"):
+                bits.append("%.1f MB recovered" % float(e["mb"]))
+            when = ""
+            try:
+                if e.get("deletedTs"):
+                    when = time.strftime(" on %-d %b", time.localtime(int(e["deletedTs"]) / 1000.0))
+            except Exception:
+                when = ""
+            why = str(e.get("why") or "").strip()
+            return "retired", ("the film was retired%s after giving up its information%s%s"
+                               % (when, (" — " + ", ".join(bits)) if bits else "",
+                                  (". Reason: " + why[:120]) if why else ""))
+    except FileNotFoundError:
+        pass
+    except (ValueError, OSError) as e:
+        # A tombstone file that will not PARSE is not evidence either way — but say which failure
+        # it was, because "unreadable" and "absent" send you to different places.
+        return "unknown", ("the retention record could not be read (%s), so why this run has no "
+                           "film is unknown" % str(e)[:60])
+    except Exception as e:
+        # ⚠⚠ THIS BRANCH EXISTS BECAUSE THE BARE ONE ALREADY BURNED ME, IN THIS FUNCTION, TODAY.
+        # The first cut called io.open() in a module that does not import `io`. The NameError was
+        # caught by a bare `except Exception` and returned the sentence "the retention record could
+        # not be read" — a fluent, plausible, completely wrong answer, for a file that was present,
+        # valid, and three entries long. Every tombstoned reel read as UNKNOWN and nothing looked
+        # broken. That is [[paid-work-with-no-memory]] exactly: my own memory records this same
+        # `io.open`-without-`io`-swallowed-by-a-bare-except failure, and I wrote it again anyway.
+        #
+        # So a programming error must now announce ITSELF rather than borrow the vocabulary of a
+        # data problem. If this ever fires, the bug is in this function, not in his files.
+        return "unknown", ("the footage lookup itself failed with %s: %s — this is a defect in the "
+                           "console, not a fact about his film"
+                           % (type(e).__name__, str(e)[:60]))
+    # No tombstone. Distinguish "the folder is here and empty" from "there is no folder", because
+    # those are different failures — one is a fold that ran and found nothing, one is a fold that
+    # never ran or a directory since removed by something that left no record.
+    try:
+        d = os.path.join(HIST_DIR, "reel_" + sid)
+        if os.path.isdir(d):
+            return "empty", ("the reel folder for this run exists and holds no frames — the fold "
+                             "ran and found nothing to move")
+    except Exception:
+        pass
+    return "unknown", ("no film and no retention record for this run — that is an unanswered "
+                       "question, not a finding that nothing was ever recorded")
+
+
 def _chron_reels_retired():
     """Reels the loop GAVE UP on — durable, and deliberately NOT the same thing as 'read'.
 
@@ -14681,6 +14773,16 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             # never fatal: a sweep that read his reels is worth more than this bookkeeping
             print("   \u26a0 could not remember the ungrounded sightings: %s" % str(_se)[:100],
                   flush=True)
+        # v2236 — BANK THE VAULT SHADOW, the same joint the chronicle sweep has at _shadow_bank.
+        # Konyo asked for Wilson "especially with data coming through consecutively" — which only
+        # pays if the comparison ACCUMULATES across sweeps. One sweep agreeing proves nothing.
+        try:
+            _vsb = _shadow_bank(prop, lane="vault")
+            if _vsb.get("failed"):
+                print("   \u26a0 the VAULT shadow lane failed this sweep: %s"
+                      % str(_vsb.get("why"))[:140], flush=True)
+        except Exception as _vse:
+            print("   \u26a0 could not bank the vault shadow: %s" % str(_vse)[:100], flush=True)
         if _not_stash[0]:
             # said out loud, never silently: "the stash was never open on camera" and "the reader
             # found nothing in it" are different answers and only one of them is about his stash
@@ -18394,7 +18496,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2234",
+        "ver": "v2238",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -19358,6 +19460,11 @@ class Handler(BaseHTTPRequestHandler):
                             pass
                 except Exception:
                     pass
+                # v2236 — WHY this run has no film, computed once beside the count it explains.
+                try:
+                    _fw_state, _fw_say = _footage_why(sess[0].get("sessionId") if sess else "", _reeln)
+                except Exception:
+                    _fw_state, _fw_say = None, None
                 # v937 — the session's STORY fields: verdicts at a glance (shelf + home digest)
                 _wd = sum(1 for r2 in sess if r2.get("lane") == "watchdog")
                 _tl = sum(1 for r2 in sess if r2.get("lane") == "intake")
@@ -19641,6 +19748,9 @@ class Handler(BaseHTTPRequestHandler):
                             "sim": any(bool(r2.get("sim")) or r2.get("mode") == "stub"
                                        for r2 in sess),
                     "footageN": _reeln,   # v883 — the shelf tells the truth about video
+                    # v2236 (Grok #1 item 4) — and WHY there is none, because footageN:0 was three
+                    # different facts wearing one number. None when there IS film.
+                    "footageState": _fw_state, "footageWhy": _fw_say,
                     "intakes": len([r2 for r2 in sess if r2.get("lane") == "intake"]),   # v902
                     "thumb": _thumb,      # v890 — HD filmstrip art from the run itself
                     "sessionId": sid,
@@ -20035,7 +20145,22 @@ class Handler(BaseHTTPRequestHandler):
         want_w = (qs.get("w") or [""])[0]
         if want_w in ("1280", "160") and not IS_WIN:   # v802 — 160 = scrub thumbnails
             cache_dir = os.path.join(HIST_DIR, "cache" + want_w)
-            cached = os.path.join(cache_dir, os.path.basename(target))
+            # v2238 (Grok #1 item 2) — KEYED ON THE RELATIVE PATH, NOT THE BASENAME.
+            #
+            # It was `os.path.basename(target)`, so two frames with the same filename in different
+            # reels shared one cache entry and the second reader got the FIRST reel's picture. Grok
+            # raised this on 2026-07-19 as a suspicion; measured today on his tree it is real but
+            # narrow: 7,773 frames, 7,754 distinct basenames, and exactly ONE name in more than one
+            # place — `.stash_eye_tab.jpg`, a stash-eye scratch file sitting in two reel dirs and the
+            # hist root.
+            #
+            # ⚠ SO THE HONEST STATE WAS "unsound, not currently exploitable". Real frames avoid it
+            # only because their names happen to embed a reel id or a millisecond stamp — a property
+            # of the NAMING CONVENTION, which nothing enforces, not a guarantee from the cache. A
+            # rename of the fold, or one more scratch file, and a theatre silently plays the wrong
+            # reel's frame. Fixing the key removes the class instead of relying on the coincidence.
+            _rel_key = os.path.relpath(target, os.path.realpath(HIST_DIR)).replace(os.sep, "__")
+            cached = os.path.join(cache_dir, _rel_key)
             try:
                 if not os.path.isfile(cached):
                     os.makedirs(cache_dir, exist_ok=True)

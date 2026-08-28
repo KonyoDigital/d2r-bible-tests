@@ -1341,6 +1341,8 @@ def proposal_from_pages(pages):
 #
 # A name needs TWO. Not two sightings — two kinds, or two of a kind that is genuinely repeatable
 # (frames, reels, lanes are; `printed` is a property of a page, so it counts once).
+import confidence as _confidence
+
 CONF_FLOOR = 0.55        # below this the reader itself was unsure; unsure twice is still unsure
 MIN_WITNESSES = 2
 
@@ -1735,40 +1737,15 @@ WITNESS_TIER = {
 }
 
 
-def wilson_lower(k, n, z=_WILSON_Z):
-    """Lower bound of the Wilson score interval for k successes in n trials. -> float in [0,1]
-
-    n == 0 returns 0.0 — no evidence is not weak evidence, it is none. That distinction is the
-    whole reason this is here rather than k/n, which answers 1.0 for a single lucky look.
-    """
-    try:
-        k = float(k); n = float(n)
-    except (TypeError, ValueError):
-        return 0.0
-    if n <= 0 or k < 0:
-        return 0.0
-    if k > n:
-        k = n
-    p = k / n
-    z2 = z * z
-    denom = 1.0 + z2 / n
-    centre = p + z2 / (2.0 * n)
-    margin = z * (((p * (1.0 - p) + z2 / (4.0 * n)) / n) ** 0.5)
-    lo = (centre - margin) / denom
-    return max(0.0, min(1.0, lo))
+# ⚠ THE MATH MOVED TO tv/confidence.py AND IS RE-EXPORTED HERE, NOT COPIED. Konyo asked for this
+# rule everywhere it applies; four lanes each holding their own Wilson is `copy-drift` waiting for
+# someone to tune one of them. These names stay bound so every existing caller and test is unmoved.
+from confidence import wilson_lower                                             # noqa: E402
 
 
 def confluence(tags):
-    """Weighted strength of the KINDS of evidence behind a name. -> float
-
-    Additive on purpose and deliberately NOT capped at 1.0: two independent kinds really are worth
-    more than one, and flattening that is the thing being fixed. Unknown tags score 0 rather than a
-    default — a tag nobody has weighted is a tag nobody has thought about.
-    """
-    try:
-        return round(sum(WITNESS_TIER.get(t, 0.0) for t in (tags or [])), 3)
-    except Exception:
-        return 0.0
+    """Weighted strength of the KINDS of evidence behind a name, on the CHRONICLE's weights."""
+    return _confidence.confluence(tags, WITNESS_TIER)
 
 
 def wilson_shadow(sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES,

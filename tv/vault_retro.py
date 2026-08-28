@@ -403,6 +403,151 @@ def gate(evidence, conf_floor=KEEP_CONF_FLOOR, min_witnesses=KEEP_MIN_WITNESSES,
                                 % (len(sessions), witness_noun, ", ".join(sessions), best)})
 
 
+
+# ── WILSON, ON THE ONE GATE THAT OWNS AN IRREVERSIBLE ACT ────────────────────────────────────────
+# Konyo, 2026-08-28: spread the Wilson + confluence logic "anywhere needed... especially with data
+# coming through consecutively".
+#
+# THIS IS THE SHARPEST PLACE IT APPLIES IN THE WHOLE TREE, and it was the one gate without it. The
+# two bars above already reason that "a wrong throw costs an item that does not come back" — and
+# then decide on a FLAT COUNT, where 4 looks and 40 looks score exactly the same. Wilson is the
+# statistic that can tell those apart, and the throw bar is where being unable to is expensive.
+#
+# ⚠ THE DESIGN DECISION THAT MATTERS, and getting it wrong would silently repeal law 2: Wilson runs
+# on the FOLDED WITNESS LIST, never on raw sightings. Four re-reads of one frozen frame are one eye
+# looking twice; scored as n=4 they would produce a confident bound from a single look — precisely
+# the systematic-misread failure the throw bar exists to prevent. So n = distinct witnesses AFTER
+# _fold_bare_sessions, which is the same denominator the live gate uses.
+VAULT_WITNESS_TIER = {
+    "multi-session": 1.00,   # different recordings — the strongest independence available (law 3)
+    "multi-lane":    0.75,   # a different reader lane looked and agreed
+    "multi-surface": 0.50,   # seen on a second ownership surface
+    "re-look":       0.25,   # same recording, reopened after REOPEN_GAP_MS — state, not judgement
+}
+# ⚠ THE FLOORS ARE REASONED FROM THE TIER ARITHMETIC, NOT MEASURED — and saying so is the point.
+# My first pass wrote "tuned to reproduce today's verdict" and that was FALSE: no live evidence pile
+# exists on this disk to tune against, and the synthetic fixture I checked against earns exactly one
+# tag, so the throw shadow could only ever say no. A floor above what the data can reach is an ABSENT
+# gate wearing a tuned face. [[feedback-threshold-above-the-ceiling]]
+#
+# So they are derived instead, and the derivation is checkable: the tier table tops out at 2.50.
+#   keep  1.00 = ONE kind of independence          (wilson 0.43 = the 3-witness bar it mirrors)
+#   throw 1.75 = TWO kinds, and multi-session must be one of them by law 3
+#                (wilson 0.51 = the 4-witness bar). Stricter on BOTH axes, because the mistakes are
+#                not symmetrical: a missed keep costs another look, a wrong throw costs the item.
+# floors_are_reachable() asserts they sit under the ceiling, so this can never silently go inert.
+KEEP_WILSON_FLOOR = 0.43
+KEEP_CONFLUENCE_FLOOR = 1.00
+THROWOUT_WILSON_FLOOR = 0.51
+THROWOUT_CONFLUENCE_FLOOR = 1.75
+
+
+def _vault_tags(ev, sessions):
+    """Which KINDS of independence this pile actually has. -> [tag]"""
+    tags = []
+    if len({str(s).split("#")[0] for s in sessions}) > 1:
+        tags.append("multi-session")
+    if len({str(e.get("lane") or "") for e in ev if e.get("lane")}) > 1:
+        tags.append("multi-lane")
+    if len({str(e.get("surface") or e.get("scene") or "") for e in ev
+            if (e.get("surface") or e.get("scene"))}) > 1:
+        tags.append("multi-surface")
+    if len(sessions) > len({str(s).split("#")[0] for s in sessions}):
+        tags.append("re-look")
+    return tags
+
+
+def gate_shadow(evidence, bar="keep"):
+    """What Wilson WOULD say about this pile, beside what the live gate DID say. -> dict
+
+    ⚠ DECIDES NOTHING. No caller may branch on it, and the live `gate()` above does not call it.
+    Task #34 measured the chronicle's shadow agreeing with its live gate 23/23 and that is exactly
+    why it stayed shadow: a rule that has never disagreed has never been tested against the live
+    one. The disagreements are the product. [[feedback-blind-fixture-green-gate]]
+    """
+    import confidence as _cf
+    if bar == "throwout":
+        cfl, mw, wf, cff = (THROWOUT_CONF_FLOOR, THROWOUT_MIN_WITNESSES,
+                            THROWOUT_WILSON_FLOOR, THROWOUT_CONFLUENCE_FLOOR)
+        field, noun = "session", "session"
+    else:
+        cfl, mw, wf, cff = (KEEP_CONF_FLOOR, KEEP_MIN_WITNESSES,
+                            KEEP_WILSON_FLOOR, KEEP_CONFLUENCE_FLOOR)
+        field, noun = "witness", "look"
+    live = gate(evidence, cfl, mw, witness_field=field, witness_noun=noun)
+    ev = [e for e in (evidence or []) if isinstance(e, dict)]
+    sessions = live.get("sessions") or []
+    # k = witnesses whose BEST look cleared the floor; n = every distinct witness. Same denominator
+    # as the live gate, so the two are answering one question rather than two.
+    best_by = {}
+    for e in ev:
+        w = str(e.get(field) or e.get("session") or "")
+        if not w:
+            continue
+        best_by[w] = max(best_by.get(w, 0.0), _conf_of(e.get("conf")))
+    n = len(sessions)
+    k = sum(1 for w in sessions if best_by.get(str(w), 0.0) >= cfl)
+    return _cf.shadow(k, n, _vault_tags(ev, sessions), VAULT_WITNESS_TIER, wf, cff,
+                      bool(live.get("pass")), lane="vault:%s" % bar,
+                      subject=str(ev[0].get("name") or "") if ev else "")
+
+
+
+def floors_are_reachable():
+    """PROVE both shadow bars can actually be cleared. -> (ok, why)
+
+    The failure this exists to catch is SILENT: a confluence floor above what the tier table can sum
+    to makes the shadow answer no forever, and "never passed" is indistinguishable from "never
+    should have". Asserted rather than trusted, because I got it wrong on the first pass.
+    """
+    ceiling = round(sum(VAULT_WITNESS_TIER.values()), 3)
+    for name, floor in (("keep", KEEP_CONFLUENCE_FLOOR), ("throwout", THROWOUT_CONFLUENCE_FLOOR)):
+        if floor > ceiling:
+            return False, ("the %s confluence floor %.2f is above the %.2f the tier table can sum "
+                           "to — that bar can never be cleared" % (name, floor, ceiling))
+    # And reachable by a REALISTIC pile, not just arithmetically: the throw bar demands two kinds,
+    # and multi-session + multi-lane is the cheapest real pair a sweep can produce.
+    real = round(VAULT_WITNESS_TIER["multi-session"] + VAULT_WITNESS_TIER["multi-lane"], 3)
+    if THROWOUT_CONFLUENCE_FLOOR > real:
+        return False, ("the throw floor %.2f needs more than multi-session + multi-lane (%.2f), so "
+                       "it demands evidence a sweep does not routinely produce"
+                       % (THROWOUT_CONFLUENCE_FLOOR, real))
+    return True, None
+
+
+
+def shadow_scores(piles, bar="keep"):
+    """Score a whole sweep under BOTH rules. WRITES NOTHING. -> {scored, disagreements, names}
+
+    ⚠ WHY THIS EXISTS AND WHY IT IS SEPARATE FROM THE PERSISTING. gate_shadow() answers about one
+    pile, and one pile answers nothing: a rule that agrees with the live gate on today's handful of
+    items is a statement about how little evidence the tree holds, not about the two rules. Konyo's
+    reason for asking for Wilson at all was "especially with data coming through consecutively" —
+    which only pays off if the comparison ACCUMULATES.
+
+    Same shape as chronicle_retro.shadow_scores so shadow_ledger.observe can fold either. This
+    module scores; the caller persists. (vault_retro is not under the chronicle's read-only law, but
+    keeping the split identical means one ledger and one set of arithmetic rather than two.)
+    """
+    scored, dis, seen = 0, [], []
+    for name, ev in sorted((piles or {}).items()):
+        if not isinstance(ev, list) or not ev:
+            continue
+        try:
+            sh = gate_shadow(ev, bar)
+        except Exception:
+            continue
+        scored += 1
+        seen.append(name)
+        if sh.get("agrees") is False:
+            dis.append({"name": name, "lane": sh["lane"], "shadowPass": sh["wouldPass"],
+                        "livePass": sh["livePassed"], "wilson": sh["wilson"],
+                        "confluence": sh["confluence"], "tags": sh["tags"], "why": sh["why"]})
+    # `scored` counts SCORINGS in this one sweep, never names — the v2225 lesson, which inflated a
+    # count to 1141 against a 403-name universe by summing re-scorings into a field called `names`.
+    return {"scored": scored, "disagreements": dis, "names": sorted(set(seen))}
+
+
 # ── THE FOLD (law 1) ────────────────────────────────────────────────────────────
 
 _BUCKET_RE = re.compile(r"^(.*)#\d+$")
@@ -1128,8 +1273,24 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
               # Reported rather than silently pocketed: "9 classifies" and "9 classifies + 4 you
               # told us" are different facts about the same sweep.
               "trustedFocus": trusted}
+    # v2236 — THE SHADOW RIDES ALONG, exactly as the chronicle sweep attaches its own. Without this
+    # the Wilson lane is two halves each built right and never joined: gate_shadow() computes a
+    # verdict nobody reads, and the ledger accumulates nothing, and BOTH ends look wired.
+    # [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    #
+    # ⚠ The failure is RECORDED, never swallowed. A `why` on the except branch is what lets
+    # _shadow_bank tell "this sweep saw nothing scoreable" from "this lane has crashed on every
+    # sweep since it shipped" — collapsing those is how a dead lane reports "agrees so far" forever.
+    try:
+        _piles = {}
+        for (_nm, _ln), _ev in (evidence or {}).items():
+            _piles.setdefault(str(_nm), []).extend(_ev or [])
+        _shadow = shadow_scores(_piles, "keep")
+    except Exception as _e:
+        _shadow = {"scored": 0, "disagreements": [], "names": [],
+                   "why": "the vault shadow lane could not score this sweep: %s" % str(_e)[:120]}
     return {"ok": True, "generatedTs": int(time.time() * 1000), "why": _verdict(totals, owned, unsure),
-            "sessionsRead": sorted(set(sessions_read)),
+            "sessionsRead": sorted(set(sessions_read)), "shadow": _shadow,
             "owned": owned, "throwOut": throw_out, "unsure": unsure, "held": held, "totals": totals}
 
 

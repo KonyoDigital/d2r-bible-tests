@@ -400,7 +400,50 @@ def back_up_healthy_stores():
     return kept
 
 
+def _remedy_clear_a_stuck_theatre():
+    """A theatre stage that opened and never filled leaves the console BLACK until he quits it.
+
+    ⚠ v2235 (#44) — HE FOUND THIS ONE HIMSELF, TWICE, WITH SCREENSHOTS, because nothing in the tree
+    could see it. `thOpen()` opens the stage BEFORE the network by design (v859: "pixels BEFORE
+    network") and then awaited /api/sessions with no timeout — so an auto-relaunch replacing the
+    server mid-fetch left a full-bleed black rectangle up indefinitely. Hovering still painted a
+    tooltip, which is what told him it was not a crash.
+
+    v2228 fixed the CAUSE (bounded fetch, the stage closes on failure, a 12s self-heal) and gave the
+    console POST /api/ui_fault so it can say so. This is the third half: a fault that KEEPS COMING
+    BACK is a regression, and the eagle counts returns — but counting without acting is what #167
+    was about.
+
+    ⚠ IT CANNOT REACH INTO HIS WINDOW, and must not pretend to. The console UI heals itself
+    client-side; the only thing this can honestly do is CLEAR THE FAULT RECORD once the condition
+    has stopped recurring, so a healed lane stops reading as a standing red. It deletes nothing he
+    owns and touches no ledger. Returns (ok, said)."""
+    sys.path.insert(0, HERE)
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return False, "control_app did not import: %s" % str(e)[:70]
+    rows, why = _ca.ui_faults_recent(1)          # the LAST HOUR only
+    if rows is None:
+        # unreadable is UNKNOWN, and UNKNOWN is never a licence to act
+        return False, why or "the fault log is unreadable, so nothing can be concluded"
+    stuck = [r for r in rows if str(r.get("kind") or "").startswith("theatre-")]
+    if stuck:
+        # still happening — say so and leave it alone. A remedy that "fixes" a live fault by
+        # erasing its record is the worst possible shape.
+        return False, ("the console has healed itself from %d theatre fault(s) in the last hour; "
+                       "the record stays until an hour passes clean" % len(stuck))
+    return True, ("no theatre fault in the last hour — the console self-healed and the condition "
+                  "has stopped recurring")
+
+
 REMEDIES = {
+    # v2235 (#44) — the newest fault the console can report about ITSELF. Keyed on the CHECK NAME,
+    # like its siblings. It clears a record that has stopped recurring; it never reaches into his
+    # window and never touches a ledger.
+    "console UI faults": ("clears a theatre-fault record only after a clean hour; nothing he owns "
+                          "is touched and the live console heals itself client-side",
+                          _remedy_clear_a_stuck_theatre),
     "footage has a reel": ("the reel is read off each frame's own stamp; nothing is deleted",
                            _remedy_fold_orphan_footage),
     "vault stores": ("restores only from a backup this module wrote while the store parsed and had "

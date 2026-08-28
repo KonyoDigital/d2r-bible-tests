@@ -184,10 +184,172 @@ def _inv_chronicle_owed_agrees():
             "_chron_owed_count", left, "reel_retention", right, ">=")
 
 
+
+def _inv_the_two_owned_fields():
+    """157 vs 7 — TWO PAYLOAD FIELDS BOTH CALLED `owned`, and I found this by hand and did not
+    encode it. That omission is the whole argument for this file existing.
+
+    They are DIFFERENT QUANTITIES: ledgerBackup.counts.owned is the durable backup of the board's
+    d2r_owned (what is in his stash); vault_ledger.totals.owned is what the VAULT SWEEP LANE has
+    independently established from film. Both true. Nothing said so, and 157 beside 7 reads as data
+    loss.
+
+    So the invariant is NOT equality — it is CONTAINMENT: the vault lane can only ever have
+    established a subset of what the board holds. If the lane ever claims MORE than the stash, one
+    of them is wrong and it is worth his attention.
+    """
+    import control_app as ca
+
+    def left():
+        try:
+            v = ca.vault_ledger_view() or {}
+            t = v.get("totals") or {}
+            n = t.get("owned")
+            return int(n) if isinstance(n, int) else None
+        except Exception:
+            return None
+
+    def right():
+        st = ca.ledger_backup_state() or {}
+        c = st.get("counts") or {}
+        n = c.get("owned")
+        return int(n) if isinstance(n, int) else None
+
+    return ("owned-is-contained",
+            "the vault lane has never established more owned items than the board holds",
+            "swap the two fields, or let the lane count something the stash does not, and this parts",
+            "vault_ledger.totals.owned", left, "board d2r_owned (backed up)", right, "<=")
+
+
+def _inv_the_eagle_can_still_look():
+    """A watchdog that cannot run is not a passing watchdog. The eagle runs the corroborator; until
+    now nothing checked the eagle. UNKNOWN is the honest answer when its own state is unreadable."""
+    import control_app as ca
+
+    def left():
+        e = dict(getattr(ca, "_EAGLE", {}) or {})
+        # ⚠⚠ NEVER-RUN IS NOT ZERO-COVERAGE, AND MY FIRST CUT SAID IT WAS. `_EAGLE` initialises to
+        # {"checked": None, "rows": [], "say": "not measured yet"}, so reading len(rows) on a fresh
+        # process answered 0 and the invariant reported "the eagle covered 0 of 22 checks" — a
+        # confident finding about an eagle that had simply not flown yet. It fired on this machine
+        # the first time it was asked.
+        #
+        # That is the exact law this whole file exists to enforce, broken inside the file: 0 means
+        # "we measured, it was zero"; None means "nobody looked". `checked` is the module's own
+        # explicit never-run marker — ask it rather than inferring from an empty list.
+        # [[unknown-stays-unknown]]
+        if e.get("checked") is None:
+            return None
+        rows = e.get("rows")
+        return len(rows) if isinstance(rows, list) else None
+
+    def right():
+        import console_doctor as cd
+        return len(cd.CHECKS)
+
+    return ("eagle-ran-every-check",
+            "the eagle's last pass covered every check on its roster",
+            "drop a check from the loop and its row stops appearing while the roster still lists it",
+            "rows in the last eagle pass", left, "checks on the roster", right, "==")
+
+
+def _inv_hunt_memory_is_being_used():
+    """The paid-work-with-no-memory scar, as an invariant. His hunt bought 3,434 paid reads for 2
+    sightings — 1,717 each — re-buying the same 8 names for eight hours, and it looked exactly like
+    healthy activity. The memory exists so it stops re-buying; if the memory is EMPTY while reads
+    are being spent, the memory is not reaching the buyer."""
+    import os, json, io as _io
+
+    def left():
+        p = os.path.join(HERE, "chron_hunt_memory.json")
+        if not os.path.exists(p):
+            return None
+        try:
+            d = json.load(_io.open(p, encoding="utf-8"))
+        except Exception:
+            return None
+        return len(d) if hasattr(d, "__len__") else None
+
+    def right():
+        return 0                      # any memory at all beats none, once the hunt has spent
+
+    return ("hunt-remembers",
+            "the hunt has banked what it already bought, so it cannot re-buy the same names",
+            "empty the memory while the hunt keeps spending and this goes to zero",
+            "hunt-memory entries", left, "the floor", right, ">=")
+
+
 BUILDERS = (_inv_vault_worklist,
+            _inv_the_two_owned_fields,
+            _inv_the_eagle_can_still_look,
+            _inv_hunt_memory_is_being_used,
             _inv_shadow_names_fit_the_universe,
             _inv_swept_memory_matches_the_disk,
             _inv_chronicle_owed_agrees)
+
+
+
+# ══ THE COVERAGE MAP — EVERY ENGINE IS NAMED, AND AN UNCOVERED ONE SAYS SO ═══════════════════════
+# Konyo: "make it reach them all". The eagle's checks and this file's invariants are NOT the same
+# unit — a check asks "is this engine well", an invariant asks "do these two agree" — so there is no
+# 1:1 mapping to reach. What there IS: every engine the eagle knows must appear here, and one with
+# no invariant must be VISIBLE rather than silently absent.
+#
+# That is the anti-silence principle turned on this file itself. Without it "4 of 11 joints" is a
+# fact nobody can see, which is precisely the defect a corroborator exists to catch.
+COVERED_BY = {
+    "reel extract":      ("chronicle-owed", "swept-split-adds-up"),
+    "sweep would find":  ("vault-worklist",),
+    "shadow gate":       ("shadow-sample-fits",),
+    "vault stores":      ("owned-is-contained",),
+    "ledger entries":    ("owned-is-contained",),
+    "hunt economy":      ("hunt-remembers",),
+    "engines corroborate": ("eagle-ran-every-check",),
+}
+# Engines with NO invariant, each with the reason — a blank here would read as covered.
+NO_JOINT_YET = {
+    "console UI faults": "the console reports about itself; there is no second engine to agree with",
+    "version drift":     "one reading of one number; a joint would need a second source of truth",
+    "lane intent":       "intent vs reality is already a two-sided check inside the eagle itself",
+    "disk headroom":     "the disk is the ground truth; nothing else independently measures it",
+    "subscription":      "the provider is the only authority on spend",
+    "unattended reel":   "a single live observation",
+    "board is claimed":  "needs the board window open; UNKNOWN here is honest, not a gap",
+    "visual lock":       "a source invariant, checked structurally rather than cross-engine",
+    "art corpus":        "file-level integrity, no second engine",
+    "footage has a reel": "the frame stamp IS the second source; the eagle already joins them",
+    "progress number":   "his board is the only authority on his own progress",
+    "store emptied":     "needs the board window open",
+    "locked lanes":      "a policy assertion, not a measurement pair",
+    "surfaces agree":    "already a two-surface check inside the eagle",
+    "the other doctors": "a roll-up of other verdicts",
+}
+
+
+def coverage():
+    """Which engines have a joint, which do not, and why. -> dict. Reads nothing, decides nothing."""
+    try:
+        sys.path.insert(0, HERE)
+        import console_doctor as _cd
+        engines = [n for n, _fn in _cd.CHECKS]
+    except Exception as e:
+        return {"ok": False, "why": "could not ask the eagle for its roster: %s" % str(e)[:80]}
+    covered, uncovered, unexplained = {}, {}, []
+    for n in engines:
+        if n in COVERED_BY:
+            covered[n] = list(COVERED_BY[n])
+        elif n in NO_JOINT_YET:
+            uncovered[n] = NO_JOINT_YET[n]
+        else:
+            # ⚠ A NEW ENGINE WITH NEITHER A JOINT NOR A STATED REASON. Silence here is the defect:
+            # it would read as covered simply by not appearing in either list.
+            unexplained.append(n)
+    return {"ok": True, "engines": len(engines),
+            "covered": covered, "uncovered": uncovered, "unexplained": unexplained,
+            "say": ("%d engine(s): %d with a joint, %d with a stated reason for none%s"
+                    % (len(engines), len(covered), len(uncovered),
+                       "" if not unexplained else
+                       " — ⚠ %d NEITHER: %s" % (len(unexplained), ", ".join(unexplained))))}
 
 
 def _holds(a, b, rel):

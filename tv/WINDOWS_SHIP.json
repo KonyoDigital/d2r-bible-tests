@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2234",
+  "ver": "v2238",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2234: 498 bases were known to the page and to neither the registrar nor the prune",
+  "note": "v2238: A red CI gate went unread for ten runs, the derivative cache collided on basenames, and my own invariant called a never-run eagle a disagreement",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
