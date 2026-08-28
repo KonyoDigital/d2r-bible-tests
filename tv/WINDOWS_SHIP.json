@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2239",
+  "ver": "v2240",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2239: The tooltip rectangle is derived by differencing a hover pass, so the crop that named an item can sit beside it",
+  "note": "v2240: The tooltip crop that named an item is now clickable on the row, and it outlives the reel it came from",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

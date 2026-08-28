@@ -28292,8 +28292,25 @@ class TestV2239OneMuleGeometry(unittest.TestCase):
         import re as _re
         s = self._bible()
         self.assertIn("var MULE_CAP =", s, "the single capacity constant is gone")
-        self.assertEqual(len(_re.findall(r"capCells:\s*140", s)), 0,
-                         "a hardcoded 140 capacity is back — the packer and the card will disagree")
+        # ⚠ ASK THE LINE, NOT A WINDOW — and skip comments. Two earlier versions of this check were
+        # wrong in the two classic ways: the first matched the ternary fallback `_ld.capCells : 140`
+        # as if it were a producer; the second excluded the permitted form by testing the 40-CHAR
+        # MATCH, which truncated before reaching `window.MULE_CAP`, and then matched my own comment
+        # prose describing the bug. A guard that greps a character window fails on its own REACH.
+        # [[source-reading-guard]] [[feedback-comments-vs-code]]
+        bad = []
+        for _ln in s.splitlines():
+            _t = _ln.strip()
+            if _t.startswith("//") or _t.startswith("*") or _t.startswith("/*"):
+                continue                        # prose about the rule is not the rule
+            if not _re.search(r"capCells[^\n]{0,40}?140", _ln):
+                continue
+            if "window.MULE_CAP || 140" in _ln:
+                continue                        # the ONE stated last resort, and it derives first
+            bad.append(_t[:90])
+        self.assertEqual(bad, [],
+                         "a hardcoded 140 capacity is back — the packer and the card will disagree: %s"
+                         % bad)
         self.assertGreaterEqual(len(_re.findall(r"capCells:\s*MULE_CAP", s)), 2,
                                 "not every capCells producer derives from the constant")
 
@@ -28306,14 +28323,25 @@ class TestV2239OneMuleGeometry(unittest.TestCase):
         self.assertIn("packGrid(rem, MULE_STASH_W, MULE_STASH_H)", s,
                       "the stash packer is back on a literal grid")
 
-    def test_the_inventory_is_FIVE_rows(self):
+    def test_the_inventory_is_FOUR_rows_and_the_mule_is_140(self):
+        # ⚠ v2239 PINNED THIS AT 10x5 AND IT WAS WRONG. He reported the inventory should be 5 rows,
+        # then corrected himself within the hour — "i accidentally mis informed you it is 40, not
+        # 50". The revert was ONE LINE because the geometry had just been collapsed to a constant;
+        # against the previous shape it would have been another seven-literal hunt, and v2239 proved
+        # I miss one of those. The number was wrong for a version; the STRUCTURE was right
+        # throughout. [[copy-drift]]
         import re as _re
         s = self._bible()
         m = _re.search(r"MULE_INV_W\s*=\s*(\d+),\s*MULE_INV_H\s*=\s*(\d+)", s)
         self.assertIsNotNone(m, "the inventory geometry constants are gone")
-        self.assertEqual((m.group(1), m.group(2)), ("10", "5"),
-                         "the mule inventory is not 10x5 — his ruling was 5 rows, not the base "
-                         "game's 4")
+        self.assertEqual((m.group(1), m.group(2)), ("10", "4"),
+                         "the mule inventory is not 10x4 — his correction was 40 cells, not 50")
+        st = _re.search(r"MULE_STASH_W\s*=\s*(\d+),\s*MULE_STASH_H\s*=\s*(\d+)", s)
+        self.assertEqual((st.group(1), st.group(2)), ("10", "10"))
+        # and the total a reader would compute from them
+        self.assertEqual(int(st.group(1)) * int(st.group(2))
+                         + int(m.group(1)) * int(m.group(2)), 140,
+                         "the derived mule capacity is no longer 140")
 
     def test_the_printed_geometry_is_DERIVED_not_retyped(self):
         # The two places that print the geometry live in a different scope from the packer, so the
@@ -28336,6 +28364,163 @@ class TestV2239OneMuleGeometry(unittest.TestCase):
                          "lastPct is back on a hardcoded capacity")
         self.assertIn("_occ(last) / MULE_CAP", s,
                       "lastPct no longer derives from the one capacity constant")
+
+
+class TestV2240TheCropIsREACHABLE(unittest.TestCase):
+    """#45 — the crop is stored, served and now SHOWN. Storage nobody can look at is not evidence.
+
+    ⚠ THE LANE WAS INERT AT THE DISPLAY END. The sweep derived the rectangle, wrote the file and
+    hung it on the sighting; _witness_rows carried it; and then nothing on the board read it. Three
+    correct halves and no join — the same shape that made v2223's watchdog skip every reel."""
+
+    def _bible(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_the_record_CARRIES_the_crop(self):
+        s = self._bible()
+        self.assertIn("crop: w0.crop || null", s,
+                      "the chronicle record drops the crop, so the board can never see it")
+        self.assertIn("cropWhy: w0.cropWhy || null", s,
+                      "the reason for a missing crop is dropped, so absence stops being explained")
+
+    def test_the_crop_builder_does_NOT_append_a_second_extension(self):
+        # ⚠ THE v1960 BUG, ONE STEP AWAY. _chFrameHref APPENDS '.jpg' because console frameIds carry
+        # no extension; 282 of 324 rows once 404'd on a doubled extension. Crop paths always carry
+        # it, so they get their own builder rather than a special case bent into a working one.
+        s = self._bible()
+        self.assertIn("window._chCropHref", s, "the crop URL builder is gone")
+        # ⚠ ANCHORED, NOT COUNTED. `s[i:i+700]` is a byte-counted window: it silently reads past the
+        # function into whatever follows, and it comes back short — or empty — the moment the file
+        # shifts. assertNotIn PASSES on an empty slice, so the guard would go quiet exactly when it
+        # stopped measuring. The suite has a meta-guard for this and it caught me writing one.
+        # [[source-reading-guard]]
+        body = _between(self, s, "window._chCropHref", "var _frameHref",
+                        what="the crop href builder")
+        self.assertNotIn("+ '.jpg'", body,
+                         "the crop builder appends an extension the path already has")
+
+    def test_a_stored_path_cannot_CLIMB_out_of_hist(self):
+        # The path comes off disk and lands in a URL. Anything with .. must be refused, not encoded.
+        s = self._bible()
+        body = _between(self, s, "window._chCropHref", "var _frameHref",
+                        what="the crop href builder")
+        self.assertIn("indexOf('..')", body,
+                      "a stored crop path could climb out of the footage directory")
+
+    def test_the_ROW_actually_renders_it(self):
+        s = self._bible()
+        self.assertIn("+ frame + crop", s,
+                      "the crop element is built and never placed in the row — inert again")
+
+    def test_the_existing_route_serves_it_without_a_new_endpoint(self):
+        # _serve_hist realpath-joins under HIST_DIR and requires .jpg; tooltip_crops sits under it,
+        # so the crop is already servable. Asserted so nobody adds a redundant second route.
+        import io as _io, os as _os
+        src = _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "control_app.py"),
+                       encoding="utf-8").read()
+        self.assertIn('if path.startswith("/hist/")', src, "the /hist/ route is gone")
+
+
+class TestV2240APluralBaseMatchedNothing(unittest.TestCase):
+    """Konyo, on the Rainbow Facet: "it should be the size 1x1, like the amulet next to it",
+    "it should be Unqique colored", "image should be a JEWEL ingame".
+
+    ⚠ ONE CHARACTER, THREE SYMPTOMS. Every footprint rule is written with \b word boundaries around
+    a SINGULAR keyword. ITEM_CODEX gives the facet base "Jewels" — PLURAL — so `\bjewel\b` cannot
+    match, the trailing s blocking the boundary. It matched NO branch and fell through to the
+    {w:1,h:2} default, rendering a 1x1 jewel two cells tall beside a 1x1 amulet.
+
+    MEASURED, not assumed: Hotspur carries base "Boots" and misses `\bboot\b` identically."""
+
+    def _bible(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_a_plural_base_is_de_pluralised_before_the_rules_run(self):
+        s = self._bible()
+        self.assertIn("s.replace(/(\\w)s\\b/g, '$1')", s,
+                      "a plural base once again matches no footprint rule and takes the default")
+
+    def test_the_facet_art_is_the_JEWEL_not_a_diamond(self):
+        # _HDUS OVERRIDES D2IO_ART, and D2IO_ART already had the right art. The HD map replaced a
+        # correct purple jewel with a perfect-diamond graphic, so the override is what had to go —
+        # not the good entry underneath it.
+        s = self._bible()
+        self.assertNotIn('"Rainbow Facet":"art/hd_perfect_diamond.png"', s,
+                         "the HD map is overriding the jewel with a diamond again")
+        self.assertIn('"Rainbow Facet":"art/mr_rainbowfacet.png"', s,
+                      "the real jewel art is gone from D2IO_ART")
+
+    def test_the_jewel_art_file_exists(self):
+        import os as _os
+        root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        self.assertTrue(_os.path.exists(_os.path.join(root, "art", "mr_rainbowfacet.png")),
+                        "the facet points at art that is not on disk")
+
+    def test_the_tooltip_NAME_takes_its_rarity_colour(self):
+        # Every tip-r-* rule set border and glow and stopped, so the card was FRAMED in the right
+        # colour while the title stayed gold for a unique, a set, a rare and a magic item alike.
+        import re as _re
+        s = self._bible()
+        rules = _re.findall(r"#arttip\.tip-r-([a-z]+) \.att-name", s)
+        for want in ("unique", "set", "magic", "rare"):
+            self.assertIn(want, rules,
+                          "the tooltip name no longer takes the %s colour" % want)
+
+    def test_the_ROUTE_from_base_to_size_still_reaches_1x1(self):
+        # PIN THE LAW BY ITS INSTANCE TOO — the de-pluralise line could survive while the 1x1 rule
+        # was edited out from under it.
+        s = self._bible()
+        self.assertIn("(ring|amulet|jewel|gem|rune)", s,
+                      "the 1x1 keyword rule is gone, so no de-pluralising can reach it")
+
+
+class TestV2240AnOverFullGridSaysSo(unittest.TestCase):
+    """Konyo, reading a mule card off the pixels: "those items that were squezed in here are 8
+    slots.. and there isnt enough room in this mule for those items."
+
+    ⚠ THE EYE CANNOT SETTLE THIS. A 2x4 beside a 1x2 legitimately looks ragged, so "the packer is
+    wrong" and "correct but ugly" are indistinguishable by looking. The packer MEASURES correct on
+    uniform items — 15 blades became 10 in stash + 5 in inventory, zero out-of-bounds, zero overlaps
+    — but I could not reproduce his exact locker without his item list, and guessing would have
+    meant 'fixing' something that may not be broken.
+
+    So the card measures itself. Silent when clean; names the fault when not.
+    [[feedback-suspect-the-instrument]]"""
+
+    def _bible(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_the_predicate_is_EXPORTED_so_it_can_be_reached(self):
+        # It began life inside gridHtml where nothing could call it — correct code no test can
+        # reach, the exact defect this session kept finding elsewhere.
+        s = self._bible()
+        self.assertIn("window._gridFault = function", s, "the fault predicate is no longer exported")
+        self.assertIn("window._gridFault(placed, gw, gh)", s,
+                      "gridHtml no longer consults the predicate — the check is inert")
+
+    def test_it_counts_all_three_faults(self):
+        body = _between(self, self._bible(), "window._gridFault = function", "function gridHtml(",
+                        what="the grid fault predicate")
+        self.assertIn("used > cap", body, "it no longer compares cells claimed against capacity")
+        self.assertIn("oob++", body, "it no longer counts items outside the grid")
+        self.assertIn("over++", body, "it no longer counts cells claimed twice")
+
+    def test_it_is_SILENT_when_the_grid_is_clean(self):
+        # A note that always shows is furniture; the whole value is that it appears only on a fault.
+        body = _between(self, self._bible(), "var _f = window._gridFault", "var cells=''",
+                        what="the fault note builder")
+        self.assertIn("_f.fault", body, "the note no longer keys on the fault flag")
+        self.assertIn("''", body, "there is no empty branch — the note would always render")
+
+    def test_the_fault_style_exists_and_reads_as_a_warning(self):
+        s = self._bible()
+        self.assertIn(".vd-gridfault{", s, "the fault line has no style, so it renders unstyled")
 
 
 if __name__ == "__main__":
