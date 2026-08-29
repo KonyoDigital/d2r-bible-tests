@@ -18509,6 +18509,34 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
     var pc = _pieces(); if (pc[n]) return { kind:'set-piece', canonical: pc[n] };
     var ro = _roster(); if (ro[n]) return { kind:'unique', canonical: ro[n] };
     var bd = _bases(); if (bd[n]) return { kind:'base', canonical: bd[n] };
+    /* ══ v2266 — THE RESOLVER DID NOT KNOW THE CATALOGUE'S OWN CANONICAL KEYS ═══════════════════
+       tvVaultRegister canonicalises a name to its ITEMS entry ON PURPOSE — v792, so that
+       'Harlequin Crest' and 'Harlequin Crest (Shako)' are never two vault tiles — and the ITEMS key
+       for that item IS the parenthesised form. So d2r_owned holds `Harlequin Crest (Shako)` while
+       d2r_foundLog holds the roster form `Harlequin Crest`, and asking THIS function about the
+       string the vault itself wrote answered {kind:'unknown', canonical:null}.
+
+       That is not a sloppy write. It is two catalogues with two canonical forms for one item, and a
+       resolver that knew only one of them. Found by the v2263 ghost assertion on its first CI run,
+       which named the item rather than the count.
+
+       The rule is tvVaultRegister's own, at :35025: strip a trailing parenthetical. It runs ONLY as
+       a second pass, so an exact match always wins and nothing that resolves today can move.
+
+       MEASURED across 438 names (every ITEMS entry, every roster name, plus socketed bases and
+       skillers whose names legitimately carry parentheses): exactly SIX change, every one of them
+       unknown -> unique, and not one existing resolution differs.
+         Crescent Moon (amulet) · Harlequin Crest (Shako) · Gull (dagger)
+         The Hand of Broc (gloves) · Hellmouth (gloves) · Athena's Wrath (set piece)
+       `Socketed 2H Weapon (6os)`, `Amazon Javelin & Spear Skiller (GC)` and the other
+       parenthesis-carrying strings are NOT among them — the risk this fallback obviously carries,
+       measured rather than argued. [[the-unjoined-end]] [[source-reading-guard]] */
+    var _bare = _norm(String(name || '').replace(/\s*\([^)]*\)\s*$/, ''));
+    if (_bare && _bare !== n) {
+      if (pc[_bare]) return { kind:'set-piece', canonical: pc[_bare] };
+      if (ro[_bare]) return { kind:'unique',    canonical: ro[_bare] };
+      if (bd[_bare]) return { kind:'base',      canonical: bd[_bare] };
+    }
     return { kind:'unknown', canonical:null };
   };
   // the real unique roster (ITEM_VALUE ∪ _UNI_EXTRA), canonical names — for tallies that need to
@@ -47287,7 +47315,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2265', name:'v2265 - The Pool Was Standing In For The Item', date:'2026-08-29', note:'four reds, two of them the product' };
+  window.D2R_BUILD = { id:'v2266', name:'v2266 - The Board Did Not Know Its Own Canonical Key', date:'2026-08-29', note:'six catalogue names the resolver refused' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
