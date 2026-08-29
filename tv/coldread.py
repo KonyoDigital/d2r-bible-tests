@@ -89,6 +89,21 @@ def _shoot(tab, w, h, out_dir, tag, region=None, suffix=""):
         t.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                deviceScaleFactor=1, mobile=False)
         time.sleep(4.0)
+        # ⚠ v2273 — CLAIM THE WORLD, OR HALF THE SURFACES ARE NOT THERE TO PHOTOGRAPH.
+        # bible.html:3859 resolves OWNER from `navigator.webdriver && file:`. A CDP tab sets no
+        # webdriver flag, so this harness loads as a GUEST — and a guest boots with its SEEDS
+        # SUPPRESSED, which is why `.vrg-cols` came back "not on this page" the moment the profile
+        # was cleaned: the routing ledger has nothing to render without the seed floor. The
+        # documented escape hatch (d2r_ownerClaim='*') puts the harness in the same world the suite
+        # and he are in, so what it photographs is what he sees.
+        # [[cdp-probe-reads-a-guest-world]]
+        t.ev("(function(){try{localStorage.setItem('d2r_ownerClaim','*');}catch(e){}return 1})()")
+        t.send("Page.navigate", url="file://" + STAGE)
+        time.sleep(3.5)
+        for _ in range(20):
+            if t.ev("(function(){return document.readyState})()") == "complete":
+                break
+            time.sleep(0.5)
         t.ev("(function(){document.documentElement.style.scrollBehavior='auto';"
              "try{window.switchTab&&window.switchTab(%s)}catch(e){}return 1})()" % json.dumps(tab))
         # WAIT FOR THE FADE TO FINISH, then say so — never assume a fixed sleep was enough
@@ -225,6 +240,66 @@ def _shoot(tab, w, h, out_dir, tag, region=None, suffix=""):
         t.close()
 
 
+CONSOLE_URL = "http://127.0.0.1:%s/" % (os.environ.get("TV_CONTROL_PORT") or "17772")
+
+
+def _shoot_console(tab, w, h, out_dir, tag, suffix=""):
+    """Photograph the CONSOLE's own UI. -> (path|None, why)
+
+    ⚠ v2273 — THE SECOND EYE HAD NEVER SEEN THE CONSOLE, AND THAT IS HOW A REGRESSION REACHED HIM.
+    This harness staged bible.html and only bible.html. The DAILY TASK FORCE lives in the console
+    (tv/control_ui.html), so when v2270's rename broke d2r_forgeSummary's `grail:` key and the
+    Uniques row stopped rendering, NO cold read could have caught it — the surface was not in any
+    frame. Konyo found it himself and said the obvious thing: "make it so its a synced unit and
+    there is no gap. so everything needs to be linked 1-1."
+
+    ⚠ ITS OWN BROWSER, NEVER HIS WINDOW. tv/demo_console.mjs already drives :17772 this way and
+    says so in its own header — a fresh headless browser of its own. This follows that precedent
+    exactly: a second CLIENT of a local HTTP server, which is what any browser is, and never a hand
+    on the window he is looking at. [[borrowed-surface]]
+
+    It refuses rather than returning a picture of nothing: no console listening, a non-200, or a
+    tab that never becomes active are each a refusal with the value it saw.
+    """
+    t = rc._Tab(CONSOLE_URL)
+    try:
+        t.send("Page.enable")
+        t.send("Runtime.enable")
+        t.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
+               deviceScaleFactor=1, mobile=False)
+        time.sleep(3.0)
+        for _ in range(24):
+            if t.ev("(function(){return document.readyState})()") == "complete":
+                break
+            time.sleep(0.5)
+        href = t.ev("(function(){return String(location.href)})()")
+        if not href or "17772" not in str(href):
+            return None, ("the console did not load at %s (got %r) — nothing is listening, so this "
+                          "is UNKNOWN, not clean" % (CONSOLE_URL, href))
+        # the task force is the surface that was missed; prove it is present before shooting
+        seen = t.ev("""(function(){var n=document.querySelectorAll('.tf-row').length;
+                       var chron=document.querySelectorAll('.tf-row.tf-chron').length;
+                       return n + '/' + chron;})()""")
+        try:
+            rows, chron = [int(x) for x in str(seen).split("/")]
+        except (TypeError, ValueError):
+            return None, "could not count task force rows on the console (got %r)" % (seen,)
+        if rows < 1:
+            return None, ("the console rendered NO task force rows — a frame of that is a picture "
+                          "of an empty panel, and a skip is not a pass")
+        png = base64.b64decode(t.send("Page.captureScreenshot", format="png",
+                                      captureBeyondViewport=False)["data"])
+        if rc._looks_black(png):
+            return None, "the console capture came back black — a refusal, not a screenshot"
+        p = os.path.join(out_dir, "%s_console%s_%d.png" % (tag, suffix, w))
+        with open(p, "wb") as fh:
+            fh.write(png)
+        return p, ("console @%dx%d · %d task force row(s), %d of them chronicle rows"
+                   % (w, h, rows, chron))
+    finally:
+        t.close()
+
+
 def main(argv):
     ref = argv[1] if len(argv) > 1 else "origin/main"
     out_dir = argv[2] if len(argv) > 2 else os.path.join(ROOT, "tv", ".render_shots")
@@ -257,6 +332,11 @@ def main(argv):
                 ("vault", 1440, 1000, ".vrg-cols", "-ledger"),
                 ("vault",  901,  900, ".vrg-cols", "-ledger")):
             p, why = _shoot(tab, w, h, out_dir, tag, region, sfx)
+            print(("  ✓ " if p else "  ✗ ") + why)
+            (made if p else failed).append(p or why)
+        # v2273 — AND THE CONSOLE, so the two halves of what he looks at are one unit.
+        for w, h in ((1440, 1000), (901, 900)):
+            p, why = _shoot_console(None, w, h, out_dir, tag)
             print(("  ✓ " if p else "  ✗ ") + why)
             (made if p else failed).append(p or why)
         if failed:
