@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2267",
+  "ver": "v2269",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2267: the row spent its width on the destination",
+  "note": "v2269: nine zones printed a character index as an act",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

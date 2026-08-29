@@ -4881,8 +4881,15 @@
   .tf-row.tf-hero .tf-t { font-size: var(--fs-sm); color: #ecdfbb; white-space: normal; }
   .tf-row.tf-hero .tf-g { font-size: var(--fs-lg); }
   /* v1615 — the hero's art scales with its bigger glyph slot, so the lead row still leads */
-  .tf-row.tf-hero .tf-i { width: 23px; height: 23px; vertical-align: -4px; }
+  .tf-row.tf-hero .tf-i { width: 30px; height: 30px; vertical-align: -6px;   /* v2269 — Konyo: the HD art here reads smaller than it used to */ }
   .tf-row.tf-hero-ready { border-color: rgba(143,230,160,.5); box-shadow: inset 3px 0 0 var(--mint);
+  /* v2269 — THE UNIQUES HERO WAS THE ONE CHRONICLE ROW NOT WEARING ITS OWN RARITY. The three rows
+     beneath it already paint --rar-rune / --rar-unique / --rar-set (.tf-q-* above); the hero that
+     LEADS on uniques rendered in the panel generic gold, so the first row he looks at was the only
+     one not colour-synced to what it is about. Same shape as .tf-hero-ready mint / .tf-hero-ai violet. */
+  .tf-hero-grail { border-color: rgba(199,179,119,.5); box-shadow: inset 3px 0 0 var(--rar-unique); background: linear-gradient(180deg, rgba(199,179,119,.12), rgba(0,0,0,.26)); }
+  .tf-hero-grail .tf-t b { color: var(--rar-unique); }
+  .tf-hero-grail .tf-tag.tgt { border-color: rgba(199,179,119,.6); color: var(--rar-unique); }
     background: linear-gradient(180deg, rgba(143,230,160,.10), rgba(0,0,0,.26)); }
   .tf-row.tf-hero-ai { border-color: rgba(185,165,255,.45); box-shadow: inset 3px 0 0 #b9a5ff;
     background: linear-gradient(180deg, rgba(185,165,255,.09), rgba(0,0,0,.26)); }
@@ -14306,7 +14313,10 @@
         hero = { g: '✶', go: _aiGo, t: _aiSay(ai, 84), tag: 'DAILY PICK', cls: 'ai' };
       } else if (fs && fs.grail && fs.grail.total && (fs.grail.total - (fs.grail.found || 0)) > 0){
         var gl = fs.grail.total - (fs.grail.found || 0);
-        hero = { art: 'uniques', g: '🏆', t: 'Chase the Grail — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'GRAIL', cls: 'grail' };
+        /* v2269 — "grail is something we invented" (Konyo). It is our word for a database state and it
+           was on the flagship row as though the game used it. The row is about UNIQUES he has not
+           found; the internal class stays `grail` so nothing downstream is re-keyed. */
+        hero = { art: 'uniques', g: '🏆', t: 'Hunt The Chronicle — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'CHRONICLE', cls: 'grail' };
       }
       // v1616 — `icon` (the item's OWN art, from the bridge) beats `art` (a CONSOLE_ART key) beats the glyph
       if (hero) rows.push('<div class="tf-row tf-hero tf-hero-' + hero.cls + (hero.go ? ' tf-go' : '') + '"' + (hero.go || '')
@@ -14364,7 +14374,8 @@
           + '<span class="tf-tag ' + (done ? 'dim' : 'hunt') + '">' + (done ? 'DONE' : pct + '%') + '</span></div>';
       };
       if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('runes', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build', 'runes'));
-      if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('uniques', 'Grail Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt', 'funi'));
+      // v2269 — "grail is something we invented" (Konyo). His word for the row, not ours.
+      if (fs && fs.grail && fs.grail.total) rows.push(_tfChron('uniques', 'Chronicle Uniques', fs.grail.found || 0, fs.grail.total, 'left to hunt', 'funi'));
       if (fs && fs.sets && fs.sets.total) rows.push(_tfChron('sets', 'Sets', fs.sets.found || 0, fs.sets.total, 'pieces left', 'fsets'));
       /* v1866 — A SIMULATION IS NOT A RUN. HD_ALL filters `x.stub`, which means a 1-read ghost
          with no footage, NOT a sim — so his six- and seven-frame SIM sessions were counted here as
@@ -16413,9 +16424,36 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                lvl: lvl, why: hint };
     };
     var _artFor = function (name) { var i = TZ_INFO[_tzKey(name)]; return i ? i[2] : null; };
-    var _actOf = function (file) {
+    /* ══ v2269 — NINE ZONES REPORTED A GARBAGE ACT, AND HE CAUGHT ONE ON HIS SCREEN ═══════════
+       Konyo: "how can two terror zone at the same time from two different acts be terrorized?"
+       The answer is that they CAN — D2R terrorizes a GROUP, and Dry Hills / Halls of the Dead is
+       one real group, so "2 LIVE TOGETHER" was right. What was wrong is that the panel said
+       ACTS 2+L, and there is no act L.
+
+       `file.slice(3, 4)` took CHARACTER 3 of the art key. That is correct only for keys shaped
+       `actN-...`, and nine zones carry a bespoke key with no prefix, so the panel printed whatever
+       letter happened to sit at index 3:
+
+           halls-of-the-dead -> 'l'      stony-tomb    -> 'y'     harem     -> 'e'
+           palace-cellar     -> 'a'      claw-viper    -> '-'     flayer-*  -> 'y'
+           talrasha-*        -> 'r'
+
+       A byte-counted slice standing in for a parse — the class this repo's own
+       test_no_new_byte_counted_slices exists to stop. So: match the shape instead of counting into
+       it, and name the nine exceptions by ZONE, which is the thing that actually has an act.
+       Every one is verified against the game: the Halls of the Dead, Stony Tomb, Claw Viper Temple,
+       Harem, Palace Cellar and both Tal Rasha rooms are Act 2; both Flayer areas are Act 3. */
+    var TZ_ACT_BY_ZONE = {
+      'Halls of the Dead': '2', 'Stony Tomb': '2', 'Claw Viper Temple': '2', 'Harem': '2',
+      'Palace Cellar': '2', "Tal Rasha's Chamber": '2', "Tal Rasha's Tombs": '2',
+      'Flayer Dungeon': '3', 'Flayer Jungle': '3'
+    };
+    var _actOf = function (file, zone) {
+      if (zone && TZ_ACT_BY_ZONE[zone]) return TZ_ACT_BY_ZONE[zone];
       if (!file) return null;
-      return file.indexOf('exp-') === 0 ? '5' : file.slice(3, 4);
+      if (file.indexOf('exp-') === 0) return '5';
+      var m = /^act([1-5])-/.exec(file);
+      return m ? m[1] : null;      // v2269 — UNKNOWN stays unknown; it never invents a letter
     };
     /* THE OXFORD COMMA BUG, which was on his screen when he reported this. The splitter was
        /,\s*|\s+and\s+/ — alternation is tried left-to-right, so in "Lost City, Valley of Snakes,
@@ -16440,7 +16478,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         + '<i></i><em class="tzz-why"></em>'
         + '<em>the tracker has not announced the next window</em></span></div>';
       return parts.map(function (x) {
-        var file = _artFor(x), act = _actOf(file), t = _tzTier(x);
+        var file = _artFor(x), act = _actOf(file, x), t = _tzTier(x);
         var face = file
           ? '<span class="tzz-art" style="background-image:url(/art/tz_' + file + '.jpg)"></span>'
           /* v1593 — SELF-CONTAINED, AND THIS BUG WAS MINE. v1569 drew a rune glyph for a zone with
@@ -16609,7 +16647,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       var acts = String(z || '').split(/,\s*|\s+and\s+/)
         .map(function (x) { return x.trim().replace(/^and\s+/i, '').trim(); })
         .filter(function (x) { return x.length; })
-        .map(function (x) { return _actOf(_artFor(x)); })
+        .map(function (x) { return _actOf(_artFor(x), x); })
         .filter(function (a) { return a; });
       var uniq = acts.filter(function (a, i) { return acts.indexOf(a) === i; }).sort();
       var span = uniq.length > 1

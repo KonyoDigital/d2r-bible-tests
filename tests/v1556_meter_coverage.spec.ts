@@ -147,7 +147,7 @@ test.describe('v1630 — the grail numbers live on the Task Force, once', () => 
     await hub(page, P);
     const rows = await chronRows(page);
 
-    const u = pick(rows, 'Grail Uniques');
+    const u = pick(rows, 'Chronicle Uniques');
     expect(u, 'the Grail Uniques chronicle row must exist').toBeTruthy();
     expect(u.found).toBe(P.grail.found);
     expect(u.total).toBe(P.grail.total);
@@ -174,7 +174,7 @@ test.describe('v1630 — the grail numbers live on the Task Force, once', () => 
     await seed(page, B);
     const b = await chronRows(page);
 
-    const ua = pick(a, 'Grail Uniques'), ub = pick(b, 'Grail Uniques');
+    const ua = pick(a, 'Chronicle Uniques'), ub = pick(b, 'Chronicle Uniques');
     const sa = pick(a, 'Sets'),          sb = pick(b, 'Sets');
     expect(ua && ub && sa && sb, 'both renders must produce both chronicle rows').toBeTruthy();
     expect(ua.found).toBe(A.grail.found);

@@ -94,7 +94,7 @@ const survey = (page: any) => page.evaluate(() => {
     },
     taskforce: {
       runes: byText('.tf-row.tf-chron', 'Runewords'),
-      uniques: byText('.tf-row.tf-chron', 'Grail Uniques'),
+      uniques: byText('.tf-row.tf-chron', 'Chronicle Uniques'),
       sets: byText('.tf-row.tf-chron', 'Sets'),
       hero: src(document.querySelector('.tf-row.tf-hero')),
     },

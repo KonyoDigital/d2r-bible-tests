@@ -80,7 +80,7 @@ test.describe('v1613 — every name on the hunt hub goes where it says', () => {
        an art key — a passing test failing on a correct change, which is how tests get loosened
        instead of fixed. The tab is what this test is about; the picture has its own spec. */
     expect(UI).toMatch(/_tfChron\('[^']+', 'Runewords'[^)]*'runes'\)/);
-    expect(UI).toMatch(/_tfChron\('[^']+', 'Grail Uniques'[^)]*'funi'\)/);
+    expect(UI).toMatch(/_tfChron\('[^']+', 'Chronicle Uniques'[^)]*'funi'\)/);
     expect(UI).toMatch(/_tfChron\('[^']+', 'Sets'[^)]*'fsets'\)/);
   });
 
@@ -152,7 +152,7 @@ test.describe('v1613 — every name on the hunt hub goes where it says', () => {
     expect(await hit('#hd-tz .tzz', 'Durance of Hate'),
       'Durance of Hate must open the BOSS page — "routed to mephisto.. for the run itself"').toBe('bosses');
     expect(await hit('.tf-chron', 'Runewords')).toBe('runes');
-    expect(await hit('.tf-chron', 'Grail Uniques')).toBe('funi');
+    expect(await hit('.tf-chron', 'Chronicle Uniques')).toBe('funi');
     expect(await hit('.tf-chron', 'Sets')).toBe('fsets');
     expect(await hit('#hd-forge-chips .hd-chip', 'open Forge')).toBe('forge');
 

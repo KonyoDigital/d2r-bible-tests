@@ -55,7 +55,33 @@ def _stage(ref):
     return STAGE
 
 
-def _shoot(tab, w, h, out_dir, tag):
+def _shoot(tab, w, h, out_dir, tag, region=None, suffix=""):
+    """Capture one tab at one width. `region` is a CSS selector to photograph on its own.
+
+    ⚠ v2268 — WITHOUT `region` THIS HARNESS ONLY EVER SAW THE FIRST SCREEN, and four consecutive
+    cold reads were "clean" about a page whose defect sat two screens below the fold. Measured on
+    the vault tab: the routing ledger's first row is at y=2114 (1440x1000) and y=2719 (901x900), on
+    pages 2611 and 3208 tall. A whole column of item names was truncated to as little as THREE
+    PIXELS and no read could have seen it. [[gate-blind-to-unexercised-input]]
+
+    Four things had to be true before a frame of a deep region was worth handing to anyone, and
+    each one was learned by getting a wrong picture first:
+
+      1. THE PAGE DOES NOT SCROLL under setDeviceMetricsOverride. scrollIntoView, window.scrollTo,
+         documentElement.scrollTop and body.scrollTop all leave scrollY at 0 and the rect unmoved,
+         even after forcing html{overflow:auto} — the emulated viewport lays the whole document out
+         at once. So this is a capture problem, not a scrolling one.
+      2. MEASURE AND CAPTURE IN ONE LAYOUT. Measuring in a 1000px viewport and then capturing with
+         captureBeyondViewport reflows the page and the crop lands ~2000px off. Grow the viewport
+         FIRST, then measure.
+      3. OPEN WHAT IS CLOSED — and a `.collapsed` class is not the only way to be closed. The
+         routing ledger lives inside a <details> that ships shut, and a child of a closed <details>
+         reports its FULL height from getBoundingClientRect while nothing paints. That rect is a lie
+         about visibility, and it produced a crop of a heading over blank space which I then read as
+         "the panel is collapsed" and nearly retracted a correct diagnosis over.
+      4. REFUSE IF THE REGION IS EMPTY. A picture of a card with no rows in it, labelled with the
+         card's name, is exactly the false evidence this whole lane exists to prevent — the eye read
+         four item names off one and called them complete. [[feedback-suspect-the-instrument]]"""
     t = rc._Tab("file://" + STAGE)
     try:
         t.send("Page.enable")
@@ -120,20 +146,81 @@ def _shoot(tab, w, h, out_dir, tag):
         if not settled:
             return None, ("tab %r never reached full opacity in %.0fs — last saw %s"
                           % (tab, waited, saw))
+        crop_box = None
+        if region:
+            opened = t.ev("""(function(){var e=document.querySelector(%s);
+                if(!e) return 'absent';
+                var n=0;
+                for(var p=e;p&&p!==document.body;p=p.parentElement){
+                  if(p.tagName==='DETAILS' && !p.open){ p.open=true; n++; }
+                  if(p.classList && p.classList.contains('collapsed')){
+                    if(p.id && typeof window.toggleCardCollapse==='function'){
+                      try{ window.toggleCardCollapse(p.id); }catch(err){ p.classList.remove('collapsed'); }
+                    } else { p.classList.remove('collapsed'); }
+                    n++; }}
+                return String(n);})()""" % json.dumps(region))
+            if opened == "absent":
+                return None, "%s: %r is not on this page, so there is nothing to look at" % (tab, region)
+            time.sleep(1.2)
+            page_h = t.ev("(function(){return String(Math.min(12000,"
+                          "document.documentElement.scrollHeight))})()")
+            try:
+                t.send("Emulation.setDeviceMetricsOverride", width=w, height=int(page_h),
+                       deviceScaleFactor=1, mobile=False)
+            except (TypeError, ValueError):
+                return None, "%s: could not grow the viewport to reach %r" % (tab, region)
+            time.sleep(1.2)
+            meas = t.ev("""(function(){var e=document.querySelector(%s);
+                if(!e) return 'absent';
+                var r=e.getBoundingClientRect();
+                return [Math.round(r.left),Math.round(r.top+(window.scrollY||0)),
+                        Math.round(r.width),Math.round(r.height),
+                        e.querySelectorAll('.vrg-row,tr,li').length].join(',');})()""" % json.dumps(region))
+            try:
+                bx, by, bw, bh, rows_n = [int(v) for v in str(meas).split(",")]
+            except (TypeError, ValueError):
+                return None, "%s: could not locate %r after the viewport grew" % (tab, region)
+            if rows_n < 1:
+                return None, ("%s: %r rendered NO rows, so the frame would show an empty card and "
+                              "prove nothing. A skip is not a pass." % (tab, region))
+            if bw < 40 or bh < 40:
+                return None, ("%s: %r measures %dx%d — too small to be the surface it names"
+                              % (tab, region, bw, bh))
+            crop_box = (bx, by, bw, bh, rows_n)
         png = base64.b64decode(t.send("Page.captureScreenshot", format="png",
                                       captureBeyondViewport=False)["data"])
         if rc._looks_black(png):
             return None, "the %s capture came back black — a refusal, not a screenshot" % tab
+        if crop_box:
+            bx, by, bw, bh, rows_n = crop_box
+            try:
+                from PIL import Image
+                import io as _io
+                im = Image.open(_io.BytesIO(png))
+                pad = 12
+                cut = im.crop((max(0, bx - pad), max(0, by - pad),
+                               min(im.width, bx + bw + pad), min(im.height, by + bh + pad)))
+                if cut.width < 40 or cut.height < 40:
+                    return None, ("%s: the crop of %r came out %dx%d — the region is not inside the "
+                                  "captured page" % (tab, region, cut.width, cut.height))
+                buf = _io.BytesIO(); cut.save(buf, format="PNG"); png = buf.getvalue()
+            except ImportError:
+                return None, ("%s: Pillow is missing, so a below-the-fold region cannot be cut out. "
+                              "A skip is not a pass." % tab)
+            if rc._looks_black(png):
+                return None, "the %s %r crop came back black — a refusal" % (tab, region)
         broken = t.ev("""(function(){var n=0;document.querySelectorAll('img').forEach(function(i){
             if(i.complete&&i.naturalWidth===0) n++;});return n})()""")
         if isinstance(broken, int) and broken > BROKEN_CEILING:
             return None, ("%d broken images on %s — above the %d the real page carries. The "
                           "document is not resolving its relative art; do not show this to "
                           "anyone." % (broken, tab, BROKEN_CEILING))
-        p = os.path.join(out_dir, "%s_%s_%d.png" % (tag, tab, w))
+        p = os.path.join(out_dir, "%s_%s%s_%d.png" % (tag, tab, suffix, w))
         with open(p, "wb") as fh:
             fh.write(png)
-        return p, "%s @%dx%d · settled in %.1fs · %s broken img" % (tab, w, h, waited, broken)
+        return p, ("%s%s @%dx%d · settled in %.1fs · %s broken img%s"
+                   % (tab, suffix, w, h, waited, broken,
+                      (" · %d rows in %s" % (crop_box[4], region)) if crop_box else ""))
     finally:
         t.close()
 
@@ -160,9 +247,16 @@ def main(argv):
         tag = m.group(1) if m else "unknown"
         print("staged %s as %s (at the repo root, so art/ resolves)" % (ref, tag))
         made, failed = [], []
-        for tab, w, h in (("main", 1440, 1000), ("vault", 901, 900), ("tools", 1440, 1000),
-                          ("main", 375, 800)):
-            p, why = _shoot(tab, w, h, out_dir, tag)
+        # (tab, width, height, region-selector, filename suffix)
+        for tab, w, h, region, sfx in (
+                ("main",  1440, 1000, None, ""),
+                ("vault",  901,  900, None, ""),
+                ("tools", 1440, 1000, None, ""),
+                ("main",   375,  800, None, ""),
+                # v2268 — the surfaces BELOW THE FOLD, which no cold read could reach until now
+                ("vault", 1440, 1000, ".vrg-cols", "-ledger"),
+                ("vault",  901,  900, ".vrg-cols", "-ledger")):
+            p, why = _shoot(tab, w, h, out_dir, tag, region, sfx)
             print(("  ✓ " if p else "  ✗ ") + why)
             (made if p else failed).append(p or why)
         if failed:
