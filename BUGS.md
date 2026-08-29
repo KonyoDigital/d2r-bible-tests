@@ -2859,6 +2859,36 @@ spec was NOT rewritten tonight, because a clean fixture could not be built: othe
 repopulate `d2r_owned` during load, so an isolated before/after could not be measured, and I will
 not rewrite a spec on a measurement I could not isolate.
 
+**2026-08-29 (b) — TWO FAILURES THAT DO NOT REPRODUCE, AND THE APP MEASURES CORRECT IN BOTH.**
+
+`v659_grail_seed` asserts `d2r_owned` is EMPTY after boot — "the seed must NEVER touch the vault",
+the v677 split. CI reads 12. Reproduced locally two ways, with a storage hook installed via
+`Page.addScriptToEvaluateOnNewDocument` BEFORE any page script so nothing could be missed:
+
+    owned cleared, ledger left populated  -> 0 writes to d2r_owned, final []
+    owned AND ledger cleared (the fresh-ledger path, which is what CI boots into)
+                                          -> 0 writes to d2r_owned, final [], ledger seeded to 353
+
+So the seed floor does NOT touch the vault on either path. `v425_vault_simulation` is the same
+shape: CI says 446 of 450 persist, local says 450 twice, and wiping every `d2r_` key to imitate a
+fresh CI profile loses all 450 instead — the wipe removes keys the boot path needs, so it models
+nothing.
+
+⚠ **NEITHER IS BEING "FIXED".** The app is correct in every reproduction available here, so
+changing it would be editing working code to satisfy a number I cannot reproduce. Both need a run
+on a genuinely clean profile — which is CI's, and CI is where those suites belong. Recorded as
+UNREPRODUCED rather than as either a defect or a flake, because one sighting in an environment I
+cannot enter is neither. [[unknown-stays-unknown]]
+
+**FIXED AND VERIFIED IN THE SAME PASS:** `v203_mule_vault`'s beforeEach only ADDED to the `owned`
+Set, which assumes it starts empty. It does not — the v677/v681 boot floor puts seed names in the
+physical vault before any fixture runs, so `chips === OWNED.length - 1` counted those too: 13 in CI
+against 7 expected, and 35 on a browser profile that had been driven around all night. Note that
+`localStorage.removeItem('d2r_owned')` would NOT have fixed it — `owned` is a closure Set already
+in memory, which is precisely why the fixture reaches it through `eval`. It now clears that Set
+first. Measured after the fix: 11 mules, exactly 7 chips, and the 7 are the 8 seeded minus the
+aggregate row, which is the spec's own stated reasoning.
+
 ## REG-113 (OPEN, NOT FIXED) — act5-hallsofanguish_graphic.png is a bad extraction, not a dark scene
 
 **Symptom.** Grok, during the v1639 render gate: "depicts a near-black void with faint gold outlines

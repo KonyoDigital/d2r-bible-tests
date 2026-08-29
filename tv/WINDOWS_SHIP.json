@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2259",
+  "ver": "v2260",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2259: A registry name without an apostrophe could never reach its codex note, and the normaliser folds curly quotes but never strips one",
+  "note": "v2260: The vault spec only added to the owned set and never cleared it, so it counted the boot floor as its own",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

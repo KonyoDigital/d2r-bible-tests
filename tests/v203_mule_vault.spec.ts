@@ -18,6 +18,15 @@ test.describe('v203 the vault', () => {
     await page.evaluate((names) => {
       localStorage.removeItem('d2r_muleRoster');
       localStorage.removeItem('d2r_muleAssign');
+      /* ⚠ CLEAR BEFORE SEEDING. This only ADDED, which assumes `owned` starts empty — it does
+         not. The v677/v681 boot floor puts seed names into the physical vault before any fixture
+         runs, so the dock already holds items and `chips === OWNED.length - 1` counts them too.
+         Measured: 13 chips in CI against the 7 expected, and 35 on a browser profile that had been
+         driven around, which is the same defect with a louder number.
+         `localStorage.removeItem('d2r_owned')` would NOT do it — `owned` is a closure Set that is
+         already in memory by now, which is exactly why this fixture reaches it through eval. So
+         clear THAT, and the count becomes the fixture's own. [[feedback-blind-fixture-green-gate]] */
+      eval('owned').clear();
       names.forEach((n: string) => eval('owned').add(n));
       (window as any).switchTab('tools');
       (window as any).renderVault();
