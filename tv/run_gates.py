@@ -251,6 +251,23 @@ GATES = [
              "should agree with, which neither lane can see alone — and pins that an unreadable or "
              "timestamp-less store is UNKNOWN rather than healthy. All five laws sabotage-proven "
              "RED."),
+    Gate("test_health_engine", [sys.executable, os.path.join(HERE, "test_health_engine.py")], 60,
+         why="v2277 — ONE HEALTH ENGINE, RED/GREEN, REPORTING ONLY. Konyo: \"not sure we need a "
+             "live watchdog that fixes things might be wrong for the console and make a bug worse.. "
+             "but maybe a system that does red/green flag us... should be a system working one unit "
+             "system engine locked in\". Four things had to be asked BY HAND this session before "
+             "anyone knew they were wrong: a lane that had said nothing for 137h, a retired "
+             "migration whose flag left a destructive undo armed on every board since v2203, a "
+             "console asking ITSELF for the board's store, and my own unbounded glob holding a core "
+             "at 99.7% for 28 hours. Each was silent BY CONSTRUCTION. This pins that the engine "
+             "REPORTS and never repairs (it may not import subprocess or open a file for writing), "
+             "that a check which raises still appears in the report, and above all that UNKNOWN "
+             "never renders as ok — \"the board is not open so its store cannot be asked\" is not "
+             "\"fine\". The armed-migration law is proven RED against a reconstruction of the "
+             "actual pre-v2275 bytes, so it is not a check that has only ever seen green. AND IT "
+             "IS NOT A FIFTH SURFACE: the checks live here, the SURFACE is the existing eagle eye "
+             "(console_doctor), because this machine already had four things implementing "
+             "report-never-repair and a fifth would be copy-drift with three of them unread."),
     Gate("test_slot_identity", [sys.executable, os.path.join(HERE, "test_slot_identity.py")], 60,
          why="v2271 — SLOT IDENTITY. Konyo: \"it needs to be read within the tooltip and where and "
              "what cell box its located so it can have a slot identity for each item\". This pins "

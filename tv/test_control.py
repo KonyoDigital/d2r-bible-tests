@@ -4485,6 +4485,88 @@ class TestV2274TheConsoleMustNotASKITSELFForBoardFunctions(unittest.TestCase):
         self.assertIn("location.pathname", src,
                       "the refusal must report the path of the page that answered")
 
+    # ── v2277 — THE CLASS, NOT THE SITE ─────────────────────────────────────────────────────────
+    #: every function that evaluates BOARD-OWNED javascript. The tell is what the JS names:
+    #: bible.html globals (chronicleApply, restoreLedgerDatesFromGame, _D2R_PFX) or d2r_* stores.
+    #: control_ui.html defines NONE of those, so asking _MAIN_WIN can only ever refuse.
+    BOARD_EVALUATORS = [
+        ("chronicle_apply", "window.chronicleApply"),
+        ("board_set_mask", "the mask the board draws"),
+        ("board_ownership", "d2r_owned / _D2R_PFX"),
+        ("board_tick", "toggleOwned / toggleSetPiece / tvVaultRegister"),
+        ("board_restore_dates", "window.restoreLedgerDatesFromGame"),
+        ("vault_apply", "the vault register door"),
+    ]
+
+    def test_EVERY_board_owned_evaluator_prefers_the_board_window(self):
+        """⚠⚠ READ THE NEXT TEST BEFORE YOU TRUST THIS ONE. This is a SOURCE pattern, and as of
+        2026-08-29 the handle it prefers is NEVER SET IN THIS PROCESS — so this guard is green
+        while the join it stands for does not exist. It is kept because preferring the board handle
+        is right the moment that handle becomes reachable, and deleted-and-forgotten is worse. But
+        it is NOT evidence that registering works. [[the-unjoined-end]]
+
+        ⚠ v2274 fixed ONE site and left four siblings running the same defect.
+
+        Measured 2026-08-29: board_ownership, board_tick, board_restore_dates and the vault apply
+        all still read `w = globals().get("_MAIN_WIN")` and then refused with "the board window is
+        not open" — a perfectly honest sentence about the WRONG PAGE. Every one of them is a door
+        he presses. Fixing the named site and not the class is how a closed defect keeps running.
+        [[sweep-dont-ask]] [[feedback-generalize-fixes]]
+        """
+        src = self._src()
+        missed = []
+        for fn, what in self.BOARD_EVALUATORS:
+            marker = "\ndef %s(" % fn
+            if marker not in src:
+                # a renamed or deleted function must fail LOUDLY — a guard that quietly skips its
+                # subject is the shape of an absent guard. [[feedback-silence-is-not-evidence]]
+                missed.append("%s NO LONGER EXISTS (renamed? then re-point this guard)" % fn)
+                continue
+            body = _between(self, src, marker, "\ndef ", what="%s body" % fn)
+            if 'globals().get("_BOARD_WIN")' not in body:
+                missed.append("%s reaches for %s but asks _MAIN_WIN (the CONSOLE UI)" % (fn, what))
+        self.assertEqual(missed, [], "board-owned evaluators asking the wrong window:\n  " +
+                         "\n  ".join(missed))
+
+    def test_THE_BOARD_HANDLE_IS_SET_IN_A_CHILD_PROCESS_AND_THIS_IS_WHY_REGISTER_FAILS(self):
+        """★ THE FINDING THE GUARD ABOVE CANNOT MAKE. A cross-family review asked the question I
+        never did — "is board_window() even the same process?" — and the answer is no.
+
+        · :3698  subprocess.Popen([sys.executable, __file__, "--board-window", ...])
+        · :22166 that child, and only that child, calls board_window()
+        · :21979 which is where globals()["_BOARD_WIN"] = create_window(...) runs
+        So in the HTTP server _BOARD_WIN is ALWAYS None and every site falls through to _MAIN_WIN.
+
+        This test does not demand a fix — the fix is an inbox queue in the SHARED localStorage,
+        which is a different ship. It exists so the next person cannot read the source pattern
+        above as a working join, which is exactly what I did. If board_window() ever gains an
+        in-process call path, THIS test fails and that is the signal to re-measure everything the
+        guard above claims. [[feedback-suspect-the-instrument]] [[plumbing-with-no-tap]]
+        """
+        src = self._src()
+        self.assertIn('"--board-window"', src)
+        spawns = src.count("subprocess.Popen(\n            [sys.executable, os.path.abspath(__file__), \"--board-window\"")
+        calls = src.count("\n        board_window()")
+        self.assertEqual(
+            (spawns, calls), (1, 1),
+            "the board window's process topology CHANGED (%d spawn site(s), %d in-process call(s)) "
+            "— re-measure whether _BOARD_WIN is reachable from the server before trusting any "
+            "guard that greps for it" % (spawns, calls))
+
+    def test_the_guard_above_can_SEE_a_regression(self):
+        """A source guard fails on its own REACH far more often than on the code. Prove this one
+        would catch the exact bytes v2274 shipped against. [[source-reading-guard]]"""
+        src = self._src()
+        body = _between(self, src, "\ndef board_ownership(", "\ndef ", what="board_ownership body")
+        self.assertIn('globals().get("_BOARD_WIN")', body)
+        broken = body.replace('globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")',
+                              'globals().get("_MAIN_WIN")')
+        self.assertNotEqual(broken, body, "the sabotage did not change anything — suspect the "
+                                          "SABOTAGE before the guard")
+        self.assertNotIn('globals().get("_BOARD_WIN")', broken,
+                         "the pre-fix shape still reads as fixed, so this guard measures nothing")
+
+
 
 class TestV2276IdentityAndTheReclaimPattern(unittest.TestCase):
     """Two defects an adversarial panel confirmed and I re-measured on his live machine."""
@@ -8264,9 +8346,21 @@ class TestV2216AnEmptiedStoreIsAnEventNotANewUser(unittest.TestCase):
     def test_the_doctor_reads_it_and_refuses_when_it_cannot(self):
         fn = _between(self, self.doc, "def _check_the_board_store_did_not_come_up_empty",
                       "def _check_the_locked_lanes_still_refuse", what="the emptied-store check")
-        self.assertIn('_post("/api/board_ownership"', fn,
-                      "the check GETs a POST-only route, so it would answer UNKNOWN forever while "
-                      "looking installed")
+        # v2277 — THE DOOR MOVED, THE LAW DID NOT. Three checks now need this route and it
+        # EVALUATES JAVASCRIPT IN THE WINDOW HE IS LOOKING AT, so they share one read per tick via
+        # _board_read(). This guard was grepping for the literal call and failed on its own REACH
+        # rather than on the code — so it now names both doors AND pins that the indirection still
+        # ends at the POST. An indirection nobody follows is how a guard hollows out.
+        # [[source-reading-guard]]
+        self.assertTrue('_post("/api/board_ownership"' in fn or "_board_read()" in fn,
+                        "the check no longer reaches the board at all — it would answer UNKNOWN "
+                        "for ever while looking installed")
+        if "_board_read()" in fn:
+            door = _between(self, self.doc, "def _board_read(", "def _check_the_board_world",
+                            what="the shared board read")
+            self.assertIn('_post("/api/board_ownership"', door,
+                          "_board_read no longer POSTs to the route — every check that trusts it "
+                          "is now asking nothing, and three guards would still be green")
         self.assertIn("boardLoaded", fn,
                       "a board that is not loaded reads as 'fine' — the v2055 defect exactly")
         self.assertIn("predates the storeEmptied field", fn,

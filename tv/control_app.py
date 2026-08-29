@@ -10272,7 +10272,11 @@ def board_ownership(sample=0, dump_stores=False):
     `sample` returns that many names per store for eyeballing; 0 returns counts only, which is what
     a cross-reference needs and keeps a 300-name payload out of the log.
     """
-    w = globals().get("_MAIN_WIN")
+    # v2277 — THE BOARD, NOT THE CONSOLE. Same defect as v2274/v2276: this evaluates
+    # BOARD-OWNED javascript (bible.html globals / d2r_* stores), and _MAIN_WIN is the
+    # console UI once TV DIABLO opens the board in its own window. Asking it returned a
+    # perfectly honest refusal about the wrong page. [[sweep-dont-ask]]
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
     js = ("(function(){try{"
@@ -10298,6 +10302,12 @@ def board_ownership(sample=0, dump_stores=False):
           # keys — claimed, safe, and reported as doomed. `boardLoaded` separates "I cannot see"
           # from "it is a guest world". [[unknown-stays-unknown]]
           "var boardLoaded=(typeof window._D2R_PFX==='string');"
+          # v2277 — SAY WHETHER THE REGISTER DOOR IS ACTUALLY REACHABLE FROM HERE. The
+          # console's doctor rail could not answer "can register work" without pressing
+          # register, so the flag sat UNKNOWN forever — plumbing built on both ends and
+          # never joined. This is the read side of the door chronicle_apply pushes, and it
+          # costs one typeof. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+          "var hasApply=(typeof window.chronicleApply==='function');"
           # v2147 — SEND THE ROUTE. A cross-family review found the world identity was {owner, pfx}
           # only, and a CLAIMED board publishes pfx:'' — so a brand-new claimed store was
           # byte-identical to the old one and the drift guard answered "ok" over an empty vault:
@@ -10343,6 +10353,7 @@ def board_ownership(sample=0, dump_stores=False):
              "catch(_e){nn=v?1:0;}stores[k]=nn;}}catch(_s){stores={err:String(_s)}}}"
              % ("true" if dump_stores else "false"))
           + "return JSON.stringify({ok:true,owner:owner,pfx:pfx,boardLoaded:boardLoaded,"
+          "hasChronicleApply:hasApply,path:String(location.pathname||'/'),"
           "route:route,"
           # v2163 — ASK THE BOARD FOR ITS OWN TOTALS. v2157 published a fleet tally whose
           # denominators it INVENTED: `c.get("uniquesTotal") or 403` with a docstring saying
@@ -10386,7 +10397,11 @@ def board_tick(name, kind, want):
 
     The console never writes the ledger. This only asks the board window to press the existing
     door (toggleSetPiece / toggleOwned / tvVaultRegister)."""
-    w = globals().get("_MAIN_WIN")
+    # v2277 — THE BOARD, NOT THE CONSOLE. Same defect as v2274/v2276: this evaluates
+    # BOARD-OWNED javascript (bible.html globals / d2r_* stores), and _MAIN_WIN is the
+    # console UI once TV DIABLO opens the board in its own window. Asking it returned a
+    # perfectly honest refusal about the wrong page. [[sweep-dont-ask]]
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
     n = str(name or "").strip()
@@ -10634,7 +10649,11 @@ def disk_delta_say(hours=24, path=None):
 def board_restore_dates(stamp_prefix=""):
     """Rewrite foundLog stamps that match stamp_prefix from d2r_gameFound (in-game Chronicle).
     Names with no game date are left as they are."""
-    w = globals().get("_MAIN_WIN")
+    # v2277 — THE BOARD, NOT THE CONSOLE. Same defect as v2274/v2276: this evaluates
+    # BOARD-OWNED javascript (bible.html globals / d2r_* stores), and _MAIN_WIN is the
+    # console UI once TV DIABLO opens the board in its own window. Asking it returned a
+    # perfectly honest refusal about the wrong page. [[sweep-dont-ask]]
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
     js = ("(function(){try{"
@@ -15308,7 +15327,11 @@ def vault_apply(proposal=None):
         # nothing to register, so pressing apply could only ever destroy.
         return {"ok": False, "why": "this proposal is throw-out suggestions only — there is nothing "
                                     "to register, and a throw-out is never applied for you"}
-    w = globals().get("_MAIN_WIN")
+    # v2277 — THE BOARD, NOT THE CONSOLE. Same defect as v2274/v2276: this evaluates
+    # BOARD-OWNED javascript (bible.html globals / d2r_* stores), and _MAIN_WIN is the
+    # console UI once TV DIABLO opens the board in its own window. Asking it returned a
+    # perfectly honest refusal about the wrong page. [[sweep-dont-ask]]
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
     # SHAPED BY vault_retro.apply_payload — the module that owns the gating owns the shape too.
@@ -18690,7 +18713,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2276",
+        "ver": "v2277",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

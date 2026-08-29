@@ -72,6 +72,27 @@ def _post(path, body=None, timeout=20):
         return None
 
 
+#: ⚠ ONE READ OF HIS LIVE BOARD PER TICK. THREE checks now need /api/board_ownership, and that
+#: route EVALUATES JAVASCRIPT IN THE WINDOW HE IS LOOKING AT. Two of the three predate this fold —
+#: so the rail was already poking his board twice every ten minutes and nothing said so. Asking
+#: three times buys no new information. Short TTL, so a human pressing the button twice still gets
+#: a fresh answer. [[borrowed-surface]] — his window is not free to poke.
+#: ⚠ SHARED FOR THE LENGTH OF ONE TICK, NEVER LONGER. My first cut memoised on a 5-SECOND TTL and
+#: broke EIGHT existing guards at once — they stub `_post` and call a check directly, and a
+#: module-level cache swallows the stub and serves the previous test's answer. THE COUNT WAS THE
+#: TELL: eight failures from one edit is a shape mistake, not eight defects. So the share is scoped
+#: to `run()`, which is the only place three checks are asked back to back; a check called on its
+#: own always reads fresh, which is what every caller outside the rail expects.
+#: [[feedback-suspect-the-instrument]]
+_board_cache = {"active": False, "got": None}
+
+
+def _board_read():
+    if _board_cache["active"]:
+        return _board_cache["got"]
+    return _post("/api/board_ownership", {"sample": 0})
+
+
 def _check_the_board_world_is_claimed():
     """An UNCLAIMED board lives in a guest world, and everything applied there is lost.
 
@@ -83,7 +104,7 @@ def _check_the_board_world_is_claimed():
     real one, so nothing on any screen distinguishes them. That is precisely what a doctor is for.
     [[the-unjoined-end]]
     """
-    got = _post("/api/board_ownership", {"sample": 0})
+    got = _board_read()
     if not got:
         return UNKNOWN, "the console did not answer — nobody asked, so nothing is known"
     # v2147 — ASK THE MEMORY FIRST. The v2145 branch that "reports drift even when the board is
@@ -683,7 +704,7 @@ def _check_the_board_store_did_not_come_up_empty():
     bible.html now writes d2r_storeEmptied when it seeds over a store that had clearly run before.
     This is the surface that reads it, because a flag nobody looks at is the same as no flag.
     """
-    got = _post("/api/board_ownership", {"sample": 0})
+    got = _board_read()
     if not got:
         return UNKNOWN, "the console did not answer — nobody asked, so nothing is known"
     if got.get("ok") is False:
@@ -1128,7 +1149,83 @@ def _check_the_engines_CORROBORATE_each_other():
     return OK, say
 
 
+# ══ v2277 — THE HEALTH ENGINE, FOLDED INTO THE ONE EAGLE EYE ═══════════════════════════════════
+#
+# Konyo asked for "a system that does red/green flag us... one unit system engine locked in".
+# The first cut of that was a SEPARATE module with its own CLI and its own four-state vocabulary —
+# which would have been the FIFTH thing on this machine implementing "report, never repair, and
+# never call an unmeasured thing fine". That is [[copy-drift]] exactly: one method in five places,
+# four of which he would have to know to run.
+#
+# So `health_engine` keeps the CHECKS (it is unit-testable in isolation and every law in it is
+# sabotage-proven) and this file keeps the SURFACE. Same pattern as "the other doctors": the eagle
+# eye CALLS rather than re-implements. One rail, one payload, one place he looks.
+#
+# ⚠ THE STATE MAP LOSES A DISTINCTION AND THAT IS DELIBERATE. health_engine separates WARN from
+# BLOCKED; this rail has only OK / MISSING / UNKNOWN, and adding a fourth state here would ripple
+# through the healer's recheck map, the icon table and every consumer of /api/eagle. The severity
+# survives in the DETAIL string, which is the part he actually reads. What must NOT be lost is
+# UNKNOWN, and it is not: it maps to itself.
+#: ⚠ ONE REPORT PER TICK, NOT FOUR. Each adapter would otherwise re-run the whole engine, and
+#: `armed_migration` reads the 6MB bible.html — so four flags cost four full-file reads on a rail
+#: that runs on a ten-minute timer at every console boot. The v2080 scar was exactly this shape:
+#: two correct fixes that together put 17 seconds into the boot path. Short TTL, so a human
+#: pressing the button twice still gets a fresh answer. [[two-fixes-broke-each-other]]
+_health_cache = {"active": False, "rep": None}
+
+
+def _health_report():
+    import health_engine as HE
+    if _health_cache["active"] and _health_cache["rep"] is not None:
+        return _health_cache["rep"]
+    # v2277 — HAND IT THE REAL BOARD READ. Without this the board_join flag is UNKNOWN for ever,
+    # and a flag that can only ever say one thing is furniture, not a check.
+    rep = HE.report(board=_board_read())
+    if _health_cache["active"]:
+        _health_cache["rep"] = rep
+    return rep
+
+
+def _clip(x, n):
+    t = str(x)
+    return t if len(t) <= n else t[:n - 1] + "\u2026"
+
+
+def _health(check_id):
+    """One health_engine check, in this rail's vocabulary. -> (state, detail)"""
+    def run():
+        try:
+            import health_engine as HE
+        except Exception as e:
+            return UNKNOWN, "health_engine will not import: %s" % str(e)[:90]
+        try:
+            row = [r for r in _health_report()["rows"] if r["id"] == check_id]
+        except Exception as e:
+            return UNKNOWN, "the health engine raised: %s" % str(e)[:90]
+        if not row:
+            # a check that vanished must not read as a check that passed
+            return UNKNOWN, "the health engine no longer reports '%s'" % check_id
+        r = row[0]
+        detail = r["line"]
+        if r["evidence"]:
+            # ⚠ ELLIPSIS, NOT A BARE CUT. The first cut printed "stamped-somewhere=T" — a
+            # truncated True that reads as a value in its own right, which is exactly the shape
+            # of a right number under a word that stopped being true. [[label-outlived-referent]]
+            detail = "%s  [%s]" % (detail, "; ".join(_clip(x, 110) for x in r["evidence"][:2]))
+        return ({HE.OK: OK, HE.WARN: MISSING, HE.BLOCKED: MISSING,
+                 HE.UNKNOWN: UNKNOWN}.get(r["state"], UNKNOWN), detail)
+    return run
+
+
 CHECKS = [
+    # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
+    # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
+    # a lane that had said nothing for 137h, a console asking ITSELF for the board, and my own
+    # unbounded glob holding a core at 99.7% for 28 hours.
+    ("armed migration", _health("armed_migration")),
+    ("extraction lanes", _health("lanes")),
+    ("board join", _health("board_join")),
+    ("stray processes", _health("orphans")),
     # ⚠ v2228 — (NAME, FN) TUPLES. My first cut added these two as BARE FUNCTIONS and broke the
     # `for n, fn in CHECKS` unpacking in nine places at once, including the healer's recheck map.
     # THE COUNT WAS THE TELL: nine errors from one edit is a shape mistake, not nine defects.
@@ -1178,14 +1275,24 @@ SLOW = ("the other doctors", "sweep would find")
 
 def run(include_slow=True):
     rows = []
-    for name, fn in CHECKS:
-        if not include_slow and name in SLOW:
-            continue
-        try:
-            state, why = fn()
-        except Exception as e:
-            state, why = UNKNOWN, "this check itself threw: %s" % str(e)[:120]
-        rows.append({"check": name, "state": state, "why": why})
+    # v2277 — ONE TICK, ONE READ OF HIS BOARD. Three checks need /api/board_ownership and that
+    # route EVALUATES JAVASCRIPT IN THE WINDOW HE IS LOOKING AT; asking three times buys nothing.
+    # Opened HERE and nowhere else, so a check called on its own still reads fresh — which is what
+    # every guard that stubs _post expects, and what my first cut broke eight of.
+    _board_cache["active"], _board_cache["got"] = True, _post("/api/board_ownership", {"sample": 0})
+    _health_cache["active"], _health_cache["rep"] = True, None
+    try:
+        for name, fn in CHECKS:
+            if not include_slow and name in SLOW:
+                continue
+            try:
+                state, why = fn()
+            except Exception as e:
+                state, why = UNKNOWN, "this check itself threw: %s" % str(e)[:120]
+            rows.append({"check": name, "state": state, "why": why})
+    finally:
+        _board_cache["active"], _board_cache["got"] = False, None
+        _health_cache["active"], _health_cache["rep"] = False, None
     return rows
 
 
