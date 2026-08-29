@@ -80,13 +80,43 @@ test.describe('routing', () => {
   });
 
   test('v1814 — belts still route by the keyword list, which BASE_DB cannot replace', async ({ page }) => {
-    // Belts and sashes have neither a defense range nor a damage range. If the keyword fallback were
-    // ever removed in favour of "just use BASE_DB", every belt in the game would land in UNI-WEAPONS.
-    for (const r of await routes(page, BELTS)) {
+    /* Belts and sashes have neither a defense range nor a damage range. If the keyword fallback were
+       ever removed in favour of "just use BASE_DB", every belt in the game would land in UNI-WEAPONS.
+       THAT is the fear this test exists for, and it is still worth holding.
+
+       ⚠ WHAT CHANGED: the THROW-OUT review now runs ahead of slot routing, and it rates two of
+       these four worthless. Measured on the page:
+           Goldwrap  (Heavy Belt) -> uni-armor    "armor slot — base: Heavy Belt"
+           Nightsmoke(Belt)       -> uni-armor    "armor slot — base: Belt"
+           Lenymo    (Sash)       -> __throwout   "trade value TRASH — the maxroll tier data rates
+                                                   this worthless; it stays yours and stays in your
+                                                   ledger, this is only advice about where it
+                                                   should live"
+           Snakecord (Light Belt) -> __throwout   same
+       So `toBe('uni-armor')` for all four asserts the world as it was before that advice existed.
+       __throwout is not a routing failure — it is a different, deliberate answer to a different
+       question, and it is explicitly non-destructive.
+
+       The rewrite keeps the guard and drops the fossil: NO belt may land in UNI-WEAPONS, and any
+       belt the throw-out review does not claim must still land in UNI-ARMOR. */
+    const belts = await routes(page, BELTS);
+    let routedToArmour = 0;
+    for (const r of belts) {
       expect(r.armour, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
       expect(r.weapon, `${r.n} (${r.b}) is expected to be undecidable from BASE_DB`).toBe(false);
-      expect(r.id, `${r.n} (${r.b})`).toBe('uni-armor');
+      expect(r.id, `${r.n} (${r.b}) landed in UNI-WEAPONS — the keyword fallback for belts is gone, `
+        + `and BASE_DB alone cannot tell a belt from a weapon`).not.toBe('uni-weap');
+      if (r.id !== '__throwout') {
+        expect(r.id, `${r.n} (${r.b}) is not rated trash, so it must route by the keyword list`)
+          .toBe('uni-armor');
+        routedToArmour++;
+      }
     }
+    /* ⚠ AND THE SAMPLE MUST NOT BE ALL-THROWOUT. If every belt were rated trash the loop above
+       would assert nothing at all and pass — the vacuous-green shape this file already guards
+       against elsewhere. [[feedback-blind-fixture-green-gate]] */
+    expect(routedToArmour, 'every belt in the sample was claimed by the throw-out review, so the '
+      + 'keyword-routing assertion never ran on anything').toBeGreaterThan(0);
   });
 
   test('v1814 — no roster item contradicts its own base data, in either direction', async ({ page }) => {

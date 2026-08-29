@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2261",
+  "ver": "v2262",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2261: A count said one item was missing and never which, so the assertion now compares the set and the next CI run answers instead of a guess",
+  "note": "v2262: A belt spec asserted the world before the throw-out review existed and a chronicle spec hardcoded his progress instead of the locked universes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

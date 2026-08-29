@@ -84,7 +84,19 @@ test('the LOCKED chronicle databases do not move', async ({ page }) => {
   expect(m.curated, 'ITEMS changed size — the CALCULATOR was redecided, which v2198 must never do')
     .toBe(320);
   expect(m.registry, 'ITEM_REGISTRY changed size').toBe(547);
-  expect(m.ofPairs, 'a chronicle "n / total" figure on the page moved. Measured identical on the '
-    + 'pre-v2198 tree and the patched one; if this differs, the widening reached a count.')
-    .toEqual(['0/403']);
+  /* ⚠ THE DENOMINATORS ARE THE LOCKED DATABASES. THE NUMERATORS ARE HIS PROGRESS.
+     This asserted the page reads exactly ['0/403'] — a snapshot of a board with an EMPTY ledger,
+     taken on the day. CI reads 99/99, 248/403, 108/135, 108/135, 248 / 403, which is a board whose
+     seed floor has run: v659 asserts that floor MUST run and seed 245 names, so the very state
+     this expectation forbids is the one another spec requires.
+
+     A hardcoded numerator also fails every time he finds an item, which makes this test a tax on
+     playing the game rather than a guard on the databases its own title names. So: assert the
+     TOTALS — the universes v2198's widening must never touch — and let the counts move.
+     [[label-outlived-referent]] [[regression-guard]] */
+  const totals = [...new Set(m.ofPairs.map((p) => p.split('/')[1].trim()))].sort();
+  expect(totals, 'a chronicle DENOMINATOR moved — the widening reached a locked universe. '
+    + `The page shows ${JSON.stringify(m.ofPairs)}; the universes are 403 uniques, 135 set pieces `
+    + 'and 99 runewords.')
+    .toEqual(['135', '403', '99'].sort());
 });
