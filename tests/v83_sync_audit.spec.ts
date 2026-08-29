@@ -369,15 +369,31 @@ test.describe('v83 website synchronization audit', () => {
     // v98: Raven Frost / Bul-Kathos. v99: Bladebuckle (DEX shown as STR; +25 vs real +30 def) +
     // Spirit Forge (fabricated +25 STR/+30 light res/CBF vs verified +15 STR / fire res +5% only,
     // confirmed against diablo2.io/uniques/spirit-forge-t926.html).
-    const { rf, bk, bb, sf } = await page.evaluate(() => {
+    /* ⚠ THE KEY CARRIES AN APOSTROPHE. This asked for 'Bul-Kathos Wedding Band'; the codex key is
+       "Bul-Kathos' Wedding Band". The lookup returned undefined and `.note` threw a TypeError, so
+       the whole test died on line 1 and the four real assertions below never ran — a spec that
+       cannot fail for its own reason is not guarding anything. Measured: 351 codex keys, and the
+       two Bul-Kathos ones both carry the apostrophe.
+
+       ⚠ AND A MISSING KEY NOW REPORTS ITSELF. Reading `.note` off undefined names nothing; the
+       failure said only "Cannot read properties of undefined". Each lookup is checked so the
+       message says WHICH key is gone. Third apostrophe defect found in one night — the item names
+       in this project genuinely mix the two bytes. [[d2r-curly-apostrophe-class]] */
+    const { rf, bk, bb, sf, missing } = await page.evaluate(() => {
       const c = ITEM_CODEX as any;
+      const want = ['Raven Frost', "Bul-Kathos' Wedding Band", 'Bladebuckle', 'Spirit Forge'];
+      const gone = want.filter((k) => !c[k] || typeof c[k].note !== 'string');
+      const note = (k: string) => (c[k] && c[k].note) || '';
       return {
-        rf: c['Raven Frost'].note as string,
-        bk: c['Bul-Kathos Wedding Band'].note as string,
-        bb: c['Bladebuckle'].note as string,
-        sf: c['Spirit Forge'].note as string,
+        rf: note('Raven Frost') as string,
+        bk: note("Bul-Kathos' Wedding Band") as string,
+        bb: note('Bladebuckle') as string,
+        sf: note('Spirit Forge') as string,
+        missing: gone,
       };
     });
+    expect(missing, 'a codex entry this test reads is absent or has no note — check the '
+      + 'apostrophe, the keys in this file mix the straight and curly bytes').toEqual([]);
     // Raven Frost: mana is +40, the 150-250 roll is Attack Rating (not mana).
     expect(/\+150[-–]250 mana/i.test(rf), `Raven Frost note mislabels +150-250 AR as mana: ${rf}`).toBe(false);
     expect(rf).toContain('+40 mana');

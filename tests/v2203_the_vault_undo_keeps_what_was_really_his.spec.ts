@@ -169,7 +169,14 @@ test('it runs once, and never on a machine where the backfill did not run', asyn
     const w = window as any;
     w.LSR.removeItem('d2r_vaultBackfill_v2200');
     w.LSR.removeItem('d2r_vaultBackfillUndo_v2203');
-    w.LSR.setItem('d2r_owned', JSON.stringify(['Shako', 'Occulus']));
+    /* ⚠ REAL CATALOGUE NAMES. This used to seed ['Shako','Occulus'], which are NOT names the
+       board knows — the real ones are "Harlequin Crest (Shako)" and "The Oculus". So the load-time
+       cleaners removed them and this assertion blamed the UNDO for a deletion the undo never made.
+       It had simply never been reached: an earlier assertion in this test failed first for years,
+       so fixing those exposed this one rather than breaking it.
+       Measured on the page: with real names the vault is untouched, assigned or not; with the
+       bogus pair only "Shako" survived. */
+    w.LSR.setItem('d2r_owned', JSON.stringify(['Harlequin Crest (Shako)', 'The Oculus']));
   });
   await page.goto(URL);
   await ready(page);
@@ -179,7 +186,8 @@ test('it runs once, and never on a machine where the backfill did not run', asyn
     owned: JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]'),
   }));
   expect(fresh.ran, 'the undo fired on a machine where the bad backfill never ran').toBe(false);
-  expect(fresh.owned, 'it touched a vault it had no business touching').toEqual(['Shako', 'Occulus']);
+  expect(fresh.owned, 'it touched a vault it had no business touching')
+    .toEqual(['Harlequin Crest (Shako)', 'The Oculus']);
 });
 
 test('the v2200 backfill is RETIRED, so a fresh machine is never filled wrongly', async ({ page }) => {

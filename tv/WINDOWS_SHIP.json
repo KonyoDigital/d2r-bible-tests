@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2257",
+  "ver": "v2258",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2257: My replacement assertion flagged five legitimate keeps, so it is replaced by one the undo cannot pass without working",
+  "note": "v2258: A missing apostrophe in a codex key threw a TypeError so four real assertions never ran, and a fixture blamed the undo for names the board never knew",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
