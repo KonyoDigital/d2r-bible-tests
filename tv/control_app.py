@@ -818,6 +818,25 @@ def _git_tracked_dirty():
         return False
 
 
+def _disk_ver():
+    """The version stamp SITTING ON THIS MACHINE'S DISK, which may be newer than the running one.
+
+    `_app_ver()` reports what this process loaded at boot. After a successful pull those differ,
+    and the difference IS the answer to "did the update land but not take effect yet". Reading it
+    from the file is the only way to get it — asking the module would return the running value
+    again, which is the mistake fleet_pull() already documents at its own version read.
+
+    Absent or unreadable is None, never a guess: "we could not read the disk" must not be
+    indistinguishable from "the disk agrees". [[unknown-stays-unknown]]
+    """
+    try:
+        with open(os.path.join(HERE, "WINDOWS_SHIP.json"), encoding="utf-8") as fh:
+            v = (json.load(fh) or {}).get("ver")
+        return str(v) if v else None
+    except Exception:
+        return None
+
+
 def fleet_pull():
     """v2102 — fast-forward this checkout to origin/main, or explain precisely why not.
 
@@ -2003,6 +2022,21 @@ def _console_beacon(event="hb"):
         body = json.dumps({
             "machine": _sock.gethostname().split(".")[0],
             "platform": st.get("platform"), "ver": st.get("ver"),
+            # v2254 — WHAT IS ON THIS MACHINE'S DISK, beside what it is RUNNING.
+            #
+            # `ver` is the version of the code this PROCESS loaded at boot. It is the honest answer
+            # to "what is he using" and it cannot answer "did he get the update", because a console
+            # that pulled new bytes and has not restarted reports the OLD number — identical, from
+            # the fleet's side, to a console that never pulled at all.
+            #
+            # Measured 2026-08-29: Dean's console moved v2246 -> v2249 on its own (the v2248 pull
+            # working), then sat at v2249 for eighteen minutes with four newer versions published
+            # and `mode: off`, so nothing was blocking a restart. From here that is UNANSWERABLE:
+            # "pulled, restart pending" and "never pulled" look the same. This is the field that
+            # tells them apart. [[unknown-stays-unknown]] [[the-unjoined-end]]
+            #
+            # Read off DISK, never from memory — that is the whole point of the field.
+            "diskVer": _disk_ver(),
             "mode": st.get("mode"), "event": event,
             "user": os.environ.get("TVD_USER", ""),
             "reads": st.get("readCount") or 0,
@@ -18561,7 +18595,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2253",
+        "ver": "v2254",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

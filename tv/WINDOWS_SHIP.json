@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2253",
+  "ver": "v2254",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2253: The last eleven runewords cross-checked and pinned, and a reach assertion so the coverage cannot quietly shrink",
+  "note": "v2254: The fleet reported only the running version, so a console that fetched an update and had not restarted looked exactly like one that never fetched",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

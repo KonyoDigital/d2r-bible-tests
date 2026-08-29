@@ -4674,6 +4674,9 @@
   .fx-age { opacity: .8; }
   /* not an alarm — a fact. Amber says 'yours, not theirs yet', never 'something is wrong'. */
   .fleet-unpub{color:#d8a24a;font-style:italic;cursor:help}
+  /* a DIFFERENT colour from unpublished-amber: that one is 'mine, not theirs yet', this one
+     is 'theirs already, just not running'. Two different facts must not share a look. */
+  .fleet-pending{color:#7fc7a8;font-style:italic;cursor:help}
   .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -15687,8 +15690,22 @@ function escC(s) {
       var _row = function (m, online) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
         var unpub = (_me && m.machine === _me && _pub && m.ver && m.ver !== _pub);
+        /* v2254 — "PULLED, RESTART PENDING" IS NOT "NEVER PULLED", and the panel could not tell
+           them apart. A console reports the version its PROCESS loaded at boot, so one that
+           fetched new bytes and has not restarted shows the OLD number — identical, from here, to
+           one that never fetched. Measured on Dean's machine: it moved v2246 -> v2249 on its own,
+           then held at v2249 for eighteen minutes with four newer versions published and mode:off,
+           and there was no way to say which of the two was happening. `diskVer` is what the
+           machine actually has; when it is ahead of `ver`, the update landed and only the restart
+           is outstanding. Absent diskVer stays silent rather than guessing — an older console does
+           not send the field at all. [[unknown-stays-unknown]] */
+        var pending = (m.diskVer && m.ver && m.diskVer !== m.ver);
         var meta = online
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
+             + (pending ? '<span class="fleet-pending" title="this console FETCHED ' + escC(m.diskVer)
+                      + ' and is still RUNNING ' + escC(m.ver) + ' — the update landed, only the '
+                      + 'restart is outstanding. It restarts itself when nothing is recording.">'
+                      + ' · ' + escC(m.diskVer) + ' on disk</span>' : '')
              + (unpub ? '<span class="fleet-unpub" title="this build is only on this machine — '
                       + 'origin publishes ' + escC(_pub) + ', which is what everyone else can '
                       + 'receive. It ships when the gates pass and it is pushed.">'

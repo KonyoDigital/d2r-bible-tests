@@ -29760,5 +29760,94 @@ class TestV2251RunewordValuesCrossCheckedAgainstSources(unittest.TestCase):
                          "Treachery grew an Enhanced Defense line that the game does not give it")
 
 
+class TestV2254PulledPendingIsNotNeverPulled(unittest.TestCase):
+    """A console reports the version its PROCESS loaded at boot. So one that fetched new bytes and
+    has not restarted shows the OLD number — and from the fleet's side that is INDISTINGUISHABLE
+    from one that never fetched at all.
+
+    MEASURED 2026-08-29. Dean's console moved v2246 to v2249 on its own, which is the v2248
+    periodic pull working. It then held at v2249 for eighteen minutes with four newer versions
+    published and `mode: off`, so nothing was blocking a restart. Whether the pull had stopped
+    firing or the restart was merely outstanding was UNANSWERABLE from here — the beacon carried
+    no fact about that machine's disk. That ambiguity is the same one that started the whole
+    thread. [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+
+    def _app(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_app.py"), encoding="utf-8").read()
+
+    def _ui(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_ui.html"), encoding="utf-8").read()
+
+    def test_the_beacon_carries_what_is_ON_DISK(self):
+        a = self._app()
+        self.assertIn('"diskVer": _disk_ver()', a,
+                      "the beacon no longer reports the disk version, so 'pulled but not "
+                      "restarted' is invisible again")
+
+    def test_disk_ver_reads_the_FILE_not_the_module(self):
+        """⚠ ASKING THE MODULE WOULD RETURN THE RUNNING VALUE AGAIN, which is the whole thing this
+        field exists to differ from. fleet_pull() documents the same trap at its own version read."""
+        a = self._app()
+        i = a.index("def _disk_ver()")
+        body = a[i:a.index("\ndef ", i + 10)]
+        # ⚠ ASK THE CODE, NOT THE DOCSTRING. The first cut asserted `_app_ver` absent from the
+        # body — and the docstring NAMES _app_ver while explaining the very trap. Fifth time in
+        # one session that a guard matched its own prose. [[feedback-comments-vs-code]]
+        code = body.split('"""')[-1]
+        self.assertIn("WINDOWS_SHIP.json", body, "_disk_ver no longer reads the stamp off disk")
+        self.assertNotIn("_app_ver", code,
+                         "_disk_ver is asking the running module, which can only ever agree with "
+                         "itself")
+
+    def test_unreadable_disk_is_None_not_a_guess(self):
+        a = self._app()
+        i = a.index("def _disk_ver()")
+        body = a[i:a.index("\ndef ", i + 10)]
+        self.assertIn("return None", body,
+                      "a disk it could not read now reports something other than None — 'we could "
+                      "not look' must never read the same as 'the disk agrees'")
+
+    def test_the_row_says_which_of_the_two_it_is(self):
+        u = self._ui()
+        self.assertIn("m.diskVer !== m.ver", u,
+                      "the row no longer compares running against disk")
+        self.assertIn("fleet-pending", u, "the restart-pending marker is gone")
+        i = u.index('class="fleet-pending"')
+        block = u[i:u.index("</span>", i)]
+        self.assertIn("only the ", block,
+                      "the marker no longer explains that the update already landed")
+
+    def test_an_OLDER_console_that_omits_the_field_stays_silent(self):
+        """A machine running code from before this version sends no diskVer. It must produce no
+        marker rather than a marker built from undefined — the fleet always contains consoles
+        older than the newest idea."""
+        u = self._ui()
+        # ⚠ ANCHOR ON SOMETHING UNIQUE. "var pending =" also matches an unrelated
+        # `var pending = [], ledger = [];` earlier in the file, so the first cut read that line and
+        # failed on the wrong statement entirely. The wrong-occurrence trap, twice tonight.
+        # [[source-reading-guard]]
+        i = u.index("m.diskVer !== m.ver")
+        line = u[u.rindex("var ", 0, i):u.index(";", i)]
+        self.assertIn("m.diskVer &&", line,
+                      "the marker fires without checking the field exists, so an older console "
+                      "would render an 'undefined on disk' badge")
+
+    def test_the_two_markers_do_not_share_a_look(self):
+        # unpublished-amber is "mine, not theirs yet"; pending-green is "theirs already, not running"
+        u = self._ui()
+        a = u[u.index(".fleet-unpub{"):u.index("}", u.index(".fleet-unpub{"))]
+        b = u[u.index(".fleet-pending{"):u.index("}", u.index(".fleet-pending{"))]
+        import re as _re
+        ca = _re.search(r"color:(#[0-9a-fA-F]+)", a).group(1).lower()
+        cb = _re.search(r"color:(#[0-9a-fA-F]+)", b).group(1).lower()
+        self.assertNotEqual(ca, cb,
+                            "two different facts are being drawn in one colour: 'my build is not "
+                            "published' and 'their build is fetched but not running'")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
