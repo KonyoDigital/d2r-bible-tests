@@ -29556,5 +29556,94 @@ class TestV2250TheColdReadHarnessCannotHandOverABadFrame(unittest.TestCase):
                       "stale, which is how it reported 'unknown' on a file that names itself")
 
 
+class TestV2251RunewordValuesCrossCheckedAgainstSources(unittest.TestCase):
+    """Konyo: "make sure runewords ranges are correctly checked from the ingame extracted ASCII
+    CSII" and "cross reference with the web with and against an official blizzard diablo ii
+    console".
+
+    99 runewords carry tip stats; 68 show a range and 31 show none. A missing range and a
+    genuinely fixed stat look identical on the page, so "no range" needed checking rather than
+    assuming. These are the ones checked against independent public references — every one
+    AGREED with what this page already held. The table exists so a verified number cannot drift
+    later without someone re-doing the check.
+
+    ⚠ AND THE FIRST ANSWER I GOT WAS FOR A DIFFERENT ITEM. A search for Hysteria returned
+    "+180-200% Enhanced Damage" from a wiki page titled "Mania/Hysteria Rune Word" — ONE page
+    covering two runewords, Mania being the WEAPON and Hysteria the BODY ARMOUR. Taking it would
+    have written a weapon's damage roll onto a chest piece. A second, narrower check returned the
+    armour's real stats, which are exactly what this page carries. One source is a lead; two
+    agreeing sources are a fact. [[d2r-multiwitness-corroboration]]
+
+    ⚠ NOT AN EXTRACTION. He asked for the game's own data files; there is none on this Mac (no
+    runes.txt / armor.txt / weapons.txt, no CASC directory). These are public references
+    agreeing with each other, which is weaker, and the remaining 20 are still UNCHECKED rather
+    than confirmed. [[unknown-stays-unknown]]"""
+
+    # runeword -> the Enhanced Damage value independent references agree is FIXED (no roll)
+    FIXED_ED = {
+        "Black": 120, "Destruction": 350, "Fury": 209, "Honor": 160, "Malice": 33,
+        "Silence": 200, "Steel": 20, "Strength": 35, "Zephyr": 33,
+    }
+
+    def _tip(self, name):
+        import io as _io, os as _os, re as _re
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        i = s.index("const RUNEWORD_TIP")
+        blob = s[i:s.index("\n", i)]
+        m = _re.search(r'"%s":\{l:\[(.*?)\],t:' % _re.escape(name), blob)
+        return _re.findall(r'"([^"]*)"', m.group(1)) if m else None
+
+    def test_the_cross_checked_values_still_say_what_the_sources_said(self):
+        import re as _re
+        wrong = []
+        for name, want in sorted(self.FIXED_ED.items()):
+            lines = self._tip(name)
+            self.assertIsNotNone(lines, "%s left the tip table" % name)
+            ed = [l for l in lines if _re.search(r"Enhanced Damage", l, _re.I)]
+            self.assertTrue(ed, "%s lost its Enhanced Damage line" % name)
+            got = _re.findall(r"(\d+)%?\s*Enhanced Damage", ed[0], _re.I)
+            if not got or int(got[0]) != want:
+                wrong.append((name, ed[0], want))
+        self.assertEqual(wrong, [],
+                         "a cross-checked Enhanced Damage value changed away from what independent "
+                         "references agree on: %s" % wrong)
+
+    def test_none_of_them_grew_a_range_that_the_game_does_not_have(self):
+        import re as _re
+        rolled = []
+        for name in sorted(self.FIXED_ED):
+            for l in self._tip(name) or []:
+                if _re.search(r"Enhanced Damage", l, _re.I) and "[" in l:
+                    rolled.append((name, l))
+        self.assertEqual(rolled, [],
+                         "a runeword whose Enhanced Damage is FIXED in the game grew a range chip, "
+                         "which tells him to re-make an item for a roll that does not exist: %s"
+                         % rolled)
+
+    def test_hysteria_is_the_ARMOUR_word_not_the_weapon_one(self):
+        """The near-miss, pinned. Hysteria (Shael+Ko+Eld, body armour, the renamed Hustle) has no
+        Enhanced Damage at all; Mania is the weapon. A combined wiki page merged them."""
+        import re as _re
+        lines = self._tip("Hysteria")
+        self.assertIsNotNone(lines, "Hysteria left the tip table")
+        joined = " ".join(lines)
+        self.assertIn("+65% Faster Run/Walk", joined,
+                      "Hysteria lost the stat that identifies it as the armour word")
+        self.assertFalse(any(_re.search(r"Enhanced Damage", l, _re.I) for l in lines),
+                         "Hysteria grew an Enhanced Damage line — that belongs to Mania, the "
+                         "WEAPON runeword it shares a wiki page with")
+
+    def test_treachery_has_no_enhanced_defense(self):
+        """I believed from memory that Treachery carried +20-30% Enhanced Defense. It does not,
+        and the page was already right. The check is why the page was not 'corrected' into being
+        wrong."""
+        import re as _re
+        lines = self._tip("Treachery")
+        self.assertIsNotNone(lines, "Treachery left the tip table")
+        self.assertFalse(any(_re.search(r"Enhanced Defense", l, _re.I) for l in lines),
+                         "Treachery grew an Enhanced Defense line that the game does not give it")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

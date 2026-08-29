@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2250",
+  "ver": "v2251",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2250: A superior base adds its bonus on top of the runeword roll, so a real item reads above the number the page called its maximum",
+  "note": "v2251: Nine fixed Enhanced Damage values plus Hysteria and Treachery cross-checked and pinned, and the first source I read described a different runeword",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

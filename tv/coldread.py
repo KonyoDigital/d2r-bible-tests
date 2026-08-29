@@ -66,17 +66,26 @@ def _shoot(tab, w, h, out_dir, tag):
         t.ev("(function(){document.documentElement.style.scrollBehavior='auto';"
              "try{window.switchTab&&window.switchTab(%s)}catch(e){}return 1})()" % json.dumps(tab))
         # WAIT FOR THE FADE TO FINISH, then say so — never assume a fixed sleep was enough
-        settled, waited = False, 0.0
+        settled, waited, saw = False, 0.0, "never sampled"
         while waited < 8.0:
             time.sleep(0.5)
             waited += 0.5
             op = t.ev("(function(){var p=document.getElementById('tab-%s');"
-                      "return p?getComputedStyle(p).opacity:'1'})()" % tab)
-            if str(op) == "1":
+                      "if(!p) return 'no-panel';"
+                      "return String(getComputedStyle(p).opacity)})()" % tab)
+            saw = repr(op)
+            # ⚠ SAY WHAT YOU SAW. The first cut compared to "1" and, when it refused, reported only
+            # "never reached full opacity" — which reads as a page defect. It was not: a direct
+            # measurement showed every panel at opacity 1 on both versions. A refusal that cannot
+            # name its observation is indistinguishable from the fault it claims to have found.
+            # 'no-panel' is a PASS: not every tab id is `tab-<name>`, and a tab with no panel of
+            # that id has no fade to wait for. [[unknown-stays-unknown]]
+            if op in ("1", "no-panel", 1):
                 settled = True
                 break
         if not settled:
-            return None, "tab %r never reached full opacity in %.0fs" % (tab, waited)
+            return None, ("tab %r never reached full opacity in %.0fs — last saw %s"
+                          % (tab, waited, saw))
         png = base64.b64decode(t.send("Page.captureScreenshot", format="png",
                                       captureBeyondViewport=False)["data"])
         if rc._looks_black(png):
