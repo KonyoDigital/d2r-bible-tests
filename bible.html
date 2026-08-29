@@ -5223,7 +5223,21 @@ try {
 .tvf-emblem{width:52px;height:52px;flex:none;border-radius:12px;display:grid;place-items:center;font-size:26px;line-height:var(--lh-none);border:1px solid rgba(240,192,96,.5);background:radial-gradient(circle at 50% 30%,rgba(240,192,96,.18),rgba(10,8,5,.9) 70%);box-shadow:0 0 20px rgba(240,192,96,.2),inset 0 1px 0 rgba(255,255,255,.08)}
 .tvf-brand-txt{min-width:0;display:flex;flex-direction:column;gap:4px}
 .tvf-title{font-family:var(--serif-display,'Cinzel',serif);font-variant-caps:small-caps;font-size:27px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-normal);line-height:var(--lh-none);color:var(--gold-bright,#f0c060);text-shadow:0 0 22px rgba(240,192,96,.3)}
-.tvf-purpose{font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(58ch,60vw)}
+.tvf-purpose{font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60vw}
+/* v2264 — `58ch` WAS THE STRING'S CHARACTER COUNT, AND `ch` IS NOT A CHARACTER.
+   The tagline is 58 characters long and the cap read min(58ch,60vw), which looks exactly
+   like a cap fitted to the text. It is not: 1ch is the width of the digit ZERO in the font,
+   while this element is text-transform:uppercase with letter-spacing:var(--ls-label) on top,
+   so every rendered glyph is wider than the unit the cap was counted in. Measured at 1440:
+   scrollWidth 430 vs clientWidth 349 — 81px of the sentence hidden behind an ellipsis on the
+   width he actually uses, with empty space beside it in the same bar. A different model
+   family reading the screenshot cold called it out; the gate did not, because the gate only
+   scans inside its named targets and no target names this spine.
+   60vw alone does the job the cap was for (stop the line running the full width) and owes
+   nothing to how long the string happens to be — so editing the copy cannot re-break it.
+   Below 900px it wraps instead of ellipsising, which is what the 640px rule already did.
+   [[feedback-threshold-above-the-ceiling]] [[source-reading-guard]] */
+@media(max-width:900px){.tvf-purpose{white-space:normal}}
 .tvf-rail{display:flex;align-items:center;gap:9px;flex-wrap:wrap;position:relative;z-index:1}
 .tvf-stat{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:66px;padding:6px 14px;border:1px solid rgba(240,192,96,.22);border-radius:11px;background:rgba(0,0,0,.28)}
 .tvf-stat b{font-family:var(--serif-display,'Cinzel',serif);font-size:18px;font-weight:var(--fw-semibold);line-height:var(--lh-none);color:var(--gold-bright,#f0c060)}
@@ -47215,7 +47229,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2263', name:'v2263 - The Law Was Overturned, The Fear Was Not', date:'2026-08-29', note:'four specs asserting a world two deliberate ships replaced' };
+  window.D2R_BUILD = { id:'v2264', name:'v2264 - A Character Is Not A ch', date:'2026-08-29', note:'the tagline cap was counted in the wrong unit' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
