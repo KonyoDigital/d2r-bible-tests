@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2248",
+  "ver": "v2249",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2248: A console left open never pulled, the eagle could not see a checkout behind origin, and the cross-reference drew its own low-res art",
+  "note": "v2249: A level-scaled buff wore the colour of a gamble, and his own unpublished build made everyone else look behind",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

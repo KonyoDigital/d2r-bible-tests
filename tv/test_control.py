@@ -29250,5 +29250,174 @@ class TestV2248TheEagleCanSeeBehindTheFleet(unittest.TestCase):
                         "the answer does not carry the age of the ref it compared against: %r" % why)
 
 
+class TestV2249ALevelScaledBuffIsNotAGamble(unittest.TestCase):
+    """Konyo, holding his own Infinity next to the page: "it shouldnt show a range for it (it isnt
+    a gamble) like the rest of the buffs that get rolled... thats the law that needs to be coded
+    here."
+
+    His Cryptic Axe reads "+45 to Vitality (Based on Character Level)". The page rendered
+    "[0.5-49.5] To Vitality" in the SAME green chip it uses for "+[255-325]% Enhanced Damage".
+    Those are opposite kinds of number:
+      · a ROLL is a gamble — re-make the item and you may do better
+      · a LEVEL-SCALED stat is arithmetic on your level: 0.5 x 90 = 45.0, exactly his item, and
+        no amount of re-making moves it
+    Painting them alike tells him to chase something that cannot be chased.
+
+    ⚠ AND THE DATA WAS NEVER WRONG. Cross-checked against diablo2.io, D2Runewizard, Wowhead and
+    the Diablo wiki: Infinity is +255-325% Enhanced Damage and +(0.5 x Clvl) Vitality — exactly
+    what this page holds. Only the PRESENTATION lied. Worth remembering before "correcting" data
+    on his report: the first thing to check is whether the number or the label is at fault.
+    [[label-outlived-referent]] [[feedback-suspect-the-instrument]]"""
+
+    def _scaled_re(self):
+        """⚠ READ THE PAGE'S OWN CLASSIFIER, NEVER A COPY OF IT.
+
+        The first cut of this test hard-coded the same regex the page uses. A sabotage that made
+        the PAGE's classifier match everything left this test GREEN — because the test was
+        measuring its own duplicate, not the code. Two copies of one rule with only one of them
+        under test is [[copy-drift]]; here it produced a guard that could not fail for the reason
+        it exists."""
+        import re as _re
+        src = self._src()
+        a = src.index("var scaled = /")
+        lit = src[a + len("var scaled = /"):src.index("/i.test(s)", a)]
+        return _re.compile(lit, _re.I)
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def _tip_lines(self):
+        import re as _re
+        s = self._src()
+        i = s.index("const RUNEWORD_TIP")
+        blob = s[i:s.index("\n", i)]
+        return _re.findall(r'"([^"]*)"', blob)
+
+    def test_the_marker_distinguishes_the_two_kinds(self):
+        s = self._src()
+        self.assertIn("att-lvl", s, "the level-scaled marker is gone; everything is a gamble again")
+        i = s.index("function _sunMarkup(")
+        body = s[i:s.index("\n}", i)]
+        self.assertIn("att-lvl", body, "_sunMarkup no longer distinguishes the two kinds")
+        self.assertIn("att-var", body, "_sunMarkup no longer marks a genuine roll")
+
+    def test_every_level_scaled_line_is_marked_that_way(self):
+        import re as _re
+        scaled = self._scaled_re()
+        lines = self._tip_lines()
+        lv = [l for l in lines if "[" in l and scaled.search(l)]
+        self.assertGreaterEqual(len(lv), 10,
+                                "only %d level-scaled tip lines found — the roster shrank, or this "
+                                "test has stopped reaching the data" % len(lv))
+        # and the classifier the page uses must agree with this test's own reading
+        for l in lv:
+            self.assertTrue(scaled.search(l), "a level-scaled line stopped matching: %r" % l)
+
+    def test_a_REAL_roll_is_still_a_roll(self):
+        # the guard must not swing the other way and call everything level-scaled
+        import re as _re
+        scaled = self._scaled_re()
+        lines = self._tip_lines()
+        rolled = [l for l in lines if "[" in l and not scaled.search(l)]
+        self.assertGreater(len(rolled), 100,
+                           "only %d rolled lines left — the classifier is over-matching and real "
+                           "gambles are being hidden" % len(rolled))
+        self.assertTrue(any("Enhanced Damage" in l for l in rolled),
+                        "Enhanced Damage stopped counting as a roll, and it is the archetype")
+
+    def test_infinity_reads_the_way_his_item_reads(self):
+        # the case he brought: cross-checked against four independent sources
+        lines = "\n".join(self._tip_lines())
+        self.assertIn("[255-325]", lines, "Infinity's Enhanced Damage range changed away from the "
+                                          "value four independent sources agree on")
+        self.assertIn("To Vitality (Based on Character Level)", lines,
+                      "Infinity's Vitality line lost the words that make it level-scaled")
+
+    def test_each_kind_SAYS_which_it_is(self):
+        s = self._src()
+        i = s.index("function _sunMarkup(")
+        body = s[i:s.index("\n}", i)]
+        self.assertIn("re-making the item cannot improve it", body,
+                      "a level-scaled stat no longer explains that it cannot be chased")
+        self.assertIn("a better one is possible on a re-make", body,
+                      "a rolled stat no longer explains that it CAN be chased")
+
+
+class TestV2249AnUnpublishedBuildSaysSo(unittest.TestCase):
+    """Konyo: "how come im 2248 and dean is 2247... why is he one update behind all the time?"
+
+    He was not behind. This console reads its version off the LOCAL WORKING TREE, so the moment
+    bump_version.py runs the panel shows the new number — before anything is committed, gated or
+    pushed. Dean can only ever receive what ORIGIN publishes. Through the whole build-and-gate
+    window Konyo is one ahead BY CONSTRUCTION, and the panel presented that as everyone else
+    lagging: a true number under a word that implies something false.
+    [[label-outlived-referent]]"""
+
+    def _app(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_app.py"), encoding="utf-8").read()
+
+    def _ui(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_ui.html"), encoding="utf-8").read()
+
+    def test_the_console_reports_what_origin_actually_publishes(self):
+        a = self._app()
+        self.assertIn("origin/main:tv/WINDOWS_SHIP.json", a,
+                      "nothing reads the version stamp origin actually publishes")
+        self.assertIn("publishedVer", a, "the published version is not carried anywhere")
+
+    def test_it_is_the_STAMP_not_a_commit_count(self):
+        """⚠ `ahead` COUNTS COMMITS AND WOULD MISS THE WHOLE WINDOW. bump_version.py changes the
+        stamp on the working tree BEFORE any commit exists, so between the bump and the commit
+        `ahead` is 0 while the panel already shows the new number — exactly the window he asked
+        about. The fact that matches his screen is the stamp."""
+        a = self._app()
+        i = a.index('out["publishedVer"]')
+        near = a[a.rindex("try:", 0, i):i]
+        self.assertIn("git", near, "publishedVer is no longer read from git")
+        self.assertNotIn("behind", near,
+                         "publishedVer is being derived from a commit count again")
+
+    def test_unknown_stays_unknown_when_git_cannot_answer(self):
+        a = self._app()
+        # ⚠ ANCHORED, NOT BYTE-COUNTED. The first cut read a[i:i+400] and the repo's own
+        # test_no_new_byte_counted_slices caught it. [[source-reading-guard]]
+        i = a.index('out["publishedVer"]')
+        tail = a[i:a.index("\n        except Exception:", i)]
+        self.assertIn("None", tail,
+                      "a failed read reports something other than None — 'we could not ask' would "
+                      "then be indistinguishable from 'nothing is unpublished'")
+
+    def test_the_row_is_identified_by_MACHINE_not_by_version(self):
+        u = self._ui()
+        self.assertIn("m.machine === _me", u,
+                      "the row is matched some other way — matching on version would mislabel one "
+                      "of two machines that happen to share a build")
+        self.assertIn("fleet-unpub", u, "the unpublished marker is gone from the row")
+
+    def test_the_marker_EXPLAINS_itself(self):
+        u = self._ui()
+        # ⚠ ANCHOR ON THE MARKUP, NOT THE CLASS NAME. `fleet-unpub` first occurs in the CSS rule
+        # ~11k lines earlier, so index() found the stylesheet and read a span from there.
+        i = u.index('class="fleet-unpub"')
+        block = u[i:u.index("</span>", i)]
+        self.assertIn("origin publishes", block,
+                      "the marker no longer says what everyone else can actually receive")
+
+    def test_the_marker_is_a_FACT_not_an_alarm(self):
+        # amber and italic, deliberately not the alert red this console uses for real faults
+        u = self._ui()
+        i = u.index(".fleet-unpub{")
+        rule = u[i:u.index("}", i)]
+        self.assertIn("italic", rule, "the unpublished marker stopped reading as an aside")
+        self.assertNotIn("#ff", rule.lower().replace("#ffd", ""),
+                         "the marker went alarm-red; nothing is wrong when a build is unpushed")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

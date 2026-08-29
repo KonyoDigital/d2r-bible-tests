@@ -4672,6 +4672,8 @@
     color: var(--text-muted, #b5a48a); border-top: 1px solid var(--edge, rgba(255,255,255,.1));
     white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
   .fx-age { opacity: .8; }
+  /* not an alarm — a fact. Amber says 'yours, not theirs yet', never 'something is wrong'. */
+  .fleet-unpub{color:#d8a24a;font-style:italic;cursor:help}
   .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -15671,10 +15673,26 @@ function escC(s) {
           + '<div class="ftt-age">as of ' + escC(_fleetSince(t.at ? new Date(t.at).toISOString() : m.t))
           + '</div></div>';
       };
+      /* v2249 — SAY WHEN HIS OWN BUILD HAS NOT SHIPPED YET. Konyo: "how come im 2248 and dean is
+         2247... why is he one update behind all the time?" He is not, and the panel was what made
+         it look that way. This console reads its version off the LOCAL WORKING TREE, so the moment
+         bump_version.py runs it shows the new number — before anything is committed, gated or
+         pushed. Dean can only ever receive what ORIGIN publishes, so through the whole build-and-
+         gate window Konyo is one ahead BY CONSTRUCTION and the panel presented it as everyone else
+         lagging. A true number under a word that implies something false.
+         `me` is the same string the beacon sends as `machine`, so the row is identified exactly —
+         never by matching version strings, because two machines can share a version and one of
+         them would then be mislabelled. [[label-outlived-referent]] [[unknown-stays-unknown]] */
+      var _pub = j.publishedVer, _me = j.me;
       var _row = function (m, online) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
+        var unpub = (_me && m.machine === _me && _pub && m.ver && m.ver !== _pub);
         var meta = online
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
+             + (unpub ? '<span class="fleet-unpub" title="this build is only on this machine — '
+                      + 'origin publishes ' + escC(_pub) + ', which is what everyone else can '
+                      + 'receive. It ships when the gates pass and it is pushed.">'
+                      + ' · unpublished</span>' : '')
              + ' · ' + escC(_fleetSince(m.t)))
           : ('offline · last seen ' + escC(_fleetSince(m.t)));
         /* v2213 — CLICK A PLAYER. Konyo: "a click on the player itself will open a box and tell

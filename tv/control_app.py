@@ -953,6 +953,37 @@ def fleet_origin_status(force_fetch=False):
             _FLEET_CACHE["val"] = dict(out)
             return dict(out)
         out["behind"] = int((r.stdout or "0").strip() or 0)
+        # v2249 — AND THE OTHER DIRECTION. Konyo: "how come im 2248 and dean is 2247... why is he
+        # one update behind all the time?" He is not: this console reads its version off the LOCAL
+        # WORKING TREE, so the moment bump_version.py runs the panel says the new number — before
+        # anything is committed, gated or pushed. Dean can only ever have what is ON ORIGIN, so
+        # through the whole build-and-gate window Konyo is exactly one ahead BY CONSTRUCTION, and
+        # nothing on screen said his own build was unpublished. A true number under a word that
+        # implies something false. [[label-outlived-referent]]
+        try:
+            ra = subprocess.run(
+                ["git", "rev-list", "origin/main..HEAD", "--count"],
+                cwd=REPO, capture_output=True, text=True, timeout=10,
+                creationflags=_WIN_CREATE if IS_WIN else 0,
+            )
+            # unknown stays unknown: a failed count is not "nothing unpublished"
+            out["ahead"] = int((ra.stdout or "").strip()) if ra.returncode == 0 else None
+        except Exception:
+            out["ahead"] = None
+        # ⚠ AND `ahead` IS NOT THE FACT HE SEES. It counts COMMITS; the version stamp on the
+        # working tree changes when bump_version.py runs, which is BEFORE any commit exists. So
+        # between the bump and the commit, ahead is 0 while his panel already shows the new
+        # number. The thing that matches his screen is the stamp itself: what does origin/main
+        # actually publish? Read it from there, not derived from a commit count.
+        try:
+            rp = subprocess.run(
+                ["git", "show", "origin/main:tv/WINDOWS_SHIP.json"],
+                cwd=REPO, capture_output=True, text=True, timeout=10,
+                creationflags=_WIN_CREATE if IS_WIN else 0,
+            )
+            out["publishedVer"] = (json.loads(rp.stdout).get("ver") or "") if rp.returncode == 0 else None
+        except Exception:
+            out["publishedVer"] = None
         if out["behind"] > 0:
             r2 = subprocess.run(
                 ["git", "log", "origin/main", "-1", "--format=%s"],
@@ -18530,7 +18561,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2248",
+        "ver": "v2249",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20234,7 +20265,22 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/fleet":
             # v1496 — who is online and when each machine was last here (60s cached, read-only)
-            self._json(200, fleet_presence(force=("force=1" in (self.path or ""))))
+            _fl = fleet_presence(force=("force=1" in (self.path or "")))
+            # v2249 — WHICH ROW IS HIM, and whether the build he is looking at has shipped.
+            # `me` is the SAME string the beacon sends as `machine` (see _console_beacon), so the
+            # UI identifies his row exactly instead of guessing by matching version strings — two
+            # machines can carry the same version, and one of them would be mislabelled.
+            try:
+                if isinstance(_fl, dict):
+                    _fl = dict(_fl)
+                    import socket as _sk
+                    _fl["me"] = _sk.gethostname().split(".")[0]
+                    _os_ = fleet_origin_status()
+                    _fl["ahead"] = _os_.get("ahead")
+                    _fl["publishedVer"] = _os_.get("publishedVer")
+            except Exception:
+                pass
+            self._json(200, _fl)
             return
         if path.startswith("/api/fleet_compare"):
             # v2213 — THE CROSS-REFERENCE. Konyo: "a click on the player itself will open a box and
