@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2252",
+  "ver": "v2253",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2252: Eight more runeword values cross-checked and pinned, and a damage spread is now guarded against ever being drawn as a roll",
+  "note": "v2253: The last eleven runewords cross-checked and pinned, and a reach assertion so the coverage cannot quietly shrink",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

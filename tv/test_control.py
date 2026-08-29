@@ -29597,6 +29597,31 @@ class TestV2251RunewordValuesCrossCheckedAgainstSources(unittest.TestCase):
     SPOT = {
         "Delirium": "+261 Defense",
     }
+    # v2253 — THE LAST ELEVEN, and with them all 31 range-less runewords are checked. Each entry
+    # is a set of exact strings independent references agree on; if the page still says all of
+    # them, the entry has not drifted. Anchors rather than whole stat blocks, because a whole
+    # block would fail on punctuation and teach us to ignore it.
+    VERIFIED_ANCHORS = {
+        "Stealth":       ["+6 to Dexterity", "+15 To Maximum Stamina", "Poison Resist +30%",
+                          "25% Faster Run/Walk", "25% Faster Cast Rate"],
+        "Nadir":         ["+50% Enhanced Defense", "+10 Defense", "+30 Defense vs. Missile",
+                          "+5 To Strength", "-33% Extra Gold"],
+        "Myth":          ["+2 To Barbarian Skill", "+30 Defense Vs. Missile",
+                          "Replenish Life +10", "Requirements -15%"],
+        "Peace":         ["+2 To Amazon Skill", "+20% Faster Hit Recovery",
+                          "+2 To Critical Strike", "Cold Resist +30%"],
+        "Rhyme":         ["40% Faster Block Rate", "Regenerate Mana 15%", "50% Extra Gold",
+                          "25% Better Chance"],
+        "Venom":         ["7% Mana Stolen", "+273 Poison Damage"],
+        "Wealth":        ["300% Extra Gold", "100% Better Chance", "+10 To Dexterity"],
+        "White":         ["+4 To Skeleton Mastery", "20% Faster Cast Rate", "+13 To Mana",
+                          "+10 To Vitality"],
+        "Lore":          ["+1 To All Skill", "+10 To Energy", "+2 To Mana After Each Kill"],
+        "Melody":        ["+50% Enhanced Damage", "+300% Damage To Undead",
+                          "20% Increased Attack Speed", "+10 To Dexterity"],
+        "Enlightenment": ["+2 To Sorceress Skill", "+1 To Warmth", "+30% Enhanced Defense",
+                          "Fire Resist +30%"],
+    }
 
     def _tip(self, name):
         import io as _io, os as _os, re as _re
@@ -29654,6 +29679,35 @@ class TestV2251RunewordValuesCrossCheckedAgainstSources(unittest.TestCase):
             self.assertIsNotNone(lines, "%s left the tip table" % name)
             self.assertTrue(any(want.lower() in l.lower() for l in lines),
                             "%s no longer carries %r" % (name, want))
+
+    def test_the_last_eleven_still_match_their_sources(self):
+        """With these, ALL THIRTY-ONE range-less runewords have been checked and not one carried a
+        defect. That is the finding: the missing ranges were never missing — those stats are fixed
+        in the game, and the page had them right the whole time. The two real defects in this arc
+        were both PRESENTATION (a level-scaled buff wearing the gamble's colour, and the base's
+        contribution never being mentioned), which is why the label is worth checking before the
+        number."""
+        drift = []
+        for name, anchors in sorted(self.VERIFIED_ANCHORS.items()):
+            lines = self._tip(name)
+            self.assertIsNotNone(lines, "%s left the tip table" % name)
+            joined = " | ".join(lines).lower()
+            for a in anchors:
+                if a.lower() not in joined:
+                    drift.append((name, a))
+        self.assertEqual(drift, [],
+                         "a cross-checked runeword stat changed away from what independent "
+                         "references agree on: %s" % drift[:6])
+
+    def test_all_thirty_one_range_less_runewords_are_covered(self):
+        """⚠ THE REACH ASSERTION. Every other test here answers 'did a checked value drift', and
+        that is 'no' whether the table covers 31 runewords or 3. This one answers how many are
+        actually checked, so the coverage cannot quietly shrink."""
+        covered = (set(self.FIXED_ED) | set(self.FIXED_EDEF) | set(self.SPOT)
+                   | set(self.VERIFIED_ANCHORS) | {"Hysteria", "Treachery"})
+        self.assertGreaterEqual(len(covered), 31,
+                                "only %d runewords are cross-checked; all 31 range-less ones were "
+                                "covered when this was written" % len(covered))
 
     def test_a_DAMAGE_SPREAD_is_never_painted_as_a_roll(self):
         """THE THIRD KIND OF NUMBER, and the one that would break his law next.
