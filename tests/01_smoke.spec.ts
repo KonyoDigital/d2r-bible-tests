@@ -23,7 +23,7 @@ test.describe('Smoke — page loads correctly', () => {
     // v61: the "Vol. XLIII · Spring 2026 · The Sanctuary Codex" kicker was removed at
     // Konyo's request. The masthead now leads with the title + tagline; assert those.
     await expect(page.locator('.masthead .h-title')).toContainText(/Konyo's D2R Farming Bible/);
-    await expect(page.locator('.masthead-tagline')).toContainText(/grail-hunting reference/i);
+    await expect(page.locator('.masthead-tagline')).toContainText(/chronicle-hunting reference/i);
   });
 
   test('all primary tabs render', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('Smoke — page loads correctly', () => {
     await page.goto(BIBLE);
     await page.waitForTimeout(600); await page.evaluate(() => (window as any).switchTab('main'));   // v680 — TOOLS is the landing tab; the widget lives on Main
     // v63: dropdown sections default-collapsed site-wide → expand Grail Progress first
-    await page.locator('.sec-h', { hasText: 'Grail Progress' }).click();
+    await page.locator('.sec-h', { hasText: 'Chronicle Progress' }).click();
     await expect(page.locator('.grail-progress')).toBeVisible();
     await expect(page.locator('#gp-circle-text')).toBeVisible();
   });

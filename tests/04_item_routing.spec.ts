@@ -130,7 +130,7 @@ test.describe('Item click routing — v38 (was v12 sharpness)', () => {
     await page.evaluate(() => (window as any).switchTab('main'));   // v681 — TOOLS is the landing tab now (v680); hero picks live on Main
     await page.waitForTimeout(300);
     // v63: dropdown sections default-collapsed → expand Today's Best Grail Picks first
-    await page.locator('.sec-h', { hasText: 'Best Grail Picks' }).click();
+    await page.locator('.sec-h', { hasText: 'Best Chronicle Picks' }).click();
     const firstPick = page.locator('.hero-pick').first();
     await expect(firstPick).toBeVisible();
     // Floating overlays (the #v42-tz-countdown badge and the sticky .header masthead) can

@@ -5397,7 +5397,7 @@
              the sigil hands the strip that width and the wrap stops being REACHED. The wrap stays as
              the safety net; it is simply no longer needed at his size. -->
         <div class="brand-id">
-        <div class="emblem"><img id="emblem-img" src="/art/ui_emblem.png" alt="" onerror="this.src='/art/hd_ohm_rune.png'" title="TV DIABLO — the grail engine"></div>
+        <div class="emblem"><img id="emblem-img" src="/art/ui_emblem.png" alt="" onerror="this.src='/art/hd_ohm_rune.png'" title="TV DIABLO — the chronicle engine"></div>
         <!-- v1465 — WHOSE CONSOLE IS THIS. A sigil generated from this install's own id, so a
              glance answers "am I in my profile?" and two people can compare at a distance.
              Hidden until the identity arrives, so it never flashes a placeholder crest. -->
@@ -5604,10 +5604,10 @@
          compact strip under the live stage when ON. -->
     <section class="home-dash" id="home-dash">
       <!-- v1376 (SESSIONS FLAGSHIP R3) — the console-native Sessions view's link into bible.html for deep data -->
-      <a class="hub-bible" id="hub-bible" href="#" title="open the full grail bible — deep session data, ledgers, tools" onclick="if(window._shellOpen){window._shellOpen('session');}return false;">📖 full grail bible →</a>
+      <a class="hub-bible" id="hub-bible" href="#" title="open the full bible — deep session data, ledgers, tools" onclick="if(window._shellOpen){window._shellOpen('session');}return false;">📖 full bible →</a>
       <!-- v1378 (SESSIONS FLAGSHIP R4) — the chronicle CREST + GRAIL-METER signature, then the NEXT GRAIL hero (EV-rank) -->
       <div class="hub-crown">
-        <div class="hub-crest"><div class="hc-ey">⚔ the grail chronicle</div><div class="hc-t">My <span>Hunt</span></div></div>
+        <div class="hub-crest"><div class="hc-ey">⚔ the chronicle</div><div class="hc-t">My <span>Hunt</span></div></div>
         <!-- v1630 — the 🏆 Holy Grail meter that sat here is REMOVED. It read
              d2r_forgeSummary.grail and printed 243 / 403 — the same number, from the same key,
              that the Daily Task Force prints below as "Grail Uniques · 243 / 403" (and Sets ·
@@ -5658,7 +5658,7 @@
              [[the-unjoined-end]] -->
         <button class="chron-waiting" id="chron-waiting" type="button" hidden
                 onclick="window._chronWaitingJump&&window._chronWaitingJump()"
-                title="These are item names the readers lifted off your own reels. Nothing is written to your grail until you press REGISTER in TV·D ▸ Chronicle Sweep — this button only takes you there, and you can drop the whole proposal instead."></button>
+                title="These are item names the readers lifted off your own reels. Nothing is written to your chronicle until you press REGISTER in TV·D ▸ Chronicle Sweep — this button only takes you there, and you can drop the whole proposal instead."></button>
         <!-- v1580 — THE ROTATION IS "WHAT TO HUNT TODAY", so it lives in zone Ⅰ (renamed
              Ⅰ TZ TRACKER in v1630 precisely because this rotation card IS what it renders).
              It was in Ⅲ THE RECORD — "the chronicle of your runs" — which is the wrong
@@ -5946,10 +5946,10 @@
           <div class="sh-row"><span class="sh-k">🚫0️⃣</span><span class="sh-v" id="sh-refire">0 re-fires</span></div>
           <div class="sh-verdict" id="sh-verdict">idle</div>
         </div>
-        <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before grail write">
+        <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before chronicle write">
           📜 Inbox <b id="ch-inbox-n">0</b>
           <!-- v1256 (Konyo: "clear all easily") — one-click CLEAR ALL right on the inbox; stops the click from opening the modal -->
-          <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a grail write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
+          <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a chronicle write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
         </button>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
         <!-- Vision folded into the 🔴 Live Eye badge; element kept (hidden) so JS keeps writing it -->
@@ -6122,7 +6122,7 @@
             <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
               <input id="repair-name" type="text" placeholder="item name" style="flex:1 1 140px;min-width:0;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
               <select id="repair-kind" style="flex:1 1 170px;min-width:0;max-width:100%;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
-                <option value="set-drop">drop from SET store (keep the grail row)</option>
+                <option value="set-drop">drop from SET store (keep the chronicle row)</option>
                 <option value="set">toggle set piece</option>
                 <option value="unique">toggle unique</option>
                 <option value="owned">register as owned</option>
@@ -6635,7 +6635,7 @@
     try { lead = t.match(_MIND_LEAD_RE); } catch (e) { lead = null; }
     if (lead && lead[1]) { icon = lead[1]; txt = t.slice(lead[0].length); }
     var low = t.toLowerCase();
-    if (/🏆|grail|holy grail/.test(t)) cls = 'mind-grail';
+    if (/🏆|chronicle|chronicle/.test(t)) cls = 'mind-grail';
     else if (/⚠|fail|died|timed out|denied|throttl|error|dropped|no signal/.test(low)) cls = 'mind-warn';
     else if (/👋|🎯|✓|reads live|new text|second look|found/.test(low) || k === 'settle') cls = 'mind-good';
     else if (k === 'transition' || /⏳|entering|portal|town/.test(low)) cls = 'mind-scene';
@@ -7293,7 +7293,7 @@
       if (gm == null){ reass.hidden = true; reass.className = 'fx-reassure'; }
       else if ((gm | 0) === 0){
         reass.hidden = false; reass.className = 'fx-reassure ok';
-        reass.innerHTML = '<span class="fxr-ic">✓</span><span><b>0 grail misses</b> — the AI dropped no grails this reel.'
+        reass.innerHTML = '<span class="fxr-ic">✓</span><span><b>0 chronicle misses</b> — the AI dropped no grails this reel.'
           + '<span class="fxr-sub"> the “needs your eye” reads below are screen text and unreadable scraps, not lost loot.</span></span>';
       } else {
         reass.hidden = false; reass.className = 'fx-reassure miss';
@@ -8288,7 +8288,7 @@
     // Three entries and not one, because the two ledgers are two different things to be looking at
     // and a reader that could not tell which must not be shown claiming either.
     chronicle:  { ic: '📜', key: 'CHRONICLE', full: 'reading the chronicle' },
-    'chronicle-uniques': { ic: '🏆', key: 'CHRONICLE', full: 'the Holy Grail ledger' },
+    'chronicle-uniques': { ic: '🏆', key: 'CHRONICLE', full: 'the Chronicle ledger' },
     'chronicle-sets':    { ic: '🧩', key: 'CHRONICLE', full: 'the Set-piece ledger' }
   };
   var _DIABLO_TABS = { personal: 'Personal', shared: 'Shared', gems: 'Gems', materials: 'Materials', runes: 'Runes' };
@@ -8434,7 +8434,7 @@
       { n: reads, ic: '👁', lab: 'read' },
       { n: named, ic: '🏷', lab: 'named' },
       { n: reg, ic: '📖', lab: 'registered' },
-      { n: grails, ic: '🏆', lab: 'grail' + (grails === 1 ? '' : 's'), accent: ' dfn-grail' }
+      { n: grails, ic: '🏆', lab: 'chronicle' + (grails === 1 ? '' : 's'), accent: ' dfn-grail' }
     ];
     return '<div class="dsr-funnel">' + stages.map(function(s, i){
       return (i ? '<span class="dfn-arrow">→</span>' : '')
@@ -8617,10 +8617,10 @@
     if (!newG) newG = grails.length;   // no firstSeenTs on the reel → treat this run's grails as its contribution
     var names = grails.map(function(f){ return esc(f.name || 'grail'); }).join(', ');
     var fs = null; try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
-    var g = (fs && fs.grail && fs.grail.total) ? fs.grail : null;   // {found,total} — the Holy Grail ledger (current snapshot)
+    var g = (fs && fs.grail && fs.grail.total) ? fs.grail : null;   // {found,total} — the Chronicle ledger (current snapshot)
     var total = g ? ('<div class="dgp-total"><div class="dgp-bar"><i style="width:' + Math.max(0, Math.min(100, Math.round((g.found || 0) / g.total * 100))) + '%"></i></div>'
-      + '<div class="dgp-lab"><b>' + (g.found || 0) + '</b> / ' + g.total + ' Holy Grail · <span class="dgp-togo">' + Math.max(0, g.total - (g.found || 0)) + ' to go</span></div></div>') : '';
-    return '<div class="dsr-sec"><div class="dsr-h">🏆 Grail progress</div>'
+      + '<div class="dgp-lab"><b>' + (g.found || 0) + '</b> / ' + g.total + ' Chronicle · <span class="dgp-togo">' + Math.max(0, g.total - (g.found || 0)) + ' to go</span></div></div>') : '';
+    return '<div class="dsr-sec"><div class="dsr-h">🏆 Chronicle progress</div>'
       + '<div class="dgp"><div class="dgp-head"><span class="dgp-plus">+' + newG + ' to the hunt</span>'
       + '<span class="dgp-names">' + names + '</span></div>' + total + '</div></div>';
   }
@@ -8746,7 +8746,7 @@
       + _dossierSinceLast(sm)   // D29 — how this run compares to the previous one (honest-absent on the first run)
       + '<div class="dsr-sealrow">' + seal + sealLat + '</div>'
       + (function(){ var _b = _dossierBeats(sm); return _b ? '<div class="dsr-sec"><div class="dsr-h">⚡ The beats</div>' + _b + '</div>' : ''; })()   // D19 — the run's story as an iconographic beat ribbon
-      + _dossierGrailProgress(sm)   // D28 — this run's contribution to the Holy Grail hunt (honest-absent when no grails)
+      + _dossierGrailProgress(sm)   // D28 — this run's contribution to the Chronicle hunt (honest-absent when no grails)
       + decisionSec + storySec + montSec + missSec + findsSec + fpSec + regretSec
       + '<div class="dsr-actions">'
         + '<button type="button" class="dsr-pin' + (_sesPinned(sm.sessionId) ? ' on' : '') + '" onclick="window._dossierTogglePin()">' + (_sesPinned(sm.sessionId) ? '★ Pinned' : '☆ Pin this run') + '</button>'
@@ -9103,7 +9103,7 @@
     var nEl = document.getElementById('shl-find');
     if (nEl){
       var ring = st.liveRing || [], find = null;
-      for (var i = ring.length - 1; i >= 0; i--){ if (ring[i].verdict === 'grail' || ring[i].verdict === 'keep'){ find = ring[i]; break; } }
+      for (var i = ring.length - 1; i >= 0; i--){ if (ring[i].verdict === 'chronicle' || ring[i].verdict === 'keep'){ find = ring[i]; break; } }
       if (find){ nEl.hidden = false; nEl.className = 'shl-find ' + (find.verdict === 'grail' ? 'grail' : 'keep');
         nEl.innerHTML = (find.verdict === 'grail' ? '🏆 ' : '✦ ') + esc(find.label || (find.verdict === 'grail' ? 'grail' : 'keep')); }
       else nEl.hidden = true;
@@ -9135,7 +9135,7 @@
         + '<div class="shi-val">' + val + '</div>' + (sub ? '<div class="shi-sub">' + sub + '</div>' : '') + '</div></div>';
     }
     var cards = [];
-    if (bGrail && bGrail.grails > 0) cards.push(card('🏆', 'Best run', 'Session ' + bGrail.n, bGrail.grails + ' grail' + (bGrail.grails > 1 ? 's' : '') + ' · ' + _kpiFmt(bGrail.reads) + ' reads', bGrail.n));
+    if (bGrail && bGrail.grails > 0) cards.push(card('🏆', 'Best run', 'Session ' + bGrail.n, bGrail.grails + ' chronicle' + (bGrail.grails > 1 ? 's' : '') + ' · ' + _kpiFmt(bGrail.reads) + ' reads', bGrail.n));
     if (bReads) cards.push(card('⚡', 'Most reads', 'Session ' + bReads.n, _kpiFmt(bReads.reads) + ' reads', bReads.n));
     if (bRph) cards.push(card('📈', 'Top reads/hr', 'Session ' + bRph.n, _kpiFmt(bRph.rph) + ' /hr', bRph.n));
     if (bCov) cards.push(card('📊', 'Best coverage', 'Session ' + bCov.n, bCov.cov + '%', bCov.n));
@@ -9176,7 +9176,7 @@
       var j = k.judge;
       if (j && j.name){
         var tier = j.tier || '';
-        var mark = /grail/i.test(tier) ? '🏆 ' : '';
+        var mark = /chronicle/i.test(tier) ? '🏆 ' : '';
         kseg += ' <span class="thd-dim">· judge: ' + mark + esc(tier ? tier + ' ' : '') + esc(j.name) + '</span>';
       }
       segs.push('<span class="thd-seg thd-kai">' + kseg + '</span>');
@@ -10905,7 +10905,7 @@
       function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
       var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
         + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_covPct != null ? (_covPct + '%') : '—', 'cover') + '</div>';
-      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' grail' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-n="' + n
+      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' chronicle' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-n="' + n
         + '" data-stub="' + (sm.stub ? '1' : '0') + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
@@ -10925,11 +10925,11 @@
     var body = cards
       ? '<div class="sh-grid">' + cards + '</div>'
       : '<div class="sh-empty-hero"><div class="she-emoji">🎞</div><div class="she-lead">No runs recorded yet</div>'   // v1275 (D3) — first-run/empty state (was a bare empty grid)
-        + '<div class="she-sub">Press <b>▶ On Air</b> to start a session. When it seals, the reel lands here — every screenshot, every read, and every grail KAI witnessed, ready to replay and explore.</div></div>';
+        + '<div class="she-sub">Press <b>▶ On Air</b> to start a session. When it seals, the reel lands here — every screenshot, every read, and every chronicle KAI witnessed, ready to replay and explore.</div></div>';
     // v1282 (D8) SEARCH + v1283 (D9) FILTER BAR: a live search box AND persistent, composable filters
     // (grail · clean/flagged · date window) — search AND filters together, one honest "N of M" count. Pure UI.
     var searchBar = cards
-      ? '<div class="sh-search-wrap"><input type="search" id="sh-search" class="sh-search" placeholder="Search runs — item · area · grail · session…" autocomplete="off" spellcheck="false">'
+      ? '<div class="sh-search-wrap"><input type="search" id="sh-search" class="sh-search" placeholder="Search runs — item · area · chronicle · session…" autocomplete="off" spellcheck="false">'
         + '<label class="sh-sort-wrap" title="sort the runs">↕<select id="sh-sort" class="sh-sort-sel">'   // v1284 (D11) — sort selector, composes with search+filters
         + '<option value="newest">Newest</option><option value="longest">Longest</option>'
         + '<option value="found">Most found</option><option value="reads">Most reads</option></select></label>'
@@ -10938,7 +10938,7 @@
         + '<span class="sh-search-count" id="sh-search-count"></span></div>'
         + '<div class="sh-filter-bar">'
         + '<button type="button" class="sh-chip" data-f="pin">⭐ pinned</button>'
-        + '<button type="button" class="sh-chip" data-f="grail">🏆 grail</button>'
+        + '<button type="button" class="sh-chip" data-f="chronicle">🏆 chronicle</button>'
         + '<button type="button" class="sh-chip" data-f="ghosts" id="sh-chip-ghosts">👻 empty runs</button>'
         + '<span class="sh-fdiv"></span>'
         + '<button type="button" class="sh-chip" data-f="verdict:clean">🛡 clean</button>'
@@ -11035,7 +11035,7 @@
      screen does. A list that quietly drops 92% of its rows reads as complete, which is the
      worst possible failure for a thing whose whole promise is "every recorded run".
      [[unknown-stays-unknown]] */
-  var SHELF_F = { grail: false, verdict: null, day: null, pin: false, ghosts: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
+  var SHELF_F = { chronicle: false, verdict: null, day: null, pin: false, ghosts: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
   var SHELF_S = 'newest';   // v1284 (D11) — the shelf sort key, preserved too
   // v1284 (D11) — SORT the run cards (composes with search+filters: reorders the whole set, filter hides the rest).
   // Reads sort keys straight off the card data-attrs; re-appends in order. Newest / longest / most-found / most-reads.
@@ -11105,7 +11105,7 @@
     var bars = buckets.map(function(b, i){
       var h = b.runs ? Math.max(9, Math.round(b.runs / max * 100)) : 0;
       var d = new Date(b.start);
-      var tip = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + b.runs + ' run' + (b.runs === 1 ? '' : 's') + (b.grails ? ' · ' + b.grails + ' grail' + (b.grails === 1 ? '' : 's') : '');
+      var tip = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + b.runs + ' run' + (b.runs === 1 ? '' : 's') + (b.grails ? ' · ' + b.grails + ' chronicle' + (b.grails === 1 ? '' : 's') : '');
       return '<span class="shtl-bar' + (b.grails > 0 ? ' shtl-grail' : '') + (i === DAYS - 1 ? ' shtl-today' : '') + '" title="' + esc(tip) + '"><i style="height:' + h + '%"></i></span>';
     }).join('');
     el.hidden = false;
@@ -11193,7 +11193,7 @@
     var chips = ov.querySelectorAll('.sh-chip');
     for (var j = 0; j < chips.length; j++){
       var f = chips[j].dataset.f || '';
-      var on = (f === 'ghosts' && SHELF_F.ghosts) || (f === 'pin' && SHELF_F.pin) || (f === 'grail' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
+      var on = (f === 'ghosts' && SHELF_F.ghosts) || (f === 'pin' && SHELF_F.pin) || (f === 'chronicle' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
       chips[j].classList.toggle('on', !!on);
     }
     _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set
@@ -13519,7 +13519,7 @@
   function chAcceptAllConfirm(){
     var n = (CH.items || []).length;
     if (!n) return;
-    if (!window.confirm('Promote ALL ' + n + ' inbox items to FOUND (grail write)?\n\nThis cannot be undone from here — use Grail unfound if you need to reverse.')) return;
+    if (!window.confirm('Promote ALL ' + n + ' inbox items to FOUND (chronicle write)?\n\nThis cannot be undone from here — use Chronicle unfound if you need to reverse.')) return;
     var W = _engWin();
     if (!W || typeof W.kaiChronicleAcceptAll !== 'function'){ toast('Chronicle API unavailable'); return; }
     try {
@@ -13535,7 +13535,7 @@
     var items = (CH.items || []).slice();
     var n = items.length;
     if (!n){ toast('Inbox is already empty'); return; }
-    if (!window.confirm('Clear all ' + n + ' pending inbox item' + (n === 1 ? '' : 's') + '?\n\nThey are dismissed from the review queue (NOT written to grail). Re-review from the session anytime.')) return;
+    if (!window.confirm('Clear all ' + n + ' pending inbox item' + (n === 1 ? '' : 's') + '?\n\nThey are dismissed from the review queue (NOT written to chronicle). Re-review from the session anytime.')) return;
     var W = _engWin();
     if (!W){ toast('Chronicle API unavailable'); return; }
     var cleared = 0;
@@ -13926,7 +13926,7 @@
       if (sub) sub.textContent = 'no runs yet';
       el.innerHTML = '<div class="hd-hist-empty"><div class="hh-emoji">🎞</div>'
         + '<div class="hh-lead">No runs recorded yet</div>'
-        + '<div class="hh-sub">Press <b>▶ On Air</b> — your first session seals a reel here, and KAI logs every grail it sees. Each run becomes a card you can open and explore.</div></div>';
+        + '<div class="hh-sub">Press <b>▶ On Air</b> — your first session seals a reel here, and KAI logs every chronicle it sees. Each run becomes a card you can open and explore.</div></div>';
       return;
     }
     if (chev) chev.style.display = '';
@@ -14060,7 +14060,7 @@
       if (!_aiRar && aiArt){
         var _aiHead = String(ai || '');
         if (/^\s*🧩\s*Sets\b/.test(_aiHead)) _aiRar = 'set';
-        else if (/^\s*🏆\s*Grail\b/.test(_aiHead)) _aiRar = 'unique';
+        else if (/^\s*🏆\s*Chronicle\b/.test(_aiHead)) _aiRar = 'unique';
       }
       var _aiIsSet = _aiRar === 'set';
       var _aiFn = _aiIsSet ? '_hubGoSetPiece' : '_hubGoItem';
@@ -14192,7 +14192,7 @@
          itself. Orange (--rar-rune) is the FORGE ROOM's own accent and must never stand in for a
          runeword's own quality colour (REG-132). No match → nothing changes, same as every other
          chip on this row when the bridge does not resolve. */
-      var _AI_HEAD_RE = /^([\u{1F9E9}\u{1F3C6}\u{1F4DC}])\s*(Sets|Grail|Runewords)(\s*·\s*)/u;
+      var _AI_HEAD_RE = /^([\u{1F9E9}\u{1F3C6}\u{1F4DC}])\s*(Sets|Chronicle|Runewords)(\s*·\s*)/u;
       var _aiHeadDress = function(txt){
         var m = _AI_HEAD_RE.exec(String(txt || ''));
         if (!m) return null;
@@ -14316,7 +14316,7 @@
         /* v2269 — "grail is something we invented" (Konyo). It is our word for a database state and it
            was on the flagship row as though the game used it. The row is about UNIQUES he has not
            found; the internal class stays `grail` so nothing downstream is re-keyed. */
-        hero = { art: 'uniques', g: '🏆', t: 'Hunt The Chronicle — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'CHRONICLE', cls: 'grail' };
+        hero = { art: 'uniques', g: '🏆', t: 'Hunt The Chronicle — <b>' + gl + '</b> unique' + (gl === 1 ? '' : 's') + ' still out there', tag: 'CHRONICLE', cls: 'chronicle' };
       }
       // v1616 — `icon` (the item's OWN art, from the bridge) beats `art` (a CONSOLE_ART key) beats the glyph
       if (hero) rows.push('<div class="tf-row tf-hero tf-hero-' + hero.cls + (hero.go ? ' tf-go' : '') + '"' + (hero.go || '')
@@ -14563,7 +14563,7 @@
   function _rnFeedRow(r){
     var owner = _ER_OWNER[r.owner] || r.owner || '— read';
     var verd = r.verdict ? (_ER_VERDICT[r.verdict] || r.verdict) : '';
-    var vcls = r.verdict === 'grail' ? 'rnf-grail' : (r.verdict === 'keep' ? 'rnf-keep' : (r.verdict === 'toss' ? 'rnf-toss' : ''));
+    var vcls = r.verdict === 'chronicle' ? 'rnf-grail' : (r.verdict === 'keep' ? 'rnf-keep' : (r.verdict === 'toss' ? 'rnf-toss' : ''));
     var what = r.label ? esc(String(r.label)) : '';
     return '<div class="rnf-row ' + vcls + '"><span class="rnf-own">' + esc(owner) + '</span>'
       + (what ? '<span class="rnf-what">' + what + '</span>' : '')
@@ -14622,7 +14622,7 @@
   }
   function _stagePulse(text, verdict){
     var el = document.getElementById('stage-pulse'); if (!el) return;
-    el.textContent = text; el.className = 'stage-pulse ' + (verdict === 'grail' ? 'sp-grail' : 'sp-keep'); el.hidden = false;
+    el.textContent = text; el.className = 'stage-pulse ' + (verdict === 'chronicle' ? 'sp-grail' : 'sp-keep'); el.hidden = false;
     el.classList.remove('sp-in'); void el.offsetWidth; el.classList.add('sp-in');   // restart the entrance animation
     clearTimeout(_stagePulse._t); _stagePulse._t = setTimeout(function(){ el.hidden = true; }, 2600);
   }
@@ -14683,7 +14683,7 @@
     var farm = null; try { farm = JSON.parse(lsFork('d2r_grailFarm') || 'null'); } catch(e){}
     if (!farm || !farm.length){
       host.className = 'hub-hero idle';
-      host.innerHTML = '<div class="hh-eye">✦ the next grail</div><div class="hh-idle">— your grail-farm data lands here · find a grail and the ledger updates live —</div>';
+      host.innerHTML = '<div class="hh-eye">✦ the next chronicle</div><div class="hh-idle">— your grail-farm data lands here · find a chronicle and the ledger updates live —</div>';
       _HUB_RANK = null; return;
     }
     var my = ++_hubReq, data = null;
@@ -14694,7 +14694,7 @@
     if (my !== _hubReq) return;   // a newer call superseded this one
     if (!data || !data.ranked || !data.ranked.length){
       host.className = 'hub-hero idle';
-      host.innerHTML = '<div class="hh-eye">✦ the next grail</div><div class="hh-idle">— ' + farm.length + ' grails still out there · ranking unavailable right now —</div>';
+      host.innerHTML = '<div class="hh-eye">✦ the next chronicle</div><div class="hh-idle">— ' + farm.length + ' grails still out there · ranking unavailable right now —</div>';
       _HUB_RANK = null; return;
     }
     _HUB_RANK = data;
@@ -14771,7 +14771,7 @@
       /* v1554 — "fastest FIND" overclaims. _writeGrailFarm exports GRAIL-tier items only, so this
          ranks 51 of his 125 missing uniques; Umbral Disk is ~2h and is not in the universe at all.
          Naming the universe costs one word and makes the number checkable. */
-      + '<div class="hh-eye"><span class="hh-dot"></span>the next grail · '
+      + '<div class="hh-eye"><span class="hh-dot"></span>the next chronicle · '
         + (_tierOf(top.source) === 2
             ? 'fastest in hell · of ' + (_hell.length || data.ranked.length)
             : 'fastest of ' + data.ranked.length)
@@ -17135,7 +17135,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
          nothing but uniques, that one nothing but set pieces, so heading and names paint the real
          quality. The existing .chron-c / .add classes are untouched, so every selector that
          already targets these lanes still matches. */
-      + '<div class="chron-c add q-uni"><div class="chron-c-h">🏆 WOULD ADD · Holy Grail (' + u.length + ')</div>'
+      + '<div class="chron-c add q-uni"><div class="chron-c-h">🏆 WOULD ADD · Chronicle (' + u.length + ')</div>'
       +   '<div class="chron-list">' + _chronNames(u, false, _flags) + '</div></div>'
       + '<div class="chron-c add q-set"><div class="chron-c-h">🧩 WOULD ADD · Set pieces (' + sset.length + ')</div>'
       +   '<div class="chron-list">' + _chronNames(sset, false, _flags) + '</div></div>'
@@ -17163,7 +17163,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
          ways — per item on the board, and wholesale via `forget what is swept` here.
          [[grok-second-eye]] */
       ap.title = 'writes ' + u.length + ' unique(s) + ' + sset.length + ' set piece(s) = '
-        + _n + ' into your grail ledger.\nReversible: undo any one on the board, or press '
+        + _n + ' into your chronicle ledger.\nReversible: undo any one on the board, or press '
         + '"forget what is swept" here to drop the whole proposal.';
     }
     /* v1914 — AND SAY IT ON THE TAB HE LIVES ON. The button above is on TV·D, because
