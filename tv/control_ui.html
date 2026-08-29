@@ -4677,6 +4677,9 @@
   /* a DIFFERENT colour from unpublished-amber: that one is 'mine, not theirs yet', this one
      is 'theirs already, just not running'. Two different facts must not share a look. */
   .fleet-pending{color:#7fc7a8;font-style:italic;cursor:help}
+  /* a THIRD state needs a THIRD colour: unpublished-amber is mine, pending-green is theirs
+     and merely waiting, and this one is the only one that will not fix itself. */
+  .fleet-stuck{color:#e08a6a;font-style:italic;cursor:help}
   .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -15700,6 +15703,14 @@ function escC(s) {
            is outstanding. Absent diskVer stays silent rather than guessing — an older console does
            not send the field at all. [[unknown-stays-unknown]] */
         var pending = (m.diskVer && m.ver && m.diskVer !== m.ver);
+        /* v2256 — AND WHY IT NEVER ARRIVED. Three links, three different actions:
+             diskVer  — did the update land?
+             relaunch — has it taken effect?
+             pull     — did it ever get fetched?
+           Dean sat six versions back, alive and beaconing, and the panel could speak to none of
+           them. A machine that is BEHIND and cannot pull is the only case worth a badge: behind-
+           and-clear resolves itself within the quarter hour. [[unknown-stays-unknown]] */
+        var stuck = (m.pull && m.pull.can === false && m.pull.behind !== 0);
         var meta = online
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
              + (pending ? '<span class="fleet-pending" title="this console FETCHED ' + escC(m.diskVer)
@@ -15718,6 +15729,11 @@ function escC(s) {
                       + '">' + ' · ' + escC(m.diskVer) + ' on disk'
                       + (m.relaunch && m.relaunch.armed === false ? ', auto-relaunch OFF' : '')
                       + '</span>' : '')
+             + (stuck ? '<span class="fleet-stuck" title="this console is behind and its update is '
+                      + 'being REFUSED, so it will not catch up on its own: '
+                      + escC(String(m.pull.why || 'no reason given'))
+                      + '. Until that clears, every version shipped passes it by.">'
+                      + ' · not pulling</span>' : '')
              + (unpub ? '<span class="fleet-unpub" title="this build is only on this machine — '
                       + 'origin publishes ' + escC(_pub) + ', which is what everyone else can '
                       + 'receive. It ships when the gates pass and it is pushed.">'

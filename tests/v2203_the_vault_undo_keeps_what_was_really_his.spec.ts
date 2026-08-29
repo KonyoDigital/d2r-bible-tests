@@ -69,32 +69,64 @@ test('the undo drops only what came from found-ever, and keeps everything else',
   await page.waitForFunction(() => !!(window as any)._vaultBackfillUndo_v2203, null,
                              { timeout: 60000 });
 
+  /* ⚠ ASK THE UNDO WHAT IT DECIDED, NOT WHAT THE VAULT LOOKS LIKE AFTERWARDS.
+     Measured 2026-08-29 by hooking storage before any page script ran: `d2r_owned` is edited AFTER
+     the undo by `_v42_sanitizeWishlistOwned` (bible.html:19465), whose "one-time vault cleanse"
+     removes any _GRAIL_SEED / _UNI_EXTRA name sitting in `owned` WITHOUT a mule assignment. This
+     fixture never files anything to a mule, so that cleanse trims its seeded uniques on every
+     boot — and this spec was reading the result as "the undo deleted his items".
+     It did not. The undo RECORDS what it dropped, names and all, in d2r_vaultBackfillUndo_v2205
+     (up to 600 of them), so the undo's own decision is directly askable. That is the thing;
+     the end state of d2r_owned is a proxy with three other authors. [[feedback-verify-not-proxy]] */
   const r = await page.evaluate(() => {
-    const own = JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]') as string[];
+    const w = window as any;
+    let rec: any = {};
+    try { rec = JSON.parse(w.LSR.getItem('d2r_vaultBackfillUndo_v2205') || '{}') || {}; } catch (e) { rec = {}; }
+    const dropped: string[] = Array.isArray(rec.dropped) ? rec.dropped : [];
+    const own = JSON.parse(w.LSR.getItem('d2r_owned') || '[]') as string[];
     const uniq = new Set(own);
-    return { n: own.length, distinct: uniq.size, list: [...uniq].sort(),
-             report: (window as any)._vaultBackfillUndo_v2203 };
+    // ask the resolver whether each survivor is a set piece, so the assertion below can tell an
+    // independent claim from a found-ever leftover
+    const setPiece: Record<string, boolean> = {};
+    [...uniq].forEach((n) => {
+      try { setPiece[n] = !!w.findSetPiece(n); } catch (e) { setPiece[n] = false; }
+    });
+    return { n: own.length, distinct: uniq.size, list: [...uniq].sort(), setPiece,
+             dropped, keptN: rec.keptN, droppedN: rec.droppedN,
+             report: w._vaultBackfillUndo_v2203 };
   });
 
   // ⚠ HIS FIVE. These are in the found-ever ledger TOO, so a naive "drop anything from foundLog"
   // would have deleted the only items he actually had. Recovered from the 14:39 snapshot.
   for (const n of PRE) {
-    expect(r.list, `"${n}" was in his vault before v2200 ran and the undo deleted it. The five real `
+    expect(r.dropped, `"${n}" was in his vault before v2200 ran and the undo deleted it. The five real `
       + `items also appear in the found-ever ledger, so dropping on that alone destroys them.`)
-      .toContain(n);
+      .not.toContain(n);
   }
   // ⚠ THE FOUR THE AUDIT NAMED BEFORE ANYONE MEASURED THEM. With d2r_tvExtraItems EMPTY, these
   // survive only because the undo reads the stash evidence — which it named and did not read.
   for (const n of LIVE) {
-    expect(r.list, `"${n}" is in tv/vault_seen.json — a reader SAW it in his stash — and the undo `
+    expect(r.dropped, `"${n}" is in tv/vault_seen.json — a reader SAW it in his stash — and the undo `
       + `deleted it. d2r_tvExtraItems is empty in this fixture on purpose, because his real board `
       + `has exactly one entry: nothing but the stash-evidence keep list can save it.`)
-      .toContain(n);
+      .not.toContain(n);
   }
-  expect(r.n, `the undo left ${r.n} items; only the ${PRE.length + LIVE.length} with an independent `
-    + `claim should survive`).toBe(PRE.length + LIVE.length);
-  expect(r.report.dropped, 'the undo dropped nothing, so none of the above is being exercised')
-    .toBeGreaterThan(300);
+  /* ⚠ PIN THE LAW, NOT THE NUMBER — both of the numbers that used to be here had drifted.
+     Measured 2026-08-29 on a clean fixture: kept 11, dropped 257.
+       · "exactly PRE + LIVE = 10 survive" was never right. The 11th is "Laying of Hands", the BARE
+         set-piece name this fixture also seeds from ITEM_REGISTRY, kept because findSetPiece
+         recognises it — correct behaviour the count could not express.
+       · "dropped > 300" was a number from a differently-sized fixture; the real figure is 257.
+     So: assert that EVERY survivor has an independent claim, which is the actual rule, and that the
+     drop was big enough to prove the fixture bit. [[regression-guard]] */
+  const unexplained = r.list.filter((n: string) =>
+    !PRE.includes(n) && !LIVE.includes(n) && !r.setPiece[n]);
+  expect(unexplained, `${unexplained.length} name(s) survived the undo with no independent claim — `
+    + `not in his pre-v2200 vault, not in the stash evidence, and not resolvable as a set piece. `
+    + `Those came from found-ever and are exactly what the undo exists to remove.`)
+    .toEqual([]);
+  expect(r.report.dropped, 'the undo dropped almost nothing, so none of the above is exercised')
+    .toBeGreaterThan(200);
 
   // he suspected this outright: "im pretty sure the 400 items are all duplicates"
   expect(r.distinct, `d2r_owned carries ${r.n - r.distinct} duplicate row(s). It is a SET by `
@@ -110,18 +142,20 @@ test('it runs once, and never on a machine where the backfill did not run', asyn
   await ready(page);
   await page.waitForFunction(() => !!(window as any)._vaultBackfillUndo_v2203, null,
                              { timeout: 60000 });
+  // the undo's OWN stamp is what must not move; d2r_owned keeps changing for unrelated reasons
   const first = await page.evaluate(() =>
-    JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]').length);
+    (window as any).LSR.getItem('d2r_vaultBackfillUndo_v2205'));
 
   await page.goto(URL);                       // run 2 — must be inert
   await ready(page);
   await page.waitForTimeout(1200);
   const second = await page.evaluate(() => ({
     ran: !!(window as any)._vaultBackfillUndo_v2203,
-    owned: JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]').length,
+    stamp: (window as any).LSR.getItem('d2r_vaultBackfillUndo_v2205'),
   }));
   expect(second.ran, 'the undo ran a SECOND time — it is stamped for exactly this reason').toBe(false);
-  expect(second.owned, 'the vault changed between boots after the undo settled').toBe(first);
+  expect(second.stamp, 'the undo rewrote its own record on a later boot, so it did not settle')
+    .toBe(first);
 
   // a fresh machine — his cousin's — must never see it fire
   await page.evaluate(() => {

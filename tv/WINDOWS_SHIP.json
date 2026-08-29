@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2255",
+  "ver": "v2256",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2255: A duplicate function definition shipped in v2254 and its guard verified the dead copy, and the fleet now says what is stopping a console restarting",
+  "note": "v2256: Routine I has been red so long it stopped being read, and the first six failures are specs asserting a design that was deliberately retired",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

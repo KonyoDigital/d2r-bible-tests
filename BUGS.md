@@ -2889,6 +2889,16 @@ the readable sibling this entry originally cited — and `act5-bloodyfoothills_g
 campfire with flames and a figure. Against those two, hallsofanguish is plainly the outlier. The fix is still a re-extraction,
 and it needs the game — not this repo.
 
+**2026-08-29 — RE-VERIFIED, STILL BLOCKED, AND THE BLOCK IS UNCHANGED.** Seventeen days of his play
+since the 2026-08-20 read. Re-searched `tv/sessions.jsonl` for any wildtemple interior: the only
+Act 5 temple rows remain the EIGHT from 2026-08-12, and every one of them reads "through the portal
+— leaving Nihlathak's Temple", i.e. the outside. The two "Anguish" hits in the record are
+**"Talic's Anguish"**, an ITEM name, not the zone — a false lead worth naming so the next reader
+does not chase it. So `art/make_zone_graphic.py` still has nothing to eat, and the entry stays open
+for the reason it already records: it needs one capture from inside a LevelType 32 interior, and
+that is a walk in the game, not work in this repo.
+
+
 ## REG-115 — Routine I: the 27 failures are ONE deterministic set, not flake, and not CI-only
 
 **Symptom.** `Routine I — Playwright suite` has been red since ~v1634 and, per the project record,
@@ -2921,6 +2931,41 @@ aside) has an onset that matches "~v1634": REG-116/REG-118 below.
 **Prevention.** Diff the failing-set between two consecutive red runs BEFORE theorising. An identical
 set means deterministic and worth grouping; a drifting set means flake and worth quarantining. That
 one `diff` is the difference between a 20-minute diagnosis and eight months of an unread red badge.
+
+**2026-08-29 — RE-MEASURED, AND THE SET HAS MOVED: 27 → 21.** The entry's own prevention rule says
+diff the failing set before theorising, so that is what was done against run **33231259175**
+(v2254). Twenty-one unique failing triples, not twenty-seven — so some of REG-116…REG-126 were
+closed and this entry's "27" had become a fossil.
+
+**Ten of the twenty-one are the VAULT family**, and the first six are one cause with three faces:
+a spec asserting a design that was deliberately retired.
+
+  · `v2200_the_vault_backfill…` (3 tests) waited up to 60s for `window._vaultBackfill_v2200`. That
+    report is dead code: v2203 RETIRED the migration — it stamps its flag and `return`s, and
+    everything below is behind `eslint-disable no-unreachable`. Three 60s timeouts per run.
+  · `v2205_a_set_piece…` blanked `d2r_muleAssign` as a "neutral" quiesce and then asserted that
+    seeded UNIQUES survive. They do not, by design: the deleter is not the load-time prune at all
+    but `_v42_sanitizeWishlistOwned` (bible.html:19465), whose cleanse removes any
+    `_GRAIL_SEED`/`_UNI_EXTRA` name in `owned` WITHOUT an assignment. For a plain unique the
+    assignment IS the keeper, and the real flow supplies it — `tvVaultRegister('Nagelring')`
+    returns `{ok:true, mode:'new', mule:'uni-small'}`. Only the SET-PIECE half of #48's law may be
+    asserted with the assignment blanked.
+  · `v2203_the_vault_undo…` read the END STATE of `d2r_owned`, which that same cleanse edits after
+    the undo runs. It now asks the undo's own record (`d2r_vaultBackfillUndo_v2205` carries the
+    dropped NAMES), and its two hardcoded numbers — "exactly 10 survive", "dropped > 300" — are
+    replaced by the rule they stood for. Measured clean: kept 11, dropped 257, and all ten of
+    PRE+LIVE survive. The 11th is "Laying of Hands", the BARE set-piece name the fixture also
+    seeds, kept correctly by `findSetPiece`.
+
+**HOW IT WAS FOUND, since reading the code had already failed twice:** a storage hook installed via
+`Page.addScriptToEvaluateOnNewDocument` BEFORE any page script, logging every write to `d2r_owned`
+with a stack. One write, one stack, one culprit. Every clause of the load-time prune said KEEP for
+both lost names — so the function everyone had been reading was innocent.
+
+⚠ **AND A PERMANENTLY RED GATE COSTS MORE THAN THE FAILURES IN IT.** These six were not app defects.
+They were three stale specs generating timeouts inside a suite nobody reads, which is exactly the
+cover a real regression needs.
+
 
 ## REG-116 — the ~v1634 ONSET: three new specs spoof `navigator.webdriver` and never claim the owner world
 

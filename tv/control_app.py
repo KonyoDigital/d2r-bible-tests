@@ -1952,6 +1952,43 @@ def _shadow_bank(applied, lane="chronicle"):
         return {"ok": False, "why": str(e)[:120]}
 
 
+def _pull_report():
+    """Why this console has or has not fetched the newer build. -> dict | None
+
+    THE FOUR REFUSALS ARE DIFFERENT PROBLEMS and only one of them is his to fix:
+      · pinned      TV_NO_AUTO_PULL is set here — deliberate, and the launchers honour it too
+      · dirty       local TRACKED edits, so a fast-forward would not be safe; his to resolve
+      · behind=0    nothing to fetch; the disk is already current and the issue is elsewhere
+      · unreachable git could not answer — network, auth, or a diverged branch
+
+    ⚠ IT ASKS THE SAME FUNCTION THE PULL ITSELF ASKS. fleet_origin_status() is what fleet_pull()
+    and the banner both consult, so this cannot report a state the behaviour disagrees with — the
+    rule _auto_relaunch_state() was written for, one door over. [[copy-drift]]
+
+    ⚠ AND IT MUST NOT FETCH. This runs on the beacon's cadence; force_fetch here would put a git
+    fetch on every heartbeat of every machine in the fleet. It reads the cached view, which the
+    banner refreshes every 15 minutes anyway, and it carries no freshness claim of its own.
+    """
+    try:
+        if os.environ.get("TV_NO_AUTO_PULL"):
+            return {"can": False, "why": "pinned: TV_NO_AUTO_PULL is set on this machine"}
+        fl = fleet_origin_status()          # the CACHED view; a heartbeat must never hit the network
+    except Exception:
+        return None
+    if not isinstance(fl, dict):
+        return None
+    if fl.get("ok") is False:
+        return {"can": None, "why": (str(fl.get("howTo") or "git could not answer")[:120])}
+    if fl.get("dirty"):
+        return {"can": False, "behind": fl.get("behind"),
+                "why": "local tracked edits — a fast-forward would not be safe here"}
+    n = fl.get("behind")
+    if not n:
+        return {"can": True, "behind": 0, "why": "level with origin"}
+    return {"can": True, "behind": n,
+            "why": "%d commit%s behind and clear to pull" % (n, "s" if n != 1 else "")}
+
+
 def _relaunch_report():
     """Is this console allowed to restart itself right now, and if not, WHY. -> dict | None
 
@@ -2052,6 +2089,13 @@ def _console_beacon(event="hb"):
             # one" is a dead end on his screen: he sees the state and not the cause, which is
             # where this thread stalled twice tonight.
             "relaunch": _relaunch_report(),
+            # v2256 — AND WHY IT HAS NOT PULLED. The third and last link.
+            #   diskVer  (v2254) says WHETHER the update landed
+            #   relaunch (v2255) says why it has not taken effect
+            #   pull     (here)  says why it never arrived in the first place
+            # Without this the chain has a hole exactly where Dean sits: his console is alive,
+            # beaconing, six versions back, and the fleet can say nothing about the pull at all.
+            "pull": _pull_report(),
             "mode": st.get("mode"), "event": event,
             "user": os.environ.get("TVD_USER", ""),
             "reads": st.get("readCount") or 0,
@@ -18610,7 +18654,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2255",
+        "ver": "v2256",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

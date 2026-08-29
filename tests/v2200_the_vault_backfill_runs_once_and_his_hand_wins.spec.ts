@@ -2,20 +2,28 @@ import { test, expect } from './_net_stub';
 import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
-// v2200 — THE VAULT HELD 5 ITEMS WHILE THE LEDGER HELD 512.
+// v2200 → RETIRED IN v2203, AND THIS SPEC NOW GUARDS THE RETIREMENT.
 //
-// Measured on his live board: d2r_foundLog 392 (a {name:date} MAP), d2r_setPieces 120 (an ARRAY of
-// names), d2r_owned 5, d2r_muleAssign 4. The v2193 vault door routes at APPLY time, so it never ran
-// over rows already in the ledger when it shipped.
+// What v2200 did: it filled the vault from `d2r_foundLog` — "everything ever FOUND" — and wrote it
+// into `d2r_owned`, which means "physically in your stash". Finding an item once does not mean you
+// still hold it. On his board that took the vault 5 → 405 while the actual stash evidence
+// (tv/vault_seen.json) was SEVENTEEN rows.
 //
-// ⚠ THIS SPEC EXISTS FOR THE TWO THINGS THAT WOULD HAVE MADE THE FIX WORSE THAN THE BUG, both
-// found by a fleet investigator reading the code rather than by running it:
-//   1. renderVault is 7 functions / 16 innerHTML sites / 2 quadratic scans, and tvVaultRegister
-//      calls it once per registration. 512 of them freeze his board at boot.
-//   2. the v1954 wrapper logs one chronicle row per registration and _chLogUpsert CAPS THE LEDGER
-//      AT 400 — 512 backfill rows would have evicted his entire chronicle history.
-// Both are suppressed inside the migration. A test that only asserted "owned went up" would be
-// green for a change that froze his board and ate his history. [[feedback-verify-not-proxy]]
+// v2203 retired it. The block stamps its flag with the reason and returns; everything below the
+// return is `eslint-disable no-unreachable` dead code, INCLUDING the line that used to publish
+// `window._vaultBackfill_v2200`. It is left in place rather than deleted so the v2203 undo can
+// still recognise a machine where it ran.
+//
+// ⚠ WHY THIS SPEC WAS RED FOR MONTHS, AND WHAT THAT COST. Its three tests all waited up to 60s for
+// `window._vaultBackfill_v2200` — a report that is now deliberately never produced. Three timeouts
+// per run inside `Routine I`, a suite that has been red long enough to stop being read. A spec
+// asserting a design that has since changed does not just fail; it hides the failures around it.
+// [[regression-guard]] [[label-outlived-referent]]
+//
+// ⚠ AND THE PROTECTION IS KEPT, NOT DELETED. Deleting the file would leave nothing standing
+// between his vault and a re-enable of the wrong-source fill. So the assertions moved from the
+// MECHANISM (did the migration run, how fast, how many rows) to the LAW: the physical vault is
+// never populated from the found-ever ledger, and his own placements are never overwritten.
 
 const SEED = `(function(){
   var R = window.ITEM_REGISTRY || {};
@@ -41,97 +49,90 @@ async function ready(page: any) {
        && typeof (window as any).LSR !== 'undefined', null, { timeout: 120000 });
 }
 
-test('the backfill fills the vault, once, without freezing or evicting anything',
-  async ({ page }) => {
-    await page.goto(URL);
-    await ready(page);
+test('the found-ever ledger never becomes the physical vault', async ({ page }) => {
+  await page.goto(URL);
+  await ready(page);
+  const seed = await page.evaluate(SEED);
 
-    const seed = await page.evaluate(SEED) as any;
-    // the fixture must actually EXERCISE the gap, or every assertion below is vacuous
-    expect(seed.ledger, 'the seeded ledger is too small to reproduce his situation')
-      .toBeGreaterThan(400);
-    expect(seed.manual.length, 'no manual placements were seeded, so "his hand wins" is untested')
-      .toBe(4);
+  // the fixture must actually EXERCISE the gap, or every assertion below is vacuous
+  expect(seed.ledger, 'the seeded ledger is too small to reproduce his situation')
+    .toBeGreaterThan(400);
+  expect(seed.manual.length, 'no manual placements were seeded, so "his hand wins" is untested')
+    .toBe(4);
 
-    // reload: the migration runs at boot, inside the vault IIFE, before the boot render
-    await page.goto(URL);
-    await ready(page);
-    await page.waitForFunction(() => !!(window as any)._vaultBackfill_v2200, null, { timeout: 60000 });
+  await page.goto(URL);                        // the migration would run at boot, if it still ran
+  await ready(page);
+  await page.waitForTimeout(2000);
 
-    const r = await page.evaluate(() => {
-      const w = window as any;
-      const asg = JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}');
-      return {
-        report: w._vaultBackfill_v2200,
-        owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]').length,
-        assign: Object.keys(asg).length,
-        assignMap: asg,
-      };
-    });
-
-    expect(r.report.failed, `${r.report.failed} of ${r.report.names} registrations were refused`)
-      .toBe(0);
-    expect(r.owned, `the vault holds ${r.owned} items; the ledger held ${seed.ledger}`)
-      .toBeGreaterThan(400);
-
-    // ⚠ HIS HAND WINS. tvVaultRegister guards every assign write with !assign[name]; if that
-    // guard is ever loosened, a migration silently re-files items he placed by hand.
-    for (const n of seed.manual as string[]) {
-      expect(r.assignMap[n], `the backfill overwrote his manual placement of "${n}" `
-        + `(was __keep, now ${r.assignMap[n]}). A repair is a one-time event; a rule that `
-        + `re-asserts itself over his judgement is a policy he did not ask for.`).toBe('__keep');
-    }
-
-    // ⚠ THE RENDER SUPPRESSION. 512 full renders freeze his board; the whole pass must be fast.
-    expect(r.report.ms, `the backfill took ${r.report.ms}ms for ${r.report.names} names — the `
-      + `renderVault suppression is not holding, and 512 full re-renders freeze his board at boot`)
-      .toBeLessThan(5000);
+  const r = await page.evaluate(() => {
+    const w = window as any;
+    return {
+      published: (w as any)._vaultBackfill_v2200,
+      flag: w.LSR.getItem('d2r_vaultBackfill_v2200'),
+      owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]').length,
+      assign: JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}'),
+    };
   });
 
-test('a second boot does not run it again', async ({ page }) => {
+  // THE LAW. 512 ledger names must not become 512 items he is told he is holding.
+  expect(r.owned, `the vault holds ${r.owned} items from a ${seed.ledger}-name ledger — the `
+    + 'found-ever fill is back, and it tells him he owns things he sold months ago')
+    .toBeLessThan(100);
+
+  // and his own hand is untouched
+  for (const n of seed.manual as string[]) {
+    expect(r.assign[n], `a migration overwrote his manual placement of "${n}"`).toBe('__keep');
+  }
+});
+
+test('the retirement is stamped, and says why', async ({ page }) => {
   await page.goto(URL);
   await ready(page);
   await page.evaluate(SEED);
-  await page.goto(URL);                       // run 1
+  await page.goto(URL);
   await ready(page);
-  await page.waitForFunction(() => !!(window as any)._vaultBackfill_v2200, null, { timeout: 60000 });
-  const first = await page.evaluate(() => (window as any)._vaultBackfill_v2200.names);
+  await page.waitForTimeout(2000);
 
-  await page.goto(URL);                       // run 2 — must be a no-op
-  await ready(page);
-  const second = await page.evaluate(() => ({
-    ran: !!(window as any)._vaultBackfill_v2200,
-    flag: (window as any).LSR.getItem('d2r_vaultBackfill_v2200'),
-    owned: JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]').length,
-  }));
-  expect(first, 'the first run registered nothing, so re-running proves nothing').toBeGreaterThan(400);
-  expect(second.ran, 'the migration ran a SECOND time — it is stamped for exactly this reason. '
-    + 'v1816 next door: "a repair is a one-time event; a rule that re-asserts itself is a policy"')
-    .toBe(false);
-  expect(second.flag, 'the one-shot flag was not written, so it will run forever').toBeTruthy();
-  expect(second.owned, 'the vault emptied between boots').toBeGreaterThan(400);
+  const out = await page.evaluate(() => {
+    const w = window as any;
+    return {
+      flag: w.LSR.getItem('d2r_vaultBackfill_v2200'),
+      published: (w as any)._vaultBackfill_v2200 === undefined ? null : 'present',
+    };
+  });
+
+  // ⚠ THE FLAG IS STILL WRITTEN ON PURPOSE: the v2203 undo recognises a machine by it, and a
+  // FRESH machine — his cousin's — must never get the wrong vault. Stamping it is what guarantees
+  // that. A retirement that left no trace would be indistinguishable from a migration that simply
+  // never fired.
+  expect(out.flag, 'the retirement stamp is gone; the v2203 undo can no longer recognise a '
+    + 'machine where the bad migration ran').toBeTruthy();
+  expect(String(out.flag), 'the stamp no longer says WHY it is retired, so the next reader has to '
+    + 'rediscover that found-ever is not stash evidence').toContain('retired');
+
+  // the report is dead code below a `return`; if it reappears, the migration is live again
+  expect(out.published, 'the v2200 backfill is publishing a report again — the retired block is '
+    + 'running, and his vault is about to be filled from the wrong ledger').toBeNull();
 });
 
-test('it refuses to fire on an empty ledger, and does not burn the flag doing it',
-  async ({ page }) => {
-    await page.goto(URL);
-    await ready(page);
-    await page.evaluate(() => {
-      const w = window as any;
-      w.LSR.setItem('d2r_foundLog', '{}');
-      w.LSR.setItem('d2r_setPieces', '[]');
-      w.LSR.removeItem('d2r_vaultBackfill_v2200');
-    });
-    await page.goto(URL);
-    await ready(page);
-    await page.waitForTimeout(1500);
-    const out = await page.evaluate(() => ({
-      ran: !!(window as any)._vaultBackfill_v2200,
-      flag: (window as any).LSR.getItem('d2r_vaultBackfill_v2200'),
-    }));
-    // on a fresh install or a stranger's browser there is nothing to backfill; stamping "done"
-    // there would silence the migration for the one person it exists for
-    expect(out.ran, 'it ran on an empty ledger').toBe(false);
-    expect(out.flag, 'it burned the one-shot flag without doing anything, so the real ledger '
-      + 'would never be backfilled on this machine').toBeFalsy();
+test('it does nothing on an empty ledger either', async ({ page }) => {
+  await page.goto(URL);
+  await ready(page);
+  await page.evaluate(() => {
+    const w = window as any;
+    w.LSR.setItem('d2r_foundLog', '{}');
+    w.LSR.setItem('d2r_setPieces', '[]');
+    w.LSR.setItem('d2r_owned', '[]');
+    w.LSR.removeItem('d2r_vaultBackfill_v2200');
   });
+  await page.goto(URL);
+  await ready(page);
+  await page.waitForTimeout(1500);
+
+  const out = await page.evaluate(() => ({
+    published: (window as any)._vaultBackfill_v2200 === undefined ? null : 'present',
+    owned: JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]').length,
+  }));
+  expect(out.published, 'the retired migration ran on an empty ledger').toBeNull();
+  expect(out.owned, 'items appeared in an empty vault from nowhere').toBe(0);
+});

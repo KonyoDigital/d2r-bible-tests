@@ -29985,5 +29985,93 @@ class TestV2255ItSaysWHYAConsoleHasNotRestarted(unittest.TestCase):
                       "sends no such field and would render undefined into his panel")
 
 
+class TestV2256ItSaysWHYAConsoleNeverPulled(unittest.TestCase):
+    """THE THIRD AND LAST LINK. The chain a person actually needs is:
+        diskVer  (v2254) — did the update land on that machine?
+        relaunch (v2255) — has it taken effect?
+        pull     (here)  — did it ever get fetched at all?
+
+    Dean's console sat SIX versions back — alive, beaconing its tally every couple of minutes,
+    mode off — and the fleet could speak to none of the three. The narrowing that made this the
+    right thing to build: auto-relaunch defaults ON and `_drift_loop` RETRIES every period, so if
+    the restart machinery were the problem he would have restarted. Him still running v2249 points
+    at his DISK being v2249, which points at the pull.
+
+    ⚠ FOUR REFUSALS, AND ONLY ONE IS HIS TO FIX — pinned by TV_NO_AUTO_PULL, a dirty tracked tree,
+    already level, or git could not answer. One badge for all four would send him to the wrong
+    place three times out of four."""
+
+    def _app(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_app.py"), encoding="utf-8").read()
+
+    def _ui(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_ui.html"), encoding="utf-8").read()
+
+    def test_the_beacon_carries_the_pull_verdict(self):
+        a = self._app()
+        self.assertIn('"pull": _pull_report()', a, "the beacon no longer says why a pull happened")
+        self.assertEqual(a.count("def _pull_report("), 1,
+                         "_pull_report is defined more than once; the later one wins silently")
+
+    def test_it_names_all_four_refusals_apart(self):
+        a = self._app()
+        i = a.index("def _pull_report()")
+        body = a[i:a.index("\ndef ", i + 10)]
+        code = body.split('"""')[-1]
+        for token, why in (("TV_NO_AUTO_PULL", "the deliberate pin is no longer distinguished"),
+                           ("dirty", "a dirty tracked tree is no longer distinguished"),
+                           ("level with origin", "being already current is no longer distinguished")):
+            self.assertIn(token, code, why)
+
+    def test_it_NEVER_fetches_from_a_heartbeat(self):
+        """⚠ force_fetch here would put a `git fetch` on every heartbeat of every machine."""
+        a = self._app()
+        i = a.index("def _pull_report()")
+        code = a[i:a.index("\ndef ", i + 10)].split('"""')[-1]
+        self.assertIn("fleet_origin_status()", code, "it stopped asking the shared status")
+        self.assertNotIn("force_fetch", code,
+                         "the beacon-cadence report is forcing a git fetch")
+
+    def test_it_asks_the_same_function_the_PULL_asks(self):
+        # a status that can disagree with the behaviour it reports is worse than no status
+        a = self._app()
+        self.assertIn("def fleet_pull(", a, "fleet_pull is gone")
+        i = a.index("def _pull_report()")
+        code = a[i:a.index("\ndef ", i + 10)].split('"""')[-1]
+        self.assertIn("fleet_origin_status", code,
+                      "the pull report re-derives its own view instead of sharing fleet_pull's")
+
+    def test_unavailable_is_None_not_a_verdict(self):
+        a = self._app()
+        i = a.index("def _pull_report()")
+        self.assertIn("return None", a[i:a.index("\ndef ", i + 10)],
+                      "a console that cannot answer now appears to answer")
+
+    def test_the_badge_fires_only_when_BEHIND_and_refused(self):
+        """behind-and-clear catches up within the quarter hour and needs no badge; a badge that
+        fires on a healthy machine is one he learns to ignore."""
+        u = self._ui()
+        i = u.index("var stuck =")
+        line = u[i:u.index(";", i)]
+        self.assertIn("m.pull &&", line, "it reads m.pull without checking an older console sent it")
+        self.assertIn("can === false", line, "it no longer requires the pull to be REFUSED")
+        self.assertIn("behind !== 0", line, "it fires on a machine that is already level")
+
+    def test_the_three_states_do_not_share_a_colour(self):
+        import re as _re
+        u = self._ui()
+        cols = {}
+        for cls in ("fleet-unpub", "fleet-pending", "fleet-stuck"):
+            i = u.index("." + cls + "{")
+            cols[cls] = _re.search(r"color:(#[0-9a-fA-F]+)", u[i:u.index("}", i)]).group(1).lower()
+        self.assertEqual(len(set(cols.values())), 3,
+                         "two of the three fleet states are drawn in one colour, and they mean "
+                         "different things: %s" % cols)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

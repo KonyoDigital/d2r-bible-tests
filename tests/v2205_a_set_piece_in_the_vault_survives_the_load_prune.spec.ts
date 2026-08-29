@@ -28,6 +28,9 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 const HIS_FIVE = ['Waterwalk', "Cow King's Leathers (set)", 'Nagelring', 'Raven Frost',
                   'Laying of Hands (bramble mitts)'];
+// the two of his five that are SET PIECES — the only ones whose survival may not lean on an
+// assignment, because findSetPiece is the whole point of #48
+const SET_PIECES = ["Cow King's Leathers (set)", 'Laying of Hands (bramble mitts)'];
 
 async function ready(page: any) {
   await page.waitForFunction(
@@ -60,13 +63,57 @@ test('a set piece he owns is still there after a reload', async ({ page }) => {
   const own = await page.evaluate(() =>
     JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]') as string[]);
 
-  for (const n of HIS_FIVE) {
-    expect(own, `"${n}" was deleted by the load-time prune. It is one of the five items his own `
-      + `ledger snapshot records as genuinely his, and it was disappearing on EVERY page load. `
-      + `d2r_muleAssign is emptied by this fixture on purpose, so nothing but the set-piece clause `
-      + `can be what keeps it.`).toContain(n);
+  // ⚠ ONLY THE SET PIECES. Emptying d2r_muleAssign is NOT a neutral quiesce for a plain unique.
+  //
+  // Measured 2026-08-29, catching the writer with a storage hook installed before any page script:
+  // the deleter here is NOT the load-time prune at all, it is `_v42_sanitizeWishlistOwned`
+  // (bible.html:19465). Its "one-time vault cleanse" removes any _GRAIL_SEED / _UNI_EXTRA name that
+  // sits in `owned` WITHOUT a mule assignment — the corrupted state the v659-v676 floors created,
+  // where ledger names were written into the physical vault.
+  //
+  // For a plain seeded unique the assignment IS the designed keeper, and the real flow supplies it:
+  // `tvVaultRegister('Nagelring')` returns {ok:true, mode:'new', mule:'uni-small'} and writes
+  // d2r_muleAssign. So asserting Nagelring survives with the assignment blanked asserts the OPPOSITE
+  // of the design, and it is why this spec was red rather than the app being broken.
+  //
+  // The set-piece law is different and is what #48 is about: a set piece must survive on the
+  // strength of findSetPiece ALONE, with no assignment to lean on. That is what this asserts.
+  for (const n of SET_PIECES) {
+    expect(own, `"${n}" was deleted on load. It is a SET PIECE, and d2r_muleAssign is emptied here `
+      + `on purpose, so findSetPiece is the only thing that can keep it — which is exactly the `
+      + `guarantee #48 exists to hold.`).toContain(n);
   }
 });
+
+test('a seeded unique survives when it is filed to a mule, which the vault always does',
+  async ({ page }) => {
+    // the other half of the same rule, and the half the old fixture accidentally inverted
+    await page.goto(URL);
+    await ready(page);
+    await page.evaluate((five: string[]) => {
+      const w = window as any;
+      w.LSR.setItem('d2r_vaultBackfill_v2200', '{"x":1}');
+      w.LSR.setItem('d2r_vaultBackfillUndo_v2203', '{"x":1}');
+      w.LSR.setItem('d2r_vaultBackfillUndo_v2205', '{"x":1}');
+      w.LSR.setItem('d2r_tvExtraItems', '{}');
+      w.LSR.setItem('d2r_owned', JSON.stringify(five));
+      // what tvVaultRegister writes for real — see its {ok, mode:'new', mule:'uni-small'} return
+      const asg: Record<string, string> = {};
+      five.forEach((n) => { asg[n] = 'uni-small'; });
+      w.LSR.setItem('d2r_muleAssign', JSON.stringify(asg));
+    }, HIS_FIVE);
+
+    await page.goto(URL);
+    await ready(page);
+    await page.waitForTimeout(1200);
+    const own = await page.evaluate(() =>
+      JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]') as string[]);
+
+    for (const n of HIS_FIVE) {
+      expect(own, `"${n}" was deleted on load even though it is filed to a mule. A name he has `
+        + `placed by hand is a name he owns, and no cleanse may take it.`).toContain(n);
+    }
+  });
 
 test('the fixture is not vacuous — the prune really does still delete a bogus name',
   async ({ page }) => {
