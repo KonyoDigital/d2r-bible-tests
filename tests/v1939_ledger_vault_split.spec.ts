@@ -24,55 +24,6 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  * The sample is deliberately large and drawn from BOTH sources at runtime, so it covers names added
  * after this was written rather than the handful that existed on the day.
  */
-/* v2266 — THE DIVERGENCE THE GHOST ASSERTION ABOVE UNCOVERED, PINNED FROM THE RESOLVER'S SIDE.
-   tvVaultRegister canonicalises to the ITEMS key on purpose (v792, so one item is never two vault
-   tiles), and for these six the ITEMS key carries a parenthetical while the roster and the ledger
-   use the bare name. Asking d2rResolveItem about the string the vault itself wrote answered
-   {kind:'unknown'} — the board not recognising its own canonical key.
-
-   BOTH DIRECTIONS OR NEITHER. The fallback strips a trailing parenthetical, which is the same rule
-   tvVaultRegister uses at bible.html:35025 — and the obvious way for it to go wrong is to swallow
-   names that legitimately end in one. Measured across 438 names, exactly six changed and all six
-   unknown -> unique; the socketed bases, the skillers and the set AGGREGATE were untouched. A
-   widening that starts resolving those would be a real defect, so it is asserted here as loudly as
-   the fix is. */
-test('the resolver knows the catalogue keys the vault writes — and still refuses the ones it should',
-  async ({ page }) => {
-  await page.goto(URL);
-  await page.waitForTimeout(1600);
-  const r = await page.evaluate(() => {
-    const w: any = window;
-    const ask = (n: string) => { const x = w.d2rResolveItem(n); return x.kind + '/' + (x.canonical || '-'); };
-    return {
-      shako: ask('Harlequin Crest (Shako)'),
-      crescent: ask('Crescent Moon (amulet)'),
-      gull: ask('Gull (dagger)'),
-      broc: ask('The Hand of Broc (gloves)'),
-      hellmouth: ask('Hellmouth (gloves)'),
-      athena: ask("Athena's Wrath (set piece)"),
-      // the risk cases — a parenthetical that is DATA, not a display suffix
-      socketed: ask('Socketed 2H Weapon (6os)'),
-      skiller: ask('Amazon Javelin & Spear Skiller (GC)'),
-      aggregate: ask('Tal Rasha set (any piece)'),
-      // and an ordinary name must be unaffected
-      windforce: ask('Windforce'),
-    };
-  });
-  expect(r.shako, "the vault's own canonical key for the Shako does not resolve").toBe('unique/Harlequin Crest');
-  expect(r.crescent).toBe('unique/Crescent Moon');
-  expect(r.gull).toBe('unique/Gull');
-  expect(r.broc).toBe('unique/The Hand of Broc');
-  expect(r.hellmouth).toBe('unique/Hellmouth');
-  expect(r.athena).toBe("unique/Athena's Wrath");
-  expect(r.socketed, 'the suffix fallback swallowed a SOCKET COUNT — (6os) is data, not a display suffix')
-    .toBe('unknown/-');
-  expect(r.skiller, 'the suffix fallback swallowed a charm grade — (GC) is data, not a display suffix')
-    .toBe('unknown/-');
-  expect(r.aggregate, 'the grail ODDS aggregate started resolving as a physical item (v227)')
-    .toBe('unknown/-');
-  expect(r.windforce, 'an ordinary exact match changed').toBe('unique/Windforce');
-});
-
 test('★★★ applying chronicle finds fills the LEDGER and never the physical vault', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);

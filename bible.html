@@ -18509,34 +18509,28 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
     var pc = _pieces(); if (pc[n]) return { kind:'set-piece', canonical: pc[n] };
     var ro = _roster(); if (ro[n]) return { kind:'unique', canonical: ro[n] };
     var bd = _bases(); if (bd[n]) return { kind:'base', canonical: bd[n] };
-    /* ══ v2266 — THE RESOLVER DID NOT KNOW THE CATALOGUE'S OWN CANONICAL KEYS ═══════════════════
-       tvVaultRegister canonicalises a name to its ITEMS entry ON PURPOSE — v792, so that
-       'Harlequin Crest' and 'Harlequin Crest (Shako)' are never two vault tiles — and the ITEMS key
-       for that item IS the parenthesised form. So d2r_owned holds `Harlequin Crest (Shako)` while
-       d2r_foundLog holds the roster form `Harlequin Crest`, and asking THIS function about the
-       string the vault itself wrote answered {kind:'unknown', canonical:null}.
+    /* ⚠ v2267 — v2266 ADDED A SUFFIX-TOLERANT FALLBACK HERE AND IT IS REVERTED. Keeping the
+       reason, because the finding underneath is real and the next person will rediscover it.
 
-       That is not a sloppy write. It is two catalogues with two canonical forms for one item, and a
-       resolver that knew only one of them. Found by the v2263 ghost assertion on its first CI run,
-       which named the item rather than the count.
+       tvVaultRegister canonicalises to the ITEMS key on purpose (v792), and for six items that key
+       carries a parenthetical the roster does not — so d2r_owned holds `Harlequin Crest (Shako)`
+       while d2r_foundLog holds `Harlequin Crest`, and this function called the vault's own key
+       unknown. Teaching it to strip a trailing parenthetical fixed that, and CI found two things
+       the change also did, which measuring 438 RESOLUTIONS could not see:
 
-       The rule is tvVaultRegister's own, at :35025: strip a trailing parenthetical. It runs ONLY as
-       a second pass, so an exact match always wins and nothing that resolves today can move.
+         · v660 — `Blasphemous Grimoire (2os)` began resolving as the BASE `Blasphemous Grimoire`,
+           losing the socket count. I had tested `Socketed 2H Weapon (6os)` and
+           `Amazon Javelin & Spear Skiller (GC)` and called the class excluded — but those bare
+           forms are not catalogue names, so they stayed unknown for the wrong reason. My sample
+           did not contain a socketed base built from a REAL base name, which is the whole class.
+         · v712 — `_gFound` folds through this function's canonical BY DESIGN (v1779), so the
+           display form started reporting as found, against an explicit law: "the suffixed form is
+           display-only and is NOT a ledger key."
 
-       MEASURED across 438 names (every ITEMS entry, every roster name, plus socketed bases and
-       skillers whose names legitimately carry parentheses): exactly SIX change, every one of them
-       unknown -> unique, and not one existing resolution differs.
-         Crescent Moon (amulet) · Harlequin Crest (Shako) · Gull (dagger)
-         The Hand of Broc (gloves) · Hellmouth (gloves) · Athena's Wrath (set piece)
-       `Socketed 2H Weapon (6os)`, `Amazon Javelin & Spear Skiller (GC)` and the other
-       parenthesis-carrying strings are NOT among them — the risk this fallback obviously carries,
-       measured rather than argued. [[the-unjoined-end]] [[source-reading-guard]] */
-    var _bare = _norm(String(name || '').replace(/\s*\([^)]*\)\s*$/, ''));
-    if (_bare && _bare !== n) {
-      if (pc[_bare]) return { kind:'set-piece', canonical: pc[_bare] };
-      if (ro[_bare]) return { kind:'unique',    canonical: ro[_bare] };
-      if (bd[_bare]) return { kind:'base',      canonical: bd[_bare] };
-    }
+       So this is a shared oracle with callers that encode their own rules, and a fallback here is
+       not a local convenience. The join it was meant to serve is already made where it was needed —
+       tests/v1939 compares on the bare form — and the divergence itself is recorded rather than
+       smoothed over. [[gate-blind-to-unexercised-input]] [[feedback-suspect-the-instrument]] */
     return { kind:'unknown', canonical:null };
   };
   // the real unique roster (ITEM_VALUE ∪ _UNI_EXTRA), canonical names — for tallies that need to
@@ -33098,7 +33092,13 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vrg-det[open] .vrg-chev{transform:rotate(180deg)}
 .vrg-body{padding:4px 12px 12px}
 /* v342.21 — side-by-side bucket columns, each with its own header + independent scrollbar */
-.vrg-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}
+.vrg-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:11px}/* v2267 — 250px COULD NOT HOLD THE ROW IT WAS ASKED TO HOLD. Measured fixed costs per row:
+   art 26 + value 32 + destination tag 82 + close 18 + four 8px gaps 32 + padding 14 = 204px,
+   leaving 29px of a 233px row for the item NAME. Giving the name a floor alone just moved the
+   squeeze onto the tag (40/40 tags then clipped) — the column was simply too narrow for its
+   own contents, and every knob inside it was rearranging the same shortfall. 330px fits a
+   122px name plus the 204px of furniture with room to spare, and auto-fill still collapses to
+   one column on a phone. */
 .vrg-col{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:rgba(255,255,255,.015);display:flex;flex-direction:column;min-width:0}
 .vrg-col-h{display:flex;align-items:center;gap:6px;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:var(--fw-bold);letter-spacing:.5px;text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03)}
 .vrg-col-ct{margin-left:auto;font-size:var(--fs-micro);font-weight:var(--fw-bold);background:rgba(255,255,255,.1);border-radius:7px;padding:1px 8px;color:inherit}
@@ -33206,7 +33206,29 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .pf-dim{color:#756657}
 .vrg-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:7px}
 .vrg-row:hover{background:rgba(255,255,255,.05)}
-.vrg-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-body);color:var(--text)}
+.vrg-name{flex:1 1 auto;min-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-body);color:var(--text)}
+/* ══ v2267 — THE ITEM NAME WAS THE ONLY THING IN THE ROW ALLOWED TO SHRINK ══════════
+   Measured on the vault tab, natural state, no fixture: ALL 40 .vrg-name cells clipped,
+   at 1440 AND 901 AND 375, with cuts of 73-97%%:
+       Boneslayer Blade    106/3px   97%% gone   <- three pixels of the name
+       Bloodtree Stump     103/9px   91%%
+       Astreon's Iron Ward 122/15px  88%%
+   and NOTHING in the ancestor chain carries a title, so the full name was reachable
+   nowhere. A whole column of item names, unreadable.
+
+   The cause is one asymmetry. Anatomy of a 233px row: art 26 (flex 0/0) · NAME (flex 1/1,
+   min-width:0) · 'Low' 32 (flex 0/0) · '-> UNI-WEAPONS' 82 (flex 0/1 but min-width:auto,
+   so it never shrinks below its content) · x 18 · four 8px gaps. The name was the ONLY
+   child that could give, so it absorbed the entire squeeze while the DESTINATION LABEL
+   kept all 82 pixels. The row spent its width on where the item is going and left three
+   pixels for which item it is.
+
+   So invert the priority, which is the whole fix: give the name a floor, and let the tag
+   be the thing that truncates. '-> UNI-WEAP...' still reads; 'Bon' does not.
+   Found by the cross-family eye on a screenshot (it reported vrg-name 119/60), and I
+   nearly dismissed it - my first check measured the TOOLS tab, where this table does not
+   render, and reported 0 clipped. [[feedback-suspect-the-instrument]]
+   [[visual-regression-detector]] */
 /* v342.28 — multi-copy count badge on a registered row (×3/5), and the "Multi-copy keepers" editor */
 .vrg-copies{flex:0 0 auto;margin-left:6px;font-family:ui-monospace,monospace;font-size:var(--fs-micro);font-weight:var(--fw-bold);color:#f0c060;background:rgba(240,192,96,.14);border:1px solid rgba(240,192,96,.4);border-radius:6px;padding:1px 6px;white-space:nowrap}
 .vrg-copies-t{opacity:.6;font-weight:var(--fw-medium)}
@@ -33273,7 +33295,7 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vrg-row .d2art-wrap.d2art-r-rw,.vrg-row .d2art-wrap.d2art-r-rune{filter:drop-shadow(0 0 4px rgba(255,168,0,.55))}
 .vrg-row .d2art-wrap.d2art-r-magic{filter:drop-shadow(0 0 4px rgba(122,162,255,.6))}
 .vrg-row .d2art-wrap.d2art-r-rare{filter:drop-shadow(0 0 4px rgba(255,213,74,.55))}
-.vrg-tag{margin-left:auto;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:var(--fw-semibold);white-space:nowrap}
+.vrg-tag{margin-left:auto;font-family:ui-monospace,monospace;font-size:10.5px;font-weight:var(--fw-semibold);white-space:nowrap;/* v2267 — min-width:auto is what pinned this at full width while the NAME shrank to 3px */min-width:0;overflow:hidden;text-overflow:ellipsis}
 .vrg-tag-mule{color:var(--best,#66ff88)}
 .vrg-tag-loose{color:var(--gold-dim,#caa24a)}
 .vrg-tag-shared{color:#7fb9d8}
@@ -47315,7 +47337,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2266', name:'v2266 - The Board Did Not Know Its Own Canonical Key', date:'2026-08-29', note:'six catalogue names the resolver refused' };
+  window.D2R_BUILD = { id:'v2267', name:'v2267 - Three Pixels Of The Name', date:'2026-08-29', note:'the row spent its width on the destination' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2266",
+  "ver": "v2267",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2266: six catalogue names the resolver refused",
+  "note": "v2267: the row spent its width on the destination",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
