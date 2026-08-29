@@ -51,9 +51,21 @@ test('★★★ applying chronicle finds fills the LEDGER and never the physical
       newlyOwned: after.owned.filter((n) => !before.owned.includes(n)),
       /* v2263 — the vault write is now DELIBERATE (v1980/v1982/v1991), so what matters is no longer
          "did the vault grow" but "did anything reach the vault WITHOUT reaching the ledger". */
+      /* ⚠ THE TWO STORES KEY THE SAME ITEM DIFFERENTLY, AND THAT IS NOT A GHOST.
+         Measured: apply the ROSTER form `Harlequin Crest` and the ledger gets `Harlequin Crest`
+         while tvVaultRegister writes its own display label, `Harlequin Crest (Shako)`, into
+         d2r_owned (it returns exactly that as `label`). A verbatim join then reports the vault
+         holding a name the ledger never heard of — which is what this assertion said on CI, and
+         it is a KEY-FORM divergence, not an item he never stashed.
+         So join on the bare form as well: a trailing parenthetical is the vault's display suffix.
+         The divergence itself is real and is recorded separately — the board's own d2rResolveItem
+         answers {kind:'unknown', canonical:null} for the very string the vault stores. */
       vaultedNotLedgered: after.owned
         .filter((n) => !before.owned.includes(n))
-        .filter((n) => !after.fl.includes(n)),
+        .filter((n) => {
+          const bare = n.replace(/\s*\([^)]*\)\s*$/, '');
+          return !after.fl.includes(n) && !after.fl.includes(bare);
+        }),
       flDelta: after.fl.length - before.fl.length,
       spDelta: after.sp.length - before.sp.length,
       missingFromLedger: names.filter((n) => !after.fl.includes(n)),

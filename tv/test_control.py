@@ -10831,8 +10831,20 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
         j = min([x for x in (tail.find("else"), tail.find("if (!_landed)")) if x > 0] or [-1])
         self.assertGreater(j, 0, "the landed check lost its not-landed branch — a name that did "
                                  "not land is silently dropped from the receipt")
-        self.assertIn("res.vaulted", tail[j:j + 400],
-                      "the not-landed branch no longer reports a vault landing")
+        # ⚠ v2265 — THE REPORT LEFT THE BRANCH, AND THAT IS THE FIX, NOT A REGRESSION.
+        # This asserted `res.vaulted` INSIDE the not-landed branch. It was there, and so was the
+        # v2193 door's own push a few lines above — both under `!_landed` — so a base was reported
+        # TWICE and a name the grail had ticked was reported NOT AT ALL. Measured on a real page:
+        # 4 bases -> res.vaulted 8; 3 found uniques -> res.vaulted 0, with d2r_owned correct at 4
+        # and 3. Reporting is now one idempotent _vaultReport(), called at the door for EVERY name,
+        # which is strictly stronger than what this line asked for: it can no longer double-count,
+        # and it can no longer go silent on the landed half.
+        self.assertIn("_vaultReport(_vr, n)", tail[:j],
+                      "the vault landing is no longer reported at the door, so only the not-landed "
+                      "half of the fork can produce a receipt again")
+        self.assertNotIn("res.vaulted.push", tail[j:j + 400],
+                      "the not-landed branch pushes to res.vaulted again, beside the door's own "
+                      "report — that is the 8-for-4 double count v2265 measured and removed")
         # ⚠ AND THE VAULT DOOR MUST NOT GO BACK INSIDE IT. That is the v2193 defect itself: 279 of
         # his 281 read items never reached the vault because registration was reachable only when
         # the grail did NOT know the name.
@@ -20062,7 +20074,15 @@ class TestV2083AVaultedBaseSurvivesTheReload(unittest.TestCase):
             self.s = fh.read()
 
     def _vaulted_branch(self):
-        return _between(self, self.s, "res.vaulted = res.vaulted || []; res.vaulted.push(n);",
+        # v2265 — RE-ANCHORED, AND THE ANCHOR IS WHY. This located the block by the literal
+        # `res.vaulted = res.vaulted || []; res.vaulted.push(n);`. That line was the DOUBLE-COUNT:
+        # it fired beside the v2193 door's own push, so a base came back twice in res.vaulted and a
+        # found unique came back zero times (measured 8-for-4 and 0-for-3). Reporting moved into one
+        # idempotent _vaultReport call, so the anchor vanished and these three tests failed on their
+        # OWN REACH while every behaviour they assert was untouched. `if (!_landed) {` is the branch
+        # opener itself, unique in the file, and it is the thing this block IS rather than one line
+        # that happened to sit at the top of it. [[source-reading-guard]]
+        return _between(self, self.s, "if (!_landed) {",
                         "/* v1918", what="the vaulted branch")
 
     def test_a_vaulted_name_is_REMEMBERED_through_the_one_door(self):

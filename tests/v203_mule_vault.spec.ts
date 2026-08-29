@@ -43,6 +43,10 @@ test.describe('v203 the vault', () => {
       // this one cannot enter is worth nothing. The names make the next failure self-diagnosing.
       chipNames: [...document.querySelectorAll('.vault-dock .vault-chip')]
         .map((c) => (c.textContent || '').replace(/[◆✕]/g, '').trim()),
+      /* v2265 — AND WHERE ELSE AN ITEM CAN LEGITIMATELY BE. The dock holds what is NOT yet filed;
+         a filed item lives in its locker as a .vm-cell. Both are "the vault can show you this". */
+      cellNames: [...document.querySelectorAll('.vm-cell')]
+        .map((c) => (c.textContent || '').replace(/[◆✕]/g, '').trim()),
     }));
     // v230: runes/essences/shards/statues → shared stash (RUNES-HIGH + MATS removed, 10→8).
     // v342: + MAGIC & RARE (8→9). v360: + SHARED STASH locker for the never-muled items (9→10).
@@ -55,11 +59,31 @@ test.describe('v203 the vault', () => {
     expect(r.names).not.toContain('MATS');
     // v227: 'Tal Rasha set (any piece)' is a grail ODDS row, not a physical
     // item — aggregates keep their calc ✓ but never become vault chips
-    /* THE RULE, NOT THE NUMBER: every owned item becomes a dock chip EXCEPT the aggregate row.
-       Asserting the set says which name is missing; asserting the length says only that one is. */
+    /* ⚠ v2265 — THE DOCK IS NOT THE WHOLE VAULT, AND SINCE v1980 IT NEVER WAS.
+       This asserted that every owned item except the aggregate becomes a DOCK CHIP. That held while
+       nothing arrived pre-filed. v1980 ("the sweep now mules what it registers") made the boot seed
+       file what it registers, so 12 names are already assigned to lockers before any fixture runs —
+       and this fixture cannot undo that the way it undoes `owned`: `owned` is reachable by eval,
+       while `assign` is a closure variable inside the vault IIFE (bible.html:33546), so
+       `eval('assign')` throws ReferenceError and removing d2r_muleAssign only clears the store the
+       already-loaded object was built from.
+
+       MEASURED on a real page: 6 dock chips, and Vampire Gaze — one of the seeded twelve — sitting
+       in a .vm-cell in UNI-ARMOR, exactly where tvVaultRegister put it (mode 'already', mule
+       'uni-armor'). Nothing was lost. The product is right and the premise expired.
+
+       So assert the fear instead of the arrangement: an item he physically owns must be somewhere
+       the vault can SHOW him — the dock if unfiled, its locker if filed — and never nowhere. That
+       is what "an item vanished" would break, and it cannot be moved by which lane filed it first. */
     const expected = OWNED.filter((n) => n !== 'Tal Rasha set (any piece)').sort();
-    expect(r.chipNames.slice().sort(),
-      `the dock holds ${r.chips} chips for ${expected.length} physical items`).toEqual(expected);
+    const anywhere = new Set([...r.chipNames, ...r.cellNames]);
+    const unreachable = expected.filter((n) => !anywhere.has(n));
+    expect(unreachable,
+      `owned but nowhere in the vault — not a dock chip and not in any locker: ${JSON.stringify(unreachable)}`)
+      .toEqual([]);
+    /* and the aggregate still never becomes a physical row anywhere (v227) */
+    expect(anywhere.has('Tal Rasha set (any piece)'),
+      'the grail ODDS aggregate became a physical vault row').toBe(false);
     expect(r.names).toContain('SETS-TAL-IK');
     expect(r.names).toContain('UNI-SMALL');
   });

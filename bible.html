@@ -37257,6 +37257,25 @@ function renderJournal(){
       var u = (typeof unknownReads!=='undefined' && unknownReads) ? unknownReads.size : 0;
       return g + m + u;
     } catch(e){ return 0; } })();
+    /* ══ v2265 — "GENUINE PRIOR HISTORY" IS A FACT ABOUT THE ITEM, NOT ABOUT THE POOL ═══════════
+       v366 collapses two shots of the same unique in one batch, because that is one item
+       photographed twice, and Konyo named the symptom himself: "when we reset how can it tell me
+       owned for Chance Guards?" It asks `_preReg > 0` — the count of EVERYTHING already registered
+       before this batch — as a stand-in for "did we know this item already".
+
+       v1980 made the boot seed mule what it registers, so `owned` is never empty any more: measured
+       on a clean owner load, 12 names before a single screenshot is read. `_preReg > 0` is now
+       permanently true, on his board always, so the collapse branch can never run and every unique
+       photographed twice in one batch bumps to x2 — the exact phantom over-count v366 exists to
+       stop, silently disarmed by a change in a different lane.
+
+       The pool total was only ever a proxy. Snapshot the per-name fact instead: was THIS item ours
+       before this batch began? No -> a second read inside the batch is the same physical item.
+       Yes -> it is a genuine spare. That answers v366's question directly and cannot be moved by
+       what some other lane put in the vault. [[label-outlived-referent]]
+       [[feedback-threshold-above-the-ceiling]] */
+    var _ownedAtStart = (function(){ try { return new Set(Array.from(owned)); }
+                                     catch(e){ return new Set(); } })();
     report.hidden = false;
     report.innerHTML = _scanUI(0, files.length, 0);
     try { report.scrollIntoView({ behavior:'smooth', block:'center' }); } catch(e){}
@@ -37583,7 +37602,7 @@ function renderJournal(){
               // reset, vault empty at start) the same item in two screenshots is the SAME item photographed
               // twice — a DUPLICATE SHOT, not a 2nd copy. Bumping it to ×2 there is a phantom over-count
               // (Konyo: "when we reset how can it tell me owned for Chance Guards?"). Collapse to one instead.
-              if (_tgt <= 1 && _preReg > 0) copies[n] = _cur + 1;
+              if (_tgt <= 1 && _ownedAtStart.has(n)) copies[n] = _cur + 1;   // v2265 — this item, not the pool
               if (dupes.indexOf(n) < 0) dupes.push(n);
               fRec.own.push(n);
             }
@@ -42964,6 +42983,42 @@ function renderJournal(){
     } finally { window._chBatchTs = 0; }
   };
   window._chronicleApplyInner = function(proposal, add, res){
+  /* ══ v2265 — `res.vaulted` WAS WRONG IN BOTH DIRECTIONS, AND FOR ONE REASON ═══════════════
+     Measured on a real page, owner world, clean store:
+       apply 4 BASES   (Shako · Phase Blade · Monarch · Archon Plate)
+         d2r_owned 4 ✓        res.vaulted 8  <- every name TWICE
+       apply 3 UNIQUES (Annihilus · Arachnid Mesh · Bul-Kathos' Wedding Band)
+         d2r_owned 3 ✓        res.vaulted 0  <- silent about all three
+
+     One cause. v2193 opened a vault door for names the grail ALSO ticks, correctly, and its
+     report kept the old `if (!_landed)` guard — so it fires beside the v2083 push for a base
+     (double) and neither fires for a unique (silent). That is v1982's defect exactly — "A VAULTED
+     ROW LANDED AND THE RESULT SAID NOTHING HAPPENED" — surviving on the other side of the same
+     condition, which is why fixing the WRITE did not fix the REPORT.
+
+     Reporting is not a branch of the control flow, it is a fact about the name: the vault took it,
+     once. So it goes through one idempotent function that answers to tvVaultRegister rather than to
+     whichever door happened to run. `mode === 'new'` is kept as the rule because that is what the
+     first door already used, and a name already in the vault has not just been filed.
+
+     No consumer was visibly harmed — _landedAny only reads .length as a truthiness, and the names
+     builder at ~:46102 dedupes through _seenN — which is precisely why this survived: a field can
+     be factually wrong for a long time when every reader happens to be forgiving.
+     [[two-fixes-broke-each-other]] [[plumbing-with-no-tap]] */
+  var _vaultReport = function(vr, nm){
+    /* ⚠ `mode === 'new'` IS UNOBSERVABLE HERE, AND THAT IS NOT A tvVaultRegister BUG. This apply
+       calls toggleOwned(n) BEFORE it reaches either vault door, so by the time the door registers
+       the name the vault already holds it and the honest answer is 'already'. Traced inside one
+       real apply: two names, two register calls, both ok, both 'already' — and a FIRST-EVER call
+       to the same names from outside the apply returns 'new' for all four. Gating the report on
+       'new' therefore reports nothing at all, which is how the first cut of this fix turned a
+       double-count into a silence. `ok` is the fact the report is about: the vault has it. */
+    if (!vr || !vr.ok) return false;
+    res.vaulted = res.vaulted || [];
+    if (res.vaulted.indexOf(nm) >= 0) return false;
+    res.vaulted.push(nm);
+    return true;
+  };
     /* v1759 — THE HELD NAMES HAVE TO LAND SOMEWHERE, and until now they landed nowhere.
        A sweep produces two piles: wouldAdd (the gate grounded it) and HELD (it could not, and says
        why). This function only ever read wouldAdd, and control_app refused to call it at all when
@@ -43042,7 +43097,7 @@ function renderJournal(){
           if (typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n)) {
             var _vs = window.tvVaultRegister(n);
             if (_vs && _vs.ok) {
-              if (_vs.mode === 'new') { res.vaulted = res.vaulted || []; res.vaulted.push(n); }
+              _vaultReport(_vs, n);
             } else {
               res.vaultFailed = res.vaultFailed || [];
               res.vaultFailed.push({ name: n, why: String((_vs && _vs.why) || 'no reason given').slice(0, 90) });
@@ -43126,12 +43181,15 @@ function renderJournal(){
         try {
           if (typeof window.tvVaultRegister === 'function') {
             var _vr = window.tvVaultRegister(n);
-            if (_vr && _vr.ok) { res.vaulted = res.vaulted || []; if (!_landed) res.vaulted.push(n); }
+            _vaultReport(_vr, n);   // v2265 — the vault took it; _landed is a different question
           }
         } catch(e){}
 
         if (!_landed) {
-          res.vaulted = res.vaulted || []; res.vaulted.push(n);
+          /* v2265 — the push that stood here is now _vaultReport's, called at the door above for
+             EVERY name rather than only the ones the grail did not claim. The rest of this block
+             (the known-name repair and _tvExtraRemember) is untouched and still only applies to
+             names the catalogues do not carry. */
           /* ── v2083 — "VAULTED" HELD FOR ONE PAGE-LIFE, THEN IT WAS GONE ─────────────────────
              v1987 refused a fix here and said exactly why: "chronicleApply reports `vaulted` for
              a base, yet d2r_owned does not gain it, so nothing reaches ownedPool() and nothing
@@ -47229,7 +47287,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2264', name:'v2264 - A Character Is Not A ch', date:'2026-08-29', note:'the tagline cap was counted in the wrong unit' };
+  window.D2R_BUILD = { id:'v2265', name:'v2265 - The Pool Was Standing In For The Item', date:'2026-08-29', note:'four reds, two of them the product' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

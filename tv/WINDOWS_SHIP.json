@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2264",
+  "ver": "v2265",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2264: the tagline cap was counted in the wrong unit",
+  "note": "v2265: four reds, two of them the product",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
