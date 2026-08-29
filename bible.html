@@ -39481,7 +39481,7 @@ function renderJournal(){
                `huntable` carries what the app can actually help with, so the caption can stop
                implying it will help with all 160. Same defect as the hero-vs-meter split: a number
                shown next to a promise the machinery behind it does not make. */
-            chronicle: (function(){ try { var fu = window.funiScan(); if (!fu) return null;
+            grail: (function(){ try { var fu = window.funiScan(); if (!fu) return null;
               var huntable = 0;
               try { huntable = (fu.missing || []).filter(function(x){ return !!window._pickSrc(x.sources); }).length; } catch(e2){ huntable = 0; }
               return { found: fu.found, total: fu.chronTotal || fu.total, carded: fu.total, huntable: huntable }; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
@@ -45843,7 +45843,7 @@ window._renderStashFresh = function(){
         when 9 were already held reads as nine finds he did not make. */
   window.vaultAccumApply = function(payload){
     var p = (payload && typeof payload === 'object') ? payload : {};
-    var out = { ok:true, raised:[], held:[], chronicle:[], suggestions:0, skipped:[], ts:Date.now() };
+    var out = { ok:true, raised:[], held:[], grail:[], suggestions:0, skipped:[], ts:Date.now() };
     var items = p.items || [];
     /* ── v1997 — A PAYLOAD THAT NAMES NOTHING IS NOT AN EMPTY PAYLOAD ─────────────────────────
        This guard returned early on "no items", and the PIXEL EVIDENCE is carried by exactly the
@@ -47337,7 +47337,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2271', name:'v2271 - Where It Was, Not Just That It Was', date:'2026-08-29', note:'slot identity, additive, with the two lanes he named' };
+  window.D2R_BUILD = { id:'v2272', name:'v2272 - The Tip Is Not The Cell', date:'2026-08-29', note:'the join to the half that already existed' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

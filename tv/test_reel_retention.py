@@ -441,5 +441,67 @@ class TestV2122TheTwoDeletersAgreeAboutTheSameFootage(unittest.TestCase):
                         "this guard can no longer tell the hold from a dead planner")
 
 
+class TestV2272ExtractedFirstThenPruned(unittest.TestCase):
+    """Konyo, 2026-08-29: "everything thats detail related should be extracted and tallied.. and
+    then pruned" — and specifically that the LOCATION ("where it is exactly and where it was seen")
+    counts as detail.
+
+    A seal certifies promptVer/agentVer: WHICH READER ran, a statement about the NAME lane only.
+    frame_verdict treated sealed + not-a-witness as disposable, so a frame whose location had never
+    been extracted was deletable. MEASURED on his own footage the day this was written:
+    274 of 6719 frames (0.37 GB) were being offered; with the contract in place, 0 are.
+    """
+
+    def _wit(self):
+        return {"ok": True, "haveIndex": True, "frames": set()}
+
+    def _sealed(self, extracted=None):
+        row = {"ts": 1, "rows": 3, "promptVer": "vp2017", "agentVer": "v2026"}
+        if extracted is not None:
+            row["extracted"] = extracted
+        return {"s_1_1": row}
+
+    def _verdict(self, sealed):
+        import frame_authority as fa
+        return fa.frame_verdict("/tmp/hist/reel_s_1_1/f_9.jpg", sealed=sealed,
+                                wit=self._wit(), recent=set())
+
+    def test_a_seal_that_predates_the_contract_HOLDS(self):
+        ok, why = self._verdict(self._sealed(None))
+        self.assertFalse(ok)
+        self.assertIn("predates the extraction contract", why)
+
+    def test_a_seal_missing_LOCATION_holds_and_NAMES_what_is_missing(self):
+        # the whole point of his rule: the name alone is not enough
+        ok, why = self._verdict(self._sealed(["name", "provenance"]))
+        self.assertFalse(ok)
+        self.assertIn("location", why)
+
+    def test_a_seal_missing_PROVENANCE_holds(self):
+        ok, why = self._verdict(self._sealed(["name", "location"]))
+        self.assertFalse(ok)
+        self.assertIn("provenance", why)
+
+    def test_a_COMPLETE_seal_RELEASES_the_frame(self):
+        # ⚠ A HOLD THAT CAN NEVER BE RELEASED IS NOT A GATE, IT IS A WALL. If this ever fails, the
+        # contract has become unsatisfiable and the pruner can never be armed no matter what the
+        # sweep does. [[feedback-threshold-above-the-ceiling]]
+        ok, why = self._verdict(self._sealed(["name", "location", "provenance"]))
+        self.assertTrue(ok, why)
+
+    def test_the_facts_are_NAMED_not_counted(self):
+        # three of the same fact is not three facts
+        import frame_authority as fa
+        ok, why = fa.seal_covers_extraction({"extracted": ["name", "name", "name"]})
+        self.assertFalse(ok)
+        self.assertIn("location", why)
+
+    def test_a_non_record_seal_holds(self):
+        import frame_authority as fa
+        for junk in (None, "sealed", 7, []):
+            ok, _ = fa.seal_covers_extraction(junk)
+            self.assertFalse(ok, "a %r seal was accepted" % (junk,))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

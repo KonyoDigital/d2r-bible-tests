@@ -240,6 +240,17 @@ GATES = [
              "This extracts the SHIPPED block out of bible.html, runs it in node, and fails on the "
              "first name where the two disagree — a drifted cutoff folds 'Gul' onto 'Gull' and "
              "writes a find he never made"),
+    Gate("test_lane_health", [sys.executable, os.path.join(HERE, "test_lane_health.py")], 60,
+         why="v2272 — HE HAD TO ASK WHY NOTHING HAD BEEN EXTRACTED FOR DAYS. Measured that day: the "
+             "chronicle lane had swept 36 sessions and the vault lane had sealed 8, its newest seal "
+             "136.7h old, and frame_authority reads ONLY the vault seal — so 36 already-read reels "
+             "were held as 'not sealed' and nothing was prunable. Nothing surfaced it: the "
+             "auto-sweep watchdog speaks only when its message CHANGES, which is exactly wrong for "
+             "a lane that has said the same thing for five days. This pins the three questions a "
+             "lane must answer about itself — freshness, reach, and DIVERGENCE from the lane it "
+             "should agree with, which neither lane can see alone — and pins that an unreadable or "
+             "timestamp-less store is UNKNOWN rather than healthy. All five laws sabotage-proven "
+             "RED."),
     Gate("test_slot_identity", [sys.executable, os.path.join(HERE, "test_slot_identity.py")], 60,
          why="v2271 — SLOT IDENTITY. Konyo: \"it needs to be read within the tooltip and where and "
              "what cell box its located so it can have a slot identity for each item\". This pins "

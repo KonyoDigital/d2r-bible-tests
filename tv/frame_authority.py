@@ -175,6 +175,59 @@ def recent_reels(hist_dir, keep=KEEP_RECENT):
     return set(sorted(reels, key=_reel_ts)[-keep:]) if reels else set()
 
 
+# ══ v2272 — WHAT A SEAL MUST CERTIFY BEFORE ITS PIXELS ARE DISPOSABLE ═══════════════════════════
+#
+# Konyo, 2026-08-29: "make sure that it isnt deleting evidence.. and only pruning literally where it
+# can read tooltips.. but not only tooltips are analyzed in a reel.. there is location of the item
+# its been read also like where it is exactly and where it was seen.. and everything thats detail
+# related should be extracted and tallied.. and then pruned"
+#
+# THAT IS STRICTLY MORE THAN SEALING MEANS TODAY. A seal row is
+# {ts, rows, promptVer, agentVer, why} — it certifies WHICH READER ran, which is a statement about
+# the NAME lane and nothing else. frame_verdict then treats "sealed + not a witness" as disposable.
+# So a frame whose LOCATION was never extracted is deletable today, and location is exactly what he
+# just said must be taken first.
+#
+# The fix is not a new flag to trust. It is to make the seal declare WHAT IT EXTRACTED, and to hold
+# every frame whose seal does not cover the contract. No seal on disk declares it yet, so this holds
+# everything — which is the correct direction and is what he asked for. Arming stops being someone
+# flipping _PRUNE_SAFE_TO_RUN and becomes the sweep truthfully saying it took the location too.
+#
+# ⚠ THE FACTS ARE NAMED, NOT COUNTED. "3 things were extracted" is satisfiable by extracting the
+# same thing three times. [[unknown-stays-unknown]]
+EXTRACTION_CONTRACT = ("name", "location", "provenance")
+
+_CONTRACT_WHY = {
+    "name":       "the item's name, which only ever appears in a hover tooltip",
+    "location":   "WHERE it was — the container and the cell box inside it (his slot identity)",
+    "provenance": "where it was SEEN — which reel and which frame, so a row can be shown its proof",
+}
+
+
+def seal_covers_extraction(row, contract=EXTRACTION_CONTRACT):
+    """Does this seal certify that everything detail-bearing was taken? -> (bool, why)
+
+    A seal must carry an `extracted` list naming the facts it took. Anything missing — including a
+    seal that names nothing, which is every seal written before this contract existed — HOLDS.
+    An unstated fact is an unextracted one; "the sweep probably got it" is not a record.
+    """
+    if not isinstance(row, dict):
+        return False, "the seal is not a record at all"
+    got = row.get("extracted")
+    if got is None:
+        return False, ("this seal predates the extraction contract — it certifies a reader "
+                       "(promptVer %s) but never says WHAT it took, and an unstated fact is an "
+                       "unextracted one" % (row.get("promptVer") or "?"))
+    if not isinstance(got, (list, tuple, set)):
+        return False, "the seal's `extracted` is %s, not a list of facts" % type(got).__name__
+    have = {str(x) for x in got}
+    missing = [f for f in contract if f not in have]
+    if missing:
+        return False, ("the sweep never extracted %s" % ", ".join(
+            "%s (%s)" % (f, _CONTRACT_WHY.get(f, "")) for f in missing))
+    return True, "the sweep took %s before anything here became disposable" % ", ".join(contract)
+
+
 def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     """MAY this one frame be deleted? Returns (bool, why) and the why is written for him, not for a log.
 
@@ -205,6 +258,13 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     if os.path.basename(frame_path) in (wit.get("frames") or set()):
         return False, ("this frame is a WITNESS behind a row in his vault — it is the only way to "
                        "ever show him why that row is there")
+    # v2272 — A FIFTH HOLD, and it is his rule: extracted FIRST, then pruned. Sealing says which
+    # reader ran; it has never said what was taken. Until a seal declares the contract, these pixels
+    # may still be the only record of WHERE the item was.
+    _cov, _why = seal_covers_extraction((sealed or {}).get(sess))
+    if not _cov:
+        return False, ("recording %s is sealed, but %s — his rule is that everything detail-bearing "
+                       "is extracted and tallied BEFORE anything is pruned" % (sess, _why))
     return True, "recording %s is sealed and this frame witnessed nothing" % sess
 
 

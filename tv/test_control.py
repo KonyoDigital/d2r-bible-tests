@@ -382,7 +382,15 @@ def _fixture_hist(case, reels=7, sealed=True):
     with open(os.path.join(root, "chronicle_swept.json"), "w", encoding="utf-8") as fh:
         _j.dump({n: {"pages": 9} for n in names} if sealed else {}, fh)
     with open(os.path.join(root, "vault_swept.json"), "w", encoding="utf-8") as fh:
-        _j.dump({n: {"ts": 1, "rows": 0} for n in names} if sealed else {}, fh)
+        # v2272 — A SEAL NOW DECLARES WHAT IT EXTRACTED. His rule is "everything thats detail
+        # related should be extracted and tallied.. and then pruned", so frame_authority holds
+        # any frame whose seal does not name the contract. A fixture that seals WITHOUT it is
+        # asserting the pre-contract world, and would quietly turn every prunability test into
+        # a test that nothing is ever prunable. This is what a real post-slot-identity sweep
+        # writes. [[feedback-threshold-above-the-ceiling]]
+        _j.dump({n: {"ts": 1, "rows": 0,
+                     "extracted": ["name", "location", "provenance"]} for n in names}
+                if sealed else {}, fh)
     return root, hist
 
 
@@ -4376,6 +4384,49 @@ class TestToolsCanReportTheirVerdict(unittest.TestCase):
         self.assertFalse(console_safe.enable(Dumb()))
         self.assertFalse(console_safe.enable(_io.StringIO()))
         console_safe.enable(None)          # tolerated, no exception
+
+
+class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
+    """The DAILY TASK FORCE reads d2r_forgeSummary, which bible.html writes and control_ui.html
+    consumes — TWO FILES, one contract, and nothing checked that they agreed on the key names.
+
+    ⚠ THIS EXISTS BECAUSE I BROKE IT. The v2270 grail->chronicle rename excluded identifiers by
+    looking at the character AFTER the word, and `[A-Za-z0-9_.\-$(\[]` does not contain ':'. So an
+    UNQUOTED OBJECT KEY — `grail:` — was not an identifier as far as that rule was concerned, and
+    the summary builder started writing `chronicle: {...}` while the console kept reading
+    `fs.grail`. The Uniques row simply stopped rendering: no error, no console warning, the panel
+    just had two rows where it used to have three, and KONYO is the one who noticed.
+
+    A rename is exactly when a cross-file key contract is most likely to break and least likely to
+    complain, so the contract is asserted here rather than trusted. [[the-unjoined-end]]
+    [[copy-drift]]
+    """
+
+    #: every `fs.<key>` the task force reads, and what it is
+    KEYS = {"grail": "the Chronicle uniques row", "chron": "the runewords row", "sets": "the sets row"}
+
+    def _src(self, name):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), name) \
+            if name.endswith(".html") and name.startswith("control") else \
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), name)
+        with io.open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_every_key_the_console_reads_is_a_key_the_board_writes(self):
+        ui = self._src("control_ui.html")
+        board = self._src("bible.html")
+        missing = []
+        for k in self.KEYS:
+            # the console reads it
+            if ("fs.%s" % k) not in ui:
+                missing.append("control_ui.html no longer reads fs.%s (%s)" % (k, self.KEYS[k]))
+            # the board writes it as an object key in the summary
+            if not re.search(r"(?m)^\s*%s\s*:" % re.escape(k), board):
+                missing.append("bible.html no longer WRITES the `%s:` key — %s will silently vanish"
+                               % (k, self.KEYS[k]))
+        self.assertEqual(missing, [],
+                         "the task force contract is broken across the two files:\n  "
+                         + "\n  ".join(missing))
 
 
 class TestNoOrphanSuite(unittest.TestCase):
@@ -16729,7 +16780,7 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
         is there, which is the retro debugging he asked for by name."""
         fa = self._mod()
         root, hist = self._tree(
-            sealed={"s_1000_1": {"ts": 1, "rows": 1}},
+            sealed={"s_1000_1": {"ts": 1, "rows": 1, "extracted": ["name", "location", "provenance"]}},
             accum=[{"name": "Shako", "witnesses": [{"session": "s_1000_1", "frame": "f_1.jpg"}]}],
             reels=self._REELS)
         p = fa.plan_frames(hist, root=root)
@@ -16749,7 +16800,7 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
 
     def test_the_newest_five_recordings_are_held_even_when_sealed(self):
         fa = self._mod()
-        root, hist = self._tree(sealed={k: {"ts": 1, "rows": 0} for k in self._REELS},
+        root, hist = self._tree(sealed={k: {"ts": 1, "rows": 0, "extracted": ["name", "location", "provenance"]} for k in self._REELS},
                                 reels=self._REELS)
         p = fa.plan_frames(hist, root=root)
         held = {os.path.basename(os.path.dirname(f)) for f in p["prunable"]}
@@ -17557,7 +17608,7 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         with open(os.path.join(root, "chronicle_swept.json"), "w", encoding="utf-8") as fh:
             _j.dump({n: {"pages": 9} for n in names}, fh)
         with open(os.path.join(root, "vault_swept.json"), "w", encoding="utf-8") as fh:
-            _j.dump({n: {"ts": 1, "rows": 0} for n in names}, fh)
+            _j.dump({n: {"ts": 1, "rows": 0, "extracted": ["name", "location", "provenance"]} for n in names}, fh)
         # v2122 (#32) — and a durable witness store, or NOTHING is offered and the baseline
         # assertion below (which exists precisely so this case cannot measure nothing) is the one
         # that goes red. reel_retention now holds every reel while haveIndex is False, matching
@@ -19471,7 +19522,7 @@ class TestV2080TheReviewFindings(unittest.TestCase):
             os.makedirs(d)
             io.open(os.path.join(d, "f_%s_0.jpg" % sid), "w").write("x" * 4000)
         io.open(os.path.join(root, "vault_swept.json"), "w").write(
-            _j.dumps({"s_1700000000000_1": {"rows": 7}}))
+            _j.dumps({"s_1700000000000_1": {"rows": 7, "extracted": ["name", "location", "provenance"]}}))
         if durable:
             io.open(os.path.join(root, "vault_accum.json"), "w").write(_j.dumps({"owned": []}))
             io.open(os.path.join(root, "vault_seen.json"), "w").write(_j.dumps({"rows": []}))

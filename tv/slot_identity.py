@@ -151,6 +151,49 @@ def placement(sightings):
     }
 
 
+def anchor_from_tooltip_rect(rect, cursor_corner="topleft", offset=(0, 0)):
+    """The point the tooltip is ABOUT, from the rectangle the tooltip occupies. -> (point|None, why)
+
+    ⚠ A TOOLTIP IS NOT WHERE THE ITEM IS. D2R draws the tip ADJACENT to the hovered cell, so the
+    rectangle tells you where the TEXT went, and the cell is at a fixed offset from one of its
+    corners. That offset is a property of the game's layout at a given resolution, and it is the one
+    thing here that cannot be derived from a single pair of frames — it has to be measured once
+    against a real frame whose true cell is known.
+
+    So this takes the offset as an ARGUMENT and REFUSES when it has not been supplied, rather than
+    shipping a plausible constant. A guessed offset would place items in the wrong cell with total
+    confidence, which is the failure this whole module is built to avoid.
+
+    tv/tooltip_crop.changed_rect(a, b) already produces `rect` for free on a hover pass — the panel
+    is identical frame to frame and only the tip changes, so the rectangle IS the difference. That
+    half of the chain exists and is guarded (test_vault_retro's TestV2239). This is the join.
+
+    `rect` is (left, top, right, bottom), matching changed_rect's contract.
+    """
+    try:
+        l, t, r, b = [float(v) for v in rect]
+    except (TypeError, ValueError, IndexError):
+        return None, "rect is not (left, top, right, bottom)"
+    if r <= l or b <= t:
+        return None, "rect %r has no area — a tooltip that occupies nothing is not evidence" % (rect,)
+    corners = {"topleft": (l, t), "topright": (r, t), "bottomleft": (l, b), "bottomright": (r, b)}
+    if cursor_corner not in corners:
+        return None, ("unknown corner %r — say which corner of the tip sits by the cell"
+                      % (cursor_corner,))
+    try:
+        ox, oy = float(offset[0]), float(offset[1])
+    except (TypeError, ValueError, IndexError):
+        return None, "offset is not an (x, y) pair"
+    if ox == 0 and oy == 0:
+        return None, ("no tooltip->cell OFFSET has been calibrated, so the anchor would be the tip's "
+                      "own corner and every item would land in whichever cell the TEXT covers. "
+                      "Measure it once against a frame whose true cell is known — that is exactly "
+                      "what his 20-item vault test produces — and pass it here. "
+                      "[[unknown-stays-unknown]]")
+    cx, cy = corners[cursor_corner]
+    return (cx + ox, cy + oy), None
+
+
 # ══ THE TWO LANES ═══════════════════════════════════════════════════════════════════════════════
 # His rule, exactly: both lanes must be ACCURATE. They differ only in which instrument earns it.
 #   SHADOW  — nobody was there, so independence has to be manufactured: witnesses, watchdog, eagle

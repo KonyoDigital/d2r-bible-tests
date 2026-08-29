@@ -92,6 +92,40 @@ class TestUnplacedIsNotZero(unittest.TestCase):
         self.assertIn("none of them placed it", p["why"])
 
 
+class TestTheTooltipIsNotWhereTheItemIs(unittest.TestCase):
+    """D2R draws the tip ADJACENT to the hovered cell. The rectangle says where the TEXT went, so
+    turning it into a cell needs an offset that must be MEASURED, never assumed."""
+
+    RECT = (100, 200, 260, 320)
+
+    def test_an_uncalibrated_offset_REFUSES_instead_of_using_the_corner(self):
+        # ⚠ the whole point: a guessed offset would place every item in whichever cell the TEXT
+        # covers, confidently and wrongly. Silence is the correct output until it is measured.
+        pt, why = S.anchor_from_tooltip_rect(self.RECT)
+        self.assertIsNone(pt)
+        self.assertIn("OFFSET has been calibrated", why)
+
+    def test_a_calibrated_offset_moves_the_anchor_off_the_tooltip(self):
+        pt, why = S.anchor_from_tooltip_rect(self.RECT, "topleft", (-24, 12))
+        self.assertEqual(pt, (76.0, 212.0), why)
+
+    def test_a_zero_area_rect_refuses(self):
+        pt, why = S.anchor_from_tooltip_rect((100, 200, 100, 200), offset=(5, 5))
+        self.assertIsNone(pt)
+        self.assertIn("no area", why)
+
+    def test_an_unknown_corner_refuses(self):
+        pt, why = S.anchor_from_tooltip_rect(self.RECT, "middle", (1, 1))
+        self.assertIsNone(pt)
+        self.assertIn("unknown corner", why)
+
+    def test_each_corner_gives_a_DIFFERENT_anchor(self):
+        # if these ever collapsed, the corner argument would be decoration
+        seen = {S.anchor_from_tooltip_rect(self.RECT, c, (1, 1))[0]
+                for c in ("topleft", "topright", "bottomleft", "bottomright")}
+        self.assertEqual(len(seen), 4)
+
+
 class TestTheHumanLaneIsARecheckNotAWitnessCount(unittest.TestCase):
     """His rule: "me/cuzin/user doesnt need to be witnessed.. just needs to be able to read it
     accurately.. so maybe just a double read". So the bar moves from independence to agreement —

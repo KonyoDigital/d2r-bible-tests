@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2271",
+  "ver": "v2272",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2271: slot identity, additive, with the two lanes he named",
+  "note": "v2272: the join to the half that already existed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
