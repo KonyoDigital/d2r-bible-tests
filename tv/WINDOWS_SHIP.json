@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2260",
+  "ver": "v2261",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2260: The vault spec only added to the owned set and never cleared it, so it counted the boot floor as its own",
+  "note": "v2261: A count said one item was missing and never which, so the assertion now compares the set and the next CI run answers instead of a guess",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

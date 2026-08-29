@@ -38,6 +38,11 @@ test.describe('v203 the vault', () => {
       mules: document.querySelectorAll('.vault-mule').length,
       chips: document.querySelectorAll('.vault-dock .vault-chip').length,
       names: [...document.querySelectorAll('.vm-name')].map(e => e.textContent),
+      // ⚠ CARRY THE CHIP NAMES. The count alone said "expected 7, received 6" and nothing else, so
+      // the only way to learn WHICH item was missing was to guess — and a guess about a machine
+      // this one cannot enter is worth nothing. The names make the next failure self-diagnosing.
+      chipNames: [...document.querySelectorAll('.vault-dock .vault-chip')]
+        .map((c) => (c.textContent || '').replace(/[◆✕]/g, '').trim()),
     }));
     // v230: runes/essences/shards/statues → shared stash (RUNES-HIGH + MATS removed, 10→8).
     // v342: + MAGIC & RARE (8→9). v360: + SHARED STASH locker for the never-muled items (9→10).
@@ -50,7 +55,11 @@ test.describe('v203 the vault', () => {
     expect(r.names).not.toContain('MATS');
     // v227: 'Tal Rasha set (any piece)' is a grail ODDS row, not a physical
     // item — aggregates keep their calc ✓ but never become vault chips
-    expect(r.chips).toBe(OWNED.length - 1);
+    /* THE RULE, NOT THE NUMBER: every owned item becomes a dock chip EXCEPT the aggregate row.
+       Asserting the set says which name is missing; asserting the length says only that one is. */
+    const expected = OWNED.filter((n) => n !== 'Tal Rasha set (any piece)').sort();
+    expect(r.chipNames.slice().sort(),
+      `the dock holds ${r.chips} chips for ${expected.length} physical items`).toEqual(expected);
     expect(r.names).toContain('SETS-TAL-IK');
     expect(r.names).toContain('UNI-SMALL');
   });
