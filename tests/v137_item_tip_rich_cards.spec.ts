@@ -58,12 +58,28 @@ test.describe('v137 ITEM_TIP rich stat cards (verified per-item, no fabrication)
     expect(r.shako.rich).toBe(true);
     expect(r.shako.desc).toContain('Elite Unique &middot; Shako');
     expect(r.shako.desc).toContain('+2 To All Skills');
-    expect(r.shako.desc).toContain('att-var');   // [1-148] level-scaled life/mana
+    /* v2263 — HIS LAW, AND THIS LINE WAS ASSERTING ITS OPPOSITE.
+       Konyo: "it shouldnt show a range for it (it isnt a gamble) like the rest of the buffs that
+       get rolled... thats the law that needs to be coded here." v2249 split the two kinds of
+       bracket in _sunMarkup: a stat that ROLLS when the item is made keeps att-var (you can chase
+       a better one), and a stat DERIVED from character level becomes att-lvl (re-making the item
+       cannot improve it). The Shako's +[1-148] Life/Mana is the level-scaled kind — this line's own
+       comment said so while asserting the roll class, and it has been red on CI since v2249.
+
+       Measured on the live page 2026-08-29 via _arttipResolve: Shako att-lvl 2 / att-var 0;
+       Mara's att-var 1 / att-lvl 0; Griffon's att-var 3 / att-lvl 0. Assert BOTH directions on the
+       same page — a classifier that returned one class for everything would satisfy either half
+       alone, and this pair is the only thing that can tell his law from a stuck answer. */
+    expect(r.shako.desc, 'the Shako\'s [1-148] is LEVEL-SCALED, not a roll').toContain('att-lvl');
+    expect(r.shako.desc, 'a level-scaled stat is being offered as a re-rollable gamble')
+      .not.toContain('att-var');
 
     // Mara's — Unique Amulet, all-res range chip
     expect(r.mara.rich).toBe(true);
     expect(r.mara.desc).toContain('Unique &middot; Amulet');
-    expect(r.mara.desc).toContain('att-var');
+    expect(r.mara.desc).toContain('att-var');     // +[20-30] all-res IS a roll — the other half of the pair
+    expect(r.mara.desc, "Mara's all-res rolls; calling it level-scaled tells him not to chase it")
+      .not.toContain('att-lvl');
     expect(r.mara.desc).toContain('+2 To All Skills');
 
     // Griffon's — Elite Unique Diadem

@@ -47215,7 +47215,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2262', name:'v2262 - Guard The Fear Not The Fossil', date:'2026-08-29', note:'A belt spec asserted the world before the throw-out review existed and a chronicle spec hardcoded his progress instead of the locked universes' };
+  window.D2R_BUILD = { id:'v2263', name:'v2263 - The Law Was Overturned, The Fear Was Not', date:'2026-08-29', note:'four specs asserting a world two deliberate ships replaced' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -47491,6 +47491,30 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
       seenCount: ((prev && prev.seenCount) || 0) + (row._bump ? 1 : 0)
     });
     delete next._bump;
+    /* ══ v2263 — A VAULT LANDING MUST NOT ERASE HIS RULING ════════════════════════════════════
+       Measured on the live page: press "tick it" on `Bul-Kathos Wedding Band` and the accept works
+       perfectly — funiScan().found 248 -> 249, kaiChronicleAccept returns
+       {chronicle:'ticked', vault:'filed'}. But the LAST writer to touch that row is the vault door
+       v2194 added, and it upserts the same name with status 'vault-registered'. Object.assign
+       overwrites, so the row's stored status became 'vault-registered'. kaiChronicleLedger then
+       live-annotates any row that is not accepted/dismissed, finds the name now settled in the
+       foundLog, and relabels it 'in-chronicle' — "✓ in grail".
+
+       So every item he ticks BY HAND is recorded as though the board already had it. The ledger
+       exists so he can see WHO decided WHAT; that distinction was being destroyed on the way to
+       disk, by a second writer describing a different fact about the same row.
+
+       'accepted' and 'dismissed' are HIS ruling. A vault outcome is a detail ABOUT the item, and
+       it keeps its own field rather than sitting in the slot that answers a different question. It
+       is scoped to the four vault statuses on purpose: undo, removal and refusal must still be
+       able to overturn an acceptance, and a blanket freeze would break them.
+       [[label-outlived-referent]] [[the-unjoined-end]] */
+    var _RULED = { 'accepted': 1, 'dismissed': 1 };
+    var _VAULT_STATUS = { 'vault-registered': 1, 'vault-unknown': 1, 'throw-suggested': 1, 'route-failed': 1 };
+    if (prev && _RULED[prev.status] && row.status && _VAULT_STATUS[row.status]){
+      next.status = prev.status;
+      next.vaultStatus = row.status;
+    }
     if (ix >= 0) log[ix] = next; else log.push(next);
     _chLogSave(log);
     return next;

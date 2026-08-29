@@ -49,6 +49,11 @@ test('★★★ applying chronicle finds fills the LEDGER and never the physical
       names, fromRoster: fromRoster.length, fromExtra: fromExtra.length,
       ownedBefore: before.owned.length, ownedAfter: after.owned.length,
       newlyOwned: after.owned.filter((n) => !before.owned.includes(n)),
+      /* v2263 — the vault write is now DELIBERATE (v1980/v1982/v1991), so what matters is no longer
+         "did the vault grow" but "did anything reach the vault WITHOUT reaching the ledger". */
+      vaultedNotLedgered: after.owned
+        .filter((n) => !before.owned.includes(n))
+        .filter((n) => !after.fl.includes(n)),
       flDelta: after.fl.length - before.fl.length,
       spDelta: after.sp.length - before.sp.length,
       missingFromLedger: names.filter((n) => !after.fl.includes(n)),
@@ -63,10 +68,27 @@ test('★★★ applying chronicle finds fills the LEDGER and never the physical
   expect(r.fromExtra, 'no _UNI_EXTRA name was exercised — the family that caused the live bug')
     .toBeGreaterThanOrEqual(1);
 
-  expect(r.newlyOwned, `a chronicle find was routed into the PHYSICAL vault: ${JSON.stringify(r.newlyOwned)}`)
+  /* ⚠ v2263 — THIS SPEC'S LAW WAS OVERTURNED BY DECISION ONE DAY AFTER IT WAS WRITTEN, and it has
+     been red on CI ever since while reading as an unreproduced mystery locally.
+
+     It asserted `newlyOwned === []` and `ownedAfter === ownedBefore`. v1980 — "the sweep now mules
+     what it registers" — made _chronicleApplyInner call tvVaultRegister() and toggleOwned() on
+     purpose; v1982 and v1991 built on that. Measured on CI: 32 names vaulted by one apply. So the
+     old assertion is not catching a leak, it is reporting a feature.
+
+     BUT THE FEAR IS STILL REAL AND IS NOT WHAT THE OLD LINES MEASURED. Read the live bug this file
+     documents above: a find of a _UNI_EXTRA name went into d2r_owned *INSTEAD OF* d2r_foundLog. The
+     damage was never that the vault grew — it was that the LEDGER did not, so an item he never
+     stashed became something to mule and his found-truth silently lost a name. A vault write that
+     is ACCOMPANIED by a ledger write is the v1980 feature; a vault write that REPLACES one is the
+     v677 bug, and only the second is worth failing over.
+
+     Measured on an owner load 2026-08-29: the seed's own 12 vaulted names each carry a real ledger
+     stamp (nine of them his own game dates), so this holds today for the right reason — and planting
+     one vault-only name turns it red, which is how that was established rather than assumed. */
+  expect(r.vaultedNotLedgered,
+    `routed into the PHYSICAL vault while MISSING from the ledger — the v677 ghost: ${JSON.stringify(r.vaultedNotLedgered)}`)
     .toEqual([]);
-  expect(r.ownedAfter, 'the vault changed size on an apply that should never touch it')
-    .toBe(r.ownedBefore);
   expect(r.missingFromLedger, `applied but absent from the ledger: ${JSON.stringify(r.missingFromLedger)}`)
     .toEqual([]);
   expect(r.flDelta, 'the ledger did not take every applied name').toBe(r.names.length);

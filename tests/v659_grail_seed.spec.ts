@@ -21,7 +21,18 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
       hoz: owned.includes('Herald of Zakarum'),         // _UNI_EXTRA unique — owned + carded in the F-tab
       hozStamp: fl['Herald of Zakarum'],
       calcClean: (w.ITEMS || []).filter((x: any) => x.n === 'Herald of Zakarum').length,  // NEVER in the calculator DB
-      vaultClean: JSON.parse(localStorage.getItem('d2r_owned') || '[]').length,           // v677 — the seed must NEVER touch the vault
+      /* v2263 — v1980 ("the sweep now mules what it registers") DELIBERATELY REVERSED THE OLD LAW
+         HERE, and this line asserted the old one for eight days of red CI. The seed's one-shot
+         applies (v1692 Fleshrender, v1693 ruling, v1693 Diggler) now route through chronicleApply,
+         which calls tvVaultRegister + toggleOwned on purpose. Measured on an owner load: 12 names.
+
+         So stop counting and hold the fear the count was standing in for. v677's real worry was a
+         GHOST — a name that reaches the physical vault WITHOUT reaching the ledger, so an item he
+         never stashed appears as something to mule. That worry survives v1980 untouched, and it is
+         checkable as a subset, which is immune to him playing the game. */
+      vaultNames: JSON.parse(localStorage.getItem('d2r_owned') || '[]') as string[],
+      vaultGhosts: (JSON.parse(localStorage.getItem('d2r_owned') || '[]') as string[])
+        .filter((n) => !Object.prototype.hasOwnProperty.call(fl, n)),
     };
   });
   /* v1758 — 243 -> 245, and both are accounted for the way this spec has always demanded.
@@ -74,7 +85,10 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();
   expect(r.calcClean).toBe(0);          // extras stay OUT of ITEMS — the calculator/boss tables are untouched
-  expect(r.vaultClean).toBe(0);         // v677 — zero chronicle names in the vault (Konyo throws finds away)
+  expect(r.vaultGhosts, `vaulted but never registered in the ledger: ${JSON.stringify(r.vaultGhosts)}`)
+    .toEqual([]);                       // v677's real law, restated so v1980 cannot hide a ghost
+  expect(r.vaultNames.length, 'the seed vaulted NOTHING — v1980/v1991 mule what they register, so '
+    + 'zero here means that lane silently reverted').toBeGreaterThan(0);
 });
 
 test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re-tick clears it', async ({ page }) => {

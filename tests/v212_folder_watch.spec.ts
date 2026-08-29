@@ -39,13 +39,25 @@ async function menuPick(page: any, k: number | string) {
 }
 
 test.describe('v212 folder watch', () => {
+  /* v2263 — COUNT THE PAID READS INSTEAD OF INFERRING THEM.
+     The Skip test used to prove "no read happened" with `owned.has('Vampire Gaze')`, on the sound
+     reasoning that the stub below hands back that name on every intake call, so the item can only
+     be known if a call was made. That inference broke, and NOT because a read started happening:
+     v1980 made the boot seed's one-shot applies mule what they register, so an owner load now puts
+     twelve names into the vault before any test runs — Vampire Gaze among them (measured; it is one
+     of his own finds, ledger-stamped Jul 7). localStorage.clear() in this hook empties the STORE
+     but not the in-memory `owned` Set, so the seeded name survives into the assertion.
+     A read is a REAL request costing REAL money [[paid-work-with-no-memory]]. Count it. */
+  let intakeCalls = 0;
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/intake', (route) =>
-      route.fulfill({
+    intakeCalls = 0;
+    await page.route('**/api/intake', (route) => {
+      intakeCalls++;
+      return route.fulfill({
         status: 200, contentType: 'application/json',
         body: JSON.stringify({ items: ['Vampire Gaze'], unrecognized: [], usage: { in: 700, out: 20, cached: 0 } }),
-      })
-    );
+      });
+    });
     await page.goto(URL);
     await page.waitForTimeout(2200);
     await page.evaluate(() => {
@@ -71,6 +83,11 @@ test.describe('v212 folder watch', () => {
     }));
     expect(r.owned).toBe(true);
     expect(r.seen).toEqual(['Screenshot001.png']);
+    /* v2263 — THE OTHER SIDE OF THE SKIP COUNTER. A read-counter only ever asserted ZERO is a
+       gate that has never been seen move, and would keep passing if the route stub stopped being
+       reached at all. This is the path that is SUPPOSED to spend, so pin that it spent. */
+    expect(intakeCalls, 'the auto-read path made NO intake call — the counter is not wired to '
+      + 'anything, so the Skip test proves nothing either').toBeGreaterThan(0);
   });
 
   test('re-scan shows 0 new (registered names skipped); a NEW file appears in the next menu', async ({ page }) => {
@@ -108,7 +125,7 @@ test.describe('v212 folder watch', () => {
     }));
     expect(r.seen).toBe(13);
     expect(r.reportHidden).toBe(true); // no intake ran, row tucked away again
-    expect(r.owned).toBe(false);
+    expect(intakeCalls, 'Skip made a PAID intake call — the token guard did not hold').toBe(0);
   });
 
   test('no folder connected → scan explains instead of failing', async ({ page }) => {

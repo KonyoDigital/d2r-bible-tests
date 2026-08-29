@@ -137,6 +137,48 @@ test.describe('v1756 — the inbox is a place, not a function', () => {
      ignore wrote a dismissed row and emptied the queue. This pins that, and it pins that each button
      acts on ITS OWN row — the first draft of this check assumed seed order and read the alphabetical
      sort as a wrong-row bug. */
+  /* v2263 — THE DEFECT THE TEST ABOVE CAUGHT, PINNED FROM THE OTHER SIDE.
+     "tick it" worked (found 248 -> 249) and still recorded `in-chronicle`, because the vault door
+     v2194 added upserts the SAME row with status 'vault-registered' after the acceptance, and
+     Object.assign overwrote it; kaiChronicleLedger then relabels any non-accepted row that is now
+     settled. Result: every item he ticks by hand read as one the board already had.
+
+     The test above proves the symptom is gone. This one pins the RULE, because the obvious fix —
+     freezing a ruled row outright — silently breaks undo, and nothing else in this suite would say
+     so. Both directions, or neither is guarded. */
+  test('a vault landing keeps his ruling; an undo still overturns it', async ({ page }) => {
+    await withLedger(page, [], []);
+    const r = await page.evaluate(() => {
+      const w: any = window;
+      const rec = (n: string, st: string, ex?: any) =>
+        w.kaiChronicleRecord(Object.assign({ name: n, status: st }, ex || {}));
+      const read = (n: string) => {
+        const L = JSON.parse(w.LSR.getItem('d2r_chronicleInboxLog') || '[]');
+        const row = L.filter((x: any) => x.name === n)[0] || {};
+        return row.status + '|' + (row.vaultStatus || '-');
+      };
+      rec('ZZ_ruled', 'accepted', { store: 'foundLog' });
+      rec('ZZ_ruled', 'vault-registered', { store: 'owned' });
+      rec('ZZ_undo', 'accepted', { store: 'foundLog' });
+      rec('ZZ_undo', 'removed', { store: 'foundLog' });
+      rec('ZZ_dismiss', 'accepted', {});
+      rec('ZZ_dismiss', 'dismissed', {});
+      rec('ZZ_open', 'pending', {});
+      rec('ZZ_open', 'vault-registered', { store: 'owned' });
+      return {
+        ruled: read('ZZ_ruled'), undo: read('ZZ_undo'),
+        dismiss: read('ZZ_dismiss'), open: read('ZZ_open'),
+      };
+    });
+    expect(r.ruled, 'a vault landing overwrote his acceptance — the ledger can no longer say who decided')
+      .toBe('accepted|vault-registered');
+    expect(r.undo, 'an undo can no longer overturn an acceptance — the freeze is too wide')
+      .toBe('removed|-');
+    expect(r.dismiss, 'a dismissal can no longer overturn an acceptance').toBe('dismissed|-');
+    expect(r.open, 'an UNRULED row stopped taking the vault status it has always shown')
+      .toBe('vault-registered|-');
+  });
+
   test('★★★ tick it actually ticks THAT row, and ignore actually dismisses it', async ({ page }) => {
     const now = Date.now();
     await withLedger(page, [], [
