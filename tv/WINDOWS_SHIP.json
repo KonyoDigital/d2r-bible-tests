@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2254",
+  "ver": "v2255",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2254: The fleet reported only the running version, so a console that fetched an update and had not restarted looked exactly like one that never fetched",
+  "note": "v2255: A duplicate function definition shipped in v2254 and its guard verified the dead copy, and the fleet now says what is stopping a console restarting",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

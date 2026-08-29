@@ -15704,8 +15704,20 @@ function escC(s) {
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
              + (pending ? '<span class="fleet-pending" title="this console FETCHED ' + escC(m.diskVer)
                       + ' and is still RUNNING ' + escC(m.ver) + ' — the update landed, only the '
-                      + 'restart is outstanding. It restarts itself when nothing is recording.">'
-                      + ' · ' + escC(m.diskVer) + ' on disk</span>' : '')
+                      + 'restart is outstanding.'
+                      /* v2255 — AND WHY. Without this the row states the situation and not the
+                         cause, which is a dead end: he can see that Dean has not restarted and
+                         still not know whether to flip a switch or simply wait. The two answers
+                         need different things from him. */
+                      + (m.relaunch ? (m.relaunch.armed === false
+                            ? ' Auto-relaunch is OFF on that machine — it will not restart itself.'
+                            : (m.relaunch.may === false
+                                 ? ' It is holding off because: ' + escC(String(m.relaunch.why || 'something is in flight'))
+                                 : ' It is clear to restart and should do so shortly.'))
+                          : '')
+                      + '">' + ' · ' + escC(m.diskVer) + ' on disk'
+                      + (m.relaunch && m.relaunch.armed === false ? ', auto-relaunch OFF' : '')
+                      + '</span>' : '')
              + (unpub ? '<span class="fleet-unpub" title="this build is only on this machine — '
                       + 'origin publishes ' + escC(_pub) + ', which is what everyone else can '
                       + 'receive. It ships when the gates pass and it is pushed.">'

@@ -29792,13 +29792,22 @@ class TestV2254PulledPendingIsNotNeverPulled(unittest.TestCase):
         """⚠ ASKING THE MODULE WOULD RETURN THE RUNNING VALUE AGAIN, which is the whole thing this
         field exists to differ from. fleet_pull() documents the same trap at its own version read."""
         a = self._app()
-        i = a.index("def _disk_ver()")
+        # ⚠⚠ THIS GUARD VERIFIED DEAD CODE AND PASSED, AND IT SHIPPED THAT WAY IN v2254.
+        # A `_disk_ver()` ALREADY EXISTED in this file. I added a second with the same name, and
+        # Python takes the LAST definition — so mine never ran and the beacon called the original.
+        # The guard anchored on `a.index("def _disk_ver()")`, the FIRST occurrence, which was my
+        # dead copy: it asserted, truthfully, about a function that could never execute.
+        # Now it reads the LAST definition, the one Python actually binds.
+        # [[source-reading-guard]] [[copy-drift]]
+        self.assertEqual(a.count("def _disk_ver("), 1,
+                         "_disk_ver is defined more than once; the later definition silently wins "
+                         "and any guard anchored on the first is testing dead code")
+        i = a.rindex("def _disk_ver()")
         body = a[i:a.index("\ndef ", i + 10)]
-        # ⚠ ASK THE CODE, NOT THE DOCSTRING. The first cut asserted `_app_ver` absent from the
-        # body — and the docstring NAMES _app_ver while explaining the very trap. Fifth time in
-        # one session that a guard matched its own prose. [[feedback-comments-vs-code]]
+        # ⚠ ASK THE CODE, NOT THE DOCSTRING. An earlier cut asserted `_app_ver` absent from the
+        # body while the docstring NAMED it explaining the trap. [[feedback-comments-vs-code]]
         code = body.split('"""')[-1]
-        self.assertIn("WINDOWS_SHIP.json", body, "_disk_ver no longer reads the stamp off disk")
+        self.assertIn('"ver"', body, "_disk_ver no longer reads a version stamp off disk")
         self.assertNotIn("_app_ver", code,
                          "_disk_ver is asking the running module, which can only ever agree with "
                          "itself")
@@ -29847,6 +29856,133 @@ class TestV2254PulledPendingIsNotNeverPulled(unittest.TestCase):
         self.assertNotEqual(ca, cb,
                             "two different facts are being drawn in one colour: 'my build is not "
                             "published' and 'their build is fetched but not running'")
+
+
+class TestV2255NoNameIsDefinedTwiceAtTopLevel(unittest.TestCase):
+    """THE GENERAL FORM OF WHAT SHIPPED IN v2254.
+
+    I added a `_disk_ver()` to control_app.py without noticing one already existed 11,500 lines
+    below. Python binds the LAST definition, so my copy was dead the moment it was written — and
+    the guard I wrote for it anchored on the FIRST occurrence and passed, asserting truthfully
+    about code that could never run. Nothing else caught it: the module imports, the tests pass,
+    the feature works, and the file quietly holds two answers to one question.
+
+    That is the same shape as every other defect this session — two things wearing one name, and
+    the one that runs is not the one you are looking at. This checks the whole file rather than
+    that one function. [[copy-drift]] [[the-unjoined-end]]"""
+
+    FILES = ("control_app.py", "console_doctor.py", "coldread.py", "a11y_check.py",
+             "second_eye_ledger.py", "fleet_mask.py", "render_check.py")
+
+    def test_no_module_defines_the_same_top_level_name_twice(self):
+        import io as _io, os as _os, re as _re
+        here = _os.path.dirname(_os.path.abspath(__file__))
+        dupes = []
+        for fn in self.FILES:
+            p = _os.path.join(here, fn)
+            if not _os.path.exists(p):
+                continue
+            src = _io.open(p, encoding="utf-8").read()
+            # column-0 defs only: a nested def legitimately shadows, a top-level one silently wins
+            names = _re.findall(r"(?m)^def ([A-Za-z_][A-Za-z_0-9]*)\(", src)
+            seen = {}
+            for n in names:
+                seen[n] = seen.get(n, 0) + 1
+            for n, c in sorted(seen.items()):
+                if c > 1:
+                    dupes.append("%s: %s defined %d times" % (fn, n, c))
+        self.assertEqual(dupes, [],
+                         "a top-level name is defined more than once — the later definition wins "
+                         "silently, the earlier is dead, and a guard anchored on the earlier one "
+                         "tests code that cannot run: %s" % dupes)
+
+    def test_the_check_can_actually_SEE_a_duplicate(self):
+        """A guard that has never been seen finding one is a guard nobody should trust."""
+        import re as _re
+        planted = "def _x():\n    pass\n\n\ndef _x():\n    pass\n"
+        names = _re.findall(r"(?m)^def ([A-Za-z_][A-Za-z_0-9]*)\(", planted)
+        self.assertEqual(names.count("_x"), 2,
+                         "the pattern this guard uses cannot see two plain top-level defs")
+
+    def test_it_does_not_flag_a_NESTED_def(self):
+        # a def inside a function is a normal, correct shadow — flagging it would make the guard
+        # noisy, and a noisy guard is one someone switches off
+        import re as _re
+        planted = "def outer():\n    def inner():\n        pass\n    return inner\n\ndef inner():\n    pass\n"
+        names = _re.findall(r"(?m)^def ([A-Za-z_][A-Za-z_0-9]*)\(", planted)
+        self.assertEqual(names.count("inner"), 1,
+                         "the guard is counting nested defs and would cry wolf")
+
+
+class TestV2255ItSaysWHYAConsoleHasNotRestarted(unittest.TestCase):
+    """v2254 made "fetched but still running the old one" visible. It did not say what was stopping
+    it, which is a dead end: he can see that Dean has not restarted and still not know whether to
+    flip a switch or simply wait.
+
+    TWO INDEPENDENT CAUSES, needing different things from him:
+      · auto-relaunch OFF on that machine  -> a switch, his to flip
+      · ON but currently refused           -> a read or a recording; it clears on its own
+    One lamp for both would be the mistake _auto_relaunch_state() exists to avoid."""
+
+    def _app(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_app.py"), encoding="utf-8").read()
+
+    def _ui(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_ui.html"), encoding="utf-8").read()
+
+    def test_the_beacon_carries_the_relaunch_verdict(self):
+        a = self._app()
+        self.assertIn('"relaunch": _relaunch_report()', a,
+                      "the beacon no longer says why a console has not restarted")
+        self.assertEqual(a.count("def _relaunch_report("), 1,
+                         "_relaunch_report is defined more than once; the later one wins silently")
+
+    def test_it_reuses_the_expressions_the_BEHAVIOUR_uses(self):
+        """⚠ NEVER RE-DERIVE THE PRECEDENCE. A status panel that disagrees with the behaviour it
+        reports is worse than no panel — the reason _auto_relaunch_state() shares
+        drift_may_relaunch's expression instead of copying it."""
+        a = self._app()
+        i = a.index("def _relaunch_report()")
+        body = a[i:a.index("\ndef ", i + 10)]
+        code = body.split('"""')[-1]
+        self.assertIn("_auto_relaunch_state()", code, "it stopped asking the switch's own state")
+        self.assertIn("drift_may_relaunch()", code, "it stopped asking the gate's own verdict")
+
+    def test_armed_and_allowed_stay_SEPARATE(self):
+        a = self._app()
+        i = a.index("def _relaunch_report()")
+        body = a[i:a.index("\ndef ", i + 10)]
+        code = body.split('"""')[-1]
+        self.assertIn('"armed"', code, "the switch's state collapsed into the gate's verdict")
+        self.assertIn('"may"', code, "the gate's verdict collapsed into the switch's state")
+
+    def test_unavailable_is_None_not_a_verdict(self):
+        a = self._app()
+        i = a.index("def _relaunch_report()")
+        body = a[i:a.index("\ndef ", i + 10)]
+        self.assertIn("return None", body,
+                      "a console that cannot answer now appears to answer")
+
+    def test_the_row_distinguishes_a_SWITCH_from_a_WAIT(self):
+        u = self._ui()
+        i = u.index('class="fleet-pending"')
+        block = u[i:u.index("' : '')", i)]
+        self.assertIn("Auto-relaunch is OFF", block,
+                      "the row no longer names the case he has to act on")
+        self.assertIn("holding off because", block,
+                      "the row no longer names the case that clears itself")
+
+    def test_a_console_that_omits_the_field_says_nothing(self):
+        u = self._ui()
+        i = u.index('class="fleet-pending"')
+        block = u[i:u.index("' : '')", i)]
+        self.assertIn("m.relaunch ?", block,
+                      "the marker reads m.relaunch without checking it exists — an older console "
+                      "sends no such field and would render undefined into his panel")
 
 
 if __name__ == "__main__":

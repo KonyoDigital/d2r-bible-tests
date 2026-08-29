@@ -66,8 +66,17 @@ def _shoot(tab, w, h, out_dir, tag):
         t.ev("(function(){document.documentElement.style.scrollBehavior='auto';"
              "try{window.switchTab&&window.switchTab(%s)}catch(e){}return 1})()" % json.dumps(tab))
         # WAIT FOR THE FADE TO FINISH, then say so — never assume a fixed sleep was enough
-        settled, waited, saw = False, 0.0, "never sampled"
-        while waited < 8.0:
+        # ⚠ WAIT FOR THE PAGE TO FINISH BOOTING FIRST. bible.html is ~6 MB; under load a switch
+        # fired too early is undone by late initialisation, and the panel restarts its fade. That
+        # produced a refusal reading opacity '0.01' held across the whole budget on a page that
+        # measures perfectly when asked on its own. The refusal was right to fire and the cause was
+        # the harness rushing it. [[feedback-suspect-the-instrument]]
+        for _ in range(20):
+            if t.ev("(function(){return document.readyState})()") == "complete":
+                break
+            time.sleep(0.5)
+        settled, waited, saw, stable = False, 0.0, "never sampled", 0
+        while waited < 20.0:
             time.sleep(0.5)
             waited += 0.5
             op = t.ev("(function(){var p=document.getElementById('tab-%s');"
@@ -80,9 +89,18 @@ def _shoot(tab, w, h, out_dir, tag):
             # name its observation is indistinguishable from the fault it claims to have found.
             # 'no-panel' is a PASS: not every tab id is `tab-<name>`, and a tab with no panel of
             # that id has no fade to wait for. [[unknown-stays-unknown]]
+            # ⚠ TWO CONSECUTIVE READS. One sample of "1" can land in a gap between a re-render
+            # and the fade it restarts, which is how a half-painted panel got captured before.
             if op in ("1", "no-panel", 1):
-                settled = True
-                break
+                stable += 1
+                if stable >= 2:
+                    settled = True
+                    break
+            else:
+                stable = 0
+                # re-assert the tab: a late re-render can drop it back, and asking again is free
+                t.ev("(function(){try{window.switchTab&&window.switchTab(%s)}catch(e){}return 1})()"
+                     % json.dumps(tab))
         if not settled:
             return None, ("tab %r never reached full opacity in %.0fs — last saw %s"
                           % (tab, waited, saw))

@@ -818,25 +818,6 @@ def _git_tracked_dirty():
         return False
 
 
-def _disk_ver():
-    """The version stamp SITTING ON THIS MACHINE'S DISK, which may be newer than the running one.
-
-    `_app_ver()` reports what this process loaded at boot. After a successful pull those differ,
-    and the difference IS the answer to "did the update land but not take effect yet". Reading it
-    from the file is the only way to get it — asking the module would return the running value
-    again, which is the mistake fleet_pull() already documents at its own version read.
-
-    Absent or unreadable is None, never a guess: "we could not read the disk" must not be
-    indistinguishable from "the disk agrees". [[unknown-stays-unknown]]
-    """
-    try:
-        with open(os.path.join(HERE, "WINDOWS_SHIP.json"), encoding="utf-8") as fh:
-            v = (json.load(fh) or {}).get("ver")
-        return str(v) if v else None
-    except Exception:
-        return None
-
-
 def fleet_pull():
     """v2102 — fast-forward this checkout to origin/main, or explain precisely why not.
 
@@ -1971,6 +1952,35 @@ def _shadow_bank(applied, lane="chronicle"):
         return {"ok": False, "why": str(e)[:120]}
 
 
+def _relaunch_report():
+    """Is this console allowed to restart itself right now, and if not, WHY. -> dict | None
+
+    TWO INDEPENDENT REASONS a fetched update does not take effect, and they need different things
+    from him:
+      · auto-relaunch is OFF here        -> a switch, his to flip
+      · it is ON but currently REFUSED   -> something is reading or filming; it will pass on its own
+    One lamp for both would be the mistake _auto_relaunch_state() exists to avoid.
+
+    ⚠ BOTH FACTS COME FROM THE EXPRESSIONS THE BEHAVIOUR ITSELF USES, never re-derived here — a
+    status panel that disagrees with the behaviour it reports is worse than no panel. [[copy-drift]]
+
+    None rather than a guess when either check is unavailable: a machine that cannot answer must
+    not appear to. [[unknown-stays-unknown]]
+    """
+    try:
+        st = _auto_relaunch_state()
+        armed = bool(st.get("effective"))
+    except Exception:
+        return None
+    try:
+        may, why = drift_may_relaunch()
+    except Exception:
+        return {"armed": armed, "may": None,
+                "why": "could not ask whether a restart is safe right now"}
+    return {"armed": armed, "may": bool(may),
+            "why": (str(why or "") or str(st.get("why") or ""))[:160]}
+
+
 def _console_beacon(event="hb"):
     """v875 (Konyo: 'a tracker so I know whose console is online — like the site visits') —
     phone the presence beacon home. Never blocks a caller; never raises into one.
@@ -2037,6 +2047,11 @@ def _console_beacon(event="hb"):
             #
             # Read off DISK, never from memory — that is the whole point of the field.
             "diskVer": _disk_ver(),
+            # v2255 — AND WHY IT HAS NOT RESTARTED. `diskVer` says the update landed; this says
+            # what is stopping it taking effect. Without it, "fetched but still running the old
+            # one" is a dead end on his screen: he sees the state and not the cause, which is
+            # where this thread stalled twice tonight.
+            "relaunch": _relaunch_report(),
             "mode": st.get("mode"), "event": event,
             "user": os.environ.get("TVD_USER", ""),
             "reads": st.get("readCount") or 0,
@@ -18595,7 +18610,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2254",
+        "ver": "v2255",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
