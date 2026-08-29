@@ -240,6 +240,17 @@ GATES = [
              "This extracts the SHIPPED block out of bible.html, runs it in node, and fails on the "
              "first name where the two disagree — a drifted cutoff folds 'Gul' onto 'Gull' and "
              "writes a find he never made"),
+    Gate("test_slot_identity", [sys.executable, os.path.join(HERE, "test_slot_identity.py")], 60,
+         why="v2271 — SLOT IDENTITY. Konyo: \"it needs to be read within the tooltip and where and "
+             "what cell box its located so it can have a slot identity for each item\". This pins "
+             "the arithmetic (a cell is derivable from pixels, so the LOCKED intake is never "
+             "touched), the refusals (a point outside the panel, a zero-size panel, an unknown "
+             "container — each refuses rather than guessing, because a WRONG slot files an item "
+             "somewhere he will not look), and the two lanes he separated by hand: shadow keeps "
+             "witnesses + watchdog + eagle eye and this module defers to that gate, while HIS own "
+             "route is barred by a RECHECK instead — two reads of the SAME frame that must agree "
+             "on the name AND the cell, and hold when they do not. All six of those laws were "
+             "sabotage-proven RED before this gate was written."),
     Gate("test_vault_lane", [sys.executable, os.path.join(HERE, "test_vault_lane.py")], 420,
          why="v1795 — the vault lane decides what he KEEPS and what it dares suggest he "
              "bins, and it has never run on real footage (0 of 17 reels declare an "
