@@ -23,7 +23,13 @@ KNOWN = ("xprotect", "mds_stores", "WindowServer", "claude.exe", "Terminal", "sp
          "mdworker", "sysmond", "winedevice", "WhatsApp", "WebKit", "control_app.py",
          "backupd", "photoanalysisd", "cloudd", "bird",
          "knowledge-agent", "contactsd", "suggestd", "corespotlightd", "AppleSpell",
-         "com.apple.", "trustd", "syncdefaultsd", "accountsd", "distnoted")
+         "com.apple.", "trustd", "syncdefaultsd", "accountsd", "distnoted",
+         # v2281 — HIS GAME IS NOT AN ORPHAN. Measured 2026-08-30 while he was playing: D2R.exe at
+         # 334% CPU for 100 minutes, flagged as "busy and old" by a sweep whose whole purpose is to
+         # catch MY runaway processes. A watcher that cries about the thing the machine exists to
+         # run teaches him to ignore it, which is how a real 28-hour core-burner gets missed.
+         # CrossOver hosts it, so both spellings appear in the command line.
+         "D2R.exe", "Diablo II Resurrected", "CrossOver", "wineserver")
 
 BUSY_PCT = float(os.environ.get("TV_ORPHAN_CPU") or 20.0)
 OLD_MIN = int(os.environ.get("TV_ORPHAN_MIN") or 20)

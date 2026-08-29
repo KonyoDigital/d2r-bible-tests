@@ -3442,6 +3442,27 @@
            padding: 2px 8px; border-radius: 999px;
            border: 1px solid rgba(181,140,255,.38); background: rgba(181,140,255,.10); }
   .chron-waiting:hover .cw-go { opacity: 1; border-color: rgba(181,140,255,.7); }
+  /* v2278 — the secondary count, so the strip can carry BOTH numbers without either shouting.
+     "347 read, 347 you already have" is context; the headline is what would change. */
+  .cw-note { margin-left: 10px; opacity: .62; font-size: .86em; white-space: nowrap; }
+  /* v2278 — CALM WHEN THERE IS NOTHING TO DO. His words about this tab: "if nothing for me to do
+     it should be cleaner structured and collapsed by default". A row that needs no decision must
+     not wear the colour of one — it keeps its place so the count stays legible, and loses the
+     accent, the border and the arrow that mean "act on me". */
+  .chron-waiting.cw-quiet { opacity: .58; border-color: rgba(255,255,255,.10) !important;
+                            background: rgba(255,255,255,.03) !important; }
+  .chron-waiting.cw-quiet b { font-weight: var(--fw-med, 500); }
+  .chron-waiting.cw-quiet .cw-go { display: none; }
+  /* v2278 — and the green button stops being green when it would write nothing. It stays
+     PRESENT and pressable (the panel below it is still worth reading); it just stops being the
+     loudest thing on the tab when there is no decision to make. */
+  /* v2281 — the cross-difficulty hint. Loud enough to be seen on the first render he looks at
+     (his ask), quiet enough that the Hell headline above it stays the headline. */
+  .hh-faster { margin-top: 4px; font-size: var(--fs-meta); color: var(--q-set, #8fe6a0); }
+  .hh-faster b { color: inherit; font-weight: var(--fw-bold); }
+  .hh-faster-vs { opacity: .6; margin-left: 6px; }
+  .chron-apply.chron-nothing { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.04);
+                               opacity: .66; font-weight: var(--fw-med, 500); }
   /* v2125 — LAND ON IT. Scrolling a long dashboard to a panel is not the same as showing him
      WHICH panel he was sent to; a brief ring answers "did anything happen?" — the question the
      dead click left him asking. */
@@ -7557,7 +7578,25 @@
     // v1418 — FLEET UNITY banner (always-on, even OFF AIR): never silently drift from GitHub main
     var fl = st.fleet || {};
     var fleetBehind = (fl.behind != null) ? (+fl.behind || 0) : 0;
-    if (fleetBehind > 0) {
+    /* ── v2280 — "COULD NOT ASK" IS NOT "UP TO DATE" ──────────────────────────────────────────
+       Konyo, on opening the Wife PC: "its saying millenium 01. why is it not updated?"
+
+       It was 178 versions behind (v2101 against v2279) and its console had said NOTHING, because
+       this line read `fl.behind` and never `fl.ok`. The server answers `{"ok": false, "behind": 0}`
+       whenever the git fetch fails — no network, no git, a Windows checkout it cannot read — and
+       `behind: 0` is exactly what a healthy up-to-date machine reports. One number, two opposite
+       meanings, and the quiet one wins.
+
+       That is the whole of [[unknown-stays-unknown]] on the one surface where being wrong costs
+       him a machine running four-month-old code while looking fine. A console that could not check
+       must SAY it could not check. */
+    var fleetUnknown = (fl && fl.ok === false);
+    if (fleetUnknown) {
+      fault = 'CANNOT CHECK THE FLEET \u2014 this console could not reach GitHub, so whether it is '
+        + 'up to date is UNKNOWN, not fine'
+        + (fl.howTo ? (' \u00b7 ' + String(fl.howTo).slice(0, 60)) : '')
+        + ' \u00b7 git pull by hand, then relaunch TV DIABLO';
+    } else if (fleetBehind > 0) {
       fault = 'BEHIND FLEET · ' + fleetBehind + ' commit' + (fleetBehind === 1 ? '' : 's') + ' on GitHub'
         + (fl.latest ? (' · latest: "' + String(fl.latest).slice(0, 48) + '"') : '')
         + ' · relaunch TV DIABLO to auto-pull (or git pull)';
@@ -7864,6 +7903,17 @@
     var _num = String(_cv || '').replace(/^v/i, '').slice(-2);
     var _skewNow = ((_av && _cv !== _av) || (_bv && _cv !== _bv));
     var _lbl = 'Millenium' + (_num ? (' ' + _num) : '');
+    /* v2280 — TWO DIGITS CANNOT CARRY A 178-VERSION GAP. His ruling stands — clean reads
+       "Millenium 79" and nothing else — but v2101 and v2001 both print "01", so a machine four
+       months behind wears the same calm badge as a current one. He hit this on the Wife PC:
+       "its saying millenium 01. why is it not updated?" — it was 178 versions back.
+       So: quiet when it is fine, and the FULL version the moment it is not.
+       [[label-outlived-referent]] [[unknown-stays-unknown]] */
+    try {
+      var _flL = (st.fleet || {});
+      if (_flL.ok === false) { _lbl += ' \u00b7 ' + _cv + ' \u2014 could not check if current'; }
+      else if ((+_flL.behind || 0) > 0) { _lbl += ' \u00b7 ' + _cv + ' \u2014 behind the fleet'; }
+    } catch (e) {}
     if (_skewNow){
       var _bits = [];
       if (_av && _cv !== _av) _bits.push('agent ' + _av);
@@ -9345,6 +9395,23 @@
     var p = thArt(name); if (!p) return '';
     return '<img class="' + (cls || 'hd-ic') + '" src="/' + esc(p) + '" alt="" loading="lazy" onerror="this.remove()">';
   }
+  /* v2279 — PUBLISHED FOR THE SECOND SCRIPT BLOCK, and this file already knew why.
+     The header of block 2 says it in its own words: "The block above defines escC() at its own
+     top level, so nothing here can see it: every call from this block threw a ReferenceError and
+     landed in the nearest catch." That was v1516. v2248 then taught _fleetCompare (block 2) to
+     draw HD art and the hover card using thArtInit / thArt / _itipAttr — all three private to
+     THIS IIFE — and the same bug came back, silently.
+
+     MEASURED on his live console 2026-08-30 via CDP: typeof thArtInit / thArt / _itipAttr in the
+     page's global scope was "undefined", and thArtInit() threw "thArtInit is not defined".
+     Clicking a fleet row therefore fetched fine, threw during the RENDER, and left the panel on
+     "cross-referencing…" for ever. He reported it as stuck; it was a scope error.
+     [[copy-drift]] [[the-unjoined-end]] */
+  window.thArtInit = thArtInit;
+  window.thArt = thArt;
+  window.thArtImg = thArtImg;
+  window._itipAttr = _itipAttr;
+
   // re-render any open art-bearing surface once the map lands (fetch is async)
   function thArtRepaint(){
     try { if (typeof CARD !== 'undefined' && CARD.open) thCardRender(); } catch (e) {}
@@ -14724,10 +14791,35 @@
     var _hell = _ranked.filter(function (r) { return r.hellExpectedHours != null; })
       .sort(function (a, b) { return a.hellExpectedHours - b.hellExpectedHours; });
     var top = null;
+    /* v2281 — THE FASTEST PLACE, NOT ONLY THE FASTEST IN HELL. Konyo: "normal mephisto to run
+       sanders cap and it says 48hours to find so something is bugged!" and "it should tell me this
+       automatically ... where to hunt it and it be the fastest and optimize that as priority as
+       first visual render."
+
+       He was right and the data was never wrong. MEASURED against silospen the same night: the
+       bible's stored Hell odds match it exactly (Meph 1:9,382), and the NORMAL rows exist and are
+       better (Meph 1:5,159) — ~2.2x faster once Normal's kph bonus is counted. _pickSrc already
+       ranks every difficulty with no filter, so the fastest source was COMPUTED, exported on the
+       payload, and then discarded here.
+
+       ⚠ WHY IT WAS SILENT: the "quickest anywhere" hint below fires only when the fastest is a
+       DIFFERENT ITEM (`_fastest.name !== top.name`). For a piece whose Hell lead and global lead
+       are the SAME ITEM at a different difficulty, that test is false and nothing is said. The
+       comparison was item-vs-item where it had to be SOURCE-vs-SOURCE. [[plumbing-with-no-tap]]
+
+       v1559's reason for ranking the Hell bucket on Hell data still holds and is untouched — the
+       Hell number stays the headline because that is where he plays. What changes is that he is
+       TOLD when somewhere else is materially quicker. */
+    var _elsewhere = null;
     if (_hell.length) {
       var h0 = _hell[0];
       // present the Hell source and the Hell time — the pair must never be mixed with the global one
       top = { name: h0.name, source: h0.hellSource, expectedHours: h0.hellExpectedHours };
+      if (h0.expectedHours != null && h0.hellExpectedHours != null
+          && _tierOf(h0.source) !== 2
+          && h0.expectedHours <= h0.hellExpectedHours * 0.7) {
+        _elsewhere = { source: h0.source, hours: h0.expectedHours };
+      }
     } else {
       top = _ranked.slice().sort(function (a, b) {
         return (_tierOf(b.source) - _tierOf(a.source))
@@ -14825,6 +14917,14 @@
                 })()
               + ' ≈' + esc(_hubHrs(_alt.expectedHours)) + '</span>' : '')
           + '</div>' : '')
+      /* v2281 — THE SAME ITEM, SOMEWHERE QUICKER. The line above names a DIFFERENT item; this one
+         names the same one at a different difficulty, which is the case that was silent. He asked
+         for it as the priority render: "it should tell me where to hunt it and it be the fastest".
+         Only shown when it is materially quicker (the same >=30% gate), so a clean lead stays a
+         clean lead and this never becomes furniture. */
+      + (_elsewhere ? '<div class="hh-faster">\u26a1 faster outside Hell \u00b7 <b>'
+            + esc(_elsewhere.source) + '</b> \u2248' + esc(_hubHrs(_elsewhere.hours))
+            + '<span class="hh-faster-vs"> vs \u2248' + esc(hrs || '?') + ' in Hell</span></div>' : '')
       + '</div>'
       + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span></div>' : '');
   }
@@ -15837,6 +15937,11 @@ function escC(s) {
        `thArt()` folds art/HD_ART_MANIFEST.json OVER the board's map so the HD override wins, and
        `_itipAttr` is the one hover contract `_itemTip` binds to by delegation.
        [[copy-drift]] [[the-unjoined-end]] */
+    /* v2279 — AND THE RENDER GETS A NET. The fetch was wrapped and the RENDER was not, so any
+       throw after this point left the wait text on screen for ever with nothing in the UI saying
+       anything had gone wrong. A spinner that never ends is the worst failure mode there is: it
+       looks like patience. Whatever breaks below, he now gets a sentence instead of a wait. */
+    try {
     thArtInit();                       // the board may still be booting; it retries and repaints
     var tile = function (n, mine) {
       var bare = String(n).replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -15861,6 +15966,13 @@ function escC(s) {
     };
     var age = function (ms) {
       if (!ms) return 'unknown';
+      /* v2279 — THE TWO STAMPS ARE NOT THE SAME TYPE. mineAt is epoch-ms; theirAt is an ISO
+         string off the beacon ('2026-08-29T21:14:18.878Z'), measured on his live console. Date.now()
+         minus a string is NaN, so "theirs" read "NaNs ago" — a broken figure beside a correct one,
+         which is worse than no figure. An unparseable stamp is UNKNOWN, never a number.
+         [[stale-reading]] [[unknown-stays-unknown]] */
+      if (typeof ms === 'string') { var p = Date.parse(ms); if (!isFinite(p)) return 'unknown'; ms = p; }
+      if (typeof ms !== 'number' || !isFinite(ms)) return 'unknown';
       var s = Math.max(0, Math.round((Date.now() - ms) / 1000));
       if (s < 90) return s + 's ago';
       if (s < 5400) return Math.round(s / 60) + 'm ago';
@@ -15876,6 +15988,11 @@ function escC(s) {
       + (j.theirsN | 0) + ' / ' + (j.rosterN | 0) + ' theirs · ' + (j.both | 0) + ' shared'
       + '<span class="fx-age"> · your list ' + escC(age(j.mineAt))
       + ', theirs ' + escC(age(j.theirAt)) + '</span></div>';
+    } catch (err) {
+      box.innerHTML = head
+        + '<div class="fx-why">the answer arrived and this panel could not draw it \u2014 '
+        + escC(String((err && err.message) || err)) + '</div>';
+    }
   };
 
   // v1516 — 📜 THE CHRONICLE SWEEP, priced. This deliberately shows a QUOTE and not a tally: the
@@ -17147,10 +17264,21 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     // v1523 — the write is offered only when there is something gated to write
     var ap = document.getElementById('chron-apply');
     var _n = u.length + sset.length;
+    /* v2278 — THE BUTTON NAMES WHAT WOULD CHANGE. It has always named the count the READERS
+       produced. Measured on his console 2026-08-29: all 347 of them were already in his foundLog
+       and already dated, so `register 347 ✓` offered a write that would have moved nothing.
+       A control whose number is not the number it acts on is the same defect as a figure under a
+       word that stopped being true. [[label-outlived-referent]] */
+    if (_n) { try { _chronXref(_n); } catch (e) {} }
+    var _apx = window._CHRON_XREF || null;
+    var _apNew = (_apx && _apx.measured) ? _apx.newCount : null;
     if (ap) {
       ap.hidden = !_n;
       ap.disabled = false;
-      ap.textContent = 'register ' + _n + ' ✓';
+      ap.classList.toggle('chron-nothing', _apNew === 0);
+      ap.textContent = (_apNew === null) ? ('register ' + _n + ' ✓')
+                     : (_apNew === 0 ? 'nothing new to register'
+                                     : 'register ' + _apNew + ' ✓');
       /* v1916 — THE ARITHMETIC AND THE CONSEQUENCE, ON THE CONTROL ITSELF.
          A different model family was shown this panel cold and asked what was worst about
          it for someone deciding whether to press the green button. Its answer: "the actual
@@ -17180,21 +17308,66 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
          and not a meaning: these are names the readers lifted off his own reels, held as a
          PROPOSAL, with nothing written to his grail until he presses register. His words: "what
          does it mean and what is it meant for?" */
-      _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> find(s) read from your reels \u2014 '
-        /* v2199 — HIS RULING, given three times: "GRAIL is something we invented ... its just a
-           data coding database". This is the exact line he pointed at. The file's own word for
-           the thing is LEDGER (measured: 125 uses of ledger against 43 of record in this file,
-           and test_control's own failure message below already calls it "his ledger"), so this
-           is not a third name for one thing.
-           ⚠ NOT A SWEEP. There are 418 user-visible grail occurrences across bible.html and
-           this file, and two SILENT couplings inside them: bible.html emits the literal
-           '🏆 Grail · ' which this file PARSES, and :6519 styles a line by
-           regex-matching the prose word. A blind rename kills his rarity colours with nothing
-           going red. One line, with its guard, in one commit. [[copy-drift]] */
-        + '<b>not in your ledger yet</b>'
-        + '<span class="cw-go">review &amp; register in TV\u00b7D \u2192</span>';
+      /* v2278 — SAY WHAT WOULD CHANGE, NOT WHAT WAS READ. His words, looking at this exact
+         strip: "okay but did it cross reference what i currently already own? ... im pretty sure
+         i alread have those items ... some i did some the AI did".
+         It did not. MEASURED on his console 2026-08-29: 347 proposed, 347 already in his
+         foundLog, every one already dated, newlyDated 0 — pressing the green button would have
+         changed NOTHING, and the strip claimed every minute that they were absent from his ledger.
+         [[label-outlived-referent]] [[unknown-stays-unknown]] */
+      if (_n) { try { _chronXref(_n); } catch (e) {} }   /* fills _CHRON_XREF for the NEXT paint */
+      var _xr = window._CHRON_XREF || null;
+      var _xrNew = (_xr && _xr.measured) ? _xr.newCount : null;
+      _wait.hidden = !_n;
+      if (_xr && _xr.measured && _xrNew === 0) {
+        /* NOTHING TO DO, so it must not look like something to do. He asked for exactly this:
+           "if nothing for me to do it should be cleaner structured and collapsed by default". */
+        _wait.classList.add('cw-quiet');
+        _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> read from your reels \u2014 '
+          + '<b>you already have every one</b>'
+          + '<span class="cw-note">nothing to register</span>';
+      } else if (_xr && _xr.measured) {
+        _wait.classList.remove('cw-quiet');
+        _wait.innerHTML = '\ud83d\udcdc <b>' + _xrNew + '</b> not in your chronicle yet \u2014 '
+          + '<span class="cw-note">' + _n + ' read, ' + _xr.alreadyCount + ' you already have</span>'
+          + '<span class="cw-go">review &amp; register in TV\u00b7D \u2192</span>';
+      } else {
+        /* ⚠ NOT CHECKED IS NOT ALL-NEW. The old line named a number under a claim about his
+           ledger that nobody had verified; when the ledger cannot be read, say so. */
+        _wait.classList.remove('cw-quiet');
+        _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> read from your reels \u2014 '
+          + '<b>not yet checked against your chronicle</b>'
+          + '<span class="cw-go">review &amp; register in TV\u00b7D \u2192</span>';
+      }
     }
   }
+  /* v2278 — THE TAP. The strip above renders window._CHRON_XREF; this is the only thing that
+     fills it. Built on both ends and never joined is exactly how the register button spent days
+     failing, so the fetch lands in the same commit as the reader. [[plumbing-with-no-tap]]
+
+     ⚠ NOT ON EVERY POLL. /api/chronicle_crossref reaches into the board window to read his ledger;
+     the strip repaints on every tick and a per-tick reach would poke the window he is looking at
+     several times a second. Refetched only when the proposal's SIZE changes, with the server
+     holding a 90s memo underneath as the backstop. [[borrowed-surface]] */
+  var _xrKey = null, _xrBusy = false;
+  async function _chronXref(n) {
+    var key = String(n || 0);
+    if (_xrBusy || key === _xrKey) return;
+    _xrBusy = true;
+    try {
+      var r = await fetch('/api/chronicle_crossref', { cache: 'no-store' });
+      if (r.ok) {
+        window._CHRON_XREF = await r.json();
+        _xrKey = key;
+      }
+    } catch (e) {
+      /* a failed fetch leaves _CHRON_XREF as it was; the strip then reads "not yet checked",
+         which is the honest answer and not a number. */
+    } finally {
+      _xrBusy = false;
+    }
+  }
+
   // v1526 — epoch-ms "how long ago". NOT _fleetSince: that one does Date.parse(iso) and a visit
   // carries an integer timestamp, so every visit would have read "just now" — a plausible-looking
   // wrong answer, which is the worst kind.

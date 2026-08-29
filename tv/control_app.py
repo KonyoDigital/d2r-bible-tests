@@ -17338,6 +17338,76 @@ def sweep_eta(job=None):
     return out
 
 
+# ══ v2278 — IS ANY OF THIS ACTUALLY NEW? ═══════════════════════════════════════════════════════
+#
+# Konyo, looking at "📜 347 find(s) read from your reels — not in your ledger yet":
+#   "okay but did it cross reference what i currently already own? is it speaking and cummunicating
+#    to the console? im pretty sure i alread have those items... like didnt i already tally them
+#    manually or the chronicle readers the ON AIR already caught it? ... some i did some the AI did"
+#
+# It did not, and he was more right than my first answer. MEASURED on his live console 2026-08-29:
+# 347 proposed · 347 already in his foundLog · every one already dated · newlyDated 0. Pressing the
+# green button would have changed NOTHING. The strip counted what the READERS PRODUCED and printed
+# it under a sentence about his LEDGER. [[label-outlived-referent]]
+#
+# ⚠ IT COSTS A WINDOW EVALUATE, so it is memoised. board_ownership reaches into the window he is
+# looking at; the strip repaints on every poll, and a per-poll reach would poke his board a few
+# times a second. Keyed on the proposal's savedTs so a NEW sweep is always re-checked, with a time
+# floor so a stuck savedTs cannot pin a stale answer for ever. [[borrowed-surface]] [[stale-reading]]
+_CROSSREF_TTL = 90.0
+_crossref_memo = {"key": None, "at": 0.0, "val": None}
+
+
+def chronicle_crossref_state(force=False):
+    """How many of the proposed names would actually change his ledger. -> dict"""
+    import chronicle_crossref as _cx
+    # ⚠ ASK THE LIVE JOB FIRST. _CHRON_JOB["result"] is what the panel is actually rendering; the
+    # file is the restore path for a console that has not swept this boot. Answering about the file
+    # while he looks at the job would be a right number about a different proposal.
+    res, saved_ts = None, None
+    try:
+        res = (_CHRON_JOB.get("result") or None)
+    except Exception:
+        res = None
+    if not res:
+        try:
+            with open(_CHRON_RESULT_PATH, encoding="utf-8") as fh:
+                payload = json.load(fh) or {}
+            res = payload.get("result") or {}
+            saved_ts = payload.get("savedTs")
+        except Exception:
+            res = {}
+    wa = (res.get("wouldAdd") or {}) if isinstance(res, dict) else {}
+    key = (saved_ts, len(wa.get("uniques") or []), len(wa.get("sets") or []))
+    now = time.time()
+    if (not force and _crossref_memo["key"] == key
+            and (now - _crossref_memo["at"]) < _CROSSREF_TTL and _crossref_memo["val"]):
+        out = dict(_crossref_memo["val"])
+        out["cached"] = True
+        return out
+    # ⚠ A REFUSAL IS NOT AN EMPTY LEDGER. board_ownership already says so in its own words; this
+    # passes None through untouched so crossref answers UNKNOWN rather than "all of them are new".
+    led = None
+    try:
+        got = board_ownership(sample=5000)
+        if isinstance(got, dict) and got.get("ok"):
+            led = got.get("sample") or {}
+            # the dates map is the only place foundLog names survive with their stamps; it is the
+            # widest view of "he has this", so it counts as a store for the purpose of this question
+            if isinstance(got.get("dates"), dict) and got["dates"]:
+                led = dict(led, foundLogDates=list(got["dates"].keys()))
+    except Exception:
+        led = None
+    if isinstance(led, dict) and "foundLogDates" in led:
+        led = dict(led, foundLog=(list(led.get("foundLog") or []) + led.pop("foundLogDates")))
+    out = _cx.crossref(wa, led)
+    out["say"] = _cx.say(out)
+    out["measuredAt"] = int(now * 1000)
+    out["cached"] = False
+    _crossref_memo.update({"key": key, "at": now, "val": dict(out)})
+    return out
+
+
 def chronicle_sweep_state():
     # v1763 — a fresh process reports the LAST sweep, not "idle, nothing here". "No sweep has run"
     # and "the process that ran it has restarted" are different facts and only one of them is true.
@@ -18713,7 +18783,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2277",
+        "ver": "v2281",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20451,6 +20521,13 @@ class Handler(BaseHTTPRequestHandler):
             # v1519 — progress + result of the REAL sweep. GET never starts one; starting spends
             # money, and a GET that spends money is a GET a page-refresh can fire twice.
             self._json(200, chronicle_sweep_state())
+            return
+        if path == "/api/chronicle_crossref":
+            # v2278 — how many of the proposed names would actually CHANGE his ledger. GET, because
+            # it only reads; ?force=1 skips the memo when he presses refresh himself.
+            import urllib.parse as _up2
+            _q = _up2.parse_qs((self.path.split("?", 1) + [""])[1])
+            self._json(200, chronicle_crossref_state(force=bool(_q.get("force"))))
             return
         if path == "/api/chronicle_gate":
             # v1531 — what different thresholds WOULD do to the last sweep. Re-gates, never re-reads.

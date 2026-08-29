@@ -4429,6 +4429,356 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2281TheFastestPlaceIsNotThrownAway(unittest.TestCase):
+    """★ Konyo: "normal mephisto to run sanders cap and it says 48hours to find so something is
+    bugged!" and "it should tell me this automatically ... where to hunt it and it be the fastest
+    and optimize that as priority as first visual render."
+
+    THE DATA WAS NEVER WRONG. Measured against silospen the same night: bible.html's stored Hell
+    odds match it exactly (Hell Mephisto 1:9,382, Hell Diablo 1:9,880), and the NORMAL rows exist
+    and are better (5,159 / 5,602). ITEM_REGISTRY builds sources for all six diffKeys and _pickSrc
+    ranks them with NO difficulty filter, giving Normal a 1.2x kph bonus on top — so the fastest
+    source was COMPUTED, exported on the payload, and discarded at render.
+
+    WHY IT WAS SILENT: the existing "quicker below Hell" hint fires only when the fastest is a
+    DIFFERENT ITEM (`_fastest.name !== top.name`). When the Hell lead and the global lead are the
+    SAME ITEM at a different difficulty — Sander's Paragon exactly — that test is false and nothing
+    is said. Item-vs-item where it had to be source-vs-source. [[plumbing-with-no-tap]]
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def test_the_same_item_is_compared_ACROSS_difficulties(self):
+        self.assertIn("_elsewhere", self.ui,
+                      "the cross-difficulty comparison is gone; an item whose Normal source is "
+                      "twice as fast reads as a 48-hour Hell hunt with no hint")
+        body = _between(self, self.ui, "var _elsewhere = null;", "} else {",
+                        what="the hell-bucket branch")
+        self.assertIn("h0.expectedHours", body)
+        self.assertIn("h0.hellExpectedHours", body,
+                      "the comparison must be the SAME ROW's global hours against its own Hell "
+                      "hours — comparing two different items is the defect this replaced")
+        # ⚠ AND THE CONDITION MUST HAVE A BODY. Deleting only the assignment left the `if` intact,
+        # so a check on the condition's TEXT stayed green over a branch that now does nothing —
+        # a guard measuring the sentence and not the effect. [[source-reading-guard]]
+        self.assertIn("_elsewhere = { source: h0.source, hours: h0.expectedHours };", body,
+                      "the branch compares the two difficulties and then assigns nothing, so the "
+                      "hint can never appear however wide the gap")
+
+    def test_it_is_actually_RENDERED(self):
+        """⚠ a value computed and never drawn is the exact shape of the bug being fixed."""
+        self.assertIn("(_elsewhere ?", self.ui,
+                      "_elsewhere is assigned and never rendered — computed and thrown away again")
+        self.assertIn("faster outside Hell", self.ui)
+        self.assertIn(".hh-faster {", self.ui,
+                      "the hint has no style rule, so it renders as unstyled text or not at all")
+
+    def test_the_HELL_headline_is_untouched(self):
+        """v1559 ranks the Hell bucket on Hell data for a real reason and that stays. The fix adds
+        a sentence; it must not move the number he reads."""
+        body = _between(self, self.ui, "var _elsewhere = null;", "} else {",
+                        what="the hell-bucket branch")
+        self.assertIn("top = { name: h0.name, source: h0.hellSource, "
+                      "expectedHours: h0.hellExpectedHours };", body,
+                      "the Hell headline changed — the ask was to be TOLD about somewhere quicker, "
+                      "not to have the Hell figure replaced")
+
+    def test_it_only_speaks_when_MATERIALLY_quicker(self):
+        body = _between(self, self.ui, "var _elsewhere = null;", "} else {",
+                        what="the hell-bucket branch")
+        self.assertIn("* 0.7", body,
+                      "the >=30% gate is gone, so this fires on noise and becomes furniture")
+        self.assertIn("_tierOf(h0.source) !== 2", body,
+                      "without the tier test it would announce a HELL source as 'faster outside "
+                      "Hell', which is the label naming something it is not")
+
+
+
+class TestV2280CouldNotAskIsNotUpToDate(unittest.TestCase):
+    """★ Konyo, opening the Wife PC: "i just logged in my wifes PC also and its saying millenium 01.
+    why is it not updated?"
+
+    MEASURED 2026-08-30 off his live /api/fleet: Wife PC on v2101 against v2279 — 178 versions
+    behind — and its beacon carries `pull: null, relaunch: null, diskVer: null`, i.e. that build
+    predates the fields that would even report whether it can update itself.
+
+    TWO THINGS HID IT, and both are the same disease:
+      1. control_ui.html read `fl.behind` and NEVER `fl.ok`. control_app.py answers
+         `{"ok": False, "behind": 0}` whenever the git fetch fails — no network, no git, an
+         unreadable checkout — and `behind: 0` is exactly what a healthy current machine reports.
+         One number, two opposite meanings, and the quiet one won.
+      2. "Millenium NN" is the LAST TWO DIGITS of the version (his design, and it stays), so v2101
+         and v2001 both print "01". A four-month-old machine wore the same calm badge as a current
+         one. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    """
+
+    def setUp(self):
+        d = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(d, "control_ui.html"), encoding="utf-8") as fh:
+            self.ui = fh.read()
+        with io.open(os.path.join(d, "control_app.py"), encoding="utf-8") as fh:
+            self.app = fh.read()
+
+    def test_the_server_still_answers_ok_false_with_behind_zero(self):
+        """⚠ THE PREMISE. If the server ever stopped conflating these, the UI guard below would be
+        protecting nothing and should be re-derived rather than left green."""
+        self.assertIn('_fleet = {"ok": False, "behind": 0, "howTo": ""}', self.app,
+                      "the failure shape changed — re-measure what a failed fetch reports before "
+                      "trusting the UI guard below")
+
+    def test_the_banner_checks_ok_BEFORE_it_trusts_behind(self):
+        self.assertIn("var fleetUnknown = (fl && fl.ok === false);", self.ui,
+                      "the fleet banner is back to reading `behind` alone, so a console that "
+                      "cannot reach GitHub reports itself up to date")
+        i_unknown = self.ui.index("if (fleetUnknown)")
+        i_behind = self.ui.index("if (fleetBehind > 0)")
+        self.assertLess(i_unknown, i_behind,
+                        "the unknown branch must be tested FIRST — ok:false carries behind:0, so "
+                        "the behind branch would fall through to the quiet else")
+
+    def test_it_says_UNKNOWN_and_not_a_reassurance(self):
+        body = _between(self, self.ui, "var fleetUnknown", "} else if (fleetBehind > 0) {",
+                        what="the fleet-unknown branch")
+        self.assertIn("UNKNOWN, not fine", body,
+                      "the unreachable case must say it is unknown; anything softer reads as an "
+                      "all-clear, which is the exact failure this branch exists to end")
+
+    def test_the_two_digit_label_carries_the_FULL_version_when_stale(self):
+        self.assertIn("could not check if current", self.ui)
+        self.assertIn("behind the fleet'", self.ui)
+        block = _between(self, self.ui, "var _lbl = 'Millenium'", "_skewNow", what="the label block")
+        self.assertIn("_flL.ok === false", block)
+        self.assertIn("_cv", block,
+                      "the stale label must name the FULL version — two digits cannot tell v2101 "
+                      "from v2001, and that is how a 178-version gap looked tidy")
+
+    def test_the_clean_machine_stays_QUIET(self):
+        """His ruling: clean reads 'Millenium 79' and nothing else. A warning that fires when
+        nothing is wrong is how a real warning becomes furniture."""
+        block = _between(self, self.ui, "var _lbl = 'Millenium'", "_skewNow", what="the label block")
+        self.assertIn("else if ((+_flL.behind || 0) > 0)", block,
+                      "the suffix must be gated on a real fault; an ungated suffix would append "
+                      "to every healthy console on the fleet")
+
+
+
+class TestV2279NothingCallsAcrossTheScriptBLOCKBoundary(unittest.TestCase):
+    """★ THE THIRD TIME THIS EXACT BUG SHIPPED, AND THE FIRST TIME ANYTHING CHECKS FOR IT.
+
+    control_ui.html has two <script> blocks. The first is wrapped in an IIFE — `(function(){ ...
+    })();` — so every `function foo(){}` inside it is PRIVATE. The second block is plain top level.
+    A call from block 2 to a block-1 function is a ReferenceError that lands in the nearest catch,
+    and the panel just... stops.
+
+      · v1516 — escC() was block 1's. "every call from this block threw a ReferenceError and landed
+        in the nearest catch. That is why the FLEET panel reported 'fleet unreachable' even when the
+        route answered perfectly — the fetch succeeded and the RENDER died." Block 2 got its own.
+      · v2248 — _fleetCompare (block 2) was taught to draw HD art and the hover card with
+        thArtInit / thArt / _itipAttr. All three are block 1's. Same bug, same panel, no guard.
+      · 2026-08-30 — Konyo: "cross reference is stuck.. like i clicked it but its just stalling".
+        MEASURED via CDP against his live console: typeof thArtInit / thArt / _itipAttr === undefined
+        in page scope, and thArtInit() threw "thArtInit is not defined". Fetch 0.0s and healthy;
+        the render died on the first line. FIXED by publishing them on window (v2279), the idiom
+        this file already used for _cPieceLabel and _itemTip.
+
+    The rule this pins: block 2 may call a block-1 function only if block 1 PUBLISHES it.
+    [[copy-drift]] [[the-unjoined-end]] [[feedback-generalize-fixes]]
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def _blocks(self):
+        parts, i = [], 0
+        while True:
+            a = self.ui.find("<script>", i)
+            if a < 0:
+                break
+            b = self.ui.find("</script>", a)
+            if b < 0:
+                break
+            parts.append(self.ui[a + len("<script>"):b])
+            i = b
+        return parts
+
+    def test_the_two_blocks_are_still_the_shape_this_guard_assumes(self):
+        # ⚠ a guard whose premise has quietly changed measures nothing. If the IIFE goes away, or
+        # the blocks merge, this whole class must be re-derived rather than left green.
+        blocks = [b for b in self._blocks() if len(b) > 20000]
+        self.assertGreaterEqual(len(blocks), 2,
+                                "control_ui.html no longer has two large script blocks — "
+                                "re-derive this guard before trusting it")
+        self.assertIn("(function(){", blocks[0][:400],
+                      "block 1 is no longer IIFE-wrapped; if its functions are global now, this "
+                      "guard is measuring a hazard that no longer exists")
+
+    def test_block2_calls_nothing_that_block1_keeps_PRIVATE(self):
+        blocks = [b for b in self._blocks() if len(b) > 20000]
+        b1, b2 = blocks[0], blocks[1]
+        private = set(re.findall(r"^  function ([A-Za-z_$][\w$]*)\s*\(", b1, re.M))
+        published = set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=", b1))
+        # a name block 2 declares for itself is its own and shadows nothing
+        b2_own = set(re.findall(r"^\s*(?:function|var|let|const)\s+([A-Za-z_$][\w$]*)", b2, re.M))
+        b2_own |= set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=", b2))
+        b2_own |= set(re.findall(r"(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function", b2))
+        risky = private - published - b2_own
+        # strip comments from block 2 before counting calls: prose naming a function is not a call
+        code2 = re.sub(r"/\*.*?\*/", " ", b2, flags=re.S)
+        code2 = re.sub(r"^\s*//.*$", " ", code2, flags=re.M)
+        bad = []
+        for name in sorted(risky):
+            if len(name) < 4:
+                continue
+            for m in re.finditer(r"(?<![\w$.])%s\s*\(" % re.escape(name), code2):
+                bad.append("%s() at block-2 offset %d" % (name, m.start()))
+                break
+        self.assertEqual(bad, [],
+                         "block 2 calls block-1 private function(s) — each throws a ReferenceError "
+                         "at runtime and kills whatever was being rendered:\n  " + "\n  ".join(bad))
+
+    def test_the_helpers_the_fleet_panel_needs_are_PUBLISHED(self):
+        for name in ("thArtInit", "thArt", "thArtImg", "_itipAttr"):
+            self.assertIn("window.%s = %s;" % (name, name), self.ui,
+                          "%s is not published, so _fleetCompare throws the moment he clicks a "
+                          "fleet row and the panel hangs on 'cross-referencing…' for ever" % name)
+
+    def test_the_render_has_a_NET_so_a_throw_never_leaves_a_spinner(self):
+        """A spinner that never ends is the worst failure mode there is: it looks like patience.
+        The fetch was wrapped and the render was not, which is why this read as 'stuck'."""
+        body = _between(self, self.ui, "window._fleetCompare = async function", "\n  };",
+                        what="_fleetCompare body")
+        self.assertIn("cross-referencing", body)
+        self.assertIn("could not draw it", body,
+                      "the render is unguarded again — any throw below the fetch leaves the wait "
+                      "text on screen and nothing tells him anything went wrong")
+
+    def test_an_ISO_stamp_is_not_subtracted_from_epoch_ms(self):
+        """mineAt is epoch-ms, theirAt is an ISO string off the beacon. Date.now() minus a string
+        is NaN, and the panel printed 'NaNs ago' beside a correct figure. [[stale-reading]]"""
+        body = _between(self, self.ui, "window._fleetCompare = async function", "\n  };",
+                        what="_fleetCompare body")
+        self.assertIn("Date.parse(ms)", body)
+        self.assertIn("return 'unknown'", body,
+                      "an unparseable stamp must read UNKNOWN, never a number")
+
+
+
+class TestV2278TheStripNamesWhatWouldCHANGE(unittest.TestCase):
+    """His question, at the strip reading "347 find(s) read from your reels": "okay but did it
+    cross reference what i currently already own? ... im pretty sure i alread have those items ...
+    like didnt i already tally them manually or the chronicle readers the ON AIR already caught it?"
+
+    MEASURED on his live console 2026-08-29: 347 proposed · 347 already in his foundLog · every one
+    already dated · newlyDated 0. Pressing the green button would have changed NOTHING, and both
+    the strip and the button had been naming 347 the whole time. [[label-outlived-referent]]
+    """
+
+    def _ui(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def _app(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with io.open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_retired_claim_is_GONE_from_the_markup_and_the_prose(self):
+        # ⚠ counted over the WHOLE file including comments on purpose: my own explanatory comment
+        # quoting a retired string has tripped a guard of mine before, and a comment that still
+        # says the old sentence is how the old sentence comes back. [[feedback-comments-vs-code]]
+        self.assertEqual(self._ui().count("not in your ledger yet"), 0,
+                         "the strip still tells him these are absent from his ledger")
+
+    def test_every_hop_of_the_join_exists_AND_is_used(self):
+        """★ THE TEST v2274 NEEDED AND DID NOT HAVE. A definition is not a join. Each hop is
+        counted at BOTH ends in the same assertion, so a half that is written and never called
+        fails here instead of shipping silent. [[plumbing-with-no-tap]] [[the-unjoined-end]]"""
+        ui, app = self._ui(), self._app()
+        hops = [
+            ("the fetch is defined", len(re.findall(r"function _chronXref\(", ui)), 1),
+            ("the fetch is CALLED", len(re.findall(r"[^n] _chronXref\(", ui)), 2),
+            ("_CHRON_XREF is written", len(re.findall(r"window\._CHRON_XREF\s*=", ui)), 1),
+            ("_CHRON_XREF is read", len(re.findall(r"window\._CHRON_XREF\s*\|\|", ui)), 2),
+            ("the server route exists", app.count('path == "/api/chronicle_crossref"'), 1),
+            ("the state fn exists", app.count("def chronicle_crossref_state("), 1),
+            # ⚠ counted at the CALL SITE, not on the name: `chronicle_crossref_state(force=`
+            # also matches the `def` line, so the first cut of this guard demanded 1 and found 2.
+            # A probe that catches its own definition measures the wrong thing.
+            ("the route CALLS it", app.count("chronicle_crossref_state(force=bool("), 1),
+            ("the pure module is imported", app.count("import chronicle_crossref as _cx"), 1),
+        ]
+        bad = ["%s: found %d, want %d" % (n, got, want) for n, got, want in hops if got != want]
+        self.assertEqual(bad, [], "the console/board cross-reference is not joined end to end:\n  "
+                                  + "\n  ".join(bad))
+
+    def test_the_url_the_page_fetches_is_the_url_the_server_serves(self):
+        # the classic unjoined route: a path posted to that no branch declares
+        self.assertIn("'/api/chronicle_crossref'", self._ui())
+        self.assertIn('path == "/api/chronicle_crossref"', self._app())
+
+    def test_UNMEASURED_never_renders_as_a_count(self):
+        ui = self._ui()
+        self.assertIn("not yet checked against your chronicle", ui,
+                      "when his ledger cannot be read the strip must say so, not name a number")
+        self.assertIn("_apNew === null", ui,
+                      "the button must fall back to the read count only when nothing was measured, "
+                      "and it must be an explicit null test — 0 is a real answer and must not take "
+                      "the same branch")
+
+    def test_zero_new_is_a_DIFFERENT_state_from_unmeasured(self):
+        ui = self._ui()
+        self.assertIn("you already have every one", ui)
+        self.assertIn("nothing new to register", ui)
+        # ⚠ NOT `assertIn("cw-quiet")`. That passed while the rule that does the work had been
+        # renamed away, because two SUPPORTING rules still mentioned the class. A guard on a
+        # selector must pin the DECLARATION, or it measures the decoration and not the effect.
+        # [[source-reading-guard]] [[d2r-css-last-rule-wins]]
+        self.assertIn("cw-quiet", ui, "a row that needs no decision must stop wearing the colour "
+                                      "of one — his ask: 'if nothing for me to do it should be "
+                                      "cleaner structured'")
+        base = _between(self, ui, ".chron-waiting.cw-quiet {", "}", what="the quiet rule")
+        for decl in ("opacity", "border-color", "background"):
+            self.assertIn(decl, base,
+                          "the quiet row no longer overrides %s, so it still looks like a "
+                          "decision waiting to be made" % decl)
+        self.assertIn(".chron-waiting.cw-quiet .cw-go { display: none; }", ui,
+                      "the go-arrow survives in the quiet state, which is the one thing that says "
+                      "'act on me'")
+
+    def test_the_quiet_styles_actually_MATCH_the_element(self):
+        # ⚠ a selector that matches nothing is a style that silently does not exist, and CSS gives
+        # no error for it. #chron-waiting is a <button class="chron-waiting">, so the two-class
+        # selector is the one that can win. [[d2r-css-last-rule-wins]]
+        ui = self._ui()
+        self.assertIn('<button class="chron-waiting" id="chron-waiting"', ui,
+                      "the element lost its class, so every .chron-waiting.cw-quiet rule is inert")
+        self.assertIn(".chron-waiting.cw-quiet", ui)
+        self.assertIn("chron-apply chron-nothing" .replace(" ", ".") if False else
+                      ".chron-apply.chron-nothing", ui)
+        self.assertIn('class="chron-btn chron-apply"', ui,
+                      "the apply button lost .chron-apply, so the quiet rule cannot match it")
+
+    def test_the_reach_into_his_window_is_MEMOISED(self):
+        """/api/chronicle_crossref evaluates JS in the window he is looking at, and the strip
+        repaints every tick. Unmemoised, this pokes his board several times a second.
+        [[borrowed-surface]]"""
+        app = self._app()
+        self.assertIn("_CROSSREF_TTL", app)
+        self.assertIn("_crossref_memo", app)
+        body = _between(self, app, "def chronicle_crossref_state(", "\ndef ",
+                        what="chronicle_crossref_state body")
+        self.assertIn("_crossref_memo[\"key\"] == key", body,
+                      "the memo no longer compares the proposal key, so a NEW sweep would be "
+                      "answered from the old cross-reference")
+        self.assertIn("board_ownership(sample=", body)
+
+
 class TestV2274TheConsoleMustNotASKITSELFForBoardFunctions(unittest.TestCase):
     """He pressed "register 347 ✓" and got "this board build has no chronicleApply (needs v1521+)".
     The board build HAS it. The console was asking the WRONG WINDOW.
@@ -22076,11 +22426,25 @@ class TestV2126TheWaitingBannerOpensTheRoomItNames(unittest.TestCase):
         # v2199 — "grail" -> "ledger". His ruling: the word was invented and the thing is a
         # database. The guard moves WITH the copy in the same commit; a source-text assertion left
         # behind is a red gate that says nothing about the product.
-        self.assertIn("not in your ledger yet", self.ui,
-                      "the banner no longer says these finds are NOT in his ledger yet, which is "
-                      "the whole point of the proposal being read-only")
+        # v2278 — THE LAW SURVIVED, THE SENTENCE DID NOT. This used to pin the literal string
+        # "not in your ledger yet", and that sentence turned out to be FALSE: measured on his live
+        # console, all 347 proposed names were already in his foundLog and already dated. So the
+        # banner now names what would CHANGE, in three states, and this guard pins the meaning
+        # rather than one wording of it — which is what it was always for.
+        # ⚠ A guard pinned to prose blocks the fix to that prose. Pin the law.
+        # [[feedback-state-the-bar-not-the-routes]]
+        states = ["not in your chronicle yet",                 # some would change
+                  "you already have every one",                # none would
+                  "not yet checked against your chronicle"]    # nobody could ask — never a number
+        for st in states:
+            self.assertIn(st, self.ui,
+                          "the banner lost the %r state, so a proposal that is %s reads the same "
+                          "as one that is not" % (st, st))
         self.assertNotIn("not in your grail yet", self.ui,
                          "the invented word came back on the one line he pointed at by name")
+        self.assertNotIn("not in your ledger yet", self.ui,
+                         "the retired claim is back — it told him 347 items were absent from a "
+                         "ledger that already held every one of them")
 
 
 class TestV2128TheFoldRefusesWhatIsAlreadyCovered(unittest.TestCase):

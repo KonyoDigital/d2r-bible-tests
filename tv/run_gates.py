@@ -251,6 +251,20 @@ GATES = [
              "should agree with, which neither lane can see alone — and pins that an unreadable or "
              "timestamp-less store is UNKNOWN rather than healthy. All five laws sabotage-proven "
              "RED."),
+    Gate("test_chronicle_crossref", [sys.executable, os.path.join(HERE, "test_chronicle_crossref.py")], 60,
+         why="v2278 — THE COUNT HE ACTS ON MUST BE THE COUNT OF WHAT WOULD CHANGE. His console read "
+             "\"347 find(s) read from your reels\" under a claim that they were absent from his "
+             "chronicle. He asked: \"did it cross reference what i currently already own? im pretty "
+             "sure i alread have those items\". MEASURED on his live console 2026-08-29: 347 "
+             "proposed, 347 already in his foundLog, every one already dated, newlyDated 0 — "
+             "pressing the green button would have changed nothing, and it had been saying 347 "
+             "every minute for days. This pins the three states apart — some new, none new, and "
+             "NOT MEASURED (which may never render as a number, because 347 after no ledger read is "
+             "the same lie as 0) — and pins that two byte forms of one apostrophe are one item, "
+             "since bible.html carries Atma\u2019s Scarab, Cat\u2019s Eye and Death\u2019s Web "
+             "both ways. It also pins the opposite failure: a canon that over-normalises would hide "
+             "real finds, so Bloodrise and Bloodfist must stay two. All five laws sabotage-proven "
+             "RED, including the negative control that the cross-reference can still say NEW."),
     Gate("test_health_engine", [sys.executable, os.path.join(HERE, "test_health_engine.py")], 60,
          why="v2277 — ONE HEALTH ENGINE, RED/GREEN, REPORTING ONLY. Konyo: \"not sure we need a "
              "live watchdog that fixes things might be wrong for the console and make a bug worse.. "

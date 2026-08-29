@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2277",
+  "ver": "v2281",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2277: the health engine folds into the eagle eye instead of becoming a fifth surface; four board-owned evaluators were still asking the console",
+  "note": "v2281: the hero computed the quickest source anywhere and discarded it whenever the Hell lead was the same item; his game is no longer an orphan",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
