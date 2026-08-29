@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2258",
+  "ver": "v2259",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2258: A missing apostrophe in a codex key threw a TypeError so four real assertions never ran, and a fixture blamed the undo for names the board never knew",
+  "note": "v2259: A registry name without an apostrophe could never reach its codex note, and the normaliser folds curly quotes but never strips one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -30163,5 +30163,60 @@ class TestV2257TheBeaconFieldsSURVIVETheWorker(unittest.TestCase):
                              "boundary" % bad)
 
 
+class TestV2259OneItemTwoSpellingsAndNormCannotBridgeIt(unittest.TestCase):
+    """ITEM_REGISTRY calls it "Bul-Kathos Wedding Band". ITEM_CODEX calls it "Bul-Kathos' Wedding
+    Band". `_norm` folds a CURLY apostrophe into a straight one but NEVER STRIPS one, so the two
+    normalise differently and the ring's codex note was unreachable from its registry name — raw
+    or normalised. One of the best-known rings in the game, with a note that could never be shown
+    beside it.
+
+    ⚠ FOUND BY ACCIDENT, WHILE FIXING SOMETHING ELSE. A Routine I spec crashed with
+    `TypeError: Cannot read properties of undefined (reading 'note')`, which looked like a typo in
+    a test. It was a typo in the DATA that the test had been quietly dying on.
+
+    ⚠ MEASURED BEFORE FIXING. Across 547 registry names and 351 codex entries, EXACTLY ONE pair
+    joins only when the apostrophe is stripped, and this is it — the registry's own Sacred Charge
+    and Tribal Guardian both carry the apostrophe. A single typo, not a convention, so it takes a
+    single alias and not another catalogue. That distinction is what the v2205 chain of
+    one-catalogue-at-a-time fixes was missing."""
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_the_registry_spelling_resolves_to_a_codex_note(self):
+        s = self._src()
+        self.assertIn("ITEM_CODEX['Bul-Kathos Wedding Band'] = ITEM_CODEX[\"Bul-Kathos' Wedding Band\"]", s,
+                      "the alias is gone, so that ring's codex note is unreachable again")
+
+    def test_the_alias_is_ADDITIVE_and_can_never_overwrite(self):
+        """⚠ A rename would be the 'correct' spelling and would also orphan any row in his stored
+        ledger, vault or mule map carrying the old one. An alias cannot lose data; a rename can."""
+        s = self._src()
+        i = s.index("ITEM_CODEX['Bul-Kathos Wedding Band'] =")
+        guard = s[s.rindex("if (", 0, i):i]
+        self.assertIn("!ITEM_CODEX['Bul-Kathos Wedding Band']", guard,
+                      "the alias no longer checks the key is absent first, so it can overwrite a "
+                      "real entry if one is ever added under that spelling")
+        self.assertIn("ITEM_CODEX[\"Bul-Kathos' Wedding Band\"] &&", guard,
+                      "the alias no longer checks its SOURCE exists, so it can write undefined")
+
+    def test_both_spellings_are_still_present_so_the_alias_has_a_job(self):
+        s = self._src()
+        self.assertIn('"Bul-Kathos\' Wedding Band"', s,
+                      "the canonical codex key is gone; the alias now points at nothing")
+        self.assertIn("Bul-Kathos Wedding Band", s,
+                      "the registry spelling is gone — if it was renamed, delete the alias and "
+                      "this test rather than leaving a bridge to nowhere")
+
+    def test_the_other_bul_kathos_names_keep_their_apostrophe(self):
+        # they are the evidence that the Wedding Band is a typo rather than a house style
+        s = self._src()
+        for n in ("Bul-Kathos' Sacred Charge", "Bul-Kathos' Tribal Guardian"):
+            self.assertIn(n, s, "%s lost its apostrophe — if the convention really changed, this "
+                                "whole fix needs revisiting" % n)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -75,6 +75,22 @@ def _shoot(tab, w, h, out_dir, tag):
             if t.ev("(function(){return document.readyState})()") == "complete":
                 break
             time.sleep(0.5)
+        # ⚠ PROVE THE TAB IS THE ONE WE ASKED FOR, BEFORE TIMING ITS FADE. The refusal kept
+        # reporting opacity '0.01' for the whole budget — which is not a fade IN sampled early, it
+        # is a panel fading OUT. The page restores its last-used tab from localStorage on boot, so
+        # on a profile that has been driven around (mine, after a night of repros) the restore and
+        # this switch fight each other and the requested panel is on its way out.
+        # Waiting on opacity alone could never see that; it just timed a losing race.
+        for _ in range(20):
+            active = t.ev("(function(){var a=document.querySelector('button.tab.active[data-tab]');"
+                          "return a?a.dataset.tab:''})()")
+            if active == tab:
+                break
+            t.ev("(function(){try{window.switchTab&&window.switchTab(%s)}catch(e){}return 1})()"
+                 % json.dumps(tab))
+            time.sleep(0.5)
+        else:
+            return None, "tab %r never became the active tab — the page kept restoring %r" % (tab, active)
         settled, waited, saw, stable = False, 0.0, "never sampled", 0
         while waited < 20.0:
             time.sleep(0.5)
