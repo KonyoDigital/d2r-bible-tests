@@ -38434,7 +38434,39 @@ function renderJournal(){
     var UNDONE = 'd2r_vaultBackfillUndo_v2205';
     try {
       if (window.LSR.getItem(UNDONE)) return;
-      if (!window.LSR.getItem('d2r_vaultBackfill_v2200')) return;   // it never ran here
+      /* ⚠⚠ v2275 — THE FLAG IS NOT THE DAMAGE, AND THIS GATE HAS BEEN INERT SINCE v2203.
+         This asked "did the bad v2200 backfill run here?" by testing for its flag. But the RETIRED
+         v2200 block below (~:38576) stamps that exact key UNCONDITIONALLY on every load — there is
+         no gate between that IIFE's entry and its setItem, and its own comment says it is left in
+         place "so the undo above can still recognise a machine where it ran". It cannot: it marks
+         EVERY machine. So from the SECOND page load onward the flag means "this page has loaded
+         once", and this undo has been armed on every board in the fleet.
+
+         The only thing standing between that and his data was the `owned.length < 100` line below.
+         MEASURED on his live ledger snapshot (280 owned, 400 foundLog): replaying this undo's own
+         rules would DROP 273 OF 280 NAMES and keep 7 — Fleshrender, Gloom's Trap, Lidless Wall,
+         Vampire Gaze, Chance Guards, Andariel's Visage, Atma's Scarab among the casualties.
+
+         The codebase already worked this out for the SIBLING restore and moved that gate to
+         droppedN (~:38359); this one was never moved. A Playwright spec even measured the
+         universal stamp (tests/v2208...:148-159) without anyone connecting it to this line.
+
+         ASK THE RECORD'S SHAPE, NOT ITS PRESENCE. A genuine v2200 run wrote COUNTS; the retirement
+         writes {retired:...}. This IIFE runs BEFORE the stamping one on every load, so a board that
+         really was damaged still presents the counts here. A retirement stamp, or anything without
+         counts, is not evidence of damage and must not authorise dropping 273 of his items.
+         [[gate-blind-to-unexercised-input]] [[label-outlived-referent]] */
+      var _v2200 = null;
+      try { _v2200 = JSON.parse(window.LSR.getItem('d2r_vaultBackfill_v2200') || 'null'); } catch(e){ _v2200 = null; }
+      var _reallyRan = !!(_v2200 && typeof _v2200 === 'object' && !_v2200.retired &&
+                          ((+_v2200.fresh || 0) + (+_v2200.already || 0) + (+_v2200.names || 0)) > 0);
+      if (!_reallyRan) {
+        try { window.LSR.setItem(UNDONE, JSON.stringify({
+          skipped: 'no evidence the v2200 backfill ever ran on this board — the flag alone is not '
+                 + 'evidence, the retirement stamps it everywhere',
+          saw: _v2200 ? Object.keys(_v2200).slice(0, 6) : null })); } catch(e){}
+        return;
+      }
       var owned = [];
       try { owned = JSON.parse(window.LSR.getItem('d2r_owned') || '[]') || []; } catch(e){}
       if (owned.length < 100) {                    // already correct, or a different machine
@@ -47337,7 +47369,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2273', name:'v2273 - One Unit, No Gap', date:'2026-08-29', note:'the eye now sees the console too' };
+  window.D2R_BUILD = { id:'v2276', name:'v2276 - Two Machines Are Not One Machine', date:'2026-08-29', note:'an id prefix and a kill pattern, both too loose' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

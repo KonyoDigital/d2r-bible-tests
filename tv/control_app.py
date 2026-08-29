@@ -1641,6 +1641,17 @@ def _same_id(a, b):
     """
     if not isinstance(a, str) or not isinstance(b, str) or not a or not b:
         return False
+    # ⚠ v2276 — TWO FULL IDS MUST MATCH IN FULL. v2188.2 was right that the beacon truncates the
+    # install id to 12 chars, and that is a real case this has to keep serving. But it then applied
+    # the prefix rule to EVERY comparison, so two different 32-char ids agreeing for 12 characters
+    # compared EQUAL — measured on the real function object:
+    #   _same_id('c5c2c92d9fd049a38dfe2e46728e5eca', 'c5c2c92d9fd0AAAAAAAAAAAAAAAAAAAA') -> True
+    # Two machines can be one machine as far as every caller is concerned, which is how a fleet row
+    # or a world claim lands on the wrong install. The truncation is the EXCEPTION, so treat it as
+    # one: same length means compare in full, and only a genuinely shorter side falls back to the
+    # common prefix. [[the-unjoined-end]]
+    if len(a) == len(b):
+        return a == b
     n = min(len(a), len(b), 12)
     if n < 8:
         return False                         # too short to identify anything
@@ -1860,7 +1871,11 @@ def board_set_mask():
     # raised NameError inside the caller's `except Exception: return None`, so the mask would have
     # been absent forever and the fleet box would have said "no mask reported yet" on every
     # machine — a feature dead on arrival, reporting its own absence politely.
-    w = globals().get("_MAIN_WIN")
+    # v2274 — THE BOARD WINDOW FIRST. chronicleApply is defined in bible.html (/board), never in
+    # the console UI that _MAIN_WIN holds. Falling back to _MAIN_WIN is kept only so an older
+    # single-window build still behaves as it did, and the failure below now NAMES the window it
+    # asked rather than accusing the build.
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None:
         return None
     js = ("(function(){try{"
@@ -3925,8 +3940,19 @@ def _reclaim_headless_for_scan():
     victims = set()
     # 1) known headless launcher argv
     try:
+        # ⚠ v2276 — THIS PATTERN MATCHED HIS OPEN CONSOLE, NOT ONLY THE HEADLESS SUPERVISOR.
+        # The comment above says "known headless launcher argv", and the headless supervisor is
+        # launched as `control_app.py --no-open`. But the pattern was bare "control_app.py", which
+        # matches EVERY process carrying that string — including the WINDOWED console he is looking
+        # at, and any shell whose command line happens to mention the file. Those pids then go
+        # straight into `victims` and are SIGTERMed below. A reclaim meant for a background server
+        # could take down the window he was working in.
+        # Pattern-killing is banned on this machine for exactly this reason, and the branch under
+        # this one already covers the case the broad pattern was reaching for: whoever actually
+        # HOLDS the port gets reclaimed by _port_listener_pid, by identity rather than by string.
+        # [[process-port-discipline]] [[label-outlived-referent]]
         out = subprocess.run(
-            ["pgrep", "-f", "control_app.py"],
+            ["pgrep", "-f", "control_app.py --no-open"],
             capture_output=True, text=True, timeout=3)
         for line in (out.stdout or "").splitlines():
             try:
@@ -9993,7 +10019,11 @@ def chronicle_apply(proposal=None):
     if (not _wa.get("uniques") and not _wa.get("sets") and not _wa.get("completeSets")
             and not _held):
         return {"ok": False, "why": "the sweep found nothing at all — nothing to apply or queue"}
-    w = globals().get("_MAIN_WIN")
+    # v2274 — THE BOARD WINDOW FIRST. chronicleApply is defined in bible.html, served at
+    # /board, in a SEPARATE window whose handle was never stored. _MAIN_WIN holds the
+    # CONSOLE UI, which has ZERO occurrences of chronicleApply — so register could only
+    # ever fail, and its message blamed the board BUILD for "I asked the wrong window".
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         # v2145 — a CLOSED board is exactly when a relaunch happened, so the remembered world
         # still has something to say even though this read cannot.
@@ -10062,8 +10092,14 @@ def chronicle_apply(proposal=None):
         _withheld = []
     payload = json.dumps({"wouldAdd": _wa_out, "held": _held,
                           "lanes": prop.get("lanes") or []})
+    # v2274 — SAY WHICH PAGE ANSWERED. The old text blamed the board BUILD by name
+    # (needs v1521+)" and sent a person looking at VERSIONS for an hour; the real answer was that
+    # the window being asked was the console, not the board. A refusal that names the wrong cause
+    # is worse than one that says nothing.
     js = ("(function(){try{if(typeof window.chronicleApply!=='function')return JSON.stringify("
-          "{ok:false,why:'this board build has no chronicleApply (needs v1521+)'});"
+          "{ok:false,why:'the window I asked has no chronicleApply — it is '+String(location.pathname||'/')"
+          "+' ('+String(document.title||'untitled')+'). That function lives on the BOARD (/board); "
+          "if this says / then the console asked itself. Open the board window and try again.'});"
           "var r=window.chronicleApply(%s);return JSON.stringify({ok:true,applied:r});}"
           "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % payload
     try:
@@ -18654,7 +18690,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2273",
+        "ver": "v2276",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -21938,7 +21974,15 @@ def board_window():
     url = "http://127.0.0.1:%d/board#%s" % (CONTROL_PORT, tab)
     try:
         import webview
-        webview.create_window(
+        # ⚠ v2274 — KEEP THE HANDLE, OR THE CONSOLE CANNOT SPEAK TO THE BOARD AT ALL.
+        # This call discarded its return for as long as it has existed, so no reference to the
+        # board window was ever stored. chronicle_apply then had only _MAIN_WIN to evaluate in —
+        # and _MAIN_WIN is the CONSOLE UI (http://127.0.0.1:PORT/), which contains ZERO occurrences
+        # of chronicleApply. The function lives in bible.html, served at /board, in THIS window.
+        # So "register" could only ever answer that the board build lacked the function, which
+        # blamed the board's VERSION for what was really "I asked the wrong window".
+        # [[the-unjoined-end]] [[label-outlived-referent]]
+        globals()["_BOARD_WIN"] = webview.create_window(
             "TV DIABLO — Board",
             url=url,
             width=1500,

@@ -4429,6 +4429,115 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2274TheConsoleMustNotASKITSELFForBoardFunctions(unittest.TestCase):
+    """He pressed "register 347 ✓" and got "this board build has no chronicleApply (needs v1521+)".
+    The board build HAS it. The console was asking the WRONG WINDOW.
+
+    TWO WINDOWS EXIST. _MAIN_WIN is the CONSOLE UI at http://127.0.0.1:PORT/ — control_ui.html,
+    which contains ZERO occurrences of chronicleApply. The BOARD is bible.html, served at /board,
+    in a SEPARATE window created by board_window(). That call discarded create_window()'s return
+    for as long as it has existed, so no board handle was ever stored and chronicle_apply had only
+    _MAIN_WIN to evaluate in. Register could therefore ONLY ever fail — and its message accused the
+    board's VERSION, which sent me reading version stamps for an hour.
+
+    Measured while diagnosing: control_ui.html chronicleApply occurrences = 0; bible.html = 5;
+    what /board actually serves = 14. [[the-unjoined-end]] [[label-outlived-referent]]
+    """
+
+    def _src(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with io.open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_board_window_handle_is_KEPT(self):
+        src = self._src()
+        self.assertIn('globals()["_BOARD_WIN"] = webview.create_window(', src,
+                      "board_window() discards create_window()'s return again, so nothing can ever "
+                      "evaluate JS in the board and every board-side call answers 'not present'")
+
+    def test_chronicle_apply_prefers_the_BOARD_window(self):
+        # ⚠ _between, not a byte count. The repo's own guard caught this test using src[i:i+4000]
+        # on its first run — a slice that measures nothing announces nothing, and assertIn on an
+        # empty string simply fails while assertNotIn silently PASSES. Anchor on both ends.
+        src = self._src()
+        body = _between(self, src, "def chronicle_apply(", "\ndef ",
+                        what="chronicle_apply body")
+        self.assertIn('globals().get("_BOARD_WIN")', body,
+                      "chronicle_apply is back to asking _MAIN_WIN, which is the CONSOLE UI — "
+                      "chronicleApply is not defined there and never has been")
+
+    def test_the_console_UI_really_does_not_define_it(self):
+        # ⚠ the premise of the whole fix. If control_ui ever DID define chronicleApply this guard
+        # would be protecting nothing, and the failure would have a different cause.
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertEqual(ui.count("window.chronicleApply ="), 0,
+                         "control_ui.html now defines chronicleApply — re-check which window "
+                         "chronicle_apply should target before trusting this guard")
+
+    def test_the_refusal_NAMES_THE_PAGE_instead_of_blaming_the_build(self):
+        src = self._src()
+        self.assertNotIn("this board build has no chronicleApply", src,
+                         "the refusal blames the board BUILD again; it must say WHICH PAGE "
+                         "answered, or it sends the next person to read version stamps")
+        self.assertIn("the window I asked has no chronicleApply", src)
+        self.assertIn("location.pathname", src,
+                      "the refusal must report the path of the page that answered")
+
+
+class TestV2276IdentityAndTheReclaimPattern(unittest.TestCase):
+    """Two defects an adversarial panel confirmed and I re-measured on his live machine."""
+
+    def _src(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with io.open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def _same_id(self):
+        # exec the real FunctionDef so the test asks the OBJECT, not the prose around it
+        import ast
+        tree = ast.parse(self._src())
+        fn = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_same_id"]
+        self.assertEqual(len(fn), 1, "_same_id is missing or defined twice")
+        ns = {}
+        exec(compile(ast.Module(body=fn, type_ignores=[]), "<same_id>", "exec"), ns)
+        return ns["_same_id"]
+
+    def test_two_DIFFERENT_full_ids_sharing_twelve_chars_are_NOT_the_same_machine(self):
+        f = self._same_id()
+        self.assertFalse(f("c5c2c92d9fd049a38dfe2e46728e5eca", "c5c2c92d9fd0AAAAAAAAAAAAAAAAAAAA"),
+                         "two different 32-char install ids compared EQUAL — a fleet row or a world "
+                         "claim can land on the wrong machine")
+
+    def test_identical_full_ids_still_match(self):
+        f = self._same_id()
+        self.assertTrue(f("c5c2c92d9fd049a38dfe2e46728e5eca", "c5c2c92d9fd049a38dfe2e46728e5eca"))
+
+    def test_the_BEACON_TRUNCATION_case_still_works(self):
+        # ⚠ the reason the prefix rule existed at all (v2188.2). Breaking this to fix the collision
+        # would trade one wrong answer for another.
+        f = self._same_id()
+        self.assertTrue(f("77f641548cfa", "77f641548cfa405693a0d6978946e25d"),
+                        "a 12-char beacon id no longer matches its own full id")
+
+    def test_a_too_short_id_identifies_nothing(self):
+        f = self._same_id()
+        self.assertFalse(f("abc", "abcdef"))
+
+    def test_the_reclaim_pattern_cannot_match_the_WINDOWED_console(self):
+        """MEASURED on his machine: `pgrep -f control_app.py` returned 88355, which is the pid
+        holding :17772 — his open console. The docstring says the target is the headless supervisor,
+        which launches as `control_app.py --no-open`. A reclaim meant for a background server was
+        able to SIGTERM the window he was working in. [[process-port-discipline]]"""
+        src = self._src()
+        self.assertNotIn('["pgrep", "-f", "control_app.py"]', src,
+                         "the reclaim pattern is bare again — it matches the WINDOWED console, and "
+                         "those pids are SIGTERMed a few lines below")
+        self.assertIn('["pgrep", "-f", "control_app.py --no-open"]', src,
+                      "the reclaim must name the headless supervisor its own docstring describes")
+
+
 class TestNoOrphanSuite(unittest.TestCase):
     """v1483 — a test suite that nobody runs is not a test suite.
 

@@ -58,6 +58,44 @@ async function ready(page: any) {
        && typeof (window as any).tvVaultRegister === 'function', null, { timeout: 120000 });
 }
 
+/* ⚠⚠ v2275 — THE UNDO WAS ARMED ON EVERY BOARD IN THE FLEET, AND THIS FILE DID NOT SEE IT.
+ *
+ * The undo gated on `if (!LSR.getItem('d2r_vaultBackfill_v2200')) return;` — "did the bad backfill
+ * run here?". But the RETIRED v2200 block stamps that exact key UNCONDITIONALLY on every load, and
+ * says in its own comment that it is left in place "so the undo above can still recognise a machine
+ * where it ran". It cannot: it marks EVERY machine. From the second page load onward the flag means
+ * "this page has loaded once".
+ *
+ * The only remaining brake was `owned.length < 100`. HIS BOARD CARRIES 280. Replaying the undo's
+ * own rules against his live ledger snapshot drops 273 of 280 names.
+ *
+ * ⚠ AND THE CASE BELOW IS WHY THIS FILE MISSED IT: the "fresh machine" test seeds TWO owned names,
+ * so it exits on the <100 branch and has never once exercised the flag gate. A fixture that stops
+ * short of the line under test is the blind-fixture shape, and it passed for three versions while
+ * the gate it was supposed to cover was inert. [[feedback-blind-fixture-green-gate]]
+ */
+test('the undo REFUSES on a board carrying a retirement stamp and 280 owned names', async ({ page }) => {
+  await page.addInitScript(() => {
+    // exactly what every board looks like from load 2 onward: the retirement stamp, and a real vault
+    localStorage.setItem('d2r_vaultBackfill_v2200',
+      JSON.stringify({ retired: 'v2203 — sourced from found-ever, not stash evidence' }));
+    const owned = Array.from({ length: 280 }, (_, i) => 'Item ' + i);
+    localStorage.setItem('d2r_owned', JSON.stringify(owned));
+    localStorage.removeItem('d2r_vaultBackfillUndo_v2205');
+  });
+  await page.goto(URL);
+  await page.waitForTimeout(2200);
+  const r = await page.evaluate(() => ({
+    owned: JSON.parse(localStorage.getItem('d2r_owned') || '[]').length,
+    undone: JSON.parse(localStorage.getItem('d2r_vaultBackfillUndo_v2205') || 'null'),
+  }));
+  expect(r.owned,
+    'THE UNDO RAN ON A RETIREMENT STAMP AND ATE HIS VAULT — 280 owned went to ' + r.owned +
+    '. The flag is not the damage; only a record carrying COUNTS is evidence the backfill ran.')
+    .toBe(280);
+  expect(r.undone && r.undone.skipped, 'the undo should have recorded WHY it declined').toBeTruthy();
+});
+
 test('the undo drops only what came from found-ever, and keeps everything else', async ({ page }) => {
   await page.goto(URL);
   await ready(page);
