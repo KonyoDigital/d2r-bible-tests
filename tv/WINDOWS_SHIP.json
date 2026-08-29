@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2281",
+  "ver": "v2282",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2281: the hero computed the quickest source anywhere and discarded it whenever the Hell lead was the same item; his game is no longer an orphan",
+  "note": "v2282: armed_migration sweeps the class instead of one hardcoded flag; coldread will not photograph a console that is not the version being read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

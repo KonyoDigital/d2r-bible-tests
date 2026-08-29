@@ -300,6 +300,33 @@ def _shoot_console(tab, w, h, out_dir, tag, suffix=""):
         t.close()
 
 
+def _console_matches_ref(ref):
+    """Is the control_ui.html this ref carries the same one the running console is serving?
+
+    -> (True, why) only when they are byte-identical. Anything unreadable answers False with the
+    reason, because "I could not tell" must never license photographing the wrong build.
+    """
+    import hashlib
+    import subprocess as _sp
+    try:
+        r = _sp.run(["git", "show", "%s:tv/control_ui.html" % ref], cwd=ROOT,
+                    capture_output=True, timeout=60)
+        if r.returncode != 0 or not r.stdout:
+            return False, "this ref has no tv/control_ui.html to compare against"
+        theirs = hashlib.md5(r.stdout).hexdigest()
+    except Exception as e:
+        return False, "could not read control_ui.html at %s: %s" % (ref, str(e)[:60])
+    try:
+        with open(os.path.join(ROOT, "tv", "control_ui.html"), "rb") as fh:
+            mine = hashlib.md5(fh.read()).hexdigest()
+    except Exception as e:
+        return False, "could not read the console on disk: %s" % str(e)[:60]
+    if mine == theirs:
+        return True, "the running console IS this ref"
+    return False, ("the running console serves a DIFFERENT control_ui.html than %s, so its pixels "
+                   "would depict another build" % ref)
+
+
 def main(argv):
     ref = argv[1] if len(argv) > 1 else "origin/main"
     out_dir = argv[2] if len(argv) > 2 else os.path.join(ROOT, "tv", ".render_shots")
@@ -321,7 +348,7 @@ def main(argv):
         m = re.search(r"D2R_BUILD\s*=\s*\{\s*id:'(v\d+)'", head)
         tag = m.group(1) if m else "unknown"
         print("staged %s as %s (at the repo root, so art/ resolves)" % (ref, tag))
-        made, failed = [], []
+        made, failed, skipped = [], [], []
         # (tab, width, height, region-selector, filename suffix)
         for tab, w, h, region, sfx in (
                 ("main",  1440, 1000, None, ""),
@@ -335,10 +362,28 @@ def main(argv):
             print(("  ✓ " if p else "  ✗ ") + why)
             (made if p else failed).append(p or why)
         # v2273 — AND THE CONSOLE, so the two halves of what he looks at are one unit.
-        for w, h in ((1440, 1000), (901, 900)):
-            p, why = _shoot_console(None, w, h, out_dir, tag)
-            print(("  ✓ " if p else "  ✗ ") + why)
-            (made if p else failed).append(p or why)
+        #
+        # ⚠ v2281 — BUT ONLY WHEN THE CONSOLE ON DISK *IS* THE VERSION BEING READ. This function
+        # stages bible.html out of git so the board frames really are that version's pixels — and
+        # then photographed http://127.0.0.1:17772/, which serves whatever control_ui.html is on
+        # disk RIGHT NOW. Reading origin/main (v2277) on 2026-08-30, the console frames would have
+        # shown the working tree's v2281 console. A second eye would have been handed two versions
+        # in one envelope and told it was looking at one, and its verdict would have been recorded
+        # against the older number. [[stale-reading]] [[feedback-suspect-the-instrument]]
+        #
+        # So: compare the ref's control_ui.html against the one the running console is serving. If
+        # they differ, the console frames CANNOT depict this ref — say so and take none, rather
+        # than taking pictures of the wrong build. Their absence is recorded as a stated LIMIT of
+        # the read, never as a silent omission: "nobody looked" must not read like "nothing wrong".
+        _ui_same, _ui_why = _console_matches_ref(ref)
+        if _ui_same:
+            for w, h in ((1440, 1000), (901, 900)):
+                p, why = _shoot_console(None, w, h, out_dir, tag)
+                print(("  ✓ " if p else "  ✗ ") + why)
+                (made if p else failed).append(p or why)
+        else:
+            print("  \u26aa console frames SKIPPED \u2014 %s" % _ui_why)
+            skipped.append("the console was not photographed: %s" % _ui_why)
         if failed:
             print("\n🔴 %d capture(s) refused — nothing here is fit to hand to a second eye."
                   % len(failed))
@@ -346,6 +391,9 @@ def main(argv):
         print("\n🟢 %d captures of %s, each settled and asset-complete:" % (len(made), tag))
         for p in made:
             print("     " + p)
+        for w in skipped:
+            # stated, not silent — the read is honest about what it does NOT cover
+            print("     \u26aa %s" % w)
         return 0
     finally:
         try:

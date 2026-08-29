@@ -34,6 +34,7 @@ A check returns one of four states and UNKNOWN IS FIRST-CLASS:
 import io
 import json
 import os
+import re
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -85,37 +86,101 @@ def check_lanes():
 # ── CHECK 2 — the one that would have caught the loaded gun ─────────────────────────────────────
 #: destructive one-shot blocks, and the SHAPE of a record that proves they may fire.
 #: Each entry: (id, human name, the flag whose PRESENCE used to be trusted, the file it lives in)
-ARMED_MIGRATIONS = [
-    ("vault_undo_v2205", "the v2205 vault undo",
-     "d2r_vaultBackfill_v2200", "bible.html"),
-]
+#: ⚠ v2281 — NO HARDCODED NAMES. The first cut carried ONE tuple naming d2r_vaultBackfill_v2200 by
+#: hand, so it caught the v2205 loaded gun only because I already knew the answer — and it would not
+#: have caught the next one, which is the only thing a watching check is for.
+#:
+#: The class IS mechanically findable, and the two polarities are opposites:
+#:   `if (LSR.getItem(F)) return;`   — "already done, skip".  SAFE. A stray stamp DISABLES the block.
+#:   `if (!LSR.getItem(F)) return;`  — "run ONLY when F is set". ARMED the moment anything else
+#:                                     stamps F unconditionally, which is exactly what a RETIREMENT
+#:                                     does. That was v2205: a retired migration stamped the flag on
+#:                                     every load and a destructive undo trusted its presence.
+#: Measured on bible.html 2026-08-30: 4 sites of the safe shape, 0 of the dangerous one. The 4/0
+#: split is what makes the zero a measurement rather than a vacuous pass. [[regression-guard]]
+#: ⚠ THE GATES USE CONSTANTS, NOT LITERALS. My first reader matched `LSR.getItem('flag')` and found
+#: NOTHING, because every real site reads `if (window.LSR.getItem(DONE)) return;` with the flag name
+#: bound above as `var DONE = 'd2r_...'`. The check said so out loud — UNKNOWN, "a broken reader,
+#: not a clean tree" — instead of reporting a green sweep over zero sites, which is the whole reason
+#: that branch exists. [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+_GATE_RE = re.compile(
+    r"if\s*\(\s*!\s*(?:window\.)?LSR\.getItem\(\s*([A-Za-z0-9_']+)\s*\)\s*\)\s*return")
+_SAFE_RE = re.compile(
+    r"if\s*\(\s*(?:window\.)?LSR\.getItem\(\s*([A-Za-z0-9_']+)\s*\)\s*\)\s*return")
+_CONST_RE = re.compile(r"(?:var|let|const)\s+([A-Za-z0-9_]+)\s*=\s*'([A-Za-z0-9_]+)'\s*;")
+
+
+def _flag_of(token, src):
+    """A gate names either the flag itself or a const bound to it. -> (flag, how) or (None, why)."""
+    t = token.strip()
+    if t.startswith("'"):
+        return t.strip("'"), "literal"
+    for name, val in _CONST_RE.findall(src):
+        if name == t:
+            return val, "const %s" % t
+    return None, "the gate reads %s and nothing binds it — UNRESOLVED" % t
+
+
+def armed_flags(src):
+    """Every flag gated in the DANGEROUS polarity that something else also stamps. -> list of dicts.
+
+    Pure, so it can be tested against a reconstruction of the pre-v2275 bytes without a browser.
+    """
+    out = []
+    for m in _GATE_RE.finditer(src):
+        flag, how = _flag_of(m.group(1), src)
+        if not flag:
+            # ⚠ an unresolvable gate is NOT a safe gate. Report it so it cannot pass silently.
+            out.append({"flag": m.group(1), "stamps": -1, "retiredStamp": 0, "how": how,
+                        "unresolved": True, "at": m.start()})
+            continue
+        stamped = len(re.findall(r"setItem\(\s*'%s'" % re.escape(flag), src))
+        # the DONE-const form: `setItem(DONE, ...)` where DONE binds this flag
+        for name, val in _CONST_RE.findall(src):
+            if val == flag:
+                stamped += len(re.findall(r"setItem\(\s*%s\s*," % re.escape(name), src))
+        retired = len(re.findall(
+            r"setItem\([^)]{0,40}?JSON\.stringify\(\s*\{\s*retired", src))
+        if stamped:
+            out.append({"flag": flag, "stamps": stamped, "retiredStamp": retired, "how": how,
+                        "unresolved": False, "at": m.start()})
+    return out
 
 
 def check_armed_migrations():
     """Is a destructive one-shot able to fire on a board right now?
 
-    ⚠ THIS CHECK IS SOURCE-LEVEL ON PURPOSE. It cannot read his board's localStorage from here —
-    that store is pywebview/WebKit, not something this process owns — so it asks the only question
-    it can answer honestly: does the SHIPPED CODE still gate a destructive block on a flag that
-    something else stamps unconditionally? That is exactly the v2205 defect, and it is checkable
-    without touching his data.
+    ⚠ SOURCE-LEVEL ON PURPOSE. It cannot read his board's localStorage from here — that store is
+    pywebview/WebKit and this process does not own it — so it asks the only question it can answer
+    honestly: does the SHIPPED CODE still gate a destructive block on a flag that something else
+    stamps unconditionally? That is exactly the v2205 defect and it is checkable without touching
+    his data.
     """
-    ev = []
     try:
         with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
             src = fh.read()
     except Exception as e:
         return _row("armed_migration", UNKNOWN, "bible.html could not be read — %s" % e)
-    for mid, name, flag, _f in ARMED_MIGRATIONS:
-        # the retired migration stamps the flag; if a gate still trusts its PRESENCE, it is armed
-        stamps = ("setItem(DONE" in src) or ("setItem('%s'" % flag in src)
-        trusts_presence = ("if (!window.LSR.getItem('%s')) return;" % flag) in src
-        ev.append("%s: flag=%s stamped-somewhere=%s gate-trusts-presence=%s"
-                  % (name, flag, stamps, trusts_presence))
-        if stamps and trusts_presence:
-            return _row("armed_migration", BLOCKED,
-                        "%s is ARMED — its gate trusts a flag that is stamped on every load" % name,
-                        ev)
+    armed = armed_flags(src)
+    safe = len(_SAFE_RE.findall(src))
+    ev = ["%d gate(s) in the safe polarity (already-done, skip)" % safe,
+          "%d gate(s) in the v2205 polarity (runs ONLY when the flag is set)"
+          % len(_GATE_RE.findall(src))]
+    if armed:
+        a = armed[0]
+        ev = [("%s: UNRESOLVED — %s" % (x["flag"], x["how"])) if x.get("unresolved")
+              else ("%s (%s): stamped %d×%s" % (x["flag"], x["how"], x["stamps"],
+                    ", RETIREMENT stamp present" if x["retiredStamp"] else ""))
+              for x in armed] + ev
+        return _row("armed_migration", BLOCKED,
+                    "%d destructive one-shot(s) ARMED — %s gates on a flag that is stamped "
+                    "elsewhere" % (len(armed), a["flag"]), ev)
+    # ⚠ a zero here is only a measurement because the SAFE polarity is found too. If neither shape
+    # is found the reader is broken, not the code, and that must not read as clean.
+    if not safe and not _GATE_RE.findall(src):
+        return _row("armed_migration", UNKNOWN,
+                    "no one-shot gate of EITHER polarity was found, so this check matched nothing "
+                    "at all — that is a broken reader, not a clean tree", ev)
     return _row("armed_migration", OK,
                 "no destructive one-shot gates on a flag that is stamped unconditionally", ev)
 

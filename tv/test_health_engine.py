@@ -75,6 +75,75 @@ class TestTheBoardJoinCheck(unittest.TestCase):
         self.assertEqual(r["state"], HE.OK)
 
 
+class TestTheArmedSweepReadsTheREALSHAPES(unittest.TestCase):
+    """★ v2281 — NO HARDCODED FLAG NAMES. The first cut carried one tuple naming
+    d2r_vaultBackfill_v2200 by hand, so it caught the v2205 loaded gun only because I already knew
+    the answer, and would have missed the next one entirely."""
+
+    #: the real shape in bible.html — a CONST, never a literal. My first reader matched only
+    #: `getItem('flag')` and found nothing at all. [[source-reading-guard]]
+    REAL = ("var DONE = 'd2r_thing_v1';\n"
+            "if (window.LSR.getItem(DONE)) return;\n")
+
+    def test_it_resolves_a_flag_bound_to_a_CONST(self):
+        flag, how = HE._flag_of("DONE", self.REAL)
+        self.assertEqual(flag, "d2r_thing_v1")
+        self.assertIn("const", how)
+
+    def test_it_still_reads_a_plain_literal(self):
+        flag, how = HE._flag_of("'d2r_x'", "")
+        self.assertEqual((flag, how), ("d2r_x", "literal"))
+
+    def test_an_UNRESOLVABLE_gate_is_reported_not_skipped(self):
+        """⚠ a gate whose flag cannot be resolved is not a SAFE gate — it is an unread one, and
+        skipping it silently is how the next armed migration walks past this check."""
+        src = "if (!window.LSR.getItem(MYSTERY)) return;\n"
+        rows = HE.armed_flags(src)
+        self.assertTrue(rows, "an unresolvable gate vanished instead of being reported")
+        self.assertTrue(rows[0]["unresolved"])
+        self.assertIn("UNRESOLVED", rows[0]["how"])
+
+    def test_the_SAFE_polarity_is_not_flagged(self):
+        # "already done, skip" — a stray stamp DISABLES the block, which is the harmless direction
+        self.assertEqual(HE.armed_flags(self.REAL), [])
+
+    def test_the_DANGEROUS_polarity_with_a_stamp_IS_flagged(self):
+        src = ("var DONE = 'd2r_thing_v1';\n"
+               "window.LSR.setItem(DONE, JSON.stringify({retired:'v2'}));\n"
+               "if (!window.LSR.getItem(DONE)) return;\n")
+        rows = HE.armed_flags(src)
+        self.assertEqual([r["flag"] for r in rows], ["d2r_thing_v1"])
+        self.assertGreater(rows[0]["stamps"], 0)
+
+    def test_a_reader_that_MATCHES_NOTHING_is_UNKNOWN_not_ok(self):
+        """★ THE BRANCH THAT SAVED THIS SHIP. When the reader missed every real site it said
+        UNKNOWN — 'a broken reader, not a clean tree' — instead of reporting a green sweep over
+        zero sites. A check that cannot find its subject has measured nothing. [[regression-guard]]"""
+        import tempfile, shutil
+        root = tempfile.mkdtemp(prefix="noshape-")
+        self.addCleanup(shutil.rmtree, root, True)
+        os.makedirs(os.path.join(root, "tv"))
+        with io.open(os.path.join(root, "bible.html"), "w", encoding="utf-8") as fh:
+            fh.write("<html>nothing that looks like a one-shot gate at all</html>")
+        old = HE.HERE
+        HE.HERE = os.path.join(root, "tv")
+        try:
+            r = HE.check_armed_migrations()
+        finally:
+            HE.HERE = old
+        self.assertEqual(r["state"], HE.UNKNOWN)
+        self.assertIn("broken reader", r["line"])
+
+    def test_the_real_tree_finds_BOTH_polarities_so_the_zero_is_measured(self):
+        """A zero is only a measurement if the instrument demonstrably finds things. Measured on
+        bible.html 2026-08-30: 4 safe-polarity gates, 0 dangerous ones."""
+        with io.open(os.path.join(os.path.dirname(HE.HERE), "bible.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertGreaterEqual(len(HE._SAFE_RE.findall(src)), 1,
+                                "the safe polarity is no longer found, so a clean verdict on the "
+                                "dangerous one proves nothing")
+
+
 class TestTheBoardJoinPayloadPath(unittest.TestCase):
     """⚠ THE PATH THAT ACTUALLY RUNS. Nothing on the console holds a window handle to hand this
     module, so the `evaluate` door was a tap nobody could open and this flag was UNKNOWN for ever.
