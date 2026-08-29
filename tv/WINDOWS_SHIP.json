@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2249",
+  "ver": "v2250",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2249: A level-scaled buff wore the colour of a gamble, and his own unpublished build made everyone else look behind",
+  "note": "v2250: A superior base adds its bonus on top of the runeword roll, so a real item reads above the number the page called its maximum",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

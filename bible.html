@@ -1323,6 +1323,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      than none, because the unpainted half reads as ordinary text. .att-var is NOT made
      global instead — lines 10813/10859/10924 put it on whole <div>s, which would grow a
      green box on every surface that has never had one. */
+  /* quieter than either chip: it is a footnote on the number, not a number itself */
+  #arttip .att-base,.rwd-stat .att-base{color:#9a8c72;font-size:.86em;font-style:italic;
+    white-space:nowrap;cursor:help}
   #arttip .att-lvl,.rwd-stat .att-lvl{display:inline-block;color:#8fb8d8;
     background:rgba(143,184,216,.10);border:1px solid rgba(143,184,216,.34);border-radius:4px;
     padding:0 4px;font-weight:var(--fw-semibold);cursor:help}
@@ -26491,8 +26494,31 @@ function _sunMarkup(s){
   var why = scaled
     ? ' title="scales with your character level — this is not a roll, and re-making the item cannot improve it"'
     : ' title="this stat rolls when the item is made — a better one is possible on a re-make"';
-  return s.replace(/\[([^\]]+)\]/g, '<span class="' + cls + '"' + why + '>$1</span>')
-          .replace(/ OR /g, ' <span class="att-or">or</span> ');
+  var out = s.replace(/\[([^\]]+)\]/g, '<span class="' + cls + '"' + why + '>$1</span>')
+             .replace(/ OR /g, ' <span class="att-or">or</span> ');
+  /* v2250 — AND THE CEILING ON SCREEN IS NOT THE CEILING ON THE ITEM.
+
+     Three of his own items proved it, and he confirmed the last one outright:
+       · his Chains of Honor   +70% Enhanced Defense · 882 def · durability 58 of 60
+       · Dean's, same runeword +85% ED · 971 def · durability 67 of 69 + "Increase Maximum
+         Durability 15%" — Archon Plate's durability is 60, and 60 x 1.15 = 69, so that base is
+         SUPERIOR. 882/1.70 = 519 and 971/1.85 = 525, both inside Archon Plate's 410-524.
+       · his Infinity +330% Enhanced Damage against a runeword whose max roll is 325 — "its a
+         10% base item", 320 + 10 = 330.
+
+     A superior base's bonus is RETAINED through the runeword and ADDED to it, not multiplied:
+     a 13% superior in a 160% runeword gives base x 1.73, never base x 1.13 x 1.6. So a real item
+     can read ABOVE the number this page calls the maximum, and the page looked wrong when it was
+     only incomplete. It already knew the rule since v450 and never joined it to the tip.
+     [[the-unjoined-end]] */
+  if (/Enhanced (Defense|Damage)/i.test(s)) {
+    out += ' <span class="att-base" title="A SUPERIOR base keeps its own bonus through the'
+        + ' runeword and it is ADDED to this number, not multiplied — so a real item can read up'
+        + ' to 15 above the figure shown here. Ethereal is separate: it gives the BASE +50%'
+        + ' before any of this, halves durability, and cannot be repaired.">'
+        + '+ up to 15 from a superior base</span>';
+  }
+  return out;
 }
 function _sunTipHtml(t){
   var rows = t.lines.map(function(l){ return l.indexOf('[')>=0 ? '<div class="att-aff">'+_sunMarkup(l)+'</div>' : '<div class="att-core">'+l+'</div>'; }).join('');
@@ -47164,7 +47190,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2249', name:'v2249 - A Roll And A Level Are Not The Same Number', date:'2026-08-29', note:'A level-scaled buff wore the colour of a gamble, and his own unpublished build made everyone else look behind' };
+  window.D2R_BUILD = { id:'v2250', name:'v2250 - The Base Carries You Above The Ceiling', date:'2026-08-29', note:'A superior base adds its bonus on top of the runeword roll, so a real item reads above the number the page called its maximum' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

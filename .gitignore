@@ -157,3 +157,4 @@ tv/ui_faults.jsonl
 
 # v2229 — the free-space series. Runtime, per-machine, never committed.
 tv/disk_history.jsonl
+.coldread.tmp.html

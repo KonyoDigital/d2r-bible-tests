@@ -29419,5 +29419,142 @@ class TestV2249AnUnpublishedBuildSaysSo(unittest.TestCase):
                          "the marker went alarm-red; nothing is wrong when a build is unpushed")
 
 
+class TestV2250TheBaseCanCarryYouAboveTheCeiling(unittest.TestCase):
+    """His opening Forge report was "chains of honor... there isnt a range for the buffs like there
+    is for eternity". The runeword's own +70% Enhanced Defense really is fixed — but his and
+    Dean's two Chains of Honor read 70% and 85%, so something varied and the page said nothing.
+
+    THREE OF HIS OWN ITEMS SETTLED IT, and he confirmed the last outright:
+      · his CoH    +70% ED · 882 def · durability 58 of 60
+      · Dean's CoH +85% ED · 971 def · durability 67 of 69 + "Increase Maximum Durability 15%"
+        Archon Plate durability is 60 and 60 x 1.15 = 69, so that base is SUPERIOR.
+        882/1.70 = 519 and 971/1.85 = 525 — both inside Archon Plate's 410-524.
+      · his Infinity +330% ED against a runeword max of 325 — "its a 10% base item", 320 + 10.
+
+    A superior base keeps its bonus through the runeword and it is ADDED, never multiplied: a 13%
+    superior in a 160% runeword gives base x 1.73, not base x 1.13 x 1.6 (confirmed against the
+    Diablo wiki and diablo2.io on his instruction to check official sources). So a real item can
+    read ABOVE the number this page calls the maximum, and the page looked WRONG when it was only
+    INCOMPLETE. It has known the superior rule since v450 and never joined it to the tip.
+    [[the-unjoined-end]]"""
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "bible.html"), encoding="utf-8").read()
+
+    def test_every_enhanced_line_says_the_base_can_add_more(self):
+        import re as _re
+        s = self._src()
+        i = s.index("function _sunMarkup(")
+        body = s[i:s.index("\n}", i)]
+        self.assertIn("Enhanced (Defense|Damage)", body,
+                      "the base note no longer triggers on the lines a base can change")
+        self.assertIn("att-base", body, "the base note is gone from the one shared renderer")
+
+    def test_it_reaches_the_FIXED_runewords_too(self):
+        """The whole point of his question. Chains of Honor's +70% has no roll — and it is exactly
+        the line where the base's contribution was invisible, because there was no range to hint
+        that anything varied."""
+        import re as _re
+        s = self._src()
+        i = s.index("const RUNEWORD_TIP")
+        blob = s[i:s.index("\n", i)]
+        lines = _re.findall(r'"([^"]*)"', blob)
+        enh = [l for l in lines if _re.search(r"Enhanced (Defense|Damage)", l, _re.I)]
+        fixed = [l for l in enh if "[" not in l]
+        self.assertGreater(len(fixed), 10,
+                           "only %d fixed Enhanced lines — the note would barely reach the case "
+                           "he actually asked about" % len(fixed))
+        self.assertTrue(any("+70% Enhanced Defense" in l for l in fixed),
+                        "Chains of Honor's Enhanced Defense line changed shape")
+
+    def test_it_says_ADDED_not_multiplied(self):
+        # the arithmetic is the finding: 70 + 15 = 85, never 70 x 1.15
+        s = self._src()
+        i = s.index('class="att-base"')
+        title = s[i:s.index("</span>", i)]
+        self.assertIn("ADDED", title, "the note no longer says the bonus is added, not multiplied")
+        self.assertIn("not multiplied", title, "the multiplication trap is no longer ruled out")
+
+    def test_ethereal_is_named_as_a_SEPARATE_thing(self):
+        # ethereal is +50% on the BASE before any of this; conflating the two is how 971 gets
+        # explained wrongly
+        s = self._src()
+        i = s.index('class="att-base"')
+        title = s[i:s.index("</span>", i)]
+        self.assertIn("Ethereal", title, "ethereal is no longer distinguished from superior")
+
+    def test_the_note_is_quieter_than_either_chip(self):
+        # it is a footnote about a number, not a number — it must not compete with the roll chip
+        s = self._src()
+        i = s.index("#arttip .att-base")
+        rule = s[i:s.index("}", i)]
+        self.assertIn("italic", rule, "the base note stopped reading as an aside")
+        self.assertIn("font-size:.86em", rule, "the base note is no longer smaller than the stat")
+
+
+class TestV2250TheColdReadHarnessCannotHandOverABadFrame(unittest.TestCase):
+    """The push gate refuses to ship version N+1 until version N has been looked at by a different
+    model family. That gate is only worth having if the pixels are the pixels HE sees — and for
+    four versions they were not.
+
+    ⚠ RELATIVE ASSETS 404 WHEN THE DOCUMENT LIVES SOMEWHERE ELSE. I extracted each shipped
+    bible.html with `git show` into a scratch directory and rendered it there, so every
+    `src="art/…"` resolved against THAT directory and the whole art corpus vanished. Measured:
+    50 broken images from the scratch copy against 5 from the repo. The second eye duly reported
+    a broken image in the Vault header that does not exist on his screen, and I went looking for
+    a missing file that was present and tracked the whole time.
+
+    ⚠ AND A TAB SWITCH IS A 0.28s FADE. A capture taken too early handed the eye a half-painted
+    Vault — mean luminance 12.2 against 30.0 settled, 1.5% of pixels above the dark floor against
+    19.2%. That reads exactly like a styling regression and is a stopwatch. I nearly reported one.
+
+    Both were MY instrument, twice in one investigation. [[feedback-suspect-the-instrument]]"""
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "coldread.py"), encoding="utf-8").read()
+
+    def test_the_document_is_staged_at_the_REPO_ROOT(self):
+        s = self._src()
+        self.assertIn('STAGE = os.path.join(ROOT, ".coldread.tmp.html")', s,
+                      "the staged copy left the repo root — its relative art paths will 404 and "
+                      "the second eye will be shown a page with no pictures")
+
+    def test_the_stage_file_can_never_be_committed(self):
+        import io as _io, os as _os
+        gi = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                    ".gitignore"), encoding="utf-8").read()
+        self.assertIn(".coldread.tmp.html", gi,
+                      "the staged copy is not gitignored — a whole second bible.html could land "
+                      "in a PUBLIC repo")
+
+    def test_it_REFUSES_rather_than_handing_over_a_degraded_frame(self):
+        s = self._src()
+        for guard, why in (
+            ("_looks_black", "a black capture is no longer refused"),
+            ("BROKEN_CEILING", "there is no ceiling on broken images any more"),
+            ("never reached full opacity", "an unsettled panel is no longer refused"),
+        ):
+            self.assertIn(guard, s, why)
+
+    def test_it_WAITS_for_the_fade_instead_of_guessing(self):
+        s = self._src()
+        self.assertIn("getComputedStyle(p).opacity", s,
+                      "the settle is back to a fixed sleep — the thing that produced a "
+                      "half-painted panel and a false regression report")
+
+    def test_the_version_read_is_not_byte_bounded(self):
+        # console_doctor._tree_version already paid for this once; my cap at 2MB failed too
+        s = self._src()
+        i = s.index("with open(STAGE, encoding=")
+        line = s[i:s.index("\n", i)]
+        self.assertIn("fh.read()", s[i:s.index("import re", i)],
+                      "the version read is bounded again; the stamp moves and the bound goes "
+                      "stale, which is how it reported 'unknown' on a file that names itself")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
