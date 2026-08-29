@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2251",
+  "ver": "v2252",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2251: Nine fixed Enhanced Damage values plus Hysteria and Treachery cross-checked and pinned, and the first source I read described a different runeword",
+  "note": "v2252: Eight more runeword values cross-checked and pinned, and a damage spread is now guarded against ever being drawn as a roll",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

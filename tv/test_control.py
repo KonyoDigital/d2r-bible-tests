@@ -29579,10 +29579,23 @@ class TestV2251RunewordValuesCrossCheckedAgainstSources(unittest.TestCase):
     agreeing with each other, which is weaker, and the remaining 20 are still UNCHECKED rather
     than confirmed. [[unknown-stays-unknown]]"""
 
-    # runeword -> the Enhanced Damage value independent references agree is FIXED (no roll)
+    # runeword -> the Enhanced DAMAGE value independent references agree is FIXED (no roll)
     FIXED_ED = {
         "Black": 120, "Destruction": 350, "Fury": 209, "Honor": 160, "Malice": 33,
         "Silence": 200, "Steel": 20, "Strength": 35, "Zephyr": 33,
+        # v2252 — second pass
+        "Holy Thunder": 60, "King's Grace": 100, "Lionheart": 20,
+    }
+    # runeword -> the Enhanced DEFENSE value, same standard of evidence
+    FIXED_EDEF = {
+        "Ancients' Pledge": 50, "Radiance": 75, "Smoke": 75, "Memory": 50,
+        # Chains of Honor is the one he brought, and his and Dean's items agree at 70 before the
+        # base bonus — the strongest evidence in the table, because it is HIS OWN two items.
+        "Chains of Honor": 70,
+    }
+    # single facts worth pinning on their own
+    SPOT = {
+        "Delirium": "+261 Defense",
     }
 
     def _tip(self, name):
@@ -29620,6 +29633,54 @@ class TestV2251RunewordValuesCrossCheckedAgainstSources(unittest.TestCase):
                          "a runeword whose Enhanced Damage is FIXED in the game grew a range chip, "
                          "which tells him to re-make an item for a roll that does not exist: %s"
                          % rolled)
+
+    def test_the_cross_checked_DEFENSE_values_still_hold(self):
+        import re as _re
+        wrong = []
+        for name, want in sorted(self.FIXED_EDEF.items()):
+            lines = self._tip(name)
+            self.assertIsNotNone(lines, "%s left the tip table" % name)
+            ed = [l for l in lines if _re.search(r"Enhanced Defense", l, _re.I)]
+            self.assertTrue(ed, "%s lost its Enhanced Defense line" % name)
+            got = _re.findall(r"(\d+)%?\s*Enhanced Defense", ed[0], _re.I)
+            if not got or int(got[0]) != want:
+                wrong.append((name, ed[0], want))
+        self.assertEqual(wrong, [],
+                         "a cross-checked Enhanced Defense value changed: %s" % wrong)
+
+    def test_the_single_facts_still_read_the_same(self):
+        for name, want in sorted(self.SPOT.items()):
+            lines = self._tip(name)
+            self.assertIsNotNone(lines, "%s left the tip table" % name)
+            self.assertTrue(any(want.lower() in l.lower() for l in lines),
+                            "%s no longer carries %r" % (name, want))
+
+    def test_a_DAMAGE_SPREAD_is_never_painted_as_a_roll(self):
+        """THE THIRD KIND OF NUMBER, and the one that would break his law next.
+
+        "Adds 5-30 Fire Damage" is a FIXED stat written as a min-max spread: every such item adds
+        5 to 30, always. It is not a gamble and not level-scaled. If it were ever bracketed it
+        would wear the green roll chip and tell him to re-make an item chasing a 30 that is
+        already there — the same lie v2249 removed from the level-scaled lines.
+
+        MEASURED: 39 tip lines add damage and NONE of them is bracketed today. This pins that."""
+        import re as _re
+        s = self._src_blob()
+        lines = _re.findall(r'"([^"]*)"', s)
+        adds = [l for l in lines if _re.search(r"\bAdds\b", l, _re.I)]
+        self.assertGreater(len(adds), 25,
+                           "only %d damage-add lines found — this guard has lost its reach"
+                           % len(adds))
+        rolled = [l for l in adds if "[" in l]
+        self.assertEqual(rolled, [],
+                         "a damage SPREAD is being drawn as a roll: %s" % rolled[:4])
+
+    def _src_blob(self):
+        import io as _io, os as _os
+        s = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                   "bible.html"), encoding="utf-8").read()
+        i = s.index("const RUNEWORD_TIP")
+        return s[i:s.index("\n", i)]
 
     def test_hysteria_is_the_ARMOUR_word_not_the_weapon_one(self):
         """The near-miss, pinned. Hysteria (Shael+Ko+Eld, body armour, the renamed Hustle) has no
