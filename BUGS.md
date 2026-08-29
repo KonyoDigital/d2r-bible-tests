@@ -2811,6 +2811,54 @@ a real CASC extraction, not a filename. (c) PRE-EXISTING, not a regression: at 1
 line clips (`scrollWidth 308` vs `clientWidth 135`); identical on v1640 and here, and J9 does not
 see it because J9 runs at a different viewport.
 
+## REG-127 — Routine I: 21 → 16, and what the delta actually says
+
+**2026-08-29.** Three stale specs rewritten in v2256 (see REG-115). Failing set diffed across the
+fix, which is the only honest way to attribute it:
+
+    v2254  21 unique failing triples
+    v2256  16
+
+**GONE (7):** all three `v2200_the_vault_backfill` tests · `v2205_a_set_piece…:51` ·
+`v2203…:105` · plus `v1814…:254` and `platform_routing_audit:283`, which were NOT touched — so
+those two are either flake or were fixed incidentally, and this entry does not claim them.
+
+**STILL FAILING, AND IT WAS MY GUARD THAT WAS WRONG.** `v2203…` moved from line 105 to 137 and kept
+failing. My replacement for its two drifted numbers asserted that every survivor of the undo is
+PRE, LIVE or a set piece. CI answered with five real keeps the predicate did not know about —
+**Chance Guards, Fleshrender, Hellslayer, Lidless Wall, Vampire Gaze**. The undo has more keep
+reasons than those three (tv extras, remembered names, hand-filed homes), and mirroring its list
+into the spec would be a second copy drifting from the day it was written. A guard that flags
+correct behaviour is worse than no guard — it is the one people switch off. Replaced with the
+unarguable version: the undo removed the BULK (522 seeded, 257 dropped, a double-digit remainder).
+
+**NEW, AND NOT ATTRIBUTED TO THIS WORK (1):** `v1680_set_tracker_whole_roster:57` — "a set piece
+rendered at zero size cannot be ticked", 134 sized against 135 pieces. ONE observation. bible.html
+has not changed since v2253 and this passed at v2254, so nothing in v2255/v2256 touches that
+surface. Per REG-115's own rule — an identical set is deterministic, a drifting set is flake — one
+sighting is not enough to call it either. Recorded, not chased; if it recurs it is real.
+
+⚠ **THE CURLY APOSTROPHE IS STILL SPLITTING TWO STORES.** Found while diagnosing `v1939`, isolated
+in a controlled run: applying a find whose name carries a CURLY apostrophe writes the VAULT under
+the STRAIGHT form and the LEDGER under the CURLY one.
+
+    applied "Atma’s Scarab"  ->  d2r_owned has "Atma's Scarab"   d2r_foundLog has "Atma’s Scarab"
+    same for Seraph’s Hymn, The Cat’s Eye, Saracen’s Chance
+
+`_norm()` folds the two, so every consumer that normalises is fine — which is why this has not
+surfaced as a visible bug. Any consumer comparing RAW names is not, and that is exactly what cost
+158 of 206 names the wrong mule before v1958. Not fixed here: correcting it means changing what
+gets WRITTEN to his live stores, and the safe form of that is a migration plus a normalising read,
+not a one-line edit at 4am. [[d2r-curly-apostrophe-class]]
+
+⚠ **AND v1939 ASSERTS RETIRED DOCTRINE.** It requires that applying a chronicle find never grows
+the physical vault. v2193 deliberately reversed that, quoting him: "we need to see vault manager
+flowing with traffic.. all the items within the stash and inventory needs to start syncing to the
+console." A chronicle sighting IS a stash-panel sighting, so it now establishes both facts. The
+spec was NOT rewritten tonight, because a clean fixture could not be built: other boot migrations
+repopulate `d2r_owned` during load, so an isolated before/after could not be measured, and I will
+not rewrite a spec on a measurement I could not isolate.
+
 ## REG-113 (OPEN, NOT FIXED) — act5-hallsofanguish_graphic.png is a bad extraction, not a dark scene
 
 **Symptom.** Grok, during the v1639 render gate: "depicts a near-black void with faint gold outlines

@@ -121,6 +121,36 @@ export async function onRequestPost(context) {
     nickname: String(body.nickname || '').slice(0, 40),
     install: String(body.install || '').slice(0, 12),
     reads: Number(body.reads || 0) || 0,
+    // ══ v2257 — THE FOURTH, FIFTH AND SIXTH JOINT OF THE SAME DEFECT, and I made all three ══
+    //
+    // v2254 added `diskVer`, v2255 `relaunch`, v2256 `pull` — each posted faithfully by the
+    // console, each dropped HERE, because `rec` is a fixed key list and none of them was on it.
+    // Three versions of work that could not reach his screen no matter how correct the console
+    // was, and the comment on `tally` directly below already describes this exact failure:
+    // "built on both ends, never joined, and silent by construction."
+    //
+    // ⚠ THE TELL WAS ON HIS OWN ROW. His console reported `run v2256` — a build that sends all
+    // three — beside `disk (none)` and `pull —`. A machine cannot be running code that emits a
+    // field and be silent about it; that contradiction was the whole finding.
+    // [[plumbing-with-no-tap]] [[the-unjoined-end]]
+    //
+    // Shaped here rather than trusted, the same standard the tally uses: strings are clamped,
+    // booleans are booleans, and anything unrecognised becomes null so "we could not tell" can
+    // never read as an answer.
+    diskVer: String(body.diskVer || '').slice(0, 12) || null,
+    relaunch: (function (r) {
+      if (!r || typeof r !== 'object') return null;
+      const tri = (v) => (v === true ? true : v === false ? false : null);
+      return { armed: tri(r.armed), may: tri(r.may),
+               why: String(r.why == null ? '' : r.why).slice(0, 160) };
+    })(body.relaunch),
+    pull: (function (p) {
+      if (!p || typeof p !== 'object') return null;
+      const behind = Number(p.behind);
+      return { can: (p.can === true ? true : p.can === false ? false : null),
+               behind: Number.isFinite(behind) && behind >= 0 ? Math.min(behind, 100000) : null,
+               why: String(p.why == null ? '' : p.why).slice(0, 160) };
+    })(body.pull),
     // v2163 — WHAT THIS MACHINE HAS, so the fleet roster can show each person's progress on
     // hover of their name. Konyo asked for his cousin's and his wife's live chronicle numbers.
     //

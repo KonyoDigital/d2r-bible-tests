@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2256",
+  "ver": "v2257",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2256: Routine I has been red so long it stopped being read, and the first six failures are specs asserting a design that was deliberately retired",
+  "note": "v2257: My replacement assertion flagged five legitimate keeps, so it is replaced by one the undo cannot pass without working",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

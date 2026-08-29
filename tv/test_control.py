@@ -30073,5 +30073,95 @@ class TestV2256ItSaysWHYAConsoleNeverPulled(unittest.TestCase):
                          "different things: %s" % cols)
 
 
+class TestV2257TheBeaconFieldsSURVIVETheWorker(unittest.TestCase):
+    """⚠ I SHIPPED THREE VERSIONS OF WORK THAT COULD NOT REACH HIS SCREEN.
+
+    v2254 added `diskVer` to the beacon, v2255 `relaunch`, v2256 `pull`. Each is posted faithfully
+    by the console. Each was DROPPED at functions/api/console.js, because that worker builds its
+    record from a FIXED KEY LIST and none of the three was on it. No error, no warning: the field
+    simply is not there when the fleet reads it back.
+
+    The file already documents this exact failure, on the field directly below mine: the beacon
+    posted `tally`, the worker dropped it, "and the tooltip could never have had data no matter how
+    well the console computed it. Built on both ends, never joined, and silent by construction."
+    I read that comment while adding the first of my three, and still added all three.
+
+    ⚠ THE TELL WAS A CONTRADICTION ON HIS OWN ROW: the fleet showed his console as `run v2256` —
+    a build that emits all three fields — beside `disk (none)` and `pull —`. A machine cannot be
+    running code that sends a field and be silent about it. That disagreement was the finding.
+    [[plumbing-with-no-tap]] [[the-unjoined-end]] [[feedback-contradiction-is-the-finding]]"""
+
+    def _worker(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                      "functions", "api", "console.js"), encoding="utf-8").read()
+
+    def _app(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "control_app.py"), encoding="utf-8").read()
+
+    def test_every_field_the_beacon_POSTS_is_stored_by_the_worker(self):
+        """THE GENERAL FORM. Not "are my three there" — that is the same fixed-list thinking that
+        caused this. Take the keys the console actually sends and require the worker to name each
+        one, so the NEXT field cannot be dropped silently either."""
+        import re as _re
+        app = self._app()
+        i = app.index("def _console_beacon(")
+        # the payload literal: keys of the dict handed to json.dumps and POSTed
+        body = app[i:app.index("req = urllib.request.Request(", i)]
+        # ⚠ TOP-LEVEL KEYS ONLY, AND MIND THE SHORTHAND. My first cut matched every quoted
+        # key at any depth, so `err` (nested inside lastBeacon) read as a dropped field;
+        # and it required `machine:` in the worker, which stores it as the JS shorthand
+        # `machine,`. Two false positives from the guard, not the code.
+        rows = _re.findall(r'^(\s*)"([a-zA-Z][a-zA-Z0-9_]*)":', body, _re.M)
+        depth = min(len(i) for i, _ in rows)
+        posted = set(k for i, k in rows if len(i) == depth)
+        # transport bookkeeping, not a fleet fact the worker is asked to keep
+        posted -= {"lastBeacon"}
+        self.assertGreater(len(posted), 8,
+                           "only %d posted keys found — this guard has lost its reach" % len(posted))
+        w = self._worker()
+        i2 = w.index("const rec = {")
+        rec = w[i2:w.index("\n  };", i2)]
+        missing = sorted(k for k in posted
+                         if ("%s:" % k) not in rec and not _re.search(r"\b%s\s*," % k, rec))
+        self.assertEqual(missing, [],
+                         "the console POSTS these and the worker's fixed key list does not store "
+                         "them, so they vanish on arrival and every surface downstream is silent "
+                         "no matter how correct the console is: %s" % missing)
+
+    def test_the_three_new_ones_are_SHAPED_not_trusted(self):
+        w = self._worker()
+        for token, why in (("diskVer: String(body.diskVer", "diskVer is stored unclamped"),
+                           ("})(body.relaunch)", "the relaunch verdict is not shaped"),
+                           ("})(body.pull)", "the pull verdict is not shaped")):
+            self.assertIn(token, w, why)
+
+    def test_an_unrecognised_value_becomes_null_not_a_verdict(self):
+        """A machine that sends nothing, or nonsense, must not read as an answer."""
+        w = self._worker()
+        # ⚠ BOUND IT TO THE RELAUNCH SHAPER ALONE. The first cut ran to `})(body.pull),`, which
+        # swallowed the PULL shaper too — and that one carries its own `=== true ? true`, so
+        # gutting the relaunch tri-state left this assertion green on the neighbour's copy.
+        # A sabotage caught it. [[source-reading-guard]]
+        i = w.index("relaunch: (function (r)")
+        block = w[i:w.index("})(body.relaunch),", i)]
+        self.assertIn("return null", block, "a missing relaunch verdict no longer becomes null")
+        self.assertIn("=== true ? true", block,
+                      "the tri-state collapsed to truthiness, so 'unknown' reads as 'no'")
+
+    def test_no_item_NAMES_cross_this_boundary(self):
+        """The worker's standing rule, and the new fields must not be the ones that break it:
+        a roster says how many, never which."""
+        w = self._worker()
+        i = w.index("const rec = {")
+        rec = w[i:w.index("\n  };", i)]
+        for bad in ("owned", "foundLog", "names", "items"):
+            self.assertNotIn("body.%s" % bad, rec,
+                             "the worker started storing %r — item names must never cross this "
+                             "boundary" % bad)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
