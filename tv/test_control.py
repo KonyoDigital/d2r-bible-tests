@@ -4443,6 +4443,91 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2285PerKillOddsAreNotPerRunOdds(unittest.TestCase):
+    """★ Konyo: "is this logical for cow heaves too? the drop time find.. check and verify each set
+    item and unique item" — seeing "Cow King's Hooves · Normal TZ Hell Bovines 1:140.2k ~13884h".
+
+    13,884 hours is 578 days. The arithmetic: runsFor(140200) = 97,179 and 97,179/13,884 = 7.0/hr.
+    7.0 is the RUN rate for a cow level (~8 min a run) and is right. 1:140,200 is the chance for
+    killing ONE hell bovine. Dividing per-KILL odds by RUNS-per-hour asks how long to kill 97,179
+    individual cows at seven cows an hour — two denominators divided into each other.
+
+    ⚠ THE DATA ALREADY SAID SO, beside those numbers: "representative; multiply by your
+    kills-per-run for run totals". The table stated the contract; the ETA never multiplied.
+
+    ⚠ AND ELEVEN OF THIRTEEN SOURCES WERE ALREADY CORRECT. A boss run kills one target, so its
+    chance IS per-run — verified against silospen (Hell Mephisto 1:9,382 matches exactly). The
+    scope is per-SOURCE, not per-item, which is why "check every set and unique" was the wrong axis.
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        with io.open(p, encoding="utf-8") as fh:
+            self.b = fh.read()
+
+    def test_the_area_sources_DECLARE_their_kills_per_run(self):
+        self.assertIn("const KILLS_PER_RUN = {", self.b,
+                      "the kills-per-run table is gone, so an area run is back to being scored as "
+                      "though one run killed one monster")
+        for area in ("cows:", "pit:"):
+            self.assertIn(area, _between(self, self.b, "const KILLS_PER_RUN = {", "};",
+                                         what="the kills-per-run table"),
+                          "%s is not declared; it is an AREA run and its ETA is wrong by the "
+                          "number of monsters a run kills" % area)
+
+    def test_a_boss_source_is_UNCHANGED(self):
+        """⚠ THE HALF THAT MUST NOT MOVE. Eleven sources were already right and a 'fix' that
+        shifted them would trade one wrong number for eleven. [[regression-guard]]"""
+        tbl = _between(self, self.b, "const KILLS_PER_RUN = {", "};", what="the table")
+        for boss in ("mephisto", "andariel", "diablo", "baal", "duriel", "countess",
+                     "travincal", "nihl", "pindle", "summoner", "dclone"):
+            self.assertNotIn(boss + ":", tbl,
+                             "%s is in the kills-per-run table — a boss run kills ONE target, so "
+                             "its chance is already per-run and compounding it would inflate every "
+                             "ETA it feeds" % boss)
+        self.assertIn("KILLS_PER_RUN[String(bossId || '')] || 1", self.b,
+                      "the default stopped being 1, so every undeclared source is being scaled")
+
+    def test_the_compound_form_is_used_not_the_linear_one(self):
+        """p*n drifts as p*n approaches 1 and would understate the densest zones — which are
+        exactly the ones this exists for."""
+        body = _between(self, self.b, "const hoursFor = (chance, conf, kph, kpr)", "};",
+                        what="hoursFor")
+        self.assertIn("1 - Math.pow(1 - 1/chance, n)", body,
+                      "the per-run probability is not the compound form")
+        self.assertNotIn("/ chance * n", body)
+
+    def test_EVERY_eta_call_site_passes_it(self):
+        """⚠ A MISSED CALL SITE IS A SURFACE STILL PRINTING THE OLD NUMBER, and it would be silent.
+        There were 21 of them across two helpers. [[the-unjoined-end]]"""
+        import re as _re
+        bad = []
+        for m in _re.finditer(r"(?:hoursFor|_ttf)\([^)]*\)", self.b):
+            call = m.group(0)
+            if call in ("hoursFor()",):                       # prose, not a call
+                continue
+            if "function _ttf" in call or "const hoursFor" in call:
+                continue
+            if "killsPerRun" not in call and "kpr" not in call:
+                bad.append(call[:80])
+        self.assertEqual(bad, [], "ETA call sites that never learned about area runs:\n  "
+                                  + "\n  ".join(bad))
+
+    def test_the_assumption_is_SHOWN_not_hidden(self):
+        # ⚠ BOTH ENDS, NOT THE NAME. Renaming one of the two occurrences left the other, so a
+        # check on the bare string stayed green over a caveat that no longer renders — the class
+        # of guard that measures the decoration instead of the effect. [[source-reading-guard]]
+        self.assertIn('<span class="gf-odds gf-kpr"', self.b,
+                      "the kills-per-run badge is not in the template — an hour whose denominator "
+                      "is invisible cannot be argued with, which is how 13,884h survived")
+        self.assertIn(".gf-kpr{", self.b,
+                      "the badge has no style rule, so it renders unstyled or not at all")
+        self.assertIn("killsPerRun(b.bossId)>1?", self.b,
+                      "the caveat is unconditional, so every boss row would grow a '~1/run' badge "
+                      "that means nothing")
+
+
+
 class TestV2283TheRosterMustNotSpendItselfToDeath(unittest.TestCase):
     """★ Konyo: "i dont see anyone online in fleet. and all three consoles are definitely live right
     now. it say slast seen 2h". All three WERE live.

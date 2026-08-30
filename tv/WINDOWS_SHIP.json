@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2284",
+  "ver": "v2285",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2284: auto-relaunch stops being a switch; the eagle stops billing him for my bugs",
+  "note": "v2285: cow and pit ETAs divided per-kill odds by a runs-per-hour rate; 13884h becomes 39.7h and every boss figure is untouched",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

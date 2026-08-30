@@ -8642,6 +8642,9 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-src{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:#b6a888}
 .gf-src b{color:#9fd4ff}
 .gf-ttf{color:#8fe0a0}   /* v1565 */
+/* v2285 — the area-run assumption, quieter than the odds it qualifies: it is a caveat, not
+   a finding, and must not compete with the hour it is attached to. */
+.gf-kpr{opacity:.7;cursor:help}
 .gf-odds{font-size:10.5px;font-weight:var(--fw-bold);color:#9fd4ff;background:rgba(159,212,255,.1);border-radius:6px;padding:1px 7px}
 .gf-note{font-size:var(--fs-meta);color:#8a7d64;font-style:italic;margin-top:5px}
 /* v559.1 — runeword-name chips in the Socketed Review / throw-out / intake lists (HD logo + arttip hover) */
@@ -17764,12 +17767,44 @@ const PLAYER_Q = {"countess":{"norm":0.0,"nm":0.0,"hell":0.0},"andariel":{"norm"
    the shape of the rule changing, because the rule is consulted in 55 places and one constant is
    one definition. */
 const EVENT_PCT_MAX = 50;
+/* ══ v2285 — PER-KILL ODDS AND PER-RUN RATES ARE DIFFERENT DENOMINATORS ═══════════════════════
+   Konyo, seeing "Cow King's Hooves · best run: Normal TZ Hell Bovines 1:140.2k ~13884h to find":
+   "is this logical for cow heaves too?"
+
+   13,884 hours is 578 days. The arithmetic: runsFor(140200) = 97,179 and 97,179/13,884 = 7.0/hr.
+   The 7.0 is the RUN rate for a cow level (a run is ~8 minutes) and is correct. But 1:140,200 is
+   the chance for killing ONE hell bovine. Dividing per-KILL odds by RUNS-per-hour asks how long
+   it takes to kill 97,179 individual cows at seven cows an hour.
+
+   ⚠ THE DATA ALREADY SAID SO, beside those very numbers: "representative; multiply by your
+   kills-per-run for run totals". The table stated the contract and the ETA never multiplied.
+
+   ⚠ ELEVEN OF THE THIRTEEN SOURCES ARE FINE and must not move. A boss run kills ONE target, so
+   its chance IS per-run — verified against silospen this session (Hell Mephisto 1:9,382 matches
+   exactly, and his Sander's Paragon 48h checks out). Only AREA runs are wrong.
+   Do NOT classify by kph magnitude: Baal at 22/hr and Diablo at 35/hr are slow BOSS runs. I made
+   that mistake first and it would have mis-scaled four correct sources. [[label-outlived-referent]] */
+const KILLS_PER_RUN = {
+  /* ⚠ ESTIMATES, AND THEY ARE SHOWN AS SUCH. Nothing in this repo measures a clear count, so
+     these are stated, not derived, and the UI prints them beside the hour so the figure carries
+     its own assumption. If they are wrong the ETA is wrong by exactly that ratio — which is far
+     better than the old behaviour, where it was wrong by the whole factor and said nothing.
+     [[unknown-stays-unknown]] */
+  cows: 350,   // a full Secret Cow Level clear, the densest zone in the game
+  pit: 110,    // The Pit levels 1+2, the monsters a run actually engages
+};
+const killsPerRun = (bossId) => KILLS_PER_RUN[String(bossId || '')] || 1;
 const runsFor = (chance, conf) => !chance || chance <= EVENT_PCT_MAX ? null : Math.ceil(Math.log(1-conf)/Math.log(1-1/chance));
-// hours for X% confidence given chance + kills_per_hour
-const hoursFor = (chance, conf, kph) => {
+/* hours for X% confidence given chance + RUNS per hour.
+   `kpr` is how many monsters one run kills; the per-run probability is 1-(1-p)^kpr, NOT p*kpr —
+   the linear form drifts as p*kpr approaches 1 and would understate a dense zone. */
+const hoursFor = (chance, conf, kph, kpr) => {
   if (!chance || chance <= EVENT_PCT_MAX || !kph) return null;
-  const runs = runsFor(chance, conf);
-  return runs / kph;
+  const n = Math.max(1, +kpr || 1);
+  if (n === 1) return runsFor(chance, conf) / kph;
+  const pRun = 1 - Math.pow(1 - 1/chance, n);
+  if (!(pRun > 0) || pRun >= 1) return null;
+  return Math.ceil(Math.log(1-conf)/Math.log(1-pRun)) / kph;
 };
 const fmtHours = h => {
   if (h === null || h === undefined || !isFinite(h)) return "—";
@@ -17905,7 +17940,7 @@ function _writeGrailFarm(){
       (item.sources || []).forEach(function(s){
         if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         var adj = effChance(s.chance, s.bossId, s.diffKey);
-        var hrs = hoursFor(adj, 0.5, s.kph || 100);
+        var hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
         if (hrs === null) return;
         if (!best || hrs < best.hours) best = { boss: s.boss, bossId: s.bossId, chance: adj, kph: s.kph || 100, hours: hrs };
         if (String(s.diffKey || '').indexOf('hell') === 0 && (!bestHell || hrs < bestHell.hours))
@@ -18017,7 +18052,7 @@ function _writeSetFarm(){
           if (!z.chance || z.blocked) return;
           if (String(z.diffKey||'').indexOf('hell') !== 0) return;
           var a2 = effChance(z.chance, z.bossId, z.diffKey);
-          var h2 = hoursFor(a2, 0.5, z.kph || 100);
+          var h2 = hoursFor(a2, 0.5, z.kph || 100, killsPerRun(z.bossId));
           if (h2 === null) return;
           if (!bestHell || h2 < bestHell.h) bestHell = { h: h2, boss: z.boss, bossId: z.bossId, chance: a2, kph: z.kph || 100 };
         });
@@ -19993,7 +20028,7 @@ function renderWishlistHuntPath() {
       (item.sources || []).forEach(s => {
         if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         const adj = effChance(s.chance, s.bossId, s.diffKey);
-        const hrs = hoursFor(adj, 0.5, s.kph || 100);
+        const hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
         if (hrs === null) return;
         if (!best || hrs < best.hours) best = {hours:hrs};
       });
@@ -20032,7 +20067,7 @@ function renderWishlistHuntPath() {
     (item.sources || []).forEach(s => {
       if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
       const adj = effChance(s.chance, s.bossId, s.diffKey);
-      const hrs = hoursFor(adj, 0.5, s.kph || 100);
+      const hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
       const r50 = runsFor(adj, 0.5);
       if (hrs === null) return;
       if (!best || hrs < best.hours) {
@@ -20170,7 +20205,7 @@ function renderItemDetailCard(itemName) {
   (item.sources || []).forEach(s => {
     if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
     const adj = effChance(s.chance, s.bossId, s.diffKey);
-    const hrs = hoursFor(adj, 0.5, s.kph || 100);
+    const hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
     const r50 = runsFor(adj, 0.5);
     if (hrs !== null && r50 !== null) {
       sources.push({boss:s.boss, bossId:s.bossId, diffKey:s.diffKey || '', chance:adj, kph:s.kph||100, hrs, r50, verified:s.verified});
@@ -20404,7 +20439,7 @@ function renderHeroV31() {
       (item.sources || []).forEach(s => {
         if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         const adj = effChance(s.chance, s.bossId, s.diffKey);
-        const hrs = hoursFor(adj, 0.5, s.kph || 100);
+        const hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
         if (hrs === null) return;
         if (!itemBossHrs[item.n][s.bossId] || hrs < itemBossHrs[item.n][s.bossId]) {
           itemBossHrs[item.n][s.bossId] = hrs;
@@ -20435,7 +20470,7 @@ function renderHeroV31() {
         if (s.bossId !== bossActive) return;
         if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
         const adj = effChance(s.chance, s.bossId, s.diffKey);
-        const hrs = hoursFor(adj, 0.5, s.kph || 100);
+        const hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
         if (hrs === null) return;
         if (!bestSource || hrs < bestSource.hours) {
           bestSource = {item:item.n,tier:item.tier,boss:s.boss,bossId:s.bossId,diffKey:s.diffKey,chance:adj,starred:wishlist.has(item.n),verified:s.verified,kph:s.kph||100,hours:hrs};
@@ -20521,7 +20556,7 @@ function renderHeroV31() {
     (item.sources || []).forEach(s => {
       if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
       const adj = effChance(s.chance, s.bossId, s.diffKey);
-      const hrs = hoursFor(adj, 0.5, s.kph || 100);
+      const hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
       if (hrs === null) return;
       if (!bestPerBoss[s.bossId] || hrs < bestPerBoss[s.bossId].hours) {
         bestPerBoss[s.bossId] = {item:item.n,tier:item.tier,boss:s.boss,bossId:s.bossId,diffKey:s.diffKey,chance:adj,starred:wishlist.has(item.n),verified:s.verified,kph:s.kph||100,hours:hrs};
@@ -20687,7 +20722,7 @@ function renderBossDetailCard(bossId, focusDiff) {
         const adj = effChance(d[k], boss.id, k);
         if (!best || adj < best.adj) {
           const kphMult = (k==='norm'||k==='normTz') ? 1.2 : (k==='nm'||k==='nmTz') ? 1.1 : 1.0;
-          best = {adj, diffKey:k, h50: hoursFor(adj, 0.5, boss.kph * kphMult)};
+          best = {adj, diffKey:k, h50: hoursFor(adj, 0.5, boss.kph * kphMult, killsPerRun(boss.id))};
         }
       }
     });
@@ -21125,7 +21160,7 @@ function bossTopDropsHtml(boss, limit){
           ${_topN.map((t, i) => {
             const d = t.d;
             const kphMult = (t.bestKey === "norm" || t.bestKey === "normTz") ? 1.2 : (t.bestKey === "nm" || t.bestKey === "nmTz") ? 1.1 : 1.0;
-            const hrs = hoursFor(t.best, 0.5, boss.kph * kphMult);
+            const hrs = hoursFor(t.best, 0.5, boss.kph * kphMult, killsPerRun(boss.id));
             const diffLbl = t.bestKey.replace("Tz", " TZ").toUpperCase();
             const ver = (d.v || []).includes(t.bestKey) ? ' <span class="top-drop-verified" title="silospen-verified anchor">&#128274;</span>' : '';
             const sym = d.tier === "uber" ? "&#9889;" : "&#9733;";
@@ -21265,7 +21300,7 @@ function renderBossCards() {
     if (bestRow) {
       const r50 = runsFor(bestChance, 0.5);
       const kphMult = (bestDiffKey === "norm" || bestDiffKey === "normTz") ? 1.2 : (bestDiffKey === "nm" || bestDiffKey === "nmTz") ? 1.1 : 1.0;
-      const hrs = hoursFor(bestChance, 0.5, boss.kph * kphMult);
+      const hrs = hoursFor(bestChance, 0.5, boss.kph * kphMult, killsPerRun(boss.id));
       const diffLabel = bestDiffKey.replace("Tz", " TZ").toUpperCase();
       // v26: null-guard — runsFor + hoursFor can return null when chance is unreachable/blocked
       if (r50 !== null && hrs !== null) {
@@ -21755,8 +21790,8 @@ function renderDetail() {
   const adjusted = item.sources.map(s => ({...s, adjustedChance:s.chance?effChance(s.chance,s.bossId,s.diffKey):null}));
   const valid = adjusted.filter(s => s.adjustedChance !== null && s.adjustedChance >= 100);
   const sorted = [...valid].sort((a,b) => {
-    const aHrs = hoursFor(a.adjustedChance, 0.5, a.kph) || Infinity;
-    const bHrs = hoursFor(b.adjustedChance, 0.5, b.kph) || Infinity;
+    const aHrs = hoursFor(a.adjustedChance, 0.5, a.kph, killsPerRun(a.bossId)) || Infinity;
+    const bHrs = hoursFor(b.adjustedChance, 0.5, b.kph, killsPerRun(b.bossId)) || Infinity;
     return aHrs - bHrs;
   });
   const best = sorted[0];
@@ -21764,16 +21799,16 @@ function renderDetail() {
     if (a.adjustedChance === null && b.adjustedChance !== null) return 1;
     if (b.adjustedChance === null && a.adjustedChance !== null) return -1;
     if (a.adjustedChance === null) return 0;
-    const aHrs = hoursFor(a.adjustedChance, 0.5, a.kph) || Infinity;
-    const bHrs = hoursFor(b.adjustedChance, 0.5, b.kph) || Infinity;
+    const aHrs = hoursFor(a.adjustedChance, 0.5, a.kph, killsPerRun(a.bossId)) || Infinity;
+    const bHrs = hoursFor(b.adjustedChance, 0.5, b.kph, killsPerRun(b.bossId)) || Infinity;
     return aHrs - bHrs;
   });
   let bestBoxHtml = "";
   if (best) {
     const r50 = runsFor(best.adjustedChance, 0.5);
     const r95 = runsFor(best.adjustedChance, 0.95);
-    const h50 = hoursFor(best.adjustedChance, 0.5, best.kph);
-    const h95 = hoursFor(best.adjustedChance, 0.95, best.kph);
+    const h50 = hoursFor(best.adjustedChance, 0.5, best.kph, killsPerRun(best.bossId));
+    const h95 = hoursFor(best.adjustedChance, 0.95, best.kph, killsPerRun(best.bossId));
     bestBoxHtml = `<div class="best-source-box" style="cursor:pointer" onclick="switchTab('bosses');setTimeout(()=>{document.getElementById('${best.bossId}').scrollIntoView();jumpToBossItem('${item.n.replace(/'/g,"\\'")}', '${best.bossId}')},100)" title="click to jump to ${best.boss} and highlight this item">
       <div class="best-source-label">⭐ fastest farm for ${item.n}${best.verified?' · 🔒 VERIFIED':''} · click to jump</div>
       <div class="best-source-name">${best.boss} · ${best.kph}/hr ${sparkline(best.adjustedChance, best.kph, Math.max(1, h50*2))}</div>
@@ -21800,7 +21835,7 @@ function renderDetail() {
         }
         const r50 = runsFor(s.adjustedChance, 0.5);
         const r95 = runsFor(s.adjustedChance, 0.95);
-        const h50 = hoursFor(s.adjustedChance, 0.5, s.kph);
+        const h50 = hoursFor(s.adjustedChance, 0.5, s.kph, killsPerRun(s.bossId));
         const verBadge = s.verified ? ' <span style="color:var(--verified);font-size:var(--fs-micro)">🔒 verified</span>' : '';
         return `<tr class="${csrc}"><td style="${isBest?'color:var(--best);font-weight:var(--fw-medium)':''}">${s.boss}${verBadge} <span style="color:var(--text-dim);font-size:var(--fs-micro)">${s.kph}/hr</span></td><td class="diff-col ${isBest?'best-cell':''} ${s.verified?'verified-cell':''}">${fmt(s.adjustedChance)}</td><td class="diff-col">${r50.toLocaleString()}</td><td class="diff-col" style="color:var(--terror)">${fmtHours(h50)}</td><td class="diff-col">${r95.toLocaleString()}</td></tr>`;
       }).join("")}
@@ -21983,13 +22018,13 @@ function setActiveItem(name, sourceBossId, sourceDiffKey) {
     const adj = item.sources.map(s => ({...s, adj: s.chance ? effChance(s.chance, s.bossId, s.diffKey) : null}));
     const valid = adj.filter(s => s.adj !== null && s.adj >= 100);
     valid.sort((a, b) => {
-      const ah = hoursFor(a.adj, 0.5, a.kph) || Infinity;
-      const bh = hoursFor(b.adj, 0.5, b.kph) || Infinity;
+      const ah = hoursFor(a.adj, 0.5, a.kph, killsPerRun(a.bossId)) || Infinity;
+      const bh = hoursFor(b.adj, 0.5, b.kph, killsPerRun(b.bossId)) || Infinity;
       return ah - bh;
     });
     if (valid.length) {
       const best = valid[0];
-      const h50 = hoursFor(best.adj, 0.5, best.kph);
+      const h50 = hoursFor(best.adj, 0.5, best.kph, killsPerRun(best.bossId));
       $("aib-stats").innerHTML = `<strong>${valid.length}</strong> sources · fastest: <strong>${best.boss}</strong> @ ${fmt(best.adj)} (${fmtHours(h50)} for 50%)`;
     } else {
       $("aib-stats").innerHTML = "no achievable sources at your current MF setup";
@@ -22283,7 +22318,7 @@ window.d2rOpenItem = function(name, opts){
         if (!s || !s.chance || s.blocked) return;
         var adj = (typeof effChance === 'function') ? effChance(s.chance, s.bossId, s.diffKey) : s.chance;
         if (!adj || adj <= 0) return;
-        var h = (typeof hoursFor === 'function') ? hoursFor(adj, 0.5, s.kph || 100) : null;
+        var h = (typeof hoursFor === 'function') ? hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId)) : null;
         if (h === null || h === undefined) return;
         if (!best || h < best.h) best = { h: h, bossId: s.bossId, diffKey: s.diffKey };
       });
@@ -28873,7 +28908,7 @@ window.exportWishlistAsMarkdown = function() {
     (item.sources || []).forEach(s => {
       if (!s.chance || s.chance <= EVENT_PCT_MAX) return;
       const adj = effChance(s.chance, s.bossId, s.diffKey);
-      const hrs = hoursFor(adj, 0.5, s.kph || 100);
+      const hrs = hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId));
       if (hrs === null) return;
       if (!bestSrc || hrs < bestSrc.hrs) bestSrc = { boss: s.boss, chance: adj, kph: s.kph || 100, hrs };
     });
@@ -40766,10 +40801,10 @@ function renderJournal(){
      This is the same 50%-confidence figure the console hero and /api/evrank use, so a piece cannot
      read 4h in one place and something else in another. Honest-absent: no odds or no kills-per-hour
      returns '', never a guessed duration. */
-  function _ttf(chance, kph){
+  function _ttf(chance, kph, kpr){   /* v2285 — kpr: an AREA run kills many monsters per run */
     try {
       if (!chance || !kph) return '';
-      var h = (typeof hoursFor === 'function') ? hoursFor(chance, 0.5, kph) : null;
+      var h = (typeof hoursFor === 'function') ? hoursFor(chance, 0.5, kph, kpr) : null;
       if (h === null || !isFinite(h) || h <= 0) return '';
       return (h < 1) ? Math.max(1, Math.round(h * 60)) + 'm' : (h < 10 ? (Math.round(h * 10) / 10) + 'h' : Math.round(h) + 'h');
     } catch (e) { return ''; }
@@ -41376,7 +41411,7 @@ function renderJournal(){
     var _lowHrs=function(x){ var b=_bestSrc(x); if(!b||!b.s) return 1e9;
       /* v1616 — b.chance (MF/players-adjusted) is literally "the same 50% figure the cards already
          print" this comment promises; b.s.chance stopped being that the moment the cards adjusted. */
-      var h=(typeof hoursFor==='function')?hoursFor(b.chance!=null?b.chance:b.s.chance,0.5,b.s.kph||100):null;
+      var h=(typeof hoursFor==='function')?hoursFor(b.chance!=null?b.chance:b.s.chance,0.5,b.s.kph||100,killsPerRun(b.s.bossId)):null;
       return (h===null||!isFinite(h))?1e9:h; };
     var low=missing.filter(function(x){ return (x.qlvl||99)<=35; })
       .map(function(x){ x._qh=_lowHrs(x); return x; })
@@ -42074,8 +42109,14 @@ function renderJournal(){
   function _uniItemCard(x){
     var bb=_bestSrc(x); var b=bb&&bb.s;
     var _bc=bb?bb.chance:null;                                  // v1616 — his MF/players odds, not the baseline
-    var _t=b?_ttf(_bc,b.kph):'';
-    var src=b?('<div class="gf-src">📍 best run: <b class="gf-boss">'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(_bc)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')+'</div>')
+    var _t=b?_ttf(_bc,b.kph,killsPerRun(b.bossId)):'';
+    var src=b?('<div class="gf-src">📍 best run: <b class="gf-boss">'+esc(b.boss)+'</b> <span class="gf-odds">'+fmtOdds(_bc)+'</span>'+(_t?'<span class="gf-odds gf-ttf">~'+_t+' to find</span>':'')+(b.kph?'<span class="gf-odds">~'+b.kph+' kph</span>':'')
+      /* v2285 — AN AREA RUN CARRIES ITS ASSUMPTION. The hour beside a cow level is only as good
+         as "how many cows is a run", and that figure is an ESTIMATE, not a measurement. Printing
+         the hour alone is how 1:140,200 became "13884h to find" and stayed there: a number with a
+         hidden denominator cannot be argued with. Shown only when it is not 1, so every boss row
+         stays exactly as it was. [[unknown-stays-unknown]] */
+      +(killsPerRun(b.bossId)>1?'<span class="gf-odds gf-kpr" title="this is an AREA run: one run kills many monsters, so the per-kill odds above are compounded across the run. The count is an estimate — the hour moves with it.">~'+killsPerRun(b.bossId)+'/run</span>':'')+'</div>')
              :_srcNoteHtml(x.n);
     /* v1624 — QUICK WINS still shows the ITEM (his call: "for quick wins we dont touch and leave
        it as is which is the item as the main") — it just stops being an inert picture. */
@@ -44019,7 +44060,7 @@ function renderJournal(){
           var bs=it._bs, boss=bs?bs.s.boss:(run&&run.boss)||'', oddsStr=bs?fmtOdds(bs.chance!=null?bs.chance:bs.s.chance):'';   /* v1616 — his odds */
           /* v1740 — the item's OWN time-to-find, through _ttf, which is the exact helper the
              F·Uniques card prints with. Same item, same number, both surfaces. */
-          var _bh=''; try { if (bs && bs.s) _bh = _ttf(bs.chance!=null?bs.chance:bs.s.chance, bs.s.kph||30); } catch(e){}
+          var _bh=''; try { if (bs && bs.s) _bh = _ttf(bs.chance!=null?bs.chance:bs.s.chance, bs.s.kph||30, killsPerRun(bs.s.bossId)); } catch(e){}
           c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:(run&&run.bossId)||''),
                  bestHours:_bh,
                  route:(run&&run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
@@ -44051,7 +44092,7 @@ function renderJournal(){
           var sAdj=null; try { if (src) sAdj=_adjC(src, (next&&next.name)||w.name); } catch(e){}
           var sChance = src ? (sAdj!=null ? sAdj : src.chance) : null;
           var sOdds = src ? fmtOdds(sChance) : '';
-          var sTtf=''; try { if (src) sTtf=_ttf(sChance, src.kph); } catch(e){}
+          var sTtf=''; try { if (src) sTtf=_ttf(sChance, src.kph, killsPerRun(src.bossId)); } catch(e){}
           /* v1557 — SAY WHEN THERE IS NO RUN TO SEND HIM ON.
              Seven of his sixteen in-progress sets have no aggregate drop entry at all — Tancred's
              Battlegear among them, which is the one his DAILY TASK FORCE is currently telling him
@@ -44184,7 +44225,7 @@ function renderJournal(){
        ORDERS. A set with no known source sinks rather than leading, because "quick" is a claim we
        cannot make about it. */
     var _qsHrs=function(mp){ var sc=mp.src; if(!sc||!sc.chance) return 1e9;
-      var h=(typeof hoursFor==='function')?hoursFor(sc.chance,0.5,sc.kph||100):null;
+      var h=(typeof hoursFor==='function')?hoursFor(sc.chance,0.5,sc.kph||100,killsPerRun(sc.bossId)):null;
       return (h===null||!isFinite(h))?1e9:h; };
     var quick=missingP.filter(function(mp){return mp.left===1;})
       .map(function(mp){ mp._qh=_qsHrs(mp); return mp; })
@@ -44289,7 +44330,7 @@ function renderJournal(){
            run: these are the sets with no verified source at all (v1557), and inviting a high-MF
            run implies the odds improve with MF when we do not know that they drop there. */
         var _sc=mp.src?_adjC(mp.src, mp.name):null;                  // v1616 — same seam as F·Uniques; sets were baseline-only too
-        var _ts=mp.src?_ttf(_sc,mp.src.kph):'';
+        var _ts=mp.src?_ttf(_sc,mp.src.kph,killsPerRun(mp.src.bossId)):'';
         var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_sc)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
         /* v1644 ITEM2 — Konyo (F·Sets → QUICK WINS): "the little electric little stamp on the items
            i want removed .. leave only the items". The ⚡ was pure decoration pinned on the sprite
@@ -47369,7 +47410,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2284', name:'v2284 - Updates Are Not Optional', date:'2026-08-30', note:'auto-relaunch stops being a switch; the eagle stops billing him for my bugs' };
+  window.D2R_BUILD = { id:'v2285', name:'v2285 - Per Kill Is Not Per Run', date:'2026-08-30', note:'cow and pit ETAs divided per-kill odds by a runs-per-hour rate; 13884h becomes 39.7h and every boss figure is untouched' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
