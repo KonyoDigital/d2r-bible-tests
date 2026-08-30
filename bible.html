@@ -35107,7 +35107,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // key the chronicle uses (suffix-tolerant ITEMS match + canonical set-piece name), so
       // 'Harlequin Crest' and 'Harlequin Crest (Shako)' are never two vault tiles.
       try {
-        var _cnV = function(x){ return String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
+        /* ⚠ v2286 — FOLD THE APOSTROPHE, BECAUSE THE OTHER NORMALISER ALREADY DOES.
+     _regKey (the chronicle's identity) folds [‘’`] to ' before keying; this one did not. So a
+     reel that read "Atma’s Scarab" with a curly byte failed to resolve against ITEMS' straight
+     "Atma's Scarab", the resolver missed, and the raw curly name was stored as a NEW vault tile
+     beside the one he already owns. Measured on all four of the names that occur both ways in
+     bible.html — Atma’s Scarab, Saracen’s Chance, Cat’s Eye, Death’s Web — _cnV matched NONE of
+     them while _regKey matched every one.
+     ⚠ THE DAMAGE WAS SMALL AND THAT IS LUCK, NOT DESIGN: his live stores carry exactly one curly
+     name (Saracen’s Chance, in foundLog, measured 2026-08-30 across 677 entries) and zero split
+     duplicates, because every READ goes through _regKey. The write side was the one door that
+     did not. Two normalisers where one folds and one does not is [[copy-drift]], and this closes
+     it at the door that creates rows. [[d2r-curly-apostrophe-class]] */
+  var _cnV = function(x){ return String(x||'').replace(/[‘’`]/g, "'").toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(); };
         if (typeof ITEMS !== 'undefined' && !ITEMS.some(function(i){ return i.n === name; })){
           var _qnV = _cnV(name);
           var _hitV = ITEMS.find(function(i){ return _cnV(i.n) === _qnV; });
@@ -47410,7 +47422,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2285', name:'v2285 - Per Kill Is Not Per Run', date:'2026-08-30', note:'cow and pit ETAs divided per-kill odds by a runs-per-hour rate; 13884h becomes 39.7h and every boss figure is untouched' };
+  window.D2R_BUILD = { id:'v2286', name:'v2286 - The Door That Did Not Fold', date:'2026-08-30', note:'tvVaultRegister resolved a curly-apostrophe name as a new item because its normaliser did not fold what the chronicle key folds' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

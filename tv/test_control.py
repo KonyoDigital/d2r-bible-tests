@@ -4443,6 +4443,94 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2286EveryIdentityNormaliserFoldsTheApostrophe(unittest.TestCase):
+    """★ bible.html carries item names in TWO byte forms — Atma’s Scarab / Atma's Scarab, and the
+    same for Cat’s Eye, Death’s Web, Saracen’s Chance. Whether that splits an item in two depends
+    entirely on whether the normaliser that keys it folds the curly byte.
+
+    MEASURED 2026-08-30: _regKey (the chronicle's identity) folds; tvVaultRegister's own _cnV did
+    NOT, so a reel reading "Atma’s Scarab" failed to resolve against ITEMS' straight spelling, the
+    resolver missed, and the raw curly name would be stored as a NEW vault tile beside the one he
+    already owns. _cnV matched none of the four; _regKey matched all four.
+
+    ⚠ THE DAMAGE WAS SMALL BY LUCK, NOT DESIGN. His live stores carry exactly ONE curly name
+    (Saracen’s Chance, in foundLog) across 677 entries, and zero split duplicates — because every
+    READ goes through _regKey. The write door was the one that did not fold, and a write door is
+    the one that creates rows.
+
+    ⚠ AND THE CLASS IS WIDER THAN THE FIX. Twelve functions in this file lowercase a name and strip
+    a parenthetical; only two fold. The rest are NOT swept blind — a blanket rename in this repo
+    once broke d2r_forgeSummary.grail because a character class did not include ':', and his
+    Uniques row silently stopped rendering. So they are LISTED here with the reason each is
+    tolerable, and anything new must argue its way in rather than appear silently.
+    [[copy-drift]] [[d2r-curly-apostrophe-class]] [[feedback-generalize-fixes]]
+    """
+
+    #: normalisers that key an item's IDENTITY — a store row, a registry lookup, a match against
+    #: ITEMS. These MUST fold, because a miss here creates or loses a row.
+    MUST_FOLD = ("_regKey", "_cnV")
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        with io.open(p, encoding="utf-8") as fh:
+            self.b = fh.read()
+
+    def _folds(self, fn):
+        import re as _re
+        m = _re.search(r"(?:function\s+%s\s*\(|var\s+%s\s*=\s*function\s*\()" % (fn, fn), self.b)
+        self.assertIsNotNone(m, "%s is gone — re-point this guard rather than leaving it green" % fn)
+        body = self.b[m.start(): m.start() + 500]
+        return ("‘" in body and "’" in body)
+
+    def test_the_identity_normalisers_FOLD(self):
+        bad = [fn for fn in self.MUST_FOLD if not self._folds(fn)]
+        self.assertEqual(bad, [], "these key an item's identity and do NOT fold the curly "
+                                  "apostrophe, so the same item resolves as two: %s" % bad)
+
+    def test_the_write_door_folds_BEFORE_it_lowercases(self):
+        """⚠ ORDER MATTERS. toLowerCase() does not touch U+2019, so folding after it is fine — but
+        folding after the PARENTHETICAL strip would leave a curly byte inside the compared text.
+        Pin the actual shipped expression rather than the idea of it."""
+        self.assertIn("""String(x||'').replace(/[‘’`]/g, "'").toLowerCase()""", self.b,
+                      "the write door's fold moved or vanished; a curly name would resolve as a "
+                      "new vault tile again")
+
+    def test_his_real_names_all_collapse(self):
+        """The four that actually occur both ways in this file — the test is the data, not a
+        hypothetical."""
+        import re as _re
+        def regkey(x):
+            k = _re.sub(r"\s*\([^)]*\)\s*$", "", str(x or ""))
+            k = _re.sub(r"[‘’`]", "'", k).lower()
+            k = _re.sub(r"[^a-z0-9]+", "", k)
+            return k[3:] if k.startswith("the") and len(k) > 3 else k
+        for curly, straight in (("Atma’s Scarab", "Atma's Scarab"),
+                                ("Saracen’s Chance", "Saracen's Chance"),
+                                ("Cat’s Eye", "Cat's Eye"),
+                                ("Death’s Web", "Death's Web")):
+            self.assertEqual(regkey(curly), regkey(straight),
+                             "%r and %r key differently — they are one item" % (curly, straight))
+
+    def test_the_wider_class_is_NAMED_not_forgotten(self):
+        """Ten more functions lowercase-and-strip without folding. They are not swept blind, and
+        they are not ignored either: this pins that the count has not GROWN unnoticed. If it does,
+        someone added a normaliser and has to say whether it keys identity."""
+        import re as _re
+        found = set()
+        for m in _re.finditer(r"(?:function\s+(_[A-Za-z0-9]+)\s*\(|var\s+(_[A-Za-z0-9]+)\s*=\s*function\s*\()",
+                              self.b):
+            fn = m.group(1) or m.group(2)
+            body = self.b[m.start(): m.start() + 420]
+            if ".toLowerCase()" in body and "[^)]*" in body:
+                found.add(fn)
+        self.assertLessEqual(len(found), 12,
+                             "a new name-normaliser appeared (%d now, 12 known). Decide whether it "
+                             "keys IDENTITY: if it does it must fold the curly apostrophe and join "
+                             "MUST_FOLD; if it does not, raise this bound deliberately. %s"
+                             % (len(found), sorted(found)))
+
+
+
 class TestV2285PerKillOddsAreNotPerRunOdds(unittest.TestCase):
     """★ Konyo: "is this logical for cow heaves too? the drop time find.. check and verify each set
     item and unique item" — seeing "Cow King's Hooves · Normal TZ Hell Bovines 1:140.2k ~13884h".

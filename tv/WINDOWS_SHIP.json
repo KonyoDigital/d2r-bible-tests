@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2285",
+  "ver": "v2286",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2285: cow and pit ETAs divided per-kill odds by a runs-per-hour rate; 13884h becomes 39.7h and every boss figure is untouched",
+  "note": "v2286: tvVaultRegister resolved a curly-apostrophe name as a new item because its normaliser did not fold what the chronicle key folds",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
