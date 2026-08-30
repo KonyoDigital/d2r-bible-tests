@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2289",
+  "ver": "v2290",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2289: register could never call the board across a process boundary; it now leaves a proposal in the shared store and the board drains it into his inbox",
+  "note": "v2290: the 901px strip was not clipped or colliding; the go-chip claimed the width first and the phrase wrapped to three lines",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

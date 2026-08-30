@@ -4458,6 +4458,50 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2290TheStripDoesNotCrushItsMiddle(unittest.TestCase):
+    """★ A cross-family read of the 901px console called this box "severe text collision ... cut off
+    at the container edge". Measured: NEITHER — scrollWidth 606 == clientWidth 606, and zero
+    overlapping child pairs.
+
+    But the geometry showed what it was reacting to. `.cw-go` takes margin-left:auto and claims the
+    remaining width first, so the bold middle phrase was wrapping to THREE lines inside a 159px
+    column (y 557→616) while "347" sat on one (y 576→596). Not clipped, not colliding — crushed.
+
+    ⚠ BOTH INSTRUMENTS WERE PARTLY RIGHT AND NEITHER WAS ENOUGH. My earlier sweep tested CLIPPING
+    and reported the strip clean, because clipping is not the property that was wrong. The eye saw
+    the defect and named the wrong mechanism. Only holding the two against each other found it.
+    [[feedback-contradiction-is-the-finding]] [[visual-regression-detector]]
+
+    MEASURED AFTER: at 901 the middle phrase is one line at 336px (was three at 159px); at 1440 it
+    is unchanged.
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def test_the_strip_is_allowed_to_WRAP_rather_than_squeeze(self):
+        self.assertIn(".chron-waiting { flex-wrap: wrap;", self.ui,
+                      "the strip is a rigid single row again, so the middle phrase gets whatever "
+                      "width the go-chip leaves and wraps to three lines")
+
+    def test_the_go_chip_stops_claiming_the_remaining_width_when_narrow(self):
+        block = _between(self, self.ui, "@media (max-width: 1100px) {", "\n  }",
+                         what="the narrow-console rule")
+        self.assertIn("margin-left: 0", block,
+                      "the go-chip still takes margin-left:auto at narrow widths, which is the "
+                      "mechanism that crushed the middle")
+
+    def test_it_does_NOT_change_the_wide_layout(self):
+        """⚠ The 1440 view was never wrong. A responsive fix that moves the width he actually uses
+        would trade a narrow-window defect for a daily one."""
+        self.assertIn("@media (max-width: 1100px)", self.ui,
+                      "the fix is unconditional — it now applies at 1440 too, where nothing was "
+                      "wrong")
+
+
+
 class TestV2288TheCanaryWasDecorationForItsWholeLife(unittest.TestCase):
     """★ LaneCanary (v2197) exists to separate "a blank gameplay frame" from "a frame the reader
     could not see" — the distinction a deleter must get right. It has NEVER ONCE passed, on any

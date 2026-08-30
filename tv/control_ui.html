@@ -3445,6 +3445,25 @@
   /* v2278 — the secondary count, so the strip can carry BOTH numbers without either shouting.
      "347 read, 347 you already have" is context; the headline is what would change. */
   .cw-note { margin-left: 10px; opacity: .62; font-size: .86em; white-space: nowrap; }
+  /* ══ v2290 — THE STRIP MUST NOT SQUEEZE ITS MIDDLE ═════════════════════════════════════════
+     A cross-family read of the 901px console called this box "severe text collision ... cut off at
+     the container edge". Measured: NEITHER. scrollWidth 606 == clientWidth 606, zero overlapping
+     child pairs. But the geometry showed what it was actually reacting to — the bold phrase
+     "not yet checked against your chronicle" was wrapping to THREE lines inside a 159px column
+     (y 557→616) while "347" sat on one (y 576→596), because .cw-go takes `margin-left:auto` and
+     eats the remaining width first.
+
+     ⚠ SO BOTH INSTRUMENTS WERE PARTLY RIGHT AND NEITHER WAS ENOUGH. My clipping sweep tested the
+     wrong property and reported the strip clean; the eye saw the defect and named the wrong
+     mechanism. The fix is for the real cause: below the width where three parts stop fitting on
+     one line, the strip STACKS so each gets the full row instead of the middle being crushed.
+     [[visual-regression-detector]] [[feedback-contradiction-is-the-finding]] */
+  .chron-waiting { flex-wrap: wrap; row-gap: 4px; }
+  @media (max-width: 1100px) {
+    .chron-waiting { align-items: flex-start; }
+    .chron-waiting > b { white-space: normal; }
+    .cw-go { margin-left: 0; }
+  }
   /* v2278 — CALM WHEN THERE IS NOTHING TO DO. His words about this tab: "if nothing for me to do
      it should be cleaner structured and collapsed by default". A row that needs no decision must
      not wear the colour of one — it keeps its place so the count stays legible, and loses the
