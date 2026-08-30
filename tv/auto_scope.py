@@ -78,6 +78,18 @@ LANES = {
         "when": "after a grace period with no stash on screen",
         "brakes": "only a reel the lane itself declared is sealed this way",
     },
+    "tvd-shadow-watch": {
+        "does": "looks for the Diablo window and ROLLS A REEL ITSELF when it finds one — the only "
+                "lane here that starts a recording without him pressing anything",
+        "touches": "starts the same capture agent /api/on starts; writes frames into a new reel",
+        "forbids": ["delete"],
+        "never": "a SECOND reel — it refuses while an agent is alive or a mini is counting down; "
+                 "and it refuses below the 8 GB floor, because a reel the reaper cannot keep alive "
+                 "is worse than no reel",
+        "when": "every 20 s, only while the shadow switch is ON",
+        "brakes": "tv_diablo.find_d2r_window_mac() — the SAME finder ON AIR and MINI capture "
+                  "through. No window, no reel.",
+    },
     "tvd-vault-autoread": {
         "does": "starts a vault read on footage that is waiting for one",
         "touches": "the vault ledger of what has been SEEN — never what he owns",
@@ -176,6 +188,7 @@ LANE_FN = {
     "tvd-rolling-prune": "_prune_loop",
     "tvd-stash-watch": "_stash_watch_loop",
     "tvd-vault-autoread": "_vault_autoread_loop",
+    "tvd-shadow-watch": "_shadow_watch_loop",
     "tvd-chron-autoread": "_chron_autoread_loop",
 }
 

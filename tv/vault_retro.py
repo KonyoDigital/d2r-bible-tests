@@ -862,6 +862,7 @@ def _rows_of(blob):
 def _empty(why, sessions_seen=0):
     """A refusal, fully shaped. ok:False with a why — never a fabricated empty success (law 4)."""
     return {"ok": False, "generatedTs": int(time.time() * 1000), "why": why, "sessionsRead": [],
+            "sessionsExamined": [],
             "owned": [], "throwOut": [], "unsure": [], "held": [],
             "totals": {"sessionsSeen": sessions_seen, "framesSeen": 0, "classified": 0,
                        "pagesRead": 0, "skipped": 0}}
@@ -1013,6 +1014,13 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
     throw_flags = {}       # (name, lane) -> [sighting...] the reader flagged as junk
     unsure, held = [], []
     sessions_read, sessions_seen = [], 0
+    # ⚠ v2306 — WHICH REELS THIS SWEEP ACTUALLY OPENED, which is NOT the same as which it READ.
+    # control_app's "examined, and there is no stash screen here" branch seals the reels the sweep
+    # LOOKED AT and found nothing in — and it was iterating `sessionsRead`, which by definition is
+    # empty in exactly that case. So it printed "Sealed at vp2017" and wrote nothing, every pass,
+    # for ever. Reproduced twice on reel_s_1787239578536_99671 at zero cost.
+    # [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    sessions_examined = []
     # v2020 — `classified` counts CALLS MADE. `answered` counts calls that came back with a
     # surface. They are the same number only when the classifier works, and the whole of
     # REG-382 is the case where they are not. See _verdict().
@@ -1026,6 +1034,7 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
     folded_names = {}
     for reel_dir in dirs:
         sessions_seen += 1
+        sessions_examined.append(os.path.basename(os.path.normpath(str(reel_dir))).replace("reel_", "", 1))
         idx = _load_index(reel_dir)
         if idx is None:
             held.append({"name": None, "why": "reel %s has no readable index.json — held, not guessed"
@@ -1375,7 +1384,9 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         _shadow = {"scored": 0, "disagreements": [], "names": [],
                    "why": "the vault shadow lane could not score this sweep: %s" % str(_e)[:120]}
     return {"ok": True, "generatedTs": int(time.time() * 1000), "why": _verdict(totals, owned, unsure),
-            "sessionsRead": sorted(set(sessions_read)), "shadow": _shadow,
+            "sessionsRead": sorted(set(sessions_read)),
+            "sessionsExamined": sorted(set(sessions_examined)),   # v2306 — opened, not necessarily read
+            "shadow": _shadow,
             "owned": owned, "throwOut": throw_out, "unsure": unsure, "held": held, "totals": totals}
 
 

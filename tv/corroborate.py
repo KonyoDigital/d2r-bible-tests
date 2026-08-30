@@ -185,6 +185,175 @@ def _inv_chronicle_owed_agrees():
 
 
 
+
+def _inv_shadow_switch_matches_the_watcher():
+    """★ THE EVENING THAT WAS LOST. He played with the shadow switch ON and got ZERO reels — 28 on
+    disk, the newest 154 hours old. The switch said "armed"; nothing was watching for the game,
+    because shadow only READ frames another mode had already rolled.
+
+    So: if the switch is ON, the watcher must have looked RECENTLY. Two independent readings of the
+    same claim — his choice, and the watcher's own durable record — and the whole defect was that
+    only the first one existed. A switch that reports its own position and nothing about whether
+    the thing it switches is running is the lie this file exists to catch.
+    [[the-unjoined-end]] [[label-outlived-referent]]
+    """
+    import control_app as ca
+
+    def left():
+        try:
+            return 1 if ca._shadow_state().get("on") else 0
+        except Exception:
+            return None
+
+    def right():
+        """1 when the watcher has looked inside the last 5 minutes. None when it cannot be told —
+        never 0, because "no record" and "looked and found nothing" are different facts."""
+        try:
+            w = ca.shadow_watch_state()
+            if not isinstance(w, dict) or w.get("ok") is False:
+                return None
+            at = w.get("lookedAt")
+            if at is None:
+                return 0
+            return 1 if (time.time() * 1000.0 - float(at)) < 300000.0 else 0
+        except Exception:
+            return None
+
+    return ("shadow-armed-is-watching",
+            "the shadow switch being ON means something is actually looking for the game",
+            "an evening of play produced no reels while the panel read 'armed'",
+            "_shadow_state().on", left, "shadow_watch.lookedAt<5m", right, "<=")
+
+
+
+def _inv_the_deleter_is_never_looser_than_the_planner():
+    """★ TWO AUTHORITIES ON "MAY THIS BE DELETED", AND ONLY ONE OF THEM CAN ACT.
+
+    reel_retention PLANS ("1 reel may go, freeing 389 MB — it has given up its information") and
+    frame_authority DECIDES ("0 of 6719 could be freed — sealed, but the sweep never extracted
+    name, location..."). They disagreed the moment the vault seal landed on 2026-08-30, and the
+    strict one held — correctly, because the seal honestly recorded that nothing was extracted.
+
+    That disagreement is HEALTHY and is not what this watches. What must never happen is the
+    reverse: the deleter freeing MORE than the planner ever offered. That would mean the thing that
+    can destroy his footage is running on a wider rule than the thing that merely suggests, and it
+    is the direction with no undo. [[feedback-contradiction-is-the-finding]]
+    """
+    import frame_authority as fa
+    import reel_retention as rr
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+
+    def left():
+        try:
+            plan = fa.plan_frames(hist)
+        except Exception:
+            return None
+        if isinstance(plan, dict):
+            return len(plan.get("free") or plan.get("freeable") or [])
+        if isinstance(plan, (list, tuple)):
+            return len(plan)
+        return None
+
+    def right():
+        try:
+            p = rr.plan(hist)
+        except Exception:
+            return None
+        if not p.get("ok"):
+            return None
+        # every frame inside every reel retention is willing to let go
+        return sum(int(c.get("pages") or 0) for c in (p.get("candidates") or []))
+
+    return ("deleter-not-looser",
+            "the one thing that can delete never frees more than the planner offers",
+            "let frame_authority clear a reel retention still holds and this inverts",
+            "frame_authority.free", left, "retention.candidates", right, "<=")
+
+
+
+def _inv_the_two_deleters_stay_at_their_own_granularity():
+    """★ TWO DELETERS, TWO QUESTIONS, AND CONFLATING THEM WAS MY ERROR — TWICE IN ONE DAY.
+
+    reel_retention answers "may this REEL go" — both lanes finished with it.
+    frame_authority answers "may this FRAME go" — stricter, because it protects the witness frames
+    standing behind his vault rows, and a frame is the last copy of a name.
+
+    They disagree by DESIGN and both are right. On 2026-08-30 I read that disagreement as a defect,
+    made retention ask frame_authority's contract, and broke three deliberate cases — a change that
+    would have stopped the prune firing on every existing reel, since all his seals predate that
+    contract. Withdrawn.
+
+    What must stay true is the ordering: the FRAME deleter, being the stricter one, must never free
+    more than the reel planner is willing to let go. If that inverts, the thing protecting his
+    witness frames has become the looser of the two. [[feedback-contradiction-is-the-finding]]
+    """
+    import frame_authority as fa
+    import reel_retention as rr
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+
+    def left():
+        try:
+            plan = fa.plan_frames(hist)
+        except Exception:
+            return None
+        if isinstance(plan, dict):
+            return len(plan.get("free") or plan.get("freeable") or [])
+        return len(plan) if isinstance(plan, (list, tuple)) else None
+
+    def right():
+        try:
+            p = rr.plan(hist)
+            if not p.get("ok"):
+                return None
+            return sum(int(c.get("pages") or 0) for c in (p.get("candidates") or []))
+        except Exception:
+            return None
+
+    return ("frame-deleter-not-looser",
+            "the frame deleter never frees more than the reel planner offers",
+            "let frame_authority clear frames inside a reel retention is holding and this inverts",
+            "frame_authority.free", left, "retention.candidate pages", right, "<=")
+
+def _inv_the_two_readers_measure_the_same_screen():
+    """★ TWO READERS, TWO COPIES OF ONE MEASUREMENT OF HIS MONITOR.
+
+    stash_eye reads the LEFT-ANCHORED stash/inventory panel; chronicle_template reads the CENTERED
+    Chronicle modal. Their geometry genuinely differs — chronicle_template's own header explains it
+    cannot copy "stash_eye's left-anchor math" and uses a CENTER-PRESERVING derivation instead.
+    That part is a real reason, not drift.
+
+    What IS drift: each carries its own calibration film of the SAME physical screen —
+    stash_eye._CROP_CAL_FILM and chronicle_template._CAL_FILM, both (2940, 1912) today. One
+    recalibration (new monitor, new resolution, a re-measure of one panel) updates one and leaves
+    the other silently reading his screen as a shape it no longer is. Nothing would say so; the
+    reader would simply start missing panels.
+
+    Konyo: "the readers and ai analyzers all need the same upgraded logic and tools ... should be a
+    synced and unified logic". This is that sync, expressed as an invariant instead of a refactor.
+    [[copy-drift]]
+    """
+    def left():
+        try:
+            import stash_eye as _se
+            f = getattr(_se, "_CROP_CAL_FILM", None)
+            return int(f[0] * 100000 / float(f[1])) if f else None
+        except Exception:
+            return None
+
+    def right():
+        try:
+            import chronicle_template as _ct
+            f = getattr(_ct, "_CAL_FILM", None)
+            return int(f[0] * 100000 / float(f[1])) if f else None
+        except Exception:
+            return None
+
+    return ("readers-same-screen",
+            "both readers are calibrated to the same physical screen",
+            "recalibrate one reader's film and leave the other, and this parts",
+            "stash_eye._CROP_CAL_FILM", left, "chronicle_template._CAL_FILM", right, "==")
+
+
 def _inv_the_two_owned_fields():
     """157 vs 7 — TWO PAYLOAD FIELDS BOTH CALLED `owned`, and I found this by hand and did not
     encode it. That omission is the whole argument for this file existing.
@@ -279,13 +448,41 @@ def _inv_hunt_memory_is_being_used():
             "hunt-memory entries", left, "the floor", right, ">=")
 
 
-BUILDERS = (_inv_vault_worklist,
+def _inv_every_declared_tooltip_surface_is_served():
+    """v2316 — the surfaces that say they need hover evidence, against the code that derives it.
+
+    Five surfaces declare tooltip=True; a tooltip rectangle is derived by differencing consecutive
+    frames, so it is the reel sweep that must own the step. If no production module imports
+    tooltip_crop, those five are asking for something nobody performs — and until v2316 the
+    function meant to notice returned the same five names whether or not that was true, so it
+    could never have told anyone. [[label-outlived-referent]] [[plumbing-with-no-tap]]
+    """
+    import surfaces as S
+
+    def left():
+        return len(S.tooltip_surfaces())
+
+    def right():
+        ok, _why = S.tooltip_wiring()
+        return len(S.tooltip_surfaces()) if ok else 0
+
+    return ("tooltip-surfaces-served",
+            "every surface that declares it needs hover evidence has a sweep that derives it",
+            "delete `import tooltip_crop` from vault_retro and this parts 5 vs 0",
+            "surfaces declaring tooltip", left, "surfaces actually served", right, "==")
+
+
+BUILDERS = (_inv_every_declared_tooltip_surface_is_served,
+            _inv_vault_worklist,
             _inv_the_two_owned_fields,
             _inv_the_eagle_can_still_look,
             _inv_hunt_memory_is_being_used,
             _inv_shadow_names_fit_the_universe,
             _inv_swept_memory_matches_the_disk,
-            _inv_chronicle_owed_agrees)
+            _inv_chronicle_owed_agrees,
+            _inv_shadow_switch_matches_the_watcher,
+            _inv_the_two_deleters_stay_at_their_own_granularity,
+            _inv_the_two_readers_measure_the_same_screen)
 
 
 

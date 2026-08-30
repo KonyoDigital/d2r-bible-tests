@@ -83,6 +83,75 @@ def check_lanes():
     return _row("lanes", OK, "every extraction lane is fresh and aligned", ev)
 
 
+
+def check_shadow_watch():
+    """Is the thing that is supposed to notice him playing actually looking?
+
+    ★ THE FAILURE THIS EXISTS FOR: he played a whole evening with the shadow switch ON and got ZERO
+    reels, because shadow only READ frames another mode had rolled. Nothing said so — the panel
+    reported "armed", which is true and implies something false. A watcher that has never looked is
+    the same defect wearing a different word. [[label-outlived-referent]]
+    """
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return _row("shadowWatch", UNKNOWN, "control_app will not import — %s" % str(e)[:70])
+    try:
+        st = _ca._shadow_state()
+        w = _ca.shadow_watch_state()
+    except Exception as e:
+        return _row("shadowWatch", UNKNOWN, "could not read the watcher: %s" % str(e)[:70])
+    if not isinstance(w, dict) or w.get("ok") is False:
+        return _row("shadowWatch", UNKNOWN,
+                    str((w or {}).get("why") or "the watcher's record is unreadable"))
+    if not st.get("on"):
+        return _row("shadowWatch", OK, "the shadow reader is switched OFF, so nothing is watching "
+                                       "for the game — by his choice")
+    looked = w.get("lookedAt")
+    if looked is None:
+        return _row("shadowWatch", WARN,
+                    "the shadow switch is ON and the watcher has NEVER looked for the game — "
+                    "playing would produce nothing, which is exactly the evening that was lost")
+    import time as _t
+    age = (_t.time() * 1000.0 - float(looked)) / 60000.0
+    if age > 10:
+        return _row("shadowWatch", WARN,
+                    "the shadow switch is ON but the watcher last looked %.0f minutes ago — it "
+                    "should look every 20 s, so it is not running" % age)
+    return _row("shadowWatch", OK,
+                "watching for the game every 20 s (last look %.0f s ago) · %s reel(s) started · %s"
+                % (age * 60, w.get("starts") or 0, str(w.get("why") or "")[:80]))
+
+
+
+def check_readers_agree():
+    """Are the two game readers still calibrated to the same screen?
+
+    stash_eye (left-anchored panel) and chronicle_template (centered modal) each carry their own
+    calibration film of HIS monitor. The geometry differs for a real reason; the SCREEN does not.
+    A recalibration of one is silent in the other, and the symptom is a reader that quietly stops
+    finding panels rather than an error anyone sees. [[copy-drift]]
+    """
+    try:
+        import stash_eye as _se
+        import chronicle_template as _ct
+    except Exception as e:
+        return _row("readers", UNKNOWN, "a reader will not import — %s" % str(e)[:70])
+    a = getattr(_se, "_CROP_CAL_FILM", None)
+    b = getattr(_ct, "_CAL_FILM", None)
+    if not a or not b:
+        return _row("readers", UNKNOWN,
+                    "one reader does not publish its calibration film, so they cannot be compared")
+    if tuple(a) != tuple(b):
+        return _row("readers", WARN,
+                    "the two readers are calibrated to DIFFERENT screens — stash_eye %s vs "
+                    "chronicle_template %s. One was re-measured and the other was not; the stale "
+                    "one will quietly stop finding its panel." % (tuple(a), tuple(b)))
+    return _row("readers", OK,
+                "both readers calibrated to the same screen %s (aspect %.4f)"
+                % (tuple(a), a[0] / float(a[1])))
+
+
 # ── CHECK 2 — the one that would have caught the loaded gun ─────────────────────────────────────
 #: destructive one-shot blocks, and the SHAPE of a record that proves they may fire.
 #: Each entry: (id, human name, the flag whose PRESENCE used to be trusted, the file it lives in)
@@ -252,7 +321,8 @@ def check_orphans():
     return _row("orphans", WARN, "%d process(es) busy and old" % len(rows), ev)
 
 
-CHECKS = [check_lanes, check_armed_migrations, check_board_join, check_orphans]
+CHECKS = [check_lanes, check_armed_migrations, check_board_join, check_orphans,
+          check_shadow_watch, check_readers_agree]
 
 
 def report(evaluate=None, board=None):

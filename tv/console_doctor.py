@@ -1280,6 +1280,11 @@ CHECKS = [
     # unbounded glob holding a core at 99.7% for 28 hours.
     ("armed migration", _health("armed_migration")),
     ("extraction lanes", _health("lanes")),
+    # v2304 — the watcher that makes playing enough. It reaches the ONE surface in the same
+    # breath as the lanes it belongs beside, or it is a feature only a log knows about.
+    ("shadow watch", _health("shadowWatch")),
+    # v2310 — the two game readers, on the one surface he reads
+    ("readers agree", _health("readers")),
     ("board join", _health("board_join")),
     ("stray processes", _health("orphans")),
     # ⚠ v2228 — (NAME, FN) TUPLES. My first cut added these two as BARE FUNCTIONS and broke the

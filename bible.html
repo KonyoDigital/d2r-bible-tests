@@ -8656,6 +8656,9 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
    two read as one row, in the gold the rest of the page uses for a measured figure.
    An item with no known source renders NO span at all, so absence is visible as
    absence rather than as a dash that could be mistaken for a value. */
+/* v2300 — the unit rides UNDER the count, dimmer and smaller: it must qualify the number
+   without competing with it, because the number is what he is scanning for. */
+.forge-tab .ft-ct .ft-u{display:block;font-size:8.5px;font-weight:var(--fw-medium);letter-spacing:.06em;text-transform:uppercase;opacity:.62;line-height:1.05;margin-top:1px}
 .gf-piece .gp-eta{font-size:9.5px;font-weight:var(--fw-bold);color:#d8b45e;background:rgba(216,180,94,.12);border-radius:5px;padding:0 5px;white-space:nowrap;font-family:var(--mono,monospace)}
 .gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--fw-semibold);border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
 .gf-piece:hover{filter:brightness(1.25);transform:translateY(-1px)}
@@ -41830,9 +41833,20 @@ function renderJournal(){
     return '<div class="forge-progress" title="'+(opts.title||(found+' of '+total))+'"><div class="fp-track"><div class="fp-fill" style="width:'+pct+'%'+(color?';background:linear-gradient(90deg,'+color+')':'')+'"></div></div>'
       +'<div class="fp-lbl">'+lbl+'<span class="fp-pct">'+pct+'%</span></div></div>';
   }
-  function _tile(key,emoji,label,cls,n,F,setter){
-    return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="'+setter+'(\''+key+'\')" title="show '+esc(label)+'">'
-      +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+esc(label)+'</span><span class="ft-ct">'+n+'</span></button>';
+  /* v2300 — A COUNT WITHOUT ITS UNIT IS AN INVITATION TO READ IT AS THE OTHER ONE.
+     Konyo, about F·Sets: "i see like for Sets 4 are missing.. only 11 show so 4 are missing".
+     MEASURED against his real ledger: ▦ All missing 15 counts PIECES, ⚡ Quick wins 11 counts SETS
+     that are one piece away, and 15 − 11 is exactly the 4 he could not account for. Both numbers
+     were correct; they sat side by side counting different things and nothing said so. The 4 that
+     fall between them are the pieces of the only two sets needing TWO (Death's Disguise,
+     Griswold's Legacy), so they appear in neither list he was reading.
+     `unit` is optional and passed ONLY where a page mixes units. F·Uniques counts items in all
+     four tiles, so it gets none — a word added where there is no ambiguity is the clutter he asked
+     to have removed. [[label-outlived-referent]] */
+  function _tile(key,emoji,label,cls,n,F,setter,unit){
+    return '<button class="forge-tab '+cls+(F===key?' on':'')+(n===0?' ft-empty':'')+'" onclick="'+setter+'(\''+key+'\')" title="show '+esc(label)+(unit?(' \u2014 '+n+' '+esc(unit)):'')+'">'
+      +'<span class="ft-emoji">'+emoji+'</span><span class="ft-lbl">'+esc(label)+'</span><span class="ft-ct">'+n
+      +(unit?'<span class="ft-u">'+esc(unit)+'</span>':'')+'</span></button>';
   }
   /* v1871 — EVERY FOUND CHIP CARRIES ITS STORYLINE, when the game printed one.
      Konyo: "when it was added to the chronicle it should be storyline synced with the ingame
@@ -42277,10 +42291,10 @@ function renderJournal(){
     // v560 — UNIFIED sub-tabs across BOTH grail forges (Konyo: same names, same logic, set or unique):
     // ▦ All missing · 🎯 Best runs · ⚡ Quick wins (low-level uniques / 1-piece sets) · ✅ Found
     H.push('<div class="forge-tabs">'
-      +_tile('all','▦','All missing','ft-all',(s.chronTotal?s.chronTotal-s.found:s.missing.length),F,'window.funiSetFilter')   // v682.2 — SAME universe as the headline (403): named missing + still-dark rows
-      +_tile('runs','🎯','Best runs','ft-pipe',s.runs.length,F,'window.funiSetFilter')
-      +_tile('low','⚡','Quick wins','ft-step',s.low.length,F,'window.funiSetFilter')
-      +_tile('found','✅','Found','ft-done',s.found,F,'window.funiSetFilter')
+      +_tile('all','▦','All missing','ft-all',(s.chronTotal?s.chronTotal-s.found:s.missing.length),F,'window.funiSetFilter','items')   // v682.2 — SAME universe as the headline (403): named missing + still-dark rows
+      +_tile('runs','🎯','Best runs','ft-pipe',s.runs.length,F,'window.funiSetFilter','runs')
+      +_tile('low','⚡','Quick wins','ft-step',s.low.length,F,'window.funiSetFilter','items')
+      +_tile('found','✅','Found','ft-done',s.found,F,'window.funiSetFilter','items')
       +'</div>');
 
     // v1747 — the tally search bar, directly above the wall it tallies into
@@ -44371,10 +44385,10 @@ function renderJournal(){
       .sort(function(a,b){ return a._qh-b._qh || String(a.set).localeCompare(String(b.set)); });
     // UNIFIED tiles — identical names to Forge·Uniques
     H.push('<div class="forge-tabs">'
-      +_tile('all','▦','All missing','ft-all',missingP.length,F,'window.fsetsSetFilter')
-      +_tile('runs','🎯','Best runs','ft-pipe',runs.length,F,'window.fsetsSetFilter')
-      +_tile('near','⚡','Quick wins','ft-step',quick.length,F,'window.fsetsSetFilter')
-      +_tile('done','✅','Found','ft-done',s.havePieces,F,'window.fsetsSetFilter')
+      +_tile('all','▦','All missing','ft-all',missingP.length,F,'window.fsetsSetFilter','pieces')
+      +_tile('runs','🎯','Best runs','ft-pipe',runs.length,F,'window.fsetsSetFilter','runs')
+      +_tile('near','⚡','Quick wins','ft-step',quick.length,F,'window.fsetsSetFilter','sets')
+      +_tile('done','✅','Found','ft-done',s.havePieces,F,'window.fsetsSetFilter','pieces')
       +'</div>');
 
     // v1747 — the same component, same position. One implementation, two callers.
@@ -47579,7 +47593,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2299', name:'v2299 - Every Missing Row Carries Its Own Clock', date:'2026-08-30', note:'the longest list of item names on the page printed a name and nothing else; each chip on both grail walls now shows the hours to find THAT item on its own best run, and an item with no known source shows no number at all' };
+  window.D2R_BUILD = { id:'v2316', name:'v2316 - One Preflight Three Doors', date:'2026-08-30', note:'every capture door shares one preflight and earns a Wilson score; the stale-frame card stops naming a permission he already has; both forge families name their unit' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

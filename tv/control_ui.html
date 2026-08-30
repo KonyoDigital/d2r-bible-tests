@@ -7581,7 +7581,9 @@
     else if (eyeWaiting || noEye) cap = '<b>Eye held</b> — ' + (ct0.label || 'waiting for a clean D2R window pin') + (isWin ? '. Not filming the desktop.' : '. Not recording your desktop.');
     else if (eyeStaleHard) cap = isWin
       ? '<b>Capture stalled</b> — last eye frame is old. Focus the D2R game window or press <b>RESTART</b>.'
-      : '<b>Capture stalled</b> — last eye frame is old. Check Screen Recording for Python / focus D2R.';
+      : (st.screenRecOk === false
+          ? '<b>Capture stalled</b> — last eye frame is old and Screen Recording is NOT granted to this Python. Grant it, then RESTART.'
+          : '<b>Capture stalled</b> — last eye frame is old. Screen Recording is granted, so a static D2R loading screen looks exactly like this.');
     else if (on) cap = 'Auto Intake live · pause on <b>Runes / Gems / Materials / stash</b> — same AI as Tools 📸. Board: <b>SESSIONS</b>.';
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
     $('caption').innerHTML = cap;
@@ -7602,9 +7604,17 @@
                 + 'If the game is exclusive fullscreen and pin fails, try <b>borderless windowed</b>, then <b>RESTART</b>. '
                 + 'Debug: <code>tv/frames/win_pin_debug.json</code> after ON AIR.')
               : ('<b>' + (ct0.label || 'waiting for D2R window') + '</b><br>Not a black recorder bug — the eye refuses to film the Mac wallpaper.');
+            /* v2316 — NEVER NAME A CAUSE THE CONSOLE HAS ALREADY MEASURED FALSE. st.screenRecOk
+               is this process's own CGPreflightScreenCaptureAccess. When the grant IS held, a
+               stale frame is almost always a genuinely static screen — a D2R loading screen is
+               near-black and unchanging by design — so sending him to System Settings fixes
+               nothing and hides the real reason. Only claim the grant when it is actually absent. */
+            else if (st.screenRecOk === false) shb.innerHTML = isWin
+              ? 'Last frame is stale. Focus the <b>D2R game window</b> (borderless preferred), then press <b>RESTART</b>.'
+              : 'Last frame is stale, and <b>Screen Recording is NOT granted</b> to this Python — the eye can only see the desktop. Grant it in System Settings → Privacy → Screen Recording, then press <b>RESTART</b>.';
             else shb.innerHTML = isWin
               ? 'Last frame is stale. Focus the <b>D2R game window</b> (borderless preferred), then press <b>RESTART</b>.'
-              : 'Last frame is stale. Grant <b>Screen Recording</b> to Python / TV DIABLO, focus D2R, or press <b>RESTART</b>.';
+              : 'Last frame is stale — the screen has not changed. Screen Recording <b>is</b> granted, so if D2R is on a <b>loading screen</b> or minimised this is expected and nothing is wrong. Press <b>RESTART</b> only if it persists once you are in-game.';
           }
           if (shh) shh.textContent = (ct0.mode ? ('capture: ' + ct0.mode + (ct0.label ? ' · ' + ct0.label : ''))
             : (isWin ? 'D2R.exe process-first pin · capture_win.ps1 · not Battle.net' : 'CrossOver bottle · D2R.exe · Screen Recording → Python'));

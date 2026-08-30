@@ -4651,6 +4651,663 @@ class TestV2297APixelGateBlocksThePush(unittest.TestCase):
                              ":%s belongs to him (Chrome / TradingView) and a gate may not attach "
                              "to it" % port)
 
+class TestV2300TheRepairsProtectorsAreDeclared(unittest.TestCase):
+    """A FORKED LEDGER WHOSE PROTECTOR IS UNFORKED FAILS SILENTLY THE DAY THE PROFILES DIVERGE.
+
+    _chRepairLedgers EDITS d2r_setPieces, which IS in window._WP_FORKED — the set chronicle is
+    per-profile. The two stores that decide what it removes are not:
+
+        d2r_setRepairKept     his ruling, "I do have this"      NOT forked
+        d2r_setRepairRemoved  the GAME's reading of an account  NOT forked
+
+    ⚠ THIS IS A DECLARED HAZARD, NOT A DEFECT, AND THE DIFFERENCE WAS MEASURED RATHER THAN ARGUED.
+    Seeded with his ENTIRE real board state (101 keys) and toggling d2r_ladderMode:
+        MAIN have 120 · LADDER have 120 · BACK have 120, kept 4 and removed 1 throughout.
+    His doctrine — a profile toggle must never change a count — HOLDS today. So this guard does NOT
+    demand the keys be forked; changing storage layout on a working system is a bigger risk than
+    the hazard it removes. What it demands is that the sharing stay DELIBERATE: a key may be shared
+    only while it is named here with its reason. Add a protector, or fork the ledger differently,
+    and this goes red instead of going quiet. [[d2r-ladder-doctrine]] [[unknown-stays-unknown]]
+
+    Written after two claims of mine about this repair were cut down by measurement in one hour —
+    "it deletes four finds every load" (withdrawn) and "the stores leak across chronicles" (not
+    confirmed). The guard pins what survived, not what I first believed.
+    """
+
+    #: shared on purpose, each with the reason it is allowed to be
+    SHARED_BY_DECISION = {
+        "d2r_setRepairKept": "his re-ticks; measured 2026-08-30 to leave the count unmoved across a "
+                             "ladder round trip on his real store",
+        "d2r_setRepairRemoved": "the game's Remaining reading; same measurement",
+    }
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            self.html = _markup_only(fh.read())
+
+    def _forked(self):
+        # ⚠ was `self.html[i:i + 900]` — 900 BYTES from an anchor, which silently stops covering
+        # the list the moment a name is added to it, and reports a shrinking fork as a clean one.
+        seg = _between(self, self.html, "window._WP_FORKED", "}", what="the forked-store list")
+        return set(re.findall(r"'(d2r_[A-Za-z0-9_]+)'", seg))
+
+    def test_the_ledger_the_repair_edits_is_still_forked(self):
+        self.assertIn("d2r_setPieces", self._forked(),
+                      "the set chronicle stopped being per-profile — every assumption below, and "
+                      "the measurement this guard rests on, is about a tree where it was")
+
+    def test_every_protector_is_either_forked_or_named_here(self):
+        forked = self._forked()
+        undeclared = sorted(k for k in ("d2r_setRepairKept", "d2r_setRepairRemoved",
+                                        "d2r_grailUnfound")
+                            if k not in forked and k not in self.SHARED_BY_DECISION)
+        self.assertEqual(undeclared, [],
+                         "these decide what gets removed from a FORKED ledger while being shared "
+                         "across profiles, and nothing says that is on purpose: %s" % undeclared)
+
+    def test_the_declaration_does_not_outlive_its_reason(self):
+        """A key that became forked must leave the allowlist, or the note here starts describing a
+        tree that no longer exists — which is how a stale reason gets trusted."""
+        forked = self._forked()
+        stale = sorted(k for k in self.SHARED_BY_DECISION if k in forked)
+        self.assertEqual(stale, [],
+                         "these are now FORKED but still listed as shared-on-purpose: %s" % stale)
+
+class TestV2305TheSealRecordsWhatItTook(unittest.TestCase):
+    """★ THE WRITER THE EXTRACTION CONTRACT NEVER HAD.
+
+    frame_authority.seal_covers_extraction demands a seal name the facts it took and HOLDS anything
+    that does not — "an unstated fact is an unextracted one". MEASURED 2026-08-30: `extracted` was
+    READ at frame_authority.py:216/222/226 and WRITTEN NOWHERE. All 8 sealed recordings lacked it,
+    so the deleter planned 0 of 6719 frames freeable — not because the reels were unready, but
+    because the test could not be passed by anything. A permanent zero that reads like a
+    measurement. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+
+    def test_a_seal_that_wrote_rows_names_all_three_facts(self):
+        got, why = ca._seal_extracted(3)
+        self.assertEqual(sorted(got), sorted(ca.EXTRACTION_CONTRACT_FACTS))
+        self.assertIn("3 row", why)
+
+    def test_a_seal_THAT_FOUND_NOTHING_CLAIMS_NOTHING(self):
+        """⚠ THE LAW THE WHOLE THING TURNS ON, AND THE ONLY DIRECTION THAT MATTERS. Writing the
+        full contract unconditionally would satisfy the reader on every seal and make his footage
+        deletable on the strength of a sentence nobody measured. There is no un-delete."""
+        for rows, empty in ((0, False), (0, True), (None, False)):
+            got, _ = ca._seal_extracted(rows, empty)
+            self.assertEqual(got, [],
+                             "a sweep that took nothing must claim nothing (rows=%r empty=%r)"
+                             % (rows, empty))
+
+    def test_examined_empty_is_RECORDED_but_still_claims_no_extraction(self):
+        got, why = ca._seal_extracted(0, examined_empty=True)
+        self.assertEqual(got, [])
+        self.assertIn("nothing to take", why)
+
+    def test_the_contract_facts_come_FROM_frame_authority_not_a_second_copy(self):
+        """Two halves of one contract, re-typed apart, is how they drift. [[copy-drift]]"""
+        sys.path.insert(0, self.TV if hasattr(self, "TV") else HERE)
+        import frame_authority as fa
+        self.assertEqual(tuple(ca.EXTRACTION_CONTRACT_FACTS), tuple(fa.EXTRACTION_CONTRACT))
+
+    def test_every_seal_site_writes_the_record(self):
+        """A writer that only runs on one of three paths leaves the other two unsealable for ever."""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = _code_only(fh.read())
+        # ⚠ was `src[i:i + 60000]`, and the `if i >= 0 else src` fallback silently graded the
+        # WHOLE FILE when the anchor moved — so the counts below would have balanced for reasons
+        # having nothing to do with vault_sweep_run. _between fails loudly instead.
+        # ⚠ THE ANCHOR WAS WRONG ALL ALONG: the function is `_vault_sweep_run`, with a leading
+        # underscore, so `src.find("def vault_sweep_run")` returned -1 and the old
+        # `if i >= 0 else src` fallback graded the WHOLE FILE. The counts still balanced —
+        # these two strings appear nowhere else — so the guard passed for a reason that had
+        # nothing to do with the function it named. Converting to _between made it fail
+        # loudly, which is the entire point of refusing a silent fallback.
+        # [[source-reading-guard]] [[feedback-blind-fixture-green-gate]]
+        seg = _between(self, src, "def _vault_sweep_run", "\ndef ", what="_vault_sweep_run")
+        n_seals = seg.count('swept[str(sess)] = {')
+        n_extr = seg.count('"extracted": _ex')
+        self.assertGreaterEqual(n_seals, 3, "the seal sites moved; re-point this guard")
+        self.assertEqual(n_extr, n_seals,
+                         "%d seal site(s) but only %d write `extracted` — the ones that do not can "
+                         "never satisfy the contract" % (n_seals, n_extr))
+
+class TestV2306TheExaminedEmptySealActuallyLands(unittest.TestCase):
+    """★ SIX DAYS OF "STARTED BUT NEVER WROTE A RESULT" WAS ONE EMPTY LIST.
+
+    The branch for "examined, and there is no stash screen in this reel" sealed
+    prop["sessionsRead"] — the reels a panel was READ from. In exactly that branch nothing is read,
+    so the loop ran zero times, `_seal_pending` was set anyway, and the sweep printed a confident
+    "Sealed at vp2017" over a write that never happened.
+
+    REPRODUCED TWICE at zero paid cost on 2026-08-30 against reel_s_1787239578536_99671 (57 frames,
+    every one refused by the free structural gate):
+        printed                  : "✅ examined 1 frame(s) and NONE is a stash screen ... Sealed"
+        prop["sessionsRead"]     : []
+        vault_swept.json         : reel ABSENT, still owed
+    Every pass repeated it; the watchdog burned a try each time and after two retired the reel with
+    a message blaming a write failure that never occurred. 452 MB across two reels sat owed for six
+    days and the lane read as dead. After the fix: both sealed, vault owes 0.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    """
+
+    def _retro(self):
+        sys.path.insert(0, HERE)
+        import vault_retro
+        return vault_retro
+
+    def test_the_sweep_reports_what_it_EXAMINED_not_only_what_it_read(self):
+        src = _code_only(io.open(os.path.join(HERE, "vault_retro.py"), encoding="utf-8").read())
+        self.assertIn('"sessionsExamined"', src,
+                      "the sweep must say which reels it OPENED; a branch about reels it found "
+                      "nothing in cannot be driven by the list of reels it read from")
+        self.assertIn("sessions_examined.append", src,
+                      "the field exists but nothing fills it — that is the same defect one layer "
+                      "along")
+
+    def test_an_empty_proposal_still_carries_the_field(self):
+        vr = self._retro()
+        empty = vr._empty("nothing to do")
+        self.assertIn("sessionsExamined", empty,
+                      "a refusal that omits the key makes every reader fall back to sessionsRead, "
+                      "which is the bug")
+
+    def test_the_seal_branch_reads_sessionsExamined_FIRST(self):
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        i = src.find('sessionsExamined')
+        self.assertGreater(i, -1, "control_app no longer prefers the examined list")
+        seg = src[max(0, i - 400):i]
+        self.assertIn("_examined_and_empty", seg,
+                      "sessionsExamined must be consumed by the examined-and-empty branch — that "
+                      "is the only branch whose whole meaning is 'nothing was read here'")
+
+class TestV2314TwoDeletersTwoQuestions(unittest.TestCase):
+    """★★★ 388.6 MB OF HIS FOOTAGE WENT ON 2026-08-30, AND MY FIRST TWO FIXES WERE BOTH WRONG.
+
+    WHAT HAPPENED: I swept reel_s_1786922954749_12579 to clear a six-day vault backlog. Sealing it
+    made it eligible. The tvd-retention lane ran, retention_may_act() said yes, apply_plan deleted
+    it. I had told him three times that nothing could delete, because I checked _PRUNE_SAFE_TO_RUN
+    (the FRAME prune, disarmed) and never retention_may_act() (the REEL pass, armed by default).
+
+    FIX 1, WITHDRAWN: I made the reel deleter opt-in. That disobeyed his explicit ruling —
+    "automatically prune its not a question.. needs to be defaulted in" — and six cases already
+    pinned the default deliberately.
+
+    FIX 2, WITHDRAWN: I made retention require frame_authority's extraction contract. Three
+    deliberate cases went red and were right: every seal on his tree predates that contract, so it
+    would have stopped the prune firing on ANY existing reel.
+
+    WHAT IS ACTUALLY TRUE, and what this pins: the two deleters answer DIFFERENT questions at
+    different granularities, and both are correct.
+        reel_retention   may this REEL go   — both lanes finished with it
+        frame_authority  may this FRAME go  — stricter; a frame is the last copy of a name
+    The reel that went had 286 pages read and a vault seal confirming no stash screen existed. The
+    rule was right. The mistake was mine. [[feedback-suspect-the-instrument]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+
+    def test_his_default_stands_auto_prune_is_ON_unless_switched_off(self):
+        had = os.environ.get("TV_AUTO_PRUNE")
+        try:
+            os.environ.pop("TV_AUTO_PRUNE", None)
+            self.assertTrue(ca.retention_may_act()[0], "his ruling: defaulted in")
+            for v in ("0", "off", "false", "no", "none", "never"):
+                os.environ["TV_AUTO_PRUNE"] = v
+                self.assertFalse(ca.retention_may_act()[0],
+                                 "every spelling of off must mean off (%r)" % v)
+        finally:
+            if had is None:
+                os.environ.pop("TV_AUTO_PRUNE", None)
+            else:
+                os.environ["TV_AUTO_PRUNE"] = had
+
+    def test_there_are_TWO_deleters_and_a_reader_must_not_mistake_one_for_the_other(self):
+        """⚠ THE LESSON, ENCODED. I reported 'the prune is off' from one flag while the other was
+        live. Both must remain findable by name, so the next reader enumerates instead of assuming."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        self.assertIn("_PRUNE_SAFE_TO_RUN", src, "the FRAME prune switch vanished")
+        self.assertIn("def retention_may_act", src, "the REEL deleter's gate vanished")
+
+    def test_the_frame_authority_is_the_stricter_of_the_two(self):
+        """It protects witness frames, so it may never be the looser one."""
+        import frame_authority as fa
+        ok, why = fa.seal_covers_extraction({"ts": 1, "rows": 0, "promptVer": "vp2017"})
+        self.assertFalse(ok, "a seal naming nothing it took must not clear the FRAME contract")
+        self.assertIn("never says WHAT it took", why)
+
+    def test_retention_does_NOT_consult_that_contract_and_that_is_deliberate(self):
+        """Withdrawn fix 2, encoded so it is not re-attempted: reel eligibility is about both lanes
+        being finished, not about the frame-level extraction contract."""
+        src = _code_only(io.open(os.path.join(HERE, "reel_retention.py"), encoding="utf-8").read())
+        self.assertNotIn("seal_covers_extraction", src,
+                         "reel_retention must not adopt the FRAME contract — every existing seal "
+                         "predates it, so the prune would never fire again")
+
+
+class TestV2304ShadowOnlyRollsAReelWhenItShould(unittest.TestCase):
+    """★ THE PATH THAT CANNOT BE TESTED LIVE, WHICH IS EXACTLY WHY IT NEEDS A GUARD.
+
+    The shadow watcher starts a RECORDING without him pressing anything, and the only way to see
+    it do that for real is to have Diablo on screen. So the decision is stubbed here: every refusal
+    is asserted by name, and the one path that starts a reel is asserted to go through
+    start_agent() — the same door /api/on uses — rather than a second capture of its own.
+
+    HIS EVENING: 28 reels on disk, newest 154 hours old, zero in 24h, with the switch ON the whole
+    time. Shadow was a reader of frames another mode had rolled, so nothing rolled and nothing was
+    read. [[label-outlived-referent]]
+    """
+
+    def setUp(self):
+        self._saved = {k: getattr(ca, k, None) for k in
+                       ("_shadow_state", "_agent_alive", "mini_state", "start_agent")}
+        self._started = []
+        ca._shadow_state = lambda: {"on": True, "available": True, "recording": False}
+        ca._agent_alive = lambda: False
+        ca.mini_state = lambda: {"running": False}
+        ca.start_agent = lambda *a, **k: (self._started.append(k) or {"ok": True, "msg": "on air"})
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            if v is not None:
+                setattr(ca, k, v)
+
+    def _with_window(self, win):
+        import tv_diablo as tv
+        real = tv.find_d2r_window_mac
+        tv.find_d2r_window_mac = lambda *a, **k: win
+        try:
+            return ca.shadow_watch_tick()
+        finally:
+            tv.find_d2r_window_mac = real
+
+    def test_no_game_on_screen_starts_nothing(self):
+        r = self._with_window(None)
+        self.assertEqual(self._started, [], "it rolled a reel with no Diablo window")
+        self.assertIn("not on screen", str(r.get("why")))
+
+    def test_the_game_on_screen_rolls_a_reel_through_start_agent(self):
+        r = self._with_window((123, "Diablo II: Resurrected"))
+        self.assertTrue(r.get("started"), "the game was on screen and no reel rolled: %s" % r)
+        self.assertEqual(len(self._started), 1,
+                         "it must start exactly ONE reel, through the same door /api/on uses")
+
+    def test_it_never_starts_a_SECOND_reel(self):
+        ca._agent_alive = lambda: True
+        r = self._with_window((123, "Diablo II: Resurrected"))
+        self.assertEqual(self._started, [],
+                         "a reel was already rolling and it started another — two captures over "
+                         "one session make every later read unattributable")
+        self.assertIn("already rolling", str(r.get("why")))
+
+    def test_a_mini_countdown_holds_it_off(self):
+        ca.mini_state = lambda: {"running": True}
+        self._with_window((123, "Diablo II: Resurrected"))
+        self.assertEqual(self._started, [], "it cut across a mini capture")
+
+    def test_the_switch_being_OFF_means_off(self):
+        ca._shadow_state = lambda: {"on": False, "available": True, "recording": False}
+        self._with_window((123, "Diablo II: Resurrected"))
+        self.assertEqual(self._started, [], "it recorded while he had shadow switched off")
+
+class TestV2316BothForgeFamiliesNameTheirUNIT(unittest.TestCase):
+    """★ THE CONFUSION THAT STARTED IT: "i see like for Sets 4 are missing.. only 11 show".
+
+    A forge tile row puts counts of DIFFERENT THINGS side by side — "All missing" counts pieces or
+    items, "Best runs" counts RUNS, "Quick wins" counts SETS on F-Sets and ITEMS on F-Uniques.
+    Bare numbers make them read as one kind of quantity, and that is exactly the subtraction he
+    tried to do. v2300 put units on F-Sets and stopped; F-Uniques stayed bare for a whole ship.
+    [[label-outlived-referent]]
+
+    RENDERED AND READ BACK at 1440 and 375:
+        F-Uniques  All missing 145 items · Best runs 14 runs · Quick wins 23 items · Found 258 items
+        F-Sets     All missing 27 pieces · Best runs 8 runs  · Quick wins 6 sets   · Found 108 pieces
+    """
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            self.html = _markup_only(fh.read())
+
+    def _tiles(self):
+        import re as _re
+        pat = (r"_tile\('(\w+)','[^']*','([^']*)','[^']*',[^,]{1,60},F,"
+               r"'window\.(funi|fsets)SetFilter'(,'(\w+)')?\)")
+        return [(m.group(3), m.group(1), m.group(2), m.group(5))
+                for m in _re.finditer(pat, self.html)]
+
+    def test_every_tile_in_BOTH_families_names_its_unit(self):
+        tiles = self._tiles()
+        self.assertEqual(len(tiles), 8, "expected 4 tiles per family, found %d" % len(tiles))
+        bare = [(f, k) for f, k, _lbl, u in tiles if not u]
+        self.assertEqual(bare, [],
+                         "these tiles print a bare number beside tiles counting something else: %s"
+                         % bare)
+
+    def test_the_runs_tile_is_the_one_that_differs_and_says_so(self):
+        """This is the whole point: on both families 'Best runs' counts a DIFFERENT thing from
+        every tile beside it, and only the unit can say so."""
+        for fam in ("funi", "fsets"):
+            units = dict((k, u) for f, k, _l, u in self._tiles() if f == fam)
+            self.assertEqual(units.get("runs"), "runs",
+                             "%s Best runs stopped naming its unit" % fam)
+            others = set(u for k, u in units.items() if k != "runs")
+            self.assertNotIn("runs", others,
+                             "%s: a non-runs tile is claiming to count runs" % fam)
+
+    def test_the_two_families_do_not_share_a_unit_vocabulary_by_accident(self):
+        """F-Sets counts PIECES and SETS; F-Uniques counts ITEMS. Collapsing them would recreate
+        the 15-pieces-vs-11-sets subtraction he tried to do."""
+        u = dict(((f, k), un) for f, k, _l, un in self._tiles())
+        self.assertEqual(u[("fsets", "all")], "pieces")
+        self.assertEqual(u[("fsets", "near")], "sets")
+        self.assertEqual(u[("funi", "all")], "items")
+
+
+class TestV2316ReaderWilson(unittest.TestCase):
+    """★ WILSON ON THE READERS THEMSELVES — "put this system everywhere ... and on the items it
+    reads too and where they are".
+
+    MEASURED on his live journal, 2344 sessions / 206 findings:
+        gems       1 of 3 reads came back -> Wilson floor 0.061
+        materials  3 of 3 reads came back -> Wilson floor 0.438
+        runes      1 of 1 reads came back -> Wilson floor 0.207
+
+    materials is a PERFECT record scoring 0.438, which is the whole point: three samples cannot
+    earn a claim of a perfect reader, and a raw ratio would have printed 100%.
+    """
+
+    def test_verdict_A_is_not_a_failed_read(self):
+        """A = "never saw the panel" — 198 of his 206 findings. Counting it as a miss would score
+        every reader near zero forever while measuring only how often he opens his stash."""
+        rows = [{"tab": "gems", "verdict": "A · never saw the panel"}] * 40
+        rows += [{"tab": "gems", "verdict": "E · worked"}]
+        w = ca.reader_wilson(rows)["tabs"]["gems"]
+        self.assertEqual(w["n"], 1, "verdict A leaked into the denominator")
+        self.assertEqual(w["noPanel"], 40, "the no-panel count was lost instead of reported")
+
+    def test_a_perfect_record_on_thin_evidence_does_NOT_score_one(self):
+        rows = [{"tab": "materials", "verdict": "E · worked"}] * 3
+        w = ca.reader_wilson(rows)["tabs"]["materials"]
+        self.assertEqual((w["k"], w["n"]), (3, 3))
+        self.assertLess(w["wilson"], 0.6,
+                        "3-for-3 scored %r — a raw ratio, not a lower bound" % w["wilson"])
+
+    def test_it_sharpens_with_evidence(self):
+        thin = ca.reader_wilson([{"tab": "t", "verdict": "E · worked"}] * 3)["tabs"]["t"]["wilson"]
+        thick = ca.reader_wilson([{"tab": "t", "verdict": "E · worked"}] * 40)["tabs"]["t"]["wilson"]
+        self.assertGreater(thick, thin,
+                           "40 successes did not outrank 3 — the score is not evidence-weighted")
+
+    def test_an_untagged_finding_is_not_attributed_to_a_tab(self):
+        """199 of his 206 findings carry tab '-'. Guessing which tab they belong to would invent
+        evidence. [[unknown-stays-unknown]]"""
+        rows = [{"tab": "-", "verdict": "E · worked"}, {"tab": "", "verdict": "E · worked"}]
+        self.assertEqual(ca.reader_wilson(rows)["tabs"], {},
+                         "an unattributed finding was credited to some tab")
+
+    def test_it_decides_nothing(self):
+        self.assertEqual(ca.reader_wilson([])["mode"], "shadow",
+                         "this lane must not gate anything until he promotes it")
+
+
+class TestV2316TheTooltipCheckMeasuresSomething(unittest.TestCase):
+    """★ A NUMBER THAT NO STATE OF THE WORLD COULD CHANGE IS NOT A FINDING.
+
+    `surfaces.missing_tooltip_wiring()` was named for what it should measure and coded for
+    something else: it returned every surface with tooltip=True, so it answered
+    ['gems','inventory','materials','runes','stash'] and would have answered exactly that forever.
+    Read as "5 surfaces are missing their wiring" — which is how it reads — it was reporting a
+    constant. [[label-outlived-referent]]
+
+    ⚠ AND THE FINDING IT SEEMED TO SUPPORT WAS WRONG TOO. "tooltip_crop reaches only one reader,
+    so four surfaces are starved" does not survive measurement: a tooltip rect is derived by
+    DIFFERENCING consecutive frames, stash_eye reads one frame, so the step belongs to the reel
+    sweep where it already lives. ONE production importer is correct.
+    """
+
+    def test_it_reports_honoured_today(self):
+        import surfaces as S
+        ok, why = S.tooltip_wiring()
+        self.assertTrue(ok, "the tooltip step is not honoured: %s" % why)
+        self.assertEqual(S.missing_tooltip_wiring(), [],
+                         "surfaces are asking for a tooltip step nobody performs")
+
+    def test_the_declaration_and_the_verdict_are_DIFFERENT_questions(self):
+        """The bug was these two being the same function."""
+        import surfaces as S
+        self.assertEqual(S.tooltip_surfaces(),
+                         ["gems", "inventory", "materials", "runes", "stash"],
+                         "the declared ask changed")
+        self.assertNotEqual(S.tooltip_surfaces(), S.missing_tooltip_wiring(),
+                            "asking-for-it and not-getting-it are answering identically again — "
+                            "that is the exact defect this replaced")
+
+    def test_the_scanner_does_not_count_its_own_probe(self):
+        """surfaces.py imports tooltip_crop to CHECK it; counting that is self-certification."""
+        import surfaces as S
+        self.assertNotIn("surfaces.py", S.tooltip_callers(),
+                         "the wiring check reported itself as the production consumer")
+
+    def test_it_can_go_RED(self):
+        """A guard never seen red is measuring nothing. Force the failing condition directly."""
+        import surfaces as S
+        real = S.tooltip_callers
+        S.tooltip_callers = lambda: []
+        try:
+            ok, why = S.tooltip_wiring()
+            missing = S.missing_tooltip_wiring()
+        finally:
+            S.tooltip_callers = real
+        self.assertFalse(ok, "with NO production importer it still reported the step honoured")
+        self.assertEqual(missing, ["gems", "inventory", "materials", "runes", "stash"],
+                         "it went red without naming which surfaces are starved")
+
+
+class TestV2316OnePreflightForEveryCaptureDoor(unittest.TestCase):
+    """★ THREE DOORS, ONE SET OF FACTS — and a Wilson score each door has to EARN.
+
+    Konyo, 2026-08-30: "these readers and captures and tools all need to be unified logic so they
+    are not gapped out from the code and techniques and architecture we already built", then
+    "make them all the same obviously.. locking in the diablo ii window.. and wilson score it in
+    together so it proves itself".
+
+    MEASURED THAT MORNING, before the fix — which door you came through decided which reasons got
+    checked at all:
+
+        door     grant  disk-floor  window  reel-rolling  mini-running
+        onair     yes       -          -        yes            -
+        shadow     -       yes        yes       yes           yes
+        mini       -       yes         -        yes            -
+
+    Not one door checked all five. MINI's disk block even carries the comment "copied verbatim
+    from /api/on" — and ON AIR then grew a Screen Recording refusal that MINI never received, so
+    MINI would recud 25s of desktop wallpaper and pay for a retro read of it. [[copy-drift]]
+    """
+
+    def test_a_check_that_was_not_performed_is_None_never_False(self):
+        pre = ca.capture_preflight("onair", look_for_window=False)
+        self.assertIsNone(pre["windowSeen"],
+                          "look_for_window=False must leave windowSeen UNKNOWN. False would mean "
+                          "'we looked and Diablo was absent', which nobody measured")
+        self.assertEqual(pre["door"], "onair")
+
+    def test_every_door_reports_the_same_vocabulary(self):
+        keys = None
+        for door in ("onair", "mini", "shadow"):
+            pre = ca.capture_preflight(door, look_for_window=False)
+            got = set(pre.keys())
+            if keys is None:
+                keys = got
+            self.assertEqual(got, keys,
+                             "door %r answers with a different set of facts — that is the gap "
+                             "this preflight exists to close" % door)
+        for need in ("screenRecOk", "diskOk", "windowSeen", "reelRolling", "miniRunning"):
+            self.assertIn(need, keys, "the preflight lost the %r fact" % need)
+
+    def test_MINI_refuses_AT_ITS_OWN_DOOR_and_names_its_own_button(self):
+        """⚠ THIS TEST WAS FIRST WRITTEN AS A LIE, AND A SABOTAGE CAUGHT IT.
+
+        The first version asserted "MINI now refuses when the grant is absent" and called it a
+        capability MINI never had. Disabling the new branch left it GREEN — because MINI spawns
+        through start_agent(), which has refused on a missing grant since v1251. MINI was already
+        safe. Only disabling BOTH checks turned it red, and then MINI really did start
+        (sid s_1788088034556_69002, killed by pid).
+
+        So the honest claim is narrower: the refusal now happens at MINI's OWN door, before the
+        countdown and the session id, and it names the button he actually pressed. That is what
+        this asserts, and removing the branch makes it fail. A guard must fail for the reason it
+        names. [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+        """
+        real = ca._screen_recording_ok_quick
+        ca._screen_recording_ok_quick = lambda: False
+        try:
+            r = ca.mini_start(seconds=25, test=True)
+        finally:
+            ca._screen_recording_ok_quick = real
+        self.assertFalse(r.get("ok"), "MINI recorded with no Screen Recording grant: %s" % r)
+        err = str(r.get("error") or "")
+        self.assertIn("Screen Recording", err, "the grant must be named")
+        self.assertIn("MINI", err,
+                      "refused with ON AIR's wording — that is start_agent answering for MINI "
+                      "from one door further in, which is the drift this preflight closes")
+        self.assertIsNone(r.get("sid"),
+                          "a session id was minted for a reel that was never allowed to roll")
+
+    def test_no_evidence_scores_None_not_zero(self):
+        """0.0 says 'measured, and it fails'. None says 'nobody has evidence'. [[unknown-stays-unknown]]"""
+        real = ca._capture_door_load
+        ca._capture_door_load = lambda: {}
+        try:
+            rep = ca.capture_door_report()
+        finally:
+            ca._capture_door_load = real
+        for door, row in rep.items():
+            self.assertIsNone(row["wilson"],
+                              "%s scored %r with zero sealed reels" % (door, row["wilson"]))
+            self.assertEqual(row["judged"], 0)
+
+    def test_a_blank_reel_counts_AGAINST_the_door_that_opened_it(self):
+        """His 13:49 shadow reel: opened correctly, four near-black reads, zero names.
+
+        It must land in the denominator and not the numerator, or a door that keeps rolling
+        unreadable film keeps a perfect score.
+        """
+        real = ca._capture_door_load
+        ca._capture_door_load = lambda: {"shadow": {"filmed": 3, "blank": 1}}
+        try:
+            rep = ca.capture_door_report()
+        finally:
+            ca._capture_door_load = real
+        row = rep["shadow"]
+        self.assertEqual((row["filmed"], row["blank"], row["judged"]), (3, 1, 4))
+        self.assertIsNotNone(row["wilson"])
+        self.assertLess(row["wilson"], 0.75,
+                        "the Wilson FLOOR on 3/4 must sit below the naive ratio — that is the "
+                        "whole point of a lower bound on thin evidence")
+
+    def test_the_score_sharpens_as_evidence_accumulates(self):
+        """Same 75% success rate, more trials -> a higher floor. Self-proving, by construction."""
+        real = ca._capture_door_load
+        try:
+            ca._capture_door_load = lambda: {"shadow": {"filmed": 3, "blank": 1}}
+            thin = ca.capture_door_report()["shadow"]["wilson"]
+            ca._capture_door_load = lambda: {"shadow": {"filmed": 30, "blank": 10}}
+            thick = ca.capture_door_report()["shadow"]["wilson"]
+        finally:
+            ca._capture_door_load = real
+        self.assertGreater(thick, thin,
+                           "40 trials at the same rate must outrank 4 — otherwise the score is "
+                           "not evidence-weighted and proves nothing")
+
+
+class TestV2316StaleCaptureNeverNamesAnUnmeasuredCause(unittest.TestCase):
+    """★ IT SENT HIM TO SYSTEM SETTINGS TO FIX A PERMISSION HE ALREADY HAD.
+
+    2026-08-30, on his screen: "CAPTURE STALLED — Last frame is stale. Grant Screen Recording to
+    Python / TV DIABLO". In the SAME process, doctor check `screen_recording` read ok:True. He was
+    sitting on a D2R loading screen, which is static and near-black BY DESIGN
+    (tv_diablo.py:6614) — so the capture was fine and the advice was fiction.
+
+    A fault that asserts an unmeasured cause is worse than one that says "I don't know", because
+    he acts on it. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+    """
+
+    def setUp(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            self.html = _markup_only(fh.read())
+
+    def test_the_grant_is_only_named_when_it_is_actually_absent(self):
+        seg = _between(self, self.html, "if (shb) {", "if (shh)",
+                       what="the stage-hold body block")
+        self.assertIn("Last frame is stale", seg, "the stale-frame card is gone")
+        self.assertIn("screenRecOk", seg,
+                      "the stale-frame card still decides without consulting the MEASURED grant")
+
+    def test_the_console_publishes_the_measured_grant(self):
+        import re as _re
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('"screenRecOk"', src,
+                      "the UI cannot consult a fact the payload never carries")
+
+
+class TestV2313EverySurfaceIsDeclared(unittest.TestCase):
+    """★ ONE TABLE FOR EVERY IN-GAME SURFACE, so a fix to one reader can be seen not to reach another.
+
+    Konyo: "the readers and ai analyzers all need the same upgraded logic and tools ... it needs a
+    unified additive only nothing should be stripped from any of them".
+
+    tv/surfaces.py is a DECLARATION — no reader changes behaviour by importing it. What it buys is
+    that the facts live in one place: which reader owns a surface, its anchor law, its enlarge
+    technique, and whether the tooltip step applies. Two coordinate laws remain (left-anchored panel
+    vs centered modal) because that difference is REAL; the calibration of his screen being written
+    twice is the drift, and corroborate + health_engine watch that separately. [[copy-drift]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+
+    def test_every_focus_he_can_press_is_a_surface_a_reader_can_read(self):
+        """The two lists must not part: a focus with no surface is a reel nothing knows how to
+        read, and a surface with no focus is a reader nothing can aim."""
+        import surfaces as S
+        focuses = set(ca.MINI_FOCUSES)
+        declared = set(S.SURFACES)
+        missing = sorted(focuses - declared)
+        self.assertEqual(missing, [],
+                         "he can press these and no reader declares how to read them: %s" % missing)
+
+    def test_every_surface_names_a_reader_that_exists(self):
+        import surfaces as S
+        for name, d in S.SURFACES.items():
+            mod = d.get("reader")
+            self.assertTrue(mod, "%s declares no reader" % name)
+            __import__(mod)          # raises if the module is gone
+
+    def test_every_surface_declares_its_anchor_law(self):
+        import surfaces as S
+        for name, d in S.SURFACES.items():
+            self.assertIn(d.get("anchor"), (S.LEFT_ANCHORED, S.CENTER_MODAL),
+                          "%s does not say how its panel is anchored, which is the one fact the "
+                          "two readers genuinely differ on" % name)
+
+    def test_a_surface_that_needs_the_tooltip_says_WHY(self):
+        """⚠ The tooltip is the ONLY place an item name appears — a stash GRID prints none. A
+        surface may not carry that flag without a reason on record."""
+        import surfaces as S
+        for name, d in S.SURFACES.items():
+            self.assertTrue(str(d.get("why") or "").strip(),
+                            "%s declares tooltip=%s with no reason" % (name, d.get("tooltip")))
+
+    def test_the_registry_does_not_invent_a_surface_nobody_reads(self):
+        import surfaces as S
+        extra = sorted(set(S.SURFACES) - set(ca.MINI_FOCUSES) - {"inventory"})
+        self.assertEqual(extra, [],
+                         "these are declared but he cannot record them and no lane reads them: %s "
+                         "(inventory is exempt: it is read as part of the stash surface and is "
+                         "LOCKED against throw suggestions)" % extra)
+
 class TestV2292WhatIsTrueNowGoesOnTheLine(unittest.TestCase):
     """★ Konyo about this rail, twice: "too much to read here.. needs proper tuning even maybe..
     like whats needed to know basis honestly" and "i want data i just want it more short and to the
@@ -21899,8 +22556,33 @@ class TestV2086TheThreeThingsThatWereQuietlyTrue(unittest.TestCase):
         self.assertEqual(src.count("_free < 8.0"), 0,
                          "a bare 8.0 floor literal is back — it can drift from ON_AIR_FLOOR_GB, "
                          "and then the deleter and the recorder disagree about the same threshold")
-        self.assertGreaterEqual(src.count("_free < ON_AIR_FLOOR_GB"), 2,
-                                "the record-refusal sites stopped reading the shared floor")
+        # v2316 — WAS: assertGreaterEqual(src.count("_free < ON_AIR_FLOOR_GB"), 2). That counted a
+        # code SHAPE, and v2316 centralised the comparison into capture_preflight() so the shape
+        # legitimately went from 2 sites to 1. Loosening a guard to admit my own change is how a
+        # guard becomes furniture, so this asserts something STRONGER instead: the floor has one
+        # definition, and EVERY door that can start a recording routes its disk decision through
+        # the one preflight that reads it. Hardcode a floor in any door and this fails.
+        # ⚠ ANCHORED AT LINE START. `src.count("ON_AIR_FLOOR_GB =")` also matches
+        # `_ON_AIR_FLOOR_GB = ON_AIR_FLOOR_GB`, which is an alias that correctly READS the shared
+        # floor — so the first cut of this guard reported the one-definition rule as broken by the
+        # very line that honours it. A substring is not a definition. [[source-reading-guard]]
+        import re as _re
+        _defs = _re.findall(r"^ON_AIR_FLOOR_GB\s*=", src, _re.M)
+        self.assertEqual(len(_defs), 1,
+                         "the shared floor has %d top-level definitions — that is the drift the "
+                         "original guard was built to stop" % len(_defs))
+        self.assertIn("def capture_preflight(", src,
+                      "the one place the floor is compared has gone")
+        pre = _between(self, src, "def capture_preflight(", "\ndef _capture_door_load",
+                       what="capture_preflight")
+        self.assertIn("ON_AIR_FLOOR_GB", pre,
+                      "capture_preflight stopped reading the shared floor, so every door that "
+                      "trusts it is now deciding against nothing")
+        for door in ("shadow_watch_tick", "mini_start"):
+            body = _between(self, src, "def %s(" % door, "\ndef ", what=door)
+            self.assertIn("capture_preflight(", body,
+                          "%s stopped asking the shared preflight — it is deciding whether it can "
+                          "record from its own idea of the floor again" % door)
 
     def test_the_deleter_and_the_recorder_use_the_SAME_number(self):
         """Read at runtime, not from the text — the property is that they are equal, not that they

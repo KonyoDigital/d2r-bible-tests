@@ -2935,6 +2935,17 @@ def start_agent(sim=False, test=False, mini=None, focus=None):
         # v1251 — refuse LIVE start when THIS process lacks Screen Recording TCC.
         # Headless supervisor spawn → agent inherits deny → window pin fails → desktop
         # wallpaper on the eye (Konyo live 2026-07-22). SIM still allowed.
+        # v2316 — ON AIR now reads the SAME preflight shadow and MINI read, so all three doors
+        # refuse for the same reasons in the same words. It keeps its own grant refusal exactly as
+        # it was (nothing stripped) and additionally records disk + window facts, which it never
+        # measured before — that is why /api/on could open a reel with the disk under the floor
+        # while shadow refused the identical action one door over.
+        if sys.platform == "darwin" and not sim and not env.get("TV_STUB"):
+            try:
+                _pre_on = capture_preflight("onair", look_for_window=False)
+                _capture_door_note("onair", _pre_on)
+            except Exception:
+                pass
         if (sys.platform == "darwin" and not sim and not env.get("TV_STUB")
                 and not _screen_recording_ok_quick()):
             _agent_mode = "off"
@@ -3543,6 +3554,116 @@ def _reel_sweep_indexes(hist=None, why="boot"):
     return fixed
 
 
+
+def _last_session_produced_names():
+    """v2316 — did the most recent session yield ANY named read? -> True / False / None.
+
+    None means the journal could not be read at all, which must never be credited as a blank reel.
+    [[unknown-stays-unknown]]
+    """
+    try:
+        # ⚠ _journal_path() IS THE ONLY SITE ALLOWED TO BUILD THIS PATH, and my first draft built
+        # its own — the precise hole v1493 exists to close: a test pointing TV_SESSIONS elsewhere
+        # would have had this read the REAL journal behind its back and credit a door from his
+        # live film. The guard caught it. [[feedback-fixtures-never-touch-live-data]]
+        path = _journal_path()
+        if not path or not os.path.exists(path):
+            return None
+        rows = []
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    rows.append(line)
+        sid, names = None, 0
+        for line in reversed(rows[-400:]):
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            this = r.get("sessionId")
+            if sid is None:
+                if not this:
+                    continue
+                sid = this
+            if this != sid:
+                break
+            for key in ("names", "ocr_names", "confirmed_names", "vault_names"):
+                v = r.get(key)
+                if isinstance(v, list):
+                    names += len([x for x in v if x])
+        if sid is None:
+            return None
+        return names > 0
+    except Exception:
+        return None
+
+
+def after_session_ended(why="a session ended"):
+    """Every capture route ends here, so the work that FOLLOWS a session starts here too. -> dict
+
+    ★ v2307 — Konyo: "it needs to automatically prune and automatically start tasking right after
+    to read and analyze and extract all data so it can automatically delete! this is important so
+    nothing gets jammed up", and then: "add it to the ON air And mini also".
+
+    ON AIR, MINI and the v2304 shadow watcher all stop through stop_agent() — /api/stop, the mini
+    sealer at :12298 ("through the SAME path /api/stop uses") and the watcher alike. So this hook
+    lives at the ONE place they share. A per-route copy is how three capture modes end up with
+    three different ideas of what happens afterwards. [[copy-drift]]
+
+    ⚠ IT NUDGES, IT DOES NOT SWEEP HERE. The lanes already own the work and their own refusals; all
+    this does is stop the reel he just filmed waiting on a 45-second timer. Doing the sweep inline
+    would put a paid, minutes-long read inside the call that stops his recording.
+
+    ⚠ AND IT DELETES NOTHING. It reports what retention would consider, because "extract, THEN
+    delete" only holds if the extraction is what moved first. frame_authority remains the one thing
+    that may free a frame, and _PRUNE_SAFE_TO_RUN remains his.
+    """
+    out = {"why": why, "nudged": [], "owed": None, "plan": None}
+    # v2316 — CREDIT THE DOOR FROM THE FILM, not from the door's own say-so. The reel that just
+    # ended was opened by exactly one of ON AIR / MINI / shadow; whether it held readable film is
+    # a fact about the journal, so it is read from the journal here. A blank reel counts against
+    # the door that opened it, which is how a door that keeps rolling near-black film stops being
+    # trusted without anyone having to notice by hand.
+    try:
+        _door = (_capture_door_load() or {}).get("_lastDoor")
+        if _door:
+            _named = _last_session_produced_names()
+            if _named is not None:
+                capture_door_credit(_door, _named)
+                out["doorCredited"] = {"door": _door, "heldFilm": bool(_named)}
+                _d = _capture_door_load()
+                _d.pop("_lastDoor", None)
+                _capture_door_save(_d)
+    except Exception as _e:
+        out["doorCredited"] = {"error": str(_e)[:90]}
+    try:
+        r = vault_autoreel_tick()
+        out["nudged"].append({"lane": "vault", "r": (r or {}).get("why")})
+    except Exception as e:
+        out["nudged"].append({"lane": "vault", "r": "tick raised: %s" % str(e)[:80]})
+    try:
+        n = _chron_owed_count()
+        out["owed"] = n if isinstance(n, int) else None
+    except Exception:
+        out["owed"] = None
+    try:
+        import reel_retention as _rr
+        p = _rr.plan(HIST_DIR)
+        if p.get("ok"):
+            out["plan"] = {"candidates": len(p.get("candidates") or []),
+                           "say": str(p.get("say") or "")[:160]}
+    except Exception:
+        out["plan"] = None
+    try:
+        print("   \U0001f501 after the session: vault lane nudged, %s owed a chronicle read, %s"
+              % (("?" if out["owed"] is None else out["owed"]),
+                 ((out["plan"] or {}).get("say") or "retention could not be asked")), flush=True)
+    except Exception:
+        pass
+    return out
+
+
 def stop_agent(farewell=True):
     """v847/v899 — OFF/STOP both SAVE the session (session_end journal via /shutdown).
     STOP: short farewell (hard-cap ~18s, was 95s). OFF: seal only. Then hard-kill orphans.
@@ -3729,6 +3850,16 @@ def stop_agent(farewell=True):
             pass
         try:
             _prewarm_seal_cache()   # v879 (Grok j) — theatre derivatives warm while the Mac is quiet
+        except Exception:
+            pass
+        # v2307 — AND THE WORK THAT FOLLOWS A SESSION. Every capture route lands here: ON AIR via
+        # /api/stop, MINI via the sealer that says it uses "the SAME path /api/stop uses", and the
+        # v2304 shadow watcher. In the `finally`, so it runs on the forced path too — a session
+        # that had to be killed is exactly the one whose reel would otherwise sit unread.
+        # It nudges and reports; it does not sweep inline and it deletes nothing.
+        try:
+            threading.Thread(target=after_session_ended, args=("a capture session ended",),
+                             daemon=True).start()
         except Exception:
             pass
 
@@ -4012,6 +4143,210 @@ def _screen_recording_ok_quick():
         return True  # no Quartz → don't block; capture path will self-diagnose
 
 
+def capture_preflight(door, look_for_window=True):
+    """v2316 — ONE preflight for EVERY capture door. Doors: "onair", "mini", "shadow".
+
+    WHY THIS EXISTS. Three doors open the same capture, and each had grown its own SUBSET of the
+    preconditions — measured 2026-08-30:
+
+        door     grant  disk-floor  window  reel-rolling  mini-running
+        onair     yes       -          -        yes            -
+        shadow     -       yes        yes       yes           yes
+        mini       -       yes         -        yes            -
+
+    Not one door checked all five, so which reason you got for a refusal depended on which door
+    you came through rather than on what was actually wrong. That is the same shape as the fault
+    card that told him to grant Screen Recording while this very process measured the grant as
+    HELD: a lane reasoning from a subset of the facts it could have had.
+
+    ADDITIVE BY CONSTRUCTION. Every door keeps every check it already performed; this only gives
+    each door the ones it lacked, and one vocabulary to report them in.
+
+    ⚠ A CHECK THAT WAS NOT PERFORMED IS None, NEVER False. `windowSeen: None` means nobody looked;
+    `windowSeen: False` means we looked and Diablo was not there. Collapsing those two is how a
+    lane starts claiming a cause it never measured. [[unknown-stays-unknown]]
+
+    Returns a dict of MEASURED facts plus ok/why. It decides nothing on its own — each door still
+    chooses which facts are fatal for it, because they legitimately differ (shadow must never
+    start a second reel; MINI is allowed to run while the game is mid-load).
+    """
+    facts = {
+        "door": door,
+        "screenRecOk": None,
+        "freeGb": None,
+        "floorGb": ON_AIR_FLOOR_GB,
+        "diskOk": None,
+        "windowSeen": None,
+        "windowWhy": "",
+        "reelRolling": None,
+        "miniRunning": None,
+    }
+
+    # 1) the macOS Screen Recording grant, measured in THIS process
+    try:
+        facts["screenRecOk"] = bool(_screen_recording_ok_quick())
+    except Exception:
+        pass
+
+    # 2) disk headroom against the same floor ON AIR uses
+    try:
+        import shutil as _shd
+        free = _shd.disk_usage(HIST_DIR).free / 1e9
+        facts["freeGb"] = round(free, 1)
+        facts["diskOk"] = bool(free >= ON_AIR_FLOOR_GB)
+    except Exception:
+        pass
+
+    # 3) is a reel already rolling / is MINI counting down
+    try:
+        facts["reelRolling"] = bool(_agent_alive())
+    except Exception:
+        pass
+    try:
+        facts["miniRunning"] = bool((mini_state() or {}).get("running"))
+    except Exception:
+        pass
+
+    # 4) the game window — only when the caller actually wants it looked for, so a door that
+    #    does not care never records a window verdict it did not earn
+    if look_for_window:
+        try:
+            import tv_diablo as _tv
+            win = _tv.find_d2r_window_mac()
+            facts["windowSeen"] = bool(win)
+            if not win:
+                facts["windowWhy"] = "Diablo is not on screen"
+        except Exception as e:
+            facts["windowWhy"] = "could not look for the game window: %s" % str(e)[:80]
+
+    why = ""
+    if facts["diskOk"] is False:
+        why = ("%.1fGB free, below the %.0fGB floor — refusing to start a reel that cannot survive"
+               % (facts["freeGb"] or 0.0, ON_AIR_FLOOR_GB))
+    elif facts["screenRecOk"] is False:
+        why = ("Screen Recording is not granted to this Python — the eye would only see the "
+               "desktop")
+    elif look_for_window and facts["windowSeen"] is False:
+        why = facts["windowWhy"] or "Diablo is not on screen"
+    facts["ok"] = not why
+    facts["why"] = why
+    return facts
+
+
+CAPTURE_DOORS_PATH = os.path.join(HERE, "capture_doors.json")
+
+
+def _capture_door_load():
+    try:
+        with open(CAPTURE_DOORS_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _capture_door_save(d):
+    try:
+        tmp = CAPTURE_DOORS_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(d, f, indent=1, sort_keys=True)
+        os.replace(tmp, CAPTURE_DOORS_PATH)
+    except Exception:
+        pass
+
+
+def _capture_door_note(door, pre, opened=False):
+    """v2316 — remember what a door SAW at the moment it decided, and whether it opened a reel.
+
+    ⚠ `opened` counts reels this door actually rolled — it is the DENOMINATOR of the door's
+    Wilson score. `filmed` (the numerator) is credited later, by capture_door_credit(), only when
+    that reel is proven to have produced at least one named read. A door cannot mark its own
+    homework at the moment it acts; it has to wait for the film. [[unknown-stays-unknown]]
+    """
+    if not door:
+        return
+    d = _capture_door_load()
+    row = d.get(door) or {}
+    row["lastAt"] = int(time.time() * 1000)
+    row["lastWhy"] = str((pre or {}).get("why") or "")
+    for k in ("screenRecOk", "diskOk", "windowSeen", "freeGb"):
+        if (pre or {}).get(k) is not None:
+            row["last_" + k] = (pre or {})[k]
+    if opened:
+        row["opened"] = int(row.get("opened") or 0) + 1
+        row["openedAt"] = row["lastAt"]
+        # who opened the reel that is now rolling — read back at seal time to credit the right
+        # door. Without this the credit would go to whichever door happened to act last.
+        d["_lastDoor"] = door
+    else:
+        row["refused"] = int(row.get("refused") or 0) + (1 if (pre or {}).get("why") else 0)
+    d[door] = row
+    _capture_door_save(d)
+
+
+def capture_door_credit(door, produced_names):
+    """v2316 — the door's reel has been sealed; say whether it actually yielded readable film.
+
+    THIS is what makes the score self-proving rather than self-asserting: `opened` is claimed by
+    the door, `filmed` is granted by the FILM. His 2026-08-30 shadow reel opened correctly and
+    produced four near-black reads with zero names — it counts in the denominator and not the
+    numerator, which is exactly the honest outcome.
+    """
+    if not door:
+        return
+    d = _capture_door_load()
+    row = d.get(door) or {}
+    if produced_names:
+        row["filmed"] = int(row.get("filmed") or 0) + 1
+    else:
+        row["blank"] = int(row.get("blank") or 0) + 1
+    row["creditedAt"] = int(time.time() * 1000)
+    d[door] = row
+    _capture_door_save(d)
+
+
+def capture_door_report():
+    """v2316 — per-door Wilson lower bound on 'a reel this door opened held readable film'.
+
+    Uses the SAME tv/confidence.wilson_lower the chronicle and vault lanes use — one statistic,
+    not a fourth hand-rolled ratio. n == 0 returns None (nobody has evidence), never 0.0, because
+    'no reels yet' and 'every reel was blank' must never render as the same number.
+    """
+    try:
+        from confidence import wilson_lower
+    except Exception:
+        try:
+            from tv.confidence import wilson_lower
+        except Exception:
+            wilson_lower = None
+    d = _capture_door_load()
+    out = {}
+    for door in ("onair", "mini", "shadow"):
+        row = d.get(door) or {}
+        k = int(row.get("filmed") or 0)
+        blank = int(row.get("blank") or 0)
+        n = k + blank
+        w = None
+        if wilson_lower is not None and n > 0:
+            try:
+                w = round(float(wilson_lower(k, n)), 3)
+            except Exception:
+                w = None
+        out[door] = {
+            "opened": int(row.get("opened") or 0),
+            "refused": int(row.get("refused") or 0),
+            "filmed": k,
+            "blank": blank,
+            "judged": n,
+            "wilson": w,
+            "say": ("no sealed reel from this door yet — nothing has been proved either way"
+                    if n == 0 else
+                    "%d of %d reels held readable film · Wilson floor %.3f" % (k, n, w or 0.0)),
+            "lastWhy": row.get("lastWhy") or "",
+        }
+    return out
+
+
 def _reclaim_headless_for_scan():
     """v1251 — free :17772 from the supervisor's headless console so a TCC-capable
     --open launch can BECOME the primary server (agent inherits Screen Recording).
@@ -4269,6 +4604,10 @@ def start_background_watchers(why):
         # v2223 — the VAULT lane had no watchdog at all; its sweep ran only from
         # /api/vault_sweep, i.e. only when he pressed it. 452 MB sat unread for four days.
         ("tvd-vault-autoread", _vault_autoread_loop),
+        # v2304 — shadow stops being a reader that needs someone else to press record. It looks for
+        # the Diablo window through tv_diablo's finder and rolls a reel itself, so playing is
+        # enough. Measured cause: an evening of play with shadow on produced ZERO reels.
+        ("tvd-shadow-watch", _shadow_watch_loop),
         # v2035 — seals a LANE-declared reel once the stash leaves the screen.
         ("tvd-stash-watch", _stash_watch_loop),
         # v2037 — prunes duplicate live frames while he records; 96% full at 5-6 GB/hour.
@@ -10858,6 +11197,71 @@ def chronicle_regate(conf_floor=None, min_witnesses=None):
     }
 
 
+def reader_wilson(findings):
+    """v2316 — per-TAB read reliability, Wilson-scored, from the audit's own verdicts. -> dict
+
+    ★ Konyo: "wilson score it .. that's why i keep saying put this system everywhere .. and on the
+    items it reads too and where they are". This is that, applied to the readers themselves.
+
+    THE DENOMINATOR IS THE WHOLE MODELLING DECISION, and v2291 already settled it one floor down:
+    verdict A is "never saw the panel", which is NOT a failed read — it is the ordinary state of
+    almost every frame, and on his console it is 198 of 206 findings. Counting A as a miss would
+    score every reader near zero forever while measuring nothing but how often he opens his stash.
+    So A is EXCLUDED from n entirely: it is not an attempt.
+
+        n = reads that actually reached the model for this tab   (E + D + B + C ...)
+        k = reads that came back with something                  (E)
+
+    ⚠ SHADOW ONLY. It decides nothing and gates nothing. n is 1-3 per tab on his data today, where
+    a Wilson floor is correctly near zero — that is the statistic REFUSING to conclude from three
+    samples, which is the entire reason to use it instead of a raw ratio that would read 100% off
+    one lucky frame. It sharpens as he plays. [[unknown-stays-unknown]]
+    """
+    try:
+        from confidence import wilson_lower
+    except Exception:
+        try:
+            from tv.confidence import wilson_lower
+        except Exception:
+            return {"ok": False, "why": "confidence.wilson_lower is unavailable"}
+
+    per = {}
+    for f in (findings or []):
+        tab = (f.get("tab") or "").strip()
+        verdict = (f.get("verdict") or "").strip()
+        grade = verdict.split("·")[0].strip()[:1].upper()
+        if not tab or tab == "-":
+            continue
+        if grade == "A":
+            row = per.setdefault(tab, {"k": 0, "n": 0, "noPanel": 0})
+            row["noPanel"] += 1
+            continue
+        row = per.setdefault(tab, {"k": 0, "n": 0, "noPanel": 0})
+        row["n"] += 1
+        if grade == "E":
+            row["k"] += 1
+
+    out = {}
+    for tab, row in sorted(per.items()):
+        k, n = row["k"], row["n"]
+        w = None
+        if n > 0:
+            try:
+                w = round(float(wilson_lower(k, n)), 3)
+            except Exception:
+                w = None
+        out[tab] = {
+            "k": k, "n": n, "noPanel": row["noPanel"], "wilson": w,
+            "say": ("no read has reached the model for this tab yet — nothing is proved either way"
+                    if n == 0 else
+                    "%d of %d reads came back with something · Wilson floor %.3f on %d sample%s"
+                    % (k, n, w or 0.0, n, "" if n == 1 else "s")),
+        }
+    return {"ok": True, "tabs": out, "mode": "shadow",
+            "why": ("shadow only — this gates nothing. Verdict A (never saw the panel) is "
+                    "excluded from the denominator because it is not a failed read.")}
+
+
 def reader_health():
     """v1537 — 🔍 WHY DIDN'T IT READ MY STASH, as a route.
 
@@ -10882,6 +11286,11 @@ def reader_health():
     res = lma.audit(rows)
     findings = [{"session": a, "tab": b, "verdict": c, "detail": d, "fix": lma._fix_for(c)}
                 for a, b, c, d in res["findings"]]
+    # v2316 — score each tab's read reliability from these same verdicts, in SHADOW.
+    try:
+        _rw = reader_wilson(findings)
+    except Exception as _e:
+        _rw = {"ok": False, "why": "reader_wilson raised: %s" % str(_e)[:90]}
     # ══ v2291 — "NOT OK" IS NOT "A BROKEN LINK" ═══════════════════════════════════════════════
     #
     # One partition — everything that is not E_OK — was reported to him as "%d broken link(s)".
@@ -10935,6 +11344,9 @@ def reader_health():
         "crop": crop,
         "findings": findings,
         "broken": len(broken),
+        # v2316 — per-tab Wilson on the SAME verdicts, shadow only. It answers "how reliably does
+        # this tab actually read", which the finding list can only be counted by hand to guess at.
+        "wilson": _rw,
         # ⚠ REPORTED SEPARATELY, NOT FOLDED IN. "the panel was never on screen" is a different fact
         # from "the read chain is broken", and the whole defect was that one number carried both.
         "nothingToRead": len(_nothing_to_read),
@@ -13282,6 +13694,29 @@ def retention_may_act():
     # OPEN. And `_retention_loop` measures BEFORE its first sleep, so the switch has to be right at
     # BOOT — on a tree already under the floor it would act within milliseconds of startup, before
     # he had touched anything. A typo is not permission. [[unknown-stays-unknown]]
+    # ⚠⚠⚠ v2308 — THIS NOW FAILS CLOSED, AND IT COST HIM 388.6 MB TO LEARN WHY.
+    #
+    # 2026-08-30: reel_s_1786922954749_12579 — 339 frames, 286 pages — was deleted unattended.
+    # A sweep sealed it (correct), retention promoted it to a candidate (correct), this returned
+    # True (the defect), and apply_plan(yes=True) removed it. He had authorised none of it.
+    #
+    # The v2082 note below was right that every spelling of OFF must mean off, and then left the
+    # DEFAULT open: with TV_AUTO_PRUNE unset — which is every machine that has never set it, his
+    # included — an unattended irreversible deleter was ARMED. Its own comment already said the
+    # shape out loud: "Its two siblings in this same file are opt-IN (drift_may_relaunch and
+    # console_healer.heal both test != '1'), so this one alone failed OPEN." It was written as an
+    # observation. It was a defect.
+    #
+    # An UNSET switch is not consent. The one place in this tree where being wrong has no undo is
+    # the last place that may assume yes. [[unknown-stays-unknown]]
+    # ⚠⚠ v2312 — I MADE THIS OPT-IN IN v2308 AND THAT WAS THE WRONG FIX, TWICE OVER.
+    # It disobeyed him — "automatically prune its not a question.. needs to be defaulted in" — and
+    # it aimed at the wrong defect. The 388.6 MB was not lost because the switch was on. It was
+    # lost because reel_retention called a reel "sealed by BOTH lanes, it has given up its
+    # information" when the VAULT seal had extracted NOTHING from it. frame_authority refused that
+    # same reel, correctly, for exactly that reason — two authorities, and the looser one acted.
+    # The safety belongs in WHAT IS ELIGIBLE, not in a switch he asked to have defaulted on.
+    # See reel_retention: eligibility now consults the same extraction contract.
     _sw = str(os.environ.get("TV_AUTO_PRUNE", "")).strip().lower()
     if _sw in ("0", "off", "false", "no", "none", "never"):
         return False, "auto-prune is switched off (TV_AUTO_PRUNE=%s) — reporting only" % _sw
@@ -13835,15 +14270,32 @@ def mini_start(seconds=None, test=False, focus=None):
     # can't keep a reel alive; refuse loudly with the exact ask instead of recording a doomed
     # session. A mini that records a doomed reel is worse than one that refuses — the whole
     # point of the mini is the RETRO read afterwards, and a reaped reel has nothing to read.
+    # v2316 — the comment above says this block was "copied verbatim from /api/on", which is
+    # exactly why it drifted: ON AIR later gained a Screen Recording refusal and MINI did not.
+    # One preflight now answers for all three doors. MINI keeps its own wording and its own
+    # decision about what is fatal — only the MEASURING is shared. [[copy-drift]]
+    _pre_mini = capture_preflight("mini", look_for_window=False)
     try:
-        import shutil as _shd
-        _free = _shd.disk_usage(HIST_DIR).free / 1e9
-        if _free < ON_AIR_FLOOR_GB:
-            return {"ok": False, "mode": "off", "seconds": secs, "secondsAsked": asked,
-                    "error": "DISK TOO FULL to record — %.1fGB free, need %.0fGB. Free ~%.0fGB and press MINI again."
-                    % (_free, ON_AIR_FLOOR_GB, ON_AIR_FLOOR_GB + 1 - _free)}
+        _capture_door_note("mini", _pre_mini)
     except Exception:
         pass
+    if _pre_mini.get("diskOk") is False:
+        _free = _pre_mini.get("freeGb") or 0.0
+        return {"ok": False, "mode": "off", "seconds": secs, "secondsAsked": asked,
+                "error": "DISK TOO FULL to record — %.1fGB free, need %.0fGB. Free ~%.0fGB and press MINI again."
+                % (_free, ON_AIR_FLOOR_GB, ON_AIR_FLOOR_GB + 1 - _free)}
+    if _pre_mini.get("screenRecOk") is False:
+        # ⚠ MEASURED, NOT ASSUMED: MINI was ALREADY protected here — it spawns through
+        # start_agent(), which has refused on a missing grant since v1251, so it never could have
+        # filmed the desktop. An earlier draft of this comment claimed it could; a sabotage run
+        # proved otherwise (disable this branch and MINI still refuses, via start_agent).
+        # What this branch actually buys: MINI refuses AT ITS OWN DOOR, before the countdown,
+        # the lock and a session id exist, and the advice names the button he pressed instead of
+        # telling a MINI user to "press ON AIR again". [[feedback-blind-fixture-green-gate]]
+        return {"ok": False, "mode": "off", "seconds": secs, "secondsAsked": asked,
+                "error": "Screen Recording is not granted to this Python — MINI would film the "
+                         "desktop, not the game. Grant it in System Settings \u2192 Privacy "
+                         "\u2192 Screen Recording, then press MINI again."}
     if _stop_inflight:
         # v899 — if the agent is already dead, clear the latch and allow the start
         if not _agent_alive() and _port_listener_pid() is None:
@@ -14746,7 +15198,56 @@ def vault_sweep_state():
 _VAULT_AUTOREEL_ON = os.environ.get("TV_VAULT_AUTOREEL", "1") != "0"
 _VAULT_AUTOREAD_EVERY_S = 45          # slower than chronicle's 20s: a vault sweep is the dearer read
 _VAULT_AUTOREAD_MAX_TRIES = 2
-_VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired": {}}
+_VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired": {},
+                   # v2302 — the LAST reason an attempt on this reel gave. Retirement used
+                   # to assert a cause it had never measured; now it can quote one.
+                   "lastWhy": {}}
+
+
+
+def _seal_extracted(rows, examined_empty=False):
+    """What this seal may HONESTLY claim it took. -> (list, why)
+
+    ★ v2305 — THE WRITER THE EXTRACTION CONTRACT NEVER HAD. frame_authority.seal_covers_extraction
+    demands every seal carry an `extracted` list naming the facts it took, and HOLDS anything that
+    does not — "an unstated fact is an unextracted one". MEASURED 2026-08-30: `extracted` is READ
+    at frame_authority.py:216/222/226 and WRITTEN NOWHERE. All 8 of his sealed recordings lacked
+    it, so frame_authority planned 0 of 6719 frames freeable — not because the reels were unready,
+    but because the test could not be passed by anything. A permanent zero that reads like a
+    measurement. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+    ⚠ THIS NAMES ONLY WHAT WAS ACTUALLY TAKEN, AND IT IS DELIBERATELY NOT GENEROUS. Writing the
+    full contract unconditionally would satisfy the reader on every seal and make his footage
+    deletable on the strength of a sentence nobody measured — the worst possible direction for a
+    mistake, since there is no un-delete. A sweep that found nothing claims NOTHING, and the
+    contract then correctly holds those frames.
+
+    ⚠ WHETHER "examined, and there is genuinely nothing here" SHOULD SATISFY THE CONTRACT IS NOT
+    MINE TO DECIDE — it is the rule that governs deleting his recordings. This records the fact
+    (`examinedEmpty`) and leaves the ruling to him. [[feedback-fix-it-dont-offer-it]] does not
+    extend to deciding what may be destroyed.
+    """
+    try:
+        n = int(rows or 0)
+    except Exception:
+        n = 0
+    if n > 0:
+        # the vault lane writes a row only when it has a NAME, WHERE it sat, and WHICH frame said
+        # so — the three the contract asks for. See vault_retro's row shape.
+        return list(EXTRACTION_CONTRACT_FACTS), "%d row(s) written, each carrying name, location and provenance" % n
+    if examined_empty:
+        return [], ("examined and there was nothing to take — recorded as a fact, but it claims "
+                    "no extraction, so the contract still holds these frames")
+    return [], "nothing was taken"
+
+
+#: the facts frame_authority.EXTRACTION_CONTRACT asks a seal to name. Imported from there rather
+#: than re-typed, so the two halves of one contract cannot drift apart. [[copy-drift]]
+try:
+    import frame_authority as _fa_contract
+    EXTRACTION_CONTRACT_FACTS = tuple(_fa_contract.EXTRACTION_CONTRACT)
+except Exception:
+    EXTRACTION_CONTRACT_FACTS = ("name", "location", "provenance")
 
 
 def _vault_owed_reels(hist=None):
@@ -14846,11 +15347,23 @@ def vault_autoreel_tick():
             continue
         tries = _VAULT_AUTOREAD["tries"].get(rid, 0) + 1
         if tries > _VAULT_AUTOREAD_MAX_TRIES:
+            # ⚠ v2302 — SAY WHAT WAS MEASURED, NOT A MECHANISM NOBODY CHECKED. This read "the vault
+            # sweep started but never wrote a result", and the only thing the code tests is
+            # `tries > MAX` — i.e. we tried, and the reel is STILL owed afterwards. Those are
+            # different claims. MEASURED on his console 2026-08-30: two reels (388.6 MB / 286 pages
+            # and 63.9 MB / 42 pages) sat retired under that sentence while OTHER sweeps in the same
+            # window were completing and sealing normally in the log — so the sentence sent the
+            # reader hunting a write failure that was not the thing happening.
+            # A message that asserts an unmeasured cause is worse than one that admits it does not
+            # know, because it is followed. [[label-outlived-referent]] [[unknown-stays-unknown]]
+            _last = _VAULT_AUTOREAD.get("lastWhy", {}).get(rid)
+            _said = ("%d attempt(s) ran and this reel is STILL owed afterwards" % (tries - 1))
+            _said += ((" — the last one said: %s" % str(_last)[:160]) if _last
+                      else " — and no attempt left a reason, so WHY is UNKNOWN, not diagnosed")
             _VAULT_AUTOREAD["retired"][rid] = {
-                "why": "the vault sweep started but never wrote a result",
+                "why": _said, "lastWhy": _last,
                 "tries": tries - 1, "at": int(time.time() * 1000)}
-            return {"ok": False, "retired": rid, "owed": owed,
-                    "why": "the vault sweep started but never wrote a result, %d times" % (tries - 1)}
+            return {"ok": False, "retired": rid, "owed": owed, "why": _said}
         # ⚠ v2225 — AIM IT. `vault_sweep_start(limit=1)` was UNTARGETED: the work list decided only
         # WHETHER a tick fired, then the sweeper re-derived its own list and picked whatever it
         # liked. So a try counted against `rid` could be burned by a sweep that never opened that
@@ -14858,6 +15371,7 @@ def vault_autoreel_tick():
         r = vault_sweep_start(limit=1, reel_dir=str(d))
         if not (isinstance(r, dict) and r.get("ok")):
             why = str((isinstance(r, dict) and r.get("why")) or r)
+            _VAULT_AUTOREAD.setdefault("lastWhy", {})[rid] = why[:200]   # v2302 — so retirement can quote it
             # ⚠⚠ v2225 — KEY ON THE FLAG, NOT THE PROSE. This matched `"unavailable" in why`, and
             # vault_sweep_start says "vault_retro unavailable" and "the primary (Claude) lane is
             # unavailable" for two PERMANENT failures. A build that can never sweep would have been
@@ -14877,6 +15391,129 @@ def vault_autoreel_tick():
     return {"ok": True, "read": None, "owed": owed,
             "why": "no reel owes the vault lane a read" if not owed else
                    "%d owed, none startable this tick" % owed}
+
+
+
+# ── v2304 — SHADOW WATCHES FOR THE GAME AND STARTS THE REEL ITSELF ──────────────────────────────
+# Konyo: "so shadow is on... and toggled on and i definitely played yesterday.. it needs to target
+# the window broswer of diablo ii like it does on the ON AIR and on MINI".
+#
+# MEASURED 2026-08-30, and he was right: 28 reels on disk, the NEWEST 154 hours old, zero in the
+# last 24h — after an evening of play with the switch on. _shadow_state() said on=True,
+# available=True, recording=False, "armed — it starts watching when a reel is rolling". Shadow was
+# a READER of frames some other mode had already rolled. Nothing rolled, so an evening was lost.
+# The switch never lied; "armed" simply implies something it could not do. [[label-outlived-referent]]
+#
+# ⚠ ONE DEFINITION OF "WHICH WINDOW IS DIABLO". This calls tv_diablo.find_d2r_window_mac() — the
+# same finder ON AIR and MINI capture through — and starts the reel through start_agent(), the same
+# door /api/on uses. A second window-finder here is exactly the copy-drift that has cost this
+# console before. [[copy-drift]]
+#
+# ⚠ IT WRITES ITS RECORD TO DISK, NOT TO A GLOBAL. The eagle, the corroborator and the doctor all
+# read it from other processes; in-memory state is invisible across the board-window boundary and
+# that has already cost a whole feature here. [[d2r-board-window-kill-loses-writes]]
+_SHADOW_WATCH_EVERY_S = 20
+_SHADOW_WATCH_PATH = os.path.join(HERE, "shadow_watch.json")
+
+
+def shadow_watch_state():
+    """What the watcher has actually done. -> dict. Unreadable is UNKNOWN, never a clean zero."""
+    try:
+        with open(_SHADOW_WATCH_PATH, encoding="utf-8") as fh:
+            j = json.load(fh)
+        return j if isinstance(j, dict) else {"ok": False, "why": "the record is not a mapping"}
+    except OSError:
+        return {"ok": True, "lookedAt": None, "sawAt": None, "startedAt": None, "starts": 0,
+                "why": "the watcher has never written a record"}
+    except Exception as e:
+        return {"ok": False, "why": "the record is unreadable: %s" % str(e)[:70]}
+
+
+def _shadow_watch_note(**kw):
+    cur = shadow_watch_state()
+    if not isinstance(cur, dict):
+        cur = {}
+    cur.update(kw)
+    try:
+        with open(_SHADOW_WATCH_PATH, "w", encoding="utf-8") as fh:
+            json.dump(cur, fh)
+    except Exception:
+        pass
+    return cur
+
+
+def shadow_watch_tick():
+    """One look for the game window. -> dict, and EVERY refusal names itself.
+
+    Starts at most one reel, through the same start_agent() /api/on uses.
+    """
+    now = int(time.time() * 1000)
+    st = _shadow_state()
+    if not st.get("on"):
+        return _shadow_watch_note(lookedAt=now, why="the shadow reader is switched off")             and {"ok": False, "why": "the shadow reader is switched off"}
+    if st.get("available") is False:
+        return {"ok": False, "why": "no local OCR on this machine, so the lane cannot run"}
+    if _agent_alive():
+        return {"ok": True, "why": "a reel is already rolling — shadow never starts a second"}
+    try:
+        if (mini_state() or {}).get("running"):
+            return {"ok": True, "why": "a mini capture is counting down"}
+    except Exception:
+        pass
+    # the SAME floor /api/on refuses on: below it the reaper cannot keep a reel alive, and a
+    # doomed session is worse than no session.
+    # v2316 — ONE preflight, shared with /api/on and MINI. Shadow used to check disk and window
+    # here and inherit the Screen Recording verdict only by whatever start_agent happened to do,
+    # so a refusal's REASON depended on which door you came through. Every check shadow already
+    # performed is still performed; it now also SEES the grant, and can decline instead of
+    # opening a reel that could never hold a frame. [[the-unjoined-end]]
+    pre = capture_preflight("shadow", look_for_window=True)
+    if pre.get("diskOk") is False:
+        _shadow_watch_note(lookedAt=now, why=pre["why"])
+        return {"ok": False, "why": pre["why"], "pre": pre}
+    if pre.get("screenRecOk") is False:
+        why = (pre["why"] + " — shadow will not roll a reel it cannot film. Grant it in "
+               "System Settings \u2192 Privacy \u2192 Screen Recording.")
+        _shadow_watch_note(lookedAt=now, why=why)
+        return {"ok": False, "why": why, "pre": pre}
+    if pre.get("windowSeen") is None:
+        # we tried to look and the lookup itself failed — that is UNKNOWN, never "no game"
+        why = pre.get("windowWhy") or "could not look for the game window"
+        _shadow_watch_note(lookedAt=now, unknown=True, why=why)
+        return {"ok": False, "unknown": True, "why": why, "pre": pre}
+    if pre.get("windowSeen") is False:
+        _shadow_watch_note(lookedAt=now, why="Diablo is not on screen")
+        return {"ok": True, "seen": False, "why": "Diablo is not on screen", "pre": pre}
+    r = start_agent(sim=False)
+    ok = bool(isinstance(r, dict) and r.get("ok"))
+    # v2316 — the DENOMINATOR of shadow's Wilson score. Claiming a reel was opened is the door's
+    # to claim; whether it held film is not, and is credited later by capture_door_credit().
+    try:
+        _capture_door_note("shadow", pre, opened=ok)
+    except Exception:
+        pass
+    cur = shadow_watch_state()
+    _shadow_watch_note(lookedAt=now, sawAt=now,
+                       startedAt=(now if ok else cur.get("startedAt")),
+                       starts=(int(cur.get("starts") or 0) + (1 if ok else 0)),
+                       why=("started a reel — Diablo is on screen" if ok
+                            else "saw Diablo but the reel would not start: %s"
+                                 % str(isinstance(r, dict) and r.get("msg") or r)[:90]))
+    return {"ok": ok, "seen": True, "started": ok,
+            "why": ("started a reel — Diablo is on screen" if ok
+                    else "saw Diablo but the reel would not start")}
+
+
+def _shadow_watch_loop():
+    """Watch for the game and roll a reel, so playing is enough. Never starts a second reel."""
+    while True:
+        try:
+            time.sleep(_SHADOW_WATCH_EVERY_S)
+            r = shadow_watch_tick()
+            if isinstance(r, dict) and (r.get("started") or r.get("unknown")):
+                print("   \U0001f441 shadow watch: %s" % str(r.get("why"))[:140], flush=True)
+        except Exception:
+            pass
 
 
 def _vault_autoread_loop():
@@ -15389,8 +16026,10 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             except Exception:
                 pass
             for sess in (prop.get("sessionsRead") or []):
+                _ex, _exwhy = _seal_extracted(_rows)
                 swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": int(_rows),
-                                    "promptVer": _pv, "agentVer": _av}
+                                    "promptVer": _pv, "agentVer": _av,
+                                    "extracted": _ex, "extractedWhy": _exwhy}   # v2305
             _seal_pending = True          # v2060 — persisted only after the ledger is down
         else:
             # ── v2003 — A COMPLETE ANSWER MAY SEAL; AN INCOMPLETE ONE MAY NOT ────────────────
@@ -15447,8 +16086,10 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 except Exception:
                     pass
                 for sess in (prop.get("sessionsRead") or []):
+                    _ex, _exwhy = _seal_extracted(0)
                     swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": 0,
                                         "promptVer": _pv, "agentVer": _av,
+                                        "extracted": _ex, "extractedWhy": _exwhy,   # v2305
                                         "why": "read %d panel(s), every one cross-checked, no name "
                                                "to be had" % _read_ok[0]}
                 _seal_pending = True      # v2060 — persisted only after the ledger is down
@@ -15490,9 +16131,29 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                     _av = getattr(_tvv, "VERSION", "") or ""
                 except Exception:
                     pass
-                for sess in (prop.get("sessionsRead") or []):
+                # ⚠⚠ v2306 — IT WAS SEALING THE REELS IT *READ*, AND THIS BRANCH IS FOR THE ONE
+                # IT DID NOT. `sessionsRead` lists reels a panel was read from; the whole meaning
+                # of "examined, and there is no stash screen here" is that NOTHING was read. So the
+                # loop ran zero times, `_seal_pending` was set anyway, and the sweep printed a
+                # confident "Sealed at vp2017" over a write that never happened.
+                #
+                # REPRODUCED TWICE at zero cost on 2026-08-30, targeting reel_s_1787239578536_99671
+                # (57 frames, every one refused by the free gate, so no paid read):
+                #     printed : "✅ examined 1 frame(s) and NONE is a stash screen ... Sealed at vp2017"
+                #     prop.get("sessionsRead") : []
+                #     vault_swept.json         : reel ABSENT, still owed
+                # Every pass repeated it. The watchdog burned a try each time and after two retired
+                # the reel with a message blaming a write failure that never occurred — which is why
+                # 452 MB across two reels sat owed for six days and the lane looked dead.
+                #
+                # The reels this branch is about are the ones the sweep EXAMINED, so it seals those.
+                # [[the-unjoined-end]] [[plumbing-with-no-tap]] [[feedback-suspect-the-instrument]]
+                for sess in (prop.get("sessionsExamined")
+                             or prop.get("sessionsRead") or []):
+                    _ex, _exwhy = _seal_extracted(0, examined_empty=True)
                     swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": 0,
                                         "promptVer": _pv, "agentVer": _av,
+                                        "extracted": _ex, "extractedWhy": _exwhy,   # v2305
                                         "examinedEmpty": True,
                                         "why": "every one of %d frame(s) was offered to the stash "
                                                "gate and refused; the lane was proven live in the "
@@ -15528,7 +16189,30 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         else:
             if _seal_pending:
                 _vault_swept_save(swept)
-                if _seal_say:
+                # ⚠⚠ v2306 — THE SAY MAY NOT OUTRUN THE WRITE. For six days this printed
+                # "✅ ... Sealed at vp2017" while writing nothing, because the branch above looped
+                # an empty list. The message was the ONLY evidence anyone had, and it was false —
+                # so the watchdog blamed a write failure, retired the reel, and 452 MB sat owed.
+                # A claim is now READ BACK before it is made: the seal is verified on disk, and if
+                # it is not there the sweep says THAT instead, loudly and with the names.
+                # [[the-unjoined-end]] [[feedback-verify-not-proxy]]
+                _claimed = sorted(str(k) for k in (swept or {}))
+                try:
+                    _ondisk = set(_vault_swept_load() or {})
+                except Exception:
+                    _ondisk = None
+                _missing = ([k for k in _claimed if k not in _ondisk]
+                            if _ondisk is not None else None)
+                if _ondisk is None:
+                    print("   \u26a0 the seal was written but could not be READ BACK, so whether it "
+                          "landed is UNKNOWN — not assumed. The footage stays readable.", flush=True)
+                elif _missing:
+                    print("   \U0001f534 THE SEAL DID NOT LAND. %d reel(s) were sealed in memory and "
+                          "are NOT in %s: %s. The lane will keep being owed these, so this is said "
+                          "here rather than discovered days later."
+                          % (len(_missing), os.path.basename(_VAULT_SWEPT_PATH),
+                             ", ".join(_missing[:4])), flush=True)
+                elif _seal_say:
                     print(_seal_say)
         # The proposal he presses is the ACCUMULATED picture (every session so far), not just this
         # run's — that is the whole point of an accumulator. throwOut/unsure/held stay from this
@@ -19123,7 +19807,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2299",
+        "ver": "v2316",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -19227,6 +19911,16 @@ def status_payload():
         "aiPaused": bool((st or {}).get("aiPaused") or ((st or {}).get("health") or {}).get("aiPaused")),
         "gameMsg": (st or {}).get("gameMsg") or ((st or {}).get("health") or {}).get("gameMsg") or "",
         "captureProc": _capture_health(),
+        # v2316 — SAY WHETHER THE GRANT IS ACTUALLY HELD, so the stale-frame card stops naming a
+        # cause this process has already measured to be false. On 2026-08-30 the card told him to
+        # "Grant Screen Recording to Python / TV DIABLO" while doctor check `screen_recording`
+        # read ok:True in the SAME process — he was simply sitting on a D2R loading screen, which
+        # is static and near-black BY DESIGN (tv_diablo.py:6614). A fault that asserts an
+        # unmeasured cause sends him to System Settings to fix nothing.
+        # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+        "screenRecOk": bool(_screen_recording_ok_quick()),
+        # v2316 — per-door Wilson: how often a reel THIS door opened actually held readable film.
+        "captureDoors": capture_door_report(),
         "bibleVer": _bible_ver(),
         "agentVer": _agent_disk_ver(),  # v1251 — triple-lamp disk stamp
     }

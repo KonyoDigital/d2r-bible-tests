@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2299",
+  "ver": "v2316",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2299: the longest list of item names on the page printed a name and nothing else; each chip on both grail walls now shows the hours to find THAT item on its own best run, and an item with no known source shows no number at all",
+  "note": "v2316: every capture door shares one preflight and earns a Wilson score; the stale-frame card stops naming a permission he already has; both forge families name their unit",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

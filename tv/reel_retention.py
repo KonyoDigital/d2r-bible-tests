@@ -263,6 +263,13 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     RULES = ("no-witness-index", "ledger-unreadable", "test-fixture", "recent",
              "never-chronicle-swept", "zero-pages",
              "rows-not-banked", "vault-owes", "target-met", "eligible")
+    # ⚠ v2316 — "not-extracted" WAS DECLARED HERE AND IS GONE. v2312 tried to make retention hold a
+    # reel whose seal names nothing it took; that fix was WITHDRAWN (every existing seal predates
+    # the contract, so the prune would never have fired again). The code went and the DECLARATION
+    # stayed — an orphan tag no code path can ever reach, which coverage then reported as an
+    # unmeasured rule for ever. A withdrawn change must take its declarations with it, or the
+    # roster slowly fills with rules that describe work nobody does.
+    # [[the-unjoined-end]] [[label-outlived-referent]]
     hits = dict((r, 0) for r in RULES)
 
     def _rule(tag, why):
@@ -338,6 +345,25 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
                             "eligible, but the target was already met — this stops as soon as it can")
                 kept.append({"reel": reel, "mb": round(size, 1), "why": why, "pages": pages})
                 continue
+            # ⚠⚠ v2314 — I TIGHTENED THIS IN v2312 AND IT WAS AN OVER-CORRECTION. WITHDRAWN.
+            #
+            # After deleting 388.6 MB of his footage unattended on 2026-08-30 I made eligibility
+            # require the seal to satisfy frame_authority's extraction contract. Three deliberate
+            # cases went red, and they were right: EVERY seal on his tree predates that contract,
+            # so the change would have stopped the prune firing on any existing reel — the exact
+            # opposite of "automatically prune its not a question.. needs to be defaulted in".
+            #
+            # And re-examined honestly, the RULE was not the defect. reel_s_1786922954749_12579 had
+            # 286 pages read by the chronicle lane and a vault seal confirming no stash screen
+            # existed to take anything from. Both lanes were genuinely finished with it.
+            # frame_authority is stricter because it answers a DIFFERENT question — may this FRAME
+            # go, protecting the witness frames behind his vault rows — not may this REEL go. Two
+            # authorities at two granularities is correct; collapsing them was my error.
+            #
+            # What actually went wrong that day was mine and not the code's: I swept a reel to
+            # clear a backlog, which made it eligible, while telling him nothing could delete
+            # because I had checked _PRUNE_SAFE_TO_RUN and not retention_may_act().
+            # [[feedback-suspect-the-instrument]]
             freed += size
             candidates.append({"reel": reel, "mb": round(size, 1), "pages": pages,
                                "why": _rule("eligible",

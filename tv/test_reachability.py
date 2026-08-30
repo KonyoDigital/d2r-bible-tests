@@ -420,6 +420,15 @@ class TestLaw19ForPythonToo(unittest.TestCase):
                 for g, t in text.items():
                     pat = r"(?<!def )\b%s\s*\(" % node.name if g == f else r"\b%s\s*\(" % node.name
                     calls += len(re.findall(pat, t))
+                    # ⚠ v2309 — A THREAD TARGET IS A CALLER. This counted only `name(`, so a
+                    # function reached ONLY as `threading.Thread(target=name, ...)` — which is how
+                    # every background lane in this console is entered — read as dead code. It
+                    # reported v2307's after_session_ended as having "NO production caller" while
+                    # it was wired into stop_agent's finally, i.e. into the one door ON AIR, MINI
+                    # and the shadow watcher all leave through.
+                    # A gate that cannot see the codebase's own dominant call shape sends the next
+                    # person to delete live wiring. [[source-reading-guard]]
+                    calls += len(re.findall(r"target\s*=\s*%s\b" % node.name, t))
                 if calls == 0:
                     found.append("%s:%s" % (f, node.name))
         return found
