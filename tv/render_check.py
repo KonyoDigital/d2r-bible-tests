@@ -289,6 +289,7 @@ _PROBE = r"""(function(sel, OK_TRUNC){
   }
   var rects=[], zero=0, off=0, clipped=0, covered=0, broken=0, imgs=0;
   var okTrunc=0, clippedWhat=[], coveredWhat=[];
+  var unreachable=0, unreachableWhat=[];
   nodes.forEach(function(e){
     var r=e.getBoundingClientRect();
     if (r.width<1 || r.height<1) { zero++; return; }
@@ -331,6 +332,49 @@ _PROBE = r"""(function(sel, OK_TRUNC){
             (top.className||top.tagName) + ' over ' + (e.getAttribute('data-vault-mule')||e.id||''));
         }
       }
+      /* ⚠ v2316 — AND THE EXCLUSION ABOVE IS EXACTLY HOW A DEAD BUTTON SHIPS. The rule "a
+         fixed/sticky cover is page chrome" is right for ORDINARY CONTENT and wrong for a CONTROL:
+         the comment above says so in its own words ("an overlay sitting on a control he needs is
+         the defect") while the code separates by POSITION rather than by what is underneath.
+         .control-dock is position:fixed, so a dock lying across a button was excluded by
+         construction. MEASURED on bible.html at 375px: `tick it -> Chronicle + Vault` and
+         `ignore` inside #inbox-sticky both hit-test to DIV.dock-inner — unclickable at first
+         paint — and every render gate passed. A different model family found it cold, from the
+         pixels, which is the whole argument for that seat.
+         So: a CONTROL is checked separately and a fixed cover does NOT excuse it.
+         [[visual-regression-detector]] [[gate-blind-to-unexercised-input]] */
+      [].slice.call(e.querySelectorAll(
+          'button, a[href], input, select, textarea, [role=button], [onclick]')).forEach(function(c){
+        if (inert(c)) return;
+        var cr=c.getBoundingClientRect();
+        if (cr.width<2 || cr.height<2) return;
+        var cx=cr.left+cr.width/2, cy=cr.top+cr.height/2;
+        if (cx<0 || cy<0 || cx>innerWidth || cy>innerHeight) return;   /* off-screen is a different fact */
+        var hit=document.elementFromPoint(cx, cy);
+        if (!hit) return;
+        if (hit===c || c.contains(hit) || hit.contains(c)) return;     /* the control answers for itself */
+        /* ⚠ AND SCROLLING MUST NOT BE ABLE TO SEPARATE THEM, or this becomes exactly the noise the
+           comment above warns about. The first cut of this check counted ANY covered control and
+           reported 9 in the vault at 1440 — every one a cell that scrollIntoView had parked under
+           the sticky HEADER, which is the page working. A control the user can scroll out from
+           under is not unreachable; it is merely somewhere else right now.
+           The defect is the pair that move TOGETHER: a control pinned in a fixed/sticky container
+           and a fixed/sticky thing lying on it. Neither scrolls away from the other, so the button
+           is dead wherever he goes. That is the inbox case exactly — #inbox-sticky is sticky,
+           .control-dock is fixed. [[visual-regression-detector]] */
+        function pinned(n){
+          for (var q=n; q && q!==document.body; q=q.parentElement){
+            var pp=getComputedStyle(q).position;
+            if (pp==='fixed' || pp==='sticky') return true;
+          }
+          return false;
+        }
+        if (!(pinned(c) && pinned(hit))) return;
+        unreachable++;
+        if (unreachableWhat.length < 4) unreachableWhat.push(
+          (String(c.className||c.tagName)) + ' :: "' + (c.textContent||'').trim().slice(0,26)
+          + '" is under ' + String(hit.className||hit.tagName));
+      });
     }
   });
   var txt = nodes.map(function(e){return (e.textContent||'');}).join(' ')
@@ -339,6 +383,7 @@ _PROBE = r"""(function(sel, OK_TRUNC){
   return JSON.stringify({found:nodes.length, painted:rects.length, zero:zero, off:off,
     clipped:clipped, clippedWhat:clippedWhat, okTrunc:okTrunc,
     covered:covered, coveredWhat:coveredWhat,
+    unreachable:unreachable, unreachableWhat:unreachableWhat,
     imgs:imgs, broken:broken,
     widths:Object.keys(widths).length, text:txt.slice(0,160), textLen:txt.length,
     rects:rects.slice(0,3)});
@@ -445,6 +490,15 @@ def verdict(key, m, sel):
     for field, msg in (("off", "sit outside the viewport and cannot be reached"),
                        ("clipped", "have text cut off inside them"),
                        ("covered", "are covered by something on top"),
+                       # ⚠ v2316 — A CONTROL HE CANNOT PRESS IS THE LOUDEST DEFECT THIS FILE CAN
+                       # FIND, and until now it was the one class excluded by construction: the
+                       # `covered` probe skips any cover with a fixed/sticky ancestor, and the
+                       # bottom dock is position:fixed. Measured at 375px on bible.html, `tick it
+                       # -> Chronicle + Vault` and `ignore` both hit-tested to DIV.dock-inner and
+                       # every gate stayed green. Reported cold by a different model family off
+                       # the pixels, then reproduced by hit test. [[visual-regression-detector]]
+                       ("unreachable", "are CONTROLS he cannot click — something else answers the "
+                                       "hit test at their centre"),
                        ("broken", "are images that failed to load")):
         if m.get(field):
             what = m.get(field + "What") or []

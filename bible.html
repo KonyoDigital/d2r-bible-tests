@@ -3987,7 +3987,7 @@ try {
    ROUTE, so the item found its 65 sources correctly and computed the fastest time on the board
    (1.04h); but the v1716 rule "THE NAME HE TICKS MUST NOT CHANGE" keeps the ROSTER spelling for
    display and for every ledger read. So the grail bridge published his #1 target under a name that
-   is not an item, and F·Uniques — which resolves by the real name — never showed it at all.
+   is not an item, and Uniques — which resolves by the real name — never showed it at all.
 
    The spelling is fixed at the two map keys. This migration exists because of the scar attached to
    that same v1716 rule: renaming an item silently unticks it ("3 found uniques flipped to missing
@@ -4505,10 +4505,10 @@ try {
    <div class="tabs-workshop" data-cluster="WORKSHOP" title="THE WORKSHOP — your live tools: intake, plan, forge, grail-hunt">
     <button class="tab" data-tab="session">⚡ SESSIONS</button><!-- v901 — console home: Auto Intake + plan + live feed (TV·D merged) -->
     <button class="tab" data-tab="tools">🧰 tools</button>
-    <button class="tab" data-tab="forge">🔨 Forge</button>
+    <button class="tab" data-tab="forge">🔨 Runewords</button>
     <button class="tab" data-tab="crafts">⚗️ Crafts</button>
-    <button class="tab" data-tab="funi">🏆 F·uniques</button>
-    <button class="tab" data-tab="fsets">🧩 F·sets</button>
+    <button class="tab" data-tab="funi">🏆 Uniques</button>
+    <button class="tab" data-tab="fsets">🧩 Sets</button>
     <button class="tab" data-tab="vault">🎒 Vault</button><!-- v2084 — Konyo: "the VAULT MANAGER it needs a MAIN TAB of its own inbetween tools and TV-D tab on top". After the forge cluster so those three rooms stay adjacent. -->
     <button class="tab" data-tab="tvd">📺 TV·D</button><!-- v914 (Konyo: 'yes I want it on the website too') — the live view is a first-class site tab again; app-ctx keeps it in the console header instead -->
    </div>
@@ -8141,7 +8141,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 /* 2026-08-13 — Konyo: "the forge color should be like the tab color also for the sub tab and
    related." Repaints the FORGE ROOM's own neutral/inactive chip chrome (border+label) and the
    .ft-all "ALL" chip — which represents the room itself, not a filter — in --rune, scoped to
-   #tab-forge ONLY so F·Uniques/F·Sets keep their own accents. The SEMANTIC per-filter colours
+   #tab-forge ONLY so Uniques/Sets keep their own accents. The SEMANTIC per-filter colours
    (ft-now green, ft-pipe blue, ft-step yellow, ft-craft --q-orange) are untouched — they carry
    meaning and must survive. Note: --rune (#ff7d3c) and --q-orange (#ffa800) are both orange but
    measurably distinct (see report); they do not collide. Same specificity as the shared rules
@@ -8257,7 +8257,14 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
    max-height above now subtracts the same number, or a panel that starts lower would run off the
    bottom by exactly as much as it gained at the top. */
 .inbox-sticky.has{top:calc(var(--hdr-h,282px) + 8px);
-                  max-height:calc(100vh - var(--hdr-h,282px) - var(--dock-h,84px) - 48px)}
+                  max-height:calc(100vh - var(--hdr-h,282px) - var(--dock-h,84px) - 48px);
+/* v2316 — A BOTTOM BOUND, because max-height alone only holds while the panel is STUCK. At
+   first paint it sits at its natural flow position: measured at 375px its bottom was 785 while
+   the fixed dock starts at 587, so `tick it -> Chronicle + Vault` and `ignore` hit-tested to
+   DIV.dock-inner and were unclickable — and scrolling could not free them, because the panel is
+   sticky too. Pinning the bottom above the dock keeps it inside the band between header and
+   dock in BOTH states. Found cold by a different model family off the pixels. */
+  bottom:calc(var(--dock-h,84px) + 8px)}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
 .inbox-sticky .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
@@ -8362,7 +8369,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
    gold as a unique; the game gives runewords no colour of their own, and six specs pin that).
    The cause is that EVERY rule below is written `:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets)` — ONE
    declaration painting THREE rooms — with the rail and tick hardcoded to a green literal. So the
-   Completed panel rendered byte-identical in Forge, F·Uniques and F·Sets, and carried the accent
+   Completed panel rendered byte-identical in Forge, Uniques and Sets, and carried the accent
    of none of them. v1631 gave each TAB its colour and this shared block never heard about it.
    One token, declared per room, and the shared chrome follows the tab it is standing in.
    Item NAMES are deliberately NOT driven from this: a name obeys the game, a room is a label. */
@@ -8646,7 +8653,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:var(--fw-semibold);color:#e2d6ba;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:4px 10px;cursor:pointer;transition:filter .12s,transform .07s,border-color .12s}
 .gf-chip:hover{filter:brightness(1.2);transform:translateY(-1px)}
 .gf-chip img{width:16px;height:16px;object-fit:contain}
-/* v1625 ITEM3 — the F·Uniques FOUND ledger names an in-game UNIQUE, so it wears the unique tan
+/* v1625 ITEM3 — the Uniques FOUND ledger names an in-game UNIQUE, so it wears the unique tan
    "like the calculator tab". Scoped to the name span (.gf-cname) so the ✓ tick and the qlvl pill
    keep their own colours, and to #tab-funi so the SET-piece chips (_pieceChip) stay set green. */
 #tab-funi .gf-chip .gf-cname{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}
@@ -8789,7 +8796,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-craft:hover{background:rgba(255,168,0,.2)}
 /* v1633 — Konyo: "also color is synced here on the bottom too for the F-Uniques". The two routes
    framed themselves in the right colours but printed their LABELS in the card's default cream, so
-   F·Sets read green and F·Uniques read as chrome — the same item, two answers. Both now take
+   Sets read green and Uniques read as chrome — the same item, two answers. Both now take
    their quality from the TOKEN, frame and text together, and the literals are gone with them. */
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni{--fsq:var(--q-unique);color:var(--fsq);border-color:color-mix(in srgb,var(--fsq) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--fsq) 13%,transparent),color-mix(in srgb,var(--fsq) 3%,transparent))}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .forge-sealed .fs-btn-uni:hover{background:color-mix(in srgb,var(--fsq) 20%,transparent)}
@@ -8854,8 +8861,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fh-name .fh-boss:focus-visible{outline:2px solid var(--acc-intel);outline-offset:2px}
 /* v1729 — A GLOW THE SAME COLOUR AS ITS BASE IS NOT A GLOW.
    Konyo: "even the F-Uniques tab looks dull and matt colored compared to other sections".
-   Measured: Forge's title paints #ff7d3c and F·Sets' #00fc00 — both inherently vivid and neither
-   needs a glow. F·Uniques paints #c7b377, the game's own unique tan, which is the RIGHT hue (his
+   Measured: Forge's title paints #ff7d3c and Sets' #00fc00 — both inherently vivid and neither
+   needs a glow. Uniques paints #c7b377, the game's own unique tan, which is the RIGHT hue (his
    v1625 ruling: "F-UNIQUES it can be matched and synced to the uniques color") but the only one
    of the three that is muted — and its text-shadow was rgba(199,179,119,…), the SAME tan as the
    base, so it lit nothing. The title was flat by construction.
@@ -8869,7 +8876,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    the tab color wise". The Forge TAB wears --rune (v1631); its page title was still the chrome
    gold, so the tab and the page it opens disagreed about what colour the Forge is. Same rule the
    other two already follow: the room's title matches the room's tab. */
-/* v1664 — REMOVED `#tab-forge .forge-title{color:var(--rune)}` (added v1633). The PLAIN Forge page has no in-game quality, so its title stays chrome gold; only F·Uniques and F·Sets get a per-tab override (v1625 ITEM6). A page title wearing the RUNE-ITEM colour is the exact title-vs-quality collision this palette work exists to stop. */
+/* v1664 — REMOVED `#tab-forge .forge-title{color:var(--rune)}` (added v1633). The PLAIN Forge page has no in-game quality, so its title stays chrome gold; only Uniques and Sets get a per-tab override (v1625 ITEM6). A page title wearing the RUNE-ITEM colour is the exact title-vs-quality collision this palette work exists to stop. */
 #tab-fsets .forge-title{color:var(--q-set)}
 /* v1685 — the Forge title takes the RUNEWORD colour, from v1672's intent and v1672's words:
    "the Forge page IS the runeword chronicle, and its two siblings already wear unique gold and set
@@ -8881,14 +8888,14 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    written record and never grepped for the specs that GATE it. Two specs sit on each side, and
    this repo cannot satisfy both:
 
-     WEARS var(--q-runeword) — same gold as F·Uniques:
+     WEARS var(--q-runeword) — same gold as Uniques:
        tests/v1685_forge_family_identity.spec.ts:41  "the forge title is not wearing --q-runeword"
-     WEARS the family accent at :7424 — its own gold, distinct from F·Uniques:
+     WEARS the family accent at :7424 — its own gold, distinct from Uniques:
        tests/v775_tab_family.spec.ts:49              forge falls through to the family accent
        tests/v1625_board_quality_surfaces.spec.ts    "the plain Forge title must stay chrome gold"
 
    The prose record is just as split, and both halves quote him:
-     · v1627 (tv/control_ui.html:45-46) — he accepted Forge and F·Uniques reading the same, for
+     · v1627 (tv/control_ui.html:45-46) — he accepted Forge and Uniques reading the same, for
        colour ACCURACY: D2R paints a runeword's name the same gold as a unique.
      · v1631 (tv/control_ui.html:48-49) — "these two colors cant be the same... RUNEWORD is
        separate from the F-UNIQUES", resolving it as: an item NAME obeys the game, but A TAB IS A
@@ -8905,7 +8912,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 
    ══ 2026-08-13 — HE RULED. "the forge color should be like the tab color also for the sub tab
    and related." That is the "make them different" branch, but sharper than v1631's own framing:
-   not "own gold distinct from F·Uniques" (the family accent at :7424 / v775's old expectation),
+   not "own gold distinct from Uniques" (the family accent at :7424 / v775's old expectation),
    but the RUNE colour his TAB actually wears (console: `.head-tabs .ht[data-tab="forge"]{--ht-q:
    var(--rar-rune)}`, tv/control_ui.html:4318). The Forge room now wears --rune, not the runeword/
    unique gold and not the chrome-gold family accent — a THIRD identity, distinct from both.
@@ -8931,7 +8938,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
    v1626 CORRECTION — this comment used to claim the inline colour _undoBar writes was DEAD, because
    "_Q_HEX is not in that closure's scope". That is false. `var _Q_HEX` at line ~16224 is top-level,
    therefore a window property, therefore visible from every closure in the document; measured live,
-   the bar renders the unique gold on F·Uniques and the set green on F·Sets (v1628: both now come
+   the bar renders the unique gold on Uniques and the set green on Sets (v1628: both now come
    from _Q_HEX, which is itself read from the :root tokens — the set green is #00fc00, not #00ff00), and the
    inline wins over these rules. A comment describing a bug is indistinguishable from the bug to the
    next reader, and this one would have sent someone hunting a scope problem that does not exist.
@@ -8982,7 +8989,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 }
 /* 2026-08-13 — "and related": the Forge SEALED hero (trophy figure, "Chronicle Sealed" title,
    wax stamp) is part of the room's own gold chrome, repainted in --rune same as the title/tvf-
-   emblem/sub-tab rail above. Scoped to #tab-forge only — F·Uniques/F·Sets sealed hero art and
+   emblem/sub-tab rail above. Scoped to #tab-forge only — Uniques/Sets sealed hero art and
    their ROUTE CARDS inside stay untouched; those correctly wear the OTHER rooms' colours. */
 #tab-forge .forge-sealed-done .fs-fig-n{color:var(--rune);text-shadow:0 0 26px rgba(255,125,60,.45)}
 #tab-forge .forge-sealed-done .fs-title{color:var(--rune);text-shadow:0 0 22px rgba(255,125,60,.4)}
@@ -9209,7 +9216,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 /* v1644 ITEM2 — .f-cardart-badge is pinned absolute inside the 48px art box, so every user of it
    printed a stamp ON TOP of the sprite. Decorative glyphs (⚡, the atom's own step icon) are gone
    outright; the INFORMATIONAL ones (run rank, pieces-left/✅) keep their information but move OFF
-   the art into the title line as this pill. v1636 did this for F·Uniques Quick Wins only — this is
+   the art into the title line as this pill. v1636 did this for Uniques Quick Wins only — this is
    the same treatment reaching its siblings. */
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-rankpill{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-right:6px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);font-size:var(--fs-meta);font-weight:var(--fw-bold);color:var(--text-muted,#b5a48a);vertical-align:1px}
 :is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .f-art{max-width:40px;max-height:40px;object-fit:contain}
@@ -9632,13 +9639,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <h3>🎯 How to use this bible</h3>
     <p>Live <strong>MF / Players dock at the bottom</strong> of the screen — drag it and every number recalculates instantly. Press <span class="kbd">D</span> to slide it away and reclaim space.</p>
     <h3>🧭 The tabs — and two floating maps</h3>
-    <p>The nav runs <strong>🏠 main · 🗺️ bosses · 🔍 calculator · 🔥 TZ zones · 📡 TZ tracker · 🪨 runes · 👑 RotW special · 🔥 events · ⛓️ endgame · 🔱 binds · 📐 reference</strong> (data &amp; rules) then <strong>⚔️ SESSIONS · 🧰 tools · 🔨 Forge · 🏆 F·uniques · 🧩 F·sets · 📺 TV·D</strong> — The Workshop, your live do-it tabs. On <strong>🔨 Forge</strong> and <strong>🧰 Tools</strong> a floating button (bottom-right) pops a <strong>clickable map</strong> of everything inside — tap a row to jump straight to it.</p>
+    <p>The nav runs <strong>🏠 main · 🗺️ bosses · 🔍 calculator · 🔥 TZ zones · 📡 TZ tracker · 🪨 runes · 👑 RotW special · 🔥 events · ⛓️ endgame · 🔱 binds · 📐 reference</strong> (data &amp; rules) then <strong>⚔️ SESSIONS · 🧰 tools · 🔨 Runewords · 🏆 Uniques · 🧩 Sets · 📺 TV·D</strong> — The Workshop, your live do-it tabs. On <strong>🔨 Runewords</strong> and <strong>🧰 Tools</strong> a floating button (bottom-right) pops a <strong>clickable map</strong> of everything inside — tap a row to jump straight to it.</p>
     <h3>📸 Feed the engine — 3 photo-intake stashes</h3>
     <p>The whole site runs on <strong>three screenshot intakes</strong> in <strong>🧰 Tools</strong>: <strong>The Vault</strong> (items → auto-filed to mules), <strong>Rune Stash</strong>, and <strong>Gem Stash</strong>. Drop a photo of each — the AI reads it and fills the tally. <strong>⚔️ SESSIONS</strong> (the homepage) is the same intake, front and center, as a daily task-force dashboard. The <strong>Forge reads all three together</strong> to build your plan, so keep them current.</p>
-    <h3>🔨 Forge — your live task plan</h3>
+    <h3>🔨 Runewords — your live task plan</h3>
     <p>The Forge reads your runes · gems · vault · Chronicle and tells you exactly what to do: <strong>Make now</strong> (forge it), <strong>One step</strong> (go get the right base / cube runes up), <strong>Pipeline</strong> (Larzuk-socket then forge), and <strong>Crafts</strong>. Mark anything ✓ created and it drops off the list. <em>(White bases can't be cube-upgraded — for a higher-socket word you find the elite base.)</em></p>
-    <h3>🏆 F·uniques · 🧩 F·sets — the chronicles</h3>
-    <p>Two dedicated tabs, same idea as the Forge but for <strong>found items</strong> instead of crafted ones: <strong>F·uniques</strong> maps every missing unique to its best farm run (real odds · kills/hr) straight off the Calculator; <strong>F·sets</strong> tracks every set's pieces toward completion. Tick <strong>✓ found</strong> and it drops off the hunt — or hit <strong>📸 Import my chronicle</strong> and let the AI read an in-game collection-tracker screenshot to bulk-tick both at once.</p>
+    <h3>🏆 Uniques · 🧩 Sets — the chronicles</h3>
+    <p>Two dedicated tabs, same idea as the Forge but for <strong>found items</strong> instead of crafted ones: <strong>Uniques</strong> maps every missing unique to its best farm run (real odds · kills/hr) straight off the Calculator; <strong>Sets</strong> tracks every set's pieces toward completion. Tick <strong>✓ found</strong> and it drops off the hunt — or hit <strong>📸 Import my chronicle</strong> and let the AI read an in-game collection-tracker screenshot to bulk-tick both at once.</p>
     <h3>🎒 The Vault · 📜 Chronicle · 🎯 Loot Filters · 🔬 AI Item Checker</h3>
     <ul>
       <li><strong>The Vault</strong> — your mule manager. Screenshot a stash and the AI auto-files every item onto the right mule in a real-stash cell grid; search always knows which mule has what.</li>
@@ -9665,7 +9672,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <h3>⌨️ Keyboard shortcuts</h3>
     <ul>
       <li><span class="kbd">/</span> jump to the calculator and focus its item search</li>
-      <li><span class="kbd">1</span>–<span class="kbd">9</span>,<span class="kbd">0</span> switch tabs — 1=bosses · 2=calculator · 3=TZ zones · 4=runes · 5=RotW special · 6=events · 7=endgame · 8=binds · 9=reference · 0=tools <span style="color:var(--text-dim)">(home · TZ tracker · 🔨 Forge are click-only)</span></li>
+      <li><span class="kbd">1</span>–<span class="kbd">9</span>,<span class="kbd">0</span> switch tabs — 1=bosses · 2=calculator · 3=TZ zones · 4=runes · 5=RotW special · 6=events · 7=endgame · 8=binds · 9=reference · 0=tools <span style="color:var(--text-dim)">(home · TZ tracker · 🔨 Runewords are click-only)</span></li>
       <li><span class="kbd">Shift</span>+<span class="kbd">1</span>–<span class="kbd">6</span> MF presets — 250 · 400 · 553 (Shako) · 699 (MF swap) · 800 · 1000%</li>
       <li><span class="kbd">↑↓←→</span> in the calculator: navigate the item grid · <span class="kbd">Enter</span> open its detail panel</li>
       <li><span class="kbd">B</span> with an item active — from ANY tab: jump to bosses + highlight every drop source</li>
@@ -9696,12 +9703,12 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   <div class="tlg-content">
     <header class="tlg-hero">
       <span class="tlg-hero-ic">🧰</span>
-      <div class="tlg-hero-tt"><h3 class="tlg-hero-t">The Tools Tab — Field Guide</h3><p class="tlg-hero-sub">Feed the 🔨 Forge — your intake &amp; planners, explained</p></div>
+      <div class="tlg-hero-tt"><h3 class="tlg-hero-t">The Tools Tab — Field Guide</h3><p class="tlg-hero-sub">Feed the 🔨 Runewords — your intake &amp; planners, explained</p></div>
       <button class="tlg-x" onclick="document.getElementById('tools-legend-modal').classList.remove('show')" aria-label="close">✕</button>
     </header>
-    <div class="tlg-note">🧩 <b>The engine runs on 3 photo-intake stashes:</b> 🎒 <b>Vault</b> (items) · ᛝ <b>Rune Stash</b> · ◆ <b>Gem Stash</b>. 📸 Screenshot each, the AI fills the tally, and the 🔨 Forge reads all three <b>together</b>. 💾 Everything saves on this device + rides in Backup &amp; Share.</div>
+    <div class="tlg-note">🧩 <b>The engine runs on 3 photo-intake stashes:</b> 🎒 <b>Vault</b> (items) · ᛝ <b>Rune Stash</b> · ◆ <b>Gem Stash</b>. 📸 Screenshot each, the AI fills the tally, and the 🔨 Runewords reads all three <b>together</b>. 💾 Everything saves on this device + rides in Backup &amp; Share.</div>
     <div class="tlg-note" style="margin-top:0">🔨 <b>The AI task-planner is the <span style="color:#e6c877">Forge</span></b> (its own tab) — it reads everything below and hands you a ranked do-this-now plan. <b>Two flagship AI tools live here in Tools</b>: 🔮 Ask the AI + 🔬 AI Item Checker. This 🧰 tab is where you <b>feed the engine</b> + browse the data.</div>
-    <div class="tlg-note" style="margin-top:0">🏆 <b>Looking for found-item tracking?</b> That's <b>🏆 F·uniques</b> + <b>🧩 F·sets</b> — their own tabs next to Forge, same "✓ it and it drops off the hunt" idea but for grail items instead of crafted runewords.</div>
+    <div class="tlg-note" style="margin-top:0">🏆 <b>Looking for found-item tracking?</b> That's <b>🏆 Uniques</b> + <b>🧩 Sets</b> — their own tabs next to Forge, same "✓ it and it drops off the hunt" idea but for grail items instead of crafted runewords.</div>
     <div class="tlg-grid">
       <div class="tlg-card tlg-feat" style="--tc:#8fd0ff"><div class="tlg-card-h"><span class="tlg-card-ic">🔮</span><span class="tlg-card-t">Ask the AI — Diablo II Helper</span><span class="tlg-badge">flagship</span></div>
         <p>A Sonnet-powered chat that <b>reads your live stash</b> — ask "can I make Spirit?", "what am I close to?", anything. Answers use your real runes/gems/owned.</p></div>
@@ -17051,7 +17058,7 @@ window.renderEndgameRoad = renderEndgameRoad;
    the v1716 silospen pull that is 538 names instead of 322.
    ITEMS is the CALCULATOR's database, and it is curated. Left joined, the pull tripled his
    Calculator grid (322 tiles -> 538) and put 66 of the 69 _UNI_EXTRA uniques inside it — the one
-   place bible.html says in words they must never be: "appended to the F·Uniques universe ONLY,
+   place bible.html says in words they must never be: "appended to the Uniques universe ONLY,
    never the calculator" (v659/v1692). He asked for the HUNT to route correctly; he did not ask
    for a different Calculator, and a data pull must not redecide a curated surface.
    So a row whose NAME did not exist in the tables before the pull carries `nc:1` and joins the
@@ -17201,8 +17208,8 @@ let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
 // v659 — GRAIL FOUND-SEED: the owner's IN-GAME Chronicle truth (Unique tab, 59%), transcribed from his 56
 // screenshots 2026-07-12 — 229 uniques with their exact in-game First Found stamps. Durable floor mirroring
 // _RWC_SEED: re-applied every load, honors explicit un-ticks (d2r_grailUnfound), suppressed on a fresh
-// profile (a different player's browser). _UNI_EXTRA = the RotW uniques the F·Uniques roster needs that
-// ITEM_VALUE does not carry (low vanilla uniques + Latent charms etc.) — appended to the F·Uniques universe
+// profile (a different player's browser). _UNI_EXTRA = the RotW uniques the Uniques roster needs that
+// ITEM_VALUE does not carry (low vanilla uniques + Latent charms etc.) — appended to the Uniques universe
 // only, never the calculator, so every in-game find has a home. v682: the once-hidden D-weapon above
 // Doomslinger is CONFIRMED Djinn Slayer (May 18, 2026 01:45, resolved by the 2026-07-14 full reshoot).
 //
@@ -17522,7 +17529,7 @@ let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
 let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
 let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
 let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
-// v664 (army audit) — the pre-fix F·Sets undo bar could walk _UNI_EXTRA unique names INTO the set-piece
+// v664 (army audit) — the pre-fix Sets undo bar could walk _UNI_EXTRA unique names INTO the set-piece
 // store (one click per name). Uniques never belong here — strip them once on every load.
 try { if (typeof _UNI_EXTRA !== 'undefined'){ var _spDirty=false; Array.from(setPieces).forEach(function(n){ if (_UNI_EXTRA[n]){ setPieces.delete(n); _spDirty=true; } }); if (_spDirty) LS.setItem('d2r_setPieces', JSON.stringify(Array.from(setPieces))); } } catch(e){}
 // Rune Stash: { runeName: count } map. Pure user-owned tally; powers the cube-up planner.
@@ -22555,11 +22562,11 @@ function _setSlotGlyph(p){
   if (/sword|axe|mace|hammer|scepter|rod|staff|spear|polearm|club|wand|orb|blade|charge|guardian|crusher|sickle/.test(slot)) return '⚔️';
   return '🗡️';
 }
-/* v1633/tiny — EVERY TALLY IS A MOMENT, shared by F·Sets and the Item Set Tracker.
+/* v1633/tiny — EVERY TALLY IS A MOMENT, shared by Sets and the Item Set Tracker.
    Konyo: "the tally manual should also share the same celebrations and tallies and chronicle
    sync meaning auto both ways if registered here manually and celebrated." Extracted from
    renderForgeSets() so a manual tick in Tools → Item Set Tracker celebrates identically to a
-   tick made from F·Sets, without ever double-firing (the memory update on the first call means
+   tick made from Sets, without ever double-firing (the memory update on the first call means
    a second call in the same tick sees no further rise).
    Fires only on a RISE (v559.1 — un-ticking never celebrates). THE MEMORY IS KEYED BY LSR.key() —
    the fully-routed store this count was read from — so MAIN and LADDER share one climbing count
@@ -22580,8 +22587,8 @@ window._setChronBeat = function(){
    The detector only fires when it has a PREVIOUS number to rise from (`typeof ... === 'number'`),
    and measured on a fresh load `window.__chronPrevN` is `{}` — zero keys. Until now that was
    invisible because the only writer was renderForgeSets(), which primes itself the first time
-   F·Sets paints. Ticking from Tools → Item Set Tracker has no such warm-up: open the console,
-   tick your first piece of the night without ever visiting F·Sets, and it would prime instead of
+   Sets paints. Ticking from Tools → Item Set Tracker has no such warm-up: open the console,
+   tick your first piece of the night without ever visiting Sets, and it would prime instead of
    celebrate. The very probe that verified this feature had to call _setChronBeat() by hand first
    to make the celebration appear — that workaround WAS the bug, stated out loud.
    ON `load`, NOT DOMContentLoaded OR INLINE: fsetsScan is defined ~16k lines below this point
@@ -22753,7 +22760,7 @@ function toggleSetPiece(piece) {
        cant be or have a duplicate of a chronicle within them both."
        This is the write side of that. v1913 fixed the undo bar that was ROUTING uniques here, and
        v664 strips them on load — but only `_UNI_EXTRA` mod uniques, so `Blood Crescent`, a
-       main-roster unique, sat in his set ledger and inflated F·Sets to 118/135 against the game's
+       main-roster unique, sat in his set ledger and inflated Sets to 118/135 against the game's
        116. A guard at the write is the only one that cannot be out-run by a new caller.
        The find is NOT lost: the foundLog write above has already recorded it, which is where a
        unique belongs. */
@@ -22778,10 +22785,10 @@ function toggleSetPiece(piece) {
   }
   persist();
   renderSetTracker();
-  // v619 — found-sync both ways: a tick from the Tools checklist wall re-scans an open F·Sets tab
+  // v619 — found-sync both ways: a tick from the Tools checklist wall re-scans an open Sets tab
   // (and vice versa — fsets ticks already call renderSetTracker via toggleSetPiece).
   try { var _ts=document.getElementById('tab-fsets'); if(_ts&&_ts.classList.contains('active')&&typeof window.renderForgeSets==='function') window.renderForgeSets(); } catch(e){}
-  // tiny — one shared celebration path with F·Sets (see window._setChronBeat); safe to call
+  // tiny — one shared celebration path with Sets (see window._setChronBeat); safe to call
   // even when renderForgeSets already fired it above, since the rise-memory is already updated.
   try { if (typeof window._setChronBeat === 'function') window._setChronBeat(); } catch(e){}
 }
@@ -25446,7 +25453,7 @@ window.dailyCreateAi = function(force){
   try { if(!force){ var _c=window.LSR.getItem('d2r_createNowAi')||''; if(_c && typeof rwMade!=='undefined' && rwMade){ for(var _k in rwMade){ if(rwMade[_k] && _k && _c.indexOf(_k)>=0){ force=true; break; } } } } } catch(e){}
   /* v1862 — A CACHED SENTENCE MAY NOT QUOTE A COUNT THAT HAS MOVED.
      Konyo's screen, 2026-08-20: the DAILY PICK said "Sets · 112/135 pieces", the progress row under
-     it said 113/135, and the F·Sets tab said 116/135. Three numbers for one quantity on two screens.
+     it said 113/135, and the Sets tab said 116/135. Three numbers for one quantity on two screens.
      113 was a stale bridge (fixed in _fsCmp); 112 is THIS — a sentence generated once for the day
      and cached, with the count of that moment frozen inside it.
      There was already a staleness check here, and it only covered RUNEWORDS: "if the cached pick
@@ -25605,7 +25612,7 @@ window._syncCreateNowAiArt = function(){
     var _sp = null; try { _sp = (typeof findSetPiece === 'function') ? findSetPiece(hit) : null; } catch(e){}
     var _setNm = (_sp && _sp.set && _sp.set.name) ? String(_sp.set.name) : '';
     /* SET ART: a set AGGREGATE has none of its own — measured, artUrl("Tancred's Battlegear") and
-       artUrl("Aldur's Watchtower") are both null, because only PIECES carry art. The F·Sets tab
+       artUrl("Aldur's Watchtower") are both null, because only PIECES carry art. The Sets tab
        already solves this (see _setArt): ask _setRepArtName for the set's REPRESENTATIVE piece, and
        fall back to the first piece that resolves. Reusing that chain rather than inventing a third
        one is the whole point — one answer per question. Strip the "(set)" disambiguator first; the
@@ -28263,7 +28270,7 @@ document.querySelectorAll(".tab").forEach(t => { t.onclick = () => navClean(t.da
      · forge → hd_war_hammer.png · tools → horadric_cube_graphic.png
    That is the SAME defect v1677 fixed on the emblem (which was rendering Harlequin Crest as a logo)
    and v1678 fixed on the page headers: chrome wearing an item's identity. Worse here, because the
-   console shows a gold ring for F·Uniques while the website showed the Crown of Ages — one tab, two
+   console shows a gold ring for Uniques while the website showed the Crown of Ages — one tab, two
    pictures, depending on where he opened it.
    So the six tabs the console strip carries now name the SAME six files it uses. Only those six:
    the LORE/data tabs are a different family and keep their in-game sprites, which is not the same
@@ -39594,7 +39601,7 @@ function renderJournal(){
               var huntable = 0;
               try { huntable = (fu.missing || []).filter(function(x){ return !!window._pickSrc(x.sources); }).length; } catch(e2){ huntable = 0; }
               return { found: fu.found, total: fu.chronTotal || fu.total, carded: fu.total, huntable: huntable }; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
-            sets: (function(){ try { var fs9 = window.fsetsScan(); return fs9 ? { found: fs9.havePieces, total: fs9.totalPieces, done: (fs9.done || []).length } : null; } catch(e){ return null; } })(),   // v922 (Konyo: 'F-SETS is also a chronicle') — the F·Sets tab's own truth
+            sets: (function(){ try { var fs9 = window.fsetsScan(); return fs9 ? { found: fs9.havePieces, total: fs9.totalPieces, done: (fs9.done || []).length } : null; } catch(e){ return null; } })(),   // v922 (Konyo: 'F-SETS is also a chronicle') — the Sets tab's own truth
             chron: (function(){ try { var rm = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}');
                 var _tip = (typeof RUNEWORD_TIP !== 'undefined') ? RUNEWORD_TIP : null;
                 var made = _tip ? Object.keys(rm).filter(function(n){ return _tip[n]; }).length : Object.keys(rm).length;
@@ -39615,7 +39622,7 @@ function renderJournal(){
         (x.grail || {}).found || 0, (x.chron || {}).made || 0,
         /* v1862 — THE SETS COUNT WAS NOT IN THIS COMPARE, AND THAT IS THE WHOLE BUG.
            Konyo: "this dailt tasks is not sycned to the counter as the sets and uniques tabs".
-           His F·Sets tab read 116/135 while the console's DAILY TASK FORCE read 113/135, three
+           His Sets tab read 116/135 while the console's DAILY TASK FORCE read 113/135, three
            minutes apart, on the same board build.
            This function decides whether d2r_forgeSummary is REWRITTEN at all — "write ONLY on real
            change". `sets` joined the payload in v922; this comparator was written in v913 and never
@@ -40269,13 +40276,13 @@ function renderJournal(){
           /* v2096 — AND THE ROUTE HAS TO BE ON THE SCREEN HE ACTUALLY SEES. There are two sealed
              screens: this one (the Completed filter) and the ALL-view one below. On a sealed chronicle
              the auto-select lands on Completed, so THIS is the one that renders — and it offered only
-             F·Uniques and F·Sets. With crafts moved to their own room in v2094, a sealed Forge had no
+             Uniques and Sets. With crafts moved to their own room in v2094, a sealed Forge had no
              way to point at them at all. Measured: querySelector('.forge-sealed:not(.forge-sealed-done)')
              found nothing, because that variant never draws once the chronicle is sealed. */
           +'<div class="fs-btns fs-routes">'
             +'<button class="fs-btn fs-btn-craft" onclick="window.switchTab&&window.switchTab(\'crafts\')"><span class="fs-rt-t">⚗️ Crafts</span><span class="fs-rt-s">create them all</span></button>'
-            +'<button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')"><span class="fs-rt-t">🏆 F·Uniques</span><span class="fs-rt-s">the chronicle wall — every unique still dark</span></button>'
-          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')"><span class="fs-rt-t">🧩 F·Sets</span><span class="fs-rt-s">finish the sets — closest first</span></button></div></div>');
+            +'<button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')"><span class="fs-rt-t">🏆 Uniques</span><span class="fs-rt-s">the chronicle wall — every unique still dark</span></button>'
+          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')"><span class="fs-rt-t">🧩 Sets</span><span class="fs-rt-s">finish the sets — closest first</span></button></div></div>');
         if (_skipNote) H.push(_skipNote);
         H.push('<details class="forge-sealed-roll"><summary>📜 show the sealed chronicle · '+made.length+' runeword'+(made.length===1?'':'s')+'</summary><div class="fsr-body">'+_doneTools+_doneList+'</div></details>');
       } else {
@@ -40302,8 +40309,8 @@ function renderJournal(){
           +'<div class="fs-sub">Every one of the <b>'+_sealN+'</b> runewords stands forged. The runeword Forge rests —<br>⚗️ <b>Crafts have a room of their own now</b> (and 🏆 chronicle / 🧩 sets). Bases for trade stay on the wall.</div>'
           +'<div class="fs-btns">'
           +'<button class="fs-btn fs-btn-craft" onclick="window.switchTab&&window.switchTab(\'crafts\')">⚗️ Crafts — create them all</button>'
-          +'<button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')">🏆 F·Uniques — the chronicle wall</button>'
-          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')">🧩 F·Sets — finish the sets</button>'
+          +'<button class="fs-btn fs-btn-uni" onclick="switchTab(\'funi\')">🏆 Uniques — the chronicle wall</button>'
+          +'<button class="fs-btn fs-btn-set" onclick="switchTab(\'fsets\')">🧩 Sets — finish the sets</button>'
           +'</div></div>');
       } else if (F !== 'crafts') {
         /* v2094 — the empty state must speak the room's language. This one says "No runeword tasks
@@ -40659,7 +40666,7 @@ function renderJournal(){
       var _lw=document.createElement('div');
       _lw.innerHTML='<button class="forge-legend-fab" id="forge-legend-fab" title="Forge legend — what the badges mean" onclick="window.forgeLegendToggle&&window.forgeLegendToggle()"><img src="art/hd_hellforge_hammer.png" alt="Forge legend" loading="lazy"></button>'
         +'<div class="forge-legend-pop" id="forge-legend-pop">'
-        +'<div class="flp-h">🔨 Forge — legend</div>'
+        +'<div class="flp-h">🔨 Runewords — legend</div>'
         +'<div class="flp-sec"><b>The sub-tabs</b><div>🟡 <b>One step</b> — one action away: go FIND the right-tier base, or cube missing runes up</div><div>⚒ <b>Make now</b> — forge it right now (base + sockets + runes all in hand)</div><div>🔧 <b>Pipeline</b> — Larzuk-socket the base you own, then forge</div><div>⚗️ <b>Crafts</b> — gem crafts, every slot + recipe</div><div>✅ <b>Completed</b> — runewords you\'ve created · restore any</div></div>'
         +'<div class="flp-sec"><b>Which base — the badges</b><div><span class="f-ideal">✓ ideal base</span> the socket-correct best base for this word (Larzuk hits the exact count)</div><div><span class="f-alt">meta base: X</span> a valid alternative when you don\'t have the ideal one</div><div>🏆 <b>best base for &lt;word&gt;</b> — shown on a base you already OWN (e.g. a 2H merc base): names the base you\'d IDEALLY want (a 1H player weapon)</div></div>'
         +'<div class="flp-sec"><b>Hand (Konyo\'s rule)</b><div><span class="f-hand">1H</span> a one-handed <b>player</b> weapon · <span class="f-hand">2H merc</span> a two-handed <b>mercenary</b> weapon · <span class="f-hand">2H caster</span> a caster staff</div></div>'
@@ -40832,12 +40839,12 @@ function renderJournal(){
   // reads in MINUTES ('~1 every 6m'), an hour and up keeps hours. Odds math untouched — display only.
   function _fuRate(ev){ var h = 1/ev; if (h < 1) return Math.max(1, Math.round(h*60)) + 'm'; if (h < 10) return (Math.round(h*10)/10) + 'h'; return Math.round(h) + 'h'; }
   /* ── v1565 — ONE TIME-TO-FIND, FOR BOTH FORGES ───────────────────────────────────────────────
-     Konyo: "for F·Sets i dont see the items section rendering with time frames for each run... it
-     is like that on F·Uniques already... only the first one on each section is already time frame
+     Konyo: "for Sets i dont see the items section rendering with time frames for each run... it
+     is like that on Uniques already... only the first one on each section is already time frame
      based, but also the ones on the bottom should be for both."
 
-     He is right on both counts. The RUN cards said "expected ~1 every 4h" on F·Uniques and nothing
-     at all on F·Sets, and the ITEM cards on BOTH forges showed odds (1:766) with no time — so the
+     He is right on both counts. The RUN cards said "expected ~1 every 4h" on Uniques and nothing
+     at all on Sets, and the ITEM cards on BOTH forges showed odds (1:766) with no time — so the
      one number he actually plans an evening around appeared on a third of the cards.
 
      This is the same 50%-confidence figure the console hero and /api/evrank use, so a piece cannot
@@ -40860,7 +40867,7 @@ function renderJournal(){
      touch the ledger, and a mis-typed letter can never be a write. Month headings hide when nothing
      under them matches, so the result reads as a list rather than a set of empty rooms. */
   /* ── v1590 — ONE LEDGER FILTER, BOTH FORGES ──────────────────────────────────────────────────
-     v1572 gave F·Uniques a filter and month headings and F·Sets got neither, so the two completed
+     v1572 gave Uniques a filter and month headings and Sets got neither, so the two completed
      views drifted into different products: one a navigable dated ledger, the other a flat wall of
      chips. The obvious fix was to copy the filter across — and a copy is the thing this repo keeps
      paying for (REG-090, REG-091: a fix applied to some sites and not the one that mattered next).
@@ -41005,7 +41012,7 @@ function renderJournal(){
     /* ── v1913 — THE BAR PAINTED IT GOLD BECAUSE IT KNEW, AND FILED IT UNDER SETS BECAUSE IT DID
        NOT ASK. Konyo, live: "this is a UNIQUE item and it wrongly put this color and item in the
        wrong area routed incorrectly to F-Sets instead of F-Uniques" — Blood Crescent, a unique
-       Scimitar, sitting as F·Sets' last find. And pressing undo did nothing, because every
+       Scimitar, sitting as Sets' last find. And pressing undo did nothing, because every
        sets-side operation on a name that is not a set piece is a no-op: "when i hit UNDO it doesnt
        really undo it its stil counted".
 
@@ -41299,7 +41306,7 @@ function renderJournal(){
       return (xc[n]||(xc[n]={ n:n, tier:(iv[n]?'grail':'common'), sources:[] }));
     });
     // v659 — the mod Chronicle tracks uniques beyond the calculator DB (low vanilla uniques, Latent charms …).
-    // Append them to the F·Uniques universe ONLY (never the calculator/boss tables) so every in-game find has
+    // Append them to the Uniques universe ONLY (never the calculator/boss tables) so every in-game find has
     // a card and the found % tracks the in-game Chronicle. Cached objects so funiScan identity stays stable.
     // v1692 — _UNI_EXTRA is already folded into _gUniqueRoster() and DE-DUPED there (59 of its 66
     // names also live in ITEM_VALUE, e.g. "Blacktongue", "Goreshovel"); concatenating it again here
@@ -41814,7 +41821,7 @@ function renderJournal(){
   /* v1813 — ONE METER TEMPLATE FOR BOTH GRAIL FORGES (Konyo: "i want this area matching ... same
      template style ... symmetric and matching in their own individual logic obviously just
      structured the same").
-     This helper hardcoded the 🏆 glyph and the word "found", so F·Sets could not use it — it
+     This helper hardcoded the 🏆 glyph and the word "found", so Sets could not use it — it
      counts PIECES and SETS, not finds — and hand-rolled a copy of the same markup instead. Two
      copies of one bar is how they drifted: same classes, same gradient shape, different source of
      truth for the structure, and nothing to keep them in step. The label is a parameter now, so
@@ -41834,13 +41841,13 @@ function renderJournal(){
       +'<div class="fp-lbl">'+lbl+'<span class="fp-pct">'+pct+'%</span></div></div>';
   }
   /* v2300 — A COUNT WITHOUT ITS UNIT IS AN INVITATION TO READ IT AS THE OTHER ONE.
-     Konyo, about F·Sets: "i see like for Sets 4 are missing.. only 11 show so 4 are missing".
+     Konyo, about Sets: "i see like for Sets 4 are missing.. only 11 show so 4 are missing".
      MEASURED against his real ledger: ▦ All missing 15 counts PIECES, ⚡ Quick wins 11 counts SETS
      that are one piece away, and 15 − 11 is exactly the 4 he could not account for. Both numbers
      were correct; they sat side by side counting different things and nothing said so. The 4 that
      fall between them are the pieces of the only two sets needing TWO (Death's Disguise,
      Griswold's Legacy), so they appear in neither list he was reading.
-     `unit` is optional and passed ONLY where a page mixes units. F·Uniques counts items in all
+     `unit` is optional and passed ONLY where a page mixes units. Uniques counts items in all
      four tiles, so it gets none — a word added where there is no ambiguity is the clutter he asked
      to have removed. [[label-outlived-referent]] */
   function _tile(key,emoji,label,cls,n,F,setter,unit){
@@ -42015,7 +42022,7 @@ function renderJournal(){
      Konyo: "the main tabs and sub tabs need to have the same image HD_art0r that we synced just
      like it is for forge."
 
-     v1625 filled the F·Uniques and F·Sets page-header emblems from the app's own artUrl seam —
+     v1625 filled the Uniques and Sets page-header emblems from the app's own artUrl seam —
      the first name that resolved out of a hardcoded list — so the header wore Harlequin Crest's
      hood and Tal Rasha's Lidless Eye's orb. That was the right answer in v1625, when the only
      alternative was a bare emoji and the tab strip had no art of its own.
@@ -42033,7 +42040,7 @@ function renderJournal(){
      private CSS classes (.tvf-emblem-art, .tvf-gl) had no other user either and go with it. */
   function _runArtThumb(r){
     var b = _runBossArt(r.bossId, r.boss);
-    /* v1625 — the SAME helper now serves F·Sets, whose pieces carry .name (with a '(Helm)' slot
+    /* v1625 — the SAME helper now serves Sets, whose pieces carry .name (with a '(Helm)' slot
        suffix) where uniques carry .n. One function, two shapes — not a second copy. */
     /* v1628 \u2014 RULE 3: NO ARBITRARY PICTURES. This used to fall back to art(items[0].name) plus a
        \ud83c\udfaf glyph, i.e. whichever drop happened to sort first stood in for the whole run. That is the
@@ -42066,11 +42073,11 @@ function renderJournal(){
         + 'window.openBossDetail&&window.openBossDetail(\'' + jsq(r.bossId) + '\');}"' : '')
       + ' style="cursor:' + (r.bossId ? 'pointer' : 'default') + '">' + pic + '</span>';
   }
-  try { window._runArtThumb = _runArtThumb; } catch(e){}   // v1625 — F·Sets calls it across the IIFE seam
-  /* v1644 ITEM1 — one shared boss-hero name renderer for BOTH best-farm heroes (F·Uniques and
-     F·Sets). Before this both emitted bare escaped text inside .fh-name, which inherits
+  try { window._runArtThumb = _runArtThumb; } catch(e){}   // v1625 — Sets calls it across the IIFE seam
+  /* v1644 ITEM1 — one shared boss-hero name renderer for BOTH best-farm heroes (Uniques and
+     Sets). Before this both emitted bare escaped text inside .fh-name, which inherits
      --text: measured rgb(244,232,208) cream, while the run row beneath named the same boss in
-     --best rgb(102,255,136). Shape copied from the F·Sets quick-win hero (the one surface that was
+     --best rgb(102,255,136). Shape copied from the Sets quick-win hero (the one surface that was
      already wired) — a span carrying the colour class, a role/tabindex affordance and a route —
      except the route is openBossDetail, because a boss is not an item and navigateToItem would
      land it on the item calculator. No data-arttip: that attribute drives the ITEM art tip and a
@@ -42113,7 +42120,7 @@ function renderJournal(){
      barnaes star ... but that also upgrades with the works".
      The hero art slot rendered a bare `art(name)` — a picture of a real item that could not be
      hovered, clicked or routed, while the NAME beside it and every row beneath it could. Two call
-     sites had the same gap (F·Uniques best-farm at ~35507, F·Sets quick-win at ~36216), so this is
+     sites had the same gap (Uniques best-farm at ~35507, Sets quick-win at ~36216), so this is
      one helper rather than two edits: the next hero added inherits it instead of being forgotten,
      which is exactly how the boss heroes came to be missed in the first place.
      `data-arttip` is the same delegated floating-card hook 171 other surfaces already use, and
@@ -42519,7 +42526,7 @@ function renderJournal(){
 
   /* ── v1925 — ONE ITEM, ONE LEDGER ────────────────────────────────────────────────────────────
      Konyo, 2026-08-21: "code a safegaurd for this so it cant be or have a duplicate of a chronicle
-     within them both", after his F·Sets meter read 118/135 while the game read 116.
+     within them both", after his Sets meter read 118/135 while the game read 116.
 
      Asking the live board settled it: it was carrying **119** stored pieces and exactly three do
      not belong.
@@ -43653,7 +43660,7 @@ function renderJournal(){
   window._gUnfoundConflicts = function(){
     /* v1782 — THIS LIST FEEDS A UNIQUES PANEL AND HAD NO ROSTER FILTER.
        d2r_grailUnfound is written by toggleSetPiece as well as by his unique un-ticks, so a SET
-       PIECE he un-ticked appeared in the F·Uniques "marked NOT found, by you" banner — a set piece
+       PIECE he un-ticked appeared in the Uniques "marked NOT found, by you" banner — a set piece
        counted under a uniques label. Worse, the banner's only control routes through grailFoundUni
        -> toggleOwned, and a set-piece name matches neither ITEMS nor _UNI_EXTRA nor the unique
        roster, so it fell through to owned.add(name): tapping the fix button wrote a PHANTOM VAULT
@@ -43661,7 +43668,7 @@ function renderJournal(){
        control offered could not fix the thing it pointed at, and littered on every tap.
        Found by an adversarial review of the tally surfaces.
        Filtered to the unique roster, through the same fold funiScan trusts; a set piece he
-       un-ticked belongs to F·Sets, not here. */
+       un-ticked belongs to Sets, not here. */
     try {
       var un = JSON.parse(window.LSR.getItem('d2r_grailUnfound') || '{}') || {};
       var roster = null;
@@ -44212,7 +44219,7 @@ function renderJournal(){
         if (it){
           var bs=it._bs, boss=bs?bs.s.boss:(run&&run.boss)||'', oddsStr=bs?fmtOdds(bs.chance!=null?bs.chance:bs.s.chance):'';   /* v1616 — his odds */
           /* v1740 — the item's OWN time-to-find, through _ttf, which is the exact helper the
-             F·Uniques card prints with. Same item, same number, both surfaces. */
+             Uniques card prints with. Same item, same number, both surfaces. */
           var _bh=''; try { if (bs && bs.s) _bh = _ttf(bs.chance!=null?bs.chance:bs.s.chance, bs.s.kph||30, killsPerRun(bs.s.bossId)); } catch(e){}
           c.op={ item:it.n, boss:boss, oddsStr:oddsStr, bossId:(bs?bs.s.bossId:(run&&run.bossId)||''),
                  bestHours:_bh,
@@ -44231,14 +44238,14 @@ function renderJournal(){
           var next=miss[0], nextClean=next?_pieceLabel(next.name):'';
           var setClean=_pieceLabel(w.name);
           /* v1717 — the task force names ONE piece, so it must quote THAT piece's run, not the
-             set's aggregate. Same fallback order as the F·Sets board. */
+             set's aggregate. Same fallback order as the Sets board. */
           var src=null; try { src=(next&&_pieceSrc(next.name))||_setAggSrc(w.name); } catch(e){}
           /* v1741 — THE SAME PIECE MUST NOT CARRY TWO SETS OF ODDS. This printed the RAW
-             src.chance while the F·Sets card printed _adjC(...) — his MF/players-adjusted figure —
+             src.chance while the Sets card printed _adjC(...) — his MF/players-adjusted figure —
              so Tancred's Hobnails read "Normal TZ Mephisto 1:2.1k" here and "Normal TZ Mephisto
              1:1.9k ~14h to find" three tabs away. Same piece, same boss, two numbers, and this row
              had no time at all. Konyo: "cant have two diffrent numbers for farming."
-             Now it runs the piece through the same seam the F·Sets card does — _adjC for the odds,
+             Now it runs the piece through the same seam the Sets card does — _adjC for the odds,
              _ttf for the time — so the two surfaces cannot disagree. v1740 did this for uniques;
              this is the sets half of the same defect. */
           var sBoss=src?src.boss:'';
@@ -44305,7 +44312,7 @@ function renderJournal(){
      unreachable — but the diff LOOKED like a fix and was not one. Caught by LAW19, which is exactly
      the reachability question that no test asks: a spec proves code does what it claims WHEN RUN,
      and says nothing about whether anything runs it.
-     Its orphaned CSS (.gf-setbar, .gf-setbar>i, .f-rankpill-left) went with it; the live F·Sets card
+     Its orphaned CSS (.gf-setbar, .gf-setbar>i, .f-rankpill-left) went with it; the live Sets card
      renderer is elsewhere and already carries no corner badge. */
   window.renderForgeSets=function(){
     var box=document.getElementById('fsets-body'); if(!box) return;
@@ -44313,7 +44320,7 @@ function renderJournal(){
     // v709 (Grok forge wave B5) — same sealed-landing rule as funi, from fsets' OWN scan
     if(!window._fsLanded){ window._fsLanded=true; try { if(s.totalPieces && s.havePieces/s.totalPieces>=.99 && _fsF==='all') _fsF='done'; } catch(e){} }   // fsets' found-key is 'done'
     var F=_fsF; var H=[];
-    // v560.1 — Konyo: "I already have item trackers — F·Sets should be the F·Uniques coding logic." So this is
+    // v560.1 — Konyo: "I already have item trackers — Sets should be the Uniques coding logic." So this is
     // PIECE-centric, identical to Forge·Uniques: every missing PIECE is a farm item (Find → best run → ✓ found),
     // the tally syncs silently to the Item Set Tracker (d2r_setPieces), and the checklist wall stays in Tools.
     var missingP=[];
@@ -44322,15 +44329,15 @@ function renderJournal(){
     s.sets.forEach(function(r){ var agg=_setAggSrc(r.name);
       r.pieces.forEach(function(p){ if(!p.have) missingP.push({ name:p.name, set:r.name, left:r.left, src:(_pieceSrc(p.name)||agg) }); }); });
     /* v1813 — SAME THREE BLOCKS, SAME ORDER AS F·UNIQUES: headline meter, the line that explains
-       it, then the last-found/undo bar. F·Sets used to open with the undo bar and put the meter
+       it, then the last-found/undo bar. Sets used to open with the undo bar and put the meter
        second, so the two tabs read as different screens built by different people — the headline
        number was the first thing on one and the third on the other. Order is the template; the
        SENTENCES stay each forge's own, because pieces-and-sets is not finds. */
     /* v1925 — NO INLINE GRADIENT. Konyo: "make sure its a unified CSS between the individual
        chronicles related."
        The stylesheet ALREADY unifies them — `:is(#tab-forge,#tab-crafts,#tab-funi,#tab-fsets) .fp-fill` at
-       ~7626 gives all three siblings one gradient, and F·Uniques uses it by passing no colour.
-       F·Sets passed '#4ade80,#86efac' as an INLINE style, and inline beats the stylesheet, so the
+       ~7626 gives all three siblings one gradient, and Uniques uses it by passing no colour.
+       Sets passed '#4ade80,#86efac' as an INLINE style, and inline beats the stylesheet, so the
        one tab opted itself out of the rule written to keep them the same. Measured side by side:
        uniques rgb(95,201,122)→rgb(143,230,160), sets rgb(74,222,128)→rgb(134,239,172).
        v775 had already noticed the sibling drift and unified the TITLE colour, noting "was #4ade80
@@ -44340,13 +44347,13 @@ function renderJournal(){
       title: s.havePieces+' of '+s.totalPieces+' pieces',
       label: '🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets'
     }));
-    // 2026-08-13 — symmetry pass: F·Uniques has a "named cards" line explaining its grid against the
-    // in-game chronicle total; F·Sets had no equivalent. SET truth only (pieces/sets from fsetsScan
+    // 2026-08-13 — symmetry pass: Uniques has a "named cards" line explaining its grid against the
+    // in-game chronicle total; Sets had no equivalent. SET truth only (pieces/sets from fsetsScan
     // above) — never a uniques number. There is no separate "in-game total sets" count to reconcile
     // against here (unlike uniques' chronTotal vs named-card subset), so this states what IS tracked
     // rather than inventing a dark-row figure that was never measured.
     H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="every set tracked here, from the mod\'s own set roster">🗂 sets: <b>'+s.done.length+' / '+s.sets.length+'</b> completed · <b>'+(s.totalPieces-s.havePieces)+'</b> piece'+((s.totalPieces-s.havePieces)===1?'':'s')+' still missing</div>');
-    H.push(_undoBar('set'));   // v644 — mis-ticks are one ↩ away, forge-style; v1813 — third, as on F·Uniques
+    H.push(_undoBar('set'));   // v644 — mis-ticks are one ↩ away, forge-style; v1813 — third, as on Uniques
     // group missing pieces by best run (same shape as Forge·Uniques)
     var bySrc={};
     /* v1564 — Konyo: "Run drops broadly? what level is this, is this a mistake?"
@@ -44360,7 +44367,7 @@ function renderJournal(){
     var NO_RUN_KEY = 'No verified farm source yet';
     missingP.forEach(function(mp){ var key=mp.src?mp.src.boss:NO_RUN_KEY;
       var g=(bySrc[key]=bySrc[key]||{boss:key,bossId:mp.src&&mp.src.bossId,items:[],ev:0,diff:-1,noRun:!mp.src}); g.items.push(mp);
-      if(mp.src){ g.ev+=(mp.src.kph||30)/_adjC(mp.src, mp.name);   /* v1616 — MF/players-adjusted, like F·Uniques */
+      if(mp.src){ g.ev+=(mp.src.kph||30)/_adjC(mp.src, mp.name);   /* v1616 — MF/players-adjusted, like Uniques */
         var _dr=_diffRank(mp.src.diffKey); if(_dr>g.diff) g.diff=_dr; } });
     // v1564 — the no-source bucket sorts LAST regardless of size. It is not a better run than a
     // real one just because more orphans landed in it.
@@ -44471,24 +44478,24 @@ function renderJournal(){
     if(F==='runs'&&!runs.length){
       H.push('<div class="forge-empty forge-empty-sm">Nothing in this bucket right now — no missing set piece maps to a ranked run. Tap <b>▦ All</b> for every missing piece, or <b>⚡ Quick wins</b> for the one-piece finishes.</div>');   // v681 — same 0-count fall-through class as the v678 quick-wins fix
     }
-    // QUICK WINS — piece cards, F·Uniques style ("Find X → ✓ found it")
+    // QUICK WINS — piece cards, Uniques style ("Find X → ✓ found it")
     if(show('near')&&quick.length){
       H.push('<div class="forge-sec forge-sec-step"><div class="forge-sec-h">⚡ Quick wins <span class="forge-sec-ct">'+quick.length+'</span><span class="forge-sec-sub">one piece finishes the whole set</span></div>');
       var _qCards=[];
       quick.slice(0,99999).forEach(function(mp){
         var clean=mp.name.replace(/\s*\(([^)]+)\)\s*$/,''), slot=(mp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||'';
         /* v1565 — the piece card carried odds (1:766) and no time, so the number he plans an
-           evening around was missing from exactly the card he taps. Same helper as F·Uniques.
+           evening around was missing from exactly the card he taps. Same helper as Uniques.
            The no-source line also stops saying "drops broadly — any high-MF run", which promised a
            run: these are the sets with no verified source at all (v1557), and inviting a high-MF
            run implies the odds improve with MF when we do not know that they drop there. */
-        var _sc=mp.src?_adjC(mp.src, mp.name):null;                  // v1616 — same seam as F·Uniques; sets were baseline-only too
+        var _sc=mp.src?_adjC(mp.src, mp.name):null;                  // v1616 — same seam as Uniques; sets were baseline-only too
         var _ts=mp.src?_ttf(_sc,mp.src.kph,killsPerRun(mp.src.bossId)):'';
         var src=mp.src?('<div class="gf-src">📍 best run: <b>'+esc(mp.src.boss)+'</b> <span class="gf-odds">'+fmtOdds(_sc)+'</span>'+(_ts?'<span class="gf-odds gf-ttf">~'+_ts+' to find</span>':'')+'</div>'):'<div class="gf-note">no verified farm source for this set yet</div>';
-        /* v1644 ITEM2 — Konyo (F·Sets → QUICK WINS): "the little electric little stamp on the items
+        /* v1644 ITEM2 — Konyo (Sets → QUICK WINS): "the little electric little stamp on the items
            i want removed .. leave only the items". The ⚡ was pure decoration pinned on the sprite
            corner: every card in this list is a quick win, so the stamp said nothing the section
-           heading did not. v1636 removed the equivalent 🏆 from F·Uniques Quick Wins and stopped
+           heading did not. v1636 removed the equivalent 🏆 from Uniques Quick Wins and stopped
            there; this is the same removal reaching the sibling tab. */
         _qCards.push('<div class="f-card f-step f-atom"><div class="f-cardart f-cardart-hd">'+art(clean,'🧩')+'</div><div class="f-cardbody">'
           +'<div class="f-cardtitle"><div class="f-atomact">Find <b class="f-rwbig fs-piece" data-arttip="'+esc(clean)+'" role="button" tabindex="0" aria-label="open '+esc(clean)+'’s card" onclick="event.stopPropagation();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window.navigateToItem&&window.navigateToItem(\''+jsq(clean)+'\');}">'+esc(clean)+'</b>'+(slot?' <span class="f-need">'+esc(slot)+'</span>':'')+'</div>'
@@ -46755,7 +46762,7 @@ window._sessionDoMission = function(){
     }, 80);
   } else if (m.kind === 'set'){
     // v1273 — set PIECES aren't in ITEMS (openItemDetail 404s → "item not found"); land on
-    // F·Sets and snap to Quick-wins where the last piece + its best run + a ✓ button live.
+    // Sets and snap to Quick-wins where the last piece + its best run + a ✓ button live.
     if (window.switchTab) window.switchTab('fsets');
     setTimeout(function(){ try { if (window.fsetsSetFilter) window.fsetsSetFilter('near'); } catch(e){} }, 80);
   } else if (m.kind === 'grail'){
@@ -46803,10 +46810,10 @@ window.renderSessionCockpit = function(){
        condition was permanently false and silently drew nothing. The REG-083 / REG-087 shape again,
        this time hiding a whole KPI rather than corrupting one.
        Konyo's Session cockpit therefore reported Chronicle 99/99 and Grail 243/403 and said nothing
-       about sets, while the F·Sets tab one click away said 108/135 — a "where do I stand" screen
+       about sets, while the Sets tab one click away said 108/135 — a "where do I stand" screen
        omitting a third of where he stands.
        It reads fsetsScan() now, deliberately NOT ITEM_SETS: setPieces.size over an ITEM_SETS
-       denominator would be a DIFFERENT pair of numbers from F·Sets, which is the exact
+       denominator would be a DIFFERENT pair of numbers from Sets, which is the exact
        two-surfaces-two-answers defect this whole sweep is about. */
     try {
       var _fsk = (typeof window.fsetsScan==='function') ? window.fsetsScan() : null;
@@ -47051,11 +47058,11 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
              different saying from the sessions like the f-uniques and f-sets... cant have two
              diffrent numbers for farming.. and its obivously not the quickets either."
              He was reading two answers to two different questions as one contradiction:
-               * F·Uniques ranks ITEMS — "~1.2h to find" is the fastest single item;
+               * Uniques ranks ITEMS — "~1.2h to find" is the fastest single item;
                * this row ranks RUNS — it takes funiScan().runs[0], the route that yields a missing
                  unique fastest (measured: Hell TZ Mephisto, one every 1.82h across 38 items), then
                  named ONE item from it and printed THAT item's odds, 1:449 ≈ 3.9h.
-             So the line advertised 3.9h for a choice made on 1.8h, and 3.9h loses to F·Uniques'
+             So the line advertised 3.9h for a choice made on 1.8h, and 3.9h loses to Uniques'
              1.2h — which is exactly how it reads as "not the quickest". The rate that justifies
              the pick was already computed into c.op.route and thrown away before rendering.
              [[the-unjoined-end]] Both numbers now appear, each labelled with what it measures. */
@@ -47065,7 +47072,7 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
           rest.push({ tag:'grail', cls:'want', item:c.op.item, act:'Open',
             txt:_opsMark(c.op.item,'🏆')+' — '+esc(c.op.boss||'best run')+(c.op.oddsStr?' <span style="opacity:.72">'+esc(c.op.oddsStr)+'</span>':'')+_gTtf+_gRate+' · '+c.left+' uniques left' });
         } else if (c.key==='sets' && c.op){
-          // v1273 — set pieces aren't in ITEMS; route the OPS row to F·Sets (quick-wins), not openItemDetail.
+          // v1273 — set pieces aren't in ITEMS; route the OPS row to Sets (quick-wins), not openItemDetail.
           rest.push({ tag:'set', cls:'want', goTab:'fsets', setNear:true, act:'Open',
             txt:_opsMark(c.op.set,'🧩')+' — '+esc(c.op.detail) });
         }
@@ -47593,7 +47600,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2316', name:'v2316 - One Preflight Three Doors', date:'2026-08-30', note:'every capture door shares one preflight and earns a Wilson score; the stale-frame card stops naming a permission he already has; both forge families name their unit' };
+  window.D2R_BUILD = { id:'v2318', name:'v2318 - Runewords Uniques Sets', date:'2026-08-30', note:'the three workshop tabs are named for what they hold on both surfaces, help text included' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -50368,7 +50375,7 @@ window.tvStashAutoIntake = async function(tab, opts){
     var openAff = (x.kind!=='note' && x.db!==false && openClean)
       ? ' <span class="tvd-open" role="button" tabindex="0" data-open="'+escAttr(openClean)+'" title="open '+escAttr(openClean)+' card">↗</span>' : '';
     var vtag = '';
-    if (x.discovered) vtag = '<span class="tvd-vault-tag" style="color:#ffd76a" title="chat discovery broadcast — chronicled (F·Uniques/F·Sets), never vaulted">💬🏆 discovered</span>';
+    if (x.discovered) vtag = '<span class="tvd-vault-tag" style="color:#ffd76a" title="chat discovery broadcast — chronicled (Uniques/Sets), never vaulted">💬🏆 discovered</span>';
     else if (x.thrown) vtag = '<span class="tvd-vault-tag" style="color:#e08a8a" title="thrown back to floor — not kept">🗑 throw</span>';
     else if (vaulted || x.vault) vtag = '<span class="tvd-vault-tag" title="'+(x.muleName?('filed → '+x.muleName):'filed to vault shelf')+'">🏦 vault</span>';
     else if (x.holding) vtag = '<span class="tvd-vault-tag" style="color:#ffd97a" title="holding in inv — vault after ~30s still held or town stash">⏳ hold</span>';

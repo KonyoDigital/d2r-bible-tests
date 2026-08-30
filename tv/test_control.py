@@ -4951,6 +4951,52 @@ class TestV2304ShadowOnlyRollsAReelWhenItShould(unittest.TestCase):
         self._with_window((123, "Diablo II: Resurrected"))
         self.assertEqual(self._started, [], "it recorded while he had shadow switched off")
 
+class TestV2316TheInboxCannotSitInsideTheDock(unittest.TestCase):
+    """★ AT 375px HE COULD NOT PRESS "tick it" OR "ignore", AND EVERY GATE WAS GREEN.
+
+    Found by a different model family, cold, off the pixels — it reported "the bottom timer box
+    partially overlapping content above it" — then reproduced by hit test: both buttons inside
+    #inbox-sticky answered document.elementFromPoint with DIV.dock-inner. Measured at 375x800:
+
+        sticky panel bottom  785
+        fixed dock top       587      -> 198px of the panel, buttons included, under the dock
+
+    AND SCROLLING COULD NOT FIX IT. The panel is position:sticky and the dock is position:fixed, so
+    they move together — the buttons are dead wherever he scrolls. max-height already reserved
+    --dock-h, but that only holds while the panel is STUCK; at first paint it sits at its natural
+    flow position, which is lower. The bottom bound is what covers both states.
+
+    ⚠ THE RENDER GATE WAS BLIND TO THIS BY CONSTRUCTION: its cover check skips any cover with a
+    fixed/sticky ancestor, and the dock is fixed. v2316 added a separate CONTROL-reachability check
+    that fires only when BOTH sides are pinned — the first cut of it counted any covered control
+    and reported 9 false positives in the vault, all of them cells scrollIntoView had parked under
+    the sticky header. [[visual-regression-detector]] [[gate-blind-to-unexercised-input]]
+    """
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            self.html = _markup_only(fh.read())
+
+    def test_the_sticky_inbox_reserves_the_dock_at_its_BOTTOM_not_only_its_height(self):
+        seg = _between(self, self.html, ".inbox-sticky.has{top:calc(var(--hdr-h", "}",
+                       what="the sticky inbox band rule")
+        self.assertIn("max-height", seg, "the height reserve is gone")
+        self.assertIn("bottom:calc(var(--dock-h", seg,
+                      "the sticky inbox no longer pins its BOTTOM above the dock — at 375px it "
+                      "falls back inside the dock band and its buttons stop answering clicks")
+
+    def test_the_render_gate_can_still_SEE_an_unreachable_control(self):
+        """The probe must keep the check that caught it, and keep it narrow."""
+        with io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("unreachable", src, "the control-reachability counter is gone")
+        self.assertIn("are CONTROLS he cannot click", src,
+                      "the refusal sentence is gone, so the counter is measured and never spoken")
+        self.assertIn("pinned(c) && pinned(hit)", src,
+                      "the both-sides-pinned narrowing is gone — without it the gate reports every "
+                      "control that scrollIntoView parked under the sticky header")
+
+
 class TestV2316BothForgeFamiliesNameTheirUNIT(unittest.TestCase):
     """★ THE CONFUSION THAT STARTED IT: "i see like for Sets 4 are missing.. only 11 show".
 
