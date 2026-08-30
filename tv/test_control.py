@@ -33346,10 +33346,85 @@ class TestV2325SilenceFromAHiddenOrSleepingWindowProvesNothing(unittest.TestCase
         # [[regression-guard]] [[open-for-write-truncates-first]]
         self.assertIn("document.visibilityState !== 'visible'", src,
                       "the page never reports whether it is visible")
-        i_vis = src.find("document.visibilityState")
-        i_beat = src.find("/api/ui_alive")
-        self.assertLess(abs(i_vis - i_beat), 900,
-                        "visibilityState is read somewhere, but not inside the heartbeat payload")
+        beat = _between(self, src, "fetch('/api/ui_alive'", "});",
+                        what="the heartbeat payload")
+        self.assertIn("document.visibilityState", beat,
+                      "visibilityState is read somewhere in the file, but not inside the "
+                      "heartbeat payload - the server would never learn the window was hidden")
+
+
+class TestV2325TheAlvlSurvivesANarrowCard(unittest.TestCase):
+    """AT 901px THE AREA LEVEL WAS ELLIPSISED AWAY, AND HE PICKS A RUN BY IT.
+
+    Found by the second eye on a cold 901px render and confirmed character by character: 1440
+    reads "880 density - alvl 77", 901 read "880 density - al..." with the number simply GONE.
+    Measured across the range with scrollWidth vs clientWidth on every .tzz-den on screen:
+
+        >=1000px  0 of 3 clipped        901px  3 of 3
+           960px  1 of 3                880px  3 of 3
+                                        700px  3 of 3  <- even where the slots STACK
+
+    So it was never only a 901 problem: `.tzz-txt em, .tzz-txt i` is nowrap+ellipsis at EVERY
+    width, so the line could never wrap and always truncated once the card was narrower than the
+    sentence. After the fix, 0 of 3 at every width from 700 to 1440, verified on the pixels.
+
+    A zone NAME ellipsising is fine - it is a label, and the card carries it elsewhere. The area
+    level is a FIGURE HE ACTS ON, and a number that is silently absent reads exactly like a zone
+    that has no level. [[unknown-stays-unknown]]
+    """
+
+    def _css(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def _rule(self):
+        """The narrow-width block, taken between anchors rather than by byte count.
+
+        ⚠ The first cut of these three cases used src[i:i+320] and src[i-420:i], and the repo's
+        own TestTheSourceGuardsDoNotGetMoreDangerous caught it immediately: 23 byte-counted
+        slices, up from 21. A character window is a guess about a file that keeps changing - it
+        silently shrinks past what it meant to cover, and assertIn on a truncated slice fails for
+        the wrong reason while assertNotIn PASSES on one. [[source-reading-guard]]
+        """
+        # ⚠ AND THE ANCHOR MUST BE UNIQUE. "@media (max-width: 1000px) {" appears TWICE in this
+        # file; anchoring there, this guard graded whichever block happened to come first and
+        # would silently move to the other one if either were reordered. _between takes the FIRST
+        # match, which is not the same as the RIGHT one. Anchored on the banner, which is unique -
+        # and if that banner is ever reworded the guard fails loudly on a missing anchor rather
+        # than quietly grading the wrong rule. [[source-reading-guard]]
+        return _between(self, self._css(),
+                        "v2325 \u2014 BELOW 1000px THE ALVL WAS ELLIPSISED AWAY",
+                        "\n  }", what="the narrow-width density rule")
+
+    def test_the_density_line_is_allowed_to_wrap_where_the_card_is_narrow(self):
+        rule = self._rule()
+        self.assertIn(".hd-tz .tzz-txt .tzz-den", rule,
+                      "the narrow-width rule for the density line is gone")
+        self.assertIn("white-space: normal", rule,
+                      "the density line is back to nowrap, so the alvl ellipsises away again")
+
+    def test_the_nested_verdict_wraps_too(self):
+        """The verdict is a nested <b> at a LARGER font than the line holding it, so leaving it
+        nowrap left the narrowest card clipped even once the parent could wrap. Measured: 880px
+        stayed 3-of-3 until this was added."""
+        self.assertIn(".tzz-terr", self._rule(),
+                      "only the parent was freed to wrap; the nested verdict still forces the "
+                      "overflow on the narrowest card")
+
+    def test_the_relief_is_SCOPED_and_does_not_touch_the_widths_that_work(self):
+        """Above 1000px nothing may change, or v1670's reserved rows and v1641's deterministic
+        card heights stop meaning what they were measured to mean.
+
+        ⚠ ASSERT THE CONDITION, NOT THE SELECTOR. My first rewrite of this case checked that the
+        slice contained the selector - which is true whatever the media condition says, so a
+        sabotage widening it to `min-width: 1px` sat GREEN. The slice starts at the banner ABOVE
+        the @media line precisely so the condition itself is inside it and can be read.
+        """
+        rule = self._rule()
+        self.assertIn(".hd-tz .tzz-txt .tzz-den", rule, "the rule is gone entirely")
+        self.assertIn("@media (max-width: 1000px)", rule,
+                      "the wrap is no longer scoped to the narrow range - it would change the "
+                      "card geometry at every width, including the ones already measured good")
 
 
 if __name__ == "__main__":

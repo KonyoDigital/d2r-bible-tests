@@ -3104,6 +3104,36 @@
   .tzz-top { display: flex; align-items: center; gap: 9px; min-width: 0; }
   .tzz-top b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .tzz-txt em, .tzz-txt i { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ══ v2325 — BELOW 1000px THE ALVL WAS ELLIPSISED AWAY, AND ALVL IS A NUMBER HE ACTS ON ══════
+     Found by the second eye on a 901px render and confirmed character by character: at 1440 the
+     line reads "880 density · alvl 77"; at 901 it reads "880 density · al…" and the level is
+     simply GONE. Asked cold about the same two images it answered "number after alvl absent"
+     for 901 and "fully visible" for 1440, which is the comparison that makes it a defect rather
+     than a taste.
+
+     MEASURED across the range rather than eyeballed at one width — scrollWidth vs clientWidth on
+     every .tzz-den on screen:
+
+         >=1000px   0 of 3 clipped
+            960px   1 of 3 clipped
+            901px   3 of 3
+            880px   3 of 3
+            700px   3 of 3   <- still clipped where the slots STACK and the card is 191px wide
+
+     So this was never only a 901 problem, and the stacked layout does not escape it: the rule
+     above is nowrap+ellipsis at EVERY width, so the line can never wrap and always truncates
+     once the card is narrower than the sentence. The zone NAME ellipsising is fine — a name is
+     a label and the tooltip carries it — but the area level is a figure he chooses a run by.
+
+     Wrapping is the right relief, and it is scoped to where the clip actually starts. Above
+     1000px nothing changes, so v1670's reserved rows and v1641's deterministic card heights keep
+     the behaviour they were measured for. [[d2r-css-last-rule-wins]] [[unknown-stays-unknown]] */
+  @media (max-width: 1000px) {
+    .hd-tz .tzz-txt .tzz-den,
+    .hd-tz .tzz-txt .tzz-den .tzz-terr {
+      white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word;
+    }
+  }
   .tzz-tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; flex: none;
     align-self: center;
     font: var(--fw-bold) var(--fs-micro,var(--fs-2xs))/1.5 var(--mono); letter-spacing: .16em; }

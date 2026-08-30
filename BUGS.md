@@ -12950,6 +12950,45 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-403 — the area level was ellipsised away below 1000px, and he picks a run by it (v2325)
+
+**Found by the second eye, cold, on a 901px render**, and confirmed character by character when
+asked to read the density lines out:
+
+```
+1440px   "880 density · alvl 77"    number FULLY VISIBLE
+ 901px   "880 density · alvl…"      number ABSENT
+```
+
+**Measured across the range afterwards** — `scrollWidth` vs `clientWidth` on every `.tzz-den`:
+
+```
+>=1000px   0 of 3 clipped        901px   3 of 3
+   960px   1 of 3                880px   3 of 3
+                                 700px   3 of 3   ← even where the slots STACK
+```
+
+So it was never only a 901 problem. `.tzz-txt em, .tzz-txt i` is `nowrap` + `text-overflow:
+ellipsis` at **every** width, so the line could never wrap and always truncated once the card was
+narrower than the sentence — including the stacked layout, which I had assumed escaped it.
+
+**A zone NAME ellipsising is fine** — a name is a label and the card carries it elsewhere. **The
+area level is a figure he chooses a run by**, and a number that is silently absent reads exactly
+like a zone that has no level.
+
+**Fix:** below 1000px the density line — and the nested `.tzz-terr` verdict inside it, which sits
+at a LARGER font and kept the narrowest card clipped on its own — are allowed to wrap. Scoped to
+that range so v1670's reserved rows and v1641's deterministic card heights keep the geometry they
+were measured for. After: **0 of 3 clipped at every width from 700 to 1440**, verified on the
+pixels at 901 (`650 density · alvl 80`, `700 density · alvl 82`).
+
+⚠ **Why the cold read earned this.** I had looked at that same 901 render myself an hour earlier
+and written down *"the zone NAME ellipsising is fine"* without noticing the `alvl` beside it going
+the same way. Asking a different family to read one specific line CHARACTER BY CHARACTER is what
+separated a label that may truncate from a figure that must not. [[grok-second-eye]]
+
+**Guards:** `TestV2325TheAlvlSurvivesANarrowCard`, three sabotages proven RED.
+
 ## REG-402 — the backup generator reloaded his window because he was not looking at it (v2325)
 
 **Caught by its own record, one version after it shipped.** `tv/ui_faults.jsonl`:
