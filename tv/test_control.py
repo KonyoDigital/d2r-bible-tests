@@ -4458,6 +4458,82 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2291NotOKIsNotABrokenLink(unittest.TestCase):
+    """★ reader_health partitioned its findings ONCE — everything that is not E_OK — and reported
+    the remainder to him as "%d broken link(s)".
+
+    MEASURED on his live console 2026-08-30: 205 findings, verdicts A=197 · E=5 · D=2 · B=1, and
+    200 counted as broken. But A is "never saw the panel": the reader had no panel to read, which
+    is the ordinary state of nearly every frame. 197 of the 200 were that.
+
+    ⚠ AND THE LABEL CONTRADICTED THE FINDING'S OWN REMEDY. D_EMPTY's fix text says "the READ itself
+    (prompt or crop), NOT THE PLUMBING", while the line above it called that finding a broken link.
+    A panel that reports broken wiring when the wiring is fine sends him to check the one thing
+    that works. [[label-outlived-referent]]
+
+    ⚠ THIS WAS REFUTED ONCE AS "does not reproduce on his live console" (B-2, in the 8-agent panel).
+    It does — the partition is mechanical and fires on every read of that route. I re-measured
+    before re-opening it rather than trusting either verdict.
+    [[feedback-contradiction-is-the-finding]] [[inherited-claim-is-not-evidence]]
+    """
+
+    def _ca(self):
+        import importlib, sys as _s
+        _s.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        return importlib.import_module("control_app")
+
+    def test_never_saw_the_panel_is_NOT_counted_as_broken(self):
+        ca = self._ca()
+        import inspect
+        src = _code_only(inspect.getsource(ca.reader_health))
+        self.assertIn("f[\"verdict\"] != lma.A_NO_PANEL", src,
+                      "every non-OK verdict is lumped as a broken link again — 197 of his 200 were "
+                      "'never saw the panel', which is not a fault")
+
+    def test_the_two_facts_are_reported_SEPARATELY(self):
+        ca = self._ca()
+        import inspect
+        src = _code_only(inspect.getsource(ca.reader_health))
+        self.assertIn('"nothingToRead"', src,
+                      "the no-panel count is folded back into one number; one number carrying two "
+                      "facts is the whole defect")
+
+    def test_the_verdict_line_stops_saying_BROKEN_LINK(self):
+        ca = self._ca()
+        import inspect
+        src = _code_only(inspect.getsource(ca.reader_health))
+        self.assertNotIn("broken link(s)", src,
+                         "the words are back, and they are wrong for 197 of 200 findings")
+        self.assertIn("never had a panel to read", src,
+                      "the honest half is missing — he is owed the reason the count is not a fault")
+
+    def test_it_reproduces_on_HIS_journal(self):
+        """⚠ NOT A FIXTURE. The refutation that closed this the first time was about live data, so
+        the re-open has to be about live data too. Skips rather than passes when the journal is
+        absent, because a skip is not a pass."""
+        ca = self._ca()
+        try:
+            out = ca.reader_health()
+        except Exception as e:
+            self.skipTest("reader_health could not run here: %s" % str(e)[:70])
+        if not out.get("ok") or not out.get("findings"):
+            self.skipTest("no journal findings on this venue")
+        self.assertIn("nothingToRead", out)
+        # ⚠ THE PARTITION MUST BE EXHAUSTIVE AND DISJOINT. broken + nothingToRead + worked must
+        # account for every finding — a partition that drops a class is how a fault goes unseen,
+        # and one that double-counts is how a panel invents work.
+        import live_miss_audit as _lma
+        worked = sum(1 for f in out["findings"] if f["verdict"] == _lma.E_OK)
+        self.assertEqual(out["broken"] + out["nothingToRead"] + worked, len(out["findings"]),
+                         "the three classes do not add up to the findings (%d + %d + %d != %d) — "
+                         "something is dropped or counted twice"
+                         % (out["broken"], out["nothingToRead"], worked, len(out["findings"])))
+        self.assertGreater(out["nothingToRead"], 0,
+                           "his journal has no 'never saw the panel' findings at all, which is the "
+                           "class this whole fix is about — re-measure before trusting this guard")
+
+
+
 class TestV2290TheStripDoesNotCrushItsMiddle(unittest.TestCase):
     """★ A cross-family read of the 901px console called this box "severe text collision ... cut off
     at the container edge". Measured: NEITHER — scrollWidth 606 == clientWidth 606, and zero

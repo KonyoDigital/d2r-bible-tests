@@ -10788,7 +10788,25 @@ def reader_health():
     res = lma.audit(rows)
     findings = [{"session": a, "tab": b, "verdict": c, "detail": d, "fix": lma._fix_for(c)}
                 for a, b, c, d in res["findings"]]
-    broken = [f for f in findings if f["verdict"] != lma.E_OK]
+    # ══ v2291 — "NOT OK" IS NOT "A BROKEN LINK" ═══════════════════════════════════════════════
+    #
+    # One partition — everything that is not E_OK — was reported to him as "%d broken link(s)".
+    # MEASURED on his live console 2026-08-30: 205 findings, verdicts A=197 · E=5 · D=2 · B=1, and
+    # 200 of them counted as broken. But A is "never saw the panel", which is not a broken link at
+    # all: it means the reader had no panel to read, which is the ordinary state of almost every
+    # frame. 197 of the 200 were that.
+    #
+    # ⚠ AND THE LABEL CONTRADICTED THE FINDING'S OWN REMEDY. D's fix text says in as many words
+    # "the READ itself (prompt or crop), NOT THE PLUMBING" — while the summary line above it called
+    # that same finding a broken link. A panel that tells him the wiring is broken when the wiring
+    # is fine sends him to check the one thing that is working. [[label-outlived-referent]]
+    #
+    # ⚠ THIS WAS REFUTED ONCE AS "does not reproduce on his live console" (B-2, #74). It does. The
+    # refutation was about the wrong thing — the partition is mechanical and it fires on every
+    # reading of that route. Re-measured before re-opening. [[feedback-contradiction-is-the-finding]]
+    _nothing_to_read = [f for f in findings if f["verdict"] == lma.A_NO_PANEL]
+    broken = [f for f in findings
+              if f["verdict"] != lma.E_OK and f["verdict"] != lma.A_NO_PANEL]
     # ★ "no findings" is NOT "everything works" — it is "nothing to judge". Saying the first when
     # you mean the second is how a health panel earns trust it has not got.
     # v1538 — HOW THIS MACHINE IS CROPPING. REG-086 was invisible for as long as it was because
@@ -10823,9 +10841,18 @@ def reader_health():
         "crop": crop,
         "findings": findings,
         "broken": len(broken),
+        # ⚠ REPORTED SEPARATELY, NOT FOLDED IN. "the panel was never on screen" is a different fact
+        # from "the read chain is broken", and the whole defect was that one number carried both.
+        "nothingToRead": len(_nothing_to_read),
         "verdict": ("nothing to judge — no stash activity in this journal" if not findings
-                    else "every tally tab that was opened got a real total" if not broken
-                    else "%d broken link(s)" % len(broken)),
+                    else ("every tally tab that was opened got a real total"
+                          + (" (%d frame(s) never had a panel to read, which is normal)"
+                             % len(_nothing_to_read) if _nothing_to_read else ""))
+                    if not broken
+                    else "%d read(s) went wrong%s" % (
+                        len(broken),
+                        (" — and %d more never had a panel to read, which is not a fault"
+                         % len(_nothing_to_read)) if _nothing_to_read else "")),
         "spent": 0,
     }
 
@@ -19002,7 +19029,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2290",
+        "ver": "v2291",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2290",
+  "ver": "v2291",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2290: the 901px strip was not clipped or colliding; the go-chip claimed the width first and the phrase wrapped to three lines",
+  "note": "v2291: 197 of 200 broken links were frames that never had a panel to read; the label contradicted the findings own remedy",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
