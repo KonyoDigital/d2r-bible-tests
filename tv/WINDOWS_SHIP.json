@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2288",
+  "ver": "v2289",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2288: LaneCanary demanded a cache row shape the writer never produced, at two sites, so the vault lane could never seal examined-and-empty",
+  "note": "v2289: register could never call the board across a process boundary; it now leaves a proposal in the shared store and the board drains it into his inbox",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -3923,7 +3923,7 @@ window._LP_FORKED = new Set([
 // and LADDER on this Mac write ONE bench book (the key resolves bare on both), while the Windows
 // cousin keeps its own. The COUNT of crafted items on hand stays in d2r_craftStash, which is in
 // _LP_FORKED, because that is INVENTORY. Inventory forks; the book does not.
-window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied','d2r_craftMade']));   /* v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
+window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied','d2r_craftMade','d2r_chronicleHandoff']));   /* v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
 try { window.localStorage.setItem('d2r_profile', window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'); } catch(e){}   // v911.1 — the console reads the ACTIVE profile
 window.LSR = (function(){
   var RAW = window.localStorage;
@@ -43662,6 +43662,55 @@ function renderJournal(){
     }
   } catch(e){}
 
+  /* ══ v2289 — THE CONSOLE'S NOTE, PICKED UP ═════════════════════════════════════════════════
+     The other half of the handoff. The console cannot call window.chronicleApply: board_window()
+     is spawned as a SEPARATE OS PROCESS, so the handle it keeps lives in the child's interpreter
+     and the HTTP server reads None every time. Register has been failing for that reason for
+     versions, blaming the board's build.
+
+     But both pages share an ORIGIN, so they share a localStorage — measured live: the console read
+     his real ledger (foundLog 400, owned 157, setPieces 120) through the window it DOES hold. So
+     the console leaves a note and the board collects it here.
+
+     ⚠ NOTHING IS WRITTEN TO HIS LEDGER BY THIS BLOCK. It moves the proposal into the INBOX, which
+     is the queue he already accepts or dismisses from. He is still the one who says yes, and the
+     yes still goes through chronicleApply — the same door his hand uses. A console that could
+     write the grail directly would be a second write path into it, which is the thing v1523
+     deliberately refused to build.
+
+     ⚠ AND THE STAMP IS THE RECORD'S SHAPE, NOT A FLAG. `drained` carries {at, into, n} — counts,
+     which a stray write cannot forge. The v2205 loaded gun was exactly a flag whose PRESENCE was
+     trusted while a retirement stamped it unconditionally, and it would have dropped 273 of his
+     280 names. A one-shot in this file gates on evidence now, never on a mark.
+     [[d2r-vault-routing]] [[the-unjoined-end]] */
+  try {
+    var _hoRaw = window.LSR.getItem('d2r_chronicleHandoff');
+    if (_hoRaw) {
+      var _ho = null; try { _ho = JSON.parse(_hoRaw); } catch(e){ _ho = null; }
+      var _hoDone = _ho && _ho.drained && typeof _ho.drained === 'object'
+                    && ((+_ho.drained.n || 0) > 0);
+      var _hoAdd = (_ho && _ho.proposal && _ho.proposal.wouldAdd) || null;
+      var _hoNames = _hoAdd ? [].concat(_hoAdd.uniques || [], _hoAdd.sets || []) : [];
+      if (_ho && !_hoDone && _hoNames.length) {
+        var _inb = [];
+        try { _inb = JSON.parse(window.LSR.getItem('d2r_chronicleInbox') || '[]') || []; } catch(e){ _inb = []; }
+        var _have = {};
+        _inb.forEach(function (r) { var k = (r && (r.name || r)) || ''; if (k) _have[String(k)] = 1; });
+        var _added = 0;
+        _hoNames.forEach(function (row) {
+          var nm = (row && row.name) ? row.name : row;
+          if (!nm || _have[String(nm)]) return;      /* already waiting on him — do not duplicate */
+          _inb.push({ name: String(nm), why: (row && row.why) || 'read from your reels',
+                      src: 'console-handoff', at: (_ho.at || Date.now()) });
+          _have[String(nm)] = 1; _added++;
+        });
+        window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(_inb));
+        _ho.drained = { at: Date.now(), into: 'inbox', n: _added, offered: _hoNames.length };
+        window.LSR.setItem('d2r_chronicleHandoff', JSON.stringify(_ho));
+      }
+    }
+  } catch(e){}
+
   /* ══════════════════════════════════════════════════════════════════════════════════════════════
      v1540 — CHRONICLE PHOTO INTAKE: the Chronicle path that works with NO CONSOLE RUNNING.
 
@@ -47422,7 +47471,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2288', name:'v2288 - The Canary That Never Sang', date:'2026-08-30', note:'LaneCanary demanded a cache row shape the writer never produced, at two sites, so the vault lane could never seal examined-and-empty' };
+  window.D2R_BUILD = { id:'v2289', name:'v2289 - The Note The Console Leaves', date:'2026-08-30', note:'register could never call the board across a process boundary; it now leaves a proposal in the shared store and the board drains it into his inbox' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

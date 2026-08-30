@@ -10096,11 +10096,48 @@ def chronicle_apply(proposal=None):
     # (needs v1521+)" and sent a person looking at VERSIONS for an hour; the real answer was that
     # the window being asked was the console, not the board. A refusal that names the wrong cause
     # is worse than one that says nothing.
-    js = ("(function(){try{if(typeof window.chronicleApply!=='function')return JSON.stringify("
-          "{ok:false,why:'the window I asked has no chronicleApply — it is '+String(location.pathname||'/')"
-          "+' ('+String(document.title||'untitled')+'). That function lives on the BOARD (/board); "
-          "if this says / then the console asked itself. Open the board window and try again.'});"
-          "var r=window.chronicleApply(%s);return JSON.stringify({ok:true,applied:r});}"
+    # ══ v2289 — WHEN THE BOARD CANNOT BE CALLED, LEAVE IT A NOTE ═════════════════════════════
+    #
+    # v2274 made this refusal HONEST (it names the page that answered instead of blaming the
+    # board's version). v2288's investigation then showed the refusal is UNAVOIDABLE: board_window()
+    # is spawned as a SEPARATE OS PROCESS (control_app.py Popen --board-window), so the handle it
+    # keeps lives in the child's interpreter and this server reads None every time. There is no
+    # window here that has chronicleApply, and there never was.
+    #
+    # ⚠ BUT THE TWO PAGES SHARE A LOCALSTORAGE. Measured live: a read through _MAIN_WIN (path "/")
+    # returned his real ledger — foundLog 400, owned 157, setPieces 120 — because localStorage is
+    # per-ORIGIN and both / and /board are http://127.0.0.1:PORT. So the console can leave the
+    # board a NOTE, and the board picks it up when it loads. That is the direction v1523 already
+    # set: the console never writes the grail, it asks the board, which owns it.
+    #
+    # ⚠ A NOTE IS NOT A WRITE. Nothing lands in his ledger from here. The proposal goes into a
+    # PENDING record; the board drains it into the inbox; he accepts there, and the inbox calls the
+    # same chronicleApply his hand uses. Three steps, and he is still the one who says yes.
+    #
+    # ⚠ AND THE DRAIN IS STAMPED ON THE RECORD'S SHAPE, NOT ON A FLAG. That is the v2205 loaded
+    # gun, exactly: a retired migration stamped a flag unconditionally and a destructive undo
+    # trusted its presence. Here `drained` carries {at, into, n} — counts, which cannot be forged
+    # by a stray write. [[d2r-vault-routing]] [[the-unjoined-end]]
+    js = ("(function(){try{"
+          "var P=%s;"
+          "if(typeof window.chronicleApply==='function'){"
+          "var r=window.chronicleApply(P);return JSON.stringify({ok:true,applied:r});}"
+          # ⚠ NO RAW-localStorage FALLBACK. d2r_chronicleHandoff is in _WP_FORKED, so LSR gives
+          # it the world prefix; writing it bare would drop the note into a DIFFERENT world from
+          # the ledger it is about, and it would then drain into a board that never asked for it.
+          # Refusing is the honest answer: a note filed in the wrong drawer is worse than no note.
+          "if(!(window.LSR&&window.LSR.setItem))return JSON.stringify({ok:false,"
+          "why:'this page has no LSR, so a handoff note could not be written into the right world'});"
+          "var S=window.LSR;"
+          "var n=((P.wouldAdd&&P.wouldAdd.uniques)||[]).length+((P.wouldAdd&&P.wouldAdd.sets)||[]).length;"
+          "if(!n)return JSON.stringify({ok:false,why:'nothing to queue'});"
+          "S.setItem('d2r_chronicleHandoff',JSON.stringify("
+          "{v:1,at:Date.now(),from:'console',n:n,proposal:P,drained:null}));"
+          "return JSON.stringify({ok:true,queued:true,n:n,"
+          "path:String(location.pathname||'/'),"
+          "why:'this window is '+String(location.pathname||'/')+', which has no chronicleApply — "
+          "that function lives on the BOARD. The proposal was left in the shared store instead; "
+          "open the board and it lands in your inbox for you to accept.'});}"
           "catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % payload
     try:
         raw = _ejs(w, js, timeout=8.0)
@@ -18965,7 +19002,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2288",
+        "ver": "v2289",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

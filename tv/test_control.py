@@ -5305,14 +5305,29 @@ class TestV2274TheConsoleMustNotASKITSELFForBoardFunctions(unittest.TestCase):
                          "control_ui.html now defines chronicleApply — re-check which window "
                          "chronicle_apply should target before trusting this guard")
 
-    def test_the_refusal_NAMES_THE_PAGE_instead_of_blaming_the_build(self):
+    def test_it_QUEUES_instead_of_refusing_and_still_names_the_page(self):
+        """★ v2289 — THE REFUSAL IS GONE BECAUSE IT WAS UNAVOIDABLE. v2274 made the message honest
+        (name the page, do not blame the board's version). v2288 then showed the message could
+        never be anything else: board_window() is spawned as a SEPARATE OS PROCESS, so the handle
+        it keeps lives in the child's interpreter and this server reads None every time. There is
+        no window here that has chronicleApply, and there never was.
+
+        Both pages share an ORIGIN, so they share a localStorage — measured: the console read his
+        real ledger through the window it DOES hold. So it leaves a NOTE and the board collects it.
+        The page is still named, because "which window answered" was the fact that ended an hour of
+        reading version stamps."""
         src = self._src()
         self.assertNotIn("this board build has no chronicleApply", src,
-                         "the refusal blames the board BUILD again; it must say WHICH PAGE "
+                         "the message blames the board BUILD again; it must say WHICH PAGE "
                          "answered, or it sends the next person to read version stamps")
-        self.assertIn("the window I asked has no chronicleApply", src)
+        self.assertIn("d2r_chronicleHandoff", src,
+                      "the console no longer leaves the board a note — it is back to refusing, and "
+                      "the refusal can never stop being true")
         self.assertIn("location.pathname", src,
-                      "the refusal must report the path of the page that answered")
+                      "the answer must still report the path of the page that answered")
+        self.assertIn("queued:true", src,
+                      "the caller cannot tell a QUEUE from an APPLY, so the console would report a "
+                      "write that has not happened yet")
 
     # ── v2277 — THE CLASS, NOT THE SITE ─────────────────────────────────────────────────────────
     #: every function that evaluates BOARD-OWNED javascript. The tell is what the JS names:
@@ -14380,9 +14395,19 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
     """
 
     def _fake_board(self, ca, captured):
+        """⚠ THIS FIXTURE READS THE IMPLEMENTATION'S JS AS TEXT, which makes it brittle by
+        construction — v2289 changed the call from `window.chronicleApply(<json>)` to binding the
+        payload as `var P=<json>` first (so the same script can queue it when the board cannot be
+        called), and this parser stopped finding anything. Every case in the class then passed an
+        EMPTY payload and failed for a reason that had nothing to do with the game's veto.
+
+        Reading the payload where it is DEFINED rather than where it is passed is both correct and
+        steadier: the binding is the one place it must appear whichever branch the script takes.
+        [[feedback-suspect-the-instrument]]"""
         def _ejs(w, js, timeout=8.0):
-            i = js.index("window.chronicleApply(") + len("window.chronicleApply(")
-            j = js.rindex(");return JSON.stringify")
+            marker = "var P="
+            i = js.index(marker) + len(marker)
+            j = js.index(";if(typeof window.chronicleApply", i)
             captured.append(json.loads(js[i:j]))
             return json.dumps({"ok": True, "applied": {"uniques": 0, "sets": 0, "skipped": 0}})
         return _ejs

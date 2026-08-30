@@ -251,6 +251,20 @@ GATES = [
              "should agree with, which neither lane can see alone — and pins that an unreadable or "
              "timestamp-less store is UNKNOWN rather than healthy. All five laws sabotage-proven "
              "RED."),
+    Gate("test_handoff_queue", [sys.executable, os.path.join(HERE, "test_handoff_queue.py")], 90,
+         why="v2289 — THE CONSOLE-TO-BOARD HANDOFF, DRIVEN END TO END RATHER THAN GREPPED. v2274 "
+             "\"fixed\" register by preferring a _BOARD_WIN handle and pinned it with a SOURCE "
+             "guard; that guard stayed green for four versions while the join did not exist, "
+             "because board_window() is spawned as a separate OS process and the handle lives in "
+             "the child. A pattern was present and a path was not. So this extracts the REAL "
+             "shipped drain block out of bible.html, runs it in node against a fake store, and "
+             "asserts what ENDED UP in the inbox. It pins the lines that may not move: nothing "
+             "reaches his ledger (v1523 — the console never writes the grail), a name he DISMISSED "
+             "never comes back, and the drain stamp is the record's SHAPE with counts rather than "
+             "a flag whose presence can be forged — which is precisely the v2205 loaded gun that "
+             "would have dropped 273 of his 280 names. Six laws sabotage-proven RED, and one of "
+             "them caught a test of mine that looked like it checked drain-once and actually only "
+             "checked de-duplication."),
     Gate("test_chronicle_crossref", [sys.executable, os.path.join(HERE, "test_chronicle_crossref.py")], 60,
          why="v2278 — THE COUNT HE ACTS ON MUST BE THE COUNT OF WHAT WOULD CHANGE. His console read "
              "\"347 find(s) read from your reels\" under a claim that they were absent from his "
