@@ -212,7 +212,15 @@ class TestTheGridAgainstHandLabelledFrames(unittest.TestCase):
         # negatives were labelled by opening them. The 7 are recorded under `_lost` rather than
         # deleted, because a corpus that quietly shrinks scores BETTER every time it loses a hard
         # case. Raise this number when frames are added; never lower it to make a red run green.
-        self.assertEqual(len(rows), 10, "the corpus lost frames — the survivors live in "
+        # v2326 — 13, not 10. Three frames added from his 2026-08-30 MINI reels, each labelled by
+        # opening it, and each chosen because it FAILS: a SHARED-tab stash the fingerprint calls
+        # `gameplay` (frac_gear 0.080 against a 0.14 gate), its near-miss twin at 0.093 which
+        # squeaks past, and a bright Rogue Encampment daylight scene with NO panel open at all that
+        # the fingerprint calls `stash` at 0.301-0.350. The panel axis went from 0-of-10 disagreeing
+        # to 2-of-13, which is the corpus doing its job — it was green because it had never been
+        # shown these shapes, not because they do not happen. Copied into tv/frames/corpus/ so
+        # rotation cannot eat them the way it ate the 7 recorded under `_lost`.
+        self.assertEqual(len(rows), 13, "the corpus lost frames — the survivors live in "
                                         "tv/frames/corpus/ precisely so this cannot happen again")
 
     def test_the_corpus_still_contains_cases_that_could_FAIL(self):
@@ -397,6 +405,85 @@ class TestTheActiveTabGem(unittest.TestCase):
         self.assertEqual(se.fuse_tab_signals(ocr_tab="gems", gem_tab="runes"),
                          ("stash", ["tab-conflict"]))
         self.assertEqual(se.fuse_tab_signals(gem_tab="nonsense"), ("", []))
+
+
+class TestV2326TheGridIsAGridBeforeItIsAColour(unittest.TestCase):
+    """A STASH FRAME READ AS GAMEPLAY, AND A DAYLIT TOWN READ AS A STASH.
+
+    Both found on his 2026-08-30 MINI reels and both labelled by opening the image:
+
+      reel_..._74668/f_1788103257004.jpg   Rogue Encampment, daylight, NOTHING open.
+                                           frac_gear 0.301-0.350 -> returned "stash".
+      reel_..._89699/f_1788105171326.jpg   SHARED stash, gold-bordered tab, gear in the grid,
+                                           a CRESCENT MOON tooltip over it.
+                                           frac_gear 0.0795 -> returned "gameplay".
+
+    The first is the expensive one: every branch of classify_stash_grid decides from colour
+    FRACTIONS and the fall-through returns "stash", so a frame with no grid in it had to argue
+    its way OUT of being a stash - and a bright one could not. Grass, rubble and tents are
+    mid-luminance with moderate chroma, which is what the "gear" test actually measures.
+
+    The second is the one that matters for MINI: a tooltip covers the grid with dark, low-chroma
+    text exactly where the gear fraction is taken, so the panel dilutes itself. A hover pass is
+    precisely when the tip is up, so THE BETTER HE AIMS IT, THE LESS OF THE RUN IS RECOGNISED.
+    Its twin two frames later scored 0.093 and was claimed - a gate two frames of one panel land
+    on either side of is not separating anything.
+
+    Measured across the corpus, every REAL panel shows a lattice of 6 to 40 dark columns. The
+    town frame shows ZERO - the one value that can only mean "there is no grid here".
+    """
+
+    def test_no_lattice_is_gameplay_however_gear_rich_the_colours_are(self):
+        """The town frame's numbers, as numbers. 0.35 is higher than any real panel in the
+        corpus, and it must still lose to the absence of a grid."""
+        verdict, why = se.lattice_says(0, 0.35)
+        self.assertEqual(verdict, "gameplay",
+                         "a frame with no grid was allowed to argue its way into being a stash")
+        self.assertIn("no lattice", why)
+
+    def test_a_visible_lattice_claims_a_panel_a_tooltip_has_diluted(self):
+        """The missed frame's numbers: 25 dark columns, gear just under the old 0.08 gate."""
+        verdict, _ = se.lattice_says(25, 0.0795)
+        self.assertEqual(verdict, "stash",
+                         "a stash panel with a tooltip over it is still not claimed")
+
+    def test_the_floor_sits_ABOVE_every_negative_in_the_corpus(self):
+        """The relief may only ever ADD a claim to a frame that already shows a grid. The three
+        labelled non-panels score 0.000, 0.001 and 0.029; a floor at or below 0.029 would start
+        claiming them. [[feedback-threshold-above-the-ceiling]]"""
+        self.assertGreater(se._LATTICE_GEAR_FLOOR, 0.029,
+                           "the gear floor dropped to where the corpus negatives live")
+        self.assertLess(se._LATTICE_GEAR_FLOOR, 0.08,
+                        "the floor is at or above the gate it exists to relieve, so it relieves "
+                        "nothing - an absent rule wearing a number")
+        for fg in (0.000, 0.001, 0.029):
+            self.assertIsNone(se.lattice_says(38, fg)[0],
+                              "a corpus negative (gear %.3f) would now be claimed as a panel" % fg)
+
+    def test_the_lattice_has_NO_opinion_in_between_and_says_so(self):
+        """Between the two rules it must return None, not a guess: the colour branches still
+        decide, exactly as before. None is "I have nothing to add", never "gameplay"."""
+        self.assertIsNone(se.lattice_says(20, 0.01)[0])
+
+    def test_an_unreadable_lattice_is_not_a_verdict(self):
+        """[[unknown-stays-unknown]] - a missing or malformed count must not become "gameplay",
+        which would silently reject every frame the moment the feature stopped being computed."""
+        for bad in (None, "", "twelve"):
+            self.assertIsNone(se.lattice_says(bad, 0.2)[0],
+                              "an unreadable dark_cols (%r) produced a verdict" % (bad,))
+
+    def test_the_classifier_actually_CONSULTS_it(self):
+        """[[the-unjoined-end]] - the helper can be perfect and never wired in."""
+        import inspect, re
+        raw = inspect.getsource(se.classify_stash_grid)
+        # ⚠ STRIP THE COMMENTS FIRST. The first version of this case grepped the RAW source, and a
+        # sabotage that replaced the call with `(None, "")  # lattice_says(` sat GREEN — the string
+        # it looked for was still there, in the comment the sabotage itself wrote. This file is
+        # heavily commented on purpose, so a source guard that reads prose is grading the
+        # documentation instead of the code. [[feedback-comments-vs-code]]
+        code = "\n".join(re.sub(r"#.*$", "", ln) for ln in raw.split("\n"))
+        self.assertIn("lattice_says(", code, "classify_stash_grid never asks the lattice")
+        self.assertIn('_lat == "gameplay"', code, "the no-grid refusal is not acted on")
 
 
 if __name__ == "__main__":

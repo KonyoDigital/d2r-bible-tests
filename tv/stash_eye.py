@@ -340,6 +340,34 @@ _PANEL_MIN_DARKCOLS = 4    # ≥4 dark-gridline columns = grid lattice present (
 # THE ASYMMETRY THAT SETTLES THE DIRECTION: a MISSED tally costs one more look at the shelf (the
 # post-seal funnel rechecks); a FALSE tally writes a tally count for a panel that was never open.
 _PANEL_MAX_DARKCOLS = 24
+# v2326 — the gear floor that a VISIBLE LATTICE buys. Above every negative in the corpus
+# (0.000, 0.001, 0.029) and below the 0.08 gate it relieves, so it can only ever ADD a claim
+# to a frame that already shows a grid.
+_LATTICE_GEAR_FLOOR = 0.05
+
+
+def lattice_says(dark_cols, frac_gear):
+    """What the GRID ITSELF says, before any colour argument. -> (verdict|None, why)
+
+    Pulled out of classify_stash_grid so it can be put to a case with numbers instead of
+    screenshots — the same reason drift_may_relaunch and retention_may_act are separate. A
+    decision that needs a 1.8 MB frame to exercise is a decision nobody tests on CI.
+
+    "gameplay" means THERE IS NO GRID HERE and no colour statistic may overrule that.
+    "stash"    means a grid is visibly present and carries enough gear to claim the panel.
+    None       means the lattice has no opinion; the colour branches decide as before.
+    """
+    try:
+        dc = int(dark_cols)
+        fg = float(frac_gear)
+    except (TypeError, ValueError):
+        return None, "lattice unreadable"          # unknown is not a verdict [[unknown-stays-unknown]]
+    if dc < _PANEL_MIN_DARKCOLS:
+        return "gameplay", ("no lattice - %d dark column(s), under the %d a real grid always has"
+                            % (dc, _PANEL_MIN_DARKCOLS))
+    if fg >= _LATTICE_GEAR_FLOOR:
+        return "stash", ("a lattice of %d columns carrying gear %.3f" % (dc, fg))
+    return None, ""
 _NOT_D2R_DARK_MAX = 0.05   # a lit photograph has essentially no dark stash cells
 
 
@@ -630,6 +658,30 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
         if not_d2r:
             detail["pick"] = "not-d2r"
             return "gameplay", detail
+        # ══ v2326 — NO LATTICE, NO GRID. A STASH IS A GRID BEFORE IT IS A COLOUR ══════════════
+        # Every branch below this point decides from colour FRACTIONS, and the fall-through at the
+        # end of this function returns "stash". So a frame with no grid in it at all still had to
+        # argue its way OUT of being called a stash, and a bright one could not.
+        #
+        # MEASURED on the corpus, 2026-08-31. reel_s_1788103235974_74668/f_1788103257004.jpg is
+        # the Rogue Encampment in daylight — no stash, no inventory, nothing open. It scored
+        # frac_gear 0.301-0.350, over the 0.14 gate, and was returned as "stash", because grass,
+        # rubble and tents are mid-luminance with moderate chroma and that is what the gear test
+        # actually measures. It is NOT a darkness false positive; the scorer's own header warns
+        # about dark frames, and this one is bright.
+        #
+        # dark_cols is the count of columns whose mean luminance dips below the crop mean - the
+        # lattice. Across the whole corpus: every REAL panel scores 6 to 40. That frame scores 0.
+        # Not "low" - ZERO, which is the one value that can only mean "there is no grid here".
+        # So it is refused structurally rather than out-argued numerically, and the bound is the
+        # existing _PANEL_MIN_DARKCOLS rather than a fresh number invented to fit one frame.
+        # [[feedback-threshold-above-the-ceiling]]
+        _lat, _lat_why = lattice_says(dark_cols, fg)
+        detail["latticeSays"] = _lat
+        detail["latticeWhy"] = _lat_why
+        if _lat == "gameplay":
+            detail["pick"] = "no-lattice"
+            return "gameplay", detail
         # decision tree — shared/personal vaults have COLOURED ring gems (chroma)
         # that must NOT be misread as the Gems tab. Gear density gates first.
         # shared/personal: gear / mixed mid-tones dominate the left panel
@@ -690,8 +742,22 @@ def classify_stash_grid(src_path: str) -> Tuple[str, Dict[str, Any]]:
             detail["pick"] = "materials"
             return "stash-materials", detail
         # softer vault
-        if fg >= 0.08 or (fb >= 0.08 and ft < 0.10):
-            detail["pick"] = "stash"
+        # ⚠ v2326 — AND A LATTICE IS EVIDENCE, not merely a precondition. A stash panel with a
+        # TOOLTIP OVER IT is diluted exactly where it is being measured: the tip covers the grid
+        # with dark, low-chroma text, so the gear fraction falls even though the panel is wide
+        # open. reel_s_1788105158696_89699/f_1788105171326.jpg is a SHARED stash, labelled by
+        # eye off its own tab strip, that scored fg 0.0795 against this 0.08 gate and was
+        # returned as "gameplay" — missed by five ten-thousandths. Its twin two frames later
+        # scored 0.093 and was claimed. A gate that two frames of one panel land on either side
+        # of is not separating anything.
+        #
+        # And a hover pass is precisely when the tip is up, so the better he aims MINI the more
+        # of the run goes unrecognised. The lattice does not dilute: when the grid is visibly
+        # there, a lower gear bar is enough. 0.05 sits above every NEGATIVE in the corpus
+        # (0.000, 0.001, 0.029) and below every real panel this rule needs to catch.
+        _lattice_says_panel = (_lat == "stash")
+        if fg >= 0.08 or (fb >= 0.08 and ft < 0.10) or _lattice_says_panel:
+            detail["pick"] = "stash-lattice" if (_lattice_says_panel and fg < 0.08) else "stash"
             return "stash", detail
         if fd >= 0.60 and fb < 0.06:
             detail["pick"] = "gameplay"

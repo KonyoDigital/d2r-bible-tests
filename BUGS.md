@@ -12950,6 +12950,61 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-404 — a stash read as gameplay, and a daylit town read as a stash (v2326)
+
+Found while working #31 (slot identity), by asking a question nobody had asked: **what does
+`classify_stash_grid` actually answer on his newest reels?**
+
+```
+reel_..._74668/f_1788103257004.jpg   Rogue Encampment, daylight, NOTHING open
+                                     frac_gear 0.301-0.350  ->  returned "stash"
+reel_..._89699/f_1788105171326.jpg   SHARED stash, gold-bordered tab, gear in the grid,
+                                     a CRESCENT MOON tooltip over it
+                                     frac_gear 0.0795       ->  returned "gameplay"
+```
+
+Both labelled by opening the image. Both wrong, in opposite directions.
+
+**Why the town frame won.** Every branch of `classify_stash_grid` decides from colour FRACTIONS,
+and the fall-through at the end returns `"stash"` — so a frame with no grid in it had to argue its
+way OUT of being a stash, and a bright one could not. Grass, rubble and tents are mid-luminance
+with moderate chroma, which is exactly what the "gear" test measures. **It is not the dark-frame
+false positive the scorer already warns about; this frame is bright.**
+
+**Why the stash lost.** A tooltip covers the grid with dark, low-chroma text precisely where the
+gear fraction is taken, so the panel dilutes itself. Its twin two frames later scored 0.093 and
+was claimed — a gate that two frames of one panel land on either side of is not separating
+anything. **And a hover pass is when the tip is up, so the better he aims MINI, the less of the
+run gets recognised.**
+
+**The fix is structural, not tuned.** Across the corpus every REAL panel shows a lattice of 6–40
+dark gridline columns; the town frame shows **ZERO** — the one value that can only mean "there is
+no grid here". So: no lattice → gameplay, whatever the colours say; and a visible lattice is
+positive evidence, letting a diluted panel be claimed at a gear floor of 0.05 (above every corpus
+negative at 0.000 / 0.001 / 0.029, below the 0.08 gate it relieves). Both rules live in a pure
+`lattice_says(dark_cols, frac_gear)` so they can be put to a case with numbers instead of 1.8 MB
+screenshots — a decision that needs a frame to exercise is a decision CI never tests.
+
+**Measured before/after, which is what REG-203 and REG-205 were both left OPEN waiting for:**
+
+```
+corpus      PANEL 0 of 10 disagree   ->   0 of 13 disagree, 9/9 real panels claimed
+            (it was green because it had never been shown these shapes)
+his reels   80 frames swept: 37 change label
+              26  stash -> gameplay   (bright town scenes, sampled and confirmed by eye)
+              11  gameplay -> stash   (real SHARED panels, Page 5/5, packed with gear)
+```
+
+Three frames added to the corpus and copied into `tv/frames/corpus/` so rotation cannot eat them
+the way it ate the 7 under `_lost`; the count assertion was raised 10 → 13 as its own comment
+instructs, never lowered.
+
+**Guards:** `TestV2326TheGridIsAGridBeforeItIsAColour`, five sabotages proven RED.
+⚠ One stayed GREEN at first: the wiring check grepped the RAW source, and a sabotage replacing the
+call with `(None, "")  # lattice_says(` satisfied it — from the comment the sabotage itself wrote.
+This file is heavily commented on purpose, so a source guard that reads prose grades the
+documentation instead of the code. Comments are stripped before the search now.
+
 ## REG-403 — the area level was ellipsised away below 1000px, and he picks a run by it (v2325)
 
 **Found by the second eye, cold, on a 901px render**, and confirmed character by character when
