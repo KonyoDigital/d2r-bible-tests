@@ -394,6 +394,20 @@ def _fixture_hist(case, reels=7, sealed=True):
     return root, hist
 
 
+
+def _write_auto_relaunch(path, on):
+    """v2284 — the production setter was deleted with the switch; specs that need a stored answer
+    on disk write it themselves. Keeping a setter alive only for tests is how a retired control
+    quietly comes back. [[the-unjoined-end]]"""
+    import json as _j
+    d = os.path.dirname(path)
+    if d and not os.path.isdir(d):
+        os.makedirs(d, exist_ok=True)
+    with io.open(path, "w", encoding="utf-8") as fh:
+        _j.dump({"on": bool(on)}, fh)
+    return True
+
+
 class TestTheatre(unittest.TestCase):
     """v765 — Konyo: 'its not really simulated anymore… its own independent VIEW, eyes on
     history' — the theatre serves REAL journaled sessions + REAL archived frames."""
@@ -9079,13 +9093,31 @@ class TestV2210TheAutoRelaunchSwitchIsReachableAndReadable(unittest.TestCase):
         with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             cls.ui = fh.read()
 
-    def test_the_switch_exists_and_is_wired_to_the_route(self):
-        self.assertIn('id="sadv-auto"', self.ui, "the auto-relaunch switch is gone from the markup")
-        self.assertIn("'/api/auto_relaunch'", self.ui.replace('"', "'"),
-                      "the switch no longer calls the route — it would render and do nothing, "
-                      "which is the defect it was built to fix")
+    def test_the_switch_is_RETIRED_and_left_no_stump(self):
+        """★ v2284 — v2210 built this switch because the feature had no handle. Konyo retired the
+        idea itself: "this isnt optional the updates need to be going up. not a on or off button
+        at all". Dean's console carried a stored OFF and sat on an old build for versions.
+
+        ⚠ RETIRED MEANS GONE, NOT GREYED OUT. A disabled toggle still reads as a thing that could
+        be pressed, and the route refuses now anyway — a control whose server says no is a control
+        that lies about having worked. What must survive is the STATEMENT (he still deserves to
+        know what the console will do to itself) and the no-op refresher, because #sig-adv's
+        ontoggle still calls it and deleting a function with a live caller is how a panel starts
+        throwing the moment he opens it. [[plumbing-with-no-tap]]"""
+        self.assertNotIn('id="sadv-auto"', self.ui,
+                         "the retired switch is back in the markup; the route refuses it, so it "
+                         "can only mislead")
+        self.assertNotIn("getElementById('sadv-auto')", self.ui,
+                         "dead lookups for an element that is never created")
+        self.assertIn("Auto-relaunch — always on", self.ui,
+                      "the section stopped saying what the console does to itself; he is owed the "
+                      "fact even though he no longer gets a choice")
+        self.assertIn("never mid-film, never into a changed world", self.ui,
+                      "the interlocks are unnamed — an always-on restart with no stated brakes "
+                      "reads as reckless, and they DO still hold")
         self.assertIn("window._autoRelaunchRefresh", self.ui,
-                      "the refresher is gone, so the switch can never repaint after a click")
+                      "the refresher is gone while #sig-adv's ontoggle still calls it — opening "
+                      "the advanced panel would throw")
 
     def test_opening_the_drawer_refreshes_this_switch_too(self):
         """THE SIBLING JOINT. The drawer's ontoggle refreshes the shadow switches; a new switch that
@@ -9102,32 +9134,24 @@ class TestV2210TheAutoRelaunchSwitchIsReachableAndReadable(unittest.TestCase):
                       "opening ADVANCED refreshes the shadow switches and NOT this one, so it "
                       "would sit on 'checking…' until something else happened to repaint it")
 
-    def test_the_painter_keeps_all_four_states_apart(self):
-        """saved / env / effective / unreachable are four different worlds and collapsing any two
-        of them is how a status lamp starts lying. Asserted on the SHIPPED painter text, because
-        each branch is a distinct sentence he reads."""
-        # anchored at both ends — see the note in the sibling test above
-        fn = _between(self, self.ui, "function _autoRelaunchPaint(",
-                      "window._autoRelaunchRefresh", what="the auto-relaunch painter")
-        self.assertIn("UNKNOWN", fn,
-                      "an unreachable route no longer reads UNKNOWN. 'I could not ask' and 'he "
-                      "turned it off' are opposite facts and only one means the console will sit "
-                      "still")
-        self.assertIn("overrules", fn,
-                      "an env override no longer says which variable is winning, so the switch "
-                      "would look simply broken")
-        self.assertIn("never chosen", fn,
-                      "'never chosen' collapsed into on or off — the default can never be "
-                      "explained")
-        self.assertIn("j.envName", fn,
-                      "the painter hardcodes the variable name instead of quoting the payload's "
-                      "envName, so a rename here goes stale silently")
-        # and the disabled state must come from the ENV branch, not from the saved-off branch
-        env_branch = _between(self, fn, "j.env !== null", "btn.disabled = false",
-                              what="the env-override branch")
-        self.assertIn("btn.disabled = true", env_branch,
-                      "an env override no longer DISABLES the switch, so clicking it would write a "
-                      "setting that changes nothing and say it worked")
+    def test_the_painter_is_gone_WITH_the_switch(self):
+        """v2210's painter kept four states apart on the toggle — env override / saved on / saved
+        off / never chosen. With the switch retired there is nothing to paint them onto, and a
+        painter reaching for a missing element is the dead-lookup class this repo already guards.
+
+        ⚠ THE FOUR-STATE DISCIPLINE DID NOT DIE WITH IT. It moved to where it still matters:
+        _auto_relaunch_state() keeps `saved`, `env`, `effective` and `why` apart on the wire, and
+        TestV2180's precedence matrix still pins every cell. What is gone is only the UI that
+        offered a choice the console no longer honours."""
+        self.assertNotIn("_autoRelaunchPaint", self.ui,
+                         "the painter is back, and there is no switch for it to paint")
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with io.open(p, encoding="utf-8") as fh:
+            src = fh.read()
+        for fact in ('"saved": saved', '"env": env', '"effective"', '"why": why'):
+            self.assertIn(fact, src,
+                          "the four facts collapsed on the wire (%s missing) — the switch is gone "
+                          "but the DISTINCTIONS are still what stop a status panel lying" % fact)
 
     def test_the_switch_labels_are_not_cut_in_half(self):
         """⚠ MEASURED THROUGH CDP ON A LIVE CONSOLE, and it was true of all THREE switches:
@@ -18605,14 +18629,25 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         self.assertNotIn("opt-in", (why or ""),
                          "auto-relaunch is still refusing as opt-in with nothing chosen, which is "
                          "every console the supervisor did not start")
-        # and his explicit OFF is still his
+        # ⚠ v2284 — THE LAW CHANGED, AND THIS IS THE HALF THAT CHANGED. Konyo, about Dean's
+        # console sitting on an old build: "this isnt optional the updates need to be going up.
+        # not a on or off button at all". A stored answer no longer participates: there is no
+        # switch to be off. Raising the default would have done nothing, because a default cannot
+        # beat a stored value — which is exactly why the stored value had to stop being consulted.
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("TV_AUTO_RELAUNCH", None)
             with mock.patch.object(ca, "auto_relaunch_setting", lambda: False):
                 ok2, why2 = ca.drift_may_relaunch()
-        self.assertFalse(ok2, "a saved OFF was overruled by the new default — a default may fill "
-                              "an unanswered question, never overrule an answered one")
-        self.assertIn("switched off", (why2 or "").lower())
+        self.assertTrue(ok2, "a stored 'off' is stopping an update again — updates are not "
+                             "optional and there is no longer a button for this")
+        # ⚠ AND THE MACHINE OVERRIDE MUST SURVIVE. Ten specs use TV_AUTO_RELAUNCH to stop a TEST
+        # console restarting itself mid-suite; a harness that can execv during its own run is a
+        # hazard, not a feature. It is not a user toggle and is not reachable from the UI.
+        with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "0"}):
+            ok3, why3 = ca.drift_may_relaunch()
+        self.assertFalse(ok3, "TV_AUTO_RELAUNCH=0 no longer stops a relaunch — the test harness "
+                              "can now restart itself in the middle of a run")
+        self.assertIn("switched off", (why3 or "").lower())
 
     def test_it_refuses_while_he_is_ACTUALLY_FILMING(self):
         """The check the relaunch route does NOT make, and the one that means he is filming.
@@ -26510,12 +26545,20 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
 
     def test_his_explicit_OFF_is_still_honoured(self):
         """Default-on must not overrule a choice he made. [[unknown-stays-unknown]]"""
-        self.assertFalse(self._armed(None, False),
-                         "a saved OFF was ignored by the new default — a default may fill an "
-                         "unanswered question, never overrule an answered one")
+        # ⚠ v2284 — HALF OF THIS LAW WAS DELIBERATELY REPEALED. Konyo: "this isnt optional the
+        # updates need to be going up. not a on or off button at all". A STORED answer no longer
+        # participates, because a default cannot beat a stored value and Dean's machine carried an
+        # explicit False that silently held it on an old build for versions.
+        self.assertTrue(self._armed(None, False),
+                        "a stored OFF is stopping an update again — there is no longer a button "
+                        "for this, and Dean's console is why")
+        # ...and the half that did NOT change: the machine override still works, in both
+        # directions. Ten specs depend on it to stop a test console restarting mid-suite.
         self.assertFalse(self._armed("0", None),
                          "TV_AUTO_RELAUNCH=0 no longer switches it off, so the documented escape "
-                         "hatch is gone")
+                         "hatch is gone and the harness can execv during its own run")
+        self.assertFalse(self._armed("0", True),
+                         "the machine override must win over anything stored, in both directions")
 
     def test_the_env_var_still_overrides_in_BOTH_directions(self):
         self.assertTrue(self._armed("1", False),
@@ -26537,7 +26580,7 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
             # env,        saved, armed?  why this cell exists
             (None,        None,  True,  "nothing chosen anywhere — his stated default"),
             (None,        True,  True,  "he switched it on"),
-            (None,        False, False, "he switched it OFF and nothing may overrule that"),
+            (None,        False, True,  "v2284 — a stored OFF no longer participates; updates are not optional"),
             ("1",         None,  True,  "explicit terminal override on"),
             ("true",      None,  True,  "a person types 'true'"),
             ("yes",       None,  True,  "a person types 'yes'"),
@@ -26549,10 +26592,10 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
             ("",          None,  True,  "EMPTY IS NOT SET — it must not read as a deliberate off"),
             ("   ",       None,  True,  "whitespace is not a decision either"),
             ("banana",    None,  True,  "an unrecognised value is not a decision; the saved/default applies"),
-            ("banana",    False, False, "...and with a saved OFF underneath it, OFF still wins"),
+            ("banana",    False, True,  "v2284 — an unrecognised env is not a decision, and the stored OFF is ignored"),
             ("1",         False, True,  "an explicit env ON is what a terminal override is FOR"),
             ("0",         True,  False, "and it works the other way too"),
-            ("",          False, False, "empty falls through to his saved OFF"),
+            ("",          False, True,  "v2284 — empty is not set, and there is no saved OFF to fall through to"),
         ]
         bad = []
         for env, saved, want, why in M:
@@ -26606,83 +26649,51 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
             self.assertIsNone(ca.auto_relaunch_setting(),
                               "a setting never chosen must read None, not False — otherwise the "
                               "default can never apply")
-            self.assertTrue(ca.auto_relaunch_set(False))
+            self.assertTrue(_write_auto_relaunch(f, False))
             self.assertIs(ca.auto_relaunch_setting(), False)
-            self.assertTrue(ca.auto_relaunch_set(True))
+            self.assertTrue(_write_auto_relaunch(f, True))
             self.assertIs(ca.auto_relaunch_setting(), True)
         # ⚠ v2210 — THIS BLOCK NAMED A LAW AND CHECKED NOTHING, AND THE OLD FIXTURE COULD NOT HAVE
         # CHECKED IT EITHER. The comment sat over a bare `pass`, and the path it chose —
         # self.d/no/such/dir/x/a.json — cannot fail: auto_relaunch_set calls
         # os.makedirs(d, exist_ok=True), which happily CREATES no/such/dir/x/ and returns True. So
-        # writing the assertion the comment names would have gone RED against correct code, which is
-        # probably why it was never written. A comment standing over a `pass` is a law nobody
-        # enforces wearing the clothes of one that somebody does.
+        # ⚠ v2284 — THE WRITE HALF OF THIS SPEC IS RETIRED WITH ITS SUBJECT. What stood here
+        # proved that a writer which could not write said so, because the route handed that value
+        # to the console as `ok` and a silent True would have told him he switched auto-relaunch
+        # off while it stayed on. There is no writer any more: Konyo retired the switch itself
+        # ("this isnt optional the updates need to be going up. not a on or off button at all"),
+        # the route refuses, and Law 19 caught auto_relaunch_set sitting with no production caller.
         #
-        # THE FIXTURE THAT CAN GENUINELY FAIL: self.d/ar.json already exists as a FILE after the
-        # round trip above, so treating it as a DIRECTORY makes os.makedirs raise NotADirectoryError.
-        # That is a real, reachable disk failure, not a mock.
-        import io as _io
-        import contextlib as _ctx
-        _say = _io.StringIO()
-        with mock.patch.object(ca, "_auto_relaunch_path",
-                               lambda: os.path.join(self.d, "ar.json", "x.json")):
-            with _ctx.redirect_stdout(_say):
-                _ok = ca.auto_relaunch_set(True)
-        self.assertIs(_ok, False,
-                      "a writer that could not write returned %r. Its own docstring says it "
-                      "'returns True when it actually landed' — and the route hands that value "
-                      "straight to the console as `ok`, so a silent True tells him he switched "
-                      "auto-relaunch off when nothing was saved and it is still on." % (_ok,))
-        self.assertIn("could not be SAVED", _say.getvalue(),
-                      "the write failed silently — nothing was printed. A failure that says "
-                      "nothing is the same as no failure to everyone downstream.")
+        # A spec kept alive against a deleted subject is worse than a deleted spec: it looks like
+        # coverage. What it protected still is protected, one layer up — the ROUTE now returns
+        # ok:False by construction and TestV2180's route spec pins that, so the console can no
+        # longer be told a save happened. The READ laws above are untouched and still run, because
+        # a stale answer on disk is still reported so the UI can say it no longer applies.
 
-    def test_the_auto_relaunch_route_is_actually_JOINED_to_the_setter(self):
-        """THE JOINT, not the two ends. auto_relaunch_set shipped in v2153 and sat there until
-        v2210 with ZERO production callers — he had no way to turn auto-relaunch off except an env
-        var, in a process launchd starts. Both ends were built and neither was connected.
+    def test_the_auto_relaunch_route_REFUSES_because_there_is_no_switch(self):
+        """★ v2284 — the route used to persist an on/off and the decision used to read it. Konyo
+        retired the whole idea: "this isnt optional the updates need to be going up. not a on or
+        off button at all".
 
-        A unit test of the writer would have stayed green through all of that, which is exactly why
-        this asserts the ROUND TRIP THROUGH THE ROUTE'S OWN HANDLER instead. [[the-unjoined-end]]
-        """
-        import unittest.mock as mock
-        ca = self.ca
-        f = os.path.join(self.d, "route_ar.json")
-        with mock.patch.object(ca, "_auto_relaunch_path", lambda: f):
-            got = {}
-
-            class _Fake(object):
-                def _json(self, code, payload):
-                    got["code"], got["payload"] = code, payload
-
-            # drive the handler the way do_POST does: the route body, verbatim
-            def _post(body):
-                got.clear()
-                want = body.get("on")
-                if want is not True and want is not False:
-                    _Fake()._json(200, {"ok": False, "why": "refused"})
-                    return
-                ok = ca.auto_relaunch_set(want)
-                _Fake()._json(200, dict(ca._auto_relaunch_state(), ok=bool(ok), changed=bool(ok)))
-
-            _post({"on": False})
-            self.assertTrue(got["payload"]["ok"])
-            self.assertIs(ca.auto_relaunch_setting(), False,
-                          "the route answered ok but the setting did not change on disk — the "
-                          "route and the setter are not joined")
-            self.assertIs(got["payload"]["saved"], False)
-            self.assertIs(got["payload"]["effective"], False)
-
-            # ⚠ AND A VALUE IT HAS TO GUESS AT MUST BE REFUSED, not coerced. bool("false") is True,
-            # and this route restarts his console.
-            for bad in ("false", "0", 0, 1, "", None, [], {}):
-                _post({"on": bad})
-                self.assertFalse(got["payload"]["ok"],
-                                 "the route accepted %r as a boolean — bool(%r) is %s, and acting "
-                                 "on a guess here restarts his console mid-recording"
-                                 % (bad, bad, bool(bad)))
-                self.assertIs(ca.auto_relaunch_setting(), False,
-                              "a refused request still wrote to disk (%r)" % (bad,))
+        ⚠ A SETTER THAT WRITES A VALUE NOTHING READS IS WORSE THAN NO SETTER. It would report
+        success, change the file, and leave the console restarting itself anyway — a control that
+        lies about having worked. So the route refuses and NAMES the one override that does still
+        work, which is the machine-level env var the test harness depends on.
+        [[plumbing-with-no-tap]]"""
+        src = self._src() if hasattr(self, "_src") else None
+        if src is None:
+            p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+            with io.open(p, encoding="utf-8") as fh:
+                src = fh.read()
+        self.assertIn("updates are not optional — a new build on disk restarts", src,
+                      "the route accepts an on/off again; if it can be set it must be read, and "
+                      "it is not read any more")
+        self.assertNotIn("ok = auto_relaunch_set(want)", src,
+                         "the route is persisting a choice the decision ignores — success would "
+                         "be reported for something that does not happen")
+        self.assertIn("TV_AUTO_RELAUNCH=0 still works", src,
+                      "the refusal must name the override that DOES work, or the next person "
+                      "reading it concludes nothing can stop a restart")
 
     def test_the_four_facts_behind_auto_relaunch_are_kept_apart(self):
         """`saved`, `env` and `effective` are three different questions and None is a real answer.
@@ -26703,7 +26714,7 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
                     except OSError:
                         pass
                 else:
-                    ca.auto_relaunch_set(saved)
+                    _write_auto_relaunch(f, saved)
                 _e = {} if env is None else {"TV_AUTO_RELAUNCH": env}
                 with mock.patch.dict(os.environ, _e, clear=("TV_AUTO_RELAUNCH" in os.environ
                                                             or env is not None)):
@@ -26725,7 +26736,7 @@ class TestV2180AutoRelaunchDoesNotDependOnWhoLaunchedIt(unittest.TestCase):
                                  "hardcode it and can go stale")
         # "" is NOT an explicit OFF -- it is unset, and v2181 paid for that distinction
         with mock.patch.object(ca, "_auto_relaunch_path", lambda: f):
-            ca.auto_relaunch_set(True)
+            _write_auto_relaunch(f, True)
             with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": ""}):
                 self.assertIsNone(ca._auto_relaunch_state()["env"],
                                   'TV_AUTO_RELAUNCH="" was read as a deliberate setting')

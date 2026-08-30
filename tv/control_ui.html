@@ -3453,12 +3453,20 @@
                             background: rgba(255,255,255,.03) !important; }
   .chron-waiting.cw-quiet b { font-weight: var(--fw-med, 500); }
   .chron-waiting.cw-quiet .cw-go { display: none; }
+  /* v2284 — the retired switch's replacement: same shape as its siblings so the section still
+     reads as a row, but with no affordance, because there is nothing to press. */
+  .shadow-adv-fixed { display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+                      border: 1px solid rgba(255,255,255,.10); border-radius: 10px;
+                      background: rgba(255,255,255,.03); opacity: .82; }
   /* v2278 — and the green button stops being green when it would write nothing. It stays
      PRESENT and pressable (the panel below it is still worth reading); it just stops being the
      loudest thing on the tab when there is no decision to make. */
   /* v2281 — the cross-difficulty hint. Loud enough to be seen on the first render he looks at
      (his ask), quiet enough that the Hell headline above it stays the headline. */
-  .hh-faster { margin-top: 4px; font-size: var(--fs-meta); color: var(--q-set, #8fe6a0); }
+  /* ⚠ --fs-meta is defined in bible.html, NOT here; this file's convention is a fallback on
+     every token it does not own, and its own guard catches the omission. I copied the token
+     across files without the fallback. [[copy-drift]] */
+  .hh-faster { margin-top: 4px; font-size: var(--fs-meta, 12px); color: var(--q-set, #00fc00); }
   .hh-faster b { color: inherit; font-weight: var(--fw-bold); }
   .hh-faster-vs { opacity: .6; margin-left: 6px; }
   .chron-apply.chron-nothing { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.04);
@@ -6093,12 +6101,21 @@
                override DISABLES the switch and says which variable is winning, "never chosen" is
                not "off", and a route that does not answer reads UNKNOWN rather than OFF. -->
           <div class="adv-sec-h adv-sec-h-rest">⟲ WHEN THE CONSOLE RESTARTS ITSELF</div>
+          <!-- v2284 — NOT A SWITCH ANY MORE. Konyo: "this isnt optional the updates need to be
+               going up. not a on or off button at all". Dean's console carried a stored OFF and
+               sat on an old build for versions while every ship announced itself and waited.
+               ⚠ THE CONTROL IS GONE RATHER THAN DISABLED. A greyed-out toggle still reads as a
+               thing that could be pressed, and the route now refuses anyway — a button whose
+               server says no is a control that lies about having worked. What replaces it is the
+               STATEMENT, because he still deserves to know what the console will do to itself.
+               The interlocks are unchanged and named: it will not restart mid-film, and not into
+               a board that came back a different world. [[plumbing-with-no-tap]] -->
           <div class="shadow-adv" id="auto-relaunch-adv">
-            <button type="button" class="shadow-adv-sw" id="sadv-auto" aria-pressed="false"
-                    title="when a newer build is on disk, should this console restart itself onto it — or only say so and wait for you?">
-              <span class="shadow-adv-dot"></span><span class="shadow-adv-ic">⟲</span>
-              <span class="shadow-adv-t"><b>Auto-relaunch</b><small id="sadv-auto-say">checking…</small></span>
-            </button>
+            <div class="shadow-adv-fixed" id="sadv-auto-fixed">
+              <span class="shadow-adv-ic">⟲</span>
+              <span class="shadow-adv-t"><b>Auto-relaunch — always on</b>
+                <small id="sadv-auto-say">a new build on disk restarts this window · never mid-film, never into a changed world</small></span>
+            </div>
           </div>
           <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
           <div class="util-strip">
@@ -7940,9 +7957,19 @@
       _lbl += ' · \u27f2 version drift UNMEASURED';
     }
     if (_e.needsYou) {
-      _lbl += ' · \ud83e\udd85 ' + _e.needsYou + ' need' + (_e.needsYou === 1 ? 's' : '') + ' you';
+      _lbl += ' \u00b7 \ud83e\udd85 ' + _e.needsYou + ' need' + (_e.needsYou === 1 ? 's' : '') + ' you';
     } else if (_e.checked && _e.unknown) {
-      _lbl += ' · \ud83e\udd85 ' + _e.unknown + ' not measured';
+      _lbl += ' \u00b7 \ud83e\udd85 ' + _e.unknown + ' not measured';
+    }
+    /* v2284 — AND WHAT IS NOT HIS. Konyo: "4 need me? make sure to verify and fix what needs me
+       for real". Two of the three the bar was counting were code defects of mine. They stay REAL
+       and stay shown — as a separate, quieter number — because a count he cannot act on belongs
+       BESIDE his, not inside it.
+       ⚠ ITS OWN `if`, not an `else`. My first cut chained it, which made "not measured" invisible
+       whenever I happened to owe him a fix — two independent facts collapsed into one branch, and
+       the one that vanished was the one that means "nobody looked". [[unknown-stays-unknown]] */
+    if (_e.mine) {
+      _lbl += ' \u00b7 \ud83d\udd27 ' + _e.mine + ' mine';
     }
     /* v2080 — and the retention cycle, on the same line, for the same reason: it was built to act
        on its own, so the ONE thing he must be able to see is what it did or why it did not. A
@@ -12506,60 +12533,17 @@
      off, "never chosen" is not "off", and "the console did not answer" is not "off" either.
      [[unknown-stays-unknown]] The payload names its own variable (`envName`) so this file does not
      hardcode a string that can go stale. */
-  function _autoRelaunchPaint(j, err) {
-    var btn = document.getElementById('sadv-auto');
-    var say = document.getElementById('sadv-auto-say');
-    if (!btn || !say) return;
-    if (err || !j) {
-      /* An unreachable route means I COULD NOT ASK. Painting that as OFF would tell him the
-         console will sit still when it may be about to restart itself. */
-      btn.setAttribute('aria-pressed', 'false');
-      btn.disabled = true;
-      say.textContent = 'UNKNOWN — the console did not answer';
-      return;
-    }
-    var envName = j.envName || 'TV_AUTO_RELAUNCH';
-    btn.setAttribute('aria-pressed', j.effective ? 'true' : 'false');
-    if (j.env !== null && j.env !== undefined) {
-      /* the switch is REAL but powerless right now — say which variable is winning, and disable it
-         rather than letting a click look like it did something */
-      btn.disabled = true;
-      say.textContent = envName + ' is set in this console\'s environment — it overrules the '
-        + 'switch, which is ' + (j.effective ? 'ON' : 'OFF') + ' right now';
-      return;
-    }
-    btn.disabled = false;
-    if (j.saved === null || j.saved === undefined) {
-      say.textContent = 'never chosen — the default is ON, so a new build on disk restarts this window';
-    } else if (j.saved === false) {
-      say.textContent = 'you switched it off — new builds are announced, never applied';
-    } else {
-      say.textContent = 'ON — a new build on disk restarts this window';
-    }
-  }
+  /* v2284 — THE AUTO-RELAUNCH SWITCH AND ITS PAINTER ARE GONE, NOT DISABLED.
+     Konyo: "this isnt optional the updates need to be going up. not a on or off button at all".
+     What stood here read /api/auto_relaunch, painted four states onto a toggle, and POSTed a new
+     choice. The decision no longer consults a stored answer and the route now refuses, so every
+     line of it was reaching for an element that is not in the markup any more — which this repo's
+     own guard (TestNoLookupOfAnElementThatIsNeverCreated) caught on the next run, correctly.
+     The section now states what the console does instead of offering a choice it cannot honour.
+     ⚠ window._autoRelaunchRefresh is kept as a no-op below because #sig-adv's ontoggle calls it;
+     deleting the function while a caller survives is how a panel starts throwing on open. */
+  window._autoRelaunchRefresh = function () { return Promise.resolve(null); };
 
-  window._autoRelaunchRefresh = function () {
-    return fetch(API + '/api/auto_relaunch')
-      .then(function (r) { return r.json(); })
-      .then(function (j) { _autoRelaunchPaint(j, null); return j; })
-      .catch(function (e) { _autoRelaunchPaint(null, e); return null; });
-  };
-
-  (function () {
-    var el = document.getElementById('sadv-auto');
-    if (!el) return;
-    el.addEventListener('click', function () {
-      if (el.disabled) return;
-      var want = el.getAttribute('aria-pressed') !== 'true';
-      var say = document.getElementById('sadv-auto-say');
-      if (say) say.textContent = want ? 'switching on…' : 'switching off…';
-      fetch(API + '/api/auto_relaunch', { method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ on: want }) })
-        .then(function () { return window._autoRelaunchRefresh(); })
-        .catch(function () { if (say) say.textContent = 'UNKNOWN — the console did not answer'; });
-    });
-  })();
 
   /* v2190 — restore his choice on load. Absent means never chosen, and the default is OPEN. */
   try {

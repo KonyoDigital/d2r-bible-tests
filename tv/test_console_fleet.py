@@ -34,6 +34,7 @@
 # FAITHFULLY — that ordering IS the bug, so faking it wrong would fake the test.
 import json
 import os
+import io
 import shutil
 import subprocess
 import sys
@@ -330,7 +331,28 @@ class TestConsoleLastSeen(unittest.TestCase):
         self.assertFalse([n for n in names if n.startswith("consolelog:")],
                          "heartbeats must NOT be logged — they would bloat KV: %r" % (names,))
         presence = next(p for p in v["puts"] if p["name"] == "console:cousin-pc")
-        self.assertEqual((presence["opts"] or {}).get("expirationTtl"), 600)
+        # ⚠ v2283 — THE TTL IS HALF OF A BUDGET, so it is checked against the refresh interval
+        # rather than against a number typed here. Two kv.put per heartbeat every ~4 min across
+        # three machines was ~2,160 writes/day against Cloudflare KV's free 1,000/day; once spent
+        # every POST 500'd and three LIVE machines read as "offline · last seen 2h". Presence now
+        # refreshes at most every REFRESH_S, and the TTL must outlive TWO missed refreshes or a
+        # live machine is evicted between writes — which is the very symptom being fixed.
+        ttl_p = (presence["opts"] or {}).get("expirationTtl")
+        src = io.open(os.path.join(ROOT, "functions", "api", "console.js"),
+                      encoding="utf-8").read() if "ROOT" in globals() else None
+        if src is None:
+            import pathlib
+            src = (pathlib.Path(__file__).resolve().parent.parent
+                   / "functions" / "api" / "console.js").read_text(encoding="utf-8")
+        import re as _re
+        refresh = int(_re.search(r"REFRESH_S\s*=\s*(\d+)", src).group(1))
+        self.assertGreaterEqual(ttl_p, 2 * refresh,
+                                "presence TTL %r does not cover two missed %ds refreshes, so a "
+                                "live machine drops off the roster between writes" % (ttl_p, refresh))
+        self.assertLessEqual(ttl_p, 3 * refresh,
+                             "presence TTL %r is far longer than the refresh interval — a machine "
+                             "that died would keep reading as online for %d minutes"
+                             % (ttl_p, ttl_p // 60))
         ls = next(p for p in v["puts"] if p["name"] == "lastseen:cousin-pc")
         ttl = (ls["opts"] or {}).get("expirationTtl")
         self.assertIsNotNone(ttl, "lastseen must carry a long TTL, not the 10-minute presence TTL")

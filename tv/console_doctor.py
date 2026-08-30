@@ -1217,6 +1217,36 @@ def _health(check_id):
     return run
 
 
+#: ══ v2284 — WHOSE PROBLEM IS IT? ═══════════════════════════════════════════════════════════════
+#:
+#: Konyo, reading "4 need you": "4 need me? make sure to verify and fix what needs me for real".
+#:
+#: Measured the same minute — of the three the rail was counting against him, TWO were mine:
+#:   extraction lanes  a code defect (#75): the vault lane cannot seal "examined, nothing here",
+#:                     so it holds reels for ever. No amount of clicking fixes that.
+#:   board join        a code defect (#76): _BOARD_WIN is assigned in a CHILD PROCESS the server
+#:                     can never read. Also not his to fix.
+#:   shadow gate       genuinely his — the Wilson rule and the live gate disagree on 38 of 401
+#:                     names, and which rule to adopt is a judgement nobody else can make.
+#:
+#: A rail that bills him for my bugs teaches him the number is noise, and then the one line that
+#: really is his gets skimmed with the rest. [[label-outlived-referent]]
+#:
+#: ⚠ THIS IS NOT A MUTE BUTTON. A check named here still renders, at its real state and colour —
+#: it simply stops inflating the count of things HE can act on, and is listed under its own
+#: heading with the task that owns it. Anything not named here counts as his, so a new check is
+#: his by default and has to be argued out rather than in.
+MINE = {
+    "extraction lanes": "#75 — the vault lane cannot seal 'examined, nothing here'",
+    "board join": "#76 — _BOARD_WIN is set in a child process the server cannot read",
+}
+
+
+def owner_of(name):
+    """-> 'me' when a named code defect owns it, else 'you'."""
+    return "me" if name in MINE else "you"
+
+
 CHECKS = [
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
@@ -1305,12 +1335,22 @@ def main(argv):
     print("\n🦅 EAGLE EYE — the whole console, from above\n")
     for r in rows:
         print("  %s %-18s %s" % (ICON.get(r["state"], "⚪"), r["check"], r["why"]))
-    needs = [r for r in rows if r["state"] == MISSING]
+    # v2284 — split by OWNER before counting. His number must mean "things you can do".
+    needs = [r for r in rows if r["state"] == MISSING and owner_of(r["check"]) == "you"]
+    mine = [r for r in rows if r["state"] == MISSING and owner_of(r["check"]) == "me"]
     unk = [r for r in rows if r["state"] == UNKNOWN]
     print()
     if needs:
         print("⚠ %d thing(s) need you. Nothing above is a guess: each line names what it measured."
               % len(needs))
+    if mine:
+        # ⚠ SHOWN, NOT SWALLOWED. These are real and red; they are simply not his to do, and each
+        # one names the task that owns it so "mine" cannot become a place things go to be forgotten.
+        print("🔧 %d known defect(s) — mine, already queued, not yours to do:" % len(mine))
+        for r in mine:
+            print("     %-18s %s" % (r["check"], MINE.get(r["check"], "")))
+    if needs or mine:
+        pass
     elif unk:
         print("✅ nothing is out of line. %d check(s) could not be determined — that is not a pass, "
               "it is a gap." % len(unk))

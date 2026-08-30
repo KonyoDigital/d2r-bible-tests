@@ -12540,12 +12540,31 @@ def drift_may_relaunch():
     # supervisor's sake: tvd_supervisor.sh exported TV_AUTO_RELAUNCH=1 unconditionally, so any
     # console it started would have overridden a switch he had turned off himself. The supervisor
     # no longer exports it; a human typing it in a terminal still wins.
+    # ══ v2284 — UPDATES ARE NOT OPTIONAL ═════════════════════════════════════════════════════
+    # Konyo, 2026-08-30, about Dean's console sitting on an old build: "this isnt optional the
+    # updates need to be going up. not a on or off button at all".
+    #
+    # It used to be a persisted choice, and Dean's machine carried an explicit saved False — so
+    # every build shipped since announced itself and waited for a person who never pressed
+    # anything. Measured on his beacon: relaunch {"armed": false, "may": false, "why":
+    # "auto-relaunch is switched off (the saved setting); announcing only"}.
+    #
+    # ⚠ RAISING THE DEFAULT WOULD HAVE CHANGED NOTHING. The default was already ON; a default
+    # cannot beat a stored answer. So the stored answer stops participating: there is no longer a
+    # switch to be off. auto_relaunch_setting() survives for the UI to EXPLAIN itself and for the
+    # fleet payload, and is deliberately not consulted here.
+    #
+    # ⚠ WHAT IS NOT REMOVED, AND MUST NOT BE. TV_AUTO_RELAUNCH stays as a MACHINE override, because
+    # ten specs use it to stop a test console restarting itself mid-suite — a harness that can
+    # execv during its own run is a hazard, not a feature. And the interlocks below stay untouched:
+    # they answer "not right NOW" (a film is rolling, the board came back a different world), which
+    # is a different question from "never". An always-on action with no brakes is how a fix becomes
+    # the next incident.
     _env = _env_tristate("TV_AUTO_RELAUNCH")
-    _saved = auto_relaunch_setting()
-    _on = _env if _env is not None else (True if _saved is None else _saved)
+    _on = True if _env is None else _env
     if not _on:
-        return False, ("auto-relaunch is switched off (%s); announcing only"
-                       % ("TV_AUTO_RELAUNCH" if _env is not None else "the saved setting"))
+        return False, ("auto-relaunch is switched off (TV_AUTO_RELAUNCH on this machine); "
+                       "announcing only")
     # v2147 — AND IT ASKS THE WORLD GUARD. The whole reason auto-relaunch was allowed to be armed is
     # that a relaunch returning a DIFFERENT world would be noticed — and the decision never consulted
     # the thing doing the noticing, so an already-drifted world did not block the next execv. A
@@ -12659,23 +12678,11 @@ def auto_relaunch_setting():
     return False
 
 
-def auto_relaunch_set(on):
-    """Persist the choice. Returns True when it actually landed — a writer that cannot write says so."""
-    p = _auto_relaunch_path()
-    try:
-        d = os.path.dirname(p)
-        if d and not os.path.isdir(d):
-            os.makedirs(d, exist_ok=True)
-        tmp = p + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"on": bool(on), "ts": int(time.time() * 1000)}, fh, indent=1)
-        os.replace(tmp, p)
-        return True
-    except Exception as e:
-        print("   \u26a0 the auto-relaunch setting could not be SAVED (%s)" % str(e)[:60],
-              flush=True)
-        return False
-
+# ⚠ v2284 — auto_relaunch_set() WAS DELETED, NOT ORPHANED. With the switch retired nothing may
+# write the choice, and Law 19 caught the setter sitting there with no production caller. Keeping
+# it "in case" is exactly the reason that guard refuses to accept. The READER survives, because
+# _auto_relaunch_state() still reports a stale on-disk answer so the UI can say it no longer
+# applies — reporting a fact is not the same as offering a control.
 
 def _auto_relaunch_state():
     """The four facts behind "will this console restart itself", kept APART. -> dict
@@ -12698,14 +12705,22 @@ def _auto_relaunch_state():
     """
     env = _env_tristate("TV_AUTO_RELAUNCH")
     saved = auto_relaunch_setting()
-    effective = env if env is not None else (True if saved is None else saved)
+    # ⚠ v2284 — THE SAME EXPRESSION AS drift_may_relaunch's, and it had to move WITH it. I changed
+    # the decision and left this behind, and the spec that exists for exactly that ("two answers to
+    # one question") went red on the next run. `saved` is still REPORTED — it is a true fact about
+    # the machine and the UI explains itself with it — but it no longer decides anything.
+    effective = True if env is None else env
     if env is not None:
         why = ("TV_AUTO_RELAUNCH is set in this console's environment and overrules the switch — "
                "auto-relaunch is %s" % ("ON" if env else "OFF"))
-    elif saved is None:
-        why = "never chosen — the default since v2153 is ON"
     else:
-        why = ("you switched it %s" % ("on" if saved else "off"))
+        # v2284 — there is no switch any more, so the sentence must stop implying one. If a stale
+        # choice is still on disk, say plainly that it no longer applies rather than leaving him
+        # to wonder why the toggle he remembers is not working.
+        why = ("updates are not optional — this console restarts itself onto a new build"
+               + ("" if saved is None else
+                  "  (a stored '%s' from before v2284 is on disk and no longer applies)"
+                  % ("on" if saved else "off")))
     return {"saved": saved, "env": env, "effective": bool(effective), "why": why,
             "envName": "TV_AUTO_RELAUNCH"}
 
@@ -12952,7 +12967,23 @@ def _eagle_once():
             _EAGLE.update({"checked": int(time.time() * 1000), "needsYou": None, "unknown": None,
                            "rows": [], "say": "the eagle could not run: %s" % str(e)[:110]})
         return []
-    bad = [r for r in rows if r.get("state") == "missing"]
+    # v2284 — "N NEED YOU" MUST MEAN THINGS HE CAN DO. Konyo, reading 4 on the bottom bar:
+    # "4 need me? make sure to verify and fix what needs me for real". Measured that minute: two of
+    # the three were CODE DEFECTS (#75 the vault lane cannot seal 'examined, nothing here';
+    # #76 _BOARD_WIN is set in a child process the server cannot read). Neither is fixable by
+    # clicking anything, and billing him for my bugs is how the number becomes noise — after which
+    # the one line that really is his gets skimmed with the rest. [[label-outlived-referent]]
+    # ⚠ NOT HIDDEN: they stay in `rows` at full colour and are counted separately as `mine`, each
+    # naming the task that owns it. console_doctor.MINE is the single list, so the rail and the bar
+    # cannot disagree about whose problem a thing is.
+    try:
+        import console_doctor as _cd
+        _mine_names = set(getattr(_cd, "MINE", {}) or {})
+    except Exception:
+        _mine_names = set()
+    _missing = [r for r in rows if r.get("state") == "missing"]
+    bad = [r for r in _missing if r.get("check") not in _mine_names]
+    mine = [r for r in _missing if r.get("check") in _mine_names]
     unk = [r for r in rows if r.get("state") == "unknown"]
     # v2079 — AND WHAT IT DOES WITH WHAT IT SAW. Konyo: "give it the capabilities to see this so
     # when it happens in the future it can auto scar / auto heal / auto fix."
@@ -12976,7 +13007,8 @@ def _eagle_once():
     with _PRUNE_LOCK:
         _EAGLE.update({
             "checked": int(time.time() * 1000), "rows": rows,
-            "needsYou": len(bad), "unknown": len(unk),
+            "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
+            "mineWhat": [r.get("check") for r in mine],
             # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
             # could not look is the defect it exists to catch. [[unknown-stays-unknown]]
             "healed": [t["scar"].get("check") for t in tended if t.get("state") == "healed"],
@@ -18783,7 +18815,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2283",
+        "ver": "v2284",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -21926,8 +21958,17 @@ class Handler(BaseHTTPRequestHandler):
                                         "value I have to guess at is not a value I will act on"
                                         % (want,)})
                 return
-            ok = auto_relaunch_set(want)
-            self._json(200, dict(_auto_relaunch_state(), ok=bool(ok), changed=bool(ok)))
+            # ══ v2284 — THERE IS NO SWITCH TO SET ═══════════════════════════════════════════
+            # Konyo: "this isnt optional the updates need to be going up. not a on or off button
+            # at all". A setter that still writes a value nothing reads is worse than no setter:
+            # the panel would report success, the file would change, and the console would go on
+            # restarting itself. So the route REFUSES and says why, rather than accepting a choice
+            # it cannot honour. [[plumbing-with-no-tap]]
+            self._json(200, dict(_auto_relaunch_state(), ok=False, changed=False,
+                                 why="updates are not optional — a new build on disk restarts "
+                                     "this console, and there is no longer a switch for it. "
+                                     "TV_AUTO_RELAUNCH=0 still works on a machine that must not "
+                                     "restart itself, which is what the test harness uses."))
             return
         if path == "/api/restart":
             if _stop_inflight:
