@@ -5316,6 +5316,36 @@
     .topbar .head-tabs .ht { letter-spacing: var(--ls-tight); } }   /* v2100 — padding + `flex:0 0 auto` dropped: the measured layer below owns both, and this !important could not be overridden from there */
   @media (max-width: 1080px){ .topbar .head-tabs .ht { font-size: var(--fs-xs); } }   /* v2100 — padding dropped, see above */
 
+  /* ══ v2322 — BELOW ~700px THE TAB STRIP WAS SLICED IN HALF, EVERY PILL ═══════════════════════
+     FOUND BY THE SECOND EYE, cold, on a 375px render: "the top navigation row shows only single
+     truncated labels (Ses, Run, Cra, Uni, Set, Too, Vau, TV)". It was right, and I twice said it
+     was not — which is the part worth writing down.
+
+     I probed whether each tab overflowed ITSELF (scrollWidth vs clientWidth: no) and whether each
+     passed the VIEWPORT (right = 241-250 of 375: no), and on that second answer I recorded the
+     finding as refuted. Both probes asked the wrong question. Cropping the header and LOOKING
+     settled it in one glance: every pill is sliced at the same vertical line, backgrounds and all.
+     A thing can be clipped by an ANCESTOR while overflowing neither itself nor the viewport, and
+     that is a third question. [[visual-regression-detector]] [[feedback-suspect-the-instrument]]
+
+     THE MEASURED CAUSE. `nav.head-tabs` is `flex: 1 1 0` inside `div.brand`, which v2120 gave
+     `overflow: hidden` on purpose ("no silent scroll at any width"). At 375 the brand holds 210px,
+     the identity block takes ~179 of it, the nav collapses to 31px, and each 46-56px pill is cut
+     at x=225 by the brand's own clip. Wrapping was doing its job — there was simply not room for
+     one tab, let alone eight.
+
+     THE FIX IS ONLY BELOW 700px, where the header is broken today and nothing has been tuned, so
+     it cannot regress a width that works. The strip stops sharing a row with the clock and takes
+     the full width; the clip is lifted only where it now has nothing left to clip.
+     ⚠ VERIFIED ON THE PICTURE at 375/640/901/1120/1440, because the last attempt at this
+     (nav out of .brand) measured "rows: 1" and RENDERED as a 3-row column jammed against the
+     rail. Measuring is not looking. */
+  @media (max-width: 700px) {
+    .topbar .brand { flex-wrap: wrap; overflow: visible; row-gap: 8px; }
+    .topbar .head-tabs { flex: 1 1 100%; width: 100%; margin-left: 0; justify-content: flex-start; }
+    .topbar .head-tabs .ht { flex: 0 0 auto; }
+  }
+
   /* ══ v2100 — THE HEADER FITS ON ONE ROW, AND THE CLOCK WAS WHY IT DIDN'T ═══════════════════
      "the time should be more to the left symmetric with the logo and name together under them
       both. and the main tabs on top should be one row."
