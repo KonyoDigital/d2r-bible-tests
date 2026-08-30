@@ -395,6 +395,21 @@ def _fixture_hist(case, reels=7, sealed=True):
 
 
 
+def _code_only(src):
+    """Source with comments and docstrings stripped. -> str
+
+    ⚠ WHY THIS EXISTS. Three guards in ONE session went green over broken code because their own
+    explanatory comment contained the very string they were grepping for. A scanner that reads its
+    own documentation cannot tell a rule from a description of the rule, and it fails in the
+    direction that costs most: silently green.
+    [[feedback-comments-vs-code]] [[source-reading-guard]]
+    """
+    import re as _re
+    out = _re.sub(r'"""(?:.|\n)*?"""', "", src)
+    out = _re.sub(chr(39) * 3 + r"(?:.|\n)*?" + chr(39) * 3, "", out)
+    return "\n".join(l for l in out.split("\n") if not l.strip().startswith("#"))
+
+
 def _write_auto_relaunch(path, on):
     """v2284 — the production setter was deleted with the switch; specs that need a stored answer
     on disk write it themselves. Keeping a setter alive only for tests is how a retired control
@@ -4441,6 +4456,125 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
         self.assertEqual(missing, [],
                          "the task force contract is broken across the two files:\n  "
                          + "\n  ".join(missing))
+
+
+class TestV2288TheCanaryWasDecorationForItsWholeLife(unittest.TestCase):
+    """★ LaneCanary (v2197) exists to separate "a blank gameplay frame" from "a frame the reader
+    could not see" — the distinction a deleter must get right. It has NEVER ONCE passed, on any
+    machine, and nothing said so.
+
+    TWO SITES demanded a cache-row shape the WRITER never produced. Both asked for len(row) >= 5;
+    stash_screen_open_cached has only ever stored [size, mtime, verdict]. Measured on his corpus
+    2026-08-30: 3,330 rows, ALL length 3, 215 carrying a real verdict, and known_good_frame
+    matching NONE of them — so probe() was never reached, and every caller that asked the canary
+    for proof got a silent "no". Two halves each built correctly and never joined.
+    [[the-unjoined-end]] [[feedback-threshold-above-the-ceiling]]
+
+    ⚠ AND THE STRICTNESS WAS MISPLACED, WHICH IS WHY THE FIX IS NOT A MIGRATION. known_good_frame
+    picks a CANDIDATE and probe() re-reads it UNCACHED — that read is the evidence. The row only
+    has to say the frame is worth probing, and a non-None verdict already does: a blind read cannot
+    classify a panel, it returns None. probe's own pre-check says what it is for one line above
+    itself — "the frame must still BE the frame the cache row describes" — which is elements 0 and
+    1. The shape version was never part of identity.
+    """
+
+    def _ca(self):
+        import importlib, sys as _s
+        _s.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        return importlib.import_module("control_app")
+
+    def test_a_LEGACY_three_element_row_can_be_a_candidate(self):
+        ca = self._ca()
+        import unittest.mock as mock
+        legacy = {"/tmp/x.jpg": [10, 20, "stash"]}
+        with mock.patch.object(ca, "_gate_cache", lambda: legacy), \
+             mock.patch.object(ca.os.path, "isfile", lambda p: True):
+            self.assertEqual(ca.LaneCanary().known_good_frame(), "/tmp/x.jpg",
+                             "a three-element row with a real verdict is not accepted as a probe "
+                             "candidate — that is the shape 3,330 of his rows are in, and it is "
+                             "why the canary never fired")
+
+    def test_a_row_recorded_BLIND_is_never_a_candidate(self):
+        """The richer shape still wins where it exists, and an explicitly-blind row is refused."""
+        ca = self._ca()
+        import unittest.mock as mock
+        blind = {"/tmp/b.jpg": [10, 20, "stash", True, ca._GATE_ROW_V]}
+        with mock.patch.object(ca, "_gate_cache", lambda: blind), \
+             mock.patch.object(ca.os.path, "isfile", lambda p: True):
+            self.assertIsNone(ca.LaneCanary().known_good_frame(),
+                              "a frame whose receipt says the gate was BLIND was offered as proof "
+                              "that the gate can see")
+
+    def test_a_None_verdict_is_never_a_candidate(self):
+        ca = self._ca()
+        import unittest.mock as mock
+        with mock.patch.object(ca, "_gate_cache", lambda: {"/tmp/n.jpg": [1, 2, None]}), \
+             mock.patch.object(ca.os.path, "isfile", lambda p: True):
+            self.assertIsNone(ca.LaneCanary().known_good_frame())
+
+    def test_the_probe_does_not_demand_a_shape_the_writer_never_wrote(self):
+        ca = self._ca()
+        import inspect
+        # ⚠ STRIP THE PROSE FIRST. My own explanatory comment names the retired condition, and
+        # the first cut of this guard matched its own documentation and went red against correct
+        # code. A scanner that reads its own commentary sits red for ever pointing at itself.
+        # [[feedback-comments-vs-code]]
+        import re as _re
+        src = inspect.getsource(ca.LaneCanary.probe)
+        code = "\n".join(l for l in src.split("\n")
+                         if not l.strip().startswith("#")) 
+        code = _re.sub(r'"""(?:.|\n)*?"""', "", code)
+        self.assertNotIn("len(row) >= 5", code,
+                         "the probe is back to requiring a five-element row; the writer produces "
+                         "three, so it can never read anything and never prove anything")
+        self.assertIn("row[0] == int(st.st_size)", src,
+                      "the identity check is gone — the probe could now read a DIFFERENT file "
+                      "than the row describes, which is the one thing that check is for")
+
+    def test_the_writer_records_the_blindness_it_always_promised(self):
+        ca = self._ca()
+        import inspect
+        src = _code_only(inspect.getsource(ca.stash_screen_open_cached))
+        self.assertIn("_gate_receipt()", src,
+                      "the writer no longer reads the receipt, so new rows lose the blindness fact "
+                      "the reader has wanted since v2197")
+        self.assertIn("_GATE_ROW_V", src)
+        # ⚠ the helper names are pinned because the call sits in a try/except: an invented name
+        # would fail silently and write three-element rows for ever. My first cut called
+        # _gate_receipt_peek(), which does not exist.
+        for helper in ("_gate_receipt", "_gate_blind"):
+            self.assertTrue(hasattr(ca, helper),
+                            "%s does not exist, and the writer's try/except would hide that" % helper)
+
+    def test_the_canary_CAN_STILL_FAIL(self):
+        """⚠ THE LAW THAT MATTERS MOST. A canary that always passes is the same defect as one that
+        never does — both have stopped carrying information. [[regression-guard]]"""
+        ca = self._ca()
+        import unittest.mock as mock
+        cn = ca.LaneCanary()
+        with mock.patch.object(ca, "_gate_cache", lambda: {}):
+            self.assertFalse(cn.probe(None), "with no candidate at all the canary claimed the lane "
+                                             "was live")
+        with mock.patch.object(ca, "_gate_cache", lambda: {"/tmp/g.jpg": [1, 2, "stash"]}), \
+             mock.patch.object(ca.os.path, "isfile", lambda p: True), \
+             mock.patch.object(ca.os, "stat", lambda p: type("S", (), {"st_size": 1, "st_mtime": 2})()), \
+             mock.patch.object(ca, "stash_screen_open", lambda p: None):
+            self.assertFalse(cn.probe("/tmp/g.jpg"),
+                             "a lane that read the known-good frame and saw NOTHING was still "
+                             "reported live")
+
+    def test_examined_and_empty_needs_ALL_FOUR(self):
+        ca = self._ca()
+        f = ca._examined_and_empty
+        self.assertTrue(f(0, 40, [], True), "the sealable case does not seal")
+        self.assertFalse(f(0, 40, [], False), "sealed on an UNPROVEN lane — a reel probed while "
+                                              "the OCR was dead would be marked empty for ever")
+        self.assertFalse(f(0, 0, [], True), "sealed a reel that offered NO frames to the gate; "
+                                            "zero refusals is 'never looked', not 'nothing here'")
+        self.assertFalse(f(3, 40, [], True), "collided with the read-and-nothing-nameable seal")
+        self.assertFalse(f(0, 40, ["boom"], True), "sealed while the pixel lane was broken, which "
+                                                   "refuses everything and looks identical to empty")
+
 
 
 class TestV2287TheHeroHourCarriesItsBasis(unittest.TestCase):

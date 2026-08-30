@@ -13900,6 +13900,30 @@ def _vault_corpus():
     return _vc
 
 
+def _examined_and_empty(read_ok, not_stash, pix_err, canary_live):
+    """May a reel be sealed as "examined, and there is no stash screen in it"? -> bool
+
+    Pure, so the four conditions can be argued with directly instead of being reconstructed from a
+    600-line sweep. ALL of them are required:
+
+      read_ok == 0      nothing was actually read, so this is not the "read it and found nothing
+                        nameable" case — that one is vault_seal_is_definitive's, and the two must
+                        never be confused: one says the panel held no names, this says there was
+                        no panel.
+      not_stash > 0     frames WERE offered to the structural gate and it refused them. A reel that
+                        offered nothing has not been examined at all; zero refusals is not "empty",
+                        it is "never looked".
+      not pix_err       the pixel lane did not fall over. A gate that could not run refuses
+                        everything, which looks identical to a reel with no stash in it.
+      canary_live       ⚠ THE ONE THAT MATTERS. A DELIBERATE UNCACHED probe proved the OCR was
+                        speaking during this pass. Without it a reel probed while the lane was dead
+                        caches None for every frame and then reads as "definitively not a stash"
+                        for ever — a permanent wrong answer written by a temporary fault.
+                        [[feedback-blind-fixture-green-gate]]
+    """
+    return bool(read_ok == 0 and not_stash > 0 and not pix_err and canary_live)
+
+
 def vault_seal_is_definitive(read_ok, reconciled, over_read, pix_err):
     """v2003 — may a sweep that grounded NO ROWS seal the reel, or must the footage stay readable?
 
@@ -15232,6 +15256,29 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             #
             # And it is only ever a PAUSE, never a life sentence: v2002 records the reader on the
             # seal, so the moment VAULT_PROMPT_VER changes every one of these reopens by itself.
+            # ── v2288 — PROVE THE LANE WAS SPEAKING, and only when the answer depends on it ──
+            # A deliberate UNCACHED probe of a frame known to make the OCR speak. Taken ONLY when
+            # nothing was read and frames WERE refused — the one case where "no stash here" and
+            # "the gate was deaf" produce identical evidence. Every other path already has a
+            # positive read to stand on and must not pay for a probe.
+            # ⚠ IT MUST NOT GO THROUGH THE MEMOISED GATE. LaneCanary.probe says so itself: a
+            # cached "panel" is a note about the last time the lane spoke, which would make this a
+            # gate that cannot fail. [[feedback-blind-fixture-green-gate]]
+            _canary = False
+            if _read_ok[0] == 0 and _not_stash[0] > 0 and not _pix_err:
+                try:
+                    _cn = LaneCanary()
+                    _kg = _cn.known_good_frame()
+                    _canary = bool(_cn.probe(_kg)) if _kg else False
+                    if not _canary:
+                        print("   \u26a0 the stash gate refused every frame AND the lane could not "
+                              "be proven live%s — that is UNKNOWN, not 'nothing here', so nothing "
+                              "is sealed" % ("" if _kg else " (no known-good frame to probe)"),
+                              flush=True)
+                except Exception as _ce:
+                    _canary = False
+                    print("   \u26a0 the liveness probe itself failed (%s) — refusing to seal on "
+                          "an unproven lane" % str(_ce)[:70], flush=True)
             _definitive = vault_seal_is_definitive(_read_ok[0], _reconciled, _over_read, _pix_err)
             if _definitive:
                 _pv = _av = ""
@@ -15253,8 +15300,55 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                              "to be had, which is a COMPLETE answer, not a failure. Sealed at %s so "
                              "the same frames are not paid for again; a newer vault reader reopens "
                              "them by itself." % (_read_ok[0], _pv or "?"))
+            elif _examined_and_empty(_read_ok[0], _not_stash[0], _pix_err, _canary):
+                # ══ v2288 — "EXAMINED, AND THERE IS NOTHING HERE" IS AN ANSWER ══════════════════
+                #
+                # THE HOLD NO FUTURE RUN COULD RELEASE. A reel where EVERY frame is refused by the
+                # free structural gate lands in the branch below as "nothing was read", so nothing
+                # is sealed and the footage is kept for a re-read. But that verdict is DETERMINISTIC
+                # on immutable frames and already memoised in stash_gate_cache.json — running it
+                # again produces the identical answer, for ever. The reel is not UNREAD; it is read
+                # and definitively not a stash recording, which is a different fact.
+                #
+                # MEASURED 2026-08-30 on his corpus: 3,330 frames probed across 36 reels, 3,115 of
+                # them None; 11 reels contain at least one stash frame and 25 contain ZERO. The
+                # chronicle lane had swept 36 sessions and the vault lane sealed 8 — and
+                # frame_authority reads ONLY the vault seal, so ~1,350 frames / 1.46 GB sat held by
+                # a hold nothing could ever lift.
+                #
+                # ⚠ AND THE TRAP THAT MAKES THIS DANGEROUS, WHICH IS WHY IT ASKS THE CANARY. A reel
+                # probed while the OCR was DEAD caches None for every frame and then looks
+                # "definitively not a stash" for ever. A corpus-level "215 frames did say yes
+                # somewhere" is NOT proof, because the cache carries no timestamp and those yeses
+                # cannot be shown to come from this pass. Only a DELIBERATE UNCACHED probe of a
+                # frame known to make the lane speak is evidence — which is exactly what LaneCanary
+                # was built for in v2197, and it says so itself: "an incidental verdict is NOT
+                # evidence... a 'panel' can be a CACHE HIT that consulted no OCR at all".
+                # [[feedback-blind-fixture-green-gate]] [[unknown-stays-unknown]]
+                _pv = _av = ""
+                try:
+                    import tv_diablo as _tvv
+                    _pv = getattr(_tvv, "VAULT_PROMPT_VER", "") or ""
+                    _av = getattr(_tvv, "VERSION", "") or ""
+                except Exception:
+                    pass
+                for sess in (prop.get("sessionsRead") or []):
+                    swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": 0,
+                                        "promptVer": _pv, "agentVer": _av,
+                                        "examinedEmpty": True,
+                                        "why": "every one of %d frame(s) was offered to the stash "
+                                               "gate and refused; the lane was proven live in the "
+                                               "same pass" % _not_stash[0]}
+                _seal_pending = True
+                _seal_say = ("   ✅ examined %d frame(s) and NONE is a stash screen — that "
+                             "is a complete answer, not a silence. The lane was proven live in this "
+                             "same pass, so the refusals are real rather than a deaf gate. Sealed "
+                             "at %s; a newer vault reader reopens it by itself."
+                             % (_not_stash[0], _pv or "?"))
             else:
-                _whynot = ("nothing was read" if not _read_ok[0]
+                _whynot = ("the lane could not be proven live, so 'no stash here' is UNKNOWN"
+                           if (not _read_ok[0] and _not_stash[0] and not _canary)
+                           else "nothing was read" if not _read_ok[0]
                            else "the pixel lane could not run" if _pix_err
                            else "a frame named more than its panel holds" if _over_read
                            else "%d of %d read frame(s) were never cross-checked"
@@ -15986,8 +16080,26 @@ def stash_screen_open_cached(frame_path):
     if isinstance(hit, list) and len(hit) == 3 and hit[0] == sig[0] and hit[1] == sig[1]:
         return hit[2]
     val = stash_screen_open(frame_path)
+    # v2288 — RECORD WHAT THE READER ALWAYS ASKED FOR. known_good_frame has wanted
+    # [size, mtime, verdict, blind, ROW_V] since v2197 and this writer only ever produced the
+    # first three, so its richest branch was unreachable. New rows carry the blindness receipt and
+    # the shape version; old three-element rows stay valid as a memo and as a probe candidate, so
+    # nothing has to be re-read to get the benefit.
+    # ⚠ THE REAL API, NOT THE ONE I ASSUMED. My first cut called `_gate_receipt_peek()`, which does
+    # not exist — and because the whole thing sat in a try/except, it would have failed silently and
+    # written three-element rows for ever, leaving the canary exactly as dead as it was. The helper
+    # is `_gate_receipt()` (the last receipt on this thread, kept precisely so a caller can ask why
+    # AFTER the read) and `_gate_blind()`, which treats UNSTAMPED as blind. A guard below pins that
+    # both names still exist, because an except-swallowed typo is invisible. [[the-unjoined-end]]
+    _blind = None
+    try:
+        _r = _gate_receipt()
+        _blind = bool(_gate_blind(_r)) if _r is not None else None
+    except Exception:
+        _blind = None
     with _GATE_LOCK:
-        c[key] = [sig[0], sig[1], val]
+        c[key] = ([sig[0], sig[1], val, bool(_blind), _GATE_ROW_V] if _blind is not None
+                  else [sig[0], sig[1], val])
         _GATE_CACHE_DIRTY = True
     return val
 
@@ -16023,12 +16135,40 @@ class LaneCanary(object):
                               else os.environ.get("TV_CANARY_WINDOW_S") or 180.0)
 
     def known_good_frame(self):
-        """A frame the gate has already read as a panel WITHOUT going blind. -> path | None"""
+        """A frame the gate has already read as a panel WITHOUT going blind. -> path | None
+
+        ⚠ v2288 — THIS RETURNED None ON EVERY MACHINE FOR ITS WHOLE LIFE, AND NOTHING SAID SO.
+        It required `len(row) >= 5 and row[4] == _GATE_ROW_V`, and the WRITER
+        (stash_screen_open_cached) has only ever stored `[size, mtime, verdict]` — three elements.
+        Measured on his corpus 2026-08-30: 3,330 cache rows, ALL length 3, 215 of them carrying a
+        real YES verdict, and this method matching NONE of them. So LaneCanary — built in v2197
+        precisely to tell a blank gameplay frame from a frame the reader could not see — has been
+        decoration since the day it landed, and every caller that asked it for proof got a silent
+        "no". Two halves each built correctly and never joined. [[the-unjoined-end]]
+
+        ⚠ AND THE STRICTNESS WAS MISPLACED, WHICH IS WHY THE FIX IS NOT A MIGRATION. This picks a
+        CANDIDATE to probe; `probe()` then re-reads it UNCACHED and that read is the evidence. The
+        row only has to suggest the frame is worth probing. A non-None verdict already carries
+        that: a blind read cannot classify a panel, it returns None. So a YES row IS a frame the
+        lane once spoke about, whatever shape the row is in.
+
+        Both shapes are accepted, the richer one preferred when present, so today's 3,330 rows
+        become usable immediately instead of after a six-minute re-probe of the whole corpus.
+        """
         try:
+            fallback = None
             for path, row in (_gate_cache() or {}).items():
-                if (isinstance(row, list) and len(row) >= 5 and row[4] == _GATE_ROW_V
-                        and row[2] is not None and not row[3] and os.path.isfile(path)):
-                    return path
+                if not (isinstance(row, list) and len(row) >= 3 and row[2] is not None):
+                    continue
+                if not os.path.isfile(path):
+                    continue
+                if len(row) >= 5 and row[4] == _GATE_ROW_V:
+                    if not row[3]:
+                        return path            # richest evidence: verdict AND a not-blind receipt
+                    continue                   # explicitly recorded blind — never a canary
+                if fallback is None:
+                    fallback = path            # legacy row: a verdict is evidence enough to PROBE
+            return fallback
         except Exception:
             pass
         return None
@@ -16048,7 +16188,17 @@ class LaneCanary(object):
         try:
             row = (_gate_cache() or {}).get(path)
             st = os.stat(path)
-            if not (isinstance(row, list) and len(row) >= 5
+            # ⚠ v2288 — THE SECOND SITE DEMANDING A ROW SHAPE THE WRITER NEVER PRODUCED.
+            # This required len(row) >= 5 while stash_screen_open_cached has only ever written
+            # three elements, so the probe returned False before reading anything — on every
+            # machine, since v2197. Together with the identical over-strict test in
+            # known_good_frame that is why LaneCanary has never once proven the lane live, and why
+            # nothing that depends on it could ever act.
+            # What this check is actually FOR is stated on the line above it: "the frame must still
+            # BE the frame the cache row describes". That is elements 0 and 1. The shape version is
+            # irrelevant to identity, and demanding it made a liveness proof that could not pass.
+            # [[the-unjoined-end]] [[feedback-threshold-above-the-ceiling]]
+            if not (isinstance(row, list) and len(row) >= 3
                     and row[0] == int(st.st_size) and row[1] == int(st.st_mtime)):
                 self.marks.append((now, False))
                 return False
@@ -18815,7 +18965,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2287",
+        "ver": "v2288",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
