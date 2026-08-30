@@ -4429,6 +4429,81 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2283TheRosterMustNotSpendItselfToDeath(unittest.TestCase):
+    """★ Konyo: "i dont see anyone online in fleet. and all three consoles are definitely live right
+    now. it say slast seen 2h". All three WERE live.
+
+    MEASURED that night: his .tvd_beacon.json read {ok:false, code:500, okAt:"00:51:32",
+    attempts:6351, failures:1644} — the console beaconing fine and the SERVER answering 500
+    (Cloudflare 1101, the Worker throwing) on every POST while GET answered 200.
+
+    ROOT CAUSE: two kv.put calls per heartbeat, every ~4 min, per machine
+    = 3 x 15/hr x 2 = ~2,160 writes/day against Cloudflare KV's free-tier 1,000/day.
+    PROVEN by prediction, not argument: a POST at 2026-08-29T23:58:52Z returned 500; the identical
+    POST at 00:01:29Z, ninety seconds after the UTC quota reset, returned 200.
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "functions", "api", "console.js")
+        if not os.path.isfile(p):
+            self.skipTest("functions/api/console.js is not in this checkout")
+        with io.open(p, encoding="utf-8") as fh:
+            self.js = fh.read()
+
+    def test_presence_is_not_rewritten_on_every_heartbeat(self):
+        self.assertIn("REFRESH_S", self.js,
+                      "presence is back to an unconditional write per beacon, which is what spent "
+                      "the daily quota and took the whole roster down")
+        self.assertIn("ageS >= REFRESH_S", self.js)
+
+    def test_the_durable_row_is_written_only_when_something_CHANGED(self):
+        self.assertIn("if (material) {", self.js,
+                      "lastseen is unconditional again — a heartbeat that says exactly what the "
+                      "last one said is not news and must not cost a write")
+
+    def test_the_TTL_outlives_TWO_missed_refreshes(self):
+        """⚠ ORDER THE PAIR, not just each number. A TTL shorter than 2x the refresh interval
+        evicts a live machine between writes and it reads as offline — the exact symptom this
+        whole ship exists to remove. [[feedback-threshold-above-the-ceiling]]"""
+        import re
+        r = int(re.search(r"REFRESH_S\s*=\s*(\d+)", self.js).group(1))
+        t = int(re.search(r"PRESENCE_TTL\s*=\s*(\d+)", self.js).group(1))
+        self.assertGreaterEqual(t, 2 * r,
+                                "presence TTL %ds does not cover two missed %ds refreshes" % (t, r))
+
+    def test_the_daily_write_budget_fits_UNDER_the_free_tier(self):
+        """The arithmetic that failed before, done here so it cannot drift back over."""
+        import re
+        r = int(re.search(r"REFRESH_S\s*=\s*(\d+)", self.js).group(1))
+        # ⚠ FOUR, not three. A budget sized exactly to today's fleet fails the day he adds a
+        # machine, and that failure looks like everyone going offline at once.
+        machines, ceiling = 4, 1000
+        worst = machines * (3600.0 / r) * 24 * 2      # both keys, every refresh, all day
+        self.assertLess(worst, ceiling,
+                        "worst-case %d writes/day for %d machines exceeds the %d/day free tier — "
+                        "the roster will die again at a different hour each day"
+                        % (worst, machines, ceiling))
+
+    def test_a_storage_refusal_is_NOT_a_500(self):
+        """⚠ THE HALF THAT MATTERS MORE. 'the roster would not take my beacon' and 'that machine is
+        gone' are opposite facts, and the panel was printing the second for the first."""
+        self.assertIn("NOT the machine being absent", self.js,
+                      "a storage failure can 500 again, and a 500 is what made three live machines "
+                      "read as offline for two hours")
+        self.assertIn("could not store this beacon", self.js)
+
+    def test_the_console_renders_a_refused_beacon_as_UNKNOWN(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertIn("presence UNKNOWN, not offline", ui,
+                      "the fleet row calls a machine offline when its own beacon reports a "
+                      "FAILURE — that is a refusal being rendered as an absence")
+        self.assertIn("lb.ok === false", ui)
+
+
+
 class TestV2281TheFastestPlaceIsNotThrownAway(unittest.TestCase):
     """★ Konyo: "normal mephisto to run sanders cap and it says 48hours to find so something is
     bugged!" and "it should tell me this automatically ... where to hunt it and it be the fastest

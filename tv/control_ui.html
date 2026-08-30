@@ -15850,7 +15850,30 @@ function escC(s) {
                       + 'receive. It ships when the gates pass and it is pushed.">'
                       + ' · unpublished</span>' : '')
              + ' · ' + escC(_fleetSince(m.t)))
-          : ('offline · last seen ' + escC(_fleetSince(m.t)));
+          /* ── v2283 — A ROSTER THAT REFUSED THE WRITE IS NOT A MACHINE THAT WENT AWAY ────────
+             Konyo: "i dont see anyone online in fleet. and all three consoles are definitely live
+             right now. it say slast seen 2h".
+
+             All three were live. MEASURED on his machine at the time: .tvd_beacon.json read
+             {ok:false, code:500, err:"HTTP Error 500", okAt:"00:51:32", attempts:6351,
+             failures:1644} — the console was beaconing every few minutes and the SERVER was
+             returning 500 (Cloudflare 1101, the Worker throwing) on every POST while GET answered
+             200. So every machine froze at the same instant and the panel called all three
+             "offline", which is the one thing they were not.
+
+             The beacon carries its own last attempt, so this is answerable rather than guessable:
+             a row whose lastBeacon FAILED is UNKNOWN — it tried and could not be recorded.
+             Third time tonight that a failure rendered as a confident negative (see v2280's
+             fleet-behind, and the vault store read before it). [[unknown-stays-unknown]] */
+          : (function () {
+              var lb = m.lastBeacon || null;
+              if (lb && lb.ok === false) {
+                return 'roster refused its beacon \u00b7 presence UNKNOWN, not offline'
+                     + (lb.code ? (' \u00b7 HTTP ' + escC(String(lb.code))) : '')
+                     + ' \u00b7 last recorded ' + escC(_fleetSince(m.t));
+              }
+              return 'offline \u00b7 last seen ' + escC(_fleetSince(m.t));
+            })();
         /* v2213 — CLICK A PLAYER. Konyo: "a click on the player itself will open a box and tell
            me visually and show me which items it has cross referenced to mine that i dont have
            already only. so its not messy." The hover tooltip stays exactly as it was — it answers

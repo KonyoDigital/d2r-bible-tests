@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2282",
+  "ver": "v2283",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2282: armed_migration sweeps the class instead of one hardcoded flag; coldread will not photograph a console that is not the version being read",
+  "note": "v2283: two KV writes per heartbeat blew Cloudflares 1000-per-day free tier, so every POST 500d and three live machines read as offline",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

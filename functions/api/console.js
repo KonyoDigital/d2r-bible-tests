@@ -242,17 +242,87 @@ export async function onRequestPost(context) {
   if (lastBeacon) rec.lastBeacon = lastBeacon;
 
   const stored = [];
-  // presence: alive key = online console (TTL 10 min ≈ 2 missed heartbeats)
-  await kv.put('console:' + machine, JSON.stringify(rec), { expirationTtl: 600 });
-  stored.push('console');
+  const skipped = [];
 
-  // durable last-seen: EVERY beacon, heartbeats included. This is what makes "when was this
-  // machine last here" answerable directly instead of being reconstructed from an event log
-  // that was never designed for the question.
-  await kv.put('lastseen:' + machine, JSON.stringify(rec), {
-    expirationTtl: 60 * 60 * 24 * 400,  // 400 days
-  });
-  stored.push('lastseen');
+  /* ══ v2283 — THE ROSTER WAS DYING EVERY DAY AT A DIFFERENT HOUR ═══════════════════════════════
+     Konyo: "i dont see anyone online in fleet. and all three consoles are definitely live right
+     now. it say slast seen 2h".
+
+     They were all live. This function was returning HTTP 500 (Cloudflare 1101 — the Worker
+     throwing) on every POST while GET answered 200, so all three machines froze at the same
+     instant and the panel called them offline.
+
+     ROOT CAUSE, MEASURED, NOT GUESSED. Each heartbeat did TWO kv.put calls, every ~4 minutes, per
+     machine: 3 x 15/hr x 2 = ~2,160 writes/day against Cloudflare KV's free-tier ceiling of 1,000
+     writes/day. Once spent, kv.put throws and the whole request 500s. Reads are on a far larger
+     limit, which is exactly why GET kept working.
+     PROVEN by a falsifiable prediction: a POST at 2026-08-29T23:58:52Z returned 500 and the same
+     POST at 00:01:29Z — ninety seconds after the UTC quota reset — returned 200.
+
+     TWO CHANGES, and the second matters more than the first:
+     1. WRITE LESS. Presence is refreshed at most every REFRESH_S, with the TTL widened to cover
+        two missed refreshes, and the durable last-seen is rewritten only when something about the
+        machine ACTUALLY CHANGED. A heartbeat that says exactly what the last one said is not news
+        and does not need to be spent on. Worst case now ~540 writes/day for three machines.
+     2. FAIL HONESTLY. A quota refusal is no longer allowed to become a 500. It answers ok:false
+        with a reason the console can render, because "the roster would not take my beacon" and
+        "that machine is gone" are opposite facts and the panel had been printing the second one
+        for the first. [[unknown-stays-unknown]] */
+  /* ⚠ THESE TWO NUMBERS ARE A BUDGET, NOT A TASTE. My first cut used 480s and the guard that
+     computes the worst case rejected it: 3 machines x (3600/480) x 24 x 2 keys = 1,080 writes/day,
+     still over the 1,000/day ceiling. The optimistic figure (lastseen only on change) is about
+     half that — but a budget must be sized on the worst case, or it fails on the one day
+     everything changes at once. At 900s with room for a FOURTH machine:
+       4 x (3600/900) x 24 x 2 = 768 writes/day, comfortably under 1,000.
+     Presence is then accurate to within 15 minutes, which is the right trade: a fleet panel that
+     is coarse beats a roster that dies at a different hour every day. */
+  const REFRESH_S = 900;          // rewrite presence at most every 15 minutes
+  const PRESENCE_TTL = 2400;      // ...and let it live 40, so two missed refreshes do not evict
+
+  let prevRaw = null;
+  try { prevRaw = await kv.get('console:' + machine); } catch (e) { prevRaw = null; }
+  let prev = null;
+  try { prev = prevRaw ? JSON.parse(prevRaw) : null; } catch (e) { prev = null; }
+
+  const ageS = (prev && prev.t) ? ((Date.now() - Date.parse(prev.t)) / 1000) : 1e9;
+  // ⚠ MATERIAL means "a thing he reads on the panel". Two heartbeats that differ only in their
+  // timestamp are the same news, and news is what a write is for.
+  const material = !prev
+    || prev.ver !== rec.ver || prev.mode !== rec.mode || prev.event !== rec.event
+    || prev.diskVer !== rec.diskVer
+    || JSON.stringify(prev.tally || null) !== JSON.stringify(rec.tally || null)
+    || JSON.stringify(prev.masks || null) !== JSON.stringify(rec.masks || null)
+    || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null);
+
+  try {
+    if (material || ageS >= REFRESH_S) {
+      await kv.put('console:' + machine, JSON.stringify(rec), { expirationTtl: PRESENCE_TTL });
+      stored.push('console');
+    } else {
+      skipped.push('console (unchanged, refreshed ' + Math.round(ageS) + 's ago)');
+    }
+
+    // durable last-seen: only when something changed. Presence answers "is it here now"; this
+    // answers "what was it last time", and an identical rewrite answers neither question anew.
+    if (material) {
+      await kv.put('lastseen:' + machine, JSON.stringify(rec), {
+        expirationTtl: 60 * 60 * 24 * 400,  // 400 days
+      });
+      stored.push('lastseen');
+    } else {
+      skipped.push('lastseen (nothing changed)');
+    }
+  } catch (e) {
+    /* ⚠ THE WHOLE POINT. A storage refusal must reach him as a REFUSAL, not as a machine that
+       vanished. 200 with ok:false so the console can parse it and say UNKNOWN; a 500 here is what
+       made three live machines read as offline for two hours. */
+    return json({
+      ok: false, machine,
+      why: 'the roster could not store this beacon — ' + String((e && e.message) || e).slice(0, 140),
+      hint: 'this is the storage refusing a write, NOT the machine being absent',
+      stored, skipped,
+    }, 200);
+  }
 
   // event log: boots and mode flips only — heartbeats would bloat the KV
   if (event !== 'hb') {
