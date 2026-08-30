@@ -3469,6 +3469,16 @@
   .hh-faster { margin-top: 4px; font-size: var(--fs-meta, 12px); color: var(--q-set, #00fc00); }
   .hh-faster b { color: inherit; font-weight: var(--fw-bold); }
   .hh-faster-vs { opacity: .6; margin-left: 6px; }
+  /* v2287 — the basis under the hour: present, readable, and quieter than the figure it explains.
+     A caveat that competes with its number is a second number. */
+  /* ⚠ THE TOKEN, NOT A RAW PX. My first cut wrote `var(--fs-3xs, 10px)` and tripped two of this
+     repo's own invariants at once: --fs-3xs already resolves to var(--fs-2xs), so the fallback
+     minted a SECOND value for one token; and 10px sits under the declared 13px fullscreen floor,
+     which exists because he reads this across the room. The basis is kept quieter by WEIGHT,
+     OPACITY and colour instead of by shrinking under the floor. */
+  .hh-basis { display: block; font: var(--fw-regular) var(--fs-2xs)/1.2 var(--mono);
+              letter-spacing: .06em; color: var(--muted); opacity: .7; margin-top: 2px;
+              max-width: 16ch; margin-left: auto; cursor: help; }
   .chron-apply.chron-nothing { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.04);
                                opacity: .66; font-weight: var(--fw-med, 500); }
   /* v2125 — LAND ON IT. Scrolling a long dashboard to a panel is not the same as showing him
@@ -14910,7 +14920,43 @@
             + esc(_elsewhere.source) + '</b> \u2248' + esc(_hubHrs(_elsewhere.hours))
             + '<span class="hh-faster-vs"> vs \u2248' + esc(hrs || '?') + ' in Hell</span></div>' : '')
       + '</div>'
-      + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span></div>' : '');
+      /* ── v2287 — THE HOUR CARRIES WHAT IT RESTS ON ───────────────────────────────────────
+         A different model family was handed the v2285 console cold, asked one open question with
+         no hint of the expected answer — "wherever an estimated duration appears, does the page
+         make clear what the estimate depends on, or does it just assert a number?" — and answered
+         on BOTH widths: "'~ 1.1h TO YOUR NEXT FIND' ... assert numbers with only the target boss
+         named; no visible basis (drop rate source, sample size, or model) is shown."
+
+         It is right, and it is the same class as the 13,884h cow figure fixed the same night: an
+         hour whose denominator is invisible cannot be argued with. The board's best-run row was
+         given its basis in v2285; the hero — the surface he looks at FIRST — was not.
+
+         ⚠ NOTHING IS COMPUTED HERE. The payload already carries the odds and the rate; this only
+         renders them. And they are read from the SAME branch that chose top.source, because a
+         basis describing a different source than the label is worse than no basis at all.
+         ⚠ AND IT STAYS ONE LINE. He asked for the console to be calmer, not denser (#77): the rule
+         is that a number he ACTS on carries its conditions, not that every number grows prose. */
+      + (hrs ? '<div class="hh-eta"><b>≈ ' + hrs + '</b><span>to your next find</span>'
+            + (function () {
+                var dc = _hell.length ? _meta.hellDropChance : _meta.dropChance;
+                var kp = _hell.length ? _meta.hellKillsPerHr : _meta.killsPerHr;
+                if (!dc || !kp) return '';   // unknown stays unknown — no basis, no claim
+                /* ⚠ dropChance IS A PROBABILITY, NOT A DENOMINATOR. The board publishes it as
+                   `dropChance: 1 / adj` (bible.html), so a 1-in-9,382 chance arrives as 0.000107.
+                   My first cut printed `'1:' + Math.round(dc)` and rendered "1:0 AT ~80/HR" — a
+                   confident, meaningless figure under a real hour.
+                   ⚠ EVERY SOURCE GUARD PASSED OVER IT. Only rendering the page and reading the
+                   pixels caught it, which is the whole reason that check is not optional.
+                   [[visual-regression-detector]] [[feedback-verify-not-proxy]] */
+                var N = (dc > 0 && dc < 1) ? (1 / dc) : dc;
+                if (!isFinite(N) || N < 1) return '';
+                var odds = (N >= 1000) ? ('1:' + (N / 1000).toFixed(1) + 'k') : ('1:' + Math.round(N));
+                return '<span class="hh-basis" title="the two numbers this hour is computed from: '
+                     + 'the drop odds at your current MF, and how many runs an hour this source '
+                     + 'supports. Change either and the hour moves.">' + esc(odds)
+                     + ' at ~' + esc(String(Math.round(kp))) + '/hr</span>';
+              })()
+            + '</div>' : '');
   }
   window._hubNextGrail = hubNextGrail;
 

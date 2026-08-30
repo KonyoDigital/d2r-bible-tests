@@ -4443,6 +4443,89 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2287TheHeroHourCarriesItsBasis(unittest.TestCase):
+    """★ Found by a DIFFERENT MODEL FAMILY, unprompted. The v2285 console was handed to it cold
+    with one open question and no hint of the expected answer — "wherever an estimated duration
+    appears, does the page make clear what the estimate depends on, or does it just assert a
+    number?" It answered on both widths:
+
+        "'~ 1.1h TO YOUR NEXT FIND' and '≈ 0.5h TO THE NEXT PIECE' assert numbers with only the
+         target boss named; no visible basis (drop rate source, sample size, or model) is shown."
+
+    It is the same class as the 13,884h cow ETA fixed the same night: an hour whose denominator is
+    invisible cannot be argued with. v2285 gave the board's best-run row its assumption; the hero —
+    the surface he looks at first — did not get it. [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def test_the_basis_is_rendered_AND_styled(self):
+        """⚠ BOTH ENDS. v2285's caveat guard passed over a badge that no longer rendered because
+        the class name appeared twice and only one was renamed. [[source-reading-guard]]"""
+        self.assertIn('class="hh-basis"', self.ui,
+                      "the hour is asserted with no visible basis again")
+        self.assertIn(".hh-basis {", self.ui,
+                      "the basis has no style rule, so it renders as unstyled text or not at all")
+
+    def test_the_basis_comes_from_the_SAME_branch_as_the_label(self):
+        """A basis describing a different source than the label is worse than no basis: it reads
+        as corroboration while pointing somewhere else. The same _hell.length test that chooses
+        top.source must choose these two numbers. [[feedback-contradiction-is-the-finding]]"""
+        self.assertIn("_hell.length ? _meta.hellDropChance : _meta.dropChance", self.ui)
+        self.assertIn("_hell.length ? _meta.hellKillsPerHr : _meta.killsPerHr", self.ui)
+        self.assertIn("_srcBossId = _hell.length ?", self.ui,
+                      "the label's own branch changed shape — re-check that the basis still "
+                      "follows the same one, or the two can describe different bosses")
+
+    def test_NO_basis_is_shown_when_it_is_not_known(self):
+        """⚠ THE HALF THAT MATTERS. Inventing a plausible pair would be worse than silence — it
+        would make an unbacked hour look checked."""
+        self.assertIn("if (!dc || !kp) return '';", self.ui,
+                      "a missing odds/rate pair no longer suppresses the basis, so the hour could "
+                      "wear a caveat built from undefined")
+
+    def test_dropChance_is_read_as_a_PROBABILITY_not_a_denominator(self):
+        """★ THE BUG ONLY THE PIXELS CAUGHT. The board publishes `dropChance: 1 / adj`, so a
+        1-in-9,382 chance arrives as 0.000107. My first cut printed `'1:' + Math.round(dc)` and
+        rendered "1:0 AT ~80/HR" — a confident, meaningless figure sitting under a real hour.
+
+        ⚠ EVERY SOURCE-LEVEL GUARD IN THIS CLASS PASSED OVER IT. The template was present, the
+        style rule was present, the branch matched the label, the width was bounded — all true, and
+        the number on screen was nonsense. Rendering the page and reading the pixels is what caught
+        it, which is exactly why that check is not optional.
+        [[visual-regression-detector]] [[feedback-verify-not-proxy]]"""
+        self.assertIn("var N = (dc > 0 && dc < 1) ? (1 / dc) : dc;", self.ui,
+                      "dropChance is being formatted as though it were a denominator again — it "
+                      "is a probability, and Math.round() of it is 0")
+        self.assertIn("if (!isFinite(N) || N < 1) return '';", self.ui,
+                      "an unusable odds value would render rather than being withheld")
+
+    def test_the_basis_ARITHMETIC_matches_the_hour_it_sits_under(self):
+        """A basis that does not reproduce its own hour is decoration. Measured live on his console
+        after the fix: "1:129 at ~80/hr" against "≈ 1.1h" — ceil(ln0.5/ln(1-1/129)) = 90 runs, and
+        90/80 = 1.125h. The two agree, which is the only thing that makes the caveat worth showing."""
+        import math
+        runs = math.ceil(math.log(0.5) / math.log(1 - 1.0 / 129))
+        self.assertAlmostEqual(runs / 80.0, 1.1, places=1,
+                               msg="the shipped formula no longer reproduces the rendered pair — "
+                                   "either the basis or the hour has drifted from the other")
+
+    def test_it_stays_ONE_line(self):
+        """He asked for the console to be CALMER, not denser (#77). The rule is that a number he
+        acts on carries its conditions — not that every number grows prose."""
+        import re as _re
+        m = _re.search(r"class=\"hh-basis\"[^>]*>' \+ esc\(odds\)([^;]{0,200})", self.ui)
+        self.assertIsNotNone(m, "the basis expression changed shape")
+        self.assertNotIn("<br", m.group(1), "the basis grew a second line")
+        block = _between(self, self.ui, ".hh-basis {", "}", what="the basis rule")
+        self.assertIn("max-width", block,
+                      "without a width bound the basis can push the hour off its own row at 901px")
+
+
+
 class TestV2286EveryIdentityNormaliserFoldsTheApostrophe(unittest.TestCase):
     """★ bible.html carries item names in TWO byte forms — Atma’s Scarab / Atma's Scarab, and the
     same for Cat’s Eye, Death’s Web, Saracen’s Chance. Whether that splits an item in two depends

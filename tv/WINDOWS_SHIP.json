@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2286",
+  "ver": "v2287",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2286: tvVaultRegister resolved a curly-apostrophe name as a new item because its normaliser did not fold what the chronicle key folds",
+  "note": "v2287: a different model family asked what the hero hour depends on; it depended on nothing visible, and my first fix rendered 1:0",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
