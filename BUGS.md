@@ -12950,6 +12950,50 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-401 — every captured frame was inflated 20x by a subprocess that recovered nothing (v2324)
+
+**His reports, over weeks:** *"its really laggy"*, *"it was soo slow and laggy i couldnt evne
+move"*, *"also thiss farewell i didnt move past 4-5 items"*, *"its doing screenshottakes right??
+no recording video here... cuz its really laggy"*.
+
+**Quartz already hands the capture a JPEG.** `_capture_window_to_bmp` then spawned `sips` to
+expand that JPEG into a BMP. Measured on a 2560x1600 frame with real texture:
+
+```
+source JPEG (already in hand)        587 KB
+sips jpeg -> bmp      46 ms       12,000 KB     20x bigger
+keep the JPEG        1.3 ms          587 KB     no subprocess at all
+```
+
+**It cannot recover a single pixel the JPEG already discarded**, so the picture is identical
+either way. The only difference is 46 ms of subprocess and 12 MB of disk, paid ~2.5 times a
+second while he plays.
+
+**Why it was not a one-line change: the FORMAT was baked into the NAME.** `live.bmp` appeared in
+five places, plus the per-reader snap (`snap_N_N.bmp`) and the settle queue (`<sig8>.bmp`), which
+are copies of the live frame. Changing the writer alone would leave every reader looking for a
+file that is no longer produced — the writer succeeds, the reader finds nothing, and the eye goes
+blind with no error anywhere.
+
+**Fix:** the live frame stops being a constant and becomes a question.
+`live_frame_path(for_write=True)` is the single writer name (JPEG); `live_frame_path()` returns
+the NEWEST existing candidate, so a machine mid-upgrade holding both names still reads the fresh
+one — **by mtime, never by preference**, because ranking `.jpg` first would serve an hour-old JPEG
+over a BMP written a second ago. `_capture_window_to_file` (renamed: it no longer always writes a
+BMP) takes its format from the destination extension, so **every existing caller asking for a BMP
+gets exactly today's behaviour.** The snap and settle files derive their extension from the source
+rather than hardcoding one — naming a JPEG's bytes `.bmp` is the v1421 Windows defect verbatim.
+
+⚠ **And the console doctor was joined to it.** Its freshness check listed only `("eye.jpg",
+"live.bmp")`; left alone it would have reported *"no frame while LIVE"* against a capture that
+works perfectly — a false block, which is worse than no check, because it teaches him to ignore
+this one.
+
+**Guards:** `TestV2324TheLiveFrameStoppedBeingInflatedIntoABMP`, **six sabotages proven RED** —
+writer back to BMP, conversion still spawned for a JPEG destination, read preferring by rank
+instead of freshness, boot cleanup no longer sweeping the old name, the doctor grepping a name
+nobody writes, and the snap format diverging from the live one.
+
 ## REG-400 — his console exec'd into a tree that was still being edited (v2323)
 
 **His report, 2026-08-30, with a screenshot:** *"there is some sort of regression daily tasks and

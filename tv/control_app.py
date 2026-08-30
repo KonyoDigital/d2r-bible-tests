@@ -20227,7 +20227,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2323",
+        "ver": "v2324",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20709,7 +20709,12 @@ def doctor_payload():
     live = (_agent_mode == "live")
     now = time.time()
     newest, ages = None, []
-    for label in ("eye.jpg", "live.bmp"):
+    # v2324 — the live frame is written as JPEG now (the BMP conversion cost 46ms and 12MB per
+    # frame and recovered nothing). This list must carry EVERY name the writer may use, or the
+    # doctor reports "no frame while LIVE" against a capture that is working perfectly — a false
+    # block, which is worse than no check at all because it trains him to ignore this one.
+    # The .bmp stays in the list on purpose: an older build in the same directory still writes it.
+    for label in ("eye.jpg", "live.jpg", "live.png", "live.bmp"):
         fp = os.path.join(HERE, "frames", label)
         if os.path.isfile(fp):
             age = now - os.path.getmtime(fp)
@@ -20719,7 +20724,7 @@ def doctor_payload():
     if live and not fresh:
         checks.append(_chk(
             "live_frames", False, "block",
-            ("frames stale: %s" % ", ".join(ages)) if ages else "no eye.jpg / live.bmp while LIVE",
+            ("frames stale: %s" % ", ".join(ages)) if ages else "no eye.jpg / live frame while LIVE",
             "Capture is frozen — check the D2R window and capture_win.ps1"))
     else:
         checks.append(_chk(

@@ -4847,6 +4847,22 @@ class TestV2314TwoDeletersTwoQuestions(unittest.TestCase):
 
     def setUp(self):
         sys.path.insert(0, HERE)
+        # ══ v2324 — THIS CLASS ASKS ABOUT THE SWITCH, NOT ABOUT THE WORLD ═════════════════════
+        # retention_may_act() consults board_identity_drift() as well (v2308, fail-closed: nothing
+        # is deleted until the world the footage belongs to is confirmed). That is correct, and it
+        # is a DIFFERENT question from "does an unset TV_AUTO_PRUNE mean on".
+        #
+        # Unstubbed, the default case can only pass on a machine whose board world is confirmed —
+        # which is HIS, and no runner's. ci_sim caught it for exactly that reason: it stubs the
+        # world to "unknown" because a runner has never opened his board, and the case went red.
+        # That was a REAL host dependency, not a false alarm — on CI this test would fail for a
+        # reason that has nothing to do with the switch it is named after.
+        # [[feedback-blind-fixture-green-gate]] [[feedback-suspect-the-instrument]]
+        self._world = ca.board_identity_drift
+        ca.board_identity_drift = lambda: {"state": "ok", "why": "world pinned by the test"}
+
+    def tearDown(self):
+        ca.board_identity_drift = self._world
 
     def test_his_default_stands_auto_prune_is_ON_unless_switched_off(self):
         had = os.environ.get("TV_AUTO_PRUNE")
@@ -20549,6 +20565,22 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         import control_app
         return control_app
 
+    # ══ v2324 — THESE TESTS MUST NOT DEPEND ON WHETHER SOMEBODY HAS UNCOMMITTED WORK ══════════
+    # v2323 taught drift_may_relaunch() to refuse while the working tree is mid-edit (REG-400).
+    # That is correct in production and WRONG as a hidden input here: these cases are about the
+    # other interlocks — a film rolling, a sweep reading, a drifted world — and they would other-
+    # wise pass on a clean checkout and fail on the machine of anyone actually editing the repo.
+    # CI checks out clean, so it would have gone green while his Mac went red, which is the same
+    # green-that-lies in the other direction. The mid-edit rule has its own dedicated class.
+    # [[feedback-blind-fixture-green-gate]]
+    def setUp(self):
+        self._mid_edit = self._ca()._tree_is_mid_edit
+        self._ca()._tree_is_mid_edit = lambda *a, **k: (False, "")
+
+    def tearDown(self):
+        self._ca()._tree_is_mid_edit = self._mid_edit
+
+
     def test_auto_relaunch_is_ON_because_he_asked_for_it_but_OFF_is_still_HIS(self):
         """⚠ THE RULING CHANGED, AND IT IS HIS RULING BOTH TIMES.
 
@@ -25833,6 +25865,22 @@ class TestV2153TheRELAUNCHACTUALLYHAPPENSWhenArmed(unittest.TestCase):
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import control_app
         return control_app
+
+    # ══ v2324 — THESE TESTS MUST NOT DEPEND ON WHETHER SOMEBODY HAS UNCOMMITTED WORK ══════════
+    # v2323 taught drift_may_relaunch() to refuse while the working tree is mid-edit (REG-400).
+    # That is correct in production and WRONG as a hidden input here: these cases are about the
+    # other interlocks — a film rolling, a sweep reading, a drifted world — and they would other-
+    # wise pass on a clean checkout and fail on the machine of anyone actually editing the repo.
+    # CI checks out clean, so it would have gone green while his Mac went red, which is the same
+    # green-that-lies in the other direction. The mid-edit rule has its own dedicated class.
+    # [[feedback-blind-fixture-green-gate]]
+    def setUp(self):
+        self._mid_edit = self._ca()._tree_is_mid_edit
+        self._ca()._tree_is_mid_edit = lambda *a, **k: (False, "")
+
+    def tearDown(self):
+        self._ca()._tree_is_mid_edit = self._mid_edit
+
 
     def _clear(self, ca):
         """Nothing in flight, no drift, armed."""

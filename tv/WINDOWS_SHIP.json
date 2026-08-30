@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2323",
+  "ver": "v2324",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2323: the console exec-ed into a tree that was still being edited, so a half-written build became his live screen and produced two regressions that were never in the code",
+  "note": "v2324: quartz already hands us a JPEG and a subprocess was expanding it into a BMP 20x larger for 46ms a frame, recovering nothing - the live frame is now a resolver rather than a hardcoded name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

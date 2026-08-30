@@ -49,9 +49,54 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2323"   # Never Mid-Edit
+VERSION = "v2324"   # The Frame Stops Inflating
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
+
+# ══ v2324 — THE LIVE FRAME IS NO LONGER A FILENAME, IT IS A QUESTION ═══════════════════════════
+# The capture path used to be spelled `live.bmp` in five places, which baked the FORMAT into the
+# NAME: to stop paying 46ms and 12MB per frame for a conversion that recovers nothing (see
+# _capture_window_to_file), every one of those spellings had to change together or the readers
+# would look for a file the writer had stopped producing. That is precisely the shape that goes
+# wrong silently — the writer succeeds, the reader finds nothing, and the eye simply goes blind
+# with no error anywhere. [[the-unjoined-end]]
+#
+# So the name stops being a constant. WRITE goes to JPEG; READ takes the NEWEST of the candidates,
+# which means a leftover live.bmp from a previous build is still read rather than ignored, and an
+# older build sharing the directory keeps working. Order is by mtime, never by preference — the
+# freshest frame is the true one, whatever it is called. [[stale-reading]]
+LIVE_FRAME_NAMES = ("live.jpg", "live.png", "live.bmp")
+LIVE_FRAME_WRITE = "live.jpg"
+
+
+def live_frame_path(frames_dir=None, for_write=False):
+    """Where the live frame is (newest that EXISTS), or where to write a new one.
+
+    for_write=True always answers LIVE_FRAME_WRITE, so there is exactly one writer name.
+    for_write=False returns the newest existing candidate, or the write path when none exist —
+    never None, because every caller here goes on to os.path.isfile() it anyway.
+    """
+    d = frames_dir or FRAMES
+    if for_write:
+        return os.path.join(d, LIVE_FRAME_WRITE)
+    best, best_mt = None, -1.0
+    for nm in LIVE_FRAME_NAMES:
+        p = os.path.join(d, nm)
+        try:
+            if os.path.isfile(p):
+                mt = os.path.getmtime(p)
+                if mt > best_mt:
+                    best, best_mt = p, mt
+        except OSError:
+            continue
+    return best or os.path.join(d, LIVE_FRAME_WRITE)
+
+
+def live_frame_all(frames_dir=None):
+    """Every candidate path, existing or not — for boot cleanup, which must sweep the names this
+    build no longer writes or a stale BMP would outlive the switch and be served as the eye."""
+    d = frames_dir or FRAMES
+    return [os.path.join(d, nm) for nm in LIVE_FRAME_NAMES]
 def _under(path, root):
     """Is `path` inside `root`? Case-normalised, because HIS WINDOWS MACHINE IS THE OTHER HALF.
 
@@ -1382,21 +1427,50 @@ def _screencapture_window(wid, tmp_path, fmt="bmp", timeout=2.0):
         return False
 
 
-def _capture_window_to_bmp(wid, path, timeout=12):
-    """v898 — pin a window to BMP for the intelligence loop.
-    Quartz FIRST (D2R.exe under CrossOver: ~0.2–0.8s). screencapture -l is last-resort
-    with a short timeout — it hangs 5–12s on this surface and starved live.bmp / NO EYE."""
+def _capture_window_to_file(wid, path, timeout=12):
+    """v898 — pin a window for the intelligence loop. The OUTPUT FORMAT IS THE DESTINATION'S
+    EXTENSION: `.jpg` keeps what Quartz already produced, anything else is converted.
+
+    Quartz FIRST (D2R.exe under CrossOver: ~0.2-0.8s). screencapture -l is last-resort with a
+    short timeout — it hangs 5-12s on this surface and starved the live frame / NO EYE.
+
+    ══ v2324 — THE CONVERSION WAS THE LAG, AND IT BOUGHT NOTHING ═══════════════════════════════
+    Konyo, repeatedly: "its really laggy", "it was soo slow and laggy i couldnt evne move", "also
+    thiss farewell i didnt move past 4-5 items".
+
+    Quartz hands us a JPEG. This function then spawned `sips` to expand that JPEG into a BMP.
+    MEASURED on a 2560x1600 frame with real texture:
+
+        source JPEG (already in hand)      587 KB
+        sips jpeg -> bmp    46 ms       12,000 KB      20x bigger
+        keep the JPEG      1.3 ms          587 KB      no subprocess at all
+
+    46 ms of subprocess and 12 MB of disk per frame, at ~2.5 fps, to produce a LOSSLESS COPY OF AN
+    ALREADY-LOSSY JPEG. It cannot recover a single pixel the JPEG threw away, so the picture is
+    bit-for-bit as good either way; the only difference is what it costs.
+
+    ⚠ The BMP is still written when the destination asks for one — path 3 (screencapture) and any
+    caller still naming a .bmp keep exactly today's behaviour. This changes what the format
+    DEPENDS ON, not what any existing caller gets. [[label-outlived-referent]]"""
     tmp = _cap_tmp(path)
+    keep_jpeg = str(path or "").lower().endswith((".jpg", ".jpeg"))
     try:
-        # 1) Quartz JPEG (fast) → sips BMP
+        # 1) Quartz JPEG (fast). Converted only if the destination is not itself a JPEG.
         qj = path + ".qz.jpg"
         if _quartz_grab_window(wid, qj, uti="public.jpeg"):
-            try:
-                subprocess.run(
-                    ["sips", "-s", "format", "bmp", qj, "--out", tmp],
-                    capture_output=True, timeout=min(8, max(3, timeout)), **NICE_KW)
-            except Exception:
-                pass
+            if keep_jpeg:
+                # no subprocess, no 20x inflation — the bytes we want are already on disk
+                try:
+                    os.replace(qj, tmp)
+                except Exception:
+                    pass
+            else:
+                try:
+                    subprocess.run(
+                        ["sips", "-s", "format", "bmp", qj, "--out", tmp],
+                        capture_output=True, timeout=min(8, max(3, timeout)), **NICE_KW)
+                except Exception:
+                    pass
             try:
                 if os.path.exists(qj):
                     os.remove(qj)
@@ -1404,12 +1478,13 @@ def _capture_window_to_bmp(wid, path, timeout=12):
                 pass
             if _cap_promote(tmp, path, min_bytes=8000):
                 return True
-        # 2) Quartz PNG → sips BMP (heavier, still better than hung screencapture)
+        # 2) Quartz PNG (heavier, still better than hung screencapture). Converted to whatever
+        #    the destination asks for — including JPEG, which is the cheap direction.
         png = path + ".qz.png"
         if _quartz_grab_window(wid, png, uti="public.png"):
             try:
                 subprocess.run(
-                    ["sips", "-s", "format", "bmp", png, "--out", tmp],
+                    ["sips", "-s", "format", "jpeg" if keep_jpeg else "bmp", png, "--out", tmp],
                     capture_output=True, timeout=min(8, max(3, timeout)), **NICE_KW)
             except Exception:
                 pass
@@ -1422,7 +1497,7 @@ def _capture_window_to_bmp(wid, path, timeout=12):
                 return True
         # 3) screencapture -l last, hard-capped (never block the poll loop)
         sc_t = min(2.0, float(timeout) if timeout else 2.0)
-        if _screencapture_window(wid, tmp, fmt="bmp", timeout=sc_t):
+        if _screencapture_window(wid, tmp, fmt=("jpg" if keep_jpeg else "bmp"), timeout=sc_t):
             if _cap_promote(tmp, path):
                 return True
         return False
@@ -1988,7 +2063,7 @@ def capture_mac(path, timeout=12):
             try:
                 # v844 — screencapture -l OR Quartz CGWindowListCreateImage (SC alone was
                 # dying all night with rc=1 size=0 while D2R.exe was right there)
-                if _capture_window_to_bmp(wid, path, timeout=timeout):
+                if _capture_window_to_file(wid, path, timeout=timeout):
                     if _CAP_TARGET.get("wid") != wid or _CAP_TARGET.get("mode") != "window":
                         try: ev("cap", "🎯 eye pinned to %s" % label)
                         except Exception: pass
@@ -3150,8 +3225,15 @@ _job_seq = [0]
 
 
 def _job_files(rid, n):
-    """PRIVATE per-job capture + read paths — concurrent readers never share snap.bmp/read.jpg."""
-    return (os.path.join(FRAMES, "snap_%d_%d.bmp" % (int(rid), int(n))),
+    """PRIVATE per-job capture + read paths — concurrent readers never share one snap/read file.
+
+    v2324 — the snap takes its extension from the LIVE WRITE NAME rather than hardcoding .bmp.
+    These files are copies of the live frame; naming a JPEG's bytes ".bmp" is the exact defect
+    v1421 recorded on Windows ("the old portable fallback copied live.bmp bytes into a .jpg
+    name"). Consumers match on the "snap_" prefix, never on the extension, so this is safe.
+    """
+    _ext = os.path.splitext(LIVE_FRAME_WRITE)[1] or ".jpg"
+    return (os.path.join(FRAMES, "snap_%d_%d%s" % (int(rid), int(n), _ext)),
             os.path.join(FRAMES, "read_%d_%d.jpg" % (int(rid), int(n))))
 
 
@@ -3665,7 +3747,10 @@ def _settle_enqueue(src_frame, sig, interest=0.0, priority=False, origin="settle
                 if sig_diff(sig, e["sig"]) <= SETTLE:
                     return   # already holding this view
             sig8 = hashlib.md5(bytes(sig)).hexdigest()[:8]
-            dest = os.path.join(_settle_queue_dir(), sig8 + ".bmp")
+            # v2324 — carry the SOURCE's extension. This is a hardlink to the live frame, so a
+            # fixed ".bmp" would put JPEG bytes behind a BMP name the moment the writer changed.
+            dest = os.path.join(_settle_queue_dir(),
+                                sig8 + (os.path.splitext(src_frame)[1] or ".jpg"))
             try:
                 import shutil
                 try:
@@ -6161,11 +6246,9 @@ def main():
                 jp = os.path.join(FRAMES, "read.jpg")
                 probe = jp if os.path.isfile(jp) else None
                 if not probe:
-                    for cand in (
-                        os.path.join(FRAMES, "eye.jpg"),
-                        os.path.join(FRAMES, "live.png"),
-                        os.path.join(FRAMES, "live.bmp"),
-                    ):
+                    # v2324 — the live names come from ONE list now (LIVE_FRAME_NAMES); this
+                    # hand-written copy predated it and would have gone stale on the next rename.
+                    for cand in [os.path.join(FRAMES, "eye.jpg")] + live_frame_all():
                         if os.path.isfile(cand):
                             probe = cand
                             break
@@ -6191,12 +6274,14 @@ def main():
         else:
             ev("skip", "ocr binary missing — Claude-only until tv/bin/ocr_mac is built")
 
-    frame = os.path.join(FRAMES, "live.bmp")
+    frame = live_frame_path(for_write=True)   # v2324 — JPEG: no 46ms/12MB conversion per frame
     # v927.3 — boot with a clean slate: a stale frame from a previous session (e.g. the
     # TCC-denied wallpaper era) kept showing as the board preview while the eye was
     # dormant — repeatedly read as "capture still broken". Missing frames render as the
     # normal STANDBY/IDLE splash; stale photos lie.
-    for _stale in (frame, os.path.join(FRAMES, "eye.jpg")):
+    # v2324 — sweep EVERY candidate name, not just the one this build writes: a live.bmp left by
+    # an older build is newer than nothing and would be served as the eye forever.
+    for _stale in live_frame_all() + [os.path.join(FRAMES, "eye.jpg")]:
         try:
             if os.path.isfile(_stale) and os.path.getmtime(_stale) < time.time() - 30:
                 os.remove(_stale)
@@ -6570,10 +6655,11 @@ def main():
                             _shwz.copyfile(_weye, os.path.join(_whd, "f_%d.jpg" % int(_wnow * 1000)))
             except Exception:
                 pass
-            # prefer stable live.bmp path for settle when present
-            live_bmp = os.path.join(FRAMES, "live.bmp")
-            if os.path.isfile(live_bmp):
-                frame = live_bmp
+            # prefer the stable live-frame path for settle when present (v2324 — by newest
+            # candidate, so the switch to JPEG does not blind a machine still holding a .bmp)
+            _live = live_frame_path()
+            if os.path.isfile(_live):
+                frame = _live
         elif not capture_mac(frame):
             if os.environ.get("TV_STUB"):
                 # SIM: no Screen Recording on the control app's Python.app — still drive the loop
@@ -7301,7 +7387,7 @@ def farewell_read(force_frame=None):
     _AP["mode"] = "read"
     frame = force_frame
     if not frame:
-        frame = os.path.join(FRAMES, "live.bmp")
+        frame = live_frame_path()
         try:
             if WATCH_MODE:
                 f = newest_watched_frame()

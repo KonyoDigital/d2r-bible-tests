@@ -1776,9 +1776,14 @@ class TestWindowPin(unittest.TestCase):
             tv._screen_recording_preflight = orig_sr
 
     def test_quartz_grab_helpers_exist(self):
-        """v844 — capture stack has Quartz fallback + window BMP path (no live grab required)."""
+        """v844 — capture stack has Quartz fallback + a window grab path (no live grab required).
+
+        v2324 — renamed from _capture_window_to_bmp: the function no longer always writes a BMP,
+        it writes whatever the destination extension asks for. A name that says BMP on a function
+        that hands back a JPEG is the next reader's wrong assumption. [[label-outlived-referent]]
+        """
         self.assertTrue(callable(tv._quartz_grab_window))
-        self.assertTrue(callable(tv._capture_window_to_bmp))
+        self.assertTrue(callable(tv._capture_window_to_file))
         self.assertTrue(callable(tv._screencapture_window))
         # bad wid must not crash
         self.assertFalse(tv._quartz_grab_window(0, "/tmp/nope_tvd.png"))
@@ -2766,7 +2771,14 @@ class TestReaderPool(unittest.TestCase):
         self.assertEqual(disp.get("orderHoldMs"), 0)
 
     def test_private_job_files_distinct(self):
-        """Two concurrent readers must never share snap.bmp / read.jpg."""
+        """Two concurrent readers must never share one snap / read file.
+
+        v2324 — this used to assert `s0.endswith(".bmp")`, which pinned the NUMBER instead of the
+        LAW. The snap is a copy of the live frame, so its format is whatever the live frame's is;
+        hardcoding one meant the assertion had to be edited the moment the capture stopped paying
+        46ms and 12MB a frame to inflate a JPEG into a BMP. Pin the relationship instead.
+        [[regression-guard]] [[label-outlived-referent]]
+        """
         s0, r0 = tv._job_files(0, 5)
         s1, r1 = tv._job_files(1, 5)
         self.assertNotEqual(s0, s1)
@@ -2774,7 +2786,10 @@ class TestReaderPool(unittest.TestCase):
         self.assertTrue(os.path.basename(s0).startswith("snap_0_5"))
         self.assertTrue(os.path.basename(s1).startswith("snap_1_5"))
         self.assertTrue(os.path.basename(r0).startswith("read_0_5"))
-        self.assertTrue(r0.endswith(".jpg") and s0.endswith(".bmp"))
+        self.assertTrue(r0.endswith(".jpg"), "the read file is not a JPEG")
+        self.assertEqual(os.path.splitext(s0)[1], os.path.splitext(tv.LIVE_FRAME_WRITE)[1],
+                         "the snap and the live frame disagree about their own format - one of "
+                         "them is writing bytes behind the wrong extension")
         self.assertNotEqual(tv._job_files(0, 5)[0], tv._job_files(0, 6)[0])
 
     def test_dispatch_carries_reader_identity(self):
@@ -3737,6 +3752,153 @@ class TestTheFixtureRootIsDecidedByTheFilesystem(unittest.TestCase):
         # [[source-reading-guard]] [[feedback-comments-vs-code]]
         self.assertNotIn("h.startswith(root + os.sep)):", src,
                          "a raw startswith path comparison is back in the code")
+
+class TestV2324TheLiveFrameStoppedBeingInflatedIntoABMP(unittest.TestCase):
+    """46ms AND 12MB PER FRAME, TO PRODUCE A LOSSLESS COPY OF AN ALREADY-LOSSY JPEG.
+
+    Konyo, repeatedly: "its really laggy", "it was soo slow and laggy i couldnt evne move",
+    "also thiss farewell i didnt move past 4-5 items".
+
+    Quartz hands the capture a JPEG. The code then spawned `sips` to expand that JPEG into a BMP.
+    Measured on a 2560x1600 frame with real texture:
+
+        source JPEG (already in hand)       587 KB
+        sips jpeg -> bmp     46 ms       12,000 KB    20x bigger
+        keep the JPEG       1.3 ms          587 KB    no subprocess at all
+
+    It cannot recover a pixel the JPEG already threw away, so the picture is identical either
+    way. The only difference is the cost, paid ~2.5 times a second while he plays.
+
+    The reason this was not a one-line change: the FORMAT was baked into the NAME ("live.bmp") in
+    five places. Change the writer alone and every reader looks for a file that is no longer
+    produced - the writer succeeds, the reader finds nothing, and the eye goes blind with no
+    error anywhere. [[the-unjoined-end]]
+    """
+
+    def test_the_live_frame_is_written_as_a_JPEG(self):
+        p = tv.live_frame_path(for_write=True)
+        self.assertTrue(p.lower().endswith(".jpg"),
+                        "the writer is back on a format that costs 46ms and 12MB a frame: %s" % p)
+
+    def test_reading_takes_the_NEWEST_candidate_not_a_favourite(self):
+        """A machine mid-upgrade can hold both names. Preferring .jpg by RANK would serve a
+        frame from an hour ago over the one written a second ago. [[stale-reading]]"""
+        import tempfile, time as _t
+        d = tempfile.mkdtemp()
+        old = os.path.join(d, "live.jpg")
+        with open(old, "w") as fh:
+            fh.write("x")
+        os.utime(old, (_t.time() - 3600, _t.time() - 3600))
+        new = os.path.join(d, "live.bmp")
+        with open(new, "w") as fh:
+            fh.write("x")
+        got = tv.live_frame_path(frames_dir=d)
+        self.assertEqual(os.path.basename(got), "live.bmp",
+                         "it served an hour-old JPEG over a fresh BMP")
+
+    def test_with_nothing_on_disk_it_still_answers_the_WRITE_path(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        self.assertEqual(os.path.basename(tv.live_frame_path(frames_dir=d)), "live.jpg")
+
+    def test_boot_cleanup_sweeps_the_name_this_build_no_longer_writes(self):
+        """A live.bmp left by an older build is newer than nothing and would be served as the
+        eye forever."""
+        names = [os.path.basename(p) for p in tv.live_frame_all()]
+        self.assertIn("live.bmp", names,
+                      "the old name is not swept at boot - a stale frame outlives the switch")
+        self.assertIn("live.jpg", names)
+
+    def test_the_per_reader_snap_matches_the_live_format(self):
+        """These files are copies of the live frame. Naming a JPEG's bytes .bmp is exactly the
+        v1421 Windows defect this repo already paid for once."""
+        snap = tv._job_files(0, 1)[0]
+        self.assertEqual(os.path.splitext(snap)[1],
+                         os.path.splitext(tv.LIVE_FRAME_WRITE)[1],
+                         "the snap and the live frame disagree about their own format")
+
+    def test_a_JPEG_destination_spawns_NO_conversion(self):
+        """The whole saving. If sips is still called, nothing was gained."""
+        import tempfile
+        calls = []
+        d = tempfile.mkdtemp()
+        dest = os.path.join(d, "live.jpg")
+
+        def fake_grab(wid, path, uti=None):
+            with open(path, "w") as fh:
+                fh.write("J" * 20000)
+            return True
+
+        def fake_run(cmd, *a, **k):
+            calls.append(list(cmd))
+            class R(object):
+                returncode = 0
+                stdout = b""
+                stderr = b""
+            return R
+        orig_grab, orig_run = tv._quartz_grab_window, tv.subprocess.run
+        try:
+            tv._quartz_grab_window = fake_grab
+            tv.subprocess.run = fake_run
+            ok = tv._capture_window_to_file(123, dest, timeout=5)
+        finally:
+            tv._quartz_grab_window, tv.subprocess.run = orig_grab, orig_run
+        self.assertTrue(ok, "the JPEG path did not produce a frame at all")
+        sips = [c for c in calls if c and "sips" in str(c[0])]
+        self.assertEqual(sips, [],
+                         "a conversion still ran for a JPEG destination: %r" % (sips[:1],))
+        self.assertTrue(os.path.isfile(dest), "nothing was promoted to the destination")
+
+    def test_a_BMP_destination_STILL_converts(self):
+        """Existing callers must be untouched. This changes what the format depends on, not what
+        anyone already asking for a BMP receives."""
+        import tempfile
+        calls = []
+        d = tempfile.mkdtemp()
+        dest = os.path.join(d, "live.bmp")
+
+        def fake_grab(wid, path, uti=None):
+            with open(path, "w") as fh:
+                fh.write("J" * 20000)
+            return True
+
+        def fake_run(cmd, *a, **k):
+            calls.append(list(cmd))
+            try:
+                out = list(cmd)[list(cmd).index("--out") + 1]
+                with open(out, "w") as fh:
+                    fh.write("B" * 20000)
+            except Exception:
+                pass
+            class R(object):
+                returncode = 0
+                stdout = b""
+                stderr = b""
+            return R
+        orig_grab, orig_run = tv._quartz_grab_window, tv.subprocess.run
+        try:
+            tv._quartz_grab_window = fake_grab
+            tv.subprocess.run = fake_run
+            tv._capture_window_to_file(123, dest, timeout=5)
+        finally:
+            tv._quartz_grab_window, tv.subprocess.run = orig_grab, orig_run
+        sips = [c for c in calls if c and "sips" in str(c[0])]
+        self.assertTrue(sips, "a BMP destination no longer converts - existing callers broke")
+        self.assertIn("bmp", " ".join(sips[0]))
+
+    def test_the_console_doctor_looks_for_the_name_that_is_WRITTEN(self):
+        """[[the-unjoined-end]] - a freshness check that greps for a filename nobody writes any
+        more reports "no frame while LIVE" against a capture that is working perfectly."""
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")
+        with io.open(p, encoding="utf-8") as fh:
+            src = fh.read()
+        i = src.find('for label in ("eye.jpg"')
+        self.assertGreater(i, 0, "the live-frame freshness check moved or was renamed")
+        window = src[i:i + 200]
+        self.assertIn("live.jpg", window,
+                      "the doctor still looks only for the old name - it would block on a "
+                      "healthy capture")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

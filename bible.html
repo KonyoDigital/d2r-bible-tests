@@ -47600,7 +47600,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2323', name:'v2323 - Never Mid-Edit', date:'2026-08-30', note:'the console exec-ed into a tree that was still being edited, so a half-written build became his live screen and produced two regressions that were never in the code' };
+  window.D2R_BUILD = { id:'v2324', name:'v2324 - The Frame Stops Inflating', date:'2026-08-30', note:'quartz already hands us a JPEG and a subprocess was expanding it into a BMP 20x larger for 46ms a frame, recovering nothing - the live frame is now a resolver rather than a hardcoded name' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

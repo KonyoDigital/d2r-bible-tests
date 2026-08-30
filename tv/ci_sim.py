@@ -33,6 +33,12 @@ HOST_STUBS = (
     ("control_app", "board_identity_drift",
      lambda: {"state": "unknown", "why": "the board's world has never been recorded"},
      "a runner has never opened his board, so no world can be confirmed (v2167 refuses on this)"),
+    ("control_app", "_tree_is_mid_edit",
+     lambda *a, **k: (False, ""),
+     "git working-tree state is the DEVELOPER's, not the code's: v2323 made auto-relaunch refuse "
+     "while the tree is mid-edit (REG-400), which is right in production and a hidden input in a "
+     "test. Unstubbed it passes on a clean checkout and fails on the machine of anyone actually "
+     "editing the repo - CI green, his Mac red, for a reason that is not in the diff"),
 )
 
 
