@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2322",
+  "ver": "v2323",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2322: the shelf poll was re-walking the whole archive every 12s - 172s per call on his console, now 352ms - plus a self-heal that can see a stage stuck WITH a frame on it, and a Python-side rescue that reloads a wedged window",
+  "note": "v2323: the console exec-ed into a tree that was still being edited, so a half-written build became his live screen and produced two regressions that were never in the code",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

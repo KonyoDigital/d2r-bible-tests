@@ -12950,6 +12950,44 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-400 — his console exec'd into a tree that was still being edited (v2323)
+
+**His report, 2026-08-30, with a screenshot:** *"there is some sort of regression daily tasks and
+chronicle tallys are not rendering here in this section + forge quests was more colorful we had 1
+of each craft gem rendering and here its all the same one."*
+
+**Both observations were accurate. Neither defect was in the code.** Rendered against the same
+server minutes later: the task force and the chronicle tallies paint, and FORGE QUESTS carries
+four DIFFERENT gems — amethyst, ruby, emerald, sapphire, one per quest, verified on the pixels.
+He was looking at a half-written build.
+
+**The mechanism.** The console runs from the working tree, and `os.execv` re-executes whatever is
+on disk at that instant. An edit saved mid-session therefore becomes his live console — with no
+commit, no gate, and no version change to mark it.
+
+**The tell was three facts that cannot all be true at once:**
+
+```
+process start   21:10:40   — 83 minutes BEFORE the push that shipped v2322
+reported ver    v2322      — but that stamp is read from DISK, not from the running image
+/api/sessions   23 ms      — which requires code only v2322 has
+```
+
+It had exec'd mid-edit. `uiBeat`, added a few minutes after the memo, was **missing from a payload
+claiming v2322** — which dates the exec to the middle of an editing session.
+
+**Fix:** `drift_may_relaunch()` now asks `_tree_is_mid_edit()`. A tree with uncommitted changes to
+the executed files refuses the automatic relaunch and names what is uncommitted. The UI card
+already promised *"never mid-film, never into a changed world"* — a tree being edited IS a changed
+world; it was simply never one of the questions asked. **"I could not tell" is not "it is dirty"**:
+a machine with no git keeps its auto-relaunch, and says so rather than reporting a clean tree off
+a command that failed.
+
+**Guards:** `TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing`, four sabotages proven RED.
+⚠ One of them stayed GREEN at first — the rename case asserted `assertIn("tv/control_app.py")`,
+which a byte-slice still satisfies because it yields the whole tail `tv/old.py -> tv/control_app.py`.
+The assertion was the weak link, not the sabotage. Tightened to reject the old path and the arrow.
+
 ## REG-398 — the shelf poll re-walked the whole archive every 12s (172s per call) (v2322)
 
 **His report, 2026-08-30, with a screenshot of a black console:** *"and the console is still like

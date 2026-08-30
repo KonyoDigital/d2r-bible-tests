@@ -13501,7 +13501,60 @@ def drift_may_relaunch():
                            "while that is true." % str(_d.get("why"))[:160])
     except Exception:
         pass
+    # ══ v2323 — AND IT MUST NOT EXEC A TREE THAT IS BEING EDITED RIGHT NOW ════════════════════
+    # HIS REPORT, 2026-08-30: "there is some sort of regression daily tasks and chronicle tallys
+    # are not rendering here in this section + forge quests was more colorful we had 1 of each
+    # craft gem rendering and here its all the same one."
+    #
+    # BOTH OBSERVATIONS WERE ACCURATE AND NEITHER WAS IN THE SHIPPED CODE. Rendered against the
+    # same server minutes later: the task force and tallies paint, and FORGE QUESTS carries four
+    # DIFFERENT gems — amethyst, ruby, emerald, sapphire, one per quest. What he was looking at
+    # was a HALF-WRITTEN BUILD.
+    #
+    # THE MECHANISM. This console runs from the working tree, and os.execv re-executes whatever is
+    # on disk at that instant — so an edit saved mid-session becomes his live console, with no
+    # commit, no gate and no version change to mark it. The tell was three facts that cannot all
+    # be true at once: the process start time was 83 minutes BEFORE the push, it reported v2322
+    # (the stamp is read from disk), and /api/sessions answered in 23ms (which needs code only
+    # v2322 has). It had exec'd into a tree that was mid-edit, and `uiBeat` — added a few minutes
+    # later — was missing, which dates the exec to the middle of an editing session.
+    #
+    # The card in the UI already promises "never mid-film, never into a changed world". A tree
+    # with uncommitted edits IS a changed world; it was simply never one of the questions asked.
+    # A clean tree is a build somebody finished. A dirty one is a build somebody is in the middle
+    # of, and it must never reach his screen by itself. [[the-unjoined-end]]
+    dirty, why_dirty = _tree_is_mid_edit()
+    if dirty:
+        return False, why_dirty
     return nothing_in_flight()
+
+
+def _tree_is_mid_edit(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_diablo.py")):
+    """Is the code this process would exec into uncommitted? -> (True|False, why)
+
+    ⚠ "I could not tell" is NOT "it is dirty". On a machine with no git, no repo, or a git that
+    refuses to answer, this returns False and says so, because bricking auto-relaunch everywhere
+    to fix one machine's hazard trades a small harm for a bigger one. What it will never do is
+    report CLEAN on the strength of a command that failed. [[unknown-stays-unknown]]
+    """
+    try:
+        root = os.path.dirname(HERE) or "."
+        out = subprocess.run(["git", "-C", root, "status", "--porcelain", "--"] + list(paths),
+                             capture_output=True, timeout=8)
+        if out.returncode != 0:
+            return False, "git could not report on the tree - relaunch not blocked on that"
+        txt = (out.stdout or b"").decode("utf-8", "replace").strip()
+        if not txt:
+            return False, ""
+        # split on whitespace rather than counting bytes: porcelain's status field is two
+        # columns but a rename prints "R  old -> new", and a byte slice got this off by one
+        # on the first try ("v/control_app.py"). The path is the LAST field, always.
+        names = [ln.split()[-1] for ln in txt.split("\n") if ln.strip()][:4]
+        return True, ("the working tree is mid-edit (%s) - a relaunch would put a half-written "
+                      "build on screen, so it waits for the edit to be committed"
+                      % ", ".join(names))
+    except Exception as _e:
+        return False, "could not check whether the tree is mid-edit (%s)" % str(_e)[:80]
 
 
 def _env_tristate(name):
@@ -20174,7 +20227,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2322",
+        "ver": "v2323",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

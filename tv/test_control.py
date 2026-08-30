@@ -33127,5 +33127,97 @@ class TestV2322TheBackupGeneratorForABlackConsole(unittest.TestCase):
                         "the watchdog is armed after webview.start(), which never returns")
 
 
+class TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing(unittest.TestCase):
+    """HE REPORTED TWO REGRESSIONS THAT WERE REAL ON HIS SCREEN AND ABSENT FROM THE CODE.
+
+    2026-08-30: "daily tasks and chronicle tallys are not rendering ... + forge quests was more
+    colorful we had 1 of each craft gem rendering and here its all the same one." Rendered against
+    the same server minutes later, the task force paints and FORGE QUESTS carries four DIFFERENT
+    gems (amethyst, ruby, emerald, sapphire). He was looking at a half-written build.
+
+    The console runs from the working tree and os.execv re-executes whatever is on disk at that
+    instant, so an edit saved mid-session becomes his live console — no commit, no gate, and no
+    version change to mark it. The tell was three facts that cannot all be true: the process
+    started 83 minutes BEFORE the push, reported v2322 (that stamp is read from DISK), and served
+    /api/sessions in 23ms (which needs code only v2322 has).
+
+    The UI already promises "never mid-film, never into a changed world". A tree with uncommitted
+    edits IS a changed world; it was simply never one of the questions asked.
+    """
+
+    def setUp(self):
+        self.ca = ca
+        self._run = ca.subprocess.run
+
+    def tearDown(self):
+        ca.subprocess.run = self._run
+
+    def _git_says(self, stdout, rc=0):
+        class R(object):
+            returncode = rc
+            stdout = b""
+        R.stdout = stdout.encode("utf-8")
+        R.returncode = rc
+        ca.subprocess.run = lambda *a, **k: R
+
+    def test_a_dirty_tree_BLOCKS_the_relaunch(self):
+        self._git_says(" M tv/control_app.py\n M tv/control_ui.html\n")
+        dirty, why = ca._tree_is_mid_edit()
+        self.assertTrue(dirty, "it would exec a half-written build onto his screen")
+        self.assertIn("mid-edit", why)
+        self.assertIn("tv/control_app.py", why,
+                      "the refusal does not name what is uncommitted, so he cannot act on it")
+
+    def test_a_clean_tree_does_NOT_block(self):
+        """The guard must not become 'auto-relaunch never happens again'."""
+        self._git_says("")
+        dirty, why = ca._tree_is_mid_edit()
+        self.assertFalse(dirty, "a finished build was refused: %s" % why)
+
+    def test_git_FAILING_is_not_read_as_dirty(self):
+        """"I could not tell" is not "it is broken". A machine with no repo must keep its
+        auto-relaunch. [[unknown-stays-unknown]]"""
+        self._git_says("", rc=128)
+        dirty, why = ca._tree_is_mid_edit()
+        self.assertFalse(dirty)
+        self.assertIn("could not", why, "it went quiet about not being able to check")
+
+    def test_git_RAISING_is_not_read_as_clean_either(self):
+        def boom(*a, **k):
+            raise OSError("git: not found")
+        ca.subprocess.run = boom
+        dirty, why = ca._tree_is_mid_edit()
+        self.assertFalse(dirty)
+        self.assertTrue(why, "it reported a clean tree off a command that never ran")
+
+    def test_a_RENAME_line_still_yields_the_path(self):
+        """Porcelain prints "R  old -> new". A byte-counted slice got this off by one on the
+        first attempt and printed "v/control_app.py"."""
+        self._git_says("R  tv/old_name.py -> tv/control_app.py\n")
+        dirty, why = ca._tree_is_mid_edit()
+        self.assertTrue(dirty)
+        self.assertIn("tv/control_app.py", why)
+        # ⚠ THE ASSERTION ABOVE ALONE IS NOT ENOUGH, and proving that is the point of this case.
+        # A byte slice yields the WHOLE tail "tv/old_name.py -> tv/control_app.py", which still
+        # CONTAINS the string above — so the first version of this test stayed green under a
+        # sabotage that restored the bug. When a sabotage does not go red, suspect the sabotage
+        # and the assertion before the code. [[open-for-write-truncates-first]]
+        self.assertNotIn("old_name", why,
+                         "the rename's OLD path leaked into the message - the path is being "
+                         "sliced by byte offset rather than taken as the last field")
+        self.assertNotIn("->", why, "the whole porcelain tail was printed as if it were a path")
+
+    def test_the_relaunch_DECISION_actually_asks(self):
+        """[[the-unjoined-end]] - a guard nothing consults is decoration, which is the exact
+        wording v2147 used about the world-drift guard for the same reason."""
+        import inspect
+        src = inspect.getsource(ca.drift_may_relaunch)
+        self.assertIn("_tree_is_mid_edit", src,
+                      "drift_may_relaunch never asks whether the tree is being edited")
+        i_ask = src.index("_tree_is_mid_edit")
+        i_ok = src.index("return nothing_in_flight()")
+        self.assertLess(i_ask, i_ok, "it is asked after the decision has already been made")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
