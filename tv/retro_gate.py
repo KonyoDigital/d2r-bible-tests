@@ -359,6 +359,17 @@ _STAT_WORDS = (
     "damage", "attack", "speed", "defense", "mana", "life", "resist", "durability",
     "requirement", "strength", "dexterity", "level", "chance", "wounds", "kill",
     "absorb", "static", "field", "striking", "cast", "enhanced", "increased",
+    # v2320 — the CATEGORY line. D2R prints "Sword Class", "Staff Class", "Dagger Class",
+    # "Polearm Class" under the name, and "STAff CLAs$" scored 0.82 as an item because it is
+    # letters with one stray glyph. It is furniture of the tooltip, not a find. Found by running
+    # the clusterer over his own reels and reading what it promoted.
+    # ⚠ "charges" IS DELIBERATELY ABSENT. These match on a FOUR-character prefix so OCR damage
+    # survives ("spee" -> speed), and "charges"[:4] is "char" — which matches CHARM. Adding
+    # it reclassified every Grand Charm as a stat line, including "Graverobber's Grand
+    # Charm", one of the items that actually registered from his session. A prefix short
+    # enough to survive garbling is short enough to collide, so each word has to be checked
+    # against the item vocabulary before it goes in. [[feedback-generalize-fixes]]
+    "class", "socketed", "ethereal", "indestructible", "required", "repair",
 )
 
 
@@ -456,6 +467,28 @@ def cleanliness(t):
     if words:
         score *= (1.0 - 0.55 * (odd / float(len(words))))
     if junk > 2:
+        score *= 0.55
+
+    # ⚠ A SHOUTY FRAGMENT WAS SCORING A PERFECT 1.00. Measured on his own reels: "REQ", "KING",
+    # "UNDEAD" and "RADIANCE" all came back 1.00 — higher than "Heart of the Oak" at 0.81 — because
+    # they are pure letters with no punctuation and no mid-word capital, which is everything the
+    # test above looks for. They are fragments of stat lines ("REQuired Level", "Area of KING
+    # Leoric"), not items.
+    #
+    # A D2R item name is TITLE CASE and usually more than one word; the OCR's leftovers are
+    # SHOUTED and short. Neither rule is safe alone — "RADIANCE" really is a runeword, and
+    # "Shako" really is one word — so each is a penalty, not a veto, and a genuine one-word Title
+    # Case name still clears the floor.
+    letters_only = [c for c in raw if c.isalpha()]
+    shouted = bool(letters_only) and all(c.isupper() for c in letters_only)
+    if shouted:
+        score *= 0.72                      # shouted: probably a stat fragment, not a name
+    # ⚠ SHORT ALONE IS NOT THE SIGNAL — "Shako" IS A REAL UNIQUE. The first cut penalised any
+    # single word of six characters or fewer and knocked Shako to 0.55, below the floor, which
+    # would have dropped a genuine grail item. What separates "REQ" and "KING" from "Shako" is not
+    # length, it is that the fragments are SHOUTED and the item name is Title Case. Both conditions
+    # together, or neither.
+    if len(words) == 1 and len(raw.strip()) <= 6 and shouted:
         score *= 0.55
     return max(0.0, min(1.0, score))
 

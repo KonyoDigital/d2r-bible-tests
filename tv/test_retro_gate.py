@@ -184,6 +184,61 @@ class TestTheClustererOnHisOwnFrames(unittest.TestCase):
         self.assertIn("no read", why)
 
 
+class TestTheNameFloorHoldsBOTHWays(unittest.TestCase):
+    """★ TUNED AGAINST HIS OWN REELS, AND EVERY MOVE WAS A CORRECTION OF MY LAST ONE.
+
+    Run over the 12 reels from his session, the clusterer promoted "REQ", "KING", "UNDEAD" and
+    "RADIANCE" with a PERFECT 1.00 — higher than "Heart of the Oak" at 0.81 — because they are pure
+    letters with no punctuation and no mid-word capital, which was everything the metric looked at.
+    They are fragments of stat lines ("REQuired Level", "Area of KING Leoric").
+
+    ⚠ THE FIRST FIX BROKE A REAL ITEM. Penalising any single word of <=6 characters knocked "Shako"
+    — a genuine grail unique — to 0.55, below the floor. Length was never the signal; being
+    SHOUTED was. Both conditions together, or neither.
+
+    A guard that only checked one direction would have been satisfied by a metric that rejects
+    everything, so both lists are asserted.
+    """
+
+    REAL = ("Crescent Moon", "Death Mask", "Blade of Ali Baba", "Heart of the Oak",
+            "Shako", "Lionheart", "Windforce", "Tarnhelm", "The Grandfather")
+    FRAGMENTS = ("REQ", "KING", "UNDEAD", "HEAR T \u2022F THE &AK")
+
+    def test_every_real_item_name_clears_the_floor(self):
+        for n in self.REAL:
+            self.assertGreaterEqual(G.cleanliness(n), 0.62,
+                                    "%r scores below the floor — a real grail item would be "
+                                    "discarded as garble" % n)
+
+    def test_every_stat_fragment_is_rejected(self):
+        for n in self.FRAGMENTS:
+            self.assertLess(G.cleanliness(n), 0.62,
+                            "%r scores as an item name — it is a piece of a stat line" % n)
+
+    def test_shako_specifically_survives_the_short_word_rule(self):
+        """The regression this class exists to prevent: 5 letters, one word, and a real unique."""
+        self.assertGreaterEqual(G.cleanliness("Shako"), 0.62)
+
+    def test_a_shouted_fragment_and_a_titlecase_name_are_told_apart(self):
+        self.assertLess(G.cleanliness("KING"), G.cleanliness("Shako"))
+
+    def test_the_tooltip_CATEGORY_line_is_a_stat_not_a_name(self):
+        """D2R prints "Sword Class" / "Staff Class" under the name. "STAff CLAs$" scored 0.82."""
+        for t in ("STAff CLAs$", "Sw\u2022AO CLASS", "Required Level: 47",
+                  "Ethereal (Cannot be Repaired), Socketed (3)"):
+            self.assertTrue(G.looks_like_a_stat(t), "%r was not recognised as a stat line" % t)
+        for t in ("Crescent Moon", "Shako", "Heart of the Oak"):
+            self.assertFalse(G.looks_like_a_stat(t),
+                             "%r was mistaken for a stat line — it is an ITEM" % t)
+
+    def test_his_full_frame_separates_into_three_clean_buckets(self):
+        c = G.cluster(["Crescent Moon", "CkESCENT rn\u2022\u2022N", "'SHAELVmTIR'",
+                       "STAff CLAs$", "EASED ArtACX SpEE", "REQ"])
+        self.assertEqual(c["names"], ["Crescent Moon"])
+        self.assertIn("STAff CLAs$", c["stats"])
+        self.assertIn("REQ", c["garbles"])
+
+
 if __name__ == "__main__":
     # non-ascii lives in these docstrings; a CLI that prints it must say so or it dies on a
     # console whose encoding is not UTF-8 — the same guard every other suite here carries.

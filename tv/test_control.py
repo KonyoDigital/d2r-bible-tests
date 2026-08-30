@@ -4951,6 +4951,102 @@ class TestV2304ShadowOnlyRollsAReelWhenItShould(unittest.TestCase):
         self._with_window((123, "Diablo II: Resurrected"))
         self.assertEqual(self._started, [], "it recorded while he had shadow switched off")
 
+class TestV2320TheTempSweeperMatchesWhatTheWriterMakes(unittest.TestCase):
+    """★ A CLEANER THAT COULD NOT MATCH ITS OWN LEFTOVERS.
+
+    The startup sweep tested `name.endswith(".part")` and `.endswith(".part.jpg")`. But macOS
+    ImageIO does not finalise onto the path you give it: CGImageDestinationFinalize writes an
+    atomic sibling with a RANDOM SUFFIX, so the leftovers are ".part-0QOX", ".part-1WK8",
+    ".part-Swgx" — and not one of them ends with ".part".
+
+    MEASURED in his frames dir: 23 orphans, 12.1 MB, EVERY one older than an hour, sitting beside a
+    cleaner written to delete exactly them. A sweeper whose pattern cannot match what the writer
+    produces reads as "nothing to clean", which is indistinguishable from working.
+    """
+
+    REAL_ORPHANS = (".eye.jpg.part.jpg.part-0QOX", ".live.bmp.qz.jpg.part-xjUt",
+                    ".eye.jpg.part.jpg.part-95x1", "live.bmp.tmp.4821.17881049")
+    MUST_SURVIVE = ("live.bmp", "eye.jpg", "read_-1_11.jpg", "snap_-1_3.bmp",
+                    "live.bmp.qz.png")
+
+    def test_the_pattern_matches_the_names_macos_actually_leaves(self):
+        with io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
+            src = _code_only(fh.read())
+        body = _between(self, src, "for name in os.listdir(FRAMES):", "_LIFECYCLE = LootLifecycle",
+                        what="the startup temp sweep")
+        self.assertIn('".part" in name', body,
+                      "the sweep is back to endswith(), which misses every .part-XXXX ImageIO "
+                      "leaves behind — 23 of them, 12.1 MB, were sitting in his frames dir")
+
+        def matches(name):
+            return ".tmp." in name or ".part" in name
+
+        for n in self.REAL_ORPHANS:
+            self.assertTrue(matches(n), "a real orphan %r is still invisible to the sweep" % n)
+        for n in self.MUST_SURVIVE:
+            self.assertFalse(matches(n), "the sweep would delete a LIVE frame: %r" % n)
+
+
+class TestV2320TheFilmIsShrunkAndTheAiFrameIsNOT(unittest.TestCase):
+    """★ HIS REELS WERE COPIED VERBATIM AT FULL RETINA AND HE FELT IT.
+
+    tv_diablo.py wrote each film frame with `_sh.copyfile(src_path, tmp)` — no downscale, no
+    re-encode — while FILM_MAX_PX (1440) and FILM_JPEG_Q (72) sat configured and unused on that
+    path. Measured on his own reel: 2940x1912, ~1,378 KB a frame, 147 MB for a two-minute MINI,
+    910 MB across one day, on a machine that hit a disk-full warning that same day.
+
+    ⚠ I DID NOT SHRINK IT UNTIL THE OCR WAS MEASURED. The tooltip is the only place an item name
+    appears, so a smaller frame trading his lag for silent unreadable film would be strictly worse.
+    Measured on the frame that actually produced a read (2_1788104655412.jpg, Crescent Moon):
+
+        2560px 1541KB · 1920px 707KB · 1440px 427KB · 1280px 345KB · 1024px 241KB · 800px 143KB
+
+    and the local OCR returned 'I CkES<tNT rn••N' at EVERY scale INCLUDING full size. It is beaten
+    by the D2R font, not by resolution. So the film's consumers — theatre playback and that OCR —
+    are provably indifferent, and the shrink is free FOR THEM.
+
+    ⚠ AND IT IS A DISK FIX, NOT A LAG FIX. At 0.74 fps it costs about +24 ms/s of CPU to save about
+    1 MB/s of writes, and an SSD does not care about 1 MB/s. Calling it a lag fix would be the
+    comfortable claim and the false one. What it buys is 147 MB -> 22 MB per MINI.
+    """
+
+    def _src(self):
+        with io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
+            return _code_only(fh.read())
+
+    def test_the_film_write_is_not_a_raw_copy_any_more(self):
+        src = self._src()
+        body = _between(self, src, 'dest = os.path.join(hist_dir, "f_%d.jpg"', "_FOOT_TIMES.append",
+                        what="the film write")
+        self.assertIn("_film_shrink(", body,
+                      "the film frame is being copied verbatim again — that is 1,378 KB a frame")
+
+    def test_the_shrink_reads_the_declared_film_settings(self):
+        src = self._src()
+        body = _between(self, src, 'dest = os.path.join(hist_dir, "f_%d.jpg"', "_FOOT_TIMES.append",
+                        what="the film write")
+        self.assertIn("FILM_MAX_PX", body, "the film write stopped reading its own max size")
+        self.assertIn("FILM_JPEG_Q", body, "the film write stopped reading its own quality")
+
+    def test_a_failed_shrink_still_keeps_the_frame(self):
+        """Losing footage to a failed re-encode would be worse than a large file."""
+        src = self._src()
+        body = _between(self, src, 'dest = os.path.join(hist_dir, "f_%d.jpg"', "_FOOT_TIMES.append",
+                        what="the film write")
+        self.assertIn("copyfile", body,
+                      "the verbatim-copy FALLBACK is gone — a re-encode failure now loses the frame")
+
+    def test_the_AI_frame_is_deliberately_left_alone(self):
+        """_readable_frame downscales only a .bmp, so a jpg reaches the model at full size.
+        Whether the model still reads a smaller frame is UNMEASURED and costs a paid read to
+        find out, so this change must not quietly include it."""
+        src = self._src()
+        body = _between(self, src, "def _readable_frame(", "\ndef ", what="_readable_frame")
+        self.assertIn(".bmp", body,
+                      "_readable_frame stopped guarding on .bmp — the AI's frame size just changed "
+                      "as a side effect of a disk fix, which nobody measured")
+
+
 class TestV2319TheRetroLaneCanUseTheSameToolkit(unittest.TestCase):
     """★ Konyo: "make this a unified logic again for everything related to the ai readers in
     retrospect.. everything in this lane needs their gaps ungapped", "as additives to anything with
@@ -32815,6 +32911,220 @@ class TestV2259OneItemTwoSpellingsAndNormCannotBridgeIt(unittest.TestCase):
         for n in ("Bul-Kathos' Sacred Charge", "Bul-Kathos' Tribal Guardian"):
             self.assertIn(n, s, "%s lost its apostrophe — if the convention really changed, this "
                                 "whole fix needs revisiting" % n)
+
+
+class TestV2322TheShelfStoppedRewalkingTheWholeArchive(unittest.TestCase):
+    """HIS CONSOLE SPENT 2m53s ANSWERING ONE POLL IT FIRES EVERY 12 SECONDS.
+
+    Measured on his live v2321 console, 2026-08-30: `/api/sessions` took **172,606 ms** and
+    returned 2.03 MB for 2,504 sessions, while control_ui.html:15549 polls it on
+    `setInterval(hdShelf, 12000)`. Roughly fourteen of those archive walks were in flight at
+    once, permanently, each doing an os.listdir() per reel directory and an os.path.isfile()
+    per journaled frame — for runs that ended months ago and cannot change.
+
+    That one number explains a family of his reports that looked unrelated: "my pc is super
+    hot", "its lagging and doing weird starving here", and the black console — because the
+    Theatre bounds its own /api/sessions fetch at 8s (v2228), and a 172s route can never
+    answer inside it, so the stage opens black and gives up.
+
+    With the memo the same call is **352 ms** and all 2,504 rows are byte-identical.
+
+    WARNING: the danger of a cache is not slowness, it is a stale number that reads as a fresh
+    one. These cases are mostly about invalidation for that reason. [[stale-reading]]
+    """
+
+    def setUp(self):
+        self.ca = ca
+        self._saved = dict(ca._THEATRE_ROW_CACHE)
+        ca._THEATRE_ROW_CACHE.clear()
+
+    def tearDown(self):
+        ca._THEATRE_ROW_CACHE.clear()
+        ca._THEATRE_ROW_CACHE.update(self._saved)
+
+    # -- invalidation: the half that keeps it honest -------------------------
+    def test_a_new_journal_row_changes_the_key(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        sess = [{"sessionId": "s1", "ts": 100}]
+        k1 = ca._theatre_row_fingerprint(sess, d)
+        k2 = ca._theatre_row_fingerprint(sess + [{"sessionId": "s1", "ts": 101}], d)
+        self.assertNotEqual(k1, k2,
+                            "a session that gained a row kept its old key - the shelf would "
+                            "show a count that stopped moving")
+
+    def test_a_FILMED_FRAME_changes_the_key(self):
+        """The live card's footageN and thumbnail come from the reel directory. If landing a
+        frame in it does not move the key, a run being filmed right now freezes on screen."""
+        import os as _os, tempfile, time as _t
+        d = tempfile.mkdtemp()
+        reel = _os.path.join(d, "reel_s1")
+        _os.makedirs(reel)
+        sess = [{"sessionId": "s1", "ts": 100}]
+        k1 = ca._theatre_row_fingerprint(sess, d)
+        _t.sleep(0.02)
+        with open(_os.path.join(reel, "f_0001.jpg"), "w") as fh:
+            fh.write("x")
+        k2 = ca._theatre_row_fingerprint(sess, d)
+        self.assertNotEqual(k1, k2,
+                            "a frame landed in the reel directory and the key did not move - "
+                            "the run would film while its card sat at 0")
+
+    def test_two_different_sessions_never_share_a_key(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        k1 = ca._theatre_row_fingerprint([{"sessionId": "aaa", "ts": 1}], d)
+        k2 = ca._theatre_row_fingerprint([{"sessionId": "bbb", "ts": 1}], d)
+        self.assertNotEqual(k1, k2, "two sessions collided on one key - one run's card would "
+                                    "be served for another")
+
+    # -- the memo itself -----------------------------------------------------
+    def test_a_MISS_returns_None_and_never_an_empty_row(self):
+        """None is "nobody has computed this". An empty dict would be "this run is empty",
+        which is a different and false statement. [[unknown-stays-unknown]]"""
+        self.assertIsNone(ca._theatre_row_cache_get(("nope", 0, 0, 0)))
+
+    def test_it_returns_the_same_row_it_was_given(self):
+        row = {"sessionId": "s1", "footageN": 7}
+        self.assertIs(ca._theatre_row_cache_put(("k",), row), row)
+        self.assertIs(ca._theatre_row_cache_get(("k",)), row)
+
+    def test_the_memo_is_BOUNDED(self):
+        """A memo with no ceiling is a leak wearing a cache's name - and this one is fed by a
+        poll that never stops for as long as the console is open."""
+        cap = ca._THEATRE_ROW_CACHE_MAX
+        for i in range(cap + 5):
+            ca._theatre_row_cache_put(("k", i), {"n": i})
+        self.assertLessEqual(len(ca._THEATRE_ROW_CACHE), cap,
+                             "the memo grew past its own ceiling")
+
+    def test_a_cold_lookup_is_counted_as_a_MISS(self):
+        """The fix must not become "answer from a cache that was never filled"."""
+        before = ca._THEATRE_ROW_STATS["misses"]
+        ca._theatre_row_cache_get(("cold-key-that-cannot-exist", 1, 2, 3))
+        self.assertEqual(ca._THEATRE_ROW_STATS["misses"], before + 1,
+                         "a cold lookup was not counted as a miss - the stats cannot tell a "
+                         "working cache from one that is never consulted")
+
+    def test_the_loop_actually_consults_the_memo(self):
+        """[[the-unjoined-end]] - the helpers can be perfect and never wired in. This reads the
+        source of the loop rather than trusting that it calls them."""
+        import inspect
+        src = inspect.getsource(ca.Handler._theatre_sessions)
+        self.assertIn("_theatre_row_fingerprint(sess", src,
+                      "the loop does not compute a key - the memo is unreachable")
+        self.assertIn("_theatre_row_cache_get", src, "the loop never asks the memo")
+        self.assertIn("_theatre_row_cache_put", src, "the loop never fills the memo")
+        i_get = src.index("_theatre_row_cache_get")
+        i_walk = src.index("os.path.isfile(os.path.join(HIST_DIR")
+        self.assertLess(i_get, i_walk,
+                        "the memo is consulted AFTER the filesystem walk it exists to avoid")
+
+
+class TestV2322TheBackupGeneratorForABlackConsole(unittest.TestCase):
+    """"should have a backup generator for this it keeps happening" - Konyo, 2026-08-30.
+
+    Every self-heal before this one lived inside the page, which is the one place that cannot
+    help when the page is the thing that is wedged: a stopped renderer runs no timers, so the
+    watchdog dies of the fault it exists to cure. This half runs in Python and uses the ABSENCE
+    of the heartbeat as its signal - the one thing a wedged page cannot fake.
+
+    These cases are almost all about REFUSING to act, because a watchdog that reloads his window
+    at the wrong moment is worse than the bug it is chasing.
+    """
+
+    def setUp(self):
+        self._beat = dict(ca._UI_BEAT)
+        self._resc = dict(ca._UI_RESCUE)
+
+    def tearDown(self):
+        ca._UI_BEAT.clear(); ca._UI_BEAT.update(self._beat)
+        ca._UI_RESCUE.clear(); ca._UI_RESCUE.update(self._resc)
+
+    def _silent_for(self, secs):
+        ca._UI_BEAT["n"] = 5
+        ca._UI_BEAT["t"] = time.time() - secs
+        ca._UI_RESCUE["last"] = 0.0
+
+    # -- the refusals --------------------------------------------------------
+    def test_it_NEVER_acts_before_a_console_has_ever_checked_in(self):
+        """Silence from a console that was never opened is a headless run, not a fault. Reading
+        "nobody has reported" as "something is broken" is the same error in the other direction.
+        [[unknown-stays-unknown]]"""
+        ca._UI_BEAT["n"] = 0
+        ca._UI_BEAT["t"] = 0.0
+        self.assertIsNone(ca.ui_beat_age(), "an age was invented for a page that never beat")
+        due, why = ca.ui_rescue_due()
+        self.assertFalse(due, "it tried to rescue a window that has never existed")
+        self.assertIn("checked in", why)
+
+    def test_it_NEVER_reloads_while_a_capture_is_running(self):
+        """A reload mid-reel throws away footage he cannot re-film."""
+        self._silent_for(600)
+        due, why = ca.ui_rescue_due(capture_live=True)
+        self.assertFalse(due, "it would have destroyed a running capture")
+        self.assertIn("capture", why)
+
+    def test_a_page_that_beat_recently_is_left_alone(self):
+        self._silent_for(5)
+        due, _ = ca.ui_rescue_due()
+        self.assertFalse(due, "a healthy console was reloaded under him")
+
+    def test_it_cools_off_so_a_page_that_dies_on_load_cannot_LOOP(self):
+        self._silent_for(600)
+        ca._UI_RESCUE["last"] = time.time() - 30.0
+        due, why = ca.ui_rescue_due()
+        self.assertFalse(due, "it would reload every 10s forever, flashing his window")
+        self.assertIn("cooling off", why)
+
+    # -- and the one case where it MUST act ----------------------------------
+    def test_sixty_seconds_of_silence_DOES_trigger_the_rescue(self):
+        """The guard has to be able to say yes, or it is a switch wired to nothing."""
+        self._silent_for(120)
+        due, why = ca.ui_rescue_due(capture_live=False)
+        self.assertTrue(due, "the backup generator never starts: %s" % why)
+        self.assertIn("silent", why)
+
+    def test_the_threshold_is_far_above_the_beat_interval(self):
+        """A silence bound at or below the 5s beat would fire on ordinary jitter. The gap between
+        them IS the safety margin, so it is asserted rather than assumed.
+        [[feedback-threshold-above-the-ceiling]]"""
+        self.assertGreaterEqual(ca._UI_BEAT_SILENCE_S, 30.0)
+        self.assertGreaterEqual(ca._UI_RESCUE_COOLDOWN_S, ca._UI_BEAT_SILENCE_S * 2)
+
+    # -- the beat itself -----------------------------------------------------
+    def test_a_beat_is_recorded_and_ages_from_then(self):
+        ca._UI_BEAT["n"] = 0
+        ca.ui_beat_record({"view": "sessions", "els": 11485})
+        self.assertEqual(ca._UI_BEAT["state"]["els"], 11485)
+        age = ca.ui_beat_age()
+        self.assertIsNotNone(age)
+        self.assertLess(age, 5.0)
+
+    # -- wiring: each half is useless alone ---------------------------------
+    def test_the_page_actually_SENDS_the_heartbeat(self):
+        """[[the-unjoined-end]] - a server listening for a beat nobody sends would rescue the
+        window every 60 seconds forever."""
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("/api/ui_alive", src, "the page never beats - the server would reload it "
+                                            "on a loop while it is perfectly healthy")
+
+    def test_the_server_LISTENS_for_it(self):
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('path == "/api/ui_alive"', src, "the beat has nowhere to land")
+
+    def test_the_watchdog_is_ARMED_before_the_window_blocks_the_thread(self):
+        """webview.start() never returns on this platform. A thread started after it is a thread
+        that never starts."""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        i_arm = src.find("_console_rescue_loop, name=\"console-rescue\"")
+        i_start = src.find("webview.start(**_start_kw)")
+        self.assertGreater(i_arm, 0, "the rescue thread is never started")
+        self.assertLess(i_arm, i_start,
+                        "the watchdog is armed after webview.start(), which never returns")
 
 
 if __name__ == "__main__":

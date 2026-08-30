@@ -4925,6 +4925,13 @@ def open_control_window():
         _atexit.register(_window_lock_clear)
     except Exception:
         pass
+    # v2322 — arm the backup generator before the window blocks this thread in start().
+    try:
+        _t_rescue = threading.Thread(target=_console_rescue_loop, name="console-rescue", daemon=True)
+        _t_rescue.start()
+    except Exception as _e:
+        print("\u26a0 console rescue watchdog did not arm: %s" % str(_e)[:120], flush=True)
+
     # v1462 — on pywebview >= 6 the window icon is a start() argument (see create_window above).
     _start_kw = dict(debug=False, private_mode=False)
     if globals().get("_ICON_FOR_START"):
@@ -11059,6 +11066,198 @@ def board_tick(name, kind, want):
 
 
 _UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
+
+# ══ v2322 — THE SHELF WAS RE-READING THE WHOLE ARCHIVE EVERY 12 SECONDS ═══════════════════
+# HIS REPORT, 2026-08-30, with a screenshot of a black console: "why does it bug out anyways?
+# like it should NOT." Earlier the same week: "my pc is super hot", "its lagging and doing weird
+# starving here", "i clicked them both.. i think it bugged out".
+#
+# MEASURED, not guessed. `/api/sessions` returns 2.03 MB for 2,504 sessions and takes ~4s alone
+# and 41.6s under contention. control_ui.html:15549 polls it on `setInterval(hdShelf, 12000)`.
+# A 41s job fired every 12s means ~3.5 of them are always in flight, each walking the archive:
+# an os.listdir() per reel directory plus an os.path.isfile() per journaled frame, forever, for
+# runs that ENDED MONTHS AGO and can never change again. The Theatre then bounds its own fetch
+# at 8s (v2228) and gives up — so the one feature that needs this route could never open.
+#
+# A SEALED SESSION'S ROW IS IMMUTABLE. Its journal rows are written and done, and its reel
+# directory stops changing when the reel seals. The only row that can move is the live one.
+# So the row is memoised on a fingerprint of everything it is derived from — the row count, the
+# last timestamp, and the reel directory's own mtime — and a session whose fingerprint has not
+# moved is never recomputed. If ANY of those change the key changes and the row is rebuilt, so
+# the cache cannot serve a stale count: staleness here would be worse than slowness, because a
+# number that is wrong reads exactly like a number that is right. [[stale-reading]]
+# ══ v2322 — THE BACKUP GENERATOR ═══════════════════════════════════════════════════════════
+# Konyo, 2026-08-30, on the console going black for the third time: "should have a backup
+# generator for this it keeps happening", and "i want this smooth why does it bug out anyways?
+# like it should NOT."
+#
+# Every self-heal built so far lives INSIDE the page (v2228), which is the one place that cannot
+# help when the page itself is the thing that is wedged: a renderer stuck mid-paint runs no
+# timers, so the watchdog meant to rescue it is stopped by the same fault. His only way out has
+# always been to quit the app and reopen it.
+#
+# So this half runs in PYTHON, outside the renderer, and it uses the ABSENCE of a signal as the
+# signal — the one thing a wedged page cannot fake. A healthy page beats every 5s. Sixty seconds
+# of silence is not ambiguous, and pywebview can reload the window from out here.
+#
+# ⚠ THREE THINGS IT MUST NEVER DO, each of which would be worse than the bug:
+#   · never reload while a capture is running — that would throw away a reel he is filming
+#   · never reload before it has EVER heard a beat — silence from a console that was never open
+#     is not a fault, it is a headless run, and treating unknown as broken is its own defect
+#     [[unknown-stays-unknown]]
+#   · never reload twice in a row without a long cooling-off, or a page that dies on load
+#     becomes an infinite reload loop with his window flashing
+_UI_BEAT = {"t": 0.0, "n": 0, "state": {}}
+_UI_RESCUE = {"last": 0.0, "count": 0, "why": ""}
+_UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
+_UI_RESCUE_COOLDOWN_S = 300.0
+
+
+def ui_beat_record(state=None):
+    """The page saying "I am still painting". Called from POST /api/ui_alive."""
+    _UI_BEAT["t"] = time.time()
+    _UI_BEAT["n"] += 1
+    if isinstance(state, dict):
+        _UI_BEAT["state"] = state
+    return dict(_UI_BEAT)
+
+
+def ui_beat_age():
+    """Seconds since the last beat, or None if the page has NEVER beaten.
+
+    None is load-bearing: it means "no console has ever checked in", which is what a headless
+    run looks like, and it must never be read as "the console has been silent forever"."""
+    if not _UI_BEAT["n"]:
+        return None
+    return max(0.0, time.time() - _UI_BEAT["t"])
+
+
+def _capture_is_live():
+    """True when a capture agent is actually running. Deliberately does NOT gate on IS_WIN the
+    way the status payload does at the `"capture":` key — a Mac reel is just as destroyable."""
+    try:
+        pid = _read_pid(CAP_PID_PATH)
+        return bool(pid and _pid_alive(pid))
+    except Exception:
+        return False    # cannot tell -> assume nothing, and the caller treats that as "do not act"
+
+
+def _console_rescue_loop():
+    """The generator itself. Sleeps, asks, and acts — and writes down every time it acts,
+    because a self-heal nobody records is a fault that keeps being reported by HIM instead of
+    by the machine."""
+    while True:
+        try:
+            time.sleep(10.0)
+            win = globals().get("_MAIN_WIN")
+            if win is None:
+                continue
+            due, why = ui_rescue_due(capture_live=_capture_is_live())
+            if not due:
+                continue
+            url = "http://127.0.0.1:%d/" % CONTROL_PORT
+            # If it wandered off the console entirely (an image opened in place, a dead
+            # navigation), say so — that is a different fault with the same cure.
+            try:
+                cur = win.get_current_url()
+                if cur and "127.0.0.1" not in cur:
+                    why = "the window is no longer on the console (%s)" % str(cur)[:80]
+            except Exception:
+                pass
+            _UI_RESCUE["last"] = time.time()
+            _UI_RESCUE["count"] += 1
+            _UI_RESCUE["why"] = why
+            try:
+                ui_fault_record("console-rescued-by-server", why=why, where="_console_rescue_loop")
+            except Exception:
+                pass
+            print("\u267b console rescue: reloading the window - %s" % why, flush=True)
+            try:
+                win.load_url(url)
+            except Exception as _e:
+                print("\u26a0 console rescue could not reload the window: %s" % str(_e)[:140], flush=True)
+        except Exception:
+            # a watchdog that can die is not a watchdog
+            try:
+                time.sleep(10.0)
+            except Exception:
+                pass
+
+
+def ui_rescue_due(now=None, capture_live=False):
+    """Should the window be reloaded? Returns (True, why) or (False, why-not).
+
+    Kept separate from the thread that acts on it so the decision can be tested without a
+    window, a timer, or a wedged page. A rescue rule nobody can exercise is a rule nobody
+    knows the shape of. [[feedback-blind-fixture-green-gate]]"""
+    now = time.time() if now is None else now
+    age = ui_beat_age()
+    if age is None:
+        return False, "no console has ever checked in - nothing to rescue"
+    if capture_live:
+        return False, "a capture is running - a reload would throw away the reel"
+    if age < _UI_BEAT_SILENCE_S:
+        return False, "the page beat %.0fs ago" % age
+    since = now - (_UI_RESCUE["last"] or 0.0)
+    if _UI_RESCUE["last"] and since < _UI_RESCUE_COOLDOWN_S:
+        return False, "rescued %.0fs ago - cooling off so a page that dies on load cannot loop" % since
+    return True, "the page has been silent for %.0fs (healthy is every 5s)" % age
+
+
+_THEATRE_ROW_CACHE = {}
+_THEATRE_ROW_CACHE_MAX = 8000   # a memo with no ceiling is a leak wearing a cache's name
+_THEATRE_ROW_STATS = {"hits": 0, "misses": 0}
+
+
+def _theatre_row_cache_get(key):
+    """Return the memoised row for `key`, or None. None means NOBODY HAS COMPUTED IT, never
+    "there is no such session" — the two must not collapse. [[unknown-stays-unknown]]"""
+    row = _THEATRE_ROW_CACHE.get(key)
+    if row is None:
+        _THEATRE_ROW_STATS["misses"] += 1
+        return None
+    _THEATRE_ROW_STATS["hits"] += 1
+    return row
+
+
+def _theatre_row_cache_put(key, row):
+    if len(_THEATRE_ROW_CACHE) >= _THEATRE_ROW_CACHE_MAX:
+        _THEATRE_ROW_CACHE.clear()   # coarse, but bounded and never stale
+    _THEATRE_ROW_CACHE[key] = row
+    return row
+
+
+def _theatre_row_fingerprint(sess, hist_dir):
+    """Everything the row is derived from, in one hashable key.
+
+    ⚠ The reel directory's mtime is IN the key on purpose. Frames land in it while a reel is
+    being filmed, which moves footageN and the thumbnail; without it the live card would freeze
+    at whatever it read first and look broken in exactly the way this whole fix is about."""
+    sid = ""
+    for r in sess:
+        if r.get("sessionId"):
+            sid = r.get("sessionId")
+            break
+    reel_mt = None
+    try:
+        rd = os.path.join(hist_dir, "reel_" + str(sid))
+        reel_mt = os.stat(rd).st_mtime_ns if sid and os.path.isdir(rd) else None
+    except Exception:
+        reel_mt = None
+    if reel_mt is None:
+        # No sealed reel of its own: it reads loose frames out of hist/, so it moves when hist/
+        # moves. Cheap for these rows — they are the 1-to-3-row ghosts.
+        try:
+            reel_mt = os.stat(hist_dir).st_mtime_ns
+        except Exception:
+            reel_mt = None
+    last_ts = None
+    try:
+        last_ts = sess[-1].get("ts") if sess else None
+    except Exception:
+        last_ts = None
+    return (str(sid), len(sess), last_ts, reel_mt)
+
 
 
 def ui_fault_record(kind, why=None, where=None, path=None):
@@ -19975,7 +20174,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2320",
+        "ver": "v2322",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20040,6 +20239,14 @@ def status_payload():
         "stopping": bool(_stop_inflight),
         "pid": _pid_cached(),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
+        # v2322 — the backup generator, on a surface that can be read. `ageS` is None when no
+        # console has EVER checked in, which is a different fact from "it has been silent for a
+        # long time" and must not be shown as a big number. [[unknown-stays-unknown]]
+        "uiBeat": {"n": _UI_BEAT["n"],
+                   "ageS": (round(ui_beat_age(), 1) if ui_beat_age() is not None else None),
+                   "rescues": _UI_RESCUE["count"],
+                   "lastRescueWhy": _UI_RESCUE["why"] or None,
+                   "silenceBoundS": _UI_BEAT_SILENCE_S},
         "intakeRing": ((st or {}).get("intakes") or [])[-12:],
         "readCount": int(_reads or 0),
         "area": beat.get("area") or (st or {}).get("area") or "",
@@ -20913,6 +21120,12 @@ class Handler(BaseHTTPRequestHandler):
             sessions = _rp.split_sessions(self._load_journal_cached())
             out = []
             for i, sess in enumerate(sessions, 1):
+                # v2322 — a run that ended can never change; do not walk its files again.
+                _ck = _theatre_row_fingerprint(sess, HIST_DIR)
+                _cached = _theatre_row_cache_get(_ck)
+                if _cached is not None:
+                    out.append(_cached)
+                    continue
                 frames = [r for r in sess if r.get("frameId")
                           and os.path.isfile(os.path.join(HIST_DIR, r["frameId"] + ".jpg"))]
                 areas = []
@@ -21195,7 +21408,7 @@ class Handler(BaseHTTPRequestHandler):
                         _registered = len(_finds)
                     elif isinstance(_registered, int):
                         _registered = max(int(_registered), len(_have_nms))
-                out.append({"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
+                _row = {"watchdogViolations": _wd, "tallies": _tl, "kaiMissed": _km, "kaiClasses": _kc,
                             "sceneReads": _scene_reads or None, "tabReads": _tab_reads or None,
                             "sceneFingerprint": _session_scene_fingerprint(sess),   # v1326 B8 — farming%/townTrips/portals/topArea (Diablo-native, honest)
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
@@ -21245,7 +21458,8 @@ class Handler(BaseHTTPRequestHandler):
                     "sessionId": sid,
                             # v840 — SIM honesty: how much of the night is still replayable
                             "frameWant": want, "frameMissing": miss,
-                            "archiveOk": miss == 0 and len(frames) > 0})
+                            "archiveOk": miss == 0 and len(frames) > 0}
+                out.append(_theatre_row_cache_put(_ck, _row))
             return out
         except Exception as e:
             return {"error": str(e)}
@@ -22276,6 +22490,15 @@ class Handler(BaseHTTPRequestHandler):
             # ONLY fast-forward, and ONLY on a clean tree: a machine mid-edit keeps its work and
             # is told why it is not updating. Never a merge, never a rebase, never a reset.
             self._json(200, fleet_pull())
+            return
+        if path == "/api/ui_alive":
+            # v2322 — THE HEARTBEAT THE BACKUP GENERATOR LISTENS FOR. Deliberately the cheapest
+            # route in the server: it takes no locks, touches no disk, and answers in constant
+            # time, because a heartbeat that can itself be starved would report a wedge that is
+            # not there and reload his window for nothing.
+            _st = (body or {}).get("state")
+            ui_beat_record(_st if isinstance(_st, dict) else None)
+            self._json(200, {"ok": True})
             return
         if path == "/api/ui_fault":
             # v2228 — the UI reporting a fault ABOUT ITSELF. Display-side problems (a stage that

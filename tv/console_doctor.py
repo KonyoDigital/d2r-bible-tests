@@ -756,6 +756,55 @@ def _check_the_shadow_gate_is_learning():
     return OK, st.get("say")
 
 
+def _check_the_tooltip_finder_is_honest():
+    """v2321 — is the tooltip finder locating tooltips, or the HUD?
+
+    Text density alone returns the same top-right corner box on every unhovered frame — measured,
+    five in a row on a reel that registered nothing. The 8% area floor separates his real tooltip
+    (33.4% of the frame) from that impostor (2.8%). This reports whether the floor is still doing
+    its job and what the located tooltips actually yielded.
+    """
+    try:
+        import tooltip_find as tf
+    except Exception as e:
+        return MISSING, "the tooltip finder will not import: %s" % str(e)[:70]
+    try:
+        r = tf.report()
+    except Exception as e:
+        return MISSING, "its ledger could not be read: %s" % str(e)[:70]
+    if not r.get("attempts"):
+        return MISSING, ("the finder has never been asked — no frame has been put through it, so "
+                         "nothing is known about it either way")
+    if r.get("judged"):
+        return OK, r["say"]
+    return MISSING, ("%d located, %d refused, but none judged yet — nobody has said whether a "
+                     "located tooltip yielded a name" % (r.get("located") or 0, r.get("refused") or 0))
+
+
+def _check_his_gear_is_being_learned():
+    """v2320 — is the main-character ledger actually accumulating, or silently empty?
+
+    The LANE rule protects the equipment panel while it is on screen. This ledger is what protects
+    the same item in a frame that only shows the stash — and it is only worth anything if sightings
+    are reaching it. An empty ledger after a session of farming is a lane that is not being fed,
+    which looks exactly like a lane with nothing to say.
+    """
+    try:
+        import main_character as mc
+    except Exception as e:
+        return MISSING, "the main-character ledger will not import: %s" % str(e)[:70]
+    try:
+        r = mc.report()
+    except Exception as e:
+        return MISSING, "the ledger could not be read: %s" % str(e)[:70]
+    tracked, locked = int(r.get("tracked") or 0), len(r.get("locked") or [])
+    if tracked == 0:
+        return MISSING, ("nothing has been recorded yet — no sighting has reached the ledger, so "
+                         "no item can earn a lock. That is UNKNOWN, not 'he owns nothing'.")
+    return OK, ("%d item(s) tracked, %d locked as his gear (floor %.2f, %d-look minimum)"
+                % (tracked, locked, r.get("floor") or 0.0, r.get("minSightings") or 0))
+
+
 def _check_the_locked_lanes_still_refuse():
     """He ruled it plainly: equipment and inventory are never to be told to move. The BOARD has
     carried _LOCKED_LANES since v1712; the engine that PRODUCES the suggestions did not until
@@ -1314,6 +1363,8 @@ CHECKS = [
     ("store emptied", _check_the_board_store_did_not_come_up_empty),
     ("shadow gate", _check_the_shadow_gate_is_learning),
     ("locked lanes", _check_the_locked_lanes_still_refuse),
+    ("his gear", _check_his_gear_is_being_learned),
+    ("tooltip finder", _check_the_tooltip_finder_is_honest),
     ("surfaces agree", _check_the_two_surfaces_agree),
     ("the other doctors", _check_the_other_doctors),
 ]

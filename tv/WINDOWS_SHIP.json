@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2320",
+  "ver": "v2322",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2320: a second reader grades every retro read on what where and how, a garble sharing a frame with a clean name resolves to it, and the inventory furniture law is one place instead of three",
+  "note": "v2322: the shelf poll was re-walking the whole archive every 12s - 172s per call on his console, now 352ms - plus a self-heal that can see a stage stuck WITH a frame on it, and a Python-side rescue that reloads a wedged window",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

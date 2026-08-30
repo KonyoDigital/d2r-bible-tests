@@ -12284,6 +12284,67 @@
     };
     tick(); _miniTimer = setInterval(tick, 1000);
   }
+  /* ── v2321 — THE BACKUP GENERATOR. A SHELL THAT PAINTED NOTHING NOW HEALS ITSELF ──────────
+     Konyo, twice in one evening, with a screenshot both times: "again the console is like sort of
+     black screen but not exactly just not rendering the shell itself.. should have a backup
+     generator for this it keeps happening.. im not sure why maybe while you do updates and it
+     tries to reupdate".
+
+     HE DIAGNOSED IT CORRECTLY. /api/relaunch replaces the server with os.execv — same pid, new
+     process image — UNDER AN ALREADY-OPEN WINDOW. Every fetch in flight at that instant fails.
+     If that lands mid-render the shell can end up empty and nothing ever retries, which is exactly
+     what he saw: a black body with a WORKING tooltip on hover, because the JS was alive and only
+     the paint was lost. Measured at the same moment: the server answered HTTP 200 in 6 ms and was
+     serving all 1.29 MB of the page. Nothing was broken except the copy in front of him.
+
+     THREE THINGS IT MUST NOT DO, each worse than the black screen it fixes:
+       * it must never reload while he is DOING something — a reload mid-MINI would look like the
+         console throwing his session away.
+       * it must never LOOP. A page that reloads every few seconds is unusable in a way an empty
+         one is not, so it heals at most once per _HEAL_COOLDOWN_MS and says so in the console log.
+       * "the server is down" is NOT this fault. If /api/shadow does not answer, the shell being
+         empty is honest and a reload would just produce another empty shell. It heals only when
+         the SERVER IS FINE AND THE PAGE IS NOT. [[unknown-stays-unknown]] */
+  var _HEAL_EVERY_MS = 6000, _HEAL_COOLDOWN_MS = 120000, _HEAL_STRIKES = 3;
+  var _healStrikes = 0, _healLastAt = 0;
+
+  function _shellLooksDead() {
+    try {
+      var tabs = document.getElementById('head-tabs');
+      var phase = document.getElementById('phase');
+      var painted = (tabs && tabs.children && tabs.children.length > 0);
+      var body = (document.body && (document.body.innerText || '').trim().length);
+      /* the tab strip is static markup: if it has no children the page did not build, and a body
+         with almost no text agrees with that. Either alone could be a transient. */
+      return (!painted || body < 40) && !!phase;
+    } catch (e) { return false; }
+  }
+
+  async function _healTick() {
+    try {
+      if (!_shellLooksDead()) { _healStrikes = 0; return; }
+      /* is anything of his in flight? never interrupt a recording. */
+      try {
+        var m = await (await fetch('/api/mini', { cache: 'no-store' })).json();
+        if (m && m.running) { _healStrikes = 0; return; }
+      } catch (e) { /* cannot ask -> fall through to the server check */ }
+      var ok = false;
+      try { ok = (await fetch('/api/shadow', { cache: 'no-store' })).ok; } catch (e) { ok = false; }
+      if (!ok) { _healStrikes = 0; return; }        /* server down: an empty shell is honest */
+      _healStrikes++;
+      if (_healStrikes < _HEAL_STRIKES) return;      /* a blink is not a wedge */
+      var now = Date.now();
+      if (now - _healLastAt < _HEAL_COOLDOWN_MS) return;
+      _healLastAt = now; _healStrikes = 0;
+      try {
+        console.log('[TVD] shell painted nothing for ' + (_HEAL_EVERY_MS * _HEAL_STRIKES / 1000)
+                    + 's while the server answered — reloading once');
+      } catch (e) {}
+      location.reload();
+    } catch (e) {}
+  }
+  try { setInterval(_healTick, _HEAL_EVERY_MS); } catch (e) {}
+
   try { _miniPoll(); } catch (e) {}   // a mini already running when the page loads must show
 
   $('btn-off').onclick = async function(e){ await cutFeed(this, e, false); };
@@ -18347,6 +18408,46 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
      route that leaves body.theatre-open set with nothing on the stage. His only escape today is to
      quit the app and reopen — which he did, and which is why this went unreported for so long.
      A self-healing console was the whole ask. */
+  /* ══ v2322 — THE HEARTBEAT. Half of the backup generator; the other half is in Python.
+     This says "I am still painting" every 5s. Its VALUE is not the message but the silence:
+     a renderer that has wedged runs no timers, so it stops beating, and the server outside it
+     can tell the difference between a console that is quiet and a console that is stopped.
+     Fire-and-forget on purpose — a heartbeat that awaits a starved server would stop beating
+     for the very reason it exists to report. */
+  try {
+    var _beat = function(){
+      try {
+        var th = document.getElementById('theatre');
+        fetch('/api/ui_alive', {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({state:{
+            view: document.body.getAttribute('data-view') || '',
+            els: document.querySelectorAll('body *').length,
+            theatreOpen: !!(th && !th.hidden),
+            loaded: !!(window.TH && TH.sessions && TH.sessions.length)
+          }})}).catch(function(){});
+      } catch (e) {}
+    };
+    setTimeout(_beat, 1500);
+    setInterval(_beat, 5000);
+  } catch (e) {}
+
+  /* v2322 — the tap for _thTouchedAt, which the heal below reads. Written on the document with
+     capture:true so it stamps even when the theatre swallows the event, and passive so it can
+     never delay a scroll. A heal that cannot tell "he is using it" from "it is wedged" would
+     eventually close the stage under his hands, and he would be right to trust it less. */
+  try {
+    ['pointerdown','keydown','wheel','pointermove'].forEach(function(evt){
+      document.addEventListener(evt, function(e){
+        try {
+          var th = document.getElementById('theatre');
+          if (th && !th.hidden && (th === e.target || th.contains(e.target))) {
+            window._thTouchedAt = Date.now();
+          }
+        } catch (_) {}
+      }, {capture: true, passive: true});
+    });
+  } catch (e) {}
+
   try {
     setInterval(function(){
       try {
@@ -18358,9 +18459,32 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         }
         var film = th.querySelector('.th-film, #th-film, img, video, canvas');
         var painted = film && film.getBoundingClientRect().height > 40;
-        if (painted) { window._thEmptyFor = 0; return; }
+        /* ══ v2322 — "PAINTED" WAS THE WRONG QUESTION, AND IT COST HIM THE FIX ═══════════════
+           He reported the black console AGAIN on 2026-08-30, with v2228's self-heal shipped and
+           live in the page. It had never fired once: tv/ui_faults.jsonl does not exist.
+
+           THIS LINE IS WHY. The heal asked "is the stage empty?" and returned the moment it saw
+           anything painted — but a stage stuck HALFWAY still has the previous still on it. Every
+           shape of this fault that leaves a frame up was invisible to the thing built to catch
+           it, and the counter was reset on each pass, so it could never even accumulate.
+
+           A guard that only recognises the one failure I imagined is the failure it will miss.
+           [[gate-blind-to-unexercised-input]] [[feedback-threshold-above-the-ceiling]]
+
+           So ask the honest question instead: DID THE STAGE EVER FINISH LOADING? The Theatre is
+           loaded when it holds sessions. If it is open, and after twelve seconds it still holds
+           none, it is stuck no matter how many pixels are on it.
+
+           ⚠ AND A PAUSE IS NOT A FAULT. He is entitled to stop on a frame and study it for as
+           long as he likes; closing that would be a worse bug than the one being fixed. A stage
+           that HAS its sessions is left alone forever, whether it is playing or not, and any
+           interaction inside the theatre defers the heal. */
+        var loaded = false;
+        try { loaded = !!(window.TH && TH.sessions && TH.sessions.length); } catch (e) { loaded = false; }
+        var touchedRecently = (Date.now() - (window._thTouchedAt || 0)) < 12000;
+        if ((painted && loaded) || touchedRecently) { window._thEmptyFor = 0; return; }
         window._thEmptyFor = (window._thEmptyFor || 0) + 1;
-        if (window._thEmptyFor >= 4) {               /* ~12s of an open stage with nothing on it */
+        if (window._thEmptyFor >= 4) {               /* ~12s open and never finished loading */
           window._thEmptyFor = 0;
           document.body.classList.remove('theatre-open');
           th.hidden = true;
@@ -18371,7 +18495,9 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
           try {
             fetch('/api/ui_fault', {method:'POST', headers:{'Content-Type':'application/json'},
               body: JSON.stringify({kind:'theatre-stuck-black',
-                why:'the stage was open with nothing on it for 12s and closed itself',
+                why:'the stage was open for 12s and ' + (painted
+                      ? 'still held no sessions though a frame was painted (v2322 shape)'
+                      : 'had nothing on it at all (v2228 shape)') + ' - it closed itself',
                 where:'control_ui thOpen / self-heal'})});
           } catch(e){}
         }

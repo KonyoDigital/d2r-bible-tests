@@ -501,7 +501,34 @@ def _inv_the_console_and_the_law_agree_about_furniture():
             "console anchors", left, "the shared law", right, "==")
 
 
-BUILDERS = (_inv_the_console_and_the_law_agree_about_furniture,
+def _inv_the_tooltip_finder_refuses_more_than_it_finds():
+    """v2321 — a finder that never refuses is not finding, it is guessing.
+
+    Text density alone locates the HUD: on a reel that registered nothing it returned the same
+    (2450, 0, 490, 318) corner box on five consecutive frames. The 8% area floor is what separates
+    a real tooltip (33.4% of the frame) from that impostor (2.8%), and the tell that the floor is
+    still doing its job is that REFUSALS outnumber LOCATIONS — most frames in a reel have no
+    tooltip on them, because he is walking, fighting and looting between hovers.
+
+    If locations ever outnumber refusals, either the floor has been lowered or he has started
+    hovering on every single frame. The first is a defect and the second has never happened.
+    """
+    import tooltip_find as tf
+
+    def left():
+        return int((tf.report() or {}).get("refused") or 0)
+
+    def right():
+        return int((tf.report() or {}).get("located") or 0)
+
+    return ("tooltip-finder-refuses",
+            "the tooltip finder still refuses more frames than it claims (most frames have no tooltip)",
+            "drop _MIN_AREA_FRAC and the HUD box starts counting as a tooltip on every frame",
+            "frames refused", left, "tooltips located", right, ">=")
+
+
+BUILDERS = (_inv_the_tooltip_finder_refuses_more_than_it_finds,
+            _inv_the_console_and_the_law_agree_about_furniture,
             _inv_every_declared_tooltip_surface_is_served,
             _inv_vault_worklist,
             _inv_the_two_owned_fields,

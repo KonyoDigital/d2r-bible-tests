@@ -193,6 +193,25 @@ def tooltip_surfaces():
     return sorted(k for k, v in SURFACES.items() if v.get("tooltip"))
 
 
+def tooltip_finder():
+    """WHICH technique locates the tooltip, and on what evidence. -> (name, why)
+
+    v2321 — the table has always said WHICH surfaces need a tooltip; it never said HOW one is
+    found. That mattered the moment the answer changed: differencing (tooltip_crop.changed_rect)
+    was the only method for months and is PROVEN unable to do it on D2R — 39 consecutive frame
+    pairs on his reel all returned the whole screen, because the game world never stops animating.
+    tooltip_find.locate() replaces it by TEXT DENSITY on a single frame.
+
+    Naming it here means a reader does not have to know which era it is in.
+    """
+    try:
+        import tooltip_find as _tf
+        return "tooltip_find.locate", ("single frame, text density, %.0f%% area floor"
+                                       % (_tf._MIN_AREA_FRAC * 100))
+    except Exception as e:
+        return None, "tooltip_find is unavailable: %s" % str(e)[:70]
+
+
 def tooltip_callers():
     """PRODUCTION modules that import tooltip_crop. -> [filename, ...]
 

@@ -327,6 +327,19 @@ GATES = [
              "IS NOT A FIFTH SURFACE: the checks live here, the SURFACE is the existing eagle eye "
              "(console_doctor), because this machine already had four things implementing "
              "report-never-repair and a fifth would be copy-drift with three of them unread."),
+    Gate("test_main_character", [sys.executable, os.path.join(HERE, "test_main_character.py")], 60,
+         why="v2320 — WHAT IS ON HIS CHARACTER. LOCKED_LANES protects the equipment panel only while that panel is on screen; a helm he is WEARING could still be proposed for a mule from a reel that only saw the stash. This ledger learns his gear from repeated sightings and Wilson-scores it, so a lock is EARNED — a wrong lock silently removes an item from everything the vault is for. Furniture stays locked by law at zero sightings."),
+    Gate("test_tooltip_find", [sys.executable, os.path.join(HERE, "test_tooltip_find.py")], 90,
+         why="v2321 — FINDING THE TOOLTIP IN ONE FRAME, which is the blocker the cursor offset, "
+             "slot identity and MINI(AUTOMATIC) all sat behind. Every obvious method was tried "
+             "and MEASURED dead first: differencing returned the whole screen on 38 of 39 "
+             "consecutive pairs because the D2R world never stops animating; darkness fails "
+             "because 48.7% of his frame is near-black; there is no border to find because the "
+             "tooltip is semi-transparent and the stash grid shows through it. Text DENSITY is "
+             "what is actually true of it — and density ALONE finds the HUD, so the area floor "
+             "is the load-bearing half: his real tooltip is 33.4% of the frame, the impostor "
+             "2.8%. These cases pin the growth, the refusals, and that a located-but-unjudged "
+             "tooltip counts in NEITHER side of the Wilson ledger."),
     Gate("test_retro_gate", [sys.executable, os.path.join(HERE, "test_retro_gate.py")], 60,
          why="v2320 — THE RETRO ACCURACY GATE. A focused MINI bypasses the witness rule because he AIMED it, which removes the lane's only accuracy mechanism; this replaces it on the FIRST look by grading every read on WHAT it named, WHERE it placed it and HOW it read it. It also resolves a garble that shares a frame with a clean name to that name, and separates stat lines from item names — both proven on his own 2026-08-30 frames."),
     Gate("test_slot_identity", [sys.executable, os.path.join(HERE, "test_slot_identity.py")], 60,
@@ -569,7 +582,9 @@ def _claim_the_tree():
 # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
 # chron_reads.json joins it for the same reason: it is live state added this week and the list did
 # not follow.
-_LIVE_STATE = ("retro_gate.json",        # v2320 — the accuracy gate banks every graded read
+_LIVE_STATE = ("tooltip_find.json",      # v2321 — did a located tooltip really turn out to be one
+                "main_character.json",    # v2320 — what his gear is, learned from sightings
+                "retro_gate.json",        # v2320 — the accuracy gate banks every graded read
                 "capture_doors.json",      # v2316 — per-door Wilson ledger, written on every open/seal
                 "shadow_watch.json",       # v2304 — the watcher writes every 20s
                ".board_identity.json",   # v2147 — a test that forgets to patch

@@ -12950,6 +12950,73 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-398 — the shelf poll re-walked the whole archive every 12s (172s per call) (v2322)
+
+**His report, 2026-08-30, with a screenshot of a black console:** *"and the console is still like
+this.. now im sure if i restart it it will work but i want this smooth why does it bug out anyways?
+like it should NOT."* Earlier the same week: *"my pc is super hot"*, *"its lagging and doing weird
+starving here"*.
+
+**Measured on his live v2321 console, not inferred:**
+
+```
+/api/sessions      172,606 ms      2.03 MB      2,504 sessions
+control_ui.html:15549    setInterval(hdShelf, 12000)
+```
+
+**Ratio 14.4.** Roughly fourteen archive walks in flight at all times, each doing an `os.listdir()`
+per reel directory and an `os.path.isfile()` per journaled frame — for runs that ENDED MONTHS AGO
+and cannot change. It gets worse with every session recorded, because the count only goes up.
+
+One number, a family of symptoms that had looked unrelated:
+
+* **the "black" console.** Loaded his own server in Chrome and counted the DOM: **590 elements
+  rendered instead of 11,485.** The shell was not dead, it was starved — everything downstream of
+  that route never arrived.
+* **the heat and the lag.**
+* **the Theatre never opening.** It bounds its own `/api/sessions` fetch at 8s (v2228). A 172s
+  route cannot answer inside 8s, so the stage opened black and gave up. Reproduced by clicking
+  Theatre in a clean browser; the abort is recorded in `tv/ui_faults.jsonl`.
+
+**Fix:** memoise each session row on `(sessionId, row count, last ts, reel-dir mtime)`. A sealed
+run is computed once and never again; the reel mtime is IN the key so a run being FILMED still
+updates its count and thumbnail. **172,606 ms → 64 ms warm, 995 ms cold**, verified byte-identical
+by diffing the memoised payload against the un-memoised live console **row for row: 0 of 2,504
+differ.**
+
+**Guards:** `TestV2322TheShelfStoppedRewalkingTheWholeArchive` — mostly invalidation cases, not
+speed cases, because a cache's danger is not slowness but a stale number that reads exactly like a
+fresh one. Proven RED by sabotage: freezing the reel mtime out of the key, and unwiring the lookup.
+
+## REG-399 — the self-heal for the black stage had never fired once (v2322)
+
+`tv/ui_faults.jsonl` did not exist. v2228's watchdog asked *"is the stage empty?"* and returned the
+moment it saw anything painted:
+
+```js
+var painted = film && film.getBoundingClientRect().height > 40;
+if (painted) { window._thEmptyFor = 0; return; }
+```
+
+A stage stuck halfway still has the previous still on it, so **every shape of the fault that leaves
+a frame up was invisible to the thing built to catch it**, and the counter was reset on each pass
+so it could never even accumulate. A guard that only recognises the one failure shape its author
+imagined is the shape it will miss.
+
+**Fix:** ask whether the stage ever FINISHED LOADING (it holds sessions) rather than whether pixels
+are present — and leave a stage that HAS its sessions alone forever, playing or paused, because
+stopping on a frame to study it is a use, not a fault. Any interaction inside the theatre defers
+the heal (`_thTouchedAt`, which is now actually written; it was read-only plumbing when first
+drafted).
+
+**And the rescue moved OUTSIDE the renderer.** A wedged page runs no timers, so an in-page watchdog
+dies of the fault it exists to cure. v2322 adds a Python watchdog that treats the ABSENCE of a
+5s heartbeat as the signal — the one thing a stopped renderer cannot fake — with three refusals
+that matter more than the action: never during a capture, never before any console has EVER checked
+in (that is a headless run, not a fault), and never twice without a 5-minute cool-off, or a page
+that dies on load becomes an infinite reload loop. All four refusal paths proven RED by sabotage.
+
+
 ## REG-397 — the shadow ledger counted repeat scorings as distinct names
 
 `shadow_ledger.observe()` did `names += scored` with no distinct tracking, and the chronicle sweep

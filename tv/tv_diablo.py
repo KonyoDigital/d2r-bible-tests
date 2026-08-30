@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2320"   # The Retro Accuracy Gate
+VERSION = "v2322"   # The Backup Generator
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 def _under(path, root):
@@ -1653,7 +1653,28 @@ def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
         dest = os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000))
         tmp = _cap_tmp(dest)
         try:
-            _sh.copyfile(src_path, tmp)
+            # ── v2320 — THE FILM IS DOWNSCALED, AND THE MEASUREMENT SAYS IT IS FREE ────────────
+            # This was `_sh.copyfile(src_path, tmp)` — a RAW COPY of the full-resolution capture.
+            # FILM_MAX_PX (1440) and FILM_JPEG_Q (72) have existed since v310 and this path never
+            # applied either, so his reels landed at 2940x1912 / ~1,378 KB a frame: 147 MB for a
+            # two-minute MINI, ~1.2 MB/s of disk while he plays. He reported it twice — "its
+            # really laggy", "i didnt move past 4-5 items.. it was soo slow i couldnt even move".
+            #
+            # ⚠ I DID NOT SHRINK IT UNTIL IT WAS MEASURED, because the tooltip is the ONLY place an
+            # item name appears. Measured on the frame that actually produced a read
+            # (2_1788104655412.jpg, Crescent Moon), OCR of the same frame at six scales:
+            #     2560px 1541KB  1920px 707KB  1440px 427KB  1280px 345KB  1024px 241KB  800px 143KB
+            # and the local OCR returned 'I CkES<tNT rn••N' at EVERY one of them, including full
+            # size. It is defeated by the D2R FONT, not by resolution, so the film's two consumers
+            # — theatre playback and the local OCR — are both indifferent to this change.
+            #
+            # ⚠ AND IT IS SCOPED TO THE FILM ON PURPOSE. The PAID AI read is a different consumer
+            # and `_readable_frame()` only downscales a .bmp (`if not ap.endswith(".bmp"): return
+            # ap`), so a jpg reaches the model at full size. Whether the model still reads the name
+            # smaller is UNMEASURED and costs a paid read to find out, so it is left alone here.
+            # [[feedback-verify-not-proxy]] [[unknown-stays-unknown]]
+            if not _film_shrink(src_path, tmp, FILM_MAX_PX, FILM_JPEG_Q):
+                _sh.copyfile(src_path, tmp)     # never lose a frame to a failed re-encode
             if not (os.path.isfile(tmp) and os.path.getsize(tmp) >= 4000):
                 raise IOError("short/failed footage copy — not promoting a fragment")
             os.replace(tmp, dest)   # dest only ever holds complete bytes, never a torn write
@@ -2374,6 +2395,41 @@ def _to_jpeg(src, dest, max_px=1568, quality=80):
     if _win_image_to_jpeg(src, dest, max_px=max_px, quality=quality):
         return True
     return False
+
+
+def _film_shrink(src, dest, max_px, quality):
+    """Downscale one film frame as cheaply as this machine can. -> bool
+
+    v2320 — MEASURED, because the obvious implementation costs more than it saves. `_to_jpeg`
+    shells out to `sips`, and a subprocess SPAWN dominates the work:
+
+        raw copyfile                    0.5 ms/frame  -> 1541 KB
+        _to_jpeg (sips)                87.5 ms/frame  ->  427 KB
+        PIL draft-mode decode          32.2 ms/frame  ->  245 KB
+
+    PIL's `draft()` tells the JPEG decoder to decompress at a reduced scale in the first place, so
+    it never builds the full 2940x1912 bitmap it is about to throw away. Faster AND smaller than
+    the subprocess.
+
+    ⚠ THIS IS A DISK FIX, NOT A LAG FIX, AND SAYING SO MATTERS. At his measured 0.74 fps it costs
+    about +24 ms/s of CPU and saves about 1 MB/s of writes — and an SSD does not care about 1 MB/s.
+    What it does buy is real: 910 MB of reels in one day becomes roughly 160 MB, on a machine that
+    hit a disk-full warning today. The console pinning a core during capture is a DIFFERENT
+    problem and this does not touch it. [[feedback-verify-not-proxy]]
+    """
+    try:
+        from PIL import Image
+        im = Image.open(src)
+        im.draft("RGB", (max_px, max_px))
+        im.thumbnail((max_px, max_px))
+        im.save(dest, "JPEG", quality=int(quality))
+        return os.path.isfile(dest) and os.path.getsize(dest) > 4000
+    except Exception:
+        pass
+    try:
+        return bool(_to_jpeg(src, dest, max_px=max_px, quality=quality))
+    except Exception:
+        return False
 
 
 def _readable_frame(ap, out_jpg=None):
@@ -5975,7 +6031,16 @@ def main():
     # v840 — clean stuck capture temps (live night left many live.bmp.tmp.* ghosts)
     try:
         for name in os.listdir(FRAMES):
-            if ".tmp." in name or name.endswith(".part.jpg") or name.endswith(".part"):
+            # ⚠ v2320 — `.endswith(".part")` MISSED EVERY REAL ONE. macOS ImageIO does not
+            # finalise onto the path you hand it; CGImageDestinationFinalize writes an atomic
+            # sibling with a RANDOM SUFFIX, so the leftovers are named ".part-0QOX", ".part-1WK8",
+            # ".part-Swgx" — and none of them end with ".part". MEASURED in his frames dir:
+            # 23 orphans, 12.1 MB, every single one older than an hour, sitting beside a cleaner
+            # written to remove exactly them. A sweeper whose pattern cannot match what the writer
+            # produces reads as "nothing to clean". [[source-reading-guard]]
+            # Safe as a substring here: this directory holds live.bmp, eye.jpg, read_*.jpg and
+            # snap_*.bmp, and none of those carry ".part" in the name.
+            if ".tmp." in name or ".part" in name:
                 try:
                     os.remove(os.path.join(FRAMES, name))
                 except Exception:
