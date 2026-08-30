@@ -68,6 +68,73 @@ def cell_of(point, panel_box, container):
     return (col, row), None
 
 
+def point_of_cell(col, row, panel_box, container, where="center"):
+    """The frame point to put the CURSOR on to hover this cell. -> ((x, y), None) or (None, why)
+
+    ★ THE EXACT INVERSE OF cell_of(), and it exists so MINI(AUTOMATIC) can drive the hover itself
+    instead of Konyo moving a mouse to twenty cells by hand. cell_of answers "what did he hover";
+    this answers "what must be hovered". They MUST agree, or the automatic pass would hover one
+    cell and file the result under another — a wrong slot is worse than an absent one, which is the
+    rule cell_of already states. The round trip is guarded: point_of_cell -> cell_of returns the
+    cell you asked for, for every cell of every grid.
+
+    `where` picks the point inside the cell:
+      "center"  — the middle. What a person does, and the safest target.
+      "topleft" — a fifth in from the corner, for the calibration pass, because the tooltip anchor
+                  is measured RELATIVE to a known corner and the centre hides which corner it was.
+
+    ⚠ IT RETURNS A POINT IN FRAME PIXELS, NOT SCREEN PIXELS, AND THAT IS NOT THE SAME THING.
+    Turning one into the other needs the window origin and the capture scale, and neither belongs
+    here — this module is pure and has no idea where the game window sits. The caller that moves a
+    real cursor must do that conversion and is where the risk lives. [[borrowed-surface]]
+    """
+    if container not in GRIDS:
+        return None, "unknown container %r — the grid is not one this game has" % (container,)
+    try:
+        c, r = int(col), int(row)
+        bx, by, bw, bh = [float(v) for v in panel_box]
+    except (TypeError, ValueError, IndexError):
+        return None, "cell or panel box is not numeric"
+    if bw <= 0 or bh <= 0:
+        return None, "panel box measures %gx%g — nothing can be inside it" % (bw, bh)
+    cols, rows = GRIDS[container]
+    if not (0 <= c < cols and 0 <= r < rows):
+        return None, ("cell (%d,%d) is outside the %s grid, which is %dx%d — refusing rather than "
+                      "clamping, because a clamped cell would hover a real cell that is not the "
+                      "one asked for" % (c, r, container, cols, rows))
+    cw, ch = bw / cols, bh / rows
+    if where == "topleft":
+        return (bx + c * cw + cw / 5.0, by + r * ch + ch / 5.0), None
+    return (bx + (c + 0.5) * cw, by + (r + 0.5) * ch), None
+
+
+def hover_plan(occupied, panel_box, container, where="center"):
+    """Cells to hover, in reading order, with the point for each. -> (list, why)
+
+    `occupied` is an iterable of (col, row) the grid reader believes hold an item. Reading order —
+    left to right, top to bottom — because that is the order he would do it in, and an order that
+    matches his makes a half-finished pass legible instead of scattered.
+
+    Every refusal is CARRIED, not dropped: a cell that cannot be turned into a point appears in the
+    plan with point=None and its reason, so a short plan can never be mistaken for a short stash.
+    [[unknown-stays-unknown]]
+    """
+    out, seen = [], set()
+    for cell in (occupied or []):
+        try:
+            c, r = int(cell[0]), int(cell[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if (c, r) in seen:
+            continue
+        seen.add((c, r))
+        pt, why = point_of_cell(c, r, panel_box, container, where=where)
+        out.append({"col": c, "row": r, "point": pt, "why": why})
+    out.sort(key=lambda d: (d["row"], d["col"]))
+    ok = [d for d in out if d["point"]]
+    return out, (None if ok else "no cell in the plan could be turned into a point")
+
+
 def slot_key(container, col, row, tab=None):
     """A stable, readable identity for one cell. -> str
 

@@ -327,6 +327,8 @@ GATES = [
              "IS NOT A FIFTH SURFACE: the checks live here, the SURFACE is the existing eagle eye "
              "(console_doctor), because this machine already had four things implementing "
              "report-never-repair and a fifth would be copy-drift with three of them unread."),
+    Gate("test_retro_gate", [sys.executable, os.path.join(HERE, "test_retro_gate.py")], 60,
+         why="v2320 — THE RETRO ACCURACY GATE. A focused MINI bypasses the witness rule because he AIMED it, which removes the lane's only accuracy mechanism; this replaces it on the FIRST look by grading every read on WHAT it named, WHERE it placed it and HOW it read it. It also resolves a garble that shares a frame with a clean name to that name, and separates stat lines from item names — both proven on his own 2026-08-30 frames."),
     Gate("test_slot_identity", [sys.executable, os.path.join(HERE, "test_slot_identity.py")], 60,
          why="v2271 — SLOT IDENTITY. Konyo: \"it needs to be read within the tooltip and where and "
              "what cell box its located so it can have a slot identity for each item\". This pins "
@@ -567,7 +569,8 @@ def _claim_the_tree():
 # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
 # chron_reads.json joins it for the same reason: it is live state added this week and the list did
 # not follow.
-_LIVE_STATE = ("capture_doors.json",      # v2316 — per-door Wilson ledger, written on every open/seal
+_LIVE_STATE = ("retro_gate.json",        # v2320 — the accuracy gate banks every graded read
+                "capture_doors.json",      # v2316 — per-door Wilson ledger, written on every open/seal
                 "shadow_watch.json",       # v2304 — the watcher writes every 20s
                ".board_identity.json",   # v2147 — a test that forgets to patch
                #   _BOARD_ID_PATH would otherwise mutate his real world record unseen

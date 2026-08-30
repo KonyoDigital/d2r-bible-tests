@@ -4184,6 +4184,14 @@ def capture_preflight(door, look_for_window=True):
 
     # 1) the macOS Screen Recording grant, measured in THIS process
     try:
+        # ⚠ FRESH HERE, CACHED IN THE PAYLOAD, AND THE SPLIT IS BY FREQUENCY. A preflight runs
+        # ONCE, when he presses a button; a status poll runs every second. So the refusal
+        # path pays the full probe and is never wrong, while the poll reads the cache and is
+        # never slow. Reading the cache here made the grant STICKY for ten seconds: a guard
+        # that stubbed the probe to False still got True, MINI did not refuse at its own
+        # door, and start_agent refused instead — with ON AIR's wording, which is the exact
+        # drift v2319 closed. A cache that outlives the decision it feeds is a stale reading.
+        # [[stale-reading]]
         facts["screenRecOk"] = bool(_screen_recording_ok_quick())
     except Exception:
         pass
@@ -4234,6 +4242,33 @@ def capture_preflight(door, look_for_window=True):
 
 
 CAPTURE_DOORS_PATH = os.path.join(HERE, "capture_doors.json")
+
+
+def _kai_missed_texts(missed):
+    """Distinct, order-stable text strings across EVERY missed frame. -> [str, ...]
+
+    Deduped case-insensitively on a squeezed form so "ATHEtQA'S WRATH" and "ATHEtQA'S  WRATH" are
+    one string, while genuinely different garblings of the same item stay separate — OCR noise is
+    not something this can safely collapse, and pretending otherwise would under-count.
+
+    ⚠ IT COUNTS STRINGS, NOT ITEMS, AND THE DIFFERENCE IS REAL: several garblings of one tooltip
+    are several strings, and a stat line is a string with no item behind it at all. So this is an
+    UPPER BOUND on the items a reel dropped, and the honest thing to call it is what it is.
+    """
+    out, seen = [], set()
+    for m in (missed or []):
+        if not isinstance(m, dict):
+            continue
+        for t in (m.get("texts") or []):
+            t = str(t or "").strip()
+            if len(t) < 3:
+                continue
+            k = " ".join(t.split()).lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(t)
+    return out
 
 
 def _capture_door_load():
@@ -4345,6 +4380,67 @@ def capture_door_report():
             "lastWhy": row.get("lastWhy") or "",
         }
     return out
+
+
+_SCREEN_REC_CACHE = {"t": 0.0, "v": None}
+_SCREEN_REC_TTL_S = 10.0
+
+
+_VAULT_AUTOREAD_CACHE = {"t": 0.0, "d": None}
+_VAULT_AUTOREAD_TTL_S = 3.0
+
+
+def _vault_autoread_state_cached():
+    """The vault autoread lamp, at most _VAULT_AUTOREAD_TTL_S seconds old. -> dict
+
+    v2320 — the OTHER per-call cost in the polled payload. Measured cold 661 ms, and 157 ms on
+    EVERY call after that — uncached, unlike fleet_presence beside it. At a once-a-second poll that
+    is a sixth of the interval spent re-deriving a lamp that changes on a 45-second timer.
+
+    Three seconds, not one, because the lane it reports on ticks every 45: a three-second-old
+    answer about a 45-second cycle is not a stale reading, it is the same reading. And unlike the
+    payload-level cache this replaces, nothing asserts this component is instantaneous — it
+    describes a background lane, not the console's own mode. [[stale-reading]]
+    """
+    now = time.time()
+    c = _VAULT_AUTOREAD_CACHE
+    if c["d"] is not None and (now - c["t"]) < _VAULT_AUTOREAD_TTL_S:
+        return c["d"]
+    try:
+        d = _vault_autoread_state()
+    except Exception:
+        return c["d"] if c["d"] is not None else {}
+    c["t"], c["d"] = time.time(), d
+    return d
+
+
+def screen_recording_ok_cached():
+    """The grant, at most _SCREEN_REC_TTL_S seconds old. -> bool
+
+    ⚠ v2319 — THIS EXISTS BECAUSE I PUT THE UNCACHED CALL IN THE STATUS PAYLOAD AND FROZE HIS
+    CONSOLE. v2316 added `"screenRecOk": bool(_screen_recording_ok_quick())` to status_payload,
+    which the UI polls continuously. MEASURED: CGPreflightScreenCaptureAccess costs 1,934 ms on a
+    cold call and 26 ms warm — so poll threads stacked and /api/status took 11,887 ms while
+    /api/shadow took 517. He pressed ON AIR and MINI and nothing happened, twice, and reported the
+    buttons as broken. They were not: the POST was issued and the console could not answer.
+
+    A per-frame-cost call belongs nowhere near a payload something polls. The refusal paths use the
+    cache too — a grant that changed in the last ten seconds is not a case worth a two-second stall
+    on every poll, and the capture path self-diagnoses if it is wrong.
+
+    ⚠ AND IT CARRIES ITS AGE HONESTLY: ten seconds is the most this can be wrong by, which is why
+    the TTL is short rather than absent. [[stale-reading]]
+    """
+    now = time.time()
+    c = _SCREEN_REC_CACHE
+    if c["v"] is not None and (now - c["t"]) < _SCREEN_REC_TTL_S:
+        return bool(c["v"])
+    try:
+        v = bool(_screen_recording_ok_quick())
+    except Exception:
+        v = True                      # never BLOCK on an unreadable grant; the capture path refuses
+    c["t"], c["v"] = now, v
+    return v
 
 
 def _reclaim_headless_for_scan():
@@ -6024,7 +6120,18 @@ _REGISTER_ANCHORS = frozenset((
 
 def _register_is_junk(low):
     """Reuse the KAI word-boundary noise sense, plus gold-shape + potion/scroll consumables.
-    Real DB grounding already gates most junk; this catches the always-carried filler."""
+    Real DB grounding already gates most junk; this catches the always-carried filler.
+
+    v2319 — ALSO asks tv/inventory_law, which is now the ONE place his ruling lives. Additive:
+    every check below still runs, so nothing this used to catch stops being caught. The shared
+    module exists because the same law was encoded here, in vault_corpus (as FIXED cells) and in
+    the live prompt, and the retro readers could see none of them. [[copy-drift]]"""
+    try:
+        import inventory_law as _il
+        if _il.is_consumable(low):
+            return True
+    except Exception:
+        pass
     if _kai_line_is_noise(low):
         return True
     if low == "gold" or re.fullmatch(r"\d[\d,\.]*\s*gold", low):
@@ -6036,6 +6143,15 @@ def _register_is_junk(low):
 
 
 def _register_is_anchor(low):
+    # v2319 — the shared law first, then the local set. Konyo: "the horadric cube and tome of
+    # identify and tome of town of scrolls portals.. these are locked inventory items within the
+    # inventory template thats a LAW". Additive — the frozenset and the "tome of" test both stay.
+    try:
+        import inventory_law as _il
+        if _il.is_locked(low):
+            return True
+    except Exception:
+        pass
     if low in _REGISTER_ANCHORS:
         return True
     return "tome of" in low   # Tome of Town Portal / Tome of Identify
@@ -8597,6 +8713,30 @@ def _kai_closer_loop():
             report = {"sid": sid, "scanned": scanned, "textFrames": textframes,
                       "classFrames": class_frames,
                       "missedFrames": len(missed), "missed": missed[:40],
+                      # v2318 — THE DISTINCT TEXTS, ACROSS ALL MISSED FRAMES, NOT JUST THE KEPT 40.
+                      # v1712 made the missed SET recoverable by carrying every frame id; the TEXTS
+                      # still lived only inside the 40 verbose rows, so the one question anyone
+                      # actually asks — how many ITEMS did this reel drop — could not be answered
+                      # from a sealed reel without re-OCRing it. Measured across his 28 reels:
+                      # missedFrames totalled 893 while the retained sample held 260 rows, and most
+                      # of those were stat lines ("PER HIT", "ATTACK SPEED"), not names. So "893"
+                      # invited a reading it does not support, and the number that would have
+                      # settled it was thrown away at seal time. A tooltip is up for several frames,
+                      # so frames are always MORE than items; deduping is what turns one into the
+                      # other. Cheap: strings only, deduped, order-stable, capped at 400 DISTINCT
+                      # values with the true total beside it. [[unknown-stays-unknown]]
+                      "missedTexts": _kai_missed_texts(missed)[:400],
+                      "missedTextsTotal": len(_kai_missed_texts(missed)),
+                      # ⚠ DELIBERATELY NOT BUMPING kaiVer FOR THIS. The convention below says
+                      # any seal-time change bumps kaiVer + _KAIVER_TARGET in lockstep so
+                      # sealed reels auto-resweep. That is right for logic that changes a
+                      # VERDICT; this only adds a field. Bumping would re-OCR all 28 of his
+                      # reels — the closer runs the local OCR worker frame by frame, and that
+                      # is precisely the load that had his Mac at ~100% and too hot to play
+                      # on today. So: NEW reels carry missedTexts, OLD reels keep their
+                      # count-only record and can be reswept on demand when he is not using
+                      # the machine. Stated here because a silent difference between old and
+                      # new reels is exactly the kind of gap that later reads as a defect.
                       "grounded": grounded_reads[:40],   # FIX C (F3) — grail names recovered from garble
                       "classes": classes,
                       # ⚠️ CONVENTION (E3 lesson): ANY change to seal-time logic (grounding /
@@ -12592,7 +12732,20 @@ MINI_FOCUS = "stash"                 # the DEFAULT focus
 # sweep decides whether the stamp is trustworthy by membership in it.
 MINI_FOCUSES = ("stash", "runes", "gems", "materials", "chronicle-uniques", "chronicle-sets")
 MINI_MIN_SECONDS = 10
-MINI_MAX_SECONDS = 40
+# v2319 — THE HOVER FOCUSES HAD THE SHORTEST CEILING IN THE SYSTEM, AND THEY ARE THE SLOWEST WORK.
+# Konyo, mid-run on his 20-item test: "the mini is too short... it ended it.. why?? it needs to be
+# longer obviously". He is right, and the old numbers make the reason plain: a chronicle focus —
+# which is SCROLLING A PAGE — could run 240s, while `stash`, the one surface where he must move a
+# mouse to each cell and HOLD it there until the tooltip paints, was capped at 40. A tooltip is the
+# only place an item name appears, so the stash focus is a per-item manual pass: twenty items at
+# roughly a second of hover plus travel is 90-120s before he has hurried. At 40s the ceiling was
+# the binding constraint, exactly as it was for the chronicle at 25s in v1744.
+#
+# The default stays 25 for the quick grid focuses (runes/gems/materials photograph one screen and
+# 25s covers it several times over). `stash` and `inventory` get their own default and the ceiling
+# moves to 300 so there is room above it — the same shape as the chronicle fix, for the same
+# reason: unequal work, so unequal numbers. [[feedback-threshold-above-the-ceiling]]
+MINI_MAX_SECONDS = 300
 MINI_DEFAULT_SECONDS = 25
 # v1744 — A CHRONICLE IS READ BY SCROLLING, SO IT NEEDS LONGER THAN A STASH TAB.
 # Konyo: "maybe longer then 25 seconds for it." A stash tab is ONE screen — 25s photographs it
@@ -12624,7 +12777,9 @@ MINI_CHRONICLE_DEFAULT_SECONDS = 75
 # for more. Sets gets double the default, the chronicle ceiling doubles to 240 so there is room
 # above both, and the numbers are PUBLISHED (see /api/mini) instead of copied — the console's
 # MINI_FOCUS_SECS was a second copy of this table and would have gone on saying 75. [[copy-drift]]
-MINI_FOCUS_SECONDS = {"chronicle-sets": 150}
+MINI_FOCUS_SECONDS = {"chronicle-sets": 150,
+                      # v2319 — the hover pass: one tooltip at a time, by hand.
+                      "stash": 120}
 
 
 def _mini_focus(v):
@@ -19690,6 +19845,19 @@ def install_identity():
         return {"id": "", "computer": "?", "user": "?", "platform": "?", "createdAt": ""}
 
 
+# ⚠ v2320 — A PAYLOAD-LEVEL CACHE WAS THE WRONG LAYER AND THE SUITE WAS RIGHT TO REJECT IT.
+# v2319 wrapped status_payload() in a 1-second cache to stop concurrent polls each recomputing it.
+# It worked on speed and broke TRUTH: seven guards set a piece of state and read status back
+# expecting it to reflect immediately — the running stamp, the stub flag, the sticky bridge, the
+# stale-grace mark. A second of staleness is invisible in a poll and fatal in a test, and the tests
+# were describing the real contract: status is what is true NOW.
+#
+# The cost was never "computing the payload once". Measured: warm 377 ms, and 11,887 ms only
+# because ONE component — an uncached macOS TCC preflight at 1,934 ms cold — pushed each poll past
+# the poll interval so threads stacked. Cache the expensive COMPONENTS, leave the payload honest.
+# [[feedback-suspect-the-instrument]]
+
+
 def status_payload():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
@@ -19807,7 +19975,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2318",
+        "ver": "v2320",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -19895,7 +20063,7 @@ def status_payload():
         # indistinguishable from one that had never run. That is the exact defect v1789 records
         # about the third eye: a gate whose output nobody parses is not a gate.
         # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
-        "vaultAutoread": _vault_autoread_state(),
+        "vaultAutoread": _vault_autoread_state_cached(),
         "controlPort": CONTROL_PORT,
         "captureTarget": _cap if isinstance(_cap, dict) else {},
         "eyeAgeMs": _eye if _eye is not None else -1,
@@ -19918,7 +20086,7 @@ def status_payload():
         # is static and near-black BY DESIGN (tv_diablo.py:6614). A fault that asserts an
         # unmeasured cause sends him to System Settings to fix nothing.
         # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
-        "screenRecOk": bool(_screen_recording_ok_quick()),
+        "screenRecOk": screen_recording_ok_cached(),
         # v2316 — per-door Wilson: how often a reel THIS door opened actually held readable film.
         "captureDoors": capture_door_report(),
         "bibleVer": _bible_ver(),
@@ -22747,15 +22915,38 @@ class Handler(BaseHTTPRequestHandler):
                 return
             # v891 (Grok C3) — DISK PREFLIGHT: below the floor the reaper can't keep a reel
             # alive; refuse loudly with the exact ask instead of recording a doomed session.
+            # v2319 — ON AIR NOW REFUSES AT ITS OWN DOOR, LIKE MINI. Konyo: "fix the ON AIR to
+            # match the MINI if its better coded.. make it gapless between them so they additives".
+            # Measured before changing anything: both doors already performed every check, but ON
+            # AIR got three of them one level in, inside start_agent — so its refusals arrived
+            # later, after a session id existed, and worded for a different button. Nothing is
+            # removed here; ON AIR gains the same door-level preflight MINI has.
+            #
+            # ⚠ AND THE OLD BLOCK CARRIED A BARE LITERAL. The comparison used ON_AIR_FLOOR_GB while
+            # the message it printed said "need 8GB" and computed "9 - _free" — so moving the floor
+            # would have left ON AIR confidently telling him the wrong number to free. That is the
+            # drift the v2086 guard was written for, surviving in the message instead of the test.
+            # [[copy-drift]] [[label-outlived-referent]]
+            _pre_on = capture_preflight("onair", look_for_window=False)
             try:
-                import shutil as _shd
-                _free = _shd.disk_usage(HIST_DIR).free / 1e9
-                if _free < ON_AIR_FLOOR_GB:
-                    self._json(200, {"ok": False, "mode": "off",
-                                     "error": "DISK TOO FULL to record — %.1fGB free, need 8GB. Free ~%.0fGB and press ON AIR again." % (_free, 9 - _free)})
-                    return
+                _capture_door_note("onair", _pre_on)
             except Exception:
                 pass
+            if _pre_on.get("diskOk") is False:
+                _free = _pre_on.get("freeGb") or 0.0
+                self._json(200, {"ok": False, "mode": "off",
+                                 "error": "DISK TOO FULL to record — %.1fGB free, need %.0fGB. "
+                                          "Free ~%.0fGB and press ON AIR again."
+                                          % (_free, ON_AIR_FLOOR_GB,
+                                             max(0.0, ON_AIR_FLOOR_GB + 1 - _free))})
+                return
+            if _pre_on.get("screenRecOk") is False:
+                self._json(200, {"ok": False, "mode": "off",
+                                 "error": "Screen Recording is not granted to this Python — ON AIR "
+                                          "would film the desktop, not the game. Grant it in "
+                                          "System Settings \u2192 Privacy \u2192 Screen Recording, "
+                                          "then press ON AIR again."})
+                return
             if _stop_inflight:
                 # v899 — if the agent is already dead, clear the latch and allow ON
                 if not _agent_alive() and _port_listener_pid() is None:

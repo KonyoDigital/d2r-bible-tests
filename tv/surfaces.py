@@ -101,6 +101,90 @@ def readers():
     return {k: sorted(v) for k, v in out.items()}
 
 
+def techniques_for(surface):
+    """What this surface's reader is DECLARED to need. -> (dict, why)
+
+    The table has always said which enlarge each surface wants and whether it needs the tooltip;
+    nothing ever asked it. This is the asking.
+    """
+    v = SURFACES.get(surface)
+    if not v:
+        return None, ("unknown surface %r — the declared ones are %s"
+                      % (surface, ", ".join(sorted(SURFACES))))
+    e = v.get("enlarge") or ()
+    return {
+        "reader": v.get("reader"),
+        "anchor": v.get("anchor"),
+        "layout": v.get("layout"),
+        "tooltip": bool(v.get("tooltip")),
+        "enlarge": (e[0] if e else None),
+        "enlargeParams": (e[1] if e and len(e) > 1 else {}),
+    }, None
+
+
+def prepare(frame_path, surface, work_dir=None):
+    """Apply this surface's DECLARED enlarge to a frame. -> (path, why)
+
+    ★ WHY THIS EXISTS. Konyo, on the retro lane: "make this a unified logic again for everything
+    related to the ai readers in retrospect.. everything in this lane needs their gaps ungapped",
+    "as additives to anything with a gap in the same lane", and earlier "the cropping and enlarging
+    of anything built template wise like we had back when we were manual".
+
+    MEASURED ACROSS THE RETRO LANE BEFORE WRITING THIS — technique by reader:
+
+        technique          vault_retro  chronicle_retro  live_miss_audit  slot_identity  prune_shadow
+        tooltip crop           yes            -                -                -             -
+        stash_eye grid          -             -                -                -             -
+        enlarge (crop+3x)       -             -                -                -             -
+        surfaces registry       -             -                -                -             -
+
+    NOT ONE retro reader applies the enlarge toolkit. stash_eye owns it — prep_tab_chrome, the
+    per-layout prep_stash_grid, the 3x scale — and only the LIVE agent calls it. So the retro pass,
+    which has all the time in the world and no frame to keep up with, reads raw pixels while the
+    live pass gets the prepared ones. That is backwards, and it is the gap he named.
+
+    ⚠ ADDITIVE, AND IT DECIDES NOTHING. This does not change any reader's verdict; it hands any
+    caller the same prepared image the live path would have used, from the SAME declaration, so a
+    fix to one surface's technique reaches every reader instead of one. A reader that ignores it is
+    exactly as correct as it was before.
+
+    ⚠ AND IT RETURNS THE ORIGINAL, NOT A FAILURE, WHEN A SURFACE DECLARES NO ENLARGE. The chronicle
+    surfaces declare none because the modal PRINTS its names — that is a real answer, not a gap, and
+    turning it into an error would invent work. The `why` says which case you got.
+    """
+    import os
+    t, why = techniques_for(surface)
+    if not t:
+        return None, why
+    if not frame_path or not os.path.isfile(frame_path):
+        return None, "no frame at %r" % (frame_path,)
+    fn = t.get("enlarge")
+    if not fn:
+        return frame_path, ("%s declares no enlarge — its names are printed, not hovered" % surface)
+    try:
+        import stash_eye as _se
+    except Exception as e:
+        return frame_path, "stash_eye is unavailable (%s) — using the raw frame" % str(e)[:60]
+    op = getattr(_se, fn, None)
+    if not callable(op):
+        return frame_path, ("stash_eye has no %r — the table names a technique the reader does not "
+                            "carry, which is the drift this registry exists to surface" % fn)
+    wd = work_dir or os.path.dirname(os.path.abspath(frame_path)) or "."
+    dest = os.path.join(wd, ".surface_%s.jpg" % surface.replace("-", "_"))
+    try:
+        ok = op(frame_path, dest)
+    except TypeError:
+        try:
+            ok = op(frame_path, dest, **(t.get("enlargeParams") or {}))
+        except Exception as e:
+            return frame_path, "%s raised (%s) — using the raw frame" % (fn, str(e)[:60])
+    except Exception as e:
+        return frame_path, "%s raised (%s) — using the raw frame" % (fn, str(e)[:60])
+    if ok and os.path.isfile(dest) and os.path.getsize(dest) > 512:
+        return dest, None
+    return frame_path, "%s produced nothing usable — using the raw frame" % fn
+
+
 def tooltip_surfaces():
     """Surfaces that DECLARE they need the tooltip step. -> [name, ...]
 

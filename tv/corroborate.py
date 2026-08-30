@@ -472,7 +472,37 @@ def _inv_every_declared_tooltip_surface_is_served():
             "surfaces declaring tooltip", left, "surfaces actually served", right, "==")
 
 
-BUILDERS = (_inv_every_declared_tooltip_surface_is_served,
+def _inv_the_console_and_the_law_agree_about_furniture():
+    """v2319 — the console's own furniture verdict against the shared law it now delegates to.
+
+    Konyo: "these are locked inventory items within the inventory template thats a LAW ... make
+    this also a unified logic within the ai readers and console. it needs a hardcode logic."
+
+    The law WAS already encoded three times — control_app._REGISTER_ANCHORS, vault_corpus's FIXED
+    cells, and the live prompt's prose — and the retro readers could see none of them. Now there is
+    one module and the console asks it. This pair fails the moment those two answers part, in
+    either direction: a console that stops recognising the cube, or a law that starts calling loot
+    furniture. [[copy-drift]]
+    """
+    import control_app as ca
+    import inventory_law as il
+
+    NAMES = ("Horadric Cube", "Tome of Identify", "Tome of Town Portal", "Wirt's Leg")
+
+    def left():
+        return sum(1 for n in NAMES if ca._register_is_anchor(n.lower()))
+
+    def right():
+        return sum(1 for n in NAMES if il.is_locked(n))
+
+    return ("furniture-law-agrees",
+            "the console and the shared inventory law name the same items as furniture",
+            "drop one from inventory_law.LOCKED and this parts 4 vs 3",
+            "console anchors", left, "the shared law", right, "==")
+
+
+BUILDERS = (_inv_the_console_and_the_law_agree_about_furniture,
+            _inv_every_declared_tooltip_surface_is_served,
             _inv_vault_worklist,
             _inv_the_two_owned_fields,
             _inv_the_eagle_can_still_look,

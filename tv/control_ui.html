@@ -12238,7 +12238,32 @@
         if (j && j.running) {
           if (btn) btn.classList.add('mini-live');
           if (sub) sub.textContent = 'recording · ' + (j.secondsLeft || 0) + 's left';
+          /* v2319 — SAY IT ON THE ON AIR CARD TOO, because there is only ONE capture and two
+             doors into it. Konyo pressed both and reported it "bugged... i want you to make sure
+             when one is open the other obviously cant be". The refusal ALREADY works — his own
+             screenshot at 18:43 shows MINI answering "already recording — seal the current
+             session first". What misled him was the next frame: ON AIR lit, MODE LIVE, and MINI
+             saying "recording · 76s left" at the same moment, which reads as two captures
+             fighting. It is one: mini_start() spawns through the same start_agent() /api/on uses,
+             so a MINI IS the live session, wearing a focus and a deadline.
+             So the ON AIR card stops offering itself as a separate thing while a MINI owns the
+             capture, and names which door is holding it. [[the-unjoined-end]] */
+          try {
+            var _onB = document.getElementById('btn-on');
+            var _ob = _onB && _onB.querySelector('.lab b');
+            var _os = _onB && _onB.querySelector('.lab span');
+            if (_onB && !_onB.classList.contains('working')) {
+              _onB.classList.add('held-by-mini');
+              if (_ob) _ob.textContent = 'End Session';
+              if (_os) _os.textContent = 'MINI holds the capture · '
+                                       + (j.secondsLeft || 0) + 's left';
+            }
+          } catch (_e) {}
         } else {
+          try {
+            var _onB2 = document.getElementById('btn-on');
+            if (_onB2) _onB2.classList.remove('held-by-mini');
+          } catch (_e2) {}
           if (btn) btn.classList.remove('mini-live');
           /* v1605.1 — THE IDLE LABEL LAST, AND IT MUST NOT CLOBBER. My own spec caught this: the
              warning above set the label and this line overwrote it one tick later, so the "0

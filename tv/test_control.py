@@ -4951,6 +4951,339 @@ class TestV2304ShadowOnlyRollsAReelWhenItShould(unittest.TestCase):
         self._with_window((123, "Diablo II: Resurrected"))
         self.assertEqual(self._started, [], "it recorded while he had shadow switched off")
 
+class TestV2319TheRetroLaneCanUseTheSameToolkit(unittest.TestCase):
+    """★ Konyo: "make this a unified logic again for everything related to the ai readers in
+    retrospect.. everything in this lane needs their gaps ungapped", "as additives to anything with
+    a gap in the same lane".
+
+    MEASURED ACROSS THE RETRO LANE BEFORE BUILDING ANYTHING — technique by reader:
+
+        technique          vault_retro  chronicle_retro  live_miss_audit  slot_identity  prune_shadow
+        tooltip crop           yes            -                -                -             -
+        stash_eye grid          -             -                -                -             -
+        enlarge (crop+3x)       -             -                -                -             -
+        surfaces registry       -             -                -                -             -
+        wilson/confluence      yes           yes               -                -            yes
+
+    NOT ONE retro reader applied the enlarge toolkit. stash_eye owns it and only the LIVE agent
+    called it — so the retro pass, which has all the time in the world, read raw pixels while the
+    live pass got prepared ones. And surfaces.py, the table declaring which technique each surface
+    needs, had no consumer at all: a declaration nobody asked. [[the-unjoined-end]]
+
+    PROVEN ON HIS OWN FRAME: prepare(stash) on a 1,378 KB reel frame returned a 235 KB image via
+    the declared prep_tab_chrome at scale 3.
+    """
+
+    def test_the_table_can_be_ASKED_not_just_read(self):
+        import surfaces as S
+        t, why = S.techniques_for("stash")
+        self.assertIsNotNone(t, why)
+        self.assertEqual(t["enlarge"], "prep_tab_chrome")
+        self.assertEqual(t["enlargeParams"], {"scale": 3})
+        self.assertTrue(t["tooltip"])
+
+    def test_an_unknown_surface_is_REFUSED_and_names_the_real_ones(self):
+        import surfaces as S
+        t, why = S.techniques_for("nope")
+        self.assertIsNone(t)
+        self.assertIn("unknown surface", why)
+        self.assertIn("stash", why, "the refusal did not say which surfaces DO exist")
+
+    def test_a_surface_with_no_enlarge_returns_the_ORIGINAL_not_an_error(self):
+        """The chronicle modal PRINTS its names. Declaring no enlarge is an answer, not a gap —
+        turning it into a failure would invent work that does not exist."""
+        import surfaces as S, tempfile, os as _os
+        fd, fp = tempfile.mkstemp(suffix=".jpg"); _os.close(fd)
+        with io.open(fp, "wb") as fh:
+            fh.write(b"\xff\xd8\xff" + b"0" * 2000)
+        try:
+            out, why = S.prepare(fp, "chronicle-uniques")
+            self.assertEqual(out, fp, "it replaced a frame for a surface that declared no enlarge")
+            self.assertIn("printed", why or "", "it did not say WHY there was nothing to apply")
+        finally:
+            try: _os.unlink(fp)
+            except Exception: pass
+
+    def test_a_missing_frame_is_refused(self):
+        import surfaces as S
+        out, why = S.prepare("/nope/not/here.jpg", "stash")
+        self.assertIsNone(out)
+        self.assertIn("no frame", why)
+
+    def test_it_NEVER_raises_into_a_sweep(self):
+        """This runs inside retro passes; raising here would cost a whole reel."""
+        import surfaces as S, tempfile, os as _os
+        fd, fp = tempfile.mkstemp(suffix=".jpg"); _os.close(fd)
+        with io.open(fp, "wb") as fh:
+            fh.write(b"not a jpeg at all")
+        try:
+            out, why = S.prepare(fp, "stash")
+            self.assertEqual(out, fp,
+                             "a frame the enlarge could not handle must fall back to the raw one, "
+                             "not vanish")
+            self.assertTrue(why, "it fell back silently — the caller cannot tell it got raw pixels")
+        finally:
+            try: _os.unlink(fp)
+            except Exception: pass
+
+
+class TestV2319StatusIsCheapEnoughToPOLL(unittest.TestCase):
+    """★ HE PRESSED ON AIR AND MINI AND SAID THEY WERE BROKEN. THEY WERE NOT.
+
+    Traced live from his console: POST /api/on was issued on EVERY click, no exception, no
+    rejection. The console simply could not answer —
+
+        /api/status  HTTP 200 in 11,887 ms   ·   /api/shadow 517 ms   ·   /api/mini 249 ms
+
+    so nothing on screen changed and a working button read as a dead one.
+
+    MY REGRESSION: v2316 put `_screen_recording_ok_quick()` — a macOS TCC preflight measured at
+    1,934 ms cold — straight into the payload the UI polls about once a second. And the damage
+    compounded, because ThreadingHTTPServer gives each request a thread: poll threads accumulated
+    and contended, and the live timings CLIMBED 2,973 -> 5,081 -> 9,320 -> 11,248 ms across five
+    consecutive calls while an isolated process computed the same payload warm in 377 ms.
+
+    Two rules come out of it, and this asserts both:
+      1. status_payload is CACHED, so N concurrent polls cost one computation.
+      2. nothing in the uncached builder calls the raw TCC probe directly again.
+    """
+
+    def _src(self):
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            return _code_only(fh.read())
+
+    def test_the_payload_is_NOT_cached_and_that_is_deliberate(self):
+        """⚠ v2319 CACHED THE WHOLE PAYLOAD AND SEVEN GUARDS CAUGHT IT. v2320 reverted that.
+
+        The cache worked on speed and broke TRUTH: the running stamp, the stub flag, the sticky
+        bridge and the stale-grace mark are all read back immediately after being set, and a
+        second of staleness is invisible in a poll and fatal in a test. The tests were describing
+        the real contract — status is what is true NOW — and they were right.
+
+        The cost was never computing it once. It was ONE component, an uncached macOS TCC preflight
+        at 1,934 ms cold, pushing every poll past the poll interval so threads stacked.
+        """
+        src = self._src()
+        self.assertNotIn("_STATUS_CACHE", src,
+                         "a payload-level cache is back — it makes status lie for a second, which "
+                         "is exactly what seven guards refused")
+        calls = {"n": 0}
+        real = ca._vault_autoread_state
+        ca._vault_autoread_state = lambda: (calls.__setitem__("n", calls["n"] + 1), {})[1]
+        try:
+            ca._VAULT_AUTOREAD_CACHE["t"], ca._VAULT_AUTOREAD_CACHE["d"] = 0.0, None
+            for _ in range(20):
+                ca._vault_autoread_state_cached()
+        finally:
+            ca._vault_autoread_state = real
+            ca._VAULT_AUTOREAD_CACHE["t"], ca._VAULT_AUTOREAD_CACHE["d"] = 0.0, None
+        self.assertEqual(calls["n"], 1,
+                         "the EXPENSIVE COMPONENT is uncached again — 157 ms on every call, at a "
+                         "once-a-second poll")
+
+    def test_the_grant_probe_is_not_called_raw_in_the_payload(self):
+        """1,934 ms cold, on a payload polled every second. This is what froze his console."""
+        src = self._src()
+        body = _between(self, src, "def status_payload(", "\ndef ", what="the status payload")
+        self.assertNotIn("_screen_recording_ok_quick()", body,
+                         "the raw TCC preflight is back in the polled payload")
+        self.assertIn("screen_recording_ok_cached()", body,
+                      "the payload stopped reading the cached grant")
+
+    def test_the_grant_cache_actually_caches(self):
+        calls = {"n": 0}
+        real = ca._screen_recording_ok_quick
+        ca._screen_recording_ok_quick = lambda: (calls.__setitem__("n", calls["n"] + 1), True)[1]
+        try:
+            ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
+            for _ in range(25):
+                ca.screen_recording_ok_cached()
+        finally:
+            ca._screen_recording_ok_quick = real
+            ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
+        self.assertEqual(calls["n"], 1,
+                         "the grant was probed %d times in 25 calls" % calls["n"])
+
+    def test_an_unreadable_grant_does_not_BLOCK(self):
+        """A probe that raises must not refuse every capture; the capture path self-diagnoses."""
+        real = ca._screen_recording_ok_quick
+        def boom():
+            raise RuntimeError("Quartz is unhappy")
+        ca._screen_recording_ok_quick = boom
+        try:
+            ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
+            self.assertTrue(ca.screen_recording_ok_cached(),
+                            "an unreadable grant became a refusal — that would block ON AIR and "
+                            "MINI on a machine whose only fault is a flaky Quartz call")
+        finally:
+            ca._screen_recording_ok_quick = real
+            ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
+
+
+class TestV2319TheTwoDoorsStayGAPLESS(unittest.TestCase):
+    """★ Konyo: "fix the ON AIR to match the MINI if its better coded.. make it gapless between
+    them so they additives", and before that: "just make sure not to cut out anything that you
+    dont see in the regular ONAIR.. GAPS make sure to see the differences between them".
+
+    MEASURED BEFORE CHANGING ANYTHING, which is what made the answer honest: both doors already
+    performed every check — ON AIR simply got three of them ONE LEVEL IN, inside start_agent. So
+    its refusals arrived later, after a session id existed, worded for a different button. Nothing
+    was cut; ON AIR gained the door-level preflight MINI had.
+
+    ⚠ AND THE MEASUREMENT FOUND A REAL DEFECT ON THE WAY. ON AIR's disk refusal compared against
+    ON_AIR_FLOOR_GB while the message it printed said "need 8GB" and computed "9 - _free" — bare
+    literals. Move the floor and ON AIR confidently tells him the wrong number of gigabytes to
+    free. That is exactly the drift the v2086 guard exists for, surviving in the MESSAGE where no
+    test was looking. [[copy-drift]] [[label-outlived-referent]]
+
+    This asserts the doors keep the same checks, so one cannot quietly gain a guard the other
+    lacks — in EITHER direction.
+    """
+
+    def _src(self):
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            return _code_only(fh.read())
+
+    def _doors(self):
+        src = self._src()
+        mini = _between(self, src, "def mini_start(", "\ndef ", what="mini_start")
+        onair = _between(self, src, '"/api/on":', '"/api/off"', what="the ON AIR route")
+        return mini, onair
+
+    def test_both_doors_ask_the_SAME_preflight(self):
+        mini, onair = self._doors()
+        for name, body in (("MINI", mini), ("ON AIR", onair)):
+            self.assertIn("capture_preflight(", body,
+                          "%s stopped asking the shared preflight — it is deciding whether it can "
+                          "record from its own idea of the rules again" % name)
+
+    def test_both_doors_refuse_on_a_missing_GRANT_at_the_door(self):
+        mini, onair = self._doors()
+        for name, body in (("MINI", mini), ("ON AIR", onair)):
+            self.assertIn("screenRecOk", body,
+                          "%s no longer checks the grant at its own door, so its refusal comes "
+                          "from start_agent naming a different button" % name)
+
+    def test_both_doors_record_themselves_for_the_WILSON_ledger(self):
+        mini, onair = self._doors()
+        for name, body in (("MINI", mini), ("ON AIR", onair)):
+            self.assertIn("_capture_door_note(", body,
+                          "%s stopped recording its own refusals — its Wilson score then measures "
+                          "a door nobody watched" % name)
+
+    def test_NEITHER_door_prints_a_bare_floor_number(self):
+        """The defect this class was written from: the comparison used the constant and the
+        SENTENCE used 8 and 9."""
+        mini, onair = self._doors()
+        for name, body in (("MINI", mini), ("ON AIR", onair)):
+            self.assertNotIn("need 8GB", body,
+                             "%s hardcodes the floor in the message it shows him" % name)
+            self.assertIn("ON_AIR_FLOOR_GB", body,
+                          "%s stopped reading the shared floor" % name)
+
+
+class TestV2318TheMissedSetCanNameITEMSNotJustFrames(unittest.TestCase):
+    """★ 893 IS FRAMES. THE QUESTION EVERYONE ASKS IS ITEMS, AND IT COULD NOT BE ANSWERED.
+
+    Measured across his 28 reels: missedFrames totalled 893 while the retained `missed` sample held
+    260 rows — a per-reel CAP of 40 — and most of those rows were stat lines ("PER HIT",
+    "A TT AeK SpEoD", "ARfjET DeFfNSE"), not names. So "893 dropped hovers" was a reading the
+    number did not support, and the figure that would have settled it was discarded at seal time.
+    v1712 had already made the missed SET recoverable by carrying every frame id; the TEXTS still
+    lived only inside the capped rows.
+
+    A tooltip stays up for several consecutive frames, so frames are always MORE than items.
+    Deduping the texts is what turns one into the other.
+    """
+
+    def test_it_dedupes_across_ALL_missed_frames_not_just_the_kept_ones(self):
+        missed = [{"f": "a", "texts": ["ATHEtQA'S WRATH", "PER HIT"]},
+                  {"f": "b", "texts": ["athetqa's   wrath", "BATTLE CESTUS"]}]
+        got = ca._kai_missed_texts(missed)
+        self.assertEqual(got, ["ATHEtQA'S WRATH", "PER HIT", "BATTLE CESTUS"],
+                         "the same string in a different case/spacing counted twice — that inflates "
+                         "the item estimate with the very repetition the roll-up exists to remove")
+
+    def test_it_does_NOT_collapse_different_garblings(self):
+        """OCR noise is not safely collapsible. Two garblings of one tooltip stay two strings, so
+        this is an UPPER BOUND on items — pretending otherwise would under-count."""
+        missed = [{"f": "a", "texts": ["ATHEtQA'S WRATH"]},
+                  {"f": "b", "texts": ["ATHENA'S WRATH"]}]
+        self.assertEqual(len(ca._kai_missed_texts(missed)), 2,
+                         "two different garblings were merged — that is a guess about which item "
+                         "they came from, and this function is not allowed to make it")
+
+    def test_short_noise_is_dropped(self):
+        self.assertEqual(ca._kai_missed_texts([{"f": "a", "texts": ["ab", "", None, "ELITf"]}]),
+                         ["ELITf"])
+
+    def test_a_malformed_row_cannot_break_a_seal(self):
+        """This runs inside the closer at seal time; raising here would cost a whole reel."""
+        self.assertEqual(ca._kai_missed_texts([None, "not-a-dict", {"f": "a"}, {"texts": None}]), [])
+
+    def test_the_seal_records_BOTH_the_capped_list_and_the_true_total(self):
+        import re as _re
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('"missedTexts": _kai_missed_texts(missed)[:400]', src,
+                      "the distinct-text roll-up is gone from the seal")
+        self.assertIn('"missedTextsTotal": len(_kai_missed_texts(missed))', src,
+                      "the capped list ships without its true total beside it — a silent cap reads "
+                      "as 'that is all of them', which is the defect v1712 fixed for frame ids")
+
+
+class TestV2318TheRepairLedgerForkMismatchIsPINNED(unittest.TestCase):
+    """★ THE LEDGER IS PER-PROFILE AND ITS REPAIR MEMORY IS NOT. Measured, not assumed:
+
+        d2r_setPieces                    forked = True    <- what the repair EDITS
+        d2r_setRepairAt                  forked = False
+        d2r_setRepairKept                forked = False
+        d2r_setRepairRemoved             forked = False
+        d2r_v1925RemainingRepairApplied  forked = False   <- an "already ran" flag
+
+    THE MECHANISM: switching ladder mode gives him a different d2r_setPieces but the SAME repair
+    memory, and the applied-flag is global. So the repair runs once, marks itself done for both
+    profiles, and the other profile is never repaired.
+
+    ⚠ AND THE FIX IS NOT TO FORK THEM. Forking would make the other profile see an unapplied
+    repair and re-run it, which would MOVE HIS COUNTS — and his own ladder law is that a profile
+    toggle must never change a count. Today the round trip holds and nothing is wrong on screen.
+    So this is PINNED rather than fixed: the guard fires if the mismatch changes in either
+    direction, so whoever changes it has to arrive at this reasoning first instead of discovering
+    it from a count that moved. [[d2r-ladder-doctrine]] [[unknown-stays-unknown]]
+    """
+
+    KNOWN_UNFORKED = ("d2r_setRepairAt", "d2r_setRepairKept", "d2r_setRepairRemoved",
+                      "d2r_v1925RemainingRepairApplied")
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            self.html = _markup_only(fh.read())
+
+    def _forked_set(self):
+        import re as _re
+        seg = _between(self, self.html, "window._WP_FORKED", "}", what="the forked-store list")
+        return set(_re.findall(r"'(d2r_[A-Za-z0-9_]+)'", seg))
+
+    def test_the_ledger_the_repair_edits_is_forked(self):
+        self.assertIn("d2r_setPieces", self._forked_set(),
+                      "d2r_setPieces stopped being per-profile — the ladder toggle now shares one "
+                      "set ledger, which is a different and larger defect than the one pinned here")
+
+    def test_the_repair_memory_mismatch_has_not_CHANGED(self):
+        """Fires in BOTH directions: a new unforked repair store, or one quietly forked."""
+        import re as _re
+        forked = self._forked_set()
+        allst = set(_re.findall(r"'(d2r_[A-Za-z0-9_]+)'", self.html))
+        repair = set(x for x in allst if "epair" in x)
+        unforked = tuple(sorted(x for x in repair if x not in forked))
+        self.assertEqual(unforked, tuple(sorted(self.KNOWN_UNFORKED)),
+                         "the repair-store fork state changed. If one was FORKED, the other profile "
+                         "will now see an unapplied repair and re-run it, moving a count a profile "
+                         "toggle must never move. If a NEW one appeared, it inherits the same "
+                         "cross-profile leak. Read this class before updating the list.")
+
+
 class TestV2316TheInboxCannotSitInsideTheDock(unittest.TestCase):
     """★ AT 375px HE COULD NOT PRESS "tick it" OR "ignore", AND EVERY GATE WAS GREEN.
 
@@ -14954,11 +15287,27 @@ class TestTheMiniDurationsHaveOneSource(unittest.TestCase):
             d, mx = ca._mini_bounds(f)
             self.assertGreater(mx, d, "%s cannot be asked to run longer than its default" % f)
 
-    def test_the_stash_focuses_are_untouched(self):
-        # the mirror — a stash tab is ONE screen and 25s photographs it several times over
+    def test_the_GRID_focuses_are_untouched_and_the_HOVER_focus_is_not(self):
+        """⚠ v2320 — THIS GUARD PINNED (25, 40) FOR ALL FOUR AND HE OVERRULED IT MID-RUN.
+
+        Konyo, 20 seconds into his 20-item test: "the mini is too short... it ended it.. why?? it
+        needs to be longer obviously". He was right, and the old numbers made the reason plain: a
+        chronicle focus — SCROLLING A PAGE — could run 240s, while `stash`, the one surface where
+        he must move a mouse to each cell and HOLD it until the tooltip paints, was capped at 40.
+        Twenty items at ~1s of hover plus travel is 90-120s before he has hurried.
+
+        The grid focuses keep 25s because they are genuinely one screen: runes, gems and materials
+        photograph in a single frame and 25s covers them several times over. The distinction the
+        old guard flattened is HOVER work versus SCREENSHOT work, and it is now the thing asserted.
+        """
         import control_app as ca
-        for f in ("stash", "runes", "gems", "materials"):
-            self.assertEqual(ca._mini_bounds(f), (25, 40))
+        for f in ("runes", "gems", "materials"):
+            self.assertEqual(ca._mini_bounds(f)[0], 25,
+                             "%s is a one-screen grab; its DEFAULT should not have moved" % f)
+        self.assertEqual(ca._mini_bounds("stash"), (120, 300),
+                         "the hover focus is back to a ceiling he cannot finish 20 items inside")
+        self.assertGreater(ca._mini_bounds("stash")[1], ca._mini_bounds("runes")[0],
+                           "the hover focus must be able to outrun a one-screen grab")
 
     def test_the_engine_publishes_the_numbers_it_enforces(self):
         import control_app as ca

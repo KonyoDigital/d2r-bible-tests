@@ -183,6 +183,64 @@ class TestTheLanesStayApart(unittest.TestCase):
                              "slot_identity must stay a reader; found %r" % forbidden)
 
 
+class TestV2319PointOfCellIsTheExactInverse(unittest.TestCase):
+    """★ THE HALF MINI(AUTOMATIC) NEEDS: cell -> point, so the machine can hover instead of him.
+
+    Konyo: "is there a way for this to really be automated and for it to pinpoint which items it
+    needs to hover itself on? ... i press MINI on air and it does it itself", and then "when i click
+    a button called MINI(AUTOMATIC) that alone triggers the HOVER mode".
+
+    cell_of() answers "what did he hover". point_of_cell() answers "what must be hovered". If the
+    two ever disagree the automatic pass hovers one cell and files the result under another — and
+    a wrong slot is worse than an absent one, which is the rule cell_of already states in its own
+    docstring. So the round trip is asserted over EVERY cell of EVERY grid, not a sample.
+    """
+
+    def test_the_round_trip_holds_for_every_cell_of_every_grid(self):
+        box = (137.0, 211.0, 413.0, 389.0)     # deliberately not round numbers
+        for container, (cols, rows) in S.GRIDS.items():
+            for c in range(cols):
+                for r in range(rows):
+                    pt, why = S.point_of_cell(c, r, box, container)
+                    self.assertIsNotNone(pt, "%s (%d,%d) refused: %s" % (container, c, r, why))
+                    got, w2 = S.cell_of(pt, box, container)
+                    self.assertEqual(got, (c, r),
+                                     "%s: asked to hover (%d,%d), the point lands in %r — the "
+                                     "automatic pass would file the read under the wrong cell"
+                                     % (container, c, r, got))
+
+    def test_a_cell_outside_the_grid_is_REFUSED_not_clamped(self):
+        pt, why = S.point_of_cell(99, 99, (0.0, 0.0, 100.0, 100.0), "stash")
+        self.assertIsNone(pt, "it clamped an impossible cell onto a real one and would hover it")
+        self.assertIn("outside", why)
+
+    def test_topleft_and_center_are_different_points_in_the_same_cell(self):
+        box = (0.0, 0.0, 100.0, 100.0)
+        a, _ = S.point_of_cell(3, 4, box, "stash", where="center")
+        b, _ = S.point_of_cell(3, 4, box, "stash", where="topleft")
+        self.assertNotEqual(a, b,
+                            "the calibration pass needs a point whose CORNER is known; a centre "
+                            "hides which corner the tooltip anchored to")
+        for p in (a, b):
+            self.assertEqual(S.cell_of(p, box, "stash")[0], (3, 4),
+                             "a where= variant left the cell it belongs to")
+
+    def test_the_plan_is_in_reading_order_and_deduped(self):
+        plan, why = S.hover_plan([(2, 1), (0, 0), (2, 1), (1, 0)],
+                                  (0.0, 0.0, 100.0, 100.0), "stash")
+        self.assertEqual([(d["col"], d["row"]) for d in plan], [(0, 0), (1, 0), (2, 1)],
+                         "not left-to-right, top-to-bottom — a half-finished pass should read as "
+                         "a prefix of what he would have done by hand, not a scatter")
+
+    def test_an_unplaceable_cell_is_CARRIED_with_its_reason(self):
+        """A short plan must never be mistakable for a short stash."""
+        plan, why = S.hover_plan([(0, 0), (99, 99)], (0.0, 0.0, 100.0, 100.0), "stash")
+        self.assertEqual(len(plan), 2, "the unplaceable cell was dropped from the plan silently")
+        bad = [d for d in plan if d["point"] is None]
+        self.assertEqual(len(bad), 1)
+        self.assertTrue(bad[0]["why"], "it was carried with no reason attached")
+
+
 if __name__ == "__main__":
     # REG-044 — this file prints non-ASCII; a non-UTF-8 console would turn its own
     # verdict into a traceback, which is the one place a gate must never be silent.

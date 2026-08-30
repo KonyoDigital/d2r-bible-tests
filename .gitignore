@@ -146,6 +146,7 @@ tv/vault_swept.json
 # exactly like the two sweep ledgers above it. Never source.
 tv/shadow_watch.json
 tv/capture_doors.json
+tv/retro_gate.json
 tv/reel_tombstones.json
 tv/shadow_ai.json
 tv/.ship_receipt.json
