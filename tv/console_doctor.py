@@ -1247,6 +1247,32 @@ def owner_of(name):
     return "me" if name in MINE else "you"
 
 
+def _check_what_runs_without_him():
+    """Nine loops run with no prompt from him, one of them a DELETION lane, and until v2293 nothing
+    on this console could say what any of them would touch. The cold read asked "if this app were
+    about to do something on your behalf, could you tell what it would do and what it would leave
+    alone?" and answered CANNOT TELL. This reports the answer, and goes MISSING when a lane's own
+    BODY contradicts the promise it publishes."""
+    try:
+        import auto_scope
+    except Exception as e:
+        return UNKNOWN, "auto_scope will not import, so nothing here knows what runs unprompted: %s" % str(e)[:80]
+    try:
+        import control_app
+        broken = auto_scope.check_declarations(control_app)
+        lanes = auto_scope.LANES
+    except Exception as e:
+        return UNKNOWN, "could not read the lane declarations: %s" % str(e)[:90]
+    if not lanes:
+        return UNKNOWN, "no lane declared a scope — a reader that finds nothing is broken, not clean"
+    if broken:
+        return MISSING, "%d lane(s) do what they promise never to do: %s" % (
+            len(broken), "; ".join(broken)[:200])
+    deleters = sorted(n for n, d in lanes.items() if "delete" not in (d.get("forbids") or []))
+    return OK, "%d lanes run without you; %d can delete (%s), and no lane's own body contradicts " \
+               "its promise" % (len(lanes), len(deleters), ", ".join(deleters) or "none")
+
+
 CHECKS = [
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
@@ -1266,6 +1292,7 @@ CHECKS = [
     # Dean sat 85 versions behind with drift green because his two agreed on old bytes.
     ("behind the fleet", _check_behind_the_fleet),
     ("lane intent", _check_lane_intent),
+    ("what runs without you", _check_what_runs_without_him),
     ("disk headroom", _check_disk_headroom),
     ("subscription", _check_subscription_burn),
     ("unattended reel", _check_a_reel_is_not_recording_unattended),

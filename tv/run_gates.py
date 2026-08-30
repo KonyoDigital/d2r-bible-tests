@@ -279,6 +279,21 @@ GATES = [
              "both ways. It also pins the opposite failure: a canon that over-normalises would hide "
              "real finds, so Bloodrise and Bloodfist must stay two. All five laws sabotage-proven "
              "RED, including the negative control that the cross-reference can still say NEW."),
+    Gate("test_auto_scope", [sys.executable, os.path.join(HERE, "test_auto_scope.py")], 60,
+         why="v2293 — EVERY AUTOMATIC LANE DECLARES WHAT IT WOULD DO WITHOUT HIM. The cold-read "
+             "question \"if this app were about to do something on your behalf, could you tell what "
+             "it would do and what it would leave alone?\" came back CANNOT TELL. Nine loops run "
+             "with no prompt, one of them a DELETION lane, and nothing on the console named their "
+             "scope. Each now declares does/touches/forbids/never/when/brakes, and the guard checks "
+             "the promise against the lane's OWN BODY rather than trusting the prose. Four laws "
+             "sabotage-proven RED: a body that contradicts its forbids, a started loop with no "
+             "declaration, a declaration for a loop nothing starts, and a roster reader that cannot "
+             "reach the roster. That last one is not hypothetical — this guard's first reader "
+             "sliced a fixed 1,600 chars and the roster's own comments had outgrown it, so the "
+             "FIRST lane fell off the top and was reported as a ghost. What the check does NOT "
+             "cover is stated in its own output: the wider call graph is measured and labelled "
+             "unverified, never folded into the verdict, because a promise nobody measured is not "
+             "a promise. [[source-reading-guard]] [[unknown-stays-unknown]]"),
     Gate("test_health_engine", [sys.executable, os.path.join(HERE, "test_health_engine.py")], 60,
          why="v2277 — ONE HEALTH ENGINE, RED/GREEN, REPORTING ONLY. Konyo: \"not sure we need a "
              "live watchdog that fixes things might be wrong for the console and make a bug worse.. "

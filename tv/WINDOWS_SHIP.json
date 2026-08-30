@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2292",
+  "ver": "v2293",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2292: the densest thing on the console was one 314-character sentence carrying six facts; the line now carries the state and the hover carries the history",
+  "note": "v2293: nine automatic lanes now declare what they touch and what they leave alone; the guard checks each promise against the lane body, not the prose",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
