@@ -11107,7 +11107,7 @@ _UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
 #     [[unknown-stays-unknown]]
 #   · never reload twice in a row without a long cooling-off, or a page that dies on load
 #     becomes an infinite reload loop with his window flashing
-_UI_BEAT = {"t": 0.0, "n": 0, "state": {}}
+_UI_BEAT = {"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {}}
 _UI_RESCUE = {"last": 0.0, "count": 0, "why": ""}
 _UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
 _UI_RESCUE_COOLDOWN_S = 300.0
@@ -11116,9 +11116,12 @@ _UI_RESCUE_COOLDOWN_S = 300.0
 def ui_beat_record(state=None):
     """The page saying "I am still painting". Called from POST /api/ui_alive."""
     _UI_BEAT["t"] = time.time()
+    _UI_BEAT["mono"] = time.monotonic()
     _UI_BEAT["n"] += 1
     if isinstance(state, dict):
         _UI_BEAT["state"] = state
+        # v2325 — a window he cannot see is not a window that is stuck (see ui_rescue_due)
+        _UI_BEAT["hidden"] = bool(state.get("hidden"))
     return dict(_UI_BEAT)
 
 
@@ -11126,9 +11129,18 @@ def ui_beat_age():
     """Seconds since the last beat, or None if the page has NEVER beaten.
 
     None is load-bearing: it means "no console has ever checked in", which is what a headless
-    run looks like, and it must never be read as "the console has been silent forever"."""
+    run looks like, and it must never be read as "the console has been silent forever".
+
+    ⚠ v2325 — MEASURED ON THE MONOTONIC CLOCK, WHICH IS THE WHOLE POINT. On macOS Python's
+    time.monotonic() is mach_absolute_time(), and it DOES NOT ADVANCE WHILE THE MACHINE IS
+    ASLEEP. A Mac closed for six hours therefore ages the beat by however long it was awake, not
+    by six hours — so an overnight sleep can never look like a wedged renderer. Wall time would
+    say 21,600s of silence about a console that was simply switched off with him.
+    """
     if not _UI_BEAT["n"]:
         return None
+    if _UI_BEAT.get("mono"):
+        return max(0.0, time.monotonic() - _UI_BEAT["mono"])
     return max(0.0, time.time() - _UI_BEAT["t"])
 
 
@@ -11196,6 +11208,22 @@ def ui_rescue_due(now=None, capture_live=False):
         return False, "no console has ever checked in - nothing to rescue"
     if capture_live:
         return False, "a capture is running - a reload would throw away the reel"
+    # ══ v2325 — A WINDOW HE CANNOT SEE IS NOT A WINDOW THAT IS STUCK ═════════════════════════
+    # CAUGHT BY ITS OWN RECORD, and it had already fired once: ui_faults.jsonl, 00:47:21,
+    # "console-rescued-by-server - the page has been silent for 891s". The last beat was ~00:32,
+    # in the middle of the night, with him away from the machine.
+    #
+    # WebKit throttles - and can suspend outright - the timers of a window that is minimised,
+    # occluded or on another Space. So a console he simply is not looking at STOPS BEATING, and
+    # v2322 read that silence as a wedged renderer and reloaded his window under him. Silence
+    # from a hidden window is not evidence of anything. [[unknown-stays-unknown]]
+    #
+    # The beat now carries document.visibilityState, and the last one before the silence decides.
+    # Paired with the monotonic clock in ui_beat_age() - which does not advance across a macOS
+    # sleep - the two shapes of innocent silence, HIDDEN and ASLEEP, are both accounted for.
+    if _UI_BEAT.get("hidden"):
+        return False, ("the window was hidden when it last checked in - a console he is not "
+                       "looking at is throttled by the browser, so its silence proves nothing")
     if age < _UI_BEAT_SILENCE_S:
         return False, "the page beat %.0fs ago" % age
     since = now - (_UI_RESCUE["last"] or 0.0)
@@ -20227,7 +20255,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2324",
+        "ver": "v2325",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20295,7 +20323,7 @@ def status_payload():
         # v2322 — the backup generator, on a surface that can be read. `ageS` is None when no
         # console has EVER checked in, which is a different fact from "it has been silent for a
         # long time" and must not be shown as a big number. [[unknown-stays-unknown]]
-        "uiBeat": {"n": _UI_BEAT["n"],
+        "uiBeat": {"n": _UI_BEAT["n"], "hidden": bool(_UI_BEAT.get("hidden")),
                    "ageS": (round(ui_beat_age(), 1) if ui_beat_age() is not None else None),
                    "rescues": _UI_RESCUE["count"],
                    "lastRescueWhy": _UI_RESCUE["why"] or None,

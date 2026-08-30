@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2324",
+  "ver": "v2325",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2324: quartz already hands us a JPEG and a subprocess was expanding it into a BMP 20x larger for 46ms a frame, recovering nothing - the live frame is now a resolver rather than a hardcoded name",
+  "note": "v2325: the backup generator reloaded his window because he was not looking at it - a hidden window is throttled by the browser and a sleeping mac stops the process, so neither silence is evidence",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

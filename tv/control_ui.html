@@ -18450,6 +18450,9 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         var th = document.getElementById('theatre');
         fetch('/api/ui_alive', {method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({state:{
+            /* v2325 — a window he cannot see is throttled by the browser and stops beating; the
+               server must not read that as a wedge and reload it under him. */
+            hidden: (document.visibilityState !== 'visible'),
             view: document.body.getAttribute('data-view') || '',
             els: document.querySelectorAll('body *').length,
             theatreOpen: !!(th && !th.hidden),

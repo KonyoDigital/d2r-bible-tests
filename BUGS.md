@@ -12950,6 +12950,43 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-402 — the backup generator reloaded his window because he was not looking at it (v2325)
+
+**Caught by its own record, one version after it shipped.** `tv/ui_faults.jsonl`:
+
+```
+00:47:21  console-rescued-by-server  the page has been silent for 891s (healthy is every 5s)
+```
+
+The last beat was around 00:32, in the middle of the night, with him away from the machine.
+
+**WebKit throttles — and can suspend outright — the timers of a window that is minimised,
+occluded, or on another Space.** So a console he simply is not looking at STOPS BEATING, and
+v2322 read that silence as a wedged renderer and reloaded his window under him. The same silence
+arrives from a second innocent direction: a sleeping Mac, where wall-clock time keeps running
+while the process does not.
+
+**Neither shape is evidence of anything, and the whole design rests on silence being meaningful.**
+
+**Fix, two parts, one per shape:**
+
+* the beat carries `document.visibilityState`, and a rescue is refused outright when the last beat
+  before the silence said the window was hidden;
+* the age is measured on `time.monotonic()`, which on macOS is `mach_absolute_time()` and **does
+  not advance across a system sleep**. A Mac closed for six hours ages the beat by however long
+  it was awake, not by six hours — wall time would have claimed 21,600 s of silence about a
+  console that was switched off with him.
+
+⚠ **The generator must still start.** A guard that fixes a false positive by never firing is the
+same defect wearing a different hat, so a VISIBLE window silent for the same 891 s is still
+rescued, and that case is asserted beside the refusals.
+
+**Guards:** `TestV2325SilenceFromAHiddenOrSleepingWindowProvesNothing`, four sabotages proven RED.
+⚠ One stayed GREEN at first: `assertIn("visibilityState", src)` survives a sabotage renaming it to
+`document.xvisibilityState`, because the sought string is a SUBSTRING of the broken one. **That is
+the second substring assertion this session to sit green under a sabotage that restored the bug**
+(the first was a rename path in REG-400). Assert the full expression, never a fragment of it.
+
 ## REG-401 — every captured frame was inflated 20x by a subprocess that recovered nothing (v2324)
 
 **His reports, over weeks:** *"its really laggy"*, *"it was soo slow and laggy i couldnt evne

@@ -33267,5 +33267,90 @@ class TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing(unittest.TestCase):
         self.assertLess(i_ask, i_ok, "it is asked after the decision has already been made")
 
 
+class TestV2325SilenceFromAHiddenOrSleepingWindowProvesNothing(unittest.TestCase):
+    """THE BACKUP GENERATOR FIRED ONCE, AND IT SHOULD NOT HAVE.
+
+    Its own record caught it: tv/ui_faults.jsonl, 00:47:21 —
+        console-rescued-by-server - the page has been silent for 891s (healthy is every 5s)
+    The last beat was around 00:32, in the middle of the night, with him away from the machine.
+
+    WebKit throttles - and can suspend outright - the timers of a window that is minimised,
+    occluded, or on another Space. A console he simply is not looking at therefore STOPS BEATING,
+    and v2322 read that as a wedged renderer and reloaded his window under him. The same is true
+    of a sleeping Mac, for a different reason: wall-clock time keeps running while the process
+    does not.
+
+    Two innocent shapes of silence, two fixes: the beat carries visibilityState, and the age is
+    measured on the MONOTONIC clock, which on macOS is mach_absolute_time() and does not advance
+    across a system sleep. Silence you cannot attribute is not evidence.
+    [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+    """
+
+    def setUp(self):
+        self._beat = dict(ca._UI_BEAT)
+        self._resc = dict(ca._UI_RESCUE)
+
+    def tearDown(self):
+        ca._UI_BEAT.clear(); ca._UI_BEAT.update(self._beat)
+        ca._UI_RESCUE.clear(); ca._UI_RESCUE.update(self._resc)
+
+    def _silent_for(self, secs, hidden=False):
+        ca._UI_BEAT["n"] = 5
+        ca._UI_BEAT["t"] = time.time() - secs
+        ca._UI_BEAT["mono"] = time.monotonic() - secs
+        ca._UI_BEAT["hidden"] = hidden
+        ca._UI_RESCUE["last"] = 0.0
+
+    def test_a_HIDDEN_window_is_never_rescued_however_long_it_is_quiet(self):
+        self._silent_for(891, hidden=True)      # the exact silence that fired the real one
+        due, why = ca.ui_rescue_due()
+        self.assertFalse(due, "it reloaded a window he had simply minimised")
+        self.assertIn("hidden", why)
+
+    def test_a_VISIBLE_window_silent_that_long_IS_still_rescued(self):
+        """The fix must not disarm the generator - only teach it what silence means."""
+        self._silent_for(891, hidden=False)
+        due, why = ca.ui_rescue_due()
+        self.assertTrue(due, "the generator no longer starts at all: %s" % why)
+
+    def test_the_age_is_measured_on_the_clock_that_STOPS_when_the_mac_sleeps(self):
+        """A Mac closed for six hours must not look like six hours of wedge. Wall time says
+        21,600s; the monotonic clock says however long it was actually awake."""
+        ca._UI_BEAT["n"] = 3
+        ca._UI_BEAT["t"] = time.time() - 21600.0     # wall: six hours ago
+        ca._UI_BEAT["mono"] = time.monotonic() - 4.0  # monotonic: four seconds of running time
+        age = ca.ui_beat_age()
+        self.assertLess(age, 60.0,
+                        "the age came off the wall clock (%.0fs) - an overnight sleep would read "
+                        "as a wedged renderer" % age)
+
+    def test_it_falls_back_to_wall_time_when_no_monotonic_stamp_exists(self):
+        """An older beat recorded before this field existed must still age, not divide by zero."""
+        ca._UI_BEAT["n"] = 2
+        ca._UI_BEAT["mono"] = 0.0
+        ca._UI_BEAT["t"] = time.time() - 30.0
+        age = ca.ui_beat_age()
+        self.assertIsNotNone(age)
+        self.assertGreater(age, 25.0)
+
+    def test_the_page_actually_REPORTS_its_visibility(self):
+        """[[the-unjoined-end]] - a server reading state.hidden that the page never sends would
+        treat every window as visible and be exactly as wrong as before."""
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        # ⚠ ASSERT THE FULL EXPRESSION, NOT A FRAGMENT OF IT. `assertIn("visibilityState")`
+        # survives a sabotage that renames it to `document.xvisibilityState`, because the sought
+        # string is a SUBSTRING of the broken one. That is the second time in this session a
+        # substring assertion sat green under a sabotage that restored the bug; the first was a
+        # rename path in v2323. A test that cannot fail is not a test.
+        # [[regression-guard]] [[open-for-write-truncates-first]]
+        self.assertIn("document.visibilityState !== 'visible'", src,
+                      "the page never reports whether it is visible")
+        i_vis = src.find("document.visibilityState")
+        i_beat = src.find("/api/ui_alive")
+        self.assertLess(abs(i_vis - i_beat), 900,
+                        "visibilityState is read somewhere, but not inside the heartbeat payload")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
