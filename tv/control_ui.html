@@ -4823,6 +4823,10 @@
   /* v1504 — was 10px at 60% opacity: this line carries the third eye's WHY — "switched to PRIMARY
      but NOT running" lands here. A warning nobody can read is not a warning. */
   .g5-eyes-hint { margin-top: 5px; font-size: var(--fs-2xs); opacity: .78; line-height: var(--lh-normal); }
+  /* v2292 — a hint that CARRIES more says so, quietly. Without this the hover is undiscoverable
+     and the detail is effectively deleted rather than moved. */
+  .g5-eyes-hint.has-more { cursor: help; }
+  .g5-eyes-hint.has-more::after { content: ' ⋯'; opacity: .55; }
   /* ══ END GROK EYES (G5) ══ */
   /* native <details> disclosures (the ⚙ advanced + raw-answer toggles): the content reveals smoothly */
   details.sig-adv[open] > *:not(summary),
@@ -12692,7 +12696,8 @@
         b.classList.toggle('is-on', on);
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
       }
-      var bits = [];
+      var bits = [];      /* the LINE: what is true right now */
+      var more = [];      /* the HOVER: history, counters, standing notes */
       var sub = (st.hasSubscription != null) ? st.hasSubscription : st.hasKey;
       var cli = st.cliInstalled;
       var authorized = st.authorized;
@@ -12746,12 +12751,37 @@
                  + ' this hour, ' + (_bq.dailyUsed || 0) + '/' + (_bq.dailyMax || '?')
                  + ' today, so this is a MEMORY, not the meter';
         }
-        bits.push('⚠ last Grok error (intake lane' + (_age ? (', ' + _age) : ', age unknown') + '): '
-                  + String(g5s.last_error).slice(0, 90) + _stale);
+        /* ── v2292 — WHAT IS TRUE NOW GOES ON THE LINE; WHAT IS REMEMBERED GOES IN THE HOVER ──
+           Konyo, about this rail: "too much to read here.. needs proper tuning even maybe.. like
+           whats needed to know basis honestly", and again: "i want data i just want it more short
+           and to the point".
+
+           MEASURED on his console 2026-08-30: this was the single densest thing on the page — ONE
+           sentence of 314 characters, the largest leaf text node anywhere, carrying six unrelated
+           facts at once. A cross-family read of the 901px console picked it out unprompted as
+           fracturing into "short, jagged lines with awkward breaks mid-phrase".
+
+           ⚠ THE SPLIT IS BY TENSE, NOT BY LENGTH. A three-day-old error is HISTORY and belongs in
+           the hover; a LIVE one is the first thing he needs and stays on the line. This code
+           already computes exactly that distinction — `_stale` is set when the error's numbers
+           disagree with the live budget, which is the v1501 scar: an old failure was reading as
+           current while the card said "linked · primary". Moving a stale error into the hover
+           makes that scar MORE visible, not less: it is now labelled as remembered rather than
+           sitting in the same sentence as the live state. [[stale-reading]] */
+        var _errLine = '⚠ last Grok error (intake lane'
+                     + (_age ? (', ' + _age) : ', age unknown') + '): '
+                     + String(g5s.last_error).slice(0, 90);
+        if (_stale) { more.push(_errLine + _stale); } else { bits.push(_errLine); }
       }
-      if (g5s.errors) bits.push(g5s.errors + ' error(s) / ' + (g5s.calls || 0) + ' call(s)');
-      bits.push('default OFF · cousin never needs this');
-      if (hint) hint.textContent = bits.join(' · ');
+      /* lifetime counters and the standing note never change between two glances at this rail —
+         they are reference, not news, and news is what a line of a status panel is for. */
+      if (g5s.errors) more.push(g5s.errors + ' error(s) / ' + (g5s.calls || 0) + ' call(s) since install');
+      more.push('default OFF · cousin never needs this');
+      if (hint) {
+        hint.textContent = bits.join(' · ');
+        hint.title = more.length ? more.join('\n') : '';
+        hint.classList.toggle('has-more', more.length > 0);
+      }
       // v1381.2 — auth button: green when linked, pulse only when login needed, never spam
       if (authBtn){
         authBtn.classList.remove('is-ok', 'is-need', 'is-busy');

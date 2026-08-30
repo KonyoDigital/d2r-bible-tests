@@ -4458,6 +4458,69 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2292WhatIsTrueNowGoesOnTheLine(unittest.TestCase):
+    """★ Konyo about this rail, twice: "too much to read here.. needs proper tuning even maybe..
+    like whats needed to know basis honestly" and "i want data i just want it more short and to the
+    point".
+
+    MEASURED on his console 2026-08-30: the EYES hint was the single densest thing on the page —
+    one sentence of 314 characters, the largest leaf text node anywhere, carrying six unrelated
+    facts at once (what the lane is · a three-day-old error · that the error is a memory not the
+    meter · lifetime counters · the default · a note about his cousin). A cross-family read of the
+    901px console picked it out unprompted as fracturing into "short, jagged lines with awkward
+    breaks mid-phrase". After: 55 characters on the line, 266 in the hover.
+
+    ⚠ THE SPLIT IS BY TENSE, NOT BY LENGTH, and that is the whole design. Shortening by truncation
+    would have deleted the v1501 scar — an old failure reading as current while the card said
+    "linked · primary". A LIVE error still leads the line; only a STALE one moves, and moving it
+    makes it MORE clearly remembered rather than less. [[stale-reading]]
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
+        with io.open(p, encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def test_a_STALE_error_moves_to_the_hover_and_a_LIVE_one_does_NOT(self):
+        """The one law that may not be simplified away."""
+        self.assertIn("if (_stale) { more.push(_errLine + _stale); } else { bits.push(_errLine); }",
+                      self.ui,
+                      "the stale/live distinction is gone — either every error is hidden in a "
+                      "hover (and a live failure becomes invisible) or every error is on the line "
+                      "(and the rail is back to 314 characters)")
+
+    def test_the_live_FAULTS_still_lead_the_line(self):
+        self.assertIn("bits.unshift('⚠ switched to '", self.ui,
+                      "intentBlocked no longer leads — 'you chose PRIMARY and it is not running' "
+                      "is the first thing he needs, not a footnote")
+
+    def test_reference_material_is_NOT_on_the_line(self):
+        for ref in ("more.push(g5s.errors", "more.push('default OFF"):
+            self.assertIn(ref, self.ui,
+                          "%s is back on the line; lifetime counters and standing notes do not "
+                          "change between two glances and are not news" % ref)
+
+    def test_the_hover_is_DISCOVERABLE(self):
+        """⚠ DETAIL MOVED SOMEWHERE NOBODY LOOKS HAS BEEN DELETED, not tidied. The marker is what
+        makes this a move rather than a quiet removal."""
+        self.assertIn("hint.classList.toggle('has-more'", self.ui)
+        self.assertIn(".g5-eyes-hint.has-more::after", self.ui,
+                      "the hint no longer shows that it carries more, so the hover is invisible")
+        # ⚠ min_len is passed DELIBERATELY. _between defaults to 40 to stop a mis-anchored match
+        # returning a scrap that measures nothing; this rule is genuinely one short declaration, so
+        # the floor is lowered on purpose rather than the check being routed around it.
+        self.assertIn("cursor: help",
+                      _between(self, self.ui, ".g5-eyes-hint.has-more {", "}",
+                               min_len=8, what="the has-more rule"))
+
+    def test_the_hover_is_populated_from_the_SAME_list(self):
+        """Two lists that can disagree is how a hover starts describing a different state than the
+        line above it."""
+        self.assertIn("hint.title = more.length ? more.join('\\n') : ''", self.ui,
+                      "the hover no longer comes from `more`, so the line and the hover can drift")
+
+
+
 class TestV2291NotOKIsNotABrokenLink(unittest.TestCase):
     """★ reader_health partitioned its findings ONCE — everything that is not E_OK — and reported
     the remainder to him as "%d broken link(s)".
