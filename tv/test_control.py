@@ -410,6 +410,27 @@ def _code_only(src):
     return "\n".join(l for l in out.split("\n") if not l.strip().startswith("#"))
 
 
+def _markup_only(html):
+    """HTML with its <!-- comments --> stripped. -> str
+
+    ⚠ THE MARKUP TWIN OF _code_only, AND IT WAS EARNED THE SAME WAY — TWICE, TEN MINUTES APART.
+    The v2294 nav guard reported `tabs-workshop` as unnamed while the element carried its attribute
+    perfectly well, because bible.html:28268 contains the sentence "the workshop row is
+    `<div class="tabs-workshop">`". Stripping <!-- HTML comments --> did NOT fix it: that line
+    lives inside a JavaScript block comment in a <script>, so the guard was still reading prose
+    about the markup and grading it as the markup. bible.html is one file holding markup, CSS and
+    JS, so a stripper for one comment syntax is a stripper for a third of the file.
+    Fourth and fifth time in this file's history. [[feedback-comments-vs-code]]
+
+    ⚠ Honest limit: this also removes any literal `/* ... */` that happens to sit inside a string.
+    That is acceptable for a guard whose job is to find ELEMENTS, and it errs toward finding fewer
+    of them — never toward passing one that is broken.
+    """
+    import re as _re
+    out = _re.sub(r"<!--(?:.|\n)*?-->", "", html)
+    return _re.sub(r"/\*(?:.|\n)*?\*/", "", out)
+
+
 def _write_auto_relaunch(path, on):
     """v2284 — the production setter was deleted with the switch; specs that need a stored answer
     on disk write it themselves. Keeping a setter alive only for tests is how a retired control
@@ -4458,6 +4479,178 @@ class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
                          + "\n  ".join(missing))
 
 
+class TestV2294EveryNavGroupIsNamed(unittest.TestCase):
+    """★ The nav row establishes that a group of tabs carries a visible caption, rendered by CSS
+    from its own `data-cluster` attribute — HUNT, LORE. The LARGEST group, the eight workshop tabs
+    that hold the active tab on most visits, had a hover title and no visible name at all.
+
+    A cross-family read of the board called the whole row "a dense row of tiny category icons ...
+    adds little decision value on first view". That framing is about a first-time user and this
+    tool has three, all of whom navigate by these tabs every day — so the framing is declined. But
+    LOOKING at the row to answer it found something that is not taste: a convention applied to two
+    of three groups. [[label-outlived-referent]]
+
+    ⚠ BOTH HALVES OR NEITHER. An attribute with no rule renders nothing; a rule naming no element
+    styles nothing. Either half alone is silent by construction, which is why this checks the JOINT
+    rather than one end of it. [[the-unjoined-end]]
+    """
+
+    def setUp(self):
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            self.html = _markup_only(fh.read())
+
+    def _caption_rule(self):
+        """The selector list of the rule that renders the caption.
+
+        ⚠ NOT a regex with a leading `[^\n{}]*`. bible.html is 6 MB with minified CSS lines
+        hundreds of KB long, and that pattern backtracks quadratically across every one of them —
+        written that way, this guard hung for eight minutes instead of failing. Find the literal
+        first, then walk back to the start of the declaration. [[source-reading-guard]]
+        """
+        needle = "::before{content:attr(data-cluster)"
+        i = self.html.find(needle)
+        if i < 0:
+            return ""
+        j = max(self.html.rfind("}", 0, i), self.html.rfind("\n", 0, i)) + 1
+        return self.html[j:i + len(needle)]
+
+    def test_every_nav_group_declares_the_name_it_is_captioned_by(self):
+        groups = re.findall(r'<div class="(tabs-cluster[^"]*|tabs-workshop)"([^>]*)>', self.html)
+        self.assertTrue(groups, "no nav groups found — re-point this guard rather than leaving it "
+                                "green over nothing")
+        unnamed = [cls for cls, attrs in groups if "data-cluster=" not in attrs]
+        self.assertEqual(unnamed, [], "these nav groups carry no data-cluster, so the caption rule "
+                                      "has nothing to render and the group goes unnamed: %s"
+                                      % unnamed)
+
+    def test_the_caption_rule_actually_reaches_every_group(self):
+        rule = self._caption_rule()
+        self.assertTrue(rule, "the data-cluster caption rule is gone — the attributes above now "
+                              "render nothing")
+        groups = set(c.split()[0] for c, _ in
+                     re.findall(r'<div class="(tabs-cluster[^"]*|tabs-workshop)"([^>]*)>', self.html))
+        missed = sorted(g for g in groups if g not in rule)
+        self.assertEqual(missed, [], "these groups declare a data-cluster that no CSS rule renders "
+                                     "— an attribute joined to nothing: %s" % missed)
+
+    def test_the_workshop_is_the_group_this_was_written_for(self):
+        m = re.search(r'<div class="tabs-workshop"([^>]*)>', self.html)
+        self.assertIsNotNone(m, "the workshop group is gone; re-point this guard")
+        self.assertIn('data-cluster="WORKSHOP"', m.group(1),
+                      "the workshop group lost the name it was given in v2294")
+
+class TestV2296TheFleetSaysHowFarBehindEveryoneElseIs(unittest.TestCase):
+    """★ MEASURED LIVE from /api/fleet, 2026-08-30T06:00Z. Dean's row:
+
+        ver v2288 · diskVer v2288 · pull{can:true, behind:0, why:"level with origin"}
+
+    in a payload whose own top level carried publishedVer v2292. He was FOUR versions back and the
+    panel said level, because that `behind` is Dean's own self-report from his last beacon roughly
+    nine hours earlier — a verdict carrying the age of the thing it measured, served as current.
+    A second machine on the roster was the same silence, 191 versions back.
+    (Fixture names here are neutral on purpose: this repo is public.)
+
+    The cause was one unused join: control_ui.html read `publishedVer` and then compared it against
+    exactly one machine, his own. v2249 stopped HIS row looking one ahead by construction; nobody
+    ever stopped someone ELSE'S row looking level while behind. Konyo, twice: "how come dean is
+    behind two versions" and "this isnt optional the updates need to be going up".
+    [[stale-reading]] [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+
+    def test_deans_measured_row_reads_four_behind(self):
+        behind, why = ca.fleet_lag("v2288", "v2292")
+        self.assertEqual(behind, 4, "this is the exact pair that read as 'level with origin'")
+        self.assertIn("behind", why)
+
+    def test_an_unknown_published_version_is_None_never_zero(self):
+        for pub in (None, "", "unknown", "main"):
+            behind, why = ca.fleet_lag("v2288", pub)
+            self.assertIsNone(behind, "nobody looked, so this may not render as level: %r" % pub)
+
+    def test_a_machine_that_did_not_say_its_version_is_None_never_zero(self):
+        for ver in (None, "", "?", "2288"):
+            behind, _ = ca.fleet_lag(ver, "v2292")
+            self.assertIsNone(behind, "an unreadable version may not render as level: %r" % ver)
+
+    def test_level_is_zero_and_ahead_never_goes_negative(self):
+        self.assertEqual(ca.fleet_lag("v2292", "v2292")[0], 0)
+        self.assertEqual(ca.fleet_lag("v2293", "v2292")[0], 0,
+                         "his own tree runs ahead of origin through every build window; that is "
+                         "not a negative lag, it is not behind at all")
+
+    def _payload(self):
+        return {"me": "konyo-3", "publishedVer": "v2292",
+                "online": [{"machine": "konyo-3", "ver": "v2293"}],
+                "offline": [{"machine": "his-cousins-pc", "ver": "v2288"},
+                            {"machine": "the-other-pc", "ver": "v2101"}]}
+
+    def test_every_other_machine_is_stamped_and_his_own_is_left_alone(self):
+        out = ca.fleet_annotate_lag(self._payload())
+        self.assertNotIn("lag", out["online"][0],
+                         "his own row is v2249's business, not this one's")
+        by = dict((m["machine"], m["lag"]["behind"]) for m in out["offline"])
+        self.assertEqual(by, {"his-cousins-pc": 4, "the-other-pc": 191})
+
+    def test_it_does_not_mutate_the_rows_it_was_given(self):
+        """fleet_presence() CACHES for 60s and returns its own dicts. A shallow copy shares those
+        rows, so annotating in place would poison the cache for every later reader."""
+        src = self._payload()
+        rows_before = [dict(m) for m in src["offline"]]
+        ca.fleet_annotate_lag(src)
+        self.assertEqual(src["offline"], rows_before,
+                         "the cached fleet rows were written through — every later reader of "
+                         "fleet_presence() would now serve this annotation as if it were its own")
+
+class TestV2297APixelGateBlocksThePush(unittest.TestCase):
+    """★ MEASURED from hooks/pre-push itself: the gates that can refuse a push were version-stamp,
+    second-eye, review-lite, visual-lock, boss-portraits, test_agent, test_control, test_tz_art,
+    test_chronicle_retro, test_chronicle_seal, console-demos and smoke. NOT ONE looked at a
+    rendered pixel — `visual-lock` is visual_lock_invariant.py, a type-system invariant over design
+    tokens, not an image. render_check ran only in the local chain and in CI.
+
+    That is how v2294 survived: the install crest was the most saturated element above the fold,
+    92.5% of its own pixels against the help button's 75.7%, on every render for many versions, and
+    a cross-family read is what noticed. No parser can see "this is the loudest thing on the page".
+    [[visual-regression-detector]] [[feedback-blind-fixture-green-gate]]
+    """
+
+    def setUp(self):
+        p = os.path.join(os.path.dirname(HERE), "hooks", "pre-push")
+        with io.open(p, encoding="utf-8") as fh:
+            raw = fh.read()
+        # ⚠ shell comments, for the same reason _code_only and _markup_only exist: the block added
+        # in v2297 NAMES these gates in its own explanatory comment, so a scanner that reads the
+        # file whole would grade the documentation and pass. Fifth and sixth time in this repo.
+        self.sh = "\n".join(l for l in raw.split("\n") if not l.strip().startswith("#"))
+
+    def test_the_hook_actually_runs_the_pixel_checks(self):
+        """⚠ ANCHOR ON THE INVOCATION, NOT THE LABEL. The first cut asserted "render_check.py" was
+        somewhere in the file — and gate_run takes a human-readable label as its second argument,
+        which also contains "python3 tv/render_check.py". Replacing the real command with `true`
+        left the label untouched and the guard stayed GREEN. A label is documentation; grading it
+        is the same mistake as grading a comment. [[feedback-comments-vs-code]]"""
+        for tool in ("render_check.py", "crest_loudness.py"):
+            self.assertIn('"$REPO/tv/%s"' % tool, self.sh,
+                          "%s is not INVOKED by the hook (a mention in a gate label is not a run), "
+                          "so no rendered pixel can refuse a push" % tool)
+
+    def test_no_browser_is_a_refusal_and_not_a_pass(self):
+        self.assertIn("never looked at", self.sh,
+                      "the hook must say so and BLOCK when it could not start a browser; a skip "
+                      "that lets the push through is the defect this gate exists to prevent")
+
+    def test_it_kills_the_browser_by_pid_not_by_name(self):
+        self.assertNotIn("pkill", self.sh,
+                         "pkill -f cannot tell our scratch Chrome from his live console on :17772")
+        self.assertIn('kill "$_px_chrome_pid"', self.sh,
+                      "the scratch browser must be killed by the PID we started")
+
+    def test_it_never_touches_his_chrome_or_tradingview(self):
+        for port in ("9222", "9223"):
+            self.assertNotIn(port, self.sh,
+                             ":%s belongs to him (Chrome / TradingView) and a gate may not attach "
+                             "to it" % port)
+
 class TestV2292WhatIsTrueNowGoesOnTheLine(unittest.TestCase):
     """★ Konyo about this rail, twice: "too much to read here.. needs proper tuning even maybe..
     like whats needed to know basis honestly" and "i want data i just want it more short and to the
@@ -5361,7 +5554,14 @@ class TestV2278TheStripNamesWhatWouldCHANGE(unittest.TestCase):
         """★ THE TEST v2274 NEEDED AND DID NOT HAVE. A definition is not a join. Each hop is
         counted at BOTH ends in the same assertion, so a half that is written and never called
         fails here instead of shipping silent. [[plumbing-with-no-tap]] [[the-unjoined-end]]"""
-        ui, app = self._ui(), self._app()
+        # ⚠ v2299 — CODE ONLY, and note that the test above deliberately does the OPPOSITE.
+        # That one greps a retired SENTENCE, where a comment still saying it is exactly the risk.
+        # This one counts IMPLEMENTATION HOPS, where a comment is not a hop — and it proved that
+        # the hard way: a v2297 note quoting the measured value `window._CHRON_XREF = {measured:
+        # true, newCount:0, alreadyCount:347}` as EVIDENCE was counted as a second writer, and the
+        # gate failed on a tree whose code had exactly one. Same file, two guards, opposite correct
+        # answers about comments. [[feedback-comments-vs-code]] [[source-reading-guard]]
+        ui, app = _markup_only(self._ui()), _code_only(self._app())
         hops = [
             ("the fetch is defined", len(re.findall(r"function _chronXref\(", ui)), 1),
             ("the fetch is CALLED", len(re.findall(r"[^n] _chronXref\(", ui)), 2),

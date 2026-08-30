@@ -4502,7 +4502,7 @@ try {
    </div>
    <!-- v641 — ⚒ THE WORKSHOP: the DOING tabs (Konyo: "all the other tabs are literally just
         info/data — these should be highlighted and emphasized, structured together as a group") -->
-   <div class="tabs-workshop" title="THE WORKSHOP — your live tools: intake, plan, forge, grail-hunt">
+   <div class="tabs-workshop" data-cluster="WORKSHOP" title="THE WORKSHOP — your live tools: intake, plan, forge, grail-hunt">
     <button class="tab" data-tab="session">⚡ SESSIONS</button><!-- v901 — console home: Auto Intake + plan + live feed (TV·D merged) -->
     <button class="tab" data-tab="tools">🧰 tools</button>
     <button class="tab" data-tab="forge">🔨 Forge</button>
@@ -4591,6 +4591,40 @@ try {
   </div>
   <div id="gp-tier-breakdown" class="gp-tiers"></div>
   </div>
+  <!-- v2295 — ADMIN STOPPED OUTRANKING THE HUNT. These three sections answer three
+       different questions: "how far am I" (Chronicle Progress), "what do I hunt next"
+       (Today's Best Picks) and "back my data up" (Backup & Share). Backup sat SECOND,
+       above the only one of the three that tells him what to DO — so the page put an
+       admin chore between the two decisions. Konyo, about the hunt: "it should tell me
+       where to hunt it and it be the fastest and optimize that as priorty as first
+       visual render".
+
+       ⚠ WHAT THIS DELIBERATELY DOES **NOT** DO: it does not move Chronicle Progress.
+       v691 ruled that "how far am I?" is the #1 question and answers on the CLOSED row —
+       see the comment on that h2. His ruling above and v691 disagree about which of the
+       two DECISIONS leads, and that contradiction is stated rather than settled by me: a
+       reorder nobody asked for is not a fix. What is unambiguous is that neither of them
+       ranks below a backup button.
+
+       ⚠ MEASURED AFTER THE MOVE, because the DOM order and the rendered order are not the same
+       thing here. In the markup this is a swap of two adjacent siblings, so Backup should land
+       THIRD. On the rendered page it lands LAST: other blocks are generated into the region
+       between these two sections, and moving Backup below Picks put it below those as well.
+       That still satisfies the intent — admin below every decision — but it is a bigger move
+       than the diff looks, and saying otherwise would be describing the markup instead of the
+       page. [[feedback-contradiction-is-the-finding]] -->
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🎯</span><span class="sec-h-block"><span class="sec-h-t">Today's Best Chronicle Picks</span><span class="sec-h-sub">Calculated live from every item row — click any to jump to that boss</span></span><span class="sec-h-peek" id="picks-peek"></span><span class="sec-chev">▾</span></h2><!-- v691 🏓R2: #1 pick peeks on the closed row -->
+  <div class="sec-body" hidden>
+  <div class="hero">
+    <div class="hero-sub" id="hero-sub">Calculated live from all 251 item rows. Click any to jump to that boss card.</div>
+    <div class="hero-grid" id="hero-picks"></div>
+  </div>
+  </div>
+  <div class="mw" id="most-wanted"></div>
+  <div class="event-ref" id="event-ref"></div>
+  <div class="wishlist-card" id="wishlist-hunt-path"></div>
+  <div style="display:none">
+  </div>
   <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">💾</span><span class="sec-h-block"><span class="sec-h-t">Backup &amp; Share Progress</span><span class="sec-h-sub">Export, restore or share your chronicle, wishlist &amp; settings — saved in this browser only</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div class="backup-card">
@@ -4607,18 +4641,6 @@ try {
     </div>
     <div class="backup-status" id="backup-status" aria-live="polite"></div>
   </div>
-  </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">🎯</span><span class="sec-h-block"><span class="sec-h-t">Today's Best Chronicle Picks</span><span class="sec-h-sub">Calculated live from every item row — click any to jump to that boss</span></span><span class="sec-h-peek" id="picks-peek"></span><span class="sec-chev">▾</span></h2><!-- v691 🏓R2: #1 pick peeks on the closed row -->
-  <div class="sec-body" hidden>
-  <div class="hero">
-    <div class="hero-sub" id="hero-sub">Calculated live from all 251 item rows. Click any to jump to that boss card.</div>
-    <div class="hero-grid" id="hero-picks"></div>
-  </div>
-  </div>
-  <div class="mw" id="most-wanted"></div>
-  <div class="event-ref" id="event-ref"></div>
-  <div class="wishlist-card" id="wishlist-hunt-path"></div>
-  <div style="display:none">
   </div>
   <!-- v42 removed: Tonight's Mission was dead (ID mismatch, display:none, redundant with renderHero/renderWishlistHuntPath) -->
   <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art">📖</span><span class="sec-h-block"><span class="sec-h-t">Cell Legend</span><span class="sec-h-sub">How to read every drop cell — odds, rarity tints, qlvl/TC blocks &amp; item tags</span></span><span class="sec-chev">▾</span></h2>
@@ -8630,6 +8652,11 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 #tab-funi .gf-chip .gf-cname{color:var(--q-unique);text-shadow:0 0 4px rgba(199,179,119,.55),0 0 10px rgba(199,179,119,.55),0 1px 1px rgba(0,0,0,.55)}
 #tab-fsets .gf-chip .gf-cname{color:var(--q-set)}
 .gf-chip .gq{font-size:9.5px;font-weight:var(--fw-bold);color:#9a8c72;background:rgba(0,0,0,.3);border-radius:5px;padding:0 5px}
+/* v2299 — the per-item clock on a wall chip. Same treatment as its .gq sibling so the
+   two read as one row, in the gold the rest of the page uses for a measured figure.
+   An item with no known source renders NO span at all, so absence is visible as
+   absence rather than as a dash that could be mistaken for a value. */
+.gf-piece .gp-eta{font-size:9.5px;font-weight:var(--fw-bold);color:#d8b45e;background:rgba(216,180,94,.12);border-radius:5px;padding:0 5px;white-space:nowrap;font-family:var(--mono,monospace)}
 .gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--fw-semibold);border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
 .gf-piece:hover{filter:brightness(1.25);transform:translateY(-1px)}
 .gf-piece.have{background:rgba(95,201,122,.14);border-color:rgba(95,201,122,.55);color:#a9edbb;text-decoration:none}
@@ -41063,6 +41090,56 @@ function renderJournal(){
   window.gfWallToggled = function(det){
     try { var st=_wallState(det); if(st) st.open = !!det.open; } catch(e){}
   };
+  /* ── v2299 — EVERY MISSING ROW CARRIES ITS OWN CLOCK ───────────────────────────────────────
+     Konyo: "the All missing needs to have each item there individually rendering with its
+     timebase find for that specific item."
+
+     The wall is the LONGEST list of item names on the page and it printed a name and nothing
+     else, so the one question it exists to answer — which of these is worth going after — had to
+     be answered somewhere else, one item at a time. Each chip now carries the same hours the hero
+     uses: hoursFor(chance, 0.5, kph, killsPerRun(boss)) against THAT item's own best source.
+
+     ⚠ AN ITEM WITH NO KNOWN SOURCE RENDERS NOTHING. Not "?", not a set-level average standing in
+     for a piece, and above all not a number: a wall of 120 rows is exactly where one fabricated
+     figure would never be noticed. [[unknown-stays-unknown]]
+
+     ⚠ Tier-agnostic on purpose. _pcIdx() next to _pieceSrc filters `x.tier==='set'`, so reusing
+     it here would have given the sets wall clocks and left the uniques wall bare — the shared
+     renderer would then be shared in name only. */
+  var _etaIdxCache = null;
+  function _etaIdx(){
+    if (_etaIdxCache) return _etaIdxCache;
+    var L = (typeof window._allDropItems === 'function') ? window._allDropItems()
+          : ((typeof ITEMS !== 'undefined') ? ITEMS : (window.ITEMS || []));
+    var out = {};
+    (L || []).forEach(function(x){
+      if (!x || !x.n) return;
+      var k = (typeof window._regKey === 'function') ? window._regKey(x.n) : String(x.n).toLowerCase();
+      if (!out[k]) out[k] = x;
+    });
+    _etaIdxCache = out; return out;
+  }
+  function _etaHours(name, fallbackSrc){
+    try {
+      var row = _etaIdx()[(typeof window._regKey === 'function') ? window._regKey(name)
+                                                                : String(name || '').toLowerCase()];
+      var picked = (row && typeof window._pickSrc === 'function') ? window._pickSrc(row.sources, name) : null;
+      var sc = (picked && picked.s) || fallbackSrc || null;
+      if (!sc || !sc.chance) return null;
+      var h = (typeof hoursFor === 'function')
+            ? hoursFor(sc.chance, 0.5, sc.kph || 100, killsPerRun(sc.bossId)) : null;
+      return (h === null || !isFinite(h)) ? null : h;
+    } catch(e){ return null; }
+  }
+  function _etaLabel(h){
+    if (h === null || h === undefined) return '';
+    if (h < 1)   return Math.round(h * 60) + 'm';
+    if (h < 100) return (Math.round(h * 10) / 10) + 'h';
+    if (h < 1000) return Math.round(h) + 'h';
+    return Math.round(h / 24) + 'd';
+  }
+  window._etaHours = _etaHours; window._etaLabel = _etaLabel;
+
   function _allGrid(title, sub, entries, fn){
     if(!entries.length) return '';
     /* v2077 — THE WALL ALWAYS STARTS COLLAPSED. Konyo: "for F-Uniques and F-Sets its not collapsed
@@ -41098,7 +41175,7 @@ function renderJournal(){
        the LONGEST list of item names on the page, printed all 120 of them in one flat cream.
        _allGrid is shared by uniques and sets, which is exactly why neither got a colour: a shared
        renderer with no rarity argument can only ever pick one. */
-    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+'</span>'); });
+    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+(e.eta?'<span class="gp-eta" title="expected time to find THIS item at your current magic find, on its own best run">'+esc(e.eta)+'</span>':'')+'</span>'); });
     H.push('</div></div></details>');
     return H.join('');
   }
@@ -42213,7 +42290,8 @@ function renderJournal(){
     if(F==='all'){
       var _ownA=_ownedNames();
       var _missAll=_uniItems().filter(function(x){ return !_ownedHas(_ownA,x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
-        .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:'') }; });
+        .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:''),
+                                   eta:_etaLabel(_etaHours(x.n, null)) }; });   /* v2299 */
       H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni'));
       // v682.2 — the still-dark remainder: these chronicle rows exist in-game as bare base-type
       // silhouettes; a dark row's unique NAME is hidden until it drops, so it can't be carded yet.
@@ -44305,7 +44383,7 @@ function renderJournal(){
     // v646 — THE GRAIL WALL: identical drawer, identical position on BOTH grail forges
     if(F==='all'){
       var _missP=[];
-      (s.sets||[]).forEach(function(st){ (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl }); } }); });
+      (s.sets||[]).forEach(function(st){ var _agg=_setAggSrc(st.name); (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl, eta:_etaLabel(_etaHours(pp.name, _agg)) }); } }); });   /* v2299 — the piece's OWN clock, the set aggregate only as fallback */
       _missP.sort(function(a,b){ return a.n.localeCompare(b.n); });
       H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece'));
     }
@@ -44677,8 +44755,29 @@ body:not(.ladder-profile) .pp-main,body.ladder-profile .pp-ladder{background:rgb
   padding:5px 11px 5px 6px;border-radius:999px;cursor:pointer;min-height:30px;
   border:1px solid var(--bs-edge,rgba(233,208,122,.4));background:rgba(0,0,0,.35);backdrop-filter:blur(3px)}
 .bd-sigil:hover{background:rgba(255,255,255,.06);border-color:var(--bs-hue,#e9d07a)}
+/* ── v2294 — THE CREST KEEPS ITS COLOUR AND STOPS SHOUTING ──────────────────────────
+   MEASURED on the 1440 board, every element above the fold ranked by the share of its pixels
+   that are saturated: `.bs-glyph` came first at 92.5%, ahead of the help button at 75.7%. A
+   solid 20x20 block of the install hue was the single loudest thing on the page — and WHICH hue
+   is decided by a hash of the install id, so nobody chose it. Six of the sixteen crests
+   (Ember, Crimson, Gilded, Molten, Amber, Cinder) land in the palette's red/orange ALERT band:
+   38% of installs wear an identity chip the eye reads as an alarm. His hashed to Crimson, hue 0.
+   A cross-family read of the board picked it out unprompted as "also the loudest element" and
+   noted it is the character name, not the hunt — against his own ruling that where to hunt next
+   is what should be optimised "as priority as first visual render".
+
+   ⚠ THE OBVIOUS FIX WAS REFUTED BEFORE IT WAS WRITTEN. Damping the hue to a tint collapses the
+   thing the crest exists for: at 22% alpha over #0b0906 the closest pair of the sixteen (Hollow
+   vs Iron) measures dE 2.4 — the just-noticeable threshold, i.e. two machines that look the same
+   colour. v1466 says drift like that is worse than showing no crest at all. So the hue is NOT
+   touched: it stays at full strength on the rune and the ring, and only its FOOTPRINT shrinks.
+   Closest-pair dE is unchanged at 7.3. Full fill returns on hover. [[label-outlived-referent]] */
 .bd-sigil .bs-glyph{width:20px;height:20px;display:grid;place-items:center;border-radius:5px;
-  background:var(--bs-hue,#e9d07a);color:#0b0906;font:var(--fw-bold) 12px/1 inherit}
+  background:transparent;box-shadow:inset 0 0 0 1px var(--bs-hue,#e9d07a);
+  color:var(--bs-hue,#e9d07a);font:var(--fw-bold) 12px/1 inherit;
+  transition:background .18s,color .18s}
+.bd-sigil:hover .bs-glyph,.bd-sigil:focus-visible .bs-glyph{
+  background:var(--bs-hue,#e9d07a);color:#0b0906}
 .bd-sigil .bs-name{font:var(--fw-semibold) 11px/1 inherit;letter-spacing:var(--ls-normal);
   text-transform:uppercase;color:var(--bs-hue,#e9d07a);white-space:nowrap}
 .bd-sigil .bs-code{font:var(--fw-medium) 10px/1 inherit;color:var(--text-dim,#9a8c72);white-space:nowrap}
@@ -44745,7 +44844,16 @@ body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
    scroll strip (:37557) and ≤1360px already wrapped (:36821). Same fix as those, one band wider. */
 .tabs-cluster{position:relative;display:flex;flex-wrap:wrap;flex:5 1 0;gap:5px;align-items:stretch;min-width:0;padding:3px 5px;border:1px solid rgba(233,208,122,.16);border-radius:9px;background:rgba(255,255,255,.012)}
 .tabs-cluster .tab{flex:1 1 auto;text-align:center}
-.tabs-cluster::before{content:attr(data-cluster);position:absolute;top:-6px;left:10px;padding:0 5px;font-size:8px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-wider);line-height:var(--lh-none);color:rgba(233,208,122,.55);background:var(--bg);border-radius:3px;pointer-events:none}
+/* v2294 — THE THIRD GROUP WAS THE ONLY UNNAMED ONE. The nav establishes that a group of tabs
+   is captioned from its data-cluster (HUNT, LORE) and then left the LARGEST group — the eight
+   workshop tabs, the group that holds the active tab on most visits — with a hover title and
+   no visible name. A cross-family read called the whole row 'a dense row of tiny category
+   icons ... adds little decision value on first view'; that framing is about a first-time user
+   and this tool has three, all of whom navigate by these tabs daily — but LOOKING at the row
+   to answer it turned up something that is not taste: a convention applied to two of three.
+   [[label-outlived-referent]] */
+.tabs-workshop{position:relative}
+.tabs-cluster::before,.tabs-workshop::before{content:attr(data-cluster);position:absolute;top:-6px;left:10px;padding:0 5px;font-size:8px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-wider);line-height:var(--lh-none);color:rgba(233,208,122,.55);background:var(--bg);border-radius:3px;pointer-events:none}
 .tc-hunt{border-color:rgba(224,120,70,.22)}
 .tc-hunt::before{color:rgba(255,150,90,.6)}
 .tabs{padding-top:12px!important}   /* room for the micro-captions above the cluster frames (sticky bar keeps its blur) */
@@ -47471,7 +47579,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2293', name:'v2293 - What Runs Without You', date:'2026-08-30', note:'nine automatic lanes now declare what they touch and what they leave alone; the guard checks each promise against the lane body, not the prose' };
+  window.D2R_BUILD = { id:'v2299', name:'v2299 - Every Missing Row Carries Its Own Clock', date:'2026-08-30', note:'the longest list of item names on the page printed a name and nothing else; each chip on both grail walls now shows the hours to find THAT item on its own best run, and an item with no known source shows no number at all' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

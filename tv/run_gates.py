@@ -279,6 +279,22 @@ GATES = [
              "both ways. It also pins the opposite failure: a canon that over-normalises would hide "
              "real finds, so Bloodrise and Bloodfist must stay two. All five laws sabotage-proven "
              "RED, including the negative control that the cross-reference can still say NEW."),
+    Gate("crest_loudness", [sys.executable, os.path.join(HERE, "crest_loudness.py")], 120,
+         why="v2294 — THE INSTALL CREST IS NEVER THE LOUDEST THING ON THE BOARD. Measured: every "
+             "element above the fold ranked by the share of its own pixels that are saturated, and "
+             "`.bs-glyph` came FIRST at 92.5%, ahead of the help button at 75.7%. A solid 20x20 "
+             "block of the install hue was the loudest thing on the page — and which hue is picked "
+             "by a hash of the install id, so nobody chose it: six of the sixteen crests land in "
+             "the palette's red/orange ALERT band, meaning 38% of installs wear an identity chip "
+             "the eye reads as an alarm. His hashed to Crimson, hue 0. A cross-family read named "
+             "it unprompted as 'also the loudest element' and noted it is the character name, not "
+             "the hunt. The obvious fix was REFUTED before it was written: damping the hue to a "
+             "22% tint puts the closest pair of crests (Hollow vs Iron) at dE 2.4 — the "
+             "just-noticeable threshold, i.e. two machines that look the same colour, which v1466 "
+             "calls worse than showing no crest at all. So the hue is untouched at full strength "
+             "and only its FOOTPRINT shrank. ⚠ This gate NEEDS Chrome and exits 2 (UNKNOWN) "
+             "without it, which run_gates reports as a loud SKIP — in CI that skip is expected and "
+             "is not a pass. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]"),
     Gate("test_auto_scope", [sys.executable, os.path.join(HERE, "test_auto_scope.py")], 60,
          why="v2293 — EVERY AUTOMATIC LANE DECLARES WHAT IT WOULD DO WITHOUT HIM. The cold-read "
              "question \"if this app were about to do something on your behalf, could you tell what "

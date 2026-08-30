@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2293",
+  "ver": "v2299",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2293: nine automatic lanes now declare what they touch and what they leave alone; the guard checks each promise against the lane body, not the prose",
+  "note": "v2299: the longest list of item names on the page printed a name and nothing else; each chip on both grail walls now shows the hours to find THAT item on its own best run, and an item with no known source shows no number at all",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -338,11 +338,19 @@
     transition: border-color .2s, background .2s;
   }
   .sigil:hover { border-color: var(--sg-hue, var(--gold)); background: rgba(255,255,255,.05); }
+  /* v2294 — see the long note in bible.html beside .bd-sigil .bs-glyph. The hue is NOT damped
+     (a tint puts the closest pair of crests at dE 2.4, i.e. two machines the same colour); only
+     its footprint shrinks, so the board and the console still show the SAME crest. */
   .sigil .sg-glyph {
     width: 22px; height: 22px; display: grid; place-items: center; flex: none;
     border-radius: 6px; font-size: var(--fs-sm); line-height: 1;
-    color: #0b0906; background: var(--sg-hue, var(--gold));
+    color: var(--sg-hue, var(--gold)); background: transparent;
+    box-shadow: inset 0 0 0 1px var(--sg-hue, var(--gold));
     font-weight: var(--fw-bold);
+    transition: background .18s, color .18s;
+  }
+  .sigil:hover .sg-glyph, .sigil:focus-visible .sg-glyph {
+    color: #0b0906; background: var(--sg-hue, var(--gold));
   }
   .sigil .sg-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
   /* v1498 — TYPOGRAPHY. Both lines were the same size, the same case-feel and nearly the same
@@ -4738,6 +4746,11 @@
   /* a THIRD state needs a THIRD colour: unpublished-amber is mine, pending-green is theirs
      and merely waiting, and this one is the only one that will not fix itself. */
   .fleet-stuck{color:#e08a6a;font-style:italic;cursor:help}
+  /* v2296 — behind-ness reads like its siblings: same italic help-cursor treatment, and a
+     colour that separates 'this machine is falling behind' (warm) from 'nobody could tell'
+     (muted). An unknown must never be able to pass for level. */
+  .fleet-lag{color:#e0b46a;font-style:italic;cursor:help;margin-left:4px}
+  .fleet-lag.unk{color:var(--muted,#8b8071)}
   .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -15880,6 +15893,31 @@ function escC(s) {
          never by matching version strings, because two machines can share a version and one of
          them would then be mislabelled. [[label-outlived-referent]] [[unknown-stays-unknown]] */
       var _pub = j.publishedVer, _me = j.me;
+      /* v2296 — HOW FAR BEHIND, SAID OUT LOUD. `_pub` was read here in v2249 and then compared
+         against exactly ONE machine: his own. So his row stopped looking one ahead by
+         construction, and every OTHER row went on reporting whatever that machine last said about
+         itself. Measured 2026-08-30T06:00Z: Dean's row read pull{behind:0,"level with origin"}
+         beside ver v2288, in a payload carrying publishedVer v2292 — four versions, called level,
+         from a self-report about nine hours old.
+
+         The number now comes from the SERVER (fleet_annotate_lag), which holds the published
+         version authoritatively, rather than from each machine's opinion of itself. `behind: null`
+         means it could not be established and says so — it must never render as level.
+         [[stale-reading]] [[the-unjoined-end]] [[unknown-stays-unknown]] */
+      var _lagTxt = function (m) {
+        var lg = m && m.lag;
+        if (!lg) return '';
+        if (lg.behind == null) {
+          return '<span class="fleet-lag unk" title="' + escC(String(lg.why || 'not established'))
+               + '">\u00b7 lag unknown</span>';
+        }
+        if (!lg.behind) return '';
+        return '<span class="fleet-lag" title="this console runs ' + escC(String(m.ver || '?'))
+             + ' and origin publishes ' + escC(String(lg.of || '?'))
+             + '. Counted here from what origin publishes, not from what that machine last said '
+             + 'about itself — its own report is as old as its last beacon.">'
+             + '\u00b7 ' + lg.behind + ' behind</span>';
+      };
       var _row = function (m, online) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
         var unpub = (_me && m.machine === _me && _pub && m.ver && m.ver !== _pub);
@@ -15928,6 +15966,7 @@ function escC(s) {
                       + 'origin publishes ' + escC(_pub) + ', which is what everyone else can '
                       + 'receive. It ships when the gates pass and it is pushed.">'
                       + ' · unpublished</span>' : '')
+             + _lagTxt(m)
              + ' · ' + escC(_fleetSince(m.t)))
           /* ── v2283 — A ROSTER THAT REFUSED THE WRITE IS NOT A MACHINE THAT WENT AWAY ────────
              Konyo: "i dont see anyone online in fleet. and all three consoles are definitely live
@@ -15949,9 +15988,11 @@ function escC(s) {
               if (lb && lb.ok === false) {
                 return 'roster refused its beacon \u00b7 presence UNKNOWN, not offline'
                      + (lb.code ? (' \u00b7 HTTP ' + escC(String(lb.code))) : '')
+                     + _lagTxt(m)
                      + ' \u00b7 last recorded ' + escC(_fleetSince(m.t));
               }
-              return 'offline \u00b7 last seen ' + escC(_fleetSince(m.t));
+              return 'offline \u00b7 ' + escC(m.ver || '?') + _lagTxt(m)
+                   + ' \u00b7 last seen ' + escC(_fleetSince(m.t));
             })();
         /* v2213 — CLICK A PLAYER. Konyo: "a click on the player itself will open a box and tell
            me visually and show me which items it has cross referenced to mine that i dont have
@@ -17179,6 +17220,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   } catch (e) {}
 
   function _chronPaint(st) {
+    _chronLastSt = st;   /* v2297 — so a late cross-reference can repaint */
     var body = document.getElementById('chron-body');
     var rev = document.getElementById('chron-review');
     var note = document.getElementById('chron-note');
@@ -17451,7 +17493,23 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
      the strip repaints on every tick and a per-tick reach would poke the window he is looking at
      several times a second. Refetched only when the proposal's SIZE changes, with the server
      holding a 90s memo underneath as the backstop. [[borrowed-surface]] */
-  var _xrKey = null, _xrBusy = false;
+  var _xrKey = null, _xrBusy = false, _chronLastSt = null;
+  /* ── v2297 — THE NEXT PAINT NEVER CAME ────────────────────────────────────────────────────
+     Konyo, twice: "the 347 reads i see is still not fixed we spke about this prior".
+
+     He was right and the code above was not wrong — it was UNJOINED. v2278 built three correct
+     branches and a correct fetch, and left a comment saying the fetch "fills _CHRON_XREF for the
+     NEXT paint". There is no next paint. _chronPaint runs when the sweep STATE changes; once the
+     proposal count is stable nothing calls it again, so the strip stays frozen on the one paint
+     that happened BEFORE the fetch resolved — for ever.
+
+     MEASURED on his live console 2026-08-30, 11 seconds after load:
+        window._CHRON_XREF = {measured:true, newCount:0, alreadyCount:347}
+        strip text         = "347 read from your reels — not yet checked against your chronicle"
+     The answer was sitting in the page the whole time and the sentence on screen denied it.
+
+     An async result that lands after the last render needs a render of its own. [[the-unjoined-end]]
+     [[plumbing-with-no-tap]] */
   async function _chronXref(n) {
     var key = String(n || 0);
     if (_xrBusy || key === _xrKey) return;
@@ -17461,6 +17519,10 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (r.ok) {
         window._CHRON_XREF = await r.json();
         _xrKey = key;
+        /* repaint with the state of the last paint, so the answer reaches the screen. The guard
+           at the top of this function (key === _xrKey) makes the re-entry a no-op, so this
+           cannot loop. */
+        if (_chronLastSt) { try { _chronPaint(_chronLastSt); } catch (e) {} }
       }
     } catch (e) {
       /* a failed fetch leaves _CHRON_XREF as it was; the strip then reads "not yet checked",

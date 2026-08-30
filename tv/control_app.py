@@ -892,6 +892,100 @@ def fleet_pull():
         return out
 
 
+
+def fleet_lag(ver, published):
+    """How many published versions is this machine behind? -> (behind, why)
+
+    ★ `behind` is None when it CANNOT BE ESTABLISHED, and never 0. A machine whose version will not
+    parse and a machine that is genuinely level are different facts, and collapsing them is what
+    made this panel say "level with origin" about a console four versions back.
+
+    MEASURED 2026-08-30T06:00Z from /api/fleet: Dean's row carried
+    pull{can:true, behind:0, why:"level with origin"} beside ver v2288, while the same payload
+    carried publishedVer v2292. That `behind` is DEAN'S OWN self-report from his last beacon, about
+    nine hours old, rendered as though it were current. The console already held both numbers and
+    never compared them. [[stale-reading]] [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+    import re as _re
+    a = _re.match(r"^v(\d+)$", str(ver or "").strip())
+    b = _re.match(r"^v(\d+)$", str(published or "").strip())
+    if not b:
+        return None, "origin's published version is not known here"
+    if not a:
+        return None, "that machine did not say which version it runs"
+    d = int(b.group(1)) - int(a.group(1))
+    if d <= 0:
+        return 0, "level with what origin publishes"
+    return d, "behind what origin publishes"
+
+
+
+def fleet_drop_non_machines(fl):
+    """Take the diagnostic beacons out of THE FLEET. -> a NEW dict, with what was dropped STATED.
+
+    ★ Konyo, looking at his own panel: "and the probe is still there.. says 11 behind".
+
+    It was mine. A `diagnostic-probe` beacon I posted while debugging on 2026-08-29 landed in the
+    durable roster, where `lastseen:<machine>` carries a 400-DAY TTL — so it would have sat in his
+    fleet until 2027. v2296 then made it worse by stamping it "11 behind", which reads as a real PC
+    that needs an update.
+
+    A real console sends an `install` identity (his 23d0486747ce, and one per relative's PC). The
+    probe sent "". So: no install identity, not a machine — it cannot be updated, cannot be behind,
+    and does not belong on a list of computers.
+
+    ⚠ DROPPED, NOT HIDDEN. Whatever comes out is named in `fl["notMachines"]`, because a row that
+    silently disappears is how a real machine goes missing — which is the exact defect this fleet
+    panel already had once, when his wife's PC could not say it was 178 versions behind.
+    [[unknown-stays-unknown]]
+    """
+    if not isinstance(fl, dict):
+        return fl
+    out = dict(fl)
+    dropped = []
+    for bucket in ("online", "offline"):
+        if bucket not in out:
+            continue
+        keep = []
+        for m in (out.get(bucket) or []):
+            if str(m.get("install") or "").strip():
+                keep.append(m)
+            else:
+                dropped.append({"machine": m.get("machine"), "ver": m.get("ver"),
+                                "why": "no install identity — a beacon, not a machine"})
+        out[bucket] = keep
+    out["notMachines"] = dropped
+    return out
+
+
+def fleet_annotate_lag(fl):
+    """Stamp every machine that is NOT this one with how far behind it is. -> a NEW dict.
+
+    v2249 stopped HIS row looking one ahead by construction; nothing ever stopped someone else's
+    row looking level while it was behind. His words: "how come dean is behind two versions" and
+    "this isnt optional the updates need to be going up".
+
+    ⚠ RETURNS A COPY, ALL THE WAY DOWN TO THE ROWS. fleet_presence() caches for 60 seconds and
+    hands back its own dicts; a shallow copy shares those rows, so annotating in place would poison
+    the cache for every later reader. His own row is left alone — v2249's `unpub` already owns it.
+    """
+    if not isinstance(fl, dict):
+        return fl
+    out = dict(fl)
+    me, pub = out.get("me"), out.get("publishedVer")
+    for bucket in ("online", "offline"):
+        rows = []
+        for m in (out.get(bucket) or []):
+            m = dict(m)
+            if m.get("machine") != me:
+                behind, why = fleet_lag(m.get("ver"), pub)
+                m["lag"] = {"behind": behind, "why": why, "of": pub}
+            rows.append(m)
+        if bucket in out:
+            out[bucket] = rows
+    return out
+
+
 def fleet_origin_status(force_fetch=False):
     """v1418 — {behind, latest, head, origin, dirty, ok, howTo, ver}.
     behind = commits on origin/main not in HEAD (0 = unified with fleet channel)."""
@@ -19029,7 +19123,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2293",
+        "ver": "v2299",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20746,6 +20840,8 @@ class Handler(BaseHTTPRequestHandler):
                     _os_ = fleet_origin_status()
                     _fl["ahead"] = _os_.get("ahead")
                     _fl["publishedVer"] = _os_.get("publishedVer")
+                    _fl = fleet_drop_non_machines(_fl)   # v2297 — his probe was not a PC
+                    _fl = fleet_annotate_lag(_fl)        # v2296 — see fleet_annotate_lag
             except Exception:
                 pass
             self._json(200, _fl)
