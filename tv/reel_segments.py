@@ -96,12 +96,23 @@ _ACTIVITY_LANE = {
 LOCK_LANES = ("inventory", "equipped")
 
 
-def feeds_the_lock_learner(activity):
-    """Is this a moment whose sightings should teach what is permanently HIS? -> (bool, why)
+def feeds_the_lock_learner(activity_or_lane):
+    """Should sightings from here teach what is permanently HIS? -> (bool, why)
 
     Deliberately separate from lane_at(): the vault asks "does he own this", the lock learner asks
     "is this his furniture". v2343 answered both with one map and got the first one wrong.
+
+    ⚠ IT TAKES EITHER VOCABULARY, AND SAYING SO IS THE FIX. A cross-family review noticed that
+    "equipped" sits in LOCK_LANES and is not a SCENE — the scene vocabulary is
+    town|stash|inventory|loot|gameplay|transition|chronicle — so if this only ever received a
+    segment's activity, that branch could never fire. It is not dead: "equipped" is a names_loc
+    value (equipped|inventory|stash|floor), which is the OTHER vocabulary in this pipeline, and a
+    caller holding a per-name location is exactly who should be asking this question.
+    Two vocabularies meeting in one function is fine; two vocabularies meeting SILENTLY is how a
+    branch stops being reachable without anyone noticing.
+    [[feedback-threshold-above-the-ceiling]] [[the-unjoined-end]]
     """
+    activity = activity_or_lane
     act = str(activity or "").strip().lower()
     if act in LOCK_LANES:
         return True, "read while the %s was open — repeated sightings here earn a lock" % act
@@ -237,6 +248,67 @@ _PIX_NO_GRID = ("gameplay",)
 # shrug. Konyo asked for the corroborator to work everywhere it can, and discarding a real
 # agreement is throwing away the cheapest evidence there is.
 _NO_GRID_ACTIVITIES = ("gameplay", "town", "transition")
+
+
+def corroborates_chrome(activity, stash_tab, chrome_readable=True):
+    """The scene read against the STASH TAB CHROME. -> (verdict, why)
+
+    ★ THIS IS THE RIGHT SECOND WITNESS, and corroborates() below is the one that was not.
+
+    control_app.stash_screen_open() reads the stash TAB CHROME out of a fixed band by OCR after a
+    deliberate crop and 3x upscale, and resolves it to one of his real tabs. Its own docstring
+    quotes him asking for exactly this: "it needs to be hardcoded and safegauded for vault manager
+    to only when maybe i CLICK stash and am in my stash with my inventory open at the same time
+    thats the template". The chrome only renders when the stash panel is open, and D2R draws the
+    inventory beside it whenever it is — so that chrome IS his "both windows at once" template.
+
+    ⚠ WHY IT REPLACED THE COLOUR FINGERPRINT. classify_stash_grid() fingerprints the stash CROP to
+    guess WHICH TAB once you already know you are in the stash; it was never a detector for whether
+    a container is open. Measured across his 1429 frames it produced 59 contradictions, and the two
+    I opened — Nihlathak's Temple in town, and the Chaos Sanctuary mid-combat full of fire — have
+    no stash panel at all. The chrome gate answers None on both, in 0.1s.
+
+    Because it does not false-positive on bright scenes, the gameplay/town arm is now SAFE to rule
+    on, which the colour witness could never support.
+
+    `stash_tab` is the gate's answer: a tab name when the stash is open, None when it is not.
+    `chrome_readable` is False when the gate could not be asked at all — an unreadable frame is
+    CANNOT TELL, never "no stash". [[unknown-stays-unknown]]
+    """
+    act = str(activity or "").strip().lower()
+    if not act:
+        return None, "the scene witness did not answer, so they cannot be compared"
+    if not chrome_readable:
+        return None, "the tab chrome could not be read on this frame, so it cannot rule"
+    open_now = bool(stash_tab)
+    if act == "stash":
+        if open_now:
+            return True, "the read says stash and the stash chrome is showing (tab %r)" % (stash_tab,)
+        return False, ("the read says stash but there is NO stash tab chrome — the panel that must "
+                       "be open for that scene is not on this frame")
+    if act == "inventory":
+        # ⚠ INVENTORY IS NOT IN THE "must show stash chrome" ARM, AND THAT WAS MY BUG. The first
+        # cut required chrome for both, and measured 3 contradictions that were nothing of the
+        # sort. His rule says why: "THE INVENTORY itself can be opened separately with its own
+        # template" — the inventory opens alone, and then there is no stash chrome to find.
+        # Chrome present means he is STASHING (both panels, his "thats when we start usually
+        # stashing stuff"); chrome absent means the inventory alone. Both are legitimate, so the
+        # chrome witness cannot contradict an inventory read — it can only tell them apart.
+        if open_now:
+            return True, ("the read says inventory and the stash chrome is showing too (tab %r) — "
+                          "both panels, which is stashing" % (stash_tab,))
+        return True, "the read says inventory and no stash chrome — the inventory alone, which is his second template"
+    if act == "chronicle":
+        if open_now:
+            return False, ("the read says chronicle but the stash chrome is showing (tab %r) — a "
+                           "Chronicle page is not a container panel" % stash_tab)
+        return True, "the read says chronicle and no stash panel is open"
+    if act in _NO_GRID_ACTIVITIES:
+        if open_now:
+            return False, ("the read says %s but the stash chrome is showing (tab %r) — a panel "
+                           "was open and the scene read missed it" % (act, stash_tab))
+        return True, "the read says %s and no container panel is open" % act
+    return None, "%s is not a template this comparison knows" % act
 
 
 def corroborates(activity, pixel_label):

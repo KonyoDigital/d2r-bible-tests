@@ -14101,3 +14101,45 @@ measurement, not obedience.**
 
 ⚠ Also fixed: an unrecognised pixel label used to read as "no grid" via `startswith("stash")`, which
 turns an answer you do not understand into a confident no. It is now CANNOT TELL.
+
+## REG-428 — the reader identified 8 of the 51 frames where a stash was open
+
+The stash TAB CHROME replaces the colour fingerprint as the second witness, and measuring it turned
+up the reason his ledgers are thin.
+
+`control_app.stash_screen_open()` crops a fixed band, upscales it 3x and OCRs the stash tab chrome,
+resolving it to one of his real tabs. Its own docstring quotes him asking for exactly that: *"it
+needs to be hardcoded and safegauded for vault manager to only when maybe i CLICK stash and am in my
+stash with my inventory open at the same time thats the template"*. The chrome only renders when the
+stash panel is open, and D2R draws the inventory beside it whenever it is — so the chrome IS his
+"both windows at once" template.
+
+**MEASURED across all 741 frames with a real scene: AGREE 729, CONTRADICT 12** — against the colour
+fingerprint's 59, of which the two I opened had no stash panel at all.
+
+**AND THE HEADLINE, from sweeping every frame on disk:**
+
+```
+frames where the stash chrome is demonstrably showing : 51
+what the MODEL called those same frames:
+   intake 13 · gameplay 11 · loot 11 · stash 8 · never read 4 · kai 3 · transition 1
+```
+
+**Of 51 frames with an open stash, the reader identified 8.** It missed 43, four of which it never
+read at all. Possession evidence existed in 51 frames and was treated as such in 8 — which is why
+provenance coverage sat at 30% and why his vault has been fed by inference rather than by sighting.
+
+I opened one of the misses: stash on the left with `PERSONAL | SHARED | GEMS | MATERIALS | RUNES`,
+inventory on the right holding his Horadric Cube, tomes and charms, a live tooltip reading *"Super
+Mana Potion — Ctrl + Left Click to Move"*. The model called it `gameplay`.
+
+**And the triage is nearly free: 1074 frames at 14 ms each with NO model call — 15 seconds for the
+whole corpus.** That is what makes his "5 extra readers on those three templates" affordable, and
+it belongs in the RETRO/sealed path, never live: *"i want this still clean and not lagging me while
+we play... the RETRO when SEALED should be extra layer of accuracy"*.
+
+⚠ **One bug of mine, caught by measurement:** I first required stash chrome for an `inventory` read
+too, and it produced 3 contradictions that were nothing of the sort. His rule says why — *"THE
+INVENTORY itself can be opened separately with its own template"*. Chrome present means stashing;
+chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
+it can never contradict an inventory read.

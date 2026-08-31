@@ -35098,5 +35098,68 @@ class TestV2345TwoWitnessesMustAgree(unittest.TestCase):
 
 
 
+class TestV2347TheChromeIsTheSecondWitness(unittest.TestCase):
+    """The stash TAB CHROME, not a colour fingerprint, is what corroborates a scene read.
+
+    control_app.stash_screen_open() crops a fixed band, upscales it 3x and OCRs the stash tab
+    chrome, resolving it to one of his real tabs. Its own docstring quotes him asking for exactly
+    that: "it needs to be hardcoded and safegauded for vault manager to only when maybe i CLICK
+    stash and am in my stash with my inventory open at the same time thats the template". The
+    chrome only renders when the stash panel is open, and D2R draws the inventory beside it
+    whenever it is — so the chrome IS his "both windows at once" template.
+
+    ⚠ WHY IT REPLACED THE COLOUR WITNESS. classify_stash_grid() produced 59 contradictions on his
+    reels; the two I opened were Nihlathak's Temple in town and the Chaos Sanctuary mid-combat,
+    neither with a stash panel. The chrome gate answers None on both, in 0.1s.
+
+    MEASURED across all 741 frames with a real scene: AGREE 729, CONTRADICT 12 — and all 12 are
+    the same real defect, a frame where the stash WAS open and the vision read called it gameplay
+    or transition. I opened one: stash on the left with PERSONAL|SHARED|GEMS|MATERIALS|RUNES,
+    inventory on the right with his cube, tomes and charms. The model said "gameplay".
+    """
+
+    def test_a_stash_read_needs_the_chrome(self):
+        import reel_segments as rs
+        self.assertIs(rs.corroborates_chrome("stash", "personal")[0], True)
+        v, why = rs.corroborates_chrome("stash", None)
+        self.assertIs(v, False)
+        self.assertIn("NO stash tab chrome", why)
+
+    def test_a_chronicle_read_must_NOT_have_the_chrome(self):
+        import reel_segments as rs
+        self.assertIs(rs.corroborates_chrome("chronicle", None)[0], True)
+        v, why = rs.corroborates_chrome("chronicle", "gems")[0], rs.corroborates_chrome("chronicle", "gems")[1]
+        self.assertIs(v, False, "a Chronicle read with the stash chrome showing was accepted")
+        self.assertIn("not a container panel", why)
+
+    def test_gameplay_with_the_chrome_showing_is_a_MISSED_STASH(self):
+        """The 12 real findings: a stash was open and the reader called it gameplay. That is the
+        most expensive miss there is, because it is exactly when possession evidence exists."""
+        import reel_segments as rs
+        v, why = rs.corroborates_chrome("gameplay", "personal")
+        self.assertIs(v, False)
+        self.assertIn("the scene read missed it", why)
+        self.assertIs(rs.corroborates_chrome("gameplay", None)[0], True)
+
+    def test_INVENTORY_can_never_be_contradicted_by_the_chrome(self):
+        """⚠ MY BUG, measured: the first cut required chrome for inventory too and produced 3
+        contradictions that were nothing of the sort. His rule says why — "THE INVENTORY itself can
+        be opened separately with its own template". Chrome present = stashing; chrome absent =
+        the inventory alone. Both legitimate, so the chrome can only TELL THEM APART."""
+        import reel_segments as rs
+        for tab in ("personal", None):
+            v, _ = rs.corroborates_chrome("inventory", tab)
+            self.assertIs(v, True,
+                          "the chrome witness contradicted an inventory read with tab=%r — the "
+                          "inventory opens alone and then there is no chrome to find" % tab)
+
+    def test_an_unreadable_frame_is_CANNOT_TELL_not_no_stash(self):
+        import reel_segments as rs
+        v, why = rs.corroborates_chrome("stash", None, chrome_readable=False)
+        self.assertIsNone(v, "a frame whose chrome could not be read was treated as 'no stash'")
+        self.assertIn("could not be read", why)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
