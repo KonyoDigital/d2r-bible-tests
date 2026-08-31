@@ -293,7 +293,13 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
     exit 1
   fi
-  if ! gate_run "test_control" "python3 tv/test_control.py" 600 -- python3 "$REPO/tv/test_control.py"; then
+  # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
+  # tree: 385s with the Mac quiet, 719s with D2R running at 110% CPU. A ceiling set between
+  # those two numbers does not catch a hung suite - it blocks every push he makes while he
+  # is playing, which is most of them, and the message says HUNG when nothing hung.
+  # 1500s still catches a genuine wedge (the suite has never exceeded 720s) while leaving
+  # room for the machine he actually owns. [[feedback-threshold-above-the-ceiling]]
+  if ! gate_run "test_control" "python3 tv/test_control.py" 1500 -- python3 "$REPO/tv/test_control.py"; then
     exit 1
   fi
   # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
