@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2332",
+  "ver": "v2333",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2332: slot identity had no panel box and three ways to infer one all failed - it is measured now, both axes converging independently on a square cell, verified on two frames",
+  "note": "v2333: the obvious adjacency plan collapsed on his packed stash - 71 cells came back as one blob of 66 - so the hover walk is adaptive and simulated over 300 stashes with known contents",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -12950,6 +12950,54 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-412 — MINI(AUTOMATIC): the obvious plan collapsed on his own stash (v2333)
+
+Konyo: *"is there a way for this to really be automated and for it to pinpoint which items it
+needs to hover itself on ... it just coordinates and clicking barely"*, and *"that needs to be
+demonstrated and simulated a lot"*.
+
+**The obvious design was built and measured dead on his own footage.** `item_groups()` groups
+ADJACENT occupied cells into items — correct on paper, because a D2R item is a rectangle of
+adjacent cells. On his packed shared stash:
+
+```
+71 occupied cells  ->  ONE 10x10 group holding 66 of them
+```
+
+**Items TOUCH.** Adjacency cannot separate a breastplate from the bow leaning against it; the
+information is simply not in the occupancy grid. The only reason that did not become a wrong
+answer is that the grouping **refused** the blob — every D2R item is a rectangle, so a group that
+does not fill its own bounding box cannot be one item, and it carries `solid: False` and no hover
+point instead of offering the middle of an L-shape.
+
+**So the walk is ADAPTIVE, which is better than a plan anyway:**
+
+```
+hover the first occupied cell nobody has explained
+  -> read what is there, learn its footprint
+  -> mark those cells explained
+  -> repeat
+```
+
+It discovers shapes instead of guessing them, converges in roughly one hover per ITEM rather than
+one per cell, and — the part that matters when a real cursor is involved — **every step is decided
+from what the last step actually returned. A pre-planned route cannot notice it was wrong.**
+
+**Simulated, as he asked**: 300 randomly packed stashes with ground truth known for each, plus a
+realistic 12-item layout. In every one the walk visits each item exactly once, terminates, and
+hovers exactly `len(items)` times. On the packed fixture that is **12 hovers where a per-cell walk
+would be 71**.
+
+⚠ **NOTHING HERE MOVES A CURSOR.** Building the route and walking it are separate on purpose. The
+refusals are the interesting half: a footprint that leaves the grid is refused rather than clipped
+(a clipped footprint leaves cells unexplained and the walk would hover the same item again from
+its overhang — an infinite loop wearing a plausible face), and "every cell is explained" says out
+loud that it is not the same fact as "the stash is empty".
+
+**Guards:** `TestV2333TheAutomaticHoverWalkSimulated`, five sabotages proven RED — including one
+that makes the walk forget what it explained, caught by the 300-stash simulation rather than by a
+hand-written case.
+
 ## REG-411 — slot identity had no panel box, and three ways to infer one all failed (v2332)
 
 `#31` was carried for weeks as *"one measured offset away from MINI(AUTOMATIC)"*. **That premise

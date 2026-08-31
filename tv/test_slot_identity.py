@@ -322,6 +322,134 @@ class TestV2332WhereTheGridActuallyIs(unittest.TestCase):
             self.assertTrue(why)
 
 
+class TestV2333TheAutomaticHoverWalkSimulated(unittest.TestCase):
+    """MINI(AUTOMATIC), SIMULATED AGAINST STASHES WHOSE CONTENTS ARE KNOWN.
+
+    Konyo: "is there a way for this to really be automated and for it to pinpoint which items it
+    needs to hover itself on ... it just coordinates and clicking barely", and "that needs to be
+    demonstrated and simulated a lot".
+
+    ⚠ THE FIRST DESIGN WAS MEASURED DEAD ON HIS OWN STASH. item_groups() groups ADJACENT occupied
+    cells into items, which is correct on paper and collapses in practice: his packed shared stash
+    gave 71 occupied cells as ONE 10x10 group of 66, because items TOUCH. Adjacency cannot
+    separate a breastplate from the bow leaning on it — the information is not in the grid. The
+    grouping refused that blob rather than hovering the middle of an L-shape, which is the only
+    reason it did not become a wrong answer.
+
+    So the walk is ADAPTIVE: hover the first unexplained occupied cell, learn the item's footprint
+    from what came back, mark those cells explained, repeat. It discovers shapes instead of
+    guessing them, and every step is decided from what the last step actually returned — a
+    pre-planned route cannot notice it was wrong.
+
+    NOTHING HERE MOVES A CURSOR. Building the route and walking it are separate on purpose, so the
+    route can be simulated as often as anyone likes before a real mouse is ever involved.
+    """
+
+    BOX = (281.0, 381.0, 868.0, 869.0)          # his measured stash grid at 2940x1912
+
+    def _walk(self, items):
+        """Drive the full adaptive loop over a stash whose true items are known.
+        -> (hovers, visited_items) or raises on a loop that fails to terminate."""
+        occupied, truth = set(), {}
+        for (c, r, w, h) in items:
+            cells, why = S.footprint(c, r, w, h, "stash")
+            self.assertIsNone(why, "bad fixture item: %s" % why)
+            for cell in cells:
+                occupied.add(cell)
+                truth[cell] = (c, r, w, h)
+        explained, hovers, visited = set(), 0, []
+        while True:
+            t, why = S.next_target(occupied, explained, self.BOX, "stash")
+            if t is None:
+                self.assertIn("finished", why)
+                break
+            hovers += 1
+            self.assertLessEqual(hovers, len(occupied) + 5,
+                                 "the walk is not converging — it would hover for ever")
+            item = truth[(t["col"], t["row"])]
+            visited.append(item)
+            cells, why2 = S.footprint(item[0], item[1], item[2], item[3], "stash")
+            self.assertIsNone(why2)
+            explained.update(cells)
+        return hovers, visited
+
+    def test_one_hover_per_ITEM_on_a_realistic_packed_stash(self):
+        """The whole point: his stash gave 71 occupied cells. A per-cell walk is 71 hovers."""
+        items = [(0,0,1,4), (2,0,2,3), (5,0,2,2), (8,0,1,3),
+                 (0,5,2,3), (3,4,2,4), (6,3,2,3), (9,4,1,2),
+                 (0,9,1,1), (2,9,2,1), (5,9,1,1), (7,8,2,2)]
+        hovers, visited = self._walk(items)
+        self.assertEqual(hovers, len(items),
+                         "hovered %d times for %d items" % (hovers, len(items)))
+        self.assertEqual(len(set(visited)), len(items), "an item was visited twice")
+
+    def test_it_terminates_and_visits_every_item_across_MANY_random_stashes(self):
+        """"simulated a lot" — 300 randomly packed stashes, ground truth known for each."""
+        import random
+        rnd = random.Random(20260831)
+        sizes = [(1,1),(1,2),(1,3),(1,4),(2,2),(2,3),(2,4),(2,1),(3,2)]
+        for trial in range(300):
+            grid = [[False]*10 for _ in range(10)]
+            items = []
+            for _ in range(rnd.randint(1, 22)):
+                w, h = rnd.choice(sizes)
+                c, r = rnd.randint(0, 10-w), rnd.randint(0, 10-h)
+                if any(grid[rr][cc] for rr in range(r, r+h) for cc in range(c, c+w)):
+                    continue                      # no overlaps: a cell holds one item
+                for rr in range(r, r+h):
+                    for cc in range(c, c+w):
+                        grid[rr][cc] = True
+                items.append((c, r, w, h))
+            if not items:
+                continue
+            hovers, visited = self._walk(items)
+            self.assertEqual(hovers, len(items),
+                             "trial %d: %d hovers for %d items" % (trial, hovers, len(items)))
+            self.assertEqual(sorted(visited), sorted(items),
+                             "trial %d visited the wrong set of items" % trial)
+
+    def test_an_EMPTY_stash_finishes_immediately_and_says_which_fact_it_is(self):
+        """"nothing left to explain" and "nothing there" are different facts.
+        [[unknown-stays-unknown]]"""
+        t, why = S.next_target([], [], self.BOX, "stash")
+        self.assertIsNone(t)
+        self.assertIn("finished", why)
+        self.assertIn("not the same as an empty stash", why)
+
+    def test_it_walks_in_READING_order_so_a_half_finished_pass_is_legible(self):
+        occ = [(9,9), (0,0), (5,3), (0,1)]
+        t, _ = S.next_target(occ, [], self.BOX, "stash")
+        self.assertEqual((t["col"], t["row"]), (0,0))
+        t2, _ = S.next_target(occ, [(0,0)], self.BOX, "stash")
+        self.assertEqual((t2["col"], t2["row"]), (0,1))
+
+    def test_it_reports_how_much_is_LEFT_not_just_the_next_step(self):
+        occ = [(0,0),(1,0),(2,0)]
+        t, _ = S.next_target(occ, [], self.BOX, "stash")
+        self.assertEqual(t["remaining"], 3)
+        t2, _ = S.next_target(occ, [(0,0)], self.BOX, "stash")
+        self.assertEqual(t2["remaining"], 2)
+
+    def test_a_footprint_that_leaves_the_grid_is_REFUSED_not_clipped(self):
+        """A clipped footprint marks fewer cells than the item covers, and the walk would hover
+        the same item again from its overhang — an infinite loop wearing a plausible face."""
+        cells, why = S.footprint(9, 9, 2, 2, "stash")
+        self.assertIsNone(cells)
+        self.assertIn("outside", why)
+
+    def test_the_ADJACENCY_grouping_still_refuses_a_blob_rather_than_guessing(self):
+        """The design that failed is kept, because its refusal is what stopped it becoming a wrong
+        answer on his real stash. An L-shape is not one item and must not be hovered as one."""
+        occ = [(0,0),(1,0),(0,1)]                 # an L: three cells, 2x2 bounding box
+        groups, why = S.item_groups(occ, "stash")
+        self.assertIsNone(why)
+        self.assertEqual(len(groups), 1)
+        self.assertFalse(groups[0]["solid"], "an L-shape was accepted as one rectangular item")
+        targets, _ = S.hover_targets(occ, self.BOX, "stash")
+        self.assertIsNone(targets[0]["point"], "it produced a hover point for a ragged group")
+        self.assertIn("not one rectangle", targets[0]["why"])
+
+
 if __name__ == "__main__":
     # REG-044 — this file prints non-ASCII; a non-UTF-8 console would turn its own
     # verdict into a traceback, which is the one place a gate must never be silent.

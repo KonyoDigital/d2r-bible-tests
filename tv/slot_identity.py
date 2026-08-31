@@ -205,6 +205,162 @@ def hover_plan(occupied, panel_box, container, where="center"):
     return out, (None if ok else "no cell in the plan could be turned into a point")
 
 
+def item_groups(occupied, container="stash"):
+    """Group adjacent occupied cells into ITEMS. -> (groups, why)
+
+    ★ THIS IS WHAT MINI(AUTOMATIC) HOVERS. hover_plan() answers per CELL, and a D2R item is not a
+    cell: a bow is 1x4, a breastplate 2x3. Hovering every occupied cell would visit one item four
+    to eight times, which on his own packed stash is 71 hovers for roughly fifteen items — the
+    difference between a pass that finishes and one he watches crawl.
+
+    ⚠ AND THE SHAPE IS A FREE SELF-CHECK, which is why the groups carry it. EVERY D2R item is a
+    RECTANGLE. So a group that does not fill its own bounding box cannot be one item — it is two
+    or more touching, and the single point at its centre might land on either. Those are returned
+    with `solid: False` so a caller can hover them cell-by-cell, or skip them, rather than hovering
+    the middle of an L-shape and filing whatever answers under one name. Nothing here guesses which
+    item it is; it reports that the question is not settled. [[unknown-stays-unknown]]
+
+    Each group: {cells, col, row, w, h, solid, point-less — point comes from hover_targets}.
+    """
+    if container not in GRIDS:
+        return [], "unknown container %r" % (container,)
+    cells = set()
+    for cell in (occupied or []):
+        try:
+            cells.add((int(cell[0]), int(cell[1])))
+        except (TypeError, ValueError, IndexError):
+            continue
+    cols, rows = GRIDS[container]
+    cells = {(c, r) for (c, r) in cells if 0 <= c < cols and 0 <= r < rows}
+    groups, seen = [], set()
+    for start in sorted(cells, key=lambda t: (t[1], t[0])):
+        if start in seen:
+            continue
+        stack, comp = [start], []
+        seen.add(start)
+        while stack:                                  # 4-connected flood fill, iterative on
+            c, r = stack.pop()                        # purpose: a recursive one on a 10x10 is fine
+            comp.append((c, r))                       # until someone points it at a bigger grid
+            for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                n = (c + dc, r + dr)
+                if n in cells and n not in seen:
+                    seen.add(n)
+                    stack.append(n)
+        cs = [c for c, _ in comp]
+        rs = [r for _, r in comp]
+        c0, r0 = min(cs), min(rs)
+        w, h = max(cs) - c0 + 1, max(rs) - r0 + 1
+        groups.append({"cells": sorted(comp, key=lambda t: (t[1], t[0])),
+                       "col": c0, "row": r0, "w": w, "h": h,
+                       "solid": len(comp) == w * h})
+    groups.sort(key=lambda g: (g["row"], g["col"]))
+    return groups, None
+
+
+def hover_targets(occupied, panel_box, container="stash", where="center"):
+    """One point per ITEM, in reading order. -> (targets, why)
+
+    The plan MINI(AUTOMATIC) would drive. It moves nothing — building the route and walking it are
+    deliberately separate, so the route can be simulated against real frames as often as anyone
+    likes before a cursor is ever involved.
+
+    A ragged group (two items touching) is CARRIED with solid=False and no single point, because
+    one point in the middle of an L could hover either item and the answer would be filed under
+    whichever name came back. A caller that wants them anyway has every cell listed.
+    """
+    groups, why = item_groups(occupied, container)
+    if why:
+        return [], why
+    out = []
+    for g in groups:
+        if g["solid"]:
+            cc = g["col"] + (g["w"] - 1) / 2.0
+            rr = g["row"] + (g["h"] - 1) / 2.0
+            pt, pw = point_of_cell(int(round(cc)), int(round(rr)), panel_box, container, where=where)
+        else:
+            pt, pw = None, ("this group is %dx%d but holds %d cells, so it is not one rectangle "
+                            "and therefore not one item — hovering its centre could read either "
+                            "of the items touching here" % (g["w"], g["h"], len(g["cells"])))
+        out.append(dict(g, point=pt, why=pw))
+    return out, None
+
+
+def next_target(occupied, explained, panel_box, container="stash", where="center"):
+    """The next cell to hover, given what is already explained. -> (target|None, why)
+
+    ★ THE CORE OF MINI(AUTOMATIC), AND IT IS ADAPTIVE ON PURPOSE. item_groups() above groups
+    ADJACENT cells, and MEASURED on his own packed stash that collapses: 71 occupied cells came
+    back as ONE 10x10 group of 66, because in a full stash items TOUCH. Adjacency cannot separate
+    a breastplate from the bow leaning against it, and no amount of cleverness in the grouping
+    changes that — the information simply is not in the occupancy grid.
+
+    It IS in the game. Hovering a cell tells you the item AND its footprint, so the route does not
+    need to be known in advance:
+
+        hover the first occupied cell nobody has explained
+        -> read what is there, learn its footprint
+        -> mark those cells explained
+        -> repeat
+
+    That converges in roughly one hover per ITEM rather than one per cell, discovers the shapes
+    instead of guessing them, and — the part that matters when it is driving a real cursor — every
+    step is decided from what the last step actually returned. A pre-planned route cannot notice
+    that it was wrong; this one cannot help but notice.
+
+    Reading order, so a half-finished pass is legible: left to right, top to bottom, exactly the
+    order he would do it in by hand.
+    """
+    if container not in GRIDS:
+        return None, "unknown container %r" % (container,)
+    cols, rows = GRIDS[container]
+    done = set()
+    for cell in (explained or []):
+        try:
+            done.add((int(cell[0]), int(cell[1])))
+        except (TypeError, ValueError, IndexError):
+            continue
+    todo = []
+    for cell in (occupied or []):
+        try:
+            c, r = int(cell[0]), int(cell[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if 0 <= c < cols and 0 <= r < rows and (c, r) not in done:
+            todo.append((c, r))
+    if not todo:
+        return None, ("every occupied cell is explained — the pass is finished. That is not the "
+                      "same as an empty stash, and a caller must not print it as one.")
+    todo.sort(key=lambda t: (t[1], t[0]))
+    c, r = todo[0]
+    pt, why = point_of_cell(c, r, panel_box, container, where=where)
+    if not pt:
+        return None, why
+    return {"col": c, "row": r, "point": pt, "remaining": len(todo)}, None
+
+
+def footprint(col, row, w, h, container="stash"):
+    """The cells an item of size w x h at (col,row) covers. -> (cells, why)
+
+    What the caller marks explained after ONE hover. Refuses a footprint that leaves the grid
+    rather than clipping it: a clipped footprint would mark fewer cells than the item really
+    covers, and the walk would hover the same item again from its overhang.
+    """
+    if container not in GRIDS:
+        return None, "unknown container %r" % (container,)
+    cols, rows = GRIDS[container]
+    try:
+        c0, r0, ww, hh = int(col), int(row), int(w), int(h)
+    except (TypeError, ValueError):
+        return None, "footprint is not numeric"
+    if ww < 1 or hh < 1:
+        return None, "an item cannot be %dx%d" % (ww, hh)
+    if c0 < 0 or r0 < 0 or c0 + ww > cols or r0 + hh > rows:
+        return None, ("a %dx%d item at (%d,%d) runs outside the %dx%d grid — refusing rather than "
+                      "clipping, because a clipped footprint leaves cells unexplained and the walk "
+                      "would hover this same item again" % (ww, hh, c0, r0, cols, rows))
+    return [(c, r) for r in range(r0, r0 + hh) for c in range(c0, c0 + ww)], None
+
+
 def slot_key(container, col, row, tab=None):
     """A stable, readable identity for one cell. -> str
 
