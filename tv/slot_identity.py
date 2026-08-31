@@ -361,6 +361,53 @@ def footprint(col, row, w, h, container="stash"):
     return [(c, r) for r in range(r0, r0 + hh) for c in range(c0, c0 + ww)], None
 
 
+# ══ v2334 — FRAME PIXELS ARE NOT SCREEN PIXELS ═════════════════════════════════════════════════
+# point_of_cell() returns a point in the FRAME, and this module says in its own docstring that
+# turning one into the other "is where the risk lives". This is that conversion, written and
+# guarded ON ITS OWN, because it is the last piece that can be built without anything moving.
+#
+# ⚠ IT STILL MOVES NOTHING. Nothing here touches a cursor, and nothing calls it yet. A wrong
+# answer from this function would put his mouse somewhere arbitrary on his screen WHILE HE IS IN A
+# GAME, so it is built to refuse in every case where it cannot be sure, and it is tested against
+# arithmetic rather than against his machine.
+_SCALE_TOLERANCE = 0.02          # 2% — a real capture of a window scales the same on both axes
+
+
+def screen_point(frame_point, frame_size, window_rect):
+    """A point in the frame -> the same point on the SCREEN. -> ((x, y), None) or (None, why)
+
+    `window_rect` is the GAME WINDOW on screen as (x, y, w, h). The capture is a scaled copy of
+    that window, so the scale is window/frame — and it must be THE SAME on both axes.
+
+    ⚠ THE AXIS CHECK IS THE WHOLE SAFETY ARGUMENT. If the horizontal and vertical scales disagree,
+    the frame is not a straight scaling of the window: it is letterboxed, cropped, or from a
+    different window entirely. Any point computed from an averaged scale would be confidently
+    wrong, and wrong here means a cursor somewhere he did not ask for. So a mismatch REFUSES.
+    """
+    try:
+        px, py = float(frame_point[0]), float(frame_point[1])
+        fw, fh = float(frame_size[0]), float(frame_size[1])
+        wx, wy, ww, wh = [float(v) for v in window_rect]
+    except (TypeError, ValueError, IndexError):
+        return None, "point, frame size or window rect is not numeric"
+    if fw <= 0 or fh <= 0:
+        return None, "the frame measures %gx%g" % (fw, fh)
+    if ww <= 0 or wh <= 0:
+        return None, ("the game window measures %gx%g on screen — nothing can be inside it, and a "
+                      "window that is not there is not a window that is at the origin" % (ww, wh))
+    if not (0 <= px <= fw and 0 <= py <= fh):
+        return None, ("(%g, %g) is outside the %gx%g frame — refusing rather than clamping, "
+                      "because a clamped point is a REAL place on his screen that nobody chose"
+                      % (px, py, fw, fh))
+    sx, sy = ww / fw, wh / fh
+    if abs(sx - sy) > _SCALE_TOLERANCE * max(sx, sy):
+        return None, ("the frame scales %.4f horizontally and %.4f vertically against this window, "
+                      "so it is not a straight scaling of it — letterboxed, cropped, or a capture "
+                      "of something else. An averaged scale would be confidently wrong."
+                      % (sx, sy))
+    return (wx + px * sx, wy + py * sy), None
+
+
 def slot_key(container, col, row, tab=None):
     """A stable, readable identity for one cell. -> str
 

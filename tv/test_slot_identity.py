@@ -450,6 +450,96 @@ class TestV2333TheAutomaticHoverWalkSimulated(unittest.TestCase):
         self.assertIn("not one rectangle", targets[0]["why"])
 
 
+class TestV2334FramePixelsAreNotScreenPixels(unittest.TestCase):
+    """THE LAST PIECE THAT CAN BE BUILT WITHOUT ANYTHING MOVING.
+
+    point_of_cell returns a point in the FRAME. Driving a real cursor needs it on the SCREEN, and
+    this module's own docstring says that conversion "is where the risk lives" — a wrong answer
+    here puts his mouse somewhere arbitrary WHILE HE IS IN A GAME.
+
+    So it is arithmetic, it is tested as arithmetic, and it refuses in every case where it cannot
+    be sure. Nothing calls it and nothing moves.
+    """
+
+    def test_a_straight_half_scale_converts_exactly(self):
+        pt, why = S.screen_point((100, 200), (2940, 1912), (100, 60, 1470, 956))
+        self.assertIsNone(why)
+        self.assertAlmostEqual(pt[0], 100 + 50.0, places=6)
+        self.assertAlmostEqual(pt[1], 60 + 100.0, places=6)
+
+    def test_the_axes_are_not_INTERCHANGEABLE(self):
+        """⚠ EVERY OTHER CASE HERE USES A UNIFORM SCALE, WHICH MAKES A SWAP INVISIBLE.
+
+        A sabotage that computed `wx + px*sy, wy + py*sx` passed the whole class, because when
+        both scales are 0.5 the swap changes nothing. The suite could not see a defect that would
+        put the cursor on the wrong axis the moment a window was not perfectly proportional.
+
+        So this case uses a window whose two scales differ by ROUNDING - inside the tolerance, so
+        it is accepted - and asserts the exact values. Now x must be built from the x scale.
+        """
+        fw, fh = 2940, 1912
+        wx, wy, ww, wh = 0, 0, 1470, 955          # sy = 955/1912 != sx = 1470/2940 = 0.5
+        sx, sy = ww / float(fw), wh / float(fh)
+        self.assertNotEqual(sx, sy, "the fixture no longer distinguishes the two axes")
+        pt, why = S.screen_point((1000, 1000), (fw, fh), (wx, wy, ww, wh))
+        self.assertIsNone(why, "a rounding-level difference was refused: %s" % why)
+        self.assertAlmostEqual(pt[0], wx + 1000 * sx, places=9,
+                               msg="x was not computed from the HORIZONTAL scale")
+        self.assertAlmostEqual(pt[1], wy + 1000 * sy, places=9,
+                               msg="y was not computed from the VERTICAL scale")
+
+    def test_a_one_to_one_window_is_the_origin_plus_the_point(self):
+        pt, why = S.screen_point((7, 9), (100, 100), (30, 40, 100, 100))
+        self.assertIsNone(why)
+        self.assertEqual((round(pt[0]), round(pt[1])), (37, 49))
+
+    def test_the_frame_CENTRE_lands_on_the_window_CENTRE(self):
+        """The one invariant that cannot be satisfied by a scale error in either axis alone."""
+        fw, fh = 2940, 1912
+        wx, wy, ww, wh = 100, 60, 1470, 956
+        pt, _ = S.screen_point((fw / 2.0, fh / 2.0), (fw, fh), (wx, wy, ww, wh))
+        self.assertAlmostEqual(pt[0], wx + ww / 2.0, places=6)
+        self.assertAlmostEqual(pt[1], wy + wh / 2.0, places=6)
+
+    def test_AXES_THAT_DISAGREE_are_refused_never_averaged(self):
+        """The whole safety argument. If the two scales differ the frame is not a straight scaling
+        of the window - letterboxed, cropped, or a capture of something else - and a point from an
+        averaged scale would be confidently wrong."""
+        pt, why = S.screen_point((100, 100), (2940, 1912), (0, 0, 1470, 700))
+        self.assertIsNone(pt, "an averaged scale was used on a letterboxed frame")
+        self.assertIn("not a straight scaling", why)
+
+    def test_a_point_OUTSIDE_the_frame_is_refused_not_clamped(self):
+        """A clamped point is a REAL place on his screen that nobody chose."""
+        for bad in ((3000, 100), (-1, 100), (100, 2000)):
+            pt, why = S.screen_point(bad, (2940, 1912), (0, 0, 1470, 956))
+            self.assertIsNone(pt, "%r was clamped onto the screen" % (bad,))
+            self.assertIn("outside", why)
+
+    def test_a_window_with_no_SIZE_is_refused(self):
+        """"the window is not there" and "the window is at the origin" are different facts."""
+        pt, why = S.screen_point((10, 10), (2940, 1912), (0, 0, 0, 0))
+        self.assertIsNone(pt)
+        self.assertIn("not a window that is at the origin", why)
+
+    def test_nonsense_input_is_refused_rather_than_raising(self):
+        for args in (((None, 1), (100, 100), (0, 0, 10, 10)),
+                     (("x", 1), (100, 100), (0, 0, 10, 10)),
+                     ((1, 1), (0, 100), (0, 0, 10, 10))):
+            pt, why = S.screen_point(*args)
+            self.assertIsNone(pt)
+            self.assertTrue(why)
+
+    def test_the_tolerance_admits_ROUNDING_but_not_a_real_letterbox(self):
+        """Pinned as a law rather than a taste: a window rect is integers, so the two scales differ
+        slightly by rounding on almost every real frame, and refusing those would make the whole
+        conversion unusable. A letterbox is an order of magnitude larger than that."""
+        ok, why = S.screen_point((10, 10), (2940, 1912), (0, 0, 1470, 955))   # 1px of rounding
+        self.assertIsNotNone(ok, "a one-pixel rounding difference was refused: %s" % why)
+        bad, _ = S.screen_point((10, 10), (2940, 1912), (0, 0, 1470, 900))    # a real letterbox
+        self.assertIsNone(bad, "a 6% axis mismatch was accepted as rounding")
+
+
 if __name__ == "__main__":
     # REG-044 — this file prints non-ASCII; a non-UTF-8 console would turn its own
     # verdict into a traceback, which is the one place a gate must never be silent.

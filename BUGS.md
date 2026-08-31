@@ -12950,6 +12950,49 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-413 — frame pixels are not screen pixels, and a sabotage that never ran (v2334)
+
+**The conversion.** `point_of_cell()` answers in FRAME pixels; driving a cursor needs SCREEN
+pixels, and `slot_identity`'s own docstring says that conversion "is where the risk lives" — a
+wrong answer puts his mouse somewhere arbitrary **while he is in a game**. So `screen_point()` is
+built and guarded on its own, as arithmetic, and **nothing calls it and nothing moves**.
+
+Its safety argument is one check: the frame must scale the SAME on both axes. If they disagree the
+frame is not a straight scaling of the window — letterboxed, cropped, or a capture of something
+else — and a point from an averaged scale would be confidently wrong. A mismatch refuses, a point
+outside the frame refuses rather than clamping (a clamped point is a REAL place on his screen that
+nobody chose), and a zero-size window refuses because *"the window is not there"* and *"the window
+is at the origin"* are different facts.
+
+⚠⚠ **AND FINDING IT EXPOSED A HOLE IN MY OWN SABOTAGE METHOD, ALL SESSION.**
+
+A sabotage swapping the two scales — `px * sy … py * sx` — **stayed GREEN**. I recorded that as a
+weak test and wrote a stronger case. The stronger case then failed on the CORRECT code, which is
+the contradiction that gave it away:
+
+```
+source line   return (wx + px * sx, wy + py * sy), None      ← correct
+measured      screen_point((2000,500), …)  ->  (998.95, 250.0)
+correct       (1000.0, 249.7385)
+```
+
+**The source was right and the loaded bytecode was the sabotage.** `sys.pycache_prefix` puts
+`.pyc` files under `~/Library/Caches/com.apple.python/<full path>`, and Python invalidates on
+**mtime + size**. That swap is *exactly the same length* as the correct line and was restored
+within the same second — same mtime, same size, stale bytecode served against correct source.
+
+So the sabotage **never ran**: "stayed green" meant "the change was not loaded", not "the guard is
+weak". With the cache cleared it goes RED immediately.
+
+**Every sabotage this session that changed the file's SIZE was unaffected** (size mismatch forces a
+recompile), which is nearly all of them — but a length-preserving one is invisible, and I had this
+exact scar written down already. The sabotage helper clears `slot_identity*.pyc` before every run
+now.
+
+**Guards:** `TestV2334FramePixelsAreNotScreenPixels`, five sabotages proven RED. ⚠ The axis-swap
+case exists because every OTHER case used a uniform 0.5 scale, which makes a swap invisible by
+construction; it uses a window whose two scales differ by rounding so the axes can be told apart.
+
 ## REG-412 — MINI(AUTOMATIC): the obvious plan collapsed on his own stash (v2333)
 
 Konyo: *"is there a way for this to really be automated and for it to pinpoint which items it

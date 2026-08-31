@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2333",
+  "ver": "v2334",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2333: the obvious adjacency plan collapsed on his packed stash - 71 cells came back as one blob of 66 - so the hover walk is adaptive and simulated over 300 stashes with known contents",
+  "note": "v2334: the conversion MINI-AUTOMATIC needs before it can ever move a cursor - built as arithmetic that refuses whenever it cannot be sure, and nothing calls it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
