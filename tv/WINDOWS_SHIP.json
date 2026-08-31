@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2352",
+  "ver": "v2354",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2352: 20 defunct children after 20h - 8 discarded Popens and two swallowed kill deadlines",
+  "note": "v2354: measured per lane and surface with Wilson - ocr produced 1 real name in 801 sightings",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

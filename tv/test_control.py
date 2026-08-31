@@ -20932,6 +20932,25 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # A guard that can fire on one machine and never on another is a guard that has an opinion
         # about which machine you are on. So it now names WHICH checks actually did work, and
         # refuses to call the run a pass when none of them did. [[feedback-blind-fixture-green-gate]]
+        # ⚠ v2354 — A WALL-CLOCK BUDGET CANNOT BE MEASURED ON A SATURATED MACHINE. This went red
+        # on 2026-08-31 with "panels on screen (4020 ms)" while he was PLAYING: load average 33,
+        # D2R at 260% CPU, a chronicle sweep running. The check makes one HTTP call to his
+        # console; at that load, 4s is the machine, not the code. It passed at v2349 on the same
+        # code with the machine idle.
+        #
+        # A timing gate that goes red every time he plays is a gate he learns to ignore, which is
+        # the same defect as a gate that is always green. So it now REFUSES TO JUDGE rather than
+        # judging wrongly - and says so loudly, because a skip is not a pass. [[test-venue]]
+        # [[regression-guard]]
+        try:
+            _load1 = os.getloadavg()[0]
+        except Exception:
+            _load1 = 0.0
+        _cpus = os.cpu_count() or 4
+        if _load1 > _cpus * 1.5:
+            self.skipTest("load average %.1f on %d cpus - a wall-clock budget measured here would "
+                          "be measuring the machine, not the code. NOT A PASS: re-run this when "
+                          "the machine is idle." % (_load1, _cpus))
         did_work = 0
         for name, fn in cd.CHECKS:
             if name in cd.SLOW:
@@ -35636,6 +35655,190 @@ class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
             self.assertNotIn("pass", m.group(2),
                              "a kill-deadline timeout is swallowed again - that child is a "
                              "zombie for the life of the process")
+
+
+
+class TestV2353OneAdmissionDoorForEveryReader(unittest.TestCase):
+    """#116. Konyo: "all ai retro readers especially all need to be funneled and routed through
+    the same systems and debugged and gapless".
+
+    v2343 taught the LIVE register to ask the reel timeline where the cursor was when a name was
+    read, and to refuse a vault claim for anything read on a Chronicle page. The RETRO proposal
+    never asked. Its sightings carried {reel, frame, lane} and NO location, so the console
+    handoff, the board inbox and the vault were all judging names whose provenance had been
+    dropped at the moment the proposal was built. One question, two answers, one of them absent.
+
+    Measured on his real journal (5,761 rows) once the lane was joined:
+
+        stash 56 | transition 41 | chronicle 32 | town 19 | inventory 11 | loot 4
+
+        names read on a CHRONICLE page : 79
+        names read in the STASH        : 52
+        in BOTH                        :  1
+
+    78 names had never been seen in anything he owns - and they read like
+    `A TVfNA'S WAAT`, `AffjuLeT`, `ANcifMT`: OCR garbage off the Chronicle page's own text. That
+    is what was reaching his vault.
+
+    ⚠ THREE SEPARATE SILENT FAILURES were found building this, all the same shape - a name that
+    does not exist, swallowed by a bare `except`, leaving a gate that reads as wired and resolves
+    nothing: `_sessions_path()` (the real name is `_journal_path()`), `io.open` in a module that
+    never imports `io`, and a frame-id parser that only knew `f_<ms>.jpg` when his frames are
+    `<n>_<ms>`. Each one measured 0/467 and looked exactly like "nothing to report".
+    """
+
+    def test_the_provenance_helper_uses_names_that_exist(self):
+        """The failure that cost three rounds. A helper that calls a function which does not
+        exist, inside a try/except, is indistinguishable from a helper with nothing to say."""
+        import control_app as ca
+        self.assertTrue(hasattr(ca, "_journal_path"), "_journal_path is gone")
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        blk = _between(self, src, "def _sighting_loc(", "def _name_loc(",
+                       min_len=300, what="the provenance helper")
+        self.assertNotIn("_sessions_path(", blk,
+                         "_sighting_loc calls _sessions_path(), which does not exist - every "
+                         "lookup raises NameError into a bare except and resolves nothing")
+        self.assertNotIn("io.open(", blk,
+                         "control_app does not import io; io.open here raises NameError and the "
+                         "gate silently resolves nothing")
+
+    def test_it_reads_both_frame_id_formats(self):
+        """His frames are `<n>_<epoch-ms>`; an earlier cut only understood `f_<ms>.jpg` and
+        failed 467 of 467 sightings while reporting them all as honestly unknown."""
+        import control_app as ca
+        ca._SIGHTING_LOC_CACHE.clear()
+        for frame in ("3_1784984175075", "f_1784984175075.jpg", "1_1787522908161"):
+            sg = {"reel": "s_nope_0", "frame": frame}
+            # no segments for a fake reel, so the answer is None - but it must reach that point
+            # via no_segments, NOT via no_ts, which is what proves the timestamp parsed.
+            before = ca._SIGHTING_LOC_STATS.get("no_ts", 0)
+            ca._sighting_loc(sg)
+            self.assertEqual(ca._SIGHTING_LOC_STATS.get("no_ts", 0), before,
+                             "the timestamp in %r was not parsed" % frame)
+
+    def test_an_unresolved_provenance_stays_unresolved(self):
+        """_name_loc must refuse to pick a side when the sightings disagree. A name seen once in
+        the stash and once on a Chronicle page is the whole point of this arc, and choosing the
+        convenient one is how the defect happened. [[unknown-stays-unknown]]"""
+        import control_app as ca
+        self.assertIsNone(ca._name_loc([]), "no sightings must answer None")
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        blk = _between(self, src, "def _name_loc(", "def _kai_compile_register(",
+                       min_len=150, what="_name_loc")
+        self.assertIn("len(locs) == 1", blk,
+                      "_name_loc no longer requires the sightings to AGREE - a majority or a "
+                      "first-wins here silently promotes a chronicle read into a vault claim")
+
+    def test_the_retro_proposal_carries_where_it_saw_things(self):
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        self.assertGreaterEqual(src.count("_sighting_loc(sg)"), 2,
+                                "the retro proposal stopped attaching a location to its sightings")
+        self.assertGreaterEqual(src.count("_name_loc(prop.get(lg"), 2,
+                                "the retro proposal stopped attaching a name-level location")
+
+    def test_the_console_handoff_asks_the_same_predicate(self):
+        """The bypass. The handoff drained names into his inbox with no location at all, so
+        _vaultMayClaim - the one predicate every other door asks - could not judge them."""
+        src = io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        blk = _between(self, src, "THE HANDOFF USES THE SAME DOOR", "_have[String(nm)] = 1; _added++;",
+                       min_len=200, what="the handoff drain")
+        # PIN THE ASSIGNMENT, NOT THE MENTION. A first cut asserted the predicate was named in
+        # the block; the surrounding `typeof window._vaultMayClaim === 'function'` guard satisfies
+        # that, so replacing the verdict with `_vaultOk = true;` stayed GREEN. A string cannot
+        # tell a live call from a nearby reference to the same name.
+        import re as _re
+        # ⚠ ALL assignments, not the first: the first is the `var _vaultOk = null` initialiser,
+        # and matching only that failed on correct code as readily as on sabotaged code.
+        assigns = _re.findall(r"_vaultOk\s*=\s*([^;\n]+)", blk)
+        self.assertTrue(assigns, "the handoff no longer computes a vault verdict at all")
+        self.assertTrue(any("_vaultMayClaim(" in a for a in assigns),
+                        "none of the handoff's vaultOk assignments come from the shared "
+                        "predicate every other door asks; found %r" % [a.strip()[:40] for a in assigns])
+        self.assertTrue(any(a.strip().startswith("null") for a in assigns),
+                        "vaultOk must start as null (NOT ESTABLISHED) so an absent location "
+                        "never reads as a refusal")
+        self.assertIn("vaultOk", blk, "the drained row no longer carries a verdict")
+        self.assertIn("_vaultOk = null", blk.replace("var _vaultOk = null", "_vaultOk = null"),
+                      "vaultOk must start as null (NOT ESTABLISHED), never false")
+
+
+
+class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
+    """#121, the AI item checker, given a measured basis instead of a hunch.
+
+    Measured against his real journal 2026-08-31 (5,761 rows, 567-name roster of uniques + set
+    pieces + set names), counting DISTINCT names:
+
+        lane   surface       real   seen   Wilson lower
+        deep   chronicle       38     61       0.4975
+        deep   stash            3     25       0.0417
+        deep   gameplay         0     38       0.0000
+        ocr    gameplay         1    366       0.0005
+        ocr    everything else  0    435       0.0000
+
+    Two findings, and the second one inverts the obvious reading:
+
+    1. **The `ocr` lane produced ONE real item name in 801 sightings** - `WIzENDRAW`, a garble
+       that case-folded onto a real name. OCR earns its keep on STRUCTURE (is a panel open, which
+       tab) and is worth nothing for NAMES. The lane design already said ocr is provisional; this
+       is that design confirmed by measurement instead of by assertion.
+    2. **A chronicle page is the BEST naming surface, not the worst** - an order of magnitude
+       better than anywhere else, because it is a menu of clean rendered text. What it must never
+       do is imply POSSESSION. Precision and provenance are ORTHOGONAL, `_vaultMayClaim` answers
+       only the second, and a gate built on "chronicle = bad" would have discarded his best
+       source. [[d2r-vault-routing]]
+    """
+
+    def test_unknown_is_not_zero(self):
+        """A zero from 5 samples and a zero from 366 have the same Wilson LOWER bound and mean
+        completely different things. Anything under MIN_SAMPLES must answer None, never 0.0, or
+        the gate will eventually discard a real find and call it precision."""
+        import surface_precision as sp
+        w, n, why = sp.precision("deep", "loot")
+        self.assertIsNone(w, "0/5 must be NOT ESTABLISHED, not a measured zero (got %r)" % w)
+        self.assertIn("nobody has looked", why)
+        w2, _n2, _ = sp.precision("deep", "chronicle")
+        self.assertIsNotNone(w2, "the best-measured combination lost its measurement")
+        self.assertGreater(w2, 0.2)
+
+    def test_an_unmeasured_surface_is_still_read(self):
+        """A gate that refuses to pay for what it has not measured can never measure it. Only a
+        combination MEASURED over a real sample to yield nothing is refused."""
+        import surface_precision as sp
+        ok, why = sp.worth_paying_to_read("deep", "brand-new-surface")
+        self.assertTrue(ok, "an unmeasured surface must still be read: %s" % why)
+        ok2, why2 = sp.worth_paying_to_read("ocr", "gameplay")
+        self.assertFalse(ok2, "ocr/gameplay is 1 real in 366 and must not be paid for")
+        self.assertIn("measured", why2)
+
+    def test_lane_and_surface_are_judged_together(self):
+        """The whole point. `deep` on a chronicle page is the best combination there is; `ocr` on
+        the same page is 0 of 33. A table keyed on surface alone would average them and be wrong
+        about both."""
+        import surface_precision as sp
+        deep_n, _ = sp.witnesses_required("deep", "chronicle")
+        ocr_n, _ = sp.witnesses_required("ocr", "chronicle")
+        self.assertEqual(deep_n, 1, "deep/chronicle is the strongest surface and needs 1 witness")
+        self.assertGreater(ocr_n, deep_n,
+                           "ocr and deep on the SAME surface must not get the same answer")
+
+    def test_the_table_can_be_rebuilt_so_it_cannot_rot(self):
+        """A measured constant with no way to re-measure it becomes a lie the day his corpus
+        changes. recount() must exist and must count DISTINCT names, not rows - counting rows
+        lets one loud frame dominate."""
+        import surface_precision as sp
+        self.assertTrue(callable(getattr(sp, "recount", None)), "recount() is gone")
+        src = _code_only(io.open(os.path.join(HERE, "surface_precision.py"),
+                                 encoding="utf-8").read())
+        self.assertIn("set()", src, "recount no longer de-duplicates names")
+        self.assertIn("CORPUS", src, "the table no longer records which corpus produced it")
+
+    def test_it_never_claims_more_than_it_measured(self):
+        """Every published number must name its sample. [[unknown-stays-unknown]]"""
+        import surface_precision as sp
+        for key, (k, n) in sp.OBSERVED.items():
+            self.assertLessEqual(k, n, "%s claims %d real of %d seen" % (key, k, n))
+            self.assertGreater(n, 0, "%s has a zero denominator" % (key,))
 
 
 

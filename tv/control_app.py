@@ -6340,6 +6340,131 @@ def _kai_nameish(text):
 _KAI_TIER_RANK = {"grail": 3, "keep": 2, "border": 1}   # v1193 — see _kai_compile_register
 
 
+_SIGHTING_LOC_CACHE = {}          # sessionId -> segments, built once per sweep
+_SIGHTING_LOC_STATS = {"asked": 0, "answered": 0, "no_segments": 0, "no_ts": 0}
+
+
+def _sighting_loc(sg, _segments=None):
+    """WHERE was this name seen? -> a lane string, or None. v2353.
+
+    THE UNIFICATION #116 ASKED FOR. `_kai_compile_register` already asks the reel timeline where
+    the cursor was when a name was read (v2343), and refuses a vault claim for anything read on a
+    Chronicle page. The RETRO proposal did not: its sightings carried {reel, frame, lane} and no
+    location at all, so every downstream door - the console handoff, the board inbox, the vault -
+    was judging names it had no provenance for. Same question, two answers, one of them absent.
+
+    Everything the timeline needs is already in the sighting: `reel` IS the sessionId, and a
+    frame is named `f_<epoch-ms>.jpg`, so the timestamp is in the filename. Nothing new has to be
+    measured or stored - it only has to be ASKED.
+
+    None means NOT ESTABLISHED - no segments for that reel, or an unparseable frame name - and it
+    must never be read as "nowhere he keeps things". A name whose provenance is unknown is not a
+    name that failed the check. [[unknown-stays-unknown]]
+    """
+    _SIGHTING_LOC_STATS["asked"] += 1
+    try:
+        sid = str(sg.get("reel") or "")
+        frame = str(sg.get("frame") or "")
+    except Exception:
+        return None
+    if not sid or not frame:
+        return None
+    # ⚠ TWO FRAME-ID FORMATS, AND THE FIRST CUT ONLY KNEW ONE. Measured against his real
+    # journal: 463 of 463 naming sightings failed to parse, because his frames are `<n>_<ms>`
+    # (e.g. "3_1784984175075") and this only understood `f_<ms>.jpg`. The refusal was honest -
+    # every one came back NOT ESTABLISHED rather than guessing - but a gate that resolves nothing
+    # protects nothing. Take the last underscore-separated chunk that is a plausible epoch-ms,
+    # and let the caller hand one in when it already knows.
+    ts = None
+    try:
+        ts = int(sg.get("ts") or sg.get("captureTs") or 0) or None
+    except Exception:
+        ts = None
+    if not ts:
+        try:
+            base = os.path.basename(frame)
+            for chunk in reversed(base.replace(".", "_").split("_")):
+                if chunk.isdigit() and 12 <= len(chunk) <= 14:
+                    ts = int(chunk)
+                    break
+        except Exception:
+            ts = None
+    if not ts:
+        _SIGHTING_LOC_STATS["no_ts"] += 1
+        return None
+    segs = _segments if _segments is not None else _SIGHTING_LOC_CACHE.get(sid)
+    if segs is None:
+        try:
+            import reel_segments as _rseg
+            rows = []
+            # ⚠ _journal_path(), NOT _sessions_path() - the latter does not exist. The first
+            # cut called it inside this try/except, so every lookup raised NameError, was
+            # swallowed, and returned None: a provenance gate that resolved NOTHING while
+            # reading as fully wired. [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+            path = _journal_path()
+            if os.path.isfile(path):
+                # ⚠ `io` IS NOT IMPORTED IN THIS MODULE. The first cut wrote io.open(...) here,
+                # inside the try below, so every call raised NameError, the bare except ate it,
+                # and this returned [] - a provenance gate that resolved NOTHING on all 467 of
+                # his naming sightings while reading as fully wired from both ends. Same shape as
+                # the _sessions_path() slip ten minutes earlier, and the same lesson: a swallowed
+                # exception turns a typo into a feature that is merely absent.
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line or sid not in line:
+                            continue          # cheap prefilter before the json cost
+                        try:
+                            r = json.loads(line)
+                        except Exception:
+                            continue
+                        if str(r.get("sessionId") or "") == sid:
+                            rows.append(r)
+            segs = _rseg.segments(rows)
+        except Exception as _exc:
+            # A failure here must be VISIBLE. It used to vanish, and that is exactly how the
+            # NameError above survived a full end-to-end measurement. [[feedback-silence-is-not-evidence]]
+            segs = []
+            _SIGHTING_LOC_STATS["lastError"] = "%s: %s" % (type(_exc).__name__, str(_exc)[:120])
+            _SIGHTING_LOC_STATS["errors"] = _SIGHTING_LOC_STATS.get("errors", 0) + 1
+        _SIGHTING_LOC_CACHE[sid] = segs
+    if not segs:
+        _SIGHTING_LOC_STATS["no_segments"] += 1
+        return None
+    try:
+        import reel_segments as _rseg
+        lane, _why = _rseg.lane_at(segs, sid, ts)
+    except Exception:
+        return None
+    if lane:
+        _SIGHTING_LOC_STATS["answered"] += 1
+    return lane or None
+
+
+def _name_loc(sightings):
+    """One location for a NAME, from its sightings. -> lane | None. v2353.
+
+    The handoff and the board's inbox judge a NAME, not a frame, so the per-sighting locations
+    have to collapse to one answer. The rule is deliberately strict: they must AGREE.
+
+    Disagreement returns None (NOT ESTABLISHED) rather than a majority. A name seen once in the
+    stash and once on a Chronicle page is exactly the case this whole arc is about, and picking
+    the more convenient of the two is how "chronicles read wrong as vault items" happened in the
+    first place. An unresolved provenance must present as unresolved. [[unknown-stays-unknown]]
+    """
+    locs = set()
+    for sg in (sightings or []):
+        try:
+            l = _sighting_loc(sg)
+        except Exception:
+            l = None
+        if l:
+            locs.add(l)
+    if len(locs) == 1:
+        return locs.pop()
+    return None
+
+
 def _kai_compile_register(sess_rows):
     """v943 — the session's REGISTERABLE ITEMS: union of every deep-read name and every
     KAI judge verdict tiered grail/keep/border, filtered to real DB items (_kai_fullnames)
@@ -19337,11 +19462,15 @@ def _chron_visit_run(visit_ts):
                     "wouldAdd": dict({lg: [dict({"name": n,
                                        "why": (gate.verdicts.get(n) or {}).get("why", ""),
                                        "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
-                                       "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
-                                                 "lane": sg.get("lane") or "claude"}
+                                       "seen": [dict({"reel": sg.get("reel"), "frame": sg.get("frame"),
+                                                      "lane": sg.get("lane") or "claude"},
+                                                     **({"loc": _sighting_loc(sg)}
+                                                        if _sighting_loc(sg) else {}))
                                                 for sg in (prop.get(lg, {}).get(n) or [])[:6]]},
-                                       **({"gameFound": _cr.in_game_stamp(prop.get(lg, {}).get(n) or [])}
-                                          if _cr.in_game_stamp(prop.get(lg, {}).get(n) or []) else {}))
+                                       **dict(({"gameFound": _cr.in_game_stamp(prop.get(lg, {}).get(n) or [])}
+                                           if _cr.in_game_stamp(prop.get(lg, {}).get(n) or []) else {}),
+                                          **({"loc": _name_loc(prop.get(lg, {}).get(n) or [])}
+                                             if _name_loc(prop.get(lg, {}).get(n) or []) else {})))
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
                                 completeSets=[{"name": _cn,
@@ -20083,11 +20212,15 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                     "wouldAdd": dict({lg: [dict({"name": n,
                                        "why": (gate.verdicts.get(n) or {}).get("why", ""),
                                        "witnesses": (gate.verdicts.get(n) or {}).get("witnesses", []),
-                                       "seen": [{"reel": sg.get("reel"), "frame": sg.get("frame"),
-                                                 "lane": sg.get("lane") or "claude"}
+                                       "seen": [dict({"reel": sg.get("reel"), "frame": sg.get("frame"),
+                                                      "lane": sg.get("lane") or "claude"},
+                                                     **({"loc": _sighting_loc(sg)}
+                                                        if _sighting_loc(sg) else {}))
                                                 for sg in (prop.get(lg, {}).get(n) or [])[:6]]},
-                                       **({"gameFound": _cr.in_game_stamp(prop.get(lg, {}).get(n) or [])}
-                                          if _cr.in_game_stamp(prop.get(lg, {}).get(n) or []) else {}))
+                                       **dict(({"gameFound": _cr.in_game_stamp(prop.get(lg, {}).get(n) or [])}
+                                           if _cr.in_game_stamp(prop.get(lg, {}).get(n) or []) else {}),
+                                          **({"loc": _name_loc(prop.get(lg, {}).get(n) or [])}
+                                             if _name_loc(prop.get(lg, {}).get(n) or []) else {})))
                                       for n in applied[lg]["added"]]
                                  for lg in ("uniques", "sets")},
                                 completeSets=[{"name": _cn,
@@ -20478,7 +20611,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2352",
+        "ver": "v2354",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

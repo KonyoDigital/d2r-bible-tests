@@ -44029,10 +44029,34 @@ function renderJournal(){
         var _have = {};
         _inb.forEach(function (r) { var k = (r && (r.name || r)) || ''; if (k) _have[String(k)] = 1; });
         var _added = 0;
+        /* ══ v2353 — THE HANDOFF USES THE SAME DOOR AS EVERY OTHER READER ════════════════════
+           This drain admitted every name the console offered with `why: 'read from your reels'`
+           and NO location, so window._vaultMayClaim — the one predicate that answers "was this
+           seen somewhere he actually keeps things" — could not judge it. That is the exact
+           complaint: "how come these arent sorted to mules or throwout? most are chronicles read
+           wrong as vault items based on what im seeing in the vault."
+
+           It still admits the row: the inbox is a QUEUE HE RULES ON, and silently dropping a
+           name because a console build forgot to send its location would lose a real find. What
+           changes is that the row now CARRIES what is known, and says so:
+             loc present + a container he keeps things in -> vaultOk true
+             loc present + a chronicle page / the floor    -> vaultOk FALSE, and the row says why
+             loc absent                                    -> vaultOk null = NOT ESTABLISHED,
+                                                              which must never read as either.
+           [[unknown-stays-unknown]] [[d2r-vault-routing]] */
         _hoNames.forEach(function (row) {
           var nm = (row && row.name) ? row.name : row;
           if (!nm || _have[String(nm)]) return;      /* already waiting on him — do not duplicate */
-          _inb.push({ name: String(nm), why: (row && row.why) || 'read from your reels',
+          var _loc = (row && row.loc) || null;
+          var _vaultOk = null, _why = (row && row.why) || 'read from your reels';
+          if (_loc && typeof window._vaultMayClaim === 'function') {
+            _vaultOk = !!window._vaultMayClaim(_loc);
+            if (!_vaultOk) {
+              _why = 'seen in ' + String(_loc) + ' — that is not somewhere you keep things, so '
+                   + 'it is a sighting and not a vault item';
+            }
+          }
+          _inb.push({ name: String(nm), why: _why, loc: _loc, vaultOk: _vaultOk,
                       src: 'console-handoff', at: (_ho.at || Date.now()) });
           _have[String(nm)] = 1; _added++;
         });
@@ -47833,7 +47857,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2352', name:'v2352 - Nothing spawns without being reaped', date:'2026-08-31', note:'20 defunct children after 20h - 8 discarded Popens and two swallowed kill deadlines' };
+  window.D2R_BUILD = { id:'v2354', name:'v2354 - What a name is worth', date:'2026-08-31', note:'measured per lane and surface with Wilson - ocr produced 1 real name in 801 sightings' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

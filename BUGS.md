@@ -14144,6 +14144,123 @@ INVENTORY itself can be opened separately with its own template"*. Chrome presen
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
 
+## REG-434 - EVERY READER'S NAME WAS WORTH THE SAME, AND THEY ARE NOT REMOTELY WORTH THE SAME
+
+Konyo, #121: *"it starts with AI item checker that should really be configured and tested and
+checked and simulated and eagle eyes and watchdogged and corroborator"* - and *"make sure wilson
+score perfects it and proves itself... with the reels and simulations and demonstrations"*.
+
+Nothing in the tree distinguished a name by WHO read it or WHERE. Measured against his real
+journal (5,761 rows) against a 567-name roster of uniques + set pieces + set names, counting
+DISTINCT names:
+
+```
+lane   surface       real   seen   Wilson lower (95%)
+deep   chronicle       38     61       0.4975
+deep   stash            3     25       0.0417
+deep   inventory        1     11       0.0162
+deep   gameplay         0     38       0.0000
+ocr    gameplay         1    366       0.0005
+ocr    transition       0     59       0.0000
+ocr    (no scene)       0    253       0.0000
+ocr    town             0     46       0.0000
+ocr    chronicle        0     33       0.0000
+ocr    stash            0     27       0.0000
+ocr    inventory        0     17       0.0000
+```
+
+**1. The `ocr` lane produced ONE real item name in 801 sightings** - and it is `WIzENDRAW`, a
+garble that case-folded onto a real name. OCR earns its keep on STRUCTURE (is a stash panel open,
+which tab is showing) and is worth nothing at all for NAMES. The lane design already held that
+ocr is provisional and never reaches the register; this is that design **confirmed by
+measurement** rather than by assertion.
+
+**2. A CHRONICLE PAGE IS THE BEST NAMING SURFACE, NOT THE WORST** - an order of magnitude better
+than anywhere else, because it is a menu of clean rendered text. This inverts what the earlier
+pass in REG-433 implied. What a chronicle page must never do is imply POSSESSION: it lists items
+he does not own. **Precision and provenance are orthogonal questions**, `_vaultMayClaim` answers
+only the second, and a gate built on "chronicle = bad" would have thrown away his best source.
+
+**3. `deep` on gameplay is 0 of 38** - paid reads spent on frames that structurally cannot show a
+legible item name. Five (lane, surface) combinations are now refused a paid read, each measured
+over 33+ samples.
+
+**Shipped v2354** as `tv/surface_precision.py`: `precision()`, `witnesses_required()`,
+`worth_paying_to_read()`, and `recount()` so the table can be rebuilt from a fresh journal
+instead of rotting into a lie.
+
+⚠ **A ZERO FROM FIVE SAMPLES IS NOT A ZERO FROM 366.** `deep`/`loot` is 0/5 - the same Wilson
+LOWER bound as a surface measured over hundreds, meaning something entirely different. Anything
+under `MIN_SAMPLES` answers **None = NOT ESTABLISHED** and is treated with caution, never as
+"proven junk", and is still READ - a gate that refuses to pay for what it has not measured can
+never measure it. [[unknown-stays-unknown]]
+
+**Also v2354:** `test_the_cheap_subset_is_actually_CHEAP` went red as
+`panels on screen (4020 ms)` while he was PLAYING - load average 33, D2R at 260%, a sweep
+running. Same code passed at v2349 with the machine idle. A wall-clock budget cannot be measured
+on a saturated machine, and a timing gate that reddens every time he plays is one he learns to
+ignore - the same defect as a gate that is always green. It now SKIPS above 1.5x core count and
+says **NOT A PASS** in the skip reason. [[test-venue]] [[regression-guard]]
+
+**Guards:** `TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere` - 5 cases, 3 proven RED.
+
+## REG-433 - THE RETRO PROPOSAL DROPPED WHERE IT SAW THINGS, SO EVERY DOOR DOWNSTREAM WAS GUESSING
+
+Konyo, #116: *"all ai retro readers especially all need to be funneled and routed through the same
+systems and debugged and gapless"* - and earlier, looking at his vault: *"how come these arent
+sorted to mules or throwout? most are chronicles read wrong as vault items."*
+
+v2343 taught the LIVE register to ask the reel timeline where the cursor was when a name was read,
+and to refuse a vault claim for anything read on a Chronicle page. **The RETRO proposal never
+asked.** Its sightings carried `{reel, frame, lane}` and no location at all, so the console
+handoff, the board inbox and the vault were each judging names whose provenance had been thrown
+away at the moment the proposal was built. One question, two answers, one of them absent.
+
+Nothing new had to be measured: `reel` IS the sessionId and a frame id carries its own epoch-ms,
+so the timeline could always have been asked. It simply never was.
+
+**Measured on his real journal (5,761 rows) once the lane was joined:**
+
+```
+what he was doing when a name was read:
+   stash 56 | transition 41 | chronicle 32 | town 19 | inventory 11 | loot 4
+
+names read on a CHRONICLE page : 79
+names read in the STASH        : 52
+in BOTH                        :  1
+```
+
+**78 names had never been seen in anything he owns.** And they read like `A TVfNA'S WAAT`,
+`AffjuLeT`, `ANcifMT`, `A ThVLET` - OCR garbage off the Chronicle page's own text. That is what
+was reaching his vault, and it is exactly the complaint.
+
+**Fixed v2353.** `_sighting_loc()` asks the same timeline the register asks; `_name_loc()`
+collapses a name's sightings to ONE location and returns None when they disagree, because a name
+seen once in the stash and once on a Chronicle page is the whole point and picking the convenient
+side is how this happened. Both retro `seen` builders now carry `loc`, the proposal carries a
+name-level `loc`, and the console handoff drain asks `window._vaultMayClaim` - the same predicate
+every other door asks - marking each row `vaultOk` true / false / **null = NOT ESTABLISHED**.
+The row is still admitted: the inbox is a queue he rules on, and dropping a name because a console
+build forgot to send its location would lose a real find.
+
+⚠ **THREE SILENT FAILURES were found building this, all the same shape** - a name that does not
+exist, swallowed by a bare `except`, leaving a gate that reads as fully wired and resolves
+nothing:
+
+| the slip | the truth | measured |
+|---|---|---|
+| `_sessions_path()` | the real name is `_journal_path()` | 0 of 467 |
+| `io.open(...)` | `control_app` never imports `io` | 0 of 467 |
+| frame parser knew only `f_<ms>.jpg` | his frames are `<n>_<ms>` | 0 of 467 |
+
+Each measured 0/467 and looked precisely like *"nothing to report"*. The `except` now records
+`lastError` instead of hiding it. [[feedback-silence-is-not-evidence]] [[the-unjoined-end]]
+
+**Guards:** `TestV2353OneAdmissionDoorForEveryReader` - 5 cases, all proven RED. One of them had
+to be strengthened twice: it first asserted the predicate was *mentioned* in the handoff block,
+which the neighbouring `typeof` guard satisfies, so replacing the verdict with `_vaultOk = true`
+stayed green. It now pins the ASSIGNMENT. [[sabotage-is-usually-the-wrong-one]]
+
 ## REG-432 - 20 ZOMBIE CHILDREN AFTER 20 HOURS, AND NOTHING ANYWHERE MOVED
 
 Measured on his live console 2026-08-31 while he was playing: 23 children of pid 77867, of which
