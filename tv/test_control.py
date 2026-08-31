@@ -34363,6 +34363,14 @@ class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
         g5._budget_path = lambda *a, **k: os.path.join(tmp, "budget.json")
         g5.is_on = lambda: True
         g5.has_subscription = lambda: True
+        # ⚠ THE BINARY TOO, OR THIS ONLY TESTS HIS PATH. Every one of these cases is about the
+        # 402 BREAKER, and none of them is about whether grok is installed. On a CI runner
+        # `_grok_bin()` returns nothing, g5_vision_read stops at line ~872 with
+        # "grok CLI not on PATH", the subprocess spy never fires, and five breaker tests fail for
+        # a reason that has nothing to do with the breaker. That kept the Publish workflow RED
+        # for five straight versions and silently stopped his site from auto-deploying.
+        # [[feedback-blind-fixture-green-gate]] [[test-venue]]
+        g5._grok_bin = lambda *a, **k: os.path.join(tmp, "grok-stub")
         img = os.path.join(tmp, "f.png")
         with io.open(img, "wb") as fh:
             fh.write(b"x")
@@ -35865,6 +35873,210 @@ class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
         for key, (k, n) in sp.OBSERVED.items():
             self.assertLessEqual(k, n, "%s claims %d real of %d seen" % (key, k, n))
             self.assertGreater(n, 0, "%s has a zero denominator" % (key,))
+
+
+
+class TestV2357TheSurfaceRuleMayOnlyTighten(unittest.TestCase):
+    """#121/#117. `surface_precision` shipped in v2354 with NO production caller - the exact
+    defect diagnosed in `corroborates_chrome` that same morning, repeated within hours. It is now
+    joined, as a SHADOW that decides nothing, beside v2201's Wilson shadow.
+
+    ⚠ THE FIRST CUT WAS A WEAKER GATE WEARING A STRICTER NAME. `surface_shadow` returned
+    `have >= need` on its own, dropping the live rule's confidence floor. Measured against his
+    journal BEFORE it shipped, it would have GROUNDED 33 names the live gate refuses - and they
+    are `AmvLIT`, `AwuLET`, `ArnubET`, `A ThVLET`, `ING Twe R`: OCR garbles that collected two or
+    three "witnesses" because the same misread recurred across frames. **Repetition of one mistake
+    is not corroboration.**
+
+    A precision measure may move a gate in exactly one direction.
+
+    ⚠ AND IT HAS DEMONSTRATED NO EFFECT YET. Re-measured after the fix: 922 names, zero
+    disagreements - because in that reconstructed corpus the live gate grounds nothing, so a
+    tighten-only rule has nothing to tighten. Wired and safe is not the same as proven useful,
+    and saying so is the point. [[unknown-stays-unknown]]
+    """
+
+    def _sg(self, lane, n=3):
+        return [{"lane": lane, "reel": "r%d" % i, "frame": "f_%d.jpg" % (1787177179114 + i)}
+                for i in range(n)]
+
+    def test_it_can_never_ground_what_the_live_gate_holds(self):
+        """The invariant the first cut broke, and the only one that really matters."""
+        import chronicle_retro as cr
+        sg = self._sg("deep", 4)
+        for live in (True, False):
+            ss = cr.surface_shadow(sg, surface_of=lambda s: "chronicle",
+                                   live_verdict={"pass": live})
+            if not live:
+                self.assertFalse(ss["wouldPass"],
+                                 "the surface shadow GROUNDED a name the live gate holds - a "
+                                 "precision measure may only ever tighten")
+
+    def test_it_can_hold_what_the_live_gate_grounds(self):
+        """The direction it IS allowed to move: a weak surface may demand more corroboration."""
+        import chronicle_retro as cr
+        sg = [{"lane": "ocr", "reel": "r1", "frame": "f_1787177179114.jpg"}]
+        ss = cr.surface_shadow(sg, surface_of=lambda s: "gameplay",
+                               live_verdict={"pass": True})
+        self.assertGreaterEqual(ss["requires"], 3,
+                                "ocr/gameplay is 1 real name in 366 and must demand more than "
+                                "the default two witnesses")
+        self.assertFalse(ss["wouldPass"],
+                         "a single ocr/gameplay sighting must not satisfy its own requirement")
+
+    def test_no_resolver_means_not_established_not_a_veto(self):
+        """With no surface_of every sighting is unknown. Unknown must be treated cautiously (2),
+        never as a refusal and never as a free pass."""
+        import chronicle_retro as cr
+        ss = cr.surface_shadow(self._sg("deep", 3), surface_of=None, live_verdict={"pass": True})
+        self.assertEqual(ss["requires"], 2,
+                         "an unresolved surface must ask for the cautious default, not a veto")
+        for row in ss["perSighting"]:
+            self.assertIsNone(row["surface"])
+
+    def test_the_module_actually_has_a_production_caller_now(self):
+        """The whole reason this exists. surface_precision shipped test-only; if that comes back,
+        this is a measurement nobody consults. [[the-unjoined-end]]"""
+        import re
+        callers = []
+        for name in ("chronicle_retro.py", "control_app.py"):
+            src = _code_only(io.open(os.path.join(HERE, name), encoding="utf-8").read())
+            if re.search(r"import surface_precision", src):
+                callers.append(name)
+        self.assertIn("chronicle_retro.py", callers,
+                      "surface_precision has no production importer again")
+        app = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        self.assertIn("strict_gate(surface_of=_sighting_loc)", app,
+                      "nothing passes the surface resolver in, so every sighting reads NOT "
+                      "ESTABLISHED and the shadow measures nothing")
+
+
+
+class TestV2358TheDeployGateWasRedForFiveVersions(unittest.TestCase):
+    """REG-436. His site stopped auto-deploying and nothing said so.
+
+    The "Publish - gates, review, then deploy" workflow failed on EVERY push from v2344 through
+    v2356 - five-plus consecutive red runs - so the live site never republished. It was never
+    read, because a push that succeeds locally looks finished. A gate that is always red carries
+    exactly as much information as one that is always green. [[sweep-dont-ask]]
+
+    Six failures, two causes, both of them tests of MINE that assume his Mac:
+
+    1. `move_cursor` asked `_quartz()` BEFORE validating its arguments, so on a runner with no
+       Quartz a NaN target came back as "No module named 'Quartz'" instead of "not a finite
+       point". The refusal named the machine instead of the mistake. That is a real code fault,
+       not a test artifact: a bad point is a bad point whether or not a display exists.
+    2. The five `TestV2340` breaker cases stub `subprocess.run` but not `_grok_bin`, so on CI
+       `g5_vision_read` stopped at "grok CLI not on PATH" before the spy could fire. Every one of
+       those cases is about the 402 BREAKER and none is about whether grok is installed.
+
+    Proven host-independent before shipping: re-run with `PATH=/usr/bin:/bin`, 11 tests, OK.
+    [[feedback-blind-fixture-green-gate]] [[test-venue]]
+    """
+
+    def test_a_bad_point_is_refused_without_a_graphics_stack(self):
+        """The exact CI condition, reproduced here rather than hoped about."""
+        import hover_drive as hd
+        real = hd._quartz
+        try:
+            hd._quartz = lambda: (None, "quartz-import: No module named 'Quartz'")
+            for bad in (float("nan"), float("inf"), float("-inf")):
+                ok, why = hd.move_cursor(bad, 5)
+                self.assertFalse(ok)
+                self.assertIn("finite", why,
+                              "with no Quartz a %r target answered %r - it names the machine "
+                              "instead of the mistake" % (bad, why))
+        finally:
+            hd._quartz = real
+
+    def test_the_validation_comes_first_in_the_source(self):
+        """Pin the ORDER, because that is the whole defect and it is invisible in behaviour on a
+        machine that happens to have Quartz."""
+        src = _code_only(io.open(os.path.join(HERE, "hover_drive.py"), encoding="utf-8").read())
+        body = _between(self, src, "def move_cursor(x, y):", "def hand_is_on_the_mouse(",
+                        min_len=200, what="move_cursor")
+        i_finite = body.index("not a finite point")
+        i_quartz = body.index("_quartz()")
+        self.assertLess(i_finite, i_quartz,
+                        "move_cursor reaches for Quartz before validating its point again - on "
+                        "any machine without it, every bad point reports the wrong reason")
+
+    def test_the_breaker_fixture_supplies_its_own_binary(self):
+        """A test about the 402 breaker must not depend on grok being installed."""
+        src = io.open(os.path.join(HERE, "test_control.py"), encoding="utf-8").read()
+        i = src.index("class TestV2340AStatedRefusalIsNotAskedAgain")
+        blk = src[i:src.index("\n    def test_", i) + 4000]
+        self.assertIn("g5._grok_bin", blk,
+                      "the breaker fixture no longer stubs _grok_bin; on a runner without grok "
+                      "these five cases fail for a reason unrelated to the breaker and take the "
+                      "deploy gate down with them")
+
+
+
+class TestV2359AStashIsNeverAlphabetical(unittest.TestCase):
+    """Konyo, looking at 134 items in his vault's UNSORTED DOCK: *"all these items are not my
+    vault somethng is properly coded"*.
+
+    He was right, and the proof needed no AI, no template match and no pixels - only the ORDER of
+    the names. The visible dock read: Iron Pelt, Ironstone, Islestrike, Kinemil's Awl, Lance
+    Guard, Lance of Yaggai, Langer Briser, Leadcrow, Magewrath, Medusa's Gaze, Moonfall, Nord's
+    Tenderizer... Measured against his 398-name unique roster:
+
+        47 of 47 names are real roster uniques
+        46 of 46 consecutive steps strictly ASCENDING - 100%
+        spanning roster positions 175..397, median gap 3
+
+    That is the uniques Chronicle read from about the letter I to Z, admitted into `d2r_owned` as
+    things he possesses. **Items enter a stash in the order he picked them up; the chance dozens
+    come out alphabetically ascending is nil.** Order is therefore not weak evidence about a
+    batch's SOURCE - it is nearly conclusive, and free.
+
+    ⚠ IT JUDGES A BATCH, NEVER A NAME. Two ascending names are a coin flip; the signal exists
+    only at size. [[unknown-stays-unknown]]
+    """
+
+    def _roster(self):
+        import chronicle_resolve as cres
+        d = json.load(io.open(cres.ROSTER_PATH, encoding="utf-8"))
+        return [n for n in (d.get("names") or []) if isinstance(n, str)]
+
+    def test_his_dock_is_identified_as_a_menu_page(self):
+        import menu_run as mr
+        dock = ["Iron Pelt", "Ironstone", "Islestrike", "Kinemil's Awl", "Lance Guard",
+                "Lance of Yaggai", "Langer Briser", "Leadcrow", "Magewrath", "Medusa's Gaze",
+                "Moonfall", "Nord's Tenderizer", "Pelta Lunata", "Pluckeye", "Pompeii's Wrath"]
+        v, why = mr.looks_like_a_menu_page(dock, self._roster())
+        self.assertIs(v, True, "his real dock is no longer read as a menu page: %s" % why)
+        self.assertIn("ascending", why)
+
+    def test_a_real_stash_is_not(self):
+        """The half that matters more: this must not fire on things he actually owns."""
+        import menu_run as mr
+        real = ["Windforce", "Arachnid Mesh", "Titan's Revenge", "Death's Web", "Vampire Gaze",
+                "Crown of Ages", "Herald of Zakarum", "War Traveler", "Stormshield",
+                "The Grandfather", "Nightwing's Veil", "Griffon's Eye"]
+        v, why = mr.looks_like_a_menu_page(real, self._roster())
+        self.assertIsNot(v, True,
+                         "an unsorted real stash was called a menu page - this rule would delete "
+                         "things he owns: %s" % why)
+
+    def test_too_few_names_refuses_to_answer(self):
+        import menu_run as mr
+        v, why = mr.looks_like_a_menu_page(["Windforce", "Arachnid Mesh"], self._roster())
+        self.assertIsNone(v, "two names is a coin flip and must answer NOT ESTABLISHED")
+        self.assertIn("below the", why)
+
+    def test_removal_is_two_stage_and_spares_filed_items(self):
+        """Taking names out of his owned ledger is destructive. It must show before it acts, and
+        it must never touch an item his own hand filed into a mule."""
+        src = io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        blk = _between(self, src, "window.vaultDropMenuImport = async function()",
+                       "window.vaultAddMule", min_len=300, what="the menu-import removal")
+        self.assertIn("if (!v.armed)", blk,
+                      "the removal is no longer two-stage - one click would delete from owned")
+        self.assertIn("if (assign[name]) return;", blk,
+                      "it no longer spares items already filed in a mule; his hand put those there")
+        self.assertIn("uiConfirm", blk, "it no longer confirms before deleting")
 
 
 

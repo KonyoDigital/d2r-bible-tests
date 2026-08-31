@@ -35061,6 +35061,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v360 — shared-stash items (runes · essences · Worldstone shards · Colossal statues · sunders) are
     // NEVER muled, so they don't belong in the draggable "unsorted" dock — they live in the SHARED STASH locker.
     var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n); });
+    /* v2359 — is this dock a menu page? Computed here because this is where the batch exists. */
+    try {
+      var _mf = window._menuAscendingFraction(unsorted);
+      var _prevArmed = !!(window._menuRunVerdict && window._menuRunVerdict.armed);
+      window._menuRunVerdict = (_mf && _mf.frac >= _MENU_STRONG)
+        ? { isMenu: true, armed: _prevArmed, names: window._menuRunNames(unsorted),
+            why: (_mf.up + ' of ' + _mf.steps + ' steps ascend across ' + _mf.matched + ' roster names') }
+        : { isMenu: false, armed: false, names: [], why: (_mf ? 'only ' + Math.round(_mf.frac*100) + '% ascending' : 'too few roster names to judge') };
+    } catch(e){ window._menuRunVerdict = { isMenu:false, armed:false, names:[], why:'could not judge' }; }
     /* v2328 — AN EMPTY DOCK MEANS TWO OPPOSITE THINGS AND SAID ONLY ONE OF THEM.
        The dock's empty state is a CSS `:empty::after` reading "every owned item has a home — the
        vault is in perfect order". `:empty` is true when nothing is UNSORTED, which happens both
@@ -35087,6 +35096,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           +'<span class="vdb-actions">'
           +'<button class="vault-clear-btn" onclick="window.vaultClearUnsorted()" title="Delete every UNSORTED item from the dock — items already filed in a mule are NOT touched">'
           +'<span class="vcb-x">🗑</span><span>Delete unsorted</span></button>'
+          +(window._menuRunVerdict && window._menuRunVerdict.isMenu
+              ? ('<button class="vault-clear-btn" onclick="window.vaultDropMenuImport()" '
+                 + 'title="These names are in ALPHABETICAL ORDER. A stash is not sorted; a menu page is. '
+                 + 'Click once to see exactly which ones, again to take them out of owned.">'
+                 + '<span class="vcb-x">\ud83d\udcd6</span><span>' 
+                 + (window._menuRunVerdict.armed ? ('Remove ' + window._menuRunVerdict.names.length + ' menu-read names')
+                                                 : 'These look like a chronicle page')
+                 + '</span></button>')
+              : '')
           +'<button class="vault-resort-btn" onclick="window.vaultAutoAssign()" title="Auto-Sort: send every unsorted item back to its proper mule / alt">'
           +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>'
           +'</span>';
@@ -36706,6 +36724,85 @@ window.vaultAutoAssign = function(){
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🗑 cleared '+unsorted.length+' unsorted item'+(unsorted.length===1?'':'s')+' from the dock');
+  };
+  /* ══ v2359 — A STASH IS NEVER IN ALPHABETICAL ORDER. A MENU PAGE ALWAYS IS. ═══════════════
+     Konyo, looking at 134 items in this dock: "all these items are not my vault somethng is
+     properly coded". He was right, and the proof needed no AI, no template match and no pixels -
+     only the ORDER of the names. Measured against his 398-name roster: 46 of 46 consecutive
+     steps strictly ASCENDING, spanning roster positions 175..397. That is the uniques Chronicle,
+     read from about the letter I to Z, admitted into the vault as things he owns.
+
+     Items enter a stash in the order he picked them up. The chance that dozens come out
+     alphabetically ascending is nil. So order is not weak evidence about a batch's SOURCE - it
+     is nearly conclusive, and it costs nothing.
+
+     ⚠ IT JUDGES A BATCH, NEVER A NAME. Two ascending names are a coin flip; the signal only
+     exists at size. Below _MENU_MIN it refuses to answer rather than guessing.
+     [[unknown-stays-unknown]] [[d2r-vault-routing]] */
+  var _MENU_MIN = 8, _MENU_STRONG = 0.90;
+  window._menuAscendingFraction = function(names){
+    var r = [];
+    try { r = (typeof window._gUniqueRoster === 'function') ? (window._gUniqueRoster() || []) : []; }
+    catch(e){ r = []; }
+    if (!r.length) return null;
+    var sorted = r.map(function(x){ return String(x || '').trim(); })
+                  .filter(Boolean)
+                  .sort(function(a,b){ return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+    var idx = {}; sorted.forEach(function(n,i){ idx[n.toLowerCase()] = i; });
+    var pos = [];
+    (names || []).forEach(function(n){
+      var p = idx[String(n || '').trim().toLowerCase()];
+      if (p !== undefined) pos.push(p);
+    });
+    if (pos.length < _MENU_MIN) return null;      /* NOT ESTABLISHED, never "no" */
+    var up = 0;
+    for (var i = 1; i < pos.length; i++) if (pos[i] > pos[i-1]) up++;
+    return { frac: up / (pos.length - 1), matched: pos.length, up: up, steps: pos.length - 1 };
+  };
+  window._menuRunNames = function(names){
+    /* the longest strictly-ascending stretch — the ones to SHOW him */
+    var r = [];
+    try { r = (typeof window._gUniqueRoster === 'function') ? (window._gUniqueRoster() || []) : []; }
+    catch(e){ r = []; }
+    var sorted = r.map(function(x){ return String(x || '').trim(); }).filter(Boolean)
+                  .sort(function(a,b){ return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+    var idx = {}; sorted.forEach(function(n,i){ idx[n.toLowerCase()] = i; });
+    var best = [], cur = [];
+    (names || []).forEach(function(n){
+      var p = idx[String(n || '').trim().toLowerCase()];
+      if (p === undefined) return;
+      if (cur.length && p > cur[cur.length-1].p) cur.push({n:n, p:p});
+      else cur = [{n:n, p:p}];
+      if (cur.length > best.length) best = cur.slice();
+    });
+    return best.map(function(o){ return o.n; });
+  };
+  window.vaultDropMenuImport = async function(){
+    var v = window._menuRunVerdict;
+    if (!v || !v.isMenu){ status('nothing here looks menu-ordered'); return; }
+    if (!v.armed){
+      /* FIRST CLICK SHOWS, SECOND CLICK ACTS. Removing things from his owned ledger is not a
+         thing to do on one click of a button he has never pressed before. */
+      v.armed = true;
+      renderVault();
+      status('\ud83d\udcd6 ' + v.names.length + ' name(s) are in alphabetical order — '
+             + v.why + '. Press again to take them out of owned.');
+      return;
+    }
+    var names = v.names.slice();
+    if (!(await uiConfirm('Take ' + names.length + ' menu-read name(s) out of \u2713 owned?\n\n'
+        + names.slice(0,12).join(', ') + (names.length > 12 ? ', …' : '')
+        + '\n\nThey are in alphabetical order, which a stash never is. Mule assignments are '
+        + 'untouched.'))) { v.armed = false; renderVault(); return; }
+    var n = 0;
+    names.forEach(function(name){
+      if (assign[name]) return;              /* already filed in a mule — his hand put it there */
+      try { owned.delete(name); n++; } catch(e){}
+      delete assign[name];
+    });
+    persistOwned(); saveA(); renderVault(); refreshOpenCard();
+    try { window._repaintOwned(); } catch(e){}
+    status('\ud83d\udcd6 removed ' + n + ' menu-read name(s) from owned');
   };
   window.vaultAddMule = function(){
     var name=prompt('New mule name (this IS your in-game character name — make it say what it holds):','UNI-WEAP-2');
@@ -47858,7 +47955,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2356', name:'v2356 - Shown is not the same as on screen', date:'2026-08-31', note:'the panel beat now carries the rendered box, and two fixtures stopped depending on his live data' };
+  window.D2R_BUILD = { id:'v2359', name:'v2359 - A stash is never alphabetical', date:'2026-08-31', note:'134 dock items were a chronicle page read I to Z - 46 of 46 steps ascending' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

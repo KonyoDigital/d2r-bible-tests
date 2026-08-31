@@ -1813,7 +1813,76 @@ def _gate_verdict_live(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN
             "why": "corroborated by %s" % ", ".join(w)}
 
 
-def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+def surface_shadow(sightings, surface_of=None, live_verdict=None):
+    """What the SURFACE-AWARE rule would require, computed beside the live gate and deciding
+    nothing. v2357.
+
+    `MIN_WITNESSES = 2` is one number for every reader on every screen. Measured against his real
+    journal on 2026-08-31 that is badly wrong: `deep` on a chronicle page grounds 38 real names of
+    61 (Wilson lower 0.4975) while the `ocr` lane managed ONE real name in 801 sightings. Two
+    witnesses from the strongest combination and two from the weakest are not the same evidence,
+    and the gate could not tell them apart.
+
+    ⚠ IT DECIDES NOTHING, ON PURPOSE. This follows v2201's Wilson shadow exactly: compute the
+    alternative, attach it, let the LIVE rule keep deciding, and let him switch after reading the
+    disagreements. A policy change slipped in behind a measurement is not a measurement.
+
+    `surface_of(sighting) -> lane-or-None` is INJECTED because the resolver lives in control_app
+    (it asks the reel timeline) and importing it here would be circular. With no resolver every
+    sighting is NOT ESTABLISHED, which is the honest answer and never a veto.
+    """
+    try:
+        import surface_precision as sp
+    except Exception as exc:
+        return {"error": "surface_precision unavailable: %s" % type(exc).__name__, "agrees": None}
+
+    need, worst, seen = 1, None, []
+    for sg in (sightings or []):
+        lane = (sg.get("lane") or "claude")
+        surf = None
+        if surface_of:
+            try:
+                surf = surface_of(sg)
+            except Exception:
+                surf = None
+        n, why = sp.witnesses_required(lane, surf)
+        seen.append({"lane": lane, "surface": surf, "needs": n, "why": why})
+        if n > need:
+            need, worst = n, {"lane": lane, "surface": surf, "why": why}
+
+    have = len(witnesses(sightings))
+    # ⚠ A SURFACE RULE MAY ONLY EVER TIGHTEN. The first cut returned `have >= need` on its own,
+    # which DROPPED the live rule's confidence floor and made this a WEAKER gate wearing a
+    # stricter name. Measured against his journal before it shipped: it would have grounded 33
+    # names the live gate refuses, and they are `AmvLIT`, `AwuLET`, `ArnubET`, `A ThVLET` - OCR
+    # garbles that collected two or three "witnesses" because the same misread recurred across
+    # frames. Repetition of one mistake is not corroboration.
+    #
+    # So the shadow is now live AND surface: it can hold something the gate would ground, and it
+    # can never ground something the gate holds. That is the only direction a precision measure
+    # is allowed to move a gate. [[feedback-contradiction-is-the-finding]]
+    live_pass = None
+    try:
+        live_pass = bool(live_verdict.get("pass")) if isinstance(live_verdict, dict) else None
+    except Exception:
+        live_pass = None
+    meets_surface = have >= need
+    would = meets_surface if live_pass is None else (live_pass and meets_surface)
+    return {
+        "requires": need,
+        "have": have,
+        "meetsSurface": meets_surface,
+        "livePass": live_pass,
+        "wouldPass": would,
+        "strictest": worst,
+        "perSighting": seen[:8],
+        "why": ("the strictest surface here needs %d independent witness(es) and %d were found"
+                % (need, have)),
+    }
+
+
+def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES,
+                 surface_of=None):
     """The LIVE verdict, with the Wilson rule computed beside it and deciding nothing.
 
     ⚠ THE LIVE ANSWER IS RETURNED UNTOUCHED. `pass` is whatever _gate_verdict_live said; the shadow
@@ -1829,6 +1898,14 @@ def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNE
     except Exception as _e:
         # a shadow that fails must never take the live verdict with it
         v["shadow"] = {"error": str(_e)[:120], "agrees": None}
+    # v2357 — the SURFACE shadow, beside the Wilson one, deciding nothing for the same reason.
+    try:
+        ss = surface_shadow(sightings, surface_of=surface_of, live_verdict=v)
+        if "wouldPass" in ss:
+            ss["agrees"] = bool(ss["wouldPass"]) == bool(v.get("pass"))
+        v["surfaceShadow"] = ss
+    except Exception as _e:
+        v["surfaceShadow"] = {"error": str(_e)[:120], "agrees": None}
     return v
 
 
@@ -1931,12 +2008,17 @@ def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
     return {"scored": scored, "disagreements": dis, "names": sorted(set(seen))}
 
 
-def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
-    """The gate to hand apply_proposal. Keeps the verdicts so a caller can show its reasoning."""
+def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES, surface_of=None):
+    """The gate to hand apply_proposal. Keeps the verdicts so a caller can show its reasoning.
+
+    v2357 — `surface_of` is threaded through to the SURFACE SHADOW, which decides nothing. Without
+    it every sighting reads NOT ESTABLISHED, which is honest but measures nothing; the caller that
+    can resolve a sighting's surface (control_app, which asks the reel timeline) passes it in.
+    """
     seen = {}
 
     def _gate(name, sightings):
-        v = gate_verdict(name, sightings, conf_floor, min_witnesses)
+        v = gate_verdict(name, sightings, conf_floor, min_witnesses, surface_of=surface_of)
         seen[name] = v
         return v["pass"]
 

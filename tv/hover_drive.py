@@ -127,9 +127,12 @@ def move_cursor(x, y):
 
     ★ kCGEventMouseMoved AND NOTHING ELSE. No button event is constructed anywhere in this file.
     """
-    q, why = _quartz()
-    if q is None:
-        return False, why
+    # ⚠ v2358 — VALIDATE THE ARGUMENTS BEFORE REACHING FOR A GRAPHICS STACK. This used to ask
+    # _quartz() first, so on any machine without Quartz - every CI runner - a NaN target came back
+    # as "No module named 'Quartz'" instead of "not a finite point". The refusal named the
+    # machine instead of the mistake, and it kept the Publish workflow red for five straight
+    # versions, which is why his site stopped auto-deploying. A bad point is a bad point whether
+    # or not a display exists. [[feedback-blind-fixture-green-gate]]
     try:
         x = float(x); y = float(y)
     except (TypeError, ValueError) as e:
@@ -137,6 +140,9 @@ def move_cursor(x, y):
     if x != x or y != y or x in (float("inf"), float("-inf")) or y in (float("inf"), float("-inf")):
         # NaN/Inf pass every range test ever written; screen_point learned this at v2335.
         return False, "the target is not a finite point (%r, %r)" % (x, y)
+    q, why = _quartz()
+    if q is None:
+        return False, why
     try:
         ev = q["mk"](None, q["moved"], (x, y), q["lbtn"])
         if ev is None:

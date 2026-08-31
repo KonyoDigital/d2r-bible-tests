@@ -6281,7 +6281,7 @@
                  1px twitch that undoes itself, because CGEventPost fails silently without
                  Accessibility and a lamp built on "can I read the cursor" answers READY for ever
                  while moving nothing. -->
-            <button class="util-btn" id="btn-hoverchk" type="button" title="MINI(AUTOMATIC) — can the hover sweep drive the pointer right now? Proves it with a 1px move it undoes. Hovers only; it can never click.">\ud83d\uddb1 ready?</button>
+            <button class="util-btn" id="btn-hoverchk" type="button" title="MINI(AUTOMATIC) — can the hover sweep drive the pointer right now? Proves it with a 1px move it undoes. Hovers only; it can never click.">🖱 ready?</button>
             <!-- v2350c — the lamp above was labelled "mini" and this one "MINI": two controls
                  differing only in CASE, side by side in the same strip, one of which drives his
                  pointer. Renamed the lamp to "ready?" - it asks a question, and this one does a
@@ -6290,7 +6290,7 @@
                  pointer could be driven; nothing in the tree ever drove it (hover_drive.walk had
                  zero callers). Konyo went looking for this button and it did not exist. It shows
                  its own state, because a toggle you cannot read is a toggle you cannot trust. -->
-            <button class="util-btn" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span id="miniauto-lbl">\ud83d\uddb1 MINI</span></button>
+            <button class="util-btn" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span id="miniauto-lbl">🖱 MINI</span></button>
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
             <button class="util-btn" id="btn-repair" type="button" title="LEDGER REPAIR — restore find dates from the in-game Chronicle, or correct one mis-registered item. Both press the BOARD's own doors; the console never writes the ledger itself.">🩹 repair</button>
             <button class="util-btn" id="btn-ledger" type="button" title="THE LEDGER — what the AI has SEEN, read for free. Every grounded row and every sighting still waiting on a second witness, each with when it was read and which frames it came from. Reads two files; spends nothing; writes nothing.">📒 ledger</button>
@@ -12622,12 +12622,12 @@
   function _miniPaint(j){
     var lbl = $('miniauto-lbl'), btn = $('btn-miniauto');
     if (!lbl || !btn) return;
-    if (!j){ lbl.textContent = '\ud83d\uddb1 MINI ?'; btn.style.borderColor = '#9aa6b2'; return; }
+    if (!j){ lbl.textContent = '🖱 MINI ?'; btn.style.borderColor = '#9aa6b2'; return; }
     if (j.running){
       lbl.textContent = '\u23f9 ' + (j.moved || 0) + '/' + (j.planned || 0);
       btn.style.borderColor = '#8fd0a0';
     } else {
-      lbl.textContent = '\ud83d\uddb1 MINI';
+      lbl.textContent = '🖱 MINI';
       btn.style.borderColor = '';
       btn.title = j.stopped ? ('last run: ' + j.stopped + ' (' + (j.moved||0) + '/' + (j.planned||0) + ')')
                             : btn.title;

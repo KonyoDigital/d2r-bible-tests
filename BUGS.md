@@ -14144,6 +14144,128 @@ INVENTORY itself can be opened separately with its own template"*. Chrome presen
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
 
+## REG-437 - A STASH IS NEVER IN ALPHABETICAL ORDER. A MENU PAGE ALWAYS IS.
+
+Konyo, 2026-08-31, looking at **134 items** in his vault's UNSORTED DOCK:
+*"all these items are not my vault somethng is properly coded"*.
+
+He was right, and the proof needed no AI, no template match and no pixels - only the ORDER of the
+names. The visible dock read:
+
+> Iron Pelt, Ironstone, Islestrike, Kinemil's Awl, Lance Guard, Lance of Yaggai, Langer Briser,
+> Leadcrow, Magewrath, Medusa's Gaze, Moonfall, Nord's Tenderizer, Pelta Lunata, Pluckeye, ...
+
+Measured against his 398-name unique roster:
+
+```
+47 of 47 visible names are real roster uniques
+46 of 46 consecutive steps strictly ASCENDING       - 100%
+roster span 175..397, median gap 3
+```
+
+That is the **uniques Chronicle, read from about the letter I to Z**, and written into
+`d2r_owned` as things he possesses.
+
+**Items enter a stash in the order he picked them up and moved them. The chance that dozens come
+out alphabetically ascending is nil.** So order is not weak evidence about a batch's SOURCE - it
+is very nearly conclusive, it needs no model, and it costs nothing. This is the cheapest
+discriminator in the whole arc and it was sitting in the data the entire time.
+
+**Shipped v2359** as `tv/menu_run.py` (`ascending_fraction`, `looks_like_a_menu_page`,
+`longest_ascending_run`) plus a JS twin in `bible.html` that judges the dock as it renders. When
+the dock is menu-ordered, a button appears; the FIRST click shows him exactly which names and the
+SECOND removes them from owned, behind `uiConfirm`. **Items already filed into a mule are never
+touched** - his hand put those there.
+
+⚠ **IT JUDGES A BATCH, NEVER A NAME.** Two ascending names are a coin flip; the signal exists
+only at size, so anything under `MIN_RUN = 8` answers NOT ESTABLISHED rather than guessing. And
+the half that matters more is the negative: an unsorted real stash (Windforce, Arachnid Mesh,
+Titan's Revenge, Death's Web ...) measures 50% ascending and is NOT flagged - a rule that fired
+there would delete things he owns. [[unknown-stays-unknown]]
+
+⚠ **Found while proving it: the `__pycache__` scar again.** `MIN_RUN = 8` -> `MIN_RUN = 1` is
+LENGTH-PRESERVING, edited within the same second, so a restored file ran STALE BYTECODE and a
+correct guard reported red. The cache is not in `__pycache__`: `sys.pycache_prefix` puts it under
+`~/Library/Caches/com.apple.python/<full path>`. [[python-pycache-prefix-mac]]
+
+**Guards:** `TestV2359AStashIsNeverAlphabetical` - 4 cases, 3 proven RED.
+
+## REG-436 - THE DEPLOY GATE WAS RED FOR FIVE STRAIGHT VERSIONS AND NOTHING SAID SO
+
+The **"Publish - gates, review, then deploy"** workflow failed on EVERY push from v2344 through
+v2356. **His live site never republished for any of them.** Nobody read it, because a push that
+clears the local pre-push hook looks finished, and the failure lives on GitHub.
+
+A gate that is always red carries exactly as much information as one that is always green.
+[[sweep-dont-ask]]
+
+**Six CI failures, two causes, both of them tests of MINE that quietly assume his Mac:**
+
+**1. `hover_drive.move_cursor` asked `_quartz()` BEFORE validating its arguments.** On a runner
+with no Quartz, a NaN target came back as `No module named 'Quartz'` instead of
+`the target is not a finite point`. The refusal named the MACHINE instead of the MISTAKE. That is
+a real code fault and not a test artifact: a bad point is a bad point whether or not a display
+exists. Validation now comes first, and a guard pins the ORDER - the defect is invisible in
+behaviour on any machine that happens to have Quartz.
+
+**2. The five `TestV2340` breaker cases stub `subprocess.run` but never `_grok_bin`.** On CI,
+`g5_vision_read` stops at `g5_grok_eyes.py:872` with `"grok CLI not on PATH"` before the spy can
+fire. Every one of those cases is about the **402 breaker** and not one is about whether grok is
+installed, so five tests failed for a reason unrelated to their subject and took the deploy gate
+with them.
+
+**Proven host-independent before shipping**, which is the only check that means anything here:
+re-run with `PATH=/usr/bin:/bin` - 11 tests, OK. The local suite had been green throughout,
+which is exactly why this survived: the machine that runs the tests is the machine the tests
+secretly depend on. [[feedback-blind-fixture-green-gate]] [[test-venue]]
+
+⚠ **The habit this cost:** `review-after-ship` and `sweep-dont-ask` both say READ CI, and I
+pushed ten versions across this session before doing it. The pre-push hook being green is not
+the same fact as the deploy having happened.
+
+**Guards:** `TestV2358TheDeployGateWasRedForFiveVersions` - 3 cases, 2 proven RED.
+
+## REG-435 - I SHIPPED A MEASUREMENT NOBODY CONSULTS, AND THEN NEARLY SHIPPED IT BACKWARDS
+
+Two failures in one entry, both mine, hours apart.
+
+**1. `surface_precision.py` shipped in v2354 with ZERO production callers** - test-only. That is
+the exact defect diagnosed in `corroborates_chrome` the same morning (REG-429/#6), repeated by me
+within hours of writing it down. A measured table nobody asks is not a gate, it is a note.
+[[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+Joined in v2357 as a SHADOW that decides nothing, beside v2201's Wilson shadow - the pattern this
+file already established, and the right one: compute the alternative, attach it, let the LIVE
+rule keep deciding, and let him switch after reading the disagreements. `strict_gate(surface_of=)`
+threads a resolver from `control_app._sighting_loc` (three call sites), because without it every
+sighting reads NOT ESTABLISHED and the shadow measures nothing.
+
+**2. THE FIRST CUT WAS A WEAKER GATE WEARING A STRICTER NAME.** `surface_shadow` returned
+`have >= need` on its own - dropping the live rule's confidence floor entirely. Measured against
+his real journal BEFORE it shipped:
+
+```
+live=False shadow=False : 889
+live=False shadow=True  :  33      <- it would GROUND 33 names the gate refuses
+```
+
+And the 33 are `AmvLIT`, `AwuLET`, `ArnubET`, `A ThVLET`, `ING Twe R` - OCR garbles that
+collected two or three "witnesses" because the same misread recurred across frames.
+**Repetition of one mistake is not corroboration.**
+
+A precision measure may move a gate in exactly ONE direction. It now returns
+`live_pass AND meets_surface`: it can HOLD what the gate grounds, and can never GROUND what the
+gate holds.
+
+⚠ **AND IT HAS DEMONSTRATED NO EFFECT YET.** Re-measured after the fix: 922 names, **zero**
+disagreements - because in that reconstructed corpus the live gate grounds nothing, so a
+tighten-only rule has nothing to tighten. Wired and safe is not the same as proven useful. It
+will earn its place on a real sweep that actually grounds names, or it will not, and either way
+the number will say so. [[unknown-stays-unknown]]
+
+**Guards:** `TestV2357TheSurfaceRuleMayOnlyTighten` - 4 cases, 3 proven RED, including one that
+fails the moment `surface_precision` loses its production importer again.
+
 ## REG-434 - EVERY READER'S NAME WAS WORTH THE SAME, AND THEY ARE NOT REMOTELY WORTH THE SAME
 
 Konyo, #121: *"it starts with AI item checker that should really be configured and tested and

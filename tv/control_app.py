@@ -19431,7 +19431,10 @@ def _chron_visit_run(visit_ts):
         # two spellings of one item finally corroborate each other instead of each sitting at
         # one witness in his inbox. See _chron_fold.
         prop, _fold_report = _chron_fold(prop)
-        gate = _cr.strict_gate()
+        # v2357 — hand the gate the surface resolver so its SHADOW can see where each
+        # sighting was read. It still decides nothing; without this every sighting reads
+        # NOT ESTABLISHED and the shadow measures exactly nothing.
+        gate = _cr.strict_gate(surface_of=_sighting_loc)
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         _sb = _shadow_bank(applied)
         if isinstance(_sb, dict) and _sb.get("failed"):
@@ -20099,7 +20102,10 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # two spellings of one item finally corroborate each other instead of each sitting at
         # one witness in his inbox. See _chron_fold.
         prop, _fold_report = _chron_fold(prop)
-        gate = _cr.strict_gate()
+        # v2357 — hand the gate the surface resolver so its SHADOW can see where each
+        # sighting was read. It still decides nothing; without this every sighting reads
+        # NOT ESTABLISHED and the shadow measures exactly nothing.
+        gate = _cr.strict_gate(surface_of=_sighting_loc)
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         _sb = _shadow_bank(applied)
         if isinstance(_sb, dict) and _sb.get("failed"):
@@ -20172,7 +20178,10 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         if _rg:
             print("   \u26d4 %d set-group(s) refused — the heading was a PIECE, not a set: %s"
                   % (len(_rg), ", ".join(sorted({str(x.get("set")) for x in _rg})[:6])))
-        gate = _cr.strict_gate()
+        # v2357 — hand the gate the surface resolver so its SHADOW can see where each
+        # sighting was read. It still decides nothing; without this every sighting reads
+        # NOT ESTABLISHED and the shadow measures exactly nothing.
+        gate = _cr.strict_gate(surface_of=_sighting_loc)
         applied = _cr.apply_proposal(prop, {"uniques": [], "sets": []}, gate=gate)
         _sb = _shadow_bank(applied)
         if isinstance(_sb, dict) and _sb.get("failed"):
@@ -20611,7 +20620,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2356",
+        "ver": "v2359",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
