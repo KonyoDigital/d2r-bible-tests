@@ -12950,6 +12950,33 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-407 — an empty vault was told it was in perfect order (v2328)
+
+**Found by a cold cross-family read of the Vault tab**, which put it exactly right:
+
+> *"the vault is in perfect order appears directly above multiple empty locker boxes, with no
+> visible way to confirm the claim from the pixels"*
+
+The empty state is a CSS `.vault-dock:empty::after`, and **`:empty` counts CHILDREN**. The dock
+holds UNSORTED items, so it is empty in two opposite situations:
+
+```
+every owned item is filed        →  "every owned item has a home" is EARNED
+there are no owned items at all  →  it is a verdict on nothing
+```
+
+A fresh install — or any browser whose world has not been claimed — was congratulated on tidiness
+it had never demonstrated. That is the collapse this tree exists to avoid: *"we measured and found
+none"* is not *"nobody has anything yet"*.
+
+**CSS alone cannot separate them**, because both cases have zero children. The renderer already
+knows: `pool` is every owned item. So it now writes `data-owned`, and the stylesheet keeps one
+sentence per fact — the earned message is untouched for a vault that really is tidy.
+
+**Guards:** `TestV2328AnEmptyDockMeansTwoOppositeThings`, three sabotages proven RED, including
+one that derives the attribute from `unsorted` instead of `pool` — which would swap the two
+sentences and be invisible to a test that only checked the attribute exists.
+
 ## REG-405 — v2324 tripled the pixels going to the paid model, from two files away (v2327)
 
 `_readable_frame()` guarded itself with:

@@ -32990,6 +32990,8 @@ body{
    width of EVERY column, and the wall returns wearing a grid. The full name stays in `title`. */
 .vault-dock > .vault-chip > span:not(.d2art-wrap){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
+/* v2328 — nothing owned is not the same fact as nothing left to file; see renderVault */
+.vault-dock[data-owned="0"]:empty::after{content:"nothing is recorded yet — there is nothing to place ✦"}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
 /* v1282 — 🔍 Vault Integrity Checker banner (retro routing / dedup / grail-safety audit) */
@@ -34935,6 +34937,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v360 — shared-stash items (runes · essences · Worldstone shards · Colossal statues · sunders) are
     // NEVER muled, so they don't belong in the draggable "unsorted" dock — they live in the SHARED STASH locker.
     var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n); });
+    /* v2328 — AN EMPTY DOCK MEANS TWO OPPOSITE THINGS AND SAID ONLY ONE OF THEM.
+       The dock's empty state is a CSS `:empty::after` reading "every owned item has a home — the
+       vault is in perfect order". `:empty` is true when nothing is UNSORTED, which happens both
+       when every item is filed (the message is earned) and when THERE ARE NO ITEMS AT ALL (the
+       message is a verdict on nothing).
+
+       Found by a cold cross-family read of the Vault tab, which reported it exactly right: "the
+       vault is in perfect order appears directly above multiple empty locker boxes, with no
+       visible way to confirm the claim". A fresh install, or any browser whose world has not been
+       claimed, is congratulated on tidiness it has not demonstrated.
+
+       CSS alone cannot tell the two apart — `:empty` counts children, and both cases have none.
+       The renderer already knows: `pool` is every owned item. So it says which case this is, and
+       the stylesheet keeps one sentence per fact.
+       [[unknown-stays-unknown]] */
+    try { dock.setAttribute('data-owned', pool.length ? '1' : '0'); } catch(e){}
     // v251: the dock's own "Auto-Sort" widget — appears only when items are unsorted,
     // sends every loose item back to its proper mule/alt in one click (vaultAutoAssign).
     var dbar=document.getElementById('vault-dock-bar');
@@ -47600,7 +47618,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2327', name:'v2327 - The Size Not The Format', date:'2026-08-31', note:'v2324 began writing live.jpg and a guard that tested the extension instead of the size then sent the paid model 2940px frames where the locked intake spec is 1568' };
+  window.D2R_BUILD = { id:'v2328', name:'v2328 - Two Facts Two Sentences', date:'2026-08-31', note:'an empty vault was congratulated on being in perfect order because the CSS empty state cannot tell nothing-left-to-file from nothing-to-file' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

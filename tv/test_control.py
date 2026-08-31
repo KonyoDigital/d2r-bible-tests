@@ -33427,5 +33427,67 @@ class TestV2325TheAlvlSurvivesANarrowCard(unittest.TestCase):
                       "card geometry at every width, including the ones already measured good")
 
 
+class TestV2328AnEmptyDockMeansTwoOppositeThings(unittest.TestCase):
+    """"THE VAULT IS IN PERFECT ORDER" WAS PRINTED OVER A VAULT WITH NOTHING IN IT.
+
+    Found by a cold cross-family read of the Vault tab, which put it exactly right: "the vault is
+    in perfect order appears directly above multiple empty locker boxes, with no visible way to
+    confirm the claim from the pixels".
+
+    The empty state is a CSS `:empty::after`, and `:empty` counts CHILDREN. The dock holds
+    UNSORTED items, so it is empty in two opposite situations:
+
+        every owned item is filed        -> the message is earned
+        there are no owned items at all  -> the message is a verdict on nothing
+
+    A fresh install, or any browser whose world has not been claimed, was congratulated on
+    tidiness it had never demonstrated. That is the same collapse the whole tree is built to
+    avoid: "we measured and found none" is not "nobody has anything yet".
+    [[unknown-stays-unknown]]
+    """
+
+    def _html(self):
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        with io.open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_empty_dock_has_a_SEPARATE_sentence_for_nothing_owned(self):
+        src = self._html()
+        self.assertIn('.vault-dock[data-owned="0"]:empty::after', src,
+                      "the two cases share one sentence again - an empty vault is told it is in "
+                      "perfect order")
+        rule = _between(self, src, '.vault-dock[data-owned="0"]:empty::after', "}",
+                        what="the nothing-owned empty state")
+        self.assertNotIn("perfect order", rule,
+                         "the nothing-owned case still claims perfect order")
+        self.assertIn("nothing is recorded yet", rule)
+
+    def test_the_EARNED_sentence_is_still_there_for_a_vault_that_IS_tidy(self):
+        """The fix must not delete the true case. When items exist and all are filed, the
+        original message is correct and should still appear."""
+        src = self._html()
+        self.assertIn("the vault is in perfect order", src,
+                      "the earned message was removed instead of being narrowed")
+
+    def test_the_renderer_actually_SETS_the_attribute(self):
+        """[[the-unjoined-end]] - a stylesheet keyed on an attribute nobody writes selects
+        nothing, and the vault would silently go back to congratulating an empty world."""
+        src = self._html()
+        self.assertIn("dock.setAttribute('data-owned'", src,
+                      "nothing sets data-owned, so the new rule can never match")
+
+    def test_it_is_set_from_the_OWNED_pool_not_from_the_unsorted_list(self):
+        """The distinction only works if the attribute reports how many items EXIST. Setting it
+        from `unsorted` would make it 0 in exactly the case the old message was already right
+        about, and the two sentences would swap places."""
+        src = self._html()
+        rule = _between(self, src, "dock.setAttribute('data-owned'", ")",
+                        what="the data-owned assignment", min_len=20)
+        self.assertIn("pool.length", rule,
+                      "data-owned is not derived from the owned pool - it cannot tell the two "
+                      "empty states apart")
+        self.assertNotIn("unsorted", rule)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
