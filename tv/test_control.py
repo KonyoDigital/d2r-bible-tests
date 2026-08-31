@@ -36453,5 +36453,92 @@ class TestV2364OneWayToAddressAFrame(unittest.TestCase):
 
 
 
+class TestV2365StructuralTriageNeverDisposesFromASample(unittest.TestCase):
+    """Konyo: *"the filter and templates built should be disposing the 70% unrelevant reels and
+    frames from those same sessions and whats left is like 10-15% real images that need to be
+    routed and funneled to the unfied systmes"*.
+
+    `tv/retro_triage.py` is that filter, and it costs no AI call - it asks the pixels whether a
+    panel is open. It exists because 401 of his 411 reels have never been read, which is why
+    6.8 GB cannot be pruned and why `vault-owes` never fires.
+
+    ⚠ TWO NUMBERS IN THIS MODULE WERE WRONG BEFORE IT SHIPPED, and both are recorded in its
+    docstring rather than quietly fixed:
+      · "0.019 s/frame, whole backlog in 265 s" was TIMING CACHE HITS. Cold it is 0.486 s/frame,
+        and a later run measured 1.3 s/frame - hours, not minutes.
+      · "2% of frames show a panel" came from a strided sample; another sample said 20%. The hit
+        rate is NOT ESTABLISHED and no plan may rest on it.
+
+    The invariant these cases protect: a SAMPLE may never produce a disposal list. A strided
+    sample cannot prove a reel holds no panel. [[unknown-stays-unknown]]
+    """
+
+    def _fake_gate(self, hits):
+        seen = {"n": 0}
+        def gate(path):
+            seen["n"] += 1
+            return "stash" if os.path.basename(path) in hits else None
+        gate.seen = seen
+        return gate
+
+    def _reel(self, root, name, frames):
+        d = os.path.join(root, name)
+        os.makedirs(d, exist_ok=True)
+        for f in frames:
+            with io.open(os.path.join(d, f), "w", encoding="utf-8") as fh:
+                fh.write("x")
+        return d
+
+    def test_a_sample_produces_no_disposal_list(self):
+        """The whole safety property. A sampled pass must return an empty `dispose`, and must say
+        so in its own words, so no caller can mistake an estimate for a decision."""
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="triage_")
+        d = self._reel(root, "reel_s_1_1", ["f_%d.jpg" % (1787522052380 + i) for i in range(40)])
+        out = rt.survey([d], self._fake_gate(set()), every_frame=False, per_reel_sample=5)
+        self.assertTrue(out["sampled"], "a sampled pass must mark itself sampled")
+        self.assertEqual(out["dispose"], [],
+                         "a strided sample produced a disposal list - it cannot prove a reel "
+                         "holds no panel")
+        self.assertIn("cannot prove", out["say"])
+        self.assertLess(out["frames"], 40, "the sample read every frame, so it was not a sample")
+
+    def test_a_full_pass_does_produce_one(self):
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="triage2_")
+        names = ["f_%d.jpg" % (1787522052380 + i) for i in range(6)]
+        d = self._reel(root, "reel_s_2_2", names)
+        out = rt.survey([d], self._fake_gate({names[1]}), every_frame=True)
+        self.assertFalse(out["sampled"])
+        self.assertEqual(out["frames"], 6, "a full pass must read every frame")
+        self.assertEqual(len(out["keep"]), 1)
+        self.assertEqual(len(out["dispose"]), 5)
+        self.assertIn("worth a paid read", out["say"])
+
+    def test_it_can_be_bounded_and_says_when_it_stopped(self):
+        """A pass that ran out of time must not read as a complete answer."""
+        import retro_triage as rt, tempfile, time
+        root = tempfile.mkdtemp(prefix="triage3_")
+        reels = [self._reel(root, "reel_s_3_%d" % i,
+                            ["f_%d.jpg" % (1787522052380 + j) for j in range(3)])
+                 for i in range(4)]
+        def slow(path):
+            time.sleep(0.05)
+            return None
+        out = rt.survey(reels, slow, every_frame=True, budget_s=0.06)
+        self.assertTrue(out["stoppedEarly"],
+                        "a pass cut off by its budget must say so, or a partial count reads as a "
+                        "complete one")
+
+    def test_it_deletes_nothing(self):
+        src = _code_only(io.open(os.path.join(HERE, "retro_triage.py"), encoding="utf-8").read())
+        for banned in ("os.remove", "os.unlink", "shutil.rmtree", "rmdir"):
+            self.assertNotIn(banned, src,
+                             "retro_triage can now DELETE (%s). The prune that acted "
+                             "automatically once ate two reels that were test fixtures; this "
+                             "module reports and nothing else." % banned)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2364",
+  "ver": "v2365",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2364: three ad-hoc resolvers invented three false crises in one evening",
+  "note": "v2365: 401 of 411 reels were never read; the structural gate finds what is worth paying for",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
