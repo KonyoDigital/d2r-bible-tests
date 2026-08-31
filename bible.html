@@ -34543,7 +34543,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.renderThrowSuggested = function(){
     var el = document.getElementById('vault-suggested');
     if (!el) return;
-    var rows = (window._vaultThrowSuggestions || []);
+    /* ⚠ v2343b — IT VERIFIES BEFORE IT PRINTS, because it is painted from a stashed list and a
+       cross-family review of v2342 was right that nothing repainted it: auto-assign filled the
+       list once and any later change left the panel showing a count that was no longer true. A
+       tally that is stale reads exactly like a tally that is current, which is the whole reason
+       this panel was added. So a name that has since been filed to a mule, or has left the owned
+       pool entirely, drops out here — and renderVault() calls this, so it repaints whenever the
+       vault does. [[stale-reading]] */
+    var rows = (window._vaultThrowSuggestions || []).filter(function(r){
+      var nm = r && r.name;
+      if (!nm) return false;
+      try { if (typeof owned !== 'undefined' && owned && !owned.has(nm)) return false; } catch(e){}
+      try { var a = (typeof assignOf === 'function') ? assignOf(nm) : null; if (a) return false; } catch(e){}
+      return true;
+    });
+    // v2343b — a stable order. ownedPool() decides the order otherwise, so the same 15 names could
+    // appear in a different sequence on each paint and read as a different list.
+    rows.sort(function(a, b){ return String(a.name).localeCompare(String(b.name)); });
     if (!rows.length){ el.hidden = true; el.innerHTML = ''; return; }
     var shown = rows.slice(0, 60);
     el.hidden = false;
@@ -35256,6 +35272,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     status('🏦 '+name+' → '+muleById(muleId).name);
   }
   window.vaultAssign = assignItem;
+  /* v2343b — the suggestion panel repaints with the vault. Without this it was painted exactly
+     once, by auto-assign, and every later change left a stale count on screen. */
+  try {
+    var _rvPrev = window.renderVault;
+    if (typeof _rvPrev === 'function' && !_rvPrev.__suggHooked){
+      window.renderVault = function(){
+        var r = _rvPrev.apply(this, arguments);
+        try { if (typeof window.renderThrowSuggested === 'function') window.renderThrowSuggested(); } catch(e){}
+        return r;
+      };
+      window.renderVault.__suggHooked = true;
+    }
+  } catch(e){}
   // v723 — TV farmed wire (name-only, NO AI call, NO photo). Reuses the SAME owned + suggestMule
   // + muleAssign path vault intake uses. Called when TV sees inventory/stash after a physical pickup.
   // Does NOT touch engines (runes/gems/grail) — the TV board apply() already does that.
@@ -35957,6 +35986,38 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // _aicVerdict brain, ZERO draft/UI touch: the human's Checker state is snapshotted and
   // restored around the parse. Returns {ok,name,base,q,mods,verdict:{tier,score,breakdown}}.
   // v948.1 — TV engine forces subscription /api/intake (control intake_local); never cloud tokens.
+  /* ══ v2343 — ONE RULE FOR "MAY THIS BECOME A VAULT ITEM", USED BY EVERY DOOR ═══════════════
+     Konyo: "i dont want to have to partly do this everywhere... in the end its one system that
+     communicates." v2342 put a provenance test at the chronicle auto-accept and left the same
+     question answered differently three lines away in aicJudgeApply. Two copies of one rule is
+     how a rule stops being a rule, so it lives here once and both doors ask it.
+
+     THE RULE: a name may be filed as a physical vault item only when the sighting says it was in
+     a container he owns. Unknown is not a stash claim — a grail sighting proves he FOUND it, and
+     the vault is a claim that he HOLDS it.
+
+     MEASURED, and this is why the default matters: of the names that reach the register, the kai
+     JUDGE lane supplies 84 and carries a location on ZERO of them, because window.aicJudge POSTs
+     to an ITEM parser that returns {name, base, q, mods, verdict} and never says where it looked.
+     Joining it to the deep lane's names_loc was tried and reverted — 2 of 84 by exact frame, 11
+     of 84 even at a ±60 s window, because the two lanes use different frameId formats and only 47
+     deep frames carry a location at all. So the judge legitimately does not know, and "does not
+     know" must resolve to Chronicle-only. [[unknown-stays-unknown]] [[the-unjoined-end]] */
+  /* ⚠ v2343b — AN EXACT TOKEN, NEVER A SUBSTRING. The first cut tested
+     /stash|inventory|cube|equip|belt|mule|locker/ against a free-text string, which is a contains
+     test: a cross-family review pointed out it would admit "muleskin", "formulate", "cube root"
+     and "mainstashbackup", and reject "inv" and "storage". The vocabulary here is CLOSED — the
+     readers emit equipped|inventory|stash|floor (tv_diablo READ_PROMPT and the g5 prompt both say
+     so) and reel_segments adds stash|inventory — so a whitelist of whole words is both stricter
+     and simpler than a pattern that has to be argued about.
+     NOT containers, and each for its own reason: `floor` is the ground, `chronicle` is a menu
+     listing items he does not own, `gameplay`/`town`/`transition` establish nothing. */
+  window._VAULT_LANES = ['equipped','inventory','stash','cube','belt','mule','locker','tomb','tombs'];
+  window._vaultMayClaim = function(loc){
+    var t = String(loc == null ? '' : loc).toLowerCase().trim();
+    return window._VAULT_LANES.indexOf(t) >= 0;
+  };
+
   window.aicJudge = async function(file){
     try {
       var b64 = (typeof downscale === 'function')
@@ -36199,18 +36260,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } catch(e){ out.chErr = String(e && e.message || e); }
 
       if (tier === 'grail'){
-        try {
-          if (typeof window.tvChronicleRoute === 'function'){
-            out.grail = window.tvChronicleRoute(nm, 'vault');
-            out.actions.push('chronicle-route');
-          }
-        } catch(e){}
-        try {
-          if (typeof window.tvVaultRegister === 'function'){
-            out.vault = window.tvVaultRegister(nm);
-            out.actions.push('vault');
-          }
-        } catch(e){}
+        /* v2343 — THE JUDGE TICKS THE CHRONICLE AND DOES NOT CLAIM THE VAULT UNLESS IT KNOWS
+           WHERE IT LOOKED. It called kaiChroniclePropose four lines up, which HAS a provenance
+           gate since v2342, and then made the vault claim itself with no gate at all — the same
+           question answered two ways inside one function. Now both ask window._vaultMayClaim.
+           `meta.loc` is the read's lane when the caller has one; today the judge lane supplies
+           none (measured: 0 of 84), so this route is Chronicle-only until the reader learns to
+           report where it read the tooltip. The refusal is RECORDED, not silent — a route that
+           did not happen must be visible, or it looks identical to one that did. */
+        /* ⚠ v2343b — `meta.loc` ONLY. The first cut fell back to `meta.lane`, and `lane` in this
+           codebase is WHICH READER produced the row — "deep", "kai", "ocr" — not where the item
+           was. It failed safe (no reader name is a container) but it would have printed "read in
+           kai, which is not a container you keep things in", which is a sentence about the wrong
+           thing entirely. [[label-outlived-referent]] */
+        var _loc = (meta && meta.loc) || '';
+        if (window._vaultMayClaim(_loc)){
+          try {
+            if (typeof window.tvChronicleRoute === 'function'){
+              out.grail = window.tvChronicleRoute(nm, 'vault');
+              out.actions.push('chronicle-route');
+            }
+          } catch(e){}
+          try {
+            if (typeof window.tvVaultRegister === 'function'){
+              out.vault = window.tvVaultRegister(nm);
+              out.actions.push('vault');
+            }
+          } catch(e){}
+        } else {
+          out.vaultRefused = _loc
+            ? ('read in ' + _loc + ', which is not a container you keep things in')
+            : 'the judge did not report where it read this, so it counts in your Chronicle only';
+          out.actions.push('vault-refused');
+        }
         out.ok = true; out.mode = 'chronicle';
         return out;
       }
@@ -36586,7 +36668,11 @@ window.vaultAutoAssign = function(){
         _log(name, 'kept-in-inventory', sg);
       }
     });
-    try { window._vaultThrowSuggestions = suggestedRows.slice(); renderThrowSuggested(); } catch(e){}
+    // v2343b — a swallowed error here is how the panel would silently never appear; the first
+    // cut of renderThrowSuggested called a helper that does not exist in its scope and this catch
+    // would have hidden it completely.
+    try { window._vaultThrowSuggestions = suggestedRows.slice(); renderThrowSuggested(); }
+    catch(e){ try { console.warn('[vault] throw-out suggestions did not render:', e && e.message || e); } catch(e2){} }
     saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s')+(suggested?(' · '+suggested+' suggested for throw-out (nothing binned)'):''));
   };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
@@ -47727,7 +47813,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2342', name:'v2342 - A sighting is not a stash claim', date:'2026-08-31', note:'the chronicle auto-accept filed every grail sighting into the vault with no provenance' };
+  window.D2R_BUILD = { id:'v2343', name:'v2343 - A reel is a timeline', date:'2026-08-31', note:'one vault-claim predicate for every door, and reels now know what he was doing' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48236,8 +48322,18 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
                sighting to say it was seen somewhere he keeps things. Unknown means Chronicle only.
                His own three buttons (v2336) remain the way to file one deliberately, and nothing
                here removes anything already filed. [[unknown-stays-unknown]] [[label-outlived-referent]] */
-            var _heldLoc = String(base.loc || '').toLowerCase();
-            var _seenInAContainerHeOwns = /stash|inventory|cube|equip|belt|mule|locker/.test(_heldLoc);
+            // v2343 — the same question, asked of the same function. This was an inline copy
+            // of the regex now living in window._vaultMayClaim; two copies of one rule is
+            // [[copy-drift]], and this is the door that rule was written for.
+            /* ⚠ v2343b — DEFENSIVE, AND IT FAILS CLOSED. This call is in script block 21 and
+               the predicate is defined in block 14 (measured). Assigning to `window` is the right
+               cross-block mechanism and the call happens later at runtime, so it is not dead —
+               but if block 14 ever throws before its assignment, an unguarded call raises a
+               TypeError inside this try and would take the CHRONICLE write down with it. Absent
+               predicate -> no vault claim, and the grail tick still happens. This repo has shipped
+               a cross-block call three times (v1516, v2248, v2279). */
+            var _seenInAContainerHeOwns = (typeof window._vaultMayClaim === 'function')
+              && window._vaultMayClaim(base.loc);
             if (_seenInAContainerHeOwns){
               try {
                 if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(nm, 'vault');

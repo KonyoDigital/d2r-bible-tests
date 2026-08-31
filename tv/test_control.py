@@ -34673,5 +34673,174 @@ class TestV2342AGrailSightingIsNotAStashClaim(unittest.TestCase):
 
 
 
+class TestV2343AReelIsATimelineNotABagOfFrames(unittest.TestCase):
+    """reel_segments — what was on screen at a given moment, from reads that already exist.
+
+    Konyo: "shadow is on.. is reading every single frame.. and retro reader also see every single
+    frame ... how do they know to logically understand if im farming? or teleporting? ... when it
+    sees me in stash and inventory open it knows that im stashing and it can flag the reel from
+    that point and timestamp."
+
+    Every reader answers one frame at a time, which is why a judged item reaches the vault with no
+    idea where it was: the name and the verdict are in one frame's read, and the fact that a
+    Chronicle page was open is in another's. Segments put them back together.
+
+    MEASURED ON HIS REELS, ±0ms, no padding:
+        84 judged names -> 11 stash, 2 inventory admitted; 10 REFUSED because the Chronicle was
+        open, 3 refused as gameplay, 58 refused as unknown.
+    Frame-to-frame matching recovered 2 of 84. Segment membership recovers 26 and separates the
+    chronicle reads from the stash reads, which is the whole point.
+    """
+
+    def _rows(self):
+        # one stash visit, one chronicle visit, a gameplay read between them
+        return [
+            {"lane": "deep", "sessionId": "s1", "captureTs": 1000, "scene": "stash"},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 2000, "scene": "stash"},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 9000, "scene": "gameplay"},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 20000, "scene": "chronicle"},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 21000, "scene": "chronicle"},
+        ]
+
+    def test_consecutive_reads_of_one_activity_become_one_visit(self):
+        import reel_segments as rs
+        segs = rs.segments(self._rows())
+        acts = [(s["activity"], s["start"], s["end"]) for s in segs]
+        self.assertEqual(acts, [("stash", 1000, 2000), ("gameplay", 9000, 9000),
+                                ("chronicle", 20000, 21000)])
+
+    def test_a_stash_moment_grants_a_lane(self):
+        import reel_segments as rs
+        lane, why = rs.lane_at(rs.segments(self._rows()), "s1", 1500)
+        self.assertEqual(lane, "stash")
+        self.assertIn("stash was open", why)
+
+    def test_a_CHRONICLE_moment_grants_NOTHING_and_says_why(self):
+        """The defect this whole module exists for: a Chronicle page is a checklist of items he
+        mostly does NOT own, so a name read there can never be a holding."""
+        import reel_segments as rs
+        lane, why = rs.lane_at(rs.segments(self._rows()), "s1", 20500)
+        self.assertIsNone(lane, "a name read off the Chronicle menu was granted a container lane")
+        self.assertIn("CHRONICLE", why)
+        self.assertIn("checklist", why)
+
+    def test_gameplay_is_an_ABSENCE_of_a_claim_not_a_rebuttal(self):
+        import reel_segments as rs
+        lane, why = rs.lane_at(rs.segments(self._rows()), "s1", 9000)
+        self.assertIsNone(lane)
+        self.assertIn("does not establish possession", why)
+
+    def test_an_uncovered_moment_is_UNKNOWN_and_says_so(self):
+        """Four different reasons for None, and a refusal must name which one it was."""
+        import reel_segments as rs
+        lane, why = rs.lane_at(rs.segments(self._rows()), "s1", 500000)
+        self.assertIsNone(lane)
+        self.assertIn("unknown", why)
+
+    def test_sessions_do_not_bleed_into_each_other(self):
+        import reel_segments as rs
+        rows = self._rows() + [{"lane": "deep", "sessionId": "s2", "captureTs": 1500,
+                                "scene": "chronicle"}]
+        lane, _ = rs.lane_at(rs.segments(rows), "s2", 1500)
+        self.assertIsNone(lane, "a moment in session s2 was judged by session s1's stash visit")
+
+    def test_the_OCR_lane_cannot_invent_a_segment(self):
+        """OCR stamps a provisional scene 'loot' on every row it writes and is explicitly 'never
+        farmed from OCR alone'. Letting it define activities would flood the timeline with an
+        activity nobody observed."""
+        import reel_segments as rs
+        rows = [{"lane": "ocr", "sessionId": "s1", "captureTs": t, "scene": "loot"}
+                for t in (100, 200, 300)]
+        self.assertEqual(rs.segments(rows), [])
+
+    def test_padding_is_zero_by_default(self):
+        """Coverage bought with guesses is how a gate starts admitting things nobody witnessed."""
+        import reel_segments as rs
+        segs = rs.segments(self._rows())
+        self.assertIsNone(rs.lane_at(segs, "s1", 2600)[0],
+                          "a moment 600ms outside the stash visit was granted a lane by default")
+        self.assertEqual(rs.lane_at(segs, "s1", 2600, pad_ms=1000)[0], "stash",
+                         "an explicit pad no longer widens the window")
+
+    def test_a_gap_ends_a_visit(self):
+        import reel_segments as rs
+        rows = [{"lane": "deep", "sessionId": "s1", "captureTs": 1000, "scene": "stash"},
+                {"lane": "deep", "sessionId": "s1", "captureTs": 1000 + rs.SEG_GAP_MS + 1,
+                 "scene": "stash"}]
+        self.assertEqual(len(rs.segments(rows)), 2,
+                         "two stash visits minutes apart were merged into one")
+
+
+
+class TestV2343bTheVaultPredicateIsAWhitelist(unittest.TestCase):
+    """The one rule that decides whether a name may become a physical vault item.
+
+    All three cases here came from a cross-family CODE review of the v2343 diff, and all three were
+    real:
+      · the predicate was a SUBSTRING test, so "muleskin", "formulate", "cube root" and
+        "mainstashbackup" would all have been read as containers he owns
+      · it fell back to `meta.lane`, and `lane` in this codebase is WHICH READER produced the row
+        ("deep", "kai", "ocr") — not where the item was
+      · the call at the chronicle door is in script block 21 while the predicate is defined in
+        block 14 (measured), so an unguarded call would throw a TypeError inside that try and take
+        the CHRONICLE write down with it — and this repo has shipped a cross-block call three
+        times already (v1516, v2248, v2279)
+    """
+
+    def _src(self):
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        return io.open(p, encoding="utf-8").read()
+
+    def test_it_is_a_whitelist_of_whole_words_not_a_contains_test(self):
+        src = self._src()
+        self.assertIn("window._VAULT_LANES = [", src, "the closed vocabulary is gone")
+        pred = _between(self, src, "window._vaultMayClaim = function(loc){", "};",
+                        min_len=60, what="the vault predicate")
+        self.assertIn("indexOf(t) >= 0", pred,
+                      "the predicate is not an exact-token lookup any more")
+        self.assertNotIn(".test(", pred,
+                         "the predicate is back to a regex CONTAINS test — 'muleskin' and "
+                         "'mainstashbackup' would read as containers he owns")
+
+    def test_the_ground_and_the_chronicle_are_not_containers(self):
+        """Whatever else changes, these must never be admitted: `floor` is the ground and
+        `chronicle` is a menu listing items he does NOT own."""
+        src = self._src()
+        lanes = _between(self, src, "window._VAULT_LANES = [", "];", min_len=20,
+                         what="the vault lane whitelist")
+        for never in ("floor", "chronicle", "gameplay", "town", "transition", "loot"):
+            self.assertNotIn("'%s'" % never, lanes,
+                             "%r is in the container whitelist — a name seen there is not held"
+                             % never)
+        for must in ("stash", "inventory", "equipped", "cube"):
+            self.assertIn("'%s'" % must, lanes, "%r fell out of the whitelist" % must)
+
+    def test_the_reader_name_is_never_used_as_a_location(self):
+        src = self._src()
+        self.assertNotIn("meta.loc || meta.lane", src,
+                         "`lane` is WHICH READER produced the row, not where the item was; using "
+                         "it as a location prints 'read in kai, which is not a container'")
+
+    def test_the_cross_block_call_fails_CLOSED_rather_than_throwing(self):
+        src = self._src()
+        self.assertIn("(typeof window._vaultMayClaim === 'function')", src,
+                      "the chronicle door calls the predicate unguarded across a script-block "
+                      "boundary; if the defining block ever throws, this raises a TypeError "
+                      "inside the try and the CHRONICLE write dies with it")
+
+    def test_the_predicate_and_its_callers_agree_on_the_name(self):
+        """A predicate nobody calls, or a call to a predicate that is not defined, is the same
+        defect wearing two faces. [[the-unjoined-error]]"""
+        import re
+        src = self._src()
+        self.assertEqual(src.count("window._vaultMayClaim = function"), 1,
+                         "the predicate is defined more than once — last definition wins")
+        calls = len(re.findall(r"window\._vaultMayClaim\(", src))
+        self.assertGreaterEqual(calls, 2,
+                                "only %d door asks the predicate; the point of extracting it was "
+                                "that every door asks the same one" % calls)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

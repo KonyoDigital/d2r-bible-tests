@@ -13909,3 +13909,53 @@ panel exists to fix. The neighbouring vault renderers use `esc()`.
 GREEN, because the variable is still declared above. Presence is not enforcement. They now read the
 actual brace structure and assert the vault write is INSIDE the gate and the Chronicle write is
 OUTSIDE it.
+
+## REG-423 — the AI item checker claimed the vault blind, and a reel had no notion of activity
+
+Konyo asked for unified logic: "i dont want to have to partly do this everywhere... in the end its
+one system that communicates." Two things were in the way.
+
+**(1) THE SAME QUESTION, ANSWERED TWO WAYS INSIDE ONE FUNCTION.** `aicJudgeApply` calls
+`kaiChroniclePropose` — which HAS a provenance gate since v2342 — and then, four lines later, wrote
+the vault itself with no gate at all. Fixed by extracting **one predicate**, `window._vaultMayClaim
+(loc)`, which both doors now ask. v2342's inline regex was a second copy of it and is gone.
+
+The judge's route is now Chronicle-only, and the refusal is RECORDED (`out.vaultRefused`), because a
+route that did not happen must not look identical to one that did.
+
+**(2) A REEL HAD NO NOTION OF WHAT HE WAS DOING.** Konyo: *"shadow is on.. is reading every single
+frame.. how do they know to logically understand if im farming? or teleporting? ... when it sees me
+in stash and inventory open it knows that im stashing and it can flag the reel from that point and
+timestamp."* Every reader answered one frame at a time, which is exactly why a judged item reached
+the vault with no idea where it was: the name and verdict live in one frame's read, and the fact
+that a Chronicle page was open lives in another's.
+
+**`tv/reel_segments.py`** groups reads that ALREADY EXIST into runs and answers one question — what
+was on screen at this moment. No new model call, no new capture.
+
+**MEASURED ON HIS REELS, ±0ms, before it was written:**
+
+```
+711 deep scene reads -> 272 segments
+   gameplay 212 (2697s) · transition 27 (517s) · stash 13 (235s)
+   town 13 (72s) · inventory 4 (12s) · chronicle 3 (223s)
+
+the 84 names the kai JUDGE lane puts into the register:
+   frame-to-frame join      2 of 84     (the lanes use different frameId formats)
+   SEGMENT membership      26 of 84     stash 11 · chronicle 10 · gameplay 3 · inventory 2
+```
+
+**TEN of the judged names were read while a CHRONICLE PAGE WAS OPEN** — his exact complaint,
+identified by timestamp out of his own footage. `lane_at()` grants `stash`/`inventory` and refuses
+the rest with WHICH of four reasons it was: chronicle-is-a-checklist, gameplay-establishes-nothing,
+no-read-covers-this-moment, or a session that does not match.
+
+⚠ **NO PADDING BY DEFAULT.** ±30s would lift coverage to 56 of 84 and 20 of the extra land in
+`gameplay` — which the route guard already teaches is "an absence of a claim, not a rebuttal".
+Coverage bought with guesses is how a gate starts admitting things nobody witnessed.
+
+⚠ **A JOIN I BUILT, MEASURED AND REVERTED:** letting a kai verdict inherit `names_loc` from the deep
+read of its own frame. 2 of 84 by exact frame, 11 of 84 even at ±60s. Two reasons, both real — the
+lanes use different frameId formats (`reel_s_.../f_...` vs `5_...`), and only 47 deep frames carry a
+location at all across a five-month journal. A change that changes nothing must not ship wearing a
+fix's words.
