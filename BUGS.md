@@ -13797,3 +13797,33 @@ it names `btn-mini` and goes red.
 it had matched inside a **CSS rule**. The scan now only counts ids inside an opening tag and skips
 `<style>` as well as `<script>`. **A scanner that cannot tell a branch from a sibling, or a
 stylesheet from markup, reports defects that do not exist and gets switched off.**
+
+## REG-420 — the Grok lane kept calling against a 402 that no retry can clear
+
+Measured on his live console: **calls 2842, errors 1963** — a 69% failure rate, every one of them
+`API error (status 402 Payment Required): Grok Build usage balance exhausted`.
+
+The `_HARD_STOPS` table already listed `402` / `payment required` / `balance exhausted`, and
+`_hard_stop_why()` already read it correctly. **The only two places that consulted it were both
+inside the status payload** (`g5_grok_eyes.py:520` and `:522`). Nothing checked it before spending
+a call. So the lane reported the blockage honestly and then asked again, 1,963 times. A gate whose
+output nobody parses is not a gate. [[the-unjoined-end]] [[paid-work-with-no-memory]]
+
+**Fixed v2340:** `g5_vision_read()` consults `_hard_stop_why()` before the subprocess. Measured:
+7 refused reads → **0 calls spent, errors 0, skipped_blocked 7**.
+
+⚠ **The skip must NOT touch `last_error`, and that is the whole trick.** `_hard_stop_why()` decides
+by READING `last_error`; writing a friendlier sentence in the skip path would erase the evidence the
+latch stands on, so the breaker would block exactly one call and then open for ever — a fix that
+undoes itself on its second run. The refusal is recorded as its own counter instead, the same
+"refused, not failed" distinction `_budget_ok()` already draws two lines below.
+
+`force=True` still goes through: whether the far end is STILL refusing is a question only the far
+end can answer. `skippedBlocked` is published on the status surface, because a saving nobody can
+see reads exactly like a feature that was never built.
+
+**Context, his words:** each family can power the system and is "defaulted on or not on, especially
+for reason such as this". The console toggle already does that — **OFF = Claude subscription intake
+only (the default)**, SHADOW = Claude first then Grok, PRIMARY = Grok first then Claude. With Grok
+off, Claude carries the reads alone and nothing is blocked. This ship makes a dead Grok balance cost
+one call instead of two thousand the next time it is switched on.

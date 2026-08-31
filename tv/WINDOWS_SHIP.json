@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2339",
+  "ver": "v2340",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2339: the MINI button reused the Ministash id and stole its handler",
+  "note": "v2340: the Grok lane kept calling against a 402 that no retry can clear",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

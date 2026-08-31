@@ -34279,5 +34279,120 @@ class TestV2338MiniAutomaticCanOnlyHover(unittest.TestCase):
 
 
 
+class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
+    """The Grok lane kept calling against a 402 that no retry can clear.
+
+    Measured on his live console: calls 2842, errors 1963 — a 69% failure rate, every one of them
+    `API error (status 402 Payment Required): Grok Build usage balance exhausted`. The _HARD_STOPS
+    table already knew what that means and _hard_stop_why() already read it correctly. The only
+    two places that consulted it were BOTH inside the status payload, so the lane reported the
+    blockage honestly and then spent another call, and another. A gate whose output nobody parses
+    is not a gate. [[the-unjoined-end]] [[paid-work-with-no-memory]]
+
+    ⚠ Konyo's design, in his words: each family can power the system, and it is defaulted on or
+    not on, "especially for reason such as this". OFF means Claude carries the reads alone; this
+    makes sure a dead Grok balance costs one call instead of two thousand when it is switched on.
+    """
+
+    def _isolated(self):
+        """A lane whose stats and budget live in a temp dir. [[feedback-fixtures-never-touch-live-data]]"""
+        import tempfile, g5_grok_eyes as g5
+        tmp = tempfile.mkdtemp(prefix="g5_")
+        g5._stats_path = lambda *a, **k: os.path.join(tmp, "stats.json")
+        g5._budget_path = lambda *a, **k: os.path.join(tmp, "budget.json")
+        g5.is_on = lambda: True
+        g5.has_subscription = lambda: True
+        img = os.path.join(tmp, "f.png")
+        with io.open(img, "wb") as fh:
+            fh.write(b"x")
+        return g5, tmp, img
+
+    def test_a_latched_402_spends_no_further_calls(self):
+        import subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        real = subprocess.run
+        spent = {"n": 0}
+        try:
+            subprocess.run = lambda *a, **k: spent.__setitem__("n", spent["n"] + 1)
+            g5._STATS["last_error"] = ("grok HTTP 402 — API error (status 402 Payment Required): "
+                                       "Grok Build usage balance exhausted")
+            for _ in range(6):
+                g5.g5_vision_read(img)
+        finally:
+            subprocess.run = real
+        self.assertEqual(spent["n"], 0,
+                         "the lane spent %d call(s) against a refusal the far end already stated "
+                         "and that retrying cannot clear" % spent["n"])
+
+    def test_the_breaker_does_not_erase_the_evidence_it_stands_on(self):
+        """_hard_stop_why() decides by READING last_error. Writing a friendlier sentence in the
+        skip path would erase the latch, so the breaker would open for exactly one call and then
+        close for ever — a fix that undoes itself on its second run."""
+        import subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        real = subprocess.run
+        try:
+            subprocess.run = lambda *a, **k: None
+            g5._STATS["last_error"] = "grok HTTP 402 — Grok Build usage balance exhausted"
+            for _ in range(4):
+                g5.g5_vision_read(img)
+            self.assertTrue(g5._hard_stop_why(),
+                            "the latch cleared itself — last_error was overwritten by the skip "
+                            "path, so the breaker only ever blocks one call")
+        finally:
+            subprocess.run = real
+
+    def test_a_refusal_is_counted_as_a_skip_and_never_as_an_error(self):
+        """'we did not ask' and 'we asked and it failed' are different facts and he acts on them
+        differently — the same distinction _budget_ok() already draws."""
+        import json, subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        real = subprocess.run
+        try:
+            subprocess.run = lambda *a, **k: None
+            g5._STATS["last_error"] = "grok HTTP 402 — Grok Build usage balance exhausted"
+            for _ in range(5):
+                g5.g5_vision_read(img)
+        finally:
+            subprocess.run = real
+        banked = json.load(io.open(os.path.join(tmp, "stats.json"), encoding="utf-8"))
+        self.assertEqual(banked.get("skipped_blocked"), 5)
+        self.assertEqual(banked.get("errors") or 0, 0,
+                         "a call that was never made was recorded as a failure")
+
+    def test_force_still_asks_because_a_person_is_deliberately_proving_it(self):
+        """Whether the far end is STILL refusing is a question only the far end can answer."""
+        import subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        real = subprocess.run
+        spent = {"n": 0}
+
+        class _R(object):
+            # a real-shaped result: the force path goes on to READ r.stdout, and a fake that
+            # returns None makes the test fail for a reason that has nothing to do with the
+            # breaker. [[feedback-suspect-the-instrument]]
+            returncode, stdout, stderr = 0, "{}", ""
+
+        def _spy(*a, **k):
+            spent["n"] += 1
+            return _R()
+        try:
+            subprocess.run = _spy
+            g5._STATS["last_error"] = "grok HTTP 402 — Grok Build usage balance exhausted"
+            g5.g5_vision_read(img, force=True)
+        finally:
+            subprocess.run = real
+        self.assertEqual(spent["n"], 1, "force=True was swallowed by the breaker")
+
+    def test_the_saving_is_visible_on_the_status_surface(self):
+        """A saving nobody can see reads exactly like a feature that was never built."""
+        import g5_grok_eyes as g5
+        st = g5.status()
+        self.assertIn("skippedBlocked", st,
+                      "the breaker's count is not published, so the difference between 1 failed "
+                      "call and 1963 is invisible")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

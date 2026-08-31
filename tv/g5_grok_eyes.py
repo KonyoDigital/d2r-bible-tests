@@ -53,7 +53,7 @@ _API_STRIP = (
 
 _CALL_LOG: list[float] = []
 _STATS = {
-    "calls": 0, "ok": 0, "errors": 0, "skipped_budget": 0, "shadow": 0, "primary": 0,
+    "calls": 0, "ok": 0, "errors": 0, "skipped_budget": 0, "skipped_blocked": 0, "shadow": 0, "primary": 0,
     "last": None, "last_error": None, "last_error_ts": None, "lane": "subscription-cli",
 }
 _LOCK = threading.Lock()
@@ -524,6 +524,11 @@ def status():
                              if not _grok_bin() else
                              ("not signed in to SuperGrok — click Authorize" if not _subscription_logged_in()
                               else "the lane is switched on but the app could not start it")))),
+        # v2340 — CALLS THE BREAKER DID NOT SPEND. A saving nobody can see reads exactly like a
+        # feature that was never built, and this one is the difference between 1 failed call and
+        # the 1963 his console had banked. Named separately from skipped_budget because they are
+        # different refusals: one is our own rationing, the other is the far end saying no.
+        "skippedBlocked": int((stats_view() or {}).get("skipped_blocked") or 0),
         "on": is_on(),
         "hasKey": can_run,       # UI compat: means "can run", not API key
         "hasSubscription": can_run,
@@ -652,7 +657,7 @@ def _g5_stats_root():
 
 
 _STATS_PATH = os.path.join(_g5_stats_root(), "g5_stats.json")
-_COUNTERS = ("calls", "ok", "errors", "skipped_budget", "shadow", "primary")
+_COUNTERS = ("calls", "ok", "errors", "skipped_budget", "skipped_blocked", "shadow", "primary")
 
 
 def _stats_path():
@@ -789,6 +794,28 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         return None
     if not has_subscription():
         return None
+    # ══ v2340 — A REFUSAL THE FAR END STATED IS NOT WORTH ASKING AGAIN ════════════════════════
+    # _HARD_STOPS has existed for a while and _hard_stop_why() reads it correctly — but the ONLY
+    # two places that consulted it were both inside the STATUS payload. Nothing checked it before
+    # spending a call. So the lane reported "the Grok balance is exhausted" honestly and then kept
+    # asking anyway: measured on his live console, calls 2842 / errors 1963, a 69% failure rate
+    # against a 402 that no amount of retrying can clear. A gate whose output nobody parses is not
+    # a gate. [[the-unjoined-end]] [[paid-work-with-no-memory]]
+    #
+    # ⚠ IT MUST NOT TOUCH last_error, AND THAT IS THE WHOLE TRICK. _hard_stop_why() decides by
+    # reading last_error, so writing a friendlier sentence here would erase the very evidence the
+    # latch stands on and the breaker would open for exactly one call, then close, for ever. The
+    # skip is recorded as its own COUNTER instead — a call refused is not a call failed, the same
+    # distinction _budget_ok() draws two lines below.
+    #
+    # `force` still goes through: a sidecar prove is a person deliberately asking, and the answer
+    # to "is it really still refusing" must come from the far end, not from this latch.
+    if not force:
+        _blocked = _hard_stop_why()
+        if _blocked:
+            _STATS["skipped_blocked"] += 1
+            _stats_flush()
+            return None
     if not _budget_ok():
         # v1711 — this returned None with last_error untouched, so a budget refusal was
         # INDISTINGUISHABLE on the panel from an eye that was simply never asked. "The eye is
