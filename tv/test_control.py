@@ -35430,7 +35430,11 @@ class TestV2349TheDualRulingDoor(unittest.TestCase):
 
     def test_all_four_rulings_exist_on_the_row_he_answers(self):
         src = self._src()
-        blk = _between(self, src, "THE DUAL DOOR", "</span></div>');",
+        # ⚠ v2363 CHANGED THIS ANCHOR. The ruling row now closes a ternary (the base-conflict
+        # branch), so it ends `')));` not `');`. _between REFUSED rather than reading to EOF,
+        # which is why this went red on a correct tree instead of quietly measuring the whole
+        # file - exactly what an anchored slice is for.
+        blk = _between(self, src, "THE DUAL DOOR", "</span></div>')));",
                        min_len=200, what="the ruling row")
         self.assertIn("_inboxAct('accept'", blk.replace("\\'", "'"),
                       "the Both button must send `accept` - the verb that writes BOTH ledgers")
@@ -36616,6 +36620,87 @@ class TestV2366TheFreePassIsRememberedAndConsulted(unittest.TestCase):
                       "the sweep's reel ordering no longer consults the free structural pass")
         self.assertIn("import retro_triage as _rt", src,
                       "nothing imports retro_triage in production - it is a module nobody asks")
+
+
+
+class TestV2367TheFreePassActuallyRuns(unittest.TestCase):
+    """#126. v2365 built the structural filter and v2366 joined it to the sweep's ordering - and
+    the store was EMPTY, so `order_by_known_worth` reordered nothing and `worth_reading` answered
+    None for every reel. Built and joined is not running.
+
+    `retro_triage_tick()` surveys ONE unread reel and stops. Sized against his real tree:
+
+        unread reels : 430          frames 14,252
+        per reel     : median 26 · mean 33 · MAX 2,385
+        cold OCR     : 0.486 s/frame (one run measured 1.3)
+        backlog      : 1.9-5.1 h of CPU
+
+    ⚠ SMALLEST REEL FIRST, NOT OLDEST. A first draft took todo[0]; his largest reel is 2,385
+    frames, which at those rates is 19-52 MINUTES parked on one item while 429 others wait.
+
+    ⚠ AND IT BACKS OFF ON FIVE NAMED CONDITIONS, because he has twice told me his machine was
+    hot: he is playing, load above the core count, a live capture, a paid sweep running, and the
+    disk floor. A lane that makes D2R stutter is a lane he switches off.
+    """
+
+    def _body(self):
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        return _between(self, src, "def retro_triage_tick(", "def _retro_triage_loop(",
+                        min_len=400, what="the triage tick")
+
+    def test_it_backs_off_before_it_costs_anything(self):
+        """Every refusal must be checked BEFORE the survey, and each must name itself."""
+        b = self._body()
+        for probe, what in (("_d2r_process_alive", "he is playing"),
+                            ("getloadavg", "machine load"),
+                            ("_capture_is_live", "a live capture"),
+                            ("vault_sweep_state", "a paid sweep running")):
+            self.assertIn(probe, b, "the lane no longer backs off for %s" % what)
+        i_survey = b.index("_rt.survey(")
+        for probe in ("_d2r_process_alive", "getloadavg", "_capture_is_live"):
+            self.assertLess(b.index(probe), i_survey,
+                            "%s is checked AFTER the survey - the cost is already paid by then"
+                            % probe)
+
+    def test_it_takes_the_smallest_reel_not_the_oldest(self):
+        b = self._body()
+        self.assertIn("todo.sort(key=_n_frames)", b,
+                      "the lane is back to oldest-first; his 2,385-frame reel would park it for "
+                      "19-52 minutes while 429 others wait")
+        self.assertIn("1 << 30", b,
+                      "an unreadable reel must sort LAST, never first - otherwise a reel nobody "
+                      "can measure is the one it always picks")
+
+    def test_it_surveys_one_reel_and_stops(self):
+        b = self._body()
+        self.assertIn("_rt.survey([d]", b,
+                      "the tick surveys more than one reel - the whole point is that a tick is "
+                      "short enough to be interruptible")
+        self.assertIn("every_frame=True", b,
+                      "the tick samples instead of reading every frame, so nothing it records "
+                      "may be trusted or remembered")
+
+    def test_only_unsurveyed_reels_are_queued(self):
+        """worth_reading returns None for NOT SURVEYED and False for looked-at-and-empty. The
+        queue must take only the None ones, or the expensive pass repeats forever."""
+        b = self._body()
+        self.assertIn("is None", b,
+                      "the queue no longer distinguishes NOT SURVEYED from surveyed-and-empty - "
+                      "it will re-survey reels it already paid for")
+
+    def test_the_loop_is_registered_as_a_watcher(self):
+        """Without this the tick exists and nothing calls it. [[the-unjoined-end]]"""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        self.assertIn('("tvd-retro-triage", _retro_triage_loop)', src,
+                      "the triage loop is not registered beside the other watchers, so it never "
+                      "starts")
+
+    def test_its_store_is_not_committed(self):
+        """It is live state naming his reels, and this repo is PUBLIC."""
+        p = os.path.join(os.path.dirname(HERE), ".gitignore")
+        self.assertIn("tv/retro_triage.json", io.open(p, encoding="utf-8").read(),
+                      "the triage store is not gitignored - `git add -A` would publish his reel "
+                      "names to a public repo")
 
 
 

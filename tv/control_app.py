@@ -4768,6 +4768,10 @@ def start_background_watchers(why):
         # v2223 — the VAULT lane had no watchdog at all; its sweep ran only from
         # /api/vault_sweep, i.e. only when he pressed it. 452 MB sat unread for four days.
         ("tvd-vault-autoread", _vault_autoread_loop),
+        # v2367 — the FREE structural pass. One reel per tick, and it backs off on five
+        # named conditions; the store it fills is what makes order_by_known_worth mean
+        # anything. Without this the filter is built, joined, and never runs.
+        ("tvd-retro-triage", _retro_triage_loop),
         # v2304 — shadow stops being a reader that needs someone else to press record. It looks for
         # the Diablo window through tv_diablo's finder and rolls a reel itself, so playing is
         # enough. Measured cause: an evening of play with shadow on produced ZERO reels.
@@ -16195,6 +16199,112 @@ def _vault_owed_reels(hist=None):
             if "VAULT lane has never swept" in (k.get("why") or "")]
 
 
+_TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "skips": {}}
+_TRIAGE_EVERY_S = int(os.environ.get("TV_TRIAGE_EVERY_S") or 90)
+_TRIAGE_ON = (os.environ.get("TV_TRIAGE") or "1") != "0"
+
+
+def retro_triage_tick():
+    """Survey ONE unread reel structurally, remember it, and stop. -> dict, every refusal named.
+
+    v2367. The free filter has existed since v2365 and its store was EMPTY, so
+    `order_by_known_worth` reordered nothing and `worth_reading` answered None for every reel -
+    built, joined, and not running. This is the thing that runs it.
+
+    ONE REEL PER TICK, ON PURPOSE. Measured cold on his machine: 0.486 s/frame, and one run
+    measured 1.3. His median unread reel is 26 frames, so a tick is roughly 13-35 seconds and the
+    401-reel backlog is HOURS. A pass that tried to do it in one go would be hours of OCR on the
+    machine he plays on. Spread across ticks, each one is short enough to be interruptible and
+    the store survives a relaunch because every reel is persisted as it finishes.
+
+    IT BACKS OFF HARD, and each reason is its own sentence rather than a silent skip:
+      · he is playing            - D2R alive; his frames matter more than my backlog
+      · the machine is loaded    - load above the core count; the sweep is not urgent
+      · a capture is live        - never compete with the thing that makes the footage
+      · a paid sweep is running  - the expensive lane owns the CPU while it is spending
+      · the disk is desperate    - below the floor, a survey that writes a store is not the fix
+    """
+    if not _TRIAGE_ON:
+        return {"ok": False, "why": "the structural triage lane is off (TV_TRIAGE=0)"}
+    try:
+        import retro_triage as _rt
+        import frame_authority as _fa
+    except Exception as e:
+        return {"ok": False, "why": "triage unavailable: %s" % str(e)[:90]}
+
+    # ── back off, in the order that costs least to check ──────────────────────────────────────
+    try:
+        import tv_diablo as _tvd
+        if _tvd._d2r_process_alive():
+            return {"ok": False, "why": "he is playing - the game owns this machine"}
+    except Exception:
+        pass
+    try:
+        load1 = os.getloadavg()[0]
+        cpus = os.cpu_count() or 4
+        if load1 > cpus:
+            return {"ok": False, "why": "load %.1f on %d cpus - the backlog is not urgent"
+                                        % (load1, cpus)}
+    except Exception:
+        pass
+    if _capture_is_live():
+        return {"ok": False, "why": "a capture is live - never compete with the camera"}
+    try:
+        if (_CHRON_JOB or {}).get("running") or (vault_sweep_state() or {}).get("running"):
+            return {"ok": False, "why": "a paid sweep is running - it owns the CPU while spending"}
+    except Exception:
+        pass
+
+    sealed, _ok = _fa.sealed_sessions()
+    todo = []
+    for d in _rt.unread_reels(HIST_DIR, sealed):
+        if _rt.worth_reading(d) is None:          # None = NOT SURVEYED. False means we looked.
+            todo.append(d)
+    if not todo:
+        return {"ok": True, "done": True,
+                "why": "every unread reel has been surveyed at least once"}
+
+    # ⚠ SMALLEST FIRST, NOT OLDEST. His reels run from 26 frames (the median) to 2,385 (the
+    # largest), and at 0.486-1.3 s/frame that biggest one is 19-52 MINUTES. Taking todo[0] would
+    # park the lane on a single reel for an hour while 429 others waited. Smallest-first drains
+    # the backlog steadily and defers the monsters to when there is nothing cheaper left - which
+    # is also the order that gets the store useful soonest.
+    import glob as _glob
+    def _n_frames(p):
+        try:
+            return len(_glob.glob(os.path.join(p, "*.jpg")))
+        except Exception:
+            return 1 << 30            # unreadable sorts LAST, never first
+    todo.sort(key=_n_frames)
+    d = todo[0]
+    out = _rt.survey([d], stash_screen_open_cached, every_frame=True,
+                     nice_delay_s=0.01, budget_s=120)
+    _TRIAGE_LANE["surveyed"] += out.get("reels") or 0
+    _TRIAGE_LANE["panels"] += out.get("panels") or 0
+    _TRIAGE_LANE["lastTs"] = int(time.time() * 1000)
+    _TRIAGE_LANE["lastReel"] = os.path.basename(d)
+    return {"ok": True, "reel": os.path.basename(d), "frames": out.get("frames"),
+            "panels": out.get("panels"), "remaining": len(todo) - 1,
+            "partial": bool(out.get("stoppedEarly")), "why": out.get("say")}
+
+
+def _retro_triage_loop():
+    """Ticks forever, sleeping between. A watchdog that can die is not a watchdog."""
+    while True:
+        try:
+            time.sleep(_TRIAGE_EVERY_S)
+            r = retro_triage_tick()
+            if r.get("ok") and r.get("reel"):
+                print("\U0001f9ea triage: %s - %s frame(s), %s panel(s), %s left"
+                      % (r["reel"], r.get("frames"), r.get("panels"), r.get("remaining")),
+                      flush=True)
+        except Exception:
+            try:
+                time.sleep(_TRIAGE_EVERY_S)
+            except Exception:
+                pass
+
+
 def _vault_autoread_state():
     """What the vault watchdog has actually done. Reports UNKNOWN rather than a confident zero."""
     try:
@@ -20755,7 +20865,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2366",
+        "ver": "v2367",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

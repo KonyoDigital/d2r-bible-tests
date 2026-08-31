@@ -142,6 +142,9 @@ tv/stash_gate_cache.json.tmp
 tv/vault_accum.json
 tv/vault_seen.json
 tv/vault_swept.json
+# v2367 — the structural triage store. Same reason as the two above: it is LIVE STATE,
+# it names his reels, it differs on every machine, and this repo is PUBLIC.
+tv/retro_triage.json
 # v2304 — the shadow watcher's own record: per-machine runtime state,
 # exactly like the two sweep ledgers above it. Never source.
 tv/shadow_watch.json
