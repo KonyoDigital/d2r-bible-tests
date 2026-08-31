@@ -37997,6 +37997,32 @@ function renderJournal(){
         } catch(e){}
         // intake log — raw AI read per screenshot (open DevTools console to tune accuracy)
         try { console.log('[vault-intake] ' + fname + ' →', { items: data.items || [], unrecognized: data.unrecognized || [] }); } catch(e){}
+        /* ══ v2360 — THE GATE IN FRONT OF THE VAULT, NOT BEHIND IT ═══════════════════════════
+           Konyo: "that way it gets filtered before it can hit vault.. and all three gates can
+           work". v2359 could only tell him the dock was a menu page AFTER 134 names were already
+           in his owned ledger. This is the same rule, one step earlier: a screenshot whose items
+           come out in ALPHABETICAL ORDER is a Chronicle page, and a Chronicle page is a list of
+           what EXISTS, not of what he has.
+
+           Refused as a BATCH and never per name — order says nothing about one item. The names
+           are held on window._vaultMenuHeld with the reason, so this is a refusal he can see and
+           overturn, never a silent drop: a read he paid for that vanishes is worse than a wrong
+           one he can correct. [[unknown-stays-unknown]] [[d2r-vault-routing]] */
+        try {
+          var _mv = window._menuAscendingFraction && window._menuAscendingFraction(data.items || []);
+          if (_mv && _mv.frac >= 0.90) {
+            window._vaultMenuHeld = (window._vaultMenuHeld || []).concat(
+              (data.items || []).map(function(n){ return { name: n, from: fname }; }));
+            var _mw = fname + ' → HELD: ' + (data.items || []).length + ' name(s) in alphabetical '
+                    + 'order (' + _mv.up + ' of ' + _mv.steps + ' steps ascend across '
+                    + _mv.matched + ' roster names). A stash is not sorted; a chronicle page is. '
+                    + 'Nothing was added to owned.';
+            try { console.warn('[vault-intake] ' + _mw); } catch(e){}
+            try { var _st0 = document.getElementById('vault-status');
+                  if (_st0) _st0.textContent = '\ud83d\udcd6 ' + _mw; } catch(e){}
+            data.items = [];          /* the batch does not enter — this is the whole point */
+          }
+        } catch(e){}
         (data.items || []).forEach(function(n){
           if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(n);   // v379 — per-base socketed identity (art + exact max sockets)
           // v394 — LOW set pieces (Sigon's/Sander's/etc.): mark the SET's grail aggregate ✓ for the codex/
@@ -47955,7 +47981,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2359', name:'v2359 - A stash is never alphabetical', date:'2026-08-31', note:'134 dock items were a chronicle page read I to Z - 46 of 46 steps ascending' };
+  window.D2R_BUILD = { id:'v2360', name:'v2360 - The gate in front of the vault', date:'2026-08-31', note:'a chronicle page is refused before admission, not reported after it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

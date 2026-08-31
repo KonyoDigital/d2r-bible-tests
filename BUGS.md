@@ -14144,6 +14144,39 @@ INVENTORY itself can be opened separately with its own template"*. Chrome presen
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
 
+## REG-438 - THE GATE WAS BEHIND THE VAULT, NOT IN FRONT OF IT
+
+Konyo, #118: *"that way it gets filtered before it can hit vault.. and all three gates can work"*.
+
+v2359 (REG-437) could tell him the dock was a menu page - but only AFTER 134 names were already
+written into `d2r_owned`. A gate that fires after admission is a report, not a gate.
+
+**Shipped v2360.** The same rule now runs inside `vaultIntake`, immediately BEFORE the
+`(data.items || []).forEach` admission loop. A screenshot whose items come out in alphabetical
+order is a Chronicle page, and a Chronicle page lists what EXISTS, not what he has.
+
+Verified by executing the page's own helpers in node against his real 398-name roster:
+
+```
+MENU  batch  -> 100% ascending, matched 9   REFUSED
+STASH batch  ->  57% ascending, matched 8   admitted
+two names    -> NOT ESTABLISHED
+```
+
+⚠ **REFUSED AS A BATCH, AND HELD RATHER THAN DROPPED.** Order says nothing about a single item,
+so the rule only ever judges the whole read. The names are kept on `window._vaultMenuHeld` with
+the reason and surfaced in the vault status line, because a paid read that vanishes silently is
+worse than a wrong one he can see and overturn. [[unknown-stays-unknown]]
+
+⚠ **And the helper is in the SAME script block as its caller** - a pinned guard, because a call
+across the IIFE boundary in this file throws and the gate would silently never fire. `bible.html`
+and `control_ui.html` have both shipped that defect before.
+
+**Guards:** `TestV2360TheGateIsInFrontOfTheVault` - 4 cases. One had to be strengthened: it first
+located the banner COMMENT and asserted it preceded the loop, so replacing the call with
+`_mv = null` left it green while the gate was dead. It now pins the CALL and its threshold.
+[[sabotage-is-usually-the-wrong-one]]
+
 ## REG-437 - A STASH IS NEVER IN ALPHABETICAL ORDER. A MENU PAGE ALWAYS IS.
 
 Konyo, 2026-08-31, looking at **134 items** in his vault's UNSORTED DOCK:

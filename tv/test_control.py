@@ -36080,5 +36080,78 @@ class TestV2359AStashIsNeverAlphabetical(unittest.TestCase):
 
 
 
+class TestV2360TheGateIsInFrontOfTheVault(unittest.TestCase):
+    """#118. Konyo: *"that way it gets filtered before it can hit vault.. and all three gates can
+    work"*.
+
+    v2359 could only tell him the dock was a menu page AFTER 134 names were already in his owned
+    ledger. This is the same rule one step earlier, inside `vaultIntake`, before the admission
+    loop runs: a screenshot whose items come out in ALPHABETICAL ORDER is a Chronicle page, and a
+    Chronicle page lists what EXISTS, not what he has.
+
+    Verified by executing the page's own helpers in node against his real 398-name roster:
+
+        MENU  batch  -> 100% ascending, matched 9   REFUSED
+        STASH batch  ->  57% ascending, matched 8   admitted
+        two names    -> NOT ESTABLISHED
+
+    ⚠ REFUSED AS A BATCH AND HELD, NOT DROPPED. Order says nothing about one item, so the rule
+    only ever judges the whole read; and the names are kept on `window._vaultMenuHeld` with the
+    reason, because a paid read that vanishes silently is worse than a wrong one he can see and
+    overturn. [[unknown-stays-unknown]]
+    """
+
+    def _src(self):
+        return io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+
+    def test_the_gate_runs_before_the_admission_loop(self):
+        """The whole point of #118 is the ORDER of these two things."""
+        # PIN THE CALL, NOT THE COMMENT. A first cut located the banner comment and asserted it
+        # preceded the loop; replacing `_mv = window._menuAscendingFraction(...)` with
+        # `_mv = null` left the comment untouched and the guard GREEN while the gate was dead.
+        # Prose is not a gate. [[sabotage-is-usually-the-wrong-one]]
+        src = self._src()
+        i_call = src.index("window._menuAscendingFraction && window._menuAscendingFraction(data.items")
+        i_admit = src.index("(data.items || []).forEach(function(n){", i_call)
+        self.assertLess(i_call, i_admit,
+                        "the menu gate no longer runs before vaultIntake's admission loop - it "
+                        "would be judging the vault after filling it again")
+        gate = src[i_call:i_admit]
+        self.assertIn("_mv.frac >= 0.90", gate,
+                      "the gate no longer tests the ascending fraction it just computed")
+
+    def test_a_refused_batch_is_emptied_not_partly_admitted(self):
+        src = self._src()
+        blk = _between(self, src, "THE GATE IN FRONT OF THE VAULT, NOT BEHIND IT",
+                       "(data.items || []).forEach(function(n){", min_len=300,
+                       what="the intake gate")
+        self.assertIn("data.items = [];", blk,
+                      "a refused batch must not fall through to the admission loop")
+        self.assertIn("_vaultMenuHeld", blk,
+                      "a refused batch is DROPPED rather than held - he cannot see or overturn it")
+
+    def test_the_helper_it_calls_is_in_the_same_script_block(self):
+        """A call across the IIFE boundary in this file throws and the gate silently never
+        fires. bible.html and control_ui.html have both shipped that defect."""
+        src = self._src()
+        i_def = src.index("window._menuAscendingFraction = function")
+        i_use = src.index("window._menuAscendingFraction && window._menuAscendingFraction(data.items")
+        between = src[i_def:i_use]
+        self.assertNotIn("</script>", between,
+                         "a script boundary now sits between _menuAscendingFraction and the "
+                         "intake gate that calls it - the gate is dead")
+
+    def test_the_python_twin_agrees_with_the_js_threshold(self):
+        """Two copies of one rule is copy-drift; they must at least share their numbers."""
+        import menu_run as mr
+        src = self._src()
+        self.assertIn("_MENU_STRONG = 0.90", src.replace("var _MENU_MIN = 8, _MENU_STRONG = 0.90;",
+                                                         "_MENU_STRONG = 0.90"),
+                      "the JS threshold moved away from menu_run.STRONG")
+        self.assertEqual(mr.STRONG, 0.90)
+        self.assertEqual(mr.MIN_RUN, 8)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
