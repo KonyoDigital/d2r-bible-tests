@@ -516,11 +516,107 @@ class TestV2334FramePixelsAreNotScreenPixels(unittest.TestCase):
             self.assertIsNone(pt, "%r was clamped onto the screen" % (bad,))
             self.assertIn("outside", why)
 
-    def test_a_window_with_no_SIZE_is_refused(self):
+    # ── the gaps a review of v2334 found: guards that could not fail ──────────
+    def test_NaN_and_INF_are_refused_because_no_COMPARISON_can_catch_them(self):
+        """⚠ THE WORST ONE. Every comparison against NaN is False, so the axis check — "the whole
+        safety argument" — never fired, and the function returned an ACCEPTED (nan, nan) cursor
+        target with why=None. json.loads parses NaN and Infinity by default and these rects cross
+        JSON, so it was reachable. Only a finite check catches it."""
+        for bad in ((0, 0, float("nan"), float("nan")),
+                    (0, 0, float("inf"), float("inf")),
+                    (0, 0, float("inf"), 50),
+                    (float("nan"), 0, 50, 50)):
+            pt, why = S.screen_point((10, 10), (100, 100), bad)
+            self.assertIsNone(pt, "%r produced a cursor target" % (bad,))
+            self.assertIn("finite", why)
+
+    def test_a_STRING_rect_is_refused_not_read_as_digits(self):
+        """A 4-character string is a 4-element iterable: "0055" became wx=0 wy=0 ww=5 wh=5 and the
+        call SUCCEEDED. Any boundary handing back a rect as text could produce an accepted answer
+        built from character codes."""
+        pt, why = S.screen_point((10, 10), (100, 100), "0055")
+        self.assertIsNone(pt)
+        self.assertIn("not a sequence of numbers", why)
+
+    def test_this_MODULES_OWN_return_shapes_are_refused_not_raised(self):
+        """next_target() and hover_targets() return dicts with a 'point' key. Passing one whole —
+        the most likely caller mistake in this very module — raised KeyError straight out of a
+        function whose contract is (None, why)."""
+        pt, why = S.screen_point({"col": 3, "row": 4, "point": (100.0, 200.0)},
+                                 (100, 100), (0, 0, 50, 50))
+        self.assertIsNone(pt)
+        self.assertTrue(why)
+
+    def test_a_number_too_large_for_a_float_is_refused_not_raised(self):
+        pt, why = S.screen_point((10 ** 400, 0), (100, 100), (0, 0, 50, 50))
+        self.assertIsNone(pt)
+        self.assertIn("OverflowError", why)
+
+    def test_the_frame_bound_is_HALF_OPEN_like_cell_of(self):
+        """v2334 used `<= fw`, so a point at exactly (fw, fh) was answered with wx+ww — one pixel
+        PAST the region's last pixel. cell_of uses `<`; these two must agree or a cell at the far
+        edge converts to a place outside the capture."""
+        pt, why = S.screen_point((2940, 1912), (2940, 1912), (0, 0, 1470, 956))
+        self.assertIsNone(pt, "the exclusive edge was accepted and mapped outside the region")
+        self.assertIn("last pixel", why)
+        ok, _ = S.screen_point((2939, 1911), (2940, 1912), (0, 0, 1470, 956))
+        self.assertIsNotNone(ok, "the last real pixel was refused")
+
+    def test_a_ZERO_WIDTH_frame_is_refused_before_it_divides(self):
+        """Mutation-proven gap: deleting the frame-size guard left the suite green, because the
+        only fw=0 fixture used px=1 and was caught by the bounds check instead. px=0 is the case
+        that reaches the division."""
+        pt, why = S.screen_point((0, 0), (0, 100), (0, 0, 10, 10))
+        self.assertIsNone(pt)
+        self.assertIn("frame measures", why)
+
+    def test_a_PILLARBOX_is_refused_too_not_only_a_letterbox(self):
+        """Mutation-proven gap: dropping the abs() made the check one-sided and the suite stayed
+        green, because BOTH refusal fixtures had sy < sx. A window taller than proportional is the
+        other direction and is just as wrong."""
+        pt, why = S.screen_point((10, 10), (2940, 1912), (0, 0, 1470, 1200))
+        self.assertIsNone(pt, "a 25% pillarbox mismatch was accepted — the check is one-sided")
+        self.assertIn("not a straight scaling", why)
+
+    def test_the_tolerance_is_RELATIVE_not_an_absolute_number_of_scale_units(self):
+        """Mutation-proven gap: replacing `_SCALE_TOLERANCE * max(sx, sy)` with a bare 0.02 stayed
+        green, because both fixtures sit near sx=0.5 where the two happen to behave alike. On a
+        heavily downscaled frame an absolute 0.02 admits a 27% axis disagreement."""
+        pt, why = S.screen_point((10, 10), (29400, 19120), (0, 0, 1470, 1320))
+        self.assertIsNone(pt, "a 27%% mismatch at small scale was accepted — the tolerance is "
+                              "absolute, not relative")
+
+    def test_the_TOLERANCE_ITSELF_is_pinned_between_rounding_and_a_real_mismatch(self):
+        """Mutation-proven gap: 0.05 AND 0.002 both left the whole class green, so the constant
+        was unpinned. Real integer rounding on a ~956pt window caps near 0.105%; a mismatch worth
+        refusing starts around 1%. The bound is derived from those two, not chosen.
+
+        ⚠ A TIGHTER VALUE INSIDE THE RANGE STILL PASSES, DELIBERATELY. 0.002 is above real
+        rounding and well below a cursor-moving mismatch, so it is a legitimate choice and this
+        case says so by not failing it. Pinning the exact constant would be pinning the NUMBER
+        instead of the LAW. [[regression-guard]]"""
+        self.assertGreater(S._SCALE_TOLERANCE, 0.0012,
+                           "the tolerance is below real integer rounding — honest captures would "
+                           "be refused")
+        self.assertLess(S._SCALE_TOLERANCE, 0.03,
+                        "the tolerance admits a mismatch large enough to move the cursor most of "
+                        "a stash cell")
+
+    def test_an_unknown_capture_MODE_is_refused(self):
+        """capture_mode exists so a caller can state what the frame IS - a window grab or a
+        full-screen grab - because no arithmetic can tell them apart on this machine. A mode
+        nobody recognises cannot vouch for the rect beside it."""
+        pt, why = S.screen_point((10, 10), (100, 100), (0, 0, 50, 50), capture_mode="probably")
+        self.assertIsNone(pt)
+        self.assertIn("neither", why)
+        ok, _ = S.screen_point((10, 10), (100, 100), (0, 0, 50, 50), capture_mode="window")
+        self.assertIsNotNone(ok)
+
+    def test_a_capture_region_with_no_SIZE_is_refused(self):
         """"the window is not there" and "the window is at the origin" are different facts."""
         pt, why = S.screen_point((10, 10), (2940, 1912), (0, 0, 0, 0))
         self.assertIsNone(pt)
-        self.assertIn("not a window that is at the origin", why)
+        self.assertIn("not a region at the origin", why)
 
     def test_nonsense_input_is_refused_rather_than_raising(self):
         for args in (((None, 1), (100, 100), (0, 0, 10, 10)),

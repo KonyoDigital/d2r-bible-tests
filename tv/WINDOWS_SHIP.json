@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2334",
+  "ver": "v2335",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2334: the conversion MINI-AUTOMATIC needs before it can ever move a cursor - built as arithmetic that refuses whenever it cannot be sure, and nothing calls it",
+  "note": "v2335: fifteen findings reproduced by execution - NaN passed every guard and returned an accepted cursor target, a full-screen frame handed a window rect landed 601 points off, and four guards could not fail",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

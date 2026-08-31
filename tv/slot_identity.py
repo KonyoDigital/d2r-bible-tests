@@ -154,9 +154,14 @@ def point_of_cell(col, row, panel_box, container, where="center"):
                   is measured RELATIVE to a known corner and the centre hides which corner it was.
 
     ⚠ IT RETURNS A POINT IN FRAME PIXELS, NOT SCREEN PIXELS, AND THAT IS NOT THE SAME THING.
-    Turning one into the other needs the window origin and the capture scale, and neither belongs
-    here — this module is pure and has no idea where the game window sits. The caller that moves a
-    real cursor must do that conversion and is where the risk lives. [[borrowed-surface]]
+    Turning one into the other needs the capture region and its scale. v2334 added screen_point()
+    below for exactly that, so DO NOT WRITE THE CONVERSION AGAIN IN A CALLER — this paragraph
+    used to end "neither belongs here ... the caller must do that conversion", and a reader
+    following that today would produce a SECOND frame->screen mapping with different refusal
+    rules, which is the copy-drift shape this repo has already paid for. What still does not live
+    here is the FRESHNESS of the capture region: screen_point cannot see that a cached window
+    rect is stale, and says so rather than implying it checked.
+    [[borrowed-surface]] [[copy-drift]]
     """
     if container not in GRIDS:
         return None, "unknown container %r — the grid is not one this game has" % (container,)
@@ -373,37 +378,102 @@ def footprint(col, row, w, h, container="stash"):
 _SCALE_TOLERANCE = 0.02          # 2% — a real capture of a window scales the same on both axes
 
 
-def screen_point(frame_point, frame_size, window_rect):
+def _as_floats(seq, n, what):
+    """`n` FINITE floats out of any sequence. -> (tuple, None) or (None, why)
+
+    ⚠ v2335 — THE COERCION IS SHARED BECAUSE THE THREE HAND-WRITTEN COPIES HAD DIVERGED. A review
+    of v2334 found panel_box_for catching (TypeError, ValueError), cell_of and screen_point
+    catching those plus IndexError, and none of them catching KeyError or OverflowError. Measured,
+    all reproduced:
+        screen_point(THIS MODULE'S OWN next_target() dict, …)  -> KeyError: 0, uncaught
+        screen_point((10**400, 0), …)                          -> OverflowError, uncaught
+        screen_point(…, window_rect="0055")                    -> ACCEPTED, (0.5, 0.5)
+    A four-character string is a four-element iterable, so a stringly-typed rect became digits
+    instead of a refusal.
+
+    ⚠⚠ AND NaN / Inf PASSED EVERY GUARD, which was the worst of them. Every comparison against NaN
+    is False, so `abs(nan - sy) > tol` never fired and the function returned an ACCEPTED
+    (nan, nan) cursor target with why=None. `json.loads` parses NaN and Infinity by default and
+    these rects cross JSON, so it was reachable. A finite check is the only thing that catches it —
+    a comparison never will. [[unknown-stays-unknown]]
+    """
+    if isinstance(seq, (str, bytes, dict)):
+        return None, ("%s is a %s, not a sequence of numbers — a 4-character string is a "
+                      "4-element iterable and would become digits instead of a refusal"
+                      % (what, type(seq).__name__))
+    try:
+        vals = [float(v) for v in seq]
+    except (TypeError, ValueError, IndexError, KeyError, OverflowError) as e:
+        return None, "%s is not %d numbers (%s)" % (what, n, type(e).__name__)
+    if len(vals) != n:
+        return None, "%s has %d value(s), expected %d" % (what, len(vals), n)
+    for v in vals:
+        if v != v or v in (float("inf"), float("-inf")):        # NaN != NaN
+            return None, ("%s contains %r — not a finite number. Every comparison against NaN is "
+                          "False, so no range check can catch this one" % (what, v))
+    return tuple(vals), None
+
+
+def screen_point(frame_point, frame_size, capture_rect, capture_mode=None):
     """A point in the frame -> the same point on the SCREEN. -> ((x, y), None) or (None, why)
 
-    `window_rect` is the GAME WINDOW on screen as (x, y, w, h). The capture is a scaled copy of
-    that window, so the scale is window/frame — and it must be THE SAME on both axes.
+    `capture_rect` is the SCREEN REGION THIS FRAME COVERS, as (x, y, w, h) — not "the game
+    window" unless the frame is a capture of the game window.
 
-    ⚠ THE AXIS CHECK IS THE WHOLE SAFETY ARGUMENT. If the horizontal and vertical scales disagree,
-    the frame is not a straight scaling of the window: it is letterboxed, cropped, or from a
-    different window entirely. Any point computed from an averaged scale would be confidently
-    wrong, and wrong here means a cursor somewhere he did not ask for. So a mismatch REFUSES.
+    ⚠⚠ THE RENAME IS THE FIX, AND IT IS NOT COSMETIC. v2334 called this `window_rect`, and a
+    review found what that invites: tv_diablo.capture_mac falls back from a window grab to a
+    FULL-SCREEN grab and deliberately keeps the game's window id (v898: "keep game wid so film
+    still tries D2R.exe"), so a caller reaching for "the window rect" hands a full-screen frame a
+    window-sized rectangle. MEASURED on his own geometry — full-screen retina frame 6048x3928,
+    game window (21,22,1470,956):
+
+        sx 0.243056   sy 0.243381   mismatch 0.1337%   <- fifteen times INSIDE the 2% tolerance
+        accepted -> (609.0, 500.0)      truth -> (1209.6, 982.0)
+
+    601 points across and 482 down from the cell asked for. No arithmetic can catch that: a
+    full-screen capture and a window capture have nearly the same aspect on this machine. So the
+    parameter now names what it must be, and `capture_mode` lets the caller state what the frame
+    IS — 'window' or 'screen' — so the mismatch becomes a refusal instead of a plausible number.
+
+    ⚠ AND THE ORIGIN IS NEVER CHECKED, BY CONSTRUCTION. wx/wy enter no guard, so a STALE rect —
+    tv_diablo caches the picked window and keeps it "pinned until a capture with it actually
+    fails" — is invisible here: same size, same scales, silently wrong by however far he dragged
+    the window. Freshness is the CALLER'S to establish; this function cannot see it and says so
+    rather than implying it checked.
     """
-    try:
-        px, py = float(frame_point[0]), float(frame_point[1])
-        fw, fh = float(frame_size[0]), float(frame_size[1])
-        wx, wy, ww, wh = [float(v) for v in window_rect]
-    except (TypeError, ValueError, IndexError):
-        return None, "point, frame size or window rect is not numeric"
+    fp, why = _as_floats(frame_point, 2, "frame point")
+    if why:
+        return None, why
+    fs, why = _as_floats(frame_size, 2, "frame size")
+    if why:
+        return None, why
+    wr, why = _as_floats(capture_rect, 4, "capture rect")
+    if why:
+        return None, why
+    px, py = fp
+    fw, fh = fs
+    wx, wy, ww, wh = wr
     if fw <= 0 or fh <= 0:
         return None, "the frame measures %gx%g" % (fw, fh)
     if ww <= 0 or wh <= 0:
-        return None, ("the game window measures %gx%g on screen — nothing can be inside it, and a "
-                      "window that is not there is not a window that is at the origin" % (ww, wh))
-    if not (0 <= px <= fw and 0 <= py <= fh):
-        return None, ("(%g, %g) is outside the %gx%g frame — refusing rather than clamping, "
-                      "because a clamped point is a REAL place on his screen that nobody chose"
-                      % (px, py, fw, fh))
+        return None, ("the capture region measures %gx%g on screen — nothing can be inside it, "
+                      "and a region that is not there is not a region at the origin" % (ww, wh))
+    if capture_mode is not None and str(capture_mode).strip().lower() not in ("window", "screen"):
+        return None, ("capture_mode %r is neither 'window' nor 'screen' — an unknown mode cannot "
+                      "vouch for the rect it accompanies" % (capture_mode,))
+    # ⚠ HALF-OPEN, like cell_of. v2334 used `<= fw`, so a point at exactly (fw, fh) was answered
+    # with wx+ww — one pixel PAST the region's last pixel. A function that refuses points outside
+    # the frame because "a clamped point is a REAL place on his screen that nobody chose" must not
+    # hand back a real place outside the region either.
+    if not (0 <= px < fw and 0 <= py < fh):
+        return None, ("(%r, %r) is outside the %gx%g frame, whose last pixel is (%g, %g) — "
+                      "refusing rather than clamping, because a clamped point is a REAL place on "
+                      "his screen that nobody chose" % (px, py, fw, fh, fw - 1, fh - 1))
     sx, sy = ww / fw, wh / fh
     if abs(sx - sy) > _SCALE_TOLERANCE * max(sx, sy):
-        return None, ("the frame scales %.4f horizontally and %.4f vertically against this window, "
-                      "so it is not a straight scaling of it — letterboxed, cropped, or a capture "
-                      "of something else. An averaged scale would be confidently wrong."
+        return None, ("the frame scales %.4f horizontally and %.4f vertically against this "
+                      "region, so it is not a straight scaling of it — letterboxed, cropped, or a "
+                      "capture of something else. An averaged scale would be confidently wrong."
                       % (sx, sy))
     return (wx + px * sx, wy + py * sy), None
 

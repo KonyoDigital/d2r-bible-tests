@@ -12950,6 +12950,56 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-414 — the v2334 review: fifteen findings, and the worst one no comparison could catch (v2335)
+
+A post-ship review of v2334 reproduced fifteen findings by execution. I reproduced the serious
+ones myself before touching anything; every one below was real.
+
+**FIXED — the four that would have moved his cursor or crashed:**
+
+* **NaN / Inf passed every guard.** `screen_point((10,10),(100,100),(0,0,nan,nan))` returned an
+  **ACCEPTED `(nan, nan)` cursor target with `why=None`**. Every comparison against NaN is False,
+  so the axis check — "the whole safety argument" — never fired. `json.loads` parses `NaN` and
+  `Infinity` by default and these rects cross JSON, so it was reachable. **Only a finite check
+  catches this; no range check ever will.**
+* **A full-screen frame handed a window rect.** `capture_mac` falls back from a window grab to a
+  full-screen grab and deliberately keeps the game's window id, so a caller reaching for "the
+  window rect" hands a full-screen frame a window-sized rectangle. Measured on his geometry:
+  mismatch **0.1337%, fifteen times inside the 2% tolerance** — accepted, and the point lands
+  **601 across and 482 down** from the cell asked for. No arithmetic separates them. The parameter
+  is now `capture_rect` — the region the frame COVERS — with an optional `capture_mode` so the
+  caller states what the frame is. **The rename is the fix; the old name invited the error.**
+* **`KeyError` and `OverflowError` escaped the except tuple**, so passing this module's own
+  `next_target()` dict — the likeliest caller mistake in the file — raised out of a function whose
+  contract is `(None, why)`.
+* **A 4-character string was read as a rect.** `"0055"` became `wx=0 wy=0 ww=5 wh=5` and succeeded.
+
+All four came from three hand-written copies of the same coercion that had **diverged** — different
+except tuples, different bound conventions. They are one `_as_floats()` now, so the next fix lands
+once instead of three times.
+
+**FIXED — four guards that could not fail**, each mutation-proven by the review: the tolerance
+constant, the `abs()` (both refusal fixtures had `sy < sx`, so a one-sided check stayed green), the
+`* max(sx,sy)` that makes the tolerance relative, and the frame-size guard (deleting it left the
+suite green because the only `fw=0` fixture used `px=1` and was caught elsewhere). Also the
+**half-open bound** — `<= fw` answered a point at exactly `(fw, fh)` with one pixel PAST the
+region's last pixel, where the sibling `cell_of` correctly uses `<`.
+
+**NOT CHANGED, and why:**
+
+* **The tolerance is pinned to a RANGE, not a value.** The review noted `0.05` and `0.002` both
+  leave the suite green. `0.05` now fails; `0.002` still passes **on purpose** — it sits above real
+  integer rounding (0.105%) and well below a cursor-moving mismatch, so it is a legitimate tighter
+  choice. Failing it would pin the NUMBER instead of the LAW.
+* **A stale window ORIGIN stays invisible here.** `wx`/`wy` enter no guard and cannot: same size,
+  same scales, silently wrong by however far he dragged the window. Freshness is the caller's to
+  establish, and the docstring now says so rather than implying it was checked.
+
+⚠ **And the review caught me claiming a fix I had not shipped.** REG-413 ended *"The sabotage
+helper clears `slot_identity*.pyc` before every run now"* — the "helper" was a shell function in my
+terminal, not a file in this repo. Corrected in place. A practice written up as a shipped guard is
+exactly the sentence that makes the next reader stop looking.
+
 ## REG-413 — frame pixels are not screen pixels, and a sabotage that never ran (v2334)
 
 **The conversion.** `point_of_cell()` answers in FRAME pixels; driving a cursor needs SCREEN
@@ -12986,8 +13036,15 @@ weak". With the cache cleared it goes RED immediately.
 
 **Every sabotage this session that changed the file's SIZE was unaffected** (size mismatch forces a
 recompile), which is nearly all of them — but a length-preserving one is invisible, and I had this
-exact scar written down already. The sabotage helper clears `slot_identity*.pyc` before every run
-now.
+exact scar written down already.
+
+⚠ **CORRECTION, from the v2334 review.** This entry originally ended *"The sabotage helper clears
+`slot_identity*.pyc` before every run now"* — **and that was not true of anything in this
+repository.** The "helper" was an ad-hoc shell function in my terminal, not a file in the tree;
+`grep -rn "pycache_prefix"` over the repo matches only this entry. I wrote a working practice up as
+a shipped fix. The practice is real and is recorded in memory (`python_pycache_prefix_mac.md`)
+where the next session will read it; the repo carries no such guard, and claiming otherwise is the
+kind of sentence that makes the next reader stop looking. [[unknown-stays-unknown]]
 
 **Guards:** `TestV2334FramePixelsAreNotScreenPixels`, five sabotages proven RED. ⚠ The axis-swap
 case exists because every OTHER case used a uniform 0.5 scale, which makes a swap invisible by
