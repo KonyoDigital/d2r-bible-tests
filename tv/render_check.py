@@ -507,6 +507,51 @@ def verdict(key, m, sel):
     return out
 
 
+def _selector_ready(tab, sel, budget=20.0):
+    """Wait until the TARGET'S OWN selector matches something painted. Returns why, or None.
+
+    ⚠ v2330 — _settled() ABOVE IS A GLOBAL SETTLE, AND THAT IS NOT THE SAME QUESTION.
+    It waits for readyState complete and the body to stop growing, which its own docstring
+    correctly calls the difference between measuring a page and measuring a page still
+    assembling. But several targets here are filled by data that arrives AFTER the body has
+    stopped moving — the Task Force rows and the vault mules among them — so the document can be
+    perfectly settled while the panel this run is about is still empty.
+
+    What followed the activation was `time.sleep(1.4)`, i.e. the exact fixed sleep _settled was
+    written to replace, one step further down the same function.
+
+    MEASURED, 2026-08-31. Eight consecutive runs on an idle machine: 8 green. Four runs with one
+    extra console process alive: 1 green, 3 RED — and every failure was
+    `selector ... matched NOTHING`, never a layout fault:
+
+        901x900   selector '.vm-gauge, [data-vault-mule]' matched NOTHING
+        1440x1000 selector '#sc-taskforce .sc-tf-row, #sc-taskforce > .sc-card-h' matched NOTHING
+
+    So the gate was not a coin flip. It was deterministic given a condition nobody was measuring,
+    which is worse, because "run it again" made it green and taught us to do that.
+    [[feedback-blind-fixture-green-gate]] [[feedback-suspect-the-instrument]]
+
+    ⚠ AND IT STILL FAILS HONESTLY. A selector that never matches inside the budget is reported as
+    exactly that — never appeared, not "not yet" — so a genuinely absent panel is still caught.
+    The bound is what separates the two facts; without one they are the same observation.
+    """
+    t0 = time.time()
+    js = ("(function(){try{var n=document.querySelectorAll(%s);if(!n.length)return 0;"
+          "for(var i=0;i<n.length;i++){var r=n[i].getBoundingClientRect();"
+          "if(r.width>1&&r.height>1)return 1;}return 0;}catch(e){return 0}})()")
+    while time.time() - t0 < budget:
+        try:
+            if tab.ev(js % json.dumps(sel)):
+                return None
+        except Exception:
+            pass
+        time.sleep(0.4)
+    return ("%r never matched a painted element in %.0fs after the panel was activated — either "
+            "the surface is genuinely absent, or this machine was too loaded to build it, and "
+            "the difference is exactly what this bound exists to state rather than guess"
+            % (sel, budget))
+
+
 def check(name, spec, shots=True):
     """Render one target at every width and judge it. -> dict"""
     out = {"target": name, "why": spec["why"], "widths": {}, "ok": True, "refusals": []}
@@ -528,7 +573,13 @@ def check(name, spec, shots=True):
                                    "this would be about a hidden pane, and a hidden pane reports "
                                    "zero clipping")
             return out
-        time.sleep(1.4)
+        # v2330 — was `time.sleep(1.4)`. See _selector_ready: a fixed sleep here is the same
+        # defect _settled() was written to remove, and under load it measured empty panels.
+        why = _selector_ready(tab, spec["sel"])
+        if why:
+            out["ok"] = False
+            out["refusals"].append(why)
+            return out
         for w, h in WIDTHS:
             tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                      deviceScaleFactor=1, mobile=False)

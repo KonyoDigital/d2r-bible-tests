@@ -33629,5 +33629,101 @@ class TestV2329TheCrossReferenceHasTwoLedgers(unittest.TestCase):
                       "entirely, exactly as it did before this existed")
 
 
+class TestV2330TheRenderGateStoppedMeasuringHalfBuiltPanels(unittest.TestCase):
+    """THE GATE WAS NOT A COIN FLIP. IT WAS DETERMINISTIC GIVEN A CONDITION NOBODY MEASURED.
+
+    I reported it as a coin flip after seeing four clean runs and four with red targets on
+    unchanged bytes. That framing was wrong, and the measurement that corrected it:
+
+        idle machine          8 runs   ->  8 green
+        one extra console up  4 runs   ->  1 green, 3 RED
+
+    And every failure was the same shape - never a layout fault:
+
+        901x900   selector '.vm-gauge, [data-vault-mule]' matched NOTHING
+        1440x1000 selector '#sc-taskforce .sc-tf-row, ...' matched NOTHING
+
+    CAUSE. check() ran _settled() - which waits for readyState complete and the body to stop
+    growing - and then `time.sleep(1.4)` before measuring. Several targets are filled by data
+    that arrives AFTER the body stops moving, so the document can be perfectly settled while the
+    panel this run is about is still empty. The fixed sleep was the exact defect _settled()'s own
+    docstring was written to remove, sitting one step further down the same function.
+
+    That is worse than a coin flip, because "run it again" turned it green and taught us to do
+    that - which is how a real finding gets waved through.
+    [[feedback-blind-fixture-green-gate]] [[feedback-suspect-the-instrument]]
+
+    FIXED by waiting for the TARGET'S OWN selector, bounded. Same load, same command:
+    1-of-4 green before, 4-of-4 after.
+    """
+
+    def _rc(self):
+        sys.path.insert(0, HERE)
+        import render_check
+        return render_check
+
+    def test_a_present_selector_returns_at_once(self):
+        rc = self._rc()
+        class FakeTab(object):
+            def ev(self, js):
+                return 1
+        self.assertIsNone(rc._selector_ready(FakeTab(), "body", budget=3.0),
+                          "a painted selector was made to wait")
+
+    def test_an_ABSENT_selector_is_still_REFUSED(self):
+        """The whole risk of adding a wait is that the gate stops being able to fail. A selector
+        that never matches must still be caught - the bound is what separates 'never appeared'
+        from 'not yet', and without one they are the same observation."""
+        rc = self._rc()
+        class FakeTab(object):
+            def ev(self, js):
+                return 0
+        why = rc._selector_ready(FakeTab(), "#nope", budget=1.0)
+        self.assertTrue(why, "an absent panel now passes the gate - the wait made it blind")
+        self.assertIn("#nope", why, "the refusal does not name the selector")
+        self.assertIn("never matched", why)
+
+    def test_the_refusal_states_BOTH_possible_causes(self):
+        """"genuinely absent" and "this machine was too loaded" are different facts and the gate
+        cannot tell them apart from one run. It must say so rather than pick one.
+        [[unknown-stays-unknown]]"""
+        rc = self._rc()
+        class FakeTab(object):
+            def ev(self, js):
+                return 0
+        why = rc._selector_ready(FakeTab(), "#nope", budget=1.0)
+        self.assertIn("genuinely absent", why)
+        self.assertIn("loaded", why)
+
+    def test_a_tab_that_THROWS_does_not_end_the_wait_early(self):
+        """A transient evaluate failure under load must not be read as 'absent'."""
+        rc = self._rc()
+        class Boom(object):
+            def ev(self, js):
+                raise RuntimeError("evaluate failed")
+        why = rc._selector_ready(Boom(), "#x", budget=1.0)
+        self.assertTrue(why, "a throwing tab returned success")
+        self.assertIn("never matched", why)
+
+    def test_check_WAITS_instead_of_sleeping(self):
+        """[[the-unjoined-end]] - the helper can be perfect and never called."""
+        import inspect, re
+        raw = inspect.getsource(self._rc().check)
+        # ⚠ STRIP THE COMMENTS. The assertion below looks for the ABSENCE of `time.sleep(1.4)`,
+        # and the line that removed it says so in a comment that contains those exact characters -
+        # so this case failed on my own explanation of the fix. That is the THIRD time this
+        # session a source guard has been blinded by prose: the lattice wiring check, the
+        # visibility check, and now this. In a tree this heavily commented, a guard that greps raw
+        # source is grading the documentation. [[feedback-comments-vs-code]]
+        src = "\n".join(re.sub(r"#.*$", "", ln) for ln in raw.split("\n"))
+        self.assertIn("_selector_ready(tab,", src,
+                      "check() no longer waits for the target's own selector")
+        self.assertIn('spec["sel"]', src,
+                      "the wait is not pointed at the target's own selector")
+        self.assertNotIn("time.sleep(1.4)", src,
+                         "the fixed sleep after activation is back - under load it measures an "
+                         "empty panel and reports 'matched NOTHING'")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -12950,6 +12950,49 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-409 — the render gate measured half-built panels under load (v2330)
+
+**I first reported this as a coin flip.** Four clean runs and four with red targets on unchanged
+bytes, and I filed it as random. **That was wrong**, and the measurement that corrected it:
+
+```
+idle machine            8 runs  ->  8 green
+one extra console up    4 runs  ->  1 green, 3 RED
+```
+
+Not random — **deterministic given a condition nobody was measuring**, which is worse than random,
+because "run it again" turned it green and taught us to do exactly that.
+
+**Every failure was the same shape, and never a layout fault:**
+
+```
+901x900    selector '.vm-gauge, [data-vault-mule]' matched NOTHING
+1440x1000  selector '#sc-taskforce .sc-tf-row, …'  matched NOTHING
+```
+
+**Cause.** `check()` called `_settled()` — which waits for `readyState complete` and the body to
+stop growing — and then `time.sleep(1.4)` before measuring. Several targets are filled by data
+that arrives AFTER the body stops moving (the Task Force rows, the vault mules), so the document
+can be perfectly settled while the panel this run is about is still empty. **The fixed sleep was
+the exact defect `_settled()`'s own docstring was written to remove, sitting one step further down
+the same function.**
+
+**Fix:** wait for the TARGET'S OWN selector to match a painted element, bounded at 20s. Proven by
+the same experiment that proved the defect — same load, same command: **1-of-4 green before,
+4-of-4 after.**
+
+⚠ **The risk of adding a wait is that the gate stops being able to fail**, so that is asserted
+directly: a selector that never matches is still refused, and the refusal names BOTH possible
+causes — genuinely absent, or a machine too loaded to build it — because one run cannot tell them
+apart and the bound is the only thing that separates "never appeared" from "not yet".
+
+**Guards:** `TestV2330TheRenderGateStoppedMeasuringHalfBuiltPanels`, four sabotages proven RED.
+⚠ One sabotage was a NO-OP and I nearly recorded it as a green guard: `return None or ("…")`
+evaluates to the message, so it changed nothing. When a sabotage does not go red, suspect the
+sabotage first. ⚠ And the wiring check failed on **its own comment** — the line documenting the
+removal of `time.sleep(1.4)` contains those characters. That is the third source guard this
+session blinded by prose; comments are stripped before the search now.
+
 ## REG-408 — fleet_compare accepted a `ledger` it could not honour (v2329)
 
 Konyo asked for the fleet cross-reference to cover **Uniques** as well as Sets, "in the exact same
