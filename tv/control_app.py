@@ -6425,6 +6425,16 @@ def _kai_compile_register(sess_rows):
         if not _segs:
             return None
         try:
+            # ⚠ captureTs FIRST, and it must match reel_segments._ts(). A cross-family review
+            # spotted that the loop above computes its own `ts` as `ts or captureTs` — the other
+            # order — so if a row carried both with different values the sighting would be
+            # recorded at one moment and the LANE looked up at another.
+            # MEASURED before deciding: 171 rows do carry both with different values (median 5.2
+            # minutes apart, worst 30 hours) — and every one of them is lane 'intake' (141) or
+            # 'verify' (30). The deep and kai lanes, the only two that reach this function, have
+            # ZERO. So it does not bite today; this comment and the guard beside it exist so it
+            # cannot start to. The lookup must use the same clock the SEGMENTS were built on, or
+            # it is asking a timeline a question in a different time base.
             lane, _why = _rseg.lane_at(_segs, str(row.get("sessionId") or ""),
                                        row.get("captureTs") or row.get("ts") or 0)
         except Exception:
@@ -20360,7 +20370,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2344",
+        "ver": "v2345",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

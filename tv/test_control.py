@@ -34933,6 +34933,25 @@ class TestV2344TheRegisterAsksTheTimelineWhereAnItemWas(unittest.TestCase):
             self.assertIsNone(reg[nm].get("loc"),
                               "with no scene reads at all, %r was still given a location" % nm)
 
+    def test_the_lane_lookup_uses_the_same_clock_the_segments_were_built_on(self):
+        """Asking a timeline a question in a different time base gives a confident wrong answer.
+
+        reel_segments._ts() is `captureTs or ts`. The register loop computes its own `ts` as
+        `ts or captureTs` — the other order. MEASURED: 171 rows carry both with different values
+        (median 5.2 min apart, worst 30 hours) and every one is lane 'intake' or 'verify'; the deep
+        and kai lanes have zero, so it does not bite today. This pins it so it cannot start to.
+        """
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        blk = _between(self, src, "def _loc_of(nm, row, nl):", "for r in sess_rows:",
+                       min_len=100, what="the lane lookup")
+        self.assertIn('row.get("captureTs") or row.get("ts")', blk,
+                      "the lane lookup no longer uses captureTs-first, so it asks the segment "
+                      "timeline in a different time base than the one it was built in")
+        seg = _code_only(io.open(os.path.join(HERE, "reel_segments.py"), encoding="utf-8").read())
+        self.assertIn('row.get("captureTs") or row.get("ts")', seg,
+                      "reel_segments._ts changed its clock; the register's lookup now disagrees "
+                      "with the timeline it is querying")
+
     def test_the_register_survives_a_missing_segmenter(self):
         """It is wrapped because a register that dies when an optional module is absent is worse
         than one with less provenance."""
@@ -34945,6 +34964,62 @@ class TestV2344TheRegisterAsksTheTimelineWhereAnItemWas(unittest.TestCase):
         self.assertIn("except Exception", blk,
                       "the segmenter import/lookup is unguarded; if it raises, the whole register "
                       "dies and every name vanishes rather than merely losing its lane")
+
+
+
+class TestV2345TwoWitnessesMustAgree(unittest.TestCase):
+    """The scene label is ONE model's opinion; the pixels are a second, independent witness.
+
+    Konyo: "chronicle menu page has a template it needs to be locating and cross referencing...
+    that way it can never miscalculate a chronicle read item for a stash one... and watchdog and
+    eagle eye and corroborator all working as one!"
+
+    The structural fact this leans on is his: "for the STASH theres a template automatically opens
+    with the INVENTORY it cant even be open without the inventory they come together." A container
+    panel shows a GRID; a Chronicle page is rows of names with no grid. stash_eye.
+    classify_stash_grid() answers that with NO model at all, so it is genuinely independent rather
+    than the same eye looking twice.
+
+    MEASURED on his reels: on the 13 frames where both witnesses can rule, they AGREE 13/13, zero
+    contradictions. Wilson on the wider run: gameplay 0.912, stash 0.676, chronicle 0.342 — all
+    100% raw, and the chronicle arm is UNDER-EVIDENCED because only 2 chronicle frames survive on
+    disk. That is a statement about the corpus, not the method.
+    """
+
+    def test_a_container_scene_needs_a_container_grid(self):
+        import reel_segments as rs
+        self.assertIs(rs.corroborates("stash", "stash-gems")[0], True)
+        self.assertIs(rs.corroborates("inventory", "stash")[0], True)
+        v, why = rs.corroborates("stash", "gameplay")
+        self.assertIs(v, False, "a stash frame with no grid in the pixels was accepted")
+        self.assertIn("cannot be open without its grid", why)
+
+    def test_a_chronicle_page_must_NOT_show_a_container_grid(self):
+        """The defect the whole thing exists for: a menu page read as a stash."""
+        import reel_segments as rs
+        self.assertIs(rs.corroborates("chronicle", "gameplay")[0], True)
+        v, why = rs.corroborates("chronicle", "stash-runes")[0], rs.corroborates("chronicle", "stash-runes")[1]
+        self.assertIs(v, False, "a 'chronicle' read whose pixels show a GRID was accepted — one of "
+                                "those two witnesses is wrong and that is the finding")
+        self.assertIn("never a grid of icons", why)
+
+    def test_CANNOT_TELL_is_a_third_answer_and_not_a_shrug(self):
+        """'the pixels could not be read' is not 'the pixels disagree'."""
+        import reel_segments as rs
+        for act, pix in (("gameplay", "gameplay"), ("town", "stash"), ("transition", "gameplay")):
+            self.assertIsNone(rs.corroborates(act, pix)[0],
+                              "%r was ruled on by a witness that cannot rule on it" % act)
+        self.assertIsNone(rs.corroborates("stash", "")[0])
+        self.assertIsNone(rs.corroborates("", "stash")[0])
+
+    def test_every_verdict_carries_a_reason(self):
+        """A refusal that cannot say why is indistinguishable from one nobody made."""
+        import reel_segments as rs
+        for args in (("stash", "stash"), ("stash", "gameplay"), ("chronicle", "stash"),
+                     ("chronicle", "gameplay"), ("gameplay", "gameplay"), ("", "")):
+            v, why = rs.corroborates(*args)
+            self.assertTrue(why and len(why) > 15,
+                            "corroborates%r returned %r with no usable reason" % (args, v))
 
 
 

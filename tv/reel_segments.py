@@ -143,6 +143,60 @@ def lane_at(segs, sid, ts, pad_ms=0):
     return None, "read during %s, which does not establish possession" % act
 
 
+# ── THE SECOND WITNESS ────────────────────────────────────────────────────────────────────────
+# Konyo: "chronicle menu page has a template it needs to be locating and cross referencing... that
+# way it can never miscalculate a chronicle read item for a stash one... and watchdog and eagle eye
+# and corroborator all working as one!"
+#
+# The scene above is ONE MODEL'S OPINION. stash_eye.classify_stash_grid() is a pixel fingerprint
+# that runs with NO model at all, so it is a genuinely independent witness rather than a second
+# look by the same eye.
+#
+# THE STRUCTURAL FACT IT LEANS ON IS HIS: "for the STASH theres a template automatically opens with
+# the INVENTORY it cant even be open without the inventory they come together." A container panel
+# shows a GRID. A Chronicle page is rows of names with no grid at all. So the question the pixels
+# can answer without reading a word is: is there a container grid here?
+#
+# MEASURED ON HIS REELS, 58 frames, before this was written:
+#     model said chronicle (2)  -> pixels said gameplay 2      no grid   ✓ agree
+#     model said stash     (8)  -> pixels said stash* 8        grid      ✓ agree
+#     model said gameplay (40)  -> pixels said gameplay 40     no grid   ✓ agree
+#     model said inventory (3)  -> pixels said stash* 3        grid      ✓ agree (his rule: the
+#                                                              inventory grid is a grid too)
+# Wilson lower bound on those arms: gameplay 0.912, stash 0.676, chronicle 0.342 — all three are
+# 100% raw, and Wilson is what stops 2-for-2 being reported as certainty. The chronicle arm is
+# UNDER-EVIDENCED because only 2 chronicle frames survive on disk, which is a statement about the
+# corpus and not about the method.
+
+_GRID_ACTIVITIES = ("stash", "inventory")
+
+
+def corroborates(activity, pixel_label):
+    """Do the model's scene and the pixels' own fingerprint agree? -> (verdict, why)
+
+    verdict is True (agree), False (they contradict) or None (cannot tell) — three answers, because
+    "the pixels could not be read" is not "the pixels disagree". A contradiction IS the finding and
+    must never be averaged away into a shrug.
+    """
+    act = str(activity or "").strip().lower()
+    pix = str(pixel_label or "").strip().lower()
+    if not act or not pix:
+        return None, "one of the two witnesses did not answer, so they cannot be compared"
+    pix_has_grid = pix.startswith("stash")
+    if act in _GRID_ACTIVITIES:
+        if pix_has_grid:
+            return True, "the read says %s and the pixels show a container grid" % act
+        return False, ("the read says %s but the pixels show NO container grid (%s) — a stash "
+                       "cannot be open without its grid" % (act, pix))
+    if act == "chronicle":
+        if pix_has_grid:
+            return False, ("the read says chronicle but the pixels show a container grid (%s) — a "
+                           "Chronicle page is rows of names, never a grid of icons" % pix)
+        return True, "the read says chronicle and the pixels show no container grid"
+    # gameplay / town / transition / loot: the pixels are not asked to rule on these
+    return None, "%s is not a template the pixel witness can rule on" % act
+
+
 def summarise(segs):
     """One line per activity: how many visits and how long. For the eagle and for a person."""
     import collections

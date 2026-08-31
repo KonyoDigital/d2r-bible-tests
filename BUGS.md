@@ -13994,3 +13994,39 @@ nobody had written, and it failed correctly.
 all the way to the loop, so it found `_loc_of`'s own `except` and stayed green when the import guard
 was removed — a guard that finds someone else's `except` is not checking the one it names. The other
 asserted string order rather than structure.
+
+## REG-425 — the scene label was one model's opinion; the pixels are now a second witness
+
+Konyo: *"chronicle menu page has a template it needs to be locating and cross referencing and
+checking if it meets the tooltip with the template its seen in.. that way it can never miscalculate
+a chronicle read item for a stash one... and watchdog and eagle eye and corroborator all working as
+one!"*
+
+`reel_segments.corroborates(activity, pixel_label)` compares the model's scene against
+`stash_eye.classify_stash_grid()` — a pixel fingerprint that runs with **no model at all**, so it is
+a genuinely independent witness rather than the same eye looking twice.
+
+**The structural fact it leans on is his:** *"for the STASH theres a template automatically opens
+with the INVENTORY it cant even be open without the inventory they come together."* A container
+panel shows a GRID; a Chronicle page is rows of names with no grid. That question needs no reading.
+
+**MEASURED ON HIS REELS, 58 frames:**
+
+```
+model said chronicle (2)  -> pixels: gameplay 2     no grid   agree
+model said stash     (8)  -> pixels: stash* 8       grid      agree
+model said inventory (3)  -> pixels: stash* 3       grid      agree   (his rule: it is a grid too)
+model said gameplay (40)  -> pixels: gameplay 40    no grid   agree
+
+on the 13 frames where BOTH witnesses can rule: 13 agree, 0 contradictions
+```
+
+**And Wilson is what keeps it honest.** All three arms are 100% raw, which is the number that would
+mislead: `gameplay 0.912 · stash 0.676 · chronicle 0.342`. The chronicle arm is **under-evidenced**
+because only 2 chronicle frames survive on disk — a statement about the corpus, not the method, and
+the reason that arm must not gate anything on its own yet.
+
+**Three answers, not two.** True (agree), False (contradict), None (cannot tell) — "the pixels could
+not be read" is not "the pixels disagree", and a contradiction IS the finding rather than something
+to average away. Every verdict carries its reason, because a refusal that cannot say why is
+indistinguishable from one nobody made.
