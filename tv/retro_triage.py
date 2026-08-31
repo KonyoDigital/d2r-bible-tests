@@ -44,6 +44,74 @@ PANEL_KINDS = ("stash", "stash-runes", "stash-gems", "stash-materials", "runes",
                "materials", "inventory", "chronicle")
 
 
+STORE = "retro_triage.json"
+
+
+def _store_path(root=None):
+    return os.path.join(root or os.path.dirname(os.path.abspath(__file__)), STORE)
+
+
+def load(root=None):
+    """Everything the structural pass has ever learned. -> (dict, ok).
+
+    `ok` False means the store could not be READ - which is not the same as "nothing has been
+    surveyed", and the caller must not treat it as an empty result. [[unknown-stays-unknown]]
+    """
+    p = _store_path(root)
+    if not os.path.isfile(p):
+        return {}, True                       # genuinely nothing surveyed yet
+    try:
+        import json
+        with open(p, encoding="utf-8") as fh:
+            blob = json.load(fh)
+        return (blob if isinstance(blob, dict) else {}), True
+    except Exception:
+        return {}, False
+
+
+def remember(reel_dir, hits, frames, kinds=None, root=None):
+    """Record one reel's structural verdict, so the expensive pass is paid for ONCE.
+
+    THIS IS WHAT MAKES THE FILTER USABLE. A panel-density ordering is the right idea and was left
+    unwired for a good reason: `panel_density` samples up to 24 frames per reel at ~0.5-1.3 s
+    each, so gating the sweep's estimate on it would cost HOURS every time anyone asked for a
+    quote. Surveying once and remembering turns that into a dictionary lookup.
+    """
+    import json
+    p = _store_path(root)
+    blob, ok = load(root)
+    if not ok:
+        return False                          # never overwrite a store we could not read
+    blob[os.path.basename(reel_dir)] = {
+        "panels": int(hits), "frames": int(frames),
+        "kinds": dict(kinds or {}), "ts": int(time.time() * 1000),
+        "full": True,
+    }
+    try:
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(blob, fh)
+        os.replace(tmp, p)                    # atomic: a half-written store is a lost survey
+        return True
+    except Exception:
+        return False
+
+
+def worth_reading(reel_dir, root=None):
+    """Does this reel hold anything a paid reader should see? -> True | False | None.
+
+    None means NOT SURVEYED - never False. A reel nobody has looked at must not be skipped as if
+    it had been looked at and found empty; that is how footage gets abandoned.
+    """
+    blob, ok = load(root)
+    if not ok:
+        return None
+    row = blob.get(os.path.basename(reel_dir))
+    if not row or not row.get("full"):
+        return None
+    return bool(row.get("panels"))
+
+
 def unread_reels(hist_dir, sealed):
     """Reels the chronicle/vault lanes have never sealed. -> [dir, ...] oldest first."""
     out = []
@@ -58,7 +126,7 @@ def unread_reels(hist_dir, sealed):
 
 
 def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
-           on_reel=None, nice_delay_s=0.0):
+           on_reel=None, nice_delay_s=0.0, remember_to=None):
     """Classify frames structurally. -> dict. READS NOTHING PAID AND DELETES NOTHING.
 
     `gate(path)` is control_app.stash_screen_open_cached - a crop plus an OCR of the panel chrome,
@@ -103,6 +171,18 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
                 # only a FULL pass may call a frame disposable; a sample has not looked at enough
                 out["dispose"].append(f)
         out["perReel"][os.path.basename(d)] = hits
+        # ⚠ ONLY A FULL PASS MAY BE REMEMBERED. A strided sample cannot prove a reel holds no
+        # panel, so recording its verdict would let a later lookup skip a reel nobody actually
+        # looked at - the exact way footage gets abandoned. [[unknown-stays-unknown]]
+        if every_frame and remember_to is not False:
+            try:
+                kinds = {}
+                for f in out["keep"]:
+                    if os.path.dirname(f) == d:
+                        kinds["panel"] = kinds.get("panel", 0) + 1
+                remember(d, hits, len(fs), kinds, root=(remember_to or None))
+            except Exception:
+                pass
         if on_reel:
             try:
                 on_reel(d, hits, len(fs))
@@ -127,6 +207,35 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
                       % (out["frames"], out["reels"], out["seconds"], out["panels"],
                          len(out["dispose"]), out["disposeMb"]))
     return out
+
+
+def order_by_known_worth(dirs, root=None, fallback=None):
+    """Put reels a FULL structural pass found panels in first. -> [dir, ...]
+
+    This is the free half of the panel-density idea. `vault_retro.order_reels(dirs, panel_gate)`
+    already sorts by measured density and is CORRECT, but it measures on the spot: up to 24 gate
+    calls per reel at ~0.5-1.3 s each, which over 400 reels is hours every time anyone asks for a
+    quote. That is why its call site passes no gate and the ordering has been running blind.
+
+    Surveying once and remembering turns the same question into a dictionary lookup.
+
+    THREE GROUPS, in this order, and the middle one is the point:
+      1. surveyed and HAS panels      - read these first, they are where the names are
+      2. NOT SURVEYED YET             - unknown, and unknown outranks known-empty
+      3. surveyed and has NO panels   - looked at, nothing there
+    A reel nobody has surveyed must never sort behind one that was surveyed and found empty;
+    that would let an unlooked-at reel sink to the bottom forever. [[unknown-stays-unknown]]
+    """
+    blob, ok = load(root)
+    if not ok:
+        return list(fallback(dirs) if fallback else dirs)      # store unreadable: change nothing
+    def rank(d):
+        row = blob.get(os.path.basename(d))
+        if not row or not row.get("full"):
+            return 1                                            # unknown
+        return 0 if row.get("panels") else 2
+    base = list(fallback(dirs) if fallback else dirs)
+    return sorted(base, key=rank)                               # stable: ties keep caller order
 
 
 def manifest(survey_out):

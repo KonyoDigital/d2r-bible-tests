@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2365",
+  "ver": "v2366",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2365: 401 of 411 reels were never read; the structural gate finds what is worth paying for",
+  "note": "v2366: surveying once turns an hours-long ordering question into a dictionary lookup",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

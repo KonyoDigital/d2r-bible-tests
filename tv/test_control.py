@@ -36540,5 +36540,84 @@ class TestV2365StructuralTriageNeverDisposesFromASample(unittest.TestCase):
 
 
 
+class TestV2366TheFreePassIsRememberedAndConsulted(unittest.TestCase):
+    """The join that makes the structural filter usable instead of theoretical.
+
+    `vault_retro.order_reels(dirs, panel_gate)` has sorted by measured panel density since it was
+    written, and its call site in control_app passes NO GATE - so only the mini-first half ever
+    ran. That was a reasonable choice: `panel_density` samples up to 24 frames per reel at
+    ~0.5-1.3 s each, so gating a quote on it would cost HOURS every time anyone asked.
+
+    Surveying once and REMEMBERING turns the same question into a dictionary lookup.
+
+    THREE GROUPS, and the middle one is the whole point:
+        1. surveyed, HAS panels        - read these first
+        2. NOT SURVEYED                - unknown outranks known-empty
+        3. surveyed, has NO panels     - looked at, nothing there
+    A reel nobody has surveyed must never sort behind one that was surveyed and found empty, or
+    an unlooked-at reel sinks to the bottom forever. [[unknown-stays-unknown]]
+    """
+
+    def _mk(self, root, name):
+        d = os.path.join(root, name)
+        os.makedirs(d, exist_ok=True)
+        with io.open(os.path.join(d, "f_1787522052380.jpg"), "w", encoding="utf-8") as fh:
+            fh.write("x")
+        return d
+
+    def test_a_sample_is_never_remembered(self):
+        """The safety property. A sampled pass must leave worth_reading at None, so a later
+        lookup cannot skip a reel nobody actually looked at."""
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="t2366a_")
+        d = self._mk(root, "reel_s_1_1")
+        rt.survey([d], lambda p: None, every_frame=False, per_reel_sample=1, remember_to=root)
+        self.assertIsNone(rt.worth_reading(d, root=root),
+                          "a SAMPLE recorded a verdict - a later lookup would skip a reel that "
+                          "was never fully looked at")
+
+    def test_a_full_pass_is_remembered_both_ways(self):
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="t2366b_")
+        yes, no = self._mk(root, "reel_s_2_1"), self._mk(root, "reel_s_2_2")
+        rt.survey([yes], lambda p: "stash", every_frame=True, remember_to=root)
+        rt.survey([no], lambda p: None, every_frame=True, remember_to=root)
+        self.assertIs(rt.worth_reading(yes, root=root), True)
+        self.assertIs(rt.worth_reading(no, root=root), False,
+                      "a reel fully looked at with no panel must record FALSE, not None - "
+                      "otherwise the expensive pass is paid for twice")
+
+    def test_unsurveyed_outranks_known_empty(self):
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="t2366c_")
+        has, empty, unknown = (self._mk(root, "reel_A"), self._mk(root, "reel_B"),
+                               self._mk(root, "reel_C"))
+        rt.survey([has], lambda p: "stash", every_frame=True, remember_to=root)
+        rt.survey([empty], lambda p: None, every_frame=True, remember_to=root)
+        order = rt.order_by_known_worth([empty, unknown, has], root=root)
+        self.assertEqual([os.path.basename(d) for d in order], ["reel_A", "reel_C", "reel_B"])
+
+    def test_an_unreadable_store_changes_nothing(self):
+        """A lookup that fails must not reorder his work on a guess."""
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="t2366d_")
+        bad = tempfile.mkdtemp(prefix="t2366e_")
+        with io.open(os.path.join(bad, rt.STORE), "w", encoding="utf-8") as fh:
+            fh.write("{ not json")
+        dirs = [self._mk(root, "reel_X"), self._mk(root, "reel_Y")]
+        self.assertEqual(rt.order_by_known_worth(dirs, root=bad), dirs)
+        self.assertIsNone(rt.worth_reading(dirs[0], root=bad),
+                          "an unreadable store must answer NOT ESTABLISHED, never False")
+
+    def test_the_call_site_actually_consults_it(self):
+        """Without this the store is a file nobody reads. [[the-unjoined-end]]"""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        self.assertIn("_triage_order(_vr.order_reels(dirs))", src,
+                      "the sweep's reel ordering no longer consults the free structural pass")
+        self.assertIn("import retro_triage as _rt", src,
+                      "nothing imports retro_triage in production - it is a module nobody asks")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

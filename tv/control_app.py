@@ -15244,6 +15244,16 @@ def _mc_is_real_item(name):
     return str(name or "").strip().lower() in _MC_ROSTER
 
 
+def _triage_order(dirs):
+    """Reorder reels by what the FREE structural pass already learned. Never raises, never
+    reorders on a store it could not read - a lookup that fails must change nothing."""
+    try:
+        import retro_triage as _rt
+        return _rt.order_by_known_worth(dirs)
+    except Exception:
+        return dirs
+
+
 def _mini_cells_from_live_frame(container="stash"):
     """Which cells hold items, read off the newest live frame. -> (cells|None, why)
 
@@ -15960,7 +15970,13 @@ def _vault_scan_cost_inner(hist_dir=None, limit=None):
     return {
         "ok": True,
         "why": res.get("why") or "",
-        "reels": [os.path.basename(d) for d in _vr.order_reels(dirs)[:40]],   # mini-first order
+        # v2366 — MINI-FIRST, THEN WHAT THE FREE PASS ALREADY LEARNED. order_reels was
+        # called with no panel_gate, so it could only do the mini-first half and the
+        # density half never ran. Gating it here would cost hours per quote (up to 24 OCR
+        # calls per reel over 400 reels); retro_triage remembers a full pass instead, so
+        # this is a dictionary lookup. A reel nobody surveyed still outranks one surveyed
+        # and found empty.
+        "reels": [os.path.basename(d) for d in _triage_order(_vr.order_reels(dirs))[:40]],
         "totals": t,
         "savedPct": round(100.0 * (1 - (calls / seen)), 1) if seen else 0.0,
         "wouldRead": calls,
@@ -20739,7 +20755,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2365",
+        "ver": "v2366",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
