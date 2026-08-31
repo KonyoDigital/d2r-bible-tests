@@ -9478,6 +9478,17 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <div id="vault-socketed" class="vault-throwout" hidden></div>
       <!-- v366: dedicated Throw-Out Review — standalone, LEFT AS-IS per Konyo -->
       <div id="vault-throwout" class="vault-throwout" hidden></div>
+      <!-- ══ v2342 — THE SUGGESTIONS THE BANNER COUNTED AND NOTHING LISTED ═══════════════════
+           Konyo, on 15 items sitting in the dock: "how come these arent sorted to mules or
+           throwout?" The banner said "15 suggested for throw-out (nothing binned)" and there was
+           no list anywhere in the vault. The names WERE recorded — in the CHRONICLE ledger, with
+           the reason and a 🗑 pill — but he was looking at the Vault, and the Vault had only a
+           number. #vault-throwout above is a DIFFERENT thing: it renders unknownReads, names the
+           reader could not resolve. His 15 are all known uniques the planner routed to __throwout,
+           which is why they never appeared there.
+           A decision made, counted, logged, and given no surface where the person making it is
+           standing. [[plumbing-with-no-tap]] [[the-unjoined-end]] -->
+      <div id="vault-suggested" class="vault-throwout" hidden></div>
       <!-- v342.15: shared-stash advisory ("don't mule these") -->
       <div id="vault-keep" class="vault-keep" hidden></div>
       <div class="vault-detail" id="vault-detail" hidden></div>
@@ -33114,6 +33125,21 @@ body{
 .vault-registered{margin:0 0 14px;width:100%}
 /* v366 — dedicated Throw-Out Review gallery: screenshot-synced cards for discarded reads */
 .vault-throwout{margin:0 0 14px;width:100%}
+/* v2342 — the throw-out SUGGESTION list. Its own classes because it is not the unknownReads
+   panel: these are names the reader resolved perfectly well and the planner judged not worth
+   keeping, so they carry a name and a reason rather than a screenshot. Weights go through the
+   --fw-* tokens; a raw font-weight here is what visual-lock refuses. */
+#vault-suggested{border:1px solid rgba(240,192,96,.22);border-radius:10px;padding:10px 12px;
+  background:rgba(30,24,12,.34)}
+#vault-suggested .vt-h{font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);
+  font-size:15px;color:#f0c060;margin-bottom:2px}
+#vault-suggested .vt-sub{color:#9a8c72;font-size:11.5px;line-height:1.45;margin-bottom:8px}
+#vault-suggested .vt-row{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.06)}
+#vault-suggested .vt-row:last-child{border-bottom:0}
+#vault-suggested .vt-nm{color:#e8dcc0;font-weight:var(--fw-medium);min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+#vault-suggested .vt-why{color:#8a7d64;font-size:11px;line-height:1.4}
 /* v1984 — the lane-lock panel. Deliberately quiet: it is a record of HIS decisions, not an alert. */
 .vault-lane-locks{margin:0 0 12px;padding:9px 12px;border:1px solid var(--border-light);border-radius:10px;background:rgba(255,255,255,.02)}
 .vll-h{font-weight:var(--fw-medium);font-size:var(--fs-micro);letter-spacing:.03em}
@@ -34501,6 +34527,42 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v366 — DEDICATED Throw-Out Review: its own section that VISUALLY shows each discarded read paired with
   // the SOURCE SCREENSHOT it came from (synced from the per-screenshot breakdown) + a description, so Konyo
   // can see exactly what's being thrown out and recover a misread (🔮 keep) or confirm a discard (✕).
+  /* ══ v2342 — THE LIST BEHIND THE NUMBER ═════════════════════════════════════════════════════
+     "15 suggested for throw-out (nothing binned)" was the whole of it: a tally with nothing to
+     open. The names were logged to the CHRONICLE ledger with a 🗑 pill and their reason, which is
+     the right record and the wrong PLACE — he was standing in the Vault.
+
+     ⚠ IT LISTS AND IT DOES NOT ACT, and that is deliberate. A throw-out is the one call with no
+     undo (bible.html says so at suggestMule: "IT IS A DRAWER, NOT A DELETION"), so this shows him
+     what the planner would vendor and why, and leaves every existing control exactly where it
+     was. Nothing here removes anything.
+
+     Distinct from #vault-throwout above, which renders unknownReads — names the reader could not
+     resolve. These are names it resolved perfectly well and judged not worth keeping, and that is
+     why they never appeared there. */
+  window.renderThrowSuggested = function(){
+    var el = document.getElementById('vault-suggested');
+    if (!el) return;
+    var rows = (window._vaultThrowSuggestions || []);
+    if (!rows.length){ el.hidden = true; el.innerHTML = ''; return; }
+    var shown = rows.slice(0, 60);
+    el.hidden = false;
+    el.innerHTML =
+      '<div class="vt-h">\ud83d\uddd1 ' + rows.length + ' suggested for throw-out</div>'
+      + '<div class="vt-sub">the planner would vendor these \u2014 nothing has been binned, and '
+      + 'nothing here removes anything. They stay in the dock until you file or delete them.</div>'
+      + shown.map(function(r){
+          // esc(), not _e(): the escaper in THIS scope is `function esc(t)` (~34345) and every
+          // neighbouring vault renderer uses it. `_e` is a loop variable in two unrelated places
+          // and is not defined here — the call would have thrown and the panel would simply never
+          // have appeared, which is the exact failure this panel exists to fix. [[the-unjoined-end]]
+          return '<div class="vt-row"><span class="vt-nm">' + esc(String(r.name || '')) + '</span>'
+               + '<span class="vt-why">' + esc(String(r.why || 'no reason recorded')) + '</span></div>';
+        }).join('')
+      + (rows.length > shown.length
+          ? '<div class="vt-sub">+ ' + (rows.length - shown.length) + ' more</div>' : '');
+  };
+
   function renderThrowoutReview(){
     var el=document.getElementById('vault-throwout'); if(!el) return;
     // v396.2 — RESCUE any RUNEWORD that's sitting in the throw-out pile from an OLD read (before runewords
@@ -36480,7 +36542,7 @@ window._laneLockRelease = function(name){
 };
 
 window.vaultAutoAssign = function(){
-    var n=0, suggested=0;
+    var n=0, suggested=0, suggestedRows=[];
     function _log(name, status, sg){
       try {
         if (typeof window.kaiChronicleRecord === 'function')
@@ -36502,7 +36564,10 @@ window.vaultAutoAssign = function(){
       if (_lk){ _log(name, 'lane-locked', { id:'', why:'last seen in your ' + _lk + ' — locked there, never suggested for a mule' }); return; }
       var sg = suggestMule(name);
       if (!sg) return;
-      if (sg.id === '__throwout'){ suggested++; _log(name, 'throw-suggested', sg); return; }
+      if (sg.id === '__throwout'){ suggested++;
+        // v2342 — KEEP THE NAME, not just the tally. A count is a claim he cannot check.
+        suggestedRows.push({ name: name, why: (sg && sg.why) || '' });
+        _log(name, 'throw-suggested', sg); return; }
       if (muleById(sg.id)){ assign[name] = sg.id; n++; _log(name, 'muled', sg); return; }
       /* ⚠ v1955 — RESTORING v409, WHICH I DELETED IN v1948 WHILE "ONLY" ADDING LOGGING.
          The original one-liner ended `else if (sg && sg.id === '__keep'){ assign[name]='__keep';
@@ -36521,6 +36586,7 @@ window.vaultAutoAssign = function(){
         _log(name, 'kept-in-inventory', sg);
       }
     });
+    try { window._vaultThrowSuggestions = suggestedRows.slice(); renderThrowSuggested(); } catch(e){}
     saveA(); renderVault(); status('⚖️ auto-assigned '+n+' item'+(n===1?'':'s')+(suggested?(' · '+suggested+' suggested for throw-out (nothing binned)'):''));
   };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
@@ -47661,7 +47727,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2341', name:'v2341 - A breaker that can open', date:'2026-08-31', note:'v2340 latched shut for ever and a success never cleared the refusal' };
+  window.D2R_BUILD = { id:'v2342', name:'v2342 - A sighting is not a stash claim', date:'2026-08-31', note:'the chronicle auto-accept filed every grail sighting into the vault with no provenance' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48147,12 +48213,39 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
             if (!fl[nm]) fl[nm] = (window._grailStamp ? window._grailStamp() : new Date().toLocaleString());
             _chLsSet('d2r_foundLog', fl);
             try { if (typeof _gFoundDirty === 'function') _gFoundDirty(); } catch(eD){}
-            try {
-              if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(nm, 'vault');
-            } catch(eR){}
-            try {
-              if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(nm);
-            } catch(eV){}
+            /* ══ v2342 — A GRAIL SIGHTING IS NOT A CLAIM THAT IT IS IN HIS STASH ══════════════
+               Konyo, looking at 15 items sitting unsorted in the vault: "how come these arent
+               sorted to mules or throwout? most are chronicles read wrong as vault items based on
+               what im seeing in the vault."
+
+               He is right, and this is the line. The AUTO path wrote BOTH ledgers for every
+               safe-auto-grail acceptance. v2194 justified that with "the row he is being asked
+               about came off a STASH-PANEL read, so the sighting establishes two facts" — and
+               that premise is true of the row a HUMAN is shown, not of this one. This branch
+               accepts sightings from anywhere the film looked, including an item on the ground
+               that he never picked up.
+
+               MEASURED before changing it: across his whole live tv/*.json, exactly TWO rows
+               carry a `loc` at all, and both say 'stash'. So for very nearly every sighting the
+               provenance is UNKNOWN — and "we do not know where it was seen" was being written
+               into the vault as "it is in your stash". That is the confident-and-wrong direction:
+               the chronicle claim (he FOUND it) is supported by the sighting; the vault claim (he
+               HOLDS it) is not.
+
+               So the Chronicle write above stays unconditional, and the vault write now needs the
+               sighting to say it was seen somewhere he keeps things. Unknown means Chronicle only.
+               His own three buttons (v2336) remain the way to file one deliberately, and nothing
+               here removes anything already filed. [[unknown-stays-unknown]] [[label-outlived-referent]] */
+            var _heldLoc = String(base.loc || '').toLowerCase();
+            var _seenInAContainerHeOwns = /stash|inventory|cube|equip|belt|mule|locker/.test(_heldLoc);
+            if (_seenInAContainerHeOwns){
+              try {
+                if (typeof window.tvChronicleRoute === 'function') window.tvChronicleRoute(nm, 'vault');
+              } catch(eR){}
+              try {
+                if (typeof window.tvVaultRegister === 'function') window.tvVaultRegister(nm);
+              } catch(eV){}
+            }
             _chLogUpsert(Object.assign({}, base, {
               name: nm, status: 'accepted', store: 'foundLog',
               why: triage.why || 'safe-auto-grail', auto: true, tier: base.tier || 'grail'

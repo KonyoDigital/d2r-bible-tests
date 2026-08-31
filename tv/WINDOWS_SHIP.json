@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2341",
+  "ver": "v2342",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2341: v2340 latched shut for ever and a success never cleared the refusal",
+  "note": "v2342: the chronicle auto-accept filed every grail sighting into the vault with no provenance",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

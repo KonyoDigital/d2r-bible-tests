@@ -34559,5 +34559,119 @@ class TestV2341FlushIsNeverCalledHoldingTheLock(unittest.TestCase):
 
 
 
+class TestV2342AGrailSightingIsNotAStashClaim(unittest.TestCase):
+    """Two defects behind one screenshot of 15 items stuck in the vault dock.
+
+    Konyo: "how come these arent sorted to mules or throwout? most are chronicles read wrong as
+    vault items based on what im seeing in the vault."
+
+    (1) THE VAULT CLAIM. The chronicle auto-accept path wrote BOTH ledgers for every
+        safe-auto-grail acceptance. v2194 justified that with "the row came off a STASH-PANEL
+        read" — true of the row a HUMAN is shown, not of this one, which accepts sightings from
+        anywhere the film looked including an item on the ground he never picked up.
+        MEASURED before changing it: across his whole live tv/*.json exactly TWO rows carry a
+        `loc` at all, and both say 'stash'. So for nearly every sighting the provenance is
+        UNKNOWN, and "we do not know where it was seen" was being written as "it is in your
+        stash". The chronicle claim is supported by the sighting; the vault claim is not.
+
+    (2) THE MISSING LIST. "15 suggested for throw-out (nothing binned)" was the whole of it —
+        a tally with nothing to open. The names went to the CHRONICLE ledger, which is the right
+        record and the wrong PLACE: he was standing in the Vault. #vault-throwout is a DIFFERENT
+        panel that renders unknownReads (names the reader could not resolve); his 15 are names it
+        resolved perfectly well. [[plumbing-with-no-tap]] [[unknown-stays-unknown]]
+    """
+
+    def _bible(self):
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        return io.open(p, encoding="utf-8").read()
+
+    @staticmethod
+    def _guarded_block(src):
+        """The body of `if (_seenInAContainerHeOwns){ ... }`, by brace balance.
+
+        ⚠ AN EARLIER VERSION OF THIS TEST ONLY CHECKED THAT THE NAME APPEARED, IN ORDER. The
+        sabotage rewrote the condition to `if (true){` and the test stayed GREEN — the VARIABLE is
+        still declared above, so both the string and its position survive a gate that no longer
+        gates anything. Presence is not enforcement; this reads the actual brace structure.
+        [[regression-guard]]
+        """
+        key = "if (_seenInAContainerHeOwns){"
+        i = src.index(key)
+        j = i + len(key)
+        depth, out = 1, []
+        while j < len(src) and depth:
+            c = src[j]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if not depth:
+                    break
+            out.append(c)
+            j += 1
+        return "".join(out)
+
+    def test_the_auto_accept_does_not_file_the_vault_without_provenance(self):
+        src = self._bible()
+        self.assertIn("if (_seenInAContainerHeOwns){", src,
+                      "the auto-accept files the vault again with no provenance check")
+        inside = self._guarded_block(src)
+        self.assertGreater(len(inside), 40, "the guarded block came back empty — check the anchor")
+        self.assertIn("tvVaultRegister", inside,
+                      "the vault write is not INSIDE the provenance gate, so it runs even when "
+                      "the sighting cannot say where the item was seen")
+        self.assertIn("tvChronicleRoute", inside,
+                      "the vault ROUTE escaped the gate — routing to 'vault' is the same claim")
+
+    def test_the_chronicle_write_stays_unconditional(self):
+        """The fix must not cost him grail ticks. He FOUND it either way."""
+        src = self._bible()
+        inside = self._guarded_block(src)
+        self.assertNotIn("d2r_foundLog", inside,
+                         "the Chronicle write moved INSIDE the provenance gate — a sighting proves "
+                         "he found it whatever container it was in, so gating it would cost him "
+                         "real grail ticks to fix a vault problem")
+        accept = _between(self, src, "if (triage.action === 'accept'){", "_chLogUpsert(",
+                          min_len=200, what="the chronicle auto-accept block")
+        self.assertIn("d2r_foundLog", accept,
+                      "the Chronicle write is gone from the accept path entirely")
+
+    def test_the_suggestions_keep_their_names_not_just_a_count(self):
+        src = self._bible()
+        self.assertIn("suggestedRows.push(", src,
+                      "the throw-out suggestions are back to being a bare tally — a count is a "
+                      "claim he cannot check")
+
+    def test_the_suggestion_panel_is_joined_end_to_end(self):
+        """markup -> collector -> renderer -> call site. [[the-unjoined-end]]"""
+        src = self._bible()
+        self.assertIn('id="vault-suggested"', src, "the panel markup is gone")
+        self.assertIn("window.renderThrowSuggested = function()", src, "the renderer is gone")
+        self.assertIn("renderThrowSuggested();", src, "nothing ever calls the renderer")
+        self.assertIn("window._vaultThrowSuggestions", src, "the renderer is handed nothing")
+
+    def test_the_renderer_uses_an_escaper_that_exists_in_its_scope(self):
+        """It first used `_e(`, which is a loop variable in two unrelated places and undefined
+        here. The call would have thrown and the panel would simply never have appeared — the
+        exact failure the panel exists to fix."""
+        src = self._bible()
+        blk = _between(self, src, "window.renderThrowSuggested = function()",
+                       "\n  };", min_len=200, what="renderThrowSuggested")
+        code = re.sub(r"/\*.*?\*/", " ", blk, flags=re.S)
+        code = re.sub(r"(?m)^\s*//.*$", " ", code)
+        self.assertNotIn("_e(", code,
+                         "renderThrowSuggested calls _e(), which is not defined in its scope")
+        self.assertIn("esc(", code, "it no longer escapes what it prints into innerHTML")
+
+    def test_an_empty_suggestion_list_hides_the_panel(self):
+        """Zero suggestions must show nothing, not an empty bordered box."""
+        src = self._bible()
+        blk = _between(self, src, "window.renderThrowSuggested = function()",
+                       "\n  };", min_len=200, what="renderThrowSuggested")
+        self.assertIn("el.hidden = true", blk,
+                      "an empty list leaves the panel up as an empty bordered box")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

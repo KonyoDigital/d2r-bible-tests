@@ -13869,3 +13869,43 @@ re-acquisition. A hang is the worst failure a lane can have, because nothing dow
 from slow. Documented at the lock and held by `TestV2341FlushIsNeverCalledHoldingTheLock`, which was
 sabotage-proven by applying exactly that wrap: it names the deadlock and the line. If real
 serialisation is ever wanted, change `_LOCK` to an `RLock` first.
+
+## REG-422 — a grail sighting was written into the Vault as "he holds this"
+
+Konyo, on 15 items stuck in the vault dock: *"how come these arent sorted to mules or throwout?
+most are chronicles read wrong as vault items based on what im seeing in the vault."* Two separate
+defects behind one screenshot.
+
+**(1) THE VAULT CLAIM.** The chronicle auto-accept path (`bible.html`, `triage.action === 'accept'`,
+`why: 'safe-auto-grail'`) wrote BOTH ledgers for every acceptance. v2194 justified that with *"the
+row he is being asked about came off a STASH-PANEL read, so the sighting establishes two facts"* —
+true of the row a HUMAN is shown, and not of this one, which accepts sightings from anywhere the
+film looked, including an item on the ground he never picked up.
+
+**MEASURED before changing it: across his entire live `tv/*.json`, exactly TWO rows carry a `loc`
+at all, and both say `'stash'`.** So for very nearly every sighting the provenance is UNKNOWN — and
+"we do not know where it was seen" was being written into the vault as "it is in your stash". The
+chronicle claim (he FOUND it) is supported by the sighting; the vault claim (he HOLDS it) is not.
+
+**Fixed v2342:** the Chronicle write stays unconditional; the vault write and route now require the
+sighting to name a container he owns. Unknown means Chronicle only. Nothing already filed is
+removed, and his three explicit buttons (v2336) remain the deliberate way to file one.
+
+**(2) THE MISSING LIST.** *"15 suggested for throw-out (nothing binned)"* was the whole of it — a
+tally with nothing to open. `auto-assign` kept `var n=0, suggested=0`, a COUNT, and logged the names
+to the CHRONICLE ledger with a 🗑 pill. The right record, the wrong PLACE: he was standing in the
+Vault. `#vault-throwout` is a DIFFERENT panel that renders `unknownReads` — names the reader could
+not resolve — and his 15 are names it resolved perfectly well and judged not worth keeping, which is
+why they never appeared there. **A decision made, counted, logged, and given no surface where the
+person making it is standing.** New `#vault-suggested` panel lists each name with its reason; it
+lists and does not act, because a throw-out has no undo.
+
+⚠ **The renderer first called `_e()`** — a loop variable in two unrelated places, undefined in that
+scope. It would have thrown and the panel would never have appeared, which is the exact failure the
+panel exists to fix. The neighbouring vault renderers use `esc()`.
+
+⚠ **And the sabotage caught two toothless guards of mine.** Both asserted that
+`_seenInAContainerHeOwns` appeared *in order* — so rewriting the condition to `if (true){` left them
+GREEN, because the variable is still declared above. Presence is not enforcement. They now read the
+actual brace structure and assert the vault write is INSIDE the gate and the Chronicle write is
+OUTSIDE it.
