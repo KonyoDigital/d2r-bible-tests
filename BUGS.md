@@ -14144,6 +14144,40 @@ INVENTORY itself can be opened separately with its own template"*. Chrome presen
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
 
+## REG-432 - 20 ZOMBIE CHILDREN AFTER 20 HOURS, AND NOTHING ANYWHERE MOVED
+
+Measured on his live console 2026-08-31 while he was playing: 23 children of pid 77867, of which
+**20 were `<defunct>`**, etimes spread from 1h48m to 15h45m. Found while chasing a load average
+of 34 - which turned out to be legitimate (D2R at 260%, a real chronicle sweep buying real
+reads). The zombies were the incidental find, and the more interesting one.
+
+**Two causes, the same mistake in two shapes:**
+
+1. **Eight bare `subprocess.Popen([...])`** in `control_app.py` whose object is discarded - every
+   one an `open` / `xdg-open` launcher. Nothing can ever `wait()` a Popen nobody kept.
+2. **`p.wait(timeout=2)` inside `except Exception: pass`**, in `tv_diablo.py` - and in TWO worker
+   classes, both leaking identically. A child that outlives its own SIGKILL deadline is then
+   never collected again.
+
+**Why it survived twenty hours in plain sight: a zombie burns no CPU.** The process table fills
+up quietly, no dashboard moves, and nothing complains until PIDs run out. Absence of a symptom
+is not absence of a fault. [[feedback-silence-is-not-evidence]]
+
+**Fixed v2352.** `_spawn_and_reap()` Popens and hands the wait to a daemon thread, so the caller
+stays fire-and-forget while the kernel still gets its `wait()`; all 8 sites routed through it.
+Both `stop()` copies now hand a past-deadline child to a reaper thread instead of `pass`.
+
+Proven on real processes before shipping:
+
+```
+unreaped pid=65796  ps stat='ZN'  -> ZOMBIE
+reaped   pid=65797  ps stat=''    -> gone
+```
+
+**Guards:** `TestV2352NothingIsSpawnedWithoutBeingReaped` - 3 cases, all proven RED. One of them
+pins that BOTH copies of the kill-deadline handler reap, because fixing one and leaving its twin
+is the failure this repo keeps paying for. [[copy-drift]]
+
 ## REG-430 - THE SELF-HEAL LATCHED SHUT, AND THE PAGE WAS THE ONLY WITNESS IT ASKED
 
 **Reported by Konyo, 2026-08-31:** *"again my console is black... but its still showing me items

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2350"   # MINI automatic, joined
+VERSION = "v2352"   # Nothing spawns without being reaped
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -3159,7 +3159,17 @@ class VisionWorker:
             try:
                 p.wait(timeout=2)
             except Exception:
-                pass
+                # v2352 — A SWALLOWED wait() TIMEOUT IS A ZOMBIE FOR EVER. If the child has not
+                # died 2s after SIGKILL (uninterruptible IO, a stuck read), this used to `pass`
+                # and nothing ever collected the exit status again. Hand it to a thread that
+                # waits without a deadline: the caller keeps its 2s bound and the kernel still
+                # gets its wait(). Measured on his console: 20 <defunct> children after 20h.
+                # ⚠ THIS BLOCK EXISTS TWICE, in two different worker classes, and both leaked.
+                try:
+                    threading.Thread(target=(lambda pr: pr.wait()), args=(p,), daemon=True,
+                                     name="reap-warm-child").start()
+                except Exception:
+                    pass
             for stream in (p.stdin, p.stdout, p.stderr):
                 try:
                     if stream:
@@ -3968,7 +3978,17 @@ class OcrWorker:
             try:
                 p.wait(timeout=2)
             except Exception:
-                pass
+                # v2352 — A SWALLOWED wait() TIMEOUT IS A ZOMBIE FOR EVER. If the child has not
+                # died 2s after SIGKILL (uninterruptible IO, a stuck read), this used to `pass`
+                # and nothing ever collected the exit status again. Hand it to a thread that
+                # waits without a deadline: the caller keeps its 2s bound and the kernel still
+                # gets its wait(). Measured on his console: 20 <defunct> children after 20h.
+                # ⚠ THIS BLOCK EXISTS TWICE, in two different worker classes, and both leaked.
+                try:
+                    threading.Thread(target=(lambda pr: pr.wait()), args=(p,), daemon=True,
+                                     name="reap-warm-child").start()
+                except Exception:
+                    pass
             for stream in (p.stdin, p.stdout, p.stderr):
                 try:
                     if stream:

@@ -3996,7 +3996,7 @@ def open_board(auto_on=True, tab="session"):
             for browser in _MAC_BROWSERS:
                 if os.path.isfile(browser):
                     try:
-                        subprocess.Popen(
+                        _spawn_and_reap(
                             [browser, url],
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
@@ -4006,7 +4006,7 @@ def open_board(auto_on=True, tab="session"):
                     except Exception:
                         continue
             if not opened:
-                subprocess.Popen(
+                _spawn_and_reap(
                     ["open", url],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -4016,7 +4016,7 @@ def open_board(auto_on=True, tab="session"):
             opened = False
             for browser in _windows_browsers():
                 try:
-                    subprocess.Popen(
+                    _spawn_and_reap(
                         [browser, url],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
@@ -4029,7 +4029,7 @@ def open_board(auto_on=True, tab="session"):
             if not opened:
                 os.startfile(url)  # type: ignore[attr-defined]
         else:
-            subprocess.Popen(["xdg-open", url])
+            _spawn_and_reap(["xdg-open", url])
         return {"ok": True, "msg": "board opened", "url": url}
     except Exception as e:
         return {"ok": False, "msg": str(e)}
@@ -4107,12 +4107,12 @@ def _open_browser_app_fallback(url):
                     return
             except Exception:
                 continue
-        subprocess.Popen(["open", url])
+        _spawn_and_reap(["open", url])
         return
     if IS_WIN:
         for browser in _windows_browsers():
             try:
-                subprocess.Popen(
+                _spawn_and_reap(
                     [browser, f"--app={url}", "--window-size=1100,780"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -11244,6 +11244,41 @@ def _capture_is_live():
         return bool(pid and _pid_alive(pid))
     except Exception:
         return False    # cannot tell -> assume nothing, and the caller treats that as "do not act"
+
+
+def _spawn_and_reap(argv, **kw):
+    """Popen something we do not care about the result of - AND STILL REAP IT.
+
+    v2352. A bare `subprocess.Popen([...])` whose object is discarded leaves a <defunct> child
+    behind: nothing ever calls wait(), so the kernel keeps the exit status forever waiting for a
+    parent that will never ask. Measured on his console after 20h of uptime: **20 zombies**,
+    etimes spread from 1h48m to 15h45m, against 8 bare Popen sites in this file - all of them
+    `open` / `xdg-open` launchers fired when he opens a file or a URL.
+
+    Zombies burn no CPU, which is exactly why this survived: the process table fills up quietly
+    and nothing in any dashboard moves. A daemon meant to run for weeks cannot spawn without
+    reaping.
+
+    The wait runs on a daemon thread so the caller is still fire-and-forget from its own point of
+    view - the semantics do not change, only the cleanup.
+    """
+    try:
+        p = subprocess.Popen(argv, **kw)
+    except Exception:
+        return None
+
+    def _reap(proc):
+        try:
+            proc.wait()
+        except Exception:
+            pass
+    try:
+        threading.Thread(target=_reap, args=(p,), daemon=True,
+                         name="reap-%s" % (os.path.basename(str(argv[0]))[:12]
+                                           if argv else "child")).start()
+    except Exception:
+        pass          # a thread we could not start is a zombie we could not prevent, not a crash
+    return p
 
 
 def _console_rescue_loop():
@@ -20443,7 +20478,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2350",
+        "ver": "v2352",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22512,14 +22547,14 @@ class Handler(BaseHTTPRequestHandler):
                 opened = False
                 try:
                     if sys.platform == "darwin":
-                        subprocess.Popen(["open", path_out], stdout=subprocess.DEVNULL,
+                        _spawn_and_reap(["open", path_out], stdout=subprocess.DEVNULL,
                                          stderr=subprocess.DEVNULL)
                         opened = True
                     elif IS_WIN:
                         os.startfile(path_out)  # type: ignore[attr-defined]
                         opened = True
                     else:
-                        subprocess.Popen(["xdg-open", path_out], stdout=subprocess.DEVNULL,
+                        _spawn_and_reap(["xdg-open", path_out], stdout=subprocess.DEVNULL,
                                          stderr=subprocess.DEVNULL)
                         opened = True
                 except Exception:

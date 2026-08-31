@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2350",
+  "ver": "v2352",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2350: the hover actuator had zero callers so the mode did not exist - route, button and live status now join it",
+  "note": "v2352: 20 defunct children after 20h - 8 discarded Popens and two swallowed kill deadlines",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

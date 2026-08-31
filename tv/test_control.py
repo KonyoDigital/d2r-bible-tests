@@ -35580,5 +35580,64 @@ class TestV2351TheGameWindowIsNotOnLayerZero(unittest.TestCase):
 
 
 
+class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
+    """REG-432. His console had 20 <defunct> children after 20 hours of uptime.
+
+    Measured 2026-08-31 while he was playing: 23 children of the console process, of which
+    **20 were zombies**, etimes spread from 1h48m to 15h45m. Two causes, both of them the same
+    mistake in different words:
+
+      1. Eight bare `subprocess.Popen([...])` calls whose object is discarded - all `open` /
+         `xdg-open` launchers. Nothing can ever wait() a Popen nobody kept.
+      2. `p.wait(timeout=2)` inside `except Exception: pass` in TWO worker classes. A child that
+         outlives its own SIGKILL deadline is then never collected again.
+
+    A zombie burns no CPU, which is precisely why this survived twenty hours in plain sight: the
+    process table fills quietly and nothing on any dashboard moves. A daemon meant to run for
+    weeks may not spawn without reaping. [[feedback-silence-is-not-evidence]]
+
+    Proven on real processes before shipping:
+        unreaped pid  ps stat='ZN'  -> ZOMBIE
+        reaped   pid  ps stat=''    -> gone
+    """
+
+    def test_no_bare_fire_and_forget_popen_survives(self):
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        bare = [i for i, l in enumerate(src.split("\n"), 1)
+                if l.strip().startswith("subprocess.Popen(")]
+        self.assertEqual(bare, [],
+                         "bare subprocess.Popen at line(s) %s - the object is discarded, so "
+                         "nothing can ever wait() it and it becomes a <defunct> child. Use "
+                         "_spawn_and_reap()." % bare)
+
+    def test_the_reaper_exists_and_actually_waits(self):
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        self.assertIn("def _spawn_and_reap(", src, "the reaper is gone")
+        blk = _between(self, src, "def _spawn_and_reap(", "def _console_rescue_loop(",
+                       min_len=150, what="the reaper")
+        self.assertIn("proc.wait()", blk,
+                      "the reaper no longer waits - it is a Popen wrapper that reaps nothing")
+        self.assertIn("daemon=True", blk,
+                      "the wait must run on a daemon thread, or the caller stops being "
+                      "fire-and-forget and a hung child holds shutdown open")
+
+    def test_a_swallowed_kill_deadline_no_longer_leaks(self):
+        """BOTH copies. This block exists twice, in two worker classes, and both leaked - fixing
+        one and leaving its twin is the failure this repo keeps paying for. [[copy-drift]]"""
+        src = _code_only(io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8").read())
+        self.assertEqual(src.count("p.wait(timeout=2)"), 2,
+                         "the number of kill-deadline waits changed; re-check both copies")
+        self.assertEqual(src.count("reap-warm-child"), 2,
+                         "only %d of the 2 kill-deadline handlers reap a child that outlived "
+                         "its deadline" % src.count("reap-warm-child"))
+        import re
+        for m in re.finditer(r"p\.wait\(timeout=2\)\s*\n\s*except Exception:\s*\n(\s*)(\S.*)",
+                             src):
+            self.assertNotIn("pass", m.group(2),
+                             "a kill-deadline timeout is swallowed again - that child is a "
+                             "zombie for the life of the process")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
