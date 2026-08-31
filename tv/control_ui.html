@@ -5563,6 +5563,24 @@
   .fleet-bar .fb-x { padding: 5px 9px; opacity: .7; }
 </style>
 </head>
+<style>
+/* v2362 — A SHADOW LANE IS NOT A TOUR. It runs so the readers have footage, not so he watches
+   it. Same reel machinery, deliberately different presentation: the stage is not painted and
+   the live dot does not pulse, because a background lane that looks identical to a session he
+   started is a lane he will reasonably believe he started. Everything else on the page stays
+   exactly where it is - this hides the FILM, never the controls or the numbers. */
+body[data-origin="shadow"] #stage > .film,
+body[data-origin="shadow"] #stage video,
+body[data-origin="shadow"] #stage img.live { visibility: hidden !important; }
+body[data-origin="shadow"] .live-bug .dot { animation: none !important; opacity: .55; }
+body[data-origin="shadow"] #stage::after {
+  content: "SHADOW READER · filming for the readers, not for you";
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  /* the declared floor is --fs-2xs (13px); a raw 12px here failed TestV1504TypeFloor */
+  text-align: center; letter-spacing: .12em; font-size: var(--fs-2xs); opacity: .5;
+  pointer-events: none;
+}
+</style>
 <body data-state="off">
   <div class="shell">
 
@@ -7628,10 +7646,19 @@
       window.__offN = 0;   // v899 — farewell finished → drop to STANDBY immediately
     } else { window.__offN = 0; }
     document.body.setAttribute('data-state', state);
+    /* ══ v2362 — WHOSE SESSION IS THIS? ═══════════════════════════════════════════════════════
+       Konyo: "i dint click on air.. its a session on air.. but shadow reader is suppose to be
+       behind the scenees it snot really suppose to show me the vidfeo reels like the other
+       toures". He had not clicked it. The shadow watcher starts a reel through the SAME
+       start_agent() a hand click uses, and nothing downstream could tell them apart - so a
+       background lane presented as a full tour: red dot, theatre, live film.
+       The server now says who asked (v2362); the console stops presenting them identically. */
+    try { document.body.setAttribute('data-origin', String(st.origin || '')); } catch(e){}
     try { if (typeof TH !== 'undefined' && TH.open && typeof thRibbon === 'function') thRibbon(); } catch(e){}   // v940.5 — going ON AIR under the theatre flips the ribbon to its background-recording variant
     try { if (typeof hdRefresh === 'function') hdRefresh(st); } catch(e){}   // v903 — motherboard feeds
 
-    $('bug-txt').textContent = stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
+    var _shadowRun = !!st.isShadow;
+    $('bug-txt').textContent = _shadowRun ? 'SHADOW' : stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
 
     // v846 — creative, professional phase labels (short). Giant word only when film is OFF.
     var rawPhase = stopping ? 'signing' : (state === 'sim' ? 'sim' : (on ? String(st.phase || 'watching').toLowerCase() : 'standby'));

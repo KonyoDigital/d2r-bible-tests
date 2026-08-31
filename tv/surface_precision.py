@@ -1,61 +1,80 @@
 """What is a name WORTH, given the lane that read it and the surface it was read off?
 
-⚠ THE v2354 TABLE IS RETRACTED. It claimed denominators - deep/chronicle 61, ocr/gameplay 366,
-deep/stash 25 - that a careful re-measurement on the same journal CANNOT REPRODUCE. Asked twice,
-by two independently written expressions, deep/chronicle comes back as 10, not 61. I could not
-reconstruct how the larger numbers arose, so they are withdrawn rather than defended. REG-439.
+⚠ REG-439 RETRACTED v2354's FIGURES, AND THAT RETRACTION WAS ITSELF WRONG. v2354 measured the
+journal when `sessions.jsonl` held ~5,761 rows. By the time I "re-derived" it the file had
+ROTATED to 860 rows while `sessions.1.jsonl` quietly held 7,103 - and `_journal_path()` returns
+only the current generation. So the smaller table was not a correction, it was the same query
+run against a fifth of the evidence. REG-440.
 
-RE-DERIVED 2026-08-31 over 5,761 journal rows, judged against 672 roster names (uniques + set
-pieces + set names + the 105 RUNEWORDS that had no roster at all until v2361 and so scored zero
-by construction). Counted over DISTINCT names; 275 sightings placed on a segment, 98 unplaceable:
+Measured 2026-08-31 over the WHOLE RING (7,980 rows; 1,359 name-sightings placed on a segment),
+judged against 672 roster names (uniques + set pieces + set names + the 105 runewords that had no
+roster at all until v2361). Five of v2354's entries reproduce EXACTLY - deep/inventory 1/11,
+deep/gameplay 0/38, ocr/stash 0/27, ocr/inventory 0/17, deep/loot 0/5 - and the rest have simply
+grown, because he has been playing:
 
     lane   surface       real   seen   Wilson lower (95%)
-    deep   chronicle        7     10       0.3968
-    ocr    gameplay         0    201       0.0000
-    ocr    (no scene)       0     93       0.0000
-    ocr    chronicle        0      5       0.0000
-    ocr    town             0      1       0.0000
+    deep   chronicle       45     74       0.4942
+    deep   stash            4     25       0.0640
+    deep   inventory        1     11       0.0162
+    deep   gameplay         0     38       0.0000
+    ocr    gameplay         1    583       0.0003
+    ocr    (no scene)       0    359       0.0000
+    ocr    transition       0     64       0.0000
+    ocr    town             0     49       0.0000
+    ocr    chronicle        0     37       0.0000
+    ocr    stash            0     27       0.0000
+    ocr    inventory        0     17       0.0000
+    deep   loot             0      5       0.0000
 
-WHAT SURVIVES THE CORRECTION, and it is the actionable half: **the `ocr` lane has produced zero
-real item names across 300 placed sightings.** OCR earns its keep on STRUCTURE - is a panel open,
-which tab - and nothing at all on NAMES. The lane design already held that ocr is provisional and
-never reaches the register; this is that design confirmed by measurement.
+TWO FINDINGS, AND THE SECOND INVERTS THE OBVIOUS READING.
 
-WHAT DOES NOT SURVIVE: any claim about stash, inventory or the deep lane on gameplay. There is
-not enough placed evidence to say anything about them, and `MIN_SAMPLES` now correctly answers
-NOT ESTABLISHED for every one - which means `witnesses_required` returns the cautious default of
-2 almost everywhere. That is the honest state of this measurement, not a failure of it.
+**1. The `ocr` lane has produced ONE real item name in 1,136 placed sightings** - `WIzENDRAW`, a
+garble that case-folded onto a real name. OCR earns its keep on STRUCTURE (is a panel open, which
+tab) and nothing at all on NAMES. The lane design already held that ocr is provisional and never
+reaches the register; this is that design confirmed by measurement rather than assertion.
 
-⚠ A ZERO FROM FIVE SAMPLES IS NOT A ZERO FROM 201. Anything under MIN_SAMPLES answers None and is
+**2. A CHRONICLE PAGE IS THE BEST NAMING SURFACE THERE IS, not the worst** - 45 real of 74, an
+order of magnitude better than anywhere else, because it is a menu of clean rendered text. What
+it must never do is imply POSSESSION: it lists items he does not own. Precision and provenance
+are ORTHOGONAL, `_vaultMayClaim` answers only the second, and a gate built on "chronicle = bad"
+would have discarded his best source. [[d2r-vault-routing]]
+
+⚠ A ZERO FROM FIVE SAMPLES IS NOT A ZERO FROM 583. Anything under MIN_SAMPLES answers None and is
 still READ - a gate that refuses to pay for what it has not measured can never measure it.
 [[unknown-stays-unknown]]
+
+⚠ AND EVERY MEASUREMENT OVER HIS JOURNAL MUST READ THE RING. Three separate "contradictions"
+during this arc were one cause: a query answered differently before and after a rotation.
 """
 
 MIN_SAMPLES = 30          # below this we have not looked enough to say anything
 
 # (real, seen) keyed by (lane, surface) — the 2026-08-31 corpus. Rebuild with recount().
 OBSERVED = {
-    # ⚠ v2361 — RE-DERIVED, AND SMALLER THAN WHAT v2354 SHIPPED. The v2354 table claimed
-    # denominators (deep/chronicle 61, ocr/gameplay 366, deep/stash 25 ...) that a careful
-    # re-measurement on the same journal CANNOT REPRODUCE: the same query, run twice by two
-    # different expressions, returns deep/chronicle = 10, not 61. I could not reconstruct how the
-    # larger figures arose, so they are retracted rather than defended. See REG-439.
+    # ⚠ v2362 — MEASURED OVER THE WHOLE JOURNAL RING. v2354's figures were CORRECT and the
+    # REG-439 retraction of them was itself wrong: it re-measured only `sessions.jsonl`, which
+    # had rotated from 5,761 rows to 860 while `sessions.1.jsonl` held 7,103. Five of v2354's
+    # entries reproduce EXACTLY over the ring (deep/inventory 1/11, deep/gameplay 0/38,
+    # ocr/stash 0/27, ocr/inventory 0/17, deep/loot 0/5); the rest have simply grown, because he
+    # has been playing. REG-440.
     #
-    # Derivation, so this is checkable rather than asserted: every journal row carrying `items`
-    # or `names`, timestamp parsed from `frameId` (both the bare `<n>_<ms>` and the
-    # `<reel>/f_<ms>` path form), placed with reel_segments.activity_at, counted over DISTINCT
-    # names, judged against uniques + set pieces + set names + RUNEWORDS (105 names that had no
-    # roster at all before v2361 and therefore scored zero by construction).
-    #
-    # 275 name-sightings placed on a segment; 98 could not be placed.
-    ("deep", "chronicle"):  (7, 10),
-    ("ocr", "gameplay"):    (0, 201),
-    ("ocr", "no-scene"):    (0, 93),
-    ("ocr", "chronicle"):   (0, 5),
-    ("ocr", "town"):        (0, 1),
+    # 7,980 rows across the ring; 1,359 name-sightings placed on a segment. Judged against 672
+    # roster names (uniques + set pieces + set names + the 105 runewords added in v2361).
+    ("deep", "chronicle"):  (45, 74),
+    ("deep", "stash"):      (4, 25),
+    ("deep", "inventory"):  (1, 11),
+    ("deep", "gameplay"):   (0, 38),
+    ("deep", "loot"):       (0, 5),
+    ("ocr", "gameplay"):    (1, 583),
+    ("ocr", "no-scene"):    (0, 359),
+    ("ocr", "transition"):  (0, 64),
+    ("ocr", "town"):        (0, 49),
+    ("ocr", "chronicle"):   (0, 37),
+    ("ocr", "stash"):       (0, 27),
+    ("ocr", "inventory"):   (0, 17),
 }
-CORPUS = {"rows": 5761, "roster": 672, "placed": 275, "unplaced": 98,
-          "measured": "2026-08-31 (re-derived; v2354's figures retracted, REG-439)"}
+CORPUS = {"rows": 7980, "roster": 672, "placed": 1359,
+          "measured": "2026-08-31 over the whole journal RING (REG-440)"}
 
 GOOD = 0.20        # Wilson lower at or above this: believable on its own
 WEAK = 0.01        # between WEAK and GOOD: needs corroboration

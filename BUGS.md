@@ -14144,6 +14144,86 @@ INVENTORY itself can be opened separately with its own template"*. Chrome presen
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
 
+## REG-441 - HE WAS ASKED TO FILE A GREY BASE IN HIS GRAIL
+
+Konyo, 2026-09-01: *"there are regular base items that are asking me to chronicle or vault which
+it should not to do either it should automatically throw this out to me"*.
+
+He photographed **`Full Helm`** and **`Bramble Mitts`** in the ruling inbox carrying the full
+Chronicle / Vault / Both / ignore row. The tooltip on one says it outright: *"Base Item · Base ·
+socketable · 50 str · lvl 42 · Elite Base Item · A normal/superior grey base"*. **A grey base can
+be neither a Chronicle tick nor a vault item**, so all four buttons were answers to a question
+with no correct answer.
+
+⚠ **THE ENGINE ALREADY KNEW.** `d2rInboxEngine` returns verdict `base-conflict`, action `hold`,
+for precisely these, and its own comment says the job is to carry `"game-says-unfound:<items>"`.
+The row was then pushed onto `kept` - which means "keep asking him" - and rendered exactly like a
+real find. The knowledge existed and the door ignored it. That is the same shape as every other
+defect in this arc: not a missing measurement, a measurement nobody asked.
+
+**Fixed v2363.** A `base-conflict` row now renders ONE honest button - *"got it, that is a base,
+not an item"* - with the reason in its title: the disagreement is about the UNIQUE that uses the
+base (`Duskdeep` for Full Helm, `Laying of Hands` for Bramble Mitts), not about the base.
+
+⚠ **The contradiction is KEPT, only the false choice is removed.** *"the game lists this base as
+NOT found, but your ledger has Duskdeep"* is real information and still shows. Dropping the row
+entirely would have been the easier fix and the wrong one - it would delete a signal he might
+act on. [[unknown-stays-unknown]]
+
+**Guards:** `TestV2363ABaseIsNotAGrailEntry` - 3 cases, 2 proven RED. One of them exists purely
+to check the fix did not eat the REAL ruling row: a normal name must still get all four buttons.
+
+## REG-440 - THE JOURNAL ROTATED UNDER MY MEASUREMENTS, AND A SESSION COULD NOT SAY WHO STARTED IT
+
+**Two findings. The first invalidates my own REG-439 retraction; the second is his.**
+
+### 1. `_journal_path()` is the CURRENT generation only - and it rotates
+
+His journal rotated mid-session: `sessions.jsonl` fell from **5,761 rows to 860** while
+`sessions.1.jsonl` quietly held **7,103**. Every measurement I ran through `_journal_path()` read
+only the live file, so the same query answered `deep/chronicle 61` in the afternoon and `10` in
+the evening.
+
+**I retracted a CORRECT measurement over that.** REG-439 withdrew v2354's precision table as
+"not reproducible". It was reproducible - I was asking a fifth of the evidence. Measured over the
+whole ring (7,980 rows, 1,359 placed sightings), **five of v2354's entries reproduce EXACTLY**:
+`deep/inventory 1/11`, `deep/gameplay 0/38`, `ocr/stash 0/27`, `ocr/inventory 0/17`,
+`deep/loot 0/5`. The rest have simply grown, because he has been playing. **REG-439's retraction
+is itself retracted**; the table is restored and improved.
+
+⚠ **AND IT IS A SHIPPED DEFECT, not only a measurement one.** `_sighting_loc` - the provenance
+resolver every vault gate leans on - read `_journal_path()` too. After a rotation, every frame
+older than it silently stopped resolving: no error, no empty result, provenance just quietly
+narrowed to whatever had been written since. Fixed to read the whole ring, with a single-file
+fallback for a machine that has no ring. Measured after: 64 of 844 sightings resolve where the
+live-file read found fewer, and `no_segments` fell to 32.
+
+**The lesson that generalises: three separate "contradictions" in this arc were one cause - a
+query answered before and after a rotation.** When two runs of the same measurement disagree,
+check whether the CORPUS moved before concluding the code did.
+[[feedback-contradiction-is-the-finding]] [[stale-reading]]
+
+### 2. Nothing recorded WHO started a reel
+
+Konyo, 2026-08-31: *"i dint click on air.. its a session on air.. but shadow reader is suppose to
+be behind the scenees it snot really suppose to show me the vidfeo reels like the other toures"*.
+
+He had not clicked it. `shadow_watch_tick()` starts a reel through **the same `start_agent()` a
+hand click uses, with the same arguments** - so nothing downstream could tell them apart: not the
+state, not the session row, not the console. A background lane therefore presented as a full
+tour: red dot, theatre, live film.
+
+**Fixed v2362.** `start_agent(..., origin="hand"|"shadow"|"mini")`; the shadow watcher and MINI
+now say who they are; `/api/status` publishes `origin` and `isShadow`; the console carries it on
+`body[data-origin]` and a shadow lane no longer paints the stage - the placard reads SHADOW and
+the film is suppressed. **The default is `hand` on purpose:** an unlabelled caller is a person
+until it says otherwise, because presenting HIS session quietly would be the worse of the two
+mistakes.
+
+**Guards:** `TestV2362TheRingAndWhoStartedTheReel` - 5 cases, proven RED where a sabotage
+represents a real defect. One sabotage correctly stayed GREEN (removing one of three selectors
+still suppresses the film) and was left alone rather than weakening the guard to satisfy it.
+
 ## REG-439 - RETRACTION: THE v2354 PRECISION TABLE IS NOT REPRODUCIBLE, AND RUNEWORDS HAD NO ROSTER
 
 **Two findings, and the first is a retraction of a shipped constant.**

@@ -35800,19 +35800,21 @@ class TestV2353OneAdmissionDoorForEveryReader(unittest.TestCase):
 class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
     """#121, the AI item checker, given a measured basis instead of a hunch.
 
-    ⚠ THE FIGURES THIS CLASS FIRST CARRIED ARE RETRACTED (REG-439). They claimed denominators a
-    careful re-measurement on the same journal cannot reproduce - deep/chronicle came back as 10,
-    not 61, asked twice by two independently written expressions. RE-DERIVED, against a 672-name
-    roster that now includes the 105 RUNEWORDS which previously had no roster at all and so
-    scored zero by construction:
+    ⚠ REG-439 RETRACTED THESE FIGURES AND THAT RETRACTION WAS ITSELF WRONG (REG-440). v2354
+    measured the journal at ~5,761 rows; the "re-derivation" ran after `sessions.jsonl` had
+    ROTATED to 860 rows while `sessions.1.jsonl` held 7,103, and `_journal_path()` returns only
+    the current generation. The smaller table was the same query against a fifth of the evidence.
+
+    Measured over the WHOLE RING (7,980 rows, 1,359 placed sightings), five of v2354's entries
+    reproduce EXACTLY - deep/inventory 1/11, deep/gameplay 0/38, ocr/stash 0/27, ocr/inventory
+    0/17, deep/loot 0/5 - and the rest have grown because he has been playing:
 
         lane   surface       real   seen   Wilson lower
-        deep   chronicle        7     10       0.3968   (below MIN_SAMPLES: NOT ESTABLISHED)
-        ocr    gameplay         0    201       0.0000
-        ocr    (no scene)       0     93       0.0000
+        deep   chronicle       45     74       0.4942
+        deep   stash            4     25       0.0640
+        ocr    gameplay         1    583       0.0003
 
-    What survives the correction is the actionable half: the ocr lane has produced ZERO real
-    item names across 300 placed sightings.
+    The actionable half: the ocr lane has produced ONE real item name in 1,136 placed sightings.
 
     Two findings, and the second one inverts the obvious reading:
 
@@ -35835,13 +35837,16 @@ class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
         # deep/chronicle is 7 of 10 after the REG-439 re-derivation - a real ratio, but BELOW
         # MIN_SAMPLES, so the honest answer is None. That is the property under test: a small
         # sample must not be promoted to a measurement just because its ratio looks good.
-        w, n, why = sp.precision("deep", "chronicle")
-        self.assertIsNone(w, "7 of 10 is below MIN_SAMPLES and must be NOT ESTABLISHED (got %r)" % w)
+        # deep/stash is 4 of 25 over the ring - a real ratio, but BELOW MIN_SAMPLES, so the
+        # honest answer is None. That is the property under test: a small sample must not be
+        # promoted to a measurement because its ratio looks tolerable.
+        w, n, why = sp.precision("deep", "stash")
+        self.assertIsNone(w, "4 of 25 is below MIN_SAMPLES and must be NOT ESTABLISHED (got %r)" % w)
         self.assertIn("below the", why)
         w2, n2, why2 = sp.precision("ocr", "gameplay")
-        self.assertIsNotNone(w2, "0 of 201 is a real measurement and must not read as unknown")
-        self.assertEqual(w2, 0.0)
+        self.assertIsNotNone(w2, "1 of 583 is a real measurement and must not read as unknown")
         self.assertGreaterEqual(n2, 30)
+        self.assertLess(w2, 0.01, "ocr/gameplay must measure as producing essentially nothing")
 
     def test_an_unmeasured_surface_is_still_read(self):
         """A gate that refuses to pay for what it has not measured can never measure it. Only a
@@ -35862,16 +35867,14 @@ class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
         # made where the evidence actually is: ocr/gameplay is measured (0 of 201) and demands
         # three witnesses, while an unmeasured combination gets the cautious default of two.
         # A table keyed on surface alone would average these and be wrong about both.
-        measured_n, _ = sp.witnesses_required("ocr", "gameplay")
-        unmeasured_n, _ = sp.witnesses_required("deep", "chronicle")
-        self.assertEqual(measured_n, 3,
-                         "ocr/gameplay is 0 real of 201 and must demand more than the default")
-        self.assertEqual(unmeasured_n, 2,
-                         "an unmeasured combination must get the cautious default, not a veto "
-                         "and not a free pass")
-        self.assertGreater(measured_n, unmeasured_n,
-                           "a lane measured to produce nothing must be stricter than one nobody "
-                           "has measured")
+        deep_n, _ = sp.witnesses_required("deep", "chronicle")
+        ocr_n, _ = sp.witnesses_required("ocr", "chronicle")
+        self.assertEqual(deep_n, 1,
+                         "deep/chronicle is 45 of 74 over the ring - the strongest combination "
+                         "there is, and it should need one witness")
+        self.assertGreater(ocr_n, deep_n,
+                           "ocr and deep on the SAME surface must not get the same answer - a "
+                           "table keyed on surface alone would average them and be wrong twice")
 
     def test_the_table_can_be_rebuilt_so_it_cannot_rot(self):
         """A measured constant with no way to re-measure it becomes a lie the day his corpus
@@ -36240,6 +36243,142 @@ class TestV2361RunewordsAreRealItemsAndTheLearnerIsFed(unittest.TestCase):
         self.assertIn("_mc_is_real_item", blk,
                       "the learner ingests unfiltered names again; fed raw its top entries were "
                       "quest text misread as items")
+
+
+
+class TestV2362TheRingAndWhoStartedTheReel(unittest.TestCase):
+    """REG-440. Two defects, one shipped and one that made me publish a wrong retraction.
+
+    **1. A JOURNAL READ THAT IGNORES THE RING NARROWS SILENTLY.** `_journal_path()` returns the
+    CURRENT generation only. His journal rotated mid-session - `sessions.jsonl` from 5,761 rows
+    to 860, while `sessions.1.jsonl` quietly held 7,103 - and `_sighting_loc` reads it, so every
+    frame older than the rotation stopped resolving. No error, no empty result: provenance just
+    quietly became whatever had been written since the last rotation.
+
+    It surfaced as a CONTRADICTION rather than a crash: the same query answered `deep/chronicle
+    61` and then `10` hours apart, and I retracted a CORRECT measurement over it (REG-439) before
+    finding the cause. Measured over the whole ring, five of v2354's figures reproduce exactly.
+    [[feedback-contradiction-is-the-finding]] [[stale-reading]]
+
+    **2. NOTHING RECORDED WHO STARTED A REEL.** Konyo: *"i dint click on air.. its a session on
+    air.. but shadow reader is suppose to be behind the scenees it snot really suppose to show me
+    the vidfeo reels like the other toures"*. He had not clicked it. `shadow_watch_tick()` starts
+    a reel through the SAME `start_agent()` a hand click uses, with the same arguments, so
+    nothing downstream could tell them apart - and a background lane presented as a full tour:
+    red dot, theatre, live film.
+    """
+
+    def test_the_provenance_reader_reads_the_whole_ring(self):
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        blk = _between(self, src, "def _sighting_loc(", "def _name_loc(",
+                       min_len=300, what="the provenance reader")
+        self.assertIn("_journal_ring()", blk,
+                      "_sighting_loc reads only the current journal generation again - after a "
+                      "rotation every older frame silently stops resolving")
+        self.assertIn("_journal_path()", blk,
+                      "the single-file fallback is gone; on a machine with no ring there would "
+                      "be nothing to read")
+
+    def test_the_ring_has_more_than_one_generation_here(self):
+        """The fixture that makes the above meaningful: if his ring were one file, the bug would
+        be invisible and this guard would be measuring nothing."""
+        import control_app as ca
+        ring = [p for p in (ca._journal_ring() or []) if os.path.isfile(p)]
+        self.assertGreaterEqual(len(ring), 1, "no journal generation exists at all")
+
+    def test_start_agent_records_who_asked(self):
+        import control_app as ca
+        import inspect
+        sig = inspect.signature(ca.start_agent)
+        self.assertIn("origin", sig.parameters, "start_agent no longer records who asked")
+        self.assertEqual(sig.parameters["origin"].default, "hand",
+                         "the default must be 'hand' - an unlabelled caller is a person until "
+                         "it says otherwise, because presenting HIS session quietly is the worse "
+                         "of the two mistakes")
+
+    def test_the_background_lanes_identify_themselves(self):
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        # ⚠ THE END ANCHOR MUST COME AFTER THE START. A first cut used _shadow_watch_note,
+        # which is defined ABOVE shadow_watch_tick, so the slice was invalid and the guard failed
+        # on correct code. _between says so loudly rather than silently reading to EOF.
+        shadow = _between(self, src, "def shadow_watch_tick(", "def _shadow_watch_loop(",
+                          min_len=200, what="shadow_watch_tick")
+        self.assertIn('origin="shadow"', shadow,
+                      "the shadow watcher starts a reel indistinguishable from his own click "
+                      "again - the console will present it as a full ON AIR tour")
+
+    def test_the_console_presents_a_shadow_lane_differently(self):
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("data-origin", ui, "the console no longer carries the session's origin")
+        # PIN THE RULE THAT DOES THE WORK. A first cut asserted the selector merely APPEARED,
+        # which three separate rules satisfy - so breaking the one that hides the film left the
+        # guard green. His complaint was specifically about being shown the video.
+        import re as _re
+        block = _re.search(
+            r'(body\[data-origin="shadow"\][^{]*(?:,\s*body\[data-origin="shadow"\][^{]*)*)\{([^}]*)\}', ui)
+        self.assertIsNotNone(block, "no body[data-origin=\"shadow\"] rule at all")
+        sel, decls = block.group(1), block.group(2)
+        self.assertIn("#stage", sel,
+                      "the shadow rule no longer targets the stage - the film he asked not to "
+                      "see is back")
+        self.assertRegex(decls, r"(visibility|display)\s*:\s*(hidden|none)",
+                         "the shadow rule targets the stage but does not suppress it: %r" % decls)
+        self.assertIn("st.isShadow", ui, "the console never reads the server's isShadow flag")
+
+
+
+class TestV2363ABaseIsNotAGrailEntry(unittest.TestCase):
+    """Konyo: *"there are regular base items that are asking me to chronicle or vault which it
+    should not to do either it should automatically throw this out"*.
+
+    He photographed `Full Helm` and `Bramble Mitts` in the ruling inbox with the full
+    Chronicle / Vault / Both / ignore row. The tooltip on one of them says it outright:
+    *"Base Item · Base · socketable · 50 str · lvl 42 · Elite Base Item · A normal/superior grey
+    base"*. A grey base can be neither a Chronicle tick nor a vault item, so all four buttons
+    were answers to a question with no correct answer.
+
+    ⚠ THE ENGINE ALREADY KNEW. `d2rInboxEngine` returns verdict `base-conflict`, action `hold`,
+    for exactly these - its own comment says the job is to carry "game-says-unfound:<items>".
+    The row was then pushed onto `kept`, which means "keep asking him", and rendered like a real
+    find. The knowledge existed and the door ignored it.
+
+    The CONTRADICTION stays visible - "the game lists this base as NOT found, but your ledger has
+    Duskdeep" is real information about the UNIQUE that uses the base. What goes is the false
+    choice. [[unknown-stays-unknown]]
+    """
+
+    def _src(self):
+        return io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+
+    def test_a_base_conflict_row_does_not_offer_chronicle_or_vault(self):
+        src = self._src()
+        blk = _between(self, src, "A BASE IS NOT A GRAIL ENTRY", "'<span class=\"ibp-acts\">'",
+                       min_len=300, what="the base-conflict branch")
+        self.assertIn("_live.verdict === 'base-conflict'", blk,
+                      "the ruling row no longer branches on the engine's own base verdict")
+        self.assertIn("that is a base, not an item", blk,
+                      "the single honest button lost its label")
+        self.assertNotIn("ibp-ok", blk,
+                         "the Chronicle button is back on a base row - it is being asked a "
+                         "question with no correct answer")
+
+    def test_a_normal_row_still_gets_all_four_rulings(self):
+        """The half that matters more: this must not have eaten the real ruling row."""
+        src = self._src()
+        i = src.index("A BASE IS NOT A GRAIL ENTRY")
+        blk = src[i:src.index("</span></div>')));", i)]
+        for label in (">Chronicle<", ">Vault<", ">Both<", ">ignore<"):
+            self.assertIn(label, blk,
+                          "a normal inbox row lost its %s button" % label.strip("><"))
+
+    def test_the_single_button_row_has_its_own_grid(self):
+        """Four buttons in a 2-up grid and one button in the same grid leaves a hole."""
+        src = self._src()
+        self.assertIn("ibp-acts-1", src, "the one-up grid class is gone")
+        i = src.index(".inbox-pop .ibp-acts-1")
+        rule = src[i:src.index("}", i)]
+        self.assertIn("grid-template-columns", rule,
+                      "the single-button row does not override the 2-up grid")
 
 
 

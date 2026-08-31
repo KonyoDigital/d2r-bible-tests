@@ -8200,7 +8200,8 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-pop .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:#f0c060;margin-bottom:3px}
 .inbox-pop .ibp-sub{color:#9a8c72;margin-bottom:9px;font-size:11.5px;line-height:1.45}
 .inbox-pop .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
-.inbox-pop .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,260px));justify-content:start;gap:6px;margin-top:3px}/* v2355 - AND CAPPED AT 260px. A cold cross-family look at the 1440 render reported 'empty gray rectangular bars with borders but no text' beside each label. That was WRONG - every button carries its text - but it was wrong for a real reason: at 1440 a 1fr column is 657px, so the word 'ignore' sat in a bar eleven times its own width and read as empty to a fresh eye. A reviewer misreading the layout IS the finding. justify-content:start keeps them under the item name instead of stretched across the panel.
+.inbox-pop .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,260px));justify-content:start;gap:6px;margin-top:3px}
+.inbox-pop .ibp-acts-1,.inbox-sticky .ibp-acts-1{grid-template-columns:minmax(0,340px)}/* v2363 - one honest button, not four false ones *//* v2355 - AND CAPPED AT 260px. A cold cross-family look at the 1440 render reported 'empty gray rectangular bars with borders but no text' beside each label. That was WRONG - every button carries its text - but it was wrong for a real reason: at 1440 a 1fr column is 657px, so the word 'ignore' sat in a bar eleven times its own width and read as empty to a fresh eye. A reviewer misreading the layout IS the finding. justify-content:start keeps them under the item name instead of stretched across the panel.
      v2349 - FOUR RULINGS NOW, SO 2x2 RATHER THAN FOUR CRAMPED COLUMNS. The render gate already reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE columns; a fourth would have shipped that defect to every width. Two columns give each button ~50% instead of ~25%, which is also the symmetry he asked for. */
 .inbox-pop .ibp-acts .ibp-b{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* v1789 — flex-wrap IS LOAD-BEARING: .ibp-why is flex:0 0 100%, and in a non-wrapping row it takes the whole line and squeezes the item NAME and both buttons to zero width. The panel rendered three rows reading 'unclear read' with nothing to act on — the one thing he needs is the name. Every functional assertion passed; only the screenshot showed it. */
 .inbox-pop .ibp-row:last-child{border-bottom:0}
@@ -47981,7 +47982,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2361', name:'v2361 - Retraction and the runeword roster', date:'2026-08-31', note:'the v2354 precision table is not reproducible, runewords had no roster, and the character learner is fed' };
+  window.D2R_BUILD = { id:'v2363', name:'v2363 - A base is not a grail entry', date:'2026-09-01', note:'he was asked to Chronicle-or-Vault a grey base; the engine already knew it was one' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -49442,7 +49443,27 @@ window._CH_PILL_MAP = {
                say either. Each button now names exactly one ledger and the toast reports which
                one moved. Wrapped in .ibp-acts so all three are equal-width columns — the row's
                shape no longer depends on how long the item's name is. */
-            + '<span class="ibp-acts">'
+            /* ══ v2363 — A BASE IS NOT A GRAIL ENTRY, SO DO NOT ASK HIM TO FILE ONE ═══════
+               Konyo: "there are regular base items that are asking me to chronicle or vault
+               which it should not to do". He is right, and the engine already knew: it returns
+               verdict `base-conflict` with action `hold` for exactly these - Full Helm, Bramble
+               Mitts, grey bases whose only connection to his grail is that a unique USES them.
+               The row still landed in `kept`, so it was rendered with the same four rulings as a
+               real find and asked a question with no correct answer: `Full Helm` can be neither
+               a Chronicle entry nor a vault item.
+
+               The CONTRADICTION is still worth showing - "the game says this base is unfound but
+               your ledger has Duskdeep" is real information - so the row stays and keeps its
+               sentence. What goes is the false choice. [[unknown-stays-unknown]] */
+            + ((_live && _live.verdict === 'base-conflict')
+                 ? ('<span class="ibp-acts ibp-acts-1">'
+                    + '<button type="button" class="ibp-b" '
+                    + 'onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
+                    + 'data-n="' + nm + '" title="a grey BASE, not a grail entry \u2014 it can be neither '
+                    + 'a Chronicle tick nor a vault item. The disagreement above is about the unique that '
+                    + 'uses this base, not about the base.">got it \u2014 that is a base, not an item</button>'
+                    + '</span></div>')
+                 : ('<span class="ibp-acts">'
             + '<button type="button" class="ibp-b ibp-ok" '
             + 'onclick="window._inboxAct(\'chronicle\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
             + 'data-n="' + nm + '" title="counts it in your Chronicle grail tally only \u2014 nothing is filed in the Vault"><span class="ibp-em">\ud83d\udcd6 </span>Chronicle</button>'
@@ -49460,7 +49481,7 @@ window._CH_PILL_MAP = {
             + 'data-n="' + nm + '" title="both ledgers \u2014 counts it in your Chronicle grail tally AND files it in the Vault as a physical item"><span class="ibp-em">\ud83d\udcd6\ud83c\udfe6 </span>Both</button>'
             + '<button type="button" class="ibp-b" '
             + 'onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
-            + 'data-n="' + nm + '">ignore</button></span></div>');
+            + 'data-n="' + nm + '">ignore</button></span></div>')));
         });
         var _html = H.join('');
         pop.innerHTML = _html;

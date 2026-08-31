@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2361",
+  "ver": "v2363",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2361: the v2354 precision table is not reproducible, runewords had no roster, and the character learner is fed",
+  "note": "v2363: he was asked to Chronicle-or-Vault a grey base; the engine already knew it was one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

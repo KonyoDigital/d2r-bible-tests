@@ -1132,6 +1132,7 @@ _agent_proc = None  # type: ignore
 _stop_inflight = False   # v768 (Grok R2) — a threaded stop/farewell is running; ON/RESTART must wait
 _capture_proc = None  # type: ignore
 _agent_mode = "off"  # off | live | sim
+_agent_origin = "hand"  # hand | shadow | mini — WHO asked for the running reel (v2362)
 _log_fp = None
 _EXIT_STOP_DONE = False
 _EXIT_STOP_LOCK = threading.Lock()
@@ -2895,11 +2896,26 @@ def _stop_capture():
         pass
 
 
-def start_agent(sim=False, test=False, mini=None, focus=None):
+def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
+    """`origin` — WHO asked for this reel. v2362.
+
+    Konyo, 2026-08-31, looking at his own console: *"i dint click on air.. its a session on air..
+    but shadow reader is suppose to be behind the scenees it snot really suppose to show me the
+    vidfeo reels like the other toures"*.
+
+    He had not clicked it. `shadow_watch_tick()` starts a reel through THIS function, with the
+    exact same arguments a hand click uses, so nothing downstream - not the state, not the
+    session row, not the UI - could tell the two apart. The shadow reader therefore presented as
+    a full ON AIR tour: red dot, theatre, live video.
+
+    "hand" | "shadow" | "mini". The default is `hand` on purpose: an unlabelled caller is a
+    person until it says otherwise, because presenting HIS session quietly would be the worse
+    mistake of the two.
+    """
     """mini/focus — the ⏱ MINI CAPTURE bound (seconds, already clamped) and the ONE focus name.
     They are appended to the SPAWN ARGV on BOTH platforms so the cousin's Windows box gets the
     identical agent invocation; nothing about the mini branches on platform."""
-    global _agent_proc, _agent_mode, _log_fp
+    global _agent_proc, _agent_mode, _log_fp, _agent_origin
     # v847 — never "already live" on a stranger/orphan: hard-stop anything on the bridge first
     if _stop_inflight:
         return {"ok": False, "msg": "farewell still finishing — try again in a moment",
@@ -3063,6 +3079,7 @@ def start_agent(sim=False, test=False, mini=None, focus=None):
             return {"ok": False, "error": "failed to start scanner: %s" % e, "mode": "off"}
         _write_pid(PID_PATH, _agent_proc.pid)
         _agent_mode = "sim" if sim else "live"
+        _agent_origin = str(origin or "hand")
 
     for _ in range(50):
         if _bridge_ping() is not None:
@@ -3111,6 +3128,12 @@ def start_agent(sim=False, test=False, mini=None, focus=None):
         "ok": True,
         "msg": "started",
         "mode": _mode,
+        # v2362 — WHO asked for this reel. Without it the console cannot tell his own
+        # click from the shadow reader, and so presented a background lane as a full
+        # ON AIR tour: red dot, theatre, live video. "hand" is the default because an
+        # unlabelled caller is a person until it says otherwise.
+        "origin": (_agent_origin if _mode not in (None, "off") else None),
+        "isShadow": bool(_mode not in (None, "off") and _agent_origin == "shadow"),
         "pid": _pid,
         "platform": "windows" if IS_WIN else "mac",
         "watch": IS_WIN,
@@ -6401,14 +6424,29 @@ def _sighting_loc(sg, _segments=None):
             # cut called it inside this try/except, so every lookup raised NameError, was
             # swallowed, and returned None: a provenance gate that resolved NOTHING while
             # reading as fully wired. [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
-            path = _journal_path()
-            if os.path.isfile(path):
-                # ⚠ `io` IS NOT IMPORTED IN THIS MODULE. The first cut wrote io.open(...) here,
-                # inside the try below, so every call raised NameError, the bare except ate it,
-                # and this returned [] - a provenance gate that resolved NOTHING on all 467 of
-                # his naming sightings while reading as fully wired from both ends. Same shape as
-                # the _sessions_path() slip ten minutes earlier, and the same lesson: a swallowed
-                # exception turns a typo into a feature that is merely absent.
+            # ⚠ v2362 — THE RING, NOT JUST THE LIVE FILE. `_journal_path()` is the CURRENT
+            # generation only. The journal rotates, and when it does every older frame silently
+            # stops resolving: provenance quietly narrows to whatever has been written since the
+            # last rotation, with no error and no empty result to notice.
+            #
+            # Caught on 2026-08-31 by a contradiction rather than a crash. The same query, run
+            # hours apart, answered `deep/chronicle 61` and then `10` - and I retracted a correct
+            # measurement over it (REG-439) before finding that `sessions.jsonl` had rotated from
+            # 5,761 rows to 860 while `sessions.1.jsonl` quietly held 7,103.
+            # [[feedback-contradiction-is-the-finding]] [[stale-reading]]
+            try:
+                _paths = [p for p in (_journal_ring() or []) if os.path.isfile(p)]
+            except Exception:
+                _paths = []
+            if not _paths:
+                _p0 = _journal_path()
+                _paths = [_p0] if os.path.isfile(_p0) else []
+            # ⚠ `io` IS NOT IMPORTED IN THIS MODULE. An earlier cut wrote io.open(...) here,
+            # inside the try below, so every call raised NameError, the bare except ate it, and
+            # this returned [] - a provenance gate that resolved NOTHING while reading as fully
+            # wired from both ends. A swallowed exception turns a typo into a feature that is
+            # merely absent.
+            for path in _paths:
                 with open(path, encoding="utf-8", errors="replace") as fh:
                     for line in fh:
                         line = line.strip()
@@ -15081,7 +15119,7 @@ def mini_start(seconds=None, test=False, focus=None):
     threading.Thread(target=_mini_watchdog, args=(token, ends), daemon=True,
                      name="tvd-mini-watchdog").start()
     try:
-        r = start_agent(sim=False, test=bool(test), mini=secs, focus=focus)
+        r = start_agent(sim=False, test=bool(test), mini=secs, focus=focus, origin="mini")
     finally:
         with _MINI_LOCK:
             if _MINI["token"] == token:
@@ -16325,7 +16363,7 @@ def shadow_watch_tick():
     if pre.get("windowSeen") is False:
         _shadow_watch_note(lookedAt=now, why="Diablo is not on screen")
         return {"ok": True, "seen": False, "why": "Diablo is not on screen", "pre": pre}
-    r = start_agent(sim=False)
+    r = start_agent(sim=False, origin="shadow")   # v2362 — say who asked
     ok = bool(isinstance(r, dict) and r.get("ok"))
     # v2316 — the DENOMINATOR of shadow's Wilson score. Claiming a reel was opened is the door's
     # to claim; whether it held film is not, and is credited later by capture_door_credit().
@@ -20701,7 +20739,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2361",
+        "ver": "v2363",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
