@@ -91,7 +91,17 @@ def d2r_window_rect():
     except Exception as e:
         return None, "window-pick: %s" % str(e)[:90]
     if not hit:
-        return None, "no D2R game window is on screen"
+        # v2351b — CARRY THE CHOOSER\'S OWN REASON. "no D2R game window is on screen" was a dead
+        # end while the game WAS on screen: it named the verdict and not the cause, so the same
+        # sentence covered "the game is shut", "the title was redacted", "Quartz refused" and
+        # "the layer filter ate it" - four different faults with four different fixes.
+        why = ""
+        try:
+            why = str(getattr(tv_diablo, "_PICK_WHY", "") or "")
+        except Exception:
+            why = ""
+        return None, ("no D2R game window is on screen" + (" (%s)" % why[:160] if why else
+                      " (the chooser gave no reason)"))
     wid = hit[0]
     try:
         wins = q["winlist"](q["allwin"], q["nullwin"]) or []
