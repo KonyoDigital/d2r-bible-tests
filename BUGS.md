@@ -13719,3 +13719,53 @@ answered "no browser suite here" FOREVER. Second, once working, it accused `rout
 whose only crime is the alert string ``run `npx playwright install` ``. It now matches an
 invocation (`npx|yarn|pnpm|bunx|bin/` + `playwright test`), and routine_Q's real line is pinned as a
 negative fixture.
+
+## REG-417 — a Chronicle-only ruling reported the Vault as having REFUSED it
+
+v2336 split the inbox tick into three rulings. Driving the new one — not reading it — returned:
+
+```
+kaiChronicleAccept('Rotting Fissure', {vault:false})
+  -> chronicle:"ticked"  vault:"skipped"
+     say: "counted in your Chronicle — but the Vault REFUSED it: the vault door is not loaded"
+```
+
+Nothing refused anything; he chose Chronicle-only. `if (_wantVault && typeof window.tvVaultRegister
+=== 'function')` left the `else` reachable on a deliberate skip, so it overwrote the reason with
+"the vault door is not loaded", and the sentence fell through to the failure branch.
+
+**v2195's comment sits on that exact block** and says three outcomes need three sentences. A FOURTH
+outcome arrived and took the failure's words. A skip wearing a refusal's words is the same defect as
+a failure wearing a success's, and neither is cosmetic — it is the only thing telling him what
+happened to his ledgers.
+
+**Fixed v2337:** `else try {` at both sites, so a skip never enters the vault path at all, and both
+`say` ternaries gained a `'skipped'` branch. Guards, all three sabotage-proven:
+`TestV2337ADeliberateSkipIsNotARefusal` — including one asserting `kaiVaultFileOnly` never writes
+`d2r_foundLog`, because filing a mule must never raise his completion percentage.
+
+## REG-418 — the render gate called a scrolled-out control "a control he cannot click"
+
+v2336's third inbox button pushed `#inbox-sticky`'s content past its own fold. The panel is bounded
+(`max-height 331px`, `overflow auto`, box `242..573` at 375x800) so the last row is CLIPPED — one
+scroll away, not dead. But `getBoundingClientRect()` ignores an ancestor's overflow clip, so those
+buttons reported `y=674`, and `elementFromPoint` there answered with whatever the page has at that
+spot: `dock-cluster`, an `INPUT`, `slider-group`. The gate reported three unreachable controls,
+identically on 3 runs of 3, and blocked the push.
+
+**Fixed in `tv/render_check.py`:** before hit-testing, skip a control whose centre lies outside any
+clipping ancestor's box — it is not covered, it is not on screen, and the gate already treats
+off-screen as a separate fact.
+
+⚠ **The first attempt at this DISARMED the check and looked like a fix.** It walked up from the
+control and returned "reachable" at the first scrollable ancestor — but the page itself scrolls, so
+it answered that for every control on every page. The sabotage is the only reason that was caught.
+
+⚠ **And the first sabotage was a NO-OP that read as a passing guard.** Deleting the `max-height` /
+`overflow` rule I had added changed nothing, because the sticky was ALREADY bounded by a
+pre-existing rule — mine was a duplicate. Measured `stickyMaxH=331px ov=auto` with my rule removed.
+**A sabotage that changes nothing proves nothing; assert the baseline first.** The redundant rule
+was deleted rather than kept ([[copy-drift]]).
+
+**The sabotage that finally worked:** force `.inbox-sticky{max-height:none;overflow:visible}`, which
+paints the rows genuinely under the dock. Gate RED with it, GREEN without it, both reproduced.

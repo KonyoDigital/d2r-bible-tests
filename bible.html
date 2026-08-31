@@ -8288,6 +8288,26 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
    every phone-width view since the popup shipped. */
 @media (max-width: 560px){
   .inbox-pop{ left:8px; right:8px; width:auto; }
+  /* ⚠ THE STICKY IS IN FLOW; THE POP-UP SCROLLS. Same rows, two different containers, and only
+     one of them can absorb a taller row. Measured at 375x800 with the render gate's own fixture:
+     #inbox-sticky spans y 242..573 and the second row's buttons landed at y=674 — OUTSIDE its own
+     box — where .dock-inner (587..792) paints over them. Three controls he could not click, and
+     the gate said so 3 runs out of 3.
+     The three-band stack (why / name / buttons) is right in the pop-up, which has max-height and
+     overflow:auto and simply scrolls. In the sticky it added ~100px per row with nothing to give.
+     So the sticky keeps the name and the actions on ONE line here. It stays symmetric because the
+     actions sit in their own auto track: identical content, identical width, every row.
+     v1798 recorded this same class — fixed furniture over an in-flow sticky. */
+  /* ⚠ THE STICKY IS ALREADY BOUNDED — DO NOT ADD A SECOND max-height HERE. Measured at
+     375x800: max-height 331px, overflow auto, scrollHeight 465, box 242..573. A rule restating
+     that was written here and REMOVED, because it was a no-op that made a sabotage look like a
+     passing guard: deleting it changed nothing, so it proved nothing. [[copy-drift]]
+     What the third button really did was push the panel's content past its own fold, so the
+     last row sits below the clip. It is one scroll away, not unreachable — and the render gate
+     used to call that "a control he cannot click" because getBoundingClientRect ignores an
+     ancestor's overflow clip. Fixed in tv/render_check.py, sabotage-proven by forcing the
+     sticky to overflow:visible, which puts the rows genuinely under the dock and turns the gate
+     red again. */
   .inbox-pop .ibp-acts .ibp-b, .inbox-sticky .ibp-acts .ibp-b{ padding-left:4px; padding-right:4px; font-size:11px; }
   .ibp-em{ display:none; }
 }
@@ -47641,7 +47661,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2336', name:'v2336 - The black panel', date:'2026-08-31', note:'the repaint memo skipped the un-hide; and five browser suites were running on his Mac as well as on GitHub' };
+  window.D2R_BUILD = { id:'v2337', name:'v2337 - A skip is not a refusal', date:'2026-08-31', note:'the Chronicle-only ruling said the Vault refused it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -49280,10 +49300,17 @@ window._CH_PILL_MAP = {
            physical. v2193 fixed this shape at the sweep's skip and at its if/else; the button he
            actually clicks had it too. Found by driving kaiChronicleAccept in a real page: the
            result came back {already:true, store:'foundLog'} and d2r_owned did not move. */
+        /* v2337 — A DELIBERATE SKIP IS NOT A REFUSAL. The first cut left this `else` reachable
+           when _wantVault was false, so it overwrote the reason with "the vault door is not
+           loaded" and the sentence below read "but the Vault REFUSED it" — about a door the user
+           had just chosen not to open. v2195's comment on this very block says three outcomes
+           need three sentences; a fourth outcome arrived and took the failure's words.
+           MEASURED by driving it: Chronicle-only ticked foundLog correctly and still said the
+           Vault refused it. [[label-outlived-referent]] */
         var _v0 = 'no', _vw0 = '';
-        if (!_wantVault) { _v0 = 'skipped'; _vw0 = 'you ruled Chronicle only'; }
-        try {
-          if (_wantVault && typeof window.tvVaultRegister === 'function') {
+        if (!_wantVault) { _v0 = 'skipped'; _vw0 = ''; }
+        else try {
+          if (typeof window.tvVaultRegister === 'function') {
             var _r0 = window.tvVaultRegister(nm);
             if (_r0 && _r0.ok) _v0 = (_r0.mode === 'already') ? 'already' : 'filed';
             else _vw0 = String((_r0 && _r0.why) || 'no reason given').slice(0, 90);
@@ -49295,7 +49322,9 @@ window._CH_PILL_MAP = {
            success's words is the one thing a verifier must never do. */
         return { ok:true, name: nm, remaining: inbox0.length, already: true,
                  store: settled.store, chronicle: 'already', vault: _v0,
-                 say: (_v0 === 'filed')
+                 say: (_v0 === 'skipped')
+                        ? 'your Chronicle already had it \u2014 you ruled Chronicle only, so the Vault was not touched'
+                      : (_v0 === 'filed')
                         ? 'your Chronicle already had it \u2014 now filed in the Vault too'
                         : (_v0 === 'already'
                             ? 'your Chronicle already had it \u00b7 the Vault already had it too'
@@ -49335,9 +49364,9 @@ window._CH_PILL_MAP = {
          The RESULT now names each ledger separately, so the surface can say what happened rather
          than implying one thing and doing another. [[label-outlived-referent]] */
       var _vault = 'no', _vwhy = '';
-      if (!_wantVault) { _vault = 'skipped'; _vwhy = 'you ruled Chronicle only'; }
-      try {
-        if (_wantVault && typeof window.tvVaultRegister === 'function') {
+      if (!_wantVault) { _vault = 'skipped'; _vwhy = ''; }
+      else try {
+        if (typeof window.tvVaultRegister === 'function') {
           var _vr = window.tvVaultRegister(nm);
           if (_vr && _vr.ok) _vault = (_vr.mode === 'already') ? 'already' : 'filed';
           else _vwhy = String((_vr && _vr.why) || 'no reason given').slice(0, 90);
@@ -49345,7 +49374,9 @@ window._CH_PILL_MAP = {
       } catch(e){ _vwhy = 'threw: ' + String(e && e.message || e).slice(0, 70); }
       return { ok:true, name: nm, remaining: inbox.length,
                chronicle: 'ticked', vault: _vault, vaultWhy: _vwhy || undefined,
-               say: (_vault === 'filed')
+               say: (_vault === 'skipped')
+                      ? 'counted in your Chronicle \u2014 you ruled Chronicle only, so the Vault was not touched'
+                    : (_vault === 'filed')
                       ? 'counted in your Chronicle and filed in the Vault'
                       : (_vault === 'already'
                           ? 'counted in your Chronicle \u00b7 the Vault already had it'

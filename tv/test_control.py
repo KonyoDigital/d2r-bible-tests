@@ -33885,6 +33885,54 @@ class TestV2336TheDailyTaskPanelCannotBeMemoisedIntoInvisibility(unittest.TestCa
 
 
 
+class TestV2337ADeliberateSkipIsNotARefusal(unittest.TestCase):
+    """The Chronicle-only ruling must not report the Vault as having REFUSED it.
+
+    Found by DRIVING the button, not by reading it: `kaiChronicleAccept(name, {vault:false})`
+    ticked foundLog correctly and returned
+        "counted in your Chronicle — but the Vault REFUSED it: the vault door is not loaded"
+    Nothing refused anything; he chose Chronicle-only. `if (_wantVault && typeof ...)` left the
+    `else` reachable on a deliberate skip, so it overwrote the reason and the sentence fell
+    through to the failure branch.
+
+    v2195's comment sits on that very block and says three outcomes need three sentences. A
+    FOURTH outcome arrived with v2336 and took the failure's words. A skip wearing a refusal's
+    words is the same defect as a failure wearing a success's. [[label-outlived-referent]]
+    """
+
+    def _src(self):
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        return io.open(p, encoding="utf-8").read()
+
+    def test_both_say_sentences_have_a_skipped_branch(self):
+        src = self._src()
+        for var in ("_v0", "_vault"):
+            self.assertIn(
+                "(%s === 'skipped')" % var, src,
+                "the %s sentence has no 'skipped' branch, so a Chronicle-only ruling falls "
+                "through to whichever outcome is last — which is the REFUSED one" % var)
+
+    def test_the_vault_write_is_skipped_not_merely_guarded(self):
+        """`else try {` — not `try { if (_wantVault && ...) }`. The difference is the else."""
+        src = self._src()
+        self.assertNotIn("if (_wantVault && typeof window.tvVaultRegister === 'function')", src,
+                         "the vault call is guarded INSIDE the try again, which leaves the else "
+                         "reachable on a deliberate skip and overwrites the reason")
+        self.assertEqual(src.count("else try {"), 2,
+                         "both vault sites must skip the whole try on a Chronicle-only ruling")
+
+    def test_vault_only_never_writes_the_grail_store(self):
+        """kaiVaultFileOnly must not touch d2r_foundLog — filing a mule cannot raise his %."""
+        src = self._src()
+        i = src.index("window.kaiVaultFileOnly = function(name)")
+        j = src.index("window.kaiChronicleDismiss = function(name)", i)
+        body = src[i:j]
+        self.assertGreater(len(body), 400, "the kaiVaultFileOnly slice came back too short")
+        self.assertNotIn("d2r_foundLog", body,
+                         "kaiVaultFileOnly writes the grail store — filing an item in the Vault "
+                         "would silently raise his completion percentage")
+
+
 class TestV2336TheBrowserSuitesStayOnGitHub(unittest.TestCase):
     """REG-416 — a browser suite scheduled on his laptop instead of on GitHub.
 

@@ -350,6 +350,29 @@ _PROBE = r"""(function(sel, OK_TRUNC){
         if (cr.width<2 || cr.height<2) return;
         var cx=cr.left+cr.width/2, cy=cr.top+cr.height/2;
         if (cx<0 || cy<0 || cx>innerWidth || cy>innerHeight) return;   /* off-screen is a different fact */
+        /* ⚠ v2337 — AND NEITHER IS A CONTROL ITS OWN PANEL HAS SCROLLED OUT OF VIEW. getBounding
+           ClientRect ignores an ancestor's overflow clip, so a row below a scrolling panel's fold
+           reports viewport coordinates where it is NOT painted, and elementFromPoint there answers
+           with whatever the page has at that spot — reported as "a control he cannot click".
+           MEASURED at 375x800: #inbox-sticky box 242..573 (maxHeight 331, scrollHeight 465) and
+           three buttons reporting y=674, i.e. 101px past a clip that hides them. They are one
+           scroll away, not dead.
+           ⚠ THIS MUST NOT BECOME A BLANKET EXCUSE. My first attempt walked up looking for ANY
+           scrollable ancestor and returned "reachable" — but the page itself scrolls, so it
+           answered that for every control on every page and switched the whole check off. The
+           sabotage caught it: removing the panel's bound left the gate GREEN on the very defect it
+           exists to catch. This version asks a narrower question — is the control INSIDE the box
+           of each clipping ancestor — so a control that really is painted under the dock still
+           fails. [[feedback-suspect-the-instrument]] [[regression-guard]] */
+        var clipped=false;
+        for (var q=c.parentElement; q && q!==document.body && !clipped; q=q.parentElement){
+          var qs=getComputedStyle(q);
+          if (qs.overflowY==='visible' && qs.overflowX==='visible') continue;
+          var qr=q.getBoundingClientRect();
+          if (qr.width<2 || qr.height<2) continue;
+          if (cy < qr.top-1 || cy > qr.bottom+1 || cx < qr.left-1 || cx > qr.right+1) clipped=true;
+        }
+        if (clipped) return;
         var hit=document.elementFromPoint(cx, cy);
         if (!hit) return;
         if (hit===c || c.contains(hit) || hit.contains(c)) return;     /* the control answers for itself */
