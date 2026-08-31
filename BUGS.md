@@ -13012,7 +13012,16 @@ directly: a selector that never matches is still refused, and the refusal names 
 causes — genuinely absent, or a machine too loaded to build it — because one run cannot tell them
 apart and the bound is the only thing that separates "never appeared" from "not yet".
 
-**Guards:** `TestV2330TheRenderGateStoppedMeasuringHalfBuiltPanels`, four sabotages proven RED.
+⚠⚠ **AND THE FIRST CUT ONLY MOVED ONE OF THE TWO SLEEPS.** v2330 waited for the selector once,
+after activation — and **the very next push was blocked again** with `matched NOTHING`, this time
+at ALL FOUR widths and **without the new refusal message**. That absence is what pinned it: the
+wait had passed, so the panel existed and then went away. A resize re-renders these panels, and
+the width loop answered that with its own fixed `time.sleep(0.6)`, twelve lines below the one I
+had just replaced. **The same defect surviving in the same function.** Fixed in v2331: the wait
+runs after every resize too, and 4-of-4 green under the same load.
+
+**Guards:** `TestV2330TheRenderGateStoppedMeasuringHalfBuiltPanels`, five sabotages proven RED —
+including one that puts a fixed sleep back inside the width loop specifically.
 ⚠ One sabotage was a NO-OP and I nearly recorded it as a green guard: `return None or ("…")`
 evaluates to the message, so it changed nothing. When a sabotage does not go red, suspect the
 sabotage first. ⚠ And the wiring check failed on **its own comment** — the line documenting the

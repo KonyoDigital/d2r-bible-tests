@@ -33734,6 +33734,30 @@ class TestV2330TheRenderGateStoppedMeasuringHalfBuiltPanels(unittest.TestCase):
         self.assertTrue(why, "a throwing tab returned success")
         self.assertIn("never matched", why)
 
+    def test_it_waits_AFTER_EVERY_RESIZE_too_not_only_after_activation(self):
+        """THE FIRST CUT OF THIS FIX ONLY MOVED ONE OF THE TWO SLEEPS, AND THE GATE BLOCKED AGAIN.
+
+        v2330 waited for the selector once, after the panel was activated. The very next push was
+        still refused with `matched NOTHING` — this time at ALL FOUR widths, and WITHOUT the new
+        refusal message. That absence is what pinned it: the wait had passed, so the panel existed
+        and then went away. A resize re-renders these panels, and the width loop answered that
+        with its own fixed `time.sleep(0.6)`.
+
+        One fixed sleep replaced and its sibling twelve lines below left running — the same defect
+        surviving in the same function. Fix the CLASS, not the site that happened to fail.
+        [[feedback-generalize-fixes]] [[sweep-dont-ask]]
+        """
+        import inspect, re
+        raw = inspect.getsource(self._rc().check)
+        src = "\n".join(re.sub(r"#.*$", "", ln) for ln in raw.split("\n"))
+        loop = src[src.index("for w, h in WIDTHS:"):]
+        self.assertIn("_selector_ready(tab,", loop,
+                      "the width loop measures straight after a resize again - a re-rendering "
+                      "panel is caught mid-rebuild and reported as absent")
+        self.assertNotIn("time.sleep(0.6)", loop,
+                         "a fixed 0.6s wait is back inside the width loop, which is exactly the "
+                         "sleep that produced 'matched NOTHING' at all four widths")
+
     def test_check_WAITS_instead_of_sleeping(self):
         """[[the-unjoined-end]] - the helper can be perfect and never called."""
         import inspect, re

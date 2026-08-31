@@ -583,10 +583,24 @@ def check(name, spec, shots=True):
         for w, h in WIDTHS:
             tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                      deviceScaleFactor=1, mobile=False)
-            time.sleep(0.6)
+            # ⚠ v2331 — AND AGAIN AFTER EVERY RESIZE, which the first cut of this fix missed.
+            # v2330 waited for the selector once, after activation, and the gate still blocked a
+            # push with "matched NOTHING" — this time at ALL FOUR widths, and WITHOUT the new
+            # refusal message, which is what pinned it: the wait had passed, so the panel existed
+            # and then went away. A resize re-renders these panels, and the loop answered that
+            # with a fixed 0.6s exactly as the activation step used to.
+            #
+            # One fixed sleep replaced, its sibling two lines below left in place. That is the
+            # same defect surviving in the same function, which is the whole of
+            # [[feedback-generalize-fixes]]: fix the CLASS, not the site that happened to fail.
+            why_w = _selector_ready(tab, spec["sel"], budget=12.0)
+            if why_w:
+                out["ok"] = False
+                out["refusals"].append("%dx%d: %s" % (w, h, why_w))
+                continue
             tab.ev("(function(){var e=document.querySelector(%s); if(e) "
                    "e.scrollIntoView({block:'center'}); return 1;})()" % json.dumps(spec["sel"]))
-            time.sleep(0.6)
+            time.sleep(0.35)
             raw = tab.ev(_PROBE % (json.dumps(spec["sel"]),
                                    json.dumps(sorted(spec.get("truncation_ok") or {}))))
             m = json.loads(raw) if raw else {"found": 0}
