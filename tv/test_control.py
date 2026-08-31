@@ -34145,13 +34145,77 @@ class TestV2338MiniAutomaticCanOnlyHover(unittest.TestCase):
         self.assertEqual(rep["moved"], 0)
         self.assertIn("skipped", rep["steps"][0])
 
+    @staticmethod
+    def _markup_ids(src):
+        """ids declared in STATIC MARKUP — everything outside <script> blocks.
+
+        ⚠ COUNTING RAW `id="..."` OCCURRENCES IS THE WRONG INSTRUMENT and it produced three
+        false positives the first time it ran. `th-drawer-x` appears three times and
+        `dsr-titleslot` / `dsr-noteslot` twice each — every one of them inside a JS string in a
+        different BRANCH that writes the same container's innerHTML, so only ever one is in the
+        DOM. A scan that cannot tell a branch from a sibling reports a defect that does not
+        exist, and gets switched off. [[feedback-suspect-the-instrument]]
+        """
+        import re
+        out, depth = [], 0
+        parts = re.split(r"(<(?:script|style)\b[^>]*>|</(?:script|style)>)", src, flags=re.I)
+        for chunk in parts:
+            c = chunk or ""
+            if re.match(r"<(?:script|style)\b", c, re.I):
+                depth += 1; continue
+            if re.match(r"</(?:script|style)", c, re.I):
+                depth = max(0, depth - 1); continue
+            if depth:
+                continue
+            # ⚠ INSIDE AN OPENING TAG, not merely somewhere in the text. A bare
+            # `\sid="..."` search matched id="n" inside a CSS RULE in bible.html and reported
+            # a duplicate that does not exist. <style> is excluded above for the same reason: a
+            # stylesheet is not markup, and a scanner that cannot tell them apart produces
+            # exactly the confident-and-wrong finding this guard exists to prevent.
+            # [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+            out += re.findall(r'<[a-zA-Z][^>]*?\sid="([^"]+)"', c)
+        return out
+
+    def test_no_two_elements_in_the_markup_share_an_id(self):
+        """v2338 shipped a SECOND element with id="btn-mini" — the id of his Ministash button.
+
+        getElementById returns the first, so `$('btn-mini').onclick = ...` written later in the
+        file REPLACED the Ministash handler outright: his button would have run the pointer
+        preflight instead of starting a mini stash run, and the new button would have done
+        nothing. Nothing failed, nothing logged; it was found by rendering the console and
+        reading back what the button actually said — "⏱ Ministash · 120s, stops itself".
+        A duplicate id is last-assignment-wins on the HANDLER and first-match-wins on the
+        LOOKUP, which is the worst pair of rules to hold at once.
+        [[the-unjoined-end]] [[d2r-css-last-rule-wins]]
+        """
+        import collections, re
+        for name in ("control_ui.html", "bible.html"):
+            p = os.path.join(HERE, name)
+            if not os.path.isfile(p):
+                p = os.path.join(os.path.dirname(HERE), name)
+            src = io.open(p, encoding="utf-8").read()
+            src = re.sub(r"<!--.*?-->", "", src, flags=re.S)
+            ids = self._markup_ids(src)
+            self.assertGreater(len(ids), 50,
+                               "%s: the id scan found only %d ids — the scan is broken, and a "
+                               "broken scan can only ever pass" % (name, len(ids)))
+            dups = sorted(k for k, v in collections.Counter(ids).items() if v > 1)
+            self.assertEqual(dups, [],
+                             "%s declares these ids more than once in static markup: %s. "
+                             "getElementById takes the first and a later handler assignment "
+                             "takes the last, so one element silently steals the other's "
+                             "behaviour." % (name, ", ".join(dups)))
+
     def test_the_mini_button_is_joined_end_to_end(self):
         """Button → handler → route → module. Every joint, because a feature built correctly at
         both ends and never joined reads as wired from either side and carries nothing.
         [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
         ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
-        self.assertIn('id="btn-mini"', ui, "the MINI button is gone from the markup")
-        self.assertIn("$('btn-mini').onclick", ui, "the button has no handler — it is furniture")
+        self.assertIn('id="btn-hoverchk"', ui, "the MINI button is gone from the markup")
+        self.assertIn("$('btn-hoverchk').onclick", ui,
+                      "the button has no handler — it is furniture. ⚠ It is btn-hoverchk and NOT "
+                      "btn-mini: that id belongs to his Ministash button, and v2338 shipped a "
+                      "duplicate of it that stole Ministash's handler.")
         self.assertIn("/api/mini_preflight", ui, "the handler asks no route")
 
         app = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())

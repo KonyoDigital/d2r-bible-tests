@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2338",
+  "ver": "v2339",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2338: MINI(AUTOMATIC) can move his cursor now, and it can only ever hover",
+  "note": "v2339: the MINI button reused the Ministash id and stole its handler",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

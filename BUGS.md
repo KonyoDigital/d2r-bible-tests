@@ -13769,3 +13769,31 @@ was deleted rather than kept ([[copy-drift]]).
 
 **The sabotage that finally worked:** force `.inbox-sticky{max-height:none;overflow:visible}`, which
 paints the rows genuinely under the dock. Gate RED with it, GREEN without it, both reproduced.
+
+## REG-419 — v2338 shipped a SECOND element with id="btn-mini" and stole Ministash's handler
+
+The MINI(AUTOMATIC) readiness button was added to the console's utility row as `id="btn-mini"`.
+**That id already belonged to his Ministash button** (`control_ui.html:6072`, "⏱ Ministash · 120s,
+stops itself"). Two rules then apply at once, and they are the worst possible pair:
+
+* `getElementById` returns the **first** match — so `$('btn-mini')` resolved to Ministash.
+* a later assignment to `.onclick` **wins** — and mine (`:12568`) sits below the real Ministash
+  handler (`:12286`).
+
+So his Ministash button would have run the pointer preflight, and the new button would have done
+nothing at all. Nothing errored and nothing logged.
+
+**Found by rendering the live console and reading back what the button actually said** — the probe
+asked for `btn-mini` and got back `"⏱Ministash · 120s, stops itself"` at 320×103, which is not a
+utility button. A DOM assertion that the button "exists" would have passed on the wrong element.
+
+**Fixed v2339:** renamed to `btn-hoverchk`. Guard:
+`test_no_two_elements_in_the_markup_share_an_id`, sabotage-proven by recreating the collision —
+it names `btn-mini` and goes red.
+
+⚠ **The first version of that guard reported three duplicates that do not exist.** `th-drawer-x`
+(×3) and `dsr-titleslot` / `dsr-noteslot` (×2) are all written by `el.innerHTML = '<… id=…>'` in
+*different branches* — only one is ever in the DOM. And on `bible.html` it flagged `id="n"`, which
+it had matched inside a **CSS rule**. The scan now only counts ids inside an opening tag and skips
+`<style>` as well as `<script>`. **A scanner that cannot tell a branch from a sibling, or a
+stylesheet from markup, reports defects that do not exist and gets switched off.**
