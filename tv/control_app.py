@@ -20323,7 +20323,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2337",
+        "ver": "v2338",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22206,6 +22206,29 @@ class Handler(BaseHTTPRequestHandler):
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
         if path == "/api/g5_status":
             self._json(200, _g5_status())
+            return
+        if path == "/api/mini_preflight":
+            # v2338 — MINI(AUTOMATIC): can the pointer be driven RIGHT NOW, and over what window.
+            # Read-only and it moves nothing that stays moved: hover_drive.preflight() proves the
+            # pointer obeys with a 1px twitch it immediately undoes, because CGEventPost fails
+            # SILENTLY without Accessibility and a lamp built on "can I read the cursor" would
+            # answer READY for ever while moving nothing. [[grok-second-eye]] [[the-unjoined-end]]
+            #
+            # ⚠ ABOVE /api/eagle ON PURPOSE, and harmless there: this dispatch is a chain of
+            # `if path == ...` with an early return, so a new branch SHADOWS anything below whose
+            # path it also matches. v2026 learned that by shadowing /api/doctor with a two-minute
+            # sweep. "/api/mini_preflight" matches nothing else.
+            try:
+                import hover_drive
+                ok, why, facts = hover_drive.preflight()
+                self._json(200, {"ready": bool(ok), "why": why,
+                                 "cursor": facts.get("cursor"),
+                                 "pointerObeys": facts.get("pointerObeys"),
+                                 "window": facts.get("window")})
+            except Exception as e:
+                # UNREADY WITH A REASON, never a 500 the panel renders as a spinner.
+                self._json(200, {"ready": False, "why": "hover_drive could not be asked: %s"
+                                                        % str(e)[:120]})
             return
         if path == "/api/eagle":
             # v2026 — 🦅 THE EAGLE EYE, reachable from the app.

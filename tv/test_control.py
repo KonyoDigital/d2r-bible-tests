@@ -34027,5 +34027,193 @@ class TestV2336TheBrowserSuitesStayOnGitHub(unittest.TestCase):
 
 
 
+class TestV2338MiniAutomaticCanOnlyHover(unittest.TestCase):
+    """The actuator that moves his pointer. The guarantee is STRUCTURAL, not a setting.
+
+    In D2R a left click on an occupied stash cell picks the item up. An automatic sweep that
+    could click would, on any bug, scatter his stash — and "the click path is disabled" is a
+    weaker promise than "there is no click path". So tv/hover_drive.py is allowed to build
+    exactly one kind of event, and this asserts that no other kind has appeared in it.
+
+    ⚠ Konyo's standing instruction for this feature, in his words: HOVER ONLY, NEVER A CLICK ON
+    AN ITEM. A page-turn click is a different job for a different file, with its own refusal that
+    the point lies outside the grid. It is deliberately not written yet.
+    """
+
+    def _src(self):
+        return _code_only(io.open(os.path.join(HERE, "hover_drive.py"), encoding="utf-8").read())
+
+    def test_no_click_event_can_be_built_anywhere_in_the_file(self):
+        src = self._src()
+        for tok in ("LeftMouseDown", "LeftMouseUp", "RightMouseDown", "RightMouseUp",
+                    "OtherMouseDown", "OtherMouseUp", "cliclick", "CGPostMouseEvent",
+                    "kCGEventLeftMouseDragged"):
+            self.assertNotIn(tok, src,
+                             "hover_drive.py can now build %s. This file may move the pointer "
+                             "and nothing else — a click on an occupied cell picks the item up, "
+                             "and his instruction was HOVER ONLY." % tok)
+        self.assertIn("kCGEventMouseMoved", src, "the one event it IS allowed to build is gone")
+
+    def test_the_only_event_type_it_names_is_the_move(self):
+        """Counted, not just spot-checked: exactly one kCGEvent* name in the whole file."""
+        import re
+        names = sorted(set(re.findall(r"kCGEvent[A-Za-z]+", self._src())))
+        self.assertEqual(names, ["kCGEventMouseMoved"],
+                         "hover_drive names %r — it may name exactly one event type" % (names,))
+
+    # ── the walk, driven with no pointer and no window ────────────────────────────────────
+    def _pointer(self, hijack_at=None):
+        class P(object):
+            def __init__(s):
+                s.at = (11.0, 22.0); s.moves = []; s.n = 0
+            def move(s, x, y):
+                s.moves.append((round(x), round(y))); s.at = (x, y); return True, None
+            def pos(s):
+                s.n += 1
+                if hijack_at is not None and s.n > hijack_at:
+                    return (s.at[0] + 90, s.at[1] + 90), None
+                return s.at, None
+        return P()
+
+    def _targets(self):
+        import slot_identity as si
+        box, why = si.panel_box_for(2940, 1912, container="stash")
+        self.assertIsNotNone(box, why)
+        out = []
+        for c, r in ((0, 0), (3, 1), (9, 7)):
+            p, why = si.point_of_cell(c, r, box, "stash")
+            self.assertIsNotNone(p, why)
+            out.append(p)
+        return out
+
+    def test_a_clean_walk_hovers_every_target_and_puts_the_pointer_back(self):
+        import hover_drive as hd
+        p = self._pointer()
+        rep = hd.walk(self._targets(), (2940, 1912), (0.0, 0.0, 2940.0, 1912.0),
+                      dwell_s=0, _sleep=lambda s: None, _move=p.move, _pos=p.pos)
+        self.assertIsNone(rep["stopped"], "a clean walk stopped: %s" % rep["stopped"])
+        self.assertEqual(rep["moved"], 3)
+        self.assertTrue(rep["restored"], "the pointer was not put back where it was found")
+        self.assertEqual(p.moves[-1], (11, 22),
+                         "the last move must be HOME — a sweep that parks his pointer over a "
+                         "stash cell has changed his screen")
+
+    def test_his_hand_stops_it_at_once(self):
+        import hover_drive as hd
+        p = self._pointer(hijack_at=1)
+        rep = hd.walk(self._targets(), (2940, 1912), (0.0, 0.0, 2940.0, 1912.0),
+                      dwell_s=0, _sleep=lambda s: None, _move=p.move, _pos=p.pos)
+        self.assertEqual(rep["moved"], 1, "it kept driving after he took the mouse")
+        self.assertIn("his hand", str(rep["stopped"]))
+
+    def test_it_does_NOT_yank_the_pointer_back_when_his_hand_is_on_it(self):
+        """The restore is right at the end of a sweep and WRONG the moment he grabs the mouse."""
+        import hover_drive as hd
+        p = self._pointer(hijack_at=1)
+        rep = hd.walk(self._targets(), (2940, 1912), (0.0, 0.0, 2940.0, 1912.0),
+                      dwell_s=0, _sleep=lambda s: None, _move=p.move, _pos=p.pos)
+        self.assertFalse(rep["restored"],
+                         "it pulled the pointer out from under his hand — that is worse than "
+                         "leaving it where he put it")
+
+    def test_a_pointer_it_cannot_read_stops_the_walk(self):
+        """[[unknown-stays-unknown]] — it may never drive a surface it has stopped observing."""
+        import hover_drive as hd
+        p = self._pointer()
+        def blind():
+            p.n += 1
+            return (None, "cursor-read: denied") if p.n > 1 else (p.at, None)
+        rep = hd.walk(self._targets(), (2940, 1912), (0.0, 0.0, 2940.0, 1912.0),
+                      dwell_s=0, _sleep=lambda s: None, _move=p.move, _pos=blind)
+        self.assertIsNotNone(rep["stopped"])
+        self.assertIn("could not tell", str(rep["stopped"]))
+
+    def test_the_walk_is_bounded(self):
+        import hover_drive as hd
+        p = self._pointer()
+        rep = hd.walk(self._targets() * 50, (2940, 1912), (0.0, 0.0, 2940.0, 1912.0),
+                      dwell_s=0, max_steps=5, _sleep=lambda s: None, _move=p.move, _pos=p.pos)
+        self.assertEqual(rep["moved"], 5)
+        self.assertIn("step bound", str(rep["stopped"]))
+
+    def test_a_target_outside_the_capture_is_skipped_not_clamped(self):
+        """A clamped point is a REAL place on his screen that nobody chose."""
+        import hover_drive as hd
+        p = self._pointer()
+        rep = hd.walk([(-99999, -99999)], (2940, 1912), (0.0, 0.0, 2940.0, 1912.0),
+                      dwell_s=0, _sleep=lambda s: None, _move=p.move, _pos=p.pos)
+        self.assertEqual(rep["moved"], 0)
+        self.assertIn("skipped", rep["steps"][0])
+
+    def test_the_mini_button_is_joined_end_to_end(self):
+        """Button → handler → route → module. Every joint, because a feature built correctly at
+        both ends and never joined reads as wired from either side and carries nothing.
+        [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn('id="btn-mini"', ui, "the MINI button is gone from the markup")
+        self.assertIn("$('btn-mini').onclick", ui, "the button has no handler — it is furniture")
+        self.assertIn("/api/mini_preflight", ui, "the handler asks no route")
+
+        app = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        self.assertIn('path == "/api/mini_preflight"', app,
+                      "the console does not serve the route the button calls")
+
+        drive = _code_only(io.open(os.path.join(HERE, "hover_drive.py"), encoding="utf-8").read())
+        self.assertIn("def preflight", drive, "the route calls a function that does not exist")
+
+    def test_the_mini_route_is_not_shadowed_by_an_earlier_branch(self):
+        """This dispatch is `if path == ...` with an early return: FIRST MATCH WINS. v2026 shipped
+        a branch that shadowed /api/doctor and turned a fast check into a two-minute sweep."""
+        app = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        i = app.index('path == "/api/mini_preflight"')
+        before = app[:i]
+        self.assertNotIn('path == "/api/mini_preflight"', before,
+                         "there are two branches for this path; the first wins and the second "
+                         "is dead")
+
+    def test_preflight_PROVES_the_pointer_obeys_rather_than_assuming_it(self):
+        """READY, AUTHORISED and ACTUALLY WORKING are three questions. [[grok-second-eye]]
+
+        CGEventGetLocation works for any process; CGEventPost needs Accessibility and FAILS
+        SILENTLY without it — no exception, no return code, the pointer just does not move. A
+        preflight built on "can I read the cursor" therefore answers READY and then moves nothing
+        for ever, with every lamp green. It must post a real move and read it back.
+        """
+        src = _code_only(io.open(os.path.join(HERE, "hover_drive.py"), encoding="utf-8").read())
+        self.assertIn("def can_actually_move", src, "the move receipt is gone")
+        pre = _between(self, src, "def preflight(", "return True, None, facts", min_len=120,
+                       what="preflight")
+        self.assertIn("can_actually_move", pre,
+                      "preflight no longer PROVES the pointer obeys — it is back to reading the "
+                      "cursor and calling that ready, which is a lamp, not a receipt")
+
+    def test_the_move_receipt_puts_the_pointer_back(self):
+        """The proof is a 1px twitch and it must undo itself, whatever the answer was."""
+        import hover_drive as hd
+        seen = []
+        real_pos, real_move = hd.cursor_pos, hd.move_cursor
+        try:
+            state = {"at": (100.0, 200.0)}
+            hd.cursor_pos = lambda: (state["at"], None)
+            def fake_move(x, y):
+                seen.append((x, y)); state["at"] = (x, y); return True, None
+            hd.move_cursor = fake_move
+            ok, why = hd.can_actually_move()
+            self.assertTrue(ok, why)
+        finally:
+            hd.cursor_pos, hd.move_cursor = real_pos, real_move
+        self.assertEqual(seen[-1], (100.0, 200.0),
+                         "the receipt left the pointer 1px from where it found it")
+
+    def test_move_cursor_refuses_a_non_finite_point(self):
+        """NaN passes every range test ever written. v2335 learned this in screen_point."""
+        import hover_drive as hd
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            ok, why = hd.move_cursor(bad, 10.0)
+            self.assertFalse(ok, "move_cursor accepted %r as an x coordinate" % bad)
+            self.assertIn("finite", why)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
