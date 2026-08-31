@@ -18734,7 +18734,21 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                ['tally','hd-tallybar','hd-tallybar-chips']].forEach(function(t){
                 var box = document.getElementById(t[1]), body = document.getElementById(t[2]);
                 if (!box || !body){ o[t[0]] = 'absent'; return; }
-                o[t[0]] = !body.children.length ? 'empty' : (box.hidden ? 'DARK' : 'shown');
+                /* ══ v2356 — 'shown' MEANT 'the hidden attribute is false', WHICH IS NOT THE SAME
+                   AS BEING ON HIS SCREEN. On 2026-08-31 he photographed a black gap where the
+                   Task Force sits while this very beat reported taskforce/forge/tally all
+                   'shown', hidden:false, beat 2.9s old. The attribute was telling the truth and
+                   the check was asking the wrong question — my own guard, judged on a proxy
+                   instead of on the thing. [[feedback-verify-not-proxy]]
+                   Now it carries the RENDERED BOX. A panel with rows, not hidden, and zero
+                   height is the state that has no name and is exactly what he keeps seeing. */
+                var st = !body.children.length ? 'empty' : (box.hidden ? 'DARK' : 'shown');
+                var r = null; try { r = box.getBoundingClientRect(); } catch(e){}
+                var h = r ? Math.round(r.height) : -1;
+                if (st === 'shown' && h <= 2) st = 'ZERO-HEIGHT';
+                o[t[0]] = st;
+                o[t[0] + 'H'] = h;
+                if (r) o[t[0] + 'Top'] = Math.round(r.top);
               });
               return o;
             })()

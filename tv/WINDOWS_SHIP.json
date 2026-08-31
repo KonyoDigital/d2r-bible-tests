@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2355",
+  "ver": "v2356",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2355: a 6-character label sat in a 657px bar and a cold eye called it empty",
+  "note": "v2356: the panel beat now carries the rendered box, and two fixtures stopped depending on his live data",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

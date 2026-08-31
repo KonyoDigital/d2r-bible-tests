@@ -11339,6 +11339,18 @@ class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
 
 
 class TestWaitingFootageIsVisible(unittest.TestCase):
+    """⚠ v2356 — THE FIXTURE IDS MUST NOT EXIST IN HIS TREE.
+
+    These tests build their own reels in a tmp dir and point TV_HIST at it, which looks isolated
+    and is not: `chronicle_offer()` consults `chronicle_swept.json`, and `_chron_swept_path()`
+    deliberately IGNORES TV_HIST (it is live state, shared by the whole process). The fixture
+    used `reel_s_1787177179114_91449` — a REAL reel of his — so on 2026-08-31, the moment his
+    own sweep sealed that id (22 pages read, frames since pruned), a test that touches none of
+    his data started failing and blocked a push.
+
+    The ids are now 9999999999xxx: not a reachable capture epoch, so they cannot collide with
+    anything he films. [[feedback-fixtures-never-touch-live-data]]
+    """
     """v1820 — Konyo, after recording three Chronicle sessions: "still not changed the sets or the
     uniques number.. ill do another session it should definitely be able to read and tally them".
 
@@ -11368,25 +11380,31 @@ class TestWaitingFootageIsVisible(unittest.TestCase):
         d = os.path.join(self.tmp, rid)
         os.makedirs(d, exist_ok=True)
         idx = {"sessionId": rid[5:], "n": n, "focus": focus, "focusChosen": True,
-               "frames": [{"f": "f_%d.jpg" % (1787177179114 + i), "ts": 1787177179114 + i}
+               "frames": [{"f": "f_%d.jpg" % (9999999999114 + i), "ts": 9999999999114 + i}
                           for i in range(n)]}
         with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
             json.dump(idx, fh)
         return d
 
     def test_a_reel_he_focused_on_the_chronicle_is_OFFERED(self):
-        self._reel("reel_s_1787177179114_91449", "chronicle-uniques", 35)
-        self._reel("reel_s_1787177267889_92273", "chronicle-sets", 38)
-        offers = ca.chronicle_offer(limit=8)["visits"]
+        self._reel("reel_s_9999999999114_91449", "chronicle-uniques", 35)
+        self._reel("reel_s_9999999999889_92273", "chronicle-sets", 38)
+        # ⚠ LIMIT BIG ENOUGH THAT HIS LIVE DATA CANNOT CROWD THE FIXTURES OUT. chronicle_offer
+        # fills from chronicle_visits() FIRST and gives reels only `limit - len(visits)`. His real
+        # visit list reached SEVEN on 2026-08-31, leaving one slot at limit=8 - so one of the two
+        # fixture reels silently vanished and blocked a push. The fixture REELS are isolated in
+        # TV_HIST; the VISITS are not, and cannot be from here.
+        # [[feedback-fixtures-never-touch-live-data]]
+        offers = ca.chronicle_offer(limit=64)["visits"]
         reels = {o.get("reel"): o for o in offers if o.get("source") == "reel"}
-        self.assertIn("reel_s_1787177179114_91449", reels)
-        self.assertIn("reel_s_1787177267889_92273", reels)
-        self.assertEqual(reels["reel_s_1787177179114_91449"]["ledger"], "uniques")
-        self.assertEqual(reels["reel_s_1787177267889_92273"]["ledger"], "sets")
-        self.assertEqual(reels["reel_s_1787177267889_92273"]["n"], 38)
+        self.assertIn("reel_s_9999999999114_91449", reels)
+        self.assertIn("reel_s_9999999999889_92273", reels)
+        self.assertEqual(reels["reel_s_9999999999114_91449"]["ledger"], "uniques")
+        self.assertEqual(reels["reel_s_9999999999889_92273"]["ledger"], "sets")
+        self.assertEqual(reels["reel_s_9999999999889_92273"]["n"], 38)
 
     def test_the_offer_still_spends_nothing(self):
-        self._reel("reel_s_1787177179114_91449", "chronicle-uniques")
+        self._reel("reel_s_9999999999114_91449", "chronicle-uniques")
         self.assertEqual(ca.chronicle_offer(limit=8)["spent"], 0)
 
     def test_a_reel_already_swept_is_not_offered_again(self):
@@ -11400,7 +11418,7 @@ class TestWaitingFootageIsVisible(unittest.TestCase):
         The private-list-only case is now covered by the opposite assertion in
         TestV2139TheSweeperAndThePanelShareOneDefinition, where it must be OFFERED.
         """
-        rid = "reel_s_1787177179114_91449"
+        rid = "reel_s_9999999999114_91449"
         self._reel(rid, "chronicle-uniques")
         # OWN THE PATH FOR THIS TEST. Two wrong turns before this one, both worth recording:
         # writing TV_HIST/chronicle_swept.json proves nothing (the harness redirects live-state
@@ -11409,7 +11427,7 @@ class TestWaitingFootageIsVisible(unittest.TestCase):
         # other tests down with it. Patch the global to a file inside this test's own tmp.
         swept = os.path.join(self.tmp, "swept-fixture.json")
         with io.open(swept, "w", encoding="utf-8") as fh:
-            json.dump({rid: {"ts": 1787177179114, "classified": 4, "pages": 3,
+            json.dump({rid: {"ts": 9999999999114, "classified": 4, "pages": 3,
                              "promptVer": "p1839", "agentVer": "v2139"}}, fh)
         _p0 = ca._CHRON_SWEPT_PATH
         try:
@@ -11423,7 +11441,7 @@ class TestWaitingFootageIsVisible(unittest.TestCase):
     def test_a_mini_focused_somewhere_ELSE_is_never_offered(self):
         # the vault sweep owns stash/rune/gem minis; guessing a ledger for one of those is the
         # failure the whole chronicle lane refuses to commit
-        self._reel("reel_s_1787177179114_91449", "stash")
+        self._reel("reel_s_9999999999114_91449", "stash")
         offers = ca.chronicle_offer(limit=8)["visits"]
         self.assertFalse([o for o in offers if o.get("source") == "reel"])
 
@@ -11431,7 +11449,7 @@ class TestWaitingFootageIsVisible(unittest.TestCase):
         # this loop turns whatever it takes into chronicle_sweep_start(visit=ts). Handing it a reel
         # would look up a journal row that does not exist, fail, spend one of that reel's two tries
         # and eventually RETIRE footage the reel tick would have read correctly.
-        self._reel("reel_s_1787177179114_91449", "chronicle-uniques")
+        self._reel("reel_s_9999999999114_91449", "chronicle-uniques")
         taken = {"visit": [], "reel": []}
         orig_start = ca.chronicle_sweep_start
         orig_alive = ca._agent_alive
@@ -35430,9 +35448,17 @@ class TestV2349TheDualRulingDoor(unittest.TestCase):
         for scope in (".inbox-pop .ibp-acts{", ".inbox-sticky .ibp-acts{"):
             i = src.index(scope)
             rule = src[i:src.index("}", i)]
-            self.assertIn("repeat(2,minmax(0,1fr))", rule,
-                          "%s is no longer a 2-up grid; with four rulings that clips at 375"
-                          % scope)
+            # PIN THE LAW, NOT THE NUMBER. The first cut asserted the literal
+            # `repeat(2,minmax(0,1fr))` and went red the moment v2355 legitimately capped the
+            # track at 260px to stop a 6-character label sitting in a 657px bar. What matters is
+            # that there are TWO columns - four rulings in one row clip at 375px - not how the
+            # track happens to be sized this week. [[regression-guard]]
+            import re as _re
+            m = _re.search(r"grid-template-columns:\s*repeat\(\s*(\d+)\s*,", rule)
+            self.assertIsNotNone(m, "%s no longer declares a repeat() column count" % scope)
+            self.assertEqual(m.group(1), "2",
+                             "%s is a %s-up grid; with four rulings anything but 2 clips at 375"
+                             % (scope, m.group(1)))
 
     def test_the_twin_render_site_did_not_drift(self):
         """There are TWO places that build ruling buttons (.ibp-acts and .ibx-act). Fixing one
