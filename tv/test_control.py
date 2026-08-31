@@ -34724,6 +34724,36 @@ class TestV2343AReelIsATimelineNotABagOfFrames(unittest.TestCase):
         self.assertIn("CHRONICLE", why)
         self.assertIn("checklist", why)
 
+    def test_INVENTORY_ALONE_is_holding_and_not_owning(self):
+        """v2343 mapped inventory -> a container lane. That was my mistake and he caught it.
+
+        "when the inventory alone is open its just INVENTORY its not necessarily stashing it just
+        yet.. it could have picked it up identified it for the CHRONICLE item and then thrown back
+        out to the ground if its worthless"; "only when its in STASH while both templates windows
+        are open... thats when we start usually stashing stuff"; "not until physically it is
+        registered in the vault and has its slot identity pinpointed".
+
+        MEASURED, and his rule is visible in his own footage: inventory segments are 4 visits and
+        12 SECONDS total; stash segments are 13 visits and 235 seconds. A glance versus stashing.
+        The 8 names this wrongly granted were Storm Emblem, Cloudy Sphere, Small Charm of Good Luck
+        and five set pieces — precisely the pick-up-look-drop kind.
+        """
+        import reel_segments as rs
+        rows = [{"lane": "deep", "sessionId": "s1", "captureTs": 1000, "scene": "inventory"},
+                {"lane": "deep", "sessionId": "s1", "captureTs": 2000, "scene": "inventory"}]
+        lane, why = rs.lane_at(rs.segments(rows), "s1", 1500)
+        self.assertIsNone(lane, "an item seen while ONLY the inventory was open was treated as owned")
+        self.assertIn("holding, not owning", why)
+
+    def test_the_inventory_still_teaches_what_is_permanently_his(self):
+        """Two lanes, two purposes: the vault asks 'does he own this', the lock learner asks 'is
+        this his furniture'. v2343 answered both with one map and got the first one wrong."""
+        import reel_segments as rs
+        self.assertIs(rs.feeds_the_lock_learner("inventory")[0], True)
+        self.assertIs(rs.feeds_the_lock_learner("equipped")[0], True)
+        self.assertIs(rs.feeds_the_lock_learner("stash")[0], False)
+        self.assertIs(rs.feeds_the_lock_learner("chronicle")[0], False)
+
     def test_gameplay_is_an_ABSENCE_of_a_claim_not_a_rebuttal(self):
         import reel_segments as rs
         lane, why = rs.lane_at(rs.segments(self._rows()), "s1", 9000)
@@ -34819,11 +34849,18 @@ class TestV2343bTheVaultPredicateIsAWhitelist(unittest.TestCase):
         src = self._src()
         lanes = _between(self, src, "window._VAULT_LANES = [", "];", min_len=20,
                          what="the vault lane whitelist")
-        for never in ("floor", "chronicle", "gameplay", "town", "transition", "loot"):
+        # ⚠ `inventory` IS ON THIS LIST OF NEVERS, and v2343 had it the other way round. Konyo:
+        # "when the inventory alone is open its just INVENTORY its not necessarily stashing it
+        # just yet.. it could have picked it up identified it for the CHRONICLE item and then
+        # thrown back out to the ground if its worthless". Holding is not owning, and treating it
+        # as owning is exactly the failure he opened with. The permanent furniture that lives
+        # there — tomes, Horadric Cube, small charms — is locked BY NAME through
+        # inventory_law.is_locked(), not by the lane it was seen in.
+        for never in ("floor", "chronicle", "gameplay", "town", "transition", "loot", "inventory"):
             self.assertNotIn("'%s'" % never, lanes,
-                             "%r is in the container whitelist — a name seen there is not held"
+                             "%r is in the container whitelist — a name seen there is not owned"
                              % never)
-        for must in ("stash", "inventory", "equipped", "cube"):
+        for must in ("stash", "equipped", "cube"):
             self.assertIn("'%s'" % must, lanes, "%r fell out of the whitelist" % must)
 
     def test_the_reader_name_is_never_used_as_a_location(self):
@@ -35011,6 +35048,44 @@ class TestV2345TwoWitnessesMustAgree(unittest.TestCase):
                               "%r was ruled on by a witness that cannot rule on it" % act)
         self.assertIsNone(rs.corroborates("stash", "")[0])
         self.assertIsNone(rs.corroborates("", "stash")[0])
+
+    def test_the_pixel_witness_may_not_rule_on_a_GAMEPLAY_scene(self):
+        """⚠ THE CORRECTION TO v2345, and it matters more than the original claim.
+
+        v2345 said the two witnesses "agree 13/13". True — on the 13 frames where both could rule.
+        Measured across ALL 1429 frames both saw:
+            AGREE 682 · cannot tell 688 · CONTRADICT 59
+        and every one of the 59 was the same shape: the scene read said gameplay/transition/town
+        while the pixels claimed a container grid. I OPENED TWO. One is Nihlathak's Temple in town,
+        one is the Chaos Sanctuary mid-combat with the screen full of fire. Neither has a stash
+        panel anywhere. The MODEL was right both times and the PIXELS were wrong.
+
+        classify_stash_grid is a colour/luminance fingerprint of the stash crop, built to guess
+        WHICH TAB once you already know you are in the stash. It was never a detector for "is a
+        container open", and a fire-lit dungeon in that crop fools it. It can CONFIRM a grid the
+        scene read already claims; it cannot DISCOVER one.
+
+        Corroborating gameplay positively sounded free and would have manufactured 59
+        contradictions against frames that are fine — a gate that cries wolf until it is switched
+        off. [[feedback-suspect-the-instrument]] [[gate-blind-to-unexercised-input]]
+        """
+        import reel_segments as rs
+        for act in ("gameplay", "town", "transition"):
+            v, why = rs.corroborates(act, "stash")
+            self.assertIsNone(v,
+                              "the pixel witness was allowed to contradict a %r read. It "
+                              "false-positives on bright scenes — measured 59 times on his own "
+                              "reels — so this manufactures contradictions, it does not find them"
+                              % act)
+            self.assertIn("false-positive", why)
+
+    def test_an_unrecognised_pixel_label_is_CANNOT_TELL_not_no_grid(self):
+        """A witness that answers something you do not understand has not said no."""
+        import reel_segments as rs
+        for odd in ("shared", "stash_open", "container", "?"):
+            v, why = rs.corroborates("stash", odd)
+            self.assertIsNone(v, "%r was read as a definite answer" % odd)
+            self.assertIn("CANNOT TELL", why)
 
     def test_every_verdict_carries_a_reason(self):
         """A refusal that cannot say why is indistinguishable from one nobody made."""

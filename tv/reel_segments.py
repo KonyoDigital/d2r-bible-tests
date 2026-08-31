@@ -50,13 +50,62 @@ SEG_GAP_MS = 120000
 # items, most of which he does NOT have. Names read there are a checklist, never a holding.
 _ACTIVITY_LANE = {
     "stash": "stash",
-    "inventory": "inventory",
+    "inventory": None,      # ⚠ see below — holding is not owning
     "chronicle": None,
     "loot": None,
     "town": None,
     "gameplay": None,
     "transition": None,
 }
+
+# ⚠⚠ v2346 — INVENTORY ALONE IS NOT POSSESSION, AND MAPPING IT AS SUCH WAS MY MISTAKE.
+# v2343 shipped `"inventory": "inventory"`, which granted a container lane to anything read while
+# only the inventory was open. Konyo corrected it, and he is right:
+#
+#   "when the inventory alone is open its just INVENTORY its not necessarily stashing it just yet..
+#    it could have picked it up identified it for the CHRONICLE item and then thrown back out to
+#    the ground if its worthless.. so these are happening in real time"
+#   "only when its in STASH while both templates windows are open STASH on the left and INVENTORY
+#    on the right side thats when we start usually stashing stuff"
+#   "not until physically it is registered in the vault and has its slot identity pinpointed"
+#
+# So an item seen in the inventory is being HELD this second and may be on the ground a moment
+# later. That is the exact failure he opened with — things he discarded sitting in his vault for
+# ever — and it was mine.
+#
+# MEASURED, and his rule is visible in his own footage:
+#     inventory segments   4 visits,  12 SECONDS total   <- a glance
+#     stash     segments  13 visits, 235 seconds total   <- actual stashing
+#     names this wrongly granted 'inventory': 8 — Storm Emblem, Cloudy Sphere, Small Charm of Good
+#     Luck and five set pieces, which is precisely the pick-up-look-drop kind.
+#
+# ⚠ AND THE INVENTORY IS NOT WORTHLESS TO US — IT IS A DIFFERENT QUESTION. It holds his permanent
+# furniture (the tomes, the Horadric Cube, his small charms), which is LOCKED: registered and
+# synced, never moved. That is main_character.saw() / inventory_law.is_locked() territory, and it
+# must not be confused with the vault's "does he own this" question. Two lanes, two purposes.
+# ★ AND THE INVENTORY IS THE FRONT DOOR, WHICH IS WHY ITS SIGHTINGS MATTER. Konyo: "the first
+# logical place any item can start is from INVENTORY first even before its a chronicle identified
+# item. so it starts in INVENTORY." Every item is picked up there and IDENTIFIED there, then takes
+# one of three exits:
+#     ground -> INVENTORY -> STASH    kept; possession is claimed there, with a slot identity
+#                         -> ground   discarded: gone from the inventory, and no stash was opened
+#                         -> stays    furniture: tomes, Horadric Cube, small charms (locked BY NAME)
+# So an inventory sighting is the START OF THE TRAIL, not a weak possession claim. Without it a
+# discard cannot be observed at all — which is why lane_at() refuses it for the vault while
+# feeds_the_lock_learner() still welcomes it. Two questions, one lane.
+LOCK_LANES = ("inventory", "equipped")
+
+
+def feeds_the_lock_learner(activity):
+    """Is this a moment whose sightings should teach what is permanently HIS? -> (bool, why)
+
+    Deliberately separate from lane_at(): the vault asks "does he own this", the lock learner asks
+    "is this his furniture". v2343 answered both with one map and got the first one wrong.
+    """
+    act = str(activity or "").strip().lower()
+    if act in LOCK_LANES:
+        return True, "read while the %s was open — repeated sightings here earn a lock" % act
+    return False, "%s is not a lane that teaches what is permanently his" % (act or "nothing")
 
 
 def _ts(row):
@@ -140,6 +189,11 @@ def lane_at(segs, sid, ts, pad_ms=0):
     if act == "chronicle":
         return None, ("read while the CHRONICLE was open — that page is a list of item names, "
                       "most of which he does not own, so it is a checklist and never a holding")
+    if act == "inventory":
+        return None, ("read while ONLY the inventory was open — that is holding, not owning. He "
+                      "may have picked it up, identified it, and dropped it again. Possession is "
+                      "claimed in the stash, once it is physically registered with a slot "
+                      "identity")
     return None, "read during %s, which does not establish possession" % act
 
 
@@ -170,6 +224,20 @@ def lane_at(segs, sid, ts, pad_ms=0):
 
 _GRID_ACTIVITIES = ("stash", "inventory")
 
+# The pixel witness's CLOSED vocabulary, taken from stash_eye.classify_stash_grid's own docstring:
+#   stash-runes | stash-gems | stash-materials | stash | gameplay
+# ⚠ AN UNRECOGNISED LABEL IS "CANNOT TELL", NOT "NO GRID". The first cut tested
+# pix.startswith("stash"), so any label the classifier might grow — and there are already two
+# other functions in that file returning "shared" and "stash-<tab>" — would silently read as "no
+# grid" and produce a confident WRONG verdict rather than an honest refusal. A witness that
+# answers something you do not understand has not said no. [[unknown-stays-unknown]]
+_PIX_GRID = ("stash", "stash-runes", "stash-gems", "stash-materials")
+_PIX_NO_GRID = ("gameplay",)
+# Activities where NO grid is the expected sight, so agreement is a positive result rather than a
+# shrug. Konyo asked for the corroborator to work everywhere it can, and discarding a real
+# agreement is throwing away the cheapest evidence there is.
+_NO_GRID_ACTIVITIES = ("gameplay", "town", "transition")
+
 
 def corroborates(activity, pixel_label):
     """Do the model's scene and the pixels' own fingerprint agree? -> (verdict, why)
@@ -180,9 +248,37 @@ def corroborates(activity, pixel_label):
     """
     act = str(activity or "").strip().lower()
     pix = str(pixel_label or "").strip().lower()
+    if not act and not pix:
+        return None, "neither witness answered, so they cannot be compared"
     if not act or not pix:
-        return None, "one of the two witnesses did not answer, so they cannot be compared"
-    pix_has_grid = pix.startswith("stash")
+        return None, ("the %s witness did not answer, so they cannot be compared"
+                      % ("pixel" if act else "scene"))
+    if pix in _PIX_GRID:
+        pix_has_grid = True
+    elif pix in _PIX_NO_GRID:
+        pix_has_grid = False
+    else:
+        return None, ("the pixel witness answered %r, which is not a label this comparison knows "
+                      "— that is CANNOT TELL, never 'no grid'" % pix)
+    if act in _NO_GRID_ACTIVITIES:
+        # ⚠⚠ THE PIXEL WITNESS MAY NOT RULE ON A NON-CONTAINER SCENE, AND I LEARNED THAT THE HARD
+        # WAY. A cross-family review suggested corroborating gameplay positively (no grid expected,
+        # no grid found) and it sounded free. Measured across ALL 1429 frames both witnesses saw:
+        #     AGREE 682 · cannot tell 688 · CONTRADICT 59
+        # and every one of the 59 was the same shape — the scene read said gameplay/transition/town
+        # while the pixels claimed a container grid. I OPENED TWO OF THEM. One is Nihlathak's
+        # Temple in town, one is the Chaos Sanctuary mid-combat with the screen full of fire.
+        # Neither has a stash panel anywhere. The MODEL was right both times.
+        #
+        # classify_stash_grid is a colour/luminance fingerprint of the stash crop region, built to
+        # guess WHICH TAB you are on once you already know you are in the stash. It was never a
+        # detector for "is a container open", and a fire-lit dungeon in that crop fools it. So it
+        # can CONFIRM a grid the scene read already claims; it cannot DISCOVER one.
+        #
+        # Enabling this arm would have manufactured 59 contradictions against frames that are fine
+        # — a gate that cries wolf until it is switched off. [[feedback-suspect-the-instrument]]
+        return None, ("%s is not a scene the pixel witness can rule on — it fingerprints the stash "
+                      "crop and false-positives on bright gameplay (measured: 59 such frames)" % act)
     if act in _GRID_ACTIVITIES:
         if pix_has_grid:
             return True, "the read says %s and the pixels show a container grid" % act

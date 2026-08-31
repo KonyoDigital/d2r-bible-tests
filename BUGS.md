@@ -14030,3 +14030,74 @@ the reason that arm must not gate anything on its own yet.
 not be read" is not "the pixels disagree", and a contradiction IS the finding rather than something
 to average away. Every verdict carries its reason, because a refusal that cannot say why is
 indistinguishable from one nobody made.
+
+## REG-426 — I mapped `inventory` as possession, and holding is not owning
+
+v2343 shipped `_ACTIVITY_LANE = {"inventory": "inventory", ...}` and put `inventory` on the vault
+whitelist, so anything read while only the inventory was open counted as a thing he OWNS. Konyo
+corrected it and he is right:
+
+> *"when the inventory alone is open its just INVENTORY its not necessarily stashing it just yet..
+> it could have picked it up identified it for the CHRONICLE item and then thrown back out to the
+> ground if its worthless.. so these are happening in real time"*
+>
+> *"only when its in STASH while both templates windows are open STASH on the left and INVENTORY on
+> the right side thats when we start usually stashing stuff"*
+>
+> *"not until physically it is registered in the vault and has its slot identity pinpointed"*
+
+**This is the same failure he opened the thread with** — things he discarded sitting in his vault
+for ever — and this time it was mine.
+
+**MEASURED, and his rule is visible in his own footage:**
+
+```
+inventory segments    4 visits,  12 SECONDS total    <- a glance
+stash     segments   13 visits, 235 seconds total    <- actual stashing
+names wrongly granted 'inventory': 8 — Storm Emblem, Cloudy Sphere, Small Charm of Good Luck,
+                                       and five set pieces (the pick-up-look-drop kind)
+```
+
+**Fixed v2346:** `inventory` is off the vault whitelist and `lane_at()` refuses it with the reason
+in his terms. `equipped` stays — gear on his character is registered and synced, and the lane lock
+(v1983) is what stops it ever being told to move.
+
+⚠ **THE INVENTORY IS NOT WORTHLESS TO US — IT IS A DIFFERENT QUESTION.** It holds his permanent
+furniture: the tomes, the Horadric Cube, his small charms. That is locked BY NAME through
+`inventory_law.is_locked()`, because a Tome of Town Portal is furniture wherever it sits — being
+seen in the inventory is not what makes it his. `reel_segments.feeds_the_lock_learner()` is now a
+separate question from `lane_at()`: **the vault asks "does he own this", the lock learner asks "is
+this his furniture".** v2343 answered both with one map and got the first one wrong.
+
+## REG-427 — the pixel witness cannot DISCOVER a container, only CONFIRM one. v2345 overclaimed.
+
+v2345 shipped `corroborates()` and said the two witnesses "agree 13/13". That was true — **on the 13
+frames where both could rule under a narrow test.** Widening it to every frame both witnesses saw
+tells a different story:
+
+```
+across ALL 1429 frames:   AGREE 682 · cannot tell 688 · CONTRADICT 59
+every one of the 59:      the scene read said gameplay/transition/town
+                          while the pixels claimed a container grid
+```
+
+**I OPENED TWO OF THEM.** One is Nihlathak's Temple in town — portal, character, monsters, full HUD.
+One is the Chaos Sanctuary mid-combat with the screen full of fire. **Neither has a stash panel
+anywhere.** The MODEL was right both times; the PIXELS were wrong.
+
+Reading `classify_stash_grid` again explains it: it is a colour/luminance fingerprint of the stash
+crop region, built to guess **which tab** you are on once you already know you are in the stash. It
+was never a detector for *is a container open*, and a fire-lit dungeon in that crop fools it.
+
+**So the corroborator's scope is narrower than I claimed:** the pixel witness may CONFIRM a grid the
+scene read already asserts; it may not DISCOVER one. After the fix, across all 1429 frames:
+**13 AGREE, 1416 cannot tell, 0 contradictions.**
+
+⚠ **And a cross-family review had suggested the opposite** — corroborate `gameplay` positively, "no
+grid expected, no grid found", which sounds free. Taking it would have manufactured **59
+contradictions against frames that are fine**: a gate that cries wolf until someone switches it off.
+The review was reasoning from the code; the answer was in the pixels. **A good reviewer earns a
+measurement, not obedience.**
+
+⚠ Also fixed: an unrecognised pixel label used to read as "no grid" via `startswith("stash")`, which
+turns an answer you do not understand into a confident no. It is now CANNOT TELL.

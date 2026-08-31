@@ -36012,7 +36012,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      and simpler than a pattern that has to be argued about.
      NOT containers, and each for its own reason: `floor` is the ground, `chronicle` is a menu
      listing items he does not own, `gameplay`/`town`/`transition` establish nothing. */
-  window._VAULT_LANES = ['equipped','inventory','stash','cube','belt','mule','locker','tomb','tombs'];
+  /* ⚠⚠ v2346 — `inventory` IS NOT ON THIS LIST, AND ITS ABSENCE IS THE POINT.
+     Konyo: "when the inventory alone is open its just INVENTORY its not necessarily stashing it
+     just yet.. it could have picked it up identified it for the CHRONICLE item and then thrown
+     back out to the ground if its worthless"; "only when its in STASH while both templates
+     windows are open... thats when we start usually stashing stuff"; "not until physically it is
+     registered in the vault and has its slot identity pinpointed".
+
+     Holding is not owning. An item in his inventory is in his hands this second and may be on the
+     ground a moment later — and treating that as possession is exactly the failure he opened with,
+     items he discarded sitting in his vault for ever.
+
+     ⚠ The permanent furniture that LIVES in his inventory — the tomes, the Horadric Cube, his
+     small charms — is not covered by this list and must not be. It is locked BY NAME through
+     inventory_law.is_locked(), because a Tome of Town Portal is furniture wherever it sits; being
+     seen in the inventory is not what makes it his.
+
+     `equipped` stays: gear on his character is registered and synced, and the lane lock (v1983,
+     _laneLocked) is what stops it ever being told to move. */
+  window._VAULT_LANES = ['equipped','stash','cube','belt','mule','locker','tomb','tombs'];
   window._vaultMayClaim = function(loc){
     var t = String(loc == null ? '' : loc).toLowerCase().trim();
     return window._VAULT_LANES.indexOf(t) >= 0;
@@ -47813,7 +47831,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2345', name:'v2345 - Two witnesses', date:'2026-08-31', note:'the pixels now corroborate the scene label, with no model involved' };
+  window.D2R_BUILD = { id:'v2346', name:'v2346 - Holding is not owning', date:'2026-08-31', note:'inventory alone is not possession, and the pixel witness may only confirm' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
