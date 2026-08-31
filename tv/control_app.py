@@ -6581,7 +6581,44 @@ def _kai_compile_register(sess_rows):
                     if _m not in _reg_names:
                         _reg_names = list(_reg_names) + [_m]
             for nm in (_reg_names or []):
-                _consider(nm, ts, fid, _loc_of(nm, r, nl), None)
+                _loc = _loc_of(nm, r, nl)
+                _consider(nm, ts, fid, _loc, None)
+                # ══ v2361 — FEED THE CHARACTER LEARNER FROM THE SAME PROVENANCE ═══════════════
+                # `main_character.saw()` has existed since v2320 and NOTHING HAS EVER CALLED IT:
+                # `main_character.json` does not exist on his machine, while console_doctor and
+                # run_gates both watch for it. A learner that is watched and never fed is the
+                # purest form of [[the-unjoined-end]] - every honesty surface reports it, and it
+                # reports nothing because it has been asked nothing.
+                #
+                # It is fed HERE, from `_loc_of`, so the thing that learns what he wears and the
+                # thing that decides what may claim the vault read the SAME answer. Two learners
+                # with two notions of "where" is how this arc started. `saw()` dedupes per
+                # session itself, so twenty frames of one hover stay one look.
+                # ⚠ IT ASKS THE ACTIVITY, NOT THE CLAIM-LANE, AND THAT IS THE WHOLE POINT.
+                # `_loc_of` answers the VAULT question - "may this name claim to be owned?" - and
+                # `_ACTIVITY_LANE` deliberately maps inventory to None there, because he ruled
+                # that holding is not owning (REG-426). Feeding the learner from that answer
+                # taught it nothing: measured over his whole journal, 0 sightings, because the
+                # only lane it ever yields is `stash`.
+                #
+                # What he WEARS is a different question from what he OWNS, and it is answered by
+                # the ACTIVITY - which does distinguish inventory. One question per gate; two
+                # gates sharing one answer is how this arc started.
+                try:
+                    import main_character as _mc
+                    _act = None
+                    if _segs:
+                        _a = _rseg.activity_at(_segs, str(r.get("sessionId") or ""), ts)
+                        _act = _a[0] if isinstance(_a, (tuple, list)) else _a
+                    # ⚠ ONLY REAL ITEMS. Fed raw, the learner's top names came back as
+                    # "ng you in Tal Rasha's To" and "yourparty 10 lighl the l" - quest text
+                    # misread as items. Measured earlier the same day: 94-100% of names off every
+                    # surface except deep/chronicle are not real items at all. A learner that
+                    # ingests that learns it, and then it is a confident record of noise.
+                    if _act and _mc_is_real_item(nm):
+                        _mc.saw(nm, _act, session=str(r.get("sessionId") or "") or None)
+                except Exception:
+                    pass              # a learner that fails must never take the register with it
         if r.get("lane") == "kai":
             k = r.get("kai")
             j = k.get("judge") if isinstance(k, dict) else None
@@ -15125,6 +15162,50 @@ def _vault_retro():
     return _vr
 
 
+_MC_ROSTER = None
+
+
+def _mc_is_real_item(name):
+    """Is this a name from the actual game, or something a reader hallucinated off a screen?
+
+    v2361. The roster is loaded ONCE and cached. Returns False when the roster cannot be read -
+    on purpose: the learner is an optimisation, and an optimisation that cannot verify its input
+    should learn nothing rather than learn noise. That is the opposite of the usual
+    unknown-stays-unknown direction, and it is deliberate here because the cost is asymmetric -
+    a missed lesson costs nothing, a learned garble becomes a confident wrong record.
+    """
+    global _MC_ROSTER
+    if _MC_ROSTER is None:
+        names = set()
+        try:
+            import chronicle_resolve as _cres
+            # ⚠ ALL THREE LEDGERS. Runewords had no roster at all until v2361, so every
+            # "is this real?" check answered NO for all 101 of them - the learner threw away
+            # `Wrath`, `Peace`, `Bramble` and `Unbending Will`, read correctly off his runewords
+            # Chronicle, as garbage.
+            _rw = os.path.join(os.path.dirname(os.path.abspath(_cres.__file__)),
+                               "runeword_roster.json")
+            for path, keys in ((_cres.ROSTER_PATH, ("names",)),
+                               (_cres.SET_ROSTER_PATH, ("pieces", "sets")),
+                               (_rw, ("names",))):
+                try:
+                    with open(path, encoding="utf-8") as fh:
+                        blob = json.load(fh)
+                except Exception:
+                    continue
+                for k in keys:
+                    for n in (blob.get(k) or []):
+                        nm = n.get("name") if isinstance(n, dict) else n
+                        if isinstance(nm, str) and nm.strip():
+                            names.add(nm.strip().lower())
+        except Exception:
+            names = set()
+        _MC_ROSTER = names
+    if not _MC_ROSTER:
+        return False
+    return str(name or "").strip().lower() in _MC_ROSTER
+
+
 def _mini_cells_from_live_frame(container="stash"):
     """Which cells hold items, read off the newest live frame. -> (cells|None, why)
 
@@ -20620,7 +20701,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2360",
+        "ver": "v2361",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

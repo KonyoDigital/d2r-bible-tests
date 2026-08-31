@@ -35800,15 +35800,19 @@ class TestV2353OneAdmissionDoorForEveryReader(unittest.TestCase):
 class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
     """#121, the AI item checker, given a measured basis instead of a hunch.
 
-    Measured against his real journal 2026-08-31 (5,761 rows, 567-name roster of uniques + set
-    pieces + set names), counting DISTINCT names:
+    ⚠ THE FIGURES THIS CLASS FIRST CARRIED ARE RETRACTED (REG-439). They claimed denominators a
+    careful re-measurement on the same journal cannot reproduce - deep/chronicle came back as 10,
+    not 61, asked twice by two independently written expressions. RE-DERIVED, against a 672-name
+    roster that now includes the 105 RUNEWORDS which previously had no roster at all and so
+    scored zero by construction:
 
         lane   surface       real   seen   Wilson lower
-        deep   chronicle       38     61       0.4975
-        deep   stash            3     25       0.0417
-        deep   gameplay         0     38       0.0000
-        ocr    gameplay         1    366       0.0005
-        ocr    everything else  0    435       0.0000
+        deep   chronicle        7     10       0.3968   (below MIN_SAMPLES: NOT ESTABLISHED)
+        ocr    gameplay         0    201       0.0000
+        ocr    (no scene)       0     93       0.0000
+
+    What survives the correction is the actionable half: the ocr lane has produced ZERO real
+    item names across 300 placed sightings.
 
     Two findings, and the second one inverts the obvious reading:
 
@@ -35828,12 +35832,16 @@ class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
         completely different things. Anything under MIN_SAMPLES must answer None, never 0.0, or
         the gate will eventually discard a real find and call it precision."""
         import surface_precision as sp
-        w, n, why = sp.precision("deep", "loot")
-        self.assertIsNone(w, "0/5 must be NOT ESTABLISHED, not a measured zero (got %r)" % w)
-        self.assertIn("nobody has looked", why)
-        w2, _n2, _ = sp.precision("deep", "chronicle")
-        self.assertIsNotNone(w2, "the best-measured combination lost its measurement")
-        self.assertGreater(w2, 0.2)
+        # deep/chronicle is 7 of 10 after the REG-439 re-derivation - a real ratio, but BELOW
+        # MIN_SAMPLES, so the honest answer is None. That is the property under test: a small
+        # sample must not be promoted to a measurement just because its ratio looks good.
+        w, n, why = sp.precision("deep", "chronicle")
+        self.assertIsNone(w, "7 of 10 is below MIN_SAMPLES and must be NOT ESTABLISHED (got %r)" % w)
+        self.assertIn("below the", why)
+        w2, n2, why2 = sp.precision("ocr", "gameplay")
+        self.assertIsNotNone(w2, "0 of 201 is a real measurement and must not read as unknown")
+        self.assertEqual(w2, 0.0)
+        self.assertGreaterEqual(n2, 30)
 
     def test_an_unmeasured_surface_is_still_read(self):
         """A gate that refuses to pay for what it has not measured can never measure it. Only a
@@ -35850,11 +35858,20 @@ class TestV2354WhatANameIsWorthDependsOnWhoReadItAndWhere(unittest.TestCase):
         the same page is 0 of 33. A table keyed on surface alone would average them and be wrong
         about both."""
         import surface_precision as sp
-        deep_n, _ = sp.witnesses_required("deep", "chronicle")
-        ocr_n, _ = sp.witnesses_required("ocr", "chronicle")
-        self.assertEqual(deep_n, 1, "deep/chronicle is the strongest surface and needs 1 witness")
-        self.assertGreater(ocr_n, deep_n,
-                           "ocr and deep on the SAME surface must not get the same answer")
+        # After REG-439 neither chronicle combination clears MIN_SAMPLES, so the distinction is
+        # made where the evidence actually is: ocr/gameplay is measured (0 of 201) and demands
+        # three witnesses, while an unmeasured combination gets the cautious default of two.
+        # A table keyed on surface alone would average these and be wrong about both.
+        measured_n, _ = sp.witnesses_required("ocr", "gameplay")
+        unmeasured_n, _ = sp.witnesses_required("deep", "chronicle")
+        self.assertEqual(measured_n, 3,
+                         "ocr/gameplay is 0 real of 201 and must demand more than the default")
+        self.assertEqual(unmeasured_n, 2,
+                         "an unmeasured combination must get the cautious default, not a veto "
+                         "and not a free pass")
+        self.assertGreater(measured_n, unmeasured_n,
+                           "a lane measured to produce nothing must be stricter than one nobody "
+                           "has measured")
 
     def test_the_table_can_be_rebuilt_so_it_cannot_rot(self):
         """A measured constant with no way to re-measure it becomes a lie the day his corpus
@@ -36150,6 +36167,79 @@ class TestV2360TheGateIsInFrontOfTheVault(unittest.TestCase):
                       "the JS threshold moved away from menu_run.STRONG")
         self.assertEqual(mr.STRONG, 0.90)
         self.assertEqual(mr.MIN_RUN, 8)
+
+
+
+class TestV2361RunewordsAreRealItemsAndTheLearnerIsFed(unittest.TestCase):
+    """REG-439. Two gaps that hid each other.
+
+    Runewords had NO ROSTER. `unique_roster.json` and `set_roster.json` existed; there was no
+    equivalent for runewords, so every "is this a real item?" check answered NO for all 101 of
+    them. Caught when the character learner threw away `Wrath`, `Peace`, `Bramble` and
+    `Unbending Will` as garbage - real runewords read correctly off his runewords Chronicle.
+
+    ⚠ Any precision figure computed against uniques+sets alone therefore UNDERSTATES the readers
+    on chronicle pages, because a runewords chronicle scores zero by construction. That is part
+    of why the v2354 table is retracted.
+
+    And `main_character.saw()` has existed since v2320 with NO CALLER - the file it writes does
+    not exist on his machine while console_doctor and run_gates both watch for it.
+    """
+
+    def test_runewords_are_recognised_as_real_items(self):
+        import control_app as ca
+        for rw in ("Wrath", "Peace", "Bramble", "Unbending Will", "Enigma", "Insight"):
+            self.assertTrue(ca._mc_is_real_item(rw),
+                            "%r is a real runeword and must not read as garbage" % rw)
+
+    def test_the_roster_still_covers_uniques_and_sets(self):
+        """Adding a third ledger must not have displaced the other two."""
+        import control_app as ca
+        self.assertTrue(ca._mc_is_real_item("Windforce"), "a unique stopped being real")
+        self.assertTrue(ca._mc_is_real_item("Shadow Dancer"), "a set piece stopped being real")
+        self.assertFalse(ca._mc_is_real_item("ng you in Tal Rasha's To"),
+                         "quest text is being accepted as an item name")
+
+    def test_both_the_qualified_and_bare_runeword_names_are_present(self):
+        """The roster row is `Spirit (sword)`; a chronicle page prints `Spirit`. A roster holding
+        only the qualified form fails on the exact surface it exists to check."""
+        p = os.path.join(HERE, "runeword_roster.json")
+        self.assertTrue(os.path.isfile(p), "runeword_roster.json is gone")
+        names = set(json.load(io.open(p, encoding="utf-8")).get("names") or [])
+        self.assertIn("Spirit", names, "the bare form is missing")
+        self.assertTrue(any(n.startswith("Spirit (") for n in names),
+                        "the qualified form is missing")
+
+    def test_the_roster_can_be_regenerated(self):
+        """A generated constant with no generator rots the day bible.html changes."""
+        p = os.path.join(HERE, "build_runeword_roster.py")
+        self.assertTrue(os.path.isfile(p), "the generator is gone")
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("_brr", p)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        src = io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        names, _blk = m.extract(src)
+        self.assertGreater(len(names), 80, "the generator now extracts almost nothing")
+        self.assertIn("Enigma", names)
+
+    def test_the_learner_reads_the_activity_not_the_claim_lane(self):
+        """The distinction that made it work. _loc_of answers the VAULT question and maps
+        inventory to None (REG-426: holding is not owning). Feeding the learner that answer
+        taught it nothing - measured, 0 sightings over his whole journal."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        # ⚠ ANCHOR ON CODE, NOT PROSE. A first cut ended the slice on a trailing COMMENT, which
+        # survives _code_only here but would vanish the moment the comment is reworded - a guard
+        # anchored on prose measures the prose. [[feedback-comments-vs-code]]
+        blk = _between(self, src, "import main_character as _mc",
+                       'if r.get("lane") == "kai":',
+                       min_len=120, what="the learner feed")
+        self.assertIn("activity_at", blk,
+                      "the learner is back on the claim-lane, which only ever answers 'stash' - "
+                      "it will learn nothing")
+        self.assertIn("_mc_is_real_item", blk,
+                      "the learner ingests unfiltered names again; fed raw its top entries were "
+                      "quest text misread as items")
 
 
 

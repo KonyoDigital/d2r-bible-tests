@@ -14144,6 +14144,61 @@ INVENTORY itself can be opened separately with its own template"*. Chrome presen
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
 
+## REG-439 - RETRACTION: THE v2354 PRECISION TABLE IS NOT REPRODUCIBLE, AND RUNEWORDS HAD NO ROSTER
+
+**Two findings, and the first is a retraction of a shipped constant.**
+
+**1. `surface_precision.OBSERVED` as shipped in v2354 cannot be reproduced.** It claimed
+denominators - `deep/chronicle 61`, `ocr/gameplay 366`, `deep/stash 25` - that a careful
+re-measurement over the same journal does not produce. Asked twice, by two independently written
+expressions (one replicating v2354's own `r.get("frame") or r.get("frameId")` form, one using
+`frameId` with slash-normalising), **deep/chronicle comes back as 10, not 61 - identically both
+times, with zero rows lost to a missing timestamp or an unplaceable segment.**
+
+I could not reconstruct how the larger figures arose, so they are **withdrawn rather than
+defended**. This is the same failure as REG-429: a number measured once by hand, published as a
+property of the system, and not re-runnable. The difference is that this one had been baked into
+a module as a constant and into a test as an assertion, which is worse.
+
+**Re-derived, and now stated with its derivation so it is checkable:**
+
+```
+275 name-sightings placed on a segment; 98 unplaceable
+lane   surface       real   seen   Wilson lower
+deep   chronicle        7     10       0.3968   (below MIN_SAMPLES -> NOT ESTABLISHED)
+ocr    gameplay         0    201       0.0000
+ocr    (no scene)       0     93       0.0000
+ocr    chronicle        0      5       0.0000
+ocr    town             0      1       0.0000
+```
+
+**What survives, and it is the actionable half:** the `ocr` lane has produced **zero** real item
+names across 300 placed sightings. OCR earns its keep on STRUCTURE and nothing at all on NAMES -
+the lane design already said so, and this confirms it. Two combinations are refused a paid read.
+
+**What does not survive:** any claim about stash, inventory, or the deep lane on gameplay. There
+is not enough placed evidence, and `MIN_SAMPLES` now correctly answers NOT ESTABLISHED for nearly
+everything - so `witnesses_required` returns the cautious default of 2 almost everywhere. That is
+the honest state of the measurement, not a failure of it. [[unknown-stays-unknown]]
+
+**2. RUNEWORDS HAD NO ROSTER AT ALL.** `unique_roster.json` and `set_roster.json` existed; there
+was no equivalent for runewords, so every "is this a real item?" check answered **NO for all 101
+of them**. Caught when the character learner rejected `Wrath`, `Peace`, `Bramble` and
+`Unbending Will` as garbage - real runewords, read correctly off his runewords Chronicle.
+
+⚠ **Any precision figure computed against uniques+sets alone therefore UNDERSTATES the readers on
+chronicle pages**, because a runewords chronicle scores zero by construction. Fixed by
+`tv/build_runeword_roster.py` -> `runeword_roster.json`, 105 names, keeping BOTH the qualified
+form (`Spirit (sword)`) and the bare one (`Spirit`) that a chronicle page actually prints.
+
+**3. And the character learner is finally fed.** `main_character.saw()` has existed since v2320
+with **no caller** - `main_character.json` does not exist on his machine while `console_doctor`
+and `run_gates` both watch for it. It is now fed from the register, from the **ACTIVITY** rather
+than the vault claim-lane: `_loc_of` answers "may this claim to be owned?", and deliberately maps
+inventory to None because he ruled that holding is not owning (REG-426). Feeding the learner that
+answer taught it nothing - measured, 0 sightings. What he WEARS is a different question from what
+he OWNS. One question per gate.
+
 ## REG-438 - THE GATE WAS BEHIND THE VAULT, NOT IN FRONT OF IT
 
 Konyo, #118: *"that way it gets filtered before it can hit vault.. and all three gates can work"*.
