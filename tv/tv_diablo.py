@@ -1206,9 +1206,21 @@ def find_d2r_window_mac():
     best = None  # (score, area, wid, label)
     for w in wins:
         try:
+            # ⚠ v2351 — DO NOT SKIP ON LAYER. This used to be `if layer != 0: continue` with
+            # the note "skip menus/overlays", and it meant the chooser could NEVER pin his game.
+            # Measured 2026-08-31 while D2R was on screen and he was playing:
+            #     owner=D2R.exe  title=Diablo II: Resurrected  1470x956  onscreen=True
+            #     kCGWindowLayer = 26        <- skipped, every time
+            # CrossOver puts the fullscreen game on layer 26; only ordinary windows sit at 0. So
+            # find_d2r_window_mac() returned None for the whole session, MINI(AUTOMATIC) reported
+            # "no D2R game window is on screen" against a window filling his display, and the
+            # capture fell through to its whole-screen lane instead of the pinned window.
+            #
+            # The LAYER was never the discriminator - the SCORER is, and it already does the job:
+            # in the same measurement it returned None for D2R.exe's 1470x33 and 500x500 helper
+            # windows and 14134 for the real one. A pre-filter that rejects what the real filter
+            # would have accepted is not a safety net, it is the bug. [[feedback-suspect-the-instrument]]
             layer = int(w.get("kCGWindowLayer") or 0)
-            if layer != 0:
-                continue  # skip menus/overlays
             owner = (w.get("kCGWindowOwnerName") or "").strip()
             title = (w.get("kCGWindowName") or "").strip()
             b = w.get("kCGWindowBounds") or {}

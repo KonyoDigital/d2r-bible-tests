@@ -35523,5 +35523,62 @@ class TestV2350MiniAutomaticIsActuallyReachable(unittest.TestCase):
 
 
 
+class TestV2351TheGameWindowIsNotOnLayerZero(unittest.TestCase):
+    """REG-431. `find_d2r_window_mac()` could never pin his game.
+
+    It opened with `if layer != 0: continue  # skip menus/overlays`. Measured on his machine on
+    2026-08-31, with D2R on screen and him playing:
+
+        owner=D2R.exe   title=Diablo II: Resurrected   1470x956   onscreen=True
+        kCGWindowLayer = 26          <- skipped, every time
+
+    CrossOver puts the fullscreen game on layer 26; only ordinary windows sit at 0. So the
+    chooser returned None for the entire session. MINI(AUTOMATIC) reported "no D2R game window
+    is on screen" against a window filling his display, and the capture fell through to its
+    whole-screen lane rather than the pinned window.
+
+    The layer was never the discriminator. `score_d2r_window_candidate` is, and in the same
+    measurement it returned None for D2R.exe's own 1470x33 and 500x500 helper windows and 14134
+    for the real one. A pre-filter that rejects what the real filter would accept is the bug, not
+    the safety net. [[feedback-suspect-the-instrument]]
+
+    These cases run anywhere - no game, no Quartz needed - because they exercise the SCORER and
+    pin the absence of the skip.
+    """
+
+    def test_the_layer_skip_is_gone(self):
+        src = _code_only(io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8").read())
+        i = src.index("def find_d2r_window_mac(")
+        body = _between(self, src, "def find_d2r_window_mac(", "def ",
+                        min_len=300, what="find_d2r_window_mac")
+        import re
+        m = re.search(r"if\s+layer\s*!=\s*0\s*:\s*\n\s*continue", body)
+        self.assertIsNone(m,
+                          "the layer pre-filter is back - his fullscreen game sits on layer 26 "
+                          "and this skips it, so the window can never be pinned")
+
+    def test_the_scorer_accepts_the_real_window_and_rejects_its_helpers(self):
+        """The measurement that proves the scorer is a sufficient filter on its own."""
+        import tv_diablo
+        real = tv_diablo.score_d2r_window_candidate(
+            "D2R.exe", "Diablo II: Resurrected", 1470, 956, onscreen=True)
+        self.assertIsNotNone(real, "the scorer no longer recognises his actual game window")
+        self.assertGreater(real, 0)
+        for w, h, what in ((1470, 33, "the title-bar sliver"), (500, 500, "the helper window")):
+            self.assertIsNone(
+                tv_diablo.score_d2r_window_candidate("D2R.exe", "", w, h, onscreen=False),
+                "the scorer now accepts %s (%dx%d) - with the layer filter gone it is the ONLY "
+                "thing keeping a helper window out" % (what, w, h))
+
+    def test_crossover_home_and_battlenet_still_never_pin(self):
+        """The property the original comment cared about, kept and now actually tested."""
+        import tv_diablo
+        for owner, title in (("CrossOver", "CrossOver"), ("Battle.net.exe", "Battle.net")):
+            self.assertIsNone(
+                tv_diablo.score_d2r_window_candidate(owner, title, 1150, 700, onscreen=True),
+                "%s would now be picked as the game window" % owner)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
