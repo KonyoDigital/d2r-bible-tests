@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2326",
+  "ver": "v2327",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2326: a daylit town read as a stash and a real stash read as gameplay - the classifier decided from colour fractions and never asked whether there was a grid in the frame at all",
+  "note": "v2327: v2324 began writing live.jpg and a guard that tested the extension instead of the size then sent the paid model 2940px frames where the locked intake spec is 1568",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -3900,6 +3900,98 @@ class TestV2324TheLiveFrameStoppedBeingInflatedIntoABMP(unittest.TestCase):
                       "healthy capture")
 
 
+class TestV2327TheModelFrameIsNormalisedBySizeNotByExtension(unittest.TestCase):
+    """v2324 CHANGED WHAT THE PAID MODEL RECEIVES, TWO FILES AWAY, AND NOTHING SAID SO.
+
+    _readable_frame guarded itself with `if not ap.lower().endswith(".bmp"): return ap`, written
+    when the only oversized frame in the tree WAS a bmp. v2324 stopped inflating captures into
+    BMPs and began writing live.jpg — correct on its own terms — and a .jpg then walked straight
+    through that early return.
+
+    MEASURED on one of his real frames:
+
+        live.bmp -> read.jpg   1568x1019    555 KB   <- the locked intake spec
+        live.jpg -> live.jpg   2940x1912   1819 KB   <- what v2324 started sending
+
+    Three times the pixels and 3.3x the bytes on every paid read, and the intake is LOCKED
+    (Sonnet + crop, do not change), so this was a spec broken by a change somewhere else — not a
+    tuning decision anyone made. The guard asked about the FORMAT when it meant the SIZE.
+    [[label-outlived-referent]] [[sweep-dont-ask]]
+    """
+
+    def _frame(self, w, h, fmt="JPEG", name=None):
+        import tempfile
+        from PIL import Image
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, name or ("f.jpg" if fmt == "JPEG" else "f.bmp"))
+        Image.new("RGB", (w, h), (40, 30, 20)).save(p, fmt)
+        return p
+
+    def _size(self, p):
+        from PIL import Image
+        with Image.open(p) as im:
+            return im.size
+
+    def test_an_oversized_JPEG_is_brought_back_to_the_locked_spec(self):
+        """The regression itself."""
+        src = self._frame(2940, 1912)
+        out = tv._readable_frame(src, out_jpg=os.path.join(os.path.dirname(src), "read.jpg"))
+        self.assertEqual(max(self._size(out)), 1568,
+                         "an oversized JPEG reaches the model at full size again — three times "
+                         "the pixels the locked intake spec allows")
+
+    def test_an_oversized_BMP_still_behaves_exactly_as_before(self):
+        """The original case must not move."""
+        src = self._frame(2940, 1912, fmt="BMP")
+        out = tv._readable_frame(src, out_jpg=os.path.join(os.path.dirname(src), "read.jpg"))
+        self.assertEqual(max(self._size(out)), 1568)
+        self.assertTrue(out.endswith(".jpg"), "the BMP is no longer converted for transport")
+
+    def test_a_frame_ALREADY_within_spec_is_passed_through_untouched(self):
+        """Re-encoding a JPEG that is already small enough only loses quality and costs time.
+        Passing through is the point of asking about size rather than format."""
+        src = self._frame(1200, 780)
+        out = tv._readable_frame(src, out_jpg=os.path.join(os.path.dirname(src), "read.jpg"))
+        self.assertEqual(out, src, "an in-spec frame was needlessly re-encoded")
+        self.assertEqual(self._size(out), (1200, 780))
+
+    def test_a_frame_at_EXACTLY_the_spec_is_not_re_encoded(self):
+        """The boundary, because `>` and `>=` are one character apart and only one is right."""
+        src = self._frame(1568, 1000)
+        out = tv._readable_frame(src, out_jpg=os.path.join(os.path.dirname(src), "read.jpg"))
+        self.assertEqual(out, src, "a frame exactly at the spec was treated as oversized")
+
+    def test_an_unreadable_file_falls_back_to_the_OLD_behaviour_and_does_not_raise(self):
+        """[[unknown-stays-unknown]] — if the header cannot be read, the size is UNKNOWN. It must
+        not be guessed either way, and it must never take down the read."""
+        import tempfile
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "not_an_image.jpg")
+        with open(p, "w") as fh:
+            fh.write("this is not a jpeg")
+        # ⚠ ASSERTING THE RETURNED PATH ALONE IS NOT ENOUGH, and proving that is why this is here.
+        # A sabotage that treats "cannot tell" as OVERSIZED still returns `ap`, because the
+        # conversion fails on garbage and the function falls through to the same answer. The
+        # outcome is identical; the WORK is not. So watch whether a conversion was even attempted.
+        # Two sabotages that score the same are a metric measuring nothing.
+        # [[feedback-blind-fixture-green-gate]]
+        out = tv._readable_frame(p)
+        self.assertEqual(out, p, "an unreadable .jpg no longer passes through as it always did")
+        # ⚠ AN OPEN RESIDUAL, WRITTEN DOWN RATHER THAN ASSERTED AWAY.
+        # I also wanted to assert that NO conversion is attempted when the size cannot be read,
+        # since the code has an explicit `if _needs is None and not ap.endswith(".bmp"): return ap`
+        # for exactly that. It does not hold: an unreadable .jpg, .bmp AND .png each make one
+        # failed _to_jpeg call, while the same expression computed by hand in the same process
+        # returns None and the path does not end in .bmp — so that branch should fire and does
+        # not. I could not explain it in reasonable time.
+        #
+        # It is harmless: the function still returns the original path, which is the behaviour
+        # that existed before and the only thing any caller depends on. So the case asserts what
+        # is TRUE and says out loud what is unexplained, rather than asserting a stricter promise
+        # than the code keeps — a test that passes for a reason nobody understands is a test that
+        # will mislead someone later. [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

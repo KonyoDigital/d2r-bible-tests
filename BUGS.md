@@ -12950,6 +12950,64 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-405 — v2324 tripled the pixels going to the paid model, from two files away (v2327)
+
+`_readable_frame()` guarded itself with:
+
+```python
+if not ap.lower().endswith(".bmp"):
+    return ap
+```
+
+written when the only oversized frame in the tree WAS a bmp. **v2324 stopped inflating captures
+into BMPs and began writing `live.jpg`** — correct on its own terms — and a `.jpg` then walked
+straight through that early return. Measured on one of his real frames:
+
+```
+live.bmp -> read.jpg   1568x1019    555 KB   ← the locked intake spec
+live.jpg -> live.jpg   2940x1912   1819 KB   ← what v2324 started sending
+```
+
+**Three times the pixels and 3.3× the bytes on every paid read**, and the intake is LOCKED (Sonnet
++ crop, do not change) — so this was not a tuning decision anyone made, it was a spec broken by a
+change somewhere else. The guard asked about the FORMAT when it meant the SIZE.
+
+**Fix:** normalise by size. A frame already within the spec passes through untouched (re-encoding
+a JPEG only loses quality); anything over it is converted, whatever it is called. `1568` is named
+once as `_READ_MAX_PX` rather than repeated.
+
+**Guards:** `TestV2327TheModelFrameIsNormalisedBySizeNotByExtension`, four sabotages proven RED —
+reverting to the extension test, widening the spec past his frames, flipping the boundary to `>=`,
+and re-encoding in-spec frames.
+
+⚠ **AN OPEN RESIDUAL, RECORDED RATHER THAN ASSERTED AWAY.** The code carries
+`if _needs is None and not ap.endswith(".bmp"): return ap` so an unreadable file costs no
+conversion attempt. That branch does not fire: an unreadable `.jpg`, `.bmp` and `.png` each make
+one failed `_to_jpeg` call, while the same expression computed by hand in the same process returns
+`None` and the path does not end in `.bmp`. Unexplained. It is harmless — the function still
+returns the original path, which is the only thing callers depend on — so the guard asserts what is
+true and the contradiction is written down instead of a stricter promise being asserted than the
+code keeps.
+
+## REG-406 — ANSWERED FREE: the model still reads the item name at 1440px (v2327)
+
+`#107` had been open on "whether the model still reads at 1440px is UNMEASURED and costs a paid
+read to find out". It does not cost a paid read.
+
+The paid intake is a **Claude** model, and so is the assistant doing the work — so the actual
+consumer can read the actual shrunken pixels directly. `tooltip_find.locate()` found the tooltip on
+his Crescent Moon frame at `(490, 637, 1470, 956)`; the same region was rendered at full size and
+after the 1440px film shrink (scale 0.49) and read cold.
+
+**At 1440px every line is legible**, including the name: *Crescent Moon · Crystal Sword ·
+'ShaelUmTir' · One-Hand Damage: 14 to 42 · Durability: 17 of 20 · Required Strength: 43 · Required
+Level: 47 · … · Level 18 Summon Spirit Wolf (29/30 Charges) · Socketed (3)*.
+
+So the v2320 film shrink does not cost the reader the name. ⚠ Stated at its true strength: the
+intake is Sonnet and the reader here is Opus — same family, not the same model. Strong evidence,
+not proof, and free, which is the point: the alternative was buying a read to answer a question
+that had blocked the task for days. [[paid-work-with-no-memory]]
+
 ## REG-404 — a stash read as gameplay, and a daylit town read as a stash (v2326)
 
 Found while working #31 (slot identity), by asking a question nobody had asked: **what does

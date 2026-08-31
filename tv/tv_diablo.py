@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2326"   # A Grid Before A Colour
+VERSION = "v2327"   # The Size Not The Format
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -2511,10 +2511,39 @@ def _readable_frame(ap, out_jpg=None):
     """v710.6 LIVE-SESSION FIX (Konyo's first real run): claude's Read tool chokes on a 16MB
     raw BMP — both live reads timed out at 180s. Convert to a 1568px JPEG (the locked intake
     spec) before the vision call. Mac: sips. Windows v1421: System.Drawing (not live.png alone —
-    PNG can still be multi-MB and some readers expect JPEG). Falls back to live.png then original."""
+    PNG can still be multi-MB and some readers expect JPEG). Falls back to live.png then original.
+
+    ══ v2327 — IT TESTED THE FORMAT WHEN IT MEANT THE SIZE, AND v2324 WALKED INTO IT ══════════
+    The guard here was `if not ap.lower().endswith(".bmp"): return ap`, written when the only
+    oversized frame in the tree WAS a bmp. v2324 stopped inflating captures into BMPs and began
+    writing live.jpg — correct on its own terms, and it silently changed what the PAID model
+    receives, because a .jpg now walks straight through this early return.
+
+    MEASURED on one of his real frames:
+        live.bmp -> read.jpg   1568x1019    555 KB   <- the locked intake spec
+        live.jpg -> live.jpg   2940x1912   1819 KB   <- what v2324 started sending
+
+    Three times the pixels and 3.3x the bytes on every paid read, and the intake is LOCKED
+    (Sonnet + crop, do not change) — so this was not a tuning choice, it was a spec being broken
+    by a change made two files away. [[label-outlived-referent]] [[sweep-dont-ask]]
+
+    So the question becomes the one it always meant: IS THIS FRAME BIGGER THAN THE SPEC? A frame
+    already within it passes through untouched (re-encoding a JPEG only loses quality); anything
+    over it is normalised, whatever it is called.
+    """
     try:
-        if not ap.lower().endswith(".bmp"):
-            return ap
+        _READ_MAX_PX = 1568          # the locked intake spec, named rather than repeated
+        _needs = None
+        try:
+            from PIL import Image as _I
+            with _I.open(ap) as _im:              # header only — does not decode the pixels
+                _needs = max(_im.size) > _READ_MAX_PX
+        except Exception:
+            _needs = None                          # cannot tell: fall back to the old format test
+        if _needs is False:
+            return ap                              # already within spec
+        if _needs is None and not ap.lower().endswith(".bmp"):
+            return ap                              # unreadable header: behave exactly as before
         jp = out_jpg or os.path.join(FRAMES, "read.jpg")
         if _to_jpeg(ap, jp, max_px=1568, quality=80):
             global _JPEG_LOGGED
