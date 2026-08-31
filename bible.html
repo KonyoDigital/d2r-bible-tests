@@ -8200,7 +8200,7 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-pop .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:#f0c060;margin-bottom:3px}
 .inbox-pop .ibp-sub{color:#9a8c72;margin-bottom:9px;font-size:11.5px;line-height:1.45}
 .inbox-pop .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
-.inbox-pop .ibp-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:3px}
+.inbox-pop .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:3px}/* v2349 - FOUR RULINGS NOW, SO 2x2 RATHER THAN FOUR CRAMPED COLUMNS. The render gate already reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE columns; a fourth would have shipped that defect to every width. Two columns give each button ~50% instead of ~25%, which is also the symmetry he asked for. */
 .inbox-pop .ibp-acts .ibp-b{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* v1789 — flex-wrap IS LOAD-BEARING: .ibp-why is flex:0 0 100%, and in a non-wrapping row it takes the whole line and squeezes the item NAME and both buttons to zero width. The panel rendered three rows reading 'unclear read' with nothing to act on — the one thing he needs is the name. Every functional assertion passed; only the screenshot showed it. */
 .inbox-pop .ibp-row:last-child{border-bottom:0}
 .inbox-pop .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -8209,6 +8209,7 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
   border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
 .inbox-pop .ibp-b:hover{border-color:#f0c060;color:#fff}
 .inbox-pop .ibp-ok{border-color:rgba(102,255,136,.45);color:#66ff88}
+.inbox-pop .ibp-both{border-color:rgba(255,196,90,.55);color:#ffc45a}/* v2349 - the dual ruling reads as its own decision, not a variant of either single one */
 .inbox-sticky{display:none}
 /* v1798 — KEEP THE ROWS OUT FROM UNDER THE FLOATING BUTTONS. The sticky is in FLOW and the help
    button and legend compass are position:fixed on top of it, so on a narrow screen the right
@@ -8270,7 +8271,7 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
 .inbox-sticky .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
-.inbox-sticky .ibp-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:3px}
+.inbox-sticky .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:3px}/* v2349 - FOUR RULINGS NOW, SO 2x2 RATHER THAN FOUR CRAMPED COLUMNS. The render gate already reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE columns; a fourth would have shipped that defect to every width. Two columns give each button ~50% instead of ~25%, which is also the symmetry he asked for. */
 .inbox-sticky .ibp-acts .ibp-b{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ══ v2336 — THE PHONE-WIDTH INBOX, ARRIVED AT BY MEASUREMENT, NOT BY GUESS ═════════════════
    The render gate refused the first cut at 375x800: "2 element(s) have text cut off — ibp-b
@@ -8318,6 +8319,7 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
   border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
 .inbox-sticky .ibp-b:hover{border-color:#f0c060;color:#fff}
 .inbox-sticky .ibp-ok{border-color:rgba(102,255,136,.45);color:#66ff88}
+.inbox-sticky .ibp-both{border-color:rgba(255,196,90,.55);color:#ffc45a}/* v2349 - the dual ruling reads as its own decision, not a variant of either single one */
 .inbox-sticky .ibp-auto{font-size:11px;line-height:1.5;color:#7fd18b;background:rgba(60,140,80,.10);
   border:1px solid rgba(90,180,110,.25);border-radius:6px;padding:6px 8px;margin:0 0 8px}
 .inbox-sticky .ibp-auto-sub{color:#6f9a78;font-size:10.5px;margin:5px 0 2px;opacity:.9}
@@ -47831,7 +47833,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2348', name:'v2348 - The latch and the witness', date:'2026-08-31', note:'the self-heal trusted a flag only a silenced page could clear; the window server now gets a vote' };
+  window.D2R_BUILD = { id:'v2350', name:'v2350 - MINI automatic, joined', date:'2026-08-31', note:'the hover actuator had zero callers so the mode did not exist - route, button and live status now join it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48832,6 +48834,7 @@ window._CH_PILL_MAP = {
           + '<span class="ibx-act">'
           + '<button type="button" class="ibx-b ibx-ok" onclick="window._inboxAct(\'chronicle\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '" title="counts it in your Chronicle grail tally only \u2014 nothing is filed in the Vault"><span class="ibp-em">\ud83d\udcd6 </span>Chronicle</button>'
           + '<button type="button" class="ibx-b" onclick="window._inboxAct(\'vault\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '" title="files it in the Vault as a physical item only \u2014 your Chronicle tally is not touched"><span class="ibp-em">\ud83c\udfe6 </span>Vault</button>'
+          + '<button type="button" class="ibx-b ibp-both" onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '" title="both ledgers \u2014 counts it in your Chronicle grail tally AND files it in the Vault as a physical item"><span class="ibp-em">\ud83d\udcd6\ud83c\udfe6 </span>Both</button>'
           + '<button type="button" class="ibx-b" onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">ignore</button>'
           + '</span></div>';
       }).join('') + '</div>');
@@ -49298,6 +49301,15 @@ window._CH_PILL_MAP = {
             + '<button type="button" class="ibp-b ibp-vault" '
             + 'onclick="window._inboxAct(\'vault\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
             + 'data-n="' + nm + '" title="files it in the Vault as a physical item only \u2014 your Chronicle tally is not touched"><span class="ibp-em">\ud83c\udfe6 </span>Vault</button>'
+            /* v2349 - THE DUAL DOOR. Konyo: "sometimes we find a chronicle and we also stash
+               it to vault.. so a combined". v2336 split one button into two because the combined
+               door could not say WHICH ledger it meant; this adds back the genuinely-both case as
+               its own explicit ruling, which is a different thing from the ambiguous single button
+               it replaced. No new logic: `accept` has always written both ledgers and was kept as
+               a verb on purpose, so this is a door onto behaviour that already exists. */
+            + '<button type="button" class="ibp-b ibp-both" '
+            + 'onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
+            + 'data-n="' + nm + '" title="both ledgers \u2014 counts it in your Chronicle grail tally AND files it in the Vault as a physical item"><span class="ibp-em">\ud83d\udcd6\ud83c\udfe6 </span>Both</button>'
             + '<button type="button" class="ibp-b" '
             + 'onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
             + 'data-n="' + nm + '">ignore</button></span></div>');

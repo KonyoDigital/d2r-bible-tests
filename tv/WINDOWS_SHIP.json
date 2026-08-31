@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2348",
+  "ver": "v2350",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2348: the self-heal trusted a flag only a silenced page could clear; the window server now gets a vote",
+  "note": "v2350: the hover actuator had zero callers so the mode did not exist - route, button and live status now join it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

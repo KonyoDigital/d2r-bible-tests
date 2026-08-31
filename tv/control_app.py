@@ -14965,6 +14965,55 @@ def _vault_retro():
     return _vr
 
 
+def _mini_cells_from_live_frame(container="stash"):
+    """Which cells hold items, read off the newest live frame. -> (cells|None, why)
+
+    v2350. MINI(AUTOMATIC) hovers ITEMS, so it needs coordinates, and the only thing that knows
+    them is the pixel lane - `vault_corpus.inventory_occupancy` has returned a per-cell `grid`
+    since v2004 and every caller so far read only its COUNT. Reusing it here is what lets the
+    console offer a button instead of an incantation. [[the-unjoined-end]]
+
+    Returns None with a REASON on every failure path, never an empty set: "no items are on
+    screen" and "nobody could read the screen" are opposite facts and the UI shows different
+    words for them. [[unknown-stays-unknown]]
+    """
+    frame = None
+    for label in ("eye.jpg", "live.jpg", "live.png", "live.bmp"):
+        fp = os.path.join(HERE, "frames", label)
+        if os.path.isfile(fp):
+            if frame is None or os.path.getmtime(fp) > os.path.getmtime(frame):
+                frame = fp
+    if not frame:
+        return None, "there is no live frame to read - is the capture running?"
+    age = time.time() - os.path.getmtime(frame)
+    if age > 10:
+        return None, "the newest frame is %.0fs old - MINI will not hover off a stale screen" % age
+    try:
+        import vault_corpus as _vc
+    except Exception as e:
+        return None, "the pixel lane is unavailable (%s)" % type(e).__name__
+    try:
+        lat = _vc.inventory_lattice(frame)
+        if not (lat and lat.get("ok")):
+            return None, "the grid could not be located on this frame: %s" % (
+                (lat or {}).get("why") or "no lattice")
+        occ = _vc.inventory_occupancy(frame, lat)
+        if not occ.get("ok"):
+            return None, "occupancy could not be read: %s" % (occ.get("why") or "unknown")
+    except Exception as e:
+        return None, "reading the frame raised %s" % type(e).__name__
+    grid = occ.get("grid") or []
+    cells = set()
+    for r, line in enumerate(grid):
+        for c, v in enumerate(line or []):
+            if v:
+                cells.add((c, r))
+    if not cells:
+        return None, "the panel is on screen but every cell reads empty - nothing to hover"
+    return cells, "read from %s (%.1fs old): %d occupied cell(s)" % (
+        os.path.basename(frame), age, len(cells))
+
+
 def reconcile_verdict(named, occupied):
     """v1994 — do the two layers agree about how much is in this panel?
 
@@ -20394,7 +20443,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2348",
+        "ver": "v2350",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22301,6 +22350,25 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"ready": False, "why": "hover_drive could not be asked: %s"
                                                         % str(e)[:120]})
             return
+        if path == "/api/mini_auto":
+            # ══ v2350 — MINI(AUTOMATIC), THE ACTUAL MODE ════════════════════════════════════════
+            # v2338 shipped the actuator (hover_drive.walk) and a readiness LAMP and joined
+            # neither to the other. `walk()` had ZERO callers, so the mode he went looking for did
+            # not exist: "MINI automatic HOVER mode i dont see the button rendering anywhere
+            # either you said you shipped this?" He was right, and the backend being finished is
+            # not the job being finished. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+            #
+            # THIS IS THE GET HALF - what it is doing. Start/stop is a POST and lives in do_POST,
+            # the only handler that reads a body. The first cut of this route put both here and
+            # invented a `self._body_json()` that does not exist, which would have left the mode
+            # unreachable in exactly the way it was already unreachable.
+            try:
+                import hover_mode
+                self._json(200, dict(hover_mode.status(), ok=True))
+            except Exception as e:
+                self._json(200, {"ok": False, "running": False,
+                                 "why": "hover_mode could not be asked: %s" % str(e)[:120]})
+            return
         if path == "/api/eagle":
             # v2026 — 🦅 THE EAGLE EYE, reachable from the app.
             #
@@ -22732,6 +22800,54 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/mini_auto":
+            # v2350 — MINI(AUTOMATIC): start/stop. The GET half (status) is in do_GET.
+            # It MOVES ONLY: hover_drive holds no click event and this route adds none.
+            try:
+                import hover_mode
+            except Exception as e:
+                self._json(200, {"ok": False, "running": False,
+                                 "why": "hover_mode could not be asked: %s" % str(e)[:120]})
+                return
+            if not body.get("on"):
+                was = hover_mode.stop()
+                self._json(200, dict(hover_mode.status(), ok=True,
+                                     why="stopped" if was else "nothing was running"))
+                return
+            try:
+                import hover_drive
+                rect, rwhy = hover_drive.d2r_window_rect()
+            except Exception as e:
+                rect, rwhy = None, "the window could not be located (%s)" % type(e).__name__
+            if not rect:
+                self._json(200, {"ok": False, "running": False,
+                                 "why": "the game window is not on screen: %s" % (rwhy or "unknown")})
+                return
+            occ = body.get("occupied")
+            cells, occ_why = None, None
+            if occ:
+                try:
+                    cells = set((int(c[0]), int(c[1])) for c in occ)
+                    occ_why = "supplied by the caller"
+                except Exception:
+                    self._json(200, {"ok": False, "running": False,
+                                     "why": "occupied must be a list of [col,row] pairs"})
+                    return
+            else:
+                # DERIVE IT FROM THE LIVE FRAME rather than making him supply coordinates. The
+                # pixel occupancy lane already exists (vault_corpus.inventory_occupancy returns a
+                # per-cell `grid`); it was only ever read for its COUNT. MINI hovers ITEMS, so a
+                # button that demanded cell coordinates would be a button nobody could press.
+                cells, occ_why = _mini_cells_from_live_frame(
+                    str(body.get("container") or "stash"))
+                if not cells:
+                    self._json(200, {"ok": False, "running": False,
+                                     "why": occ_why or "could not tell which cells hold items"})
+                    return
+            ok, why = hover_mode.start(cells, (int(rect[2]), int(rect[3])), tuple(rect),
+                                       container=str(body.get("container") or "stash"))
+            self._json(200, dict(hover_mode.status(), ok=bool(ok), why=why))
+            return
         if path == "/api/update":
             # v2102 — THE PULL, not just the verdict. GET /api/update has reported "you are N
             # behind" since v817 and could never do anything about it, while its own howTo said

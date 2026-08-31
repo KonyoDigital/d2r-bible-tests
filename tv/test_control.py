@@ -35233,9 +35233,19 @@ class TestV2348ThePublishedNumbersArePinned(unittest.TestCase):
                          "the build note carries the retracted 43; the measured split is 12 "
                          "misread and 15 never scene-read (REG-429)")
 
-    def test_the_chrome_corroborator_is_honest_about_being_unwired(self):
-        """If it ever DOES get wired, this fails and the note must be updated with it — which is
-        the point. A claim and its implementation must move together."""
+    def test_the_chrome_corroborator_never_claims_to_run_while_it_has_no_caller(self):
+        """The honest invariant, and NOT the one this guard first asserted.
+
+        The first cut required bible.html's build note to contain the words "not yet wired". That
+        coupled a PER-SHIP note to a CODE fact: `bump_version.py` rewrites D2R_BUILD on every
+        bump, so the next version legitimately replaced the wording and the guard went red
+        against a tree that was telling no lies at all. A guard that fails on correct work gets
+        switched off, which is worse than not having it. [[feedback-blind-fixture-green-gate]]
+
+        What must actually hold: the site may not describe `corroborates_chrome` as something
+        that RUNS while nothing in production calls it. Measured once is a measurement; stated in
+        the present tense it becomes a mechanism, and only one of those is true today.
+        """
         import re
         wired = False
         for name in ("control_app.py", "vault_retro.py", "console_doctor.py", "tv_diablo.py"):
@@ -35244,13 +35254,15 @@ class TestV2348ThePublishedNumbersArePinned(unittest.TestCase):
                 continue
             if re.search(r"corroborates_chrome\s*\(", _code_only(io.open(p, encoding="utf-8").read())):
                 wired = True
-        p = os.path.join(os.path.dirname(HERE), "bible.html")
-        note_says_unwired = "not yet wired" in io.open(p, encoding="utf-8").read()
-        self.assertEqual(wired, not note_says_unwired,
-                         "the build note and the code disagree about whether the chrome "
-                         "corroborator is wired: wired=%s, note says unwired=%s"
-                         % (wired, note_says_unwired))
-
+        if wired:
+            return          # once it really runs, saying so is just true
+        note = _between(self, io.open(os.path.join(os.path.dirname(HERE), "bible.html"),
+                                      encoding="utf-8").read(),
+                        "window.D2R_BUILD = {", "}", min_len=30, what="the build note")
+        for claim in ("chrome corroborates", "corroborates a scene read", "chrome confirms"):
+            self.assertNotIn(claim, note.lower(),
+                             "the build note states the chrome corroborator as a running "
+                             "mechanism (%r) while it has no production caller" % claim)
 
 
 class TestV2348TheHiddenFlagCannotDisarmTheRescueForEver(unittest.TestCase):
@@ -35351,6 +35363,163 @@ class TestV2348TheHiddenFlagCannotDisarmTheRescueForEver(unittest.TestCase):
         self.assertIn("pointermove", blk,
                       "no interaction beat - he proved he was at the window by hovering items "
                       "out of it while it was otherwise dead")
+
+
+
+class TestV2349TheDualRulingDoor(unittest.TestCase):
+    """Konyo: "sometimes we find a chronicle and we also stash it to vault.. so a combined".
+
+    v2336 SPLIT one button into two because the combined door could not say which ledger it
+    meant - a grail he found and sold is Chronicle-only, a mule item he has not counted is
+    Vault-only. This adds the genuinely-both case back as its OWN explicit ruling, which is a
+    different thing from the ambiguous single button that was removed. It needed no new logic:
+    `accept` has always written both ledgers and _inboxAct kept it as a verb on purpose.
+
+    Measured at 375/901/1440 before shipping: four buttons per row, equal widths within a row
+    (123 / 387 / 657 px), equal heights, and beyondScroll false for every one.
+    """
+
+    def _src(self):
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        return io.open(p, encoding="utf-8").read()
+
+    def test_all_four_rulings_exist_on_the_row_he_answers(self):
+        src = self._src()
+        blk = _between(self, src, "THE DUAL DOOR", "</span></div>');",
+                       min_len=200, what="the ruling row")
+        self.assertIn("_inboxAct('accept'", blk.replace("\\'", "'"),
+                      "the Both button must send `accept` - the verb that writes BOTH ledgers")
+        self.assertIn(">Both<", blk, "the Both button lost its label")
+
+    def test_both_sends_the_verb_that_writes_both_ledgers(self):
+        """If `accept` ever stops writing both, this door silently becomes a second Chronicle
+        button and he would have no way to tell from the UI."""
+        src = self._src()
+        act = _between(self, src, "window._inboxAct = function(kind, name)", "};",
+                       min_len=100, what="_inboxAct")
+        self.assertRegex(act, r"kind === 'accept'\s*\)?\s*window\.kaiChronicleAccept\(name\)",
+                         "`accept` no longer calls kaiChronicleAccept with both ledgers - the "
+                         "Both button now lies about what it does")
+        self.assertIn("{ vault: false }", act,
+                      "the Chronicle-only door lost its vault:false - Chronicle and Both would "
+                      "become the same button")
+
+    def test_the_row_is_two_columns_not_four_cramped_ones(self):
+        """The render gate reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE
+        columns. Four would have shipped that to every width; 2x2 measured clean everywhere."""
+        src = self._src()
+        for scope in (".inbox-pop .ibp-acts{", ".inbox-sticky .ibp-acts{"):
+            i = src.index(scope)
+            rule = src[i:src.index("}", i)]
+            self.assertIn("repeat(2,minmax(0,1fr))", rule,
+                          "%s is no longer a 2-up grid; with four rulings that clips at 375"
+                          % scope)
+
+    def test_the_twin_render_site_did_not_drift(self):
+        """There are TWO places that build ruling buttons (.ibp-acts and .ibx-act). Fixing one
+        and leaving the other is exactly [[copy-drift]], and it has happened here before."""
+        src = self._src()
+        self.assertEqual(src.count("_inboxAct(\\'accept\\'"), 2,
+                         "both render sites must offer the dual door - found a different count, "
+                         "so one of them has drifted")
+
+
+
+class TestV2350MiniAutomaticIsActuallyReachable(unittest.TestCase):
+    """Konyo: "MINI automatic HOVER mode i dont see the button rendering anywhere either you said
+    you shipped this?" — and he was right.
+
+    v2338 shipped `hover_drive.walk()` (the actuator) and a readiness LAMP on the console, and
+    joined neither to the other. `walk()` had ZERO callers in the whole tree. The backend was
+    finished and the feature did not exist. That is [[the-unjoined-end]] in its purest form, and
+    the lesson he drew is the one that matters: the backend being done is not the job being done.
+
+    These cases pin the JOIN, which is the part that was missing — not the actuator, which was
+    already covered, and not the plan, which was already covered.
+    """
+
+    def test_the_actuator_now_has_a_caller(self):
+        """The single fact that was false. If this ever goes back to zero, the mode is gone
+        again and the button becomes a lie."""
+        callers = []
+        for name in ("hover_mode.py", "control_app.py"):
+            p = os.path.join(HERE, name)
+            if not os.path.isfile(p):
+                continue
+            src = _code_only(io.open(p, encoding="utf-8").read())
+            if "hover_drive.walk" in src or "_walk or hover_drive.walk" in src:
+                callers.append(name)
+        self.assertIn("hover_mode.py", callers,
+                      "hover_drive.walk() has no production caller again - MINI(AUTOMATIC) is "
+                      "back to being an actuator nobody can reach")
+
+    def test_the_route_exists_on_both_verbs(self):
+        """GET reports state, POST starts and stops. The first cut put both in do_GET and called
+        an invented self._body_json(), so POST would never have reached it."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        get_i = src.index("def do_GET(self)")
+        post_i = src.index("def do_POST(self)")
+        branch = 'if path == "/api/mini_auto":'
+        self.assertIn(branch, src[get_i:post_i], "no GET branch - the console cannot read state")
+        self.assertIn(branch, src[post_i:], "no POST branch - the mode cannot be started")
+        self.assertNotIn("_body_json", src,
+                         "self._body_json() does not exist on this handler; POST bodies are "
+                         "parsed once at the top of do_POST")
+
+    def test_the_button_exists_and_is_wired_in_one_script_block(self):
+        """A call across the IIFE boundary in control_ui.html throws and leaves the control dead
+        for ever. It has shipped three times here (v1516, v2248, v2279), so the button and its
+        handler must sit in the SAME block as a control already known to work."""
+        src = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn('id="btn-miniauto"', src, "the MINI(AUTOMATIC) button is not in the markup")
+        self.assertIn("$('btn-miniauto').onclick", src, "the button has no handler")
+        # The real invariant is ORDER: the handler must sit between two controls already known
+        # to run in this block. (A first cut asserted btn-miniauto was ABSENT from the slice
+        # spanning hoverchk->eagle, which is the slice it is deliberately inside - the assertion
+        # was self-contradictory and would have failed on correct code for ever.)
+        i_hover = src.index("$('btn-hoverchk').onclick")
+        i_mini = src.index("$('btn-miniauto').onclick")
+        i_eagle = src.index("$('btn-eagle').onclick")
+        self.assertLess(i_hover, i_mini, "the mini handler is not in the utility block")
+        self.assertLessEqual(i_mini, i_eagle + 200,
+                             "the mini handler drifted away from the block that is known to run")
+
+    def test_it_moves_and_never_clicks(self):
+        """The whole safety story of this lane. hover_drive holds no click event; hover_mode must
+        not introduce one, and neither may the route."""
+        for name in ("hover_drive.py", "hover_mode.py"):
+            src = _code_only(io.open(os.path.join(HERE, name), encoding="utf-8").read())
+            for banned in ("kCGEventLeftMouseDown", "kCGEventRightMouseDown",
+                           "kCGEventLeftMouseUp", "mouseClick"):
+                self.assertNotIn(banned, src,
+                                 "%s can now CLICK (%s) - MINI hovers, it must never pick an "
+                                 "item up" % (name, banned))
+
+    def test_a_sweep_can_always_end(self):
+        src = _code_only(io.open(os.path.join(HERE, "hover_mode.py"), encoding="utf-8").read())
+        self.assertIn("def stop(", src, "there is no way to stop a sweep")
+        self.assertIn("_STOP.is_set()", src, "the stop flag is never consulted mid-sweep")
+        # PIN THE OPERAND, NOT THE SENTENCE. A first cut asserted only the message text, and a
+        # sabotage that neutered the condition to `if False:` left the message in place and the
+        # guard stayed green. A string cannot tell a live check from its own error text.
+        import re as _re
+        m = _re.search(r"if (.+?):\s*\n\s*return False, \"a sweep is already running",
+                       src)
+        self.assertIsNotNone(m, "the concurrent-start refusal is gone")
+        self.assertIn('_STATE["running"]', m.group(1),
+                      "the refusal no longer reads the running flag (it tests %r) - two sweeps "
+                      "could fight over one pointer" % m.group(1))
+
+    def test_unknown_occupancy_never_reads_as_empty(self):
+        """`_mini_cells_from_live_frame` must answer None with a REASON on every failure path.
+        Returning an empty set would make "nobody could read the screen" look like "there are no
+        items", and the console would say the panel was empty. [[unknown-stays-unknown]]"""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        fn = _between(self, src, "def _mini_cells_from_live_frame(", "def reconcile_verdict(",
+                      min_len=300, what="the occupancy reader")
+        self.assertNotIn("return set(), ", fn, "an empty set is being returned as a result")
+        for why in ("no live frame", "every cell reads empty"):
+            self.assertIn(why, fn, "the reader lost its %r branch" % why)
 
 
 
