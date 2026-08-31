@@ -18945,7 +18945,26 @@ window.d2rInboxEngine = function(row){
       /* THE ONE CASE THAT MUST NOT BE SWALLOWED. The panel called this base unfound and the board
          says he owns every unique built on it; both cannot be true, and dismissing it destroys the
          only evidence the disagreement exists. The contradiction IS the finding. */
-      out.verdict = 'base-conflict'; out.action = 'hold';
+      /* ══ v2368 — A BASE IS NOT A DECISION HE CAN BE HANDED ═══════════════════════════════
+         Konyo: "the inbox shouldnt be showing me base items at all it should default hide them
+         and throw them out. it doesnt require me to do something and vault/chronicle it."
+
+         `hold` means PUT IT IN FRONT OF HIM, and every door inherits that from here:
+         kaiChroniclePropose pushes an inbox row, the triage scan keeps it. So `Full Helm` and
+         `Bramble Mitts` - grey bases - arrived on his screen asking a question with no correct
+         answer. v2363 removed the four wrong buttons but still showed the row and still wanted
+         a click; that was half a fix.
+
+         The VERDICT is unchanged, so everything that wants the contradiction still sees it -
+         "the game lists this base as NOT found, but your ledger has Duskdeep" is real
+         information about the UNIQUE that uses the base. Only the ACTION changes: it stops
+         being a question.
+
+         SAFE AT EVERY DOOR, checked rather than assumed - six callers read this engine and only
+         three read `.action`: kaiChronicleTriage (36229) folds dismiss into its own dismiss,
+         kaiChroniclePropose (48522) already has a dismiss branch, and the inbox scan (49257)
+         handles it. The other three read only `.canonical` / `.verdict`. */
+      out.verdict = 'base-conflict'; out.action = 'dismiss';
       out.why = 'game-says-unfound:' + owned.join(', ');
       out.owned = owned;
       return out;
@@ -47982,7 +48001,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2367', name:'v2367 - The free pass actually runs', date:'2026-09-01', note:'one reel per tick smallest first, backing off on five named conditions' };
+  window.D2R_BUILD = { id:'v2368', name:'v2368 - A base is thrown out not asked about', date:'2026-09-01', note:'the engine said hold which means put it in front of him' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -49248,10 +49267,19 @@ window._CH_PILL_MAP = {
         _eng = window.d2rInboxEngine({ name: name, frameId: it.frameId, sessionId: it.sessionId,
                                        loc: it.loc, tier: it.tier });
         if (_eng.verdict === 'base-conflict'){
-          out.conflicts.push({ name: name, owned: _eng.owned || [],
+          /* v2368 — the engine now says `dismiss`, and this scan clears the ones already in his
+             inbox. It is NOT written to `dismissed`: that is the list that carries a put-back
+             button, and offering to put a grey base back in front of him is the same mistake in
+             a different place. The reader path's own comment says it - "a row that is not an
+             item in this game is not a decision he can be handed back". Obeys dryRun, or a
+             preview would be the one call with a side effect. */
+          out.conflicts.push({ name: name, owned: _eng.owned || [], thrownOut: true,
                                why: 'the game lists this base as NOT found, but your ledger has '
-                                    + (_eng.owned || []).join(', ') });
-          out.kept.push(name);
+                                    + (_eng.owned || []).join(', ')
+                                    + ' \u2014 a grey BASE, thrown out rather than asked about' });
+          if (!dry){
+            try { window.kaiChronicleDismiss(name); } catch(e){ out.errors++; }
+          }
           return;
         }
         if (_eng.action === 'retire' || _eng.action === 'reader' || _eng.action === 'dismiss'){

@@ -117,7 +117,54 @@ def bump(ver, name, note):
         nl = "\n" if path.endswith(".json") else ""
         io.open(path, "w", encoding="utf-8", newline=nl).write(text)
 
+    _drop_stale_bytecode([p for p, _t in pending])
+
     print("%s -> %s  (%s)" % (cur, ver, name))
+
+
+def _drop_stale_bytecode(paths):
+    """Delete the cached .pyc for every source this bump just edited.
+
+    ⚠ THIS BUMP'S EDITS ARE INHERENTLY LENGTH-PRESERVING. "v2366" -> "v2367" is the same byte
+    count, and Python decides a .pyc is fresh from the source's mtime AND SIZE. Edit twice inside
+    one filesystem-timestamp tick and the interpreter keeps running the OLD compiled constants
+    against correct source - silently.
+
+    It bit three times on 2026-09-01 alone. The worst was `_app_ver()`, which deliberately reads
+    the version out of `status_payload.__code__.co_consts` so it reports what this process is
+    RUNNING rather than what is on disk (v2155). With a stale .pyc it answered v2366 while the
+    file said v2367, `test_app_ver_equals_ship_version` went red on a correct tree, and a push
+    was blocked twice for a defect that did not exist.
+
+    ⚠ AND THE CACHE IS NOT IN __pycache__ ON THIS MAC. `sys.pycache_prefix` relocates it to
+    ~/Library/Caches/com.apple.python/<absolute source path>, so anyone deleting __pycache__ and
+    concluding "cleared" has cleared nothing. Both locations are removed here.
+    [[python-pycache-prefix-mac]]
+    """
+    import sys as _sys
+    removed = []
+    for src in paths:
+        if not src.endswith(".py"):
+            continue
+        stem = os.path.basename(src)[:-3]
+        cands = []
+        prefix = getattr(_sys, "pycache_prefix", None)
+        if prefix:
+            cands.append(os.path.join(prefix + os.path.dirname(os.path.abspath(src))))
+        cands.append(os.path.join(os.path.dirname(os.path.abspath(src)), "__pycache__"))
+        for d in cands:
+            try:
+                if not os.path.isdir(d):
+                    continue
+                for f in os.listdir(d):
+                    if f.startswith(stem + ".") and f.endswith(".pyc"):
+                        os.remove(os.path.join(d, f))
+                        removed.append(f)
+            except Exception:
+                pass          # a cache we cannot clear is a warning, never a failed bump
+    if removed:
+        print("   cleared %d stale .pyc: %s" % (len(removed), ", ".join(sorted(set(removed))[:4])))
+    return removed
 
 
 if __name__ == "__main__":

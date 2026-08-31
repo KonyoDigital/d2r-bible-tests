@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2367",
+  "ver": "v2368",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2367: one reel per tick smallest first, backing off on five named conditions",
+  "note": "v2368: the engine said hold which means put it in front of him",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

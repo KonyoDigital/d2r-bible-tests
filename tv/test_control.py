@@ -36704,5 +36704,120 @@ class TestV2367TheFreePassActuallyRuns(unittest.TestCase):
 
 
 
+class TestV2368ABaseIsThrownOutNotAskedAbout(unittest.TestCase):
+    """Konyo: *"the inbox shouldnt be showing me base items at all it should default hide them and
+    throw them out. it doesnt require me to do something and vault/chronicle it."*
+
+    `d2rInboxEngine` returned `base-conflict` with **action `hold`**, and `hold` means PUT IT IN
+    FRONT OF HIM. Every door inherited that: `kaiChroniclePropose` pushed an inbox row, the scan
+    kept it. So `Full Helm` and `Bramble Mitts` - grey bases - arrived asking a question with no
+    correct answer.
+
+    v2363 removed the four wrong buttons but still showed the row and still wanted a click. That
+    was half a fix, and he said so.
+
+    ⚠ FIXED AT THE ONE DEFINITION, not at each door. Six callers read this engine and only THREE
+    read `.action` - kaiChronicleTriage, kaiChroniclePropose, the inbox scan - and all three
+    already do the right thing with `dismiss`. The other three read only `.canonical`/`.verdict`,
+    which is unchanged. Checked before changing it, not after.
+
+    ⚠ AND IT MUST NOT LAND IN THE PUT-BACK RECEIPT. `dismissed` is the list that carries a "put
+    back" button; the retire receipt is fed by `d2r_chronicleAutoRetired`, which
+    `kaiChronicleDismiss` does not write. Offering to put a grey base back in front of him would
+    be the same mistake in a different box.
+    """
+
+    def _src(self):
+        return io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+
+    def test_the_engine_does_not_hold_a_base(self):
+        src = self._src()
+        import re
+        m = re.search(r"out\.verdict = 'base-conflict'; out\.action = '(\w+)';", src)
+        self.assertIsNotNone(m, "the base-conflict verdict is gone from the engine")
+        self.assertEqual(m.group(1), "dismiss",
+                         "the engine says action=%r for a grey base. 'hold' means put it in "
+                         "front of him, and a base is not a decision he can make." % m.group(1))
+
+    def test_the_verdict_survives_so_the_contradiction_is_still_known(self):
+        """Only the ACTION changes. Anything that wants to know a base disagreed with his ledger
+        still can - that is real information about the UNIQUE that uses the base."""
+        src = self._src()
+        self.assertIn("out.verdict = 'base-conflict'", src,
+                      "the verdict was removed along with the action; the contradiction is now "
+                      "invisible to everything that wants it")
+
+    def test_the_scan_throws_out_bases_already_in_the_inbox(self):
+        """Fixing the engine stops NEW ones. Existing rows need clearing too."""
+        src = self._src()
+        blk = _between(self, src, "if (_eng.verdict === 'base-conflict')", "return;",
+                       min_len=150, what="the scan's base branch")
+        self.assertIn("kaiChronicleDismiss", blk,
+                      "a base already in his inbox is never dismissed, so it stays on screen")
+        self.assertNotIn("out.kept.push", blk,
+                         "a base is still pushed onto `kept`, which is the list that keeps "
+                         "asking him")
+        self.assertIn("if (!dry)", blk,
+                      "the dismissal ignores dryRun - a preview would be the one call with a "
+                      "side effect")
+
+    def test_a_base_never_reaches_the_put_back_receipt(self):
+        """kaiChronicleDismiss must not write the retire list, or the base reappears with a
+        'put back' button beside it."""
+        src = self._src()
+        blk = _between(self, src, "window.kaiChronicleDismiss = function(name)",
+                       "window.kaiChronicleAcceptAll", min_len=100, what="kaiChronicleDismiss")
+        self.assertNotIn("_CH_RETIRED_KEY", blk,
+                         "kaiChronicleDismiss now writes the auto-retired list, so a thrown-out "
+                         "base comes back in the receipt with a put-back button")
+
+
+class TestV2368BumpClearsItsOwnStaleBytecode(unittest.TestCase):
+    """A version bump's edits are INHERENTLY length-preserving - "v2366" -> "v2367" is the same
+    byte count - and Python judges a .pyc fresh from the source's mtime AND SIZE. Two edits inside
+    one filesystem tick and the interpreter runs OLD constants against correct source.
+
+    It bit three times on 2026-09-01. The worst: `_app_ver()` deliberately reads the version out
+    of `status_payload.__code__.co_consts` so it reports what the process is RUNNING rather than
+    what is on disk (v2155). With a stale .pyc it answered v2366 while the file said v2367,
+    `test_app_ver_equals_ship_version` went red on a correct tree, and TWO pushes were blocked
+    for a defect that did not exist.
+
+    ⚠ THE CACHE IS NOT IN __pycache__ ON THIS MAC. `sys.pycache_prefix` puts it under
+    ~/Library/Caches/com.apple.python/<absolute path>. [[python-pycache-prefix-mac]]
+    """
+
+    def test_the_bump_clears_bytecode_for_what_it_edited(self):
+        src = _code_only(io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8").read())
+        # PIN THE CALL, NOT THE DEFINITION. A first cut asserted the NAME appeared, which the
+        # `def` line satisfies on its own - so deleting the call left the guard green while the
+        # bump cleared nothing. A function nobody invokes is not a fix.
+        self.assertIn("_drop_stale_bytecode([", src,
+                      "_drop_stale_bytecode is defined but never CALLED - the bump clears nothing")
+        self.assertIn("def _drop_stale_bytecode(", src, "the cleaner itself is gone")
+        self.assertIn("pycache_prefix", src,
+                      "it only clears __pycache__, which is NOT where this Mac keeps it")
+        self.assertIn("__pycache__", src,
+                      "it only clears the prefix location; a machine without pycache_prefix "
+                      "still uses __pycache__")
+
+    def test_it_is_called_after_the_files_are_written(self):
+        """Clearing before the write would just be re-cached by the next import."""
+        src = _code_only(io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8").read())
+        i_write = src.index("io.open(path, \"w\"")
+        i_clear = src.index("_drop_stale_bytecode([")
+        self.assertLess(i_write, i_clear,
+                        "bytecode is cleared BEFORE the sources are written, so the stale copy "
+                        "is simply regenerated")
+
+    def test_a_cache_it_cannot_clear_is_not_a_failed_bump(self):
+        src = _code_only(io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8").read())
+        blk = _between(self, src, "def _drop_stale_bytecode(", "if removed:",
+                       min_len=200, what="the bytecode cleaner")
+        self.assertIn("except Exception", blk,
+                      "an unclearable cache now aborts the bump; it should warn, not fail")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
