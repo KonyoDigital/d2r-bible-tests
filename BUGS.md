@@ -12950,6 +12950,32 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-410 — the active ledger tab was a 10% wash, and a cue that works sometimes is not a cue (v2331)
+
+Asked cold which of the two ledger tabs was selected, a different model family answered
+**confidently on one render** — *"UNIQUES is the active selection (lighter/yellow background
+fill)"* — and **CANNOT TELL on the next**. Same CSS both times.
+
+The honest reading is not that it got one wrong. **The cue sat near the threshold where an
+observer may or may not resolve it**, and for a two-state control that cue IS the message: which
+ledger am I looking at.
+
+**Measured off the rendered pills rather than argued:**
+
+```
+selected    background rgba(240,192,96,.10)   ← a ten-percent gold wash on a dark panel
+unselected  background rgba(0,0,0,.28)
+text colours 129 / 765 apart
+```
+
+Raised to `.22` fill, `.85` border, semibold, plus an inset ring — then **re-asked cold on the new
+render**: *"Selected: SETS … High (clear fill contrast)."* Confirmed by the same instrument that
+found it.
+
+**Guards:** two sabotages proven RED — dropping the fill back to the `.10` that could not be
+resolved, and removing the weight difference. The floor in the guard is **derived from the
+measurement, not chosen**: `.10` was demonstrably not enough, so the assertion sits above it.
+
 ## REG-409 — the render gate measured half-built panels under load (v2330)
 
 **I first reported this as a coin flip.** Four clean runs and four with red targets on unchanged

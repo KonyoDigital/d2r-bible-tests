@@ -4765,8 +4765,21 @@
   .fxr-tab { border: 1px solid var(--edge, rgba(255,255,255,.16)); background: rgba(0,0,0,.28);
     color: var(--text-muted, #b5a48a); border-radius: 999px; padding: 5px 13px; cursor: pointer;
     font: var(--fw-medium) var(--fs-2xs)/1 var(--mono, monospace); letter-spacing: .4px; }
+  /* ⚠ v2330 — THE ACTIVE PILL WAS A 10% WASH, AND A CUE THAT WORKS SOMETIMES IS NOT A CUE.
+     Asked cold which tab was active, a different model family answered confidently on one render
+     ("UNIQUES is the active selection, lighter/yellow background fill") and CANNOT TELL on the
+     next. Same CSS both times, so the honest reading is not that it got one wrong — it is that
+     the cue sits near the threshold where an observer may or may not resolve it.
+
+     MEASURED off the rendered pills rather than argued: selected background was
+     rgba(240,192,96,.10) against an unselected rgba(0,0,0,.28), i.e. a ten-percent gold wash on
+     a dark panel, with the text colours only 129/765 apart. For a TWO-STATE control that is the
+     whole message — which ledger am I looking at — and it was being carried by the faintest
+     thing on the pill. Raised until it is not a judgement call, and re-asked cold to confirm.
+     [[visual-regression-detector]] */
   .fxr-tab[aria-selected="true"] { color: var(--gold-bright, #f0c060);
-    border-color: rgba(240,192,96,.5); background: rgba(240,192,96,.10); }
+    border-color: rgba(240,192,96,.85); background: rgba(240,192,96,.22);
+    font-weight: var(--fw-semibold, 600); box-shadow: inset 0 0 0 1px rgba(240,192,96,.25); }
   .fxr-tab:hover { color: var(--text, #e8dcc8); }
   .fx-x { background: none; border: none; color: var(--text-muted, #b5a48a); cursor: pointer;
     font-size: var(--fs-xs); line-height: 1; padding: 2px 4px; }

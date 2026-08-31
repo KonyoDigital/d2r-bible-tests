@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2330",
+  "ver": "v2331",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2330: the render gate slept a fixed 1.4s after activating a panel and under load measured it before its data arrived - it now waits for the targets own selector, bounded",
+  "note": "v2331: the active ledger tab was a ten percent wash that a cold reader resolved once and could not resolve the next time - raised and re-confirmed by the same reader",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

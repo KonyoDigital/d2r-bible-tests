@@ -33601,6 +33601,35 @@ class TestV2329TheCrossReferenceHasTwoLedgers(unittest.TestCase):
                          "raw quotes are back inside the onclick attribute")
         self.assertIn("&quot;", tabs, "the handler's arguments are not attribute-safe")
 
+    def test_the_ACTIVE_tab_is_unmistakable_not_merely_different(self):
+        """A CUE THAT WORKS SOMETIMES IS NOT A CUE.
+
+        Asked cold which ledger tab was active, a different model family answered confidently on
+        one render ("UNIQUES is the active selection, lighter/yellow background fill") and
+        CANNOT TELL on the next — same CSS both times. So the honest reading was not that it got
+        one wrong; the cue sat near the threshold where an observer may or may not resolve it.
+
+        MEASURED off the rendered pills: the selected background was rgba(240,192,96,.10) against
+        an unselected rgba(0,0,0,.28) — a ten-percent wash on a dark panel — carrying the entire
+        message of a two-state control. Raised, and re-asked cold: "Selected: SETS ... High (clear
+        fill contrast)".
+
+        The floor below is derived from that measurement, not chosen: .10 was demonstrably not
+        enough, so the guard sits above it. [[visual-regression-detector]]
+        """
+        import re
+        rule = _between(self, self._ui(), '.fxr-tab[aria-selected="true"]', "}",
+                        what="the selected ledger tab")
+        m = re.search(r"background:\s*rgba\([^)]*?,\s*\.?(\d*\.?\d+)\s*\)", rule)
+        self.assertIsNotNone(m, "the selected tab has no background fill at all")
+        alpha = float(m.group(1) if m.group(1).startswith("0") or "." in m.group(1)
+                      else "0." + m.group(1))
+        self.assertGreaterEqual(alpha, 0.18,
+                                "the active tab's fill fell back toward the 10%% wash a cold "
+                                "reader could not resolve (got %.2f)" % alpha)
+        self.assertIn("font-weight", rule,
+                      "the active tab no longer differs in weight - fill alone was what failed")
+
     def test_the_cross_reference_is_a_WINDOW_over_the_page(self):
         """He asked for "a window popup that opens up ontop of this ... so there room to design".
         Inline in the fleet card it had ~158px of usable width on his rail, which is why the
