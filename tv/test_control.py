@@ -36382,5 +36382,76 @@ class TestV2363ABaseIsNotAGrailEntry(unittest.TestCase):
 
 
 
+class TestV2364OneWayToAddressAFrame(unittest.TestCase):
+    """#123. Three ad-hoc resolvers invented three crises in one evening, and every one was
+    reported to him before it was checked:
+
+        "45% of cited frames are gone"          -> the resolver only tested `k == fid`
+        "48% carry a reel id where a frame goes" -> they are PATHS, carrying more, not less
+        "100% of named claims are unprovable"    -> endswith("/"+stem) needs a directory, and
+                                                    top-level files have none
+
+    A frame is addressed THREE ways - `<n>_<ms>`, `f_<ms>.jpg`, and `<reel>/f_<ms>.jpg` - and a
+    resolver that knows one of them answers "missing", which is indistinguishable from "deleted"
+    to every caller. [[feedback-suspect-the-instrument]]
+    """
+
+    def test_every_shape_yields_the_same_timestamp(self):
+        import frame_ref as fr
+        for ref in ("21_1787522052389", "f_1787522052389.jpg",
+                    "reel_s_1784984019250_95276/f_1787522052389",
+                    "15_1787522052389#v"):
+            self.assertEqual(fr.timestamp_of(ref), 1787522052389,
+                             "%r did not yield its capture ms" % ref)
+
+    def test_a_reel_suffix_is_not_mistaken_for_a_timestamp(self):
+        """The bug that made a 1970 date look real: `reel_s_1788190210097_78660` rsplit on '_'
+        gives 78660 - the reel's random suffix - and an int() of that is a valid-looking number.
+        Only chunks of plausible epoch length may be accepted."""
+        import frame_ref as fr
+        self.assertEqual(fr.timestamp_of("reel_s_1788190210097_78660"), 1788190210097)
+        self.assertIsNone(fr.timestamp_of("12345"), "a 5-digit chunk is not an epoch")
+        self.assertIsNone(fr.timestamp_of("garbage"))
+
+    def test_the_index_resolves_all_three_shapes(self):
+        import frame_ref as fr, tempfile
+        root = tempfile.mkdtemp(prefix="frameref_")
+        os.makedirs(os.path.join(root, "reel_s_1_2"), exist_ok=True)
+        for rel in ("f_1787522052389.jpg", "21_1787522052390.jpg",
+                    "reel_s_1_2/f_1787522052391.jpg"):
+            with io.open(os.path.join(root, rel), "w", encoding="utf-8") as fh:
+                fh.write("x")
+        idx = fr.Index(root)
+        self.assertEqual(idx.files, 3)
+        self.assertTrue(idx.exists("f_1787522052389.jpg"), "top-level with extension")
+        self.assertTrue(idx.exists("21_1787522052390"), "bare, no extension")
+        self.assertTrue(idx.exists("reel_s_1_2/f_1787522052391"), "reel path, no extension")
+        self.assertFalse(idx.exists("f_9999999999999"), "a frame that is not there")
+        # ⚠ EXERCISE THE STEM FALLBACK. The three cases above all resolve through the EXACT-path
+        # branch, so neutering the stem index left this green - the fallback was untested. A bare
+        # stem for a file that lives INSIDE a reel directory can only resolve that way, and that
+        # is exactly how his journal cites frames the retro sweep filed under a reel.
+        self.assertTrue(idx.exists("f_1787522052391"),
+                        "a bare stem must find the file that lives inside a reel directory")
+        self.assertEqual(idx.resolve("f_1787522052391"), "reel_s_1_2/f_1787522052391.jpg")
+
+    def test_a_named_claims_proof_is_protected_from_pruning(self):
+        """The receipt rule: a frame cited by a row that NAMED an item is the proof of that
+        claim and may not be deleted while the claim stands."""
+        import frame_ref as fr, tempfile
+        root = tempfile.mkdtemp(prefix="frameref2_")
+        for rel in ("f_1787522052389.jpg", "f_1787522052390.jpg"):
+            with io.open(os.path.join(root, rel), "w", encoding="utf-8") as fh:
+                fh.write("x")
+        idx = fr.Index(root)
+        rows = [{"frameId": "f_1787522052389", "items": [{"name": "Windforce"}]},
+                {"frameId": "f_1787522052390"}]
+        pr, protected, why = fr.prunable(idx, rows)
+        self.assertEqual(protected, 1, why)
+        self.assertEqual(pr, ["f_1787522052390.jpg"],
+                         "the frame proving a named claim must not be prunable")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

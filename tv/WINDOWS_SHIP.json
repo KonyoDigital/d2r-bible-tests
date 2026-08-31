@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2363",
+  "ver": "v2364",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2363: he was asked to Chronicle-or-Vault a grey base; the engine already knew it was one",
+  "note": "v2364: three ad-hoc resolvers invented three false crises in one evening",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
