@@ -37,6 +37,76 @@ GRIDS = {
 }
 
 
+# ══ v2332 — WHERE THE GRID ACTUALLY IS, MEASURED ═══════════════════════════════════════════════
+# Every entry point in this module takes a `panel_box`, and until now NOTHING IN THE TREE PRODUCED
+# ONE. That — not the tooltip offset — is what kept MINI(AUTOMATIC) blocked: point_of_cell answers
+# "what must be hovered" and cannot answer it without knowing where the grid is.
+#
+# THREE INFERENCE ROUTES WERE TRIED AND EACH FAILED, MEASURED RATHER THAN ABANDONED:
+#   1. stash_eye.crops_for_aspect() — the OCR crop band. Overlaid on a real frame it drifts off
+#      the game's gridlines, and its vertical extent stops ABOVE the grid's bottom edge. It was
+#      measured for reading a tab strip, not for cell arithmetic.
+#   2. the v2239 `dark_col_idx` lattice — recorded in a ~96-unit downscale of a 937px crop, so one
+#      unit is a tenth of a cell. Fitting a 10-column grid to its 6 clusters left residuals of
+#      HALF A CELL, and a free pitch with missing lines will always find some fit.
+#   3. a full-resolution column-luminance profile — dominated by the ITEMS. Autocorrelation peaks
+#      at 159px, not the ~87px cell: a packed stash is darker where the gear is than where the
+#      gridlines are.
+#
+# SO IT IS MEASURED, the same way _TALLY_CROPS was: read off a real frame with a pixel ruler, then
+# refined by searching the origin and pitch that put the predicted lines on the darkest pixels.
+# Both axes were optimised INDEPENDENTLY and converged on 86.8 and 86.9 px — square, which is what
+# a D2R cell is, and a sanity check neither axis was given.
+#
+#     f_1788104628821.jpg (2940x1912)  ->  x 281  y 381  w 868  h 869   cell 86.8 x 86.9
+#
+# Verified on the pixels on TWO frames from DIFFERENT sessions, including one with a tooltip over
+# the panel: the predicted lines sit on the game's own gridlines across the whole grid.
+#
+# ⚠ ONLY THE STASH IS CALIBRATED. The inventory is a different panel on the other side of the
+# screen and the cube is a third; neither has been measured, so both are REFUSED rather than
+# guessed from this one. A wrong cell is worse than no cell — this module says so everywhere else
+# and it would be a poor place to start guessing. [[unknown-stays-unknown]]
+_PANEL_CAL_FRAME = (2940, 1912)
+_PANEL_CAL_ASPECT = _PANEL_CAL_FRAME[0] / float(_PANEL_CAL_FRAME[1])
+_PANEL_CAL_LO, _PANEL_CAL_HI = 1.45, 1.62      # the band stash_eye's own crops are locked at
+
+# fractions of the calibration frame, so the numbers survive a resize
+PANELS = {
+    "stash": (281 / 2940.0, 381 / 1912.0, 868 / 2940.0, 869 / 1912.0),
+}
+
+
+def panel_box_for(frame_w, frame_h, container="stash"):
+    """The CONTAINER GRID's box in this frame's pixels. -> ((x, y, w, h), None) or (None, why)
+
+    Refuses rather than guessing on three counts, because each one would place items in real
+    cells that are simply the wrong ones:
+      · a container nobody has measured
+      · a frame whose aspect is outside the calibrated band (D2R anchors the panel to the left and
+        scales with HEIGHT, so a different aspect moves the horizontal fractions — the same law
+        stash_eye.crops_for_aspect derives, and the same band it trusts)
+      · a frame size that is not a frame
+    """
+    if container not in PANELS:
+        return None, ("no panel box has been measured for %r — only %s. Guessing one from the "
+                      "stash would put items in real cells that are the wrong ones."
+                      % (container, ", ".join(sorted(PANELS))))
+    try:
+        fw, fh = float(frame_w), float(frame_h)
+    except (TypeError, ValueError):
+        return None, "frame size is not numeric"
+    if fw <= 0 or fh <= 0:
+        return None, "frame measures %gx%g — nothing can be inside it" % (fw, fh)
+    aspect = fw / fh
+    if not (_PANEL_CAL_LO <= aspect <= _PANEL_CAL_HI):
+        return None, ("this frame is %.3f aspect and the panel box was measured at %.3f; outside "
+                      "%.2f-%.2f the horizontal fractions move and nothing here has been measured "
+                      "there yet" % (aspect, _PANEL_CAL_ASPECT, _PANEL_CAL_LO, _PANEL_CAL_HI))
+    fx, fy, fwf, fhf = PANELS[container]
+    return (fx * fw, fy * fh, fwf * fw, fhf * fh), None
+
+
 def cell_of(point, panel_box, container):
     """Which cell does this point fall in? -> (col, row) or (None, why)
 

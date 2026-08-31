@@ -241,6 +241,87 @@ class TestV2319PointOfCellIsTheExactInverse(unittest.TestCase):
         self.assertTrue(bad[0]["why"], "it was carried with no reason attached")
 
 
+class TestV2332WhereTheGridActuallyIs(unittest.TestCase):
+    """EVERY ENTRY POINT HERE TAKES A panel_box AND NOTHING PRODUCED ONE.
+
+    That — not the tooltip offset — is what kept MINI(AUTOMATIC) blocked. point_of_cell answers
+    "what must be hovered" and cannot answer it without knowing where the grid is.
+
+    THREE INFERENCE ROUTES WERE TRIED AND MEASURED DEAD:
+      1. stash_eye.crops_for_aspect() — the OCR crop band. Overlaid on a real frame it drifts off
+         the gridlines, and its vertical extent stops ABOVE the grid's bottom edge. It was
+         measured for reading a tab strip.
+      2. the v2239 dark_col_idx lattice — recorded in a ~96-unit downscale of a 937px crop, so one
+         unit is a tenth of a cell. Fitting a 10-column grid to its 6 clusters left residuals of
+         HALF A CELL, and a free pitch with missing lines always finds some fit.
+      3. a full-resolution column profile — dominated by the ITEMS. Autocorrelation peaks at
+         159px, not the ~87px cell: a packed stash is darker where the gear is.
+
+    So it is MEASURED, the way _TALLY_CROPS was: read off a real frame with a pixel ruler, then
+    refined by searching the origin and pitch that put the predicted lines on the darkest pixels.
+    Both axes were optimised INDEPENDENTLY and converged on 86.8 and 86.9 px — square, which is
+    what a D2R cell is, and a check neither axis was given. Verified on the pixels on two frames
+    from different sessions, one of them with a tooltip over the panel.
+    """
+
+    def test_the_calibration_frame_returns_the_measured_box(self):
+        box, why = S.panel_box_for(2940, 1912, "stash")
+        self.assertIsNone(why)
+        self.assertEqual(tuple(round(v) for v in box), (281, 381, 868, 869))
+
+    def test_the_cell_is_SQUARE_which_is_what_a_D2R_CELL_IS(self):
+        """The two axes were fitted separately. Their agreeing to within a pixel is the evidence
+        that this is the real grid and not a shape fitted to one image — so it is pinned as a LAW
+        rather than left as a coincidence in a comment. [[regression-guard]]"""
+        box, _ = S.panel_box_for(2940, 1912, "stash")
+        cols, rows = S.GRIDS["stash"]
+        cw, ch = box[2] / cols, box[3] / rows
+        self.assertLess(abs(cw - ch), 1.5,
+                        "the cells are %.1f x %.1f — a D2R stash cell is square, so the box has "
+                        "drifted off the real grid" % (cw, ch))
+
+    def test_it_scales_with_the_frame_rather_than_hardcoding_pixels(self):
+        a, _ = S.panel_box_for(2940, 1912, "stash")
+        b, _ = S.panel_box_for(1470, 956, "stash")     # half size, same aspect
+        for x, y in zip(a, b):
+            self.assertAlmostEqual(x / 2.0, y, places=6,
+                                   msg="the box is not expressed as fractions of the frame")
+
+    def test_every_cell_survives_the_round_trip_on_the_REAL_box(self):
+        """point_of_cell -> cell_of must return the cell asked for, or the automatic pass would
+        hover one cell and file the result under another."""
+        box, _ = S.panel_box_for(2940, 1912, "stash")
+        cols, rows = S.GRIDS["stash"]
+        for c in range(cols):
+            for r in range(rows):
+                pt, w1 = S.point_of_cell(c, r, box, "stash")
+                self.assertIsNone(w1)
+                got, w2 = S.cell_of(pt, box, "stash")
+                self.assertEqual(got, (c, r), "cell (%d,%d) came back as %s" % (c, r, got))
+
+    def test_an_UNMEASURED_container_is_refused_not_guessed(self):
+        """The inventory is a different panel on the other side of the screen and the cube is a
+        third. Deriving either from the stash would put items in real cells that are the wrong
+        ones. [[unknown-stays-unknown]]"""
+        for cont in ("inventory", "cube", "wardrobe"):
+            box, why = S.panel_box_for(2940, 1912, cont)
+            self.assertIsNone(box, "%s got a guessed panel box" % cont)
+            self.assertIn("measured", why)
+
+    def test_an_ASPECT_outside_the_calibration_band_is_refused(self):
+        """D2R anchors the panel left and scales with HEIGHT, so a different aspect moves the
+        horizontal fractions. 16:9 is his cousin's monitor, not his Mac."""
+        box, why = S.panel_box_for(1920, 1080, "stash")
+        self.assertIsNone(box)
+        self.assertIn("aspect", why)
+
+    def test_a_frame_that_is_not_a_frame_is_refused(self):
+        for bad in ((0, 100), (100, 0), ("x", 100), (None, None)):
+            box, why = S.panel_box_for(bad[0], bad[1], "stash")
+            self.assertIsNone(box, "%r produced a panel box" % (bad,))
+            self.assertTrue(why)
+
+
 if __name__ == "__main__":
     # REG-044 — this file prints non-ASCII; a non-UTF-8 console would turn its own
     # verdict into a traceback, which is the one place a gate must never be silent.

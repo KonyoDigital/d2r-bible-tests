@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2331",
+  "ver": "v2332",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2331: the active ledger tab was a ten percent wash that a cold reader resolved once and could not resolve the next time - raised and re-confirmed by the same reader",
+  "note": "v2332: slot identity had no panel box and three ways to infer one all failed - it is measured now, both axes converging independently on a square cell, verified on two frames",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

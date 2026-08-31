@@ -12950,6 +12950,51 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-411 — slot identity had no panel box, and three ways to infer one all failed (v2332)
+
+`#31` was carried for weeks as *"one measured offset away from MINI(AUTOMATIC)"*. **That premise
+was wrong on two counts**, and finding out cost more than the fix:
+
+1. **Nothing in the tree called `slot_identity` at all** — only its own test file imports it. A
+   complete, guarded, well-reasoned module wired to nothing. ⚠ My first grep reported *"cell_of:
+   14 callers"* and I nearly filed that; `grep -v "/test_"` does not match `test_slot_identity.py`
+   (no leading slash). **14 callers and zero imports cannot both be true** — the count was the tell.
+2. **The blocker is the PANEL BOX, not the offset.** `point_of_cell()` — the direction
+   MINI(AUTOMATIC) needs — takes a `panel_box`, and nothing produced one. The tooltip→cell offset
+   is for the reverse direction and does not block the hover at all.
+
+**Three inference routes, each tried and measured dead:**
+
+```
+crops_for_aspect()   the OCR crop band — drifts off the gridlines, and its vertical extent
+                     stops ABOVE the grid's bottom edge. Measured for reading a tab strip.
+dark_col_idx (v2239) recorded in a ~96-unit downscale of a 937px crop: one unit is a tenth of
+                     a cell. Fitting 10 columns to its 6 clusters left HALF-A-CELL residuals,
+                     and a free pitch with missing lines will always find some fit.
+column profile       dominated by the ITEMS. Autocorrelation peaks at 159px, not the ~87px
+                     cell — a packed stash is darker where the gear is than where the lines are.
+```
+
+**So it is MEASURED**, the way `_TALLY_CROPS` was: read off a real frame with a pixel ruler, then
+refined by searching the origin and pitch that put the predicted lines on the darkest pixels.
+
+```
+f_1788104628821.jpg (2940x1912)  ->  x 281  y 381  w 868  h 869   cell 86.8 x 86.9
+```
+
+⚠ **Both axes were optimised INDEPENDENTLY and converged on 86.8 and 86.9 — square, which is what
+a D2R cell is, and a check neither axis was given.** That agreement is the evidence this is the
+real grid rather than a shape fitted to one image, so it is pinned as a law rather than left as a
+remark. Verified on the pixels on two frames from different sessions, one with a tooltip over the
+panel; the predicted lines sit on the game's own gridlines across the whole grid, and the round
+trip `point_of_cell → cell_of` returns the cell asked for on **all 100 cells**.
+
+⚠ **ONLY THE STASH IS CALIBRATED.** The inventory is a different panel on the other side of the
+screen and the cube is a third; both are REFUSED rather than derived from this one, as is any
+frame whose aspect falls outside the band `crops_for_aspect` itself trusts.
+
+**Guards:** `TestV2332WhereTheGridActuallyIs`, four sabotages proven RED.
+
 ## REG-410 — the active ledger tab was a 10% wash, and a cue that works sometimes is not a cue (v2331)
 
 Asked cold which of the two ledger tabs was selected, a different model family answered
