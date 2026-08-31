@@ -6394,6 +6394,43 @@ def _kai_compile_register(sess_rows):
         if tier and _KAI_TIER_RANK.get(tier, 0) > _KAI_TIER_RANK.get(cur.get("tier") or "", 0):
             cur["tier"] = tier
 
+    # ══ v2344 — WHERE A NAME WAS SEEN, FROM WHAT WAS ON SCREEN AT THAT MOMENT ══════════════════
+    # Konyo: "when it sees me in stash and inventory open it knows that im stashing and it can flag
+    # the reel from that point and timestamp." Until now every reader answered one frame at a time,
+    # so the kai JUDGE lane put 84 names into this register with a location on ZERO of them — its
+    # own read is a tooltip parse (name, base, quality, mods, verdict) and never says where it
+    # looked. The fact that a Chronicle page was open lives in a DIFFERENT frame's read.
+    #
+    # MEASURED on his journal, ±0ms, before this was wired:
+    #     frame-to-frame join      2 of 84   (the lanes use different frameId formats)
+    #     SEGMENT membership      26 of 84   stash 11 · chronicle 10 · gameplay 3 · inventory 2
+    # TEN of the judged names were read while the CHRONICLE was open — the exact defect he
+    # reported, now refused by name and by timestamp instead of argued about.
+    #
+    # The segment is only consulted when the row itself did not say; a read that knows where it
+    # looked is always the better witness. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _segs = []
+    try:
+        import reel_segments as _rseg
+        _segs = _rseg.segments(sess_rows)
+    except Exception:
+        _segs = []
+
+    def _loc_of(nm, row, nl):
+        if not nm:
+            return None
+        own = nl.get(nm)
+        if own:
+            return own
+        if not _segs:
+            return None
+        try:
+            lane, _why = _rseg.lane_at(_segs, str(row.get("sessionId") or ""),
+                                       row.get("captureTs") or row.get("ts") or 0)
+        except Exception:
+            return None
+        return lane or None
+
     for r in sess_rows:
         ts = int(r.get("ts") or r.get("captureTs") or 0)
         fid = str(r.get("frameId") or "")
@@ -6409,21 +6446,21 @@ def _kai_compile_register(sess_rows):
                     if _m not in _reg_names:
                         _reg_names = list(_reg_names) + [_m]
             for nm in (_reg_names or []):
-                _consider(nm, ts, fid, nl.get(nm), None)
+                _consider(nm, ts, fid, _loc_of(nm, r, nl), None)
         if r.get("lane") == "kai":
             k = r.get("kai")
             j = k.get("judge") if isinstance(k, dict) else None
             if isinstance(j, dict):
                 tier = str(j.get("tier") or "").lower()
                 if tier in ("grail", "keep", "border"):
-                    _consider(j.get("name"), ts, fid, nl.get(j.get("name")), tier)
+                    _consider(j.get("name"), ts, fid, _loc_of(j.get("name"), r, nl), tier)
             # FIX C (F3) — names the KAI closer GROUNDED from garbled tooltip OCR (a legible
             # grail whose read was leet-mangled, e.g. 'H4RLEQVIN CR' -> 'Harlequin Crest').
             # Already _kai_fullnames-verified by the grounder; tier stays None (a factual
             # sighting, not a judge quality verdict) so it registers without inventing a grade.
             if isinstance(k, dict) and isinstance(k.get("grounded"), list):
                 for gm in k.get("grounded") or []:
-                    _consider(gm, ts, fid, nl.get(gm), None)
+                    _consider(gm, ts, fid, _loc_of(gm, r, nl), None)
     return sorted(reg.values(), key=lambda x: (x["firstSeenTs"] or 0, x["name"].lower()))
 
 
@@ -20323,7 +20360,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2343",
+        "ver": "v2344",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -79,9 +79,17 @@ def segments(rows, gap_ms=SEG_GAP_MS):
             continue
         sc = str(r.get("scene") or "").strip().lower()
         t = _ts(r)
-        if not sc or not t:
+        sid = str(r.get("sessionId") or "").strip()
+        # ⚠ NO SESSION, NO TIMELINE. A cross-family review pointed out that `or ""` puts every
+        # session-less row in one bucket, so reads from unrelated sittings would merge into a
+        # single fake visit and lend each other provenance they never had. MEASURED: all 711 of
+        # his deep scene reads carry a sessionId today, so this drops nothing — it closes a door
+        # that is currently unlocked rather than one currently being walked through.
+        # A row that cannot say which sitting it belongs to cannot say what was on screen either.
+        # [[unknown-stays-unknown]]
+        if not sc or not t or not sid:
             continue
-        seen.append((str(r.get("sessionId") or ""), t, sc))
+        seen.append((sid, t, sc))
     seen.sort(key=lambda x: (x[0], x[1]))
 
     out = []

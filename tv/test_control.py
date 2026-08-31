@@ -34762,6 +34762,17 @@ class TestV2343AReelIsATimelineNotABagOfFrames(unittest.TestCase):
         self.assertEqual(rs.lane_at(segs, "s1", 2600, pad_ms=1000)[0], "stash",
                          "an explicit pad no longer widens the window")
 
+    def test_a_row_with_no_session_cannot_join_a_timeline(self):
+        """`or ""` would put every session-less row in one bucket, so reads from unrelated
+        sittings would merge into a single fake visit and lend each other provenance they never
+        had. Measured: all 711 of his deep scene reads carry a sessionId, so this closes a door
+        that is unlocked rather than one being walked through."""
+        import reel_segments as rs
+        rows = [{"lane": "deep", "captureTs": 1000, "scene": "stash"},
+                {"lane": "deep", "captureTs": 900000, "scene": "chronicle"}]
+        self.assertEqual(rs.segments(rows), [],
+                         "rows with no sessionId were merged into a timeline")
+
     def test_a_gap_ends_a_visit(self):
         import reel_segments as rs
         rows = [{"lane": "deep", "sessionId": "s1", "captureTs": 1000, "scene": "stash"},
@@ -34839,6 +34850,101 @@ class TestV2343bTheVaultPredicateIsAWhitelist(unittest.TestCase):
         self.assertGreaterEqual(calls, 2,
                                 "only %d door asks the predicate; the point of extracting it was "
                                 "that every door asks the same one" % calls)
+
+
+
+class TestV2344TheRegisterAsksTheTimelineWhereAnItemWas(unittest.TestCase):
+    """A judged name inherits the activity that was on screen when it was read.
+
+    The kai JUDGE lane feeds 84 names into the register and carries a location on ZERO of them —
+    window.aicJudge POSTs the frame to an ITEM parser and gets back {name, base, q, mods, verdict},
+    which never says where it looked. The fact that a Chronicle page was open at that moment lives
+    in a different frame's read, which is why frame-to-frame matching recovered 2 of 84 and was
+    reverted. Segment membership recovers 26 and, more importantly, REFUSES the right ones.
+
+    MEASURED on his journal after wiring, ±0ms:
+        judged names by what was on screen:
+            uncovered 58 · stash 11 · chronicle 10 · gameplay 3 · inventory 2
+        names read during a CHRONICLE segment that still got a container lane: 0
+    """
+
+    def _journal(self):
+        # a stash visit and a chronicle visit, with a judge verdict inside each
+        return [
+            {"lane": "deep", "sessionId": "s1", "captureTs": 1000, "scene": "stash",
+             "frameId": "f1", "names": []},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 3000, "scene": "stash",
+             "frameId": "f2", "names": []},
+            {"lane": "kai", "sessionId": "s1", "captureTs": 2000, "frameId": "fk1",
+             "kai": {"judge": {"name": "Shako", "tier": "grail"}}},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 50000, "scene": "chronicle",
+             "frameId": "f3", "names": []},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 52000, "scene": "chronicle",
+             "frameId": "f4", "names": []},
+            {"lane": "kai", "sessionId": "s1", "captureTs": 51000, "frameId": "fk2",
+             "kai": {"judge": {"name": "Griffon's Eye", "tier": "grail"}}},
+        ]
+
+    def _reg(self):
+        import control_app as ca
+        return {e["name"]: e for e in ca._kai_compile_register(self._journal())}
+
+    def test_a_name_judged_during_a_STASH_visit_gets_the_stash_lane(self):
+        reg = self._reg()
+        self.assertIn("Shako", reg, "the judged name never reached the register at all")
+        self.assertEqual(reg["Shako"].get("loc"), "stash",
+                         "a name judged while the stash was open did not inherit that lane, so "
+                         "the vault gate has nothing to admit it on")
+
+    def test_a_name_judged_off_the_CHRONICLE_gets_NO_lane(self):
+        """The defect he reported: "most are chronicles read wrong as vault items"."""
+        reg = self._reg()
+        self.assertIn("Griffon's Eye", reg)
+        self.assertIsNone(reg["Griffon's Eye"].get("loc"),
+                          "a name read off the Chronicle MENU was given a container lane — that "
+                          "page lists items he does NOT own, so it can never prove possession")
+
+    def test_the_rows_own_names_loc_outranks_the_timeline(self):
+        """A read that knows where it looked is always the better witness."""
+        import control_app as ca
+        # ⚠ WITHIN A ROW, which is the precedence this change owns. Across rows the register has
+        # its own long-standing rule — the EARLIEST sighting wins the loc — and that is deliberate
+        # and documented where it lives; this change does not touch it, and a test asserting
+        # otherwise was asserting a rule nobody wrote.
+        # Here: a deep read DURING a chronicle visit that positively says "stash". The timeline
+        # would refuse (chronicle grants nothing); the read knows better and must win.
+        j = [
+            {"lane": "deep", "sessionId": "s1", "captureTs": 50000, "scene": "chronicle",
+             "frameId": "c1", "names": []},
+            {"lane": "deep", "sessionId": "s1", "captureTs": 51000, "scene": "chronicle",
+             "frameId": "c2", "names": ["Shako"], "names_loc": {"Shako": "stash"}},
+        ]
+        reg = {e["name"]: e for e in ca._kai_compile_register(j)}
+        self.assertIn("Shako", reg)
+        self.assertEqual(reg["Shako"].get("loc"), "stash",
+                         "the timeline's chronicle refusal overrode a read that positively named "
+                         "its own lane — a read that knows where it looked is the better witness")
+
+    def test_a_moment_no_segment_covers_stays_UNKNOWN(self):
+        import control_app as ca
+        j = [r for r in self._journal() if r.get("lane") == "kai"]
+        reg = {e["name"]: e for e in ca._kai_compile_register(j)}
+        for nm in reg:
+            self.assertIsNone(reg[nm].get("loc"),
+                              "with no scene reads at all, %r was still given a location" % nm)
+
+    def test_the_register_survives_a_missing_segmenter(self):
+        """It is wrapped because a register that dies when an optional module is absent is worse
+        than one with less provenance."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        # ⚠ SLICED TO THE IMPORT ALONE. A wider slice ran on into _loc_of, which has its own
+        # try/except, so removing the import guard left this GREEN — the sabotage caught it.
+        # A guard that finds someone else's `except` is not checking the one it names.
+        blk = _between(self, src, "import reel_segments as _rseg", "def _loc_of",
+                       min_len=30, what="the segmenter import")
+        self.assertIn("except Exception", blk,
+                      "the segmenter import/lookup is unguarded; if it raises, the whole register "
+                      "dies and every name vanishes rather than merely losing its lane")
 
 
 

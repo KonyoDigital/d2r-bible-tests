@@ -13959,3 +13959,38 @@ read of its own frame. 2 of 84 by exact frame, 11 of 84 even at ±60s. Two reaso
 lanes use different frameId formats (`reel_s_.../f_...` vs `5_...`), and only 47 deep frames carry a
 location at all across a five-month journal. A change that changes nothing must not ship wearing a
 fix's words.
+
+## REG-424 — the register now asks the timeline where a name was seen
+
+The join that makes v2343's segmenter pay. Konyo: *"when it sees me in stash and inventory open it
+knows that im stashing and it can flag the reel from that point and timestamp."*
+
+`_kai_compile_register` gave every judged name `nl.get(name)` — the row's own `names_loc` — and the
+kai JUDGE lane has none, because `window.aicJudge` POSTs the frame to an ITEM parser and gets back
+`{name, base, q, mods, verdict}` which never says where it looked. So 84 names entered the register
+with no provenance and the vault gate had nothing to judge on.
+
+**MEASURED on his live journal, ±0ms:**
+
+```
+                       BEFORE   AFTER
+names with a location   26/101   30/101      stash 6->9 · inventory 7->8
+judged names by what was on screen:
+   uncovered 58 · stash 11 · chronicle 10 · gameplay 3 · inventory 2
+names read during a CHRONICLE segment that still got a container lane:  0
+```
+
+**The ten Chronicle reads are refused by name and by timestamp** — that is the defect he reported,
+and the refusal is now structural rather than argued about. The gain in admissions is small (26→30)
+and honest; it grows as scene coverage grows. What matters is the other half: nothing read off a
+menu page can claim the vault.
+
+⚠ **Precedence is WITHIN a row only.** A read that positively names its own lane beats the
+timeline. Across rows the register keeps its long-standing earliest-sighting-wins rule, which is
+deliberate and documented where it lives — a test I wrote asserting otherwise was asserting a rule
+nobody had written, and it failed correctly.
+
+⚠ **Two toothless guards of mine, both caught by sabotage.** One sliced from the segmenter import
+all the way to the loop, so it found `_loc_of`'s own `except` and stayed green when the import guard
+was removed — a guard that finds someone else's `except` is not checking the one it names. The other
+asserted string order rather than structure.

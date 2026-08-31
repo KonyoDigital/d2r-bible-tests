@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2343",
+  "ver": "v2344",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2343: one vault-claim predicate for every door, and reels now know what he was doing",
+  "note": "v2344: a judged name inherits the activity that was on screen when it was read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
