@@ -8200,7 +8200,8 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-pop .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:#f0c060;margin-bottom:3px}
 .inbox-pop .ibp-sub{color:#9a8c72;margin-bottom:9px;font-size:11.5px;line-height:1.45}
 .inbox-pop .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
-.inbox-pop .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:3px}/* v2349 - FOUR RULINGS NOW, SO 2x2 RATHER THAN FOUR CRAMPED COLUMNS. The render gate already reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE columns; a fourth would have shipped that defect to every width. Two columns give each button ~50% instead of ~25%, which is also the symmetry he asked for. */
+.inbox-pop .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,260px));justify-content:start;gap:6px;margin-top:3px}/* v2355 - AND CAPPED AT 260px. A cold cross-family look at the 1440 render reported 'empty gray rectangular bars with borders but no text' beside each label. That was WRONG - every button carries its text - but it was wrong for a real reason: at 1440 a 1fr column is 657px, so the word 'ignore' sat in a bar eleven times its own width and read as empty to a fresh eye. A reviewer misreading the layout IS the finding. justify-content:start keeps them under the item name instead of stretched across the panel.
+     v2349 - FOUR RULINGS NOW, SO 2x2 RATHER THAN FOUR CRAMPED COLUMNS. The render gate already reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE columns; a fourth would have shipped that defect to every width. Two columns give each button ~50% instead of ~25%, which is also the symmetry he asked for. */
 .inbox-pop .ibp-acts .ibp-b{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* v1789 — flex-wrap IS LOAD-BEARING: .ibp-why is flex:0 0 100%, and in a non-wrapping row it takes the whole line and squeezes the item NAME and both buttons to zero width. The panel rendered three rows reading 'unclear read' with nothing to act on — the one thing he needs is the name. Every functional assertion passed; only the screenshot showed it. */
 .inbox-pop .ibp-row:last-child{border-bottom:0}
 .inbox-pop .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -8271,7 +8272,7 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
 .inbox-sticky .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
-.inbox-sticky .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:3px}/* v2349 - FOUR RULINGS NOW, SO 2x2 RATHER THAN FOUR CRAMPED COLUMNS. The render gate already reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE columns; a fourth would have shipped that defect to every width. Two columns give each button ~50% instead of ~25%, which is also the symmetry he asked for. */
+.inbox-sticky .ibp-acts{display:grid;grid-template-columns:repeat(2,minmax(0,260px));justify-content:start;gap:6px;margin-top:3px}/* v2349 - FOUR RULINGS NOW, SO 2x2 RATHER THAN FOUR CRAMPED COLUMNS. The render gate already reported `ibp-b ibp-ok :: Chronicle` clipping at 375x800 with THREE columns; a fourth would have shipped that defect to every width. Two columns give each button ~50% instead of ~25%, which is also the symmetry he asked for. */
 .inbox-sticky .ibp-acts .ibp-b{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ══ v2336 — THE PHONE-WIDTH INBOX, ARRIVED AT BY MEASUREMENT, NOT BY GUESS ═════════════════
    The render gate refused the first cut at 375x800: "2 element(s) have text cut off — ibp-b
@@ -47857,7 +47858,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2354', name:'v2354 - What a name is worth', date:'2026-08-31', note:'measured per lane and surface with Wilson - ocr produced 1 real name in 801 sightings' };
+  window.D2R_BUILD = { id:'v2355', name:'v2355 - The reviewer misread it, and that was the finding', date:'2026-08-31', note:'a 6-character label sat in a 657px bar and a cold eye called it empty' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
