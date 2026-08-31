@@ -678,7 +678,19 @@ def _stats_load():
 def _stats_flush():
     """Publish this process's counters into the shared file, ADDING deltas rather than
     overwriting — control_app and the agent both call the eye, so a last-writer-wins save
-    would silently erase the other process's calls (the very defect this replaces)."""
+    would silently erase the other process's calls (the very defect this replaces).
+
+    ⚠ v2341 — IT TAKES _LOCK, AND _LOCK IS NOT REENTRANT. Never call this from inside a
+    `with _LOCK:` block: threading.Lock() (line ~59) deadlocks on re-acquisition, and the lane
+    would hang rather than fail, which is the worst failure a reader can have.
+
+    This matters because a cross-family review of v2340 correctly observed that ~33 of the 34
+    `_STATS` writes happen outside any lock, and the obvious remedy is to wrap them. Do not.
+    The DURABLE record is already safe — the load, the merge, the write and the counter reset
+    all happen inside this one lock — so the only thing that can race is an in-memory counter
+    between two flushes, and it can drift by a count or two. Trading a cosmetic drift for a
+    hang is a bad trade. If real serialisation is ever wanted here, change _LOCK to an RLock
+    FIRST. Guard: TestV2341FlushIsNeverCalledHoldingTheLock."""
     try:
         with _LOCK:
             base = _stats_load()
@@ -707,6 +719,12 @@ _HARD_STOPS = (
     ("unauthorized", "Grok rejected the credentials — sign in again"),
     ("invalid api key", "Grok rejected the credentials — sign in again"),
 )
+
+
+# v2341 — how long a stated refusal stands before the lane probes once more. Long enough that a
+# dead balance costs 2 calls an hour instead of thousands; short enough that a top-up is noticed
+# within half an hour without him having to press anything.
+_HARD_STOP_RETRY_S = 1800.0
 
 
 _LOOK_IT_UP = object()   # "consult the live stats" — distinct from an explicit None meaning "no error"
@@ -813,9 +831,25 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
     if not force:
         _blocked = _hard_stop_why()
         if _blocked:
-            _STATS["skipped_blocked"] += 1
-            _stats_flush()
-            return None
+            # ⚠ v2341 — A BREAKER WITH NO WAY OUT IS A DEADLOCK, AND v2340 SHIPPED ONE.
+            # The latch is decided by reading last_error, and v2340 then prevented the only call
+            # that could ever update it. Measured: 20 reads after the refusal, 0 calls attempted,
+            # latch still set — so the morning he tops the balance up, the lane would never find
+            # out. It refused for the right reason and could not stop refusing.
+            # One probe per window instead: 2 calls an hour while blocked rather than the 1963 it
+            # had banked, and it heals itself the first time the far end says yes.
+            # An error with no usable timestamp probes NOW — an unknown age must not read as
+            # "recent". [[unknown-stays-unknown]] [[feedback-threshold-above-the-ceiling]]
+            _ts = _STATS.get("last_error_ts") or 0
+            try:
+                _age_s = time.time() - (float(_ts) / 1000.0)
+            except (TypeError, ValueError):
+                _age_s = _HARD_STOP_RETRY_S + 1
+            if _age_s < _HARD_STOP_RETRY_S:
+                _STATS["skipped_blocked"] += 1
+                _stats_flush()
+                return None
+            # fall through: ONE probe. Only the far end can say whether it is still refusing.
     if not _budget_ok():
         # v1711 — this returned None with last_error untouched, so a budget refusal was
         # INDISTINGUISHABLE on the panel from an eye that was simply never asked. "The eye is
@@ -939,6 +973,14 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
 
     _budget_record()
     _STATS["ok"] += 1
+    # ⚠ v2341 — A LANE THAT HAS RECOVERED MUST STOP ANNOUNCING A BLOCKAGE. _hard_stop_why()'s own
+    # docstring says exactly that, and nothing on this path had ever honoured it: after five
+    # SUCCESSFUL reads it still reported "the Grok balance is exhausted". Harmless while it was
+    # only a caption; the moment v2340 made that caption gate the calls, a successful probe would
+    # re-latch on its own stale evidence and the window would reopen every 30 minutes for ever.
+    # Two halves of one fix — the retry window cannot help if success never clears the reason.
+    _STATS["last_error"] = None
+    _STATS["last_error_ts"] = None
     m = mode() if not force else "force"
     if m == "shadow":
         _STATS["shadow"] += 1

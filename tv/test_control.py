@@ -34308,7 +34308,7 @@ class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
         return g5, tmp, img
 
     def test_a_latched_402_spends_no_further_calls(self):
-        import subprocess, g5_grok_eyes as g5
+        import time, subprocess, g5_grok_eyes as g5
         g5, tmp, img = self._isolated()
         real = subprocess.run
         spent = {"n": 0}
@@ -34316,6 +34316,10 @@ class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
             subprocess.run = lambda *a, **k: spent.__setitem__("n", spent["n"] + 1)
             g5._STATS["last_error"] = ("grok HTTP 402 — API error (status 402 Payment Required): "
                                        "Grok Build usage balance exhausted")
+            # v2341 — STAMPED RECENT ON PURPOSE. "Latched" now means "refused within the retry
+            # window"; an unstamped refusal is of unknown age and correctly probes once. This
+            # case is about the window HOLDING, so it must say when the refusal happened.
+            g5._STATS["last_error_ts"] = int(time.time() * 1000)
             for _ in range(6):
                 g5.g5_vision_read(img)
         finally:
@@ -34334,6 +34338,7 @@ class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
         try:
             subprocess.run = lambda *a, **k: None
             g5._STATS["last_error"] = "grok HTTP 402 — Grok Build usage balance exhausted"
+            g5._STATS["last_error_ts"] = int(time.time() * 1000)
             for _ in range(4):
                 g5.g5_vision_read(img)
             self.assertTrue(g5._hard_stop_why(),
@@ -34345,12 +34350,13 @@ class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
     def test_a_refusal_is_counted_as_a_skip_and_never_as_an_error(self):
         """'we did not ask' and 'we asked and it failed' are different facts and he acts on them
         differently — the same distinction _budget_ok() already draws."""
-        import json, subprocess, g5_grok_eyes as g5
+        import json, time, subprocess, g5_grok_eyes as g5
         g5, tmp, img = self._isolated()
         real = subprocess.run
         try:
             subprocess.run = lambda *a, **k: None
             g5._STATS["last_error"] = "grok HTTP 402 — Grok Build usage balance exhausted"
+            g5._STATS["last_error_ts"] = int(time.time() * 1000)
             for _ in range(5):
                 g5.g5_vision_read(img)
         finally:
@@ -34384,6 +34390,125 @@ class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
             subprocess.run = real
         self.assertEqual(spent["n"], 1, "force=True was swallowed by the breaker")
 
+    def _spy(self):
+        """A subprocess that counts calls and returns a real-shaped success."""
+        class R(object):
+            returncode, stdout, stderr = 0, '{"verdict":"ok"}', ""
+        spent = {"n": 0}
+        def run(*a, **k):
+            spent["n"] += 1
+            return R()
+        return spent, run
+
+    def test_a_recent_refusal_holds_the_line(self):
+        import time, subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        spent, run = self._spy()
+        real = subprocess.run
+        try:
+            subprocess.run = run
+            g5._STATS["last_error"] = "grok HTTP 402 — Grok Build usage balance exhausted"
+            g5._STATS["last_error_ts"] = int(time.time() * 1000)
+            for _ in range(12):
+                g5.g5_vision_read(img)
+        finally:
+            subprocess.run = real
+        self.assertEqual(spent["n"], 0)
+
+    def test_a_stale_refusal_probes_once_so_the_latch_can_ever_open(self):
+        """v2340 shipped a breaker with NO WAY OUT and this is the case that proves it.
+
+        The latch is decided by reading last_error, and v2340 prevented the only call that could
+        update it. Measured then: 20 reads after the refusal, 0 calls, latch still set — so the
+        morning he topped the balance up, the lane would never have found out. A guard that
+        cannot stop guarding is a deadlock, not a saving.
+        """
+        import time, subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        spent, run = self._spy()
+        real = subprocess.run
+        try:
+            subprocess.run = run
+            g5._STATS["last_error"] = "grok HTTP 402 — Grok Build usage balance exhausted"
+            g5._STATS["last_error_ts"] = int((time.time() - 3600) * 1000)
+            g5.g5_vision_read(img)
+            self.assertEqual(spent["n"], 1, "a refusal older than the window never re-probed")
+            self.assertFalse(g5._hard_stop_why(),
+                             "a SUCCESSFUL probe left the refusal latched — the window would "
+                             "reopen every 30 minutes for ever instead of recovering")
+            for _ in range(8):
+                g5.g5_vision_read(img)
+        finally:
+            subprocess.run = real
+        self.assertEqual(spent["n"], 9, "the lane did not go back to normal after recovering")
+
+    def test_an_undated_refusal_probes_now_rather_than_latching_for_ever(self):
+        """An age you cannot establish is UNKNOWN, and unknown must not read as 'recent'."""
+        import subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        spent, run = self._spy()
+        real = subprocess.run
+        try:
+            subprocess.run = run
+            g5._STATS["last_error"] = "grok HTTP 402 — balance exhausted"
+            g5._STATS["last_error_ts"] = None
+            g5.g5_vision_read(img)
+        finally:
+            subprocess.run = real
+        self.assertEqual(spent["n"], 1)
+
+    def test_a_TIMESTAMP_THAT_IS_NOT_A_NUMBER_probes_rather_than_latching(self):
+        """The `except` arm of the age maths, which had no test until the sabotage found it.
+
+        `last_error_ts = None` never reaches that arm — `or 0` turns it into an epoch-zero date,
+        which reads as ancient and probes anyway. Only a NON-NUMERIC stamp gets there, and a
+        stats file is JSON on disk that another process wrote, so a string is entirely reachable.
+        An age you cannot compute is UNKNOWN, and unknown must resolve to "ask", never to
+        "recent" — a latch that closes on garbage never opens. [[unknown-stays-unknown]]
+        """
+        import subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        spent, run = self._spy()
+        real = subprocess.run
+        try:
+            subprocess.run = run
+            g5._STATS["last_error"] = "grok HTTP 402 — balance exhausted"
+            g5._STATS["last_error_ts"] = "yesterday"      # what a bad write leaves behind
+            g5.g5_vision_read(img)
+        finally:
+            subprocess.run = real
+        self.assertEqual(spent["n"], 1,
+                         "an unreadable timestamp latched the lane shut instead of probing")
+
+    def test_a_success_clears_the_refusal(self):
+        """_hard_stop_why's own docstring says a recovered lane must stop announcing a blockage.
+        Nothing on the vision path had ever honoured it: after five SUCCESSFUL reads it still
+        reported 'the Grok balance is exhausted'. Cosmetic while it was a caption; a deadlock the
+        moment that caption started gating the calls."""
+        import subprocess, g5_grok_eyes as g5
+        g5, tmp, img = self._isolated()
+        spent, run = self._spy()
+        real = subprocess.run
+        try:
+            subprocess.run = run
+            g5._STATS["last_error"] = None
+            g5._STATS["last_error_ts"] = None
+            g5.g5_vision_read(img)
+            g5._STATS["last_error"] = "grok HTTP 402 — balance exhausted"
+            g5._STATS["last_error_ts"] = 1          # ancient -> probes
+            g5.g5_vision_read(img)
+        finally:
+            subprocess.run = real
+        self.assertIsNone(g5._STATS.get("last_error"),
+                          "a successful read left the old refusal standing")
+
+    def test_the_retry_window_is_a_real_bound_not_a_ceiling_nothing_reaches(self):
+        """A threshold above the ceiling is an absent one. This must be finite and reachable."""
+        import g5_grok_eyes as g5
+        self.assertTrue(0 < g5._HARD_STOP_RETRY_S <= 6 * 3600,
+                        "_HARD_STOP_RETRY_S is %r — a window this size is either no breaker at "
+                        "all or a latch that never opens" % (g5._HARD_STOP_RETRY_S,))
+
     def test_the_saving_is_visible_on_the_status_surface(self):
         """A saving nobody can see reads exactly like a feature that was never built."""
         import g5_grok_eyes as g5
@@ -34391,6 +34516,46 @@ class TestV2340AStatedRefusalIsNotAskedAgain(unittest.TestCase):
         self.assertIn("skippedBlocked", st,
                       "the breaker's count is not published, so the difference between 1 failed "
                       "call and 1963 is invisible")
+
+
+
+class TestV2341FlushIsNeverCalledHoldingTheLock(unittest.TestCase):
+    """_stats_flush() takes _LOCK, and _LOCK is threading.Lock() — NOT reentrant.
+
+    A cross-family review of v2340 correctly pointed out that ~33 of the 34 `_STATS` writes
+    happen outside any lock. The obvious remedy — wrap them — is a trap: any of those sites that
+    also calls _stats_flush() would deadlock on re-acquisition, and the reader would HANG rather
+    than fail. A hang is the worst failure mode a lane can have, because nothing downstream can
+    tell it from slow.
+
+    The durable record is already safe: the load, merge, write and counter reset all happen
+    inside that one lock. Only an in-memory counter between two flushes can race, and it drifts
+    by a count or two. This gate keeps the bad fix from arriving later and quietly.
+    """
+
+    def test_lock_is_not_reentrant_so_the_rule_below_is_load_bearing(self):
+        import g5_grok_eyes as g5, threading
+        self.assertIsInstance(g5._LOCK, type(threading.Lock()),
+                              "_LOCK became an RLock — if that was deliberate, this whole class "
+                              "can be retired; until then the no-nesting rule stands")
+
+    def test_no_stats_flush_call_sits_inside_a_with_LOCK_block(self):
+        import re
+        src = _code_only(io.open(os.path.join(HERE, "g5_grok_eyes.py"), encoding="utf-8").read())
+        lines = src.split("\n")
+        depth = None
+        offenders = []
+        for i, ln in enumerate(lines, 1):
+            if re.search(r"with\s+_LOCK\b", ln):
+                depth = len(ln) - len(ln.lstrip())
+                continue
+            if depth is not None and ln.strip() and (len(ln) - len(ln.lstrip())) <= depth:
+                depth = None
+            if depth is not None and "_stats_flush(" in ln:
+                offenders.append("%d: %s" % (i, ln.strip()[:70]))
+        self.assertEqual(offenders, [],
+                         "_stats_flush() is called while _LOCK is held — threading.Lock is not "
+                         "reentrant, so this DEADLOCKS the reader: %s" % offenders)
 
 
 

@@ -13827,3 +13827,45 @@ for reason such as this". The console toggle already does that — **OFF = Claud
 only (the default)**, SHADOW = Claude first then Grok, PRIMARY = Grok first then Claude. With Grok
 off, Claude carries the reads alone and nothing is blocked. This ship makes a dead Grok balance cost
 one call instead of two thousand the next time it is switched on.
+
+## REG-421 — v2340's breaker had NO WAY OUT, and a success never cleared the refusal
+
+The breaker shipped in REG-420 decides by reading `last_error` — and then prevents the only call
+that could ever update it. **Measured on the shipped code: 20 reads after the refusal, 0 calls
+attempted, latch still set.** So the morning he tops the Grok balance up, the lane would never find
+out. It refused for the right reason and could not stop refusing. Only `force=True` broke out, and
+nothing tells him that.
+
+**And the second half, which makes the first fix useless on its own:** nothing on the vision path
+ever cleared `last_error` on success. `_hard_stop_why()`'s own docstring says *"a lane that has
+recovered must stop announcing a blockage"* — measured, after five SUCCESSFUL reads it still
+reported "the Grok balance is exhausted". That was cosmetic while it was only a caption on the
+panel; the moment REG-420 made the caption gate the calls, a successful probe would have re-latched
+on its own stale evidence and the window would reopen every 30 minutes for ever.
+
+**Fixed v2341, both halves together:**
+* `_HARD_STOP_RETRY_S = 1800` — one probe per half hour while blocked. **2 calls an hour instead of
+  the 1963 his console had banked**, and it heals itself the first time the far end says yes.
+* a successful read clears `last_error` / `last_error_ts`.
+* an age that cannot be computed probes NOW. `last_error_ts = None` never reaches that arm (`or 0`
+  reads as epoch-zero, i.e. ancient), so only a NON-NUMERIC stamp does — and a stats file is JSON
+  another process wrote, so a string is entirely reachable. **A latch that closes on garbage never
+  opens.**
+
+⚠ **The sabotage found a branch with no test.** The "undated timestamp" case stayed GREEN when
+sabotaged, because it exercised the `or 0` path and never the `except` arm the sabotage targeted.
+Both now have their own case. A sabotage that changes nothing proves nothing — and here it was
+pointing at genuinely uncovered code rather than at a bad anchor.
+
+⚠ **A cross-family CODE review of the v2340 diff independently found both of the above**, and added
+one more: *"`_STATS` is mutated without any lock; counters can race."* **Reproduced: 33 of the 34
+`_STATS` writes are outside a lock.** Severity is low — the DURABLE record is safe, because the
+load, merge, write and counter reset all happen inside one `with _LOCK` in `_stats_flush()`; only an
+in-memory counter between two flushes can drift, by a count or two.
+
+**And the obvious remedy is a trap.** `_LOCK` is `threading.Lock()` — not reentrant — and
+`_stats_flush()` takes it, so wrapping those write sites would DEADLOCK the reader on
+re-acquisition. A hang is the worst failure a lane can have, because nothing downstream can tell it
+from slow. Documented at the lock and held by `TestV2341FlushIsNeverCalledHoldingTheLock`, which was
+sabotage-proven by applying exactly that wrap: it names the deadlock and the line. If real
+serialisation is ever wanted, change `_LOCK` to an `RLock` first.
