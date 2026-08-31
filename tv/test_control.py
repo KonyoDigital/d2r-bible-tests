@@ -33826,10 +33826,26 @@ class TestV2336TheDailyTaskPanelCannotBeMemoisedIntoInvisibility(unittest.TestCa
             "THE BARE SIGNATURE SKIP IS BACK. It returns before `box.hidden = false`, so the "
             "moment anything re-hides the panel every later tick computes the same html and "
             "returns without un-hiding it. Konyo saw exactly this twice, as black space.")
-        self.assertIn(
-            "landed", blk,
-            "the skip no longer consults the DOM at all — it must verify the paint LANDED, not "
-            "merely that the html is unchanged")
+        # ⚠ THE WORD IS NOT THE LAW. The first cut asserted the identifier "landed" appeared in
+        # the block, and an adversarial audit broke REG-415 twice while this stayed green:
+        #   (a) `var landed = true;`  — fault (1) restored verbatim, assertion satisfied
+        #   (b) delete it entirely and write `if (html === _hdTfSig && true) return;  // landed`
+        #       — _strip_js_comments only removes LINE-START //, so a trailing comment passes
+        # Pin the OPERANDS instead: whatever `landed` is computed from must consult the DOM's
+        # hidden state AND the painted html, and the skip must actually consult `landed`. Matching
+        # the shape rather than today's spelling keeps it pinned to the law, not the wording.
+        import re as _re
+        m = _re.search(r"landed\s*=\s*(.*?);", blk, _re.S)
+        self.assertIsNotNone(m, "nothing computes whether the paint LANDED any more")
+        expr = m.group(1)
+        self.assertIn("box.hidden", expr,
+                      "the landed test no longer asks whether the panel is HIDDEN — that is the "
+                      "half REG-415 turned on")
+        self.assertIn("innerHTML", expr,
+                      "the landed test no longer asks whether the rows were actually PAINTED")
+        self.assertIn("_hdTfSig && landed", blk,
+                      "the skip does not consult `landed`, so it can return before the un-hide "
+                      "again — which is REG-415 exactly")
 
     def test_the_signature_is_committed_only_after_the_paint(self):
         blk = self._block()
@@ -34228,12 +34244,20 @@ class TestV2338MiniAutomaticCanOnlyHover(unittest.TestCase):
     def test_the_mini_route_is_not_shadowed_by_an_earlier_branch(self):
         """This dispatch is `if path == ...` with an early return: FIRST MATCH WINS. v2026 shipped
         a branch that shadowed /api/doctor and turned a fast check into a two-minute sweep."""
+        # ⚠ THIS WAS A TAUTOLOGY AND AN ADVERSARIAL AUDIT PROVED IT. The first cut was
+        #     i = app.index(NEEDLE); self.assertNotIn(NEEDLE, app[:i])
+        # and str.index returns the FIRST occurrence, so the slice can never contain the needle.
+        # It passed against a real duplicate branch inserted above the live one: two branches in
+        # the file, ast.parse clean, 14 tests OK. Its only non-passing outcome was a ValueError
+        # when the route is absent — which the assertion six lines up already covers.
+        # COUNT THE DISPATCH BRANCHES instead, which is the idiom this repo already uses for this
+        # exact scar (see the /api/doctor guard). Anchored on the `if` and the trailing colon so
+        # it counts branches, not mentions. [[regression-guard]]
         app = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
-        i = app.index('path == "/api/mini_preflight"')
-        before = app[:i]
-        self.assertNotIn('path == "/api/mini_preflight"', before,
-                         "there are two branches for this path; the first wins and the second "
-                         "is dead")
+        self.assertEqual(app.count('if path == "/api/mini_preflight":'), 1,
+                         "the dispatch has more than one branch for this path — it is "
+                         "`if path == ...` with an early return, so the first wins and the rest "
+                         "are dead code that reads as installed")
 
     def test_preflight_PROVES_the_pointer_obeys_rather_than_assuming_it(self):
         """READY, AUTHORISED and ACTUALLY WORKING are three questions. [[grok-second-eye]]
@@ -35158,6 +35182,175 @@ class TestV2347TheChromeIsTheSecondWitness(unittest.TestCase):
         v, why = rs.corroborates_chrome("stash", None, chrome_readable=False)
         self.assertIsNone(v, "a frame whose chrome could not be read was treated as 'no stash'")
         self.assertIn("could not be read", why)
+
+
+
+class TestV2348ThePublishedNumbersArePinned(unittest.TestCase):
+    """Numbers I published this session that the tree did not produce. REG-429.
+
+    An adversarial audit (19 agents) checked REG-424..REG-428 against the shipped code and found
+    three wrong figures. The pattern behind all three: measured ONCE, by hand, then published as a
+    property of the system. A figure nobody can re-run is a figure nobody can check — and two were
+    on surfaces the site serves.
+
+    These cases do not re-measure his corpus (that needs his frames and his journal, which no CI
+    machine has). They pin the two things that CAN be pinned anywhere: that the retraction stands
+    in the record, and that the site does not state a measurement as a mechanism.
+    """
+
+    def _bugs(self):
+        p = os.path.join(os.path.dirname(HERE), "BUGS.md")
+        return io.open(p, encoding="utf-8").read()
+
+    def test_the_retraction_is_in_the_record(self):
+        b = self._bugs()
+        self.assertIn("REG-429", b, "the retraction entry is gone from BUGS.md")
+        for claim in ("identified 24", "29/101", "It was 1."):
+            self.assertIn(claim, b,
+                          "REG-429 no longer carries the corrected figure %r — a retraction that "
+                          "loses its number is not a retraction" % claim)
+
+    def test_the_wrong_figures_are_not_left_standing_unqualified(self):
+        """REG-428 still contains '8', because a retraction quotes what it corrects. What must be
+        true is that the corrected figure appears too, so a reader meets both."""
+        b = self._bugs()
+        i = b.index("## REG-428")
+        self.assertIn("REG-429", b[i:],
+                      "REG-428's figures are corrected in a LATER entry, so that entry must exist "
+                      "after it; otherwise a reader stops at the wrong number")
+
+    def test_the_site_does_not_state_a_measurement_as_a_mechanism(self):
+        """bible.html shipped `note:'the stash tab chrome corroborates a scene read, and it found
+        43 missed stash frames'` — present tense, about a function with no production caller, with
+        a figure since retracted. A measurement stated as a mechanism is a lie either way."""
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        src = io.open(p, encoding="utf-8").read()
+        note = _between(self, src, "window.D2R_BUILD = {", "}", min_len=30, what="the build note")
+        self.assertNotIn("chrome corroborates a scene read", note,
+                         "the build note claims the chrome corroborator RUNS; it has no production "
+                         "caller — grep corroborates_chrome outside tv/test_control.py")
+        self.assertNotIn("found 43 missed stash frames", note,
+                         "the build note carries the retracted 43; the measured split is 12 "
+                         "misread and 15 never scene-read (REG-429)")
+
+    def test_the_chrome_corroborator_is_honest_about_being_unwired(self):
+        """If it ever DOES get wired, this fails and the note must be updated with it — which is
+        the point. A claim and its implementation must move together."""
+        import re
+        wired = False
+        for name in ("control_app.py", "vault_retro.py", "console_doctor.py", "tv_diablo.py"):
+            p = os.path.join(HERE, name)
+            if not os.path.isfile(p):
+                continue
+            if re.search(r"corroborates_chrome\s*\(", _code_only(io.open(p, encoding="utf-8").read())):
+                wired = True
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        note_says_unwired = "not yet wired" in io.open(p, encoding="utf-8").read()
+        self.assertEqual(wired, not note_says_unwired,
+                         "the build note and the code disagree about whether the chrome "
+                         "corroborator is wired: wired=%s, note says unwired=%s"
+                         % (wired, note_says_unwired))
+
+
+
+class TestV2348TheHiddenFlagCannotDisarmTheRescueForEver(unittest.TestCase):
+    """REG-430. The self-heal latched shut and he watched a black console for 128 seconds.
+
+    `ui_rescue_due` refused to act while `_UI_BEAT["hidden"]` was true (v2325, correctly: a
+    window he is not looking at is throttled and its silence proves nothing). But `hidden` can
+    only be cleared by a heartbeat, and the heartbeat is `setInterval(_beat, 5000)` - a timer,
+    which is exactly what WebKit suspends in a window it believes is hidden. One hidden beat
+    therefore disarmed the rescue permanently.
+
+    Measured live on his machine, 2026-08-31:
+        uiBeat   hidden: True   ageS: 128.6   silenceBoundS: 60.0   rescues: 0
+        window server:  "a 1120x660 window for pid 77867 on screen"
+    """
+
+    class _FakeQuartz(object):
+        kCGWindowListOptionOnScreenOnly = 1
+        kCGWindowListExcludeDesktopElements = 16
+        kCGNullWindowID = 0
+
+        def __init__(self, rows):
+            self._rows = rows
+
+        def CGWindowListCopyWindowInfo(self, opts, wid):
+            return self._rows
+
+    def test_unknown_is_not_a_no(self):
+        """No Quartz must answer None, never False. False would let a machine that cannot ask
+        the question overrule v2325 in the safe direction only by luck."""
+        import window_visibility as wv
+        seen, why = wv.on_screen(pid=1, quartz=None)
+        # on this Mac Quartz IS importable, so drive the None path explicitly
+        class _Boom(object):
+            kCGWindowListOptionOnScreenOnly = 1
+            kCGWindowListExcludeDesktopElements = 16
+            kCGNullWindowID = 0
+            def CGWindowListCopyWindowInfo(self, *a):
+                raise RuntimeError("window server said no")
+        seen, why = wv.on_screen(pid=1, quartz=_Boom())
+        self.assertIsNone(seen, "a window server that refused must answer None, not False")
+        self.assertIn("refused", why)
+
+    def test_a_window_on_screen_is_seen(self):
+        import window_visibility as wv
+        q = self._FakeQuartz([{"kCGWindowOwnerPID": 4242,
+                               "kCGWindowBounds": {"Width": 1120, "Height": 660}}])
+        seen, why = wv.on_screen(pid=4242, quartz=q)
+        self.assertIs(seen, True, why)
+        self.assertIn("1120x660", why)
+
+    def test_a_tiny_helper_window_is_not_his_console(self):
+        import window_visibility as wv
+        q = self._FakeQuartz([{"kCGWindowOwnerPID": 4242,
+                               "kCGWindowBounds": {"Width": 1, "Height": 1}}])
+        seen, _why = wv.on_screen(pid=4242, quartz=q)
+        self.assertIs(seen, False, "a 1x1 window must not count as his console being on screen")
+
+    def test_the_guard_still_refuses_when_nothing_contradicts_the_flag(self):
+        """v2325 must survive intact: hidden + no independent sighting = do not touch his
+        window. This is the case that fired at 00:47 in the night and reloaded it under him."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        blk = _between(self, src, "def ui_rescue_due(", "_THEATRE_ROW_CACHE = {}",
+                       min_len=200, what="ui_rescue_due")
+        self.assertIn("if not _seen:", blk,
+                      "the hidden branch must still refuse by default; only a POSITIVE sighting "
+                      "may overrule it")
+        self.assertIn("contradicts_a_hidden_beat", blk,
+                      "the guard no longer consults an independent witness - it is back to "
+                      "asking the page whether the page is visible")
+
+    def test_the_witness_is_positive_only(self):
+        """contradicts_a_hidden_beat must be True ONLY for a positive sighting. If it returned
+        True on None, every machine without Quartz would start reloading his window."""
+        import window_visibility as wv
+        class _Boom(object):
+            kCGWindowListOptionOnScreenOnly = 1
+            kCGWindowListExcludeDesktopElements = 16
+            kCGNullWindowID = 0
+            def CGWindowListCopyWindowInfo(self, *a):
+                raise RuntimeError("nope")
+        ok, _why = wv.contradicts_a_hidden_beat(pid=1, quartz=_Boom())
+        self.assertIs(ok, False, "an UNKNOWN sighting must not overrule v2325")
+
+    def test_the_client_beats_on_something_that_is_not_a_timer(self):
+        """The whole defect in one line: the only beat was a setInterval. At least one
+        event-driven beat must exist, and visibilitychange is the one that answers the exact
+        question the flag got stuck on."""
+        p = os.path.join(HERE, "control_ui.html")
+        src = io.open(p, encoding="utf-8").read()
+        blk = _between(self, src, "var _beat = function()", "the tap for _thTouchedAt",
+                       min_len=200, what="the heartbeat block")
+        self.assertIn("visibilitychange", blk,
+                      "no visibilitychange beat: a hidden window still cannot tell the server "
+                      "it became visible")
+        self.assertRegex(blk, r"addEventListener\('visibilitychange'[^)]*\bfunction",
+                         "visibilitychange is mentioned but not actually listened to")
+        self.assertIn("pointermove", blk,
+                      "no interaction beat - he proved he was at the window by hovering items "
+                      "out of it while it was otherwise dead")
 
 
 

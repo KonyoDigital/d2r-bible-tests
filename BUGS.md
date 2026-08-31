@@ -14143,3 +14143,103 @@ too, and it produced 3 contradictions that were nothing of the sort. His rule sa
 INVENTORY itself can be opened separately with its own template"*. Chrome present means stashing;
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
+
+## REG-430 - THE SELF-HEAL LATCHED SHUT, AND THE PAGE WAS THE ONLY WITNESS IT ASKED
+
+**Reported by Konyo, 2026-08-31:** *"again my console is black... but its still showing me items
+when my cursor is on it... so bugged again, something is failing the fetch"*
+
+Nothing was failing the fetch. Measured against his live console (pid 77867, up 18h56m) every
+route answered, and answered fast: `/api/status` 200 in 0.11s, `/api/sessions` 200 in **0.40s**
+against its own 12s poll, `/api/mini_preflight` 200 (so the running image was current, not stale
+- that hypothesis was raised and refuted before publishing). `console_doctor` reported
+`panels on screen: every panel holding content is on screen (3 shown)`.
+
+**The console said it was fine. His screen was black. That contradiction was the whole finding.**
+
+The answer was in one payload:
+
+```
+uiBeat:  n: 436   hidden: True   ageS: 128.6   silenceBoundS: 60.0   rescues: 0
+```
+
+The heartbeat had been dead for 128s - more than twice its own bound - and the self-heal had
+fired **zero** times. `ui_rescue_due` refuses to act while the last beat said `hidden`, which
+v2325 added for a good reason: WebKit throttles a window he is not looking at, and v2322 had
+reloaded his console under him at 00:47 one night because of it.
+
+**But `hidden` can only ever be cleared by a beat, and the beat was `setInterval(_beat, 5000)`
+- a timer, which is exactly what WebKit suspends in a window it believes is hidden.** One hidden
+beat therefore disarmed the rescue permanently. A flag whose only writer is the thing it
+silences is a latch, not a signal.
+
+Meanwhile the OS knew the truth the whole time. `CGWindowListCopyWindowInfo`, asked about the
+same pid at the same moment: **"a 1120x660 window for pid 77867 on screen"**. Window *listing*
+needs no Screen Recording grant - only capturing pixels does - so this witness costs nothing and
+works on a machine where a screenshot probe would answer "cannot tell".
+
+Hover kept working throughout because a pointer handler is an EVENT, not a timer. That detail in
+his report is what dated the fault: he was demonstrably at the window, interacting with it, while
+the server insisted he could not see it.
+
+**Fixed v2348, two halves, because either alone leaves a hole.**
+- `tv/window_visibility.py` (new) - asks the window server, and answers **True / False / None**.
+  `None` means NOT ESTABLISHED and must never read as False; a machine that cannot ask the
+  question keeps v2325 behaviour exactly. Only a POSITIVE sighting overrules the flag.
+- `tv/control_ui.html` - the beat now also fires on `visibilitychange`, `focus` and (throttled to
+  2s) `pointermove`/`pointerdown`/`keydown`/`wheel`. Events run in a throttled window, so the
+  flag can now clear itself the moment he touches the console.
+
+**Guards:** `TestV2348TheHiddenFlagCannotDisarmTheRescueForEver` - 6 cases. Proven RED three
+separate ways, each for its own reason: neutering the server gate (`if not _seen:` -> `if False:`),
+removing the `visibilitychange` listener, and making the witness return `False` instead of `None`
+when the window server refuses. All three went red, all three restored green.
+
+⚠ **The class, for next time:** v2325 fixed a real bug and introduced this one by trusting a
+signal that only the suppressed party could update. When a guard reads a flag, ask who is able to
+write it - and whether they can still write it once the guard is active.
+
+## REG-429 — RETRACTIONS. Three numbers I published this session that the tree does not produce
+
+An adversarial audit (19 agents, 9 findings surviving refutation) checked the claims in REG-424
+through REG-428 against the shipped code. Three were wrong. Every one is re-measured below at HEAD.
+
+**(1) REG-428's "the reader identified 8 of 51" is wrong. It identified 24.**
+
+My join took the LAST journal row per frameId regardless of lane — and `intake`, `kai` and `ocr`
+rows hardcode `scene` to their own lane name (`tv_diablo.py`: `"scene": "loot",  # provisional —
+deep lane will set real scene`). So a later row shadowed the deep read that actually looked.
+
+```
+my join (last row, any lane) : stash 8 · intake 13 · gameplay 11 · loot 11 · none 4 · kai 3
+correct join (lane=='deep')  : stash 24 · no deep read 15 · gameplay 11 · transition 1
+```
+
+**And the conclusion re-points.** The genuine misreads are **12** — which is the same 12 the
+`CONTRADICT` line in REG-428 already published, so that entry contradicted itself nine lines apart.
+The larger number, **15, never reached a scene reader at all.** So the provenance gap is mostly
+COVERAGE, not scene-model accuracy, and the extra readers of #125 should be aimed at frames that
+were never read rather than at frames that were read wrongly. The codebase asks this correctly
+everywhere else — two other call sites filter `lane == "deep"` — and I did not.
+
+**(2) REG-424's "26/101 → 30/101" is wrong. The shipped tree yields 29/101.**
+
+Measured at HEAD: `29/101 {floor 12, stash 9, inventory 7, equipped 1}`. The BEFORE column
+reproduces exactly, so it is the same corpus — only the AFTER half was unreachable, because v2346
+removed the timeline's inventory grant two commits later. The honest line is
+**26/101 → 29/101, stash 6→9, inventory unchanged at 7**.
+
+**(3) REG-426's "8 names wrongly granted inventory" is wrong. It was 1.**
+
+Only `Cloudy Sphere` came from the lane map. The other seven — Storm Emblem, Credendum, Dark
+Adherent, Laying of Hands, Rite of Passage, Telling of Beads, Small Charm of Good Luck — carry
+`loc='inventory'` from **the row's own `names_loc`**, which `_loc_of` prefers before consulting the
+timeline, and they are still `inventory` in the shipped register. That is correct behaviour: the
+ledger records where a thing was SEEN, and `_vaultMayClaim` refuses `inventory` separately. The
+system was right; my claim about it was not. **v2346 changed 1 of the 8 names it named.**
+
+⚠ **The pattern behind all three: I measured once, by hand, and published the number as a property
+of the system.** A figure that is not produced by code nobody can re-run is a figure nobody can
+check — and two of these were on surfaces the site serves. Where a number matters, it needs a
+committed script that regenerates it, or it needs to be stated as a one-off observation with its
+date and its method.

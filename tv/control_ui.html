@@ -18664,6 +18664,29 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     };
     setTimeout(_beat, 1500);
     setInterval(_beat, 5000);
+    /* ══ v2348 — A TIMER CANNOT REPORT THAT THE TIMERS STOPPED ═══════════════════════════════
+       The line above is the whole heartbeat, and it is a setInterval. WebKit suspends timers in
+       a window it considers hidden, so the beat that carries `hidden:false` is the one thing a
+       hidden window can never send. The flag latched, the server's rescue stayed disarmed, and
+       Konyo watched a black console for 128s while it insisted he was not looking at it.
+       These listeners are EVENTS, which fire in a throttled window. `visibilitychange` is the
+       direct answer; the interaction beat is the belt-and-braces one, because he proved he was
+       there by hovering items and getting tooltips out of a window that was otherwise dead.
+       Throttled to 2s so a mousemove storm cannot become a request storm. */
+    try {
+      document.addEventListener('visibilitychange', function(){ try { _beat(); } catch (_) {} });
+      window.addEventListener('focus', function(){ try { _beat(); } catch (_) {} });
+      var _lastNudge = 0;
+      var _nudge = function(){
+        var now = Date.now();
+        if (now - _lastNudge < 2000) return;
+        _lastNudge = now;
+        try { _beat(); } catch (_) {}
+      };
+      ['pointermove','pointerdown','keydown','wheel'].forEach(function(evt){
+        document.addEventListener(evt, _nudge, {capture: true, passive: true});
+      });
+    } catch (e) {}
   } catch (e) {}
 
   /* v2322 — the tap for _thTouchedAt, which the heal below reads. Written on the document with

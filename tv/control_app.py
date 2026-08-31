@@ -11314,8 +11314,32 @@ def ui_rescue_due(now=None, capture_live=False):
     # Paired with the monotonic clock in ui_beat_age() - which does not advance across a macOS
     # sleep - the two shapes of innocent silence, HIDDEN and ASLEEP, are both accounted for.
     if _UI_BEAT.get("hidden"):
-        return False, ("the window was hidden when it last checked in - a console he is not "
-                       "looking at is throttled by the browser, so its silence proves nothing")
+        # ══ v2348 — ...AND THAT FLAG LATCHES SHUT, SO IT NEEDS A WITNESS FROM OUTSIDE ═════════
+        # v2325 (above) is right and stays. What it missed is that `hidden` can only ever be
+        # CLEARED by a beat, and the beat is `setInterval(_beat, 5000)` - a timer, which is the
+        # very thing WebKit suspends in a window it thinks is hidden. So the flag is
+        # self-sealing: one hidden beat disarms the rescue permanently.
+        #
+        # Measured on his machine, 2026-08-31, while he was looking straight at it:
+        #   uiBeat  hidden: True   ageS: 128.6   silenceBoundS: 60.0   rescues: 0
+        #   window server: "a 1120x660 window for pid 77867 on screen"
+        # The page said he could not see it. The OS said it was on his screen. He said it was
+        # black. [[feedback-contradiction-is-the-finding]]
+        #
+        # Only a POSITIVE, independent sighting overrules v2325. Quartz unavailable, an
+        # exception, or no window found all leave the old behaviour exactly as it was, because
+        # "nobody could tell" must never act like "he is looking at it". [[unknown-stays-unknown]]
+        _seen, _seen_why = False, "not asked"
+        try:
+            import window_visibility as _wv
+            _seen, _seen_why = _wv.contradicts_a_hidden_beat()
+        except Exception as _exc:
+            _seen, _seen_why = False, "the window witness raised %s" % type(_exc).__name__
+        if not _seen:
+            return False, ("the window was hidden when it last checked in - a console he is not "
+                           "looking at is throttled by the browser, so its silence proves "
+                           "nothing (%s)" % _seen_why)
+        _UI_RESCUE["staleHidden"] = _UI_RESCUE.get("staleHidden", 0) + 1
     if age < _UI_BEAT_SILENCE_S:
         return False, "the page beat %.0fs ago" % age
     since = now - (_UI_RESCUE["last"] or 0.0)
@@ -20370,7 +20394,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2347",
+        "ver": "v2348",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
