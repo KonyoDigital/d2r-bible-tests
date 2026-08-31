@@ -8199,10 +8199,12 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
 .inbox-pop.open{display:block}
 .inbox-pop .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:16px;color:#f0c060;margin-bottom:3px}
 .inbox-pop .ibp-sub{color:#9a8c72;margin-bottom:9px;font-size:11.5px;line-height:1.45}
-.inbox-pop .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}/* v1789 — flex-wrap IS LOAD-BEARING: .ibp-why is flex:0 0 100%, and in a non-wrapping row it takes the whole line and squeezes the item NAME and both buttons to zero width. The panel rendered three rows reading 'unclear read' with nothing to act on — the one thing he needs is the name. Every functional assertion passed; only the screenshot showed it. */
+.inbox-pop .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.inbox-pop .ibp-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:3px}
+.inbox-pop .ibp-acts .ibp-b{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* v1789 — flex-wrap IS LOAD-BEARING: .ibp-why is flex:0 0 100%, and in a non-wrapping row it takes the whole line and squeezes the item NAME and both buttons to zero width. The panel rendered three rows reading 'unclear read' with nothing to act on — the one thing he needs is the name. Every functional assertion passed; only the screenshot showed it. */
 .inbox-pop .ibp-row:last-child{border-bottom:0}
-.inbox-pop .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.inbox-pop .ibp-why{color:#8a7d64;font-size:11px;flex:0 0 100%;margin:-3px 0 2px}
+.inbox-pop .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox-pop .ibp-why{color:#8a7d64;font-size:11px;margin:0}
 .inbox-pop .ibp-b{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#e8dcc0;
   border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
 .inbox-pop .ibp-b:hover{border-color:#f0c060;color:#fff}
@@ -8267,10 +8269,31 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
   bottom:calc(var(--dock-h,84px) + 8px)}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
-.inbox-sticky .ibp-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.inbox-sticky .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.inbox-sticky .ibp-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:3px}
+.inbox-sticky .ibp-acts .ibp-b{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ══ v2336 — THE PHONE-WIDTH INBOX, ARRIVED AT BY MEASUREMENT, NOT BY GUESS ═════════════════
+   The render gate refused the first cut at 375x800: "2 element(s) have text cut off — ibp-b
+   ibp-ok :: 📖 Chronicle". Three equal columns in a 375px panel leave ~105px each and the emoji
+   costs ~20px of it, so the button that writes his Chronicle read as "📖 Chron…".
+
+   The obvious fix — stack the three — was WORSE and the gate caught that too: taller rows pushed
+   four buttons past the panel's own fold (measured: scrollHeight 598 vs clientHeight 389), so
+   they were reachable only by scrolling and elementFromPoint reported the page behind them.
+   Hiding the emoji instead buys back the width and keeps every row short. Same three columns,
+   same symmetry, nothing clipped.
+
+   ⚠ AND A DEFECT OLDER THAN THIS CHANGE: `width:360px` with `right:88px` puts the panel's left
+   edge at -62px on a 375px screen. Measured, not guessed. It has been hanging off the side of
+   every phone-width view since the popup shipped. */
+@media (max-width: 560px){
+  .inbox-pop{ left:8px; right:8px; width:auto; }
+  .inbox-pop .ibp-acts .ibp-b, .inbox-sticky .ibp-acts .ibp-b{ padding-left:4px; padding-right:4px; font-size:11px; }
+  .ibp-em{ display:none; }
+}
 .inbox-sticky .ibp-row:last-child{border-bottom:0}
-.inbox-sticky .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.inbox-sticky .ibp-why{color:#8a7d64;font-size:11px;flex:0 0 100%;margin:-3px 0 2px}
+.inbox-sticky .ibp-nm{color:#e8dcc0;font-weight:var(--fw-semibold);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox-sticky .ibp-why{color:#8a7d64;font-size:11px;margin:0}
 .inbox-sticky .ibp-b{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#e8dcc0;
   border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11.5px;white-space:nowrap}
 .inbox-sticky .ibp-b:hover{border-color:#f0c060;color:#fff}
@@ -47618,7 +47641,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2335', name:'v2335 - The Review Of v2334', date:'2026-08-31', note:'fifteen findings reproduced by execution - NaN passed every guard and returned an accepted cursor target, a full-screen frame handed a window rect landed 601 points off, and four guards could not fail' };
+  window.D2R_BUILD = { id:'v2336', name:'v2336 - The black panel', date:'2026-08-31', note:'the repaint memo skipped the un-hide; and five browser suites were running on his Mac as well as on GitHub' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48580,7 +48603,8 @@ window._CH_PILL_MAP = {
           + '<span class="ibx-why" title="' + esc(x.triageWhy || '') + '">'
           + esc(SAY(x.triageWhy) || 'unclear read') + '</span>'
           + '<span class="ibx-act">'
-          + '<button type="button" class="ibx-b ibx-ok" onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '" title="counts it in your Chronicle AND files it in the Vault \u2014 one sighting, two ledgers">tick it \u2192 Chronicle + Vault</button>'
+          + '<button type="button" class="ibx-b ibx-ok" onclick="window._inboxAct(\'chronicle\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '" title="counts it in your Chronicle grail tally only \u2014 nothing is filed in the Vault"><span class="ibp-em">\ud83d\udcd6 </span>Chronicle</button>'
+          + '<button type="button" class="ibx-b" onclick="window._inboxAct(\'vault\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '" title="files it in the Vault as a physical item only \u2014 your Chronicle tally is not touched"><span class="ibp-em">\ud83c\udfe6 </span>Vault</button>'
           + '<button type="button" class="ibx-b" onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;))" data-n="' + nm + '">ignore</button>'
           + '</span></div>';
       }).join('') + '</div>');
@@ -49032,12 +49056,24 @@ window._CH_PILL_MAP = {
             ? ' <span class="ibp-rr-b2">read as “' + nm + '”</span>' : '';
           H.push('<div class="ibp-row"><span class="ibp-why" title="' + _e(_raw) + '">' + why + '</span>'
             + '<span class="ibp-nm" data-arttip="' + _shown + '">' + _shown + _slip + '</span>'
+            /* v2336 — THREE RULINGS, NOT ONE. Konyo: "it should separate the chronicle
+               from the vault. as two options.. or ignore  3 options in total." One button used
+               to write BOTH ledgers, which is right for a stash-panel sighting and wrong for
+               everything else: a grail he has found but sold is Chronicle-only, and a piece
+               sitting in a mule he has not counted is Vault-only. The combined door could not
+               say either. Each button now names exactly one ledger and the toast reports which
+               one moved. Wrapped in .ibp-acts so all three are equal-width columns — the row's
+               shape no longer depends on how long the item's name is. */
+            + '<span class="ibp-acts">'
             + '<button type="button" class="ibp-b ibp-ok" '
-            + 'onclick="window._inboxAct(\'accept\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
-            + 'data-n="' + nm + '" title="counts it in your Chronicle AND files it in the Vault \u2014 one sighting, two ledgers">tick it \u2192 Chronicle + Vault</button>'
+            + 'onclick="window._inboxAct(\'chronicle\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
+            + 'data-n="' + nm + '" title="counts it in your Chronicle grail tally only \u2014 nothing is filed in the Vault"><span class="ibp-em">\ud83d\udcd6 </span>Chronicle</button>'
+            + '<button type="button" class="ibp-b ibp-vault" '
+            + 'onclick="window._inboxAct(\'vault\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
+            + 'data-n="' + nm + '" title="files it in the Vault as a physical item only \u2014 your Chronicle tally is not touched"><span class="ibp-em">\ud83c\udfe6 </span>Vault</button>'
             + '<button type="button" class="ibp-b" '
             + 'onclick="window._inboxAct(\'dismiss\',this.getAttribute(&quot;data-n&quot;));window.renderInboxFab()" '
-            + 'data-n="' + nm + '">ignore</button></div>');
+            + 'data-n="' + nm + '">ignore</button></span></div>');
         });
         var _html = H.join('');
         pop.innerHTML = _html;
@@ -49145,9 +49181,15 @@ window._CH_PILL_MAP = {
   } catch(e){}
 
   window._inboxAct = function(kind, name){
+    /* v2336 — FOUR KINDS, AND `accept` IS KEPT ON PURPOSE. The three buttons send
+       'chronicle' | 'vault' | 'dismiss'. `accept` (both ledgers) still exists because
+       kaiChronicleAcceptAll and the console bridge both use it, and silently changing what
+       an existing verb DOES is how a caller starts writing a ledger nobody asked it to. */
     try {
-      if (kind === 'accept') window.kaiChronicleAccept(name);
-      else window.kaiChronicleDismiss(name);
+      if (kind === 'accept')          window.kaiChronicleAccept(name);
+      else if (kind === 'chronicle')  window.kaiChronicleAccept(name, { vault: false });
+      else if (kind === 'vault')      window.kaiVaultFileOnly(name);
+      else                            window.kaiChronicleDismiss(name);
     } catch(e){}
     try { window.renderInbox(); } catch(e){}
     try { window.renderInboxBadge(); } catch(e){}
@@ -49191,7 +49233,10 @@ window._CH_PILL_MAP = {
     });
     return log;
   };
-  window.kaiChronicleAccept = function(name){
+  /* v2336 — `opts.vault:false` ticks the CHRONICLE ONLY. Default stays both, so every
+     existing caller keeps the behaviour it was written against. */
+  window.kaiChronicleAccept = function(name, opts){
+    var _wantVault = !(opts && opts.vault === false);
     try {
       var nm = String(name || '').trim(); if (!nm) return { ok:false, why:'no-name' };
       /* v1794 — A TICK MUST WRITE A ROSTER NAME, and until now it wrote whatever the reader typed.
@@ -49236,8 +49281,9 @@ window._CH_PILL_MAP = {
            actually clicks had it too. Found by driving kaiChronicleAccept in a real page: the
            result came back {already:true, store:'foundLog'} and d2r_owned did not move. */
         var _v0 = 'no', _vw0 = '';
+        if (!_wantVault) { _v0 = 'skipped'; _vw0 = 'you ruled Chronicle only'; }
         try {
-          if (typeof window.tvVaultRegister === 'function') {
+          if (_wantVault && typeof window.tvVaultRegister === 'function') {
             var _r0 = window.tvVaultRegister(nm);
             if (_r0 && _r0.ok) _v0 = (_r0.mode === 'already') ? 'already' : 'filed';
             else _vw0 = String((_r0 && _r0.why) || 'no reason given').slice(0, 90);
@@ -49289,8 +49335,9 @@ window._CH_PILL_MAP = {
          The RESULT now names each ledger separately, so the surface can say what happened rather
          than implying one thing and doing another. [[label-outlived-referent]] */
       var _vault = 'no', _vwhy = '';
+      if (!_wantVault) { _vault = 'skipped'; _vwhy = 'you ruled Chronicle only'; }
       try {
-        if (typeof window.tvVaultRegister === 'function') {
+        if (_wantVault && typeof window.tvVaultRegister === 'function') {
           var _vr = window.tvVaultRegister(nm);
           if (_vr && _vr.ok) _vault = (_vr.mode === 'already') ? 'already' : 'filed';
           else _vwhy = String((_vr && _vr.why) || 'no reason given').slice(0, 90);
@@ -49304,6 +49351,40 @@ window._CH_PILL_MAP = {
                           ? 'counted in your Chronicle \u00b7 the Vault already had it'
                           : 'counted in your Chronicle \u2014 but the Vault REFUSED it'
                             + (_vwhy ? (': ' + _vwhy) : '')) };
+    } catch(e){ return { ok:false, why: String(e && e.message || e) }; }
+  };
+  /* ══ v2336 — THE VAULT-ONLY DOOR ═════════════════════════════════════════════════════
+     Konyo asked for the Chronicle and the Vault to be separate rulings. This is the half that
+     did not exist: file the physical item in the Vault and leave the grail tally ALONE.
+
+     ⚠ IT MUST NOT TOUCH d2r_foundLog. That store is what every grail meter counts; writing it
+     here would make "file this in my vault" silently raise his completion percentage, which is
+     the [[label-outlived-referent]] defect in its purest form — a real number under a word that
+     stopped being true. The row leaves the queue either way, and the ledger records WHICH door
+     it went through, so a Vault-only ruling can be told apart from a tick for ever after. */
+  window.kaiVaultFileOnly = function(name){
+    try {
+      var nm = String(name || '').trim();
+      if (!nm) return { ok:false, why:'no-name' };
+      var _v = 'no', _why = '';
+      try {
+        if (typeof window.tvVaultRegister === 'function') {
+          var _r = window.tvVaultRegister(nm);
+          if (_r && _r.ok) _v = (_r.mode === 'already') ? 'already' : 'filed';
+          else _why = String((_r && _r.why) || 'no reason given').slice(0, 90);
+        } else { _why = 'the vault door is not loaded'; }
+      } catch(e){ _why = 'threw: ' + String(e && e.message || e).slice(0, 70); }
+      // A REFUSED write does not clear the row. If the Vault would not take it, he still has
+      // a decision to make, and a queue that empties on a failure is a queue that lies.
+      if (_v === 'no') return { ok:false, name: nm, vault:'no', vaultWhy: _why,
+                                say: 'the Vault REFUSED it' + (_why ? (': ' + _why) : '')
+                                     + ' \u2014 the row is still yours to rule on' };
+      var inbox = (_chLsGet(_CH_INBOX_KEY, []) || []).filter(function(x){ return !(x && String(x.name) === nm); });
+      _chLsSet(_CH_INBOX_KEY, inbox);
+      _chLogSetStatus(nm, 'vaulted', { store: 'owned', why: 'filed in the Vault only \u2014 Chronicle tally untouched', auto: false });
+      return { ok:true, name: nm, remaining: inbox.length, chronicle: 'untouched', vault: _v,
+               say: (_v === 'filed') ? 'filed in the Vault \u2014 your Chronicle tally is unchanged'
+                                     : 'the Vault already had it \u2014 your Chronicle tally is unchanged' };
     } catch(e){ return { ok:false, why: String(e && e.message || e) }; }
   };
   window.kaiChronicleDismiss = function(name){

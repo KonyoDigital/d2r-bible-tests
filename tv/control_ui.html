@@ -14740,12 +14740,46 @@
         + (simToday ? ' <span style="opacity:.6">(+' + simToday + ' sim)</span>' : '')
         + ' · ' + _tlyTxt + '</span><span class="tf-tag dim">TODAY</span></div>');
       var box = $('hd-taskforce');
+      var rowsEl = $('hd-tf-rows');
       // v1425 — skip identical repaint: status poll (~1.5s) was rewriting the whole roster →
       // rows flashed/jumped even when nothing changed (Konyo: "still routines jumping").
       var html = rows.join('');
-      if (html === _hdTfSig) return;
-      _hdTfSig = html;
-      if (rows.length){ box.hidden = false; $('hd-tf-rows').innerHTML = html; $('hd-tf-date').textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); }
+      /* ══ v2336 — THE MEMO GUARDED THE CONTENT AND SKIPPED THE VISIBILITY ═══════════════════
+         Konyo, twice: "daily tasks and chronicle tallys are not rendering here in this section",
+         then "black space but image tooltips are still rendering something keeps bugging".
+
+         BOTH SIGHTINGS WERE REAL AND THE DATA WAS NEVER MISSING. The floating tooltip he
+         screenshotted reads "today's pick · Sets · 120/135 pieces — finish Immortal King",
+         which is built from the SAME roster on a different lane — so the rows existed, were
+         correct, and simply were not on screen. Three faults in four lines:
+
+           (1) `if (html === _hdTfSig) return;` sat ABOVE `box.hidden = false`. `_hdTfSig` is a
+               module variable that survives; `box.hidden` is DOM state that does not. Once
+               anything re-hid the panel, every later tick computed identical html and returned
+               BEFORE the un-hide. Permanent, and invisible to every DOM-text assertion in the
+               suite, because the text was in the signature — just never painted.
+           (2) `_hdTfSig = html` was committed BEFORE the paint. One transient throw into the
+               empty `catch(e){}` below (a null `box` during a shell rebuild is enough) and the
+               signature says "already painted" for the rest of the page's life.
+           (3) `if (rows.length)` had no else, so an emptied roster left the last rows standing.
+
+         The skip now asks the DOM whether the paint actually LANDED, and the signature is
+         committed only after it did. A memo may cache what you computed; it must never be the
+         only record that you drew it. [[the-unjoined-end]] [[regression-guard]] */
+      var landed = !!(box && rowsEl
+                      && box.hidden === !rows.length
+                      && (!rows.length || rowsEl.innerHTML === html));
+      if (html === _hdTfSig && landed) return;
+      if (!box || !rowsEl) return;          // nothing to paint into — do NOT commit the signature
+      if (rows.length){
+        rowsEl.innerHTML = html;
+        box.hidden = false;
+        var _tfd = $('hd-tf-date');
+        if (_tfd) _tfd.textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+      } else {
+        box.hidden = true;                  // an empty roster hides the panel, it does not freeze it
+      }
+      _hdTfSig = html;                      // committed ONLY after the paint actually happened
     } catch(e){}
   }
   // ══ v949 (ENGINE_ARCH target #5) — ONE ENGINE-HEALTH SURFACE: the whole loop's pulse, in spine
@@ -18559,7 +18593,30 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
             view: document.body.getAttribute('data-view') || '',
             els: document.querySelectorAll('body *').length,
             theatreOpen: !!(th && !th.hidden),
-            loaded: !!(window.TH && TH.sessions && TH.sessions.length)
+            loaded: !!(window.TH && TH.sessions && TH.sessions.length),
+            /* v2336 — IS A PANEL THAT HAS CONTENT ACTUALLY ON SCREEN? Konyo reported the DAILY
+               TASK FORCE as "black space" twice while its own tooltip kept working, because the
+               repaint memo skipped the un-hide (see _hdTfSig). Nothing in the tree could see it:
+               the rows were built, correct, and in memory. THREE STATES, never two —
+                 'empty' = nothing to show, so nothing shown. NOT a fault.
+                 'shown' = has rows and is on screen.
+                 'DARK'  = has rows and is NOT on screen. The fault, and only this.
+               "nobody has any rows" must never read the same as "the rows are hidden".
+               ⚠ JUDGED ON THE `hidden` ATTRIBUTE, NOT ON COMPUTED DISPLAY. These panels are
+               display:none BY DESIGN off their own view (~4151), so a display-based test would
+               fire on every other tab and be switched off within a day. The stuck attribute is
+               the defect's actual signature. [[unknown-stays-unknown]] */
+            panels: (function(){
+              var o = {};
+              [['taskforce','hd-taskforce','hd-tf-rows'],
+               ['forge','hd-forge','hd-forge-chips'],
+               ['tally','hd-tallybar','hd-tallybar-chips']].forEach(function(t){
+                var box = document.getElementById(t[1]), body = document.getElementById(t[2]);
+                if (!box || !body){ o[t[0]] = 'absent'; return; }
+                o[t[0]] = !body.children.length ? 'empty' : (box.hidden ? 'DARK' : 'shown');
+              });
+              return o;
+            })()
           }})}).catch(function(){});
       } catch (e) {}
     };

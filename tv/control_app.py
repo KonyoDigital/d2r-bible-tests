@@ -20323,7 +20323,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2335",
+        "ver": "v2336",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -20393,6 +20393,9 @@ def status_payload():
         # long time" and must not be shown as a big number. [[unknown-stays-unknown]]
         "uiBeat": {"n": _UI_BEAT["n"], "hidden": bool(_UI_BEAT.get("hidden")),
                    "ageS": (round(ui_beat_age(), 1) if ui_beat_age() is not None else None),
+                   # v2336 — what the page says about its own panels, so the eagle can see his
+                   # SCREEN and not merely his engines. None = this console predates v2336.
+                   "panels": ((_UI_BEAT.get("state") or {}).get("panels") or None),
                    "rescues": _UI_RESCUE["count"],
                    "lastRescueWhy": _UI_RESCUE["why"] or None,
                    "silenceBoundS": _UI_BEAT_SILENCE_S},

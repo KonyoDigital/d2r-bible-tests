@@ -33778,5 +33778,206 @@ class TestV2330TheRenderGateStoppedMeasuringHalfBuiltPanels(unittest.TestCase):
                          "empty panel and reports 'matched NOTHING'")
 
 
+class TestV2336TheDailyTaskPanelCannotBeMemoisedIntoInvisibility(unittest.TestCase):
+    """REG-415 — a repaint memo that also skips the UN-HIDE leaves a panel dark for ever.
+
+    Konyo reported this twice in two days: "daily tasks and chronicle tallys are not rendering
+    here in this section", then "black space but image tooltips are still rendering something
+    keeps bugging". BOTH SIGHTINGS WERE REAL AND THE DATA WAS NEVER MISSING — the tooltip he
+    screenshotted reads "today's pick · Sets · 120/135 pieces", built from the SAME roster on a
+    different lane. The rows existed, were correct, and were simply never painted.
+
+    The shipped code was:
+
+        var html = rows.join('');
+        if (html === _hdTfSig) return;          <- returns BEFORE the un-hide
+        _hdTfSig = html;                        <- signature committed BEFORE the paint
+        if (rows.length){ box.hidden = false; ... }
+
+    `_hdTfSig` is a module variable that survives; `box.hidden` is DOM state that does not. So
+    once anything re-hid the panel, every later tick computed identical html and returned without
+    un-hiding it — permanently, and invisibly to every DOM-TEXT assertion in this suite, because
+    the text was in the signature. That is why this gate reads the ORDER of the statements rather
+    than asserting on any string the panel renders. [[the-unjoined-end]] [[regression-guard]]
+    """
+
+    @staticmethod
+    def _strip_js_comments(src, cap=4000):
+        """Bounded on purpose — an unbounded /\*.*?\*/ once ate 170 of bible.html's 444 ids."""
+        import re
+        src = re.sub(r"/\*.{0,%d}?\*/" % int(cap), " ", src, flags=re.S)
+        return re.sub(r"(?m)^\s*//.*$", " ", src)
+
+    def _block(self):
+        src = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        # END ANCHOR = the enclosing catch. "  }\n" looked right and matched the `}` that closes
+        # the `if (rows.length){` arm, truncating the slice BEFORE `_hdTfSig = html` — so the gate
+        # failed claiming the assignment was "gone" when it was two lines past the cut. An anchored
+        # slice is only as good as the anchor; [[source-reading-guard]] says check the slice, and
+        # _between's min_len does not catch a cut that still leaves 200 chars behind.
+        blk = _between(self, src, "var box = $('hd-taskforce');", "} catch(e){}", min_len=200,
+                       what="the DAILY TASK FORCE repaint")
+        return self._strip_js_comments(blk)
+
+    def test_the_skip_is_not_blind_to_a_panel_that_is_hidden(self):
+        blk = self._block()
+        self.assertNotIn(
+            "if (html === _hdTfSig) return;", blk,
+            "THE BARE SIGNATURE SKIP IS BACK. It returns before `box.hidden = false`, so the "
+            "moment anything re-hides the panel every later tick computes the same html and "
+            "returns without un-hiding it. Konyo saw exactly this twice, as black space.")
+        self.assertIn(
+            "landed", blk,
+            "the skip no longer consults the DOM at all — it must verify the paint LANDED, not "
+            "merely that the html is unchanged")
+
+    def test_the_signature_is_committed_only_after_the_paint(self):
+        blk = self._block()
+        self.assertIn("box.hidden = false", blk, "the un-hide is gone from the repaint entirely")
+        self.assertIn("_hdTfSig = html", blk, "the signature assignment is gone")
+        self.assertLess(
+            blk.index("box.hidden = false"), blk.index("_hdTfSig = html"),
+            "THE SIGNATURE IS COMMITTED BEFORE THE PAINT. One transient throw into the empty "
+            "catch (a null box during a shell rebuild is enough) and the memo says 'already "
+            "painted' for the rest of the page's life. Commit it only after the paint ran.")
+
+    def test_an_emptied_roster_hides_the_panel_instead_of_freezing_it(self):
+        blk = self._block()
+        self.assertIn(
+            "box.hidden = true", blk,
+            "`if (rows.length)` has no else again, so a roster that empties leaves the last rows "
+            "standing on screen with nothing behind them")
+
+    def test_the_heartbeat_tells_a_dark_panel_from_an_empty_one(self):
+        """Three states, never two. 'nobody has rows' must not read as 'the rows are hidden'."""
+        src = self._strip_js_comments(
+            io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read())
+        beat = _between(self, src, "panels: (function(){", "})()", min_len=120,
+                        what="the heartbeat's panel census")
+        for state in ("'empty'", "'DARK'", "'shown'"):
+            self.assertIn(state, beat,
+                          "the heartbeat lost the %s state — collapsing 'nothing to show' into "
+                          "'hidden' makes the watchdog fire on healthy consoles until it is "
+                          "switched off" % state)
+        self.assertIn("box.hidden", beat,
+                      "the census must judge on the `hidden` ATTRIBUTE: these panels are "
+                      "display:none by design off their own view, so a computed-display test "
+                      "would fire on every other tab")
+
+    def test_the_eagle_actually_runs_this_check(self):
+        """A check defined and never listed is a check that never runs. [[the-unjoined-end]]"""
+        src = _code_only(io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read())
+        self.assertIn("def _check_no_panel_is_dark_with_its_content_in_hand", src,
+                      "the doctor check is gone")
+        reg = _between(self, src, "CHECKS = [", "]", min_len=200, what="the doctor's registry")
+        self.assertIn("_check_no_panel_is_dark_with_its_content_in_hand", reg,
+                      "the check exists but is NOT in CHECKS, so /api/eagle never calls it — "
+                      "the same shape as the eagle route that shipped with no tap")
+
+    def test_the_server_publishes_what_the_check_reads(self):
+        """The check reads status.uiBeat.panels. If nothing publishes it, the check answers
+        UNKNOWN for ever and a lane that never attempts never records a failure."""
+        src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        beat = _between(self, src, '"uiBeat": {', "},", min_len=120, what="the uiBeat payload")
+        self.assertIn('"panels"', beat,
+                      "/api/status stopped publishing uiBeat.panels — the eagle check reads a "
+                      "key that does not exist and can only ever answer UNKNOWN")
+
+
+
+class TestV2336TheBrowserSuitesStayOnGitHub(unittest.TestCase):
+    """REG-416 — a browser suite scheduled on his laptop instead of on GitHub.
+
+    Found 2026-08-31. routine_H, I, J, K and L each had a live launchd plist AND a byte-identical
+    `.disabled` twin sitting beside it, so all five fired locally at the same minute as their own
+    CI workflows. `routine-i-playwright.yml` is `cron: '0 6 * * *'` = 09:00 IDT; the plist said
+    Hour 9, Minute 0. Both copies passed, which is exactly why nobody noticed: the only symptom
+    was heat — eight chrome-headless-shell processes, load 8.75 on a 10-core machine — plus two
+    pushes killed by `⏱ test_control HUNG`, because a saturated Mac cannot finish that suite
+    inside the hook's 600s bound.
+
+    A duplicated job cannot be caught by asking "does it pass". This asks WHERE IT RUNS.
+    """
+
+    def _agents(self, jobs):
+        '''A fake LaunchAgents dir. {label: script-body-or-None}'''
+        import tempfile
+        d = tempfile.mkdtemp(prefix="agents_")
+        for lbl, body in jobs.items():
+            sh = os.path.join(d, lbl + ".sh")
+            # `with`, and not decoration: an unclosed handle left both scripts EMPTY on disk when
+            # the scan read them, so the fixture reported a clean machine and two cases failed
+            # against correct code. [[feedback-suspect-the-instrument]]
+            with io.open(sh, "w", encoding="utf-8") as fh:
+                fh.write(body or "echo nothing\n")
+            with io.open(os.path.join(d, lbl + ".plist"), "w", encoding="utf-8") as fh:
+                fh.write("<plist><dict><key>ProgramArguments</key><array>"
+                         "<string>/bin/bash</string><string>-lc</string><string>%s</string>"
+                         "</array></dict></plist>" % sh)
+        return d
+
+    def test_a_scheduled_browser_suite_is_named(self):
+        import console_doctor as cd
+        d = self._agents({
+            "ai.konyo.d2r.routine_I": "cd /repo\nnpx playwright test --reporter=line\n",
+            "ai.konyo.d2r.routine_P": "/usr/bin/python3 sweep.py\n",
+        })
+        guilty = cd.browser_suites_among(
+            ["ai.konyo.d2r.routine_I", "ai.konyo.d2r.routine_P"], agents_dir=d)
+        self.assertEqual(guilty, ["ai.konyo.d2r.routine_I"],
+                         "the scan must name the job that runs a browser suite and only that one")
+
+    def test_a_machine_with_no_browser_job_comes_back_empty(self):
+        """The fixture is not vacuous: the same scan over clean jobs must return nothing, or a
+        scan that always answered [] would look identical to a healthy machine."""
+        import console_doctor as cd
+        d = self._agents({"ai.konyo.d2r.routine_P": "/usr/bin/python3 sweep.py\n",
+                          "ai.konyo.d2r.routine_Q": "/usr/bin/python3 tally.py\n"})
+        self.assertEqual(
+            cd.browser_suites_among(["ai.konyo.d2r.routine_P", "ai.konyo.d2r.routine_Q"],
+                                    agents_dir=d), [])
+
+    def test_it_reads_the_script_not_only_the_plist(self):
+        """The plist names /bin/bash and a path; the word `playwright` is only inside the SCRIPT.
+        A scan that read the plist alone would have called all five of these clean."""
+        import console_doctor as cd
+        d = self._agents({"ai.konyo.d2r.routine_J": "set -e\nnpx playwright test tests/\n"})
+        self.assertEqual(cd.browser_suites_among(["ai.konyo.d2r.routine_J"], agents_dir=d),
+                         ["ai.konyo.d2r.routine_J"])
+
+    def test_a_watchdog_that_merely_MENTIONS_playwright_is_not_accused(self):
+        """routine_Q, verbatim. It monitors the suites and never runs one.
+
+        The first cut of this guard matched the bare substring "npx playwright" and accused it
+        on the spot — off an ALERT STRING telling him to run `npx playwright install`. Reading
+        prose about the thing as the thing is the defect that has blinded three source guards in
+        this repo. This case is why the pattern demands `playwright test` after an invocation
+        prefix. [[feedback-comments-vs-code]] [[source-reading-guard]]"""
+        import console_doctor as cd
+        d = self._agents({"ai.konyo.d2r.routine_Q":
+            'alerts.append(f"\U0001f534 {rid} Playwright browser missing: {exe} '
+            '\u2014 run `npx playwright install`")\n'})
+        self.assertEqual(
+            cd.browser_suites_among(["ai.konyo.d2r.routine_Q"], agents_dir=d), [],
+            "a job that only NAMES playwright, or tells him to install it, is not running a "
+            "browser suite and must not be accused of one")
+
+    def test_the_other_invocation_forms_are_caught_too(self):
+        """A sweep that only knew `npx` would miss the next script someone writes."""
+        import console_doctor as cd
+        for cmd in ("npx playwright test", "yarn playwright test tests/",
+                    "./node_modules/.bin/playwright test --reporter=line"):
+            d = self._agents({"ai.konyo.d2r.routine_Z": cmd + "\n"})
+            self.assertEqual(cd.browser_suites_among(["ai.konyo.d2r.routine_Z"], agents_dir=d),
+                             ["ai.konyo.d2r.routine_Z"], "missed the form: %r" % cmd)
+
+    def test_the_eagle_actually_runs_the_venue_check(self):
+        src = _code_only(io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read())
+        reg = _between(self, src, "CHECKS = [", "]", min_len=200, what="the doctor's registry")
+        self.assertIn("_check_no_browser_suite_is_scheduled_on_this_mac", reg,
+                      "the venue check exists but is not in CHECKS, so /api/eagle never calls it")
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

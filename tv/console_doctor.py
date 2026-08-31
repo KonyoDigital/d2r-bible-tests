@@ -1166,6 +1166,147 @@ def _check_the_console_UI_has_not_faulted():
                      % (len(rows), top, str(newest.get("why"))[:110]))
 
 
+
+def _check_no_panel_is_dark_with_its_content_in_hand():
+    """A panel that HAS rows and is not on screen — the failure a green suite cannot see.
+
+    WHY THIS IS A DOCTOR CHECK AND NOT ONLY A TEST. Konyo reported it twice: "daily tasks and
+    chronicle tallys are not rendering here in this section", then "black space but image
+    tooltips are still rendering". Both sightings were real and BOTH TIMES THE DATA WAS FINE.
+    The roster was built, the tooltip drawn from the same rows worked, and the panel holding
+    them carried a stale `hidden` attribute because the repaint memo returned before the
+    un-hide. Every DOM-text assertion passed, because the text existed — it was never painted.
+
+    So the honest place to catch it is the running page, which the UI heartbeat already is. The
+    page classifies each panel itself (empty / shown / DARK) and this reads that verdict back.
+
+    ⚠ THREE OUTCOMES, NEVER TWO. A console that has never beaten is UNKNOWN, not healthy — the
+    same rule ui_beat_age() states about its own None. And a console older than v2336 reports no
+    panels at all, which is also UNKNOWN and must never read as "all clear".
+    [[unknown-stays-unknown]] [[regression-guard]]
+    """
+    st = _get("/api/status") or {}
+    ub = st.get("uiBeat") if isinstance(st.get("uiBeat"), dict) else None
+    if not ub:
+        return UNKNOWN, "the console did not report a heartbeat, so nothing is known about his screen"
+    if not ub.get("n"):
+        return UNKNOWN, "no console has ever checked in — that is a headless run, not a healthy screen"
+    panels = ub.get("panels")
+    if not isinstance(panels, dict) or not panels:
+        return UNKNOWN, ("this console is older than v2336 and does not report its panels — "
+                         "unknown, not clear")
+    dark = sorted([k for k, v in panels.items() if v == "DARK"])
+    if dark:
+        return MISSING, ("%s built its rows and is NOT on screen — the panel is dark with its "
+                         "content in hand, which is the class he had to report by hand twice "
+                         "(REG-415)" % ", ".join(dark))
+    shown = sorted([k for k, v in panels.items() if v == "shown"])
+    empty = sorted([k for k, v in panels.items() if v == "empty"])
+    return OK, ("every panel holding content is on screen (%d shown%s%s)"
+                % (len(shown), (": " + ", ".join(shown)) if shown else "",
+                   ("; %d legitimately empty" % len(empty)) if empty else ""))
+
+
+
+# `playwright test` reached the way a script actually invokes it. `playwright install` and any
+# sentence merely NAMING playwright must not match — see browser_suites_among.
+_RUNS_A_BROWSER_SUITE = re.compile(
+    r"(?:npx\s+|yarn\s+|pnpm\s+|bunx\s+|node_modules/\.bin/|bin/)playwright\s+test\b")
+
+
+def browser_suites_among(labels, agents_dir=None):
+    """Which of `labels` have a launchd plist whose command reaches a BROWSER suite. -> [label]
+
+    Split out of the check so it can be driven by a fixture. A guard whose only input is his real
+    machine can never be seen RED on purpose, and one that has not been seen red is measuring
+    nothing. [[regression-guard]]
+
+    Bounded: 200 KB per file. An unbounded sweep of this shape once pinned a core for 28 hours.
+    """
+    agents_dir = agents_dir or os.path.join(os.path.expanduser("~"), "Library", "LaunchAgents")
+    guilty = []
+    for lbl in labels:
+        p = os.path.join(agents_dir, lbl + ".plist")
+        if not os.path.isfile(p):
+            continue
+        # ⚠ `open`, not `io.open`: this module never imports io, so io.open raised NameError —
+        # which the bare `except Exception: continue` below swallowed, making the scan return []
+        # for EVERY job. The check would have shipped answering "no browser suite here" forever,
+        # whatever was actually scheduled: a guard that can only say OK. Caught only because the
+        # fixture demanded it be seen RED. And the except is narrowed for the same reason — an
+        # OSError is a plist we cannot read; a NameError is a bug wearing its clothes.
+        try:
+            with open(p, encoding="utf-8", errors="replace") as fh:
+                plist = fh.read(200000)
+        except OSError:
+            continue
+        blob = plist
+        for tok in plist.replace("<string>", " ").replace("</string>", " ").split():
+            if tok.startswith("/") and os.path.isfile(tok):
+                try:
+                    with open(tok, encoding="utf-8", errors="replace") as fh:
+                        blob += fh.read(200000)
+                except OSError:
+                    pass
+        # ⚠ AN INVOCATION, NOT A MENTION. The first cut matched the bare substring "npx
+        # playwright" and immediately accused routine_Q — a WATCHDOG whose only crime is the
+        # alert string `run \`npx playwright install\``. It monitors the suites; it does not run
+        # one. A guard that reads prose about the thing as the thing is the same defect that has
+        # blinded three source guards in this repo already. [[feedback-comments-vs-code]]
+        if _RUNS_A_BROWSER_SUITE.search(blob):
+            guilty.append(lbl)
+    return guilty
+
+
+def _check_no_browser_suite_is_scheduled_on_this_mac():
+    """Is any scheduled job running a BROWSER suite on his laptop? They belong on GitHub.
+
+    Konyo's standing order, given six times: the browser suites run in CI, never on his Mac.
+    On 2026-08-31 that order had been quietly broken for an unknown length of time and NOTHING
+    could see it. Five launchd jobs — routine_H, I, J, K and L — each fired locally at the same
+    minute as its own GitHub twin (`routine-i-playwright.yml` is `cron: '0 6 * * *'`, which is
+    09:00 IDT, exactly what `ai.konyo.d2r.routine_I.plist` was set to). Someone had already made
+    `.disabled` COPIES of all five, intending to switch them off, and never unloaded the live
+    ones. Both copies sat side by side in ~/Library/LaunchAgents for months.
+
+    WHAT IT COST, measured the morning it was found: eight chrome-headless-shell processes, three
+    of them at 132%, 99% and 96% CPU at once on a 10-core machine, load average 8.75. He reported
+    it as "my pc is hot and kinda laggy". It also blocked every push that morning — the pre-push
+    hook bounds test_control at 600s, and a saturated machine cannot finish it in 600s, so two
+    ships died with "⏱ test_control HUNG" and the cause looked like a test problem.
+
+    A duplicated job is invisible in the worst way: BOTH copies work. CI is green, the local run
+    is green, and the only symptom is heat. So the guard cannot ask "does it pass" — it has to
+    ask WHERE IT RUNS. [[test-venue]] [[feedback-generalize-fixes]]
+
+    ⚠ Bounded on purpose: at most 60 jobs, and only the first 200 KB of any script is read. An
+    unbounded sweep of this shape once held a core at 99% for 28 hours on this same machine.
+    """
+    import subprocess as _sp
+    if sys.platform != "darwin":
+        return UNKNOWN, "this check only knows launchd, so it cannot speak for this machine"
+    try:
+        out = _sp.run(["launchctl", "list"], capture_output=True, text=True, timeout=10)
+    except Exception as e:
+        return UNKNOWN, "launchctl could not be asked: %s" % str(e)[:70]
+    if out.returncode != 0:
+        return UNKNOWN, "launchctl refused to list the jobs, so the venue is unknown"
+    labels = []
+    for ln in out.stdout.split("\n")[1:]:
+        parts = ln.split("\t")
+        if len(parts) >= 3 and parts[2].startswith(("ai.konyo", "com.konyo")):
+            labels.append(parts[2].strip())
+    labels = sorted(set(labels))[:60]
+    if not labels:
+        return OK, "no konyo job is scheduled on this machine at all"
+    guilty = browser_suites_among(labels)
+    if guilty:
+        return MISSING, ("%d scheduled job(s) run a BROWSER suite on this Mac instead of on "
+                         "GitHub: %s. They have CI twins; a local copy only adds heat and "
+                         "starves the push gate (REG-416)" % (len(guilty), ", ".join(guilty)))
+    return OK, ("no scheduled job runs a browser suite here \u2014 all %d are python or "
+                "non-browser, and the suites stay on GitHub" % len(labels))
+
 def _check_the_engines_CORROBORATE_each_other():
     """Do the engines agree with EACH OTHER, not merely with themselves?
 
@@ -1340,6 +1481,10 @@ CHECKS = [
     # `for n, fn in CHECKS` unpacking in nine places at once, including the healer's recheck map.
     # THE COUNT WAS THE TELL: nine errors from one edit is a shape mistake, not nine defects.
     ("engines corroborate", _check_the_engines_CORROBORATE_each_other),
+    # v2336 — the eagle can see his SCREEN, not only his engines
+    ("panels on screen", _check_no_panel_is_dark_with_its_content_in_hand),
+    # v2336 — the suites belong on GitHub; this notices when one comes back to his laptop
+    ("test venue", _check_no_browser_suite_is_scheduled_on_this_mac),
     ("console UI faults", _check_the_console_UI_has_not_faulted),
     ("version drift", _check_version_drift),
     # v2248 — the OTHER out-of-sync: drift is process-vs-disk, this is disk-vs-origin, and

@@ -13658,3 +13658,64 @@ times and asserted `names == 3`, reading "thin" only because 3 < 500.
 
 **Fixed:** `shadow_scores` reports WHICH names; the ledger holds a set; the old total survives as
 `scorings` so `scorings/names` makes re-reading visible. The inflated live ledger was moved aside.
+
+## REG-415 — the DAILY TASK FORCE went black and STAYED black with its rows in hand
+
+Konyo reported it twice in two days: *"daily tasks and chronicle tallys are not rendering here in
+this section"*, then *"black space but image tooltips are still rendering something keeps bugging"*.
+
+**Both sightings were real and the data was never missing.** The tooltip in his screenshot reads
+*"today's pick · Sets · 120/135 pieces — finish Immortal King"* — built from the SAME roster on a
+different lane. The rows existed, were correct, and were simply never painted. Shipped code:
+
+```js
+var html = rows.join('');
+if (html === _hdTfSig) return;          // returns BEFORE the un-hide
+_hdTfSig = html;                        // signature committed BEFORE the paint
+if (rows.length){ box.hidden = false; ... }
+```
+
+Three faults in four lines. **(1)** `_hdTfSig` is a module variable that survives; `box.hidden` is
+DOM state that does not — so once anything re-hid the panel, every later tick computed identical
+html and returned before the un-hide. Permanent, and invisible to every DOM-TEXT assertion in the
+suite, because the text was in the signature. **(2)** The signature was committed before the paint,
+so one transient throw into the empty `catch(e){}` froze the panel for the life of the page.
+**(3)** `if (rows.length)` had no else, so an emptied roster left the last rows standing.
+
+**Fixed v2336:** the skip asks the DOM whether the paint LANDED; the signature is committed only
+after it did; an empty roster hides the panel instead of freezing it. **A memo may cache what you
+computed; it must never be the only record that you drew it.**
+
+Guards, all six sabotage-proven red then green: `TestV2336TheDailyTaskPanelCannotBeMemoisedInto
+Invisibility`. Plus a WATCHDOG — the UI heartbeat now classifies each panel `empty` / `shown` /
+`DARK` (judged on the `hidden` ATTRIBUTE, because display:none is by design off a panel's own
+view), `/api/status` publishes it as `uiBeat.panels`, and `console_doctor` reads it back as
+"panels on screen". "Nobody has any rows" must never read the same as "the rows are hidden".
+
+## REG-416 — five browser suites ran on his Mac AND on GitHub, at the same minute
+
+`routine_H`, `I`, `J`, `K` and `L` each had a live launchd plist **and a byte-identical `.disabled`
+twin** in `~/Library/LaunchAgents`. Someone had made the copies intending to switch them off after
+moving the work to CI, and never unloaded the live ones. `routine-i-playwright.yml` is
+`cron: '0 6 * * *'` = 09:00 IDT; `ai.konyo.d2r.routine_I.plist` said Hour 9, Minute 0.
+
+**Measured the morning it was found:** eight `chrome-headless-shell` processes, three at 132%, 99%
+and 96% CPU at once on a 10-core machine, load average 8.75. He reported it as *"my pc is hot and
+kinda laggy"*. It also killed two pushes with `⏱ test_control HUNG — killed after 600s`, because a
+saturated Mac cannot finish that suite inside the hook's bound — and the cause read as a test
+problem. CI had already run Routine I successfully that morning, so the local copy produced nothing.
+
+**A duplicated job is invisible in the worst way: both copies work.** CI green, local green, and the
+only symptom is heat. So the guard cannot ask *does it pass* — it asks WHERE IT RUNS.
+
+**Fixed:** all five unloaded, plists parked as `.off-2026-08-31`. `console_doctor` gained
+`_check_no_browser_suite_is_scheduled_on_this_mac` ("test venue"), which reads every loaded launchd
+job's plist AND the script it points at.
+
+⚠ **Two defects in the guard itself, both caught only because a fixture demanded it be seen RED.**
+First it used `io.open` in a module that never imports `io`; the `NameError` was swallowed by a bare
+`except Exception: continue`, so the scan returned `[]` for every job and the check would have
+answered "no browser suite here" FOREVER. Second, once working, it accused `routine_Q` — a watchdog
+whose only crime is the alert string ``run `npx playwright install` ``. It now matches an
+invocation (`npx|yarn|pnpm|bunx|bin/` + `playwright test`), and routine_Q's real line is pinned as a
+negative fixture.
