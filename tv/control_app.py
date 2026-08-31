@@ -1929,12 +1929,16 @@ def _tally_cached():
     return dict(v)
 
 
-_MASK_CACHE = {"t": 0.0, "val": None}
+_MASK_CACHE = {"sets": {"t": 0.0, "val": None}, "uniques": {"t": 0.0, "val": None}}
 _MASK_TTL_S = 300.0
 
 
-def board_set_mask():
-    """Which SET PIECES this board holds, as bits over the shared roster. -> dict | None
+def board_mask(ledger="sets"):
+    """Which items of ONE LEDGER this board holds, as bits over the shared roster. -> dict | None
+
+    v2329 — was board_set_mask() and sets-only. The ledger now names its own roster file, its own
+    key inside it and its own board store, all from fleet_mask.LEDGERS, so adding a third ledger
+    is a table row rather than a second copy of this function. [[copy-drift]]
 
     Konyo asked THE FLEET to cross-reference him against his cousin — "show me what he has that i
     dont" — and the fleet has only ever carried counts. 116 cannot be subtracted from 120 to produce
@@ -1957,7 +1961,10 @@ def board_set_mask():
         import fleet_mask as _fm
     except Exception:
         return None
-    roster, fp = _fm.load_roster()
+    spec, _why = _fm.ledger_spec(ledger)
+    if not spec:
+        return None                       # an unknown ledger is refused, never defaulted to sets
+    roster, fp = _fm.load_roster_for(spec["name"])
     if not roster or not fp:
         return None                       # cannot name the roster -> cannot honestly stamp a mask
     # the same accessor board_ownership uses — a module global set when TV DIABLO opens the board.
@@ -1974,8 +1981,9 @@ def board_set_mask():
         return None
     js = ("(function(){try{"
           "var R=%s;"
-          "var sp=JSON.parse((window.LSR?window.LSR.getItem('d2r_setPieces')"
-          ":localStorage.getItem('d2r_setPieces'))||'[]')||[];"
+          "var K=%s;"
+          "var sp=JSON.parse((window.LSR?window.LSR.getItem(K)"
+          ":localStorage.getItem(K))||'[]')||[];"
           "var have={};for(var i=0;i<sp.length;i++){have[String(sp[i])]=1;}"
           "var bytes=new Array(Math.ceil(R.length/8));for(var k=0;k<bytes.length;k++)bytes[k]=0;"
           "var hits=0;"
@@ -1984,7 +1992,7 @@ def board_set_mask():
           "var t=btoa(s).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');"
           "return JSON.stringify({ok:true,n:R.length,have:hits,b:t});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
-          % json.dumps(roster))
+          % (json.dumps(roster), json.dumps(spec["store"])))
     try:
         raw = _ejs(w, js, timeout=8.0)
     except Exception:
@@ -2001,20 +2009,54 @@ def board_set_mask():
     return _fm.sanitize_for_wire(mask)
 
 
-def _mask_cached():
-    """board_set_mask(), at most every 5 minutes — same reasoning as _tally_cached, and slower
-    because a roster comparison changes far less often than a count."""
+def _mask_cached(ledger="sets"):
+    """board_mask(ledger), at most every 5 minutes — same reasoning as _tally_cached, and slower
+    because a roster comparison changes far less often than a count.
+
+    ⚠ ONE SLOT PER LEDGER. A single shared slot would let the sets mask be served as the uniques
+    mask for five minutes, which is not a stale answer but a WRONG one — different roster, so the
+    bits would name different items. [[label-outlived-referent]]"""
+    slot = _MASK_CACHE.get(str(ledger or "").strip().lower())
+    if slot is None:
+        return None                        # unknown ledger: no cache, no guess
     now = time.time()
-    if _MASK_CACHE["val"] is not None and (now - _MASK_CACHE["t"]) < _MASK_TTL_S:
-        return dict(_MASK_CACHE["val"])
+    if slot["val"] is not None and (now - slot["t"]) < _MASK_TTL_S:
+        return dict(slot["val"])
     v = None
     try:
-        v = board_set_mask()
+        v = board_mask(ledger)
     except Exception:
         v = None
-    _MASK_CACHE["t"] = now
-    _MASK_CACHE["val"] = v
+    slot["t"] = now
+    slot["val"] = v
     return dict(v) if v else None
+
+
+def _masks_for_wire():
+    """Every ledger this machine can honestly publish. -> {ledger: mask} | None
+
+    ⚠ A LEDGER IT CANNOT BUILD IS OMITTED, NOT ZEROED. An all-zero mask is a positive claim —
+    "this machine owns none of them" — and the far end would print exactly that. Omitting the key
+    makes fleet_compare say "we have not heard a uniques mask from it", which is the true
+    statement and the one it already knows how to make. [[unknown-stays-unknown]]
+
+    Returns None when nothing can be built, so the beacon omits the field entirely and older
+    readers see exactly what they saw before this existed.
+    """
+    out = {}
+    try:
+        import fleet_mask as _fm
+        names = sorted(_fm.LEDGERS)
+    except Exception:
+        names = ["sets"]
+    for _led in names:
+        try:
+            m = _mask_cached(_led)
+        except Exception:
+            m = None
+        if m:
+            out[_led] = m
+    return out or None
 
 
 def _shadow_bank(applied, lane="chronicle"):
@@ -2230,7 +2272,10 @@ def _console_beacon(event="hb"):
             # back only set bits, the worker stores an opaque string it never decodes, and the
             # subtraction happens on HIS machine against HIS copy of the roster.
             # Absent when the board could not be read — an unread board is not an empty one.
-            "masks": (lambda _m: {"sets": _m} if _m else None)(_mask_cached()),
+            # v2329 — every ledger this machine can build, not a hardcoded one. A ledger the
+            # board cannot answer for is OMITTED rather than sent as an all-zero mask, so the far
+            # end says "we have not heard a uniques mask from it" instead of "it owns none".
+            "masks": _masks_for_wire(),
             # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
@@ -20051,10 +20096,18 @@ def fleet_compare(machine, ledger="sets"):
     if not machine:
         return {"ok": False, "why": "no machine named — say which player to compare against"}
 
-    roster, fp = _fm.load_roster()
+    spec, _lwhy = _fm.ledger_spec(ledger)
+    if not spec:
+        return {"ok": False, "why": _lwhy}
+    ledger = spec["name"]
+    # ⚠ v2329 — THE ROSTER FOLLOWS THE LEDGER. This read load_roster() with the SET defaults
+    # whatever `ledger` said, so a uniques comparison would have decoded uniques bits against the
+    # 135-name sets roster and NAMED THE WRONG ITEMS with full confidence. The argument existed
+    # and was not honoured, which is worse than not having it.
+    roster, fp = _fm.load_roster_for(ledger)
     if not roster:
-        return {"ok": False, "why": "this machine cannot read its own item roster, so it cannot "
-                                    "decode anybody's progress"}
+        return {"ok": False, "why": "this machine cannot read its %s roster, so it cannot "
+                                    "decode anybody's progress" % spec["label"]}
 
     fleet = fleet_presence()
     if not isinstance(fleet, dict) or fleet.get("ok") is False:
@@ -20068,19 +20121,34 @@ def fleet_compare(machine, ledger="sets"):
     their_mask = ((them.get("masks") or {}) or {}).get(ledger)
     # HIS side is read LIVE from his own board rather than from his own beacon record — the beacon
     # is up to five minutes stale and he is sitting in front of this one.
-    mine_mask = _mask_cached()
+    mine_mask = _mask_cached(ledger)
 
     out = _fm.compare(mine_mask, their_mask, roster, fp)
     out["machine"] = machine
     out["ledger"] = ledger
     out["who"] = str(them.get("nickname") or them.get("machine") or "")[:40]
     out["theirAt"] = them.get("t") or them.get("ts") or None
-    out["mineAt"] = int(_MASK_CACHE["t"] * 1000) if _MASK_CACHE["t"] else None
+    # v2329 — THE AGE COMES FROM THIS LEDGER'S SLOT. _MASK_CACHE went from one flat dict to one
+    # slot per ledger, and this reader was missed: `_MASK_CACHE["t"]` raised KeyError inside the
+    # route, which returned an EMPTY BODY, which the panel rendered as "the console did not
+    # answer - this is UNKNOWN". A structure changed and a reader of it did not, and the failure
+    # surfaced three layers away as a polite sentence about the network. [[sweep-dont-ask]]
+    _slot = _MASK_CACHE.get(ledger) or {}
+    out["mineAt"] = int(_slot.get("t", 0) * 1000) if _slot.get("t") else None
     out["rosterN"] = len(roster)
     if not out.get("ok") and their_mask is None:
-        out["why"] = ("%s has not reported which pieces it holds yet — that is 'we have not heard "
+        # v2329 — the ledger names itself here too. "which pieces it holds" is set wording, and
+        # printing it on a UNIQUES comparison is a label describing the wrong thing at exactly the
+        # moment the sentence is explaining what it does not know. [[label-outlived-referent]]
+        # ⚠ TWO PLACEHOLDERS, ONE FORMAT. The first attempt concatenated the label INTO the
+        # literal with `+`, which rebinds `%` to the last fragment only and raised
+        # "not all arguments converted during string formatting" - a TypeError inside the route,
+        # i.e. an empty response, i.e. the panel saying "the console did not answer". Same shape
+        # as the KeyError above and the same lesson: this function's failures all surface as a
+        # polite sentence about the network.
+        out["why"] = ("%s has not reported which %s it holds yet — that is 'we have not heard "
                       "from it', not 'it has none'. It publishes on its next heartbeat."
-                      % (out["who"] or machine))
+                      % (out["who"] or machine, spec["label"]))
     return out
 
 
@@ -20255,7 +20323,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2328",
+        "ver": "v2329",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22019,7 +22087,9 @@ class Handler(BaseHTTPRequestHandler):
             # holds end to end.
             import urllib.parse as _up
             _q = _up.parse_qs((self.path.split("?", 1) + [""])[1])
-            self._json(200, fleet_compare((_q.get("machine") or [""])[0]))
+            # v2329 — the ledger reaches the function that has always taken one.
+            self._json(200, fleet_compare((_q.get("machine") or [""])[0],
+                                          (_q.get("ledger") or ["sets"])[0]))
             return
         if path == "/api/chronicle_sweep":
             # v1519 — progress + result of the REAL sweep. GET never starts one; starting spends

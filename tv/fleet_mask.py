@@ -49,6 +49,55 @@ def roster_fingerprint(source_hash):
     return str(source_hash or "")[:FINGERPRINT_LEN]
 
 
+# ══ v2329 — TWO LEDGERS, ONE TABLE ═══════════════════════════════════════════════════════════
+# Konyo: "i love the FLEET you made it cross reference the SETS now i want it also for Uniques in
+# the exact same format."
+#
+# Everything here was already ledger-agnostic — encode(), compare() and load_roster()'s `key`
+# argument were all written for this — and unique_roster.json (398 names) has existed since v1795
+# under the same sourceHash as set_roster.json. Three things were not:
+#
+#   · fleet_compare(machine, ledger="sets") ACCEPTED a ledger it could not honour: it called
+#     load_roster() with the SET defaults whatever it was asked for, so uniques bits would have
+#     been decoded against the sets roster and named 135 wrong items with total confidence. That
+#     is the worst failure shape this module has — worse than refusing, because it answers.
+#   · the beacon published a hardcoded {"sets": mask}
+#   · the route never passed the argument through
+#
+# So the ledger stops being a string anyone can invent and becomes a TABLE. A name that is not in
+# it is refused; a ledger in it carries its own roster file, its own key inside that file, and its
+# own board store — no caller assembles those three by hand ever again. [[copy-drift]]
+LEDGERS = {
+    "sets":    {"roster": "set_roster.json",    "key": "pieces", "store": "d2r_setPieces",
+                "label": "set pieces"},
+    "uniques": {"roster": "unique_roster.json", "key": "names",  "store": "d2r_owned",
+                "label": "uniques"},
+}
+
+
+def ledger_spec(ledger):
+    """-> (spec, None) or (None, why). An unknown ledger is REFUSED, never defaulted to sets:
+    silently answering about a different ledger than the one asked for is how a cross-reference
+    comes back confident and wrong."""
+    name = str(ledger or "").strip().lower()
+    if name not in LEDGERS:
+        return None, ("unknown ledger %r — this machine knows %s"
+                      % (ledger, ", ".join(sorted(LEDGERS))))
+    return dict(LEDGERS[name], name=name), None
+
+
+def load_roster_for(ledger):
+    """The ordered roster for ONE ledger. -> (names, fingerprint) or (None, None).
+
+    Same contract as load_roster: UNREADABLE IS NOT EMPTY. Returning [] would make every mask
+    encode as all-zeros and the cross-reference would report that nobody owns anything.
+    """
+    spec, why = ledger_spec(ledger)
+    if not spec:
+        return None, None
+    return load_roster(os.path.join(HERE, spec["roster"]), key=spec["key"])
+
+
 def load_roster(path=None, key="pieces"):
     """-> (ordered names, fingerprint) or (None, None) when the roster cannot be read.
 

@@ -238,12 +238,19 @@ class TestTheWholeChainAgreesWithItself(unittest.TestCase):
     def test_the_board_encoder_and_the_python_encoder_produce_the_SAME_BITS(self):
         """If these two ever disagree, the console decodes his cousin's mask with a shifted bit
         order and names real pieces that are simply the wrong ones."""
+        # v2329 — the anchors follow the code. board_set_mask() became board_mask(ledger) when the
+        # cross-reference grew a second ledger, and _mask_cached() gained a parameter, so BOTH
+        # anchors here named signatures that no longer exist and this case died on
+        # "substring not found" rather than on anything about bit order. Anchored on the function
+        # NAMES now, not on their argument lists, which is the part that was never the point.
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        i = src.index("def board_set_mask()")
-        body = src[i:src.index("def _mask_cached()", i)]
-        m = re.search(r"js = \((.*?)\n          % json\.dumps\(roster\)\)", body, re.S)
+        i = src.index("def board_mask(")
+        body = src[i:src.index("def _mask_cached(", i)]
+        m = re.search(r"js = \((.*?)\n          % \(json\.dumps\(roster\)", body, re.S)
         self.assertIsNotNone(m, "the board encoder moved — this test is reading the wrong lines")
-        js = eval("(" + m.group(1) + ")") % json.dumps(self.roster)     # noqa: S307 — our own source
+        # the JS now takes (roster, storeKey); the bit order is what this case is about, so the
+        # store name is fed a placeholder and only the roster half is exercised.
+        js = eval("(" + m.group(1) + ")") % (json.dumps(self.roster), '"d2r_setPieces"')  # noqa: S307
 
         # ⚠ A CONTIGUOUS PREFIX CANNOT TELL TWO BIT ORDERS APART, and my first version of this test
         # used one. roster[:120] sets every bit of bytes 0-14, so each byte is 0xFF whichever end

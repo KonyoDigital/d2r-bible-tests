@@ -4733,12 +4733,41 @@
   .fleet-clickable { cursor: pointer; border-radius: 6px; }
   .fleet-clickable:hover { background: rgba(255,255,255,.05); }
   .fleet-clickable:focus-visible { outline: 1px solid var(--edge-hi, rgba(255,255,255,.3)); }
-  .fleet-xref { margin-top: 8px; padding: 8px 9px; border-radius: 8px;
-    border: 1px solid var(--edge, rgba(255,255,255,.12)); background: rgba(0,0,0,.24); }
+  /* ══ v2329 — THE CROSS-REFERENCE IS A WINDOW NOW, NOT A STRIP IN THE RAIL ═══════════════════
+     Konyo: "so maybe like a window popup that opens up ontop of this.. so there room to design
+     properly and structure it symmetrically and nicely."
+
+     It lived inside the fleet card, which on his rail is ~158px of usable width — the reason the
+     columns had to stack and the names had to wrap. As a centred overlay it gets the room the
+     content always needed, and the two directions can finally sit side by side at any width.
+     [[d2r-css-last-rule-wins]] */
+  .fleet-xref { position: fixed; inset: 0; z-index: 940; display: flex; align-items: center;
+    justify-content: center; padding: 24px; background: rgba(0,0,0,.62);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
   .fleet-xref[hidden] { display: none; }
-  .fx-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 6px; }
-  .fx-head b { color: var(--gold-bright, #f0c060); font-size: var(--fs-xs); }
-  .fx-sub { color: var(--text-muted, #b5a48a); font-size: var(--fs-2xs); flex: 1; }
+  .fleet-xref > .fxr-win { width: min(1080px, 94vw); max-height: min(86vh, 900px);
+    display: flex; flex-direction: column; border-radius: 12px; padding: 14px 16px 16px;
+    border: 1px solid var(--edge, rgba(255,255,255,.16)); background: var(--panel, #14100c);
+    box-shadow: 0 24px 70px rgba(0,0,0,.62); overflow: hidden; }
+  /* ⚠ SCOPED. `.fx-head` is ALSO the forensics overlay's header (declared far above with its own
+     padding and border), and two bare `.fx-head` rules at equal specificity means the later one
+     wins for BOTH — the forensics head had been quietly taking this panel's baseline alignment
+     and 7px gap. Scoping it here returns that header to what it was authored as, and stops the
+     next .fx-* class either component adds from reaching across. */
+  .fleet-xref .fx-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 6px;
+    flex: none; }
+  .fleet-xref .fx-head b { color: var(--gold-bright, #f0c060); font-size: var(--fs-sm); }
+  .fleet-xref .fx-sub { color: var(--text-muted, #b5a48a); font-size: var(--fs-2xs); flex: 1; }
+  .fleet-xref .fx-body { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+  /* the ledger switch — one window, two ledgers, so he never has to remember which button he
+     pressed to get here */
+  .fxr-tabs { display: flex; gap: 6px; margin: 0 0 10px; flex: none; }
+  .fxr-tab { border: 1px solid var(--edge, rgba(255,255,255,.16)); background: rgba(0,0,0,.28);
+    color: var(--text-muted, #b5a48a); border-radius: 999px; padding: 5px 13px; cursor: pointer;
+    font: var(--fw-medium) var(--fs-2xs)/1 var(--mono, monospace); letter-spacing: .4px; }
+  .fxr-tab[aria-selected="true"] { color: var(--gold-bright, #f0c060);
+    border-color: rgba(240,192,96,.5); background: rgba(240,192,96,.10); }
+  .fxr-tab:hover { color: var(--text, #e8dcc8); }
   .fx-x { background: none; border: none; color: var(--text-muted, #b5a48a); cursor: pointer;
     font-size: var(--fs-xs); line-height: 1; padding: 2px 4px; }
   .fx-x:hover { color: var(--text, #e8dcc8); }
@@ -4746,6 +4775,10 @@
      at 901 the drawer is ~158px of usable width and two columns there would shred every name */
   .fx-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
   @media (min-width: 1200px) { .fx-cols { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } }
+  /* v2329 — inside the window the width is the WINDOW's, not the rail's, so the old 1200px
+     viewport breakpoint no longer describes the space this grid actually has. */
+  .fleet-xref .fx-cols { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; }
+  @media (max-width: 760px) { .fleet-xref .fx-cols { grid-template-columns: minmax(0,1fr); } }
   .fx-col { min-width: 0; }
   .fx-col-h { display: flex; align-items: baseline; gap: 5px; font-size: var(--fs-2xs);
     color: var(--text-muted, #b5a48a); text-transform: uppercase; letter-spacing: .5px;
@@ -16191,29 +16224,56 @@ function escC(s) {
      a board that cannot be read, two machines on different rosters — each of those produces an
      EMPTY list from a naive implementation, which reads as "you are level with him" and is the one
      wrong answer that costs him a farming session. [[unknown-stays-unknown]] [[stale-reading]] */
-  window._fleetCompare = async function (machine) {
+  /* v2329 — ONE WINDOW, TWO LEDGERS. Konyo: "i want it also for Uniques in the exact same
+     format." The format IS the same because it is the same function — the ledger is an argument,
+     not a second copy of this renderer. Its own v2248 note says why: "Two copies of a routing
+     rule only ever get fixed once." [[copy-drift]] */
+  var _FXR_LEDGERS = {
+    sets:    { label: 'set pieces', rarity: 'set',    tab: 'SETS' },
+    uniques: { label: 'uniques',    rarity: 'unique', tab: 'UNIQUES' }
+  };
+  window._fleetCompare = async function (machine, ledger) {
     var box = document.getElementById('fleet-xref');
     if (!box) return;
     if (!machine) { box.hidden = true; return; }
+    ledger = _FXR_LEDGERS[ledger] ? ledger : 'sets';
+    var SPEC = _FXR_LEDGERS[ledger];
     box.hidden = false;
-    box.innerHTML = '<div class="fx-wait">cross-referencing…</div>';
+    box.innerHTML = '<div class="fxr-win"><div class="fx-wait">cross-referencing…</div></div>';
     var j = null;
     try {
-      var r = await fetch('/api/fleet_compare?machine=' + encodeURIComponent(machine),
+      var r = await fetch('/api/fleet_compare?machine=' + encodeURIComponent(machine)
+                          + '&ledger=' + encodeURIComponent(ledger),
                           { cache: 'no-store' });
       j = await r.json();
     } catch (e) { j = null; }
     if (!j) {
-      box.innerHTML = '<div class="fx-head"><b>cross-reference</b>'
+      box.innerHTML = '<div class="fxr-win"><div class="fx-head"><b>cross-reference</b>'
         + '<button class="fx-x" type="button" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
-        + '<div class="fx-why">the console did not answer — this is UNKNOWN, not "you are level"</div>';
+        + '<div class="fx-why">the console did not answer — this is UNKNOWN, not "you are level"</div></div>';
       return;
     }
+    var tabs = '<div class="fxr-tabs" role="tablist">'
+      + Object.keys(_FXR_LEDGERS).map(function (k) {
+          return '<button class="fxr-tab" type="button" role="tab" aria-selected="'
+            + (k === ledger ? 'true' : 'false') + '"'
+            /* ⚠ &quot; ON BOTH ARGUMENTS. The first cut used JSON.stringify(machine), which emits
+               REAL double quotes — inside a double-quoted onclick attribute that ends the
+               attribute at the first one, so the handler was truncated and the tab did nothing.
+               It rendered perfectly and was inert, which is the worst kind of broken: the button
+               is there, it highlights, and the panel simply never changes. */
+            + ' onclick="window._fleetCompare(&quot;' + escC(String(machine)) + '&quot;,&quot;'
+            + k + '&quot;)">'
+            + escC(_FXR_LEDGERS[k].tab) + '</button>';
+        }).join('')
+      + '</div>';
     var head = '<div class="fx-head"><b>' + escC(j.who || machine) + '</b>'
-      + '<span class="fx-sub">set pieces · yours vs theirs</span>'
-      + '<button class="fx-x" type="button" title="close" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>';
+      + '<span class="fx-sub">' + escC(SPEC.label) + ' · yours vs theirs</span>'
+      + '<button class="fx-x" type="button" title="close" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
+      + tabs;
     if (!j.ok) {
-      box.innerHTML = head + '<div class="fx-why">' + escC(j.why || 'no answer') + '</div>';
+      box.innerHTML = '<div class="fxr-win">' + head
+        + '<div class="fx-why">' + escC(j.why || 'no answer') + '</div></div>';
       return;
     }
     /* art comes from the BOARD, which owns artUrl — asking it is what keeps the console from
@@ -16249,7 +16309,7 @@ function escC(s) {
       /* a SET piece, so the card paints it in the board's set green rather than a neutral chip.
          `facts` carries only what this panel already computed — nothing derived, nothing invented. */
       var itip = _itipAttr({
-        name: n, rarity: 'set', art: u,
+        name: n, rarity: SPEC.rarity, art: u,
         facts: [[mine ? 'you have it' : 'they have it', mine ? 'they do not' : 'you do not']]
       });
       return '<div class="fx-item"' + itip + '>'
@@ -16278,19 +16338,19 @@ function escC(s) {
       if (s < 172800) return Math.round(s / 3600) + 'h ago';
       return Math.round(s / 86400) + 'd ago';
     };
-    box.innerHTML = head
-      + '<div class="fx-cols">'
+    box.innerHTML = '<div class="fxr-win">' + head
+      + '<div class="fx-body"><div class="fx-cols">'
       + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', false)
       + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', true)
       + '</div>'
       + '<div class="fx-foot">' + (j.mineN | 0) + ' / ' + (j.rosterN | 0) + ' yours · '
       + (j.theirsN | 0) + ' / ' + (j.rosterN | 0) + ' theirs · ' + (j.both | 0) + ' shared'
       + '<span class="fx-age"> · your list ' + escC(age(j.mineAt))
-      + ', theirs ' + escC(age(j.theirAt)) + '</span></div>';
+      + ', theirs ' + escC(age(j.theirAt)) + '</span></div></div></div>';
     } catch (err) {
-      box.innerHTML = head
+      box.innerHTML = '<div class="fxr-win">' + head
         + '<div class="fx-why">the answer arrived and this panel could not draw it \u2014 '
-        + escC(String((err && err.message) || err)) + '</div>';
+        + escC(String((err && err.message) || err)) + '</div></div>';
     }
   };
 

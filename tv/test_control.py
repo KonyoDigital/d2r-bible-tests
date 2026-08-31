@@ -6866,7 +6866,7 @@ class TestV2274TheConsoleMustNotASKITSELFForBoardFunctions(unittest.TestCase):
     #: control_ui.html defines NONE of those, so asking _MAIN_WIN can only ever refuse.
     BOARD_EVALUATORS = [
         ("chronicle_apply", "window.chronicleApply"),
-        ("board_set_mask", "the mask the board draws"),
+        ("board_mask", "the mask the board draws"),   # v2329 — was board_set_mask
         ("board_ownership", "d2r_owned / _D2R_PFX"),
         ("board_tick", "toggleOwned / toggleSetPiece / tvVaultRegister"),
         ("board_restore_dates", "window.restoreLedgerDatesFromGame"),
@@ -10956,7 +10956,10 @@ class TestV2213TheFleetCrossReferenceIsJoinedEndToEnd(unittest.TestCase):
         self.assertIn('"masks"', body,
                       "the beacon does not send the mask, so no machine can publish which pieces "
                       "it holds and the box will say 'not reported yet' forever")
-        self.assertIn("_mask_cached()", body)
+        # v2329 — the beacon carries EVERY ledger it can build, via _masks_for_wire(), rather
+        # than one hardcoded _mask_cached() call. The joint this case exists to protect is
+        # unchanged: the mask has to actually reach the wire.
+        self.assertIn("_masks_for_wire()", body)
 
     def test_the_worker_stores_the_mask_it_is_sent(self):
         self.assertIn("masks:", self.worker,
@@ -11002,9 +11005,20 @@ class TestV2213TheFleetCrossReferenceIsJoinedEndToEnd(unittest.TestCase):
                       "against a three-day-old list is a three-day-old answer.")
 
     def test_the_item_names_never_leave_this_machine(self):
-        fn = _between(self, self.app, "def board_set_mask()", "def _mask_cached()",
+        fn = _between(self, self.app, "def board_mask(", "def _mask_cached(",
                       what="the board mask reader")
-        self.assertIn("d2r_setPieces", fn, "the mask no longer reads the board's own set pieces")
+        # v2329 — the store key MOVED, it did not vanish. board_mask now takes the localStorage
+        # key from the ledger table instead of hardcoding one, so the literal lives in
+        # fleet_mask.LEDGERS. The thing this case protects — that the mask reads the board's own
+        # ledger and nothing else — is checked in BOTH halves rather than dropped because the
+        # string it used to grep for moved one file over. [[label-outlived-referent]]
+        self.assertIn('spec["store"]', fn,
+                      "the mask no longer reads a per-ledger store key from the ledger table")
+        import fleet_mask as _fm
+        self.assertEqual(_fm.LEDGERS["sets"]["store"], "d2r_setPieces",
+                         "the sets ledger no longer points at the board's own set pieces")
+        self.assertEqual(_fm.LEDGERS["uniques"]["store"], "d2r_owned",
+                         "the uniques ledger no longer points at the board's owned list")
         self.assertIn("btoa", fn, "the board no longer encodes — names would have to travel")
         self.assertNotIn("json.dumps(sp)", fn,
                          "the board is serialising its piece list, which would put item names into "
@@ -33487,6 +33501,132 @@ class TestV2328AnEmptyDockMeansTwoOppositeThings(unittest.TestCase):
                       "data-owned is not derived from the owned pool - it cannot tell the two "
                       "empty states apart")
         self.assertNotIn("unsorted", rule)
+
+
+class TestV2329TheCrossReferenceHasTwoLedgers(unittest.TestCase):
+    """Konyo: "i love the FLEET you made it cross reference the SETS now i want it also for
+    Uniques in the exact same format ... maybe like a window popup that opens up ontop of this."
+
+    The format IS the same because it is the same code — the ledger became an argument rather
+    than a second copy of the renderer, which is what the panel's own v2248 note demanded:
+    "Two copies of a routing rule only ever get fixed once."
+
+    ⚠ THE DANGEROUS PART WAS ALREADY THERE. fleet_compare(machine, ledger="sets") ACCEPTED a
+    ledger and then called load_roster() with the SET defaults whatever it was asked for. A
+    uniques comparison would have decoded uniques bits against the 135-name sets roster and NAMED
+    THE WRONG ITEMS with full confidence. An argument that is accepted and not honoured is worse
+    than one that does not exist, because the caller has no way to tell.
+    """
+
+    def test_both_rosters_load_and_are_different_lengths(self):
+        import fleet_mask as fm
+        sets_names, sfp = fm.load_roster_for("sets")
+        uni_names, ufp = fm.load_roster_for("uniques")
+        self.assertTrue(sets_names and uni_names, "a roster did not load")
+        self.assertNotEqual(len(sets_names), len(uni_names),
+                            "both ledgers returned the same roster - the ledger is being ignored")
+        self.assertEqual(sfp, ufp,
+                         "the two rosters carry different fingerprints, so they were generated "
+                         "from different bibles and a comparison across them would be meaningless")
+
+    def test_an_unknown_ledger_is_REFUSED_and_never_defaulted_to_sets(self):
+        import fleet_mask as fm
+        spec, why = fm.ledger_spec("wardrobe")
+        self.assertIsNone(spec)
+        self.assertIn("unknown ledger", why)
+        r = ca.fleet_compare("anyone", "wardrobe")
+        self.assertIs(r.get("ok"), False)
+        self.assertIn("unknown ledger", str(r.get("why")))
+
+    def test_fleet_compare_decodes_against_the_LEDGERS_OWN_roster(self):
+        """[[the-unjoined-end]] - the argument must reach the roster loader, not just be stored."""
+        import inspect
+        src = inspect.getsource(ca.fleet_compare)
+        self.assertIn("load_roster_for(ledger)", src,
+                      "fleet_compare still loads a roster without reference to the ledger - a "
+                      "uniques comparison would name set pieces")
+
+    def test_the_route_passes_the_ledger_through(self):
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        route = _between(self, src, 'self._json(200, fleet_compare(', "))",
+                         what="the fleet_compare route", min_len=20)
+        self.assertIn("ledger", route,
+                      "the route drops the ledger, so the UI can only ever ask for sets")
+
+    def test_each_ledger_has_its_OWN_cache_slot(self):
+        """One shared slot would serve the sets mask AS the uniques mask for five minutes. That is
+        not a stale answer, it is a WRONG one - different roster, different items.
+        [[label-outlived-referent]]"""
+        self.assertEqual(sorted(ca._MASK_CACHE), ["sets", "uniques"])
+        for led in ("sets", "uniques"):
+            self.assertIn("t", ca._MASK_CACHE[led])
+            self.assertIn("val", ca._MASK_CACHE[led])
+        self.assertIsNone(ca._mask_cached("wardrobe"),
+                          "an unknown ledger got a cache slot and therefore a guess")
+
+    def test_no_reader_still_treats_the_cache_as_a_FLAT_dict(self):
+        """The one that actually bit: fleet_compare read _MASK_CACHE["t"] directly, which raised
+        KeyError inside the route, which returned an EMPTY BODY, which the panel rendered as "the
+        console did not answer". A structure changed and a reader of it did not. [[sweep-dont-ask]]"""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = _code_only(fh.read())
+        for bad in ('_MASK_CACHE["t"]', '_MASK_CACHE["val"]'):
+            self.assertNotIn(bad, src,
+                             "%s reads the mask cache as if it were still flat" % bad)
+
+    # ── the window he asked for ──────────────────────────────────────────────
+    def _ui(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_panel_asks_for_a_LEDGER(self):
+        self.assertIn("&ledger=", self._ui(),
+                      "the UI fetch dropped the ledger - the popup can only ever show sets")
+
+    def test_the_tab_handler_does_not_break_its_own_attribute(self):
+        """⚠ THE ONE THAT RENDERED PERFECTLY AND DID NOTHING. The first cut built the handler with
+        JSON.stringify(machine), which emits REAL double quotes inside a double-quoted onclick
+        attribute - the attribute ends at the first one and the handler is truncated. The tab
+        appeared, highlighted on hover, and the panel never changed. A control that looks alive
+        and is inert is worse than a missing one."""
+        # ⚠ AND THE ANCHOR MUST BE UNIQUE. "var tabs = " appears TWICE in this file - the other
+        # is the self-heal's `document.getElementById('head-tabs')` - and _between takes the
+        # FIRST match, so this case was grading the shell watchdog instead of the tab strip. The
+        # first match is not the same as the right one; that is the third time this session.
+        # [[source-reading-guard]]
+        tabs = _between(self, self._ui(), "Object.keys(_FXR_LEDGERS).map", "}).join('')",
+                        what="the ledger tab strip")
+        self.assertNotIn("JSON.stringify(String(machine))", tabs,
+                         "raw quotes are back inside the onclick attribute")
+        self.assertIn("&quot;", tabs, "the handler's arguments are not attribute-safe")
+
+    def test_the_cross_reference_is_a_WINDOW_over_the_page(self):
+        """He asked for "a window popup that opens up ontop of this ... so there room to design".
+        Inline in the fleet card it had ~158px of usable width on his rail, which is why the
+        columns stacked and the names wrapped."""
+        rule = _between(self, self._ui(), ".fleet-xref { position:", "}",
+                        what="the overlay rule")
+        self.assertIn("fixed", rule, "the cross-reference went back to being a strip in the rail")
+        for prop in ("inset: 0", "z-index"):
+            self.assertIn(prop, rule, "the overlay is missing %s" % prop)
+
+    def test_the_fleet_panels_fx_head_is_SCOPED(self):
+        """`.fx-head` is ALSO the forensics overlay's header. Two bare rules at equal specificity
+        means the later one wins for BOTH, and the forensics head had been quietly taking this
+        panel's baseline alignment and 7px gap. [[d2r-css-last-rule-wins]]"""
+        ui = self._ui()
+        self.assertIn(".fleet-xref .fx-head", ui, "the fleet header rule is unscoped again")
+
+    def test_a_ledger_the_board_cannot_build_is_OMITTED_not_zeroed(self):
+        """An all-zero mask is a positive claim - "this machine owns none of them". Omitting the
+        key is what makes the far end say "we have not heard from it". [[unknown-stays-unknown]]"""
+        import inspect
+        src = inspect.getsource(ca._masks_for_wire)
+        self.assertIn("if m:", src, "a falsy mask is no longer filtered out before the wire")
+        self.assertIn("or None", src,
+                      "with nothing buildable it must return None so the beacon omits the field "
+                      "entirely, exactly as it did before this existed")
 
 
 if __name__ == "__main__":

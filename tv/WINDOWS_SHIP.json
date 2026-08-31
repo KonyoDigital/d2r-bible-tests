@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2328",
+  "ver": "v2329",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2328: an empty vault was congratulated on being in perfect order because the CSS empty state cannot tell nothing-left-to-file from nothing-to-file",
+  "note": "v2329: the fleet cross-reference covers uniques as well as sets in one popup window, and fleet_compare stops accepting a ledger argument it never honoured",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

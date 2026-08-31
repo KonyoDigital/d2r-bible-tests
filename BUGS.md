@@ -12950,6 +12950,60 @@ Three siblings in the same function, all confirmed and all fixed in v2225:
 path directly; the two tests carrying the v2223 lesson now run on a synthetic plan instead of
 `skipTest`-ing wherever his footage is absent (i.e. CI and every machine but his).
 
+## REG-408 — fleet_compare accepted a `ledger` it could not honour (v2329)
+
+Konyo asked for the fleet cross-reference to cover **Uniques** as well as Sets, "in the exact same
+format ... maybe like a window popup that opens up ontop of this, so there room to design".
+
+Building it found something worse than a missing feature. `fleet_compare(machine, ledger="sets")`
+**took a ledger argument and then loaded the SET roster regardless**:
+
+```python
+roster, fp = _fm.load_roster()        # set_roster.json, key="pieces", always
+```
+
+A uniques comparison would have decoded uniques bits against the 135-name sets roster and **named
+the wrong items with full confidence**. An argument that is accepted and not honoured is worse
+than one that does not exist, because the caller has no way to tell.
+
+Everything else was already ledger-agnostic — `encode()`, `compare()` and `load_roster(path, key)`
+were written for this, and `unique_roster.json` (398 names, same `sourceHash`) has existed since
+v1795. What was missing: the ledger stops being a string anyone can invent and becomes a **table**
+(`fleet_mask.LEDGERS`) carrying its roster file, its key, its board store and its label. An unknown
+ledger is refused, never defaulted.
+
+**Also fixed on the way:**
+
+* the beacon published a hardcoded `{"sets": mask}`; it now publishes every ledger the board can
+  build, and **omits** any it cannot — an all-zero mask is a positive claim ("owns none of them")
+* the route never passed `ledger` through, so the UI could only ever ask for sets
+* `_MASK_CACHE` became one slot per ledger — a shared slot would serve the sets mask AS the
+  uniques mask for five minutes, which is not stale but **wrong**, different roster, different items
+* the "has not reported which **pieces** it holds" refusal said set wording on a uniques
+  comparison — the ledger names itself there now
+
+**Two of my own defects, both found by running it rather than reading it:**
+
+1. `fleet_compare` read `_MASK_CACHE["t"]` directly. I changed that structure and missed the
+   reader → `KeyError` inside the route → **empty response body** → the panel rendered "the
+   console did not answer". A structure changed, a reader did not, and it surfaced three layers
+   away as a polite sentence about the network. [[sweep-dont-ask]]
+2. The ledger tabs were built with `JSON.stringify(machine)`, which emits **real double quotes
+   inside a double-quoted `onclick` attribute** — the attribute ends at the first one and the
+   handler is truncated. The tab rendered perfectly, highlighted on hover, and did nothing. **A
+   control that looks alive and is inert is worse than a missing one.**
+
+**And a CSS collision, fixed while in there:** `.fx-head` is *also* the forensics overlay's header.
+Two bare rules at equal specificity means the later wins for BOTH, so the forensics head had been
+quietly taking the fleet panel's baseline alignment and 7px gap. The fleet's copy is scoped now.
+[[d2r-css-last-rule-wins]]
+
+**Guards:** `TestV2329TheCrossReferenceHasTwoLedgers`, six sabotages proven RED.
+⚠ One guard was grading the wrong code: `_between(ui, "var tabs = ", …)` matched the **first** of
+FOUR occurrences — the shell self-heal's `getElementById('head-tabs')`. The first match is not the
+same as the right one, and that is the third time this session. Re-anchored on a string that
+appears exactly once.
+
 ## REG-407 — an empty vault was told it was in perfect order (v2328)
 
 **Found by a cold cross-family read of the Vault tab**, which put it exactly right:
