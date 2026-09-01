@@ -50,7 +50,7 @@ OWED_PATIENCE_H = 24.0
 def check(path=None, now_ms=None):
     """-> (code, lines). 0 green · 1 a real finding · 2 UNKNOWN (which is not a pass)."""
     import human_eyes_ledger as H
-    out = []
+    out, red = [], []
     st = H.state(path)
     if st is None:
         return 2, ["⚪ UNKNOWN — the human-eyes ledger could not be read. That is not agreement, "
@@ -61,6 +61,7 @@ def check(path=None, now_ms=None):
                    "catch: built at both ends, joined at neither."]
     ok, why = H.proven(path)
     if not ok:
+        red.append(1)
         out.append("🔴 the loop has never completed end to end: %s" % why)
     else:
         out.append("🟢 the loop has completed end to end at least once.")
@@ -76,11 +77,20 @@ def check(path=None, now_ms=None):
         # [[feedback-suspect-the-instrument]]
         ts = r.get("sentTs") or r.get("ts") or r.get("at") or 0
         age_h = (now - int(ts)) / 3600000.0 if ts else None
+        # ⚠ A BRIEF FROM THE FUTURE IS UNREADABLE, NOT FRESH. If the clock moved back, or a row
+        # carries a timestamp ahead of now, the age goes NEGATIVE — and negative is never
+        # `> OWED_PATIENCE_H`, so a brief stuck forever reads as comfortably within patience. That
+        # is a green produced by an impossible number, which is the worst kind. An age I cannot
+        # compute is UNKNOWN and gets flagged, exactly like a missing timestamp.
+        # [[unknown-stays-unknown]] [[stale-reading]]
+        if age_h is not None and age_h < 0:
+            age_h = None
         if age_h is None:
             stale.append((r.get("brief"), None))
         elif age_h > OWED_PATIENCE_H:
             stale.append((r.get("brief"), age_h))
     if stale:
+        red.append(1)
         out.append("🔴 %d brief(s) asked and never answered past %.0fh:" % (len(stale), OWED_PATIENCE_H))
         for b, age in stale:
             out.append("     %-28s %s" % (b, ("%.1fh" % age) if age is not None else
@@ -94,7 +104,15 @@ def check(path=None, now_ms=None):
     looked = [r for r in st if r.get("verdict") == "LOOKED"]
     out.append("   %d brief(s) recorded · %d answered with a LOOK · %d still owed"
                % (len(st), len(looked), len(owed)))
-    return (1 if any(l.startswith("🔴") for l in out) else 0), out
+    # ⚠ THE VERDICT IS A FLAG, NEVER A STRING MATCH ON ITS OWN OUTPUT. This read
+    # `any(l.startswith("🔴") for l in out)`, which makes the exit code a property of how the
+    # messages are WORDED: reword a finding, or lose an emoji to an encoding round trip, and a real
+    # RED silently returns 0. Found by a cold cross-family read of this function (v2404's owed
+    # second-eye look) — and it is the SECOND instance of this exact shape today: the visual lock's
+    # footer selector read `"weight" in f` and matched the word "weight" inside the SIZE failure's
+    # own explanation. A verdict derived from prose is a verdict any editor can flip.
+    # [[source-reading-guard]] [[feedback-comments-vs-code]]
+    return (1 if red else 0), out
 
 
 def prove():
@@ -114,7 +132,18 @@ def prove():
         print("   %s empty ledger          want 1  got %d" % ("🟢" if ok else "🔴", code))
 
         # 2. a brief sent and never answered, older than the patience, is a finding
+        # ⚠ v2405 — THIS FIXTURE WAS VACUOUS AND PASSED FOR THE WRONG REASON FOR A WHOLE SHIP.
+        # It held ONE unanswered brief and nothing else, so `proven()` failed it ("no round trip
+        # has completed") and appended its own RED line — the gate returned 1 whether or not the
+        # staleness check existed at all. Proof: deleting the age comparison entirely left this
+        # case green. A sabotage that survives the removal of the code it targets is measuring
+        # something else. So the fixture now carries a COMPLETED round trip FIRST, which makes
+        # proven() green and leaves the stuck brief as the ONLY thing that can turn it red.
+        # [[sabotage-is-usually-the-wrong-one]] [[feedback-blind-fixture-green-gate]]
         owed_p = os.path.join(d, "owed.jsonl")
+        H.send("HE-DONE", "an answered brief, so proven() cannot be the thing that reds this",
+               path=owed_p)
+        H.observed("HE-DONE", "the pane showed 16", "LOOKED", path=owed_p)
         H.send("HE-TEST", "a claim nobody answered", path=owed_p)
         old = int(time.time() * 1000) + int(OWED_PATIENCE_H * 3600000) + 60000
         code, _ = check(owed_p, now_ms=old)
@@ -130,6 +159,25 @@ def prove():
         ok = code == 0
         bad += 0 if ok else 1
         print("   %s answered round trip    want 0  got %d" % ("🟢" if ok else "🔴", code))
+        if not ok:
+            for l in lines:
+                print("        %s" % l)
+
+        # 5. ⚠ A BRIEF FROM THE FUTURE. v2405 — a cold cross-family read of check() pointed out
+        #    that `now - sentTs` goes NEGATIVE under clock skew, and negative is never
+        #    `> OWED_PATIENCE_H`, so a permanently stuck brief reads as comfortably fresh. Same
+        #    fixture as case 2, same stuck brief, only the clock disagrees — and before the fix
+        #    this returned 0. An impossible age must be UNKNOWN, never young.
+        skew_p = os.path.join(d, "skew.jsonl")
+        H.send("HE-DONE", "an answered brief, for the same anti-vacuity reason as case 2",
+               path=skew_p)
+        H.observed("HE-DONE", "the pane showed 16", "LOOKED", path=skew_p)
+        H.send("HE-TEST", "a brief whose clock ran backwards", path=skew_p)
+        past = int(time.time() * 1000) - 90 * 86400000     # 'now' is 90 days BEFORE it was sent
+        code, lines = check(skew_p, now_ms=past)
+        ok = code == 1
+        bad += 0 if ok else 1
+        print("   %s brief from the future   want 1  got %d" % ("🟢" if ok else "🔴", code))
         if not ok:
             for l in lines:
                 print("        %s" % l)

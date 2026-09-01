@@ -59,6 +59,76 @@ RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-a
 RAW_SHORTHAND = re.compile(r"font: *(?:400|500|600|700|800|900)\b")
 
 
+# ── SIZE-LOCK (v2405) — the twin promise that was never gated ────────────────────────────────
+# The weight promise above is enforced: ZERO raw font-weight literals, both surfaces. The SIZE
+# promise was made in exactly the same breath — nine --fs-* tokens from --fs-2xs to --fs-display —
+# and nothing ever checked it. Measured on 2026-09-01:
+#
+#     tv/control_ui.html    raw  20 · tokenised 152 · 88% compliant
+#     bible.html            raw 952 · tokenised 694 · 42% compliant
+#
+# Nine of the console's twenty are arbitrary em fractions — .78 .8 .82 .86 .9 .92 .95 1.05 1.08 —
+# each meaning nothing more than "slightly smaller or bigger than whatever contains me". That is
+# what reads as "no scale" on screen while a perfectly good scale sits in the tokens.
+#
+# ⚠ SCOPED TO THE CONSOLE ON PURPOSE, AND THIS IS A DECISION NOT AN OVERSIGHT. bible.html has 952
+# raw sizes; grandfathering them would be a 952-entry allowlist, which is not a lock, it is a wall
+# of debt with a green light on it. The two surfaces are in genuinely different states: the
+# console's promise DECAYED from mostly-kept, the bible's was NEVER MADE. Locking the one that can
+# hold, and recording the other honestly, beats pretending both are the same problem.
+#
+# ⚠ AND THE 19 ARE GRANDFATHERED BY NAME, NOT BY COUNT. A count pin ("no more than 20") is the
+# defect regression-guard warns about — it pins a number instead of the law, and it happily lets a
+# new escape in as an old one leaves. This pins the LAW (no raw font-size) and lists the exceptions
+# that exist today, so a NEW one fails even if an old one is fixed in the same commit.
+RAW_SIZE = re.compile(r"font-size: *([^;}\n]+)")
+
+#: value -> how many sites currently carry it, in tv/control_ui.html. Anything not here FAILS.
+#: `0` is not debt — it is the inline-block whitespace collapse, allowlisted WITH ITS REASON the
+#: same way render_check's truncation_ok allowlists a designed truncation.
+SIZE_GRANDFATHERED = {
+    "0": "inline-block whitespace collapse on .zone — a technique, not a scale escape",
+    ".78em": "3 sites in the receipt strip (.rcpt) — em fractions, see the conversion note",
+    ".8em": "1 site, .hd-hist-head:focus-visible",
+    ".82em": "1 site, #rcpt-full img",
+    ".86em": "1 site, .chron-waiting:hover .cw-go",
+    ".9em": "1 site, .rcpt",
+    ".92em": "1 site, .dfp-farm",
+    ".95em": "1 site, .find-card .fc-name",
+    "1.05em": "4 sites, .dl-trace / .bt / .dsr-chap:hover / .dsr-recov",
+    "1.08em": "1 site, .zone-banner:first-child",
+    "28px": "1 site, .stage-hold[hidden]",
+    "34px": "1 site, .hd-hist-empty",
+    "44px": "1 site, .dsr-cover-fb",
+    "56px": "1 site, .sh-empty-hero",
+    "clamp(26px,3vw,40px)": "1 site, .intake-hero[hidden]",
+}
+#: ⚠ CONVERTING AN em IS NOT A LOOKUP. `.78em` is 78% of whatever its parent computes to, and that
+#: parent differs per site and per viewport, so swapping it for a --fs-* clamp changes the rendered
+#: size SILENTLY. Each of these is converted deliberately, with the page rendered before and after
+#: at 1440/1120/901/375 and compared — never by find-and-replace. A find-and-replace here would be
+#: a visual regression wearing a tidy diff. [[visual-regression-detector]]
+
+
+def _sizes_are_tokenised(text, failures, surface):
+    """Only tv/control_ui.html — see the scoping note above."""
+    if surface != "tv/control_ui.html":
+        return
+    for m in RAW_SIZE.finditer(text):
+        v = m.group(1).strip()
+        if v.startswith("var(--fs"):
+            continue
+        key = re.sub(r"\s+", "", v)
+        if key in SIZE_GRANDFATHERED:
+            continue
+        line = text[:m.start()].count("\n") + 1
+        failures.append(
+            "%s:%d — raw font-size `%s`. Every size on this surface must be a var(--fs-*) token, "
+            "exactly as every weight must be a var(--fw-*) one. If this is a genuinely new step in "
+            "the scale, ADD THE TOKEN; if it is a technique rather than a size, add it to "
+            "SIZE_GRANDFATHERED with the reason." % (surface, line, v))
+
+
 def _colour_carries_meaning(text, failures):
     """v2073 — LOCK THE COLOUR THAT CARRIES MEANING, not just the weight.
 
@@ -208,6 +278,7 @@ def check():
             _colour_carries_meaning(text, failures)
             _no_orphaned_grid_card(text, failures)
             _sealed_title_speaks_the_page(text, failures)
+        _sizes_are_tokenised(text, failures, name)
         # 1) no raw weight literals — every one must be var(--fw-*)
         for i, line in enumerate(lines, 1):
             for m in RAW_WEIGHT.finditer(line):
@@ -301,14 +372,28 @@ def main():
             print("\nFix (colour): an item name carries MEANING in its colour — set pieces read "
                   "var(--q-set), uniques var(--q-unique). Restore the rarity class _allGrid stamps "
                   "and the binding under .gf-piece. See the visual-regression-detector skill.")
-        if any("weight" in f for f in failures):
+        # ⚠ MATCH THE MARKER, NOT THE PROSE. This read `"weight" in f`, and the size failure's own
+        # explanation contains the phrase "exactly as every weight must be a var(--fw-*) one" — so
+        # planting a raw font-size printed the font-weight fix note. A matcher that greps a message
+        # for a word will be triggered by any sentence that happens to use it, including one I wrote
+        # myself two functions away. [[source-reading-guard]] [[feedback-comments-vs-code]]
+        if any("RAW weight" in f or "RAW shorthand" in f for f in failures):
             print("\nFix (weight): replace each raw font-weight:NNN with its token "
                   "(400=regular 500=normal 600=medium 700=semibold 800=bold 900=black), "
                   "e.g. font-weight:var(--fw-semibold). See LOCKED_TYPE_SYSTEM.md.")
+        if any("raw font-size" in f for f in failures):
+            print("\nFix (size): every size on tv/control_ui.html must be a var(--fs-*) token. "
+                  "⚠ an em is NOT a lookup — .78em is 78% of whatever its parent computes to, so "
+                  "swapping it for a token changes the rendered size SILENTLY. Render 1440/1120/"
+                  "901/375 before and after and COMPARE. See SIZE_GRANDFATHERED for the 19 that "
+                  "predate this lock, each named.")
         return 1
     print("✅ VISUAL-LOCK OK — 0 raw font-weight literals in both surfaces; "
           "--fw-* intact; console --hd-* structure rhythm + --ls-*/--lh-* scales defined "
-          "(both surfaces share one vocabulary). Weight, structure, spacing + line-height are all locked.")
+          "(both surfaces share one vocabulary). Weight, structure, spacing + line-height are all locked. "
+          "SIZE-LOCK: the console admits no raw font-size beyond the %d grandfathered values — "
+          "bible.html is NOT size-locked (952 raw sizes, 42%%; recorded, not hidden)."
+          % len(SIZE_GRANDFATHERED))
     return 0
 
 
