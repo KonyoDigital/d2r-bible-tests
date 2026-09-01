@@ -430,6 +430,20 @@ GATES = [
              "quoted into gh #198. What the census currently reports: 28 thread targets, 11 "
              "supervised, and SEVEN persistent loops running unwatched.",
          skip_ok=()),
+    Gate("human-eyes", [sys.executable, os.path.join(HERE, "human_eyes_gate.py"), "--prove"], 60,
+         why="v2404 — THE VISUAL HARNESS NOW REACHES SOMETHING. Konyo: 'i want this part of the "
+             "workflow.. what about the visual harness with grok bot where is that?' It was built "
+             "— ask_view.py, human_eyes_ledger.py, the skill, briefs HE-1..HE-5 as issues — and it "
+             "reached NOTHING. Its ledger held the first sighting of gh #200 ('the whole webview is "
+             "white... the beat still reports taskforce shown top=1050 in a 660px window'), correct "
+             "and acted on by nobody, in an untracked .jsonl. An observation that reaches nothing "
+             "is a diagnosis nobody made. This gate runs the checker's own SABOTAGE — empty ledger "
+             "and a brief owed past 24h must go RED, an answered round trip must go GREEN, and an "
+             "unreadable ledger must be UNKNOWN rather than a pass. ⚠ It asserts only what the "
+             "RECORD proves; the full ask — a LOOKED observation contradicting the live console "
+             "raising a blocker — needs a running console and belongs beside the render gate. "
+             "Filed, not faked.",
+         skip_ok=()),
     Gate("blueprint-agrees", [sys.executable, os.path.join(HERE, "lane_census.py"),
                               "--vs-blueprint"], 60,
          why="v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING. BLUEPRINT.md "

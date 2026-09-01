@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2403",
+  "ver": "v2404",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2403: the blueprint found lanes by whether the function was CALLED a loop, so four that run were on no map and in no roster",
+  "note": "v2404: an observation that reached nothing, and a render gate that refused a good page because the machine was busy",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

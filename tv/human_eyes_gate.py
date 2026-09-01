@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""THE HUMAN-EYES LEDGER, READ BY SOMETHING. gh #201 (A13).
+
+Konyo, 2026-09-01: *"i want this part of the workflow.. what about the visual harness with grok bot
+where is that?"*
+
+It was already built — `tv/ask_view.py`, `tv/human_eyes_ledger.py`, the `human-eyes-harness` skill,
+briefs HE-1…HE-5 as GitHub issues. And it reached NOTHING. Its ledger held a real catch:
+
+    2026-09-01 16:21:45   verdict LOOKED
+    "the whole webview is white. taskforce not visible. forge not visible. The beat still
+     reports taskforce shown H=502 top=1050 and forge shown H=181 top=1599 — both BELOW a
+     660px window. uiBeat.hidden=true while the window chrome is on screen."
+
+That observation was correct, it was the first sighting of what became gh #200, and it sat in an
+untracked `.jsonl` that nothing read. **An observation that reaches nothing is a diagnosis nobody
+made.** This file is the reaching.
+
+⚠ WHAT THIS CAN AND CANNOT ASSERT, STATED UP FRONT. The full A13 ask is that a LOOKED observation
+CONTRADICTING the live console raises a blocker. That comparison needs a running console, and a
+gate does not have one — so this asserts the half that is provable from the record alone:
+
+  · the loop has completed end to end at least once (`proven()`), because a harness that is
+    designed, documented and never exercised is indistinguishable from a working one
+  · no brief has been OWED past its patience, because a question nobody answered must not fade
+  · the ledger is READABLE — and if it is not, that is UNKNOWN (exit 2), never a pass
+
+The contradiction check belongs beside the render gate, where a live console already exists. Filed
+rather than faked; a gate that claims a comparison it never made is the defect this whole harness
+exists to catch. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+    python3 tv/human_eyes_gate.py             # the gate
+    python3 tv/human_eyes_gate.py --prove     # make it go RED for its own reason
+"""
+import io
+import json
+import os
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+#: how long a brief may sit unanswered before it is a finding rather than a wait. Generous on
+#: purpose — his eye is a person and a game session, not a CI runner.
+OWED_PATIENCE_H = 24.0
+
+
+def check(path=None, now_ms=None):
+    """-> (code, lines). 0 green · 1 a real finding · 2 UNKNOWN (which is not a pass)."""
+    import human_eyes_ledger as H
+    out = []
+    st = H.state(path)
+    if st is None:
+        return 2, ["⚪ UNKNOWN — the human-eyes ledger could not be read. That is not agreement, "
+                   "and it is not an empty ledger: the two are opposite facts."]
+    if not st:
+        return 1, ["🔴 the ledger is EMPTY — no brief has ever been sent, so the harness is "
+                   "designed and not exercised. That is the shape of every defect it exists to "
+                   "catch: built at both ends, joined at neither."]
+    ok, why = H.proven(path)
+    if not ok:
+        out.append("🔴 the loop has never completed end to end: %s" % why)
+    else:
+        out.append("🟢 the loop has completed end to end at least once.")
+
+    now = now_ms if now_ms is not None else int(time.time() * 1000)
+    owed = H.owed(path) or []
+    stale = []
+    for r in owed:
+        # ⚠ state() RENAMES IT. The rows on disk carry `ts`; state() hands back `sentTs`, and a
+        # first cut of this gate read `ts`/`at` and therefore reported "age UNKNOWN" for every
+        # brief on a ledger that timestamps all of them. It blamed his record for a field my own
+        # reader was asking for by the wrong name — the instrument, not the data.
+        # [[feedback-suspect-the-instrument]]
+        ts = r.get("sentTs") or r.get("ts") or r.get("at") or 0
+        age_h = (now - int(ts)) / 3600000.0 if ts else None
+        if age_h is None:
+            stale.append((r.get("brief"), None))
+        elif age_h > OWED_PATIENCE_H:
+            stale.append((r.get("brief"), age_h))
+    if stale:
+        out.append("🔴 %d brief(s) asked and never answered past %.0fh:" % (len(stale), OWED_PATIENCE_H))
+        for b, age in stale:
+            out.append("     %-28s %s" % (b, ("%.1fh" % age) if age is not None else
+                                          "age UNKNOWN — the row carries no timestamp"))
+        out.append("   A question nobody answered must not fade into silence. UNKNOWN closes a "
+                   "brief honestly; nothing at all does not.")
+    else:
+        out.append("🟢 no brief is owed past its patience (%d open, all within %.0fh)."
+                   % (len(owed), OWED_PATIENCE_H))
+
+    looked = [r for r in st if r.get("verdict") == "LOOKED"]
+    out.append("   %d brief(s) recorded · %d answered with a LOOK · %d still owed"
+               % (len(st), len(looked), len(owed)))
+    return (1 if any(l.startswith("🔴") for l in out) else 0), out
+
+
+def prove():
+    """Founding rule 2 — it must be seen RED for its own reason, on fixtures, never on his record."""
+    import shutil
+    import tempfile
+    import human_eyes_ledger as H
+    bad = 0
+    d = tempfile.mkdtemp(prefix="he_gate_")
+    try:
+        # 1. an EMPTY ledger is a finding, not a pass
+        empty = os.path.join(d, "empty.jsonl")
+        io.open(empty, "w").close()
+        code, _ = check(empty)
+        ok = code == 1
+        bad += 0 if ok else 1
+        print("   %s empty ledger          want 1  got %d" % ("🟢" if ok else "🔴", code))
+
+        # 2. a brief sent and never answered, older than the patience, is a finding
+        owed_p = os.path.join(d, "owed.jsonl")
+        H.send("HE-TEST", "a claim nobody answered", path=owed_p)
+        old = int(time.time() * 1000) + int(OWED_PATIENCE_H * 3600000) + 60000
+        code, _ = check(owed_p, now_ms=old)
+        ok = code == 1
+        bad += 0 if ok else 1
+        print("   %s brief owed too long    want 1  got %d" % ("🟢" if ok else "🔴", code))
+
+        # 3. a completed round trip is GREEN — the gate must be able to pass, or it is furniture
+        done_p = os.path.join(d, "done.jsonl")
+        H.send("HE-TEST", "a claim that got answered", path=done_p)
+        H.observed("HE-TEST", "the pane showed 16", "LOOKED", path=done_p)
+        code, lines = check(done_p)
+        ok = code == 0
+        bad += 0 if ok else 1
+        print("   %s answered round trip    want 0  got %d" % ("🟢" if ok else "🔴", code))
+        if not ok:
+            for l in lines:
+                print("        %s" % l)
+
+        # 4. an unreadable ledger is UNKNOWN, never a pass
+        broken = os.path.join(d, "broken.jsonl")
+        io.open(broken, "w", encoding="utf-8").write("{not json at all\n")
+        code, _ = check(broken)
+        ok = code in (1, 2)
+        bad += 0 if ok else 1
+        print("   %s unreadable ledger      want 1 or 2  got %d" % ("🟢" if ok else "🔴", code))
+    finally:
+        shutil.rmtree(d, True)
+    print()
+    if bad:
+        print("🔴 %d case(s) wrong — this gate may not be trusted." % bad)
+        return 1
+    print("🟢 the gate goes red for a finding, green for an answered brief, and UNKNOWN for a "
+          "ledger it cannot read.")
+    return 0
+
+
+def main(argv):
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
+    if "--prove" in argv:
+        print("PROVING THE HUMAN-EYES GATE — on fixtures, never on his record.\n")
+        return prove()
+    code, lines = check()
+    for l in lines:
+        print(l)
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
