@@ -189,6 +189,51 @@ TARGETS = {
         "sel": "#btn-mini, #btn-miniauto",
         "settles": False,   # a live console never stops moving; see the note at the settle call
     },
+    "state-panel": {
+        "serve": True,
+        "why": "THE STATE OF THIS CONSOLE — the ⟳ CHECK NOW control, the four sections, and the "
+               "DISK row that must carry its own age. This panel is fed entirely by /api/status, so "
+               "file:// could never render it: until v2401 it had NO gate coverage at all, and v2400 "
+               "shipped a change to it verified only by a by-hand CDP run",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* ⚠ CLICK THE ELEMENT, DO NOT CALL THE FUNCTION. A first cut called thShelf() and
+               _verXrefOpen() by name; both live inside a closure and are `undefined` on window, so
+               the activate returned false while the panel was perfectly openable. Measured on a
+               served console 2026-09-01. Drive the UI the way he does. */
+            var f = document.getElementById('foot-ver');
+            if (!f) return false;
+            f.click();
+            var ov = document.getElementById('ver-xref');
+            if (!ov || ov.hidden) return false;
+            /* PROVE IT FROM THE RECT — a painter that ran and painted nothing must never read the
+               same as a panel that is up. And require the SECTIONS, because an overlay with a
+               frame and no content is the empty-box defect an author cannot see. */
+            var r = ov.getBoundingClientRect();
+            var secs = ov.querySelectorAll('.vx-h').length;
+            return !!(r.width > 2 && r.height > 2 && secs >= 4
+                      && getComputedStyle(ov).display !== 'none'); })()""",
+        "sel": "#ver-xref .vx-row, #ver-xref .vx-h",
+        "settles": False,
+        "warmup": 10.0,     # it has to fetch /api/status before there is a panel to open
+    },
+
+    # ⚠ WHY THE CONSOLE'S DATA-DRIVEN SURFACES ARE NOT TARGETS HERE, AND IT IS A GAP, NOT A CHOICE.
+    # This harness loads `file://` (see _Tab below). That is right for bible.html, which builds
+    # itself out of localStorage — every target above seeds a store and the page renders. It cannot
+    # work for the console's own panels: THE SHELF, the pipeline board, THE FLEET and the stat strip
+    # are all filled from /api/sessions and /api/status, so under file:// they render "Loading
+    # runs…" and nothing else. A target for them would refuse on EVERY run, and a gate that can
+    # only ever be red is switched off inside a week — the same defect as one that is green forever.
+    #
+    # MEASURED 2026-09-01 while adding targets for gh #207: a `tvd` target was written, ran, and
+    # correctly refused with "the panel could not be ACTIVATED". The refusal was the harness working;
+    # the target was the mistake.
+    #
+    # So those surfaces are covered by driving a PRIVATE console over http on an ephemeral port
+    # (never :17772) with CDP, which is what verified task 143 on real pixels. Closing this gap
+    # properly means teaching this harness an optional http origin per target — filed, not faked.
+    # A surface with no target is UNMEASURED, and unmeasured must never read as clean.
     "inbox": {
         "why": "the chronicle inbox — the rows he answers",
         "seed": """(function(){
@@ -412,8 +457,42 @@ _PROBE = r"""(function(sel, OK_TRUNC){
       if (inert(c)) return;
       var cr = c.getBoundingClientRect();
       if (cr.width<1 || cr.height<1) return;
+      /* ⚠ A FIXED ELEMENT IS NOT CLIPPED BY AN ORDINARY OVERFLOW ANCESTOR, AND THIS PROBE DID
+         NOT KNOW THAT. Measured 2026-09-01 on the state panel: 31 elements reported "cut by rail"
+         at 1440, 1120 and 901 — every one of them inside `.fleet-xref`, which is
+         `position:fixed; inset:0`, a full-viewport overlay. `.rail` above it carries
+         `overflow-x:hidden`, so the ancestor walk compared the overlay's ink against a box that
+         does not contain it. The 1440 PNG shows the panel rendering completely and cut nowhere.
+         31 false reds from one missing rule — and a false RED is how a gate becomes furniture,
+         which is the same end as a false green by a different road.
+         The escape is not absolute: transform / filter / perspective / will-change on an ancestor
+         re-establish a containing block, and then the clip is real again. So track it rather than
+         assuming either way. [[regression-guard]] [[feedback-suspect-the-instrument]] */
+      var escaped = (getComputedStyle(c).position === 'fixed');
       for (var q=c.parentElement; q && q!==document.body; q=q.parentElement){
         var qs=getComputedStyle(q);
+        if (qs.position === 'fixed') { escaped = true; }
+        else if (escaped) {
+          var reAnchors = (qs.transform && qs.transform !== 'none')
+                       || (qs.filter && qs.filter !== 'none')
+                       || (qs.perspective && qs.perspective !== 'none')
+                       || (qs.contain && /paint|layout|strict|content/.test(qs.contain))
+                       || (qs.willChange && /transform|filter|perspective/.test(qs.willChange));
+          if (!reAnchors) continue;   /* it cannot clip what it does not contain */
+          escaped = false;            /* this one DOES contain it — clipping is real again */
+        }
+        /* ⚠ AND INK BELOW A SCROLL FOLD IS NOT INK THAT IS CUT OFF. Measured on the state
+           panel at 375: 11 elements reported "cut by fxr-win", including the ⟳ CHECK NOW button.
+           The panel is a scroller — .fx-body is overflow-y:auto with scrollHeight 1331 against
+           clientHeight 698 — so all eleven are one flick away, and the 375 PNG shows the panel
+           rendering correctly and stacking. A gate that calls a scrollable panel clipped will be
+           red on every long panel forever, which is how an instrument becomes furniture.
+           So: if the walk passes a REAL scroller on the way up, the ink is reachable and this is
+           not the defect we are hunting. A scroller is not merely `auto` — it must actually
+           overflow, or an `auto` that never scrolls would silently excuse a genuine clip. */
+        var scrollsY = (qs.overflowY==='auto' || qs.overflowY==='scroll') && q.scrollHeight > q.clientHeight + 1;
+        var scrollsX = (qs.overflowX==='auto' || qs.overflowX==='scroll') && q.scrollWidth > q.clientWidth + 1;
+        if (scrollsY || scrollsX) return;
         var hidesX = (qs.overflowX==='hidden' || qs.overflowX==='clip');
         var hidesY = (qs.overflowY==='hidden' || qs.overflowY==='clip');
         if (!hidesX && !hidesY) continue;
@@ -693,6 +772,51 @@ def _selector_ready(tab, sel, budget=20.0):
             % (sel, budget))
 
 
+def _serve_console():
+    """Boot a PRIVATE control_app on an ephemeral port and return (origin, proc).
+
+    ⚠ WHY THIS EXISTS. This harness loaded `file://` and nothing else, which is right for
+    bible.html — it assembles itself out of localStorage, so a target seeds a store and the page
+    renders. It is IMPOSSIBLE for the console's own panels: THE SHELF, the pipeline board, THE
+    FLEET and the BEST RUN / STREAK strip are filled from /api/sessions and /api/status, so under
+    file:// they render "Loading runs…" and nothing else.
+
+    That is not a small hole. Every one of the nine defects Konyo reported on 2026-09-01 lives on
+    one of those surfaces, and NOT ONE was found by a gate — because a surface with no target is
+    unmeasured, and unmeasured reads identically to clean in a green run. gh #208.
+
+    ⚠ NEVER :17772. The port is taken from the kernel, and the process this starts is the ONLY one
+    it ever kills — by the pid it holds, never by name. [[process-port-discipline]]
+    """
+    import socket
+    import subprocess
+    import urllib.request
+    s_ = socket.socket()
+    s_.bind(("127.0.0.1", 0))
+    port = s_.getsockname()[1]
+    s_.close()
+    if port == 17772:                      # cannot happen from an ephemeral bind; refuse anyway
+        raise RuntimeError("refusing to serve on :17772 — that is his live console")
+    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1")
+    proc = subprocess.Popen([sys.executable, os.path.join(HERE, "control_app.py"), "--no-open"],
+                            cwd=HERE, env=env,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    origin = "http://127.0.0.1:%d/" % port
+    for _ in range(60):
+        time.sleep(0.5)
+        try:
+            urllib.request.urlopen(origin + "api/status", timeout=2).read(1)
+            return origin, proc
+        except Exception:
+            if proc.poll() is not None:
+                raise RuntimeError("the private console exited before it answered")
+    try:
+        proc.terminate()
+    except Exception:
+        pass
+    raise RuntimeError("a private console did not answer on :%d in 30s — UNKNOWN, not a pass" % port)
+
+
 def check(name, spec, shots=True):
     """Render one target at every width and judge it. -> dict"""
     out = {"target": name, "why": spec["why"], "widths": {}, "ok": True, "refusals": []}
@@ -701,7 +825,23 @@ def check(name, spec, shots=True):
     # had ZERO coverage from this gate. Measured: 5 targets, 0 mentions of control_ui. That is
     # why "the button is missing / buried / half-built" reached him THREE times: the instrument
     # that exists to catch it was never pointed at the file. [[visual-regression-detector]]
-    tab = _Tab("file://" + os.path.join(REPO, spec.get("page") or "bible.html"))
+    # ⚠ v2401 — A TARGET MAY ASK TO BE SERVED, because file:// cannot render a panel whose
+    # content arrives from the server. `serve: True` boots a private console on an ephemeral port
+    # (never :17772) and points the tab at it. Opt-in per target: for bible.html, file:// is the
+    # honest environment and an http origin would only add a dependency. gh #208
+    _console = None
+    if spec.get("serve"):
+        try:
+            _origin, _console = _serve_console()
+        except Exception as e:
+            out["ok"] = False
+            out["refusals"].append("could not serve a private console for this target: %s. That is "
+                                   "UNKNOWN, not a pass." % str(e)[:160])
+            return out
+        _url = _origin + (spec.get("path") or "")
+    else:
+        _url = "file://" + os.path.join(REPO, spec.get("page") or "bible.html")
+    tab = _Tab(_url)
     try:
         tab.send("Page.enable")
         tab.send("Runtime.enable")
@@ -711,7 +851,13 @@ def check(name, spec, shots=True):
         # target may declare `settles: False`; it then waits a fixed beat instead. It must be
         # OPT-IN per target, because for an ordinary page 'never settled' IS the finding.
         if spec.get("settles") is False:
-            time.sleep(1.6)
+            # ⚠ v2401 — 1.6s IS ENOUGH FOR A FILE, NOT FOR A SERVER. A served console must fetch
+            # /api/status and build its panels from the answer; at 1.6s the elements EXIST and are
+            # empty, so `activate` returns false and the target refuses for a reason that is about
+            # the clock rather than the page. Measured: the state panel refused at 1.6s and opened
+            # 1440x913 with all four sections at 9s. `warmup` makes the wait a stated property of
+            # the target instead of a number that happened to work. [[stale-reading]]
+            time.sleep(float(spec.get("warmup") or 1.6))
             why = None
         else:
             why = _settled(tab)
@@ -786,6 +932,16 @@ def check(name, spec, shots=True):
                         "refusing rather than handing over a plausible image." % (key, len(png)))
     finally:
         tab.close()
+        if _console is not None:
+            # the pid THIS function started, and only that one. [[process-port-discipline]]
+            try:
+                _console.terminate()
+                _console.wait(timeout=8)
+            except Exception:
+                try:
+                    _console.kill()
+                except Exception:
+                    pass
     return out
 
 

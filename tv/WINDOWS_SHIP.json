@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2400",
+  "ver": "v2401",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2400: clicking the version opened the state panel AND fired a fleet check; the hover was fought over by four writers; the panel itself sat inside a drawer that could hide it",
+  "note": "v2401: the panel said a thing was shown while it sat 1300px below the window, and the verdict said in sync over a disk nobody had checked",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

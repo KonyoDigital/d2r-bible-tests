@@ -9838,9 +9838,31 @@ body[data-origin="shadow"] #stage::after {
       /* the watcher has not run. That is a third state and it must not read as "in sync". */
       vRows.push(_vxRow('on disk', null, 'the drift watcher has not run yet'));
     }
+    /* ⚠ v2401 — THE RULE WAS WRITTEN TWO LINES ABOVE AND APPLIED TO ONLY ONE OF THE TWO PLACES
+       IT GOVERNS. The `on disk` row already says, in its own comment, that a watcher which has not
+       run "is a third state and it must not read as 'in sync'" — and then the verdict said exactly
+       that anyway, because `skew` compares console/agent/board and never looks at d.drift.
+
+       So the panel could show, one line apart:
+           ON DISK   UNKNOWN    the drift watcher has not run yet
+           VERDICT   in sync    console, agent and board agree
+       Three parts agreeing is not the same claim as being on the newest build, and stating the
+       weaker fact in the stronger words is how a green lamp ends up over an unread disk.
+
+       Found by a cross-family read of this panel's own screenshot — asked cold, with no hint of
+       what it should show, it said the verdict "states agreement as fact even though ON DISK
+       UNKNOWN is shown directly above". Nothing in the tree could have caught it: every value on
+       the row is correct, and the defect is only in what they add up to. [[unknown-stays-unknown]]
+       [[the-unjoined-end]] */
+    var _diskUnread = (d.drift === null || d.drift === undefined);
     vRows.push(skew
       ? _vxRow('verdict', 'RELAUNCH', 'three parts, not all on the same build', 'warn')
-      : _vxRow('verdict', 'in sync', 'console, agent and board agree', 'ok'));
+      : _diskUnread
+        ? _vxRow('verdict', null,
+                 'console, agent and board agree — but nothing has checked the disk, so whether a '
+                 + 'newer build is sitting there is UNMEASURED, not no')
+        : _vxRow('verdict', 'in sync', 'console, agent and board agree, and the disk holds nothing '
+                 + 'newer', 'ok'));
 
     /* ── 2. THE FLEET ─────────────────────────────────────────────────────────────────────── */
     var fRows = [];
@@ -19433,9 +19455,36 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                 var r = null; try { r = box.getBoundingClientRect(); } catch(e){}
                 var h = r ? Math.round(r.height) : -1;
                 if (st === 'shown' && h <= 2) st = 'ZERO-HEIGHT';
+                /* ══ v2401 — AND 'shown' STILL DID NOT MEAN ON HIS SCREEN. THIRD TIME.
+                   v2336 judged this on the `hidden` attribute. v2356 added the rendered box and
+                   wrote, correctly, that the attribute "is not the same as being on his screen" —
+                   then tested only the HEIGHT. So a panel that is laid out, full-height and 1,300px
+                   below the bottom of the window has been published as SHOWN all along.
+
+                   MEASURED on his live console at v2400: taskforce 'shown' H=502 Top=1382 and
+                   forge 'shown' H=181 Top=1931, in a window nowhere near 1900px tall. Both were
+                   off screen. The beat was perfectly healthy at the time — ageS 3.3, blankStrikes
+                   0 — so nothing else could have contradicted it.
+
+                   The rect was already in hand and already published as `<name>Top`; the one thing
+                   never done with it was to compare it to the viewport. So: a panel is SHOWN when
+                   its box INTERSECTS the viewport, and otherwise says which way it went. Four
+                   words instead of one, because 'I cannot see it' and 'it is not there' are
+                   different faults with different fixes. [[feedback-verify-not-proxy]]
+                   [[unknown-stays-unknown]] */
+                if (st === 'shown' && r) {
+                  var vh = window.innerHeight || 0, vw = window.innerWidth || 0;
+                  if (vh > 0 && (r.top >= vh || r.bottom <= 0))      st = 'BELOW-FOLD';
+                  else if (vw > 0 && (r.left >= vw || r.right <= 0)) st = 'OFF-SIDE';
+                }
                 o[t[0]] = st;
                 o[t[0] + 'H'] = h;
                 if (r) o[t[0] + 'Top'] = Math.round(r.top);
+                /* the viewport travels WITH the reading. A top of 1382 says nothing on its own —
+                   it is a defect at 900px tall and perfectly fine at 1600. A number whose meaning
+                   depends on a second number nobody published is a number that cannot be checked
+                   later. [[stale-reading]] */
+                o[t[0] + 'Vh'] = window.innerHeight || null;
               });
               return o;
             })()

@@ -38818,5 +38818,159 @@ class TestV2400HoverWilsonGateCanTellLeaksFromUnproven(unittest.TestCase):
 
 
 
+class TestV2401PanelsKnowLaidOutFromOnScreen(unittest.TestCase):
+    """⚠ THE THIRD TIME THIS FIELD HAS BEEN WRONG IN THE SAME DIRECTION.
+
+    v2336 judged `panels` on the `hidden` attribute. v2356 added the rendered box and wrote, in so
+    many words, that the attribute "is not the same as being on his screen" — then tested only the
+    HEIGHT. So a panel that is laid out, full-height, and 1,300px below the bottom of the window
+    was still published as `shown`.
+
+    MEASURED on his live console at v2400: `taskforce shown H=502 Top=1382` and
+    `forge shown H=181 Top=1931`, in a window nowhere near 1900px tall. The beat was healthy at the
+    time — ageS 3.3, blankStrikes 0 — so nothing else could have contradicted it.
+
+    This pins the LAW, not the numbers: the SAME element, at the SAME top, must read differently
+    when the viewport cannot contain it. A guard that only ever saw the tall case would be measuring
+    nothing. [[regression-guard]] [[feedback-verify-not-proxy]]
+    """
+
+    #: the shipped block, lifted out of control_ui.html rather than re-typed — a second copy of the
+    #: rule is a second thing to drift. [[copy-drift]]
+    def _block(self):
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        i = ui.index("panels: (function(){")
+        j = ui.index("})()", ui.index("return o;", i)) + 4
+        return "(" + ui[i + len("panels: "):j] + ")"
+
+    def _run(self, vh, top, height):
+        """Drive the SHIPPED expression in node against a fake DOM. One knob: the viewport."""
+        import shutil, subprocess, tempfile
+        if shutil.which("node") is None:
+            self.skipTest("node is not installed — this is UNKNOWN, not a pass")
+        harness = """
+        var VH = %d, TOP = %d, H = %d;
+        function mkBox(h, top){ return {
+          hidden: false,
+          getBoundingClientRect: function(){
+            return {height: h, top: top, bottom: top + h, left: 0, right: 900}; } }; }
+        var NODES = {
+          'hd-taskforce': mkBox(H, TOP),   'hd-tf-rows':        {children: [1, 2]},
+          'hd-forge':     mkBox(H, TOP),   'hd-forge-chips':    {children: [1]},
+          'hd-tallybar':  mkBox(H, TOP),   'hd-tallybar-chips': {children: [1]} };
+        global.document = { getElementById: function(id){ return NODES[id] || null; } };
+        global.window = { innerHeight: VH, innerWidth: 1440 };
+        console.log(JSON.stringify(%s));
+        """ % (vh, top, height, self._block())
+        d = tempfile.mkdtemp(prefix="panels_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "h.js")
+        with io.open(f, "w", encoding="utf-8") as fh:
+            fh.write(harness)
+        r = subprocess.run(["node", f], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, "the shipped block did not run: %s" % r.stderr[:400])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_a_panel_that_fits_reads_shown(self):
+        got = self._run(vh=2400, top=1530, height=395)
+        self.assertEqual(got["taskforce"], "shown",
+                         "a panel fully inside the viewport must read shown; got %r" % got["taskforce"])
+
+    def test_the_SAME_panel_below_the_fold_does_NOT_read_shown(self):
+        """THE RED DIRECTION. Identical element, identical top and height — only the window is
+        shorter. Before v2401 this returned 'shown', which is the defect."""
+        got = self._run(vh=700, top=1530, height=395)
+        self.assertEqual(got["taskforce"], "BELOW-FOLD",
+                         "a panel 830px below the bottom of the window was published as %r. That is "
+                         "the v2336/v2356 defect returning: `shown` must mean ON SCREEN, not merely "
+                         "laid out." % got["taskforce"])
+
+    def test_zero_height_still_outranks_below_the_fold(self):
+        """A panel with no box at all is a different fault from one that is merely off-screen, and
+        collapsing them would hide the one that needs a different fix."""
+        got = self._run(vh=700, top=1530, height=0)
+        self.assertEqual(got["taskforce"], "ZERO-HEIGHT")
+
+    def test_the_viewport_travels_WITH_the_reading(self):
+        """A top of 1530 is a defect at 700px tall and fine at 2400. A number whose meaning depends
+        on a second number nobody published cannot be checked later. [[stale-reading]]"""
+        got = self._run(vh=700, top=1530, height=395)
+        self.assertEqual(got.get("taskforceVh"), 700,
+                         "the reading did not carry the viewport it was taken in")
+
+
+
+class TestV2401TheVerdictCannotOutrunItsInputs(unittest.TestCase):
+    """The state panel said, one line apart:
+
+        ON DISK   UNKNOWN    the drift watcher has not run yet
+        VERDICT   in sync    console, agent and board agree
+
+    Three parts agreeing is a weaker claim than being on the newest build, and the verdict stated
+    the weaker fact in the stronger words. The rule was already written in the file — the `on disk`
+    row's own comment says a watcher that has not run "is a third state and it must not read as
+    'in sync'" — and it governed the ROW while the VERDICT ignored it, because `skew` compares
+    console/agent/board and never consults d.drift.
+
+    Found by a cross-family read of a screenshot, asked cold. Nothing in the tree could have caught
+    it: every value in those rows is individually correct and the defect is only in what they add
+    up to. [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+
+    def _verdict(self, st):
+        """Run the SHIPPED _verXrefBuild against a status payload and return the verdict row."""
+        import re as _re
+        import shutil, subprocess, tempfile
+        if shutil.which("node") is None:
+            self.skipTest("node is not installed — UNKNOWN, not a pass")
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        # the three functions the builder needs, lifted rather than re-typed [[copy-drift]]
+        def grab(sig):
+            i = ui.index(sig)
+            j = ui.index("\n  }", i) + 4
+            return ui[i:j]
+        src = (grab("function _vxRow(") + "\n" + grab("function _vxSection(")
+               + "\n" + grab("function _verXrefBuild("))
+        harness = """
+        function esc(t){ return String(t); }
+        %s
+        var html = _verXrefBuild(%s);
+        var m = html.match(/<div class="vx-row[^"]*"><span class="vx-k">verdict<\\/span>(.*?)<\\/div>/);
+        console.log(m ? m[1] : 'NO VERDICT ROW');
+        """ % (src, json.dumps(st))
+        d = tempfile.mkdtemp(prefix="verdict_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "v.js")
+        with io.open(f, "w", encoding="utf-8") as fh:
+            fh.write(harness)
+        r = subprocess.run(["node", f], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, "the shipped builder did not run: %s" % r.stderr[:400])
+        return r.stdout.strip().splitlines()[-1]
+
+    _AGREE = {"ver": "v2401", "agentVer": "v2401", "bibleVer": "v2401"}
+
+    def test_an_UNREAD_disk_does_NOT_read_as_in_sync(self):
+        """THE RED DIRECTION. Before v2401 this said 'in sync' over an unread disk."""
+        got = self._verdict(dict(self._AGREE, drift={}))     # drift undefined = watcher never ran
+        self.assertNotIn("in sync", got,
+                         "the verdict claimed 'in sync' while nothing had checked the disk. Three "
+                         "parts agreeing is not the same claim as being on the newest build: %s" % got)
+        self.assertIn("UNKNOWN", got,
+                      "an unmeasured disk must render as UNKNOWN, never as a quiet pass: %s" % got)
+
+    def test_a_CHECKED_disk_that_is_current_DOES_read_as_in_sync(self):
+        """The green direction — the honest 'in sync' must still be reachable, or the fix has only
+        replaced one wrong answer with another."""
+        got = self._verdict(dict(self._AGREE, drift={"drift": False, "disk": "v2401"}))
+        self.assertIn("in sync", got, "a checked, current disk must still read in sync: %s" % got)
+
+    def test_a_SKEW_still_outranks_everything(self):
+        got = self._verdict({"ver": "v2401", "agentVer": "v2399", "bibleVer": "v2401",
+                             "drift": {}})
+        self.assertIn("RELAUNCH", got,
+                      "three parts on different builds is the loudest fact and must win: %s" % got)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
