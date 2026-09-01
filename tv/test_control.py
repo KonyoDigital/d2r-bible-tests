@@ -31067,15 +31067,39 @@ class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
     row that MATTERS gets skipped with it. That is the whole reason he built this panel.
     [[feedback-suspect-the-instrument]] [[label-outlived-referent]]"""
 
-    def _right(self):
-        """The invariant's right-hand side, called exactly as the corroborator calls it."""
+    def _right(self, slow=False):
+        """The invariant's right-hand side, with the eagle's recorded pass set to `slow`.
+
+        `slow=None` models a record that does not say which pass it was — an old file, or a caller
+        that never set the flag."""
         import corroborate as co
-        inv = co._inv_the_eagle_can_still_look()
-        return inv[6]()          # (key, claim, prove, leftName, left, rightName, right, op)
+        import control_app as _ca
+        import os, tempfile
+        old_eagle = getattr(_ca, "_EAGLE", None)
+        old_path = co._eagle_record_path
+        # ⚠ POINT THE DURABLE READ AT AN ABSENT FILE. Without this the fallback reads HIS console's
+        # real .eagle_last.json, and the test's verdict is decided by the machine it runs on
+        # instead of by its own fixture — the defect that put `owed` behind an argument in
+        # lane_health. [[feedback-fixtures-never-touch-live-data]]
+        d = tempfile.mkdtemp(prefix="eagle_flag_")
+        self.addCleanup(lambda: None)
+        co._eagle_record_path = lambda: os.path.join(d, "absent.json")
+        _ca._EAGLE = dict(old_eagle or {})
+        if slow is None:
+            _ca._EAGLE.pop("slow", None)
+        else:
+            _ca._EAGLE["slow"] = slow
+        try:
+            inv = co._inv_the_eagle_can_still_look()
+            return inv[6]()      # (key, claim, prove, leftName, left, rightName, right, op)
+        finally:
+            _ca._EAGLE = old_eagle
+            co._eagle_record_path = old_path
 
     def test_it_excludes_the_checks_the_eagle_never_runs(self):
+        """The TIMER pass — the one that runs every ten minutes and produced his screenshot."""
         import console_doctor as cd
-        self.assertEqual(self._right(), len(cd.CHECKS) - len(cd.SLOW),
+        self.assertEqual(self._right(slow=False), len(cd.CHECKS) - len(cd.SLOW),
                          "the eagle runs include_slow=False, so its expected row count is the "
                          "roster MINUS the SLOW set. Counting the full roster makes this pair "
                          "permanently red and it stops being read.")
@@ -31088,9 +31112,31 @@ class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
         if not cd.SLOW:
             self.skipTest("SLOW is empty — this guard cannot distinguish the two expressions, "
                           "which is UNKNOWN and not a pass")
-        self.assertNotEqual(self._right(), len(cd.CHECKS),
+        self.assertNotEqual(self._right(slow=False), len(cd.CHECKS),
                             "the right-hand side is back to len(CHECKS): it is counting %d checks "
                             "the eagle is designed never to run." % len(cd.SLOW))
+
+    def test_a_COMPLETE_pass_expects_the_WHOLE_roster(self):
+        """The other half, and the half my first fix broke. A pass that DID include the slow checks
+        emits len(CHECKS) rows, and expecting the cheap count would call it a disagreement. The
+        suite caught this immediately — test_an_eagle_that_flew_EVERY_check_agrees drives 34 rows.
+
+        The expectation is not a constant; it is a property of WHICH PASS RAN, which is why v2407
+        makes the eagle record `slow` rather than leaving the reader to assume."""
+        import console_doctor as cd
+        self.assertEqual(self._right(slow=True), len(cd.CHECKS),
+                         "a complete pass must expect the whole roster, or running the full "
+                         "diagnostic reports a false disagreement")
+
+    def test_an_UNLABELLED_pass_defaults_to_the_STRICTER_expectation(self):
+        """⚠ THE DEFAULT MATTERS MORE THAN EITHER BRANCH. An old record, or a caller that never set
+        the flag, must NOT be silently reinterpreted as a cheap pass — that would make a genuinely
+        incomplete pass of 32 rows read as healthy, which is precisely the blindness this invariant
+        exists to prevent. Not knowing must resolve to the answer that can still catch a skip."""
+        import console_doctor as cd
+        self.assertEqual(self._right(slow=None), len(cd.CHECKS),
+                         "an unlabelled pass resolved to the cheap expectation, so an eagle that "
+                         "silently skipped the two SLOW checks would read as complete")
 
     def test_adding_a_check_MOVES_the_expectation(self):
         """PIN THE LAW, NOT THE NUMBER. A test asserting 32 would pass today and rot on the next
@@ -31098,16 +31144,16 @@ class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
         how the original arose. So: add a check and require the number to follow.
         [[regression-guard]]"""
         import console_doctor as cd
-        before = self._right()
+        before = self._right(slow=False)
         old = cd.CHECKS
         try:
             cd.CHECKS = list(old) + [("a planted cheap check", lambda: ("ok", "planted"))]
-            self.assertEqual(self._right(), before + 1,
+            self.assertEqual(self._right(slow=False), before + 1,
                              "a new CHEAP check did not move the expectation — the count is pinned "
                              "somewhere instead of derived from the roster")
             cd.CHECKS = list(old) + [("a planted slow check", lambda: ("ok", "planted"))]
             cd.SLOW = tuple(cd.SLOW) + ("a planted slow check",)
-            self.assertEqual(self._right(), before,
+            self.assertEqual(self._right(slow=False), before,
                              "a new SLOW check moved the expectation — SLOW checks never run on "
                              "the timer, so they must not be expected in the eagle's rows")
         finally:

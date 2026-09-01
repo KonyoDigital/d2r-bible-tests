@@ -14644,6 +14644,14 @@ def _eagle_once():
     with _PRUNE_LOCK:
         _EAGLE.update({
             "checked": int(time.time() * 1000), "rows": rows,
+            # ⚠ v2407 — SAY WHICH PASS THIS WAS. `eagle-ran-every-check` compares this row count
+            # against an expected one, and the expectation is NOT a constant: a cheap pass emits
+            # len(CHECKS) - len(SLOW) rows and a complete pass emits len(CHECKS). Without this
+            # flag the reader has to GUESS which it is looking at, and guessing wrong is how that
+            # invariant came to be permanently red — it assumed the full roster while the timer
+            # only ever runs the cheap subset. Persist what you knew at the moment you knew it.
+            # [[heart-first]] rule 6
+            "slow": False,          # this call site is _cd.run(include_slow=False)
             "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
             "mineWhat": [r.get("check") for r in mine],
             # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
@@ -14683,6 +14691,7 @@ def _eagle_once():
         _tmp = _ep + ".tmp"
         with open(_tmp, "w", encoding="utf-8") as _fh:
             json.dump({"checked": _EAGLE.get("checked"), "rows": len(rows),
+                       "slow": bool(_EAGLE.get("slow")),   # v2407 — see the note above
                        "needsYou": len(bad), "unknown": len(unk),
                        "ts": int(time.time() * 1000)}, _fh)
         os.replace(_tmp, _ep)

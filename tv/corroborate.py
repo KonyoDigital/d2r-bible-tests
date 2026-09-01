@@ -497,6 +497,25 @@ def _eagle_record_path():
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
 
 
+def _durable_slow_flag():
+    """Did the last DURABLE eagle pass include the SLOW checks? -> True | False | None.
+
+    None means the record does not say — which the caller must treat as the stricter case, never
+    as 'cheap'. Same file and freshness rules as the row count it accompanies.
+    """
+    try:
+        import json as _json, os as _os
+        _p = _eagle_record_path()
+        if not _os.path.isfile(_p):
+            return None
+        with io.open(_p, encoding="utf-8") as _fh:
+            _row = _json.load(_fh)
+        v = _row.get("slow")
+        return bool(v) if isinstance(v, bool) else None
+    except Exception:
+        return None
+
+
 def _inv_the_eagle_can_still_look():
     """A watchdog that cannot run is not a passing watchdog. The eagle runs the corroborator; until
     now nothing checked the eagle. UNKNOWN is the honest answer when its own state is unreadable."""
@@ -567,7 +586,24 @@ def _inv_the_eagle_can_still_look():
         reintroduce the identical defect one roster entry later. [[regression-guard]]
         """
         import console_doctor as cd
-        return len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
+        full = len(cd.CHECKS)
+        cheap = len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
+        # ⚠ THE EXPECTATION DEPENDS ON WHICH PASS RAN, AND MY FIRST FIX HARDCODED ONE OF THEM.
+        # Returning `cheap` unconditionally traded a permanently-red alarm for one that goes red
+        # whenever a COMPLETE pass runs — the suite caught it immediately
+        # (test_an_eagle_that_flew_EVERY_check_agrees drives 34 rows and expects agreement).
+        # v2407 makes the eagle RECORD `slow`, so this asks instead of assuming.
+        #
+        # ⚠ AND THE DEFAULT WHEN THE FLAG IS ABSENT IS `full`, DELIBERATELY. An old record, or a
+        # caller that never set it, must not be silently reinterpreted as a cheap pass — that
+        # would make a genuinely incomplete pass of 32 rows read as healthy, which is the exact
+        # blindness this invariant exists to prevent. Defaulting to the STRICTER expectation means
+        # an unlabelled pass can still be caught skipping checks. [[unknown-stays-unknown]]
+        e = dict(getattr(ca, "_EAGLE", {}) or {})
+        slow = e.get("slow")
+        if slow is None:
+            slow = _durable_slow_flag()
+        return cheap if slow is False else full
 
     return ("eagle-ran-every-check",
             "the eagle's last pass covered every check it actually runs (the roster minus SLOW)",
