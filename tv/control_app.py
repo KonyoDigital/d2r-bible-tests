@@ -16,6 +16,7 @@ import hashlib
 import bisect
 import collections
 import inspect
+import io
 import json
 import math
 import os
@@ -21086,6 +21087,133 @@ def install_identity():
 # [[feedback-suspect-the-instrument]]
 
 
+# ══ v2399 — THE NEXT LOOK. Claude names the pane; a human eye photographs it ═══════════════════
+#
+# Konyo, 2026-09-01: *"maybe we can do like a system when grokbot open the console and you make it
+# open instead of the sessions tab.. the place you want it to screenshot live.. that way it opens
+# exactly where you want then it screenshots it back to you."*
+#
+# WHY THIS EXISTS. The visual harness lost its hands today: synthetic pointer events need macOS
+# Accessibility permission, which is not granted, so `CGEventPost` SILENTLY SUCCEEDS AND MOVES
+# NOTHING. The eye can look and cannot click. Every brief that needed a hover — the 30-slot
+# calibration, the footer hover — is blocked on a permission neither of us can grant in code.
+#
+# But almost nothing that is actually OWED needs a pointer. It needs the right pane to be on
+# screen. So the navigation becomes CODE (this) and the looking stays EYES (the human side): the
+# console shows the pane Claude asked for, and the eye photographs whatever is in front of it.
+#
+# ⚠ THIS STEERS A SURFACE HE IS ALSO USING, so it is fenced on all four sides:
+#   · ONE SHOT. A request is honored exactly once, by `id`. It can never become a loop that keeps
+#     yanking his console back to a tab he keeps leaving.
+#   · IT PUTS HIS TAB BACK. The client records what was showing and restores it when the request
+#     expires. Borrowing a surface without returning it is the scar [[borrowed-surface]] names.
+#   · NEVER DURING A CAPTURE. A route mid-reel throws the reel away, so a live capture refuses the
+#     request outright rather than deferring it into a surprise later.
+#   · IT IS VISIBLE. The pane says which brief it is serving, so he is never confronted by a
+#     console that moved for no stated reason — and so a returned photograph is ATTRIBUTABLE.
+#
+# ⚠ THE STAMP IS THE POINT, NOT A NICETY. On 2026-09-01 I built a finding on a returned screenshot
+# that turned out to be a DIFFERENT WINDOW, and had to retract it publicly. A picture with no mark
+# saying what it is a picture OF cannot be attributed to a brief, and an unattributable picture is
+# not evidence — it is a picture. [[feedback-verify-not-proxy]]
+#
+# ⚠ AND IT IS A REQUEST, NEVER A COMMAND. It cannot open the game, cannot arm the prune, cannot
+# apply anything. The single most it can do is change which tab is in front.
+
+VIEW_REQUEST_PATH = os.environ.get("TV_VIEW_REQUEST") or os.path.join(HERE, ".view_request.json")
+
+#: A request older than this is STALE and must not be honored. A console that has been closed all
+#: night must not wake up and jump to a pane that mattered eight hours ago.
+_VIEW_REQUEST_TTL_S = 20 * 60
+
+#: The panes a request may name. A closed set on purpose: an unknown name would route the shell to
+#: a tab that does not exist, `switchTab` would no-op SILENTLY (the v2120 scar at
+#: control_ui.html:_shellRoute), and the eye would photograph whatever happened to be there while
+#: believing it was looking at the requested pane. A wrong picture confidently labelled is worse
+#: than no picture. [[the-unjoined-end]]
+VIEW_REQUEST_PANES = ("session", "vault", "forge", "funi", "fsets", "crafts", "runes",
+                      "tools", "tvd", "main", "tz", "rotw", "bosses", "endgame", "ref",
+                      "binds", "calc", "ancients", "tztracker")
+
+
+def view_request(path=None, now=None):
+    """What pane Claude has asked the console to show. -> dict, or None when nobody has asked.
+
+    ⚠ FOUR STATES, AND ONLY ONE OF THEM ACTS. `None` means no request exists — which is different
+    from a request that expired, different again from one naming a pane that is not real, and
+    different from a file that is there and unreadable. Collapsing any of those into "nothing to
+    do" is how a request silently fails to be honored while looking like it was never made.
+    [[unknown-stays-unknown]]
+
+        FRESH     honor it, once
+        STALE     too old — say so; do NOT honor and do NOT hide it
+        UNKNOWN   the pane name is not one we route to
+        BROKEN    the file exists and will not parse — a real fault, not an absence
+    """
+    p = path or VIEW_REQUEST_PATH
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            raw = fh.read()
+    except OSError:
+        return None                      # nobody asked. The only state that is silent.
+    try:
+        d = json.loads(raw)
+        if not isinstance(d, dict):
+            raise ValueError("not an object")
+    except Exception as e:
+        return {"state": "BROKEN", "why": "%s: %s" % (type(e).__name__, str(e)[:60]),
+                "view": None, "brief": None, "id": None, "ageS": None}
+    t = now if now is not None else time.time()
+    # ⚠ `or 0` WOULD BE A BUG HERE, AND THE GUARD CAUGHT IT. A missing ts fell through to 0, so the
+    # age came out as 1,788,272,851 seconds — which lands on STALE by ACCIDENT, for a reason that is
+    # nonsense on screen. Right verdict, wrong reason, which is the dangerous kind: the day the
+    # arithmetic changes, the accident stops protecting us. An absent ts must reach the explicit
+    # UNKNOWN branch below, not arrive as a very large number. [[unknown-stays-unknown]]
+    _ts = d.get("ts")
+    if _ts in (None, "", 0):
+        age = None
+    else:
+        try:
+            age = max(0.0, t - (float(_ts) / 1000.0))
+        except (TypeError, ValueError):
+            age = None
+    view = str(d.get("view") or "").strip().lower()
+    ttl = _VIEW_REQUEST_TTL_S
+    try:
+        if d.get("ttlS"):
+            ttl = max(30.0, min(float(d["ttlS"]), _VIEW_REQUEST_TTL_S))
+    except Exception:
+        pass
+    out = {"view": view or None,
+           "brief": (str(d.get("brief")).strip() if d.get("brief") else None),
+           "why": (str(d.get("why")).strip()[:160] if d.get("why") else None),
+           # the id is what makes it ONE SHOT. The client honors an id once and never again, so a
+           # request that stays on disk does not re-fire on every poll.
+           "id": (str(d.get("id")) if d.get("id") else ("%s@%s" % (view, d.get("ts")))),
+           "ageS": (round(age, 1) if age is not None else None),
+           "ttlS": round(ttl, 1)}
+    if view not in VIEW_REQUEST_PANES:
+        out["state"] = "UNKNOWN"
+        out["why"] = "%r is not a pane this console routes to" % (view or "")
+        return out
+    if age is None:
+        # ⚠ AN AGE WE CANNOT ESTABLISH IS NOT A YOUNG AGE. A request with no usable timestamp
+        # must not be treated as fresh just because nothing proved it old. [[stale-reading]]
+        out["state"] = "STALE"
+        out["why"] = "no usable ts — age UNKNOWN, and unknown age is never honored"
+        return out
+    out["state"] = "FRESH" if age <= ttl else "STALE"
+    if out["state"] == "STALE":
+        out["why"] = "%.0fs old, past its %.0fs life" % (age, ttl)
+    # ⚠ NEVER DURING A CAPTURE. Routing the shell mid-reel destroys the reel, so this refuses
+    # rather than defers: a request that quietly fires ten minutes later is a console that moves
+    # for no reason the person in front of it can see.
+    if out["state"] == "FRESH" and _capture_is_live():
+        out["state"] = "HELD"
+        out["why"] = "a capture is live — a route mid-reel would throw the reel away"
+    return out
+
+
 def status_payload():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
@@ -21203,7 +21331,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2398",
+        "ver": "v2399",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -21268,6 +21396,11 @@ def status_payload():
         "stopping": bool(_stop_inflight),
         "pid": _pid_cached(),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
+        # v2399 — THE NEXT LOOK: which pane Claude has asked to be shown, so a human eye can
+        # photograph the right thing without a pointer. Absent key is impossible; `None` means
+        # nobody has asked, and every non-None value carries its own `state` so a request that was
+        # REFUSED (stale, unknown pane, mid-capture) is visible rather than silently skipped.
+        "viewRequest": view_request(),
         # v2322 — the backup generator, on a surface that can be read. `ageS` is None when no
         # console has EVER checked in, which is a different fact from "it has been silent for a
         # long time" and must not be shown as a big number. [[unknown-stays-unknown]]

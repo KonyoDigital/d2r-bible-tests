@@ -38597,5 +38597,146 @@ class TestV2398ThePaintWitnessIsVISIBLEFromOutside(unittest.TestCase):
                          "blankStrikes is a real measurement on a healthy page and must stay 0")
 
 
+class TestV2399TheNextLookIsAREQUESTNotACommand(unittest.TestCase):
+    """v2399 — the console can be asked to show a pane, so a human eye photographs the right thing.
+
+    ⚠ EVERY STATE IS DRIVEN RED HERE, deliberately. A gate that has only ever been seen green is
+    measuring nothing, and this one guards a feature whose whole job is to prevent a camera from
+    photographing the WRONG pane while believing it is the right one. [[regression-guard]]
+    """
+
+    def _write(self, d, tmp):
+        p = os.path.join(tmp, ".view_request.json")
+        io.open(p, "w", encoding="utf-8").write(json.dumps(d))
+        return p
+
+    def test_absent_is_None_and_None_only(self):
+        """Nobody asked. The ONE state that is allowed to be silent."""
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(ca.view_request(
+                path=os.path.join(tmp, "nope.json")),
+                "a missing request file means NOBODY ASKED, which must be None and nothing else")
+
+    def test_fresh_is_honored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write({"view": "vault", "brief": "HE-2",
+                             "ts": int(time.time() * 1000), "id": "x1"}, tmp)
+            got = ca.view_request(path=p)
+            self.assertEqual(got["state"], "FRESH")
+            self.assertEqual(got["view"], "vault")
+            self.assertEqual(got["brief"], "HE-2")
+            self.assertEqual(got["id"], "x1", "the id is what makes it ONE SHOT — it must survive")
+
+    def test_STALE_when_old(self):
+        """⚠ A request from hours ago must not fire. A console closed all night must not wake up
+        and jump to a pane that mattered at 2am."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write({"view": "vault", "ts": int((time.time() - 9999) * 1000)}, tmp)
+            self.assertEqual(ca.view_request(path=p)["state"], "STALE")
+
+    def test_STALE_when_the_age_CANNOT_BE_ESTABLISHED(self):
+        """⚠ AN AGE WE CANNOT MEASURE IS NOT A YOUNG AGE. A request with no usable ts must not be
+        treated as fresh merely because nothing proved it old. [[stale-reading]]"""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write({"view": "vault"}, tmp)          # no ts at all
+            got = ca.view_request(path=p)
+            self.assertEqual(got["state"], "STALE")
+            self.assertIn("UNKNOWN", (got.get("why") or "").upper())
+
+    def test_UNKNOWN_pane_is_refused_rather_than_routed(self):
+        """⚠ switchTab NO-OPS SILENTLY on a name it does not know (the v2120 scar). If an unroutable
+        pane were reported FRESH, the console would sit on whatever was already showing and the eye
+        would photograph it believing it was the requested pane. A wrong picture confidently
+        labelled is worse than no picture."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write({"view": "definitely-not-a-pane",
+                             "ts": int(time.time() * 1000)}, tmp)
+            got = ca.view_request(path=p)
+            self.assertEqual(got["state"], "UNKNOWN")
+            self.assertNotEqual(got["state"], "FRESH")
+
+    def test_BROKEN_is_not_ABSENT(self):
+        """⚠ A file that is there and will not parse is a FAULT, not an absence. Returning None
+        would make a corrupt request indistinguishable from nobody having asked."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = os.path.join(tmp, ".view_request.json")
+            io.open(p, "w", encoding="utf-8").write("{not json at all")
+            got = ca.view_request(path=p)
+            self.assertIsNotNone(got, "a corrupt file must never read as 'nobody asked'")
+            self.assertEqual(got["state"], "BROKEN")
+
+    def test_HELD_while_a_capture_is_live(self):
+        """⚠ A ROUTE MID-REEL THROWS THE REEL AWAY. It refuses outright rather than deferring —
+        a request that quietly fires ten minutes later is a console that moves for no reason the
+        person in front of it can see."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write({"view": "vault", "ts": int(time.time() * 1000)}, tmp)
+            self.assertEqual(ca.view_request(path=p)["state"], "FRESH")
+            orig = ca._capture_is_live
+            ca._capture_is_live = lambda: True
+            try:
+                got = ca.view_request(path=p)
+            finally:
+                ca._capture_is_live = orig
+            self.assertEqual(got["state"], "HELD",
+                             "a live capture must veto the route, not queue it")
+
+    def test_ttl_can_never_exceed_the_ceiling(self):
+        """⚠ A caller must not be able to borrow his console indefinitely by asking for a huge ttl."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write({"view": "vault", "ttlS": 99999999,
+                             "ts": int(time.time() * 1000)}, tmp)
+            got = ca.view_request(path=p)
+            self.assertLessEqual(got["ttlS"], ca._VIEW_REQUEST_TTL_S)
+
+    def test_the_UI_actually_CALLS_it(self):
+        """⚠ THE DEFECT THIS SHIPPED WITH. `_viewRequest` was DEFINED AND NEVER CALLED — grep
+        returned exactly one occurrence. Built at both ends, joined at neither, and it would have
+        looked wired from the code while doing nothing at all. [[the-unjoined-end]]"""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("function _viewRequest(st){", ui, "the handler must exist")
+        body = ui.replace("function _viewRequest(st){", "", 1)
+        self.assertIn("_viewRequest(st);", body,
+                      "it must be CALLED somewhere that is not its own declaration")
+
+    def test_a_REFUSED_request_paints_NOTHING_on_his_console(self):
+        """⚠ THE DEFECT v2399 SHIPPED WITH FOR ONE COMMIT, CAUGHT ON HIS SCREENSHOT.
+
+        The first cut painted a loud bar across the top of his board for every non-FRESH state —
+        so a STALE request left over from MY OWN TESTING announced itself over his console:
+        `LOOK STALE · vault · 830s old, past its 600s life`. He had said, of a different surface
+        the day before: "i dont want this mess when i hover over it all the time. i want it clean."
+
+        THE RULE: he sees the stamp when HIS CONSOLE ACTUALLY MOVED, because then he is owed the
+        reason. A request that changed nothing has nothing to tell him. The refused states still
+        travel on /api/status, where the EYE reads them and where they carry real meaning — the
+        pane on screen is not the one asked for. Diagnostics go where the diagnostician is.
+        """
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        i = ui.index("function _viewRequest(st){")
+        body = ui[i:i + 4000]
+        j = body.index("if (vr.state !== 'FRESH')")
+        refused = body[j:j + 1400]
+        self.assertNotIn("'warn'", refused,
+                         "a refused request must not paint a warning banner on HIS console — it is "
+                         "published on /api/status for the eye, and that is the only place it goes")
+        # and it must still be PUBLISHED — silence on his screen is not silence in the payload
+        self.assertIn('"viewRequest": view_request()',
+                      io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read(),
+                      "the eye reads the refused states off the payload; they must stay published")
+
+    def test_the_restore_path_uses_the_consoles_OWN_close_routine(self):
+        """⚠ AND THE COMMENT WAS ONCE THE DEFECT. I grepped `classList.remove('shell-open')`, got
+        one hit (my own line), wrote 'the console has no close routine' and narrowed the feature to
+        match. The real call passes TWO arguments — `remove('shell-open', 'gliding')` inside
+        `_shellRestoreConsole` — and my pattern could not reach it. The grep failed on its own
+        REACH, not on the code. [[source-reading-guard]]"""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("function _shellRestoreConsole()", ui,
+                      "the close routine this restore depends on must still exist")
+        self.assertIn("_shellRestoreConsole();", ui,
+                      "the restore must call it, not hand-strip the class")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

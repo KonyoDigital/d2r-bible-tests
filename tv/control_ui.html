@@ -7775,6 +7775,118 @@ body[data-origin="shadow"] #stage::after {
   }
   window._forensicsOpen = _forensicsOpen;
 
+  /* ══ v2399 — THE NEXT LOOK: Claude names the pane, a human eye photographs it ═══════════════
+     Konyo: "you make it open instead of the sessions tab.. the place you want it to screenshot
+     live.. that way it opens exactly where you want then it screenshots it back to you."
+
+     The visual harness has EYES AND NO HANDS: synthetic pointer events need macOS Accessibility
+     permission, so CGEventPost silently succeeds and moves nothing. Almost nothing that is owed
+     actually needs a pointer — it needs the right pane to be in front of the camera. So the
+     navigation lives here, in code, and the looking stays human.
+
+     ⚠ THIS BORROWS A SURFACE HE IS USING, so it gives it back. `_vrPrev` records what was on
+     screen; when the request's life runs out the console returns to exactly that, including
+     closing the shell if the shell was closed. Borrowing without returning is [[borrowed-surface]].
+
+     ⚠ ONE SHOT, BY ID. A request file that stays on disk must never re-fire every poll — that
+     would be a console that keeps yanking itself back to a tab he keeps leaving, which is the
+     most hostile thing a helper can do to a surface somebody is working in.
+
+     ⚠ AND IT STAMPS THE SCREEN. Not decoration: on 2026-09-01 I built a finding on a returned
+     screenshot that was a DIFFERENT WINDOW and had to retract it. A picture carrying no mark of
+     what it is a picture OF cannot be attributed to a brief, and an unattributable picture is not
+     evidence. The stamp is what makes the returned photograph mean something. */
+  var _vrHonored = null;      /* the id already acted on — never acted on twice */
+  var _vrPrev    = null;      /* what was on screen before we borrowed it */
+  var _vrUntil   = 0;         /* when it must be given back */
+
+  function _vrBadge(text, tone){
+    var el = document.getElementById('vr-stamp');
+    if (!text){ if (el) el.remove(); return; }
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'vr-stamp';
+      el.setAttribute('aria-live', 'polite');
+      /* deliberately loud and deliberately temporary. It exists only while a request is live, so
+         it is not another permanent thing on his screen — he asked for the console CLEAN. */
+      el.style.cssText = 'position:fixed;z-index:99999;left:50%;transform:translateX(-50%);'
+        + 'top:6px;padding:5px 12px;border-radius:999px;'
+        + 'font:var(--fw-semibold) 12px/1.35 ui-monospace,Menlo,monospace;'
+        + 'letter-spacing:.04em;pointer-events:none;white-space:nowrap;'
+        + 'box-shadow:0 2px 10px rgba(0,0,0,.45)';
+      document.body.appendChild(el);
+    }
+    el.style.background = (tone === 'warn' ? '#4a3a12' : '#123a2a');
+    el.style.color      = (tone === 'warn' ? '#e8c874' : '#7fe0b0');
+    el.style.border     = '1px solid ' + (tone === 'warn' ? '#7a5f22' : '#1e6c4e');
+    el.textContent = text;
+  }
+
+  function _viewRequest(st){
+    try {
+      var vr = st && st.viewRequest;
+
+      /* GIVE IT BACK FIRST — before considering anything new, so a restore still happens even if
+         the request file was deleted, the server stopped publishing, or a later poll fails. A
+         restore that depends on a new message arriving is a restore that sometimes never runs. */
+      if (_vrPrev && Date.now() > _vrUntil){
+        var back = _vrPrev; _vrPrev = null; _vrUntil = 0;
+        _vrBadge('');
+        try {
+          /* give back EXACTLY what was there: the tab if the shell was open, and the console
+             homepage if it was not. `_shellRestoreConsole` is the same routine Escape uses. */
+          if (back.open) shellOpen(back.tab || 'session');
+          else _shellRestoreConsole();
+        } catch(e){}
+        return;
+      }
+      if (_vrPrev) return;                    /* a look is in progress — leave it alone */
+      if (!vr) { _vrBadge(''); return; }      /* nobody asked. Silence is correct here. */
+
+      if (vr.state !== 'FRESH'){
+        /* ⚠ A REFUSED REQUEST IS VISIBLE TO THE EYE, AND INVISIBLE TO HIM. It stays published on
+           /api/status — where the eye reads it, and where STALE / UNKNOWN / HELD / BROKEN each
+           correctly mean "the pane on screen is NOT the one that was asked for", which is the
+           mis-attribution this whole thing exists to prevent. [[unknown-stays-unknown]]
+
+           But it paints NOTHING on his console, and shipping it the other way was a real defect:
+           v2399 put a loud bar across the top of his board announcing a stale request from my own
+           testing. He had told me the day before, about a different surface: "i dont want this mess
+           when i hover over it all the time. i want it clean."
+
+           THE RULE THAT FALLS OUT OF IT: he sees the stamp when HIS CONSOLE ACTUALLY MOVED, because
+           then he is owed the reason. A request that changed nothing has nothing to tell him, and
+           putting it on his screen anyway is a status light for someone else's benefit sitting in
+           his field of view. Diagnostics go where the diagnostician is. */
+        _vrBadge('');
+        return;
+      }
+      if (_vrHonored === vr.id) return;       /* ONE SHOT */
+
+      _vrHonored = vr.id;
+
+      /* ⚠ RECORD BOTH HALVES OF WHAT WE ARE BORROWING — the tab AND whether the board pane was
+         open at all. Restoring the tab but leaving a pane open that he had closed is still not
+         giving it back. `_shellRestoreConsole()` is the console's own close routine, the one
+         Escape runs.
+
+         ⚠ I NEARLY SHIPPED A WRONGER VERSION OF THIS, AND THE COMMENT WAS THE DEFECT. I grepped
+         `classList.remove('shell-open')`, got exactly one hit — my own new line — and wrote that
+         the console HAS NO CLOSE ROUTINE, then narrowed the feature to match. The real call is
+         `remove('shell-open', 'gliding')` at _shellRestoreConsole, and my pattern could not reach
+         a two-argument call. The grep failed on its own REACH, not on the code, and it would have
+         justified a restriction with a measured-sounding fact that was false.
+         [[source-reading-guard]] */
+      _vrPrev  = { open: document.body.classList.contains('shell-open'),
+                   tab:  (typeof _shellTab === 'string' && _shellTab) ? _shellTab : 'session' };
+      _vrUntil = Date.now() + Math.max(30, (vr.ttlS || 600)) * 1000;
+
+      _vrBadge('LOOK · ' + vr.view + (vr.brief ? (' · ' + vr.brief) : '')
+               + ' · put back in ' + Math.round((vr.ttlS || 600) / 60) + 'm');
+      try { shellOpen(vr.view); } catch(e){}
+    } catch(e){}
+  }
+
   function paint(st){
     var mode = st.mode || 'off';
     // v899 — SIGNING OFF only while a stop is truly in flight AND bridge still up.
@@ -8535,6 +8647,10 @@ body[data-origin="shadow"] #stage::after {
       var st = await r.json();
       _fetchFails = 0;
       paint(st);
+      /* v2399 — THE NEXT LOOK. Called AFTER paint so a request can never delay the frame
+         he is looking at, and outside paint's own try/catch so a fault here is visible
+         rather than folded into an unrelated handler. */
+      _viewRequest(st);
     } catch (e) {
       // v872 (Konyo: 'STANDBY keeps jumping at me mid session') — one missed poll under game
       // load must NOT cut the feed. Hold the last good picture; only 4 straight misses
