@@ -523,8 +523,20 @@ def _durable_pass(max_age_ms=None):
         cap = _EAGLE_RECORD_MAX_AGE_MS if max_age_ms is None else max_age_ms
         if (_time.time() * 1000 - float(_ts)) > cap:
             return (None, None)            # too old to mean anything
-        # v2408 — a record written by a process serving no port has no window, so nearly every
-        # check returns nothing and its pass describes a console nobody is asking about.
+        # ⚠ v2409 — ASK WHETHER IT WAS THE PRIMARY CONSOLE, NOT WHETHER IT HAD A PORT.
+        # v2408 refused a record whose port was None, reasoning that a portless process has no
+        # window. Grok Bot then named the actual stray: `control_app.py --no-open` on **:17985** —
+        # windowless, but serving. It writes port=17985 and would have sailed straight past that
+        # check, so the guard was inert on the one case that produced it. A guard that cannot fail
+        # on its own motivating example is measuring nothing. [[feedback-blind-fixture-green-gate]]
+        #
+        # `primary` comes from _is_primary_console(): only the canonical :17772 console is the one
+        # anyone is asking about. Port is still recorded, for diagnosis rather than for judgement.
+        #
+        # ⚠ ABSENT IS NOT False. A pre-v2409 record carries no `primary` key at all and must still
+        # be read, or upgrading blinds this on every machine until each rewrites its file.
+        if _row.get("primary") is False:
+            return (None, None)
         if "port" in _row and _row.get("port") is None:
             return (None, None)
         _r = _row.get("rows")

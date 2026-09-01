@@ -38430,7 +38430,7 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
 
     _OMIT = object()      # "the key is not in the file at all" — NOT the same as an explicit null
 
-    def _write(self, rows, age_ms, slow=True, port=17772):
+    def _write(self, rows, age_ms, slow=True, port=17772, primary=True):
         """⚠ v2408 — A FIXTURE MUST WRITE THE RECORD PRODUCTION ACTUALLY WRITES. This omitted both
         `slow` and `port`, which was harmless while the reader tolerated their absence. It stopped
         being harmless the moment an unlabelled pass became honestly UNKNOWN: the invariant could
@@ -38449,6 +38449,8 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
             row["slow"] = slow
         if port is not self._OMIT:
             row["port"] = port
+        if primary is not self._OMIT:
+            row["primary"] = primary
         io.open(self.p, "w", encoding="utf-8").write(json.dumps(row))
 
     def test_with_no_record_it_is_UNKNOWN_not_a_pass(self):
@@ -38488,6 +38490,35 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
         self.assertIsNone(r["exercised"],
                           "a pass from a console with no window was graded as the console's "
                           "state — %r" % (r.get("why"),))
+
+    def test_a_NON_PRIMARY_console_with_a_REAL_PORT_is_UNKNOWN(self):
+        """⚠ THE CASE v2408's GUARD WAS INERT ON, and the reason it is worth a test of its own.
+
+        v2408 refused a record whose `port` was None, reasoning that a process serving no port has
+        no window. Grok Bot's tick 813 then named the actual stray on his machine:
+        `control_app.py --no-open` on **:17985**. Windowless, but SERVING — so it writes
+        port=17985 and sails past a None check. Measured the same minute: :17985 answers ver v2408
+        with a uiBeat present and hidden=False. A headless console still beats.
+
+        A guard that cannot fail on its own motivating example is measuring nothing. The
+        discriminator is `primary` — the repo's existing _is_primary_console(), "anything not on
+        the canonical port is a scratch/test process" — not the presence of a port.
+        [[feedback-blind-fixture-green-gate]] [[process-port-discipline]]"""
+        self._write(2, 0, slow=False, port=17985, primary=False)
+        r = self._row()
+        self.assertIsNone(r["exercised"],
+                          "a scratch console on :17985 was graded as the console's state — %r"
+                          % (r.get("why"),))
+
+    def test_a_PRE_v2409_record_with_no_primary_key_is_still_read(self):
+        """⚠ ABSENT IS NOT False. Upgrading must not blind this on every machine until each one
+        happens to rewrite its file."""
+        import console_doctor as cd
+        self._write(len(cd.CHECKS), 0, primary=self._OMIT)
+        r = self._row()
+        self.assertTrue(r["proven"],
+                        "a pre-v2409 record was refused for lacking a key it could not have had "
+                        "— %r" % (r.get("why"),))
 
     def test_a_STALE_record_goes_back_to_UNKNOWN(self):
         """The defect this guards: a durable record that outlives its meaning and reads as a pass."""

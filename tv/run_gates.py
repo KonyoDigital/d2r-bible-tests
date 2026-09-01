@@ -444,6 +444,26 @@ GATES = [
              "raising a blocker — needs a running console and belongs beside the render gate. "
              "Filed, not faked.",
          skip_ok=()),
+    Gate("live-panel", [sys.executable, os.path.join(HERE, "live_panel_gate.py"), "--prove"], 60,
+         why="v2406 — THE LIVE BEAT FINALLY REFUSES SOMETHING, AND THIS GATE IS THE JOIN THAT WAS "
+             "MISSING FOR A WHOLE SHIP. uiBeat.panels has reported ON-SCREEN / BELOW-FOLD / "
+             "OFF-SIDE / OFF-VIEW since v2404 — because `shown` was TRUE for a card sitting at "
+             "y=1050 in a 628px window — and NOTHING READ IT. tv/live_panel_gate.py was written to "
+             "read it and then was not registered here, which is the same unjoined end it exists "
+             "to catch, committed while fixing that class of defect. "
+             "⚠ render_check.py CANNOT do this job and must not be assumed to: at his real "
+             "1120x628 it reported taskforce y=224 h=30 ON-SCREEN while the live beat reported "
+             "y=1050 h=502 BELOW-FOLD. Both correct — the gate renders a seeded fixture and the "
+             "console renders his real state, and at h=30 vs h=502 they are not even measuring the "
+             "same element. A fixture that lays out differently from the app cannot gate the "
+             "app's layout. "
+             "This runs the checker's own SABOTAGE: a collapsed panel and one clipped sideways "
+             "must go RED, a page that merely scrolls must stay GREEN (his window is 660px by "
+             "design), a panel that is simply not on the visible tab must stay GREEN — that last "
+             "case is pinned because the first cut REFUSED HIS LIVE CONSOLE over #hd-tallybar "
+             "being display:none off its own view, and a gate that refuses a working console is "
+             "how a gate gets switched off.",
+         skip_ok=()),
     Gate("blueprint-agrees", [sys.executable, os.path.join(HERE, "lane_census.py"),
                               "--vs-blueprint"], 60,
          why="v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING. BLUEPRINT.md "

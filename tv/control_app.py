@@ -14720,11 +14720,21 @@ def _eagle_once():
                        # the port this process actually serves, or None when it serves none —
                        # a console with no port has no window, and a windowless pass is not this
                        # console's state however honestly it was measured.
-                       # ⚠ NOT "is the port open" — that is true for the OTHER process too, and
-                       # is exactly the confusion this ends. `_SERVING_PORT` is set at the one
-                       # place a server is actually started, so a process that never started one
-                       # writes port=None and a reader can see it is not the console.
+                       # ⚠ v2409 — `port is None` WAS THE WRONG DISCRIMINATOR AND WOULD HAVE BEEN
+                       # INERT ON THE VERY CASE THAT PROMPTED IT. Grok Bot's tick 813 named the
+                       # stray process precisely: `control_app.py --no-open` on **:17985**. It has
+                       # no window, but it DOES serve a port — so it writes port=17985 and sails
+                       # past a None check. Measured: :17985 answers ver v2408 with a uiBeat
+                       # present and hidden=False. A headless console still beats.
+                       #
+                       # The repo already had the right concept and I invented a weaker one:
+                       # `_is_primary_console()` — "anything not on the canonical port is a
+                       # scratch/test process". Use it. A scratch console reading his evidence is
+                       # the whole point of being able to test against it; what must never leak is
+                       # a CHOICE, and overwriting the record every reader treats as the console's
+                       # state is exactly that. [[process-port-discipline]]
                        "port": globals().get("_SERVING_PORT"),
+                       "primary": _is_primary_console(),
                        "ts": int(time.time() * 1000)}, _fh)
         os.replace(_tmp, _ep)
     except Exception as _e:
@@ -21401,7 +21411,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2408",
+        "ver": "v2409",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
