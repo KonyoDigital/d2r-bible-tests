@@ -37731,5 +37731,103 @@ class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
                       "production actually runs")
 
 
+
+class TestV2393TheWatchdogCanSeeABlankPage(unittest.TestCase):
+    """A page that BEATS while painting nothing must be rescued like a page that stopped.
+
+    Konyo, 2026-09-01, with a screenshot of the console black except one item tooltip:
+    "console is black screen again... we said we have safeguards for this and watchdogs for
+    this?" We did, it was armed, and it was right to stay quiet: `ui_rescue_due` judged the
+    heartbeat's AGE and the window's HIDDEN flag, and by both of those a page rendering a live
+    tooltip on a black ground is perfectly healthy.
+
+    ⚠ THE HARD PART IS NOT FIRING, IT IS NOT FIRING ON HIM. A rescue reloads his console. Four
+    of the six cases below are innocent pages that must NOT be touched, and each maps to a
+    specific guard in the rule. A watchdog that reloads the console during ordinary navigation
+    gets switched off inside a day, which is the same defect as having no watchdog.
+    """
+
+    def setUp(self):
+        import control_app as ca
+        self.ca = ca
+        self._beat = dict(ca._UI_BEAT)
+        self._resc = dict(ca._UI_RESCUE)
+
+    def tearDown(self):
+        self.ca._UI_BEAT.clear(); self.ca._UI_BEAT.update(self._beat)
+        self.ca._UI_RESCUE.clear(); self.ca._UI_RESCUE.update(self._resc)
+
+    def _fresh(self):
+        ca = self.ca
+        ca._UI_BEAT.update({"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
+                            "elsHigh": 0, "elsNow": None, "blankStrikes": 0})
+        ca._UI_RESCUE.update({"last": 0.0, "count": 0, "why": ""})
+
+    def _beats(self, counts, hidden=False):
+        for e in counts:
+            self.ca.ui_beat_record({"els": e, "hidden": hidden})
+
+    def _due(self):
+        import time as _t
+        self.ca._UI_BEAT["t"] = _t.time()
+        self.ca._UI_BEAT["mono"] = _t.monotonic()
+        return self.ca.ui_rescue_due(capture_live=False)
+
+    def test_a_beating_but_blank_page_IS_rescued(self):
+        """The fault itself — and the guard must be seen RED for its own reason."""
+        self._fresh()
+        self._beats([1200, 1200, 1200])
+        self._beats([12, 12, 12])
+        due, why = self._due()
+        self.assertTrue(due, "a page beating with 12 elements against a 1200 high-water mark is "
+                             "the black screen he photographed, and it was NOT rescued")
+        self.assertIn("blank", why.lower())
+
+    def test_a_healthy_page_is_left_alone(self):
+        self._fresh(); self._beats([1200] * 6)
+        self.assertFalse(self._due()[0])
+
+    def test_a_hidden_window_is_never_judged_on_paint(self):
+        """WebKit tears down offscreen content; a throttled window legitimately shrinks."""
+        self._fresh(); self._beats([1200, 1200]); self._beats([12, 12, 12], hidden=True)
+        self.assertFalse(self._due()[0])
+
+    def test_a_page_never_seen_healthy_has_no_baseline(self):
+        """UNKNOWN is not blank. Mid-first-paint pages are legitimately tiny."""
+        self._fresh(); self._beats([40, 40, 40]); self._beats([5, 5, 5])
+        self.assertFalse(self._due()[0])
+
+    def test_one_short_beat_is_not_a_fault(self):
+        """A single sample during a re-render must never reload his console."""
+        self._fresh(); self._beats([1200, 1200, 1200]); self._beats([12, 12])
+        self.assertFalse(self._due()[0])
+
+    def test_ordinary_navigation_does_not_trip_it(self):
+        """Panels mount and unmount as he changes tabs. Halving is not collapsing."""
+        self._fresh(); self._beats([1200, 1200, 1200]); self._beats([600, 600, 600, 600])
+        self.assertFalse(self._due()[0])
+
+    def test_recovery_clears_the_strikes(self):
+        self._fresh()
+        self._beats([1200, 1200, 1200]); self._beats([12, 12])
+        self._beats([1200]); self._beats([12])
+        self.assertFalse(self._due()[0])
+
+    def test_the_decision_actually_reads_the_paint_witness(self):
+        """⚠ THE JOIN, not the rule. The beat has carried `els` since v2336 and nothing read it.
+
+        This asserts the WIRE: with the strike counter set, the decision must change. A rule
+        that is correct in isolation and unread by the caller is the defect this whole session
+        has been about. [[the-unjoined-end]]
+        """
+        self._fresh(); self._beats([1200] * 3)
+        before = self._due()[0]
+        self.ca._UI_BEAT["blankStrikes"] = self.ca._UI_PAINT_STRIKES
+        self.ca._UI_BEAT["elsNow"] = 9
+        after = self._due()[0]
+        self.assertFalse(before)
+        self.assertTrue(after, "ui_rescue_due ignores blankStrikes — the witness is not joined")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

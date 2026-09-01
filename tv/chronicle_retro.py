@@ -1736,6 +1736,45 @@ def witnesses(sightings, surface_of=None):
                 surfs.add(sf)
         if len(surfs) >= 2:
             tags.add("cross-surface")
+
+    # ══ v2393 — THE SLOT IS A WITNESS, AND IT WAS BUILT AND NEVER JOINED ════════════════════
+    # Konyo: "make sure SLOT IDENTITY and image cross reference based ingame to that item even
+    # without a tooltip open — that way thats another layer of accuracy and tooling... for
+    # inventory and stash those items it sees with or without tooltips, the location x and y is
+    # still the proof, for witnesses to come and tallying purposes."
+    #
+    # He is right, and `tv/slot_identity.py` ALREADY IMPLEMENTS IT — `slot_tags()` returns
+    # `same-slot` and `slot-conflict`, and its own docstring makes exactly his argument: "two
+    # reads of one panel can share a misread of the TEXT, but agreeing on the cell as well means
+    # they agree about a second, independent fact."
+    #
+    # ⚠ MEASURED 2026-09-01: `slot_tags` and `slot_of_sighting` had NO caller outside
+    # `test_slot_identity.py`. `hover_mode` and `hover_drive` import the module for OTHER
+    # functions (`panel_box_for`, `hover_targets`, `screen_point`); no gate, no chronicle path
+    # and no vault path had ever asked it anything. `lane_health.py:27` says it in as many words
+    # — "same shape as prune_shadow and slot_identity: it reads, decides nothing and writes
+    # nothing." Built, tested, and never wired to the thing it was built for.
+    # [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    #
+    # ⚠ AND IT IS A WITNESS, NOT A NAME. This is the honest limit and it must be said here: a
+    # stash GRID carries no item names — that is v1861 DESIGN, re-confirmed on his 31 reels, not
+    # a defect. So the slot proves TWO READS AGREE ABOUT A SECOND FACT; it can never supply the
+    # name itself. `same-slot` therefore corroborates a name some other signal proposed, exactly
+    # like cross-reel. [[d2r-vault-chain-proven-on-his-reels]]
+    #
+    # ⚠ `slot-conflict` IS DELIBERATELY NOT ADDED AS A WITNESS. The same item claimed in two
+    # cells within one reel is a reason to HOLD, and folding it in here would let a contradiction
+    # read as corroboration. The gate decides what to do with it; witnesses() only counts
+    # agreement. It is surfaced under its own key so the caller can see it.
+    try:
+        import slot_identity as _si
+        for _t in (_si.slot_tags(sightings) or []):
+            if _t == "same-slot":
+                tags.add("same-slot")
+    except Exception:
+        # a missing/failing slot layer must not silently look like "no slot agreement" — but it
+        # also must not crash the gate. The absence is recorded by the guard, not invented here.
+        pass
     return sorted(tags)
 
 

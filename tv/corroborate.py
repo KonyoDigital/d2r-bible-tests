@@ -751,6 +751,95 @@ def verdict(rows=None):
     return AGREE, "all %d engine pair(s) agree" % len(rows)
 
 
+# ══ v2393 — EVERY INVARIANT PROVES ITSELF, OR SAYS IT HAS NOT ════════════════════════════════
+# Konyo: "self-proving gaps i want taken care of everywhere all round the console — i want this
+# logic and its own logic coded proving itself, and if it drifts it gets flagged accordingly."
+#
+# selftest() proves the RELATIONS can refuse (==, <=, >= against synthetic numbers). It has never
+# proved that any PARTICULAR invariant can. Those are different claims, and the gap between them
+# is where an inert check hides.
+#
+# MEASURED 2026-09-01, every invariant against his live tree — SIX OF FIFTEEN carry no information:
+#     agreeing at ZERO vs ZERO (cannot tell healthy from inert)
+#         a_lane_that_is_ON_has_either_worked_or_says_why_not   0 vs 0
+#         chronicle_owed_agrees                                 0 vs 0
+#         the_deleter_is_never_looser_than_the_planner          0 vs 0
+#         the_tooltip_finder_refuses_more_than_it_finds         0 vs 0   <- and THAT is a finding:
+#                                                                          the finder has never
+#                                                                          located OR refused
+#         the_two_deleters_stay_at_their_own_granularity        0 vs 0
+#     UNKNOWN (a side could not be read)
+#         the_eagle_can_still_look                           None vs 34
+#         the_two_owned_fields                                  7 vs None
+# Every one of them RENDERS AS "agree" — indistinguishable from a healthy check.
+#
+# ⚠ THIS SABOTAGES THE INVARIANT'S OWN OPERANDS, NEVER THE LIVE SYSTEM. Perturbing real state to
+# test a check would be a test that can damage the thing it grades, on a machine he plays on. The
+# perturbation is arithmetic on the value the builder already returned, fed through the SAME
+# check_one the live path uses.
+#
+# ⚠ AND IT PROVES A NARROW THING, WHICH IT MUST SAY OUT LOUD: that the invariant's RELATION can
+# refuse given its own operands. It does NOT prove the builders read the right engines — that is
+# what the independence audit above is for, and what a runnable per-invariant sabotage would prove
+# properly. An instrument that oversells its reach is the defect this whole file exists to catch.
+# [[unknown-stays-unknown]] [[regression-guard]]
+
+def _perturb(L, R, rel):
+    """A left-hand value that MUST violate `rel` against R. -> (value, why) or (None, why)."""
+    if R is None or isinstance(R, bool) or not isinstance(R, (int, float)):
+        return None, "the right side is %r — no arithmetic perturbation is defined" % (R,)
+    if rel == "==":
+        return R + 1, "left made one greater than right"
+    if rel == "<=":
+        return R + 1, "left pushed above the ceiling it must stay under"
+    if rel == ">=":
+        return R - 1, "left pushed below the floor it must stay above"
+    return None, "unknown relation %r" % (rel,)
+
+
+def prove_each():
+    """Can each invariant actually REFUSE? -> list of dicts, one per invariant.
+
+    proven    the relation went red when its own left value was perturbed
+    exercised BOTH sides were non-zero — i.e. it has been asked a real question, not 0 vs 0
+    """
+    out = []
+    for name in sorted(n for n in globals() if n.startswith("_inv_")):
+        f = globals()[name]
+        if not callable(f):
+            continue
+        row = {"invariant": name[5:], "proven": False, "exercised": None, "why": ""}
+        try:
+            key, what, prove, ln, lf, rn, rf, rel = f()
+        except Exception as e:
+            row["why"] = "could not be built: %s" % str(e)[:70]
+            out.append(row)
+            continue
+        L = _reading(ln, lf)
+        R = _reading(rn, rf)
+        row["rel"] = rel
+        row["left"] = L.value if L.known else None
+        row["right"] = R.value if R.known else None
+        if not (L.known and R.known):
+            # UNKNOWN is not a pass and not a failure — it is "this could not be graded today".
+            row["why"] = "a side is UNKNOWN, so it cannot be perturbed or judged"
+            out.append(row)
+            continue
+        # has it ever been asked a real question? 0 vs 0 agrees whatever the engines say.
+        row["exercised"] = bool(L.value) or bool(R.value)
+        bad, why = _perturb(L.value, R.value, rel)
+        if bad is None:
+            row["why"] = why
+            out.append(row)
+            continue
+        probe = check_one(lambda: (key, what, prove, ln, (lambda: bad), rn, (lambda: R.value), rel))
+        row["proven"] = (probe.get("state") == DISAGREE)
+        row["why"] = why if row["proven"] else (
+            "PERTURBED AND IT STILL AGREED — this invariant cannot refuse: %s" % probe.get("say", "")[:80])
+        out.append(row)
+    return out
+
+
 def selftest():
     """DRIVE EVERY INVARIANT RED. An invariant nobody has seen disagree proves nothing.
 

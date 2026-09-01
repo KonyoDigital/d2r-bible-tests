@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2392",
+  "ver": "v2393",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2392: owed 0 was correct all along - all 44 reels are fixtures, recent or zero-pages, so nothing owes the vault lane a read.",
+  "note": "v2393: the rescue watchdog can now see a page that beats while painting nothing; the per-frame verdict is persisted; slot identity joined to the witness path; river.py traces every joint",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

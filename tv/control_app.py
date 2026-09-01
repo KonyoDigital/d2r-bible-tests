@@ -11448,10 +11448,45 @@ _UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
 #     [[unknown-stays-unknown]]
 #   · never reload twice in a row without a long cooling-off, or a page that dies on load
 #     becomes an infinite reload loop with his window flashing
-_UI_BEAT = {"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {}}
+_UI_BEAT = {"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
+            # v2393 — the paint witness (see ui_rescue_due)
+            "elsHigh": 0, "elsNow": None, "blankStrikes": 0}
 _UI_RESCUE = {"last": 0.0, "count": 0, "why": ""}
 _UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
 _UI_RESCUE_COOLDOWN_S = 300.0
+
+# ══ v2393 — ALIVE BUT BLANK. The fault the heartbeat cannot see ═════════════════════════════
+# Konyo, 2026-09-01, with a screenshot: "console is black screen again. something visually isnt
+# fetching again — this has happened before, we said we have safeguards for this and watchdogs
+# for this?"
+#
+# We do, and it was armed, and it was right to stay quiet. THE WATCHDOG MEASURES THE HEARTBEAT,
+# NOT THE PIXELS. His screenshot is the proof: one item tooltip painted perfectly on an
+# otherwise black window. A painted tooltip is JS-driven, so the timer was running and the page
+# was beating every 5s. `ui_rescue_due` looks at exactly two things — the AGE of the last beat
+# and whether the window was hidden — and by both of those the console was healthy.
+#
+# ⚠ AND THE MATERIAL WAS ALREADY IN THE PAYLOAD. The beat has carried `els` (a live count of
+# `body *`), `view`, `loaded` and a per-panel shown/DARK/empty breakdown since v2336. Nothing
+# ever read them. Built at one end, never joined at the other — the same shape as the surface
+# witness, the slot witness and the per-frame verdict, all found today. [[the-unjoined-end]]
+#
+# THE RULE: a page that is BEATING while its element count has collapsed against its own
+# high-water mark is alive-but-blank, and needs the same cure as a wedged one.
+#
+# ⚠ THREE GUARDS AGAINST FIRING ON A HEALTHY PAGE, each for a specific innocent case:
+#   1. a baseline must EXIST (`elsHigh >= _UI_PAINT_FLOOR_ELS`) — a page mid-first-paint is
+#      legitimately small, and "we have never seen this page healthy" is UNKNOWN, not blank.
+#   2. the collapse must be DEEP (`< 25%` of high-water) — panels legitimately mount and unmount
+#      as he changes tabs, and a rescue that fires on ordinary navigation is switched off inside
+#      a day, which is the same defect as no rescue at all.
+#   3. it must PERSIST (3 consecutive beats, ~15s) — one short beat during a re-render is not a
+#      fault, and acting on a single sample is how a watchdog starts reloading his console
+#      under him mid-work.
+# [[unknown-stays-unknown]] [[regression-guard]]
+_UI_PAINT_FLOOR_ELS = 200      # below this we have never seen the page healthy -> no baseline
+_UI_PAINT_COLLAPSE = 0.25      # current < 25% of high-water = collapsed
+_UI_PAINT_STRIKES = 3          # consecutive collapsed beats before it counts
 
 
 def ui_beat_record(state=None):
@@ -11463,6 +11498,31 @@ def ui_beat_record(state=None):
         _UI_BEAT["state"] = state
         # v2325 — a window he cannot see is not a window that is stuck (see ui_rescue_due)
         _UI_BEAT["hidden"] = bool(state.get("hidden"))
+        # v2393 — the paint witness. Kept here rather than in ui_rescue_due because the strike
+        # count is a property of the BEAT SEQUENCE, and the rescue check runs on its own 10s
+        # timer that does not line up with the 5s beats.
+        try:
+            els = state.get("els")
+            els = int(els) if isinstance(els, (int, float)) and not isinstance(els, bool) else None
+        except Exception:
+            els = None
+        _UI_BEAT["elsNow"] = els
+        if els is not None:
+            if els > int(_UI_BEAT.get("elsHigh") or 0):
+                _UI_BEAT["elsHigh"] = els
+            # ⚠ A HIDDEN PAGE IS NOT JUDGED. WebKit can tear down offscreen content, so a
+            # throttled window legitimately reports a smaller tree; counting that as a strike
+            # would make the rescue fire the moment he switches away. [[unknown-stays-unknown]]
+            hi = int(_UI_BEAT.get("elsHigh") or 0)
+            if _UI_BEAT["hidden"] or hi < _UI_PAINT_FLOOR_ELS:
+                _UI_BEAT["blankStrikes"] = 0
+            elif els < hi * _UI_PAINT_COLLAPSE:
+                _UI_BEAT["blankStrikes"] = int(_UI_BEAT.get("blankStrikes") or 0) + 1
+            else:
+                _UI_BEAT["blankStrikes"] = 0
+        else:
+            # a beat that carries no count says nothing about paint either way
+            _UI_BEAT["blankStrikes"] = 0
     return dict(_UI_BEAT)
 
 
@@ -11624,6 +11684,18 @@ def ui_rescue_due(now=None, capture_live=False):
                            "looking at is throttled by the browser, so its silence proves "
                            "nothing (%s)" % _seen_why)
         _UI_RESCUE["staleHidden"] = _UI_RESCUE.get("staleHidden", 0) + 1
+    # v2393 — ALIVE BUT BLANK, checked BEFORE the age test on purpose: this fault's whole
+    # signature is a page that is beating happily, so an age-first check returns "healthy" and
+    # never reaches here. See the constants above for why it takes three strikes.
+    _strikes = int(_UI_BEAT.get("blankStrikes") or 0)
+    if _strikes >= _UI_PAINT_STRIKES:
+        _since_b = now - (_UI_RESCUE["last"] or 0.0)
+        if _UI_RESCUE["last"] and _since_b < _UI_RESCUE_COOLDOWN_S:
+            return False, ("the page looks blank but it was rescued %.0fs ago - cooling off so a "
+                           "page that renders empty on load cannot loop" % _since_b)
+        return True, ("the page is BEATING but blank: %s elements against a high-water mark of "
+                      "%s, for %d beats running"
+                      % (_UI_BEAT.get("elsNow"), _UI_BEAT.get("elsHigh"), _strikes))
     if age < _UI_BEAT_SILENCE_S:
         return False, "the page beat %.0fs ago" % age
     since = now - (_UI_RESCUE["last"] or 0.0)
@@ -20966,7 +21038,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2392",
+        "ver": "v2393",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

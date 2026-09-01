@@ -99,7 +99,7 @@ def load(root=None):
         return {}, False
 
 
-def remember(reel_dir, hits, frames, kinds=None, root=None):
+def remember(reel_dir, hits, frames, kinds=None, root=None, panel_frames=None):
     """Record one reel's structural verdict, so the expensive pass is paid for ONCE.
 
     THIS IS WHAT MAKES THE FILTER USABLE. A panel-density ordering is the right idea and was left
@@ -112,11 +112,36 @@ def remember(reel_dir, hits, frames, kinds=None, root=None):
     blob, ok = load(root)
     if not ok:
         return False                          # never overwrite a store we could not read
-    blob[os.path.basename(reel_dir)] = {
+    row = {
         "panels": int(hits), "frames": int(frames),
         "kinds": dict(kinds or {}), "ts": int(time.time() * 1000),
         "full": True,
     }
+    # ⚠ v2393 — THE PER-FRAME VERDICT, WHICH IS WHAT EVERY DOWNSTREAM STAGE ACTUALLY NEEDS.
+    # Konyo: "we said after it earns a cross reference it gets deleted — we are speaking only of
+    # the frames that get pruned with tooltips or slot identity, but either way those get tallied
+    # and data should get extracted."
+    #
+    # Until now this function was handed COUNTS. `panels: 18, frames: 2385` cannot answer "may
+    # THIS frame go", so the prune stayed at REEL granularity and 3.2 GB sat held because 104 of
+    # 2,619 frames might matter. Four separate blockages, one missing record:
+    #     gate   couldn't earn a cross-surface witness  — 8,300 sightings, 0 locations
+    #     prune  couldn't keep 104 and release 2,515    — no per-frame verdict stored
+    #     inbox  couldn't auto-tally                    — needs that witness
+    #     disk   couldn't free anything                 — 0 of 6,380 frames releasable
+    # The survey loop already HELD this, in `out["keep"]` beside the surface name, and dropped it
+    # on the way here. [[heart-first]] rule 6 — persist what you knew, not a summary of it.
+    #
+    # ⚠ ONLY THE CARRYING FRAMES ARE NAMED, and that is not a shortcut: with `full: True` the
+    # complement IS the disposable set, and his measured ratio is 1,019 carriers in 15,956 frames,
+    # so naming the carriers is ~6% of the bytes of naming everything.
+    #
+    # ⚠ AND A MISSING KEY IS UNKNOWN, NOT EMPTY. A reel surveyed before today has no `panelFrames`
+    # at all; `{}` means a full pass looked and found none. Collapsing those would let the prune
+    # delete frames nobody ever examined. [[unknown-stays-unknown]]
+    if panel_frames is not None:
+        row["panelFrames"] = {str(k): str(v) for k, v in dict(panel_frames).items()}
+    blob[os.path.basename(reel_dir)] = row
     try:
         tmp = p + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
@@ -192,6 +217,7 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
         # string "panel". So the store knew 1,019 frames held a panel and could not say which
         # panel, on any of them. [[unknown-stays-unknown]]
         reel_kinds = {}
+        reel_panel_frames = {}          # v2393 — basename -> surface, for the frames that CARRY
         for f in fs:
             out["frames"] += 1
             try:
@@ -210,6 +236,7 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
                 out["panels"] += 1
                 out["byKind"][k] = out["byKind"].get(k, 0) + 1
                 reel_kinds[k] = reel_kinds.get(k, 0) + 1
+                reel_panel_frames[os.path.basename(f)] = k
                 out["keep"].append(f)
                 hits += 1
             elif every_frame:
@@ -237,7 +264,8 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
                 # ⚠ OLD ROWS ARE NOT BACKFILLED. A reel surveyed before today has an UNKNOWN
                 # breakdown, not an empty one, and inventing {"stash": N} for it would be a
                 # measurement nobody made.
-                remember(d, hits, len(fs), reel_kinds, root=(remember_to or None))
+                remember(d, hits, len(fs), reel_kinds, root=(remember_to or None),
+                         panel_frames=reel_panel_frames)
             except Exception as _e:
                 # ⚠ v2371 — SAY IT. This was `except: pass`, and a survey is the most expensive
                 # thing in this module: 6 of his largest reels cost 248 s of local OCR (4,634
