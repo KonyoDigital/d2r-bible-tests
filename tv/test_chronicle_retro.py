@@ -2673,5 +2673,82 @@ class TestV2379TarnhelmRoutesITSELFOnTheSecondWitness(unittest.TestCase):
         self.assertFalse(cr.gate_verdict("Tarnhelm", sg)["pass"])
 
 
+class TestV2380TheSameItemOnTwoPanelsIsAWitness(unittest.TestCase):
+    """Konyo named the lifecycle this exists for: "i find it on the floor from farming.. and then
+    its in my inventory and then its identified and then its seen and registerd also as a
+    chronicle... so thats two witnesses in the same session with two diffrent reels and
+    templates... so understand that too also as a scenario".
+
+    MEASURED BEFORE THE CHANGE: floor -> inventory -> chronicle inside ONE session scored
+    ['cross-frame'] and was HELD. witnesses() read lane, reel and frame and never surface.
+
+    WHY IT IS A WITNESS: cross-frame is the SAME panel photographed twice, discounted precisely
+    because one systematic misread repeats. The floor label, the inventory grid and the Chronicle
+    list are three different layouts — a misread does not survive being re-rendered in a different
+    template."""
+
+    REEL = "reel_s_777_1"
+
+    def _s(self, frame, loc):
+        return {"reel": self.REEL, "frame": frame, "lane": "claude",
+                "conf": 0.9, "loc": loc, "witness": "none"}
+
+    def _loc_of(self, sg):
+        return sg.get("loc")
+
+    def _life(self):
+        return [self._s("f_floor", "floor"), self._s("f_inv", "inventory"),
+                self._s("f_chron", "chronicle")]
+
+    def test_his_lifecycle_now_earns_a_second_witness(self):
+        w = cr.witnesses(self._life(), surface_of=self._loc_of)
+        self.assertIn("cross-surface", w)
+        self.assertTrue(cr._gate_verdict_live("X", self._life(), surface_of=self._loc_of)["pass"])
+
+    def test_the_SAME_surface_twice_is_still_one_witness(self):
+        """The whole point of discounting repetition. Two looks at the stash are not two panels."""
+        sg = [self._s("f1", "stash"), self._s("f2", "stash")]
+        self.assertNotIn("cross-surface", cr.witnesses(sg, surface_of=self._loc_of))
+        self.assertFalse(cr._gate_verdict_live("X", sg, surface_of=self._loc_of)["pass"])
+
+    def test_an_UNKNOWN_surface_never_manufactures_a_witness(self):
+        """The judge lane legitimately does not know where it looked — 84 names, zero locations.
+        Unknown must not become evidence. [[unknown-stays-unknown]]"""
+        sg = [self._s("f1", None), self._s("f2", None)]
+        self.assertNotIn("cross-surface", cr.witnesses(sg, surface_of=self._loc_of))
+        self.assertFalse(cr._gate_verdict_live("X", sg, surface_of=self._loc_of)["pass"])
+
+    def test_ONE_known_surface_plus_ONE_unknown_is_still_one_witness(self):
+        """The case that CAUGHT a bad sabotage. Two unknowns collapse to str(None)=='none' and
+        look safe by accident; a known surface beside an unknown is where 'count it anyway'
+        actually manufactures the second witness. Half-knowing where you looked is not two
+        panels. [[unknown-stays-unknown]]"""
+        sg = [self._s("f1", "stash"), self._s("f2", None)]
+        self.assertNotIn("cross-surface", cr.witnesses(sg, surface_of=self._loc_of))
+        self.assertFalse(cr._gate_verdict_live("X", sg, surface_of=self._loc_of)["pass"])
+
+    def test_an_EMPTY_STRING_surface_is_not_a_surface(self):
+        """A resolver that returns '' for 'I could not tell' must read as unknown, not as a
+        distinct panel named nothing."""
+        sg = [self._s("f1", "stash"), self._s("f2", "   ")]
+        self.assertNotIn("cross-surface", cr.witnesses(sg, surface_of=self._loc_of))
+
+    def test_with_NO_resolver_nothing_changes(self):
+        """No caller is forced to change, and nothing silently starts passing."""
+        self.assertEqual(cr.witnesses(self._life()), ["cross-frame"])
+        self.assertFalse(cr._gate_verdict_live("X", self._life())["pass"])
+
+    def test_a_resolver_that_THROWS_does_not_take_the_gate_with_it(self):
+        def boom(_sg):
+            raise RuntimeError("the timeline is unreadable")
+        self.assertEqual(cr.witnesses(self._life(), surface_of=boom), ["cross-frame"])
+
+    def test_it_reaches_the_gate_through_strict_gate(self):
+        """The plumbing: control_app passes surface_of=_sighting_loc, and it must arrive."""
+        gate = cr.strict_gate(surface_of=self._loc_of)
+        self.assertTrue(gate("X", self._life()),
+                        "surface_of does not reach witnesses() through strict_gate")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

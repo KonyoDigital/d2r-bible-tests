@@ -1666,8 +1666,14 @@ def in_game_stamp(sightings):
     return out
 
 
-def witnesses(sightings):
-    """The distinct, independent signals behind one proposed name. Returns a sorted list of tags."""
+def witnesses(sightings, surface_of=None):
+    """The distinct, independent signals behind one proposed name. Returns a sorted list of tags.
+
+    `surface_of(sighting) -> surface-or-None` is INJECTED for the same reason surface_shadow takes
+    it: the resolver that knows which PANEL a frame showed lives in control_app, which asks the
+    reel timeline. Without it this behaves exactly as before — no caller is forced to change and
+    nothing silently starts passing.
+    """
     tags = set()
     lanes = {(s.get("lane") or "claude") for s in (sightings or [])}
     reels = {_reel_key(s.get("reel")) for s in (sightings or []) if s.get("reel")}
@@ -1693,6 +1699,43 @@ def witnesses(sightings):
         tags.add("cross-frame")
     if any((s.get("witness") == "agree") for s in (sightings or [])):
         tags.add("printed")
+    # ══ v2380 — THE SAME ITEM ON TWO DIFFERENT PANELS ═══════════════════════════════════════════
+    # Konyo described the lifecycle this exists for: "i find it on the floor from farming.. and
+    # then its in my inventory and then its identified and then its seen and registerd also as a
+    # chronicle... so thats two witnesses in the same session with two diffrent reels and
+    # templates... so understand that too also as a scenario".
+    #
+    # He is right, and until now this function could not see it: it read `lane`, `reel` and
+    # `frame` and never `surface`. Measured before the change — floor -> inventory -> chronicle
+    # inside ONE session scored ['cross-frame'] and was HELD.
+    #
+    # WHY IT IS A WITNESS AT ALL, and arguably a stronger one than the tags above it: `cross-frame`
+    # is the SAME panel photographed twice, which is discounted precisely because one systematic
+    # misread repeats — same model, same font, same row. The floor label, the inventory grid and
+    # the Chronicle list are three different layouts. A misread does not survive being re-rendered
+    # in a different template, so agreement across surfaces is independence of a kind repetition
+    # can never supply.
+    #
+    # ⚠ IT NEEDS THE RESOLVER TO FIRE AT ALL. With no surface_of, or with a resolver that answers
+    # None (the judge lane legitimately does not know where it looked), this tag never appears and
+    # the gate behaves exactly as it did. Unknown must not manufacture a witness.
+    # [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+    if surface_of:
+        surfs = set()
+        for sg in (sightings or []):
+            try:
+                sf = surface_of(sg)
+            except Exception:
+                sf = None
+            # NORMALISE FIRST, THEN TEST. `if sf:` admitted "   " — a truthy string that
+            # strips to nothing — and a blank counted as a panel of its own, so ONE known
+            # surface beside one blank scored cross-surface. Caught by this module's own guard
+            # at v2380 before it shipped. [[unknown-stays-unknown]]
+            sf = str(sf).strip().lower() if sf is not None else ""
+            if sf:
+                surfs.add(sf)
+        if len(surfs) >= 2:
+            tags.add("cross-surface")
     return sorted(tags)
 
 
@@ -1787,7 +1830,8 @@ WILSON_FLOOR = 0.34
 CONFLUENCE_FLOOR = 1.00
 
 
-def _gate_verdict_live(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+def _gate_verdict_live(name, sightings, conf_floor=CONF_FLOOR,
+                       min_witnesses=MIN_WITNESSES, surface_of=None):
     """Should this name be grounded? Returns a verdict that EXPLAINS itself either way.
 
     {"pass": bool, "witnesses": [...], "why": str, "bestConf": float, "sightings": n}
@@ -1797,7 +1841,7 @@ def _gate_verdict_live(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN
     """
     sightings = list(sightings or [])
     best = max([float(s.get("conf") or 0) for s in sightings] or [0.0])
-    w = witnesses(sightings)
+    w = witnesses(sightings, surface_of=surface_of)
     if not sightings:
         return {"pass": False, "witnesses": [], "bestConf": 0.0, "sightings": 0,
                 "why": "no evidence at all"}
@@ -1890,7 +1934,8 @@ def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNE
     future change ever makes `pass` depend on the shadow, TestV2201 goes red, because that switch is
     his to make after reading the disagreements, not one to slip in.
     """
-    v = _gate_verdict_live(name, sightings, conf_floor, min_witnesses)
+    v = _gate_verdict_live(name, sightings, conf_floor, min_witnesses,
+                           surface_of=surface_of)
     try:
         sh = wilson_shadow(sightings, conf_floor, min_witnesses)
         sh["agrees"] = bool(sh["wouldPass"]) == bool(v.get("pass"))

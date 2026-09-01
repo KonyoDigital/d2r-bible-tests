@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2379",
+  "ver": "v2380",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2379: the one item that went right, pinned on his own reels",
+  "note": "v2380: The same item on the floor, in the inventory and in the Chronicle list is now two witnesses, not one. A blank surface string is not a panel.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
