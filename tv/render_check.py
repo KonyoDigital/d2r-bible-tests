@@ -866,8 +866,24 @@ def check(name, spec, shots=True):
             out["refusals"].append(why)
             return out
         tab.ev(spec["seed"])
-        time.sleep(0.6)
-        act = tab.ev(spec["activate"])
+        # ⚠ v2404 — A FIXED SLEEP HERE BLOCKED A LEGITIMATE PUSH. This was `time.sleep(0.6)`, and
+        # on the v2403 pre-push the `inbox` target refused with "the panel could not be ACTIVATED"
+        # while the SAME tree rendered all six targets green minutes later on a quiet machine.
+        # Nothing was wrong with the page; 0.6s is simply not enough while the suites are still
+        # unwinding, and a gate that fails under load teaches him to re-run it until it agrees —
+        # which is how a gate stops being evidence.
+        #
+        # v2330 already learned this for the SELECTOR wait and left its sibling in place two lines
+        # up. Fixing the site that happened to fail and not the class is the whole of
+        # [[feedback-generalize-fixes]] — so this one polls the target's OWN activate expression
+        # until it answers true or the budget runs out, and the refusal below then means the panel
+        # really did not come up rather than that the machine was busy.
+        act, _deadline = False, time.time() + 12.0
+        while time.time() < _deadline:
+            act = tab.ev(spec["activate"])
+            if act:
+                break
+            time.sleep(0.4)
         if not act:
             out["ok"] = False
             out["refusals"].append("the panel could not be ACTIVATED — everything measured after "
