@@ -31084,7 +31084,10 @@ class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
         d = tempfile.mkdtemp(prefix="eagle_flag_")
         self.addCleanup(lambda: None)
         co._eagle_record_path = lambda: os.path.join(d, "absent.json")
+        # `checked` must be SET, or the invariant correctly falls through to the durable record
+        # and this helper would be testing the fallback rather than the in-memory branch.
         _ca._EAGLE = dict(old_eagle or {})
+        _ca._EAGLE["checked"] = 1
         if slow is None:
             _ca._EAGLE.pop("slow", None)
         else:
@@ -31137,6 +31140,41 @@ class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
         self.assertEqual(self._right(slow=None), len(cd.CHECKS),
                          "an unlabelled pass resolved to the cheap expectation, so an eagle that "
                          "silently skipped the two SLOW checks would read as complete")
+
+    def test_the_FLAG_and_the_ROWS_must_come_from_the_SAME_pass(self):
+        """⚠ THE DEFECT THAT COST TWO GATE RUNS, pinned so it cannot return.
+
+        The first cut read `slow` from the DURABLE record while left() counted rows from the
+        IN-MEMORY _EAGLE. So a fixture holding 34 rows was graded against whatever his live console
+        had last written — `{"rows": 2, "slow": false}` — and the suite failed `34 != 32` for a
+        reason that had nothing to do with either number. Two halves of one comparison sourced from
+        two different passes is not a comparison, and it made the verdict depend on the machine the
+        test ran on.
+
+        Here the in-memory pass is real (`checked` set) and says nothing about `slow`, while a
+        durable record on disk says `slow: false`. The in-memory pass must win, and the absent flag
+        must resolve STRICT — the durable file describes a different pass entirely.
+        [[feedback-fixtures-never-touch-live-data]]"""
+        import corroborate as co
+        import control_app as _ca
+        import console_doctor as cd
+        import json, os, tempfile
+        d = tempfile.mkdtemp(prefix="eagle_mismatch_")
+        rec = os.path.join(d, "eagle.json")
+        with io.open(rec, "w", encoding="utf-8") as fh:
+            json.dump({"checked": 1, "rows": 2, "slow": False,
+                       "ts": int(__import__("time").time() * 1000)}, fh)
+        old_eagle, old_path = getattr(_ca, "_EAGLE", None), co._eagle_record_path
+        co._eagle_record_path = lambda: rec
+        _ca._EAGLE = {"checked": 1, "rows": [{}] * len(cd.CHECKS), "say": "a complete pass"}
+        try:
+            got = co._inv_the_eagle_can_still_look()[6]()
+        finally:
+            _ca._EAGLE, co._eagle_record_path = old_eagle, old_path
+        self.assertEqual(got, len(cd.CHECKS),
+                         "the expectation was taken from the DURABLE record's flag while the rows "
+                         "came from the in-memory pass — %d instead of %d. The two halves of a "
+                         "comparison must describe the same pass." % (got, len(cd.CHECKS)))
 
     def test_adding_a_check_MOVES_the_expectation(self):
         """PIN THE LAW, NOT THE NUMBER. A test asserting 32 would pass today and rot on the next

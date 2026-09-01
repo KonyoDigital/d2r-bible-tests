@@ -599,10 +599,17 @@ def _inv_the_eagle_can_still_look():
         # would make a genuinely incomplete pass of 32 rows read as healthy, which is the exact
         # blindness this invariant exists to prevent. Defaulting to the STRICTER expectation means
         # an unlabelled pass can still be caught skipping checks. [[unknown-stays-unknown]]
+        #
+        # ⚠⚠ AND THE FLAG MUST COME FROM THE SAME PASS AS THE ROWS. The first cut read the flag
+        # from the DURABLE record while left() was counting rows from the IN-MEMORY _EAGLE — so a
+        # fixture's 34 rows got graded against his live console's `slow: False`, and the suite
+        # failed with `34 != 32` for a reason that had nothing to do with either. Two halves of one
+        # comparison sourced from two different passes is not a comparison at all, and it made the
+        # test's verdict depend on the machine it ran on. left() decides which record it is reading
+        # by asking whether `checked` is set; this mirrors that decision exactly rather than
+        # guessing again. [[feedback-fixtures-never-touch-live-data]] [[copy-drift]]
         e = dict(getattr(ca, "_EAGLE", {}) or {})
-        slow = e.get("slow")
-        if slow is None:
-            slow = _durable_slow_flag()
+        slow = e.get("slow") if e.get("checked") is not None else _durable_slow_flag()
         return cheap if slow is False else full
 
     return ("eagle-ran-every-check",
