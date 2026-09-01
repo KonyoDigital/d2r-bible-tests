@@ -74,6 +74,45 @@ _PANEL_CAL_LO, _PANEL_CAL_HI = 1.45, 1.62      # the band stash_eye's own crops 
 # fractions of the calibration frame, so the numbers survive a resize
 PANELS = {
     "stash": (281 / 2940.0, 381 / 1912.0, 868 / 2940.0, 869 / 1912.0),
+    # ══ v2374 — AND NOW THE INVENTORY, MEASURED THE SAME WAY ═══════════════════════════════════
+    # This was the ONE missing number. panel_box_for refused every inventory question, so cell_of
+    # could not place a held item, so nothing could tell a WORN slot from a HELD cell — which is
+    # what blocked both the inventory profile and slot identity. It is not a new mechanism; it is
+    # a measurement that had never been taken.
+    #
+    # ⚠ THE CELL PITCH WAS NOT RE-DERIVED. D2R draws every container on the same 86.85px cell, so
+    # the stash's measured pitch is reused and only the ORIGIN is searched — two parameters
+    # instead of four, which is why this converged where a free fit would not have.
+    #
+    # HOW, AND WHAT FAILED FIRST, because the failures are the reason to trust the result:
+    #   · a per-column luminance search pinned x0 = 1791 immediately and cleanly (mean seam
+    #     luminance 12.0 — the vertical seams are genuinely dark and unobstructed)
+    #   · the same search on ROWS was WORTHLESS on one frame: the top five origins spanned 190px
+    #     and scored within 0.9 of each other. Items fill the horizontal seams, exactly as the
+    #     v2332 note predicted for a free fit
+    #   · stacking 40 frames from the calibration reel cancelled the items and narrowed the
+    #     candidates to 971..989 — better, but still a 1.87 spread, which fails the >3 bar I set
+    #     for calling a fit discriminating, so it was NOT taken as the answer
+    #   · drawing it and LOOKING got within 7px (991 by eye) but no closer — at 1:1 an eye
+    #     cannot separate the centre of a seam from its top edge
+    #   · what finally pinned it was a scan that can FAIL: the mean luminance of all five row
+    #     seams, swept across three frames from three different sessions at once. That profile
+    #     is not flat — it runs 4x between on-seam and off-seam (55 at the minimum against 236
+    #     and 251 at 974 and 978) — and it agrees on ONE origin
+    #
+    #     y=984 is the darkest on all three AND a strict local minimum on each, darker than
+    #     +/-8px and +/-14px every time. My eye said 991; the pixels said 984 and the pixels win.
+    #
+    #     f_1788104628821.jpg (2940x1912)  ->  x 1791  y 984  w 868.5  h 347.4   cell 86.85
+    #
+    # VERIFIED ON A SECOND SESSION, which is the standard the stash set: a full inventory in
+    # reel_s_1787520892804_95400 (seam luminance 17.0 against cell interiors at 128.2, contrast
+    # 111.2) lands the lattice on every column and row seam.
+    # ⚠ AND THE FIRST VERIFICATION ATTEMPT WAS A FALSE POSITIVE I CAUGHT: selecting frames where
+    # the seam positions are DARK also selects any dark scene with no panel open at all. The
+    # criterion had to be CONTRAST — seams dark AND cell interiors bright — which a uniformly
+    # dark frame cannot fake. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+    "inventory": (1791 / 2940.0, 984 / 1912.0, 868.5 / 2940.0, 347.4 / 1912.0),
 }
 
 

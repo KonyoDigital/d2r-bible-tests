@@ -300,10 +300,15 @@ class TestV2332WhereTheGridActuallyIs(unittest.TestCase):
                 self.assertEqual(got, (c, r), "cell (%d,%d) came back as %s" % (c, r, got))
 
     def test_an_UNMEASURED_container_is_refused_not_guessed(self):
-        """The inventory is a different panel on the other side of the screen and the cube is a
-        third. Deriving either from the stash would put items in real cells that are the wrong
-        ones. [[unknown-stays-unknown]]"""
-        for cont in ("inventory", "cube", "wardrobe"):
+        """The cube is a different panel again, and deriving it from the stash or the inventory
+        would put items in real cells that are the wrong ones. [[unknown-stays-unknown]]
+
+        ⚠ v2374 REMOVED "inventory" FROM THIS LIST, and that is the honest bookkeeping rather
+        than a weakening: the inventory is no longer unmeasured. It was measured on three frames
+        from three sessions (x 1791, y 984, w 868.5, h 347.4) and is now guarded by its own case,
+        which fails if the lattice moves 8px. The LAW here is unchanged — what is unmeasured is
+        refused — and the cube still holds it up."""
+        for cont in ("cube", "wardrobe"):
             box, why = S.panel_box_for(2940, 1912, cont)
             self.assertIsNone(box, "%s got a guessed panel box" % cont)
             self.assertIn("measured", why)
@@ -634,6 +639,145 @@ class TestV2334FramePixelsAreNotScreenPixels(unittest.TestCase):
         self.assertIsNotNone(ok, "a one-pixel rounding difference was refused: %s" % why)
         bad, _ = S.screen_point((10, 10), (2940, 1912), (0, 0, 1470, 900))    # a real letterbox
         self.assertIsNone(bad, "a 6% axis mismatch was accepted as rounding")
+
+
+class TestV2374TheInventoryPanelIsMeasured(unittest.TestCase):
+    """The ONE missing number. panel_box_for refused every inventory question, so cell_of could
+    not place a held item, so nothing could tell a WORN slot from a HELD cell — which is what
+    blocked the inventory profile and slot identity both. Not a missing mechanism: a measurement
+    nobody had taken.
+
+    x 1791  y 991  w 868.5  h 347.4  on 2940x1912, cell 86.85 (the stash's pitch, reused rather
+    than re-derived — D2R draws every container on the same cell, so only the ORIGIN was searched)."""
+
+    def test_the_inventory_no_longer_REFUSES(self):
+        box, why = S.panel_box_for(2940, 1912, "inventory")
+        self.assertIsNone(why, "the inventory panel is refused again: %s" % why)
+        self.assertIsNotNone(box)
+        x, y, w, h = box
+        self.assertAlmostEqual(x, 1791, delta=2)
+        self.assertAlmostEqual(y, 984, delta=2)
+        self.assertAlmostEqual(w, 868.5, delta=2)
+        self.assertAlmostEqual(h, 347.4, delta=2)
+
+    def test_the_box_is_exactly_ten_by_four_cells(self):
+        """The geometry has to agree with GRIDS, or cell_of divides by the wrong number and every
+        item lands one column out at the far end — the failure that is hardest to notice."""
+        box, _ = S.panel_box_for(2940, 1912, "inventory")
+        cols, rows = S.GRIDS["inventory"]
+        self.assertAlmostEqual(box[2] / cols, 86.85, delta=0.4, msg="column pitch is not the cell")
+        self.assertAlmostEqual(box[3] / rows, 86.85, delta=0.4, msg="row pitch is not the cell")
+
+    def test_the_four_corners_land_in_the_four_corner_cells(self):
+        box, _ = S.panel_box_for(2940, 1912, "inventory")
+        x, y, w, h = box
+        cw, ch = w / 10.0, h / 4.0
+        for (cx, cy), want in (((x + cw*0.5, y + ch*0.5), (0, 0)),
+                               ((x + cw*9.5, y + ch*0.5), (9, 0)),
+                               ((x + cw*0.5, y + ch*3.5), (0, 3)),
+                               ((x + cw*9.5, y + ch*3.5), (9, 3))):
+            cell, why = S.cell_of((cx, cy), box, "inventory")
+            self.assertIsNone(why, why)
+            self.assertEqual(cell, want)
+
+    def test_a_point_OUTSIDE_the_panel_is_refused_not_clamped(self):
+        """A wrong cell is worse than no cell — this module's own words, and the reason the
+        inventory was refused for so long."""
+        box, _ = S.panel_box_for(2940, 1912, "inventory")
+        x, y, w, h = box
+        for pt in ((x - 40, y + 10), (x + w + 40, y + 10), (x + 10, y - 40), (x + 10, y + h + 40)):
+            cell, why = S.cell_of(pt, box, "inventory")
+            self.assertIsNone(cell, "a point outside the panel was given cell %s" % (cell,))
+            self.assertTrue(why)
+
+    def test_the_lattice_LANDS_ON_THE_SEAMS_in_his_own_footage(self):
+        """The measurement checked against PIXELS, and checked so it can FAIL.
+
+        ⚠ THE FIRST VERSION OF THIS WAS A GREEN THAT LIES. It asserted only that the seams are
+        darker than the cell interiors — which stays true with the whole lattice shifted 43px,
+        HALF A CELL, because an off-grid "seam" still lands on darkish pixels and an off-grid
+        "cell centre" still lands on a bright item. Sabotaged at +30 and +43 it reported OK both
+        times. A guard that cannot go red is decorative.
+
+        So it is RELATIVE: of every row origin in a +/-40px sweep, the MEASURED one must give the
+        darkest seams. That question has a wrong answer available, which is what makes it worth
+        asking. [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+
+        SKIPS, loudly, where his footage is absent — a case that needs his frames cannot run on
+        CI, and that exact mistake blocked his site for five ships tonight.
+        [[feedback-fixtures-never-touch-live-data]]"""
+        try:
+            from PIL import Image
+        except Exception:
+            self.skipTest("PIL is not installed here, so the pixels cannot be read — UNMEASURED")
+        import glob
+        hist = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames", "hist")
+        if not os.path.isdir(hist):
+            self.skipTest("his frame history is not on this machine — UNMEASURED, not passed")
+        box, _ = S.panel_box_for(2940, 1912, "inventory")
+        x, y, w, h = box
+
+        def seam_mean(px, y0):
+            """Mean luminance along the 5 row seams if the grid started at y0."""
+            v = []
+            for r in range(5):
+                yy = int(y0 + r * h / 4.0)
+                if yy < 0 or yy >= 1912:
+                    return None
+                v += [px[int(x + w * f), yy] for f in (0.08, 0.3, 0.5, 0.72, 0.94)]
+            return sum(v) / float(len(v))
+
+        frame = None
+        for d in sorted(os.listdir(hist)):
+            for p in sorted(glob.glob(os.path.join(hist, d, "*.jpg")))[:14]:
+                try:
+                    im = Image.open(p)
+                    if im.size != (2940, 1912):
+                        continue
+                    px = im.convert("L").load()
+                except Exception:
+                    continue
+                # ⚠ SELECT ON THE COLUMNS, ASSERT ON THE ROWS. Choosing frames with a test
+                # that uses the row origin lets a WRONG row origin disqualify every frame, so the
+                # case SKIPS instead of failing — measured: shifted -8px it went quiet, and a
+                # skip reads like a pass in a suite summary. The vertical seams are pinned
+                # independently (x0=1791, mean luminance 12.0) so they can choose the frame
+                # without prejudging the thing under test. [[regression-guard]]
+                colseam = []
+                for i in range(11):
+                    sx = min(int(x + i * w / 10.0), 2939)
+                    colseam += [px[sx, int(y + h * f)] for f in (0.25, 0.5, 0.75)]
+                inner = [px[int(x + (c + 0.5) * w / 10.0), int(y + (r + 0.5) * h / 4.0)]
+                         for c in range(10) for r in range(4)]
+                cs = sum(colseam) / float(len(colseam))
+                if cs < 40 and sum(inner) / 40.0 - cs > 25:
+                    frame = (p, px)
+                    break
+            if frame:
+                break
+        if not frame:
+            self.skipTest("no frame with the inventory panel open was found — UNMEASURED. "
+                          "Nothing here passed by default.")
+        p, px = frame
+        here = seam_mean(px, y)
+        # ⚠ LOCAL, not global. Sweeping +/-40px is confounded: 30px up lands the sample rows in
+        # the dark border band ABOVE the grid, which is darker than a real seam and has nothing
+        # to do with the lattice. Being ON a seam means being darker than the pixels just beside
+        # it — a property that has a wrong answer available, unlike "darker than the cells".
+        # ⚠ AND A SWEEP, NOT JUST THE NEIGHBOURS. Comparing only +/-8 and +/-14 let a -20px
+        # shift PASS: it lands on a different dark band and is locally minimal there. 20px is
+        # 23% of a cell. The measured origin must be the darkest anywhere within +/-24.
+        worse = []
+        for off in (-24, -20, -16, -14, -12, -8, -4, 4, 8, 12, 14, 16, 20, 24):
+            v = seam_mean(px, y + off)
+            if v is not None:
+                worse.append((off, v))
+        self.assertTrue(worse, "the sweep produced no comparison points")
+        for off, v in worse:
+            self.assertLess(here, v,
+                            "the measured row origin (%.1f) is not darker than one %+dpx away "
+                            "(%.1f) in %s — the lattice is not on the seams, or this check cannot "
+                            "tell" % (here, off, v, os.path.basename(p)))
 
 
 if __name__ == "__main__":
