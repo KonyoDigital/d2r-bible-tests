@@ -37235,7 +37235,7 @@ class TestV2382TheMilleniumBadgeCarriesThreeDigits(unittest.TestCase):
             self.ui = fh.read()
 
     def test_the_badge_takes_at_least_three_digits(self):
-        block = _between(self, self.ui, "var _num = String(_cv", "var _skewNow",
+        block = _between(self, self.ui, "var _num = ", "var _skewNow",
                          what="the millenium number")
         m = re.search(r"slice\(-(\d+)\)", block)
         self.assertTrue(m, "the millenium number no longer slices at all — re-derive this guard "
@@ -37244,6 +37244,48 @@ class TestV2382TheMilleniumBadgeCarriesThreeDigits(unittest.TestCase):
             "the badge is back to %s digits: v2380 would print '%s'. Two digits restart every "
             "hundred ships, which is how a 178-version-old machine wore a current-looking badge."
             % (m.group(1), "2380"[-int(m.group(1)):]))
+
+    def test_the_badge_carries_the_v(self):
+        """v2383 — Konyo, second pass: "millenium v381 or v382 but three digits.. not 4 digits".
+        The digits alone read as a score; with the v it reads as a version."""
+        block = _between(self, self.ui, "var _num = ", "var _skewNow",
+                         what="the millenium number")
+        self.assertIn("'v' +", block,
+                      "the badge dropped the v prefix — 382 alone does not read as a version")
+
+    def test_the_BAR_is_the_version_and_not_a_banner(self):
+        """★ v2383. Konyo, off a screenshot of his own footer: "i want you remove this banner..
+        make it short and to the point a factual ... not all this", and then, naming the clauses:
+        "Console v2381 and Agent v2382 board v2382 · is on disk v2382 i want removed surgically".
+
+        MEASURED, what his bar actually said on one line:
+            MILLENIUM 81 · ⚠ CONSOLE V2381, AGENT V2382, BOARD V2382 — RELAUNCH · ↻ V2382 IS ON
+            DISK · 🦅 8 NEED YOU · 🔧 2 MINE · 💾 9.5GB DOWN 13.8GB/24H (NONE OF IT US)
+            (DISK READ 11 MIN AGO)
+
+        Every clause true; the line as a whole useless. This pins that the visible text is the
+        FIRST segment only — everything after the first ' · ' is hover."""
+        i = self.ui.index("$('foot-ver').textContent =")
+        line = self.ui[i:self.ui.index("\n", i)]
+        self.assertIn("split(' \u00b7 ')[0]", line,
+                      "the footer bar is printing the whole accumulated label again: %s" % line.strip())
+
+    def test_the_detail_is_MOVED_not_DELETED(self):
+        """⚠ The clauses carry real signals — v2079 put drift and eagle on this line precisely
+        because they were measured, published and read by NOTHING. Shortening the bar must not
+        re-open that hole, so the long string goes to the element's title."""
+        self.assertIn("_tip.unshift(_lblLong)", self.ui,
+                      "the long label is no longer reaching the tooltip — the facts v2079 "
+                      "surfaced here would be measured and displayed nowhere "
+                      "[[plumbing-with-no-tap]]")
+
+    def test_the_RELAUNCH_prompt_still_has_a_visible_home(self):
+        """The one clause that is an ACTION, not a fact. It may leave the status bar only because
+        this console has a dedicated banner for it — verified, not assumed."""
+        self.assertIn("is on disk \u2014 this window is still running ", self.ui,
+                      "the relaunch strip is gone AND the bar no longer says it, so a console "
+                      "serving code it never executed now tells him nothing on screen")
+        self.assertIn("RELAUNCH NOW", self.ui)
 
     def test_nothing_still_CLAIMS_two_digits_is_the_design(self):
         """The label that outlived its referent. The old prose said two digits was his standing

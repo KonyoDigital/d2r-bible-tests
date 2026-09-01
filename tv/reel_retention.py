@@ -238,6 +238,13 @@ def _proven_empty(reel):
         return False
 
 
+# Every conclusion plan() can reach about a reel. Module-level since v2383 so reel_story can
+# assert it has a stage for each one — see tv/test_reel_story.py.
+RULES = ("no-witness-index", "ledger-unreadable", "test-fixture", "recent",
+         "never-chronicle-swept", "zero-pages",
+         "rows-not-banked", "vault-owes", "target-met", "eligible")
+
+
 def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     """What may go, oldest first, and WHY every other reel stays. Writes nothing.
 
@@ -310,9 +317,11 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     # reported as UNMEASURED, never as "fine" and never as "broken" — this run simply contains no
     # reel that reaches it, and that is a fact about the footage, not about the rule.
     # [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
-    RULES = ("no-witness-index", "ledger-unreadable", "test-fixture", "recent",
-             "never-chronicle-swept", "zero-pages",
-             "rows-not-banked", "vault-owes", "target-met", "eligible")
+    # v2383 — the tuple now lives at MODULE scope (see RULES above). It stayed local for as
+    # long as nothing outside plan() needed to know what this module can conclude; reel_story
+    # draws a stage per verdict, so "every rule has a stage" is now a contract another file must
+    # be able to check. A test that had to re-list these by hand would be a copy that drifts.
+    # [[copy-drift]]
     # ⚠ v2316 — "not-extracted" WAS DECLARED HERE AND IS GONE. v2312 tried to make retention hold a
     # reel whose seal names nothing it took; that fix was WITHDRAWN (every existing seal predates
     # the contract, so the prune would never have fired again). The code went and the DECLARATION
@@ -322,8 +331,15 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     # [[the-unjoined-end]] [[label-outlived-referent]]
     hits = dict((r, 0) for r in RULES)
 
+    # v2383 — THE TAG TRAVELS WITH THE REEL, not only into the counter. `hits` says how many reels
+    # were held for each reason; nothing said WHICH reason held THIS reel except the prose, so a
+    # caller wanting to draw the lifecycle would have had to regex an English sentence. A reader
+    # that pattern-matches prose is a guard on the sentence, not on the rule. [[source-reading-guard]]
+    _last = [None]
+
     def _rule(tag, why):
         hits[tag] += 1
+        _last[0] = tag
         return why
 
     for reel in reels:
@@ -393,7 +409,8 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             if free_mb is not None and freed >= free_mb:
                 why = _rule("target-met",
                             "eligible, but the target was already met — this stops as soon as it can")
-                kept.append({"reel": reel, "mb": round(size, 1), "why": why, "pages": pages})
+                kept.append({"reel": reel, "mb": round(size, 1), "why": why, "pages": pages,
+                             "tag": _last[0]})
                 continue
             # ⚠⚠ v2314 — I TIGHTENED THIS IN v2312 AND IT WAS AN OVER-CORRECTION. WITHDRAWN.
             #
@@ -418,9 +435,11 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             candidates.append({"reel": reel, "mb": round(size, 1), "pages": pages,
                                "why": _rule("eligible",
                                             "read (%d pages) and sealed by BOTH lanes — it has "
-                                            "given up its information" % pages)})
+                                            "given up its information" % pages),
+                               "tag": "eligible"})
             continue
-        kept.append({"reel": reel, "mb": round(size, 1), "why": why, "pages": pages})
+        kept.append({"reel": reel, "mb": round(size, 1), "why": why, "pages": pages,
+                             "tag": _last[0]})
 
     # NOT REACHED and NOT APPLICABLE are two different answers, and only one of them is a gap.
     # `target-met` can only fire when a free_mb target was asked for; with no target it is

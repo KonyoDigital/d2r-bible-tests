@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2382",
+  "ver": "v2383",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2382: The badge printed 80 for v2380; it now names the ship, and the retired two-digit rule no longer reads as current.",
+  "note": "v2383: The shelf shows where every reel stands and how much film carried a panel; the version bar says the version and nothing else.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

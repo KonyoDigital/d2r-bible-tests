@@ -1635,6 +1635,72 @@
   #th-shelfov[hidden] { display: none !important; }
   #th-shelfov .sh-head { font: var(--fw-bold) var(--fs-xl)/var(--lh-snug) var(--serif); color: #e8cf96; letter-spacing: var(--ls-wider); margin-bottom: 14px; padding-right: 48px; }
   #th-shelfov .sh-x { position: sticky; float: right; top: 0; margin: -4px 0 0 0; z-index: 4; }
+  /* ══ v2383 — THE PIPELINE BOARD ═══════════════════════════════════════════════════════════
+     The shelf's own visual language (dark card, gold rule, mono numerals) applied to the reel
+     lifecycle. Semantic colour is SEPARATE from the shelf's gold accent: mint = kept/useful,
+     dim = spent, amber = a stage nobody taught this board about. */
+  #th-shelfov .sh-story { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--edge);
+    border-radius: 12px; background: linear-gradient(180deg, rgba(20,18,12,.72), rgba(9,8,6,.86)); }
+  #th-shelfov .shs-head { font-size: var(--fs-xs); letter-spacing: var(--ls-widest);
+    text-transform: uppercase; color: var(--gold-dim); margin-bottom: 10px; }
+  #th-shelfov .shs-wait { font-size: var(--fs-sm); color: var(--muted); font-style: italic; }
+  #th-shelfov .shs-wait.shs-bad { color: #e9b96e; font-style: normal; }
+  #th-shelfov .shs-yield-none { font-size: var(--fs-sm); color: #e9b96e; }
+  #th-shelfov .shs-bar { height: 10px; border-radius: 6px; overflow: hidden;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.09); }
+  #th-shelfov .shs-keep { display: block; height: 100%; border-radius: 6px 0 0 6px;
+    background: linear-gradient(90deg, rgba(143,230,160,.95), rgba(143,230,160,.55)); }
+  #th-shelfov .shs-ylab { margin-top: 7px; font-size: var(--fs-sm); color: var(--text); }
+  #th-shelfov .shs-ylab b { color: var(--mint, #8fe6a0); font-variant-numeric: tabular-nums; }
+  #th-shelfov .shs-dim, #th-shelfov .shs-ysub { color: var(--muted); }
+  #th-shelfov .shs-ysub { font-size: var(--fs-xs); margin-top: 3px;
+    font-variant-numeric: tabular-nums; }
+  /* ⚠ THE RAIL WRAPS, IT DOES NOT SCROLL — and the first cut had it the other way round.
+     `overflow-x: auto` on a 6-stage rail meant the last stage hung off the edge: rendered at
+     901px it printed "RELEASABL", the E sliced off by the scroller, with a scrollbar underneath
+     nobody would think to drag. A horizontal scroll on a summary board is a stage he never
+     sees. Wrapping costs a row and loses nothing. [[visual-regression-detector]] */
+  #th-shelfov .shs-rail { display: flex; align-items: stretch; flex-wrap: wrap;
+    gap: 6px 4px; margin-top: 8px; }
+  #th-shelfov .shs-stage { display: flex; flex-direction: column; align-items: center; gap: 1px;
+    flex: 1 1 84px; min-width: 84px; padding: 7px 4px; border-radius: 9px;
+    border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+  #th-shelfov .shs-stage.zero { opacity: .38; }
+  #th-shelfov .shs-ic { font-size: var(--fs-md); line-height: 1; }
+  #th-shelfov .shs-n { font-size: var(--fs-lg); font-weight: var(--fw-bold);
+    font-variant-numeric: tabular-nums; color: var(--gold); line-height: 1.1; }
+  #th-shelfov .shs-sl { font-size: var(--fs-2xs, 10px); letter-spacing: var(--ls-label);
+    text-transform: uppercase; color: var(--muted); text-align: center;
+    /* a long stage name wraps inside its own cell rather than setting the cell's width */
+    overflow-wrap: anywhere; line-height: 1.25; }
+  /* .shs-arrow is retired — see the note beside the rail builder. Kept out of the sheet
+     entirely rather than left as a dead class nobody can date. */
+  #th-shelfov .shs-stage { position: relative; }
+  #th-shelfov .shs-step { position: absolute; top: 4px; left: 6px; font-size: 9px;
+    font-variant-numeric: tabular-nums; color: var(--muted); opacity: .65; letter-spacing: 0; }
+  #th-shelfov .shs-railh { font-size: var(--fs-xs); color: var(--muted); margin: 11px 0 2px; }
+  #th-shelfov .shs-railh b { color: var(--text); font-weight: var(--fw-medium); }
+  /* hold kind is SEMANTIC colour, separate from the shelf's gold: amber = held on purpose,
+     red = held because evidence is missing, mint = free to go. Painting a deliberate hold the
+     same as a stuck one is how a real blocker gets scrolled past. */
+  #th-shelfov .shs-wtag.shs-hk-policy   { color: #e9b96e; }
+  #th-shelfov .shs-wtag.shs-hk-evidence { color: #d98f8f; }
+  #th-shelfov .shs-wtag.shs-hk-global   { color: #d98f8f; font-weight: var(--fw-bold); }
+  #th-shelfov .shs-wtag.shs-hk-none     { color: var(--mint, #8fe6a0); }
+  #th-shelfov .shs-stage.shs-unknown { border-color: rgba(233,185,110,.5); opacity: 1; }
+  #th-shelfov .shs-stage.shs-unknown .shs-n { color: #e9b96e; }
+  #th-shelfov .shs-worst { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.07);
+    padding-top: 9px; }
+  #th-shelfov .shs-wh { font-size: var(--fs-2xs, 10px); letter-spacing: var(--ls-label);
+    text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  #th-shelfov .shs-wrow { display: flex; align-items: baseline; gap: 9px; font-size: var(--fs-xs);
+    padding: 2px 0; font-variant-numeric: tabular-nums; }
+  #th-shelfov .shs-wpct { flex: none; width: 3.2em; text-align: right; color: var(--mint, #8fe6a0); }
+  #th-shelfov .shs-wpct.nil { color: #d98f8f; }
+  #th-shelfov .shs-wmb { flex: none; width: 5em; text-align: right; color: var(--text); }
+  #th-shelfov .shs-wtag { flex: none; color: var(--gold-dim); }
+  #th-shelfov .shs-wreel { color: var(--muted); overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; min-width: 0; }
   #th-shelfov .sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(244px, 1fr)); gap: 12px; }
   /* ══ D18 · CINEMATIC SHELF CARD — each run reads like a film-reel still / collectible: cover-art hero with
      the session title + verdict seal as a broadcast lower-third, a grail headline find, and a clean stat grid.
@@ -8173,7 +8239,7 @@ body[data-origin="shadow"] #stage::after {
        source. The full-version suffix that v2280 added stays: it is the guard for a machine a
        THOUSAND versions behind, and this only shortens the range where the badge alone is
        ambiguous. [[label-outlived-referent]] */
-    var _num = String(_cv || '').replace(/^v/i, '').slice(-3);
+    var _num = _cv ? ('v' + String(_cv).replace(/^v/i, '').slice(-3)) : '';
     var _skewNow = ((_av && _cv !== _av) || (_bv && _cv !== _bv));
     var _lbl = 'Millenium' + (_num ? (' ' + _num) : '');
     /* v2280 — A SHORT BADGE CANNOT CARRY A 178-VERSION GAP. His ruling stands — clean reads
@@ -8288,7 +8354,29 @@ body[data-origin="shadow"] #stage::after {
         _lbl += ' (disk read: age UNKNOWN)';
       }
     } catch (e) {}
-    $('foot-ver').textContent = _lbl;
+    /* ══ v2383 — THE BAR IS THE VERSION. THE STORY MOVED TO THE HOVER. ═══════════════════════
+       Konyo, off a screenshot of his own footer: "i want you remove this banner.. make it short
+       and to the point a factual ... not all this". What he was looking at, on one line:
+
+         MILLENIUM 81 · ⚠ CONSOLE V2381, AGENT V2382, BOARD V2382 — RELAUNCH · ↻ V2382 IS ON
+         DISK · 🦅 8 NEED YOU · 🔧 2 MINE · 💾 9.5GB DOWN 13.8GB/24H (NONE OF IT US)
+         (DISK READ 11 MIN AGO)
+
+       Every clause was true and the line as a whole said nothing, because a status bar that
+       always has six things on it has stopped being a status bar. THIS IS A MOVE, NOT A DELETE:
+       the long string is still built, exactly as before, and it goes into the element's title —
+       which this console already maintains a few lines down. Nothing measured is thrown away;
+       it just stops shouting. One visible fault token survives, `relaunch`, because a console
+       serving code it never executed is the one thing here he must act on rather than hover to
+       discover. [[unknown-stays-unknown]] [[label-outlived-referent]] */
+    var _lblLong = _lbl;
+    /* He named the clauses he wanted gone: "Console v2381 and Agent v2382 board v2382 · is on
+       disk v2382 i want removed surgically". So the bar is the version and NOTHING else — not
+       even a one-word fault token. The relaunch prompt is not lost: this console already has a
+       dedicated relaunch banner for it (the "v2382 is on disk — this window is still…
+       RELAUNCH NOW" strip visible in his own screenshot), which is a better home for an action
+       than a corner of a status line. Two places saying it was the redundancy. */
+    $('foot-ver').textContent = _lbl.split(' · ')[0];
     try {
       // The rows themselves, on hover — the footer says HOW MANY, the title says WHICH.
       var _tip = [];
@@ -8320,6 +8408,8 @@ body[data-origin="shadow"] #stage::after {
         if (r.state !== 'ok') _tip.push('   ' + (r.state === 'missing' ? '\u2717' : '?') + ' '
                                         + r.check + ' — ' + (r.why || ''));
       });
+      /* v2383 — the banner he asked off the bar lives here now, in full, first line. */
+      if (typeof _lblLong === 'string' && _lblLong.indexOf(' · ') >= 0) _tip.unshift(_lblLong);
       $('foot-ver').title = _tip.join('\n') || 'console, agent and board all on ' + _cv;
     } catch (e) {}
     try {
@@ -9417,6 +9507,137 @@ body[data-origin="shadow"] #stage::after {
     var M = { watching: 'WATCHING', reading: 'READING', settle: 'SETTLING', hunt: 'HUNTING', signing: 'SEALING' };
     return M[ph] || ph.toUpperCase();
   }
+  /* ══ v2383 — THE PIPELINE BOARD ════════════════════════════════════════════════════════════
+     Konyo: "so visually in retrospect we can surgically fix anything out of line... maybe just a
+     synced information board for it like a ledger or a data processor sort of".
+
+     It draws THREE things and invents none of them:
+       1. the yield — how much film carried a panel, straight off the triage store
+       2. where the reels stand — the stage counts from reel_retention.plan()'s own verdicts
+       3. the worst offenders — most film for least signal, which is the prune queue made visible
+
+     ⚠ EVERY NUMBER HERE IS THE BACKEND'S. This function must never compute a verdict; if a stage
+     looks wrong the fix is in reel_retention, not here. Two authorities over footage that has no
+     un-delete is the worst outcome available. */
+  var _SH_STAGES = [
+    ['filmed',     '🎞', 'filmed'],
+    ['triaged',    '🔍', 'triaged'],
+    ['swept',      '📖', 'swept'],
+    ['banked',     '🏦', 'banked'],
+    ['vault-done', '🛡', 'vault done'],
+    ['releasable', '🗑', 'releasable']
+  ];
+
+  function _shStoryRender(st){
+    var el = document.getElementById('sh-story');
+    if (!el) return;
+    if (!st){
+      /* the console did not answer. NOT an empty pipeline. */
+      el.innerHTML = '<div class="shs-wait shs-bad">the pipeline could not be read — '
+        + 'this is not "nothing to show", it is "nobody could ask"</div>';
+      return;
+    }
+    if (st.ok === false){
+      el.innerHTML = '<div class="shs-wait shs-bad">' + esc(st.why || 'the pipeline could not be built') + '</div>';
+      return;
+    }
+    var y = st['yield'], stg = st.stages || {}, reels = st.reels || [];
+
+    /* ── 1. the yield bar ─────────────────────────────────────────────────────────────────── */
+    var yieldBlock;
+    if (!y){
+      yieldBlock = '<div class="shs-yield-none">yield UNKNOWN — no reel on this shelf has been '
+                 + 'surveyed yet, which is not the same as "none of it was useful"</div>';
+    } else {
+      var warn = '';
+      if (!y.storeOk) warn += ' · ⚠ the triage store would not parse — this is over whatever subset loaded';
+      if (y.reelsUnmeasured) warn += ' · ' + y.reelsUnmeasured + ' reel(s) never surveyed, excluded';
+      yieldBlock =
+          '<div class="shs-yield">'
+        +   '<div class="shs-bar" role="img" aria-label="' + y.usefulPct + ' percent of film carried a panel">'
+        +     '<span class="shs-keep" style="width:' + y.usefulPct + '%"></span>'
+        +   '</div>'
+        +   '<div class="shs-ylab"><b>' + y.usefulPct + '%</b> of the film carried a panel'
+        +     '<span class="shs-dim"> · ' + y.emptyPct + '% carried nothing</span></div>'
+        +   '<div class="shs-ysub">' + y.panels + ' panels / ' + y.frames + ' frames · '
+        +     y.reelsMeasured + ' reels surveyed' + warn + '</div>'
+        + '</div>';
+    }
+
+    /* ── 2. the rail: where the reels stand ───────────────────────────────────────────────── */
+    /* ⚠ THESE COUNTS ARE "STOPS HERE", NOT "REACHED HERE", AND THE FIRST DRAW GOT IT WRONG.
+       Rendered at 1440 it read "🎞 0 FILMED" beside "📖 24 SWEPT" — and every one of the 44
+       reels on the shelf HAS been filmed. The number was right and the word above it said
+       something else: the whole label-outlived-referent failure in one cell. Caught by looking
+       at the picture; no counter in this file could have found it. [[label-outlived-referent]]
+       So each stage now says how many reels get NO FURTHER than it, and the heading says that
+       in words rather than leaving him to infer it from a zero. */
+    /* ⚠ NUMBERED, NOT ARROWED — and a cross-family read is why. With `→` between the cells, a
+       rail that WRAPS leaves the last stage on its own row with no incoming arrow. Grok, shown
+       the 901px render cold: "the last box (RELEASABLE 20) has been pushed below the row and the
+       connecting arrows are gone, so the 'stuck at this stage' counting logic is no longer
+       visually legible... creating an orphan element." A separator between flex items cannot
+       survive a wrap; a number inside each item can. And numbering is honest here rather than
+       decorative — this IS a sequence, and the order is the information. */
+    var rail = _SH_STAGES.map(function(s, i){
+      var n = stg[s[0]] || 0;
+      return '<div class="shs-stage' + (n ? '' : ' zero') + '" title="'
+           + (n ? (n + ' reel(s) get no further than ' + s[2]) : ('no reel is waiting at ' + s[2]))
+           + '"><span class="shs-step">' + (i + 1) + '</span>'
+           + '<span class="shs-ic">' + s[1] + '</span>'
+           + '<span class="shs-n">' + n + '</span>'
+           + '<span class="shs-sl">' + s[2] + '</span></div>';
+    }).join('');
+    var unknownN = stg['unknown-stage'] || 0;
+    if (unknownN){
+      /* a verdict the board was never taught. It must be LOUD — silently bucketing it into
+         'filmed' would draw a finished reel as untouched. */
+      rail += '<div class="shs-stage shs-unknown" '
+            + 'title="a retention verdict this board has no stage for — teach reel_story.TAG_STAGE">'
+            + '<span class="shs-ic">❓</span><span class="shs-n">' + unknownN + '</span>'
+            + '<span class="shs-sl">unmapped</span></div>';
+    }
+
+    /* ── 3. the worst offenders — most film, least signal ─────────────────────────────────── */
+    var worst = reels.filter(function(r){ return r['yield'] != null && (r.mb || 0) > 0; })
+                     .sort(function(a, b){
+                       /* biggest waste first: megabytes that carried nothing */
+                       return ((b.mb || 0) * (1 - b['yield'])) - ((a.mb || 0) * (1 - a['yield']));
+                     }).slice(0, 5);
+    var worstBlock = !worst.length ? '' :
+        '<div class="shs-worst"><div class="shs-wh">most film for least signal '
+      + '<span class="shs-dim">\u2014 amber is held on purpose (the suite opens it, or it is '
+      + 'too young), not waste</span></div>'
+      + worst.map(function(r){
+          var pct = Math.round(r['yield'] * 100);
+          return '<div class="shs-wrow" title="' + esc(r.why || '') + '">'
+               + '<span class="shs-wpct' + (pct === 0 ? ' nil' : '') + '">' + pct + '%</span>'
+               + '<span class="shs-wmb">' + (r.mb != null ? r.mb + 'MB' : '—') + '</span>'
+               + '<span class="shs-wtag shs-hk-' + esc(r.holdKind || 'none') + '">'
+               +   esc(r.tag || '?') + '</span>'
+               + '<span class="shs-wreel">' + esc(String(r.reel || '').replace(/^reel_s_/, '')) + '</span>'
+               + '</div>';
+        }).join('')
+      + '</div>';
+
+    el.innerHTML = '<div class="shs-head">⚙ THE PIPELINE — what the reels have given up</div>'
+                 + yieldBlock
+                 + '<div class="shs-railh">where the ' + reels.length + ' reels stand \u2014 '
+                 +   'each stage counts the reels that get <b>no further</b> than it</div>'
+                 + '<div class="shs-rail">' + rail + '</div>'
+                 + worstBlock;
+  }
+
+  async function _shStoryLoad(){
+    try {
+      var r = await fetch(API + '/api/reel_story');
+      _shStoryRender(await r.json());
+    } catch (e) {
+      _shStoryRender(null);      /* could-not-ask, said out loud */
+    }
+  }
+  window._shStoryLoad = _shStoryLoad;
+
   function _shLiveRender(st){
     var el = document.getElementById('sh-live'); if (!el) return;   // only exists while the shelf is open
     if (!st || !st.__on){ el.hidden = true; return; }               // off-air (or sim) → card hidden
@@ -11307,6 +11528,15 @@ body[data-origin="shadow"] #stage::after {
       /* v2199 — it is NOT "every recorded run" while 2,261 of 2,461 are hidden by default.
          A heading that contradicts the list under it is the same lie as a silent truncation. */
       + '<div class="sh-head">🎞 THE SHELF — your reels</div>'
+      /* v2383 — THE PIPELINE BOARD. Konyo: "reels need to be visually connected to the backend
+         coding of the pruning and optimization and extracting process... so its logically showing
+         visually whats happening and needs to happen", and "the 10-15% of real footage and the
+         other 70%+ was useless.. maybe that statistically can be also rendering and shown".
+         Rendered EMPTY here and filled by _shStoryRender off /api/reel_story, because plan()
+         walks every reel directory and the shelf must not wait on a disk pass to open. Until it
+         answers it says so — a board that draws zeros before the data lands is a board that
+         lies for a second every time. [[unknown-stays-unknown]] */
+      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
       + '<div class="sh-live" id="sh-live" hidden>'   // D24 — live "recording now" card, filled + shown by _shLiveRender when on-air
         + '<div class="shl-top"><span class="shl-rec"><span class="shl-dot"></span>rec</span>'
           + '<span class="shl-title">Recording now — this reel is building</span>'
@@ -11320,6 +11550,18 @@ body[data-origin="shadow"] #stage::after {
       + _shHighlights() + searchBar + timelineDiv + body;
     ov.hidden = false;
     try { _shLiveRender(window.__lastStatus); } catch(e){}   // D24 — populate the live "recording now" card from the last poll (shown only on-air)
+    /* v2383 — fill the pipeline board, through window.* rather than a bare call.
+       ⚠ AND THE REASON IS NOT THE ONE I FIRST WROTE HERE. I claimed this call crossed the
+       IIFE boundary; it does not. MEASURED: the file's real block openers are at lines 6533 and
+       16205, so thShelf, _shStoryRender and this call are all inside block 1 — a bare call would
+       work today. My first probe counted the string '<script' anywhere and matched one written
+       INSIDE a JS string, which is the same class of error as grepping source and hitting your
+       own prose. [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+       The window.* export stays because it is free and it survives the function being moved,
+       which is the failure mode that did ship three times — but it is belt-and-braces here, not
+       a fix for a live bug, and saying otherwise would leave a confident wrong reason in the
+       file. [[console-ui-two-script-blocks]] */
+    try { (window._shStoryLoad || function(){})(); } catch(e){}
     _shTimeline();   // v1286 (D12) — draw the runs-per-day activity strip (all runs, stable overview)
     var _si = $('sh-search');
     if (_si){

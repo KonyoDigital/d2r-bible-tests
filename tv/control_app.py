@@ -20897,7 +20897,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2382",
+        "ver": "v2383",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22693,6 +22693,25 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, chronicle_regate(
                 conf_floor=(q.get("floor") or [None])[0],
                 min_witnesses=(q.get("witnesses") or [None])[0]))
+            return
+        if path == "/api/reel_story":
+            # v2383 — WHERE EACH REEL STANDS, and how much of the film was worth keeping.
+            # Konyo: "reels need to be visually connected to the backend coding of the pruning and
+            # optimization and extracting process... so its logically showing visually whats
+            # happening", and "the 10-15% of real footage and the other 70%+ was useless.. maybe
+            # that statistically can be also rendering and shown".
+            #
+            # ⚠ IT DECIDES NOTHING. reel_story reads reel_retention.plan() and retro_triage; a
+            # second opinion about which reels may go would be a second prune authority over
+            # footage that has no un-delete. Read-only, writes nothing, costs one plan() pass.
+            try:
+                import reel_story as _RS
+                self._json(200, _RS.story())
+            except Exception as e:
+                # A board that cannot be built says so. It must never answer {} — an empty shelf
+                # and an unbuildable one are opposite facts. [[unknown-stays-unknown]]
+                self._json(200, {"ok": False, "why": "reel_story failed: %s" % e,
+                                 "reels": [], "stages": {}, "yield": None})
             return
         if path == "/api/reader_health":
             # v1537 — which link of the read chain broke, on THIS machine. Free, read-only.
