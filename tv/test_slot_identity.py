@@ -780,7 +780,7 @@ class TestV2374TheInventoryPanelIsMeasured(unittest.TestCase):
                             "tell" % (here, off, v, os.path.basename(p)))
 
 
-class TestV2375ThePaperDollFourMeasuredSixRefused(unittest.TestCase):
+class TestV2375ThePaperDoll(unittest.TestCase):
     """In D2R the inventory screen IS the paper doll plus the grid, so "worn or carried" is a
     spatial question in one frame — the question main_character could never answer, because its
     `equip` counter only rises for a sighting attributed to a worn slot.
@@ -795,14 +795,27 @@ class TestV2375ThePaperDollFourMeasuredSixRefused(unittest.TestCase):
             got, why = S.worn_slot_of((cx, cy), 2940, 1912)
             self.assertEqual(got, name, "%s centre answered %r (%s)" % (name, got, why))
 
-    def test_the_SIX_unmeasured_slots_are_refused_by_name(self):
+    def test_the_unmeasured_slots_are_refused_BY_NAME(self):
         """UNKNOWN and 'not worn' are different facts. A point in the helm slot must not come
-        back looking like a point on the stone between slots without saying so."""
+        back looking like a point on the stone between slots without saying so.
+
+        ⚠ THIS CASE PASSED FOR THE WRONG REASON ONCE. It listed six names literally and searched
+        the refusal string for each. When v2376 MEASURED ring1 and ring2 they left the refused
+        set — and the case still passed, because both names now appear in the same message on the
+        other side of it ("four are measured: ... ring1, ring2"). A substring search cannot tell
+        "refused" from "measured" when the message honestly mentions both. It now reads the
+        module's own UNMEASURED_SLOTS and asserts the measured ones are NOT presented as refused.
+        [[regression-guard]] [[feedback-comments-vs-code]]"""
         got, why = S.worn_slot_of((2217, 400), 2940, 1912)      # the helm, which is NOT measured
         self.assertIsNone(got)
         self.assertIn("UNKNOWN", why)
-        for name in ("helm", "off-hand", "gloves", "boots", "ring1", "ring2"):
+        self.assertTrue(S.UNMEASURED_SLOTS, "nothing is refused, so this case guards nothing")
+        head, _, tail = why.partition("are\n")
+        for name in S.UNMEASURED_SLOTS:
             self.assertIn(name, why, "the refusal does not name %s" % name)
+        for name in S.EQUIP_SLOTS:
+            self.assertNotIn(name, S.UNMEASURED_SLOTS,
+                             "%s is both measured AND listed as unmeasured" % name)
 
     def test_no_measured_slot_overlaps_another_or_the_GRID(self):
         """An overlap would make one point two places at once, and a slot reaching into the grid

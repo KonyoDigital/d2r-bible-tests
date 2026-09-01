@@ -146,8 +146,32 @@ EQUIP_SLOTS = {
     "torso":  (2114 / 2940.0, 548 / 1912.0, 206 / 2940.0, 294 / 1912.0),
     "amulet": (2322 / 2940.0, 484 / 1912.0, 120 / 2940.0, 104 / 1912.0),
     "belt":   (2116 / 2940.0, 851 / 1912.0, 216 / 2940.0, 125 / 1912.0),
+    # ── v2376 — THE TWO RINGS ──────────────────────────────────────────────────────────────────
+    # ring1 segmented cleanly once components touching the SEARCH BOUNDARY were rejected: a real
+    # slot sits strictly inside a generous region, while a component that reaches the edge has
+    # bled into its neighbours through the dark gaps between slots. 19 were rejected that way in
+    # ring1's region alone, and the survivor is 118x118 — square, which is what a ring slot is
+    # and a property nothing in the search was told to look for.
+    #
+    # ring2 is ring1 REFLECTED about x=2220.5, the axis taken from the two slots that straddle it
+    # (torso centre 2217.0, belt centre 2224.0) — and the reflection was CHECKED, not assumed:
+    # stone fraction 0.35 inside it against 0.53 forty pixels up and 0.37 seventy pixels left.
+    "ring1":  (1992 / 2940.0, 850 / 1912.0, 118 / 2940.0, 118 / 1912.0),
+    # ⚠ 2332, NOT the mirror's exact 2331. The belt's right edge is 2116+216 = 2332 and ring2's
+    # left edge is the SAME panel border, so they must be ADJACENT; the reflection rounded one
+    # pixel INTO the belt and the overlap guard caught it. Both boxes are measured to about
+    # +/-2px, so this is a rounding correction inside the measurement's own precision, not a
+    # nudge to make a test pass — an overlap would make one point two slots at once.
+    "ring2":  (2332 / 2940.0, 850 / 1912.0, 118 / 2940.0, 118 / 1912.0),
 }
-UNMEASURED_SLOTS = ("helm", "off-hand", "gloves", "boots", "ring1", "ring2")
+# ⚠ off-hand IS STILL REFUSED, AND THE MIRROR IS WHY IT IS NOT HERE. Reflecting the weapon slot
+# about the same axis put it at x=2465 y=388 176x346 and the pixel check REFUSED it: stone 0.43
+# inside against 0.37 forty pixels up, i.e. the box is not centred on the slot. The symmetry that
+# holds for the rings does not hold there — or the axis needs refining for the tall slots. A
+# mirror is a hypothesis, and this one failed its test, so it is not in the table.
+# helm and gloves did not segment at all: their components merge with the torso and the weapon
+# through the dark gaps between slots, so every candidate touched the search boundary.
+UNMEASURED_SLOTS = ("helm", "off-hand", "gloves", "boots")
 
 
 def worn_slot_of(point, frame_w, frame_h):
