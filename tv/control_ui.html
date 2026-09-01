@@ -776,7 +776,14 @@
     overflow-x: hidden;
     scrollbar-width: thin;
   }
-  .primary button.act { flex: 0 0 auto; min-height: clamp(44px, 5.4vh, 64px); }
+  /* v2381 — WAS `flex: 0 0 auto`, WHICH IS "NEVER SHRINK". ON AIR and MINI only ever looked
+     fine because their subtitles are short enough to fit by luck; give any of these three a
+     longer line and the card grows straight out of the rail. MEASURED: adding MINI·AUTO's
+     subtitle pushed it off the viewport at 375 and the render gate went red (`off=1`) on the
+     very first run — green on the same target one commit earlier. The three cards are a family,
+     so the shrink rule is fixed for the family, not patched on the one that exposed it.
+     [[feedback-generalize-fixes]] */
+  .primary button.act { flex: 0 1 auto; min-width: 0; min-height: clamp(44px, 5.4vh, 64px); }
   /* v945 CONSOLE PARITY C6 — the rail header reads at app scale, not a 9px whisper */
   .rail-h {
     font-size: var(--fs-sm); letter-spacing: var(--ls-widest); text-transform: uppercase;
@@ -819,7 +826,9 @@
   button.act:hover .ic { transform: scale(1.12); text-shadow: 0 0 14px currentColor; }
   button.act .lab { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   button.act .lab b { font-size: var(--fs-lg); font-weight: var(--fw-bold); letter-spacing: var(--ls-label); text-transform: uppercase; }
-  button.act .lab span { font-size: var(--fs-xs); letter-spacing: var(--ls-normal); color: var(--muted); font-weight: var(--fw-normal); }
+  button.act .lab span { font-size: var(--fs-xs); letter-spacing: var(--ls-normal); color: var(--muted); font-weight: var(--fw-normal);
+    /* v2381 — a subtitle wraps instead of setting the card's width. See .primary button.act. */
+    overflow-wrap: anywhere; }
   button.act:hover { transform: translateY(-2px); border-color: var(--edge-hi); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 24px rgba(240,192,96,.20), 0 14px 30px rgba(0,0,0,.46); }
   button.act:active { transform: translateY(2px) scale(.992); box-shadow: inset 0 3px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04), 0 3px 10px rgba(0,0,0,.3); }
   button.act:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 4px var(--accent-soft), 0 0 22px var(--accent-soft); }
@@ -2930,6 +2939,28 @@
        because both sides are clamp() tokens that change with the viewport. */
     .hd-tz .tz-slot .tzz-den { min-height: calc(1.3em + 1.22 * var(--fs-md)); }
   }
+  /* v2381 — MINI(AUTOMATIC)'s own accent. Info blue, deliberately NOT ON AIR's mint and NOT
+     MINI's gold: this is the only control on the column that takes the pointer out of his hand,
+     and a mode that drives the mouse must not be one glance away from a manual one. The running
+     state is a CLASS, not an inline style written by the poller — the old code set
+     btn.style.borderColor directly, which wins over every rule here and made the card
+     unstylable from CSS. [[d2r-css-last-rule-wins]] */
+  .act.b-miniauto { border-color: rgba(126,200,255,.34); color: var(--info, #7ec8ff);
+    background: linear-gradient(180deg, rgba(18,32,46,.9), rgba(8,12,17,.95)); }
+  .act.b-miniauto .ic { color: var(--info, #7ec8ff); }
+  .act.b-miniauto:hover { box-shadow: inset 0 1px 0 rgba(126,200,255,.14),
+    0 0 24px rgba(126,200,255,.2), 0 10px 26px rgba(0,0,0,.42); }
+  .act.b-miniauto.miniauto-live { border-color: rgba(126,200,255,.7); }
+  .act.b-miniauto.miniauto-live .ic { animation: miniPulse 1s ease-in-out infinite; }
+  /* the pointer is MOVING — a travelling rail along the bottom edge, so "it has my mouse" is
+     legible from across the room and not only from the count in the title. */
+  .act.b-miniauto.miniauto-live::after {
+    content: ""; position: absolute; left: 0; bottom: 0; height: 2px; z-index: 2;
+    width: 38%; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--info, #7ec8ff), transparent);
+    animation: workBar 1.05s ease-in-out infinite; }
+  .act.b-miniauto.miniauto-unknown { border-color: rgba(154,166,178,.45); color: #9aa6b2; }
+  .act.b-miniauto.miniauto-unknown .ic { color: #9aa6b2; }
   .act.b-mini .ic { color: var(--gold, #f0c060); }
   .act.b-mini.mini-live { border-color: rgba(240,192,96,.55); }
   .act.b-mini.mini-live .ic { animation: miniPulse 1s ease-in-out infinite; }
@@ -6094,7 +6125,15 @@ body[data-origin="shadow"] #stage::after {
              find it anywhere". It WAS wired — buried inside <details id="sig-adv">, the
              collapsed ⚙ ADVANCED panel. A mode for Mini belongs next to Mini. Same id,
              same handler, same state readout; only the seat moved. -->
-        <button class="util-btn" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span id="miniauto-lbl">🖱 MINI · AUTO</span></button>
+        <!-- v2381 — IT WAS A util-btn SITTING UNDER TWO CARDS. Konyo, off his own screenshot:
+             "fix the MINI AUTOMATIC BUTTON to match the HDART console". ON AIR and MINI are
+             `.act` cards — icon, uppercase title, one line of subtitle saying what it does —
+             and this was a bare pill with a label and nothing else, so the third thing in the
+             column read as half-built next to the two above it. Same card, and its OWN accent
+             (info blue, not ON AIR's mint or MINI's gold) because this is the one that takes
+             the mouse out of his hand: at a glance it must not be mistakable for either
+             manual button. [[visual-regression-detector]] -->
+        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl">Mini &middot; Auto</b><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
         <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
              fact that it is reading stash/runes/gems/materials and to look out specifically for
              this" — and then "for chronicles too.. a button for it so its focused specifically for
@@ -12654,21 +12693,49 @@ body[data-origin="shadow"] #stage::after {
      btn-farmgate up to 45px with it. A control that silently resizes its NEIGHBOURS is the
      asymmetry he has reported before. Short label + nowrap makes that structural rather than a
      property of whichever string happens to be showing. */
-  try { var _mb0 = document.getElementById('btn-miniauto');
-        if (_mb0) _mb0.style.whiteSpace = 'nowrap'; } catch(e){}
+  /* v2381 — THE nowrap IS GONE, AND IT WAS MINE. It was written for the old util-btn pill
+     (one-line label, no card). Moved onto the card's TITLE it did this, at 901px, on the render
+     I took one minute later: the title printed "MINI \u00b7 AUTC" — the O sliced off by the
+     card's own overflow:hidden — while the render gate scored `clipped 0`. Nothing needs to
+     hold the title on one line: it only breaks at spaces, so a running "Stop \u00b7 12/40"
+     keeps its count whole either way. [[visual-regression-detector]] */
   var _miniPoll = null;
+  /* v2381 — THE STOP BUTTON COULD NOT STOP. The click handler decided whether a sweep was
+     running with `/STOP/.test(miniauto-lbl.textContent)` — and this function never wrote the
+     word STOP anywhere. It wrote '\u23f9 12/40', a glyph and two numbers. So the test was
+     ALWAYS false, and pressing the card while the pointer was being driven re-sent {on:true}
+     instead of stopping it. On the one control that takes the mouse out of his hand, the kill
+     switch was wired to a string that does not exist. Running-ness is now the SERVER's answer,
+     carried on the element as data-running, and the label is free to say whatever reads best.
+     [[the-unjoined-end]] [[feedback-verify-not-proxy]] */
   function _miniPaint(j){
     var lbl = $('miniauto-lbl'), btn = $('btn-miniauto');
+    var ic = $('miniauto-ic'), sub = $('miniauto-sub');
     if (!lbl || !btn) return;
-    if (!j){ lbl.textContent = '🖱 MINI ?'; btn.style.borderColor = '#9aa6b2'; return; }
+    btn.classList.remove('miniauto-live', 'miniauto-unknown');
+    if (!j){
+      /* the console could not be asked — that is UNKNOWN, and it must not read as idle-and-fine
+         or as running. [[unknown-stays-unknown]] */
+      btn.dataset.running = '';
+      btn.classList.add('miniauto-unknown');
+      lbl.textContent = 'Mini \u00b7 Auto';
+      if (ic) ic.textContent = '\u2753';
+      if (sub) sub.textContent = 'state unknown \u2014 the console did not answer';
+      return;
+    }
     if (j.running){
-      lbl.textContent = '\u23f9 ' + (j.moved || 0) + '/' + (j.planned || 0);
-      btn.style.borderColor = '#8fd0a0';
+      btn.dataset.running = '1';
+      btn.classList.add('miniauto-live');
+      lbl.textContent = 'Stop \u00b7 ' + (j.moved || 0) + '/' + (j.planned || 0);
+      if (ic) ic.textContent = '\u23f9';
+      if (sub) sub.textContent = 'sweeping \u2014 press to stop, or touch the mouse';
     } else {
-      lbl.textContent = '🖱 MINI';
-      btn.style.borderColor = '';
-      btn.title = j.stopped ? ('last run: ' + j.stopped + ' (' + (j.moved||0) + '/' + (j.planned||0) + ')')
-                            : btn.title;
+      btn.dataset.running = '';
+      lbl.textContent = 'Mini \u00b7 Auto';
+      if (ic) ic.textContent = '\ud83d\uddb1';
+      if (sub) sub.textContent = j.stopped
+        ? ('last run: ' + j.stopped + ' \u00b7 ' + (j.moved||0) + '/' + (j.planned||0))
+        : 'stash \u00b7 hovers each item, films it';
     }
   }
   function _miniWatch(on){
@@ -12684,7 +12751,8 @@ body[data-origin="shadow"] #stage::after {
   }
   $('btn-miniauto').onclick = async function(){
     var out = $('eagle-out');
-    var running = /STOP/.test(($('miniauto-lbl') || {}).textContent || '');
+    /* v2381 — was /STOP/ against a label that never contained it (see _miniPaint). */
+    var running = this.dataset.running === '1';
     this.disabled = true;
     try {
       var r = await fetch(API + '/api/mini_auto', {method:'POST',

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2380",
+  "ver": "v2381",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2380: The same item on the floor, in the inventory and in the Chronicle list is now two witnesses, not one. A blank surface string is not a panel.",
+  "note": "v2381: The third console button matches ON AIR and MINI, its stop button can actually stop, and the render gate can now see a letter sliced by an ancestor.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

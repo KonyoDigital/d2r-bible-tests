@@ -370,15 +370,59 @@ _PROBE = r"""(function(sel, OK_TRUNC){
     rects.push({w:Math.round(r.width), h:Math.round(r.height),
                 x:Math.round(r.left), y:Math.round(r.top)});
     if (r.left < -1 || r.right > innerWidth+1) off++;
-    [].slice.call(e.querySelectorAll('*')).forEach(function(c){
+    /* ⚠ v2381 — THIS CHECK HAD TWO HOLES AND A SLICED LETTER WENT THROUGH BOTH. The console's
+       MINI card printed "MINI \u00b7 AUTC" at 901px — the O cut off by the card's own
+       overflow:hidden — and this probe scored `clipped 0` on the same render.
+
+         hole 1: it asks each element whether ITS OWN box hides overflow. The overflowing node
+                 was a <b> with white-space:nowrap and overflow:VISIBLE; the box doing the
+                 cutting was its BUTTON ancestor. Nobody asked the pair.
+         hole 2: it walks `e.querySelectorAll('*')` — descendants only — so the target element
+                 itself was never tested at all.
+
+       Both are closed by asking a geometry question instead of a style question: does this
+       node's ink stick out of the nearest ancestor that actually CLIPS on that axis. A
+       scrollable ancestor (auto/scroll) is excluded on purpose — content outside a scroller is
+       one scroll away, not destroyed — which is the same distinction the reachability probe
+       below already draws. [[visual-regression-detector]] [[feedback-suspect-the-instrument]] */
+    var _clipNodes = [e].concat([].slice.call(e.querySelectorAll('*')));
+    _clipNodes.forEach(function(c){
+      var cls = String(c.className||'');
+      var allowed = OK_TRUNC.some(function(k){ return cls.indexOf(k) >= 0; });
+      function flag(why){
+        if (allowed) { okTrunc++; return; }
+        clipped++;
+        if (clippedWhat.length < 5) clippedWhat.push(
+          (cls||c.tagName) + ' :: ' + (c.textContent||'').trim().slice(0,28) + ' [' + why + ']');
+      }
+      /* the original question: this box hides its own overflowing content */
       if (c.scrollWidth > c.clientWidth+1 && getComputedStyle(c).overflow!=='visible'
-          && c.clientWidth>0) {
-        var cls = String(c.className||'');
-        var allowed = OK_TRUNC.some(function(k){ return cls.indexOf(k) >= 0; });
-        if (allowed) { okTrunc++; } else {
-          clipped++;
-          if (clippedWhat.length < 5) clippedWhat.push(
-            (cls||c.tagName) + ' :: ' + (c.textContent||'').trim().slice(0,28));
+          && c.clientWidth>0) { flag('self'); return; }
+      /* the question it was missing: this box's INK leaves an ancestor that clips */
+      var txt = (c.textContent||'').trim();
+      if (!txt) return;
+      if (c.children.length) return;          /* leaf text only — a wrapper repeats its child */
+      /* ⚠ AND IT MUST NOT REPORT INK NOBODY CAN SEE. The first cut of this branch flagged 23
+         elements on the vault shelf at every width — every one a `.vm-unassign` ✕ sitting at
+         opacity:0 until the mule card is hovered. Measured: opacity 0, and every offset INSIDE
+         its parent. A control that is not painted cannot have text visibly cut off, and 23
+         identical hits at four widths is the shape of a probe that has started reporting the
+         page's own design back at it. inert() is the same test the covered/reachable checks
+         already use; this branch simply was not asking it. [[regression-guard]] */
+      if (inert(c)) return;
+      var cr = c.getBoundingClientRect();
+      if (cr.width<1 || cr.height<1) return;
+      for (var q=c.parentElement; q && q!==document.body; q=q.parentElement){
+        var qs=getComputedStyle(q);
+        var hidesX = (qs.overflowX==='hidden' || qs.overflowX==='clip');
+        var hidesY = (qs.overflowY==='hidden' || qs.overflowY==='clip');
+        if (!hidesX && !hidesY) continue;
+        var qr=q.getBoundingClientRect();
+        if (qr.width<2 || qr.height<2) continue;
+        if ((hidesX && (cr.right > qr.right+1 || cr.left < qr.left-1)) ||
+            (hidesY && (cr.bottom > qr.bottom+1 || cr.top < qr.top-1))) {
+          flag('cut by ' + (String(q.className||q.tagName)).slice(0,18));
+          return;
         }
       }
     });
