@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2415",
+  "ver": "v2416",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2415: one token was doing two jobs and the panel that carries text lost",
+  "note": "v2416: nine ships onto a red CI, and two of the failures were mine",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

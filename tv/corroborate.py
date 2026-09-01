@@ -517,17 +517,19 @@ def _eagle_record_path():
     should read the record the CONSOLE wrote, not its own; asking `_decision_path` from inside a
     scratch would silently retarget the reader to the scratch's file and re-create the very
     self-agreement v2411 removed."""
+    # ⚠ THE FALLBACK MUST FIRE ONLY WHEN control_app IS GENUINELY ABSENT. A first cut wrapped the
+    # whole thing in `except Exception: pass` and fell through to `dirname(__file__)` — so if
+    # `_chron_swept_path()` raised for any reason the reader would SILENTLY REVERT to the old rule
+    # while the writer kept using the redirected one, re-creating the split this function exists to
+    # close, invisibly. That is the same broad-catch mislabel being removed from the render gate in
+    # the same ship. A cold review caught both.
     try:
         import control_app as _ca
-        base = os.path.dirname(os.path.abspath(_ca._chron_swept_path()))
-        return os.path.join(base, ".eagle_last.json")
-    except Exception:
-        pass
-    try:
-        import control_app as _ca
-        return os.path.join(os.path.dirname(os.path.abspath(_ca.__file__)), ".eagle_last.json")
     except Exception:
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
+    base = _ca._chron_swept_path()          # deliberately NOT guarded: if the owner's own path
+    return os.path.join(os.path.dirname(os.path.abspath(base)), ".eagle_last.json")
+    # rule raises, that is a real fault and must surface, not be papered over with the old rule.
 
 
 def _durable_pass(max_age_ms=None):

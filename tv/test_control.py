@@ -38455,14 +38455,39 @@ class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCas
         return render_check
 
     def _run_with(self, exc, targets=("state-panel",)):
+        """⚠ main() DOES `import websocket` BEFORE THE LOOP AND RETURNS 2 IF IT FAILS — so on a
+        machine without the package (CI installs only pillow) `check()` IS NEVER CALLED and this
+        harness measured the import guard instead of the handler.
+
+        Both of the first two tests were broken there and only ONE failed: the lost-socket case
+        expected 2 and got 2 from the import guard — A VACUOUS PASS — while the harness-bug case
+        expected 1, got 2, and went red. CI run 33563152845:
+
+            AssertionError: 2 != 1 : a harness raise must be reported as a gate bug (exit 1),
+            not as a transport UNKNOWN (exit 2) — got 2
+
+        A green that comes from a path the test does not target is the emptiest kind, and this one
+        hid behind its own sibling's failure. So: stand a stub in for the package when it is
+        genuinely absent, and the loop is reached everywhere.
+        [[feedback-blind-fixture-green-gate]]"""
+        import sys, types
         R = self._gate()
         old_check, old_up, old_targets = R.check, R._chrome_up, R.TARGETS
         R._chrome_up = lambda: True
         R.check = lambda n, spec: (_ for _ in ()).throw(exc)
+        planted = False
+        if "websocket" not in sys.modules:
+            try:
+                import websocket  # noqa: F401
+            except Exception:
+                sys.modules["websocket"] = types.ModuleType("websocket")
+                planted = True
         try:
             return R.main(list(targets))
         finally:
             R.check, R._chrome_up, R.TARGETS = old_check, old_up, old_targets
+            if planted:
+                sys.modules.pop("websocket", None)
 
     def test_a_lost_socket_is_UNKNOWN_and_exits_2_not_a_pass(self):
         """⚠ RAISED AS A PLAIN ConnectionError, NOT AS A websocket TYPE. The first cut did

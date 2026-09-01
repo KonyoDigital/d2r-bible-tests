@@ -117,7 +117,17 @@ _REACH = """(function(sel){
 #: what counts as "the browser went away" rather than "this file has a bug". Narrow ON PURPOSE —
 #: see the handler in main(). websocket may be absent, so this is built defensively.
 def _transport_errors():
-    errs = [ConnectionError, OSError]
+    # ⚠ `OSError` WAS IN THIS LIST AND IT IS THE ORIGINAL `except Exception` WITH A SMALLER NET.
+    # A cold review enumerated what it swallows: FileNotFoundError, PermissionError, and both
+    # urllib.error.URLError and HTTPError all subclass OSError — so a PNG open failure, a missing
+    # shots directory, a full disk, or Chrome answering HTTP 500 on /json/new would every one of
+    # them print "the browser connection was lost" and exit 2. Narrowing from Exception to OSError
+    # felt like a fix and kept most of the defect.
+    #
+    # ConnectionError is the precise family (reset, aborted, broken pipe) and TimeoutError is named
+    # rather than caught via its OSError base. Anything else that raises is a bug in this file and
+    # is reported as one. [[label-outlived-referent]]
+    errs = [ConnectionError, TimeoutError]
     try:
         import websocket as _ws
         errs.append(getattr(_ws, "WebSocketException", None))

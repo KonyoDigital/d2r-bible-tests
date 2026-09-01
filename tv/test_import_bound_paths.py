@@ -46,6 +46,19 @@ if HERE not in sys.path:
 REGISTRY = {
     # ---- control_app: the live-state family. All six default under _fixture_root_for_state(),
     # which honours TV_HIST *at import only* — an isolated harness must set TV_HIST BEFORE import.
+    # ---- live_panel_gate: WHICH CONSOLE the panel states are read from. Added v2416 after CI
+    # caught it unregistered — it is import-bound and therefore a redirect that will NOT take if
+    # set after import, which is exactly the class this registry exists to name out loud.
+    "live_panel_gate.py:STATUS": (
+        "TV_CONSOLE_URL", "import-bound",
+        "The base URL of the console whose uiBeat.panels this gate grades, read ONCE at import and "
+        "concatenated with /api/status. A test redirecting it must set TV_CONSOLE_URL BEFORE "
+        "importing live_panel_gate, or patch the module attribute; setting os.environ afterwards "
+        "is a silent no-op. ⚠ IN PRACTICE NEITHER IS NEEDED AND THAT IS DELIBERATE: check() takes "
+        "the status blob as an argument, so every sabotage in --prove passes a FIXTURE and touches "
+        "no console at all. The env var exists for pointing the gate at a non-default port by hand, "
+        "not for tests. [[feedback-fixtures-never-touch-live-data]]"),
+
     # ---- second_eye_ledger: which shipped versions a DIFFERENT model family actually looked at.
     "second_eye_ledger.py:LEDGER_PATH": (
         "TV_SECOND_EYE_LEDGER", "import-bound",
