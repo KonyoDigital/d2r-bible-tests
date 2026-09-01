@@ -11450,7 +11450,7 @@ _UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
 #     becomes an infinite reload loop with his window flashing
 _UI_BEAT = {"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
             # v2393 — the paint witness (see ui_rescue_due)
-            "elsHigh": 0, "elsNow": None, "blankStrikes": 0}
+            "elsHigh": 0, "elsNow": None, "blankStrikes": 0, "elsWindow": []}
 _UI_RESCUE = {"last": 0.0, "count": 0, "why": ""}
 _UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
 _UI_RESCUE_COOLDOWN_S = 300.0
@@ -11484,9 +11484,29 @@ _UI_RESCUE_COOLDOWN_S = 300.0
 #      fault, and acting on a single sample is how a watchdog starts reloading his console
 #      under him mid-work.
 # [[unknown-stays-unknown]] [[regression-guard]]
+#
+# ⚠⚠ v2394 — THE FIRST CUT USED AN ALL-TIME MAXIMUM AND THAT WAS A RELOAD LOOP.
+# Found by a cross-family review of the shipped v2393 diff, in two findings that are one root
+# cause: `elsHigh` was only ever RAISED, never reset and never decayed. Two ways that bites, and
+# the first is the serious one:
+#   1. THE RESCUE RE-TRIGGERS ON ITS OWN REPAIR. After a reload the fresh page is compared against
+#      the PRE-RELOAD peak. A page that legitimately comes back smaller collapses against a mark
+#      it can never meet, earns three strikes, and is reloaded again — forever, at one reload per
+#      cooldown. A watchdog that reloads his console every five minutes is worse than none.
+#   2. ONE BIG DOM POISONS IT PERMANENTLY. Open a long list once, and the all-time mark is set
+#      where no ordinary page reaches; every healthy page afterwards reads as blank.
+#
+# So the baseline is a RECENT window, not an all-time mark, and the paint state is cleared
+# whenever we act — a reloaded page is a new page and gets a new baseline.
+#
+# ⚠ AND THE WINDOW SELF-LIMITS THE LOOP, WHICH IS DELIBERATE. If a reload comes back blank, the
+# fresh window never reaches the 200-element floor, so `hi < FLOOR`, strikes stay 0, and we stop
+# reloading. A page that cannot paint after a reload is a DIFFERENT fault; the silence path and
+# he himself will surface it. Trying twice is a fix; trying forever is a fault of our own.
 _UI_PAINT_FLOOR_ELS = 200      # below this we have never seen the page healthy -> no baseline
-_UI_PAINT_COLLAPSE = 0.25      # current < 25% of high-water = collapsed
+_UI_PAINT_COLLAPSE = 0.25      # current < 25% of the RECENT high = collapsed
 _UI_PAINT_STRIKES = 3          # consecutive collapsed beats before it counts
+_UI_PAINT_WINDOW = 60          # beats kept for the baseline — 60 x 5s = the last ~5 minutes
 
 
 def ui_beat_record(state=None):
@@ -11508,13 +11528,39 @@ def ui_beat_record(state=None):
             els = None
         _UI_BEAT["elsNow"] = els
         if els is not None:
-            if els > int(_UI_BEAT.get("elsHigh") or 0):
-                _UI_BEAT["elsHigh"] = els
-            # ⚠ A HIDDEN PAGE IS NOT JUDGED. WebKit can tear down offscreen content, so a
-            # throttled window legitimately reports a smaller tree; counting that as a strike
-            # would make the rescue fire the moment he switches away. [[unknown-stays-unknown]]
+            # v2394 — a bounded RECENT window, not an all-time mark (see the constants above).
+            w = _UI_BEAT.get("elsWindow")
+            if not isinstance(w, list):
+                w = []
+            w.append(els)
+            if len(w) > _UI_PAINT_WINDOW:
+                del w[:-_UI_PAINT_WINDOW]
+            _UI_BEAT["elsWindow"] = w
+            _UI_BEAT["elsHigh"] = max(w)
+            # ⚠⚠ v2394 — THE STRIKE NO LONGER DEPENDS ON `hidden`, AND THAT IS THE WHOLE FIX.
+            # Konyo, with a second black-screen screenshot: "again the console is black and
+            # rendering half of it... watchdog is wired properly?"
+            #
+            # It was not. MEASURED on his live console at the moment he asked:
+            #     uiBeat {"n": 229, "hidden": true, "ageS": 1.0, "rescues": 0}
+            # Beating every second, and reporting itself HIDDEN while he was looking straight at
+            # it. That is the v2348 scar: `hidden` can only be CLEARED by a beat, and WebKit
+            # suspends the beat timer on a window it believes is hidden, so one hidden beat seals
+            # the flag shut. The silence path already knows this and consults an independent
+            # window witness before trusting it.
+            #
+            # My v2393 paint witness zeroed its strikes on that same flag — so I built a new
+            # guard on top of a signal already known to lie, and it inherited the identical
+            # disarm. Two watchdogs, one lying input.
+            #
+            # THE FIX: accumulate the strike from the PIXELS alone, here, and let the rescue
+            # decision below do the expensive independent window check ONCE when it matters.
+            # That keeps v2325's real protection — never reload a window he genuinely cannot see
+            # — without letting a latched flag silently switch the whole witness off.
+            # ⚠ AND IT IS ALSO WHY THE CHECK MOVED: asking Quartz on every 5s beat is expensive;
+            # asking it once, only when three strikes have already accumulated, is not.
             hi = int(_UI_BEAT.get("elsHigh") or 0)
-            if _UI_BEAT["hidden"] or hi < _UI_PAINT_FLOOR_ELS:
+            if hi < _UI_PAINT_FLOOR_ELS:
                 _UI_BEAT["blankStrikes"] = 0
             elif els < hi * _UI_PAINT_COLLAPSE:
                 _UI_BEAT["blankStrikes"] = int(_UI_BEAT.get("blankStrikes") or 0) + 1
@@ -11615,6 +11661,12 @@ def _console_rescue_loop():
             _UI_RESCUE["last"] = time.time()
             _UI_RESCUE["count"] += 1
             _UI_RESCUE["why"] = why
+            # v2394 — THE RELOADED PAGE IS A NEW PAGE. Clearing the window here is what stops the
+            # rescue re-triggering on its own repair; without it the fresh DOM is judged against
+            # the peak of the one we just threw away. [[feedback-contradiction-is-the-finding]]
+            _UI_BEAT["elsWindow"] = []
+            _UI_BEAT["elsHigh"] = 0
+            _UI_BEAT["blankStrikes"] = 0
             try:
                 ui_fault_record("console-rescued-by-server", why=why, where="_console_rescue_loop")
             except Exception:
@@ -11657,6 +11709,46 @@ def ui_rescue_due(now=None, capture_live=False):
     # The beat now carries document.visibilityState, and the last one before the silence decides.
     # Paired with the monotonic clock in ui_beat_age() - which does not advance across a macOS
     # sleep - the two shapes of innocent silence, HIDDEN and ASLEEP, are both accounted for.
+    # ⚠⚠ v2394 — THE PAINT CHECK RUNS BEFORE THE HIDDEN BRANCH, AND THE ORDER IS THE FIX.
+    # The hidden branch below reasons from SILENCE: "a console he is not looking at is throttled,
+    # so its silence proves nothing". Sound — and it returns False for EVERYTHING, so it was
+    # short-circuiting the paint witness before it could ever be consulted. Measured on his live
+    # console: blankStrikes reached 3 and `ui_rescue_due` still refused, quoting the hidden
+    # branch's reason.
+    #
+    # A page that is BEATING every second and painting nothing is not reasoning from silence at
+    # all — it is reasoning from the element count, which a throttled window does not fake. So the
+    # paint check goes first and does its OWN hidden handling (an independent window sighting),
+    # rather than being pre-empted by a rule written for a different fault.
+    # v2393 — ALIVE BUT BLANK, checked BEFORE the age test on purpose: this fault's whole
+    # signature is a page that is beating happily, so an age-first check returns "healthy" and
+    # never reaches here. See the constants above for why it takes three strikes.
+    _strikes = int(_UI_BEAT.get("blankStrikes") or 0)
+    if _strikes >= _UI_PAINT_STRIKES:
+        # v2394 — the independent look, asked ONCE, only now that the pixels have already said
+        # blank three times running. A window he genuinely cannot see must never be reloaded
+        # under him (v2325); a window that merely CLAIMS to be hidden must not disarm this.
+        # ⚠ UNKNOWN IS NOT PERMISSION. Quartz unavailable, an exception, or no window found all
+        # leave the old refusal exactly as it was — "nobody could tell" must never act like "he
+        # is looking at it". [[unknown-stays-unknown]]
+        if _UI_BEAT.get("hidden"):
+            _seenb, _seenb_why = False, "not asked"
+            try:
+                import window_visibility as _wv2
+                _seenb, _seenb_why = _wv2.contradicts_a_hidden_beat()
+            except Exception as _exc2:
+                _seenb, _seenb_why = False, "the window witness raised %s" % type(_exc2).__name__
+            if not _seenb:
+                return False, ("the page looks blank but it last checked in HIDDEN, and nothing "
+                               "independently saw the window on screen (%s) — a console he is "
+                               "not looking at must not be reloaded under him" % _seenb_why)
+        _since_b = now - (_UI_RESCUE["last"] or 0.0)
+        if _UI_RESCUE["last"] and _since_b < _UI_RESCUE_COOLDOWN_S:
+            return False, ("the page looks blank but it was rescued %.0fs ago - cooling off so a "
+                           "page that renders empty on load cannot loop" % _since_b)
+        return True, ("the page is BEATING but blank: %s elements against a high-water mark of "
+                      "%s, for %d beats running"
+                      % (_UI_BEAT.get("elsNow"), _UI_BEAT.get("elsHigh"), _strikes))
     if _UI_BEAT.get("hidden"):
         # ══ v2348 — ...AND THAT FLAG LATCHES SHUT, SO IT NEEDS A WITNESS FROM OUTSIDE ═════════
         # v2325 (above) is right and stays. What it missed is that `hidden` can only ever be
@@ -11684,18 +11776,6 @@ def ui_rescue_due(now=None, capture_live=False):
                            "looking at is throttled by the browser, so its silence proves "
                            "nothing (%s)" % _seen_why)
         _UI_RESCUE["staleHidden"] = _UI_RESCUE.get("staleHidden", 0) + 1
-    # v2393 — ALIVE BUT BLANK, checked BEFORE the age test on purpose: this fault's whole
-    # signature is a page that is beating happily, so an age-first check returns "healthy" and
-    # never reaches here. See the constants above for why it takes three strikes.
-    _strikes = int(_UI_BEAT.get("blankStrikes") or 0)
-    if _strikes >= _UI_PAINT_STRIKES:
-        _since_b = now - (_UI_RESCUE["last"] or 0.0)
-        if _UI_RESCUE["last"] and _since_b < _UI_RESCUE_COOLDOWN_S:
-            return False, ("the page looks blank but it was rescued %.0fs ago - cooling off so a "
-                           "page that renders empty on load cannot loop" % _since_b)
-        return True, ("the page is BEATING but blank: %s elements against a high-water mark of "
-                      "%s, for %d beats running"
-                      % (_UI_BEAT.get("elsNow"), _UI_BEAT.get("elsHigh"), _strikes))
     if age < _UI_BEAT_SILENCE_S:
         return False, "the page beat %.0fs ago" % age
     since = now - (_UI_RESCUE["last"] or 0.0)
@@ -14506,6 +14586,41 @@ def _eagle_once():
             "say": ("all clear across %d check(s)" % len(rows)) if not bad and not unk else
                    (("%d need you%s" % (len(bad), (", %d not measured" % len(unk)) if unk else ""))
                     if bad else "%d check(s) could not be measured" % len(unk))})
+    # ══ v2394 — THE EAGLE'S PASS IS NOW DURABLE, BECAUSE _EAGLE IS A MODULE GLOBAL ═══════════
+    # Konyo: "Plus the_eagle_can_still_look = UNKNOWN... no gaps... information is needed
+    # obviously, so connect it to the heart of the console too."
+    #
+    # He is right and this is the mechanism. `_EAGLE` lives in THIS process. Inside his running
+    # console it is populated; in every OTHER process — the corroborator CLI, a gate, CI — the
+    # module is fresh, `checked` is None, and `_inv_the_eagle_can_still_look` correctly answers
+    # UNKNOWN. Correct, and useless: the one invariant that watches the watchdog can never be
+    # graded anywhere except inside the thing it is grading.
+    #
+    # Same shape as the surface, the slot and the per-frame verdict: the engine KNOWS and does
+    # not persist it. [[heart-first]] rule 6
+    #
+    # ⚠ A DURABLE RECORD GOES STALE, AND STALE MUST NOT READ AS FRESH. The row carries its own
+    # `ts`; the reader decides whether it is recent enough to mean anything and answers UNKNOWN
+    # when it is not. A pass from three days ago is not evidence that the eagle flew today.
+    # [[stale-reading]]
+    #
+    # ⚠ AND IT WRITES ONLY THE SHAPE, NOT THE ROWS. The rows carry check names and prose that
+    # change every version; persisting them would create a second copy of a thing that already
+    # has an owner. Only the COUNT is needed to answer "did the eagle cover its roster".
+    # [[copy-drift]]
+    try:
+        _ep = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
+        _tmp = _ep + ".tmp"
+        with open(_tmp, "w", encoding="utf-8") as _fh:
+            json.dump({"checked": _EAGLE.get("checked"), "rows": len(rows),
+                       "needsYou": len(bad), "unknown": len(unk),
+                       "ts": int(time.time() * 1000)}, _fh)
+        os.replace(_tmp, _ep)
+    except Exception as _e:
+        # a watchdog must never die of its own bookkeeping — but say so, because a record that
+        # silently stops being written looks exactly like an eagle that stopped flying.
+        print("\u26a0 eagle: could not persist its pass (%s) — out-of-process readers will "
+              "report UNKNOWN" % str(_e)[:90], flush=True)
     return bad
 
 
@@ -21048,7 +21163,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2393",
+        "ver": "v2394",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

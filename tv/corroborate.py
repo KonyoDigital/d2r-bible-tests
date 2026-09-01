@@ -479,6 +479,24 @@ def _inv_the_two_owned_fields():
             "vault_ledger.totals.owned", left, "board d2r_owned (backed up)", right, "<=")
 
 
+#: v2394 — how old the eagle's durable pass may be and still mean something. The loop runs every
+#: few minutes; an hour is generous and still refuses a record from yesterday. [[stale-reading]]
+_EAGLE_RECORD_MAX_AGE_MS = 60 * 60 * 1000
+
+#: The durable pass. A MODULE CONSTANT so a test can point it somewhere harmless.
+#: ⚠ THE FIRST CUT HARDCODED THIS PATH AND THE GUARD RACED HIS RUNNING CONSOLE. The live console
+#: rewrites this file on every eagle pass; a test that wrote it, asserted, and restored it was
+#: fighting a process that writes every few minutes — three of my own guards failed on the push
+#: for exactly that. A test must never read or write a file the product is actively writing.
+#: [[feedback-fixtures-never-touch-live-data]]
+def _eagle_record_path():
+    try:
+        import control_app as _ca
+        return os.path.join(os.path.dirname(os.path.abspath(_ca.__file__)), ".eagle_last.json")
+    except Exception:
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
+
+
 def _inv_the_eagle_can_still_look():
     """A watchdog that cannot run is not a passing watchdog. The eagle runs the corroborator; until
     now nothing checked the eagle. UNKNOWN is the honest answer when its own state is unreadable."""
@@ -497,7 +515,35 @@ def _inv_the_eagle_can_still_look():
         # explicit never-run marker — ask it rather than inferring from an empty list.
         # [[unknown-stays-unknown]]
         if e.get("checked") is None:
-            return None
+            # ══ v2394 — READ THE DURABLE PASS, BECAUSE _EAGLE IS A MODULE GLOBAL ═════════════
+            # Konyo: "the_eagle_can_still_look = UNKNOWN... no gaps... information is needed
+            # obviously, so connect it to the heart of the console too."
+            #
+            # `_EAGLE` lives in the CONSOLE'S process. Everywhere else — this CLI, a gate, CI —
+            # the module is fresh and `checked` is None, so the one invariant that watches the
+            # watchdog could only ever be graded inside the thing it grades. v2394 makes
+            # _eagle_once persist {checked, rows, ts}; this reads it.
+            #
+            # ⚠ STALE IS NOT FRESH, AND IT IS NOT A PASS EITHER. A pass from three days ago is
+            # not evidence the eagle flew today, so a record older than the bound answers
+            # UNKNOWN — the same answer as no record at all, which is the honest one.
+            # [[stale-reading]] [[unknown-stays-unknown]]
+            try:
+                import json as _json, os as _os, time as _time
+                _p = _eagle_record_path()
+                if not _os.path.isfile(_p):
+                    return None
+                with io.open(_p, encoding="utf-8") as _fh:
+                    _row = _json.load(_fh)
+                _ts = _row.get("ts")
+                if not isinstance(_ts, (int, float)):
+                    return None
+                if (_time.time() * 1000 - float(_ts)) > _EAGLE_RECORD_MAX_AGE_MS:
+                    return None            # too old to mean anything
+                _r = _row.get("rows")
+                return int(_r) if isinstance(_r, int) else None
+            except Exception:
+                return None
         rows = e.get("rows")
         return len(rows) if isinstance(rows, list) else None
 

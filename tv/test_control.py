@@ -31065,11 +31065,24 @@ class TestV2237NeverRanIsNotZero(unittest.TestCase):
         # Set the state explicitly and cover all three cases instead of hoping for one.
         import corroborate as co
         import console_doctor as cd
-        state, say = self._eagle_state(
-            {"checked": None, "needsYou": None, "unknown": None, "rows": [],
-             "say": "not measured yet"})
+        # ⚠ v2394 CHANGED WHAT THIS INVARIANT ASKS, AND THIS TEST CAUGHT IT. It used to mean
+        # "has THIS PROCESS's eagle flown"; it now falls back to a durable record, so it means
+        # "has an eagle flown RECENTLY, anywhere". That is the broader and more useful question —
+        # it is why the invariant can be graded outside the console at all — but the old claim
+        # must still hold underneath it: with no record AND no in-process pass, the answer is
+        # UNKNOWN. Point the record somewhere that does not exist and the original claim is
+        # exactly what is measured.
+        _orig = co._eagle_record_path
+        co._eagle_record_path = lambda: os.path.join(tempfile.mkdtemp(prefix="no_eagle_"), "absent.json")
+        try:
+            state, say = self._eagle_state(
+                {"checked": None, "needsYou": None, "unknown": None, "rows": [],
+                 "say": "not measured yet"})
+        finally:
+            co._eagle_record_path = _orig
         self.assertEqual(state, co.UNKNOWN,
-                         "a never-run eagle produced a verdict instead of UNKNOWN: %s" % say)
+                         "a never-run eagle with no durable record produced a verdict instead of "
+                         "UNKNOWN: %s" % say)
 
     def test_an_eagle_that_flew_EVERY_check_agrees(self):
         import corroborate as co
@@ -36637,7 +36650,12 @@ class TestV2365StructuralTriageNeverDisposesFromASample(unittest.TestCase):
         root = tempfile.mkdtemp(prefix="triage2_")
         names = ["f_%d.jpg" % (1787522052380 + i) for i in range(6)]
         d = self._reel(root, "reel_s_2_2", names)
-        out = rt.survey([d], self._fake_gate({names[1]}), every_frame=True)
+        # ⚠ remember_to=root, NOT the default. A full pass REMEMBERS, and _store_path(None)
+        # resolves to the LIVE tv/retro_triage.json — so this test taught his production survey
+        # store about a fixture reel called reel_s_2_2. Measured: it was there, with a v2393
+        # panelFrames map, stamped minutes after the suite ran.
+        # [[feedback-fixtures-never-touch-live-data]]
+        out = rt.survey([d], self._fake_gate({names[1]}), every_frame=True, remember_to=root)
         self.assertFalse(out["sampled"])
         self.assertEqual(out["frames"], 6, "a full pass must read every frame")
         self.assertEqual(len(out["keep"]), 1)
@@ -36654,7 +36672,8 @@ class TestV2365StructuralTriageNeverDisposesFromASample(unittest.TestCase):
         def slow(path):
             time.sleep(0.05)
             return None
-        out = rt.survey(reels, slow, every_frame=True, budget_s=0.06)
+        # ⚠ remember_to=root — same leak as the sibling above; this one wrote reel_s_3_0.
+        out = rt.survey(reels, slow, every_frame=True, budget_s=0.06, remember_to=root)
         self.assertTrue(out["stoppedEarly"],
                         "a pass cut off by its budget must say so, or a partial count reads as a "
                         "complete one")
@@ -37759,8 +37778,13 @@ class TestV2393TheWatchdogCanSeeABlankPage(unittest.TestCase):
 
     def _fresh(self):
         ca = self.ca
+        # ⚠ elsWindow MUST be cleared here. It was added in v2394 and this helper predates it, so
+        # the window leaked between tests and two of the new guards failed for a reason that had
+        # nothing to do with the code they grade. A fixture missing a field the code carries is
+        # the same blind-fixture defect these tests exist to catch — third time today.
+        # [[feedback-blind-fixture-green-gate]] [[sabotage-is-usually-the-wrong-one]]
         ca._UI_BEAT.update({"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
-                            "elsHigh": 0, "elsNow": None, "blankStrikes": 0})
+                            "elsHigh": 0, "elsNow": None, "blankStrikes": 0, "elsWindow": []})
         ca._UI_RESCUE.update({"last": 0.0, "count": 0, "why": ""})
 
     def _beats(self, counts, hidden=False):
@@ -37813,6 +37837,136 @@ class TestV2393TheWatchdogCanSeeABlankPage(unittest.TestCase):
         self._beats([1200]); self._beats([12])
         self.assertFalse(self._due()[0])
 
+    def _with_window_witness(self, seen, why="stubbed"):
+        """Patch the independent window sighting. Returns the original for restore."""
+        import window_visibility as wv
+        orig = wv.contradicts_a_hidden_beat
+        wv.contradicts_a_hidden_beat = lambda: (seen, why)
+        return wv, orig
+
+    def test_v2394_a_LYING_hidden_flag_no_longer_disarms_the_paint_witness(self):
+        """★ HIS LIVE FAULT, twice in one afternoon.
+
+        Measured on his running console while he was looking straight at a black window:
+            uiBeat {"n": 229, "hidden": true, "ageS": 1.0, "rescues": 0}
+        Beating every second and reporting itself HIDDEN. That is the v2348 scar — `hidden` is
+        only ever CLEARED by a beat, and WebKit suspends the beat timer on a window it believes is
+        hidden, so one hidden beat seals the flag shut.
+
+        v2393's paint witness zeroed its strikes on that same flag, so I built a new guard on top
+        of a signal already known to lie and it inherited the identical disarm. TWO watchdogs, one
+        lying input.
+
+        The strike now comes from the PIXELS alone; the DECISION asks an independent window
+        witness once, only after three strikes.
+        """
+        wv, orig = self._with_window_witness(True, "a 1120x660 window on screen")
+        try:
+            self._fresh()
+            self._beats([1200] * 3)
+            self._beats([12] * 3, hidden=True)
+            self.assertGreaterEqual(self.ca._UI_BEAT["blankStrikes"], self.ca._UI_PAINT_STRIKES,
+                                    "the hidden flag zeroed the strikes again — the witness is "
+                                    "disarmed by the very signal it was built to survive")
+            due, why = self._due()
+            self.assertTrue(due, "a page that is beating, blank, and INDEPENDENTLY SEEN on screen "
+                                 "was not rescued: %s" % why)
+        finally:
+            wv.contradicts_a_hidden_beat = orig
+
+    def test_v2394_a_genuinely_hidden_window_is_still_never_reloaded(self):
+        """v2325's protection must survive the fix above. UNKNOWN is not permission.
+
+        Quartz unavailable, an exception, or no window found all leave the refusal exactly as it
+        was — "nobody could tell" must never act like "he is looking at it".
+        """
+        wv, orig = self._with_window_witness(False, "the window server lists no on-screen window")
+        try:
+            self._fresh()
+            self._beats([1200] * 3)
+            self._beats([12] * 3, hidden=True)
+            due, why = self._due()
+            self.assertFalse(due, "a window nothing independently saw was reloaded under him")
+            self.assertIn("hidden", why.lower())
+        finally:
+            wv.contradicts_a_hidden_beat = orig
+
+    def test_v2394_the_paint_check_runs_BEFORE_the_hidden_branch(self):
+        """⚠ THE ORDER IS THE FIX, and order is invisible in a diff.
+
+        The hidden branch reasons from SILENCE — "a console he is not looking at is throttled, so
+        its silence proves nothing" — and returns False for everything. It was short-circuiting
+        the paint witness before it could be consulted: blankStrikes reached 3 and the rescue
+        still refused, quoting the hidden branch's reason.
+
+        A page beating every second and painting nothing is not reasoning from silence at all.
+        This asserts the paint block is positioned ahead of it in the source, because a later
+        refactor that restores the old order would make every test above pass and the fault
+        return. [[source-reading-guard]]
+        """
+        src = _between(self, io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                  "control_app.py"), encoding="utf-8").read(),
+                       "def ui_rescue_due(", "\ndef ", what="the rescue decision")
+        i_paint = src.find("_UI_PAINT_STRIKES")
+        i_hidden = src.find('_UI_BEAT.get("hidden")')
+        self.assertGreater(i_paint, -1, "the paint check is gone from ui_rescue_due")
+        self.assertGreater(i_hidden, -1, "the hidden branch is gone from ui_rescue_due")
+        self.assertLess(i_paint, i_hidden,
+                        "the hidden branch is back in front of the paint check — it returns False "
+                        "for everything, so the paint witness is unreachable whenever the flag is "
+                        "set, which is exactly the live fault")
+
+    def test_v2394_the_rescue_does_NOT_retrigger_on_its_own_repair(self):
+        """A watchdog that reloads his console forever is worse than no watchdog.
+
+        Found by a cross-family review of the SHIPPED v2393 diff. `elsHigh` was an all-time
+        maximum, raised and never reset — so after a rescue the FRESH page was judged against the
+        peak of the page we had just thrown away. A page that legitimately came back smaller
+        collapsed against a mark it could never meet, earned three strikes, and was reloaded
+        again, at one reload per cooldown, forever.
+        """
+        self._fresh()
+        self._beats([1200] * 3)
+        self._beats([12] * 3)
+        self.assertTrue(self._due()[0], "setup: the fault must fire first")
+        # act exactly as _console_rescue_loop does
+        import time as _t
+        self.ca._UI_RESCUE["last"] = _t.time()
+        self.ca._UI_BEAT["elsWindow"] = []
+        self.ca._UI_BEAT["elsHigh"] = 0
+        self.ca._UI_BEAT["blankStrikes"] = 0
+        # the reloaded page returns HEALTHY but smaller than the old peak
+        self._beats([300] * 6)
+        self.assertFalse(self._due()[0],
+                         "the rescue re-fired on the page it had just repaired — that is a reload "
+                         "loop, bounded only by the cooldown")
+
+    def test_v2394_one_large_page_does_not_poison_the_baseline_forever(self):
+        """The baseline is a RECENT window, not an all-time mark.
+
+        Second finding, same root cause: open one long list and the all-time maximum sits where no
+        ordinary page reaches, so every healthy page afterwards reads as blank.
+        """
+        self._fresh()
+        self._beats([5000])                      # one spuriously large page, once
+        self._beats([400] * (self.ca._UI_PAINT_WINDOW + 10))
+        self.assertFalse(self._due()[0], "a single large DOM poisoned the baseline")
+        self.assertEqual(self.ca._UI_BEAT["elsHigh"], 400,
+                         "the spike never aged out — elsHigh is still an all-time maximum")
+
+    def test_v2394_a_page_that_never_paints_STOPS_rather_than_looping(self):
+        """Trying twice is a fix; trying forever is a fault of our own.
+
+        If a reload comes back blank, the fresh window never reaches the element floor, so no
+        baseline exists, so no strike is earned and we stop. A page that cannot paint after a
+        reload is a DIFFERENT fault — the silence path and he himself will surface it.
+        """
+        self._fresh()
+        self._beats([12] * 10)
+        self.assertFalse(self._due()[0],
+                         "a page that has never reached the floor earned a strike — there is no "
+                         "baseline to collapse against, so this would reload forever")
+
     def test_the_decision_actually_reads_the_paint_witness(self):
         """⚠ THE JOIN, not the rule. The beat has carried `els` since v2336 and nothing read it.
 
@@ -37827,6 +37981,165 @@ class TestV2393TheWatchdogCanSeeABlankPage(unittest.TestCase):
         after = self._due()[0]
         self.assertFalse(before)
         self.assertTrue(after, "ui_rescue_due ignores blankStrikes — the witness is not joined")
+
+
+
+class TestV2394NoTestWritesIntoHisLiveSurveyStore(unittest.TestCase):
+    """The suite must not teach his production survey store about fixture reels.
+
+    MEASURED 2026-09-01: tv/retro_triage.json — his LIVE store, 439 rows — carried `reel_s_2_2`
+    and `reel_s_3_0`, stamped minutes after a suite run. Both are synthetic names built by
+    TestV2365StructuralTriageNeverDisposesFromASample, which called
+    `rt.survey(..., every_frame=True)` with NO `remember_to`. A FULL pass remembers, and
+    `_store_path(None)` resolves to the live file.
+
+    ⚠ THE EXISTING PROTECTION WAS REAL AND INSUFFICIENT. `_store_path` already honours TV_HIST and
+    `root`, and its docstring describes this exact leak being closed once before — "a gate run
+    would have taught the live store that his reels hold no panels, and `worth_reading` would then
+    skip them for good". It closed the loop for the WATCHER; a direct survey() call with neither
+    argument still landed in the real file.
+
+    ⚠ AND THE DAMAGE IS WORSE THAN TWO STRAY ROWS. Those two were the ONLY rows carrying v2393's
+    `panelFrames` map, so every reader of that field — river.py's frame-verdict joint included —
+    was reporting progress that was pure fixture pollution. A store polluted with synthetic
+    verdicts does not look broken; it looks like work getting done.
+
+    ⚠ THIS GUARDS THE ARTIFACT, NOT THE SOURCE. A source scan for `remember_to` would pass the day
+    someone writes the same leak a different way, and would fail on its own explanatory prose —
+    that has happened twice in this file already. [[source-reading-guard]]
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+
+    #: a REAL reel id carries an epoch-ms stamp. Fixtures build reel_s_<small>_<small>.
+    REAL = re.compile(r"^reel_s_\d{10,16}_\d+$")
+
+    def test_the_live_store_holds_only_real_reel_ids(self):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retro_triage.json")
+        if not os.path.isfile(p):
+            self.skipTest("no live survey store on this machine — nothing to protect")
+        with io.open(p, encoding="utf-8") as fh:
+            blob = json.load(fh)
+        bad = sorted(k for k in blob if not self.REAL.match(str(k)))
+        self.assertEqual(bad, [],
+                         "his LIVE survey store holds reel ids no recording could produce — a "
+                         "test wrote into it. Pass remember_to=<tempdir> (or remember_to=False) "
+                         "to every survey() call in the suite. Offending rows: %r" % (bad,))
+
+    def test_a_survey_with_no_remember_to_cannot_reach_the_live_store_under_TV_HIST(self):
+        """The harness path must stay closed — this is the protection that DID work."""
+        import retro_triage as rt
+        live = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retro_triage.json")
+        d = tempfile.mkdtemp(prefix="triage_guard_")
+        old = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = d
+        try:
+            self.assertEqual(os.path.abspath(rt._store_path(None)),
+                             os.path.abspath(os.path.join(d, rt.STORE)),
+                             "TV_HIST no longer redirects the survey store — a harness run would "
+                             "write his live file")
+            self.assertNotEqual(os.path.abspath(rt._store_path(None)), os.path.abspath(live))
+        finally:
+            if old is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old
+
+
+
+class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
+    """The one invariant that watches the watchdog could only ever be graded inside it.
+
+    Konyo: "Plus the_eagle_can_still_look = UNKNOWN... no gaps... information is needed obviously,
+    so connect it to the heart of the console too."
+
+    `control_app._EAGLE` is a MODULE GLOBAL. Inside his running console it is populated; in every
+    other process — the corroborator CLI, a gate, CI — the module is fresh, `checked` is None, and
+    `_inv_the_eagle_can_still_look` answers UNKNOWN. Honest, and useless.
+
+    v2394 makes `_eagle_once` persist {checked, rows, needsYou, unknown, ts} to tv/.eagle_last.json
+    and the invariant read it when the in-process global is unset.
+
+    ⚠ STALE IS NOT FRESH, AND IT IS NOT A PASS EITHER. A record older than the bound answers
+    UNKNOWN — the same answer as no record at all, which is the honest one. A pass from three days
+    ago is not evidence the eagle flew today. [[stale-reading]] [[unknown-stays-unknown]]
+
+    ⚠ AND ONLY THE SHAPE IS PERSISTED, NOT THE ROWS. Rows carry check names and prose that change
+    every version; a second copy of them would be [[copy-drift]]. The COUNT answers the question.
+    """
+
+    def setUp(self):
+        """⚠ A TEMPDIR, NEVER THE LIVE RECORD. The first cut read and rewrote
+        tv/.eagle_last.json — the file his RUNNING console rewrites on every eagle pass. Three of
+        these guards failed on the push for exactly that: they were fighting a live writer, not
+        measuring the code. A test must never touch a file the product is actively writing.
+        [[feedback-fixtures-never-touch-live-data]]"""
+        import corroborate, control_app
+        self.C = corroborate
+        self.ca = control_app
+        self.d = tempfile.mkdtemp(prefix="eagle_rec_")
+        self.p = os.path.join(self.d, ".eagle_last.json")
+        self._orig = corroborate._eagle_record_path
+        corroborate._eagle_record_path = lambda: self.p
+        # ⚠ AND THE IN-PROCESS EAGLE MUST BE RESET TO NEVER-RUN, OR THE DURABLE PATH IS UNREACHABLE.
+        # These passed alone and failed at 2,043 tests with `left=2, right=34`: an earlier test in
+        # the suite flies the eagle, so `_EAGLE["checked"]` is set, the in-process branch wins, and
+        # the fallback these tests exist to exercise is never taken. TestV2237 carries the same
+        # scar in its own docstring — "a test that depends on what ran before it is not measuring
+        # what it claims" — and I wrote these three without heeding it.
+        self._eagle = dict(control_app._EAGLE)
+        control_app._EAGLE.update({"checked": None, "needsYou": None, "unknown": None,
+                                   "rows": [], "say": "not measured yet"})
+
+    def tearDown(self):
+        self.C._eagle_record_path = self._orig
+        self.ca._EAGLE.clear(); self.ca._EAGLE.update(self._eagle)
+        try:
+            shutil.rmtree(self.d, ignore_errors=True)
+        except Exception:
+            pass
+
+    def _row(self):
+        return [r for r in self.C.prove_each()
+                if r["invariant"] == "the_eagle_can_still_look"][0]
+
+    def _write(self, rows, age_ms):
+        io.open(self.p, "w", encoding="utf-8").write(json.dumps(
+            {"checked": 1, "rows": rows, "ts": int(time.time() * 1000) - age_ms}))
+
+    def test_with_no_record_it_is_UNKNOWN_not_a_pass(self):
+        if os.path.isfile(self.p):
+            os.remove(self.p)
+        r = self._row()
+        self.assertIsNone(r["exercised"],
+                          "with no durable record the eagle invariant must be UNKNOWN, never a "
+                          "verdict")
+
+    def test_a_FRESH_record_makes_it_gradeable(self):
+        import console_doctor as cd
+        self._write(len(cd.CHECKS), 0)
+        r = self._row()
+        self.assertTrue(r["proven"],
+                        "with a fresh record the eagle invariant must be gradeable AND provably "
+                        "able to refuse — it is %r" % (r.get("why"),))
+        self.assertEqual(r["left"], len(cd.CHECKS))
+
+    def test_a_STALE_record_goes_back_to_UNKNOWN(self):
+        """The defect this guards: a durable record that outlives its meaning and reads as a pass."""
+        import console_doctor as cd
+        self._write(len(cd.CHECKS), self.C._EAGLE_RECORD_MAX_AGE_MS + 60000)
+        r = self._row()
+        self.assertIsNone(r["exercised"],
+                          "a record older than the bound was graded as if the eagle had just "
+                          "flown — that is a stale reading wearing a fresh verdict")
+
+    def test_the_writer_and_the_reader_name_the_SAME_file(self):
+        """Two halves each built right and never joined is the defect this repo keeps shipping."""
+        with io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                     encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn('".eagle_last.json"', src,
+                      "the eagle no longer writes a durable pass — the invariant will be UNKNOWN "
+                      "everywhere except inside the console process")
 
 
 if __name__ == "__main__":

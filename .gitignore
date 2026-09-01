@@ -168,3 +168,8 @@ tv/ui_faults.jsonl
 # v2229 — the free-space series. Runtime, per-machine, never committed.
 tv/disk_history.jsonl
 .coldread.tmp.html
+
+# v2394 — the eagle's durable pass. A RUNTIME DECISION RECORD, like .second_eye.jsonl and
+# .console_scars.json: his running console rewrites it every pass, so tracking it leaves the
+# working tree permanently dirty and every pre-push reports "local tracked edits present".
+tv/.eagle_last.json
