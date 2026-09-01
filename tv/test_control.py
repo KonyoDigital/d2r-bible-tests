@@ -38713,10 +38713,17 @@ class TestV2399TheNextLookIsAREQUESTNotACommand(unittest.TestCase):
         pane on screen is not the one asked for. Diagnostics go where the diagnostician is.
         """
         ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
-        i = ui.index("function _viewRequest(st){")
-        body = ui[i:i + 4000]
-        j = body.index("if (vr.state !== 'FRESH')")
-        refused = body[j:j + 1400]
+        # ⚠ ANCHORS, NOT BYTE COUNTS. The first cut read `ui[i:i + 4000]` and `body[j:j + 1400]`,
+        # which is the shape TestTheSourceGuardsDoNotGetMoreDangerous exists to refuse — and it
+        # refused this one on the push. A fixed window does not announce itself when the code
+        # moves: grow the handler past 4000 chars, or push the FRESH branch past 1400, and
+        # `assertNotIn("'warn'", …)` passes over a slice that no longer contains the branch at
+        # all. _between fails loudly on a moved anchor instead. [[source-reading-guard]]
+        body = _between(self, ui, "function _viewRequest(st){", "function paint(st){",
+                        min_len=400, what="the _viewRequest handler")
+        refused = _between(self, body, "if (vr.state !== 'FRESH')",
+                           "if (_vrHonored === vr.id) return;",
+                           min_len=200, what="the refused-state branch")
         self.assertNotIn("'warn'", refused,
                          "a refused request must not paint a warning banner on HIS console — it is "
                          "published on /api/status for the eye, and that is the only place it goes")
