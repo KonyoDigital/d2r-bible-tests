@@ -56,6 +56,13 @@ const SCAN = (needle: string) => `(function(){
         .filter(function(x){ return (x.textContent||'').toLowerCase()
                  .indexOf(${JSON.stringify(needle)})>=0; })[0];
   if(!b) return {found:false};
+  var r0=b.getBoundingClientRect();
+  var tabHost = b.closest('.tab-content') || b.closest('[id^=tab-]');
+  var diag = {rectTop:Math.round(r0.top), rectH:Math.round(r0.height),
+              rectW:Math.round(r0.width), vh:window.innerHeight,
+              tabId: tabHost ? String(tabHost.id||tabHost.className).slice(0,30) : null,
+              tabDisplay: tabHost ? getComputedStyle(tabHost).display : null,
+              scrollY0: Math.round(window.scrollY||0)};
   var doc=Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
   var maxY=Math.max(0, doc-window.innerHeight);
   /* ⚠ ANCHOR THE WALK ON THE ELEMENT, DO NOT SWEEP THE PAGE BLINDLY. The first cut stepped from
@@ -103,7 +110,9 @@ const SCAN = (needle: string) => `(function(){
   window.scrollTo(0,0);
   return {found:true, tested:tested, free:free, firstFreeY:first, covers:covers,
           maxY:maxY, anchor:anchor, from:lo, to:hi,
-          scrollMovesIt:moved, distinctPositions:distinct};
+          scrollMovesIt:moved, distinctPositions:distinct, diag:diag,
+          rectAfter:{top:Math.round(b.getBoundingClientRect().top),
+                     h:Math.round(b.getBoundingClientRect().height)}};
 })()`;
 
 for (const [w, h] of [[1440, 1000], [1120, 900], [901, 900]] as const) {
@@ -126,8 +135,15 @@ for (const [w, h] of [[1440, 1000], [1120, 900], [901, 900]] as const) {
 
     const r: any = await page.evaluate(SCAN('do this now'));
     expect(r.found, 'no "Do this now" control exists on the Sessions tab').toBe(true);
-    expect(r.tested, 'the scan never saw the CTA on screen at ANY scroll position — that is a '
-      + 'HARNESS fault, not a verdict about the button').toBeGreaterThan(0);
+    // ⚠ CARRY THE WHOLE PAYLOAD. Diagnosing this one variable per CI run is how four runs went
+    // by learning one fact each. If the scan saw nothing, the message must say WHY it saw
+    // nothing: the control's size, where it sat, how tall the viewport was, which tab hosts it
+    // and whether that tab is displayed.
+    expect(r.tested, 'the scan never saw the CTA on screen at ANY scroll position — a HARNESS '
+      + `fault, not a verdict about the button. diag=${JSON.stringify(r.diag)} `
+      + `anchor=${r.anchor} maxY=${r.maxY} window=${r.from}..${r.to} `
+      + `rectAfter=${JSON.stringify(r.rectAfter)} moves=${r.scrollMovesIt}`)
+      .toBeGreaterThan(0);
     // the two guards that stop "free=0" from being an artifact of a scroller we never drove
     expect(r.scrollMovesIt, 'scrolling did not move the control at all, so every sample below is '
       + 'the SAME position — this harness cannot reach its subject and must not convict it')
