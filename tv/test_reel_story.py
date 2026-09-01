@@ -11,6 +11,14 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# These docstrings carry ★ and ⚠, and unittest PRINTS them. On a non-UTF-8 console that is a
+# UnicodeEncodeError instead of a test report — a suite that cannot report its own verdict.
+try:
+    import console_safe
+    console_safe.enable()
+except Exception:
+    pass
+
 import reel_story as RS
 
 

@@ -184,6 +184,11 @@ GATES = [
              "classify lane and structurally could not count a page read (v1596)"),
     Gate("test_chronicle_retro", [sys.executable, os.path.join(HERE, "test_chronicle_retro.py")], 300,
          why="the retro sweep's three laws: read-only until Apply, merge-max, pay-for-runs"),
+    Gate("test_reel_story", [sys.executable, os.path.join(HERE, "test_reel_story.py")], 120,
+         why="the shelf's pipeline board reads the deciders and never becomes a second one: an "
+             "unsurveyed reel stays UNKNOWN rather than scoring 0%, an unmapped retention verdict "
+             "refuses instead of defaulting to 'releasable', and every rule reel_retention can "
+             "emit has a stage"),
     Gate("test_chronicle_template", [sys.executable, os.path.join(HERE, "test_chronicle_template.py")], 300,
          why="the Chronicle panel's own template is measured, not guessed — the page frame, its "
              "NO TOOLTIP ITEM state, and the MINI-parameter geometry a live read leans on, so the "

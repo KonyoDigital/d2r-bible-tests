@@ -1676,7 +1676,14 @@
   /* .shs-arrow is retired — see the note beside the rail builder. Kept out of the sheet
      entirely rather than left as a dead class nobody can date. */
   #th-shelfov .shs-stage { position: relative; }
-  #th-shelfov .shs-step { position: absolute; top: 4px; left: 6px; font-size: 9px;
+  /* v2383.1 — this step numeral was a raw sub-floor size and the repo's own type floor caught
+     it: nothing may render under the fullscreen minimum, because his console IS a fullscreen app
+     and a numeral that small there is not subtle, it is unreadable. The token clamps and scales.
+     ⚠ AND THE FIRST FIX LEFT THE GUARD RED FOR A SECOND REASON: this comment originally quoted
+     the offending declaration verbatim, so the scanner matched its own documentation and kept
+     reporting a size the stylesheet no longer sets. Describe the defect; never spell it.
+     [[feedback-comments-vs-code]] [[source-reading-guard]] */
+  #th-shelfov .shs-step { position: absolute; top: 4px; left: 6px; font-size: var(--fs-2xs, 11px);
     font-variant-numeric: tabular-nums; color: var(--muted); opacity: .65; letter-spacing: 0; }
   #th-shelfov .shs-railh { font-size: var(--fs-xs); color: var(--muted); margin: 11px 0 2px; }
   #th-shelfov .shs-railh b { color: var(--text); font-weight: var(--fw-medium); }
@@ -4878,6 +4885,40 @@
     border-color: rgba(240,192,96,.85); background: rgba(240,192,96,.22);
     font-weight: var(--fw-semibold, 600); box-shadow: inset 0 0 0 1px rgba(240,192,96,.25); }
   .fxr-tab:hover { color: var(--text, #e8dcc8); }
+  /* ══ v2384 — THE STATE PANEL. Inherits .fleet-xref / .fxr-win / .fx-head / .fx-body wholesale
+     so it IS the cross-reference window rather than a lookalike; only the row grid is new. */
+  /* ⚠ .fx-body IS A TWO-COLUMN GRID IN THE FLEET WINDOW, AND THIS PANEL INHERITED IT. Measured
+     at 1440: gridTemplateColumns computed to `701px 330px`, so the four sections became grid
+     items — VERSIONS and THE FLEET side by side at equal height, with ~300px of dead space
+     under the shorter one, and DISK stranded in a narrow right column. Reusing another
+     component's shell buys its design AND its layout; this panel wants the design and reads top
+     to bottom. [[d2r-css-last-rule-wins]] */
+  #ver-xref .fx-body { display: block; }
+  #ver-xref .fx-head { position: relative; padding-right: 40px; }
+  #ver-xref .fx-head .th-x { position: absolute; right: 0; top: -2px; }
+  #ver-xref .vx-sec { margin: 0 0 18px; }
+  #ver-xref .vx-h { margin: 0 0 7px; font-size: var(--fs-2xs); letter-spacing: var(--ls-widest);
+    text-transform: uppercase; color: var(--gold-dim); font-weight: var(--fw-bold);
+    border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 5px; }
+  /* label · value · why-it-says-that. The third column is the point: a figure with no source is
+     a figure nobody can check when it looks wrong. */
+  #ver-xref .vx-row { display: grid; grid-template-columns: 9.5em minmax(0,10em) minmax(0,1fr);
+    gap: 4px 14px; align-items: baseline; padding: 4px 0; font-size: var(--fs-xs);
+    border-bottom: 1px solid rgba(255,255,255,.04); }
+  @media (max-width: 620px) {
+    #ver-xref .vx-row { grid-template-columns: minmax(0,1fr); gap: 1px; padding: 7px 0; }
+    #ver-xref .vx-note { grid-column: 1; }
+  }
+  #ver-xref .vx-k { color: var(--muted); letter-spacing: var(--ls-label); text-transform: uppercase;
+    font-size: var(--fs-2xs); }
+  #ver-xref .vx-v { color: var(--text); font-variant-numeric: tabular-nums;
+    font-weight: var(--fw-medium); overflow-wrap: anywhere; }
+  #ver-xref .vx-note { color: var(--muted); overflow-wrap: anywhere; }
+  /* semantic, and separate from the panel's gold: unknown is not a fault and must not wear the
+     fault colour, or every un-run watcher reads as something broken. */
+  #ver-xref .vx-unknown { color: #9aa6b2; letter-spacing: var(--ls-label); }
+  #ver-xref .vx-warn .vx-v { color: #e9b96e; }
+  #ver-xref .vx-ok   .vx-v { color: var(--mint, #8fe6a0); }
   .fx-x { background: none; border: none; color: var(--text-muted, #b5a48a); cursor: pointer;
     font-size: var(--fs-xs); line-height: 1; padding: 2px 4px; }
   .fx-x:hover { color: var(--text, #e8dcc8); }
@@ -6471,6 +6512,17 @@ body[data-origin="shadow"] #stage::after {
             <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
                  "what should I chase" where the hover tooltip answers "how far along is he". -->
             <div id="fleet-xref" class="fleet-xref" hidden></div>
+        <!-- v2384 — THE STATE PANEL. Konyo, looking at what the footer tooltip had become:
+             "all this information cant it be maybe somewhere better? or like more structured
+             cleaner.. like the fleet when i click it open a window popup inpage.. so it can be
+             cleaner like the cross reference for the fleet type style design a opened window..
+             stretched and explaining what the hell is going on and explaining and structured
+             with titles and organized."
+             v2383 moved the footer banner into the element's title, which turned a bad one-line
+             wall into a bad hover wall — same text, smaller box. It belongs in a window with
+             headings. Deliberately reuses .fleet-xref / .fxr-win so it IS the cross-reference
+             window's design rather than a second thing that resembles it. [[copy-drift]] -->
+        <div id="ver-xref" class="fleet-xref" hidden></div>
           </div>
         </details>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
@@ -8369,7 +8421,8 @@ body[data-origin="shadow"] #stage::after {
        it just stops shouting. One visible fault token survives, `relaunch`, because a console
        serving code it never executed is the one thing here he must act on rather than hover to
        discover. [[unknown-stays-unknown]] [[label-outlived-referent]] */
-    var _lblLong = _lbl;
+    /* (v2383 kept a _lblLong here to stuff into the tooltip; v2384 gave the detail a real
+       window instead, so the copy had no reader and is gone rather than left dangling.) */
     /* He named the clauses he wanted gone: "Console v2381 and Agent v2382 board v2382 · is on
        disk v2382 i want removed surgically". So the bar is the version and NOTHING else — not
        even a one-word fault token. The relaunch prompt is not lost: this console already has a
@@ -8408,8 +8461,11 @@ body[data-origin="shadow"] #stage::after {
         if (r.state !== 'ok') _tip.push('   ' + (r.state === 'missing' ? '\u2717' : '?') + ' '
                                         + r.check + ' — ' + (r.why || ''));
       });
-      /* v2383 — the banner he asked off the bar lives here now, in full, first line. */
-      if (typeof _lblLong === 'string' && _lblLong.indexOf(' · ') >= 0) _tip.unshift(_lblLong);
+      /* v2384 — v2383 put the whole banner in here, which turned a one-line wall into a hover
+         wall: same text, smaller box. Konyo: "all this information cant it be maybe somewhere
+         better? or like more structured cleaner". It has a window now (#ver-xref), so the title
+         goes back to being a title and points at it. */
+      _tip.unshift('click for the full state of this console');
       $('foot-ver').title = _tip.join('\n') || 'console, agent and board all on ' + _cv;
     } catch (e) {}
     try {
@@ -9637,6 +9693,131 @@ body[data-origin="shadow"] #stage::after {
     }
   }
   window._shStoryLoad = _shStoryLoad;
+
+  /* ══ v2384 — THE STATE PANEL ═══════════════════════════════════════════════════════════════
+     Konyo: "like the fleet when i click it open a window popup inpage.. cleaner like the cross
+     reference for the fleet type style design a opened window.. stretched and explaining what
+     the hell is going on and explaining and structured with titles and organized."
+
+     Every value here was ALREADY on the status payload and already being concatenated onto the
+     footer. Nothing new is measured; it is the same facts under headings. Two rules the sections
+     below never break:
+       · a field the payload does not carry reads UNKNOWN, never 0 and never a blank row
+       · a row says WHERE its number came from, because a figure with no source is a figure that
+         cannot be checked when it looks wrong
+     [[unknown-stays-unknown]] [[stale-reading]] */
+  function _vxRow(label, value, note, tone){
+    var v = (value === null || value === undefined || value === '')
+      ? '<span class="vx-unknown">UNKNOWN</span>' : esc(String(value));
+    return '<div class="vx-row' + (tone ? ' vx-' + tone : '') + '">'
+         + '<span class="vx-k">' + esc(label) + '</span>'
+         + '<span class="vx-v">' + v + '</span>'
+         + (note ? '<span class="vx-note">' + esc(note) + '</span>' : '') + '</div>';
+  }
+  function _vxSection(title, rows){
+    if (!rows || !rows.length) return '';
+    return '<section class="vx-sec"><h4 class="vx-h">' + esc(title) + '</h4>' + rows.join('') + '</section>';
+  }
+
+  function _verXrefBuild(st){
+    st = st || {};
+    var cv = st.ver, av = st.agentVer, bv = st.bibleVer;
+    var d  = st.drift || {}, e = st.eagle || {}, fl = st.fleet || {}, rt = st.retention || {};
+
+    /* ── 1. VERSIONS — the question this bar has always been answering ───────────────────── */
+    var skew = (av && cv !== av) || (bv && cv !== bv);
+    var vRows = [
+      _vxRow('console', cv, 'the python process serving this page'),
+      _vxRow('agent',   av, 'the capture agent'),
+      _vxRow('board',   bv, 'bible.html, read fresh from disk'),
+    ];
+    if (d.drift === true && d.disk) {
+      vRows.push(_vxRow('on disk', d.disk, 'newer than the running console — relaunch to adopt it', 'warn'));
+    } else if (d.drift === null || d.drift === undefined) {
+      /* the watcher has not run. That is a third state and it must not read as "in sync". */
+      vRows.push(_vxRow('on disk', null, 'the drift watcher has not run yet'));
+    }
+    vRows.push(skew
+      ? _vxRow('verdict', 'RELAUNCH', 'three parts, not all on the same build', 'warn')
+      : _vxRow('verdict', 'in sync', 'console, agent and board agree', 'ok'));
+
+    /* ── 2. THE FLEET ─────────────────────────────────────────────────────────────────────── */
+    var fRows = [];
+    if (fl.ok === false) {
+      /* "could not check" and "up to date" are opposite facts, and `behind: 0` is what BOTH
+         report on the payload. This is the v2280 incident in one row. */
+      fRows.push(_vxRow('this machine', 'COULD NOT CHECK', fl.howTo || 'the update check did not complete', 'warn'));
+    } else if ((+fl.behind || 0) > 0) {
+      fRows.push(_vxRow('this machine', fl.behind + ' behind', fl.howTo || 'relaunch to pull', 'warn'));
+    } else if (fl.ok) {
+      fRows.push(_vxRow('this machine', 'current', 'checked against origin', 'ok'));
+    } else {
+      fRows.push(_vxRow('this machine', null, 'no fleet answer on this payload'));
+    }
+
+    /* ── 3. WHAT NEEDS YOU ────────────────────────────────────────────────────────────────── */
+    var eRows = [];
+    if (e.needsYou != null) eRows.push(_vxRow('waiting on you', e.needsYou, 'rows the readers could not settle'));
+    if (e.unknown != null)  eRows.push(_vxRow('not measured', e.unknown, 'nobody has looked at these yet'));
+    if (e.mine != null)     eRows.push(_vxRow('mine to fix', e.mine, 'flagged for the engines, not for you'));
+    if (!eRows.length)      eRows.push(_vxRow('the watcher', null, 'no eagle figures on this payload'));
+
+    /* ── 4. DISK ──────────────────────────────────────────────────────────────────────────── */
+    var dRows = [];
+    if (rt.freeGb != null) dRows.push(_vxRow('free', rt.freeGb + 'GB', 'on the volume holding the reels'));
+    else                   dRows.push(_vxRow('free', null, 'the retention pass has not reported'));
+    if (rt.freedMb)        dRows.push(_vxRow('freed last pass', Math.round(rt.freedMb) + 'MB', 'reclaimed by the prune'));
+    if (st.downGb != null) dRows.push(_vxRow('downloaded 24h', st.downGb + 'GB', 'this machine, all apps — not this console'));
+
+    var head = '<div class="fx-head"><b>THE STATE OF THIS CONSOLE</b>'
+             + '<span class="fx-sub">what every part of it is running, and what is waiting on you</span>'
+             + '<button type="button" class="sh-x th-x" id="vx-close" title="close (Esc)">✕</button></div>';
+    return '<div class="fxr-win">' + head + '<div class="fx-body">'
+         + _vxSection('VERSIONS', vRows)
+         + _vxSection('THE FLEET', fRows)
+         + _vxSection('WHAT NEEDS YOU', eRows)
+         + _vxSection('DISK', dRows)
+         + '</div></div>';
+  }
+
+  function _verXrefOpen(){
+    var ov = document.getElementById('ver-xref');
+    if (!ov) return;
+    /* window.__lastStatus is the SAME object the footer paints from, so the panel and the bar
+       can never disagree about what they were told. If no poll has landed, say that — an empty
+       panel would read as "nothing is wrong". */
+    var st = window.__lastStatus;
+    ov.innerHTML = st ? _verXrefBuild(st)
+      : '<div class="fxr-win"><div class="fx-head"><b>THE STATE OF THIS CONSOLE</b></div>'
+        + '<div class="fx-body"><div class="vx-row"><span class="vx-v">'
+        + '<span class="vx-unknown">NO STATUS YET</span></span>'
+        + '<span class="vx-note">the console has not answered a poll — this is not "all clear"'
+        + '</span></div></div></div>';
+    ov.hidden = false;
+  }
+  function _verXrefClose(){
+    var ov = document.getElementById('ver-xref'); if (ov) ov.hidden = true;
+  }
+  window._verXrefOpen = _verXrefOpen;
+  window._verXrefClose = _verXrefClose;
+
+  try {
+    var _fvEl = document.getElementById('foot-ver');
+    /* addEventListener, not .onclick — this element has carried a click handler before and
+       assigning would silently replace whatever else is bound to it. */
+    if (_fvEl) {
+      _fvEl.style.cursor = 'pointer';
+      _fvEl.addEventListener('click', function(ev){ ev.preventDefault(); _verXrefOpen(); });
+    }
+    var _vxOv = document.getElementById('ver-xref');
+    if (_vxOv) _vxOv.addEventListener('click', function(ev){
+      /* click the backdrop or the ✕ to leave; clicks inside the window do nothing */
+      if (ev.target === _vxOv || (ev.target.closest && ev.target.closest('#vx-close'))) _verXrefClose();
+    });
+    document.addEventListener('keydown', function(ev){
+      if (ev.key === 'Escape') _verXrefClose();
+    });
+  } catch (e) {}
 
   function _shLiveRender(st){
     var el = document.getElementById('sh-live'); if (!el) return;   // only exists while the shelf is open

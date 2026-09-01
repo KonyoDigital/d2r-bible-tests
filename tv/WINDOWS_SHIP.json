@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2383",
+  "ver": "v2384",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2383: The shelf shows where every reel stands and how much film carried a panel; the version bar says the version and nothing else.",
+  "note": "v2384: The footer detail becomes a titled window instead of a wall of tooltip text.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

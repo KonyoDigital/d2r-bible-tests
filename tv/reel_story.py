@@ -176,6 +176,13 @@ def _fmt(v, suffix=""):
 
 def main(argv=None):
     import sys
+    # This CLI prints ⚠ and ⚙; on a non-UTF-8 console that is a UnicodeEncodeError instead of a
+    # report. console_safe is the repo's existing answer and it never raises.
+    try:
+        import console_safe
+        console_safe.enable()
+    except Exception:
+        pass
     st = story()
     if not st["ok"]:
         print("cannot tell the story: %s" % st["why"])

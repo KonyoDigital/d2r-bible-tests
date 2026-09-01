@@ -37271,13 +37271,47 @@ class TestV2382TheMilleniumBadgeCarriesThreeDigits(unittest.TestCase):
                       "the footer bar is printing the whole accumulated label again: %s" % line.strip())
 
     def test_the_detail_is_MOVED_not_DELETED(self):
-        """⚠ The clauses carry real signals — v2079 put drift and eagle on this line precisely
-        because they were measured, published and read by NOTHING. Shortening the bar must not
-        re-open that hole, so the long string goes to the element's title."""
-        self.assertIn("_tip.unshift(_lblLong)", self.ui,
-                      "the long label is no longer reaching the tooltip — the facts v2079 "
-                      "surfaced here would be measured and displayed nowhere "
-                      "[[plumbing-with-no-tap]]")
+        """⚠ THE CLAUSES CARRY REAL SIGNALS AND MUST LAND SOMEWHERE A PERSON READS. v2079 put
+        drift and eagle on the footer precisely because they were measured, published and read by
+        NOTHING — plumbing built on both ends and never joined. Shortening the bar must not
+        re-open that hole.
+
+        v2383 sent them to the element's title, and Konyo looked at the result: "all this
+        information cant it be maybe somewhere better? or like more structured cleaner.. like the
+        fleet when i click it open a window popup inpage". He was right — a wall of text in a
+        tooltip is the same wall in a smaller box. v2384 gave it a real window, so this guard now
+        follows the facts to where they actually live. [[plumbing-with-no-tap]]"""
+        self.assertIn('id="ver-xref"', self.ui, "the state panel is gone")
+        self.assertIn("function _verXrefBuild", self.ui, "nothing builds the state panel")
+        self.assertIn("window._verXrefOpen", self.ui,
+                      "the panel builder is not exported, so nothing outside its own closure "
+                      "can open it")
+        # the facts v2079 surfaced must each still reach a row
+        body = _between(self, self.ui, "function _verXrefBuild", "function _verXrefOpen",
+                        what="the state panel builder")
+        for fact, why in (("d.disk", "version drift"),
+                          ("e.needsYou", "the eagle's waiting-on-you count"),
+                          ("fl.ok === false", "the fleet could-not-check state"),
+                          ("rt.freeGb", "free disk")):
+            self.assertIn(fact, body,
+                          "%s (%s) no longer reaches the panel — it is measured and displayed "
+                          "nowhere" % (fact, why))
+
+    def test_the_panel_shows_UNKNOWN_rather_than_a_tidy_blank(self):
+        """A field the payload does not carry must look unmeasured, not fine."""
+        body = _between(self, self.ui, "function _vxRow", "function _vxSection",
+                        what="the row builder")
+        self.assertIn("vx-unknown", body,
+                      "a missing value renders as an empty cell, which reads as 'nothing to "
+                      "report' [[unknown-stays-unknown]]")
+
+    def test_the_footer_click_does_not_CLOBBER_an_existing_handler(self):
+        """#foot-ver has carried a click handler before; assigning .onclick would replace it
+        silently."""
+        self.assertNotIn("$('foot-ver').onclick =", self.ui,
+                         "the state panel bound with .onclick and would drop whatever else is "
+                         "on this element")
+        self.assertIn("_fvEl.addEventListener('click'", self.ui)
 
     def test_the_RELAUNCH_prompt_still_has_a_visible_home(self):
         """The one clause that is an ACTION, not a fact. It may leave the status bar only because
