@@ -38428,9 +38428,28 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
         return [r for r in self.C.prove_each()
                 if r["invariant"] == "the_eagle_can_still_look"][0]
 
-    def _write(self, rows, age_ms):
-        io.open(self.p, "w", encoding="utf-8").write(json.dumps(
-            {"checked": 1, "rows": rows, "ts": int(time.time() * 1000) - age_ms}))
+    _OMIT = object()      # "the key is not in the file at all" — NOT the same as an explicit null
+
+    def _write(self, rows, age_ms, slow=True, port=17772):
+        """⚠ v2408 — A FIXTURE MUST WRITE THE RECORD PRODUCTION ACTUALLY WRITES. This omitted both
+        `slow` and `port`, which was harmless while the reader tolerated their absence. It stopped
+        being harmless the moment an unlabelled pass became honestly UNKNOWN: the invariant could
+        no longer be graded, and this test failed asserting it must be gradeable — over a fixture
+        describing a record no console has produced since v2408.
+
+        Defaults are the SHIPPED shape: a labelled pass from a console that serves a port. A test
+        that wants the unlabelled or headless case now has to ask for it, which is the right way
+        round. [[feedback-blind-fixture-green-gate]]"""
+        # ⚠ ABSENT IS NOT None, AND THE FIRST CUT OF THIS HELPER COLLAPSED THEM — `port=None`
+        # omitted the key, which is the PRE-v2408 record the reader deliberately still accepts, so
+        # the headless test was writing an old record and asserting it be refused. The reader draws
+        # exactly this distinction; a helper that cannot express it cannot test it.
+        row = {"checked": 1, "rows": rows, "ts": int(time.time() * 1000) - age_ms}
+        if slow is not self._OMIT:
+            row["slow"] = slow
+        if port is not self._OMIT:
+            row["port"] = port
+        io.open(self.p, "w", encoding="utf-8").write(json.dumps(row))
 
     def test_with_no_record_it_is_UNKNOWN_not_a_pass(self):
         if os.path.isfile(self.p):
@@ -38448,6 +38467,27 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
                         "with a fresh record the eagle invariant must be gradeable AND provably "
                         "able to refuse — it is %r" % (r.get("why"),))
         self.assertEqual(r["left"], len(cd.CHECKS))
+
+    def test_an_UNLABELLED_record_is_UNKNOWN_not_gradeable(self):
+        """v2408 — the counterpart. A record that does not say which roster its pass was measured
+        against cannot be graded, and must not be: reporting a count against a roster nobody chose
+        is the permanently-red row this whole fix set out to remove."""
+        import console_doctor as cd
+        self._write(len(cd.CHECKS), 0, slow=self._OMIT)
+        r = self._row()
+        self.assertIsNone(r["exercised"],
+                          "an unlabelled durable record was graded anyway — %r" % (r.get("why"),))
+
+    def test_a_HEADLESS_record_is_UNKNOWN_not_gradeable(self):
+        """v2408 — and the record written by a console serving no port. Measured on his tree: a
+        second control_app.py, three hours old with no window, wrote a 2-row pass over the live
+        console's 32-row one."""
+        import console_doctor as cd
+        self._write(2, 0, slow=False, port=None)
+        r = self._row()
+        self.assertIsNone(r["exercised"],
+                          "a pass from a console with no window was graded as the console's "
+                          "state — %r" % (r.get("why"),))
 
     def test_a_STALE_record_goes_back_to_UNKNOWN(self):
         """The defect this guards: a durable record that outlives its meaning and reads as a pass."""
