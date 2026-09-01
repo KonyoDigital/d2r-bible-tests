@@ -187,6 +187,11 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
             fs = fs[::step][:per_reel_sample]
         out["reels"] += 1
         hits = 0
+        # v2385 — PER-REEL kinds. `out["byKind"]` has always carried the real tab names, but only
+        # across the WHOLE pass; what got written per reel was rebuilt below with the literal
+        # string "panel". So the store knew 1,019 frames held a panel and could not say which
+        # panel, on any of them. [[unknown-stays-unknown]]
+        reel_kinds = {}
         for f in fs:
             out["frames"] += 1
             try:
@@ -204,6 +209,7 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
                 k = str(v)
                 out["panels"] += 1
                 out["byKind"][k] = out["byKind"].get(k, 0) + 1
+                reel_kinds[k] = reel_kinds.get(k, 0) + 1
                 out["keep"].append(f)
                 hits += 1
             elif every_frame:
@@ -215,11 +221,23 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
         # looked at - the exact way footage gets abandoned. [[unknown-stays-unknown]]
         if every_frame and remember_to is not False:
             try:
-                kinds = {}
-                for f in out["keep"]:
-                    if os.path.dirname(f) == d:
-                        kinds["panel"] = kinds.get("panel", 0) + 1
-                remember(d, hits, len(fs), kinds, root=(remember_to or None))
+                # ⚠ v2385 — THIS USED TO WALK out["keep"] AND WRITE {"panel": N}. `gate()` returns
+                # a TAB NAME (see this function's own docstring) and the loop above already has
+                # it in `k` — it was counted into out["byKind"] and then discarded on the way to
+                # the store. MEASURED across his 439 recorded reels before the fix: the aggregate
+                # of every `kinds` dict was exactly {'panel': 1019}. One key, 15,956 frames, and
+                # the surface thrown away on every one.
+                #
+                # It is not only the board that wants this. v2380's `cross-surface` witness — the
+                # same item on the floor, in the inventory and in the Chronicle list counting as
+                # two independent looks — needs a per-sighting surface, and control_app currently
+                # re-derives it live from the reel timeline while this pass walks straight past
+                # the same fact. [[the-unjoined-end]]
+                #
+                # ⚠ OLD ROWS ARE NOT BACKFILLED. A reel surveyed before today has an UNKNOWN
+                # breakdown, not an empty one, and inventing {"stash": N} for it would be a
+                # measurement nobody made.
+                remember(d, hits, len(fs), reel_kinds, root=(remember_to or None))
             except Exception as _e:
                 # ⚠ v2371 — SAY IT. This was `except: pass`, and a survey is the most expensive
                 # thing in this module: 6 of his largest reels cost 248 s of local OCR (4,634

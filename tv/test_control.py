@@ -36548,6 +36548,60 @@ class TestV2365StructuralTriageNeverDisposesFromASample(unittest.TestCase):
         self.assertIn("cannot prove", out["say"])
         self.assertLess(out["frames"], 40, "the sample read every frame, so it was not a sample")
 
+    def test_v2385_the_store_records_WHICH_panel_not_the_word_panel(self):
+        """★ MEASURED across his 439 recorded reels before this fix: the aggregate of every
+        `kinds` dict in tv/.retro_triage.json was exactly {'panel': 1019}. One key, 15,956 frames,
+        and the surface discarded on every one.
+
+        `gate()` returns a TAB NAME — this module's own docstring says so — and the survey loop
+        already held it in `k` and counted it into out["byKind"]. The write to the store then
+        rebuilt the dict with the literal string "panel" and threw the name away.
+
+        It is not only the board that wants this: v2380's cross-surface witness needs a
+        per-sighting surface, and control_app re-derives it live while this pass walks past the
+        same fact. [[the-unjoined-end]]"""
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="triage_kinds_")
+        names = ["f_%d.jpg" % (1787522052380 + i) for i in range(4)]
+        d = self._reel(root, "reel_s_9_9", names)
+
+        def gate(path):
+            b = os.path.basename(path)
+            if b == names[0]: return "stash"
+            if b == names[1]: return "stash"
+            if b == names[2]: return "inventory"
+            return None
+
+        out = rt.survey([d], gate, every_frame=True, remember_to=root)
+        blob, ok = rt.load(root)
+        self.assertTrue(ok, "the store written by this pass could not be read back")
+        rec = blob.get("reel_s_9_9") or {}
+        self.assertEqual(rec.get("kinds"), {"stash": 2, "inventory": 1},
+                         "the store recorded %r — the tab name gate() returned was replaced by "
+                         "the literal 'panel', so the shelf can say a frame held a panel and "
+                         "never which one" % (rec.get("kinds"),))
+
+    def test_v2385_the_per_reel_kinds_do_not_leak_between_reels(self):
+        """Two reels in one pass must not share a counter — that would attribute one reel's
+        surfaces to another, which is worse than recording nothing."""
+        import retro_triage as rt, tempfile
+        root = tempfile.mkdtemp(prefix="triage_kinds2_")
+        a = ["f_%d.jpg" % (1787522052380 + i) for i in range(2)]
+        b = ["f_%d.jpg" % (1787522062380 + i) for i in range(2)]
+        da = self._reel(root, "reel_s_A_1", a)
+        db = self._reel(root, "reel_s_B_1", b)
+        surf = {a[0]: "stash", a[1]: "stash", b[0]: "chronicle"}
+
+        def gate(path):
+            return surf.get(os.path.basename(path))
+
+        rt.survey([da, db], gate, every_frame=True, remember_to=root)
+        blob, ok = rt.load(root)
+        self.assertTrue(ok)
+        self.assertEqual((blob.get("reel_s_A_1") or {}).get("kinds"), {"stash": 2})
+        self.assertEqual((blob.get("reel_s_B_1") or {}).get("kinds"), {"chronicle": 1},
+                         "reel B inherited reel A's surfaces — the counter is not per-reel")
+
     def test_a_full_pass_does_produce_one(self):
         import retro_triage as rt, tempfile
         root = tempfile.mkdtemp(prefix="triage2_")
