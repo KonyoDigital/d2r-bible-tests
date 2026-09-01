@@ -5126,6 +5126,11 @@ def _kai_add_name_tokens(vocab, full):
             # 2-letter runes already seeded; don't flood with short junk
 
 
+# v2386 — the floor below which a name harvest is treated as a FAILED READ rather than a fact.
+# Measured 2026-09-01: a healthy read of bible.html returns 3,212. See _kai_fullnames.
+_KAI_NAMES_FLOOR = 100
+
+
 def _kai_fullnames():
     """v940.1 — full ITEM NAMES (lowercased) from the same bible literals the vocab uses.
     The judge's affix-scorer is for magic/rare; a grail unique scores 0 there and must
@@ -5187,6 +5192,32 @@ def _kai_fullnames():
         names |= rare_combos   # full union still returned for register/recognition
     except Exception:
         pass
+    # ══ v2386 — DO NOT BANK AN EMPTY HARVEST. ══════════════════════════════════════════════════
+    # The cache above (`c = globals().get("_KAI_FULLNAMES"); if c is not None: return c`) is
+    # checked with `is not None`, so an EMPTY set is a perfectly good cache entry and is returned
+    # for the life of the process.
+    #
+    # And nothing here raises to prevent that. A truncated or zero-byte bible.html does not throw:
+    # `open` succeeds, the regexes match nothing, `names` is empty, and it gets banked. The
+    # `except Exception: pass` above is nearly unreachable and is not what does the damage.
+    #
+    # WHAT IT COSTS, traced to the end rather than assumed: the promotion at the /kai_verdict
+    # handler reads `_vlow in _kai_fullnames()` to lift a recognised grail unique out of
+    # "toss"/"border". With an empty set that promotion never fires, and the tier is written into
+    # the APPEND-ONLY journal. A grail unique recorded as `toss`, permanently — which is exactly
+    # the miscalibration this function's own docstring was written about ("Hellfire Torch ->
+    # TOSS score 0").
+    #
+    # MEASURED on this tree: bible.html at 6,215,434 bytes yields 3,212 names (1,930 base +
+    # 1,282 rare combos). A floor of 100 is ~32x below a healthy read, so it cannot fire on a
+    # good one, and a harvest under it is treated as UNKNOWN — returned to this caller but not
+    # cached, so the next call tries again. [[unknown-stays-unknown]]
+    if len(names) < _KAI_NAMES_FLOOR:
+        print("⚠ kai: the name space read back %d names (floor %d) — NOT caching it. A grail "
+              "unique cannot be promoted out of 'toss' while this is empty, and that tier is "
+              "written to the journal. Check bible.html."
+              % (len(names), _KAI_NAMES_FLOOR), flush=True)
+        return names
     globals()["_KAI_RARE_COMBOS"] = rare_combos
     globals()["_KAI_FULLNAMES_CASED"] = cased
     globals()["_KAI_FULLNAMES"] = names
@@ -12656,12 +12687,22 @@ def _chron_reels_retired():
     sweeper considered it finished. Retirement is now its own record, with the reason and count.
     """
     if _CHRON_AUTOREAD.get("retired") is None:
-        out = {}
+        # ⚠ v2386 — AN UNREADABLE FILE USED TO BE CACHED AS AN EMPTY ONE, FOR THE PROCESS'S LIFE.
+        # `out = {}` on any exception, then banked into _CHRON_AUTOREAD["retired"], which the
+        # `is None` test above never re-enters. A transient read failure — the file mid-write, a
+        # momentary permission problem — therefore became "no reel has ever been retired" until
+        # the console restarted, and this map exists precisely so a reel that could not be read
+        # is not confused with one that was. Missing is fine and stays cached; UNREADABLE is not,
+        # and is left uncached so the next call retries. [[unknown-stays-unknown]]
         try:
             with open(_CHRON_AUTOREAD_PATH, encoding="utf-8") as fh:
                 out = (json.load(fh) or {}).get("retired") or {}
-        except Exception:
-            out = {}
+        except FileNotFoundError:
+            out = {}                       # never written yet — genuinely nothing retired
+        except Exception as _e:
+            print("⚠ chronicle: could not read the retirement record (%s) — not caching an "
+                  "empty one; it will be retried" % str(_e)[:60], flush=True)
+            return {}
         _CHRON_AUTOREAD["retired"] = out if isinstance(out, dict) else {}
     return _CHRON_AUTOREAD["retired"]
 
@@ -20897,7 +20938,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2385",
+        "ver": "v2386",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -23207,6 +23248,7 @@ class Handler(BaseHTTPRequestHandler):
                 # journal rows (farmed/unvault/gone_candidates/ocr_ms/interest/mode/tz/…), not
                 # just the theatre projection. Filter by sessionId, else by capture-ts range.
                 raw_rows = []
+                _raw_why = ""      # set only when the read FAILED; "" is the happy path
                 try:
                     want_sid = sess.get("sessionId") or ""
                     t0r = (sess.get("t0") or 0) - 5000
@@ -23229,10 +23271,18 @@ class Handler(BaseHTTPRequestHandler):
                                         raw_rows.append(row)
                                 elif t0r <= (row.get("ts") or 0) <= t1r:
                                     raw_rows.append(row)
-                except Exception:
+                except Exception as _e:
+                    # ⚠ v2386 — THIS EMPTY LIST GETS WRITTEN TO DISK. `sess["raw"] = raw_rows`
+                    # then open(base + ".json", "w"): a journal that could not be read was
+                    # exported as a session that recorded nothing, and the export file carries
+                    # no trace that anything failed. Say it on the payload so the artifact is
+                    # readable as "unknown" rather than "empty". [[unknown-stays-unknown]]
                     raw_rows = []
+                    _raw_why = "the journal could not be read: %s" % str(_e)[:90]
                 sess = dict(sess)
                 sess["raw"] = raw_rows
+                if _raw_why:
+                    sess["rawUnavailable"] = _raw_why
                 with open(base + ".json", "w", encoding="utf-8") as f:
                     json.dump(sess, f, indent=1)
                 beats = sess.get("beats") or []

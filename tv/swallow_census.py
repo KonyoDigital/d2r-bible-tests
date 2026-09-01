@@ -97,8 +97,15 @@ def _hands_back(handler):
             if v.value == "":    return "EMPTY-STR"
         if isinstance(v, ast.Dict) and not v.keys:            return "EMPTY-DICT"
         if isinstance(v, (ast.List, ast.Set)) and not v.elts: return "EMPTY-LIST"
-        if isinstance(v, ast.Tuple) and v.elts and all(_is_falsy_const(e) for e in v.elts):
-            return "EMPTY-TUPLE"
+        if isinstance(v, ast.Tuple) and v.elts:
+            # ⚠ A TUPLE OF NONES IS THE HONEST UNKNOWN, NOT AN EMPTY CONTAINER. Caught by hand-
+            # reading a sample: control_app.py:21899 does `_fw_state, _fw_say = None, None` and
+            # this graded it as a lying shape. Same rule as scalar None — say so, do not lump it
+            # in with `return {}`.
+            if all(isinstance(e, ast.Constant) and e.value is None for e in v.elts):
+                return "None"
+            if all(_is_falsy_const(e) for e in v.elts):
+                return "EMPTY-TUPLE"
     return "other"
 
 
@@ -131,6 +138,30 @@ def _body_shape(handler):
     return "other"
 
 
+def _checked_right_after(handler):
+    """Does the code immediately after this handler TEST the name it just defaulted?
+
+    Only looks at the handler's own assigned names and the statements that follow it in the same
+    block, because that is the whole extent of what a file-local pass can honestly establish.
+    """
+    names = set()
+    for st in handler.body:
+        if isinstance(st, ast.Assign):
+            for t in st.targets:
+                for n in ast.walk(t):
+                    if isinstance(n, ast.Name):
+                        names.add(n.id)
+    if not names:
+        return False
+    parent = getattr(handler, "_next_stmts", None) or []
+    for st in parent[:3]:
+        for n in ast.walk(st):
+            if isinstance(n, ast.Name) and n.id in names:
+                if isinstance(st, (ast.If, ast.While, ast.Assert, ast.Return)):
+                    return True
+    return False
+
+
 def _rank(try_node, handler):
     calls = _calls(ast.Module(body=list(try_node.body), type_ignores=[]))
     reads = [c for c in calls if c in READS]
@@ -143,6 +174,16 @@ def _rank(try_node, handler):
         return 0, "teardown only — swallowing is correct here"
     if reads and shape in ("return-falsy", "assign-falsy"):
         hb = _hands_back(handler)
+        # ⚠ AND THE ONE THING THAT ACTUALLY DECIDES IT: is the default USED AS A SENTINEL —
+        # assigned and then immediately tested — or handed to a caller as if it were data?
+        # Hand-reading a 1-in-8 sample of the first 94 found roughly half were not defects at
+        # all, and this was the most common reason: `rt = 0` followed by `if not rt: continue`
+        # (control_app.py:9824) is a checked sentinel, not a lie. A static pass cannot see a
+        # CALLER's contract, but it can see this. What it still cannot judge is named in the
+        # module docstring, and the count is reported as a SHAPE, never as a defect total.
+        if shape == "assign-falsy" and _checked_right_after(handler):
+            return 2, "a failed %s assigns %s and the very next statements TEST it — a checked " \
+                      "sentinel, not a claim" % (reads[0], hb)
         if hb in LIES_AS_DATA:
             return 1, "a failed %s becomes %s — 'could not ask' is indistinguishable from a real " \
                       "measurement" % (reads[0], hb)
@@ -183,6 +224,16 @@ def scan(root=None):
                 # the whole difference between a census and a comforting number.
                 unreadable.append((os.path.relpath(p, root), str(e)[:60]))
                 continue
+            # give each Try the statements that FOLLOW it in its own block, so a defaulted
+            # name that is tested two lines later can be recognised as a sentinel
+            for parent in ast.walk(tree):
+                body = getattr(parent, "body", None)
+                if not isinstance(body, list):
+                    continue
+                for i, st in enumerate(body):
+                    if isinstance(st, ast.Try):
+                        for h in st.handlers:
+                            h._next_stmts = body[i + 1:i + 4]
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Try):
                     continue
@@ -230,6 +281,15 @@ def main(argv=None):
              0: "OK      teardown, or the body speaks up"}
     for r in (1, 2, 3, 0):
         print("  %-64s %4d" % (LABEL[r], len(by.get(r) or [])))
+    # ⚠ THE LINE THAT STOPS THIS NUMBER BEING QUOTED AS A DEFECT COUNT. It has already been
+    # wrong three times in one day — 537 (a grep that missed `except: return {}`), 262 (every
+    # falsy default called a lie, including the honest `return None`), 94 (a tuple of Nones
+    # graded as an empty container, and checked sentinels graded as claims). Each correction
+    # came from READING SITES, never from the tool. [[unknown-stays-unknown]]
+    print()
+    print("  ⚠ RANK 1 IS A SHAPE, NOT A DEFECT COUNT. A hand-read of a 1-in-8 sample graded")
+    print("    2 solid / 4 mild / 6 not-defects out of 12 — most often because the CALLER")
+    print("    treats the default as failure, which no file-local pass can see. Read the site.")
 
     top = sorted(by.get(1) or [], key=lambda r: (r["file"], r["line"]))
     if top:

@@ -37391,5 +37391,85 @@ class TestV2382TheMilleniumBadgeCarriesThreeDigits(unittest.TestCase):
                              "%s still states the retired two-digit rule as current" % f)
 
 
+class TestV2386AFailedReadIsNotBANKEDAsAnEmptyOne(unittest.TestCase):
+    """★ THE SHAPE BEHIND MOST OF THIS SESSION'S SCARS, in the two places it costs the most.
+
+    A census of this tree (tv/swallow_census.py) found 1,710 exception handlers, of which 75 hand
+    a caller DATA — 0, {}, [], "" — when a read failed. A caller cannot tell those from a real
+    measurement. ⚠ 75 is a SHAPE COUNT, NOT A DEFECT COUNT: hand-reading 20 of them graded
+    roughly a quarter solid and a third not-defects-at-all, most often because the caller already
+    treats the default as failure. These two were read, and they are solid."""
+
+    def setUp(self):
+        import control_app
+        self.ca = control_app
+        d = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(d, "control_app.py"), encoding="utf-8") as fh:
+            self.src = fh.read()
+
+    def test_an_empty_name_harvest_is_not_cached(self):
+        """MEASURED: bible.html at ~6.2MB yields 3,212 names. An empty or truncated file RAISES
+        NOTHING — open succeeds, the regexes match nothing — so the empty set used to be banked
+        into _KAI_FULLNAMES, which is read back with `is not None` and therefore served for the
+        life of the process.
+
+        WHAT IT COSTS: the /kai_verdict handler lifts a recognised grail unique out of
+        toss/border via `_vlow in _kai_fullnames()`. With an empty set that never fires, and the
+        tier is written into the APPEND-ONLY journal. A grail unique recorded as `toss`,
+        permanently."""
+        import os, tempfile
+        orig = self.ca.REPO
+        try:
+            empty = tempfile.mkdtemp(prefix="t_namefloor_")
+            open(os.path.join(empty, "bible.html"), "w").close()
+            self.ca.REPO = empty
+            self.ca.__dict__.pop("_KAI_FULLNAMES", None)
+            first = self.ca._kai_fullnames()
+            self.assertEqual(len(first), 0, "the fixture is wrong — a 0-byte bible yielded names")
+            self.assertIsNone(self.ca.__dict__.get("_KAI_FULLNAMES"),
+                              "an empty harvest was CACHED; every later call in this process "
+                              "serves it, and a grail unique cannot be promoted out of 'toss'")
+            self.ca.REPO = orig
+            back = self.ca._kai_fullnames()
+            self.assertGreater(len(back), 1900,
+                               "the reader did not recover after the file came back — it is "
+                               "still serving the banked empty set (%d names)" % len(back))
+        finally:
+            self.ca.REPO = orig
+            self.ca.__dict__.pop("_KAI_FULLNAMES", None)
+
+    def test_the_floor_sits_far_below_a_healthy_read(self):
+        """A floor that a good read could trip would be worse than none — it would refuse to cache
+        on a healthy tree and re-harvest a 6MB file on every call."""
+        self.ca.__dict__.pop("_KAI_FULLNAMES", None)
+        healthy = len(self.ca._kai_fullnames())
+        self.assertGreater(healthy, 1900, "the real harvest collapsed — measure before trusting "
+                                          "the floor below")
+        self.assertLess(self.ca._KAI_NAMES_FLOOR * 10, healthy,
+                        "the floor (%d) is within 10x of a healthy read (%d) — too close to be "
+                        "safe" % (self.ca._KAI_NAMES_FLOOR, healthy))
+
+    def test_an_UNREADABLE_retirement_record_is_not_cached_as_an_empty_one(self):
+        """The same shape, in the map that exists to keep 'could not read this reel' apart from
+        'this reel is finished'. MISSING is fine and stays cached; UNREADABLE must be retried."""
+        blk = _between(self, self.src, "if _CHRON_AUTOREAD.get(\"retired\") is None:",
+                       "return _CHRON_AUTOREAD[\"retired\"]", what="the retirement reader")
+        self.assertIn("except FileNotFoundError:", blk,
+                      "missing and unreadable are handled by one arm again — a transient read "
+                      "failure will be cached as 'nothing was ever retired'")
+        self.assertIn("return {}", blk,
+                      "the unreadable arm no longer returns early, so it falls through to the "
+                      "cache write it was written to avoid")
+
+    def test_an_unreadable_journal_export_says_so_on_the_payload(self):
+        """`sess[\"raw\"] = raw_rows` is WRITTEN TO DISK. An unreadable journal was exported as a
+        session that recorded nothing, with nothing on the artifact saying otherwise."""
+        self.assertIn('sess["rawUnavailable"] = _raw_why', self.src,
+                      "a failed journal read is exported as an empty raw list with no trace")
+        self.assertIn('_raw_why = ""', self.src,
+                      "_raw_why is referenced but never initialised on the happy path — that is "
+                      "a NameError on every successful export")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

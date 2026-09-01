@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2385",
+  "ver": "v2386",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2385: The triage store records which panel a frame held, and a census ranks the swallowed exceptions that can put a calm number on screen.",
+  "note": "v2386: The name space stops caching an empty harvest that made a grail unique read as toss in the append-only journal.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
