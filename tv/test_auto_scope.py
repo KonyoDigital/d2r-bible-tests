@@ -201,14 +201,15 @@ class TestTheConsoleCanSayWhatRunsWithoutHim(unittest.TestCase):
                       "the deletion lane is the one he most needs named, so it may not be a count")
 
 
-if __name__ == "__main__":
-    try:
-        import console_safe as _cs
-        _cs.enable()
-    except Exception:
-        pass
-    unittest.main(verbosity=1)
-
+# ⚠ THIS CLASS SITS ABOVE THE `if __name__` GUARD ON PURPOSE, AND IT DID NOT THE FIRST TIME.
+# It was appended with `cat >>`, which lands BELOW the runner — so under `python3 test_auto_scope.py`
+# the interpreter exits inside unittest.main() and every class beneath it is NEVER DEFINED,
+# while the suite still reports OK. The repo's own guard caught it on the push.
+#
+# ⚠ AND MY HAND-CHECK COULD NOT HAVE CAUGHT IT: `python3 -m unittest tv.test_auto_scope`
+# IMPORTS the module rather than executing __main__, so all 20 tests ran and two sabotages went
+# red — in a path that is not the one the defect lives in. A verification that cannot fail is
+# not a verification. [[append-below-the-runner]]
 
 class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
     """⚠ A LANE MAY DELETE ITS OWN ARTEFACTS, BUT IT MUST SAY WHICH ONES AND HOW MANY IT KEEPS.
@@ -293,3 +294,13 @@ class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
         self.assertTrue(all(isinstance(r.get("functions"), int) for r in unexplained),
                         "an unexplained row does not carry its reach size, so a reader cannot tell "
                         "a one-frame contradiction from 71 functions of noise")
+
+
+if __name__ == "__main__":
+    try:
+        import console_safe as _cs
+        _cs.enable()
+    except Exception:
+        pass
+    unittest.main(verbosity=1)
+
