@@ -16218,9 +16218,12 @@ def retro_triage_tick():
     `order_by_known_worth` reordered nothing and `worth_reading` answered None for every reel -
     built, joined, and not running. This is the thing that runs it.
 
-    ONE REEL PER TICK, ON PURPOSE. Measured cold on his machine: 0.486 s/frame, and one run
-    measured 1.3. His median unread reel is 26 frames, so a tick is roughly 13-35 seconds and the
-    401-reel backlog is HOURS. A pass that tried to do it in one go would be hours of OCR on the
+    ONE REEL PER TICK, ON PURPOSE — but NOT because the backlog is hours. That claim rested on
+    0.486 s/frame, and re-measuring `stash_screen_open` (uncached, 120 frames, 30 reels, fixed
+    seed) on 2026-09-01 gave mean 0.019 / median 0.014. The whole 397-reel backlog was then
+    drained in 332 SECONDS. See retro_triage's docstring: the two figures differ by ~26x and the
+    older one is unexplained, so the honest reason for one-per-tick is POLITENESS on a machine he
+    plays on and interruptibility, not cost. A pass that tried to do it in one go would be hours of OCR on the
     machine he plays on. Spread across ticks, each one is short enough to be interruptible and
     the store survives a relaunch because every reel is persisted as it finishes.
 

@@ -36652,11 +36652,22 @@ class TestV2367TheFreePassActuallyRuns(unittest.TestCase):
 
         unread reels : 430          frames 14,252
         per reel     : median 26 · mean 33 · MAX 2,385
-        cold OCR     : 0.486 s/frame (one run measured 1.3)
-        backlog      : 1.9-5.1 h of CPU
+        cold OCR     : 0.486 s/frame (one run measured 1.3)   <- CONTRADICTED, see below
+        backlog      : 1.9-5.1 h of CPU                       <- it was 332 SECONDS
+
+    ⚠ v2373 — THE SIZING ABOVE IS OFF BY ~26x AND THE WHOLE BACKLOG HAS SINCE BEEN DRAINED.
+    Timing `stash_screen_open` (the UNCACHED function, so no memo can flatter it) over 120 frames
+    from 30 reels with a fixed seed: mean 0.019, median 0.014, p90 0.032 s/frame. Draining all
+    397 remaining reels then took 332 s — 11,146 frames — not the 1.9-5.1 hours predicted here.
+    Both figures are kept because the older one was ITSELF a correction (an earlier 0.019 was
+    retracted as timing cache hits), so the retraction may have been the error. Nobody has
+    reproduced 0.486 with a stated method. [[feedback-contradiction-is-the-finding]]
 
     ⚠ SMALLEST REEL FIRST, NOT OLDEST. A first draft took todo[0]; his largest reel is 2,385
     frames, which at those rates is 19-52 MINUTES parked on one item while 429 others wait.
+    (At the re-measured rate that reel is ~45 SECONDS, so the ordering is now about politeness
+    and interruptibility rather than about cost. Keeping it either way: a short tick is easier to
+    stop when he starts playing, which is the property that actually matters here.)
 
     ⚠ AND IT BACKS OFF ON FIVE NAMED CONDITIONS, because he has twice told me his machine was
     hot: he is playing, load above the core count, a live capture, a paid sweep running, and the

@@ -15,7 +15,22 @@ whole backlog in 265 seconds". That was TIMING CACHE HITS - `stash_screen_open_c
 on (size, mtime) and the sampling runs kept re-reading the same frames. Measured cold, on frames
 the cache had never seen:
 
-    cold (real OCR) : 0.486 s/frame
+    cold (real OCR) : 0.486 s/frame   <- SEE THE CONTRADICTION BELOW; do not plan on this
+
+    ⚠ v2373 — TWO MEASUREMENTS OF THIS DISAGREE BY ~26x AND BOTH ARE RECORDED, because averaging
+    them would erase the only useful part. The 0.486 above was itself a CORRECTION: an earlier
+    "0.019 s/frame, whole backlog in 265 s" was retracted as having timed cache hits.
+
+    Re-measured 2026-09-01, calling `stash_screen_open` — the UNCACHED function, cold by
+    definition, so no memo can flatter it — on 120 frames drawn from 30 reels with a fixed seed:
+        mean 0.019   median 0.014   p90 0.032   max 0.096  s/frame
+    and the whole 11,146-frame backlog then took 332 s end to end, which is the same order.
+
+    So the retraction may have been the error, not the original. What is NOT established is where
+    0.486 came from; a plausible reading is that it averaged in one-off process/model warm-up over
+    a short run, which a 120-frame sample amortises away. Until someone reproduces 0.486 with a
+    stated method, PLAN ON ~0.02 s/frame and treat 0.486 as unexplained rather than authoritative.
+    [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]] [[stale-reading]]
     cached          : 0.408 s/frame
     14,024 frames   : ~114 MINUTES of local CPU
 
@@ -180,7 +195,9 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
                 out["errors"] += 1
                 v = None
             if nice_delay_s:
-                # give the CPU back between frames. At 0.486 s/frame a full pass is ~2 hours of
+                # give the CPU back between frames. At the MEASURED ~0.02 s/frame (see the module
+                # docstring; 0.486 is unexplained) a full pass is MINUTES, not hours — but the
+                # yield stays, because the point is politeness on a machine he plays on, not speed.
                 # OCR; unthrottled that is two hours of heat on the machine he plays on.
                 time.sleep(nice_delay_s)
             if v:
