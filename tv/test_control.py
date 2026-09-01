@@ -37111,5 +37111,51 @@ class TestV2372OneResolverForFrameTIMESTAMPS(unittest.TestCase):
             self.assertEqual(fr.timestamp_of(fid), want, "timestamp_of(%r)" % fid)
 
 
+class TestV2377TheUNBOUNDEDPruneAboveTheFloorIsHisRuling(unittest.TestCase):
+    """`free_mb=(need_mb or None)` looks exactly like a bug and is not one.
+
+        need_mb = 0.0    we are above the floor, nothing NEEDS freeing
+        None             no target — every eligible reel goes
+        0.0 or None      is None
+
+    I read that on 2026-09-01 as the classic 0-vs-None collapse, wrote a guard for the "fix",
+    applied it — and TestV2080...test_ABOVE_the_floor_it_still_frees_what_has_GIVEN_UP_ITS_
+    INFORMATION went red. v2226 reversed the floor gate on his EXPLICIT words: "regardless of room
+    memory it should still be looped and extracted and pruned eventually, no need for it to take
+    up space" and "we want an automated system auto healing and cleaning itself". The old rule made
+    the loop unfinishable — 30.2 GB free, reels eligible, removed: None, nothing deleted for weeks.
+
+    So this class now pins the DELIBERATE behaviour and the two things that made it look wrong,
+    because the next reader will make the same mistake I did. What protects him was never the
+    floor: it is eligibility (reel_retention's alone) and retention_may_act.
+    [[label-outlived-referent]] [[feedback-threshold-above-the-ceiling]]"""
+
+    def test_above_the_floor_the_plan_is_asked_for_NO_target_on_purpose(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        need = max(0.0, (ca.ON_AIR_FLOOR_GB + ca.PRUNE_HEADROOM_GB - 999.0) * 1000.0)
+        self.assertEqual(need, 0.0, "a huge free disk should need nothing freed")
+        self.assertIsNone(need or None,
+                          "the loop passes `need_mb or None`; above the floor that is None, "
+                          "which means UNBOUNDED — his ruling, not an oversight")
+
+    def test_below_the_floor_it_asks_for_exactly_what_is_missing(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import control_app as ca
+        free = ca.ON_AIR_FLOOR_GB + ca.PRUNE_HEADROOM_GB - 3.0        # 3 GB short
+        need = max(0.0, (ca.ON_AIR_FLOOR_GB + ca.PRUNE_HEADROOM_GB - free) * 1000.0)
+        self.assertAlmostEqual(need, 3000.0, places=3)
+
+    def test_the_ROSTER_COMMENT_no_longer_claims_the_floor_gates_deletion(self):
+        """The half-sentence that misled me. It said "Deletes ONLY below the ON AIR floor" for
+        the fifteen versions after v2226 made that false, and I believed it over the code."""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.index("closes the extract -> prune cycle")
+        window = src[i:i + 900]
+        self.assertNotIn("Deletes ONLY below the ON AIR floor", window,
+                         "the roster still tells the next reader the floor gates deletion; it "
+                         "has not since v2226")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -4798,7 +4798,14 @@ def start_background_watchers(why):
         ("tvd-version-drift", _drift_loop),
         # v2078 — the eagle on a timer, so being out of sync is NOTICED rather than waited for.
         ("tvd-eagle-watch", _eagle_watch_loop),
-        # v2080 — closes the extract -> prune cycle. Deletes ONLY below the ON AIR floor, ONLY reels
+        # v2080 — closes the extract -> prune cycle. ⚠ THIS LINE SAID "Deletes ONLY below the ON
+        # AIR floor" until v2377 and that had been FALSE since v2226, which reversed the floor
+        # gate on his explicit ruling ("regardless of room memory it should still be looped and
+        # extracted and pruned eventually"). The stale half-sentence is not harmless: reading it
+        # on 2026-09-01 I told him the deleter would not act above the floor, and then diagnosed
+        # its correct behaviour as a 0-vs-None bug and wrote a guard for the "fix". The suite
+        # caught it. A comment that outlived its decision costs more than no comment.
+        # It deletes ONLY reels
         # the plan calls eligible, ONLY as much as it needs, and never while anything is in flight.
         ("tvd-retention", _retention_loop),
     ]
@@ -14590,6 +14597,17 @@ def _retention_once():
                                "say": "could not read the disk (%s)" % str(e)[:80]})
         return None
     need_mb = max(0.0, (ON_AIR_FLOOR_GB + PRUNE_HEADROOM_GB - free_gb) * 1000.0)
+    # ⚠ ABOVE THE FLOOR THIS IS DELIBERATELY UNBOUNDED, AND IT IS HIS RULING — DO NOT "FIX" IT.
+    # `0.0 or None` is None, and None means "no target": every eligible reel goes. That reads
+    # like the classic 0-vs-None collapse and it is not one. v2226 reversed the old floor-gated
+    # rule on his explicit words — "regardless of room memory it should still be looped and
+    # extracted and pruned eventually, no need for it to take up space" and "we want an automated
+    # system auto healing and cleaning itself" — because the floor made the loop UNFINISHABLE:
+    # 30.2 GB free, reels eligible, `removed: None`, nothing deleted for weeks.
+    # See TestV2080TheExtractPruneCycleIsClosed.test_ABOVE_the_floor_it_still_frees_what_has_
+    # GIVEN_UP_ITS_INFORMATION, which pins it. The floor stopped being a reason to SKIP; it was
+    # never the thing deciding WHAT. What protects him is eligibility and retention_may_act.
+    # I read this as a bug on 2026-09-01, wrote a guard for the "fix", and the suite caught me.
     p = _rr.plan(hist, free_mb=(need_mb or None))
     if not p.get("ok"):
         with _PRUNE_LOCK:
