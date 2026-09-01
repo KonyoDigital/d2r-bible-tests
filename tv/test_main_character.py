@@ -85,6 +85,68 @@ class TestALockIsEARNED(unittest.TestCase):
         self.assertNotIn("Ist Rune", names)
 
 
+class TestV2373NothingCanLockIsNotNothingHasEarnedIt(unittest.TestCase):
+    """`locked: 0` had two meanings and every surface reported both as OK.
+
+    "No item has cleared the floor YET" invites him to keep farming and is fixed by farming.
+    "No item can EVER clear it" is a defect no farming touches. They print identically.
+
+    The second was the true one. `equip` increments only for lane == "equipment"
+    (main_character.py:101); that lane comes from reel_segments.activity_at, whose ENTIRE
+    vocabulary is stash · inventory · gameplay · town · transition. There is no equipment member,
+    so no frame can yield it, `equip` is pinned at 0, and the Wilson floor cannot be cleared by
+    evidence. MEASURED on his live ledger 2026-09-01: 4 items tracked (Dwarf Star, Sandstorm
+    Trek, Tearhaunch, War Traveler), every row equip:0 seen:1 — and console_doctor answered OK
+    while main() printed "that is an honest empty, not a failure".
+    [[label-outlived-referent]] [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+
+    def setUp(self):
+        self._real = MC._load, MC._save
+        self.db = {}
+        MC._load = lambda: self.db
+        MC._save = lambda d: self.db.update(d)
+
+    def tearDown(self):
+        MC._load, MC._save = self._real
+
+    def test_an_EMPTY_ledger_is_not_reported_as_blocked(self):
+        """Nothing recorded at all is a different, honest empty — crying wolf there would make
+        the real signal furniture."""
+        self.assertIsNone(MC.blocked_why(),
+                          "an empty ledger was reported as structurally blocked")
+
+    def test_sightings_that_never_reach_the_equipment_lane_are_called_out(self):
+        for i in range(6):
+            MC.saw("Windforce", "stash", session="w%d" % i)
+        self.assertEqual(MC.equip_sightings(), 0)
+        why = MC.blocked_why()
+        self.assertTrue(why, "6 stash sightings and 0 equipment ones reported nothing wrong — "
+                             "that is the zero that reads as healthy")
+        self.assertIn("equipment", why)
+        r = MC.report()
+        self.assertFalse(r["canEverLock"])
+        self.assertEqual(r["equipSightings"], 0)
+
+    def test_it_STOPS_complaining_once_the_lane_is_fed(self):
+        """The mirror, and the one that stops this becoming a permanent red. A guard that cannot
+        go quiet is one he learns to scroll past."""
+        MC.saw("Shako", "equipment", session="a")
+        self.assertEqual(MC.equip_sightings(), 1)
+        self.assertIsNone(MC.blocked_why(),
+                          "the lane IS being fed and it still reported a structural block")
+        self.assertTrue(MC.report()["canEverLock"])
+
+    def test_the_reason_NAMES_the_vocabulary_that_lacks_it(self):
+        """A reason he cannot act on is a reason he ignores. It must say WHERE to look."""
+        for i in range(3):
+            MC.saw("Windforce", "stash", session="v%d" % i)
+        why = MC.blocked_why() or ""
+        self.assertIn("reel_segments", why,
+                      "the reason does not name the module whose vocabulary is missing the lane")
+        for word in ("stash", "inventory", "gameplay"):
+            self.assertIn(word, why, "the reason does not print the vocabulary it checked")
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs; _cs.enable()

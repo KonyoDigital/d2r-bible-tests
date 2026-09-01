@@ -167,9 +167,60 @@ def equipped():
     return out
 
 
+def equip_sightings():
+    """How many sightings have EVER landed in the equipment lane. -> int
+
+    This is the input the whole lock rule is a function of. Reported separately because a zero
+    here and a zero in `locked` mean completely different things, and only one of them improves
+    with more farming.
+    """
+    n = 0
+    for row in (_load() or {}).values():
+        if isinstance(row, dict):
+            n += int(row.get("equip") or 0)
+    return n
+
+
+def blocked_why():
+    """Why nothing can lock, or None if nothing is blocking it. -> str | None
+
+    ⚠ THE POINT OF THIS FUNCTION IS THAT `locked: 0` HAS TWO MEANINGS AND ONLY ONE IS BENIGN.
+    "No item has cleared the floor YET" invites him to keep farming. "No item can EVER clear the
+    floor" is a defect. They print identically, and the second was being reported as OK.
+
+    `equip` increments only for lane == "equipment" (see saw()). That lane comes from
+    reel_segments.activity_at, whose whole vocabulary is stash · inventory · gameplay · town ·
+    transition — there is no equipment member, so no frame can ever yield it.
+    """
+    tracked = len(_load() or {})
+    if not tracked:
+        return None                       # nothing recorded at all is a different, honest empty
+    if equip_sightings():
+        return None                       # the lane IS being fed; a zero lock is then genuine
+    try:
+        import reel_segments as _rs
+        vocab = tuple(getattr(_rs, "_GRID_ACTIVITIES", ())) + tuple(
+            getattr(_rs, "_NO_GRID_ACTIVITIES", ()))
+    except Exception:
+        vocab = ()
+    if vocab and EQUIPMENT_LANE not in vocab:
+        return ("no sighting has EVER reached the equipment lane, and none can: reel_segments "
+                "knows only %s, so activity_at cannot return %r. `equip` is pinned at 0, so the "
+                "Wilson floor cannot be cleared by evidence and nothing will lock however long he "
+                "farms. This needs an equipment/character-panel activity before it can mean "
+                "anything." % (" · ".join(vocab), EQUIPMENT_LANE))
+    return ("no sighting has ever reached the equipment lane, so every confidence is 0.0 and "
+            "nothing can lock — the ledger is being fed, but never from that lane")
+
+
 def report():
+    _blocked = blocked_why()
     return {"locked": equipped(), "tracked": len(_load() or {}),
             "floor": _LOCK_FLOOR, "minSightings": _MIN_SIGHTINGS,
+            "equipSightings": equip_sightings(),
+            # None means nothing is structurally in the way; a string is the reason it is.
+            "blockedWhy": _blocked,
+            "canEverLock": _blocked is None,
             "why": ("an item locks when it has been seen at least %d times and its Wilson floor on "
                     "'seen in the equipment lane' clears %.2f" % (_MIN_SIGHTINGS, _LOCK_FLOOR))}
 
@@ -187,7 +238,11 @@ def main(argv=None):
     for row in r["locked"]:
         print("   %-30s %s" % (row["name"][:30], row["why"]))
     if not r["locked"]:
-        print("   nothing has earned a lock yet — that is an honest empty, not a failure")
+        if r.get("blockedWhy"):
+            print("   \u26a0 NOTHING CAN LOCK, and that is not the same as nothing having earned it:")
+            print("     %s" % r["blockedWhy"])
+        else:
+            print("   nothing has earned a lock yet — that is an honest empty, not a failure")
     return 0
 
 

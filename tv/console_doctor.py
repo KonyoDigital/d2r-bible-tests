@@ -801,8 +801,18 @@ def _check_his_gear_is_being_learned():
     if tracked == 0:
         return MISSING, ("nothing has been recorded yet — no sighting has reached the ledger, so "
                          "no item can earn a lock. That is UNKNOWN, not 'he owns nothing'.")
-    return OK, ("%d item(s) tracked, %d locked as his gear (floor %.2f, %d-look minimum)"
-                % (tracked, locked, r.get("floor") or 0.0, r.get("minSightings") or 0))
+    # ⚠ "0 locked" HAD TWO MEANINGS AND THIS RAIL REPORTED BOTH AS OK. One is "no item has
+    # cleared the floor yet", which more farming fixes. The other is "no item can ever clear it",
+    # which no amount of farming fixes — and that was the true one: `equip` only increments for
+    # lane "equipment", and reel_segments has no such activity, so the input is pinned at zero.
+    # Measured on his ledger: 4 tracked, every row equip:0, reported OK. [[label-outlived-referent]]
+    if r.get("blockedWhy"):
+        return MISSING, ("%d item(s) tracked and NOTHING CAN LOCK — %s"
+                         % (tracked, r["blockedWhy"]))
+    return OK, ("%d item(s) tracked, %d locked as his gear (floor %.2f, %d-look minimum, "
+                "%d equipment sighting(s))"
+                % (tracked, locked, r.get("floor") or 0.0, r.get("minSightings") or 0,
+                   r.get("equipSightings") or 0))
 
 
 def _check_the_locked_lanes_still_refuse():

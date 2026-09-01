@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2372",
+  "ver": "v2373",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2372: frame_ref shipped in v2364 and nothing called it while six hand-rolled parsers of the same rule stayed in the tree",
+  "note": "v2373: the gear learner reported a structurally impossible zero as a healthy one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
