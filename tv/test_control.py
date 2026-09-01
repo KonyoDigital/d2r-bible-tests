@@ -38291,6 +38291,52 @@ class TestV2395TheHumanEyesHarnessIsREAL(unittest.TestCase):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_v2396_an_observation_for_a_brief_NOBODY_SENT_does_not_vanish(self):
+        """★ Data loss with no author, in the module whose job is recording a loop honestly.
+
+        Found by a cross-family review of the shipped v2395: state() iterated only the BRIEFS, so
+        an observation whose id did not match one — a typo, a rename, an agent answering something
+        it invented — was dropped from every query with no error and no warning. Three brief ids
+        were hand-typed on the day it shipped.
+
+        They surface as ORPHAN: something was seen, and nothing asked for it.
+        """
+        import human_eyes_ledger as HL
+        d = tempfile.mkdtemp(prefix="he_orphan_")
+        p = os.path.join(d, ".human_eyes.jsonl")
+        try:
+            HL.observed("B-TYPO", saw="I saw something nobody asked about",
+                        verdict="LOOKED", path=p)
+            st = HL.state(path=p)
+            orph = [r for r in st if r.get("orphan")]
+            self.assertEqual(len(orph), 1,
+                             "an observation with no matching brief VANISHED from state() — it is "
+                             "in the file and invisible to every reader")
+            self.assertEqual(orph[0]["saw"], "I saw something nobody asked about")
+
+            ok, _ = HL.proven(path=p)
+            self.assertFalse(ok,
+                             "an ORPHAN proved the loop — nothing asked for it, so no round trip "
+                             "completed; being seen is not being answered")
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_v2396_re_sending_a_brief_id_keeps_the_LATEST_claim(self):
+        """Same review, finding 1. `setdefault` kept the ORIGINAL claim and silently discarded the
+        new one while it sat in the file — a record whose file and whose read disagree."""
+        import human_eyes_ledger as HL
+        d = tempfile.mkdtemp(prefix="he_dupe_")
+        p = os.path.join(d, ".human_eyes.jsonl")
+        try:
+            HL.send("B-1", "the FIRST claim", path=p)
+            HL.send("B-1", "the SECOND claim", path=p)
+            row = [r for r in HL.state(path=p) if r["brief"] == "B-1"][0]
+            self.assertIn("SECOND", row["claim"] or "",
+                          "a re-sent brief kept the original claim — the newer one is in the file "
+                          "and invisible")
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
     def test_an_observation_keeps_what_was_SEEN_apart_from_the_conclusion(self):
         """⚠ THE FIELD SPLIT IS LOAD-BEARING, NOT TIDINESS.
 

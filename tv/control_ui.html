@@ -8431,42 +8431,12 @@ body[data-origin="shadow"] #stage::after {
        than a corner of a status line. Two places saying it was the redundancy. */
     $('foot-ver').textContent = _lbl.split(' · ')[0];
     try {
-      // The rows themselves, on hover — the footer says HOW MANY, the title says WHICH.
-      var _tip = [];
-      if (_d.say) _tip.push('\u27f2 ' + _d.say);
-      if (_e.say) _tip.push('\ud83e\udd85 ' + _e.say);
-      if (_rt.say) {
-        /* v2123 — STAMP THE DISK FIGURE WITH ITS OWN AGE. The watcher re-measures every 900s, so
-           this number can be a quarter of an hour old — and it is exactly the number he acts on
-           when he is trying to free space to record. MEASURED tonight: the console said 4.7GB free
-           while the disk actually had 8.3GB, because 3.6GB had been freed since the last poll; he
-           would have gone looking for more space he did not need. /api/on re-measures for itself,
-           so the GATE was never wrong — only the sentence he reads.
-           A reading carries the age of the THING IT MEASURED, never the age of the fetch.
-           [[stale-reading]] */
-        var _rtAge = '';
-        try {
-          if (_rt.checked) {
-            var _secs = Math.max(0, Math.round((Date.now() - _rt.checked) / 1000));
-            _rtAge = _secs < 90 ? ' (just measured)'
-                   : _secs < 5400 ? ' (measured ' + Math.round(_secs / 60) + ' min ago)'
-                   : ' (measured ' + Math.round(_secs / 3600) + 'h ago)';
-          } else {
-            _rtAge = ' (age UNKNOWN — this reading carries no stamp)';
-          }
-        } catch (e) { _rtAge = ''; }
-        _tip.push('\ud83d\uddc3 ' + _rt.say + _rtAge);
-      }
-      (_e.rows || []).forEach(function (r) {
-        if (r.state !== 'ok') _tip.push('   ' + (r.state === 'missing' ? '\u2717' : '?') + ' '
-                                        + r.check + ' — ' + (r.why || ''));
-      });
-      /* v2384 — v2383 put the whole banner in here, which turned a one-line wall into a hover
-         wall: same text, smaller box. Konyo: "all this information cant it be maybe somewhere
-         better? or like more structured cleaner". It has a window now (#ver-xref), so the title
-         goes back to being a title and points at it. */
-      _tip.unshift('click for the full state of this console');
-      $('foot-ver').title = _tip.join('\n') || 'console, agent and board all on ' + _cv;
+      /* ⚠ v2397 — THE HOVER WALL IS GONE, AND SO IS THE CODE THAT BUILT IT.
+         Konyo: "i dont want this mess when i hover over it all the time. i want it clean."
+         Everything it assembled — the drift line, the eagle line, the disk figure WITH ITS AGE
+         STAMP, and the individual failing checks — now renders in #ver-xref, which opens on
+         click. Leaving the builder in place would assemble a string on every poll for nobody. */
+      $('foot-ver').title = 'click — the state of this console';
     } catch (e) {}
     try {
       // v2079 — and the COLOUR follows the same four reasons as the words. A line that says
@@ -9760,11 +9730,42 @@ body[data-origin="shadow"] #stage::after {
     if (e.needsYou != null) eRows.push(_vxRow('waiting on you', e.needsYou, 'rows the readers could not settle'));
     if (e.unknown != null)  eRows.push(_vxRow('not measured', e.unknown, 'nobody has looked at these yet'));
     if (e.mine != null)     eRows.push(_vxRow('mine to fix', e.mine, 'flagged for the engines, not for you'));
+    /* ══ v2397 — THE FAILING CHECKS THEMSELVES, not just how many there are ═════════════════
+       Konyo, on the footer hover: "this tooltip here is pointless — anything needed put it in the
+       opened window when clicked, not like this. i dont want this mess when i hover over it all
+       the time. i want it clean."
+       He is right, and the title could not simply be deleted: it was the ONLY place the individual
+       failing checks appeared. The panel carried the COUNTS ('3 need you') and never the NAMES, so
+       stripping the hover would have removed information rather than moved it. Counts tell him
+       there is a problem; names tell him which. [[the-unjoined-end]] */
+    (e.rows || []).forEach(function (r) {
+      if (r.state === 'ok') return;
+      eRows.push(_vxRow(r.check, (r.state === 'missing' ? 'MISSING' : 'UNKNOWN'),
+                        r.why || '', r.state === 'missing' ? 'warn' : ''));
+    });
     if (!eRows.length)      eRows.push(_vxRow('the watcher', null, 'no eagle figures on this payload'));
 
     /* ── 4. DISK ──────────────────────────────────────────────────────────────────────────── */
     var dRows = [];
-    if (rt.freeGb != null) dRows.push(_vxRow('free', rt.freeGb + 'GB', 'on the volume holding the reels'));
+    /* ══ v2397 — THE AGE TRAVELS WITH THE FIGURE, and it used to live only in the hover ══════
+       The retention watcher re-measures every 900s, so this number can be a quarter of an hour
+       old — and it is exactly the number he acts on when trying to free space to record.
+       MEASURED once: the console said 4.7GB free while the disk actually had 8.3GB, because 3.6GB
+       had been freed since the last poll; he would have gone hunting for space he did not need.
+       A READING CARRIES THE AGE OF THE THING IT MEASURED, never the age of the fetch. That stamp
+       was computed for the tooltip; when the tooltip went, it had to come here rather than
+       disappear. [[stale-reading]] */
+    var _rtAge = ' (age UNKNOWN — this reading carries no stamp)';
+    try {
+      if (rt.checked) {
+        var _s = Math.max(0, Math.round((Date.now() - rt.checked) / 1000));
+        _rtAge = _s < 90 ? 'just measured'
+               : _s < 5400 ? ('measured ' + Math.round(_s / 60) + ' min ago')
+               : ('measured ' + Math.round(_s / 3600) + 'h ago');
+      } else { _rtAge = 'age UNKNOWN — this reading carries no stamp'; }
+    } catch (e) { _rtAge = 'age UNKNOWN'; }
+    if (rt.freeGb != null) dRows.push(_vxRow('free', rt.freeGb + 'GB',
+                                             'on the volume holding the reels · ' + _rtAge));
     else                   dRows.push(_vxRow('free', null, 'the retention pass has not reported'));
     if (rt.freedMb)        dRows.push(_vxRow('freed last pass', Math.round(rt.freedMb) + 'MB', 'reclaimed by the prune'));
     if (st.downGb != null) dRows.push(_vxRow('downloaded 24h', st.downGb + 'GB', 'this machine, all apps — not this console'));

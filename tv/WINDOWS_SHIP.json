@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2396",
+  "ver": "v2397",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2396: six hovered items collapsed into one page and produced zero rows; the run now splits when the tooltip moves",
+  "note": "v2397: the footer tooltip covered half his console; everything it carried now renders in the window that opens on click",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

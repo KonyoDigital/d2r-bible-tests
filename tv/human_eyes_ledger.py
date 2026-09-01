@@ -131,7 +131,11 @@ def state(path=None):
         if not b:
             continue
         if r.get("kind") == "brief":
-            briefs.setdefault(b, r)
+            # ⚠ v2396 — THE LATEST BRIEF WINS, not the first. The first cut used setdefault, so
+            # re-sending an id kept the ORIGINAL claim and silently discarded the new one while it
+            # sat in the file. A record whose file and whose read disagree is worse than no record.
+            # Found by a cross-family review of the shipped v2395.
+            briefs[b] = r
         elif r.get("kind") == "observation":
             obs[b] = r
     out = []
@@ -146,7 +150,22 @@ def state(path=None):
             "conclusion": (o.get("conclusion") if o else None),
             "answeredTs": (o.get("ts") if o else None),
         })
-    return sorted(out, key=lambda r: -(r.get("sentTs") or 0))
+    # ⚠⚠ AN OBSERVATION FOR A BRIEF NOBODY SENT MUST NOT VANISH. The first cut iterated only the
+    # BRIEFS, so an observation whose id did not match one — a typo, a rename, an agent answering
+    # something it invented — was dropped from every query with no error and no warning. That is
+    # data loss with no author, in the module whose entire job is recording a loop honestly, and
+    # three brief ids were hand-typed on the day it shipped.
+    # They surface as ORPHAN: something was seen, and nothing asked for it.
+    for b, o in obs.items():
+        if b in briefs:
+            continue
+        out.append({
+            "brief": b, "claim": None, "sentTs": None,
+            "verdict": o.get("verdict"), "saw": o.get("saw"),
+            "conclusion": o.get("conclusion"), "answeredTs": o.get("ts"),
+            "orphan": True,
+        })
+    return sorted(out, key=lambda r: -(r.get("sentTs") or r.get("answeredTs") or 0))
 
 
 def owed(path=None):
@@ -172,7 +191,10 @@ def proven(path=None):
                        "unexercised loop, and the two must not be confused")
     if not st:
         return False, "no brief has ever been sent — the loop is designed, not exercised"
-    done = [r for r in st if r["verdict"] == LOOKED and (r.get("saw") or "").strip()]
+    # ⚠ AN ORPHAN DOES NOT PROVE THE LOOP. Something was seen, but nothing asked for it — so no
+    # brief was answered and no round TRIP completed. It is a finding in its own right, not a win.
+    done = [r for r in st
+            if r["verdict"] == LOOKED and (r.get("saw") or "").strip() and not r.get("orphan")]
     if not done:
         n_owed = len([r for r in st if r["verdict"] == OWED])
         n_unk = len([r for r in st if r["verdict"] == UNKNOWN])
@@ -204,6 +226,12 @@ def main(argv=None):
     ok, why = proven()
     print()
     print("  LOOP VERIFIED: %s — %s" % ("YES" if ok else "NO", why))
+    orph = [r for r in st if r.get("orphan")]
+    if orph:
+        print()
+        print("  ⚠ %d ORPHAN observation(s) — something was seen and NOTHING ASKED FOR IT:" % len(orph))
+        for r in orph:
+            print("     %-26s %s" % (r["brief"][:26], (r.get("saw") or "")[:44]))
     o = owed()
     if o:
         print()
