@@ -156,11 +156,6 @@ def _transport_errors():
     import socket as _sock
     import urllib.error as _uerr
     errs = [ConnectionError, TimeoutError, _sock.timeout, _uerr.URLError]
-
-    class _NotTransport(Exception):
-        """Never raised — a marker the caller checks HTTPError against."""
-
-    globals()["_TRANSPORT_EXCLUDE"] = (_uerr.HTTPError,)
     try:
         import websocket as _ws
         errs.append(getattr(_ws, "WebSocketException", None))
@@ -171,6 +166,29 @@ def _transport_errors():
 
 
 _TRANSPORT_ERRORS = _transport_errors()
+
+
+def _transport_exclusions():
+    """Types that LOOK like transport by inheritance but are not. -> tuple
+
+    ⚠ A MODULE CONSTANT, NOT SOMETHING SMUGGLED IN VIA globals() FROM INSIDE A FUNCTION. The first
+    cut set this with `globals()["_TRANSPORT_EXCLUDE"] = ...` inside _transport_errors(), which
+    works only because that function happens to be called at import — and a repo guard caught it
+    (`render_check.py: '_TRANSPORT_EXCLUDE' in main()`). A name that main() depends on must be
+    visible where a reader looks for it, not created as a side effect of an unrelated call.
+
+    HTTPError subclasses URLError, so admitting URLError admits it unless it is excluded FIRST.
+    URLError means the browser did not answer; HTTPError means it ANSWERED, with a status — and a
+    404 is this file asking for the wrong path.
+    """
+    try:
+        import urllib.error as _ue
+        return (_ue.HTTPError,)
+    except Exception:
+        return ()
+
+
+_TRANSPORT_EXCLUDE = _transport_exclusions()
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
