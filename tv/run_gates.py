@@ -430,6 +430,20 @@ GATES = [
              "quoted into gh #198. What the census currently reports: 28 thread targets, 11 "
              "supervised, and SEVEN persistent loops running unwatched.",
          skip_ok=()),
+    Gate("blueprint-agrees", [sys.executable, os.path.join(HERE, "lane_census.py"),
+                              "--vs-blueprint"], 60,
+         why="v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING. BLUEPRINT.md "
+             "is generated from the code and tv/lane_census.py counts the same thing by a "
+             "different route; until today nothing had ever put them side by side. The first "
+             "comparison found the blueprint listing 14 lanes against the census's 18 — it matched "
+             "on the NAME (`def *loop*`) rather than on the behaviour, so _bridge_prober, "
+             "_engine_driver, _mini_watchdog and _orphan_watch were on no map and in no roster. "
+             "A map built from a naming convention describes the names, not the building. "
+             "⚠ THIS IS A CONSISTENCY CHECK, NOT CORROBORATION — both sides read control_app.py, "
+             "so they share a source and can be wrong together. Real corroboration needs the "
+             "RUNTIME roster from a live console as the second witness; that is not built yet and "
+             "this gate must not be mistaken for it.",
+         skip_ok=()),
     Gate("hover-wilson", [sys.executable, "-c", _HOVER_WILSON_VERDICT,
                           os.path.join(HERE, "hover_wilson.py")], 120,
          why="v2400 — MINI(AUTOMATIC) SCORES ITS OWN FOUR CLAIMS, and this gate is the LEAKS half "

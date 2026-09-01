@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2402",
+  "ver": "v2403",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2402: one pane showed Unsorted 17 beside Unsorted dock 16, and an owned item that resolved to nothing rendered on no surface at all",
+  "note": "v2403: the blueprint found lanes by whether the function was CALLED a loop, so four that run were on no map and in no roster",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

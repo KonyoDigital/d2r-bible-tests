@@ -34,6 +34,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(HERE, "control_app.py")
+REPO = os.path.dirname(HERE)
 
 #: a body is persistent if it can run again without being called again
 _PERSISTENT = (
@@ -74,12 +75,31 @@ def _body(src, name):
     return "\n".join(lines[start:end])
 
 
+def _code_only(s):
+    # Strip docstrings and comments before asking what the code DOES.
+    #
+    # WITHOUT THIS, PROSE IS CODE. A cross-family review of this very function said so, and a
+    # fixture reproduced it: a docstring carrying a `while True:` line as an EXAMPLE made the
+    # function classify as a LOOP. The whole job of this module is telling a supervised lane from
+    # a one-shot task, so a doc example would promote a task into a lane a watchdog then waits on
+    # forever.
+    #
+    # This repo paid for the same class twice in one day: test_reachability went red because a
+    # comment I wrote quoted the dead expression it was about. A guard that greps SOURCE has to be
+    # told which bytes are source. [[source-reading-guard]] [[feedback-comments-vs-code]]
+    s = re.sub(r'"' + r'""(.*?)"' + r'""', "", s, flags=re.S)
+    s = re.sub(r"'''(.*?)'''", "", s, flags=re.S)
+    s = re.sub(r"^[ \t]*#.*$", "", s, flags=re.M)
+    return s
+
+
 def classify(src, name):
     """-> 'LOOP' | 'TASK' | 'UNKNOWN'. UNKNOWN when the definition cannot be found, because
     'I could not look' and 'it runs once' are opposite facts."""
     b = _body(src, name)
     if b is None:
         return "UNKNOWN"
+    b = _code_only(b)          # prose is not code — see _code_only
     return "LOOP" if any(p.search(b) for p in _PERSISTENT) else "TASK"
 
 
@@ -142,9 +162,25 @@ def prove():
         "def planted_gated(stop):\n"
         "    while not stop.is_set():\n"
         "        pass\n"
+        "\n"
+        # PROSE IS NOT CODE. A cross-family reviewer found this and a fixture reproduced it: a
+        # docstring carrying a `while True:` EXAMPLE classified the function as a lane. Pinned
+        # here so the strip can never quietly come out. [[source-reading-guard]]
+        "def planted_doc_example():\n"
+        '    \"\"\"Usage:\n'
+        "\n"
+        "        while True:\n"
+        "            go()\n"
+        '    \"\"\"\n'
+        "    return 1\n"
+        "\n"
+        "def planted_commented_out():\n"
+        "    # while True:\n"
+        "    return 2\n"
     )
     want = {"planted_loop": "LOOP", "planted_task": "TASK",
-            "planted_gated": "LOOP", "planted_absent": "UNKNOWN"}
+            "planted_gated": "LOOP", "planted_absent": "UNKNOWN",
+            "planted_doc_example": "TASK", "planted_commented_out": "TASK"}
     bad = 0
     print("PROVING THE CLASSIFIER — it must sort a known loop, a known task and an absent name.\n")
     for name, expect in sorted(want.items()):
@@ -169,6 +205,36 @@ def prove():
     return 0
 
 
+def blueprint_disagreement():
+    """Compare the CENSUS against BLUEPRINT.md — two maps of one fact, built by different methods.
+
+    ⚠ THIS IS THE WHOLE OF A12 (gh #199) IN ONE FUNCTION, and the first time the two were put side
+    by side they disagreed: the blueprint listed 14 lanes, the census found 18 loops, and
+    _bridge_prober, _engine_driver, _mini_watchdog and _orphan_watch were in neither the roster nor
+    the map. Nothing noticed, because nothing had ever compared them.
+
+    Konyo: "blueprints.. reverse blueprints.. everything" — and the point is not two documents, it
+    is that where they disagree, THAT is the finding. So this reports the difference in both
+    directions rather than picking a winner. [[feedback-contradiction-is-the-finding]]
+
+    -> (only_in_census, only_in_blueprint, agreed, why_unknown)
+    `why_unknown` is not None when the comparison COULD NOT BE MADE, which must never render as
+    agreement. [[unknown-stays-unknown]]
+    """
+    bp = os.path.join(REPO, "BLUEPRINT.md")
+    if not os.path.isfile(bp):
+        return set(), set(), set(), "BLUEPRINT.md is not on disk — regenerate it with blueprint.py"
+    txt = io.open(bp, encoding="utf-8").read()
+    if "## LANES" not in txt:
+        return set(), set(), set(), "BLUEPRINT.md has no LANES section — its shape changed"
+    sec = txt.split("## LANES")[1].split("\n##")[0]
+    blue = set(re.findall(r"^\s{4}(_\w+)", sec, re.M))
+    if not blue:
+        return set(), set(), set(), "the LANES section parsed to nothing — the reader, not the map"
+    loops = {r["fn"] for r in census() if r["kind"] == "LOOP"}
+    return loops - blue, blue - loops, blue & loops, None
+
+
 def main(argv):
     # ⚠ THIS PRINTS 🟢/🔴/⚠ AND WOULD CRASH WHILE REPORTING ON A NON-UTF-8 CONSOLE — which means a
     # CLEAN tree would exit non-zero and the gate would blame the code instead of the terminal.
@@ -182,6 +248,23 @@ def main(argv):
         pass
     if "--prove" in argv:
         return prove()
+    if "--vs-blueprint" in argv:
+        only_c, only_b, agreed, why = blueprint_disagreement()
+        if why:
+            print("⚪ UNKNOWN — the two maps could not be compared: %s" % why)
+            print("   That is not agreement. A comparison that did not happen must never read as one.")
+            return 2
+        print("census loops %d · blueprint lanes %d · agreed %d"
+              % (len(agreed) + len(only_c), len(agreed) + len(only_b), len(agreed)))
+        for n in sorted(only_c):
+            print("   🔴 %-22s runs, and the BLUEPRINT does not list it" % n)
+        for n in sorted(only_b):
+            print("   🔴 %-22s is on the BLUEPRINT, and does not run" % n)
+        if only_c or only_b:
+            print("\nTwo maps of one fact disagree. That IS the finding — neither is assumed right.")
+            return 1
+        print("🟢 both maps name the same lanes.")
+        return 0
     rows = census()
     loops = [r for r in rows if r["kind"] == "LOOP"]
     print("thread targets %d · supervised %d · unwatched loops %d"

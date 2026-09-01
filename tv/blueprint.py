@@ -77,11 +77,37 @@ def lanes():
     src = _src("control_app.py")
     if not src:
         return None
+    # ⚠ v2403 — THIS MATCHED ON THE NAME, NOT ON THE BEHAVIOUR, AND MISSED FOUR REAL LANES.
+    # The pattern was `\ndef (_?[a-z_]*loop[a-z_]*)\(` — a function only counted as a lane if it
+    # was CALLED one. Measured against tv/lane_census.py: the blueprint listed 14, the census found
+    # 18, and _bridge_prober, _engine_driver, _mini_watchdog and _orphan_watch appeared in neither
+    # this map nor the supervisor's roster. Every one carries `while True`; none carries "loop" in
+    # its name. A map built from a naming convention describes the names, not the building.
+    # Ask what the function DOES. [[workflow-topology]] [[the-unjoined-end]]
     out = []
-    for m in re.finditer(r"\ndef (_?[a-z_]*loop[a-z_]*)\(", src):
-        name = m.group(1)
-        j = src.find("\ndef ", m.start() + 1)
-        body = src[m.start():j if j > 0 else m.start() + 2500]
+    lines = src.splitlines()
+    # ⚠ `\s` INCLUDES NEWLINES. A first cut wrote `^(\s*)def` and the group swallowed the blank
+    # lines above each definition, so `indent` came back as a large number, every body collapsed to
+    # one line, and the map fell from 14 lanes to 1. `[ \t]*` is the indent; `\s*` is the indent
+    # plus however much whitespace preceded it. [[source-reading-guard]]
+    for m in re.finditer(r"^([ \t]*)def ([A-Za-z_]\w*)\(", src, re.M):
+        indent, name = len(m.group(1)), m.group(2)
+        start = src[:m.start()].count("\n")
+        end = len(lines)
+        for i in range(start + 1, len(lines)):
+            raw = lines[i]
+            if not raw.strip() or raw.lstrip().startswith("#"):
+                continue
+            if (len(raw) - len(raw.lstrip())) > indent:
+                continue
+            if re.match(r"[ \t]*[)\]}]", raw):
+                continue
+            end = i
+            break
+        body = "\n".join(lines[start:end])
+        if not (re.search(r"^\s*while\s+True\s*:", body, re.M)
+                or re.search(r"^\s*while\s+not\s+[\w.]+\.is_set\(\)\s*:", body, re.M)):
+            continue
         every = re.findall(r"time\.sleep\(([A-Z_0-9a-z\.]+)\)", body)
         out.append((name, ", ".join(every[:2]) or "?"))
     return sorted(out)
