@@ -6513,9 +6513,16 @@ class TestV2280CouldNotAskIsNotUpToDate(unittest.TestCase):
          `{"ok": False, "behind": 0}` whenever the git fetch fails — no network, no git, an
          unreadable checkout — and `behind: 0` is exactly what a healthy current machine reports.
          One number, two opposite meanings, and the quiet one won.
-      2. "Millenium NN" is the LAST TWO DIGITS of the version (his design, and it stays), so v2101
-         and v2001 both print "01". A four-month-old machine wore the same calm badge as a current
-         one. [[unknown-stays-unknown]] [[label-outlived-referent]]
+      2. "Millenium NN" was the LAST TWO DIGITS of the version, so v2101 and v2001 both printed
+         "01". A four-month-old machine wore the same calm badge as a current one.
+         [[unknown-stays-unknown]] [[label-outlived-referent]]
+
+    ⚠ UPDATED v2382 — THIS DOCSTRING USED TO SAY TWO DIGITS WAS "his design, and it stays".
+    It is not, any more: at v2380 he said "it should be 380... 381... fix that going up", and the
+    badge now takes three. Leaving the sentence would have made this file the thing it warns
+    about — a statement that was true when written, still read as current, and now wrong.
+    The suffix below is unaffected and still earns its place: three digits narrows the ambiguous
+    range from 100 versions to 1000, it does not remove it.
     """
 
     def setUp(self):
@@ -37209,6 +37216,49 @@ class TestV2377TheForgeShowsMoreThanOneCraftFamily(unittest.TestCase):
         self.assertIn("r.craft", body, "the helper does not group by craft family")
         for token in ("byFam", "order"):
             self.assertIn(token, body, "the helper does not rotate across families (%s)" % token)
+
+
+class TestV2382TheMilleniumBadgeCarriesThreeDigits(unittest.TestCase):
+    """★ Konyo at v2380: "the versions going up millenium 80.. or 81.. but it should be 380...
+    381... fix that going up".
+
+    MEASURED: `.slice(-2)` on 'v2380' -> '80'. Every ship in the 2300s printed as 80..99 and then
+    restarted at 00, so the badge said less the longer the project ran.
+
+    This guard pins the LAW ("the badge shows enough digits to name the ship"), not the number —
+    a test asserting the literal string '380' would go red on the very next ship and teach
+    everyone to ignore it. [[regression-guard]]"""
+
+    def setUp(self):
+        d = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(d, "control_ui.html"), encoding="utf-8") as fh:
+            self.ui = fh.read()
+
+    def test_the_badge_takes_at_least_three_digits(self):
+        block = _between(self, self.ui, "var _num = String(_cv", "var _skewNow",
+                         what="the millenium number")
+        m = re.search(r"slice\(-(\d+)\)", block)
+        self.assertTrue(m, "the millenium number no longer slices at all — re-derive this guard "
+                            "against whatever replaced it rather than deleting it")
+        self.assertGreaterEqual(int(m.group(1)), 3,
+            "the badge is back to %s digits: v2380 would print '%s'. Two digits restart every "
+            "hundred ships, which is how a 178-version-old machine wore a current-looking badge."
+            % (m.group(1), "2380"[-int(m.group(1)):]))
+
+    def test_nothing_still_CLAIMS_two_digits_is_the_design(self):
+        """The label that outlived its referent. The old prose said two digits was his standing
+        design; a reader trusting it would 'fix' the badge back."""
+        # ⚠ THE NEEDLE IS ASSEMBLED, NOT WRITTEN. Spelled out, this literal IS an occurrence —
+        # the guard found itself in test_control.py and went red on its own text the first time
+        # it ran. A source-reading guard fails on its own REACH before it fails on the code.
+        # [[source-reading-guard]]
+        needle = "LAST TWO " + "DIGITS of the version (his design" + ", and it stays)"
+        for f in ("control_ui.html", "test_control.py"):
+            p = os.path.join(os.path.dirname(os.path.abspath(__file__)), f)
+            with io.open(p, encoding="utf-8") as fh:
+                src = fh.read()
+            self.assertNotIn(needle, src,
+                             "%s still states the retired two-digit rule as current" % f)
 
 
 if __name__ == "__main__":

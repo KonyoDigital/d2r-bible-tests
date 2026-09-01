@@ -8159,15 +8159,28 @@ body[data-origin="shadow"] #stage::after {
        `Millenium 2027 · ⚠ console v2027, board v2026 — relaunch`. Quiet when it is fine, explicit
        when it is not. [[label-outlived-referent]] */
     /* v2027 — "Millenium 27.... Millenium 28. thats better even more to the point hehe". The
-       LAST TWO DIGITS, so the bar is a name and a number and nothing else. (And when the ship
-       count reaches 3000 he renames it again, which is his to decide and not something to
-       pre-build a branch for.) */
-    var _num = String(_cv || '').replace(/^v/i, '').slice(-2);
+       bar is a name and a number and nothing else. (And when the ship count reaches 3000 he
+       renames it again, which is his to decide and not something to pre-build a branch for.)
+
+       ⚠ v2382 — THREE DIGITS, NOT TWO. Konyo, at v2380: "the versions going up millenium 80..
+       or 81.. but it should be 380... 381... fix that going up". It was `.slice(-2)`, so the
+       whole 2300s printed as 80, 81, 82 — a number that restarts every hundred ships and says
+       less every year the count grows.
+
+       AND IT RETIRES A SCAR SITTING DIRECTLY BELOW THIS LINE. The v2280 note explains that
+       "v2101 and v2001 both print 01", which is how the Wife PC — 178 versions behind — wore
+       the same calm badge as a current machine. Three digits separates 101 from 001 at the
+       source. The full-version suffix that v2280 added stays: it is the guard for a machine a
+       THOUSAND versions behind, and this only shortens the range where the badge alone is
+       ambiguous. [[label-outlived-referent]] */
+    var _num = String(_cv || '').replace(/^v/i, '').slice(-3);
     var _skewNow = ((_av && _cv !== _av) || (_bv && _cv !== _bv));
     var _lbl = 'Millenium' + (_num ? (' ' + _num) : '');
-    /* v2280 — TWO DIGITS CANNOT CARRY A 178-VERSION GAP. His ruling stands — clean reads
-       "Millenium 79" and nothing else — but v2101 and v2001 both print "01", so a machine four
-       months behind wears the same calm badge as a current one. He hit this on the Wife PC:
+    /* v2280 — A SHORT BADGE CANNOT CARRY A 178-VERSION GAP. His ruling stands — clean reads
+       "Millenium 379" and nothing else — but at the two digits this used to print, v2101 and
+       v2001 were both "01", so a machine four months behind wore the same calm badge as a
+       current one. (v2382 made it three digits, which narrows the ambiguity to 1000 versions
+       rather than removing it — so everything below still earns its place.) He hit this on the Wife PC:
        "its saying millenium 01. why is it not updated?" — it was 178 versions back.
        So: quiet when it is fine, and the FULL version the moment it is not.
        [[label-outlived-referent]] [[unknown-stays-unknown]] */

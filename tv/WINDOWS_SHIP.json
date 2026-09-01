@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2381",
+  "ver": "v2382",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2381: The third console button matches ON AIR and MINI, its stop button can actually stop, and the render gate can now see a letter sliced by an ancestor.",
+  "note": "v2382: The badge printed 80 for v2380; it now names the ship, and the retired two-digit rule no longer reads as current.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
