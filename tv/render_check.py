@@ -114,6 +114,21 @@ _REACH = """(function(sel){
           max:Math.round(max), scroller: sc ? (sc.id||sc.className||'inner') : 'page'};
 })"""
 
+#: what counts as "the browser went away" rather than "this file has a bug". Narrow ON PURPOSE —
+#: see the handler in main(). websocket may be absent, so this is built defensively.
+def _transport_errors():
+    errs = [ConnectionError, OSError]
+    try:
+        import websocket as _ws
+        errs.append(getattr(_ws, "WebSocketException", None))
+        errs.append(getattr(_ws._exceptions, "WebSocketConnectionClosedException", None))
+    except Exception:
+        pass
+    return tuple(e for e in errs if isinstance(e, type) and issubclass(e, BaseException))
+
+
+_TRANSPORT_ERRORS = _transport_errors()
+
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 # A target says: how to set the board up, what to click, and what element IS the thing.
@@ -1159,7 +1174,7 @@ def main(argv):
         # this harness, and it should be looked at rather than papered over with an attempt count.
         try:
             r = check(name, spec)
-        except Exception as _e:
+        except _TRANSPORT_ERRORS as _e:
             _say("⚪ %-8s UNKNOWN — the browser connection was lost mid-render (%s: %s)."
                  % (name, type(_e).__name__, str(_e)[:90]))
             _say("   NOTHING WAS ESTABLISHED about this surface. A skip is not a pass, so this "
@@ -1167,6 +1182,17 @@ def main(argv):
                  "one.")
             bad += 1
             unknown += 1
+            continue
+        except Exception as _e:
+            # ⚠ A HARNESS BUG IS NOT A TRANSPORT FAILURE, AND THE FIRST CUT CALLED EVERY RAISE ONE.
+            # This was a bare `except Exception` printing "the browser connection was lost" — so a
+            # JSONDecodeError, a KeyError in a target spec, a TypeError in the probe path would all
+            # have sent someone to look at Chrome for a bug in this file. A cold review caught it.
+            # Neither can hide a layout defect (check() returns dicts for every rendering failure),
+            # but pointing at the wrong component costs an hour. [[label-outlived-referent]]
+            _say("🔴 %-8s the GATE ITSELF raised (%s: %s) — this is a bug in render_check, not in "
+                 "the page and not in the browser." % (name, type(_e).__name__, str(_e)[:90]))
+            bad += 1
             continue
         icon = "🟢" if r["ok"] else "🔴"
         _say("%s %-8s %s" % (icon, name, r["why"]))
@@ -1199,15 +1225,24 @@ def main(argv):
         # for every non-zero outcome, including a lost CDP socket where no PNG was ever written.
         # Same defect class as the three console rows in CF-10: a state that is neither health nor
         # fault, reported as fault, which teaches the reader to discount the row.
-        if unknown and unknown == bad:
+        # ⚠ AND THIS IGNORED THE GREENS. `unknown == bad` says "nothing was established" even when
+        # five targets rendered cleanly and one socket dropped — fail-closed, and dishonest about
+        # the five. Only claim nothing was established when nothing was.
+        clean = len(targets) - bad
+        if unknown and unknown == bad and not clean:
             _say("⚪ %d target(s) UNKNOWN — the browser went away mid-render, so nothing was "
                  "established. NOT a layout defect, and the PNGs will not show one. Still "
                  "non-zero: a skip is not a pass." % unknown)
             return 2
+        if unknown and unknown == bad:
+            _say("⚪ %d target(s) UNKNOWN (browser lost) — but %d DID render cleanly, so this is "
+                 "not 'nothing was established'. Non-zero because the unknown ones were never "
+                 "looked at." % (unknown, clean))
+            return 2
         if unknown:
             _say("🔴 %d target(s) did not render cleanly — LOOK AT THE PNGs above. ⚪ %d further "
-                 "target(s) were UNKNOWN (browser lost), which is neither clean nor dirty."
-                 % (bad - unknown, unknown))
+                 "target(s) were UNKNOWN (browser lost), which is neither clean nor dirty. "
+                 "%d rendered clean." % (bad - unknown, unknown, clean))
             return 1
         _say("🔴 %d target(s) did not render cleanly — LOOK AT THE PNGs above." % bad)
         return 1

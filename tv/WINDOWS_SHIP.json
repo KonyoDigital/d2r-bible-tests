@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2413",
+  "ver": "v2414",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2413: isolation and its gitignore are two halves of one change",
+  "note": "v2414: a cold read of the shipped diff found four real defects and two false claims in my own commit messages",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

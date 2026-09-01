@@ -201,6 +201,60 @@ class TestTheConsoleCanSayWhatRunsWithoutHim(unittest.TestCase):
                       "the deletion lane is the one he most needs named, so it may not be a count")
 
 
+class TestV2414TheGrantChecksTheClauseNotItsPresence(unittest.TestCase):
+    """⚠ PRODUCTION ASKED `bool(spec.get("rotates"))` AND THE TESTS POLICED A SHAPE NOBODY READ.
+
+    A cold review of the shipped range: the clause was "documentation that a future edit can
+    quietly widen... a way to satisfy its tests while permitting a deletion nobody intended." True
+    — copy the key onto another lane, or hollow it out, and every schema test stays green while the
+    permission spreads. The schema tests constrained the DICT; the code granting the permission
+    looked only at truthiness.
+    """
+
+    def _ca(self):
+        import control_app
+        return control_app
+
+    def test_an_EMPTY_clause_does_not_grant(self):
+        import auto_scope as AS
+        self.assertFalse(AS._rotates_is_wellformed(self._ca(), {}),
+                         "an empty rotates dict granted a deletion permission")
+
+    def test_a_TRUTHY_NON_DICT_does_not_grant(self):
+        """`rotates: True` is the shortest path to the old behaviour and must not work."""
+        import auto_scope as AS
+        for junk in (True, 1, "yes", ["dir"]):
+            self.assertFalse(AS._rotates_is_wellformed(self._ca(), junk),
+                             "%r granted a deletion permission" % (junk,))
+
+    def test_a_clause_naming_a_MISSING_constant_does_not_grant(self):
+        import auto_scope as AS
+        self.assertFalse(AS._rotates_is_wellformed(self._ca(), {
+            "dir": "_NO_SUCH_DIR", "glob": "x_*.json", "keep": "_LEDGER_BACKUP_KEEP", "why": "x"}),
+            "a clause naming a directory constant nobody defines granted a permission")
+
+    def test_a_keep_of_ZERO_does_not_grant(self):
+        """⚠ Rotation that keeps nothing is deletion under a friendlier word."""
+        import auto_scope as AS
+        ca = self._ca()
+        setattr(ca, "_ZERO_KEEP_FOR_TEST", 0)
+        try:
+            self.assertFalse(AS._rotates_is_wellformed(ca, {
+                "dir": "_LEDGER_BACKUP_DIR", "glob": "ledger_*.json",
+                "keep": "_ZERO_KEEP_FOR_TEST", "why": "x"}),
+                "a keep of zero granted a rotation permission")
+        finally:
+            delattr(ca, "_ZERO_KEEP_FOR_TEST")
+
+    def test_the_REAL_clause_still_grants(self):
+        """And it must still work, or the tightening has silently revoked a true permission."""
+        import auto_scope as AS
+        rot = AS.LANES["tvd-ledger-backup"].get("rotates")
+        self.assertTrue(AS._rotates_is_wellformed(self._ca(), rot),
+                        "the shipped ledger-backup clause no longer grants — the tightening "
+                        "revoked a permission that is genuinely correct")
+
+
 # ⚠ THIS CLASS SITS ABOVE THE `if __name__` GUARD ON PURPOSE, AND IT DID NOT THE FIRST TIME.
 # It was appended with `cat >>`, which lands BELOW the runner — so under `python3 test_auto_scope.py`
 # the interpreter exits inside unittest.main() and every class beneath it is NEVER DEFINED,

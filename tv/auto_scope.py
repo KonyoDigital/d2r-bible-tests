@@ -262,6 +262,34 @@ def check_declarations(mod):
     return breaks
 
 
+def _rotates_is_wellformed(mod, rot):
+    """Is this a real, scoped rotation permission — or a flag? -> bool
+
+    ⚠ PRODUCTION USED TO ASK `bool(spec.get("rotates"))`. A cold review put it exactly: the clause
+    was "documentation that a future edit can quietly widen", and the schema tests policed the
+    dict's shape while the code that GRANTS the permission never looked at a single field. Copy the
+    key onto another lane, or empty its contents, and every test stays green while the permission
+    spreads.
+
+    So the grant now requires what the clause claims: a directory and a keep-count that CONTROL_APP
+    ACTUALLY DEFINES, a glob, and a stated reason. A permission naming something nobody can find is
+    the same defect check_declarations already refuses for LANE_FN — "a promise about code nobody
+    can find is not a promise" — applied to the permission rather than the prohibition.
+
+    ⚠ AND A KEEP OF ZERO IS NOT ROTATION. It is deletion under a friendlier word, so it does not
+    grant. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+    if not isinstance(rot, dict):
+        return False
+    if not str(rot.get("glob") or "").strip() or not str(rot.get("why") or "").strip():
+        return False
+    d, keep = rot.get("dir"), rot.get("keep")
+    if not d or not keep or not hasattr(mod, d) or not hasattr(mod, keep):
+        return False
+    val = getattr(mod, keep, None)
+    return isinstance(val, int) and not isinstance(val, bool) and val > 0
+
+
 def undeclared_reach_abilities(mod):
     """Lanes that FORBID an ability and can nonetheless reach one, with no clause permitting it.
 
@@ -316,7 +344,8 @@ def undeclared_reach_abilities(mod):
                 continue
             out.append({"lane": lane, "ability": ability,
                         "functions": u.get("functions"),
-                        "permitted": bool(spec.get("rotates")) if ability == "delete" else False,
+                        "permitted": (ability == "delete"
+                                      and _rotates_is_wellformed(mod, spec.get("rotates"))),
                         "why": (spec.get("rotates") or {}).get("why")})
     return out
 

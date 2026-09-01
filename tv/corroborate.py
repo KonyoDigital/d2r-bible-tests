@@ -499,6 +499,30 @@ except Exception:
 #: for exactly that. A test must never read or write a file the product is actively writing.
 #: [[feedback-fixtures-never-touch-live-data]]
 def _eagle_record_path():
+    """Where the PRIMARY console's durable pass lives.
+
+    ⚠ ASK THE WRITER RATHER THAN RE-DERIVING, BECAUSE THE TWO DERIVATIONS HAD ALREADY SPLIT. This
+    computed `dirname(control_app.__file__)` while v2411 moved the writer onto `_decision_path`,
+    whose directory comes from `_chron_swept_path()`. On his machine those resolve to the same
+    folder, which is exactly why nothing noticed — but they are two different rules, and under a
+    redirected state directory (any test, any packaged run) they genuinely diverge. A cold review
+    named it; the join test then reproduced it, writer landing in a temp state dir while the reader
+    looked beside the module.
+
+    Two paths computed two ways is [[copy-drift]] with a filename instead of a function. Ask the
+    owner. The fallback stays for a process that cannot import control_app at all — a gate on a
+    machine without it — where UNKNOWN is the honest answer anyway.
+
+    ⚠ ALWAYS THE PRIMARY'S PATH, never this process's own. A scratch console reading the record
+    should read the record the CONSOLE wrote, not its own; asking `_decision_path` from inside a
+    scratch would silently retarget the reader to the scratch's file and re-create the very
+    self-agreement v2411 removed."""
+    try:
+        import control_app as _ca
+        base = os.path.dirname(os.path.abspath(_ca._chron_swept_path()))
+        return os.path.join(base, ".eagle_last.json")
+    except Exception:
+        pass
     try:
         import control_app as _ca
         return os.path.join(os.path.dirname(os.path.abspath(_ca.__file__)), ".eagle_last.json")

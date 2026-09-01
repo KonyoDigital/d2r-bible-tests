@@ -38372,6 +38372,127 @@ class TestV2394NoTestWritesIntoHisLiveSurveyStore(unittest.TestCase):
 
 
 
+class TestV2414TheWriterAndReaderCOMPUTETheSamePath(unittest.TestCase):
+    """⚠ THE OLD JOIN TEST WAS A GREP AND IT SURVIVED THE SPLIT IT EXISTED TO CATCH.
+
+    It asserted the STRING '".eagle_last.json"' appears in control_app.py — still true after v2411
+    moved the writer onto `_decision_path`, whose directory comes from `_chron_swept_path()` while
+    the reader's came from `dirname(control_app.__file__)`. Two derivations that agree on his
+    machine and diverge under a redirected state dir. A cold review named it as "string presence,
+    not a path join"; rewriting it to compare COMPUTED paths reproduced the divergence immediately.
+
+    ⚠ AND IT LIVES IN ITS OWN CLASS ON PURPOSE. Its previous home stubs `_eagle_record_path` to a
+    temp file in setUp, so a path comparison there was measuring the stub against the real writer —
+    a test that can only ever fail, for a reason unrelated to the join.
+    """
+
+    def test_the_primary_writer_and_the_reader_land_on_one_file(self):
+        import corroborate as co
+        import control_app as ca
+        old = ca.CONTROL_PORT
+        try:
+            ca.CONTROL_PORT = ca._PRIMARY_CONTROL_PORT      # force the primary case
+            writer = ca._decision_path(".eagle_last.json")
+            reader = co._eagle_record_path()
+        finally:
+            ca.CONTROL_PORT = old
+        self.assertEqual(os.path.realpath(writer), os.path.realpath(reader),
+                         "the primary console WRITES %s and the invariant READS %s — the durable "
+                         "pass is UNKNOWN everywhere except inside the console process"
+                         % (writer, reader))
+
+    def test_a_SCRATCH_console_writes_where_the_reader_does_NOT_look(self):
+        """The other half of the same join, and the whole point of v2411: a non-primary console
+        must land on a DIFFERENT path, or the isolation is inert and the race is back."""
+        import corroborate as co
+        import control_app as ca
+        old = ca.CONTROL_PORT
+        try:
+            ca.CONTROL_PORT = 17985
+            scratch = ca._decision_path(".eagle_last.json")
+        finally:
+            ca.CONTROL_PORT = old
+        self.assertNotEqual(os.path.realpath(scratch),
+                            os.path.realpath(co._eagle_record_path()),
+                            "a scratch console writes the very file the reader grades")
+
+    def test_the_reader_does_NOT_follow_a_SCRATCH_process_to_its_own_file(self):
+        """⚠ The subtle way to get this wrong: have the reader call `_decision_path` too. Then a
+        scratch reads its OWN record, agrees with itself perfectly, and the self-agreement v2411
+        removed comes straight back under a new name."""
+        import corroborate as co
+        import control_app as ca
+        old = ca.CONTROL_PORT
+        try:
+            ca.CONTROL_PORT = 17985
+            reader_from_scratch = co._eagle_record_path()
+        finally:
+            ca.CONTROL_PORT = old
+        self.assertNotIn("scratch-", os.path.basename(reader_from_scratch),
+                         "the reader retargeted itself to the scratch's own record (%s) — it must "
+                         "always grade the PRIMARY console's pass" % reader_from_scratch)
+
+
+class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCase):
+    """⚠ v2412 CLAIMED THIS WAS PROVEN AND THE PROOF WAS NOT IN THE TREE.
+
+    Its commit message said "an injected transport failure reports UNKNOWN and exits 2 rather than
+    raising". I did run that — in a throwaway heredoc. The commit touched NO test file, so the
+    claim described work the diff did not contain and nothing would catch a regression. A cold
+    review of the shipped range caught it. A proof that is not an artifact is a memory, and a
+    commit message is a durable record that should not contain one.
+
+    The defect itself: a bare WebSocketConnectionClosedException propagated out of the render loop,
+    so the gate DIED MID-VERDICT rather than producing one — the exact false-green render_check's
+    own opening note exists to refuse."""
+
+    def _gate(self):
+        import sys, os
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        import render_check
+        return render_check
+
+    def _run_with(self, exc, targets=("state-panel",)):
+        R = self._gate()
+        old_check, old_up, old_targets = R.check, R._chrome_up, R.TARGETS
+        R._chrome_up = lambda: True
+        R.check = lambda n, spec: (_ for _ in ()).throw(exc)
+        try:
+            return R.main(list(targets))
+        finally:
+            R.check, R._chrome_up, R.TARGETS = old_check, old_up, old_targets
+
+    def test_a_lost_socket_is_UNKNOWN_and_exits_2_not_a_pass(self):
+        import websocket
+        code = self._run_with(
+            websocket._exceptions.WebSocketConnectionClosedException("Connection to remote host was lost."))
+        self.assertEqual(code, 2,
+                         "a dropped CDP socket must exit 2 (nobody looked), not 0 (a pass) and not "
+                         "1 (a layout defect) — got %r" % code)
+
+    def test_it_does_NOT_raise(self):
+        """The whole point: the gate must produce a verdict rather than a traceback. A gate that
+        dies mid-verdict is indistinguishable from one that found nothing."""
+        import websocket
+        try:
+            self._run_with(websocket._exceptions.WebSocketConnectionClosedException("lost"))
+        except Exception as e:
+            self.fail("the gate raised instead of reporting: %r" % (e,))
+
+    def test_a_HARNESS_bug_is_NOT_labelled_a_transport_failure(self):
+        """⚠ THE FIRST CUT CAUGHT `Exception` AND ALWAYS SAID "the browser connection was lost", so
+        a KeyError in a target spec or a JSONDecodeError in the probe would have sent someone to
+        look at Chrome for a bug in render_check. Neither can hide a layout defect — check()
+        returns dicts for every rendering failure — but pointing at the wrong component costs an
+        hour. Caught by a cold review of the shipped range."""
+        code = self._run_with(KeyError("sel"))
+        self.assertEqual(code, 1,
+                         "a harness raise must be reported as a gate bug (exit 1), not as a "
+                         "transport UNKNOWN (exit 2) — got %r" % code)
+
+
 class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
     """The one invariant that watches the watchdog could only ever be graded inside it.
 
@@ -38557,15 +38678,6 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
         self.assertIsNone(r["exercised"],
                           "a record older than the bound was graded as if the eagle had just "
                           "flown — that is a stale reading wearing a fresh verdict")
-
-    def test_the_writer_and_the_reader_name_the_SAME_file(self):
-        """Two halves each built right and never joined is the defect this repo keeps shipping."""
-        with io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
-                     encoding="utf-8") as fh:
-            src = fh.read()
-        self.assertIn('".eagle_last.json"', src,
-                      "the eagle no longer writes a durable pass — the invariant will be UNKNOWN "
-                      "everywhere except inside the console process")
 
 
 
