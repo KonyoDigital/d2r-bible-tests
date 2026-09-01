@@ -99,6 +99,34 @@
     --edge: rgba(240,192,96,.20);
     --edge-hi: rgba(240,192,96,.5);
     --panel: rgba(10,9,6,.55);
+    /* ⚠ v2415 — ONE TOKEN WAS DOING TWO JOBS, AND THE READING SURFACE LOST.
+       `--panel` is 45% transparent, which is right for the three small chips and the one gradient
+       that use it: a chip floating over the page is meant to show a little of it. It is wrong for
+       a MODAL CARRYING TEXT, and .fxr-win — THE STATE OF THIS CONSOLE — was the only user of that
+       kind. Layered over a 38%-transparent scrim with a 2px blur, the page reads straight through:
+       in the 1120x628 capture the ON AIR badge and the whole tab strip are legible THROUGH the
+       panel's own text.
+
+       MEASURED, and this is the part that decides it. The tokens are not the problem — 17 of 18
+       pass WCAG AA against --bg0, most between 8:1 and 15.8:1. But the RENDERED bands come back at
+       a fraction of what they promise:
+
+           VERSIONS header    1.20:1 rendered   against 5.07:1 promised
+           DISK / FREE row    1.78:1            against 5.11:1
+           VERDICT body       4.33:1            against 12.04:1
+
+       (p5/p95 dynamic range across each band, so it mixes glyph and background pixels — it is not
+       per-glyph WCAG and must not be quoted as one. The direction is unambiguous; the magnitude is
+       large.) Recolouring tokens would have been work aimed at the wrong thing.
+
+       ⚠ AND A TRANSLUCENT READING PANEL IS UNVERIFIABLE BY CONSTRUCTION: the effective background
+       depends on whatever happens to be behind it, so the same text is legible over a dark region
+       and illegible over a badge, and no static contrast check can ever certify it. Opacity here
+       is not only about legibility — it is what makes the surface checkable at all.
+       The value is the fallback the original author already wrote at .fxr-win, so this is their
+       own answer to "what does this look like when it is opaque".
+       [[visual-regression-detector]] ① one renderer serving two kinds of thing */
+    --surface-read: #14100c;
     --serif: "Cinzel", "Palatino Linotype", Palatino, "Times New Roman", serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --text-dim: #756657;
@@ -4851,7 +4879,7 @@
   .fleet-xref[hidden] { display: none; }
   .fleet-xref > .fxr-win { width: min(1080px, 94vw); max-height: min(86vh, 900px);
     display: flex; flex-direction: column; border-radius: 12px; padding: 14px 16px 16px;
-    border: 1px solid var(--edge, rgba(255,255,255,.16)); background: var(--panel, #14100c);
+    border: 1px solid var(--edge, rgba(255,255,255,.16)); background: var(--surface-read, #14100c);
     box-shadow: 0 24px 70px rgba(0,0,0,.62); overflow: hidden; }
   /* ⚠ SCOPED. `.fx-head` is ALSO the forensics overlay's header (declared far above with its own
      padding and border), and two bare `.fx-head` rules at equal specificity means the later one

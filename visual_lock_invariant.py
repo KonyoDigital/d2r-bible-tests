@@ -209,6 +209,56 @@ def _sizes_are_tokenised(text, failures, surface):
                   % (len(paid), ", ".join(paid[:4]), " \u2026" if len(paid) > 4 else ""))
 
 
+def _reading_surfaces_are_opaque(text, failures, surface):
+    """v2415 — A PANEL THAT CARRIES TEXT MAY NOT BE SEE-THROUGH.
+
+    `--panel` is rgba(10,9,6,.55) and that is RIGHT for the three chips and one gradient that use
+    it — a chip floating over the page is meant to show a little of it. It was wrong for `.fxr-win`,
+    THE STATE OF THIS CONSOLE, the only user of that token that carries reading text. One token
+    doing two jobs, and the reading surface lost. [[visual-regression-detector]] ①
+
+    MEASURED as a controlled A/B, one declaration apart, on an EMPTY region inside the panel:
+
+        translucent   mean  7.2 · SD 2.91 · range 16.7
+        opaque        mean 16.2 · SD 1.46 · range  9.3      <- variance HALVED
+
+    and on the scrim OUTSIDE the panel, which this fix must not touch:
+
+        translucent   mean 6.0 · SD 0.11
+        opaque        mean 6.0 · SD 0.11                    <- unchanged, as intended
+
+    ⚠ THE MEASUREMENT THAT MATTERS IS BACKGROUND VARIANCE, NOT CONTRAST RANGE. My first instrument
+    was p5/p95 luminance spread across a band, and it scored the TRANSLUCENT panel HIGHER — because
+    the page showing through contributes bright pixels that inflate p95. It was counting the defect
+    as signal, and I quoted its numbers in a GitHub comment before catching it. Bleed-through's real
+    signature is a background that is not uniform. [[feedback-suspect-the-instrument]]
+
+    ⚠ AND A TRANSLUCENT READING PANEL IS UNVERIFIABLE BY CONSTRUCTION: its effective background is
+    whatever happens to be behind it, so the same text is legible over a dark region and illegible
+    over a badge, and no static check can certify it. Opacity is what makes the surface checkable.
+    """
+    if surface != "tv/control_ui.html":
+        return
+    m = re.search(r"\.fleet-xref\s*>\s*\.fxr-win\s*\{(.*?)\}", text, re.S)
+    if not m:
+        failures.append("tv/control_ui.html: the .fxr-win rule could not be found — this guard is "
+                        "about a selector that no longer exists, which is UNKNOWN, not a pass")
+        return
+    body = m.group(1)
+    bg = re.search(r"background:\s*([^;]+);", body)
+    if not bg:
+        failures.append("tv/control_ui.html: .fxr-win declares no background — it will inherit "
+                        "whatever is behind it, which is the defect this guard exists to refuse")
+        return
+    val = bg.group(1)
+    if "--panel" in val or "rgba" in val.lower():
+        failures.append(
+            "tv/control_ui.html: .fxr-win's background is `%s`. THE STATE OF THIS CONSOLE carries "
+            "reading text and must sit on an OPAQUE surface — `--panel` is 45%% transparent and is "
+            "for chips. Measured: background variance inside the panel halves (SD 2.91 -> 1.46) "
+            "when it is opaque. Use var(--surface-read)." % val.strip())
+
+
 def _colour_carries_meaning(text, failures):
     """v2073 — LOCK THE COLOUR THAT CARRIES MEANING, not just the weight.
 
@@ -359,6 +409,7 @@ def check():
             _no_orphaned_grid_card(text, failures)
             _sealed_title_speaks_the_page(text, failures)
         _sizes_are_tokenised(text, failures, name)
+        _reading_surfaces_are_opaque(text, failures, name)
         # 1) no raw weight literals — every one must be var(--fw-*)
         for i, line in enumerate(lines, 1):
             for m in RAW_WEIGHT.finditer(line):
