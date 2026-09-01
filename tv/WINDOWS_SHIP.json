@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2387",
+  "ver": "v2388",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2387: The census becomes a CI gate that can go down but never up, and proves on every run that it still bites.",
+  "note": "v2388: A chronicle sighting proves he found an item, never that he holds it — the sweep stops writing possession through all three doors.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

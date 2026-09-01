@@ -43811,8 +43811,35 @@ function renderJournal(){
            mode 'already', and this runs once per name over hundreds; asking the in-memory owned
            list first turns the common case into a lookup. That also shrinks the window in which a
            quota or serialise failure can stop the loop half-way. */
+        /* ══ v2388 — THE VAULT CLAIM NEEDS A CONTAINER, AND THIS DOOR NEVER ASKED ═══════════
+           Konyo, on his own board: "vault holds 289 (169 uniques + 120 set pieces) lol but this
+           is completely misguided.. because those are literally the chronicle list numbers...
+           they have nothing to do with the vault items". He expects roughly 41-46 — what the
+           reels actually PROVED he holds.
+
+           MEASURED on his live board: d2r_owned oscillated 162 -> 285 -> 162 -> 286 -> 163 ->
+           168 -> 293 -> 169 across 60 snapshots while d2r_setPieces never moved. The 293-vs-169
+           diff isolates 124 names, and 124/124 are in this sweep's wouldAdd.uniques.
+
+           A CHRONICLE SIGHTING IS NOT A POSSESSION CLAIM. The grail says he has ever FOUND it;
+           d2r_owned is what bible.html:38820 itself calls "physically in your stash". Those are
+           two different facts about one item, and this door wrote the second on evidence for the
+           first. The grail tick below still runs — he is still hunting these; he simply does not
+           hold them.
+
+           ⚠ THE ROWS CARRY NO `loc` AT ALL. tv/chronicle_retro.py has no "loc" key anywhere, so
+           `row.loc` is undefined and this gate is false for every sweep row. That is the correct
+           outcome, not a bug in the gate: the sweep should contribute NOTHING to the vault. The
+           vault is filled by the vault lane from stash/inventory footage, through the door at
+           ~48630 which reads a real `base.loc`.
+
+           Mirrors that door exactly rather than inventing a second rule, and fails CLOSED if the
+           predicate is missing — it lives in another script block, and this repo has shipped a
+           cross-block call three times. [[copy-drift]] [[unknown-stays-unknown]] */
+        var _mayVault = (typeof window._vaultMayClaim === 'function')
+          && window._vaultMayClaim((row && row.loc) || '');
         try {
-          if (typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n)) {
+          if (_mayVault && typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n)) {
             var _vs = window.tvVaultRegister(n);
             if (_vs && _vs.ok) {
               _vaultReport(_vs, n);
@@ -43896,8 +43923,11 @@ function renderJournal(){
            load-time rebuild, and the mule suggestion); filing still happens once after the batch
            via vaultAutoAssign, which owns the rules about equipment and hand-filed homes.
            [[the-unjoined-end]] [[plumbing-with-no-tap]] */
+        /* v2388 — the same gate as the sibling branch above. These two are the if/else halves
+           of one decision and BOTH wrote a possession claim; gating only one would move the leak
+           rather than close it. `_mayVault` is computed once for this row. */
         try {
-          if (typeof window.tvVaultRegister === 'function') {
+          if (_mayVault && typeof window.tvVaultRegister === 'function') {
             var _vr = window.tvVaultRegister(n);
             _vaultReport(_vr, n);   // v2265 — the vault took it; _landed is a different question
           }
@@ -46977,7 +47007,21 @@ window._renderStashFresh = function(){
           sN = (sN == null) ? '' : String(sN).trim();
           if (sN && !_seenN[sN]) { _seenN[sN] = 1; _names.push(sN); }
         };
-        (out.grail || []).forEach(_pushN);
+        /* ══ v2388 — THE THIRD DOOR, AND THE ONE NOTHING HAD TRACED ═══════════════════════════
+           Gating the two registrar calls above is not enough on its own, because this loop
+           re-registers everything a second time through a different route:
+
+               out.grail = ((res && res.uniques) || []).concat((res && res.sets) || [])
+               (out.grail || []).forEach(_pushN);      <- the GRAIL-TICK list
+               _names.forEach(... tvVaultRegister(nm) ...)
+
+           `out.grail` is the list of names whose GRAIL tick moved. Feeding it to the stocking
+           loop says "he holds all of these", which is the same false claim as the doors above,
+           arriving by a longer path. Its only guards were the lane switch and the lane lock —
+           neither of which asks where the item was seen.
+
+           `nm` here is a STRING, so there is no `row.loc` to test. The equivalent of that gate at
+           this depth is to stock only what already PASSED it: out.vaulted. [[the-unjoined-end]] */
         (out.vaulted || []).forEach(_pushN);
         /* ── v2025 — ONE LANE SWITCH, THE SAME MEANING IN ALL FOUR LANES ──────────────────────
            Konyo, looking at three switches that overlap: "we have this toggle vault auto-read but
@@ -47008,8 +47052,10 @@ window._renderStashFresh = function(){
           if (typeof window._miniOnAirOn === 'function') _laneOn = !!window._miniOnAirOn('vault');
         } catch(e){ _laneOn = true; }   // unknown -> file it; a broken switch must not eat his loot
         if (!_laneOn){
+          /* v2388 — the sentence had to move with the list. _names is no longer "everything
+             grail-ticked"; it is the subset that was SEEN IN A CONTAINER and so may be filed. */
           out.skipped.push('lane-off: the VAULT lane switch is off, so ' + _names.length
-            + ' name(s) were grail-ticked but NOT filed to a mule — turn AUTO vault auto-read on');
+            + ' name(s) seen in a container were NOT filed to a mule — turn AUTO vault auto-read on');
           out.laneOff = true;
         }
         _names.forEach(function(nm){
@@ -48108,7 +48154,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2387', name:'v2387 - The swallow ratchet goes public', date:'2026-09-01', note:'The census becomes a CI gate that can go down but never up, and proves on every run that it still bites.' };
+  window.D2R_BUILD = { id:'v2388', name:'v2388 - The vault needs a container', date:'2026-09-01', note:'A chronicle sighting proves he found an item, never that he holds it — the sweep stops writing possession through all three doors.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

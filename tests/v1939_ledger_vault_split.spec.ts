@@ -105,4 +105,40 @@ test('★★★ applying chronicle finds fills the LEDGER and never the physical
     .toEqual([]);
   expect(r.flDelta, 'the ledger did not take every applied name').toBe(r.names.length);
   expect(r.spDelta, 'a unique landed in the SET store').toBe(0);
+
+  /* ══ v2388 — AND THE VAULT MUST NOT GROW FROM A SWEEP AT ALL. HIS RULING, OVERTURNING v1980. ══
+   *
+   * Read the v2263 note above before changing this. It is correct about the history and its
+   * conclusion has now been overturned BY HIM, not by me:
+   *
+   *   v1980  "the sweep now mules what it registers" — chronicleApply started calling
+   *          tvVaultRegister() and toggleOwned() deliberately.
+   *   v2263  this spec's original `newlyOwned === []` was removed because it was "not catching a
+   *          leak, it is reporting a feature". True at the time.
+   *   2026-09-01  Konyo, looking at what that feature produced on his own board: "vault holds 289
+   *          (169 uniques + 120 set pieces) lol but this is completely misguided.. because those
+   *          are literally the chronicle list numbers... they have nothing to do with the vault
+   *          items". He expects roughly 41-46 — what the reels PROVED he holds.
+   *
+   * WHY HE IS RIGHT, in this file's own vocabulary: d2r_foundLog is "the game says you found
+   * this"; d2r_owned is "physically in a stash tab". A CHRONICLE sighting establishes the first.
+   * It cannot establish the second, because the sweep's rows carry no container at all —
+   * tv/chronicle_retro.py has no "loc" key anywhere. v1980 wrote a possession claim from evidence
+   * that never mentioned possession.
+   *
+   * MEASURED on his live board before the fix: d2r_owned oscillated 162 -> 285 -> 162 -> 286 ->
+   * 163 -> 168 -> 293 -> 169 across 60 snapshots while d2r_setPieces never moved; the 293-vs-169
+   * diff isolates 124 names, 124/124 present in the sweep's wouldAdd.uniques.
+   *
+   * ⚠ THE ASSERTIONS ABOVE STILL HOLD AND MUST KEEP HOLDING. This is not "the sweep does less" —
+   * the LEDGER still takes every applied name (flDelta above), the grail tick still fires, and
+   * nothing lands vault-only. He is still HUNTING these; he simply does not HOLD them. A change
+   * that made this pass by breaking flDelta would be the far worse bug.
+   */
+  expect(r.newlyOwned,
+    `a chronicle sweep put ${r.newlyOwned.length} name(s) into the PHYSICAL vault. None of these `
+    + `rows carries a container — the sweep cannot know he holds them. If this is red because the `
+    + `vault claim was deliberately restored, read the v2388 note above first: it was removed on `
+    + `his instruction, not on a guess. ${JSON.stringify(r.newlyOwned.slice(0, 8))}`)
+    .toEqual([]);
 });
