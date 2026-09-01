@@ -37150,11 +37150,65 @@ class TestV2377TheUNBOUNDEDPruneAboveTheFloorIsHisRuling(unittest.TestCase):
         """The half-sentence that misled me. It said "Deletes ONLY below the ON AIR floor" for
         the fifteen versions after v2226 made that false, and I believed it over the code."""
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        i = src.index("closes the extract -> prune cycle")
-        window = src[i:i + 900]
+        # ⚠ ANCHORED, NOT BYTE-COUNTED. The first cut read src[i:i+900] and the tree's own
+        # meta-guard refused it — correctly: a byte window silently reads the wrong thing the
+        # moment the comment above it grows. _between names both ends and says so if they move.
+        # ⚠ AND THE END ANCHOR MUST COME AFTER THE START. My first pair used tvd-ledger-backup,
+        # which sits EARLIER in the roster than tvd-retention, so the slice was invalid and the
+        # case failed on correct code. _between says so loudly rather than reading to EOF.
+        window = _between(self, src, "closes the extract -> prune cycle",
+                          "live = set(", min_len=120, what="the retention roster entry")
         self.assertNotIn("Deletes ONLY below the ON AIR floor", window,
                          "the roster still tells the next reader the floor gates deletion; it "
                          "has not since v2226")
+
+
+class TestV2377TheForgeShowsMoreThanOneCraftFamily(unittest.TestCase):
+    """Konyo: "the missions section was richer and more colorful with not only caster crafts.. we
+    had blood and saftey hand hitpoints too.. at one point".
+
+    He was right and the board never stopped knowing it. MEASURED on his live board store
+    2026-09-01: d2r_craftReady.now held TWELVE ready crafts across two families — nine Caster and
+    Blood Ring, Blood Amulet, Blood Gloves — while d2r_forgeSummary, which is what the console
+    reads, held Caster and nothing else.
+
+    `out.crafts` is built by walking CRAFTS in order and Caster is first, so all nine Caster slots
+    are emitted before the first Blood one; `.slice(0, 8)` then cut the list before any other
+    family was reached. It looked richer once for the plainest reason: fewer Amethysts meant fewer
+    ready Caster slots, so the others fitted. His stash now reads Perfect Amethyst 13 against
+    Ruby 1, Emerald 3, Sapphire 1 — so the more Caster gems he finds, the more the console
+    pretends the other three families do not exist. A cap that is filled in source order is a
+    filter nobody wrote. [[label-outlived-referent]]"""
+
+    def _bridge(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        src = io.open(p, encoding="utf-8").read()
+        return _between(self, src, "craft quests for the console FORGE QUESTS",
+                        "counts: out.counts", min_len=200, what="the forge bridge payload")
+
+    def test_the_bridge_no_longer_takes_the_FIRST_eight(self):
+        b = self._bridge()
+        self.assertNotIn("(out.crafts || []).slice(0, 8)", b,
+                         "the console's craft list is filled in CRAFTS order again, so one "
+                         "family crowds out the rest")
+        self.assertNotIn("(out.craftOnestep || []).slice(0, 8)", b,
+                         "the one-step list has the same defect")
+        self.assertIn("_fsSpread(out.crafts", b)
+        self.assertIn("_fsSpread(out.craftOnestep", b)
+
+    def test_the_spread_helper_exists_and_rotates(self):
+        """Wiring it without defining it would be the same bug with a longer name."""
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        src = io.open(p, encoding="utf-8").read()
+        self.assertIn("function _fsSpread(rows, cap)", src, "the helper is called and undefined")
+        body = _between(self, src, "function _fsSpread(rows, cap)", "// v1409/v1411",
+                        min_len=120, what="the spread helper")
+        # it must group by FAMILY and rotate, not just re-slice
+        self.assertIn("r.craft", body, "the helper does not group by craft family")
+        for token in ("byFam", "order"):
+            self.assertIn(token, body, "the helper does not rotate across families (%s)" % token)
 
 
 if __name__ == "__main__":

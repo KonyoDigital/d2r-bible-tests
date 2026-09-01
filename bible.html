@@ -39974,12 +39974,55 @@ function renderJournal(){
             now: _fsNowRw.slice(0, 10),
             onestep: (out.onestep || []).slice(0, 6).map(function(t){ return { rw: t.rw, sub: t.sub || '' }; }),
             pipeline: (out.pipeline || []).slice(0, 4).map(function(t){ return t.rw; }),
+            /* ══ v2378 — SPREAD ACROSS THE CRAFT FAMILIES, DO NOT TAKE THE FIRST EIGHT ══════
+               Konyo: "the missions section was richer and more colorful with not only caster
+               crafts.. we had blood and saftey hand hitpoints too.. at one point".
+
+               He is right, and the board never stopped knowing it. MEASURED on his live store
+               2026-09-01: d2r_craftReady.now held TWELVE ready crafts across two families — nine
+               Caster and Blood Ring, Blood Amulet, Blood Gloves — while d2r_forgeSummary, which
+               is what the console reads, held Caster and nothing else.
+
+               `out.crafts` is built by walking CRAFTS in order, and Caster is first, so it emits
+               all nine Caster slots before the first Blood one. `.slice(0, 8)` then cuts the list
+               before any other family is reached. It USED to look richer for the plainest reason:
+               he had fewer Amethysts, so fewer Caster slots were ready and the others fitted in
+               the eight. His gem stash now reads Perfect Amethyst 13 against Ruby 1, Emerald 3,
+               Sapphire 1 — so the more Caster gems he collects, the more the console pretends the
+               other three families do not exist.
+
+               Round-robin instead: one from each family in turn until the cap. Same cap, same
+               payload shape, and the families he can actually make all reach the screen. Sorting
+               is untouched — the best slots still lead within each family, because the rotation
+               takes them in the order the family already produced.
+               [[label-outlived-referent]] [[gate-blind-to-unexercised-input]] */
+            function _fsSpread(rows, cap){
+              var src = rows || [];
+              if (src.length <= cap) return src.slice(0);
+              var byFam = {}, order = [];
+              src.forEach(function(r){
+                var k = String((r && r.craft) || '?');
+                if (!byFam[k]) { byFam[k] = []; order.push(k); }
+                byFam[k].push(r);
+              });
+              var out2 = [], i = 0;
+              while (out2.length < cap) {
+                var took = false;
+                for (var f = 0; f < order.length && out2.length < cap; f++) {
+                  var q = byFam[order[f]];
+                  if (i < q.length) { out2.push(q[i]); took = true; }
+                }
+                if (!took) break;                 // every family exhausted
+                i++;
+              }
+              return out2;
+            }
             // v1409/v1411 — craft quests for the console FORGE QUESTS + CREATE pillar
             /* v2101 — SHIP THE CRAFT'S OWN PICTURE, the same way v1621 did for craftTypes just below.
                `artUrl` lives on THIS side of the iframe, so the console cannot resolve a gem itself
                and was falling back to one generic medallion for all six. */
-            crafts: (out.crafts || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, craft:t.craft, slot:t.slot, gem:t.gem, rune:t.rune, color:t.color||null, art:_fsCraftArt(t.gem) }; }),
-            craftOnestep: (out.craftOnestep || []).slice(0, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, craft:t.craft, slot:t.slot, gem:t.gem, missing:t.missing||'', missKind:t.missKind||'', art:_fsCraftArt(t.gem) }; }),
+            crafts: _fsSpread(out.crafts, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, craft:t.craft, slot:t.slot, gem:t.gem, rune:t.rune, color:t.color||null, art:_fsCraftArt(t.gem) }; }),
+            craftOnestep: _fsSpread(out.craftOnestep, 8).map(function(t){ return { name: String(t.craft)+' '+t.slot, craft:t.craft, slot:t.slot, gem:t.gem, missing:t.missing||'', missKind:t.missKind||'', art:_fsCraftArt(t.gem) }; }),
             /* v1621 — SHIP THE GEM, NOT JUST THE NAME. Konyo: "for blood safety... they should be
                gems extracted from the game like is the forge for the caster.. they are gems
                relevant and colored". The board already knows all of it — CRAFTS carries
@@ -48033,7 +48076,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2376', name:'v2376 - Both rings measured', date:'2026-09-01', note:'the boundary-rejection rule found ring1 and the mirror gave ring2, checked not assumed' };
+  window.D2R_BUILD = { id:'v2377', name:'v2377 - The forge shows every craft family', date:'2026-09-01', note:'the console was fed the first eight crafts in CRAFTS order, so Caster crowded out Blood, Safety and Hit Power' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

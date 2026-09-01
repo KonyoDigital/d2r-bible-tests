@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2376",
+  "ver": "v2377",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2376: the boundary-rejection rule found ring1 and the mirror gave ring2, checked not assumed",
+  "note": "v2377: the console was fed the first eight crafts in CRAFTS order, so Caster crowded out Blood, Safety and Hit Power",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
