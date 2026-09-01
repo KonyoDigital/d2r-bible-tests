@@ -58,8 +58,18 @@ const SCAN = (needle: string) => `(function(){
   if(!b) return {found:false};
   var doc=Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
   var maxY=Math.max(0, doc-window.innerHeight);
+  /* ⚠ ANCHOR THE WALK ON THE ELEMENT, DO NOT SWEEP THE PAGE BLINDLY. The first cut stepped from
+     0 to maxY and reported tested=0 on CI in a REAL browser: the control never entered the
+     viewport in that range, so the scan judged nothing while looking like it had judged
+     everything. Its own tested-greater-than-zero guard caught that and refused a verdict,
+     which is the only
+     reason this is a fixed harness rather than a filed defect. Now: scroll the control into view
+     first to LEARN where it lives, then walk a window around that offset. */
+  b.scrollIntoView({block:'center'});
+  var anchor = window.scrollY||window.pageYOffset||0;
+  var lo = Math.max(0, anchor-700), hi = Math.min(maxY, anchor+700);
   var tested=0, free=0, first=null, covers={};
-  for(var y=0; y<=maxY; y+=40){
+  for(var y=lo; y<=hi; y+=25){
     window.scrollTo(0,y);
     var r=b.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
     if(r.width<2||r.height<2) continue;
@@ -71,7 +81,8 @@ const SCAN = (needle: string) => `(function(){
                   covers[k]=(covers[k]||0)+1; }
   }
   window.scrollTo(0,0);
-  return {found:true, tested:tested, free:free, firstFreeY:first, covers:covers, maxY:maxY};
+  return {found:true, tested:tested, free:free, firstFreeY:first, covers:covers,
+          maxY:maxY, anchor:anchor, from:lo, to:hi};
 })()`;
 
 for (const [w, h] of [[1440, 1000], [1120, 900], [901, 900]] as const) {
