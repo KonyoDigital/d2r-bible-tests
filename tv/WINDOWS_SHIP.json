@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2417",
+  "ver": "v2418",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2417: an oversized JPEG was copied at full size and reported as normalised",
+  "note": "v2418: dropping OSError took two real transport cases with it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

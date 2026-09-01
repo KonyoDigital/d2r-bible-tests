@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2417"   # CANNOT TELL WAS COPYING THE FRAME
+VERSION = "v2418"   # A FAMILY IS A LIST NOT A BASE CLASS
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

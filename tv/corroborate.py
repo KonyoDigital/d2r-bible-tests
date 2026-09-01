@@ -523,13 +523,22 @@ def _eagle_record_path():
     # while the writer kept using the redirected one, re-creating the split this function exists to
     # close, invisibly. That is the same broad-catch mislabel being removed from the render gate in
     # the same ship. A cold review caught both.
+    # ⚠ ImportError, NOT Exception. A cold review: catching Exception here means a BROKEN
+    # control_app — a syntax error, a circular import — also falls back to this module's own
+    # directory, which in this tree is the same `tv/`. Under a redirected TV_HIST that is the
+    # writer/reader split all over again, just narrowed to the case where the import fails.
     try:
         import control_app as _ca
-    except Exception:
+    except ImportError:
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
-    base = _ca._chron_swept_path()          # deliberately NOT guarded: if the owner's own path
+    # ⚠ AND A CORRECTION TO MY OWN COMMENT, which said an unguarded raise here "must surface".
+    # It does not. The only production caller is _durable_pass, which ends `except Exception:
+    # return (None, None)` — so a raise becomes UNKNOWN, silent about its cause. That is still the
+    # right OUTCOME (no row count and no wrong file, rather than a confident read of the wrong
+    # one), but the comment claimed something the code does not do, which is the defect I spent
+    # this evening finding in my own commit messages.
+    base = _ca._chron_swept_path()
     return os.path.join(os.path.dirname(os.path.abspath(base)), ".eagle_last.json")
-    # rule raises, that is a real fault and must surface, not be papered over with the old rule.
 
 
 def _durable_pass(max_age_ms=None):

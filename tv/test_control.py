@@ -38489,6 +38489,42 @@ class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCas
             if planted:
                 sys.modules.pop("websocket", None)
 
+    def _run_capturing(self, exc):
+        """Exit code AND what it printed. ⚠ THE EXIT CODE ALONE IS NOT ENOUGH and a cold review
+        said so: 2-vs-1 beats the import guard today, but it would not catch a THIRD early
+        `return 2` sitting between the stub and the loop. Asserting the sentence pins that the
+        verdict came from THIS handler."""
+        import io as _io, contextlib
+        buf = _io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = self._run_with(exc)
+        return code, buf.getvalue()
+
+    def test_a_socket_TIMEOUT_is_transport_on_python_3_9(self):
+        """⚠ socket.timeout IS NOT TimeoutError ON 3.9 — that alias arrived in 3.10, and his Mac
+        runs 3.9.6. Narrowing the family from OSError to (ConnectionError, TimeoutError) dropped
+        this genuine 'the browser went away' case and reported it as a bug in the gate."""
+        import socket
+        code, out = self._run_capturing(socket.timeout("read timed out"))
+        self.assertEqual(code, 2, "a CDP read timeout was not treated as transport — got %r" % code)
+        self.assertIn("connection was lost", out,
+                      "the verdict did not come from the transport handler")
+
+    def test_a_URLError_from_chromes_own_endpoint_is_transport(self):
+        """URLError subclasses OSError but NOT ConnectionError. Chrome failing to answer
+        /json/new is unambiguously the browser going away, and the narrowed family lost it."""
+        import urllib.error
+        code, out = self._run_capturing(urllib.error.URLError("no route to host"))
+        self.assertEqual(code, 2, "a URLError from the browser endpoint was not transport")
+        self.assertIn("connection was lost", out)
+
+    def test_a_FILESYSTEM_error_is_still_NOT_transport(self):
+        """The other direction, so the widening does not quietly restore the OSError net: a PNG
+        open failure or a full disk is a bug in this file, not the browser leaving."""
+        code, out = self._run_capturing(PermissionError("cannot write the shot"))
+        self.assertEqual(code, 1, "a filesystem error was labelled a browser disconnect")
+        self.assertIn("GATE ITSELF raised", out)
+
     def test_a_lost_socket_is_UNKNOWN_and_exits_2_not_a_pass(self):
         """⚠ RAISED AS A PLAIN ConnectionError, NOT AS A websocket TYPE. The first cut did
         `import websocket` — a package CI does not install (it installs only pillow), so the test

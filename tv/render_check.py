@@ -127,7 +127,24 @@ def _transport_errors():
     # ConnectionError is the precise family (reset, aborted, broken pipe) and TimeoutError is named
     # rather than caught via its OSError base. Anything else that raises is a bug in this file and
     # is reported as one. [[label-outlived-referent]]
-    errs = [ConnectionError, TimeoutError]
+    # ⚠ AND THEN I SWUNG TOO FAR THE OTHER WAY. Dropping OSError removed the over-broad catch and
+    # took two GENUINE transport cases with it. Measured on his Python 3.9.6:
+    #
+    #     socket.timeout is TimeoutError            -> False   (that alias arrived in 3.10)
+    #     socket.timeout subclass of TimeoutError   -> False
+    #     urllib.error.URLError subclass of OSError -> True, of ConnectionError -> False
+    #
+    # So a read that times out on the CDP socket, and a URLError from Chrome's own /json/new
+    # endpoint — both unambiguously "the browser went away" — were being reported as bugs in this
+    # file. A cold review caught it on the very next ship.
+    #
+    # The lesson is not "OSError was right after all": it is that a transport family must be a LIST
+    # OF THE THINGS THAT ARE TRANSPORT, not a base class chosen for how much it happens to cover.
+    # Naming them means the next surprise is a missing NAME, which is visible, rather than a
+    # silently swallowed sibling. [[unknown-stays-unknown]]
+    import socket as _sock
+    import urllib.error as _uerr
+    errs = [ConnectionError, TimeoutError, _sock.timeout, _uerr.URLError]
     try:
         import websocket as _ws
         errs.append(getattr(_ws, "WebSocketException", None))
