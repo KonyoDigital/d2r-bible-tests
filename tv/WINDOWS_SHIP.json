@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2370",
+  "ver": "v2371",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2370: a reel the free pass proved empty stops being undeletable, and the surface shadow is finally joined to the ledger it was computed for",
+  "note": "v2371: remember_to is a root path not a callback, and a survey that cannot be persisted now names the reel it lost instead of vanishing under a bare except",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

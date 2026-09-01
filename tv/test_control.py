@@ -36983,5 +36983,55 @@ class TestV2370AProvenEmptyReelStopsBeingUndeletable(unittest.TestCase):
                              "a reel with panels on it was disposed of unread")
 
 
+class TestV2371ALostSurveyIsNeverSilent(unittest.TestCase):
+    """A survey is the most expensive thing retro_triage does, and losing one cost 248 seconds.
+
+    MEASURED: six of his largest reels, 4,634 frames, 242-248 s of local OCR. The first run
+    passed `remember_to=retro_triage.remember` — the obvious guess, because the name reads like a
+    callback. It is a ROOT PATH. The function went into os.path.join, raised, and `except
+    Exception: pass` threw the whole pass away in silence. Nothing was written and nothing was
+    said, so those reels stayed exactly as unsurveyed as before and the cost had to be paid
+    again. A failure to PERSIST expensive work must never look like work that was never done.
+    [[feedback-silence-is-not-evidence]]"""
+
+    def _rt(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import retro_triage
+        return retro_triage
+
+    def test_a_callback_shaped_remember_to_is_REFUSED(self):
+        rt = self._rt()
+        with self.assertRaises(TypeError) as ctx:
+            rt.survey([], lambda p: None, remember_to=rt.remember)
+        self.assertIn("not a callback", str(ctx.exception),
+                      "the refusal must say WHY, or the next caller guesses the same way")
+
+    def test_the_three_legitimate_shapes_still_pass(self):
+        """None = default store, False = do not remember, str = a root. Refusing any of these
+        would break the real caller instead of the misuse."""
+        rt = self._rt()
+        for ok in (None, False, "/tmp/retro_triage_shape_check"):
+            rt.survey([], lambda p: None, remember_to=ok)
+
+    def test_a_remember_that_fails_is_COUNTED_and_NAMED(self):
+        """Not merely un-swallowed: the reel is named, so a lost pass is attributable."""
+        import unittest.mock as mock, tempfile, shutil
+        rt = self._rt()
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        reel = os.path.join(d, "reel_s_1500000000099_1")
+        os.makedirs(reel)
+        with open(os.path.join(reel, "f_1500000000099.jpg"), "wb") as fh:
+            fh.write(b"x" * 32)
+        def boom(*_a, **_k):
+            raise RuntimeError("the store is on fire")
+        with mock.patch.object(rt, "remember", boom):
+            out = rt.survey([reel], lambda p: None, every_frame=True)
+        self.assertIn("reel_s_1500000000099_1", out.get("notRemembered") or [],
+                      "a survey that could not be persisted did not name the reel it lost")
+        self.assertGreaterEqual(out.get("errors") or 0, 1,
+                                "a lost survey did not even raise the error count")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

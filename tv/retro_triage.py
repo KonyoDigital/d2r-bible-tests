@@ -150,6 +150,13 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
     `every_frame=False` samples, and the result then carries `sampled: True` so no caller can
     mistake an estimate for a decision. A disposal list is only ever produced from a full pass.
     """
+    # ⚠ `remember_to` IS A ROOT PATH, NOT A CALLBACK — its name reads like one, and passing
+    # `remember_to=remember` (the obvious guess) sent a FUNCTION into os.path.join and lost a
+    # 248-second pass. False disables remembering; None means the default store; a string is a
+    # root. Anything else is a caller bug and is refused here rather than swallowed above.
+    if not (remember_to is None or remember_to is False or isinstance(remember_to, str)):
+        raise TypeError("remember_to is a ROOT PATH (str), False to disable, or None for the "
+                        "default store - not %r. It is not a callback." % type(remember_to).__name__)
     t0 = time.time()
     out = {"reels": 0, "frames": 0, "panels": 0, "byKind": {}, "keep": [], "dispose": [],
            "perReel": {}, "sampled": (not every_frame), "errors": 0, "stoppedEarly": False}
@@ -196,8 +203,19 @@ def survey(reels, gate, every_frame=True, per_reel_sample=10, budget_s=None,
                     if os.path.dirname(f) == d:
                         kinds["panel"] = kinds.get("panel", 0) + 1
                 remember(d, hits, len(fs), kinds, root=(remember_to or None))
-            except Exception:
-                pass
+            except Exception as _e:
+                # ⚠ v2371 — SAY IT. This was `except: pass`, and a survey is the most expensive
+                # thing in this module: 6 of his largest reels cost 248 s of local OCR (4,634
+                # frames) and the result was thrown away in silence because the CALLER passed the
+                # wrong kind of `remember_to`. Nothing was written, nothing was said, and the
+                # reels stayed exactly as unsurveyed as before. A failure to persist expensive
+                # work must never look like work that was never done.
+                # [[feedback-silence-is-not-evidence]] [[unknown-stays-unknown]]
+                out["errors"] += 1
+                out.setdefault("notRemembered", []).append(os.path.basename(d))
+                print("\u26a0 retro_triage: surveyed %s but could NOT remember it (%s) - that "
+                      "reel is still UNSURVEYED and the pass will be paid again"
+                      % (os.path.basename(d), str(_e)[:80]), flush=True)
         if on_reel:
             try:
                 on_reel(d, hits, len(fs))
