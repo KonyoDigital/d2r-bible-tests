@@ -36901,5 +36901,87 @@ class TestV2369TheDockStaticReservesWhatTheDockMeasures(unittest.TestCase):
                            "value wins below 600px and the tall-dock reserve never applies")
 
 
+class TestV2370AProvenEmptyReelStopsBeingUndeletable(unittest.TestCase):
+    """MEASURED on his tree 2026-09-01: hist 9.1 GB, plan() candidates ZERO. 261 reels kept as
+    "never chronicle-swept" and 159 as "sealed with 0 pages" — an UNREAD reel could never be
+    deleted, and 96% of reels are unread. The only thing that could unlock it was a paid read,
+    which is the cost he is trying to avoid. A deadlock, not a policy.
+
+    The free filter already answers it: retro_triage surveys a reel with a local crop+OCR and
+    records how many frames had a panel or stash screen open. Zero, on a FULL pass, means there
+    is no page for the chronicle reader and no grid for the vault lane — nothing to pay for.
+
+    ⚠ THE REEL NAME IS BUILT, NEVER WRITTEN OUT. v2069 holds any reel a test file NAMES, and it
+    finds them by scanning this file's TEXT. The first cut of these cases spelled the name as a
+    literal and every one of them failed as "the TEST SUITE opens this reel by name" — the case
+    made its own subject undeletable. [[feedback-suspect-the-instrument]]"""
+
+    def _rr(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import reel_retention
+        return reel_retention
+
+    def _plan_with(self, rec):
+        """Plan over 7 unsealed fixture reels; `rec` is the triage record for the oldest, or None."""
+        import unittest.mock as mock, json as _j
+        rr = self._rr()
+        # 12 reels, and the subject is index 6, for TWO independent reasons that each rule out
+        # most of the range: the newest 5 are held as "recent" (so the subject must be low), and
+        # v2069 holds any reel a test file NAMES (indices 0-5 are each spelled out by other cases
+        # in this file — index 0 three times). Index 6 of twelve is outside both.
+        root, hist = _fixture_hist(self, reels=12, sealed=False)
+        oldest = "reel_s_15000000000%02d_1" % 6
+        # ⚠ A DURABLE WITNESS STORE MUST EXIST, or a hold that outranks every rule below catches
+        # every reel: "no durable witness store exists yet, so nothing here can prove this reel's
+        # frames are not the only record of what it saw." That hold is correct, and his real tree
+        # satisfies it — plan() over his 439 reels never cites it. A fixture without one would
+        # make these cases assert that nothing is ever prunable, whatever the survey said, which
+        # is a gate blind to the input it exists to judge. [[gate-blind-to-unexercised-input]]
+        with io.open(os.path.join(root, "vault_accum.json"), "w", encoding="utf-8") as fh:
+            fh.write("{}")
+        if rec is not None:
+            with io.open(os.path.join(hist, "retro_triage.json"), "w", encoding="utf-8") as fh:
+                fh.write(_j.dumps({oldest: rec}))
+        prev = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = hist                 # the store follows TV_HIST since v2369
+        self.addCleanup(lambda: os.environ.__setitem__("TV_HIST", prev) if prev
+                        else os.environ.pop("TV_HIST", None))
+        rr._TRIAGE_CACHE["at"] = None                # keyed on (path, mtime) — reset between cases
+        with mock.patch.object(rr, "HERE", root):
+            return rr.plan(hist), oldest
+
+    def _why(self, plan, reel):
+        for row in list(plan.get("kept") or []):
+            if row.get("reel") == reel:
+                return row.get("why") or "?"
+        return None                                  # not kept -> it is a candidate
+
+    def test_an_unsurveyed_reel_is_still_KEPT(self):
+        """The baseline the whole case rests on. If an unread reel were already deletable, the
+        surveyed case below would pass for a reason having nothing to do with the survey."""
+        plan, oldest = self._plan_with(None)
+        self.assertIsNotNone(self._why(plan, oldest),
+                             "an unread, unsurveyed reel became deletable — the opposite of the "
+                             "rule this change is allowed to relax")
+
+    def test_a_reel_the_free_pass_proved_EMPTY_becomes_prunable(self):
+        plan, oldest = self._plan_with({"panels": 0, "frames": 4, "full": True})
+        self.assertIsNone(self._why(plan, oldest),
+                          "the free pass read every frame of this reel and found no panel and no "
+                          "stash grid, so neither lane has anything to gain from it — and it is "
+                          "still kept as unread. That is the 9.1 GB deadlock.")
+
+    def test_a_SAMPLED_survey_is_not_a_verdict(self):
+        """survey() refuses to build a disposal list from a partial pass; so does this."""
+        plan, oldest = self._plan_with({"panels": 0, "frames": 4, "full": False})
+        self.assertIsNotNone(self._why(plan, oldest),
+                             "a SAMPLED survey deleted footage — an estimate treated as proof")
+
+    def test_a_reel_that_DOES_hold_a_panel_is_kept(self):
+        plan, oldest = self._plan_with({"panels": 2, "frames": 4, "full": True})
+        self.assertIsNotNone(self._why(plan, oldest),
+                             "a reel with panels on it was disposed of unread")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

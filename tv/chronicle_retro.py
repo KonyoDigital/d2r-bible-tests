@@ -1972,6 +1972,28 @@ def _shadow_row(nm, v, sh):
                           else "same-verdict-different-reason")}
 
 
+def _surface_row(nm, v, ss):
+    """The one shape a SURFACE disagreement takes. Deliberately not _shadow_row's shape.
+
+    ⚠ ONE DIRECTION IS STRUCTURALLY IMPOSSIBLE, AND THAT IS THE POINT. surface_shadow computes
+    `would = live_pass and meets_surface`, so it can only ever HOLD something the gate grounds —
+    never ground something the gate holds. An earlier cut of that rule DID drop the confidence
+    floor, and measured against his journal it would have grounded 33 names the live gate refuses:
+    `AmvLIT`, `AwuLET`, `ArnubET` — OCR garbles whose repeated misreads looked like witnesses.
+    So `direction` is recorded rather than assumed: if `surface-grounds-live-holds` ever appears in
+    the ledger, the invariant has broken and that row is the finding.
+    [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]]"""
+    return {"name": nm,
+            "live": bool(v.get("pass")), "liveWhy": v.get("why"),
+            "shadowPass": bool(ss.get("wouldPass")), "shadowWhy": ss.get("why"),
+            "requires": ss.get("requires"), "have": ss.get("have"),
+            "strictest": ss.get("strictest"), "meetsSurface": ss.get("meetsSurface"),
+            "rule": "surface",
+            "direction": ("surface-grounds-live-holds" if ss.get("wouldPass") and not v.get("pass")
+                          else "live-grounds-surface-holds" if v.get("pass") and not ss.get("wouldPass")
+                          else "same-verdict-different-reason")}
+
+
 def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
     """Score a whole proposal under BOTH rules and return what was seen. WRITES NOTHING.
 
@@ -1986,6 +2008,7 @@ def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
     ledger lives in shadow_ledger.py for the same one. This function scores; the caller persists.
     """
     scored, dis, seen = 0, [], []
+    surf_scored, surf_dis = 0, []
     for nm, sg in sorted((by_name or {}).items()):
         if not isinstance(sg, list) or not sg:
             continue
@@ -2000,12 +2023,23 @@ def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
         seen.append(nm)                       # v2225 — WHICH names, so the ledger can count DISTINCT
         if sh.get("agrees") is False:
             dis.append(_shadow_row(nm, v, sh))          # v2224 — the shared builder, not a copy
+        # v2370 — AND THE SURFACE SHADOW, WHICH UNTIL NOW WAS COMPUTED AND DROPPED ON THE FLOOR.
+        # It rides the same rail as the Wilson one and still decides nothing. Counted separately
+        # because they answer different questions: Wilson asks "is the evidence strong enough",
+        # surface asks "is the evidence of a KIND that has ever been right". Pooling them would be
+        # one number over two questions. [[label-outlived-referent]]
+        ss = v.get("surfaceShadow") or {}
+        if "wouldPass" in ss:
+            surf_scored += 1
+            if ss.get("agrees") is False:
+                surf_dis.append(_surface_row(nm, v, ss))
     # ⚠ v2225 — `scored` is a count of SCORINGS in this one sweep and was being summed across
     # sweeps into a field called `names`. The same handful of names re-scored every 11 seconds
     # inflated it to 1141 when his entire evidence store holds 417 distinct names and the uniques
     # universe is 403 - an arithmetically impossible number that read as a large, healthy sample.
     # The names ride along so the ledger can hold a SET. [[unknown-stays-unknown]]
-    return {"scored": scored, "disagreements": dis, "names": sorted(set(seen))}
+    return {"scored": scored, "disagreements": dis, "names": sorted(set(seen)),
+            "surfaceScored": surf_scored, "surfaceDisagreements": surf_dis}
 
 
 def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES, surface_of=None):

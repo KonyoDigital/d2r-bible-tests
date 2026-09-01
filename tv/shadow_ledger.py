@@ -41,7 +41,10 @@ ENOUGH_SWEEPS = 20
 def _blank():
     return {"v": 1, "sweeps": 0, "names": 0, "agree": 0, "disagree": 0,
             "byDirection": {"shadowWouldGround": 0, "shadowWouldHold": 0},
-            "byLane": {}, "recent": [], "firstAt": None, "lastAt": None}
+            "byLane": {}, "recent": [], "firstAt": None, "lastAt": None,
+            # v2370 — the SURFACE rule's own tallies. A separate sub-document rather than more
+            # top-level keys, so no existing reader can mistake a surface count for a Wilson one.
+            "surface": {"scored": 0, "wouldHold": 0, "wouldGround": 0, "recent": []}}
 
 
 def observe(scores, at=None, path=None, lane="chronicle"):
@@ -69,6 +72,9 @@ def observe(scores, at=None, path=None, lane="chronicle"):
             doc.update(prior)
             doc.setdefault("byDirection", {"shadowWouldGround": 0, "shadowWouldHold": 0})
             doc.setdefault("recent", [])
+            # a ledger written before v2370 has no surface sub-document; give it an EMPTY one
+            # rather than leaving the key absent, or every reader has to re-invent the default.
+            doc.setdefault("surface", {"scored": 0, "wouldHold": 0, "wouldGround": 0, "recent": []})
     except FileNotFoundError:
         pass
     except Exception:
@@ -83,6 +89,22 @@ def observe(scores, at=None, path=None, lane="chronicle"):
         doc["byDirection"][key] = int(doc["byDirection"].get(key) or 0) + 1
         doc["recent"].append(d)
     doc["recent"] = doc["recent"][-200:]      # bounded: a record, not a growing file
+    # ── the surface rule, folded on the same tick and counted on its own ──────────────────────
+    _sf = doc.setdefault("surface", {"scored": 0, "wouldHold": 0, "wouldGround": 0, "recent": []})
+    _sf["scored"] = int(_sf.get("scored") or 0) + int(scores.get("surfaceScored") or 0)
+    for d in (scores.get("surfaceDisagreements") or []):
+        if not isinstance(d, dict):
+            continue
+        d = dict(d, at=at)
+        d["lane"] = d.get("lane") or lane
+        # ⚠ `wouldGround` SHOULD STAY ZERO FOREVER. surface_shadow computes
+        # `would = live_pass and meets_surface`, so it cannot ground what the gate holds. A row
+        # here is not a statistic, it is the invariant having broken — which is exactly why it is
+        # counted rather than assumed away. [[feedback-contradiction-is-the-finding]]
+        _sf["wouldGround" if d.get("shadowPass") else "wouldHold"] = int(
+            _sf.get("wouldGround" if d.get("shadowPass") else "wouldHold") or 0) + 1
+        _sf["recent"].append(d)
+    _sf["recent"] = _sf["recent"][-200:]
     doc["sweeps"] = int(doc.get("sweeps") or 0) + 1
     # ⚠⚠ v2225 — DISTINCT NAMES, NOT NAME-SCORINGS. This was `+= scored`, and the chronicle sweep
     # re-scores the same small proposal roughly every 11 seconds, so the field called `names` was
@@ -153,22 +175,36 @@ def state(path=None):
     # scorings/names ratio of 647 says the lane is re-reading one slice, not accumulating evidence.
     scg = int(d.get("scorings") or 0)
     recent = list(d.get("recent") or [])
+    # v2370 — the surface rule's summary travels with every branch below. Folding it into the
+    # ledger and not returning it here would just move the unjoined end one file along.
+    _sf = d.get("surface") or {}
+    surf = {"scored": int(_sf.get("scored") or 0),
+            "wouldHold": int(_sf.get("wouldHold") or 0),
+            "wouldGround": int(_sf.get("wouldGround") or 0),
+            "recent": list(_sf.get("recent") or [])[-20:]}
+    surf["say"] = (
+        "the surface rule has scored %d name(s) and would HOLD %d the live gate grounds"
+        % (surf["scored"], surf["wouldHold"])
+        if not surf["wouldGround"] else
+        "⚠ the surface rule GROUNDED %d name(s) the live gate holds — it is built so that cannot "
+        "happen (would = live_pass and meets_surface), so this is the invariant broken, not a "
+        "statistic" % surf["wouldGround"])
     if dis:
         names = ", ".join(str(r.get("name", "?")) for r in recent[-5:])
-        return {"ok": True, "scorings": scg, "state": "disagrees", "names": n, "sweeps": sw, "disagree": dis,
+        return {"ok": True, "scorings": scg, "state": "disagrees", "surface": surf, "names": n, "sweeps": sw, "disagree": dis,
                 "byDirection": d.get("byDirection"), "recent": recent[-20:],
                 "say": "the Wilson rule and the live gate have disagreed on %d of %d names across "
                        "%d sweeps (%s). Each is a name the two rules judge differently — that list "
                        "is the argument for or against switching, and it is yours to read."
                        % (dis, n, sw, names)}
     if n < ENOUGH_NAMES or sw < ENOUGH_SWEEPS:
-        return {"ok": True, "scorings": scg, "state": "thin", "names": n, "sweeps": sw, "disagree": 0,
+        return {"ok": True, "scorings": scg, "state": "thin", "surface": surf, "names": n, "sweeps": sw, "disagree": 0,
                 "say": "the Wilson rule has agreed with the live gate on all %d names it has scored "
                        "across %d sweeps. That is agreement on a SMALL SAMPLE, not evidence the two "
                        "rules are equivalent — %d more names and %d more sweeps before the record "
                        "is worth a decision."
                        % (n, sw, max(0, ENOUGH_NAMES - n), max(0, ENOUGH_SWEEPS - sw))}
-    return {"ok": True, "scorings": scg, "state": "agrees", "names": n, "sweeps": sw, "disagree": 0,
+    return {"ok": True, "scorings": scg, "state": "agrees", "surface": surf, "names": n, "sweeps": sw, "disagree": 0,
             "say": "the Wilson rule has now agreed with the live gate on %d names across %d sweeps "
                    "with zero disagreements. The record is worth a decision — and it is YOURS: this "
                    "lane does not promote itself, because a gate that switches on its own agreement "

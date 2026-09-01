@@ -188,6 +188,56 @@ def _vault_lane_owes(reel_path):
     return focus in surfaces
 
 
+_TRIAGE_CACHE = {"at": None, "store": None}
+
+
+def _proven_empty(reel):
+    """Has the FREE pass fully surveyed this reel and found no panel at all? -> bool
+
+    ⚠ THIS IS THE ONE RULE ALLOWED TO OVERRULE "it has never been read", so it is deliberately
+    the narrowest thing that can: a FULL pass (`full`), and ZERO frames on which any panel or
+    stash screen was open. `retro_triage.survey` refuses to produce a disposal list from a
+    sampled pass for the same reason, and this refuses to consult one.
+
+    ⚠ NOT SURVEYED IS NOT EMPTY. A missing store, an unparseable one, a reel absent from it, or
+    any exception all return False — which KEEPS the reel. The cost of being wrong here is
+    footage with no un-delete, so the unknown case must fall on the keep side every time.
+    [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+
+    Why it is safe against BOTH lanes: the gate is stash_screen_open_cached, which answers with a
+    tab name whenever a stash grid OR a chronicle panel is on screen. Zero of those across every
+    frame means there is no page for the chronicle reader to read and no grid for the vault lane
+    to bank — so `vault-owes` is satisfied too, which is why that rule is guarded as well.
+    """
+    try:
+        import os as _os
+        import retro_triage as _rt
+        p = _rt._store_path()
+        # ⚠ KEY THE CACHE ON (PATH, MTIME), NOT MTIME ALONE. The store path follows TV_HIST, so
+        # it is NOT one fixed file: a harness and the live console resolve different ones. Keyed
+        # on mtime alone, two stores whose timestamps happen to match would serve each other's
+        # verdicts — and the consequence here is deleting footage that has no un-delete.
+        key = (p, _os.path.getmtime(p))
+        if _TRIAGE_CACHE["at"] != key:                # re-read only when the store actually moved
+            # ⚠ load() RETURNS (store, ok), NOT a store. Calling .get() on that tuple raises, the
+            # except below swallows it, and every reel comes back "not proven empty" — which is
+            # INDISTINGUISHABLE from the deadlock this change exists to break. It got as far as a
+            # sandbox run before anything noticed. `ok` False means the store could not be READ,
+            # which is not "nothing surveyed": treat it as UNKNOWN and keep the footage.
+            # [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+            store, ok = _rt.load()
+            if not ok:
+                return False
+            _TRIAGE_CACHE["store"] = store
+            _TRIAGE_CACHE["at"] = key
+        rec = (_TRIAGE_CACHE["store"] or {}).get(reel)
+        if not isinstance(rec, dict):
+            return False
+        return bool(rec.get("full")) and int(rec.get("panels") or 0) == 0
+    except Exception:
+        return False
+
+
 def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     """What may go, oldest first, and WHY every other reel stays. Writes nothing.
 
@@ -318,10 +368,10 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             why = _rule("recent",
                         "one of the %d most recent — kept so a re-sweep always has real footage"
                         % keep_recent)
-        elif ce is None:
+        elif ce is None and not _proven_empty(reel):
             why = _rule("never-chronicle-swept",
                         "never chronicle-swept — it has not been read even once")
-        elif pages < MIN_PAGES:
+        elif pages < MIN_PAGES and not _proven_empty(reel):
             why = _rule("zero-pages",
                         "sealed with 0 pages — that is 'this reader found nothing', not 'done'; "
                         "the engine reopens these when the prompt improves")
@@ -333,7 +383,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
                         "witnesses live only in these frames, so this reel is the record. Apply the "
                         "vault proposal (or let a sweep write vault_seen.json) and it becomes "
                         "eligible." % (ve or {}).get("rows"))
-        elif ve is None and _vault_lane_owes(path):
+        elif ve is None and _vault_lane_owes(path) and not _proven_empty(reel):
             why = _rule("vault-owes",
                         "the VAULT lane has never swept it — it still owes the vault manager its "
                         "stash rows" + ("" if vault else

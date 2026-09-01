@@ -2522,5 +2522,80 @@ class TestV2217TheShadowLaneLearnsAndNeverPromotesItself(unittest.TestCase):
 
 
 
+class TestV2370TheSurfaceShadowIsJOINED(unittest.TestCase):
+    """It was computed on every verdict since v2357 and read by NOBODY.
+
+    The only two references to `surfaceShadow` in the whole tree were its own two assignments in
+    gate_verdict. The Wilson shadow beside it runs a complete rail — shadow_scores ->
+    shadow_ledger.observe -> state() -> console_doctor / control_app / corroborate — so the fix
+    was to put the surface rule ON that rail, not to build a second one. [[the-unjoined-end]]"""
+
+    def _by_name(self):
+        # two sightings of one name, so the live gate has something to judge
+        return {"Shadow Dancer": [{"reel": "r1", "frame": "f_1.jpg", "kind": "panel"},
+                                  {"reel": "r2", "frame": "f_2.jpg", "kind": "panel"}]}
+
+    def test_the_scorer_returns_the_surface_rule_at_all(self):
+        out = cr.shadow_scores(self._by_name())
+        self.assertIn("surfaceScored", out,
+                      "shadow_scores dropped the surface shadow again — it is computed on every "
+                      "verdict and this is the only thing that carries it anywhere")
+        self.assertIn("surfaceDisagreements", out)
+        self.assertIsInstance(out["surfaceDisagreements"], list)
+
+    def test_the_ledger_folds_it_and_state_reports_it(self):
+        import shadow_ledger as sl
+        d = tempfile.mkdtemp()
+        try:
+            p = os.path.join(d, "ledger.json")
+            row = {"name": "X", "live": True, "shadowPass": False, "rule": "surface",
+                   "direction": "live-grounds-surface-holds"}
+            r = sl.observe({"scored": 1, "disagreements": [], "names": ["X"],
+                            "surfaceScored": 1, "surfaceDisagreements": [row]}, path=p)
+            self.assertTrue(r.get("ok"), r)
+            doc = json.load(io.open(p, encoding="utf-8"))
+            self.assertEqual(doc["surface"]["scored"], 1, "the surface score was not folded")
+            self.assertEqual(doc["surface"]["wouldHold"], 1)
+            self.assertEqual(doc["surface"]["wouldGround"], 0)
+            st = sl.state(path=p)
+            self.assertIn("surface", st,
+                          "state() dropped it, which just moves the unjoined end one file along")
+            self.assertEqual(st["surface"]["wouldHold"], 1)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_a_ledger_written_before_this_still_reads(self):
+        """An older ledger has no surface sub-document; it must gain an empty one, not crash."""
+        import shadow_ledger as sl
+        d = tempfile.mkdtemp()
+        try:
+            p = os.path.join(d, "ledger.json")
+            io.open(p, "w", encoding="utf-8").write(json.dumps(
+                {"v": 1, "sweeps": 3, "names": 2, "byDirection": {}, "recent": [], "nameSet": ["A", "B"]}))
+            r = sl.observe({"scored": 1, "disagreements": [], "names": ["C"],
+                            "surfaceScored": 2, "surfaceDisagreements": []}, path=p)
+            self.assertTrue(r.get("ok"), r)
+            self.assertEqual(json.load(io.open(p, encoding="utf-8"))["surface"]["scored"], 2)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_the_surface_rule_can_HOLD_but_never_GROUND(self):
+        """`would = live_pass and meets_surface`, so one direction is structurally impossible.
+
+        An earlier cut of the surface rule DID drop the confidence floor and would have grounded
+        33 names the live gate refuses — OCR garbles whose repeated misreads looked like
+        witnesses. This pins the law, not the number: if surface_shadow ever passes where the
+        live verdict failed, the shadow has become a WEAKER gate wearing a stricter name."""
+        for live in (True, False):
+            v = {"pass": live}
+            ss = cr.surface_shadow(
+                [{"reel": "r%d" % i, "frame": "f_%d.jpg" % i, "kind": "panel"} for i in range(6)],
+                surface_of=None, live_verdict=v)
+            if "wouldPass" in ss and not live:
+                self.assertFalse(ss["wouldPass"],
+                                 "the surface shadow GROUNDED a name the live gate holds — it is "
+                                 "built so that cannot happen; a weaker gate in stricter clothing")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
