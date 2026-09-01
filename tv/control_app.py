@@ -16216,7 +16216,13 @@ except Exception:
 
 
 def _vault_owed_reels(hist=None):
-    """The reels the VAULT lane owes a read — taken from reel_retention's OWN plan, never re-derived.
+    """The reels the VAULT lane owes a read: it OWNS them, and has not sealed them yet.
+
+    ⚠ v2391 — THIS DOCSTRING SAID "taken from reel_retention's OWN plan, never re-derived" AND
+    THAT IS NO LONGER TRUE. It was written for a good reason (see the 2026-08-28 note below) and
+    it became the defect: plan() answers "why is this reel still here" with first-match-wins
+    ordering, and this needed "which reels owe a read" — a different question that ordering cannot
+    answer. The sentence outlived what it described. [[label-outlived-referent]]
 
     ⚠⚠ THE FIRST CUT OF THIS SHIPPED A SECOND DEFINITION AND IT WAS A SUPERSET. It asked only "is
     there a vault_swept entry, and would the lane ever read this reel" — which reads as equivalent
@@ -16260,9 +16266,59 @@ def _vault_owed_reels(hist=None):
     # step that was broken. [[feedback-blind-fixture-green-gate]]. The path also gives the sweeper
     # something to aim at, which is the second half of the fix below.
     h_abs = os.path.abspath(h)
-    return [os.path.join(h_abs, os.path.basename(str(k.get("reel"))))
-            for k in (p.get("kept") or [])
-            if "VAULT lane has never swept" in (k.get("why") or "")]
+
+    # ══ v2391 — ASK THE QUESTION, DO NOT FILTER SOMEBODY ELSE'S ANSWER ═════════════════════════
+    # Konyo: "WE HAVE A UNIFIED SYSTEM i keep saying this.. make sure its connected and synced".
+    # This is the joint that was not.
+    #
+    # MEASURED 2026-09-01, live: the console reported {owed: 0, reads: 0, lastTs: None} every 45
+    # seconds — the vault lane had NEVER swept anything — while _vault_lane_owes() said 43 of 44
+    # reels owe it a read. Two answers to one question. [[feedback-contradiction-is-the-finding]]
+    #
+    # WHY. This filtered plan()'s `kept` list, and plan() checks its rules IN ORDER with
+    # first-match-wins. `vault-owes` is 8th of 10; every one of his reels matched an earlier rule
+    # (test-fixture 15, zero-pages 24, recent 5), so the tag fired ZERO times and the filter
+    # returned []. ONE ORDERED LIST WAS ANSWERING TWO DIFFERENT QUESTIONS: "why is this reel still
+    # here" correctly stops at the first reason; "which reels owe a read" is orthogonal — a reel
+    # can be held-because-recent AND owed-a-read at the same time.
+    #
+    # ⚠ AND IT MATCHED ON PROSE. `"VAULT lane has never swept" in k["why"]` — a substring of an
+    # English sentence — even though v2383 put the machine-readable `tag` on every record. A
+    # reader that greps a sentence breaks when someone improves the sentence.
+    # [[feedback-comments-vs-code]]
+    #
+    # WHAT IT COST: no sweep -> no seal -> 72.5% of his 6,380 frames held "not sealed" -> 0
+    # frames prunable -> 7.4 GB of film -> 7 GB free against an 8 GB floor -> CAPTURE BLOCKED.
+    #
+    # THE WORK IS: the lane owes it, AND it has no current seal. Both halves matter — a sealed
+    # reel is finished with, and a reel the lane does not own (a declared chronicle focus) is not
+    # its to read. MEASURED: 44 on disk, 43 owed, 36 unsealed, 35 both. Priced at <=97 reads
+    # total by _vault_scan_cost_inner, one targeted reel per 45s tick.
+    try:
+        import frame_authority as _fa
+        _sealed, _seal_ok = _fa.sealed_sessions()
+    except Exception:
+        _sealed, _seal_ok = {}, False
+    if not _seal_ok:
+        # ⚠ "I could not read the seals" is not "nothing is sealed". Returning the full list here
+        # would re-read reels already finished with, and paying twice for the same film is the
+        # [[paid-work-with-no-memory]] scar. UNKNOWN, and the tick already says so out loud.
+        return None
+    out = []
+    try:
+        for d in sorted(os.listdir(h_abs)):
+            if not d.startswith("reel_"):
+                continue
+            if d[len("reel_"):] in _sealed:
+                continue                      # the lane has already finished with this one
+            try:
+                if _rr._vault_lane_owes(os.path.join(h_abs, d)):
+                    out.append(os.path.join(h_abs, d))
+            except Exception:
+                continue                      # one unreadable reel must not empty the worklist
+    except OSError:
+        return None                           # cannot list hist -> UNKNOWN, never []
+    return out
 
 
 _TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "skips": {}}
@@ -20938,7 +20994,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2390",
+        "ver": "v2391",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

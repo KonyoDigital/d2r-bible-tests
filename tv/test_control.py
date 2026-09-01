@@ -37652,5 +37652,100 @@ class TestV2390AnInvariantMayNotCorroborateAThingAgainstITSELF(unittest.TestCase
         self.assertGreater(len(rows), 6, "the self-test shrank — it is proving less than it did")
 
 
+class TestV2391TheVaultWorklistAsksItsOwnQuestion(unittest.TestCase):
+    """★ Konyo: "WE HAVE A UNIFIED SYSTEM i keep saying this.. make sure its connected and synced".
+
+    MEASURED 2026-09-01, live: the console reported {on: True, every 45s, reads: 0, lastTs: None,
+    owed: 0} — the vault lane had NEVER swept anything since it was built — while
+    reel_retention._vault_lane_owes() said 43 of 44 reels owed it a read.
+
+    WHY: _vault_owed_reels filtered plan()'s `kept` list, and plan() checks its rules IN ORDER,
+    first match wins. `vault-owes` is 8th of 10 and every reel matched an earlier rule
+    (test-fixture 15, zero-pages 24, recent 5), so the tag fired ZERO times.
+
+    ONE ORDERED LIST WAS ANSWERING TWO DIFFERENT QUESTIONS. "Why is this reel still here" stops at
+    the first reason — correct. "Which reels owe a read" is orthogonal: a reel can be
+    held-because-recent AND owed-a-read at once.
+
+    THE COST: no sweep -> no seal -> 72.5% of 6,380 frames held "not sealed" -> 0 prunable ->
+    7.4 GB -> 7 GB free against an 8 GB floor -> capture blocked."""
+
+    def setUp(self):
+        import control_app
+        self.ca = control_app
+        d = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(d, "control_app.py"), encoding="utf-8") as fh:
+            self.src = fh.read()
+
+    def _body(self):
+        """The EXECUTABLE lines only.
+
+        ⚠ THE FIRST CUT OF THIS GUARD MATCHED ITS OWN EXPLANATION. The v2391 comment quotes the
+        retired prose-filter verbatim to explain why it was wrong, so a raw substring search found
+        it and failed on the very text describing the fix. Second time in one day — the type-floor
+        guard did the same with a font size. Describe the defect in prose; SEARCH only the code.
+        [[feedback-comments-vs-code]] [[source-reading-guard]]"""
+        raw = _between(self, self.src, "def _vault_owed_reels(", "\ndef ",
+                       what="the vault worklist")
+        out, in_doc = [], False
+        for ln in raw.split("\n"):
+            t = ln.strip()
+            if t.startswith('"""') or t.endswith('"""'):
+                in_doc = not in_doc if t.count('"""') == 1 else in_doc
+                continue
+            if in_doc or t.startswith("#"):
+                continue
+            out.append(ln.split("  #")[0])
+        return "\n".join(out)
+
+    def test_it_does_not_filter_the_planner_s_first_match_tags(self):
+        b = self._body()
+        self.assertNotIn('"VAULT lane has never swept" in', b,
+                         "the worklist is back to filtering plan()'s kept list by a PROSE match "
+                         "on the why string — that inherits the first-match ordering that made it "
+                         "return [] forever, and it greps an English sentence")
+
+    def test_it_asks_the_ownership_predicate_itself(self):
+        self.assertIn("_vault_lane_owes", self._body(),
+                      "the worklist no longer asks whether the lane owns each reel")
+
+    def test_it_skips_reels_the_lane_has_already_SEALED(self):
+        """Both halves matter: a sealed reel is finished with, and re-reading it is paid work for
+        film already read. [[paid-work-with-no-memory]]"""
+        self.assertIn("sealed_sessions", self._body(),
+                      "the worklist no longer excludes sealed reels, so the lane would pay to "
+                      "re-read film it has already finished with")
+
+    def test_an_unreadable_seal_store_is_UNKNOWN_not_the_whole_list(self):
+        """'I could not read the seals' is not 'nothing is sealed'. Returning everything would
+        re-buy every reel. [[unknown-stays-unknown]]"""
+        b = self._body()
+        # ⚠ "return None appears somewhere" IS NOT THE CHECK. Three different paths return None
+        # here (a failed import, an unlistable dir, and this one), so a sabotage that removed the
+        # seal-store branch left the guard GREEN. Name the branch. [[regression-guard]]
+        self.assertIn("if not _seal_ok:", b,
+                      "the seal-store failure branch is gone — an unreadable store would fall "
+                      "through and produce a FULL worklist, paying to re-read every reel")
+        after = b[b.index("if not _seal_ok:"):]
+        self.assertIn("return None", after.split("\n    out")[0],
+                      "the seal-store failure branch no longer returns UNKNOWN")
+
+    def test_the_worklist_is_a_subset_of_what_is_on_disk(self):
+        """The live sanity check the corroborator also asserts: it may narrow, never invent."""
+        import os as _os
+        hist = _os.environ.get("TV_HIST") or _os.path.join(
+            _os.path.dirname(_os.path.abspath(__file__)), "frames", "hist")
+        if not _os.path.isdir(hist):
+            self.skipTest("no hist dir on this machine — nothing to measure")
+        w = self.ca._vault_owed_reels()
+        if w is None:
+            self.skipTest("the worklist reported UNKNOWN, which is a valid answer here")
+        on_disk = [d for d in _os.listdir(hist) if d.startswith("reel_")]
+        self.assertLessEqual(len(w), len(on_disk),
+                             "the worklist names more reels than exist on disk")
+        for p in w:
+            self.assertTrue(_os.path.isdir(p), "the worklist names a path that is not a reel: %s" % p)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

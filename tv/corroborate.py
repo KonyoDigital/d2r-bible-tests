@@ -119,26 +119,75 @@ def _inv_vault_worklist():
         return None if got is None else len(got)
 
     def right():
-        # ⚠ NOT plan(). Ask the predicate itself, once per reel on disk. A directory that cannot
-        # be listed is UNKNOWN, never zero — "I could not look" and "there is nothing" are the
-        # two facts this whole file exists to keep apart.
+        # ⚠⚠ THIS SIDE WAS _vault_lane_owes() AND THAT BECAME SELF-CORROBORATION THE MOMENT THE
+        # JOINT WAS FIXED. v2391 made _vault_owed_reels ask _vault_lane_owes directly — correct,
+        # and it meant BOTH sides of this invariant now ran the same predicate. The independence
+        # audit added in v2390 caught it on the next self-test run, on the person who had just
+        # written the audit. That is the machine working.
+        #
+        # So the right side is now a plain directory count: independent by construction, and
+        # honest about being the WEAK half. It catches gross over-reach — a worklist larger than
+        # the disk it was built from — and nothing subtler.
+        #
+        # THE STRONG HALF IS A SEPARATE CHECK. `vault-lane-has-worked` is what actually catches
+        # the failure that hid here for months (a lane that never swept while work waited); this
+        # `<=` cannot, because 0 <= anything holds. Two failures, two checks, neither pretending
+        # to be the other. [[unknown-stays-unknown]]
         try:
-            reels = [d for d in sorted(os.listdir(hist)) if d.startswith("reel_")]
+            return len([d for d in os.listdir(hist) if d.startswith("reel_")])
         except OSError:
             return None
-        n = 0
-        for d in reels:
-            try:
-                if rr._vault_lane_owes(os.path.join(hist, d)):
-                    n += 1
-            except Exception:
-                return None
-        return n
 
     return ("vault-worklist",
-            "the vault watchdog's worklist matches the reels that actually owe it a read",
-            "point the right side back at plan()'s tags and this agrees at 0 while 43 reels wait",
-            "the vault watchdog", left, "reels that owe a vault read", right, "==")
+            "the vault watchdog never queues more reels than exist on disk",
+            "have the worklist invent or duplicate a path and it exceeds the directory count",
+            "the vault watchdog", left, "reel directories on disk", right, "<=")
+
+
+def _inv_a_lane_that_is_ON_has_either_worked_or_says_why_not():
+    """★ THE SHAPE THAT HID A WHOLE PIPELINE STAGE, AND THE ONE `<=` CANNOT CATCH.
+
+    Konyo: "how do we find these before i tell you about them?" — after the vault lane was found
+    to have run every 45 seconds since it was built without ever sweeping anything.
+
+    The vault-worklist invariant caught it ONCE, at `==` (0 vs 43). It is now `<=`, because after
+    the fix the worklist legitimately narrows (owed AND unsealed = 35 of 43 owed) — and `0 <= 43`
+    HOLDS. The relation that catches over-reach cannot catch emptiness. They are two failures and
+    they need two checks.
+
+    THE GENERAL RULE, worth more than this one lane: A LANE THAT IS ON AND HAS NEVER COMPLETED A
+    SINGLE UNIT OF WORK IS EITHER UNNECESSARY OR BROKEN, AND IT MUST SAY WHICH. Reporting
+    {on: True, reads: 0, lastTs: None, owed: 0} forever is not a status — it is the absence of
+    one, and it reads identically to a lane with nothing to do.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]
+
+    Left is what the lane has DONE; right is whether there is anything to do. A lane that has done
+    nothing is fine only while the worklist is empty too.
+    """
+    import control_app as ca
+
+    def left():
+        # 1 if the lane has ever completed a read, else 0. lastTs is the durable tell — `reads`
+        # is a process-local counter and resets on every restart.
+        try:
+            st = ca._vault_autoread_state() or {}
+        except Exception:
+            return None                       # could not ask -> UNKNOWN, never "it has worked"
+        if not st:
+            return None
+        return 1 if (st.get("lastTs") or (st.get("reads") or 0) > 0) else 0
+
+    def right():
+        # 1 if there is work waiting, else 0. UNKNOWN stays UNKNOWN.
+        w = ca._vault_owed_reels()
+        if w is None:
+            return None
+        return 1 if len(w) > 0 else 0
+
+    return ("vault-lane-has-worked",
+            "a vault lane that has never swept anything is only acceptable while nothing is owed",
+            "empty the worklist while the lane still reports work and this parts 0 vs 1",
+            "the lane has ever swept", left, "there is work owed", right, ">=")
 
 
 def _inv_shadow_names_fit_the_universe():
@@ -569,6 +618,7 @@ BUILDERS = (_inv_the_tooltip_finder_refuses_more_than_it_finds,
             _inv_the_two_owned_fields,
             _inv_the_eagle_can_still_look,
             _inv_hunt_memory_is_being_used,
+            _inv_a_lane_that_is_ON_has_either_worked_or_says_why_not,
             _inv_shadow_names_fit_the_universe,
             _inv_swept_memory_matches_the_disk,
             _inv_chronicle_owed_agrees,
