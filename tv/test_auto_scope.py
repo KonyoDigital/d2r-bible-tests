@@ -208,3 +208,88 @@ if __name__ == "__main__":
     except Exception:
         pass
     unittest.main(verbosity=1)
+
+
+class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
+    """⚠ A LANE MAY DELETE ITS OWN ARTEFACTS, BUT IT MUST SAY WHICH ONES AND HOW MANY IT KEEPS.
+
+    `tvd-ledger-backup` declared `touches: "its own backup files"` AND `forbids: ["delete"]`, which
+    cannot both be true of a lane that rotates its own backups — and it does: _ledger_snapshot_once
+    keeps the newest _LEDGER_BACKUP_KEEP and os.remove()s the rest. The auditor had been reporting
+    "something down there can delete" for it from a CLI nothing runs.
+
+    ⚠ THE FIX WAS NOT TO DROP "delete" FROM ITS forbids. That would weaken a real guard to silence
+    a TRUE alarm. A `rotates` clause is a PERMISSION WITH A SCOPE — a directory, a glob and a
+    keep-count — and this class exists to stop it degenerating into the blanket exemption it was
+    written to avoid.
+    """
+
+    def _ca(self):
+        import control_app
+        return control_app
+
+    def test_every_rotates_clause_names_a_dir_a_glob_and_a_keep(self):
+        import auto_scope as AS
+        for lane, spec in sorted(AS.LANES.items()):
+            rot = spec.get("rotates")
+            if not rot:
+                continue
+            for field in ("dir", "glob", "keep", "why"):
+                self.assertTrue(str(rot.get(field) or "").strip(),
+                                "%s: a rotates clause without %r is a blanket exemption, which is "
+                                "exactly what it must not be" % (lane, field))
+
+    def test_a_rotates_clause_names_constants_that_EXIST(self):
+        """A promise about code nobody can find is not a promise — the same rule check_declarations
+        already applies to LANE_FN. A clause naming _LEDGER_BACKUP_KEEP is only checkable while
+        that constant exists; rename it and this must go red rather than quietly permitting
+        anything."""
+        import auto_scope as AS
+        ca = self._ca()
+        for lane, spec in sorted(AS.LANES.items()):
+            rot = spec.get("rotates") or {}
+            for field in ("dir", "keep"):
+                name = rot.get(field)
+                if not name:
+                    continue
+                self.assertTrue(hasattr(ca, name),
+                                "%s: rotates.%s names %r, which control_app does not define — the "
+                                "permission describes something nobody can find" % (lane, field, name))
+
+    def test_the_keep_is_a_POSITIVE_number_not_zero(self):
+        """⚠ keep=0 would rotate away every backup, which is deletion wearing the word 'rotate'."""
+        import auto_scope as AS
+        ca = self._ca()
+        for lane, spec in sorted(AS.LANES.items()):
+            keep = (spec.get("rotates") or {}).get("keep")
+            if not keep:
+                continue
+            val = getattr(ca, keep, None)
+            self.assertIsInstance(val, int, "%s: %s is not an int" % (lane, keep))
+            self.assertGreater(val, 0,
+                               "%s: %s is %r — a keep of zero is not rotation, it is deletion "
+                               "under a friendlier word" % (lane, keep, val))
+
+    def test_only_a_lane_WITH_a_rotates_clause_is_reported_as_permitted(self):
+        """The intersection reporter must not hand out permission it was never given."""
+        import auto_scope as AS
+        rows = AS.undeclared_reach_abilities(self._ca())
+        self.assertTrue(rows, "no lane forbids an ability its reach can perform — either the tree "
+                              "changed or the reporter stopped working; both need a look")
+        for r in rows:
+            declared = bool((AS.LANES[r["lane"]].get("rotates")))
+            self.assertEqual(r["permitted"], declared,
+                             "%s reported permitted=%s with rotates=%s" % (r["lane"], r["permitted"], declared))
+
+    def test_the_reporter_does_NOT_claim_the_unexplained_rows_are_safe(self):
+        """⚠ THREE OF FOUR ROWS ARE PROBABLY REACH-NOISE (reach 23, 34 and 71 functions), and the
+        reporter must keep saying so rather than rounding them to a verdict. It reports; the
+        direct-body check is what refuses. Measured 2026-09-01: 4 rows, 1 permitted, 3 unexplained
+        — and tvd-version-drift's 71 is exactly the everything-reaches-everything case the
+        direct-body rule exists to avoid."""
+        import auto_scope as AS
+        rows = AS.undeclared_reach_abilities(self._ca())
+        unexplained = [r for r in rows if not r["permitted"]]
+        self.assertTrue(all(isinstance(r.get("functions"), int) for r in unexplained),
+                        "an unexplained row does not carry its reach size, so a reader cannot tell "
+                        "a one-frame contradiction from 71 functions of noise")

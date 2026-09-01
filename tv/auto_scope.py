@@ -37,7 +37,23 @@ LANES = {
     "tvd-ledger-backup": {
         "does": "copies your ledger aside so a bad write can be undone",
         "touches": "its own backup files",
+        # ⚠ v2410 — THIS DECLARATION CONTRADICTED ITSELF, AND THE AUDITOR HAD BEEN SAYING SO TO
+        # NOBODY. `touches: its own backup files` and `forbids: [delete]` cannot both be true of a
+        # lane that rotates its own backups — and it does: _ledger_snapshot_once keeps the newest
+        # _LEDGER_BACKUP_KEEP and os.remove()s the rest. unverified_reach() has been printing
+        # "tvd-ledger-backup · 6 function(s) beyond it NOT audited (something down there can
+        # delete)" from a CLI nothing runs.
+        #
+        # ⚠ THE FIX IS NOT TO DROP "delete" FROM forbids. That would weaken a real guard to silence
+        # a TRUE alarm — the worst possible trade. Rotating one's own artefacts is simply not the
+        # danger `forbids: delete` exists to prevent, so it gets its own clause that names WHAT and
+        # HOW MANY. A permission with a directory and a keep-count is checkable; a blanket
+        # exemption is not. The forbid still covers everything else on disk.
         "forbids": ["delete"],
+        "rotates": {"dir": "_LEDGER_BACKUP_DIR", "glob": "ledger_*.json",
+                    "keep": "_LEDGER_BACKUP_KEEP",
+                    "why": "a backup directory that only ever grows fills his disk; the snapshot "
+                           "keeps the newest N of its OWN files and removes no others"},
         "never": "the ledger itself — it only ever reads it",
         "when": "on a timer",
         "brakes": "a backup that cannot be written says so rather than pretending it wrote",
@@ -244,6 +260,65 @@ def check_declarations(mod):
                     breaks.append("%s promises it never %ss, and %s itself calls %s"
                                   % (lane, word, fname, call))
     return breaks
+
+
+def undeclared_reach_abilities(mod):
+    """Lanes that FORBID an ability and can nonetheless reach one, with no clause permitting it.
+
+    -> list of dicts {lane, ability, functions, permitted}
+
+    ⚠ THIS IS A NARROWER QUESTION THAN unverified_reach AND THAT IS THE WHOLE POINT. That function
+    reports raw reachability and warns, correctly, that it must never be rendered as a verdict — in
+    a module this size everything reaches everything. This one reports the INTERSECTION of what a
+    lane PROMISED NOT TO DO with what its reach can actually do, which is a different and much
+    smaller set. Measured at the shipped depth on 2026-09-01: exactly ONE lane of eleven.
+
+    ⚠⚠ AND MY FIRST DRAFT OF THIS DOCSTRING CLAIMED "exactly ONE lane of eleven", WHICH IS FALSE.
+    I read it off a GREPPED EXCERPT of the CLI output that happened to show one row, and wrote the
+    number down as if I had counted. Measured properly, on the same tree, the same minute:
+
+        tvd-ledger-backup   delete   reach= 6   permitted=True   (rotates its own backups)
+        tvd-shadow-watch    delete   reach=23   permitted=False
+        tvd-stash-watch     delete   reach=34   permitted=False
+        tvd-version-drift   delete   reach=71   permitted=False
+
+    FOUR, and one of them reaches seventy-one functions. So the original author's noise argument
+    STANDS and my "one row is a signal" did not survive contact with the measurement: at reach=71
+    this is exactly the everything-reaches-everything case that would make a gate cry wolf.
+
+    THEREFORE THIS REPORTS AND DOES NOT REFUSE. It is strictly more informative than
+    unverified_reach — it names WHICH forbidden ability is reachable and whether a clause permits
+    it — and strictly less authoritative than the direct-body check. The one row that is actually
+    actionable (ledger-backup, reach 6, now carrying an explicit `rotates` clause) was found by
+    reading it, not by a gate failing.
+
+    ⚠ DO NOT PROMOTE THIS TO A FAILING GATE ON THE STRENGTH OF THE LEDGER-BACKUP CASE. Three of
+    the four rows are almost certainly reach-noise, and a gate that fails on all four teaches him
+    to skip the row — the exact defect CF-10 records three instances of. Narrowing it honestly
+    (a shorter depth, or following only the call path that actually performs the ability) is real
+    work, not a parameter tweak. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+
+    ⚠ A lane may legitimately do a forbidden-sounding thing to its OWN artefacts. That is declared
+    with a `rotates` clause naming the directory, the glob and the keep-count — checkable, unlike a
+    blanket exemption — and such a lane is reported as PERMITTED rather than as a break.
+    """
+    out = []
+    for lane in sorted(LANES):
+        spec = LANES[lane]
+        forbids = spec.get("forbids") or []
+        if not forbids:
+            continue
+        u = unverified_reach(mod, lane)
+        if not u.get("checked"):
+            continue                       # UNKNOWN is reported by unverified_reach, not here
+        for ability in sorted(set(u.get("reachesAbilities") or [])):
+            if ability not in forbids:
+                continue
+            out.append({"lane": lane, "ability": ability,
+                        "functions": u.get("functions"),
+                        "permitted": bool(spec.get("rotates")) if ability == "delete" else False,
+                        "why": (spec.get("rotates") or {}).get("why")})
+    return out
 
 
 def unverified_reach(mod, lane):
