@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2416"   # CI WAS RED AND I NEVER LOOKED
+VERSION = "v2417"   # CANNOT TELL WAS COPYING THE FRAME
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -2453,8 +2453,21 @@ def _to_jpeg(src, dest, max_px=1568, quality=80):
             os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
             # still downscale oversized JPEGs (big eye frames) when max_px set
             w, h = _sips_pixel_size(src)
-            if max_px and w and h and max(w, h) > int(max_px):
-                pass  # fall through to sips convert+downsample
+            # ⚠ v2417 — "CANNOT TELL" USED TO COPY THE FRAME VERBATIM AND REPORT SUCCESS.
+            # The old condition was `if max_px and w and h and max(w,h) > max_px: pass` with a copy
+            # in the else — so UNKNOWN dimensions took the copy branch and returned True. On any
+            # host without `sips`, _sips_pixel_size always returns (None, None), which means an
+            # oversized JPEG was copied AT FULL SIZE and the caller was told it had been
+            # normalised. That is worse than returning False: a false success cannot be detected
+            # downstream, and every one is a paid read at three times the pixels.
+            #
+            # Found by a test written to prove the new PIL fallback worked — it failed at
+            # `2940 != 1568` because control never reached the fallback at all. The copy shortcut
+            # is now taken ONLY on positive evidence that the frame is already within spec.
+            # [[unknown-stays-unknown]]
+            _known = bool(w and h)
+            if max_px and (not _known or max(w, h) > int(max_px)):
+                pass  # oversized, or size UNKNOWN — either way, normalise rather than assume
             else:
                 shutil.copy2(src, dest)
                 return _is_real_jpeg(dest)
@@ -2481,6 +2494,29 @@ def _to_jpeg(src, dest, max_px=1568, quality=80):
         pass
     if _win_image_to_jpeg(src, dest, max_px=max_px, quality=quality):
         return True
+    # ⚠ v2417 — A THIRD PATH, BECAUSE THE "LOCKED" SPEC WAS ONLY ENFORCEABLE ON TWO PLATFORMS.
+    # sips is macOS and _win_image_to_jpeg is Windows; on anything else this returned False, and
+    # _readable_frame's caller then sent the ORIGINAL frame to a paid read. Measured on CI (ubuntu):
+    # a 2940x1912 source reaches the model at 2940 — three times the pixels the locked intake spec
+    # allows, on every read, silently. The test that catches it has been red there since before
+    # 2026-09-01T18:14 and I had not looked at CI.
+    #
+    # ⚠ HIS PRODUCTION BEHAVIOUR IS UNCHANGED AND THAT IS THE POINT. His machines are Mac and
+    # Windows, where sips or System.Drawing succeed FIRST and this branch is never reached — proven
+    # by the platform test below. This does not alter the locked intake; it makes the lock hold on
+    # a host where it currently does not. PIL is already imported elsewhere in this file, so it
+    # adds no dependency. [[d2r-intake-LOCKED]] [[feedback-blind-fixture-green-gate]]
+    try:
+        from PIL import Image as _PI
+        os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
+        with _PI.open(src) as _im:
+            _im = _im.convert("RGB")
+            if max_px and max(_im.size) > int(max_px):
+                _im.thumbnail((int(max_px), int(max_px)), _PI.LANCZOS)
+            _im.save(dest, "JPEG", quality=int(quality))
+        return _is_real_jpeg(dest)
+    except Exception:
+        pass
     return False
 
 

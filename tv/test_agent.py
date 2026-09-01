@@ -3900,6 +3900,85 @@ class TestV2324TheLiveFrameStoppedBeingInflatedIntoABMP(unittest.TestCase):
                       "healthy capture")
 
 
+class TestV2417TheLockedIntakeSpecHoldsOnEVERYHost(unittest.TestCase):
+    """⚠ THE "LOCKED" INTAKE SPEC WAS ONLY ENFORCEABLE ON TWO PLATFORMS.
+
+    `_to_jpeg` tries `sips` (macOS), then `_win_image_to_jpeg` (Windows), then returned False. On
+    anything else `_readable_frame` fell through and handed the ORIGINAL frame to a paid read.
+    Measured on CI (ubuntu): a 2940x1912 source reaches the model at 2940 — three times the pixels
+    the locked spec allows, on every read, silently. That test had been red on CI since before
+    2026-09-01T18:14 and I shipped nine versions without opening CI once.
+
+    Not active for him — his machines are Mac and Windows — but latent the moment anything runs the
+    intake in a container, and it is his money.
+    """
+
+    def _frame(self, w, h, fmt="JPEG"):
+        from PIL import Image
+        import tempfile
+        d = tempfile.mkdtemp(prefix="lockspec_")
+        self.addCleanup(__import__("shutil").rmtree, d, True)
+        p = os.path.join(d, "src." + ("jpg" if fmt == "JPEG" else fmt.lower()))
+        Image.new("RGB", (w, h), (30, 24, 16)).save(p, fmt)
+        return p
+
+    def _size(self, p):
+        from PIL import Image
+        with Image.open(p) as im:
+            return im.size
+
+    def test_the_PIL_fallback_reaches_the_locked_1568_with_NO_platform_tool(self):
+        """The CI case, forced: neither sips nor the Windows path available. Before v2417 this
+        returned False and the caller sent the frame at full size."""
+        import tv_diablo as tv
+        src = self._frame(2940, 1912)
+        dest = os.path.join(os.path.dirname(src), "out.jpg")
+        old_size, old_win = tv._sips_pixel_size, tv._win_image_to_jpeg
+        tv._sips_pixel_size = lambda *a, **k: (None, None)   # sips absent
+        tv._win_image_to_jpeg = lambda *a, **k: False        # Windows path absent
+        import subprocess
+        old_run = subprocess.run
+        subprocess.run = lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError("sips"))
+        try:
+            ok = tv._to_jpeg(src, dest, max_px=1568, quality=80)
+        finally:
+            tv._sips_pixel_size, tv._win_image_to_jpeg = old_size, old_win
+            subprocess.run = old_run
+        self.assertTrue(ok, "no platform tool and no fallback — the frame would go out at full size")
+        self.assertEqual(max(self._size(dest)), 1568,
+                         "the fallback ran but did not honour the locked 1568px spec")
+
+    def test_on_THIS_mac_the_fallback_is_NEVER_REACHED(self):
+        """⚠ THE CLAIM THAT MATTERS FOR HIM: production behaviour is unchanged, because sips wins
+        first. Asserted by making the fallback EXPLODE if anything calls it — if his path ever
+        reaches PIL, this test says so instead of a commit message claiming it does not."""
+        import sys
+        if sys.platform != "darwin":
+            self.skipTest("this asserts the macOS ordering — UNKNOWN elsewhere, not a pass")
+        import tv_diablo as tv
+        src = self._frame(2940, 1912)
+        dest = os.path.join(os.path.dirname(src), "out.jpg")
+        from PIL import Image as _RealImage
+        import PIL
+        calls = []
+        real_open = _RealImage.open
+        def watched_open(*a, **k):
+            calls.append(a[0] if a else None)
+            return real_open(*a, **k)
+        _RealImage.open = watched_open
+        try:
+            ok = tv._to_jpeg(src, dest, max_px=1568, quality=80)
+        finally:
+            _RealImage.open = real_open
+        self.assertTrue(ok, "sips did not handle an oversized JPEG on macOS")
+        self.assertEqual(max(self._size(dest)), 1568)
+        # the fallback opens `src` with PIL; sips does not. Any such call means we fell through.
+        fell_through = [c for c in calls if c == src]
+        self.assertEqual(fell_through, [],
+                         "the PIL fallback was reached on macOS — his production path CHANGED, "
+                         "which this ship explicitly claims it does not")
+
+
 class TestV2327TheModelFrameIsNormalisedBySizeNotByExtension(unittest.TestCase):
     """v2324 CHANGED WHAT THE PAID MODEL RECEIVES, TWO FILES AWAY, AND NOTHING SAID SO.
 
