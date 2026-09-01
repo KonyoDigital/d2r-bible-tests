@@ -1140,9 +1140,34 @@ def main(argv):
         _say("no such target: %s (try --list)" % ", ".join(want))
         return 2
 
-    bad = 0
+    bad, unknown = 0, 0
     for name, spec in sorted(targets.items()):
-        r = check(name, spec)
+        # ⚠ v2412 — A DROPPED CDP SOCKET IS UNKNOWN, NOT A CRASH AND NOT A DEFECT. On 2026-09-02 a
+        # push was blocked by a bare WebSocketConnectionClosedException propagating out of this
+        # loop: Chrome went away mid-run and the gate DIED MID-VERDICT rather than reporting one.
+        # This file's own opening note calls that out — "a render gate that dies mid-verdict is
+        # indistinguishable from one that found nothing, which is the exact false-green this file
+        # exists to refuse" — and the transport was the one path not covered by it.
+        #
+        # The pre-push was right to block: a gate that produced no verdict must never read as a
+        # pass. But BLOCKED with a traceback and BLOCKED with "the browser went away" send a person
+        # to two completely different places, and only one of them is true. Exit 2, the same code
+        # as "no Chrome at all", because it is the same fact arriving later.
+        #
+        # ⚠ AND IT IS NOT RETRIED HERE ON PURPOSE. A gate you re-run until it agrees has stopped
+        # being evidence. If Chrome dies repeatedly that is a finding about the machine or about
+        # this harness, and it should be looked at rather than papered over with an attempt count.
+        try:
+            r = check(name, spec)
+        except Exception as _e:
+            _say("⚪ %-8s UNKNOWN — the browser connection was lost mid-render (%s: %s)."
+                 % (name, type(_e).__name__, str(_e)[:90]))
+            _say("   NOTHING WAS ESTABLISHED about this surface. A skip is not a pass, so this "
+                 "still exits non-zero — but it is not a layout defect and the PNGs will not show "
+                 "one.")
+            bad += 1
+            unknown += 1
+            continue
         icon = "🟢" if r["ok"] else "🔴"
         _say("%s %-8s %s" % (icon, name, r["why"]))
         for key in sorted(r["widths"]):
@@ -1169,6 +1194,21 @@ def main(argv):
     _say("")
     _say("shots: %s" % os.path.relpath(SHOTS, REPO))
     if bad:
+        # ⚠ v2412 — AN UNMEASURED SURFACE IS NOT A DIRTY ONE, AND SENDING HIM TO PNGs THAT SHOW
+        # NOTHING IS ITS OWN SMALL LIE. This line said "did not render cleanly — LOOK AT THE PNGs"
+        # for every non-zero outcome, including a lost CDP socket where no PNG was ever written.
+        # Same defect class as the three console rows in CF-10: a state that is neither health nor
+        # fault, reported as fault, which teaches the reader to discount the row.
+        if unknown and unknown == bad:
+            _say("⚪ %d target(s) UNKNOWN — the browser went away mid-render, so nothing was "
+                 "established. NOT a layout defect, and the PNGs will not show one. Still "
+                 "non-zero: a skip is not a pass." % unknown)
+            return 2
+        if unknown:
+            _say("🔴 %d target(s) did not render cleanly — LOOK AT THE PNGs above. ⚪ %d further "
+                 "target(s) were UNKNOWN (browser lost), which is neither clean nor dirty."
+                 % (bad - unknown, unknown))
+            return 1
         _say("🔴 %d target(s) did not render cleanly — LOOK AT THE PNGs above." % bad)
         return 1
     _say("🟢 every target rendered, at every width, with text and no clipping.")

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2411",
+  "ver": "v2412",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2411: stamping the author only made the race visible",
+  "note": "v2412: the render gate died mid-verdict instead of reporting one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
