@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2394",
+  "ver": "v2395",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2394: the suite wrote fixture reels into his live survey store; and a cross-family review found the paint witness could reload his console forever",
+  "note": "v2395: Grok Bot drives the live console as him and reports on GitHub 3; Claude owns the code; the ledger keeps the loop visible and refuses to call it proven",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

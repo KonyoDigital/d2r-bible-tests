@@ -11529,14 +11529,54 @@ def ui_beat_record(state=None):
         _UI_BEAT["elsNow"] = els
         if els is not None:
             # v2394 — a bounded RECENT window, not an all-time mark (see the constants above).
+            # ⚠⚠ v2395 — THE BASELINE MUST NOT LEARN FROM THE FAILURE IT IS DETECTING.
+            # Found by a cross-family review of the SHIPPED v2394 diff, and it is the sharpest
+            # defect of the three the second eye has caught today:
+            #
+            #   "Moving-window max is defeated by its own failure mode: after >=60 consecutive low
+            #    els beats the window contains only those values, max(w) drops below
+            #    _UI_PAINT_FLOOR_ELS, and the blankStrikes branch is never taken again."
+            #
+            # Exactly right. And v2394's own comment DESCRIBED this mechanism and called it a
+            # feature — "the window self-limits the loop on purpose" — seeing only that it stops a
+            # reload loop, and not that it also goes PERMANENTLY BLIND. Both halves are true; I
+            # wrote down the good one.
+            #
+            # It is not hypothetical. It is his second black screen: the window reports hidden,
+            # the rescue is correctly withheld for want of an independent sighting, five minutes
+            # pass, the window fills with blank counts, the baseline collapses under the floor,
+            # and the witness can never fire again for the life of the process.
+            #
+            # THE RULE: a beat that is already COLLAPSED does not teach the baseline. The window
+            # learns from healthy beats only, so a long blank period leaves the healthy high-water
+            # mark standing and the strike keeps counting.
+            # ⚠ Until a baseline EXISTS every beat teaches it — otherwise a page that starts small
+            # could never establish one at all, and "we have never seen this page healthy" would
+            # become "this page is blank". [[unknown-stays-unknown]]
             w = _UI_BEAT.get("elsWindow")
             if not isinstance(w, list):
                 w = []
-            w.append(els)
-            if len(w) > _UI_PAINT_WINDOW:
-                del w[:-_UI_PAINT_WINDOW]
-            _UI_BEAT["elsWindow"] = w
-            _UI_BEAT["elsHigh"] = max(w)
+            # ⚠ AND THE TEST FOR "do not learn from this beat" IS THE FLOOR, NOT THE RATIO.
+            # The first cut used the collapse RATIO, and it fixed the blindness while creating the
+            # mirror defect the same review predicted: one early 5,000-element beat pinned the
+            # baseline forever, so a legitimately smaller page (400 els) read as collapsed and
+            # would have reloaded his console. One blindness traded for one false positive.
+            #
+            # The two cases are distinguishable, and the console already carries the constant that
+            # separates them: a genuinely BLANK page has almost nothing on it (his was 12), while a
+            # legitimately smaller page still has hundreds. So:
+            #     els >= FLOOR  -> the page is painting something real. LEARN from it, whatever
+            #                      its size, so the baseline follows a page that got smaller.
+            #     els <  FLOOR  -> nothing is painted. Do NOT learn, or the blank period erases
+            #                      the healthy mark and the witness goes permanently blind.
+            _hi_before = max(w) if w else 0
+            _collapsed = els < _UI_PAINT_FLOOR_ELS
+            if not _collapsed:
+                w.append(els)
+                if len(w) > _UI_PAINT_WINDOW:
+                    del w[:-_UI_PAINT_WINDOW]
+                _UI_BEAT["elsWindow"] = w
+            _UI_BEAT["elsHigh"] = max(w) if w else 0
             # ⚠⚠ v2394 — THE STRIKE NO LONGER DEPENDS ON `hidden`, AND THAT IS THE WHOLE FIX.
             # Konyo, with a second black-screen screenshot: "again the console is black and
             # rendering half of it... watchdog is wired properly?"
@@ -21163,7 +21203,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2394",
+        "ver": "v2395",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -173,3 +173,7 @@ tv/disk_history.jsonl
 # .console_scars.json: his running console rewrites it every pass, so tracking it leaves the
 # working tree permanently dirty and every pre-push reports "local tracked edits present".
 tv/.eagle_last.json
+
+# v2395 — the human-eyes harness ledger. A RUNTIME DECISION RECORD like .second_eye.jsonl and
+# .console_scars.json: written as briefs are sent and answered, never carried by git.
+tv/.human_eyes.jsonl

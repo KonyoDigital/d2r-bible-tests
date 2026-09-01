@@ -37844,6 +37844,65 @@ class TestV2393TheWatchdogCanSeeABlankPage(unittest.TestCase):
         wv.contradicts_a_hidden_beat = lambda: (seen, why)
         return wv, orig
 
+    def test_v2395_a_LONG_blank_period_does_not_blind_the_witness(self):
+        """★ THE BASELINE MUST NOT LEARN FROM THE FAILURE IT IS DETECTING.
+
+        Found by a cross-family review of the SHIPPED v2394 diff, in its own words:
+          "Moving-window max is defeated by its own failure mode: after >=60 consecutive low els
+           beats the window contains only those values, max(w) drops below _UI_PAINT_FLOOR_ELS,
+           and the blankStrikes branch is never taken again."
+
+        Exactly right, and v2394's comment DESCRIBED that mechanism and called it a feature — "the
+        window self-limits the loop on purpose" — seeing only that it stops a reload loop and not
+        that it also goes permanently blind. Both halves true; I wrote down the good one.
+
+        It is his second black screen: the window reports hidden, the rescue is correctly withheld
+        for want of an independent sighting, five minutes pass, and the witness dies for the life
+        of the process.
+        """
+        wv, orig = self._with_window_witness(True, "on screen")
+        try:
+            self._fresh()
+            self._beats([1200] * 10)
+            self.assertEqual(self.ca._UI_BEAT["elsHigh"], 1200)
+            self._beats([12] * (self.ca._UI_PAINT_WINDOW * 2))   # TWICE the window, all blank
+            self.assertGreaterEqual(self.ca._UI_BEAT["elsHigh"], self.ca._UI_PAINT_FLOOR_ELS,
+                                    "the blank period erased the healthy high-water mark — the "
+                                    "witness is now blind for the life of the process")
+            self.assertTrue(self._due()[0],
+                            "after a long blank period the rescue no longer fires at all")
+        finally:
+            wv.contradicts_a_hidden_beat = orig
+
+    def test_v2395_a_page_that_legitimately_SHRINKS_is_not_called_blank(self):
+        """The mirror defect, and the first fix created it before this one removed it.
+
+        Same review, finding 4: "a single early low els value permanently caps the baseline". The
+        inverse bites harder — one early 5,000-element beat pinned the baseline forever, so a
+        legitimately smaller page (400 els) read as collapsed and would have reloaded his console.
+        One blindness traded for one false positive.
+
+        The separator is the FLOOR, not the ratio: a genuinely blank page has almost nothing on it
+        (his was 12); a smaller page still has hundreds.
+        """
+        wv, orig = self._with_window_witness(True, "on screen")
+        try:
+            self._fresh()
+            self._beats([5000])                       # one outlier, first
+            self._beats([400] * (self.ca._UI_PAINT_WINDOW + 10))
+            self.assertFalse(self._due()[0],
+                             "a legitimately smaller page was called blank — this would reload "
+                             "his console on ordinary use")
+            self.assertEqual(self.ca._UI_BEAT["elsHigh"], 400,
+                             "the baseline never adapted to the real page size")
+
+            self._fresh()
+            self._beats([1200] * 5)
+            self._beats([300] * (self.ca._UI_PAINT_WINDOW + 10))
+            self.assertFalse(self._due()[0], "a page that shrank to 300 els was called blank")
+        finally:
+            wv.contradicts_a_hidden_beat = orig
+
     def test_v2394_a_LYING_hidden_flag_no_longer_disarms_the_paint_witness(self):
         """★ HIS LIVE FAULT, twice in one afternoon.
 
@@ -38140,6 +38199,120 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
         self.assertIn('".eagle_last.json"', src,
                       "the eagle no longer writes a durable pass — the invariant will be UNKNOWN "
                       "everywhere except inside the console process")
+
+
+
+class TestV2395TheHumanEyesHarnessIsREAL(unittest.TestCase):
+    """The harness must LOAD, and must refuse to call itself proven before it has run.
+
+    Konyo, on the Grok Bot harness: "i want the loop seen" — "and verified".
+
+    Both halves are guarded here because both fail silently. A skill whose YAML will not parse
+    never loads and looks exactly like a skill with nothing to say; a loop that was designed and
+    never exercised looks exactly like a working one.
+    """
+
+    SKILL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         ".claude", "skills", "human-eyes-harness", "SKILL.md")
+
+    def test_the_skill_parses_and_would_actually_load(self):
+        """⚠ THIS EXACT CHECK CAUGHT IT ON THE DAY IT WAS WRITTEN.
+
+        The first cut's description contained a colon-space — "his actual screen: a number on the
+        board" — which YAML reads as a mapping, so `safe_load` raised "mapping values are not
+        allowed here" and the skill would have loaded NEVER, with no warning of any kind. Carved
+        in `carving-skill` §6 and hit anyway within an hour of reading it.
+        """
+        self.assertTrue(os.path.isfile(self.SKILL), "the harness skill is gone")
+        with io.open(self.SKILL, encoding="utf-8") as fh:
+            src = fh.read()
+        m = re.match(r"^---\n(.*?)\n---\n", src, re.S)
+        self.assertTrue(m, "no frontmatter — the skill cannot be indexed")
+        # ⚠ NO yaml IMPORT. TestNoSuiteImportsSomethingCIDoesNotHave refuses it — pyyaml is not
+        # installed in CI, and a guard that skips there is a guard that runs only on his machine.
+        # The two failure modes that actually matter are checkable without a parser:
+        #   · a colon-space in an unquoted value makes YAML read it as a mapping and the skill
+        #     loads NEVER, silently. That is the fault this caught on the day it was written.
+        #   · a name that does not match the folder never resolves.
+        fm = m.group(1)
+        fields = {}
+        for ln in fm.split("\n"):
+            if ln.startswith(" ") or ":" not in ln:
+                continue
+            k, _, v = ln.partition(":")
+            fields[k.strip()] = v.strip()
+        self.assertEqual(fields.get("name"), "human-eyes-harness",
+                         "the skill's name must match its folder or it will not resolve")
+        d = fields.get("description") or ""
+        self.assertNotIn(": ", d,
+                         "the description contains a colon-space, which YAML reads as a MAPPING — "
+                         "safe_load raises and the skill loads NEVER, with no warning. This exact "
+                         "fault shipped and was caught by running the check, not by reading it.")
+        self.assertTrue(d, "no description — nothing would ever trigger it")
+        self.assertLess(len(d), 1536, "descriptions TRUNCATE at 1536 rather than being rejected")
+
+    def test_the_ledger_refuses_to_call_an_UNRUN_loop_proven(self):
+        """A harness designed and never exercised must not report as working.
+
+        This is the same law as everything else in this file: 0 means measured-and-zero, None
+        means nobody asked. A loop with no completed round trip is the second one.
+        """
+        import human_eyes_ledger as HL
+        d = tempfile.mkdtemp(prefix="he_ledger_")
+        p = os.path.join(d, ".human_eyes.jsonl")
+        try:
+            ok, why = HL.proven(path=p)
+            self.assertFalse(ok, "an empty ledger claimed the loop was verified")
+            # ⚠ ASSERT ON THE STATE, NOT THE SENTENCE. The first cut checked for the word "never"
+            # in the reason and failed against "no brief has ever been sent" — a guard broken by
+            # its own prose expectation, which is the exact defect this file warns about in three
+            # other places. The verdict is the boolean; `why` is for him to read.
+            # [[source-reading-guard]] [[feedback-comments-vs-code]]
+            self.assertTrue(why, "a refusal with no reason is not a refusal he can act on")
+            self.assertEqual(HL.state(path=p), [], "an empty ledger reported briefs")
+
+            HL.send("B-x", "a claim", path=p)
+            ok, why = HL.proven(path=p)
+            self.assertFalse(ok, "a brief SENT is not a brief ANSWERED — sending must never count")
+            self.assertEqual(len(HL.owed(path=p)), 1)
+
+            # UNKNOWN closes the brief honestly and STILL does not prove the loop
+            HL.observed("B-x", saw="", verdict="UNKNOWN", path=p)
+            ok, _ = HL.proven(path=p)
+            self.assertFalse(ok, "an UNKNOWN observation proved the loop — it must not; nothing "
+                                 "was actually seen")
+
+            # only a real observation, carrying what was SEEN, closes it
+            HL.observed("B-y", saw="the vault pane showed 41 items", verdict="LOOKED", path=p)
+            HL.send("B-y", "another claim", path=p)
+            ok, why = HL.proven(path=p)
+            self.assertTrue(ok, "a completed round trip with a real observation did not verify "
+                                "the loop: %s" % why)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_an_observation_keeps_what_was_SEEN_apart_from_the_conclusion(self):
+        """⚠ THE FIELD SPLIT IS LOAD-BEARING, NOT TIDINESS.
+
+        On the day this shipped, a Grok blueprint pass quoted PROJECT_VAULT_MANAGER.md ACCURATELY
+        and reported the wrong gate numbers, because the document had drifted from the code. The
+        quote was right and the answer was wrong. If observation and conclusion travel in one
+        field, the other side cannot tell which half to trust.
+        """
+        import human_eyes_ledger as HL
+        d = tempfile.mkdtemp(prefix="he_split_")
+        p = os.path.join(d, ".human_eyes.jsonl")
+        try:
+            HL.send("B-z", "a claim", path=p)
+            HL.observed("B-z", saw="the number on screen was 41",
+                        conclusion="so the vault is correct now", verdict="LOOKED", path=p)
+            row = [r for r in HL.state(path=p) if r["brief"] == "B-z"][0]
+            self.assertEqual(row["saw"], "the number on screen was 41")
+            self.assertEqual(row["conclusion"], "so the vault is correct now")
+            self.assertNotIn("correct", row["saw"],
+                             "the conclusion leaked into the observation field")
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
 
 
 if __name__ == "__main__":
