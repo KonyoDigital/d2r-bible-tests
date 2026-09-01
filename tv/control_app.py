@@ -466,12 +466,12 @@ def _capture_ts_from_frame_id(frame_id):
     honest source for an intake receipt's captureTs — the receipt's `ts` is when the client's
     fetch landed (Date.now()), which floats SECONDS right of the frame it describes because
     auto-intake (screenshot+tally) takes seconds to run."""
+    # v2372 — one resolver. See tv/frame_ref.py; this used to parse the id itself.
     try:
-        if frame_id and "_" in str(frame_id):
-            return int(str(frame_id).rsplit("_", 1)[-1])
+        import frame_ref as _fr
+        return _fr.timestamp_of(frame_id)
     except Exception:
-        pass
-    return None
+        return None
 
 
 # ── v945.6 INTAKE LEASE — exactly one owner fires a given tab at a time ──
@@ -19606,10 +19606,14 @@ def _chron_visit_run(visit_ts):
             raise RuntimeError("the frames from that visit are no longer on disk")
         # v1825 — give each frame its REAL reel, so a visit stops masquerading as the hist folder
         def _reel_of(path):
-            base = os.path.basename(str(path))
+            # v2372 — one resolver, and the fallback is unchanged: a path that carries no
+            # timestamp still answers with its containing directory rather than guessing.
             try:
-                epoch = int(base.rsplit("_", 1)[-1].split(".")[0])
+                import frame_ref as _fr
+                epoch = _fr.timestamp_of(path)
             except Exception:
+                epoch = None
+            if epoch is None:
                 return os.path.basename(os.path.dirname(str(path)))
             sid = _reel_for_frame_epoch(hist, epoch)
             return sid or os.path.basename(os.path.dirname(str(path)))
@@ -20872,7 +20876,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2371",
+        "ver": "v2372",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22274,12 +22278,14 @@ class Handler(BaseHTTPRequestHandler):
                 # Exact fid+'.jpg' lied "photo pruned" for every second-eye beat.
                 _frel = _hist_frame_rel(fid)
                 has = bool(_frel)
+                # v2372 — one resolver. It strips the `#v` suffix on its own, which is why
+                # the split that used to do it here is gone rather than kept "just in case".
                 fts = None
-                if fid and "_" in str(fid):
-                    try:
-                        fts = int(str(fid).split("#", 1)[0].rsplit("_", 1)[-1])
-                    except Exception:
-                        fts = None
+                try:
+                    import frame_ref as _fr
+                    fts = _fr.timestamp_of(fid)
+                except Exception:
+                    fts = None
                 if r.get("captureTs"):
                     cap_ts = int(r["captureTs"])
                 elif fts is not None:
@@ -22489,12 +22495,16 @@ class Handler(BaseHTTPRequestHandler):
                 pass
 
             def _photo_clock(b):
+                # v2372 — one resolver; the fallback to the receipt's own ts is unchanged,
+                # and now also covers an id that simply carries no capture time.
                 fid = b.get("frameId") or ""
-                if "_" in str(fid):
-                    try:
-                        return int(str(fid).rsplit("_", 1)[1])
-                    except Exception:
-                        pass
+                try:
+                    import frame_ref as _fr
+                    ts = _fr.timestamp_of(fid)
+                except Exception:
+                    ts = None
+                if ts is not None:
+                    return ts
                 return b.get("ts") or 0
             for b in beats:
                 pc = _photo_clock(b)

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2371"   # A lost survey says so
+VERSION = "v2372"   # One resolver for frame timestamps
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -2632,10 +2632,15 @@ def _journal_frame_ids():
     PROTECT_CAP = max(200, int(os.environ.get("TV_PROTECT_CAP", "2000") or 2000))
     if len(ids) > PROTECT_CAP:
         def _fid_ms(x):
+            # v2372 — one resolver. Sort key only: 0 keeps an unparseable id at the OLDEST end,
+            # which is what the previous `except: return 0` did, so the cap still drops the ones
+            # it always dropped.
             try:
-                return int(str(x).split(".")[0].rsplit("_", 1)[-1])
+                import frame_ref as _fr
+                ts = _fr.timestamp_of(x)
             except Exception:
-                return 0
+                ts = None
+            return ts if ts is not None else 0
         ids = set(sorted(ids, key=_fid_ms)[-PROTECT_CAP:])
     return set(ids)
 
@@ -7156,13 +7161,19 @@ def effective_lc_scene(scene, names):
     return "loot" if (scene == "gameplay" and names) else scene
 
 def _capture_ts_from_frame_id(frame_id):
-    """frameId = '{n}_{captureMs}' — the exact settle freeze time of the archived photo."""
+    """frameId = '{n}_{captureMs}' — the exact settle freeze time of the archived photo.
+
+    v2372 — DELEGATES to tv/frame_ref.py, which is the one resolver. This was a byte-identical
+    twin of control_app's copy: two implementations of one rule, in two files, each free to drift
+    from the other. It is stricter in one way and that way is correct — an id carrying no capture
+    time (`1_5`) now answers None instead of 5, because a one-digit number is not a timestamp.
+    Every real frameId, which is `{n}_{13-digit epoch}`, resolves exactly as before.
+    [[copy-drift]]"""
     try:
-        if frame_id and "_" in str(frame_id):
-            return int(str(frame_id).rsplit("_", 1)[-1])
+        import frame_ref as _fr
+        return _fr.timestamp_of(frame_id)
     except Exception:
-        pass
-    return None
+        return None
 
 
 _SKIP_AT = {}

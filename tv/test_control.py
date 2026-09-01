@@ -37033,5 +37033,58 @@ class TestV2371ALostSurveyIsNeverSilent(unittest.TestCase):
                                 "a lost survey did not even raise the error count")
 
 
+class TestV2372OneResolverForFrameTIMESTAMPS(unittest.TestCase):
+    """tv/frame_ref.py shipped in v2364 and NOTHING outside its own tests ever called it, while
+    FIVE hand-rolled parsers of the same rule stayed in the tree — four in control_app.py and a
+    byte-identical twin in tv_diablo.py. That is copy-drift with the replacement already written
+    and left unplugged. [[copy-drift]] [[the-unjoined-end]]
+
+    ⚠ THE SWEEP FOUND THE FIFTH, THE BRIEF DID NOT. test_agent tests
+    `tv_diablo._capture_ts_from_frame_id`, not control_app's, so fixing four and shipping would
+    have reported a class-wide fix while leaving the copy the suite actually exercises."""
+
+    def _code(self, name):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+        return _code_only(io.open(p, encoding="utf-8").read())
+
+    def test_no_hand_rolled_timestamp_parse_survives_in_CODE(self):
+        """Comments and docstrings are stripped first — this file's own history contains the very
+        idiom it forbids, and a scanner that reads its own prose is the guard that greens itself."""
+        idiom = 'rsplit("_", 1)'
+        for name in ("control_app.py", "tv_diablo.py"):
+            code = self._code(name)
+            hits = code.count(idiom)
+            self.assertEqual(
+                hits, 0,
+                "%s still parses a frame timestamp by hand in %d place(s); tv/frame_ref.py is the "
+                "one resolver and it already handles every shape (<n>_<ms>, f_<ms>.jpg, "
+                "<reel>/f_<ms>.jpg, and a #v suffix)" % (name, hits))
+
+    def test_both_modules_actually_CALL_the_resolver(self):
+        """The mirror. Deleting the idiom without wiring the resolver would pass the case above
+        and leave the callers with no parser at all."""
+        for name in ("control_app.py", "tv_diablo.py"):
+            code = self._code(name)
+            self.assertIn("frame_ref", code,
+                          "%s no longer references frame_ref — the idiom went but nothing "
+                          "replaced it" % name)
+            self.assertIn("timestamp_of", code,
+                          "%s imports frame_ref but never calls timestamp_of" % name)
+
+    def test_the_resolver_agrees_with_the_old_rule_on_every_REAL_frame_id(self):
+        """The join is only safe because the two agree wherever a real capture time exists.
+        MEASURED across both shapes; they differ ONLY on ids carrying no timestamp — `1_5` used
+        to answer 5, and 5 is not a capture time."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import frame_ref as fr
+        for fid, want in (("3_1785082636804", 1785082636804),
+                          ("12_1785082636804", 1785082636804),
+                          ("f_1785082636804.jpg", 1785082636804),
+                          ("reel_s_1_1/f_1785082636804.jpg", 1785082636804),
+                          ("12_1785082636804#v", 1785082636804),
+                          ("1_5", None), ("f_1.jpg", None), ("", None), (None, None)):
+            self.assertEqual(fr.timestamp_of(fid), want, "timestamp_of(%r)" % fid)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
