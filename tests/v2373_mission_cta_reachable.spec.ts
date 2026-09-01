@@ -68,13 +68,25 @@ const SCAN = (needle: string) => `(function(){
   b.scrollIntoView({block:'center'});
   var anchor = window.scrollY||window.pageYOffset||0;
   var lo = Math.max(0, anchor-700), hi = Math.min(maxY, anchor+700);
-  var tested=0, free=0, first=null, covers={};
+  /* ⚠ PROVE SCROLLING ACTUALLY MOVES IT, or tested is a lie. tested counts positions where
+     the control was ON SCREEN, not DISTINCT positions — so if scrollTo does not drive this
+     page's real scroller, every sample is the SAME spot and the scan reports "tested=57,
+     free=0" while having looked exactly once. On the author's Mac under CDP that is measurably
+     what happens: scrollTop stays 0 and the element never moves. Two of his own probes
+     disagreed about this, which is why the movement is now asserted instead of assumed. */
+  var probeBefore = b.getBoundingClientRect().top;
+  window.scrollTo(0, Math.min(maxY, anchor + 120));
+  var moved = Math.abs(b.getBoundingClientRect().top - probeBefore) > 2;
+  window.scrollTo(0, anchor);
+  var tested=0, free=0, first=null, covers={}, seenTops={}, distinct=0;
   for(var y=lo; y<=hi; y+=25){
     window.scrollTo(0,y);
     var r=b.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
     if(r.width<2||r.height<2) continue;
     if(cy<0||cy>window.innerHeight||cx<0||cx>window.innerWidth) continue;
     tested++;
+    var key=Math.round(r.top);
+    if(!seenTops[key]){ seenTops[key]=1; distinct++; }
     var hit=document.elementFromPoint(cx,cy);
     if(hit&&(hit===b||b.contains(hit)||hit.contains(b))){ free++; if(first===null) first=y; }
     else if(hit){ var k=String(hit.className||hit.tagName).split(' ')[0];
@@ -82,7 +94,8 @@ const SCAN = (needle: string) => `(function(){
   }
   window.scrollTo(0,0);
   return {found:true, tested:tested, free:free, firstFreeY:first, covers:covers,
-          maxY:maxY, anchor:anchor, from:lo, to:hi};
+          maxY:maxY, anchor:anchor, from:lo, to:hi,
+          scrollMovesIt:moved, distinctPositions:distinct};
 })()`;
 
 for (const [w, h] of [[1440, 1000], [1120, 900], [901, 900]] as const) {
@@ -107,6 +120,13 @@ for (const [w, h] of [[1440, 1000], [1120, 900], [901, 900]] as const) {
     expect(r.found, 'no "Do this now" control exists on the Sessions tab').toBe(true);
     expect(r.tested, 'the scan never saw the CTA on screen at ANY scroll position — that is a '
       + 'HARNESS fault, not a verdict about the button').toBeGreaterThan(0);
+    // the two guards that stop "free=0" from being an artifact of a scroller we never drove
+    expect(r.scrollMovesIt, 'scrolling did not move the control at all, so every sample below is '
+      + 'the SAME position — this harness cannot reach its subject and must not convict it')
+      .toBe(true);
+    expect(r.distinctPositions, `the walk visited ${r.tested} sample(s) but only `
+      + `${r.distinctPositions} distinct position(s); a verdict from one vantage point is not a `
+      + `verdict about a scrollable page`).toBeGreaterThan(3);
     expect(r.free, `"Do this now" answered the hit test at NONE of ${r.tested} scroll positions; `
       + `covered by ${JSON.stringify(r.covers)}. A control that is covered wherever he scrolls is `
       + `dead, not merely somewhere else.`).toBeGreaterThan(0);
