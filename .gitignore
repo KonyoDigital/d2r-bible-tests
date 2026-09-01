@@ -173,6 +173,21 @@ tv/disk_history.jsonl
 # .console_scars.json: his running console rewrites it every pass, so tracking it leaves the
 # working tree permanently dirty and every pre-push reports "local tracked edits present".
 tv/.eagle_last.json
+# ⚠ v2413 — AND EVERY SCRATCH VARIANT OF IT. v2411 routed the eagle record through _decision_path
+# so a scratch console writes `<stem>.scratch-<port><ext>` instead of clobbering the primary's
+# file. That was the right fix and it minted a filename this list did not match — so
+# tv/.eagle_last.scratch-17985.json was TRACKED and committed to a PUBLIC repo, and would churn on
+# every pass of every scratch console, on both his machines.
+# A new path pattern needs a new ignore in the same breath; the isolation and the ignore are two
+# halves of one change. [[the-unjoined-end]]
+tv/.eagle_last.scratch-*.json
+# ⚠ AND THE SWEEP FOUND THE SAME GAP ALREADY THERE, PREDATING MY CHANGE. `_decision_path` has two
+# consumers; auto_relaunch.json was the original and its scratch form was never ignored either. It
+# happens not to exist on disk today, which is why nobody noticed — an absent file and a covered
+# one look identical in `git status`. Fixing the CLASS rather than the instance I introduced.
+# [[sweep-dont-ask]]
+tv/auto_relaunch.scratch-*.json
+
 
 # v2395 — the human-eyes harness ledger. A RUNTIME DECISION RECORD like .second_eye.jsonl and
 # .console_scars.json: written as briefs are sent and answered, never carried by git.

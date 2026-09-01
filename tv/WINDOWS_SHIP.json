@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2412",
+  "ver": "v2413",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2412: the render gate died mid-verdict instead of reporting one",
+  "note": "v2413: isolation and its gitignore are two halves of one change",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
