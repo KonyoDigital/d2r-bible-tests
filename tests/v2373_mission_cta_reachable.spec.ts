@@ -72,7 +72,13 @@ const SCAN = (needle: string) => `(function(){
      which is the only
      reason this is a fixed harness rather than a filed defect. Now: scroll the control into view
      first to LEARN where it lives, then walk a window around that offset. */
-  b.scrollIntoView({block:'center'});
+  /* ⚠ 'instant', NOT the default. html carries scroll-behavior:smooth (declared FIVE times
+     in bible.html), so a default scroll starts an ANIMATION and every synchronous
+     getBoundingClientRect afterwards reads the PRE-scroll position. That single fact
+     produced every previous reading in this file's history: anchor=0, scrollMovesIt=false,
+     tested=0, and a 'covered at every position' that was one position sampled 57 times.
+     Nothing was ever wrong with the control or the panel. */
+  b.scrollIntoView({block:'center', behavior:'instant'});
   var anchor = window.scrollY||window.pageYOffset||0;
   var lo = Math.max(0, anchor-700), hi = Math.min(maxY, anchor+700);
   /* ⚠ PROVE SCROLLING ACTUALLY MOVES IT, or tested is a lie. tested counts positions where
@@ -89,13 +95,13 @@ const SCAN = (needle: string) => `(function(){
   var tryY = [Math.min(maxY, anchor + 120), Math.max(0, anchor - 120)];
   for (var ti = 0; ti < tryY.length && !moved; ti++) {
     if (tryY[ti] === anchor) continue;            // no offset to move TO is not a failure to move
-    window.scrollTo(0, tryY[ti]);
+    window.scrollTo({top: tryY[ti], behavior:'instant'});
     if (Math.abs(b.getBoundingClientRect().top - probeBefore) > 2) moved = true;
   }
-  window.scrollTo(0, anchor);
+  window.scrollTo({top: anchor, behavior:'instant'});
   var tested=0, free=0, first=null, covers={}, seenTops={}, distinct=0;
   for(var y=lo; y<=hi; y+=25){
-    window.scrollTo(0,y);
+    window.scrollTo({top:y, behavior:'instant'});
     var r=b.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
     if(r.width<2||r.height<2) continue;
     if(cy<0||cy>window.innerHeight||cx<0||cx>window.innerWidth) continue;
@@ -107,7 +113,7 @@ const SCAN = (needle: string) => `(function(){
     else if(hit){ var k=String(hit.className||hit.tagName).split(' ')[0];
                   covers[k]=(covers[k]||0)+1; }
   }
-  window.scrollTo(0,0);
+  window.scrollTo({top:0, behavior:'instant'});
   return {found:true, tested:tested, free:free, firstFreeY:first, covers:covers,
           maxY:maxY, anchor:anchor, from:lo, to:hi,
           scrollMovesIt:moved, distinctPositions:distinct, diag:diag,
