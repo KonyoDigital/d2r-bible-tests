@@ -14690,9 +14690,32 @@ def _eagle_once():
         _ep = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
         _tmp = _ep + ".tmp"
         with open(_tmp, "w", encoding="utf-8") as _fh:
+            # ⚠ v2408 — THE RECORD MUST NAME ITS AUTHOR. There is exactly one writer in this
+            # codebase and yet this file was found holding a pass that the live console had not
+            # run: on 2026-09-01 the console at :17772 held 32 rows checked 22:41:51 in memory
+            # while this file said 2 rows checked 22:43:31 — stamped LATER than its supposed
+            # author's own state, which only a second process can do. `ps` showed a second
+            # control_app.py, three hours old, holding no port and therefore no window; nearly
+            # every check needs one, so its pass produced 2 rows and overwrote the real one.
+            #
+            # This file exists precisely so the eagle can be graded OUTSIDE the console — by the
+            # CLI, a gate, CI. So every out-of-process reader was being handed a 2-row picture of
+            # a 32-row console. One file, two writers, no author recorded, is the same shape as
+            # the four programs that whole-file-wrote pt_signals.json and erased new signals
+            # seconds later. A record with no author cannot be defended against a second writer.
+            # [[copy-drift]] [[process-port-discipline]]
             json.dump({"checked": _EAGLE.get("checked"), "rows": len(rows),
                        "slow": bool(_EAGLE.get("slow")),   # v2407 — see the note above
                        "needsYou": len(bad), "unknown": len(unk),
+                       "pid": os.getpid(),
+                       # the port this process actually serves, or None when it serves none —
+                       # a console with no port has no window, and a windowless pass is not this
+                       # console's state however honestly it was measured.
+                       # ⚠ NOT "is the port open" — that is true for the OTHER process too, and
+                       # is exactly the confusion this ends. `_SERVING_PORT` is set at the one
+                       # place a server is actually started, so a process that never started one
+                       # writes port=None and a reader can see it is not the console.
+                       "port": globals().get("_SERVING_PORT"),
                        "ts": int(time.time() * 1000)}, _fh)
         os.replace(_tmp, _ep)
     except Exception as _e:
@@ -21369,7 +21392,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2407",
+        "ver": "v2408",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25189,6 +25212,13 @@ def main():
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
+    # ⚠ v2408 — RECORD THAT *THIS* PROCESS IS THE ONE SERVING. Set at the only place a server is
+    # actually started, so it cannot drift from the truth. The durable eagle record reads it to
+    # name its author: a second control_app.py running headless writes a 2-row pass over the real
+    # console's 32-row one, and with no author recorded no reader could tell them apart.
+    # ⚠ AND DO NOT INFER THIS FROM "is the port open" — that is true for the other process too,
+    # and is precisely the confusion this ends.
+    globals()["_SERVING_PORT"] = CONTROL_PORT
     time.sleep(0.2)
 
     if open_ui and not no_open:

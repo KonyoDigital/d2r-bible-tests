@@ -559,6 +559,18 @@ def _inv_the_eagle_can_still_look():
                     return None
                 if (_time.time() * 1000 - float(_ts)) > _EAGLE_RECORD_MAX_AGE_MS:
                     return None            # too old to mean anything
+                # ⚠ v2408 — A RECORD FROM A CONSOLE WITH NO WINDOW IS NOT THE CONSOLE'S STATE.
+                # Measured 2026-09-01: a second control_app.py, three hours old and holding no
+                # port, wrote a 2-row pass over the live console's 32-row one. Nearly every check
+                # needs a window or the live tree, so a headless pass is honestly measured and
+                # describes nothing anyone is asking about — and out-of-process readers (this CLI,
+                # a gate, CI) were being handed it as the truth.
+                #
+                # UNKNOWN, not zero, not the number it found: "the record was written by something
+                # that is not the console" and "the eagle skipped checks" are opposite facts.
+                # [[unknown-stays-unknown]] [[copy-drift]]
+                if "port" in _row and _row.get("port") is None:
+                    return None
                 _r = _row.get("rows")
                 return int(_r) if isinstance(_r, int) else None
             except Exception:

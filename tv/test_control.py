@@ -31048,6 +31048,68 @@ class TestV2237EveryItemCanShowItsPicture(unittest.TestCase):
                          "stay the same set or 'no art' stops meaning 'by design'")
 
 
+class TestV2408TheDurableRecordNamesItsAuthor(unittest.TestCase):
+    """⚠ ONE FILE, TWO WRITERS, NO AUTHOR RECORDED.
+
+    Measured 2026-09-01, minutes after v2407 made the eagle invariant capable of detecting anything
+    at all:
+
+        live console (pid 17006, holds :17772)  in-memory  32 rows · needsYou 7 · checked 22:41:51
+        tv/.eagle_last.json                     on disk     2 rows · needsYou 0 · checked 22:43:31
+
+    The file was stamped LATER than its supposed author's own state, which only a second process
+    can do — and `ps` showed one: a second control_app.py, three hours old, holding no port and
+    therefore no window. Nearly every check needs a window or the live tree, so its pass honestly
+    produced 2 rows and overwrote the real console's 32.
+
+    This file exists SPECIFICALLY so the eagle can be graded outside the console — by this CLI, by
+    a gate, by CI. So every out-of-process reader was being handed a 2-row picture of a 32-row
+    console. [[copy-drift]] [[process-port-discipline]]"""
+
+    def _rows_from(self, row):
+        """left() against a durable record of exactly `row`, with _EAGLE deliberately never-run so
+        the durable branch is the one under test."""
+        import corroborate as co
+        import control_app as _ca
+        import json, os, tempfile, time
+        d = tempfile.mkdtemp(prefix="eagle_author_")
+        rec = os.path.join(d, "eagle.json")
+        row = dict(row)
+        row.setdefault("ts", int(time.time() * 1000))
+        row.setdefault("checked", row["ts"])
+        with io.open(rec, "w", encoding="utf-8") as fh:
+            json.dump(row, fh)
+        old_eagle, old_path = getattr(_ca, "_EAGLE", None), co._eagle_record_path
+        co._eagle_record_path = lambda: rec
+        _ca._EAGLE = {"checked": None, "rows": [], "say": "not measured yet"}
+        try:
+            return co._inv_the_eagle_can_still_look()[4]()
+        finally:
+            _ca._EAGLE, co._eagle_record_path = old_eagle, old_path
+
+    def test_a_record_from_a_process_with_NO_PORT_is_UNKNOWN(self):
+        """THE RED DIRECTION. A headless console's pass is honestly measured and describes nothing
+        anyone is asking about. It must read UNKNOWN — not 2, and not 0."""
+        self.assertIsNone(self._rows_from({"rows": 2, "slow": False, "pid": 26840, "port": None}),
+                          "a pass written by a console with no window was accepted as the "
+                          "console's state. 'written by something that is not the console' and "
+                          "'the eagle skipped checks' are opposite facts.")
+
+    def test_a_record_from_the_SERVING_console_is_used(self):
+        """And it must still be able to answer, or the fix has replaced a wrong number with a
+        permanent UNKNOWN — which is the same row going unread, one state later."""
+        self.assertEqual(self._rows_from({"rows": 32, "slow": False, "pid": 17006, "port": 17772}),
+                         32, "a record from the serving console was refused")
+
+    def test_an_OLD_record_with_no_port_key_at_all_is_still_read(self):
+        """⚠ ABSENT IS NOT None. A record written before v2408 carries no `port` key whatever, and
+        must keep working — otherwise upgrading silently blinds the invariant on every machine
+        until each one happens to rewrite its file. The refusal is for a port that is explicitly
+        None, which only a running v2408 writes."""
+        self.assertEqual(self._rows_from({"rows": 32, "slow": False}), 32,
+                         "a pre-v2408 record was refused for lacking a key it could not have had")
+
+
 class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
     """⚠ A CORROBORATOR THAT COMPARES A FILTERED COUNT AGAINST AN UNFILTERED ONE IS REPORTING ITS
     OWN FILTER, NOT DRIFT.
