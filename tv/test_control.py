@@ -31193,15 +31193,17 @@ class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
                          "a complete pass must expect the whole roster, or running the full "
                          "diagnostic reports a false disagreement")
 
-    def test_an_UNLABELLED_pass_defaults_to_the_STRICTER_expectation(self):
-        """⚠ THE DEFAULT MATTERS MORE THAN EITHER BRANCH. An old record, or a caller that never set
-        the flag, must NOT be silently reinterpreted as a cheap pass — that would make a genuinely
-        incomplete pass of 32 rows read as healthy, which is precisely the blindness this invariant
-        exists to prevent. Not knowing must resolve to the answer that can still catch a skip."""
-        import console_doctor as cd
-        self.assertEqual(self._right(slow=None), len(cd.CHECKS),
-                         "an unlabelled pass resolved to the cheap expectation, so an eagle that "
-                         "silently skipped the two SLOW checks would read as complete")
+    def test_an_UNLABELLED_pass_yields_NO_expectation_at_all(self):
+        """⚠ CORRECTED IN v2408, AND THE CORRECTION IS THE INTERESTING PART. This asserted that an
+        unlabelled pass defaults to the STRICTER roster, on the reasoning that it keeps a skipped
+        check catchable. That reasoning was wrong: a skip is caught by a LABELLED cheap pass (31
+        against 32), so the default fired ONLY on the unlabelled case — reporting 32 against 34,
+        the exact permanently-red row this whole fix set out to remove.
+
+        right() now returns None, which the engine grades as UNKNOWN symmetrically with left()."""
+        self.assertIsNone(self._right(slow=None),
+                          "an unlabelled pass produced a number instead of UNKNOWN — an "
+                          "expectation with no author")
 
     def test_the_FLAG_and_the_ROWS_must_come_from_the_SAME_pass(self):
         """⚠ THE DEFECT THAT COST TWO GATE RUNS, pinned so it cannot return.
@@ -31233,10 +31235,15 @@ class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
             got = co._inv_the_eagle_can_still_look()[6]()
         finally:
             _ca._EAGLE, co._eagle_record_path = old_eagle, old_path
-        self.assertEqual(got, len(cd.CHECKS),
-                         "the expectation was taken from the DURABLE record's flag while the rows "
-                         "came from the in-memory pass — %d instead of %d. The two halves of a "
-                         "comparison must describe the same pass." % (got, len(cd.CHECKS)))
+        # ⚠ v2408 — THE EXPECTED VALUE CHANGED WITH THE DEFAULT, AND THE TEST STILL PINS THE SAME
+        # DEFECT. An unlabelled in-memory pass is now honestly UNKNOWN, so the right answer here is
+        # None. If right() wrongly reached for the DURABLE record's `slow: false` it would return
+        # 32 — a number rather than None — so this still catches the mixed-source bug, and now also
+        # catches a regression of the strict-default.
+        self.assertIsNone(got,
+                          "the expectation was taken from the DURABLE record's flag while the rows "
+                          "came from the in-memory pass — got %r. The two halves of a comparison "
+                          "must describe the same pass." % (got,))
 
     def test_adding_a_check_MOVES_the_expectation(self):
         """PIN THE LAW, NOT THE NUMBER. A test asserting 32 would pass today and rot on the next
@@ -31315,11 +31322,36 @@ class TestV2237NeverRanIsNotZero(unittest.TestCase):
                          "UNKNOWN: %s" % say)
 
     def test_an_eagle_that_flew_EVERY_check_agrees(self):
+        """⚠ v2408 — THE FIXTURE NOW LABELS ITS PASS, AND HAD TO. It injected 34 rows and omitted
+        `slow`, so it was passing because right() DEFAULTED to the full roster — not because a
+        complete pass had been recorded as complete. A cold review caught that the suite was
+        propping up the default rather than testing the behaviour, and that nothing in production
+        records a complete pass at all (control_app.py:23398 runs one for an API response and never
+        writes _EAGLE or the durable file). An unlabelled pass is now honestly UNKNOWN, so a test
+        about a COMPLETE pass has to say it is one."""
         import corroborate as co
         import console_doctor as cd
         n = len(cd.CHECKS)
-        state, say = self._eagle_state({"checked": n, "rows": [{}] * n, "say": "ran"})
+        state, say = self._eagle_state({"checked": n, "rows": [{}] * n, "slow": True, "say": "ran"})
         self.assertEqual(state, co.AGREE, "a complete eagle pass did not agree: %s" % say)
+
+    def test_an_UNLABELLED_pass_is_UNKNOWN_not_a_disagreement(self):
+        """⚠ THE ROW HE PHOTOGRAPHED, AND WHY THE 'STRICT DEFAULT' WAS WRONG ON ITS OWN TERMS.
+
+        I defaulted an unlabelled pass to the FULL roster, arguing it kept a skipped check
+        catchable. It does not — a skip is caught by a LABELLED cheap pass reporting 31 against 32
+        (the test below). The default fired only on the unlabelled case, where it reported 32
+        against 34: exactly the permanently-red row he photographed, back under new arithmetic.
+
+        Put best by the cold read: "it protects against a store nobody writes, and alarms on the
+        store everybody writes." Not knowing which roster a pass was measured against is a fact
+        about the RECORD. [[unknown-stays-unknown]]"""
+        import corroborate as co
+        import console_doctor as cd
+        n = len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
+        state, say = self._eagle_state({"checked": 1, "rows": [{}] * n, "say": "ran"})
+        self.assertEqual(state, co.UNKNOWN,
+                         "an unlabelled pass was graded against a roster nobody chose: %s" % say)
 
     def test_an_eagle_that_SKIPPED_checks_is_a_real_disagreement(self):
         # The case the invariant exists for — and it must still be reachable, or the UNKNOWN fix
@@ -31327,10 +31359,15 @@ class TestV2237NeverRanIsNotZero(unittest.TestCase):
         import corroborate as co
         import console_doctor as cd
         n = len(cd.CHECKS)
-        state, say = self._eagle_state({"checked": n, "rows": [{}] * (n - 3), "say": "ran"})
+        # ⚠ LABELLED, so the comparison is real. This is the case that proves the UNKNOWN default
+        # above costs nothing: a pass that SAYS it was cheap and emitted 3 fewer rows than the
+        # cheap roster is still a plain disagreement.
+        cheap = len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
+        state, say = self._eagle_state({"checked": n, "rows": [{}] * (cheap - 3),
+                                        "slow": False, "say": "ran"})
         self.assertEqual(state, co.DISAGREE,
                          "an eagle that covered %d of %d checks was not reported: %s"
-                         % (n - 3, n, say))
+                         % (cheap - 3, cheap, say))
 
     def test_it_asks_the_never_run_MARKER_not_the_row_count(self):
         import inspect

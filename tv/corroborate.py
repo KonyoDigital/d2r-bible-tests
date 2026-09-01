@@ -497,23 +497,42 @@ def _eagle_record_path():
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
 
 
-def _durable_slow_flag():
-    """Did the last DURABLE eagle pass include the SLOW checks? -> True | False | None.
+def _durable_pass(max_age_ms=None):
+    """The last durable eagle pass as ONE snapshot. -> (rows, slow) with either possibly None.
 
-    None means the record does not say — which the caller must treat as the stricter case, never
-    as 'cheap'. Same file and freshness rules as the row count it accompanies.
+    ⚠ ONE READ, ONE POLICY, BECAUSE TWO READERS OF ONE RECORD IS HOW THIS BROKE TWICE. v2407 had
+    `left()` reading rows here under freshness + author rules while a separate `_durable_slow_flag`
+    read `slow` from the same file under NO rules — its docstring claimed "same file and freshness
+    rules as the row count it accompanies" and it checked neither `ts` nor `port`. Two readers of
+    one record with two policies is the same shape as the mixed-source bug it was written to fix,
+    one level down; a cold review caught the docstring lying before it cost anything.
+
+    Every refusal below returns (None, None): the pass is UNREADABLE, and reporting a row count
+    without knowing which roster it was measured against is worse than reporting nothing.
     """
     try:
-        import json as _json, os as _os
+        import json as _json, os as _os, time as _time
         _p = _eagle_record_path()
         if not _os.path.isfile(_p):
-            return None
+            return (None, None)
         with io.open(_p, encoding="utf-8") as _fh:
             _row = _json.load(_fh)
-        v = _row.get("slow")
-        return bool(v) if isinstance(v, bool) else None
+        _ts = _row.get("ts")
+        if not isinstance(_ts, (int, float)):
+            return (None, None)
+        cap = _EAGLE_RECORD_MAX_AGE_MS if max_age_ms is None else max_age_ms
+        if (_time.time() * 1000 - float(_ts)) > cap:
+            return (None, None)            # too old to mean anything
+        # v2408 — a record written by a process serving no port has no window, so nearly every
+        # check returns nothing and its pass describes a console nobody is asking about.
+        if "port" in _row and _row.get("port") is None:
+            return (None, None)
+        _r = _row.get("rows")
+        _s = _row.get("slow")
+        return (int(_r) if isinstance(_r, int) else None,
+                bool(_s) if isinstance(_s, bool) else None)
     except Exception:
-        return None
+        return (None, None)
 
 
 def _inv_the_eagle_can_still_look():
@@ -547,34 +566,9 @@ def _inv_the_eagle_can_still_look():
             # not evidence the eagle flew today, so a record older than the bound answers
             # UNKNOWN — the same answer as no record at all, which is the honest one.
             # [[stale-reading]] [[unknown-stays-unknown]]
-            try:
-                import json as _json, os as _os, time as _time
-                _p = _eagle_record_path()
-                if not _os.path.isfile(_p):
-                    return None
-                with io.open(_p, encoding="utf-8") as _fh:
-                    _row = _json.load(_fh)
-                _ts = _row.get("ts")
-                if not isinstance(_ts, (int, float)):
-                    return None
-                if (_time.time() * 1000 - float(_ts)) > _EAGLE_RECORD_MAX_AGE_MS:
-                    return None            # too old to mean anything
-                # ⚠ v2408 — A RECORD FROM A CONSOLE WITH NO WINDOW IS NOT THE CONSOLE'S STATE.
-                # Measured 2026-09-01: a second control_app.py, three hours old and holding no
-                # port, wrote a 2-row pass over the live console's 32-row one. Nearly every check
-                # needs a window or the live tree, so a headless pass is honestly measured and
-                # describes nothing anyone is asking about — and out-of-process readers (this CLI,
-                # a gate, CI) were being handed it as the truth.
-                #
-                # UNKNOWN, not zero, not the number it found: "the record was written by something
-                # that is not the console" and "the eagle skipped checks" are opposite facts.
-                # [[unknown-stays-unknown]] [[copy-drift]]
-                if "port" in _row and _row.get("port") is None:
-                    return None
-                _r = _row.get("rows")
-                return int(_r) if isinstance(_r, int) else None
-            except Exception:
-                return None
+            # ⚠ ONE READ FOR BOTH SIDES — see _durable_pass. This branch used to inline its own
+            # loader while `slow` was read by a second function with different rules.
+            return _durable_pass()[0]
         rows = e.get("rows")
         return len(rows) if isinstance(rows, list) else None
 
@@ -621,14 +615,39 @@ def _inv_the_eagle_can_still_look():
         # by asking whether `checked` is set; this mirrors that decision exactly rather than
         # guessing again. [[feedback-fixtures-never-touch-live-data]] [[copy-drift]]
         e = dict(getattr(ca, "_EAGLE", {}) or {})
-        slow = e.get("slow") if e.get("checked") is not None else _durable_slow_flag()
-        return cheap if slow is False else full
+        slow = e.get("slow") if e.get("checked") is not None else _durable_pass()[1]
+        if slow is False:
+            return cheap
+        if slow is True:
+            return full
+        # ⚠⚠ AN UNLABELLED PASS IS UNKNOWN, NOT "ASSUME THE WHOLE ROSTER" — AND MY DEFENCE OF THE
+        # STRICT DEFAULT WAS WRONG ON ITS OWN TERMS. I argued that defaulting to `full` keeps a
+        # skipped check catchable. It does not: a skip is caught by a LABELLED cheap pass reporting
+        # 31 against 32. The default fires only in the UNLABELLED case — where it reports 32
+        # against 34, which is precisely the permanently-red row he photographed, back under
+        # different arithmetic.
+        #
+        # A cold cross-family read put it exactly right: "it protects against a store nobody
+        # writes, and alarms on the store everybody writes." Confirmed — nothing in production
+        # RECORDS a complete pass. control_app.py:23398 runs one for an API response and never
+        # touches _EAGLE or the durable file, so `full` was reachable only through this default.
+        #
+        # The engine already grades a None side as UNKNOWN, symmetrically with left(). Not knowing
+        # which roster a pass was measured against is a fact about the record, and reporting a
+        # count against a roster nobody chose is an expectation with no author.
+        # [[unknown-stays-unknown]] [[label-outlived-referent]]
+        return None
 
     return ("eagle-ran-every-check",
             "the eagle's last pass covered every check it actually runs (the roster minus SLOW)",
             "drop a check from the loop and its row stops appearing while the roster still lists it",
-            "rows in the last eagle pass", left, "checks the eagle runs (roster minus SLOW)",
-            right, "==")
+            # ⚠ THE NAME MUST NOT ASSERT A BRANCH IT CANNOT KNOW. It read "checks the eagle runs
+            # (roster minus SLOW)" while right() may legitimately return the FULL roster — so a
+            # human reading `34` under a label saying "minus SLOW" correctly works out that the
+            # instrument is wrong, and no action follows. The tuple is static, so the name must be
+            # true in every branch. [[label-outlived-referent]]
+            "rows in the last eagle pass", left,
+            "rows that pass was expected to cover", right, "==")
 
 
 def _inv_hunt_memory_is_being_used():

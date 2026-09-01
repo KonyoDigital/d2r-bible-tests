@@ -14598,7 +14598,13 @@ def _eagle_once():
     try:
         sys.path.insert(0, HERE)
         import console_doctor as _cd
-        rows = _cd.run(include_slow=False)
+        # ⚠ v2408 — THE ARGUMENT, NOT A LITERAL. `slow` is persisted from this variable rather
+        # than from a hardcoded False sitting next to the call, so the two cannot drift apart.
+        # A cold review flagged the literal as "two things to keep in sync"; it was right, and the
+        # persist even did `bool(_EAGLE.get("slow"))`, which would have coerced a forgotten key to
+        # false — the benign answer, from an absent one. [[copy-drift]]
+        _include_slow = False
+        rows = _cd.run(include_slow=_include_slow)
     except Exception as e:
         with _PRUNE_LOCK:
             _EAGLE.update({"checked": int(time.time() * 1000), "needsYou": None, "unknown": None,
@@ -14651,7 +14657,7 @@ def _eagle_once():
             # invariant came to be permanently red — it assumed the full roster while the timer
             # only ever runs the cheap subset. Persist what you knew at the moment you knew it.
             # [[heart-first]] rule 6
-            "slow": False,          # this call site is _cd.run(include_slow=False)
+            "slow": _include_slow,  # the ARGUMENT actually passed, never a restated literal
             "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
             "mineWhat": [r.get("check") for r in mine],
             # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
@@ -14705,7 +14711,10 @@ def _eagle_once():
             # seconds later. A record with no author cannot be defended against a second writer.
             # [[copy-drift]] [[process-port-discipline]]
             json.dump({"checked": _EAGLE.get("checked"), "rows": len(rows),
-                       "slow": bool(_EAGLE.get("slow")),   # v2407 — see the note above
+                       # ⚠ NOT bool(...) — that coerces a MISSING key to False, which is the
+                       # benign answer manufactured from an absent one. An unlabelled pass must
+                       # stay unlabelled so the reader can answer UNKNOWN.
+                       "slow": _EAGLE.get("slow"),
                        "needsYou": len(bad), "unknown": len(unk),
                        "pid": os.getpid(),
                        # the port this process actually serves, or None when it serves none —
