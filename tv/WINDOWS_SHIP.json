@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2405",
+  "ver": "v2406",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2405: the size promise was never gated, and two greens that were decided by prose",
+  "note": "v2406: his real viewport, reachability before the scroll, and the beat finally refusing something",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

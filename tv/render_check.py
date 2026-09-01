@@ -56,7 +56,63 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 SHOTS = os.path.join(HERE, ".render_shots")
 PORT = int(os.environ.get("TV_RENDER_PORT", "9224"))     # never 9222 (his Chrome) or 9223 (TV)
-WIDTHS = ((1440, 1000), (1120, 900), (901, 900), (375, 800))
+# ⚠ v2406 — THE FIFTH ENTRY IS THE ONLY ONE HE ACTUALLY HAS, AND IT WAS THE ONE MISSING.
+# Every height above is TALLER THAN HIS WINDOW. control_app.py opens the console at 1120x660
+# (v1464, a deliberate default that fits a 672-logical work area — a runtime clamp was tried and
+# shipped a window 174px off-screen, so the height is not up for negotiation), which leaves a
+# ~628px viewport. This gate rendered 1120 at height 900 and called it covered.
+#
+# So when the live beat reported `taskforce top=1050 H=502` and `forge top=1599 H=181` against a
+# 628px viewport, the gate had nothing to say — at 900px tall those panels are simply further down
+# a page that has room for them. THE DEFECT COULD NOT APPEAR IN THE VIEWPORT BEING TESTED. That is
+# the same shape as the `.shell` bare-1fr scar and the claim-bar spec that asserted geometry on a
+# page where the claim bar can never exist: a green produced by a fixture the bug cannot inhabit.
+# [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
+#
+# 628 is not a breakpoint-adjacent guess. It is the number on his screen.
+WIDTHS = ((1440, 1000), (1120, 900), (901, 900), (375, 800), (1120, 628))
+
+# ── v2406 — CAN HE FIND IT, not just does it render once you get there ──────────────────────────
+#
+# Every measurement in this file happens AFTER `scrollIntoView({block:'center'})`, and it has to:
+# an unscrolled target captures as a plausible black rectangle rather than an error. But that means
+# the gate has only ever been able to answer ONE question — *does this render correctly once you
+# reach it* — while silently implying the other: *can he reach it at all*.
+#
+# The contradiction that exposed it, 2026-09-01: this gate reported `taskforce 1120x628 painted 3/3
+# clipped 0 off 0 covered 0` while the LIVE console's own beat, in the same minute, reported
+# `taskforce BELOW-FOLD top=1050 vh=628`. Both were correct. The gate had scrolled to it first.
+# Two instruments disagreeing IS the finding. [[feedback-contradiction-is-the-finding]]
+#
+# ⚠ AND BELOW-FOLD IS NOT AUTOMATICALLY A DEFECT. A long page he can scroll is a page working. The
+# defect is the `.util-strip` shape: content placed where NOTHING CAN SCROLL TO IT — four buttons
+# at x=1165 on a 901px viewport with scrollWidth still 901, clipped rather than scrolled off, and
+# unreachable for three ships. So this reports three distinct states and fails on exactly one.
+_REACH = """(function(sel){
+  var e=document.querySelector(sel); if(!e) return null;
+  /* measure the LOAD position: undo this loop's own previous scrollIntoView, and every inner
+     scroller too, or we measure a leftover from the last viewport in WIDTHS. */
+  try{ window.scrollTo(0,0); }catch(_){}
+  var sc=null, p=e.parentElement;
+  while(p && p!==document.body){
+    var st=getComputedStyle(p);
+    if(/(auto|scroll)/.test(st.overflowY) && p.scrollHeight > p.clientHeight+1){
+      p.scrollTop=0; if(!sc) sc=p; }
+    p=p.parentElement; }
+  var r=e.getBoundingClientRect(), vh=innerHeight||0, vw=innerWidth||0;
+  if(r.width<1 && r.height<1) return {state:'ZERO-SIZE', top:0, h:0, vh:vh, max:0};
+  var on = r.top<vh && r.bottom>0 && r.left<vw && r.right>0;
+  var box = sc || document.scrollingElement || document.documentElement;
+  var max = Math.max(0, box.scrollHeight - box.clientHeight);
+  var state='ON-SCREEN';
+  if(!on){
+    /* how far must we travel to bring its TOP edge into the viewport */
+    var need = r.top - vh + Math.min(r.height, vh);
+    state = (max > 0 && max >= need - 2) ? 'BELOW-FOLD' : 'UNREACHABLE';
+  }
+  return {state:state, top:Math.round(r.top), h:Math.round(r.height), vh:vh,
+          max:Math.round(max), scroller: sc ? (sc.id||sc.className||'inner') : 'page'};
+})"""
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
@@ -915,6 +971,19 @@ def check(name, spec, shots=True):
                 out["ok"] = False
                 out["refusals"].append("%dx%d: %s" % (w, h, why_w))
                 continue
+            # ⚠ MEASURE REACHABILITY BEFORE SCROLLING TO IT — see _REACH. After the
+            # scrollIntoView below, every target is on screen by construction.
+            reach = tab.ev("%s(%s)" % (_REACH, json.dumps(spec["sel"])))
+            if isinstance(reach, dict):
+                out.setdefault("reach", {})["%dx%d" % (w, h)] = reach
+                if reach.get("state") == "UNREACHABLE":
+                    out["ok"] = False
+                    out["refusals"].append(
+                        "%dx%d: the panel is at y=%s in a %spx viewport and the %s scroller only "
+                        "travels %spx — it is not scrolled off, it is UNREACHABLE. Nothing he can "
+                        "do with a mouse brings it on screen."
+                        % (w, h, reach.get("top"), reach.get("vh"), reach.get("scroller"),
+                           reach.get("max")))
             tab.ev("(function(){var e=document.querySelector(%s); if(e) "
                    "e.scrollIntoView({block:'center'}); return 1;})()" % json.dumps(spec["sel"]))
             time.sleep(0.35)
@@ -1072,6 +1141,16 @@ def main(argv):
             _say("     %-9s painted %s/%s · clipped %s · off %s · covered %s · imgs %s/%s broken"
                  % (key, m.get("painted", 0), m.get("found", 0), m.get("clipped", 0),
                     m.get("off", 0), m.get("covered", 0), m.get("broken", 0), m.get("imgs", 0)))
+            rc = (r.get("reach") or {}).get(key)
+            if rc and rc.get("state") != "ON-SCREEN":
+                # BELOW-FOLD is REPORTED, not failed — a long page he can scroll is a page working.
+                # But it must be SAID, because "painted 3/3 clipped 0" reads as "he can see it".
+                _say("               ⓘ %s at load: y=%s in a %spx viewport (%s scroller travels "
+                     "%spx) — reachable by scrolling, not visible on arrival"
+                     % (rc["state"], rc.get("top"), rc.get("vh"), rc.get("scroller"), rc.get("max"))
+                     if rc["state"] == "BELOW-FOLD" else
+                     "               ⓘ %s at load: y=%s in a %spx viewport"
+                     % (rc["state"], rc.get("top"), rc.get("vh")))
             if m.get("text"):
                 _say("               text: %s" % m["text"][:96])
         for why in r["refusals"]:

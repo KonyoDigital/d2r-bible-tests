@@ -387,3 +387,36 @@ Grok Bot reads, disagrees, and queues. It does not edit. Claude owns the fix and
 | **GB-B-2** | HOLDS *writers* are gated, but ~289 possession claims already sitting in `d2r_owned` are undone by no gate. | **OPEN** — cleanup, not an open door. ⚠ `d2r_owned` is TESTIMONY; only he may overrule his own ticks. |
 | **GB-L-1** | HE-1 look — hovered cell matches tooltip item + true slot. | **UNKNOWN** 2026-09-01 — no `D2R.exe` on konyo-3. Re-run when the stash is open. |
 | **gh #186** | The eye's half of task 165 — the contract for what Claude may ask an eye to photograph. | **OPEN** |
+
+---
+
+## CF — THE CONSOLE'S OWN SEVEN (2026-09-01, from THE STATE OF THIS CONSOLE)
+
+He photographed the state panel and said *"task these in too.. im not sure your aware of them"*.
+I was not. These are the console reporting on itself, unprompted — the Heart working — and nothing
+was reading it. Two more (CF-6, CF-9) were found while grounding the first seven.
+
+- ◻ **CF-1 EXTRACTION LANES** — chronicle 4.8h and vault 7.9h since last work. ⚠ idle-with-owed-0
+  is a lane WORKING; the job is to report `owed` beside `lastWorkTs`, not to restart anything.
+- ◻ **CF-2 BOARD JOIN** — registering targets the CONSOLE window (`path=/`, no `chronicleApply`),
+  not the board. Same root as CF-8.
+- ◻ **CF-3 ENGINES CORROBORATE** — `eagle-ran-every-check` 32 rows vs 34 roster checks. ⚠ name the
+  two missing checks; a delta of 2 is not actionable, two names are. Suspect the instrument first.
+- ◻ **CF-4 CONSOLE UI FAULTS** — 3 self-heals in 24h; page beating while blank (11,817 elements vs
+  a high-water 84,541). ⚠ the self-heal converts a reproducible bug into an intermittent one —
+  capture the pre-rescue state BEFORE healing.
+- ◻ **CF-5 PROGRESS NUMBER** — two worlds claim him: `77f64154` 290 uniques vs `c5c2c92d` 280,
+  4.6 days apart, both sets=120. ⚠ HIS TICKS ARE TESTIMONY — do not resolve in code by preferring
+  the newer; that is already the behaviour being warned about. Route to truth is a GB-L brief.
+- ◻ **CF-6 GUEST-WORLD GROWTH** — `board_tally.json` holds ~150 routes and **exactly 2 have
+  non-zero counts**; ~148 are probe artifacts, one per CDP look, unbounded and unpruned. Same
+  mechanism that took `~/.grok/sessions` to 11 GB. Stop recording at the door, don't prune later.
+- ◻ **CF-7 FOOTAGE HAS A REEL** — 1 frame outside every reel. Small in bytes; the point is that a
+  frame CAN exist outside the structure that governs frames. `tv/orphan_fold.py` has the plan.
+- ◻ **CF-8 BOARD IS CLAIMED = UNKNOWN** — correct as written, do NOT turn it into a number. Worth
+  doing: surface the 110-of-110 same-world agreement as EVIDENCE for CF-5, and carry the last
+  known answer WITH ITS AGE instead of a bare UNKNOWN.
+- ✅ **CF-9 THE GATE'S VIEWPORTS** — render_check rendered four heights, all taller than his
+  660px window. Fixed v2406 (his real 1120x628 + a pre-scroll reachability probe). ⚠ STILL OPEN:
+  the fixture lays out differently from the live app (taskforce y=224/h=30 in the gate vs
+  y=1050/h=502 live), so that gate cannot cover layout-in-situ and must not claim to.
