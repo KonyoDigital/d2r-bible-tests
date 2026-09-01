@@ -204,6 +204,53 @@ def _say(msg):
     print(msg, flush=True)
 
 
+_CHROME_PROC = None          # set ONLY when this process spawned it — see _chrome_down
+
+
+def _chrome_down():
+    """Kill the scratch Chrome THIS process started. Never one it merely found.
+
+    ⚠ v2369 — THIS IS WHERE HIS MAC GOT HOT, TWICE. `_chrome_up` did a bare `subprocess.Popen`
+    and returned; nothing kept the handle, so when the python exited the browser was reparented
+    to init and ran forever. Measured on 2026-09-01: FOUR orphaned headless Chromes, one alive
+    for **1 day 11 hours**, another 15h47m, each holding a throwaway /var/folders profile. He
+    told me his machine was hot and it was mine. `console_doctor` records the same class before:
+    eight chrome-headless-shell processes found one morning.
+
+    ⚠ IT MUST ONLY KILL WHAT IT SPAWNED. `_chrome_up` returns True early when something is
+    already listening on the port, and that something may not be ours — killing a browser we
+    merely found is how a gate takes down the thing it was measuring. `_CHROME_PROC` is set on
+    the spawn path alone, so a found-not-started Chrome is left exactly where it was.
+
+    By PID, through the handle we hold. Never by name: `pkill -f` cannot tell his Chrome from a
+    scratch one. [[process-port-discipline]]
+    """
+    global _CHROME_PROC
+    p, _CHROME_PROC = _CHROME_PROC, None
+    if p is None:
+        return False
+    try:
+        if p.poll() is None:
+            p.kill()
+        try:
+            p.wait(timeout=5)
+        except Exception:
+            # a child that outlived its kill deadline is reaped off-thread rather than left
+            # <defunct> — the same mistake REG-432 fixed elsewhere in this tree
+            import threading
+            threading.Thread(target=(lambda pr: pr.wait()), args=(p,), daemon=True).start()
+        return True
+    except Exception:
+        return False
+
+
+try:
+    import atexit as _atexit
+    _atexit.register(_chrome_down)          # backstop only: a KILLED parent never runs atexit,
+except Exception:                           # which is why the caller also tears down explicitly
+    pass
+
+
 def _chrome_up():
     """A scratch Chrome on 9224+, per chrome-cdp-mac. Returns True when CDP answers."""
     import urllib.request
@@ -216,7 +263,8 @@ def _chrome_up():
         return False
     prof = os.path.join(SHOTS, "chrome-profile")
     os.makedirs(prof, exist_ok=True)
-    subprocess.Popen(
+    global _CHROME_PROC
+    _CHROME_PROC = subprocess.Popen(
         [CHROME, "--headless=new", "--remote-debugging-port=%d" % PORT,
          "--user-data-dir=" + prof, "--no-first-run", "--no-default-browser-check",
          "--disable-gpu", "--window-size=1440,1300",
@@ -784,4 +832,11 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    # ⚠ TEAR IT DOWN HERE TOO, NOT ONLY IN atexit. The gate is routinely run under a hard time
+    # bound (`perl -e 'alarm N; exec @ARGV'` — `timeout` is not installed on this Mac), and a
+    # process killed by a signal never runs its atexit handlers. That is precisely how four
+    # headless Chromes survived, one of them for a day and a half.
+    try:
+        sys.exit(main(sys.argv[1:]))
+    finally:
+        _chrome_down()

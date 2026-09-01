@@ -4756,7 +4756,14 @@ def _win_tint_caption():
 # that should ever be pruned. TV_STUB is the seam the tree already uses for exactly this
 # (control_app.py:1041 sets it, g5_grok_eyes honours it since v1519).
 # [[feedback-fixtures-never-touch-live-data]]
-_HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention")
+# ⚠ v2369 — AND THE TRIAGE LANE, WHICH I SHIPPED IN v2367 WITHOUT ADDING IT HERE.
+# It is a worse offender than the three above: HIST_DIR honours TV_HIST, so under a
+# harness it would survey FIXTURE reels — while retro_triage's store path does not,
+# so it would write those fixture verdicts into his REAL retro_triage.json. A gate run
+# would then teach the live store that his reels hold no panels.
+# [[feedback-fixtures-never-touch-live-data]]
+_HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
+                      "tvd-retro-triage")
 
 
 def start_background_watchers(why):
@@ -20865,7 +20872,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2368",
+        "ver": "v2369",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -22439,9 +22439,20 @@ class TestV2080TheHarnessDoesNotRunTheACTINGWatchers(unittest.TestCase):
         import control_app
         return control_app
 
-    def test_the_three_ACTING_watchers_stand_down_under_TV_STUB(self):
-        """They are the three that DECIDE something about his world: what is out of sync, whether to
-        relaunch, and what to delete. A fixture world has nothing to be out of sync with."""
+    def test_the_ACTING_watchers_stand_down_under_TV_STUB(self):
+        """They are the ones that DECIDE something about his world: what is out of sync, whether to
+        relaunch, what to delete, and — since v2369 — which reels are worth paying to read. A
+        fixture world has nothing to be out of sync with.
+
+        ⚠ v2369 ADDED THE FOURTH, AND IT WAS THE WORST OFFENDER OF THE SET. tvd-retro-triage
+        shipped in v2367 without being listed here. HIST_DIR honours TV_HIST, so under a harness
+        it surveyed FIXTURE reels — while retro_triage's store path did NOT, so those verdicts
+        were written into his real tv/retro_triage.json. Found there afterwards: reel_s_2_2 and
+        reel_s_3_0, fixture names straight out of this file. A gate run was teaching the live
+        store that his reels hold no panels, which is exactly the reading that stops one being
+        read again. Both halves are closed — the watcher stands down, and the store follows
+        TV_HIST — and the two fixture rows were purged.
+        [[feedback-fixtures-never-touch-live-data]]"""
         prev = os.environ.get("TV_STUB")
         os.environ["TV_STUB"] = "1"
         self.addCleanup(lambda: os.environ.__setitem__("TV_STUB", prev) if prev
@@ -22449,7 +22460,8 @@ class TestV2080TheHarnessDoesNotRunTheACTINGWatchers(unittest.TestCase):
         with inert_roster() as start:
             r = start("harness-test")
         self.assertEqual(set(r["stoodDown"]),
-                         {"tvd-eagle-watch", "tvd-version-drift", "tvd-retention"})
+                         {"tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
+                          "tvd-retro-triage"})
         for name in r["stoodDown"]:
             self.assertNotIn(name, r["started"])
 
@@ -22464,7 +22476,15 @@ class TestV2080TheHarnessDoesNotRunTheACTINGWatchers(unittest.TestCase):
             r = start("harness-test")
         for name in ("tvd-chron-autoread", "tvd-rolling-prune", "tvd-ledger-backup",
                      "tvd-space-warden", "tvd-stash-watch"):
-            self.assertIn(name, r["started"] + list(r.get("stoodDown") or []))
+            # ⚠ ASK THE ROSTER, NOT `started`. The arming loop skips any watcher whose thread
+            # is ALREADY LIVE (`if name in live: continue`), so a watcher a previous test in
+            # this class started is in NEITHER list — and this read as "it is not in the
+            # roster". That made the case depend on unittest's alphabetical ordering: it
+            # passed only while it happened to run BEFORE the stand-down case. Renaming that
+            # case from `test_the_three_ACTING...` to `test_the_ACTING...` in v2369 moved it
+            # ahead of this one and turned this red, with nothing wrong in either test.
+            # `roster` is what the question was always about and it does not move.
+            self.assertIn(name, r.get("roster") or [])
             self.assertNotIn(name, r["stoodDown"])
 
     def test_without_TV_STUB_every_watcher_runs(self):
@@ -36817,6 +36837,68 @@ class TestV2368BumpClearsItsOwnStaleBytecode(unittest.TestCase):
         self.assertIn("except Exception", blk,
                       "an unclearable cache now aborts the bump; it should warn, not fail")
 
+
+
+class TestV2369TheDockStaticReservesWhatTheDockMeasures(unittest.TestCase):
+    """--dock-h governs from first paint until a ResizeObserver overwrites it, so a static that
+    under-claims is not a corner case — it is how every narrow page load begins, and it lasts
+    longer on a loaded machine.
+
+    MEASURED on the seeded Sessions tab (real dock height / settled --dock-h):
+        375px 213/219   430px 219/225   560px 213/219   640px 172/178   700px 142/148
+    The old static said 118px for all of it. `.inbox-sticky.has` caps itself with
+    `calc(100vh - var(--hdr-h) - var(--dock-h) - 48px)`, so the shortfall became panel height:
+    at 375px the panel ran to 674 against a dock starting at 587, and four of its buttons
+    hit-tested to .dock-inner. Sabotaging the static back to 118px reproduces 2-4 dead controls
+    at 375/560/640, which is why this asserts a FLOOR rather than an exact number.
+    [[visual-regression-detector]] [[stale-reading]]"""
+
+    BANDS = ((600, 225), (700, 178))     # (media max-width, worst dock MEASURED in that band)
+
+    def _css(self):
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
+        if not os.path.isfile(p):
+            self.skipTest("bible.html is not on this machine")
+        return open(p, encoding="utf-8").read()
+
+    def _dock_h_in(self, css, width):
+        """The --dock-h declared inside `@media (max-width: <width>px)`, by ANCHORED slice.
+
+        Byte-counted windows are refused in this tree; this walks braces from the query so it
+        cannot read a neighbouring block's number and call it this one's."""
+        head = "@media (max-width: %dpx){" % width
+        self.assertIn(head, css, "the %dpx band is gone; this guard is measuring nothing" % width)
+        i = css.index(head) + len(head)
+        depth, j = 1, i
+        while j < len(css) and depth:
+            if css[j] == "{": depth += 1
+            elif css[j] == "}": depth -= 1
+            j += 1
+        block = css[i:j]
+        m = re.search(r"--dock-h:\s*(\d+)px", block)
+        self.assertTrue(m, "no --dock-h inside the %dpx band" % width)
+        return int(m.group(1)), css.index(head)
+
+    def test_neither_static_claims_less_than_the_dock_measures(self):
+        css = self._css()
+        for width, measured in self.BANDS:
+            got, _ = self._dock_h_in(css, width)
+            self.assertGreaterEqual(
+                got, measured,
+                "@media (max-width:%dpx) reserves %dpx for a dock measured at %dpx — the "
+                "inbox panel will be %dpx too tall until the observer fires, and its last "
+                "rows land under the dock" % (width, got, measured, measured - got))
+
+    def test_the_narrow_band_is_declared_LAST_or_it_never_applies(self):
+        """Equal specificity: 600px is inside 700px, so source order is the whole mechanism.
+        Move the 600px block above the 700px one and its value is silently overruled at every
+        width it covers — with both numbers still correct in isolation."""
+        css = self._css()
+        _, at600 = self._dock_h_in(css, 600)
+        _, at700 = self._dock_h_in(css, 700)
+        self.assertGreater(at600, at700,
+                           "the 600px band is declared BEFORE the 700px band, so the 700px "
+                           "value wins below 600px and the tall-dock reserve never applies")
 
 
 if __name__ == "__main__":

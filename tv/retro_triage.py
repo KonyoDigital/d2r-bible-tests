@@ -48,7 +48,22 @@ STORE = "retro_triage.json"
 
 
 def _store_path(root=None):
-    return os.path.join(root or os.path.dirname(os.path.abspath(__file__)), STORE)
+    """Where the survey is remembered. Honours TV_HIST so a harness cannot write the live store.
+
+    ⚠ THE LANE READS A REDIRECTED WORLD AND WROTE A REAL ONE. `control_app.HIST_DIR` honours
+    TV_HIST, so under a test harness `survey()` walks FIXTURE reels — but this path did not, so
+    those fixture verdicts landed in the real `tv/retro_triage.json`. A gate run would have
+    taught the live store that his reels hold no panels, and `worth_reading` would then skip them
+    for good. Standing the watcher down in a harness (v2369) closes the loop that mattered; this
+    closes it for anything that calls survey() directly too.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+    if root:
+        return os.path.join(root, STORE)
+    hist = os.environ.get("TV_HIST")
+    if hist:
+        return os.path.join(hist, STORE)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), STORE)
 
 
 def load(root=None):

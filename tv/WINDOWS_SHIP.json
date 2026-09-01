@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2368",
+  "ver": "v2369",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2368: the engine said hold which means put it in front of him",
+  "note": "v2369: the narrow-width --dock-h static claimed 118px for a dock measuring 142-219px, so the inbox panel ran under the dock until a ResizeObserver corrected it; render_check now owns its Chrome by PID; the retro-triage lane stands down in a harness",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

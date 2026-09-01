@@ -18882,7 +18882,10 @@ try { window.D2R_INBOX_FOLD = D2R_INBOX_FOLD; } catch(e){}
      settled           retire    already in his ledger — there was never a decision here
      truncated         retire    the reader is quoting its own damage ("Firel...")
      base              retire    the game prints a BASE name for a row he has NOT found (v1793)
-     base-conflict     hold      the game says unfound, his ledger says found — the contradiction
+     base-conflict     dismiss   the game says unfound, his ledger says found — the contradiction
+                                 is RECORDED (the verdict survives) but it is not a question: a grey
+                                 BASE is not something he can chronicle or vault. v2368, his words:
+                                 "it doesnt require me to do something and vault/chronicle it"
      find              hold      a real roster item he does not have — genuinely his call
      misread-settled   retire    a slip of an item he ALREADY has: "Battlecage" -> Rattlecage
      misread-open      hold      a slip of a real item he does NOT have — shown as the REAL item
@@ -18942,9 +18945,14 @@ window.d2rInboxEngine = function(row){
     var owned = u.owned.concat(sp.owned);
     out.name = canon; out.canonical = canon;
     if (known && !missing.length && owned.length){
-      /* THE ONE CASE THAT MUST NOT BE SWALLOWED. The panel called this base unfound and the board
-         says he owns every unique built on it; both cannot be true, and dismissing it destroys the
-         only evidence the disagreement exists. The contradiction IS the finding. */
+      /* THE CONTRADICTION IS STILL THE FINDING — IT IS JUST NOT A QUESTION FOR HIM.
+         The panel called this base unfound and the board says he owns every unique built on it;
+         both cannot be true. This comment used to end "dismissing it destroys the only evidence
+         the disagreement exists", and that was right about the DANGER and wrong about the FIX:
+         it is the evidence that must survive, not the prompt. `verdict`, `owned` and `why` are
+         all still returned, and the scan records it in `conflicts` — what changed in v2368 is
+         only that it no longer lands on his screen asking him to chronicle or vault a grey base.
+         Preserving a finding and interrogating him about it are different things. */
       /* ══ v2368 — A BASE IS NOT A DECISION HE CAN BE HANDED ═══════════════════════════════
          Konyo: "the inbox shouldnt be showing me base items at all it should default hide them
          and throw them out. it doesnt require me to do something and vault/chronicle it."
@@ -32480,7 +32488,24 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
   .control-dock .slider-group input[type=range]{ width:118px; }
 }
 @media (max-width: 700px){
-  :root{ --dock-h: 118px; }
+  /* ⚠ v2369 — 118px WAS A STALE STATIC, AND IT UNDER-RESERVED ON EVERY NARROW LOAD.
+     `--dock-h` is overwritten by a ResizeObserver on #control-dock, so this value governs from
+     first paint until that observer fires — which is not a corner case, it is how every page
+     load at this width begins, and it lasts longer on a loaded machine.
+     MEASURED on the seeded Sessions tab (real dock height / settled --dock-h):
+         375px 213/219   430px 219/225   560px 213/219   640px 172/178   700px 142/148
+     i.e. this rule claimed 118px for a dock that is 142-219px tall — short by 24 to 101px.
+     The cost is not cosmetic: `.inbox-sticky.has` caps itself with
+     `calc(100vh - var(--hdr-h) - var(--dock-h) - 48px)`, so a 101px under-reserve made the panel
+     101px too tall and its last rows were painted UNDER the fixed dock. The pre-push render gate
+     caught exactly that — `"Both"` and `"ignore"` unreachable at 375x800, under .dock-handle —
+     and it had been passing when the machine was idle and the observer won the race. An
+     intermittently-red gate is worse than a reliably-red one; this removes the race rather than
+     the symptom.
+     Two steps because one number cannot fit a 142-219px spread, and each is the WORST CASE in
+     its band: over-reserving only adds bottom padding for a few frames, while under-reserving
+     puts controls under the dock. [[visual-regression-detector]] [[stale-reading]] */
+  :root{ --dock-h: 180px; }
   body{ padding-bottom: calc(var(--dock-h) + 22px); }
   .control-dock{ padding:0 8px 8px; }
   /* lift the bottom-corner widgets above the taller mobile dock; the nav compass
@@ -32488,6 +32513,13 @@ body{ padding-bottom: calc(var(--dock-h, 84px) + 64px); }
   .nav-widget{ bottom: calc(var(--dock-h) + 62px) !important; }
   .help-btn{ bottom: calc(var(--dock-h) + 12px) !important; }
   #v42-tz-countdown{ bottom: calc(var(--dock-h) + 12px) !important; }
+}
+/* the tall band. MUST stay below the 700px rule — equal specificity, last declaration wins.
+   It carries ONLY the override: the first cut of this edit closed the block early and swept
+   the three widget lifts above into it, which would have dropped their !important lift across
+   601-700px without changing a single line of their own. [[d2r-css-last-rule-wins]] */
+@media (max-width: 600px){
+  :root{ --dock-h: 225px; }
 }
 @media print{ .control-dock{ display:none !important; } body{ padding-bottom:0 !important; } }
 
@@ -48001,7 +48033,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2368', name:'v2368 - A base is thrown out not asked about', date:'2026-09-01', note:'the engine said hold which means put it in front of him' };
+  window.D2R_BUILD = { id:'v2369', name:'v2369 - The dock reserves what it measures', date:'2026-09-01', note:'the narrow-width --dock-h static claimed 118px for a dock measuring 142-219px, so the inbox panel ran under the dock until a ResizeObserver corrected it; render_check now owns its Chrome by PID; the retro-triage lane stands down in a harness' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
