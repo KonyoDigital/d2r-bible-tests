@@ -177,3 +177,10 @@ tv/.eagle_last.json
 # v2395 — the human-eyes harness ledger. A RUNTIME DECISION RECORD like .second_eye.jsonl and
 # .console_scars.json: written as briefs are sent and answered, never carried by git.
 tv/.human_eyes.jsonl
+
+# v2399 — DIAGNOSTIC SCREENSHOTS OF HIS SCREEN NEVER GO IN A PUBLIC REPO.
+# v2398 pushed 12 he2_*.png (8.9 MB) of his desktop, dock and windows to a PUBLIC repo, and v2399
+# was about to add a 13th at 4.1 MB. Nothing in the tree references any of them — they are debug
+# artifacts of the human-eyes work, the same class the mobile_audit_* rules above already cover.
+tv/he2_*.png
+tv/he_*.png
