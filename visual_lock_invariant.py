@@ -19,6 +19,7 @@ Run:  python3 visual_lock_invariant.py        (exit 0 = locked · exit 1 = drift
 CI:   add to any gate — no deps, pure stdlib, ~instant.
 Docs: LOCKED_TYPE_SYSTEM.md
 """
+import json
 import os
 import re
 import sys
@@ -59,74 +60,153 @@ RAW_WEIGHT = re.compile(r"font-weight: *[0-9]+")   # spaced or not; !important-a
 RAW_SHORTHAND = re.compile(r"font: *(?:400|500|600|700|800|900)\b")
 
 
-# ── SIZE-LOCK (v2405) — the twin promise that was never gated ────────────────────────────────
-# The weight promise above is enforced: ZERO raw font-weight literals, both surfaces. The SIZE
-# promise was made in exactly the same breath — nine --fs-* tokens from --fs-2xs to --fs-display —
-# and nothing ever checked it. Measured on 2026-09-01:
+# ── SIZE-LOCK (v2405, rebuilt v2406 after a cold cross-family read) ─────────────────────────────
 #
-#     tv/control_ui.html    raw  20 · tokenised 152 · 88% compliant
-#     bible.html            raw 952 · tokenised 694 · 42% compliant
+# The weight promise is enforced: ZERO raw font-weight literals on both surfaces. The SIZE promise
+# was made in the same breath — nine --fs-* tokens — and nothing checked it until v2405.
 #
-# Nine of the console's twenty are arbitrary em fractions — .78 .8 .82 .86 .9 .92 .95 1.05 1.08 —
-# each meaning nothing more than "slightly smaller or bigger than whatever contains me". That is
-# what reads as "no scale" on screen while a perfectly good scale sits in the tokens.
+# ⚠ v2405 SHIPPED THIS RULE OVER ONLY ONE OF THE TWO SURFACES, AND THE REASON WAS A NUMBER I NEVER
+# CHECKED. I wrote that grandfathering bible.html "would be a 952-entry allowlist, which is not a
+# lock, it is a wall of debt with a green light on it", and excluded it. A cold review asked whether
+# that was defensible or "the rule quietly failing where the problem is worst". It was the latter,
+# and one measurement settled it: 952 is the number of SITES. The number of DISTINCT VALUES is 136.
+# 136 is enumerable. The exclusion was reasoning from the wrong quantity — a count of occurrences
+# standing in for a count of things to decide about. [[feedback-suspect-the-instrument]]
 #
-# ⚠ SCOPED TO THE CONSOLE ON PURPOSE, AND THIS IS A DECISION NOT AN OVERSIGHT. bible.html has 952
-# raw sizes; grandfathering them would be a 952-entry allowlist, which is not a lock, it is a wall
-# of debt with a green light on it. The two surfaces are in genuinely different states: the
-# console's promise DECAYED from mostly-kept, the bible's was NEVER MADE. Locking the one that can
-# hold, and recording the other honestly, beats pretending both are the same problem.
+# The same review caught a real hole: `font: var(--fw-bold) 1.05em/1 var(--serif)` sets a SIZE that
+# a `font-size:`-only pattern never sees. The weight rule has carried RAW_SHORTHAND since v1324 for
+# exactly this reason on its own axis; the size rule shipped without the equivalent. Measured: 6
+# such sites on the console, 21 on the bible.
 #
-# ⚠ AND THE 19 ARE GRANDFATHERED BY NAME, NOT BY COUNT. A count pin ("no more than 20") is the
-# defect regression-guard warns about — it pins a number instead of the law, and it happily lets a
-# new escape in as an old one leaves. This pins the LAW (no raw font-size) and lists the exceptions
-# that exist today, so a NEW one fails even if an old one is fixed in the same commit.
+# It also claimed calc()/clamp() slip past. They do not — anything not starting `var(--fs` fails, so
+# the rule FAILS CLOSED. Verified by planting `calc(1em + 2px)` and `clamp(9px,1vw,11px)`: both
+# caught. Recorded because a refuted finding is worth as much as a confirmed one.
+#
+# ── TWO SURFACES, TWO INSTRUMENTS, ON PURPOSE ──
+#
+#   tv/control_ui.html  15 values / 20 sites  — ENUMERATED, each with a written reason and a CAP.
+#   bible.html         136 values / 1039 sites — a RATCHET in size_debt.json: no new value, and no
+#                       existing value may grow. Generated, not hand-written.
+#
+# ⚠ A CAP, NOT A BARE ALLOWLIST — this is the review's sharpest point and it was right. v2405
+# allowed a value ANYWHERE once it appeared once, so `.78em` (justified for 3 sites in the receipt
+# strip) was silently licensed for the whole file, and the exceptions could never be driven down.
+# Pinning the COUNT means a new use fails even though the value is known.
+#
+# ⚠ AND A COUNT IS A RATCHET, NOT A LAW. A count pin cannot tell a new escape from an old one moving
+# — remove one `.78em` and add another elsewhere and this still passes. That is the exact weakness
+# [[regression-guard]] warns about, so it is named here rather than papered over. It is the right
+# tool for DEBT (which only has to shrink) and the wrong tool for a LAW. The law is "no raw
+# font-size"; these numbers are the distance still to travel.
 RAW_SIZE = re.compile(r"font-size: *([^;}\n]+)")
+#: the SHORTHAND's size slot — `font: <weight> <size>/<lh> <family>`. Boundary-anchored to a real
+#: size token so `font: var(--fw-bold) var(--fs-sm)/1 …` never matches.
+RAW_SHORTHAND_SIZE = re.compile(r"font: *([^;}\n]+)")
+_SIZE_TOKEN = re.compile(r"(clamp\([^)]*\)|[0-9]*\.?[0-9]+(?:px|em|rem|%|pt))")
 
-#: value -> how many sites currently carry it, in tv/control_ui.html. Anything not here FAILS.
-#: `0` is not debt — it is the inline-block whitespace collapse, allowlisted WITH ITS REASON the
-#: same way render_check's truncation_ok allowlists a designed truncation.
-SIZE_GRANDFATHERED = {
-    "0": "inline-block whitespace collapse on .zone — a technique, not a scale escape",
-    ".78em": "3 sites in the receipt strip (.rcpt) — em fractions, see the conversion note",
-    ".8em": "1 site, .hd-hist-head:focus-visible",
-    ".82em": "1 site, #rcpt-full img",
-    ".86em": "1 site, .chron-waiting:hover .cw-go",
-    ".9em": "1 site, .rcpt",
-    ".92em": "1 site, .dfp-farm",
-    ".95em": "1 site, .find-card .fc-name",
-    "1.05em": "4 sites, .dl-trace / .bt / .dsr-chap:hover / .dsr-recov",
-    "1.08em": "1 site, .zone-banner:first-child",
-    "28px": "1 site, .stage-hold[hidden]",
-    "34px": "1 site, .hd-hist-empty",
-    "44px": "1 site, .dsr-cover-fb",
-    "56px": "1 site, .sh-empty-hero",
-    "clamp(26px,3vw,40px)": "1 site, .intake-hero[hidden]",
+DEBT_PATH = os.path.join(ROOT, "size_debt.json")
+
+#: value -> (cap, why). Exceeding the cap fails even though the value is known.
+CONSOLE_SIZES = {
+    "0":                    (1, "inline-block whitespace collapse on .zone — a technique, not a size"),
+    ".78em":                (3, "the receipt strip (.rcpt) — em fractions, see the conversion note"),
+    ".8em":                 (1, ".hd-hist-head:focus-visible"),
+    ".82em":                (1, "#rcpt-full img"),
+    ".86em":                (1, ".chron-waiting:hover .cw-go"),
+    ".9em":                 (1, ".rcpt"),
+    ".92em":                (1, ".dfp-farm"),
+    ".95em":                (1, ".find-card .fc-name"),
+    "1.05em":               (4, ".dl-trace / .bt / .dsr-chap:hover / .dsr-recov"),
+    "1.08em":               (1, ".zone-banner:first-child"),
+    "28px":                 (1, ".stage-hold[hidden]"),
+    "34px":                 (1, ".hd-hist-empty"),
+    "44px":                 (1, ".dsr-cover-fb"),
+    "56px":                 (1, ".sh-empty-hero"),
+    "clamp(26px,3vw,40px)": (1, ".intake-hero[hidden]"),
+    "font:1.05em":                  (1, "shorthand, .bt — the size rides in the font: slot"),
+    "font:12px":                    (1, "shorthand"),
+    "font:clamp(15px,1.6vw,20px)":  (1, "shorthand, a display heading"),
+    "font:clamp(17px,1.65vw,21px)": (1, "shorthand, a display heading"),
+    "font:clamp(17px,1.8vw,23px)":  (1, "shorthand, a display heading"),
+    "font:clamp(19px,2.1vw,27px)":  (1, "shorthand, a display heading"),
 }
 #: ⚠ CONVERTING AN em IS NOT A LOOKUP. `.78em` is 78% of whatever its parent computes to, and that
-#: parent differs per site and per viewport, so swapping it for a --fs-* clamp changes the rendered
-#: size SILENTLY. Each of these is converted deliberately, with the page rendered before and after
-#: at 1440/1120/901/375 and compared — never by find-and-replace. A find-and-replace here would be
-#: a visual regression wearing a tidy diff. [[visual-regression-detector]]
+#: parent differs per site and per viewport — swapping it for an --fs-* clamp changes the rendered
+#: size SILENTLY. Each is converted deliberately, rendered at 1440/1120/901/375/1120x628 before and
+#: after and COMPARED. A find-and-replace here is a visual regression wearing a tidy diff.
+#: [[visual-regression-detector]]
 
 
-def _sizes_are_tokenised(text, failures, surface):
-    """Only tv/control_ui.html — see the scoping note above."""
-    if surface != "tv/control_ui.html":
-        return
+def _debt_size():
+    try:
+        with open(DEBT_PATH, encoding="utf-8") as fh:
+            return len((json.load(fh) or {}).get("bible.html") or {})
+    except Exception:
+        return -1          # -1 reads as "could not be established", never as zero
+
+
+def _raw_sizes(text):
+    """-> Counter of normalised raw size values, from BOTH `font-size:` and the `font:` shorthand."""
+    import collections
+    c = collections.Counter()
     for m in RAW_SIZE.finditer(text):
         v = m.group(1).strip()
         if v.startswith("var(--fs"):
             continue
-        key = re.sub(r"\s+", "", v)
-        if key in SIZE_GRANDFATHERED:
+        c[re.sub(r"\s+", "", v)] += 1
+    for m in RAW_SHORTHAND_SIZE.finditer(text):
+        d = m.group(1)
+        if "var(--fs" in d:
             continue
-        line = text[:m.start()].count("\n") + 1
-        failures.append(
-            "%s:%d — raw font-size `%s`. Every size on this surface must be a var(--fs-*) token, "
-            "exactly as every weight must be a var(--fw-*) one. If this is a genuinely new step in "
-            "the scale, ADD THE TOKEN; if it is a technique rather than a size, add it to "
-            "SIZE_GRANDFATHERED with the reason." % (surface, line, v))
+        mm = _SIZE_TOKEN.search(d)
+        if mm:
+            c["font:" + re.sub(r"\s+", "", mm.group(1))] += 1
+    return c
+
+
+def _sizes_are_tokenised(text, failures, surface):
+    got = _raw_sizes(text)
+    if surface == "tv/control_ui.html":
+        for v, n in sorted(got.items()):
+            cap = CONSOLE_SIZES.get(v)
+            if cap is None:
+                failures.append(
+                    "%s: raw font-size `%s` (x%d) — every size here must be a var(--fs-*) token, "
+                    "exactly as every weight must be var(--fw-*). If it is a genuinely new step in "
+                    "the scale, ADD THE TOKEN; if it is a technique rather than a size, add it to "
+                    "CONSOLE_SIZES with its reason and cap." % (surface, v, n))
+            elif n > cap[0]:
+                failures.append(
+                    "%s: raw font-size `%s` used %d time(s), capped at %d (%s). The value is known "
+                    "debt, not a licence — a new site must use a token even where an old one does "
+                    "not." % (surface, v, n, cap[0], cap[1]))
+        return
+    if surface == "bible.html":
+        # THE RATCHET. Generated snapshot; it may shrink freely and may never grow.
+        try:
+            with open(DEBT_PATH, encoding="utf-8") as fh:
+                base = (json.load(fh) or {}).get("bible.html") or {}
+        except Exception as e:
+            failures.append("bible.html: size_debt.json could not be read (%s) — that is UNKNOWN, "
+                            "not a clean surface. Regenerate with --snapshot and review the diff."
+                            % e)
+            return
+        for v, n in sorted(got.items()):
+            was = base.get(v)
+            if was is None:
+                failures.append(
+                    "bible.html: NEW raw font-size `%s` (x%d). This surface is under a debt "
+                    "RATCHET: the 136 values already here are recorded and may only shrink, but a "
+                    "value that was not there before must be a var(--fs-*) token." % (v, n))
+            elif n > was:
+                failures.append(
+                    "bible.html: raw font-size `%s` grew from %d to %d site(s). The ratchet only "
+                    "turns one way." % (v, was, n))
+        paid = sorted(k for k, v0 in base.items() if got.get(k, 0) < v0)
+        if paid:
+            print("   \u2139  size debt paid on %d value(s) since the snapshot (%s%s) — rerun with "
+                  "--snapshot to tighten the ratchet."
+                  % (len(paid), ", ".join(paid[:4]), " \u2026" if len(paid) > 4 else ""))
 
 
 def _colour_carries_meaning(text, failures):
@@ -391,9 +471,10 @@ def main():
     print("✅ VISUAL-LOCK OK — 0 raw font-weight literals in both surfaces; "
           "--fw-* intact; console --hd-* structure rhythm + --ls-*/--lh-* scales defined "
           "(both surfaces share one vocabulary). Weight, structure, spacing + line-height are all locked. "
-          "SIZE-LOCK: the console admits no raw font-size beyond the %d grandfathered values — "
-          "bible.html is NOT size-locked (952 raw sizes, 42%%; recorded, not hidden)."
-          % len(SIZE_GRANDFATHERED))
+          "SIZE-LOCK: the console admits no raw font-size beyond %d capped values (%d sites), and "
+          "bible.html is under a debt RATCHET of %d recorded values — new values refused, existing "
+          "ones may only shrink. Both cover the `font:` shorthand's size slot."
+          % (len(CONSOLE_SIZES), sum(c for c, _ in CONSOLE_SIZES.values()), _debt_size()))
     return 0
 
 
