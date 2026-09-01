@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2378",
+  "ver": "v2379",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2378: MINI AUTOMATIC moved out of ADVANCED, the labels stopped contradicting the engine, and control_ui got its first render coverage",
+  "note": "v2379: the one item that went right, pinned on his own reels",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

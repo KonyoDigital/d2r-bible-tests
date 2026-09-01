@@ -2597,5 +2597,81 @@ class TestV2370TheSurfaceShadowIsJOINED(unittest.TestCase):
                                  "built so that cannot happen; a weaker gate in stricter clothing")
 
 
+class TestV2379TarnhelmRoutesITSELFOnTheSecondWitness(unittest.TestCase):
+    """The one item that went right, turned into a guard — on HIS OWN reels.
+
+    Konyo, 2026-09-01: "i just saw tarnhelm in my inbox and it correctly registered it hile in
+    shadow mode.. the extraction and everything and read correctly.. i just tallied it to my
+    chronicle(NOT MY VAULT)" — and then the ask this case exists for: "i did it.. so that next
+    step if i had not have tallied it manually i want the enxt parrt automated too.. like lets say
+    for example it did get that second witness run tests and simulation and demonstrations using
+    that exact example wit hthose exact reels images."
+
+    TRACED FROM HIS LIVE BOARD STORE:
+        session   s_1788213593006_73234        shadow reel, unattended
+        frame     f_1788213611266.jpg
+        loc       null            <- no container evidence, so it may never claim the vault
+        gate      HELD "only 1 independent witness (cross-frame) — needs 2"
+
+    A WITNESS IS A KIND OF INDEPENDENCE, NOT A SIGHTING. cross-lane · cross-reel · cross-reel-3+ ·
+    cross-frame (two frames inside ONE reel) · printed. Two sightings in two reels is ONE witness
+    (cross-reel), which is why his 58 sightings still read as one — and this case pins that,
+    because it looks like a contradiction on screen and is not."""
+
+    REEL_A = "reel_s_1788213593006_73234"      # his Tarnhelm reel
+    REEL_B = "reel_s_1788210216752_34991"      # a different real session of his
+    FRAME_A1 = "f_1788213611266.jpg"           # the frame that actually read it
+    FRAME_A2 = "f_1788213640000.jpg"
+    FRAME_B1 = "f_1788210260510.jpg"
+
+    def _s(self, reel, frame, lane="claude"):
+        return {"reel": reel, "frame": frame, "lane": lane, "conf": 0.9,
+                "loc": None, "witness": "none"}
+
+    def _today(self):
+        return [self._s(self.REEL_A, self.FRAME_A1), self._s(self.REEL_A, self.FRAME_A2)]
+
+    def test_his_ACTUAL_state_is_held_for_him(self):
+        """Reproduces the sentence on his screen, from his own reel."""
+        sg = self._today()
+        self.assertEqual(cr.witnesses(sg), ["cross-frame"])
+        v = cr.gate_verdict("Tarnhelm", sg)
+        self.assertFalse(v["pass"])
+        self.assertIn("needs 2", v["why"])
+
+    def test_a_second_SESSION_lets_it_register_ITSELF(self):
+        sg = self._today() + [self._s(self.REEL_B, self.FRAME_B1)]
+        self.assertEqual(cr.witnesses(sg), ["cross-frame", "cross-reel"])
+        v = cr.gate_verdict("Tarnhelm", sg)
+        self.assertTrue(v["pass"], v.get("why"))
+        out = cr.apply_proposal({"uniques": {"Tarnhelm": sg}}, existing={}, gate=cr.strict_gate())
+        self.assertEqual([h.get("name") for h in (out.get("held") or [])], [],
+                         "with two witnesses it still waits for him — the automatic half is dead")
+
+    def test_a_second_LANE_does_it_too(self):
+        """Different reader, same reel. Independence does not have to mean a new session."""
+        sg = [self._s(self.REEL_A, self.FRAME_A1),
+              self._s(self.REEL_A, self.FRAME_A2, lane="live")]
+        self.assertEqual(cr.witnesses(sg), ["cross-frame", "cross-lane"])
+        self.assertTrue(cr.gate_verdict("Tarnhelm", sg)["pass"])
+
+    def test_it_can_NEVER_route_to_the_vault_however_many_witnesses(self):
+        """The half he cares most about: loc is null, so it proves he FOUND it, never that he
+        HOLDS it. apply_proposal has no vault path at all — this pins that it stays that way."""
+        sg = self._today() + [self._s(self.REEL_B, self.FRAME_B1)]
+        out = cr.apply_proposal({"uniques": {"Tarnhelm": sg}}, existing={}, gate=cr.strict_gate())
+        self.assertNotIn("vault", " ".join(out.keys()).lower(),
+                         "apply_proposal grew a vault channel — a chronicle sighting with no "
+                         "container must never become a claim that he HOLDS the item")
+        self.assertIn("uniques", out)
+
+    def test_two_reels_is_ONE_witness_not_two(self):
+        """Why his 58 sightings still read as a single witness. Counting sightings instead of
+        KINDS would let one repeated misread ground a name on its own."""
+        sg = [self._s(self.REEL_A, self.FRAME_A1), self._s(self.REEL_B, self.FRAME_B1)]
+        self.assertEqual(cr.witnesses(sg), ["cross-reel"])
+        self.assertFalse(cr.gate_verdict("Tarnhelm", sg)["pass"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
