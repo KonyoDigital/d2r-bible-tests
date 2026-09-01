@@ -38372,6 +38372,114 @@ class TestV2394NoTestWritesIntoHisLiveSurveyStore(unittest.TestCase):
 
 
 
+class TestV2419TheEagleReaderFallsBackONLYWhenControlAppIsAbsent(unittest.TestCase):
+    """⚠ THE NARROWING v2418's MESSAGE SPENT A PARAGRAPH ON, WITH NO TEST — a cold review counted:
+    three tests for the exception catch-list, zero for this.
+
+    `_eagle_record_path` used `except Exception` around `import control_app`, so a BROKEN
+    control_app (syntax error, circular import) also fell back to this module's own directory —
+    which in this tree is the same `tv/`, restoring the writer/reader split under a redirected
+    TV_HIST. Narrowed to ImportError. This holds it there."""
+
+    def test_a_MISSING_control_app_falls_back(self):
+        import corroborate as co
+        import sys
+        real = sys.modules.get("control_app")
+        sys.modules["control_app"] = None          # import returns None -> ImportError on attribute
+        try:
+            p = co._eagle_record_path()
+        finally:
+            if real is not None:
+                sys.modules["control_app"] = real
+            else:
+                sys.modules.pop("control_app", None)
+        self.assertTrue(p.endswith(".eagle_last.json"),
+                        "the fallback did not produce a usable path: %r" % p)
+
+    def test_a_BROKEN_owner_path_rule_does_NOT_silently_use_the_old_rule(self):
+        """The half that matters. If control_app imports but its path rule is broken, the reader
+        must NOT quietly revert to `dirname(__file__)` — that is the split, reintroduced invisibly.
+        It may raise (the caller turns it into UNKNOWN); it may not answer with the old rule."""
+        import corroborate as co
+        import control_app as ca
+        old = ca._chron_swept_path
+        ca._chron_swept_path = lambda *a, **k: (_ for _ in ()).throw(AttributeError("renamed"))
+        try:
+            try:
+                p = co._eagle_record_path()
+            except Exception:
+                return          # raising is the acceptable outcome — the caller makes it UNKNOWN
+            self.fail("the reader silently answered %r using the OLD rule after the owner's path "
+                      "rule broke — that is the writer/reader split coming back invisibly" % p)
+        finally:
+            ca._chron_swept_path = old
+
+
+class TestV2419TheWatchlistNAMESTheGateThatMovedState(unittest.TestCase):
+    """⚠ CI COULD SAY WHAT MOVED AND NEVER WHICH GATE MOVED IT.
+
+    `shadow_ledger.json (absent -> bed1f8cc31eb119a)` with thirty gates to choose from, each its own
+    SUBPROCESS — so an in-process probe cannot see the writer either. I built one anyway: it ran 279
+    tests across the two suites that touch that ledger and reported ZERO live writes, because the
+    write happens in a child process.
+
+    ⚠ AND MY FIRST CUT OF THE ATTRIBUTION WAS INERT ON ITS OWN MOTIVATING CASE. It used
+    _live_fingerprint(), which covers the sixteen NAMED live-state files — and shadow_ledger.json is
+    not one of them; it was caught by the whole-tree diff that main() takes only once. A guard that
+    cannot fire on the example that prompted it is measuring nothing.
+    """
+
+    def _run_with_a_writing_gate(self, writes):
+        import run_gates as R
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="attrib_")
+        self.addCleanup(shutil.rmtree, d, True)
+        target = os.path.join(d, "planted_state.json")
+
+        # a fake gate whose subprocess-equivalent writes a state file
+        # ⚠ THE REAL Gate SHAPE, read from the class rather than guessed. My first FakeGate had
+        # `cmd` and the runner wants `argv` — the fake diverged from the thing it stands in for,
+        # which is the fixture defect one level up from the one being tested.
+        class FakeGate(object):
+            name = "planted-writer"
+            needs_app = False
+            timeout = 10
+            argv = [sys.executable, "-c", "print('ok')"]
+            cwd = HERE
+            why = "a gate that writes state, planted to prove the attribution fires"
+            skip_ok = ()
+
+        old_gates, old_fp, old_ls = R.GATES, R._state_fingerprint, R._LIVE_STATE
+        seq = {"n": 0}
+
+        def fp():
+            seq["n"] += 1
+            # absent on the first look, present on every later one — a file appearing mid-run
+            return {"planted_state.json": None if seq["n"] == 1 else "cafebabecafebabe"}
+
+        R.GATES = [FakeGate()]
+        R._state_fingerprint = fp
+        buf = io.StringIO()
+        import contextlib
+        try:
+            with contextlib.redirect_stdout(buf):
+                R.run(live_watch=writes)
+        finally:
+            R.GATES, R._state_fingerprint, R._LIVE_STATE = old_gates, old_fp, old_ls
+        return buf.getvalue()
+
+    def test_it_NAMES_the_gate(self):
+        out = self._run_with_a_writing_gate(True)
+        self.assertIn("planted-writer", out,
+                      "state moved during a gate and the gate was not named — the report is a "
+                      "delta again, which is what made this unactionable on CI")
+        self.assertIn("planted_state.json", out, "the file that moved was not named")
+
+    def test_with_the_watch_OFF_nothing_is_claimed(self):
+        out = self._run_with_a_writing_gate(False)
+        self.assertNotIn("state moved during", out,
+                         "the watch reported with live_watch=False")
+
 class TestV2414TheWriterAndReaderCOMPUTETheSamePath(unittest.TestCase):
     """⚠ THE OLD JOIN TEST WAS A GREP AND IT SURVIVED THE SPLIT IT EXISTED TO CATCH.
 
@@ -38517,6 +38625,24 @@ class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCas
         code, out = self._run_capturing(urllib.error.URLError("no route to host"))
         self.assertEqual(code, 2, "a URLError from the browser endpoint was not transport")
         self.assertIn("connection was lost", out)
+
+    def test_an_HTTPError_is_NOT_transport_even_though_it_subclasses_URLError(self):
+        """⚠ THE ONE WIDENING v2418 DID NOT PIN IN THE OTHER DIRECTION, and a cold review said so:
+        "I would not ship the HTTPError over-catch as 'unambiguously transport'".
+
+        HTTPError subclasses URLError, so admitting URLError admits it unless it is excluded FIRST.
+        The distinction is not cosmetic: URLError means the browser did not answer; HTTPError means
+        it ANSWERED, with a status. A 500 may be Chrome dying, but a 404 is this file asking for the
+        wrong path — a harness bug wearing a transport coat."""
+        import urllib.error
+        code, out = self._run_capturing(
+            urllib.error.HTTPError("http://127.0.0.1:9224/json/new", 404, "Not Found", {}, None))
+        self.assertEqual(code, 1,
+                         "an HTTP status response was called a disconnect — got %r" % code)
+        self.assertIn("ANSWERED with a status", out,
+                      "the message did not distinguish an answer from a disconnect")
+        self.assertNotIn("connection was lost", out,
+                         "it printed the transport sentence for a served HTTP error")
 
     def test_a_FILESYSTEM_error_is_still_NOT_transport(self):
         """The other direction, so the widening does not quietly restore the OSError net: a PNG

@@ -590,9 +590,32 @@ def _app_up(port=17772, timeout=1.5):
         return False
 
 
-def run(only=None):
+def run(only=None, live_watch=True, live_writer=None):
+    """`live_watch` fingerprints the live-state files BETWEEN gates, so a leak is attributed.
+
+    ⚠ v2419 — THE WATCHLIST COULD SAY WHAT MOVED AND NEVER WHICH GATE MOVED IT. main() fingerprints
+    once before the whole run and once after, so CI reported `shadow_ledger.json (absent -> ...)`
+    with no way to tell which of thirty gates wrote it — and each gate is a SEPARATE SUBPROCESS, so
+    an in-process probe cannot see it either. I tried one: it ran 279 tests across the two suites
+    that touch that ledger and found ZERO live writes, because the writer is in a subprocess.
+
+    A delta is not actionable; a name is. That is the same lesson as the eagle row that said
+    "32 against 34" until it was diffed BY NAME. [[feedback-suspect-the-instrument]]
+
+    ⚠ AND IT WATCHES MORE THAN _LIVE_STATE, BECAUSE THE FILE THAT PROMPTED THIS IS NOT IN IT. My
+    first cut used _live_fingerprint() and would have been INERT on the very case it was written
+    for: `shadow_ledger.json` is not one of the sixteen named live-state files — it was caught by
+    the whole-TREE diff, which main() only takes once. A guard that cannot fire on its own
+    motivating example is measuring nothing, and that is the second time tonight I built one.
+
+    MEASURED before choosing the net: a full tree fingerprint is 1.00s over 4,349 files, so 30s on
+    a ~400s run; `tv/*.json` + `tv/*.jsonl` is 0.017s over 39 files, so 0.5s. The state files all
+    live there, so the cheap net covers the case and the expensive one buys almost nothing.
+    """
     results = []
     app_up = _app_up()
+    _lw_prev = _state_fingerprint() if live_watch else None
+    _lw_blame = []
     for g in GATES:
         if only and g.name not in only:
             continue
@@ -607,6 +630,7 @@ def run(only=None):
             results.append((g, "SKIP", 0.0, "control app is not running on :17772", ""))
             continue
         t0 = time.time()
+        _lw_before = _lw_prev
         try:
             # v1868 — NO BLANKET TV_SESSIONS HERE, and that is a deliberate retreat.
             # Forcing a scratch journal on every gate DID stop the leaks — and broke eleven tests
@@ -639,6 +663,34 @@ def run(only=None):
                             "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
         except OSError as e:
             results.append((g, "SKIP", time.time() - t0, "could not launch (%s)" % e, ""))
+        if live_watch:
+            _lw_now = _state_fingerprint()
+            _moved = _live_state_diff(_lw_before, _lw_now,
+                                      names=sorted(set(_lw_before) | set(_lw_now)))
+            if _moved:
+                _lw_blame.append((g.name, _moved))
+                # ⚠ ATTRIBUTION IS NOT BLAME WHEN SOMETHING ELSE IS ALSO WRITING. On his Mac the
+                # console and a sweep write these files continuously, so a gate that merely ran
+                # while they did would be named as the culprit. Say which it is instead of
+                # implying. [[feedback-contradiction-is-the-finding]]
+                _who = ("⚠ but %s is running, so this may be its write and not the gate's"
+                        % ", ".join(live_writer)) if live_writer else \
+                       "nothing else was writing, so this gate did it"
+                print("   \u26a0 state moved during `%s`: %s — %s"
+                      % (g.name, "; ".join(_moved), _who), flush=True)
+            _lw_prev = _lw_now
+    if live_watch and _lw_blame:
+        print()
+        print("\u26a0 WHICH GATE TOUCHED HIS LIVE STATE — attributed, not just detected:")
+        for name, moved in _lw_blame:
+            print("     %-22s %s" % (name, "; ".join(moved)))
+        print("   Each gate runs as its own SUBPROCESS, so this is the only place the writer can be")
+        print("   named. Find it there rather than adding the file to an ignore list — the point of")
+        print("   the watchlist is WHO WROTE IT.")
+        if live_writer:
+            print("   ⚠ %s was running throughout, so these are SUSPECTS, not verdicts. The clean"
+                  % ", ".join(live_writer))
+            print("     read is a CI run, where nothing else touches the tree.")
     return results
 
 
@@ -849,6 +901,30 @@ def _live_fingerprint():
     return out
 
 
+def _state_fingerprint():
+    """Every state file a gate could plausibly write, keyed by name. -> {name: hash or None}
+
+    ⚠ WIDER THAN _LIVE_STATE ON PURPOSE. That list names sixteen files whose movement is a FAILURE;
+    this one exists to ATTRIBUTE a movement to a gate, so it must cover anything a subprocess might
+    create — including `shadow_ledger.json`, which is not on the failure list and is exactly the
+    file that prompted this. Absent is recorded as None, because creating a file IS a mutation.
+    """
+    import glob as _g
+    import hashlib
+    out = {}
+    for pat in ("*.json", "*.jsonl"):
+        for p in _g.glob(os.path.join(HERE, pat)):
+            n = os.path.basename(p)
+            try:
+                with open(p, "rb") as fh:
+                    out[n] = hashlib.md5(fh.read()).hexdigest()[:16]
+            except Exception:
+                out[n] = None
+    for n in _LIVE_STATE:                      # keep the named ones even if they are absent
+        out.setdefault(n, None)
+    return out
+
+
 def _live_state_diff(before, after, names=None):
     moved = []
     for n in (names if names is not None else _LIVE_STATE):
@@ -883,7 +959,12 @@ def main(argv):
         _sweep_live = _sweep_live or ["a chronicle sweep (tv/.sweep.lock)"]
     _live_before = _live_fingerprint()
     _tree_before = _tree_fingerprint()
-    results = run(a.only)
+    # hand the run what else is writing, so a gate is not blamed for his console's work
+    results = run(a.only, live_writer=([("the console" if _console_live else None)] +
+                                       list(_sweep_live or []) if (_console_live or _sweep_live)
+                                       else None) and
+                  [x for x in ([("the console" if _console_live else None)] +
+                               list(_sweep_live or [])) if x] or None)
     _live_moved = _live_state_diff(_live_before, _live_fingerprint())
     # the named files are the FAILURE; everything else in the tree is reported by name so the next
     # leak is found the way tonight's five were, instead of waiting to be guessed at

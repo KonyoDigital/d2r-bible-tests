@@ -117,16 +117,27 @@ _REACH = """(function(sel){
 #: what counts as "the browser went away" rather than "this file has a bug". Narrow ON PURPOSE —
 #: see the handler in main(). websocket may be absent, so this is built defensively.
 def _transport_errors():
-    # ⚠ `OSError` WAS IN THIS LIST AND IT IS THE ORIGINAL `except Exception` WITH A SMALLER NET.
-    # A cold review enumerated what it swallows: FileNotFoundError, PermissionError, and both
-    # urllib.error.URLError and HTTPError all subclass OSError — so a PNG open failure, a missing
-    # shots directory, a full disk, or Chrome answering HTTP 500 on /json/new would every one of
-    # them print "the browser connection was lost" and exit 2. Narrowing from Exception to OSError
-    # felt like a fix and kept most of the defect.
+    # ⚠ THREE SWINGS, AND THE FILE WAS LEFT ARGUING WITH ITSELF AFTER THE THIRD.
+    #   v2412  except Exception              — anything at all was "the browser went away"
+    #   v2416  (ConnectionError, OSError)    — still swallows FileNotFoundError, PermissionError,
+    #                                          a full disk. The same defect with a smaller net.
+    #   v2418  (ConnectionError, TimeoutError) — too narrow: on his 3.9.6 `socket.timeout` is NOT
+    #                                          TimeoutError, and URLError is not ConnectionError.
+    # A cold review then found the paragraph explaining why URLError must NOT be here still sitting
+    # directly above the list that had just added it — "not documentation drift, an unresolved
+    # argument left in the source". It is resolved here rather than layered over.
     #
-    # ConnectionError is the precise family (reset, aborted, broken pipe) and TimeoutError is named
-    # rather than caught via its OSError base. Anything else that raises is a bug in this file and
-    # is reported as one. [[label-outlived-referent]]
+    # THE RULE, stated once: a member must mean THE BROWSER DID NOT ANSWER.
+    #   ConnectionError  reset / aborted / broken pipe            — yes
+    #   socket.timeout   named, because 3.9 does not alias it     — yes
+    #   TimeoutError     the 3.10+ spelling, harmless to include  — yes
+    #   URLError         no answer from /json/new                 — yes
+    #   HTTPError        the server ANSWERED, with a status       — NO, and it subclasses URLError,
+    #                    so it rides in unless excluded. A 500 may be Chrome dying, but a 404 is
+    #                    this file asking for the wrong path — that is a harness bug wearing a
+    #                    transport coat, and v2418's message called it "unambiguously transport"
+    #                    without pinning it either way.
+    # Anything not on that list is a bug in this file and is reported as one. [[label-outlived-referent]]
     # ⚠ AND THEN I SWUNG TOO FAR THE OTHER WAY. Dropping OSError removed the over-broad catch and
     # took two GENUINE transport cases with it. Measured on his Python 3.9.6:
     #
@@ -145,6 +156,11 @@ def _transport_errors():
     import socket as _sock
     import urllib.error as _uerr
     errs = [ConnectionError, TimeoutError, _sock.timeout, _uerr.URLError]
+
+    class _NotTransport(Exception):
+        """Never raised — a marker the caller checks HTTPError against."""
+
+    globals()["_TRANSPORT_EXCLUDE"] = (_uerr.HTTPError,)
     try:
         import websocket as _ws
         errs.append(getattr(_ws, "WebSocketException", None))
@@ -1201,6 +1217,15 @@ def main(argv):
         # this harness, and it should be looked at rather than papered over with an attempt count.
         try:
             r = check(name, spec)
+        except _TRANSPORT_EXCLUDE as _e:
+            # ⚠ HTTPError SUBCLASSES URLError, so it must be caught BEFORE the transport clause or
+            # it rides in on it. The server answered — with a status — which is not "the browser
+            # went away", and a 404 is this file asking for the wrong path.
+            _say("🔴 %-8s the GATE ITSELF raised (%s: %s) — Chrome ANSWERED with a status, so this "
+                 "is a bad request from render_check, not a disconnect."
+                 % (name, type(_e).__name__, str(_e)[:80]))
+            bad += 1
+            continue
         except _TRANSPORT_ERRORS as _e:
             _say("⚪ %-8s UNKNOWN — the browser connection was lost mid-render (%s: %s)."
                  % (name, type(_e).__name__, str(_e)[:90]))
