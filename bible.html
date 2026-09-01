@@ -33338,6 +33338,13 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vrg-gh-loose{color:var(--gold-bright,#f0c060)}
 .vrg-gh-shared{color:#7fd4ff}
 .vrg-gh-magic{color:#b58cff}
+/* v2402 — KEPT ON YOU is a PLACE and NOT RECOGNISED is a QUESTION, so neither may wear the colour
+   of a filed item. Kept borrows the charm-gold it already has in the keep advisory; not-recognised
+   is deliberately the muted slate the throw-out column uses, because an unresolvable name is a
+   thing to look at, never a thing to be alarmed by. Colour carries MEANING on this page and a new
+   column with no colour of its own would read as one of the existing kinds. [[d2r-css-last-rule-wins]] */
+.vrg-gh-kept{color:#e6c877}
+.vrg-gh-orphan{color:#9aa6b2}
 .vmc-gemfallback{font-size:20px;display:flex;align-items:center;justify-content:center;text-shadow:0 0 9px currentColor;opacity:.9}
 .vrg-gh-unknown{color:#9aa6b2}
 .vrg-mdot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;box-shadow:0 0 6px currentColor}
@@ -33529,6 +33536,8 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vrg-tag-mule{color:var(--best,#66ff88)}
 .vrg-tag-loose{color:var(--gold-dim,#caa24a)}
 .vrg-tag-shared{color:#7fb9d8}
+.vrg-tag-kept{color:#c9ab5f}
+.vrg-tag-orphan{color:#8a939d}
 .vrg-x{flex:0 0 auto;margin-left:8px;width:18px;height:18px;line-height:var(--lh-none);border:1px solid rgba(255,80,80,.4);background:rgba(255,60,60,.1);color:#ff9a9a;border-radius:5px;cursor:pointer;font-size:var(--fs-micro)}
 .vrg-x:hover{background:rgba(255,60,60,.25);border-color:rgba(255,80,80,.7)}
 .vault-chip:active{cursor:grabbing}
@@ -34550,12 +34559,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _unkCount=(typeof unknownReads!=='undefined'&&unknownReads)?unknownReads.size:0;
     if(!all.length && !findNames.length && !_unkCount){ el.hidden=true; el.innerHTML=''; return; }
     el.hidden=false;
-    var muled=[], notMuled=[], loose=[];
+    var muled=[], notMuled=[], loose=[], kept=[];
     all.forEach(function(n){
       if(isSharedStash(n)){ notMuled.push(n); return; }
+      /* ⚠ v2402 — '__keep' IS A PLACE, NOT AN ABSENCE, AND THIS READER WAS THE ONE THAT FORGOT.
+         The sentinel is TRUTHY, so the old ternary took its branch; muleById('__keep') is null BY
+         DESIGN, so the item fell through to `loose` and was rendered under "🎒 Unsorted" tagged
+         "in dock". Meanwhile renderVault's own dock excludes it correctly
+         (`!assign[n] && !isSharedStash(n)`), so the SAME PANE showed "Unsorted 17" beside
+         "Unsorted dock 16" and nothing on screen said which was right.
+         Measured on his store: the item is Gheed's Fortune. Annihilus, Hellfire Torch and Gheed's
+         only work in the inventory of the character being played, so a mule cannot hold them —
+         "kept" is where they belong, not "nobody has filed this yet".
+         v409 already made '__keep' first-class, and renderVault:35142 guards it from the prune for
+         exactly this reason. This reader simply never learned it. [[unknown-stays-unknown]] */
+      if(assign[n]==='__keep'){ kept.push(n); return; }
       var m=assign[n]?muleById(assign[n]):null;
       if(m) muled.push([n,m]); else loose.push(n);
     });
+    /* ⚠ v2402 — AND WHAT THE FILTER ABOVE THREW AWAY. `all` keeps a name only if it is shared
+       stash or resolves in ownedPool; anything else is dropped with no trace, so an item he has
+       ticked can be in d2r_owned and appear on NO surface of this pane. Measured: "Death Mask" —
+       in owned, matching none of ownedPool's four resolvers, invisible in every locker, chip and
+       row, and the reason the Registered badge reads 168 against 169 owned.
+       A count that silently omits what it could not name is a count that lies by one. Show them,
+       named for what they are, and let the total be honest. */
+    var orphan=Array.from(owned).filter(function(n){
+      return !isAggregate(n) && !isSharedStash(n) && poolM.indexOf(n)<0; }).sort();
     function row(n, tag){
       var s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
       var _cc=copyCount(n), _ct=multiTarget(n);
@@ -34582,6 +34612,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var cols=[];
     if(muled.length) cols.push(_col('vrg-gh-mule','🏦 Muled',muled.length, muled.map(function(p){ return row(p[0],'<span class="vrg-tag vrg-tag-mule">→ '+esc(p[1].name)+'</span>'); }).join('')));
     if(loose.length) cols.push(_col('vrg-gh-loose','🎒 Unsorted',loose.length, loose.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-loose">in dock</span>'); }).join('')));
+    if(kept.length) cols.push(_col('vrg-gh-kept','🎯 Kept on you',kept.length, kept.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-kept">inventory</span>'); }).join('')));
+    if(orphan.length) cols.push(_col('vrg-gh-orphan','❓ Not recognised',orphan.length, orphan.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-orphan">no match</span>'); }).join('')));
     if(notMuled.length) cols.push(_col('vrg-gh-shared','📦 Not muled',notMuled.length, notMuled.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-shared">shared</span>'); }).join('')));
     if(findNames.length) cols.push(_col('vrg-gh-magic','🔮 Magic &amp; Rare',findNames.length, findNames.map(function(n){
         var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null;
@@ -48165,7 +48197,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2401', name:'v2401 - shown now means on screen', date:'2026-09-01', note:'the panel said a thing was shown while it sat 1300px below the window, and the verdict said in sync over a disk nobody had checked' };
+  window.D2R_BUILD = { id:'v2402', name:'v2402 - the vault stops hiding what it could not name', date:'2026-09-01', note:'one pane showed Unsorted 17 beside Unsorted dock 16, and an owned item that resolved to nothing rendered on no surface at all' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

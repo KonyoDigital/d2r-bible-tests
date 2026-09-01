@@ -419,6 +419,17 @@ GATES = [
              "route is barred by a RECHECK instead — two reads of the SAME frame that must agree "
              "on the name AND the cell, and hold when they do not. All six of those laws were "
              "sabotage-proven RED before this gate was written."),
+    Gate("lane-census", [sys.executable, os.path.join(HERE, "lane_census.py"), "--prove"], 60,
+         why="v2402 — THE HEART CAN ONLY SUPERVISE WHAT IT KNOWS EXISTS, and the instrument that "
+             "answers that question was wrong twice on the day it was written. It reported five "
+             "functions named `_loop` as one-shot workers; every one carries `while True`. So this "
+             "gate does not run the census — it runs the census's OWN SABOTAGE, which plants a "
+             "known loop, a known task, a gated loop and an absent name and requires all four "
+             "sorted, plus the three real functions it previously got wrong. A census nobody has "
+             "seen get it wrong is a census nobody should quote, and the broken one was already "
+             "quoted into gh #198. What the census currently reports: 28 thread targets, 11 "
+             "supervised, and SEVEN persistent loops running unwatched.",
+         skip_ok=()),
     Gate("hover-wilson", [sys.executable, "-c", _HOVER_WILSON_VERDICT,
                           os.path.join(HERE, "hover_wilson.py")], 120,
          why="v2400 — MINI(AUTOMATIC) SCORES ITS OWN FOUR CLAIMS, and this gate is the LEAKS half "
