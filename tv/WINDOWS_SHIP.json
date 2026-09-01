@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2397",
+  "ver": "v2398",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2397: the footer tooltip covered half his console; everything it carried now renders in the window that opens on click",
+  "note": "v2398: the free pre-spend estimate went from seconds to over three minutes; the tooltip memo now spans the quote and the run, and the paint witness is finally visible from outside",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

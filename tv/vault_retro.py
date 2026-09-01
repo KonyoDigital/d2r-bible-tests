@@ -66,6 +66,21 @@ DEFAULT_SIG = _cr.jpeg_sig
 STILL_MAX_DIFF = _cr.STILL_MAX_DIFF
 MIN_RUN_FRAMES = _cr.MIN_RUN_FRAMES
 
+#: v2398 — tooltip rects memoised across CALLS, keyed on (path, size, mtime).
+#: ⚠ THE FIRST CUT LANDED INSIDE THE MODULE DOCSTRING. The anchor was the bare string
+#: "MIN_RUN_FRAMES", which the docstring mentions at :12 — BEFORE the assignment at :74. So the
+#: memo became prose, `_TOOLTIP_MEMO` did not exist on the module, and the proof failed with
+#: AttributeError. Anchor on the ASSIGNMENT, never on a name that also appears in prose.
+#: [[feedback-comments-vs-code]] [[append-below-the-runner]]
+#: WHY IT EXISTS: _vault_scan_cost_inner — the FREE PASS he checks before agreeing to spend —
+#: calls this same sweep(), deliberately, because "both halves of a price must name the same
+#: thing" (v1834). So v2397's tooltip split ran inside the quote too and took it from a few
+#: seconds to over THREE MINUTES. A per-call dict made the quote and the run each pay in full,
+#: and the quote is almost always followed by the run.
+#: ⚠ Keyed on (size, mtime), NEVER path alone: a reel directory is written to while it is filmed.
+_TOOLTIP_MEMO = {}
+_TOOLTIP_MEMO_MAX = 20000
+
 # The surfaces that show what he OWNS. Anything else in the footage — town, a fight, the Chronicle,
 # character select — is not evidence of ownership and is skipped without paying a read.
 OWNERSHIP_SURFACES = ("stash", "inventory", "equipment", "runes", "gems", "materials")
@@ -1063,13 +1078,36 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         # call — but it must never run corpus-wide (15,956 frames would be ~64 minutes).
         # ⚠ AND A FAILED LOOK IS UNKNOWN, NOT "no tooltip". still_runs breaks the run on an
         # exception rather than welding two screens together. [[unknown-stays-unknown]]
-        _tips = {}
-        def _tip_of(n, _d=reel_dir, _c=_tips):
-            if n not in _c:
-                import tooltip_find as _tf
-                r = _tf.locate(os.path.join(_d, n))
-                _c[n] = r[0] if isinstance(r, tuple) else r
-            return _c[n]
+        # ⚠ v2398 — THE MEMO IS MODULE-SCOPED, AND THAT IS THE FIX FOR THE SLOW QUOTE.
+        # _vault_scan_cost_inner — the FREE PASS he consults BEFORE agreeing to spend — calls this
+        # same sweep(), deliberately, because "both halves of a price must name the same thing"
+        # (v1834) and v1596's scar was a quote that under-quoted by skipping the read stage.
+        # So v2397's tooltip split ran inside the quote too, and MEASURED it took the quote from a
+        # few seconds to over THREE MINUTES with no output. A number he waits three minutes for is
+        # a number he stops consulting.
+        #
+        # A per-call dict made the quote and the run each pay in full, and the quote is almost
+        # always followed by the run. Keyed on (size, mtime) — the same shape
+        # stash_screen_open_cached already proves out — so the second pass is nearly free.
+        # ⚠ NEVER on path alone: a reel directory is written to WHILE it is being filmed, and a
+        # memo that ignores mtime serves a stale verdict for a frame that changed.
+        def _tip_of(n, _d=reel_dir):
+            p = os.path.join(_d, n)
+            try:
+                st = os.stat(p)
+                key = (p, int(st.st_size), int(st.st_mtime))
+            except OSError:
+                key = None
+            if key is not None and key in _TOOLTIP_MEMO:
+                return _TOOLTIP_MEMO[key]
+            import tooltip_find as _tf
+            r = _tf.locate(p)
+            v = r[0] if isinstance(r, tuple) else r
+            if key is not None:
+                if len(_TOOLTIP_MEMO) >= _TOOLTIP_MEMO_MAX:
+                    _TOOLTIP_MEMO.clear()     # coarse, bounded, never stale
+                _TOOLTIP_MEMO[key] = v
+            return v
         runs = _cr.still_runs(frames, sig_of, tooltip_of=_tip_of)
         cands = _cr.candidate_runs(runs, min_frames=MIN_RUN_FRAMES)
         read_this_reel = False

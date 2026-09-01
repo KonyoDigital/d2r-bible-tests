@@ -25060,8 +25060,18 @@ class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
     def setUp(self):
         with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
-        self.body = _between(self, ui, "if (_rt.say) {", "_tip.push(",
-                             what="the disk sentence's age stamp")
+        # ⚠ v2397 — RE-ANCHORED. The stamp used to be computed for the HOVER TITLE, and this
+        # sliced between "if (_rt.say) {" and "_tip.push(". Konyo had the hover deleted — "this
+        # tooltip here is pointless, anything needed put it in the opened window when clicked... i
+        # want it clean" — so both anchors vanished with the _tip builder, setUp raised, and all
+        # THREE tests in this class failed at once for one reason.
+        #
+        # ⚠ THE RULE DID NOT MOVE, THE CODE DID. The stamp now lives in _verXrefBuild's DISK row,
+        # and the VISIBLE footer warning at control_ui.html:~8402 (`_lbl += ' (disk read '`) is
+        # untouched — which is the half this class's own docstring says actually matters: "the
+        # hover is not what he reads when he is deciding whether he can record."
+        self.body = _between(self, ui, "var _rtAge = ' (age UNKNOWN", "dRows.push(_vxRow('free'",
+                             what="the disk row's age stamp in the state panel")
         self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
         self.assertGreater(len(self.code.strip()), 80, "the comment strip ate the block")
 
@@ -25080,9 +25090,16 @@ class TestV2123TheDiskFigureCarriesItsOwnAge(unittest.TestCase):
                       "an unstamped disk reading renders on the footer as though it were fresh")
 
     def test_it_reads_the_stamp_the_measurement_carries(self):
-        self.assertIn("_rt.checked", self.code,
+        # ⚠ THE SPELLING MOVED WITH THE CODE, THE MEANING DID NOT. This asserted `_rt.checked`,
+        # the name the hover builder used. In _verXrefBuild the same field is `rt.checked` —
+        # destructured from `st` rather than the poll's local. Pinning the underscore would make
+        # this guard a check on a variable NAME, which is not what it is for.
+        self.assertIn(".checked", self.code,
                       "the disk sentence does not consult when it was measured, so a 15-minute-old "
                       "figure reads exactly like a fresh one")
+        self.assertIn("Date.now()", self.code,
+                      "it reads a stamp and never compares it to now — an age nobody computes is "
+                      "not an age")
 
     def test_an_unstamped_reading_says_UNKNOWN_rather_than_nothing(self):
         self.assertIn("UNKNOWN", self.body,
@@ -38473,6 +38490,111 @@ class TestV2396TheStillDetectorCanSeeTheTOOLTIP(unittest.TestCase):
         self.assertIn("tooltip_of=", body,
                       "the vault sweep no longer passes tooltip_of — the split is unreachable from "
                       "the one lane it was built for")
+
+
+
+class TestV2398TheQuoteAndTheRunShareTheirTOOLTIP_WORK(unittest.TestCase):
+    """The FREE quote must not pay the tooltip bill twice.
+
+    `_vault_scan_cost_inner` is what he consults BEFORE agreeing to spend, and it calls the SAME
+    vault_retro.sweep() the real run uses — deliberately, because "both halves of a price must name
+    the same thing" (v1834) and v1596's scar was a quote that under-quoted by skipping the read
+    stage.
+
+    ⚠ SO v2397's TOOLTIP SPLIT RAN INSIDE THE QUOTE TOO. Measured: the quote went from a few
+    seconds to over THREE MINUTES and was still running when killed. A number he waits three
+    minutes for is a number he stops consulting — and then the pre-spend check he asked for is
+    gone, which is worse than the split being slightly mis-priced.
+
+    Fixed by lifting the memo from a per-CALL dict to module scope. Measured after: first sweep
+    48.9s, second 4.00s, 80 entries carried.
+    """
+
+    def test_the_memo_is_MODULE_scoped_not_per_call(self):
+        """⚠ AND IT MUST BE AN ASSIGNMENT, NOT PROSE. The first cut anchored on the bare string
+        "MIN_RUN_FRAMES", which vault_retro's DOCSTRING mentions at :12 — before the assignment at
+        :74. The memo landed inside the docstring, `_TOOLTIP_MEMO` did not exist on the module, and
+        the proof failed with AttributeError. Comments-vs-code, inside the patch that was fixing a
+        measurement. [[feedback-comments-vs-code]]"""
+        import vault_retro as vr
+        self.assertTrue(hasattr(vr, "_TOOLTIP_MEMO"),
+                        "the tooltip memo is not on the module — the quote and the run each pay "
+                        "the full locate bill again")
+        self.assertIsInstance(vr._TOOLTIP_MEMO, dict)
+        self.assertTrue(hasattr(vr, "_TOOLTIP_MEMO_MAX"),
+                        "an unbounded memo is a leak wearing a cache's name")
+
+    def test_the_key_carries_size_and_mtime_not_just_the_path(self):
+        """A reel directory is written to WHILE it is being filmed. A memo keyed on the path alone
+        serves a stale verdict for a frame that changed under it."""
+        d = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(d, "vault_retro.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        body = _between(self, src, "def sweep(", "\ndef ", what="the vault sweep")
+        self.assertIn("st.st_size", body, "the tooltip memo key ignores file size")
+        self.assertIn("st.st_mtime", body, "the tooltip memo key ignores mtime — a frame rewritten "
+                                           "during capture would serve its old verdict")
+
+    def test_an_unstattable_frame_is_NOT_memoised(self):
+        """A frame we could not stat has no key, so it must be looked at every time rather than
+        cached under a guess. [[unknown-stays-unknown]]"""
+        d = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(d, "vault_retro.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        body = _between(self, src, "def sweep(", "\ndef ", what="the vault sweep")
+        self.assertIn("key = None", body,
+                      "a frame that cannot be stat'd is still being memoised, under what key?")
+        self.assertIn("if key is not None", body,
+                      "the memo writes without checking it has a real key")
+
+
+class TestV2398ThePaintWitnessIsVISIBLEFromOutside(unittest.TestCase):
+    """Nothing could supervise the paint witness, because its state was never published.
+
+    I read `elsNow` off /api/status, got None, and nearly reported the witness INERT on his machine.
+    It was not — control_ui.html sends `els` on every beat and ui_beat_record consumes it. The None
+    was a field that did not exist in the payload. My instrument, not his console.
+
+    But the gap was real: HE could not see whether it works (`rescues: 0` reads the same armed-and-
+    quiet as dead), the EAGLE reads this payload so it could not supervise what is never published,
+    and no cross-process check could exist for state living in one process only. Same shape as
+    _EAGLE, fixed in v2394 with a durable record.
+    """
+
+    def setUp(self):
+        import control_app
+        self.ca = control_app
+        self._beat = dict(control_app._UI_BEAT)
+
+    def tearDown(self):
+        self.ca._UI_BEAT.clear(); self.ca._UI_BEAT.update(self._beat)
+
+    def test_the_payload_carries_the_witness(self):
+        self.ca._UI_BEAT.update({"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
+                                 "elsHigh": 0, "elsNow": None, "blankStrikes": 0, "elsWindow": []})
+        self.ca.ui_beat_record({"els": 1200, "hidden": False})
+        self.ca.ui_beat_record({"els": 1180, "hidden": False})
+        ub = (self.ca.status_payload() or {}).get("uiBeat") or {}
+        for f in ("elsNow", "elsHigh", "blankStrikes", "elsWindowN"):
+            self.assertIn(f, ub, "the payload does not publish %s — nothing outside this process "
+                                 "can see whether the paint witness works" % f)
+        self.assertEqual(ub["elsNow"], 1180)
+        self.assertEqual(ub["elsHigh"], 1200)
+        self.assertEqual(ub["elsWindowN"], 2)
+
+    def test_no_baseline_publishes_NULL_not_zero(self):
+        """⚠ HONEST-ABSENT, exactly as the neighbouring `panels` field: "None = this console
+        predates v2336". elsHigh of 0 means NO BASELINE YET, which is UNKNOWN — publishing it as 0
+        would let a console that has never established one read as one whose page is empty.
+        blankStrikes IS a real 0 on a healthy page and passes through. [[unknown-stays-unknown]]"""
+        self.ca._UI_BEAT.update({"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
+                                 "elsHigh": 0, "elsNow": None, "blankStrikes": 0, "elsWindow": []})
+        ub = (self.ca.status_payload() or {}).get("uiBeat") or {}
+        self.assertIsNone(ub.get("elsHigh"),
+                          "a console with no baseline published elsHigh as 0 — 'never measured' "
+                          "must not render as 'measured, and it was zero'")
+        self.assertEqual(ub.get("blankStrikes"), 0,
+                         "blankStrikes is a real measurement on a healthy page and must stay 0")
 
 
 if __name__ == "__main__":

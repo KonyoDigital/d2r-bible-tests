@@ -21203,7 +21203,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2397",
+        "ver": "v2398",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -21278,7 +21278,26 @@ def status_payload():
                    "panels": ((_UI_BEAT.get("state") or {}).get("panels") or None),
                    "rescues": _UI_RESCUE["count"],
                    "lastRescueWhy": _UI_RESCUE["why"] or None,
-                   "silenceBoundS": _UI_BEAT_SILENCE_S},
+                   "silenceBoundS": _UI_BEAT_SILENCE_S,
+                   # ══ v2398 — THE PAINT WITNESS, PUBLISHED. It was invisible from outside ═════
+                   # I read `elsNow` off this payload, got None, and nearly reported the witness
+                   # INERT on his machine. It is not — control_ui.html sends `els` on every beat
+                   # and ui_beat_record consumes it. The None was a field that did not exist.
+                   # But the gap is real and it is the one he keeps naming: HE cannot see whether
+                   # the witness works (`rescues: 0` reads the same armed-and-quiet as dead), the
+                   # EAGLE reads this payload so it cannot supervise what is never published, and
+                   # no cross-process check can exist for state that only lives in one process.
+                   # Same shape as _EAGLE, fixed in v2394 with a durable record.
+                   # ⚠ HONEST-ABSENT, exactly as `panels` above: a console older than the witness
+                   # publishes null, never 0. elsHigh of 0 means "no baseline yet", which is
+                   # UNKNOWN, not a measured zero. blankStrikes IS a real 0 on a healthy page and
+                   # passes through as-is. [[unknown-stays-unknown]]
+                   # ⚠ AND THE WINDOW'S LENGTH, NOT THE WINDOW — 60 integers on every poll is
+                   # payload noise; the count is what says whether a baseline has had time to form.
+                   "elsNow": _UI_BEAT.get("elsNow"),
+                   "elsHigh": (_UI_BEAT.get("elsHigh") or None),
+                   "blankStrikes": _UI_BEAT.get("blankStrikes"),
+                   "elsWindowN": len(_UI_BEAT.get("elsWindow") or [])},
         "intakeRing": ((st or {}).get("intakes") or [])[-12:],
         "readCount": int(_reads or 0),
         "area": beat.get("area") or (st or {}).get("area") or "",
