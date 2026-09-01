@@ -36305,9 +36305,23 @@ class TestV2362TheRingAndWhoStartedTheReel(unittest.TestCase):
 
     def test_the_ring_has_more_than_one_generation_here(self):
         """The fixture that makes the above meaningful: if his ring were one file, the bug would
-        be invisible and this guard would be measuring nothing."""
+        be invisible and this guard would be measuring nothing.
+
+        ⚠ AND IT CANNOT RUN WHERE THERE IS NO JOURNAL. The journal is runtime data and is not
+        committed, so on CI there is nothing to find. Asserting anyway made this pass on his Mac
+        and fail everywhere else — and because Publish runs test_control before deploying, IT
+        BLOCKED HIS SITE FROM PUBLISHING FOR FIVE CONSECUTIVE SHIPS (v2369-v2372 and a docs
+        commit) while every local gate stayed green. Same defect _fixture_hist already carved:
+        a test that needs his footage to pass is a test that cannot run anywhere else.
+        [[feedback-fixtures-never-touch-live-data]]"""
         import control_app as ca
         ring = [p for p in (ca._journal_ring() or []) if os.path.isfile(p)]
+        if not ring:
+            # NAME what went unmeasured. A skip is not a pass, and a silent one is how a real
+            # check becomes permanent furniture.
+            self.skipTest("no journal exists on this machine, so there is no ring to inspect — "
+                          "this case checks a FIXTURE, and the fixture is his runtime journal. "
+                          "It is not committed and never should be. UNMEASURED here, not passed.")
         self.assertGreaterEqual(len(ring), 1, "no journal generation exists at all")
 
     def test_start_agent_records_who_asked(self):
