@@ -207,11 +207,15 @@ def scan(root=None):
         # 2026-07-16. Counting it would put four sites at the top of the queue that no running
         # process can reach. It is SKIPPED AND COUNTED, never silently dropped: a census that
         # quietly narrows its own scope is the thing this file exists to stop. [[no-silent-caps]]
-        skipped = [d for d in dns if d in ("backups",)]
+        # `.claude/worktrees` are throwaway agent worktrees; `.snapshots` and `backups` are
+        # frozen restore copies. None of them is code any process can reach, and counting them
+        # would put sites at the top of a queue nobody can act on. All are SKIPPED AND NAMED.
+        skipped = [d for d in dns if d in ("backups", ".snapshots", "worktrees")]
         for d in skipped:
             state["skippedDirs"].append(os.path.relpath(os.path.join(dp, d), root))
         dns[:] = [d for d in dns if d not in (".git", "node_modules", "__pycache__",
-                                              ".render_shots", "frames", "backups")]
+                                              ".render_shots", "frames", "backups",
+                                              ".snapshots", "worktrees", ".venv", "venv")]
         for fn in sorted(fns):
             if not fn.endswith(".py"):
                 continue
@@ -250,6 +254,91 @@ def scan(root=None):
             "skippedDirs": sorted(set(state["skippedDirs"]))}
 
 
+# ══ THE RATCHET ══════════════════════════════════════════════════════════════════════════════
+# Konyo, 2026-09-01: "i want it a public and not local.. why do we have github? like what can be
+# unified and synced here for this not to happen future wise" — then "do this across all repos".
+#
+# A census that only runs when someone remembers to type it protects nothing. This half makes the
+# number a RATCHET: it may go DOWN freely, and any increase fails. That is the only shape that
+# answers "so it does not happen again", because it starts protecting immediately instead of
+# waiting for someone to fix the standing count first.
+#
+# ⚠ IT RATCHETS RANK 1 ONLY. Ranks 2 and 3 are recorded for the trend and never fail a build —
+# they are too broad to act on, and a gate that is red forever has stopped carrying information
+# in exactly the same way as one that is green forever.
+# [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+BASELINE_REL = os.path.join("baseline", "swallow_baseline.json")
+
+
+def _baseline_path(root=None):
+    return os.path.join(root or REPO, BASELINE_REL)
+
+
+def _counts(out):
+    b = {0: 0, 1: 0, 2: 0, 3: 0}
+    for r in out["rows"]:
+        b[r["rank"]] += 1
+    return {"rank1": b[1], "rank2": b[2], "rank3": b[3], "ok": b[0],
+            "handlers": len(out["rows"]), "unparsed": len(out["unreadable"])}
+
+
+def write_baseline(root=None):
+    import json
+    c = _counts(scan(root))
+    p = _baseline_path(root)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with io.open(p, "w", encoding="utf-8") as fh:
+        json.dump({"_why": "RANK 1 is a ratchet: it may fall, never rise. Regenerate with "
+                           "swallow_census.py --write-baseline after a DELIBERATE reduction, and "
+                           "name the sites you fixed in the commit.",
+                   "counts": c}, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+    print("wrote %s" % p)
+    print("  rank1=%(rank1)d rank2=%(rank2)d rank3=%(rank3)d ok=%(ok)d handlers=%(handlers)d" % c)
+    return 0
+
+
+def check(root=None):
+    """Fail ONLY when rank 1 grew. -> exit code."""
+    import json
+    p = _baseline_path(root)
+    now = _counts(scan(root))
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            was = (json.load(fh) or {}).get("counts") or {}
+    except FileNotFoundError:
+        # ⚠ NO BASELINE IS NOT A PASS. An unconfigured gate that exits 0 is indistinguishable
+        # from a clean tree, which is the whole failure this file exists to name.
+        print("🔴 no baseline at %s — this gate is UNCONFIGURED, which is not the same as clean."
+              % p)
+        print("   run:  python3 tv/swallow_census.py --write-baseline")
+        return 1
+    except Exception as e:
+        print("🔴 the baseline at %s would not parse (%s) — refusing to grade against it." % (p, e))
+        return 1
+
+    b_now, b_was = now["rank1"], int(was.get("rank1", 0))
+    print("swallow ratchet — RANK 1 (a failed read handed back as DATA)")
+    print("   baseline %d   now %d" % (b_was, b_now))
+    if now.get("unparsed"):
+        print("   ⚠ %d file(s) could not be parsed — their handlers are in NEITHER number"
+              % now["unparsed"])
+    if b_now > b_was:
+        print()
+        print("🔴 %d NEW site(s) where a failed read becomes DATA (0 / {} / [] / '')."
+              % (b_now - b_was))
+        print("   A caller cannot tell that from a real measurement. Either make the failure")
+        print("   report UNKNOWN, or — if the caller genuinely treats the default as failure —")
+        print("   say so in a comment AT THE SITE and lower the baseline deliberately.")
+        return 1
+    if b_now < b_was:
+        print("✅ down %d. Lower the baseline in this same commit:" % (b_was - b_now))
+        print("      python3 tv/swallow_census.py --write-baseline")
+        return 0
+    print("✅ held.")
+    return 0
+
+
 def main(argv=None):
     try:
         import console_safe
@@ -257,7 +346,16 @@ def main(argv=None):
     except Exception:
         pass
     argv = list(argv or [])
-    out = scan()
+    # the two CI doors, before any printing
+    _root = None
+    for i, a in enumerate(argv):
+        if a == "--root" and i + 1 < len(argv):
+            _root = argv[i + 1]
+    if "--write-baseline" in argv:
+        return write_baseline(_root)
+    if "--check" in argv:
+        return check(_root)
+    out = scan(_root)
     rows = out["rows"]
     by = {}
     for r in rows:

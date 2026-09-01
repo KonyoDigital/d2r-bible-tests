@@ -1,0 +1,85 @@
+name: Routine M — swallowed-exception ratchet
+
+# Konyo, 2026-09-01: "i want it a public and not local.. why do we have github? like what can be
+# unified and synced here for this not to happen future wise" — and, on how the class went
+# unnoticed for so long: "so strange.. i cant fathom it".
+#
+# The honest answer was that NOTHING WAS LOOKING. Each site was written correctly-in-isolation by
+# someone solving the local problem; the CLASS was invisible because nobody had ever counted it.
+# A census on one laptop does not fix that. This does.
+#
+# WHAT IT GRADES: a failed read whose except body hands the caller DATA — 0, {}, [], "" — so
+# "nobody could ask" is indistinguishable from "measured zero". Every scar in this project's log
+# with a wrong-number-on-screen has that shape.
+#
+# ⚠ IT IS A RATCHET, NOT A CLEANUP ORDER. RANK 1 may FALL freely; it may never RISE. That is
+# deliberate: a gate that demanded the standing count be fixed first would be red for months and
+# would be ignored, which is the same defect as one that is green forever. This starts protecting
+# on the first push.
+#
+# ⚠ AND IT GRADES RANK 1 ONLY. Ranks 2 and 3 are recorded in the baseline for the trend and never
+# fail a build — they are too broad to act on. A number nobody can act on is not a gate.
+#
+# TO LOWER THE BAR after fixing real sites, in the SAME commit:
+#     python3 tv/swallow_census.py --write-baseline
+# and name in the commit message which sites you fixed and why each was a real defect.
+on:
+  push:
+    paths:
+      # ⚠ A GATE MUST SEE THE INPUT IT POLICES, ITSELF INCLUDED. Routine L already carries this
+      # rule after four sibling routines learned it the expensive way: editing the checker changes
+      # what the gate DOES while triggering nothing, so the change lands and the routine that
+      # judges it stays asleep.
+      - 'tv/**.py'
+      - 'art/**.py'
+      - 'baseline/swallow_baseline.json'
+      - 'tv/swallow_census.py'
+      - '.github/workflows/routine-m-swallows.yml'
+  pull_request:
+    paths:
+      - 'tv/**.py'
+      - 'art/**.py'
+      - 'baseline/swallow_baseline.json'
+  workflow_dispatch:
+
+jobs:
+  ratchet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      # stdlib only, on purpose: this gate must never fail for a reason of its own.
+      - name: The census (full picture, for the log)
+        run: python3 tv/swallow_census.py
+
+      - name: The ratchet (this is the verdict)
+        run: python3 tv/swallow_census.py --check
+
+      # ⚠ A GATE THAT HAS NEVER BEEN SEEN RED IS MEASURING NOTHING. This step proves, on every
+      # run, that --check still fails when a new lying swallow appears. It writes a throwaway
+      # file, expects a NON-zero exit, and deletes it. If this step ever passes silently, the
+      # ratchet above has stopped working and its green means nothing.
+      # [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+      - name: Prove the ratchet still bites
+        run: |
+          cat > tv/_ratchet_selftest.py <<'EOF'
+          import json
+          def read_it(p):
+              try:
+                  with open(p) as fh:
+                      return json.load(fh)
+              except Exception:
+                  return {}
+          EOF
+          set +e
+          python3 tv/swallow_census.py --check > /tmp/selftest.log 2>&1
+          rc=$?
+          set -e
+          rm -f tv/_ratchet_selftest.py
+          cat /tmp/selftest.log
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::the ratchet did NOT fire on a deliberately added lying swallow — the gate above is green for no reason"
+            exit 1
+          fi
+          echo "the ratchet fired as it should (exit $rc); the green verdict above is real"

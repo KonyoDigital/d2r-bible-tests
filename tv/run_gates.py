@@ -184,6 +184,14 @@ GATES = [
              "classify lane and structurally could not count a page read (v1596)"),
     Gate("test_chronicle_retro", [sys.executable, os.path.join(HERE, "test_chronicle_retro.py")], 300,
          why="the retro sweep's three laws: read-only until Apply, merge-max, pay-for-runs"),
+    # v2387 — the swallowed-exception RATCHET, in the same gate set as everything else so it has
+    # one verdict rather than being a thing someone remembers to run. It grades RANK 1 only —
+    # a failed read handed back as DATA — and only fails when that count GROWS.
+    Gate("swallow_ratchet", [sys.executable, os.path.join(HERE, "swallow_census.py"), "--check"],
+         120,
+         why="a failed read must not be handed to a caller as 0 / {} / [] / '' — 'nobody could "
+             "ask' and 'measured zero' are opposite facts, and every wrong-number-on-screen scar "
+             "in this project has that shape. Ratchets down, never up"),
     Gate("test_reel_story", [sys.executable, os.path.join(HERE, "test_reel_story.py")], 120,
          why="the shelf's pipeline board reads the deciders and never becomes a second one: an "
              "unsurveyed reel stays UNKNOWN rather than scoring 0%, an unmapped retention verdict "

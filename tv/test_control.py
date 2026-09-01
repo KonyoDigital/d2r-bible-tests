@@ -37471,5 +37471,99 @@ class TestV2386AFailedReadIsNotBANKEDAsAnEmptyOne(unittest.TestCase):
                       "a NameError on every successful export")
 
 
+class TestV2387TheVendoredCensusHasNotDRIFTED(unittest.TestCase):
+    """★ Konyo: "do this across all repos obviously like logical for our workflows".
+
+    tv/swallow_census.py is the ONE SOURCE. The design, when the other repos adopt it: a vendored
+    byte-copy under tools/, because CI checks out one repo and a cross-repo fetch is a second
+    thing that can fail. A copy is a copy and this project has been bitten by silent divergence,
+    so each copy carries the upstream digest and this guard re-checks it. [[copy-drift]]
+
+    ⚠⚠ NOT YET, BY HIS DECISION. The census, the ratchet and the CI workflow WERE built and
+    proven in kai-achilles (34) and achilles-revival (149) on 2026-09-01, and then BACKED OUT
+    UNTOUCHED at his word: "dont fix the other repo though.. that for a later day in the future
+    after we perfect diablo first repos". This guard therefore reports them SKIPPED today, and
+    that is the correct answer — not a gap to close. Do not helpfully re-vendor them.
+
+    ⚠ A SIBLING REPO NOT PRESENT IS SKIPPED, AND THE SKIP IS SAID OUT LOUD. A guard that quietly
+    passes when it checked nothing is the failure this whole session has been about."""
+
+    UPSTREAM = "swallow_census.py"
+    COPIES = (("kai-achilles", "tools/swallow_census.py"),
+              ("achilles-revival", "tools/swallow_census.py"))
+
+    def _digest(self, text):
+        import hashlib
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+    def test_every_vendored_copy_matches_the_one_source(self):
+        import re
+        here = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(here, self.UPSTREAM), encoding="utf-8") as fh:
+            up = fh.read()
+        want = self._digest(up)
+
+        checked, absent, bad = [], [], []
+        for repo, rel in self.COPIES:
+            p = os.path.join(os.path.expanduser("~"), repo, rel)
+            if not os.path.isfile(p):
+                absent.append(repo)
+                continue
+            with io.open(p, encoding="utf-8") as fh:
+                cp = fh.read()
+            m = re.search(r'UPSTREAM_DIGEST = "([0-9a-f]+)"', cp)
+            if not m:
+                bad.append("%s: the copy carries no UPSTREAM_DIGEST stamp" % repo)
+                continue
+            if m.group(1) != want:
+                bad.append("%s: stamped %s, upstream is now %s — re-vendor it"
+                           % (repo, m.group(1), want))
+                continue
+            # the stamp agreeing is not the same as the CODE agreeing: compare the body below
+            # the vendored header, which is the only part that differs by design.
+            up_body = up[up.index('"""', up.index('"""') + 3) + 3:].lstrip("\n")
+            cp_body = cp[cp.index('"""', cp.index('"""') + 3) + 3:]
+            cp_body = cp_body[cp_body.index("import ast"):] if "import ast" in cp_body else cp_body
+            up_body = up_body[up_body.index("import ast"):] if "import ast" in up_body else up_body
+            if cp_body != up_body:
+                bad.append("%s: the digest matches but the CODE does not — someone edited the "
+                           "copy and left the stamp alone" % repo)
+                continue
+            checked.append(repo)
+
+        self.assertEqual(bad, [], "vendored copies of the swallow census have drifted: %s" % bad)
+        if absent:
+            # LOUD. Not a silent pass.
+            print("\n  ⚠ swallow-census drift guard checked %s and SKIPPED %s — those repos "
+                  "have not adopted the census yet (deferred 2026-09-01: perfect Diablo first). "
+                  "UNVERIFIED, not verified-clean."
+                  % (checked or "nothing", ", ".join(absent)))
+        self.assertTrue(checked or absent,
+                        "the guard checked nothing and found nothing to skip — its repo list is "
+                        "wrong, and it would pass forever")
+
+    def test_the_ratchet_is_in_the_gate_set(self):
+        """A tool nobody runs is a tool that does not exist. It belongs in the SAME gate set as
+        every other check, not as a thing someone remembers."""
+        import run_gates
+        names = [g.name for g in run_gates.GATES]
+        self.assertIn("swallow_ratchet", names,
+                      "the swallow ratchet left the gate set — it now only runs if a human "
+                      "types it, which is how the class went uncounted for years")
+
+    def test_the_baseline_exists_and_parses(self):
+        """--check treats a missing baseline as UNCONFIGURED and fails; this catches the case
+        earlier, next to the file."""
+        import json
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "baseline", "swallow_baseline.json")
+        self.assertTrue(os.path.isfile(p), "no swallow baseline — the ratchet cannot grade")
+        with io.open(p, encoding="utf-8") as fh:
+            b = json.load(fh)
+        self.assertIn("rank1", b.get("counts") or {},
+                      "the baseline carries no rank1 count, so the ratchet grades against 0 and "
+                      "would fail every push")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

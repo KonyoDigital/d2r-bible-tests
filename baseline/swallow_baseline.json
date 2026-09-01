@@ -1,0 +1,11 @@
+{
+  "_why": "RANK 1 is a ratchet: it may fall, never rise. Regenerate with swallow_census.py --write-baseline after a DELIBERATE reduction, and name the sites you fixed in the commit.",
+  "counts": {
+    "handlers": 1713,
+    "ok": 233,
+    "rank1": 74,
+    "rank2": 699,
+    "rank3": 707,
+    "unparsed": 0
+  }
+}
