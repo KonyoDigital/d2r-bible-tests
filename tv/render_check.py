@@ -163,6 +163,32 @@ TARGETS = {
                             "in the title attribute",
         },
     },
+    # ══ v2379 — THE CONSOLE ITSELF, WHICH THIS GATE HAD NEVER LOOKED AT ═══════════════════════
+    # Konyo: "skills loaded? how come you didnt use our visual harness gate? you should have
+    # caught this already 3 times back.." He is right, and the reason is measurable rather than
+    # forgetful: every target here rendered bible.html, and every control he has gone looking for
+    # — MINI, MINI(AUTOMATIC), the farm gate, the lamps — lives in tv/control_ui.html. Five
+    # targets, zero coverage of that file. The gate could not have caught it.
+    #
+    # This target asserts the CONTROLS HE REACHES FOR ARE ON SCREEN AND NOT BURIED. It is not a
+    # prettiness check: `sel` names the action row, so a control that gets moved back inside a
+    # collapsed <details> stops being painted here and the gate says so.
+    "console": {
+        "page": os.path.join("tv", "control_ui.html"),
+        "why": "the CONSOLE's own action row — the buttons he actually reaches for",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var b = document.getElementById('btn-miniauto');
+            if (!b) return false;
+            // it must not be inside a COLLAPSED details — that is how it hid for three rounds
+            for (var q = b.parentElement; q; q = q.parentElement){
+                if (q.tagName === 'DETAILS' && !q.open) return false;
+            }
+            var r = b.getBoundingClientRect();
+            return !!(r.width > 2 && r.height > 2); })()""",
+        "sel": "#btn-mini, #btn-miniauto",
+        "settles": False,   # a live console never stops moving; see the note at the settle call
+    },
     "inbox": {
         "why": "the chronicle inbox — the rows he answers",
         "seed": """(function(){
@@ -626,11 +652,25 @@ def _selector_ready(tab, sel, budget=20.0):
 def check(name, spec, shots=True):
     """Render one target at every width and judge it. -> dict"""
     out = {"target": name, "why": spec["why"], "widths": {}, "ok": True, "refusals": []}
-    tab = _Tab("file://" + os.path.join(REPO, "bible.html"))
+    # ⚠ v2379 — A TARGET MAY NAME ITS OWN PAGE. Every target until now was hard-wired to
+    # bible.html, so tv/control_ui.html — HIS CONSOLE, where every button we argue about lives —
+    # had ZERO coverage from this gate. Measured: 5 targets, 0 mentions of control_ui. That is
+    # why "the button is missing / buried / half-built" reached him THREE times: the instrument
+    # that exists to catch it was never pointed at the file. [[visual-regression-detector]]
+    tab = _Tab("file://" + os.path.join(REPO, spec.get("page") or "bible.html"))
     try:
         tab.send("Page.enable")
         tab.send("Runtime.enable")
-        why = _settled(tab)
+        # ⚠ v2379 — A LIVE CONSOLE NEVER SETTLES, AND THAT IS NOT A FAULT TO REPORT. Its clock
+        # ticks every second and its CSS animations are infinite, so readyState/size never stop
+        # moving — the exact reason Playwright's screenshot hangs on it (chrome-cdp-mac). A
+        # target may declare `settles: False`; it then waits a fixed beat instead. It must be
+        # OPT-IN per target, because for an ordinary page 'never settled' IS the finding.
+        if spec.get("settles") is False:
+            time.sleep(1.6)
+            why = None
+        else:
+            why = _settled(tab)
         if why:
             out["ok"] = False
             out["refusals"].append(why)

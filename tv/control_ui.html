@@ -6087,7 +6087,14 @@ body[data-origin="shadow"] #stage::after {
              which is what lets the vault accumulator find this footage first. A parked stash reel
              is the densest evidence in the archive: the panel is held still and every frame is a
              clean look at what he owns. -->
-        <button class="act b-mini" id="btn-mini" type="button"><span class="ic">⏱</span><span class="lab"><b>Mini</b><span id="mini-sub">stash &middot; 25s, stops itself</span></span></button>
+        <button class="act b-mini" id="btn-mini" type="button"><span class="ic">⏱</span><span class="lab"><b>Mini</b><span id="mini-sub">stash &middot; 120s, stops itself</span></span></button>
+        <!-- v2379 — MINI(AUTOMATIC) LIVES BESIDE MINI NOW. Konyo, twice: "where is the
+             Mini AUTOMATIC?" and then "where is my toggle for HOVER MODE automatic MINI?
+             remember we made you were suppose to wire the button in too. i cant seem to
+             find it anywhere". It WAS wired — buried inside <details id="sig-adv">, the
+             collapsed ⚙ ADVANCED panel. A mode for Mini belongs next to Mini. Same id,
+             same handler, same state readout; only the seat moved. -->
+        <button class="util-btn" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span id="miniauto-lbl">🖱 MINI · AUTO</span></button>
         <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
              fact that it is reading stash/runes/gems/materials and to look out specifically for
              this" — and then "for chronicles too.. a button for it so its focused specifically for
@@ -6304,11 +6311,6 @@ body[data-origin="shadow"] #stage::after {
                  differing only in CASE, side by side in the same strip, one of which drives his
                  pointer. Renamed the lamp to "ready?" - it asks a question, and this one does a
                  thing. -->
-            <!-- v2350 — MINI(AUTOMATIC), THE MODE. The lamp above only ever ASKED whether the
-                 pointer could be driven; nothing in the tree ever drove it (hover_drive.walk had
-                 zero callers). Konyo went looking for this button and it did not exist. It shows
-                 its own state, because a toggle you cannot read is a toggle you cannot trust. -->
-            <button class="util-btn" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span id="miniauto-lbl">🖱 MINI</span></button>
             <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
             <button class="util-btn" id="btn-repair" type="button" title="LEDGER REPAIR — restore find dates from the in-game Chronicle, or correct one mis-registered item. Both press the BOARD's own doors; the console never writes the ledger itself.">🩹 repair</button>
             <button class="util-btn" id="btn-ledger" type="button" title="THE LEDGER — what the AI has SEEN, read for free. Every grounded row and every sighting still waiting on a second witness, each with when it was read and which frames it came from. Reads two files; spends nothing; writes nothing.">📒 ledger</button>
@@ -12284,6 +12286,15 @@ body[data-origin="shadow"] #stage::after {
      the last-resort fallback for a console talking to an older engine, never the source.
      [[copy-drift]] */
   var MINI_FOCUS_SECS = { 'chronicle-uniques': 75, 'chronicle-sets': 150 };
+  /* ⚠ v2379 — 25 IS THE ENGINE'S OWN DEFAULT AND THIS MUST NOT INVENT A DIFFERENT ONE.
+     Konyo said 25s was too short and he was right about the STASH — but the backend already
+     knew: /api/mini serves focusSecs {stash 120, runes 25, gems 25, materials 25,
+     chronicle-uniques 75, chronicle-sets 150}, and control_app.MINI_DEFAULT_SECONDS is 25
+     because runes/gems/materials photograph ONE screen and 25s covers it several times over
+     (v2319). Those values are fetched below and overwrite this table.
+     My first cut changed this to 90, which just swapped one client-side guess for another and
+     would have contradicted the engine on four of the six focuses. The engine is the authority;
+     this fallback only covers the instant before the fetch lands. [[label-outlived-referent]] */
   function _miniSecsFor(f){ return MINI_FOCUS_SECS[f] || 25; }
   var MINI_FOCUS_ART = {
     'stash': CONSOLE_ART.stash, 'runes': CONSOLE_ART.runes,

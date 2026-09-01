@@ -25586,6 +25586,38 @@ window.dailyCreateAi = function(force){
     .then(function(r){return r.json();}).then(function(d){ if(d&&d.answer){ try{ window.LSR.setItem('d2r_createNowAi', d.answer.slice(0,300)); }catch(e){} try{ window._syncCreateNowAiArt(); }catch(e){} window.renderCreateNow(); } }).catch(function(){});
 };
 
+/* ══ v2378 — A DAILY PICK MAY NOT BOAST A COMPLETION WHILE ANYTHING IS INCOMPLETE ═══════════
+   Konyo, on his own screen: "why does is says chronicle complete it should only say Runeword
+   chronicle is compelete 99/99" and, of the same card, "looks like a double".
+
+   Both come from ONE line. The DAILY PICK is model-written free text in d2r_createNowAi, and it
+   had written "Your Chronicle is complete (99/99 runewords made! 🎉)". Two things wrong at once:
+     · "Chronicle" unqualified is FALSE — there are three, and his read 289/403 uniques and
+       120/135 sets at that moment. Only the RUNEWORD chronicle was 99/99.
+     · it duplicated the "Runewords — complete ✓ 99/99" progress row directly beneath it.
+   This has form: v6150 records the model writing "complete at 99/100" onto this same card.
+
+   THE RULE IS NOT A WORDING FILTER, because arguing with prose is how the last one got through.
+   The daily pick exists to name the single highest-value thing TO DO. While any chronicle is
+   still open, a completion boast is not a move, so it is refused and the rotation's own truthful
+   pick — which names the incomplete chronicle AND its next action — is used instead. When every
+   chronicle really is sealed, the boast is the honest answer and it passes.
+   [[label-outlived-referent]] [[unknown-stays-unknown]] */
+window._pickHonest = function(txt){
+  try {
+    if (!txt) return '';
+    var rot = (typeof window._chronRotation === 'function') ? window._chronRotation() : null;
+    var all = (rot && rot.all) || [];
+    if (!all.length) return txt;                       // cannot tell -> do not censor
+    var open = all.filter(function(c){ return !c.complete; });
+    if (!open.length) return txt;                      // genuinely all sealed
+    if (!/\bcomplete\b|\bsealed\b|\ball done\b|🎉|🏅/i.test(txt)) return txt;
+    // it claims completion while %d chronicle(s) are open — use the real move instead
+    var t = (rot && rot.target && rot.target.pick) ? rot.target.pick : '';
+    return t || '';
+  } catch(e){ return txt; }
+};
+
 /* ── v1616 — THE DAILY PICK IS ABOUT AN ITEM, SO NAME THE ITEM AND SHIP ITS ART ──────────────
    d2r_createNowAi is a free-text sentence ("Tancred's Hobn ...") and the console renders it as
    prose. It cannot resolve art from prose: it is a separate document around an iframe and cannot
@@ -39969,54 +40001,54 @@ function renderJournal(){
            It also made the DAILY TASK FORCE hero say "Forge <b>Caster Amulet</b> — you own every
            rune" about a CRAFT, which needs a gem and a rune and is not forged at all. A craft is a
            first-class task now (see hdTaskForce) instead of a runeword-shaped one. [[copy-drift]] */
+        /* ══ v2378 — SPREAD ACROSS THE CRAFT FAMILIES, DO NOT TAKE THE FIRST EIGHT ══════
+           Konyo: "the missions section was richer and more colorful with not only caster
+           crafts.. we had blood and saftey hand hitpoints too.. at one point".
+
+           He is right, and the board never stopped knowing it. MEASURED on his live store
+           2026-09-01: d2r_craftReady.now held TWELVE ready crafts across two families — nine
+           Caster and Blood Ring, Blood Amulet, Blood Gloves — while d2r_forgeSummary, which
+           is what the console reads, held Caster and nothing else.
+
+           `out.crafts` is built by walking CRAFTS in order, and Caster is first, so it emits
+           all nine Caster slots before the first Blood one. `.slice(0, 8)` then cuts the list
+           before any other family is reached. It USED to look richer for the plainest reason:
+           he had fewer Amethysts, so fewer Caster slots were ready and the others fitted in
+           the eight. His gem stash now reads Perfect Amethyst 13 against Ruby 1, Emerald 3,
+           Sapphire 1 — so the more Caster gems he collects, the more the console pretends the
+           other three families do not exist.
+
+           Round-robin instead: one from each family in turn until the cap. Same cap, same
+           payload shape, and the families he can actually make all reach the screen. Sorting
+           is untouched — the best slots still lead within each family, because the rotation
+           takes them in the order the family already produced.
+           [[label-outlived-referent]] [[gate-blind-to-unexercised-input]] */
+        function _fsSpread(rows, cap){
+          var src = rows || [];
+          if (src.length <= cap) return src.slice(0);
+          var byFam = {}, order = [];
+          src.forEach(function(r){
+            var k = String((r && r.craft) || '?');
+            if (!byFam[k]) { byFam[k] = []; order.push(k); }
+            byFam[k].push(r);
+          });
+          var out2 = [], i = 0;
+          while (out2.length < cap) {
+            var took = false;
+            for (var f = 0; f < order.length && out2.length < cap; f++) {
+              var q = byFam[order[f]];
+              if (i < q.length) { out2.push(q[i]); took = true; }
+            }
+            if (!took) break;                 // every family exhausted
+            i++;
+          }
+          return out2;
+        }
         var _fsPayload = {
             ts: Date.now(),
             now: _fsNowRw.slice(0, 10),
             onestep: (out.onestep || []).slice(0, 6).map(function(t){ return { rw: t.rw, sub: t.sub || '' }; }),
             pipeline: (out.pipeline || []).slice(0, 4).map(function(t){ return t.rw; }),
-            /* ══ v2378 — SPREAD ACROSS THE CRAFT FAMILIES, DO NOT TAKE THE FIRST EIGHT ══════
-               Konyo: "the missions section was richer and more colorful with not only caster
-               crafts.. we had blood and saftey hand hitpoints too.. at one point".
-
-               He is right, and the board never stopped knowing it. MEASURED on his live store
-               2026-09-01: d2r_craftReady.now held TWELVE ready crafts across two families — nine
-               Caster and Blood Ring, Blood Amulet, Blood Gloves — while d2r_forgeSummary, which
-               is what the console reads, held Caster and nothing else.
-
-               `out.crafts` is built by walking CRAFTS in order, and Caster is first, so it emits
-               all nine Caster slots before the first Blood one. `.slice(0, 8)` then cuts the list
-               before any other family is reached. It USED to look richer for the plainest reason:
-               he had fewer Amethysts, so fewer Caster slots were ready and the others fitted in
-               the eight. His gem stash now reads Perfect Amethyst 13 against Ruby 1, Emerald 3,
-               Sapphire 1 — so the more Caster gems he collects, the more the console pretends the
-               other three families do not exist.
-
-               Round-robin instead: one from each family in turn until the cap. Same cap, same
-               payload shape, and the families he can actually make all reach the screen. Sorting
-               is untouched — the best slots still lead within each family, because the rotation
-               takes them in the order the family already produced.
-               [[label-outlived-referent]] [[gate-blind-to-unexercised-input]] */
-            function _fsSpread(rows, cap){
-              var src = rows || [];
-              if (src.length <= cap) return src.slice(0);
-              var byFam = {}, order = [];
-              src.forEach(function(r){
-                var k = String((r && r.craft) || '?');
-                if (!byFam[k]) { byFam[k] = []; order.push(k); }
-                byFam[k].push(r);
-              });
-              var out2 = [], i = 0;
-              while (out2.length < cap) {
-                var took = false;
-                for (var f = 0; f < order.length && out2.length < cap; f++) {
-                  var q = byFam[order[f]];
-                  if (i < q.length) { out2.push(q[i]); took = true; }
-                }
-                if (!took) break;                 // every family exhausted
-                i++;
-              }
-              return out2;
-            }
             // v1409/v1411 — craft quests for the console FORGE QUESTS + CREATE pillar
             /* v2101 — SHIP THE CRAFT'S OWN PICTURE, the same way v1621 did for craftTypes just below.
                `artUrl` lives on THIS side of the iframe, so the console cannot resolve a gem itself
@@ -47320,7 +47352,7 @@ window.renderSessionCockpit = function(){
           + '<span class="sc-tf-tag dim">ONE STEP</span></div>');
       });
       var tfAi = '';
-      try { tfAi = window.LSR.getItem('d2r_createNowAi') || ''; } catch(e){}
+      try { tfAi = window._pickHonest(window.LSR.getItem('d2r_createNowAi') || ''); } catch(e){}
       // v1270 (G2) — if the daily cron hasn't run yet AND runewords are the only source above, DESCEND the
       // chronicle rotation so the Daily Pick still names the next incomplete chronicle's real move (grail/set).
       if (!tfAi){ try { var _tfRot = window._chronRotation && window._chronRotation(); if (_tfRot && _tfRot.target && _tfRot.target.pick) tfAi = _tfRot.target.pick; } catch(e){} }
@@ -48076,7 +48108,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2377', name:'v2377 - The forge shows every craft family', date:'2026-09-01', note:'the console was fed the first eight crafts in CRAFTS order, so Caster crowded out Blood, Safety and Hit Power' };
+  window.D2R_BUILD = { id:'v2378', name:'v2378 - The console under the visual gate', date:'2026-09-01', note:'MINI AUTOMATIC moved out of ADVANCED, the labels stopped contradicting the engine, and control_ui got its first render coverage' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

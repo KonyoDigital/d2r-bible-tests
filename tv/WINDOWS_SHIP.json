@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2377",
+  "ver": "v2378",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2377: the console was fed the first eight crafts in CRAFTS order, so Caster crowded out Blood, Safety and Hit Power",
+  "note": "v2378: MINI AUTOMATIC moved out of ADVANCED, the labels stopped contradicting the engine, and control_ui got its first render coverage",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
