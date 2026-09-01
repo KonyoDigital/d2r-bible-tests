@@ -467,8 +467,22 @@ fi
       rm -f /tmp/tvd_gate_console.pid
       ( cd "$REPO/tv" && nohup python3 control_app.py --no-open >/tmp/tvd_gate_console.log 2>&1 & echo $! > /tmp/tvd_gate_console.pid ) || true
       _own_console=$(cat /tmp/tvd_gate_console.pid 2>/dev/null || true)
-      # and stop it on EVERY exit path — a failing gate below exits before the explicit kill
-      trap '"'"'if [ -n "$_own_console" ]; then kill "$_own_console" 2>/dev/null || true; rm -f /tmp/tvd_gate_console.pid; fi'"'"' EXIT INT TERM
+      # and stop it on EVERY exit path — a failing gate below exits before the explicit kill.
+      #
+      # ⚠ THIS TRAP HAD NEVER RUN, AND THE REAPER ABOVE IS THE SCAR IT LEFT. The body was wrapped
+      # in the '"'"' shell-in-shell escaping form, which belongs INSIDE an already-single-quoted
+      # string and is wrong at this level. bash read it as a literal-quote sandwich, refused the
+      # registration outright — `trap: RAN; fi'": invalid signal specification` — and then, on the
+      # way out of every push, tried to execute the whole trap body AS A FILENAME:
+      #     hooks/pre-push: line 658: 'if [ -n 5791 ]; then kill 5791 ...': No such file or directory
+      # Seen on the v2399 push. So the safety net for "a failing gate exits before the explicit
+      # kill" was decorative for its whole life, which is exactly why a leaked console was once
+      # found alive on :17994 at 1d11h and why the reaper above had to be written.
+      #
+      # Proven both directions before changing it: the shipped form registers nothing and dies on
+      # exit; the plain single-quoted form prints CLEANUP RAN. A trap that cannot be seen firing is
+      # a trap nobody should count. [[the-unjoined-end]]
+      trap 'if [ -n "$_own_console" ]; then kill "$_own_console" 2>/dev/null || true; rm -f /tmp/tvd_gate_console.pid; fi' EXIT INT TERM
       _up=0
       for _i in $(seq 1 40); do
         sleep 1
