@@ -31048,6 +31048,73 @@ class TestV2237EveryItemCanShowItsPicture(unittest.TestCase):
                          "stay the same set or 'no art' stops meaning 'by design'")
 
 
+class TestV2407TheEagleInvariantComparesLikeWithLike(unittest.TestCase):
+    """⚠ A CORROBORATOR THAT COMPARES A FILTERED COUNT AGAINST AN UNFILTERED ONE IS REPORTING ITS
+    OWN FILTER, NOT DRIFT.
+
+    Konyo photographed THE STATE OF THIS CONSOLE on 2026-09-01 and asked what its rows meant. One
+    said: *"1 engine pair(s) disagree: eagle-ran-every-check — rows in the last eagle pass says 32
+    and checks on the roster says 34, and they must be =="*.
+
+    Diffed BY NAME rather than by count — because a delta of 2 is not actionable and two names are
+    — the missing pair is `sweep would find` and `the other doctors`. Both are declared SLOW
+    (console_doctor.py), and the eagle calls `run(include_slow=False)` (control_app.py:14601), which
+    skips exactly those. 34 - 2 = 32. Nothing was drifting; the right-hand side was counting checks
+    the left-hand side is designed never to run, so the pair could never agree and had presumably
+    been red since SLOW was introduced.
+
+    A permanently-red alarm is worse than no alarm: it teaches the eye to skip the row, and then the
+    row that MATTERS gets skipped with it. That is the whole reason he built this panel.
+    [[feedback-suspect-the-instrument]] [[label-outlived-referent]]"""
+
+    def _right(self):
+        """The invariant's right-hand side, called exactly as the corroborator calls it."""
+        import corroborate as co
+        inv = co._inv_the_eagle_can_still_look()
+        return inv[6]()          # (key, claim, prove, leftName, left, rightName, right, op)
+
+    def test_it_excludes_the_checks_the_eagle_never_runs(self):
+        import console_doctor as cd
+        self.assertEqual(self._right(), len(cd.CHECKS) - len(cd.SLOW),
+                         "the eagle runs include_slow=False, so its expected row count is the "
+                         "roster MINUS the SLOW set. Counting the full roster makes this pair "
+                         "permanently red and it stops being read.")
+
+    def test_it_is_NOT_simply_the_whole_roster(self):
+        """THE RED DIRECTION. This is the exact expression that shipped, and it must not come back.
+        Guarded separately so that if SLOW is ever emptied the test says so loudly rather than
+        passing by coincidence."""
+        import console_doctor as cd
+        if not cd.SLOW:
+            self.skipTest("SLOW is empty — this guard cannot distinguish the two expressions, "
+                          "which is UNKNOWN and not a pass")
+        self.assertNotEqual(self._right(), len(cd.CHECKS),
+                            "the right-hand side is back to len(CHECKS): it is counting %d checks "
+                            "the eagle is designed never to run." % len(cd.SLOW))
+
+    def test_adding_a_check_MOVES_the_expectation(self):
+        """PIN THE LAW, NOT THE NUMBER. A test asserting 32 would pass today and rot on the next
+        check added — reintroducing the identical defect one roster entry later, which is precisely
+        how the original arose. So: add a check and require the number to follow.
+        [[regression-guard]]"""
+        import console_doctor as cd
+        before = self._right()
+        old = cd.CHECKS
+        try:
+            cd.CHECKS = list(old) + [("a planted cheap check", lambda: ("ok", "planted"))]
+            self.assertEqual(self._right(), before + 1,
+                             "a new CHEAP check did not move the expectation — the count is pinned "
+                             "somewhere instead of derived from the roster")
+            cd.CHECKS = list(old) + [("a planted slow check", lambda: ("ok", "planted"))]
+            cd.SLOW = tuple(cd.SLOW) + ("a planted slow check",)
+            self.assertEqual(self._right(), before,
+                             "a new SLOW check moved the expectation — SLOW checks never run on "
+                             "the timer, so they must not be expected in the eagle's rows")
+        finally:
+            cd.CHECKS = old
+            cd.SLOW = tuple(x for x in cd.SLOW if x != "a planted slow check")
+
+
 class TestV2237NeverRanIsNotZero(unittest.TestCase):
     """⚠ MY OWN INVARIANT BROKE THE LAW ITS FILE EXISTS TO ENFORCE.
 

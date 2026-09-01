@@ -1005,7 +1005,16 @@ def check(name, spec, shots=True):
                 os.makedirs(SHOTS, exist_ok=True)
                 d = tab.send("Page.captureScreenshot", format="png", captureBeyondViewport=False)
                 png = base64.b64decode(d.get("data") or "")
-                p = os.path.join(SHOTS, "%s_%d.png" % (name, w))
+                # ⚠ v2407 — THE NAME MUST CARRY THE HEIGHT, OR TWO VIEWPORTS FIGHT OVER ONE FILE.
+                # This was "%s_%d.png" % (name, w) — width only — which was unambiguous for as
+                # long as every entry in WIDTHS had a distinct width. v2406 added his real window
+                # (1120, 628) beside the existing (1120, 900), and both promptly wrote
+                # `state-panel_1120.png`: whichever ran last silently won, and the surviving PNG
+                # could not say which viewport it showed. A screenshot that cannot name its own
+                # viewport is useless for the visual pass it exists to serve, and the loss is
+                # SILENT — the run still reports both sizes as rendered.
+                # Found immediately, by looking at the file listing rather than at the green line.
+                p = os.path.join(SHOTS, "%s_%dx%d.png" % (name, w, h))
                 with open(p, "wb") as fh:
                     fh.write(png)
                 m["shot"] = os.path.relpath(p, REPO)

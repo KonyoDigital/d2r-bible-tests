@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2406",
+  "ver": "v2407",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2406: his real viewport, reachability before the scroll, and the beat finally refusing something",
+  "note": "v2407: the corroborator stops reporting its own filter, and a shot can name its viewport",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

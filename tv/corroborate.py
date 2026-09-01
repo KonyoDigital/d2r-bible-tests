@@ -548,13 +548,32 @@ def _inv_the_eagle_can_still_look():
         return len(rows) if isinstance(rows, list) else None
 
     def right():
+        """The checks the eagle ACTUALLY RUNS — which is not the whole roster.
+
+        ⚠ THIS RETURNED len(cd.CHECKS) AND THE INVARIANT COULD THEREFORE NEVER BE SATISFIED. The
+        eagle calls `run(include_slow=False)` (control_app.py:14601) and `run` skips any name in
+        `SLOW`, so it emits len(CHECKS) - len(SLOW) rows by design. Measured on his live console
+        2026-09-01: 32 rows against a roster of 34, flagged as an engine pair disagreeing, when
+        34 - 2 = 32 is exactly right. The two are `sweep would find` and `the other doctors`.
+
+        He photographed the panel and asked what it meant. A corroborator comparing a filtered
+        count against an unfiltered one is not detecting drift, it is reporting its own filter —
+        and it had presumably been red since SLOW was introduced. A permanently-red alarm is worse
+        than no alarm: it teaches the eye to skip the row, and then the row that MATTERS gets
+        skipped with it. [[feedback-suspect-the-instrument]] [[label-outlived-referent]]
+
+        ⚠ DERIVED FROM THE SAME CONSTANTS THE RUNNER USES, never a hardcoded 32. Adding a check
+        must move this number automatically; pinning the literal would rot on the next check and
+        reintroduce the identical defect one roster entry later. [[regression-guard]]
+        """
         import console_doctor as cd
-        return len(cd.CHECKS)
+        return len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
 
     return ("eagle-ran-every-check",
-            "the eagle's last pass covered every check on its roster",
+            "the eagle's last pass covered every check it actually runs (the roster minus SLOW)",
             "drop a check from the loop and its row stops appearing while the roster still lists it",
-            "rows in the last eagle pass", left, "checks on the roster", right, "==")
+            "rows in the last eagle pass", left, "checks the eagle runs (roster minus SLOW)",
+            right, "==")
 
 
 def _inv_hunt_memory_is_being_used():
