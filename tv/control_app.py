@@ -16267,59 +16267,31 @@ def _vault_owed_reels(hist=None):
     # something to aim at, which is the second half of the fix below.
     h_abs = os.path.abspath(h)
 
-    # ══ v2391 — ASK THE QUESTION, DO NOT FILTER SOMEBODY ELSE'S ANSWER ═════════════════════════
-    # Konyo: "WE HAVE A UNIFIED SYSTEM i keep saying this.. make sure its connected and synced".
-    # This is the joint that was not.
-    #
-    # MEASURED 2026-09-01, live: the console reported {owed: 0, reads: 0, lastTs: None} every 45
-    # seconds — the vault lane had NEVER swept anything — while _vault_lane_owes() said 43 of 44
-    # reels owe it a read. Two answers to one question. [[feedback-contradiction-is-the-finding]]
-    #
-    # WHY. This filtered plan()'s `kept` list, and plan() checks its rules IN ORDER with
-    # first-match-wins. `vault-owes` is 8th of 10; every one of his reels matched an earlier rule
-    # (test-fixture 15, zero-pages 24, recent 5), so the tag fired ZERO times and the filter
-    # returned []. ONE ORDERED LIST WAS ANSWERING TWO DIFFERENT QUESTIONS: "why is this reel still
-    # here" correctly stops at the first reason; "which reels owe a read" is orthogonal — a reel
-    # can be held-because-recent AND owed-a-read at the same time.
-    #
-    # ⚠ AND IT MATCHED ON PROSE. `"VAULT lane has never swept" in k["why"]` — a substring of an
-    # English sentence — even though v2383 put the machine-readable `tag` on every record. A
-    # reader that greps a sentence breaks when someone improves the sentence.
+    # ⚠ v2392 — MATCH THE TAG, NOT THE SENTENCE. This filtered on a substring of an English `why`
+    # string; v2383 put a machine-readable `tag` on every record for exactly this. Same reels,
+    # same semantics — it simply stops breaking when someone improves the wording.
     # [[feedback-comments-vs-code]]
     #
-    # WHAT IT COST: no sweep -> no seal -> 72.5% of his 6,380 frames held "not sealed" -> 0
-    # frames prunable -> 7.4 GB of film -> 7 GB free against an 8 GB floor -> CAPTURE BLOCKED.
+    # ⚠⚠ AND THE REST IS DELIBERATELY UNCHANGED, AFTER I REWROTE IT AND WAS WRONG.
+    # On 2026-09-01 I read the {owed: 0, reads: 0, lastTs: None} lamp as a dead lane, measured
+    # `_vault_lane_owes()` answering 43 of 44, and called it a contradiction. IT IS NOT.
+    # `_vault_lane_owes` asks only "would the vault lane EVER read this reel" — it knows nothing
+    # about why retention is holding it. MEASURED the same day: all 44 of his reels are
+    # test-fixture (15), recent (5) or zero-pages (24). Under the doctrine below, ZERO reels owe
+    # the vault lane a read — so `owed: 0` is the CORRECT answer and a lane that has never swept
+    # is the right outcome, not a defect.
     #
-    # THE WORK IS: the lane owes it, AND it has no current seal. Both halves matter — a sealed
-    # reel is finished with, and a reel the lane does not own (a declared chronicle focus) is not
-    # its to read. MEASURED: 44 on disk, 43 owed, 36 unsealed, 35 both. Priced at <=97 reads
-    # total by _vault_scan_cost_inner, one targeted reel per 45s tick.
-    try:
-        import frame_authority as _fa
-        _sealed, _seal_ok = _fa.sealed_sessions()
-    except Exception:
-        _sealed, _seal_ok = {}, False
-    if not _seal_ok:
-        # ⚠ "I could not read the seals" is not "nothing is sealed". Returning the full list here
-        # would re-read reels already finished with, and paying twice for the same film is the
-        # [[paid-work-with-no-memory]] scar. UNKNOWN, and the tick already says so out loud.
-        return None
-    out = []
-    try:
-        for d in sorted(os.listdir(h_abs)):
-            if not d.startswith("reel_"):
-                continue
-            if d[len("reel_"):] in _sealed:
-                continue                      # the lane has already finished with this one
-            try:
-                if _rr._vault_lane_owes(os.path.join(h_abs, d)):
-                    out.append(os.path.join(h_abs, d))
-            except Exception:
-                continue                      # one unreadable reel must not empty the worklist
-    except OSError:
-        return None                           # cannot list hist -> UNKNOWN, never []
-    return out
-
+    # My rewrite would have queued 26 reels, 10 of them ones retention explicitly holds (5 test
+    # fixtures, 5 too-recent) — re-creating the 2026-08-28 incident these guards were written for,
+    # at a measured cost of up to 97 paid reads. TestTheVaultLaneHasAWatchdog caught it, twice.
+    #
+    # The `vault-owes` tag genuinely never fires on his tree because earlier rules match first.
+    # That is a LATENT defect the day a reel legitimately reaches it, and it is worth fixing — but
+    # it is not what fills his disk. That is 6.2 GB of test fixtures, one 3 GB reel pinned by a
+    # COMMENT. [[feedback-suspect-the-instrument]] [[sabotage-is-usually-the-wrong-one]]
+    return [os.path.join(h_abs, os.path.basename(str(k.get("reel"))))
+            for k in (p.get("kept") or [])
+            if k.get("tag") == "vault-owes"]
 
 _TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "skips": {}}
 _TRIAGE_EVERY_S = int(os.environ.get("TV_TRIAGE_EVERY_S") or 90)
@@ -20994,7 +20966,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2391",
+        "ver": "v2392",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

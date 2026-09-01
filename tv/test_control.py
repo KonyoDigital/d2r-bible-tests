@@ -29910,14 +29910,23 @@ class TestTheVaultLaneHasAWatchdog(unittest.TestCase):
     # both used to skipTest whenever frames/hist was absent — which is CI, and every machine but
     # his. A test that runs nowhere proves nothing, and it reads green either way.
     # [[regression-guard]] a SKIP IS NOT A PASS · [[feedback-blind-fixture-green-gate]]
+    # ⚠ v2392 — THE FIXTURE CARRIED NO `tag`, AND REAL RECORDS HAVE HAD ONE SINCE v2383.
+    # A fixture that is missing a field the live data carries is a blind fixture: it can only ever
+    # exercise the OLD shape, so a reader moved onto the new field looks broken here while being
+    # right in production, and — worse — a reader still on the old field looks fine here forever.
+    # Both `why` and `tag` are present now, exactly as reel_retention.plan() emits them.
+    # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
     PLAN = {"ok": True, "candidates": [], "kept": [
-        {"reel": "reel_A", "why": "the VAULT lane has never swept it — it still owes the vault "
-                                  "manager its stash rows"},
-        {"reel": "reel_B", "why": "sealed with 0 pages — that is 'this reader found nothing'"},
-        {"reel": "reel_C", "why": "the TEST SUITE opens this reel by name"},
-        {"reel": "reel_D", "why": "one of the 5 most recent"},
-        {"reel": "reel_E", "why": "the VAULT lane has never swept it — it still owes the vault "
-                                  "manager its stash rows"},
+        {"reel": "reel_A", "tag": "vault-owes",
+         "why": "the VAULT lane has never swept it — it still owes the vault manager its stash rows"},
+        {"reel": "reel_B", "tag": "zero-pages",
+         "why": "sealed with 0 pages — that is 'this reader found nothing'"},
+        {"reel": "reel_C", "tag": "test-fixture",
+         "why": "the TEST SUITE opens this reel by name"},
+        {"reel": "reel_D", "tag": "recent",
+         "why": "one of the 5 most recent"},
+        {"reel": "reel_E", "tag": "vault-owes",
+         "why": "the VAULT lane has never swept it — it still owes the vault manager its stash rows"},
     ]}
 
     def test_its_work_list_IS_retentions_list_not_a_second_opinion(self):
@@ -29925,8 +29934,10 @@ class TestTheVaultLaneHasAWatchdog(unittest.TestCase):
         import reel_retention as rr
         with mock.patch.object(rr, "plan", lambda *a, **k: self.PLAN):
             mine = {os.path.basename(x) for x in (self.ca._vault_owed_reels("/tmp/h") or [])}
+        # v2392 — the panel side reads the TAG now, same as the watchdog. Both still come from
+        # ONE record so they cannot drift, which is the lesson; only the field moved.
         panel = {os.path.basename(str(k["reel"])) for k in self.PLAN["kept"]
-                 if "VAULT lane has never swept" in k["why"]}
+                 if k.get("tag") == "vault-owes"}
         self.assertEqual(mine, panel,
                          "the watchdog and the panel disagree about which reels owe the vault "
                          "lane. That is #167 reappearing: whichever surface he reads is wrong "
@@ -37652,39 +37663,36 @@ class TestV2390AnInvariantMayNotCorroborateAThingAgainstITSELF(unittest.TestCase
         self.assertGreater(len(rows), 6, "the self-test shrank — it is proving less than it did")
 
 
-class TestV2391TheVaultWorklistAsksItsOwnQuestion(unittest.TestCase):
-    """★ Konyo: "WE HAVE A UNIFIED SYSTEM i keep saying this.. make sure its connected and synced".
+class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
+    """★ WHAT REPLACED A GUARD I WROTE FOR A DESIGN THAT WAS WRONG.
 
-    MEASURED 2026-09-01, live: the console reported {on: True, every 45s, reads: 0, lastTs: None,
-    owed: 0} — the vault lane had NEVER swept anything since it was built — while
-    reel_retention._vault_lane_owes() said 43 of 44 reels owed it a read.
+    On 2026-09-01 I read the vault lamp — {on: True, every 45s, reads: 0, lastTs: None, owed: 0} —
+    as a dead lane, measured `_vault_lane_owes()` answering 43 of 44 reels, and called it a
+    contradiction. It was not. That predicate asks only "would the vault lane EVER read this
+    reel"; it knows nothing about WHY retention is holding it.
 
-    WHY: _vault_owed_reels filtered plan()'s `kept` list, and plan() checks its rules IN ORDER,
-    first match wins. `vault-owes` is 8th of 10 and every reel matched an earlier rule
-    (test-fixture 15, zero-pages 24, recent 5), so the tag fired ZERO times.
+    MEASURED the same day: all 44 of his reels are test-fixture (15), recent (5) or zero-pages
+    (24). Under the doctrine _vault_owed_reels encodes, ZERO reels owe the vault lane a read — so
+    `owed: 0` is the CORRECT answer, and a lane that has never swept is the right outcome.
 
-    ONE ORDERED LIST WAS ANSWERING TWO DIFFERENT QUESTIONS. "Why is this reel still here" stops at
-    the first reason — correct. "Which reels owe a read" is orthogonal: a reel can be
-    held-because-recent AND owed-a-read at once.
+    My rewrite would have queued 26 reels, 10 of them ones retention explicitly holds, re-creating
+    the 2026-08-28 incident (a naive predicate said 19 owed while retention said 2, three of the
+    extras being test fixtures) at a measured cost of up to 97 paid reads.
+    TestTheVaultLaneHasAWatchdog caught it twice, and I reverted.
 
-    THE COST: no sweep -> no seal -> 72.5% of 6,380 frames held "not sealed" -> 0 prunable ->
-    7.4 GB -> 7 GB free against an 8 GB floor -> capture blocked."""
+    WHAT SURVIVED is the one change that was safe: match the machine-readable `tag` instead of a
+    substring of an English sentence. [[feedback-comments-vs-code]]
+    [[feedback-suspect-the-instrument]] [[sabotage-is-usually-the-wrong-one]]"""
 
     def setUp(self):
-        import control_app
-        self.ca = control_app
         d = os.path.dirname(os.path.abspath(__file__))
         with io.open(os.path.join(d, "control_app.py"), encoding="utf-8") as fh:
             self.src = fh.read()
+        with io.open(os.path.join(d, "test_control.py"), encoding="utf-8") as fh:
+            self.tests = fh.read()
 
     def _body(self):
-        """The EXECUTABLE lines only.
-
-        ⚠ THE FIRST CUT OF THIS GUARD MATCHED ITS OWN EXPLANATION. The v2391 comment quotes the
-        retired prose-filter verbatim to explain why it was wrong, so a raw substring search found
-        it and failed on the very text describing the fix. Second time in one day — the type-floor
-        guard did the same with a font size. Describe the defect in prose; SEARCH only the code.
-        [[feedback-comments-vs-code]] [[source-reading-guard]]"""
+        """Executable lines only — a source guard must not match its own explanation."""
         raw = _between(self, self.src, "def _vault_owed_reels(", "\ndef ",
                        what="the vault worklist")
         out, in_doc = [], False
@@ -37698,53 +37706,29 @@ class TestV2391TheVaultWorklistAsksItsOwnQuestion(unittest.TestCase):
             out.append(ln.split("  #")[0])
         return "\n".join(out)
 
-    def test_it_does_not_filter_the_planner_s_first_match_tags(self):
-        b = self._body()
-        self.assertNotIn('"VAULT lane has never swept" in', b,
-                         "the worklist is back to filtering plan()'s kept list by a PROSE match "
-                         "on the why string — that inherits the first-match ordering that made it "
-                         "return [] forever, and it greps an English sentence")
+    def test_it_matches_the_tag(self):
+        self.assertIn('k.get("tag") == "vault-owes"', self._body(),
+                      "the worklist is not matching the machine-readable tag")
 
-    def test_it_asks_the_ownership_predicate_itself(self):
-        self.assertIn("_vault_lane_owes", self._body(),
-                      "the worklist no longer asks whether the lane owns each reel")
+    def test_it_no_longer_greps_an_english_sentence(self):
+        needle = "VAULT lane has " + "never swept"     # assembled: cannot match its own text
+        self.assertNotIn(needle, self._body(),
+                         "the worklist is back to matching a substring of a why sentence, which "
+                         "breaks the moment someone improves the wording")
 
-    def test_it_skips_reels_the_lane_has_already_SEALED(self):
-        """Both halves matter: a sealed reel is finished with, and re-reading it is paid work for
-        film already read. [[paid-work-with-no-memory]]"""
-        self.assertIn("sealed_sessions", self._body(),
-                      "the worklist no longer excludes sealed reels, so the lane would pay to "
-                      "re-read film it has already finished with")
-
-    def test_an_unreadable_seal_store_is_UNKNOWN_not_the_whole_list(self):
-        """'I could not read the seals' is not 'nothing is sealed'. Returning everything would
-        re-buy every reel. [[unknown-stays-unknown]]"""
-        b = self._body()
-        # ⚠ "return None appears somewhere" IS NOT THE CHECK. Three different paths return None
-        # here (a failed import, an unlistable dir, and this one), so a sabotage that removed the
-        # seal-store branch left the guard GREEN. Name the branch. [[regression-guard]]
-        self.assertIn("if not _seal_ok:", b,
-                      "the seal-store failure branch is gone — an unreadable store would fall "
-                      "through and produce a FULL worklist, paying to re-read every reel")
-        after = b[b.index("if not _seal_ok:"):]
-        self.assertIn("return None", after.split("\n    out")[0],
-                      "the seal-store failure branch no longer returns UNKNOWN")
-
-    def test_the_worklist_is_a_subset_of_what_is_on_disk(self):
-        """The live sanity check the corroborator also asserts: it may narrow, never invent."""
-        import os as _os
-        hist = _os.environ.get("TV_HIST") or _os.path.join(
-            _os.path.dirname(_os.path.abspath(__file__)), "frames", "hist")
-        if not _os.path.isdir(hist):
-            self.skipTest("no hist dir on this machine — nothing to measure")
-        w = self.ca._vault_owed_reels()
-        if w is None:
-            self.skipTest("the worklist reported UNKNOWN, which is a valid answer here")
-        on_disk = [d for d in _os.listdir(hist) if d.startswith("reel_")]
-        self.assertLessEqual(len(w), len(on_disk),
-                             "the worklist names more reels than exist on disk")
-        for p in w:
-            self.assertTrue(_os.path.isdir(p), "the worklist names a path that is not a reel: %s" % p)
+    def test_the_fixture_carries_what_real_records_carry(self):
+        """A fixture missing a field the live data has can only ever exercise the OLD shape."""
+        # ⚠ the first cut sliced to the first `def test_` and MISSED the fixture, because this
+        # class defines a test BEFORE the PLAN attribute. Slice to the next class instead — a
+        # guard that reads the wrong window fails on its own REACH, not on the code.
+        # [[source-reading-guard]]
+        i2 = self.tests.index("class TestTheVaultLaneHasAWatchdog")
+        nxt = self.tests.find("\nclass ", i2 + 10)
+        blk = self.tests[i2:nxt if nxt > 0 else len(self.tests)]
+        self.assertIn("PLAN = {", blk, "the guard is reading the wrong window — no PLAN in it")
+        self.assertIn('"tag":', blk,
+                      "the watchdog fixture has no tag field, so it cannot exercise the reader "
+                      "production actually runs")
 
 
 if __name__ == "__main__":
