@@ -75,8 +75,16 @@ const SCAN = (needle: string) => `(function(){
      what happens: scrollTop stays 0 and the element never moves. Two of his own probes
      disagreed about this, which is why the movement is now asserted instead of assumed. */
   var probeBefore = b.getBoundingClientRect().top;
-  window.scrollTo(0, Math.min(maxY, anchor + 120));
-  var moved = Math.abs(b.getBoundingClientRect().top - probeBefore) > 2;
+  /* BOTH DIRECTIONS. Probing only downward reports "cannot move" whenever the anchor is already
+     at maxY, because Math.min clamps to the same offset — a false negative that convicts the
+     harness instead of measuring it. That is what the first cut of this guard did on CI. */
+  var moved = false;
+  var tryY = [Math.min(maxY, anchor + 120), Math.max(0, anchor - 120)];
+  for (var ti = 0; ti < tryY.length && !moved; ti++) {
+    if (tryY[ti] === anchor) continue;            // no offset to move TO is not a failure to move
+    window.scrollTo(0, tryY[ti]);
+    if (Math.abs(b.getBoundingClientRect().top - probeBefore) > 2) moved = true;
+  }
   window.scrollTo(0, anchor);
   var tested=0, free=0, first=null, covers={}, seenTops={}, distinct=0;
   for(var y=lo; y<=hi; y+=25){
