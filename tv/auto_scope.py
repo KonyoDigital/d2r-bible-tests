@@ -50,6 +50,19 @@ LANES = {
         "when": "on a ten-minute timer",
         "brakes": "an unmeasurable check reads UNKNOWN, never ok",
     },
+    "tvd-retro-triage": {
+        "does": "surveys one unread reel at a time to learn, for free, which reels are worth "
+                "paying to read",
+        "touches": "its own triage store — the survey verdicts, one row per reel",
+        "forbids": ["delete"],
+        "never": "your reels, your frames, your ledger or your vault. It reads footage and "
+                 "writes down what it saw; it removes nothing",
+        "when": "on a timer, ONE reel per tick — spread out on purpose so it stays "
+                "interruptible on the machine you play on, not because it is slow",
+        "brakes": "it stands down for five named reasons rather than skipping silently: you are "
+                  "playing (D2R is alive), the machine is loaded above its core count, a capture "
+                  "is live, a paid sweep is spending, or the disk is below its floor",
+    },
     "tvd-retention": {
         "does": "accounts for what old footage COULD be freed",
         "touches": "its own accounting",
@@ -190,6 +203,7 @@ LANE_FN = {
     "tvd-vault-autoread": "_vault_autoread_loop",
     "tvd-shadow-watch": "_shadow_watch_loop",
     "tvd-chron-autoread": "_chron_autoread_loop",
+    "tvd-retro-triage": "_retro_triage_loop",
 }
 
 #: what a forbidden word means in code. Deliberately broad: a false alarm costs a comment, a missed

@@ -6522,9 +6522,22 @@ body[data-origin="shadow"] #stage::after {
              wall into a bad hover wall — same text, smaller box. It belongs in a window with
              headings. Deliberately reuses .fleet-xref / .fxr-win so it IS the cross-reference
              window's design rather than a second thing that resembles it. [[copy-drift]] -->
-        <div id="ver-xref" class="fleet-xref" hidden></div>
+        
           </div>
         </details>
+        <!-- ⚠ v2400 — THIS OVERLAY MUST NOT LIVE INSIDE <details id="sig-adv">, AND IT DID.
+             A collapsed <details> does not render its children AT ALL, and `position:fixed` does not
+             escape a subtree that is not being drawn. #sig-adv REMEMBERS his choice: its ontoggle
+             writes localStorage['d2r_advOpen'] and the loader restores it with
+             `_sa.open = (_v === null) ? true : (_v === '1')`. So ONE click collapsing ⚙ ADVANCED
+             would have made clicking the footer version open NOTHING — on that launch and every
+             launch after it — while the code did exactly what it says: set hidden=false on an
+             element nobody is drawing.
+             MEASURED on his machine at the time of the fix: d2r_advOpen = '1', so his drawer is
+             OPEN and this was LATENT, not live. Recorded because a latent trap that survives a
+             green gate is the kind he ends up reporting by hand.
+             Found by a second reader on the v2400 work — no gate could see it. [[the-unjoined-end]] -->
+        <div id="ver-xref" class="fleet-xref" hidden></div>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
         <!-- v1753 — TITLE, because this sub-label lives in a CLIP ZONE. Measured: the closed-state
      text is 562px inside a 208px box at 1440 and 508px inside 148px at 901 — 63% and 71% of
@@ -8118,13 +8131,12 @@ body[data-origin="shadow"] #stage::after {
     try {
       var fv = $('foot-ver');
       if (fv) {
-        if (fleetBehind > 0) {
-          fv.title = 'BEHIND · click to re-check · ' + (fl.howTo || 'relaunch to auto-pull');
-          fv.style.color = '#ffcf8a';
-        } else if (!(fv.title || '').startsWith('capture:')) {
-          fv.title = 'click — check fleet updates · unified with origin';
-          fv.style.color = '';
-        }
+        /* ⚠ v2400 — THE COLOUR STAYS, THE TITLE GOES. This poll used to rewrite fv.title on
+           every beat, which is why the one-line hover never stuck: whatever :8551 set was
+           overwritten a second later. Being behind is now said IN the panel's THE FLEET section,
+           where there is room to say it properly, and the footer keeps only the amber tint as the
+           at-a-glance signal. ONE writer owns fv.title now. [[d2r-css-last-rule-wins]] */
+        fv.style.color = (fleetBehind > 0) ? '#ffcf8a' : '';
       }
     } catch (eFv) {}
     var sv = $('sig-vision');
@@ -8580,10 +8592,13 @@ body[data-origin="shadow"] #stage::after {
       var ct = st.captureTarget || {};
       if (ct.label || ct.mode) {
         var tip = (ct.mode || '?') + (ct.label ? (' · ' + ct.label) : '');
-        $('foot-ver').title = 'capture: ' + tip
+        /* v2400 — was the fourth writer of fv.title; the capture target belongs in the panel,
+           not in a hover that has to say one thing. Kept as a data attribute so the panel and any
+           reader can still get at it without owning the tooltip. */
+        $('foot-ver').setAttribute('data-capture', 'capture: ' + tip
           + ' · stamps control=' + _cv
           + (_av ? (' agent=' + _av) : '')
-          + (_bv ? (' board=' + _bv) : '');
+          + (_bv ? (' board=' + _bv) : ''));
       }
     } catch (e) {}
     $('foot-ports').innerHTML = ':' + (st.controlPort||17772) + '<span class="dot">·</span>agent :' + (st.agentPort||17771)
@@ -9840,6 +9855,13 @@ body[data-origin="shadow"] #stage::after {
     } else {
       fRows.push(_vxRow('this machine', null, 'no fleet answer on this payload'));
     }
+    /* v2400 — THE RETRY LIVES WHERE THE VERDICT IS. _vxRow escapes its value (correctly), so the
+       control is pushed as its own row rather than smuggled through it. */
+    fRows.push('<div class="vx-row"><span class="vx-k">re-check</span>'
+             + '<span class="vx-v"><button type="button" class="vx-btn" '
+             + 'title="force-fetch origin/main" onclick="window._fleetUpdateCheck()">\u27f3 CHECK NOW</button></span>'
+             + '<span class="vx-note">asks GitHub now · Mac + Windows share one origin/main · '
+             + 'the answer arrives as a toast</span></div>');
 
     /* ── 3. WHAT NEEDS YOU ────────────────────────────────────────────────────────────────── */
     var eRows = [];
@@ -12130,11 +12152,18 @@ body[data-origin="shadow"] #stage::after {
   });
   $('th-card').onclick = thCardToggle;
   $('th-replay').onclick = thInstantReplay;
-  // v817 / v1418 — ⟳ FLEET UPDATE: one click force-fetches GitHub; banner also paints when behind.
-  (function(){
-    var fv = $('foot-ver'); if (!fv) return;
-    fv.style.cursor = 'pointer'; fv.title = 'click — check fleet updates (Mac + Windows share one GitHub main)';
-    fv.onclick = async function(){
+  /* v817 / v1418 — ⟳ FLEET UPDATE: force-fetch GitHub on demand.
+     ⚠ v2400 — IT NO LONGER OWNS #foot-ver. This assigned `fv.onclick`, while ~2,200 lines above it
+     the state panel binds the SAME element with addEventListener, under a comment saying in so many
+     words not to do this because the element has carried a handler before. Neither replaced the
+     other — addEventListener and .onclick are separate slots — so ONE click ran BOTH: opening the
+     state panel also fired a '⟳ checking fleet' toast and a network request, every time. And its
+     title write was one of FOUR fighting over the hover, which is why HE-5's one-line hover would
+     not stick.
+     The check is worth keeping, so it MOVED rather than died: it is a control inside the panel's
+     THE FLEET section now, beside the row that says whether this machine is behind — where someone
+     who has just read 'COULD NOT CHECK' would look for the retry. [[the-unjoined-end]] */
+  window._fleetUpdateCheck = async function(){
       toast('⟳ checking fleet (origin/main)…');
       try {
         var r = await fetch(API + '/api/update'); var j = await r.json();
@@ -12142,8 +12171,7 @@ body[data-origin="shadow"] #stage::after {
         else if (!j.behind) toast('✓ FLEET UNIFIED · ' + (j.ver || j.head || 'origin/main') + (j.dirty ? ' · local tracked edits present' : ''));
         else toast('⚠ BEHIND · ' + j.behind + ' commit' + (j.behind > 1 ? 's' : '') + ' — latest: "' + (j.latest || '') + '" · ' + (j.howTo || 'relaunch to auto-pull'));
       } catch (e) { toast('⚠ update check failed · ' + e); }
-    };
-  })();
+  };
   /* v2102 — AND IT CHECKS WITHOUT BEING ASKED. Konyo, on a second machine: "it's reading v945.
      why is it not auto updating itself." The check above has existed since v817 and can only run
      if you CLICK the version in the footer — and the comment on it claims "banner also paints

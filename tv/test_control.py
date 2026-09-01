@@ -38745,5 +38745,78 @@ class TestV2399TheNextLookIsAREQUESTNotACommand(unittest.TestCase):
                       "the restore must call it, not hand-strip the class")
 
 
+class TestV2400HoverWilsonGateCanTellLeaksFromUnproven(unittest.TestCase):
+    """⚠ THE GATE SHIPPED WITH ZERO COVERAGE, AND ITS WHOLE PREDICATE IS AN INLINE `-c` STRING.
+
+    `grep -rn 'hover.wilson' tv/test_control.py` returned NOTHING when the gate landed. That
+    matters more here than usual: the predicate does not live in a file anyone imports — it is
+    `run_gates._HOVER_WILSON_VERDICT`, a string, parsing rows out of hover_wilson.score(). If that
+    row shape or its status vocabulary ever drifts — `state` renamed, LEAKS spelled differently —
+    the predicate stops matching anything, finds no leaks, exits 0, and **degrades into a permanent
+    green that reads exactly like a pass.** [[regression-guard]] [[the-unjoined-end]]
+
+    The RED direction was demonstrated by hand when the gate was written and pinned by nothing.
+    This pins it, in both directions, against a synthetic report — never against his real one,
+    because a test that needs his data is a test that cannot run on CI.
+    [[feedback-fixtures-never-touch-live-data]]
+    """
+
+    def _run(self, rows):
+        """Drive the SHIPPED predicate exactly as run_gates drives it, over a fake hover_wilson."""
+        import json as _j
+        import shutil
+        import subprocess
+        import sys as _s
+        import tempfile
+        sys.path.insert(0, HERE)
+        import run_gates
+        root = tempfile.mkdtemp(prefix="hw_gate_")
+        self.addCleanup(shutil.rmtree, root, True)
+        with io.open(os.path.join(root, "hover_wilson.py"), "w", encoding="utf-8") as fh:
+            fh.write("def score():\n    return %s\n" % repr(rows))
+        return subprocess.run(
+            [_s.executable, "-c", run_gates._HOVER_WILSON_VERDICT,
+             os.path.join(root, "hover_wilson.py")],
+            capture_output=True, text=True)
+
+    @staticmethod
+    def _row(claim, state, attempts=0, caught=0, wilson=None):
+        return {"claim": claim, "state": state, "attempts": attempts, "caught": caught,
+                "wilson": wilson, "what": claim + " claim", "notes": ["synthetic fixture row"]}
+
+    def test_a_LEAK_goes_RED(self):
+        r = self._run([self._row("coordinate", "PASS", 24, 24, 0.86),
+                       self._row("slot", "LEAKS", 24, 12, 0.31)])
+        self.assertEqual(r.returncode, 1,
+                         "a LEAKS row did not fail the gate — a deliberately wrong input went "
+                         "uncaught and the gate said nothing. stdout: %s" % r.stdout[:400])
+        self.assertIn("LEAK", r.stdout)
+
+    def test_UNPROVEN_stays_GREEN_and_says_so_LOUDLY(self):
+        """His rule, and the reason the gate exists in this shape: an unproven claim is a
+        MEASUREMENT NOBODY HAS TAKEN, not a defect. A gate that reddens on its own newest checks
+        is switched off inside a week. [[unknown-stays-unknown]]"""
+        r = self._run([self._row("coordinate", "PASS", 24, 24, 0.86),
+                       self._row("anchor", "UNPROVEN", 0, 0, None)])
+        self.assertEqual(r.returncode, 0,
+                         "UNPROVEN reddened the gate — zero sabotage attempts is a gap in the "
+                         "measuring, not a leak in the thing measured. stdout: %s" % r.stdout[:400])
+        self.assertIn("UNPROVEN", r.stdout, "an unproven claim passed SILENTLY, which is the same "
+                                            "as not reporting it at all")
+        self.assertIn("anchor", r.stdout, "the unproven claim was not NAMED — a count without a "
+                                          "name is not something he can act on")
+
+    def test_the_gate_is_actually_REGISTERED(self):
+        """A predicate nobody runs is not a gate. TestNoOrphanSuite cannot catch this one, because
+        the gate is not a tv/test_*.py file."""
+        sys.path.insert(0, HERE)
+        import run_gates
+        names = [g.name for g in run_gates.GATES]
+        self.assertIn("hover-wilson", names,
+                      "hover-wilson fell out of the gate set — the report still runs by hand and "
+                      "nothing enforces it. Registered gates: %s" % names)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

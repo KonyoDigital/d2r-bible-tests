@@ -70,6 +70,59 @@ class Gate:
         self.skip_ok = tuple(skip_ok)
 
 
+# v2400 — HOVER WILSON JOINS THE GATE SET, AND IT MAY ONLY GO RED ON A LEAK.
+#
+# tv/hover_wilson.py is a REPORT, not a gate: it scores the autopilot's four claims (coordinate,
+# anchor, read, slot) on SABOTAGE ATTEMPTS and always exits 0. That is deliberate — its own header
+# says "UNPROVEN MUST NOT READ AS FAILING ... a gate that turned amber on its own newest checks
+# would be switched off inside a week, which is the same defect as a gate that is green forever."
+# Today `anchor` is UNPROVEN (0 attempts: no tooltip->cell offset has been calibrated yet). That is
+# a MISSING MEASUREMENT, not a defect, and a gate that reddened on it would be furniture within the
+# week. [[unknown-stays-unknown]]
+#
+# So the gate is one predicate over the report's rows: LEAKS — "a deliberately WRONG input was NOT
+# caught" — is the only state that fails. UNPROVEN and UNKNOWN print loudly, with their notes, and
+# PASS. The three states stay three; they are not collapsed into pass/fail.
+#
+# ⚠ WHY -c AND NOT A FLAG: hover_wilson.py has no failing mode, and the report must keep exiting 0
+# when a human runs it by hand. The script path is passed as the LAST NON-OPTION ARGUMENT on
+# purpose: test_gate_set_names_only_things_that_exist reads exactly that argument, so this gate
+# still names a file that must exist and cannot rot into a permanent no-op if hover_wilson.py is
+# ever deleted or renamed.
+_HOVER_WILSON_VERDICT = r"""
+import os, sys
+_p = sys.argv[1]
+sys.path.insert(0, os.path.dirname(_p))
+import hover_wilson as HW
+
+rows = HW.score()
+leaks = [r for r in rows if r["state"] == "LEAKS"]
+unproven = [r for r in rows if r["state"] in ("UNPROVEN", "UNKNOWN")]
+for r in rows:
+    print("  %-12s %-9s sabotages=%s caught=%s wilson=%s"
+          % (r["claim"], r["state"], r["attempts"], r["caught"],
+             "-" if r["wilson"] is None else ("%.3f" % r["wilson"])))
+if unproven:
+    # LOUD, and PASSING. Nobody has tried to break these yet; that is work to do, not an alarm.
+    print("  %d claim(s) UNPROVEN/UNKNOWN — a measurement nobody has taken, NOT a defect: %s"
+          % (len(unproven), ", ".join(r["claim"] for r in unproven)))
+    for r in unproven:
+        for n in (r["notes"] or []):
+            print("    %s: %s" % (r["claim"], n))
+if leaks:
+    print("LEAK — a deliberately WRONG input was NOT caught:")
+    for r in leaks:
+        print("  %s (%s): caught %s of %s sabotages, wilson %s"
+              % (r["claim"], r["what"], r["caught"], r["attempts"],
+                 "-" if r["wilson"] is None else ("%.3f" % r["wilson"])))
+        for n in (r["notes"] or []):
+            print("    %s" % n)
+    sys.exit(1)
+print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
+      % (len(rows) - len(leaks) - len(unproven), len(unproven)))
+"""
+
+
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
     Gate("js-syntax",   [sys.executable, os.path.join(HERE, "js_syntax_gate.py")], 300,
@@ -366,6 +419,20 @@ GATES = [
              "route is barred by a RECHECK instead — two reads of the SAME frame that must agree "
              "on the name AND the cell, and hold when they do not. All six of those laws were "
              "sabotage-proven RED before this gate was written."),
+    Gate("hover-wilson", [sys.executable, "-c", _HOVER_WILSON_VERDICT,
+                          os.path.join(HERE, "hover_wilson.py")], 120,
+         why="v2400 — MINI(AUTOMATIC) SCORES ITS OWN FOUR CLAIMS, and this gate is the LEAKS half "
+             "of that report. The lane the vault cost us ran every 45 seconds at a 100% agreement "
+             "rate and had swept nothing, so the denominator here is SABOTAGE ATTEMPTS, not runs: "
+             "a claim only counts as caught when a deliberately wrong input was rejected. LEAKS — "
+             "a wrong point that still resolved to the cell we aimed at, a recheck that agreed "
+             "with a read it should have refused — is the only state that goes red. UNPROVEN and "
+             "UNKNOWN print with their notes and PASS, because zero attempts is a measurement "
+             "nobody has taken (today: `anchor`, waiting on a calibrated tooltip->cell offset) and "
+             "a gate that reddens on its own newest checks is switched off inside a week. Proven "
+             "RED against a slot_identity whose cell_of collapses adjacent columns: 12 of the 24 "
+             "coordinate sabotages went uncaught and the gate exited 1, while `anchor` stayed "
+             "UNPROVEN and green throughout. [[unknown-stays-unknown]] [[heart-first]]"),
     Gate("test_vault_lane", [sys.executable, os.path.join(HERE, "test_vault_lane.py")], 420,
          why="v1795 — the vault lane decides what he KEEPS and what it dares suggest he "
              "bins, and it has never run on real footage (0 of 17 reels declare an "

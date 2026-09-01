@@ -58,6 +58,30 @@ REGISTRY = {
         "the evidence file and disarmed hooks/pre-push's second-eye gate with no --no-verify and "
         "no trace. `--gate`, which the hook passes, re-pins the canonical path for exactly that "
         "reason. Do not make this call-time to 'fix' the gate — that would restore the hole."),
+    # ---- v2395: the human-eyes ledger — what Grok Bot LOOKED at, and what it could not see.
+    "human_eyes_ledger.py:LEDGER_PATH": (
+        "TV_HUMAN_EYES_LEDGER", "import-bound",
+        "MEASURED v2400: set TV_HUMAN_EYES_LEDGER after import and LEDGER_PATH does not move. All "
+        "three writers take path= (:57, :82, :110 all read `p = path or LEDGER_PATH`), so a test "
+        "redirects by argument. ⚠ This record is EVIDENCE, not derived state: it holds the eye's "
+        "verdicts — LOOKED vs UNKNOWN — and a fixture that appended to the real one would put "
+        "observations nobody made into the record that decides what was seen. Same class as "
+        "second_eye_ledger.py:LEDGER_PATH above, and isolated the same way."),
+    # ---- v2399/v2400: the view request — Claude names a pane, a human eye photographs it.
+    "ask_view.py:PATH": (
+        "TV_VIEW_REQUEST", "import-bound",
+        "MEASURED v2400: set TV_VIEW_REQUEST AFTER importing ask_view and PATH does not move, so a "
+        "later os.environ[...] is a no-op. Every writer takes an explicit path= (ask(), clear()), "
+        "which is the redirect a test should use; the module-level PATH is only the default and "
+        "the --show/--clear CLI path. ⚠ It matters that this one is isolated properly: the file it "
+        "names is polled about once a second by the live console, and a test that wrote the real "
+        "one would route HIS window to a pane he did not ask for."),
+    "control_app.py:VIEW_REQUEST_PATH": (
+        "TV_VIEW_REQUEST", "import-bound",
+        "MEASURED v2400: the console side of the same file, bound at import for the same reason. "
+        "view_request() takes path= (:21182 `p = path or VIEW_REQUEST_PATH`), so tests redirect by "
+        "argument; setting the env after import moves nothing. Deliberately the SAME env var as "
+        "ask_view.py:PATH — one file, two readers, and two names for it would be copy-drift."),
     "control_app.py:_GATE_CACHE_PATH": (
         "TV_GATE_CACHE", "import-bound",
         "v1941 — memoised stash-gate verdicts (crop+OCR) for SEALED, immutable frames. Derived "

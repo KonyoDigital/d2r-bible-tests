@@ -11478,9 +11478,10 @@ _UI_RESCUE_COOLDOWN_S = 300.0
 # ⚠ THREE GUARDS AGAINST FIRING ON A HEALTHY PAGE, each for a specific innocent case:
 #   1. a baseline must EXIST (`elsHigh >= _UI_PAINT_FLOOR_ELS`) — a page mid-first-paint is
 #      legitimately small, and "we have never seen this page healthy" is UNKNOWN, not blank.
-#   2. the collapse must be DEEP (`< 25%` of high-water) — panels legitimately mount and unmount
-#      as he changes tabs, and a rescue that fires on ordinary navigation is switched off inside
-#      a day, which is the same defect as no rescue at all.
+#   2. the collapse must be DEEP (`< 25%` of high-water) AND the beat must itself be under the
+#      paint floor (v2400) — panels legitimately mount and unmount as he changes tabs, and a
+#      rescue that fires on ordinary navigation is switched off inside a day, which is the same
+#      defect as no rescue at all.
 #   3. it must PERSIST (3 consecutive beats, ~15s) — one short beat during a re-render is not a
 #      fault, and acting on a single sample is how a watchdog starts reloading his console
 #      under him mid-work.
@@ -11504,8 +11505,8 @@ _UI_RESCUE_COOLDOWN_S = 300.0
 # fresh window never reaches the 200-element floor, so `hi < FLOOR`, strikes stay 0, and we stop
 # reloading. A page that cannot paint after a reload is a DIFFERENT fault; the silence path and
 # he himself will surface it. Trying twice is a fix; trying forever is a fault of our own.
-_UI_PAINT_FLOOR_ELS = 200      # below this we have never seen the page healthy -> no baseline
-_UI_PAINT_COLLAPSE = 0.25      # current < 25% of the RECENT high = collapsed
+_UI_PAINT_FLOOR_ELS = 200      # below this nothing is painted: no baseline, no learning, no strike
+_UI_PAINT_COLLAPSE = 0.25      # under the floor AND < 25% of the RECENT high = collapsed (v2400)
 _UI_PAINT_STRIKES = 3          # consecutive collapsed beats before it counts
 _UI_PAINT_WINDOW = 60          # beats kept for the baseline — 60 x 5s = the last ~5 minutes
 
@@ -11600,10 +11601,38 @@ def ui_beat_record(state=None):
             # — without letting a latched flag silently switch the whole witness off.
             # ⚠ AND IT IS ALSO WHY THE CHECK MOVED: asking Quartz on every 5s beat is expensive;
             # asking it once, only when three strikes have already accumulated, is not.
+            # ⚠⚠ v2400 — AND THE STRIKE MUST OBEY THE SAME FLOOR LAW THE LEARNING ALREADY DOES.
+            # MEASURED against the shipped v2399 code by driving ui_beat_record directly:
+            #     5000 els (one long list), then 400 els — a real page, painting, TWICE the floor
+            #     beat 3:   hi=5000 els=400 strikes=3  ui_rescue_due -> TRUE, "BEATING but blank"
+            #     and it stays TRUE for 59 consecutive beats, ~5 minutes.
+            # The rescue loop asks every 10s — every second beat — so that is his console reloaded
+            # under him while it is painting 400 elements.
+            #
+            # v2395 wrote the law down two branches above — "els >= FLOOR -> the page is painting
+            # something real" — and then applied it to only ONE of the two decisions. The learning
+            # branch obeys it; this one judged blankness on the RATIO alone, against a peak that
+            # can be five minutes stale, so a page that legitimately gets SMALLER reads as blank
+            # until the old peak ages out of the window. Half a law is a false positive.
+            #
+            # ⚠ THE TEST THAT SHOULD HAVE CAUGHT IT SAMPLED THE ONE MOMENT IT CANNOT BE SEEN.
+            # test_v2395_a_page_that_legitimately_SHRINKS_is_not_called_blank beats 5000 then
+            # 400 x (WINDOW + 10) and asks ONCE, at beat 70 — after the outlier has already aged
+            # out. Green at the only sample where the defect is invisible; red at beats 3..59. And
+            # its second case (1200 -> 300) was safe by arithmetic, not by law: 300 is EXACTLY 25%
+            # of 1200, so `<` misses it by one element. A page at 299, or _UI_PAINT_COLLAPSE moved
+            # to 0.30, and it fires. A guard that holds on a boundary holds by luck.
+            # [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+            #
+            # BOTH conditions now, and each still does distinct work:
+            #   · els < FLOOR         -> nothing is painted at all (his black screen was 12 els)
+            #   · els < hi * COLLAPSE -> and the drop is DEEP, which still spares a page whose
+            #                            baseline sits only just above the floor: hi=210, els=190
+            #                            is under the floor but is not a collapse.
             hi = int(_UI_BEAT.get("elsHigh") or 0)
             if hi < _UI_PAINT_FLOOR_ELS:
                 _UI_BEAT["blankStrikes"] = 0
-            elif els < hi * _UI_PAINT_COLLAPSE:
+            elif _collapsed and els < hi * _UI_PAINT_COLLAPSE:
                 _UI_BEAT["blankStrikes"] = int(_UI_BEAT.get("blankStrikes") or 0) + 1
             else:
                 _UI_BEAT["blankStrikes"] = 0
@@ -21331,7 +21360,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2399",
+        "ver": "v2400",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

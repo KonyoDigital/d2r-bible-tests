@@ -36,10 +36,24 @@ PATH = os.environ.get("TV_VIEW_REQUEST") or os.path.join(HERE, ".view_request.js
 
 #: kept in step with control_app.VIEW_REQUEST_PANES — imported rather than retyped, because two
 #: copies of one list is exactly the drift that makes a request silently unroutable. [[copy-drift]]
+PANES_UNAVAILABLE = None   # why the list could not be read, or None if it was read fine
 try:
     from control_app import VIEW_REQUEST_PANES as PANES
-except Exception:
+except Exception as _e:
+    # ⚠ v2400 — THIS FALLBACK USED TO DISARM THE ONLY GUARD IN THIS FILE, SILENTLY.
+    # It was `except Exception: PANES = ()`, and an empty tuple makes the check below
+    # (`if PANES and v not in PANES`) FALSY — so the unroutable-pane refusal could not fire at all.
+    # REPRODUCED: run this module from a directory where control_app is not importable and the pane
+    # 'definitely-not-a-real-pane' is ACCEPTED and written to .view_request.json. The console's
+    # switchTab then no-ops silently, and the eye photographs whatever happened to be on screen,
+    # stamped as the pane that was asked for — the exact failure the comment on that guard says it
+    # exists to prevent. A wrong picture confidently labelled is worse than no picture.
+    # Found by a cross-family read of the shipped v2399, then measured before being believed.
+    # The reason is KEPT rather than swallowed, and an unreadable list now REFUSES instead of
+    # waving everything through: "I could not check" must never render as "it checked out".
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
     PANES = ()
+    PANES_UNAVAILABLE = "%s: %s" % (type(_e).__name__, _e)
 
 
 def ask(view, brief=None, why=None, ttl_s=600, path=None):
@@ -92,6 +106,14 @@ def main(argv=None):
             print("no standing request — nobody has asked for a look")
         return 0
     v = a.view.strip().lower()
+    if PANES_UNAVAILABLE:
+        # REFUSE, do not guess. Writing a request we cannot validate is how a wrong pane gets
+        # photographed and believed.
+        print("cannot check the pane name — control_app.VIEW_REQUEST_PANES did not load.\n"
+              "  reason: %s\n"
+              "Refusing rather than writing a request switchTab would silently ignore."
+              % PANES_UNAVAILABLE)
+        return 2
     if PANES and v not in PANES:
         # ⚠ REFUSE AN UNROUTABLE PANE AT THE DOOR. `switchTab` no-ops SILENTLY on a name it does
         # not know (the v2120 scar), so the console would sit on whatever was already showing and

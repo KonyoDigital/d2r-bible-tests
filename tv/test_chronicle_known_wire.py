@@ -179,9 +179,8 @@ class AgainstHisRealFootage(unittest.TestCase):
 
     def test_real_journal_and_reel(self):
         journal = os.path.join(HERE, "sessions.jsonl")
-        reel = os.path.join(HERE, "frames", "hist", "reel_s_1786385768689_67392")
-        if not (os.path.isfile(journal) and os.path.isdir(reel)):
-            self.skipTest("his session footage is not on this machine")
+        if not os.path.isfile(journal):
+            self.skipTest("his session journal is not on this machine")
 
         rows = [json.loads(l) for l in open(journal, encoding="utf-8") if l.strip()]
         visits = [{"ledger": r.get("ledger") or "", "frames": r.get("frames") or []}
@@ -192,6 +191,42 @@ class AgainstHisRealFootage(unittest.TestCase):
         exec(fn_src, ns)
         known = ns["_chron_known_from_journal"]()
         self.assertTrue(known, "his journal holds chronicle/visit rows; the map came back empty")
+
+        # ⚠ v2400 — DO NOT PIN ONE REEL ID AGAINST LIVE DATA HE PRUNES.
+        # This named `reel_s_1786385768689_67392` outright. Measured 2026-09-01: that reel is still
+        # on disk with all 217 frames, and the test went RED anyway — his journal now carries only
+        # 6 chronicle/visit rows out of 3,550, and none of them bind into that particular reel.
+        # Nothing was broken; his data simply moved on, exactly as the comment below already warned
+        # about for the COUNT and then did for the ID.
+        # So: ask his footage which reel a mark actually binds to, instead of asserting which one
+        # should. A skip is only honest when it says what it measured, so the skip message carries
+        # the counts. [[feedback-fixtures-never-touch-live-data]] [[stale-reading]]
+        hist = os.path.join(HERE, "frames", "hist")
+        if not os.path.isdir(hist):
+            self.skipTest("his reel archive is not on this machine")
+        reel, mine = None, {}
+        _kmap = cr._known_chronicle_map(known)
+        _scanned = 0
+        for _name in sorted(os.listdir(hist)):
+            _cand = os.path.join(hist, _name)
+            _idx = os.path.join(_cand, "index.json")
+            if not os.path.isfile(_idx):
+                continue
+            _scanned += 1
+            try:
+                with open(_idx, encoding="utf-8") as fh:
+                    _frames = json.load(fh).get("frames") or []
+            except Exception:
+                continue
+            _hit = cr._resolve_known(_frames, _kmap)
+            if _hit:
+                reel, mine = _cand, _hit
+                break
+        if reel is None:
+            self.skipTest(
+                "no surviving reel binds to a chronicle mark: %d visit(s) in his journal, %d reel(s) "
+                "scanned. This is his data moving on, not a defect — but it means this assertion "
+                "measured nothing on this run." % (len(visits), _scanned))
 
         pages = []
 
@@ -217,10 +252,8 @@ class AgainstHisRealFootage(unittest.TestCase):
         # against "f_<ts>.jpg" and found ZERO overlap while read_reel was happily binding eight,
         # because the two captures are milliseconds apart, never identical. Re-implementing that
         # rule in the test would have been a second copy of it to drift.
-        with open(os.path.join(reel, "index.json"), encoding="utf-8") as fh:
-            reel_frames = json.load(fh).get("frames") or []
-        mine = cr._resolve_known(reel_frames, cr._known_chronicle_map(known))
-        self.assertTrue(mine, "no mark in his journal binds to a frame in this reel")
+        self.assertTrue(mine, "the scan selected a reel but the binding came back empty — that is "
+                              "the instrument disagreeing with itself, not his data")
         self.assertEqual(len(pages), len(mine),
                          "every frame the live agent marked IN THIS REEL should be read back")
 

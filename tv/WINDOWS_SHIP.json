@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2399",
+  "ver": "v2400",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2399: Claude names the pane, a human eye photographs it. ask_view.py writes a request, view_request publishes it on api status with five states, the console honors it once, stamps the screen so a returned picture is attributable, and puts his tab back. Never during a capture.",
+  "note": "v2400: clicking the version opened the state panel AND fired a fleet check; the hover was fought over by four writers; the panel itself sat inside a drawer that could hide it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

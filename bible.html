@@ -34641,7 +34641,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var nm = r && r.name;
       if (!nm) return false;
       try { if (typeof owned !== 'undefined' && owned && !owned.has(nm)) return false; } catch(e){}
-      try { var a = (typeof assignOf === 'function') ? assignOf(nm) : null; if (a) return false; } catch(e){}
+      /* ⚠ v2400 — THIS ONCE GUARDED A HELPER THAT HAS NEVER EXISTED. The old name appeared exactly
+         once in this whole file: inside its own typeof check. So the test was permanently false
+         from v2343 (d0586ebc) onward — 57 versions — the ternary always took the null branch, and
+         this filter NEVER dropped an already-muled item. The throwout review has been offering him
+         things he had already sent to a mule. Caught by test_reachability, not by a person: the
+         branch is written correctly and simply named nothing.
+         The real store is `assign`, declared at bible.html:33826 in this same closure and read the
+         same way by renderVault — one map, one spelling. [[the-unjoined-end]]
+         ⚠ AND THE FIRST VERSION OF THIS COMMENT RE-BROKE THE GATE: it quoted the dead expression
+         verbatim, test_reachability greps SOURCE TEXT, and prose that looks like code is code to a
+         grep. Name it in words, never in the syntax it is about. [[source-reading-guard]] */
+      try { var a = (typeof assign !== 'undefined' && assign) ? assign[nm] : null; if (a) return false; } catch(e){}
       return true;
     });
     // v2343b — a stable order. ownedPool() decides the order otherwise, so the same 15 names could
@@ -44744,7 +44755,7 @@ function renderJournal(){
       if (c.complete) return;
       if (c.key==='rw'){
         c.pick='📜 Runewords · '+c.done+'/'+c.total+' — '+c.left+' runeword'+(c.left===1?'':'s')+' still to forge; farm the runes/base for the next one (open the Forge queue)';
-      } else if (c.key==='chronicle' && c.data){
+      } else if (c.key==='grail' && c.data){
         // Prefer ranked best-run (runs[0]); fall back to first missing unique so the OPS
         // queue never dead-ends when runs[] is empty but the wall still has dark corners.
         var run=(c.data.runs&&c.data.runs[0])||null;
@@ -47427,7 +47438,7 @@ window.renderSessionCockpit = function(){
     // ── Resolve mission ──
     var pin = '';
     try { pin = window._sessionPinGet() || ''; } catch(e){}
-    var mission = null; // {name, kind:'rw'|'chronicle'|'scan', status, detail, task}
+    var mission = null; // {name, kind:'rw'|'grail'|'set'|'sealed'|'scan', status, detail, task}   /* v2400 — the vocabulary this function ACTUALLY produces (47457-47487). It said 'chronicle', a name nothing here ever sets, and the readers below were written from this comment: the mission.kind==='chronicle' arm could never run. */
 
     function findRwTask(name){
       var lists = [
@@ -47497,7 +47508,7 @@ window.renderSessionCockpit = function(){
       else if (t.sub === 'cube') detail = 'Cube up runes, then forge';
       else if (mission.status === 'now') detail = 'Everything in hand — open Forge and socket in order';
       else if (t.base && t.base.base) detail = 'Base: <b>'+esc(t.base.base)+'</b>'+(t.need?(' · '+t.need+'os'):'');
-    } else if (mission.kind === 'chronicle' || mission.kind === 'set'){
+    } else if (mission.kind === 'grail' || mission.kind === 'set'){
       // v1270 (G2) — rotation targets carry a real best-boss + odds + route; deepen the brief with them.
       if (mission.rot && mission.rot.op){
         var _o = mission.rot.op;
@@ -47606,7 +47617,7 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
     if (_rotOps && _rotOps.incomplete){
       _rotOps.incomplete.forEach(function(c){
         if (c.key==='rw') return;   // runewords already surfaced above via liveNow / onestep / pipeline
-        if (c.key==='chronicle' && c.op){
+        if (c.key==='grail' && c.op){
           if (mission && mission.name===c.op.item) return;   // don't duplicate the pinned/auto mission
           /* v1740 — SAY WHICH NUMBER THE PICK WAS MADE ON. Konyo: "the next grail time find is
              different saying from the sessions like the f-uniques and f-sets... cant have two
@@ -48154,7 +48165,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2399', name:'v2399 - The next look', date:'2026-09-01', note:'Claude names the pane, a human eye photographs it. ask_view.py writes a request, view_request publishes it on api status with five states, the console honors it once, stamps the screen so a returned picture is attributable, and puts his tab back. Never during a capture.' };
+  window.D2R_BUILD = { id:'v2400', name:'v2400 - the version label opens one thing', date:'2026-09-01', note:'clicking the version opened the state panel AND fired a fleet check; the hover was fought over by four writers; the panel itself sat inside a drawer that could hide it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

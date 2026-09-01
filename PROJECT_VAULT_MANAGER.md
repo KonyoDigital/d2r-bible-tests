@@ -67,11 +67,34 @@ them out, per character/mule, and that picture is what the AI readers wrote.
 
 ## The rule that governs all four
 
-**THREE INDEPENDENT VERIFICATIONS, AND THEY MUST BE ACROSS SESSIONS, NOT ACROSS FRAMES.** The vault
-lane already knows this (`vault_retro.gate`, KEEP = 2 distinct sessions, THROW = 3 distinct
-recordings, and "two runs of the same unbroken screen are ONE witness"). His brief asks for the same
-law applied to a new question — *has this item MOVED?* — which is not the same as *does this item
-exist?*, and needs a per-slot identity, not just a name.
+**THREE LOOKS TO KEEP, FOUR RECORDINGS TO THROW — AND ONLY THE THROW BAR IS ACROSS SESSIONS.**
+
+⚠ This page said "KEEP = 2 distinct sessions, THROW = 3 distinct recordings" until this
+correction. Both halves were wrong — the numbers and the unit — and the heading that stood here
+("THREE INDEPENDENT VERIFICATIONS, AND THEY MUST BE ACROSS SESSIONS, NOT ACROSS FRAMES") was
+false for KEEP. What `tv/vault_retro.py:163-167` actually ships is:
+
+```python
+KEEP_MIN_WITNESSES = 3                    # three DIFFERENT looks agreeing — his ruling
+THROWOUT_CONF_FLOOR = 0.85                # strictly above KEEP_CONF_FLOOR
+THROWOUT_MIN_WITNESSES = 4                # strictly above KEEP_MIN_WITNESSES — and >1 session,
+                                          # always. Raised with the keep bar so the throw bar
+                                          # is never weakened relative to it.
+```
+
+And the two bars do not count the same thing. `vault_retro.gate` defaults to
+`witness_field="witness"` — a **re-look** key opened by `REOPEN_GAP_MS = 180_000` (3 minutes) — so
+the three looks `KEEP_MIN_WITNESSES` demands can all come from **ONE recording** in which the shelf
+was examined three times, minutes apart. Only the throw bar is called with `witness_field="session"`
+(`witness_noun="recording"`), so only it demands `THROWOUT_MIN_WITNESSES = 4` **independent
+recordings**. "Two runs of the same unbroken screen are ONE witness" is still true of both bars: it
+rules out FRAMES, not re-looks.
+
+So the across-sessions law he described is enforced on THROW alone. His brief asks for that law
+applied to a new question — *has this item MOVED?* — which is not the same as *does this item
+exist?*, and needs a per-slot identity, not just a name. **If "has it moved?" is to be corroborated
+across sessions, the KEEP bar as shipped does not supply that** — it would need its own
+`witness_field="session"` call, and that is a decision for him, not an assumption to build on.
 
 ## What already exists to build on — measured, not assumed
 
