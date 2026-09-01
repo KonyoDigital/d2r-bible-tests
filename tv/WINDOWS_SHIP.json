@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2374",
+  "ver": "v2375",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2374: the one missing number that blocked slot identity and the inventory profile",
+  "note": "v2375: worn and carried are now different facts, for the slots that have been measured",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

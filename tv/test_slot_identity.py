@@ -780,6 +780,110 @@ class TestV2374TheInventoryPanelIsMeasured(unittest.TestCase):
                             "tell" % (here, off, v, os.path.basename(p)))
 
 
+class TestV2375ThePaperDollFourMeasuredSixRefused(unittest.TestCase):
+    """In D2R the inventory screen IS the paper doll plus the grid, so "worn or carried" is a
+    spatial question in one frame — the question main_character could never answer, because its
+    `equip` counter only rises for a sighting attributed to a worn slot.
+
+    Four slots measured off a 15-session median stack; six refused. A slot guessed wrong does not
+    misplace an item, it tells him he is WEARING something he is carrying."""
+
+    def test_each_measured_slot_answers_for_its_own_centre(self):
+        for name, (fx, fy, fw, fh) in S.EQUIP_SLOTS.items():
+            cx = (fx + fw / 2.0) * 2940
+            cy = (fy + fh / 2.0) * 1912
+            got, why = S.worn_slot_of((cx, cy), 2940, 1912)
+            self.assertEqual(got, name, "%s centre answered %r (%s)" % (name, got, why))
+
+    def test_the_SIX_unmeasured_slots_are_refused_by_name(self):
+        """UNKNOWN and 'not worn' are different facts. A point in the helm slot must not come
+        back looking like a point on the stone between slots without saying so."""
+        got, why = S.worn_slot_of((2217, 400), 2940, 1912)      # the helm, which is NOT measured
+        self.assertIsNone(got)
+        self.assertIn("UNKNOWN", why)
+        for name in ("helm", "off-hand", "gloves", "boots", "ring1", "ring2"):
+            self.assertIn(name, why, "the refusal does not name %s" % name)
+
+    def test_no_measured_slot_overlaps_another_or_the_GRID(self):
+        """An overlap would make one point two places at once, and a slot reaching into the grid
+        would call a carried item worn — the exact error this is for."""
+        boxes = {n: (fx * 2940, fy * 1912, fw * 2940, fh * 1912)
+                 for n, (fx, fy, fw, fh) in S.EQUIP_SLOTS.items()}
+        names = sorted(boxes)
+        for i, a in enumerate(names):
+            ax, ay, aw, ah = boxes[a]
+            for b in names[i + 1:]:
+                bx, by, bw, bh = boxes[b]
+                sep = (ax + aw <= bx or bx + bw <= ax or ay + ah <= by or by + bh <= ay)
+                self.assertTrue(sep, "%s and %s overlap" % (a, b))
+            gx, gy, gw, gh = S.panel_box_for(2940, 1912, "inventory")[0]
+            self.assertLessEqual(ay + ah, gy + 1,
+                                 "%s reaches into the inventory GRID — a carried item would read "
+                                 "as worn" % a)
+
+    def test_the_slots_LAND_ON_THE_PANEL_in_his_own_footage(self):
+        """Measured against pixels, and built to FAIL: a slot's interior is NOT stone (dark
+        backing or a bright item) while the stone just outside it IS. Shifted 30px, that stops
+        being true. [[regression-guard]]"""
+        try:
+            from PIL import Image
+        except Exception:
+            self.skipTest("PIL is not installed here — UNMEASURED")
+        import glob
+        hist = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames", "hist")
+        if not os.path.isdir(hist):
+            self.skipTest("his frame history is not on this machine — UNMEASURED, not passed")
+        gx, gy, gw, gh = S.panel_box_for(2940, 1912, "inventory")[0]
+
+        def panel_open(px):
+            seam = [px[min(int(gx + i * gw / 10.0), 2939), int(gy + gh * f)]
+                    for i in range(11) for f in (0.25, 0.5, 0.75)]
+            inner = [px[int(gx + (c + 0.5) * gw / 10.0), int(gy + (r + 0.5) * gh / 4.0)]
+                     for c in range(10) for r in range(4)]
+            sm = sum(seam) / float(len(seam))
+            return sm < 40 and sum(inner) / 40.0 - sm > 25
+
+        px = None
+        for d in sorted(os.listdir(hist)):
+            for p in sorted(glob.glob(os.path.join(hist, d, "*.jpg")))[:14]:
+                try:
+                    im = Image.open(p)
+                    if im.size != (2940, 1912):
+                        continue
+                    q = im.convert("L").load()
+                except Exception:
+                    continue
+                if panel_open(q):
+                    px = q
+                    break
+            if px:
+                break
+        if px is None:
+            self.skipTest("no frame with the inventory panel open — UNMEASURED")
+
+        def stone_frac(box):
+            """How much of this box reads as STONE (the mid band). A real slot has little."""
+            x, y, w, h = box
+            n = 0; tot = 0
+            for i in range(1, 8):
+                for j in range(1, 8):
+                    v = px[int(x + w * i / 8.0), int(y + h * j / 8.0)]
+                    tot += 1
+                    if 26 <= v <= 78:
+                        n += 1
+            return n / float(tot)
+
+        for name, (fx, fy, fw, fh) in S.EQUIP_SLOTS.items():
+            box = (fx * 2940, fy * 1912, fw * 2940, fh * 1912)
+            here = stone_frac(box)
+            off = stone_frac((box[0], box[1] - 30, box[2], box[3]))
+            self.assertLess(here, 0.5, "%s reads mostly as STONE (%.2f) — it is not on a slot"
+                                       % (name, here))
+            self.assertLess(here, off + 0.001,
+                            "%s is no less stony than a box 30px above it (%.2f vs %.2f) — this "
+                            "check cannot tell a slot from the panel" % (name, here, off))
+
+
 if __name__ == "__main__":
     # REG-044 — this file prints non-ASCII; a non-UTF-8 console would turn its own
     # verdict into a traceback, which is the one place a gate must never be silent.

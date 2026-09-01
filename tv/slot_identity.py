@@ -116,6 +116,69 @@ PANELS = {
 }
 
 
+# ══ v2375 — THE PAPER DOLL: FOUR SLOTS MEASURED, SIX REFUSED ══════════════════════════════════
+# In D2R the equipment panel is not a separate screen — the INVENTORY screen is the paper doll
+# ABOVE and the 10x4 grid BELOW. So "is he WEARING this or CARRYING it" is a spatial question
+# inside one frame, and it is the question main_character has never been able to answer: its
+# `equip` counter can only rise when a sighting is attributed to a worn slot.
+#
+# HOW THESE WERE TAKEN, and why they are not eyeballed. Fifteen frames, one per session, chosen by
+# a criterion that does not touch the doll at all (the GRID's vertical seams at x0=1791, which are
+# pinned independently), median-stacked so tooltips and transient content drop out. On that median
+# the slots segment as connected regions that are NOT stone — either dark backing or a bright item
+# — while the stone between them sits in a middle band. Each box below is the bounding box of one
+# such region, and each was then drawn back onto the median and checked on the pixels.
+#
+# ⚠ SIX SLOTS ARE MISSING AND ARE REFUSED RATHER THAN INTERPOLATED. helm, off-hand, gloves, boots
+# and the two rings did not segment cleanly at any single threshold — their interiors are filled
+# by items of wildly different brightness. FIVE separate approaches were tried before these four
+# survived: dark-component labelling found only the weapon; a generic border-ridge detector
+# returned 16 vertical candidates that mixed slot edges with panel decoration; a row/column
+# occupancy profile returned the search band itself. A slot guessed wrong does not mis-place an
+# item, it tells him he is WEARING something he is carrying. [[unknown-stays-unknown]]
+#
+# ⚠ THE ROUTE TO THE REMAINING SIX, for whoever takes it: the panel is SYMMETRIC about x~2220
+# (the centre of the torso and belt boxes below). off-hand mirrors weapon, boots mirror gloves,
+# ring2 mirrors ring1 — so measuring gloves, helm and one ring yields all six. Do not take the
+# mirror on faith; measure one of each pair and CHECK the mirror against the pixels.
+EQUIP_SLOTS = {
+    "weapon": (1800 / 2940.0, 388 / 1912.0, 176 / 2940.0, 346 / 1912.0),
+    "torso":  (2114 / 2940.0, 548 / 1912.0, 206 / 2940.0, 294 / 1912.0),
+    "amulet": (2322 / 2940.0, 484 / 1912.0, 120 / 2940.0, 104 / 1912.0),
+    "belt":   (2116 / 2940.0, 851 / 1912.0, 216 / 2940.0, 125 / 1912.0),
+}
+UNMEASURED_SLOTS = ("helm", "off-hand", "gloves", "boots", "ring1", "ring2")
+
+
+def worn_slot_of(point, frame_w, frame_h):
+    """Which EQUIPMENT slot a point falls in. -> (slot_name, None) or (None, why)
+
+    Answers only for slots that have been measured. A point in the doll area but not inside a
+    measured box returns None with a reason that says so, because "not one of the four I know"
+    and "not worn" are different facts and only one of them is true.
+    """
+    try:
+        fw, fh = float(frame_w), float(frame_h)
+        x, y = float(point[0]), float(point[1])
+    except (TypeError, ValueError, IndexError):
+        return None, "point or frame size is not numeric"
+    if fw <= 0 or fh <= 0:
+        return None, "frame measures %gx%g" % (fw, fh)
+    aspect = fw / fh
+    if not (_PANEL_CAL_LO <= aspect <= _PANEL_CAL_HI):
+        return None, ("this frame is %.3f aspect; the doll was measured at %.3f and nothing has "
+                      "been measured outside %.2f-%.2f"
+                      % (aspect, _PANEL_CAL_ASPECT, _PANEL_CAL_LO, _PANEL_CAL_HI))
+    for name, (fx, fy, fwf, fhf) in EQUIP_SLOTS.items():
+        bx, by, bw, bh = fx * fw, fy * fh, fwf * fw, fhf * fh
+        if bx <= x <= bx + bw and by <= y <= by + bh:
+            return name, None
+    return None, ("that point is in no MEASURED equipment slot. Four are measured (%s); %s are "
+                  "not, so a point inside one of them answers here exactly like a point on the "
+                  "stone between slots — UNKNOWN, not 'not worn'."
+                  % (", ".join(sorted(EQUIP_SLOTS)), ", ".join(UNMEASURED_SLOTS)))
+
+
 def panel_box_for(frame_w, frame_h, container="stash"):
     """The CONTAINER GRID's box in this frame's pixels. -> ((x, y, w, h), None) or (None, why)
 
