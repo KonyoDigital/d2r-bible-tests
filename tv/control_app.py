@@ -14735,8 +14735,18 @@ def _retention_once():
     # two reels. Printed as one phrase, "2 reel(s) are waiting on a sweep" next to "nothing owes a
     # read" reads as a broken system, and he reasonably concluded nothing was working.
     # [[label-outlived-referent]]: a right number under a word that names the wrong quantity.
-    _w_chron = [k for k in (p.get("kept") or []) if "never chronicle-swept" in (k.get("why") or "")]
-    _w_vault = [k for k in (p.get("kept") or []) if "VAULT lane has never swept" in (k.get("why") or "")]
+    # ⚠ v2393 — THE SIBLINGS v2392 LEFT BEHIND, FOUND BY A DIFFERENT MODEL FAMILY.
+    # v2392 moved `_vault_owed_reels` off a prose match and onto the machine-readable `tag` that
+    # reel_retention has emitted since v2383 — and stopped there. These two lines were doing the
+    # identical thing sixteen hundred lines away, and the cross-family review named it exactly:
+    # "a fix applied at one site whose identical siblings were left alone". Which is the class I
+    # had put in its own prompt. [[sweep-dont-ask]] [[feedback-comments-vs-code]]
+    #
+    # The tags come from reel_retention.RULES; `_rule()` writes both the tag and the sentence, so
+    # matching the tag is the same reels by the same rule — it simply stops breaking the day
+    # somebody improves the wording.
+    _w_chron = [k for k in (p.get("kept") or []) if k.get("tag") == "never-chronicle-swept"]
+    _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") == "vault-owes"]
     waiting = _w_chron + _w_vault
     waiting_mb = round(sum(k.get("mb") or 0 for k in waiting), 1)
     _chron_mb = round(sum(k.get("mb") or 0 for k in _w_chron), 1)

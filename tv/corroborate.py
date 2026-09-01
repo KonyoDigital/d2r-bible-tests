@@ -259,8 +259,13 @@ def _inv_chronicle_owed_agrees():
         p = rr.plan(hist)
         if not p.get("ok"):
             return None
+        # ⚠ v2393 — THE THIRD SITE OF THE SAME PROSE MATCH, AND IT WAS IN THE CORROBORATOR.
+        # v2392 fixed one, a cross-family review found the second, and sweeping the class for the
+        # second found this one — inside the module whose entire job is catching this. An
+        # instrument built out of the defect it grades is the sharpest version of
+        # [[feedback-suspect-the-instrument]]. Match the tag reel_retention._rule() writes.
         return len([k for k in (p.get("kept") or [])
-                    if "never chronicle-swept" in (k.get("why") or "")])
+                    if k.get("tag") == "never-chronicle-swept"])
 
     return ("chronicle-owed",
             "the chronicle reader and retention agree on how many reels owe a read",

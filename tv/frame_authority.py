@@ -331,6 +331,93 @@ def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
 _FIXTURE_GLOBS = ("tv/*.py", "tests/*.spec.ts", "tests/*.ts", "tests/*.py")
 
 
+def _executable_only(src, path=""):
+    """`src` with COMMENTS and DOCSTRINGS removed. Ordinary string literals are KEPT.
+
+    ══ v2393 — A REEL NAMED IN PROSE IS NOT A FIXTURE, AND IT WAS HOLDING 4.8 GB ═════════════
+    Konyo's disk, measured 2026-09-01: **1.2 GB free on 228 GB, 100% capacity**, against an 8 GB
+    capture floor. `reel_retention.plan()` held 6.3 GB of 7.2 GB under `test-fixture`. Every hit
+    for the two largest — 3.0 GB and 1.7 GB, 4.8 GB together — was inside a comment or a
+    docstring. Not one was executable code that opens a reel:
+
+        slot_identity.py:109     "# reel_s_1787520892804_95400 (seam luminance 17.0 ...)"
+        control_app.py:13826     "# MEASURED ON HIS OWN REEL (reel_s_1787520892804_95400) ..."
+        test_control.py:19285    docstring: "MEASURED on reel_s_1787520892804_95400: ..."
+        orphan_fold.py:22        docstring table mapping the id to a sessionId
+        frame_authority.py:353   the docstring OF THIS FUNCTION, explaining this exact defect
+
+    ⚠ THE DEFECT WAS KNOWN AND WRITTEN DOWN AT v2071 AND LEFT RUNNING. That docstring says it
+    plainly — *"retention began holding 3.15 GB of his footage with the reason 'the TEST SUITE
+    opens this reel', which was false"* — and prescribed a fix for FUTURE tests (synthesise ids
+    from a 2017 stamp). That does nothing about prose already written, and the prose kept
+    accumulating: five of the nine hits above were added AFTER v2071. A wrong reason is how a
+    real hold later gets dismissed as noise, and here it also cost him his disk.
+    [[feedback-comments-vs-code]] — my own carved scar: an explanatory comment blinding a guard
+    that greps.
+
+    ⚠ ORDINARY STRING LITERALS ARE DELIBERATELY KEPT. A real fixture opens footage BY NAME —
+    `os.path.join(hist, "reel_s_1787520892804_95400")` — and that is a STRING. Stripping all
+    strings would delete the very footage this function exists to protect. Only comments and
+    DOCSTRINGS (a string that is the whole of an expression statement) are removed.
+
+    ⚠ AND EVERY FAILURE FALLS BACK TO THE OLD BEHAVIOUR, returning `src` unchanged. Holding too
+    much wastes disk; holding too little deletes his footage permanently. Those are not
+    symmetric, so an unparseable file is scanned exactly as before.
+    """
+    # ⚠ `re` IS IMPORTED INSIDE test_referenced_reels, NOT AT MODULE SCOPE — so the first cut of
+    # this function read a name bound nowhere and would have raised NameError on the first .ts
+    # file, inside a try/except, silently, while looking perfectly wired.
+    # Caught by TestV2010NoCallIntoANameThatIsNotThere. [[the-unjoined-end]]
+    import re
+    if path.endswith((".ts", ".tsx", ".js")):
+        try:
+            out = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+            return re.sub(r"(?m)^\s*//.*$", " ", out)
+        except Exception:
+            return src
+    import ast
+    import io as _io
+    import tokenize as _tk
+    try:
+        tree = ast.parse(src)
+    except Exception:
+        return src                       # unparseable -> behave exactly as before
+    # every docstring / bare string-expression statement, by line span
+    dead = set()
+    try:
+        for node in ast.walk(tree):
+            body = getattr(node, "body", None)
+            if not isinstance(body, list):
+                continue
+            for stmt in body:
+                if (isinstance(stmt, ast.Expr)
+                        and isinstance(getattr(stmt, "value", None), ast.Constant)
+                        and isinstance(stmt.value.value, str)):
+                    a = getattr(stmt, "lineno", None)
+                    b = getattr(stmt, "end_lineno", None) or a
+                    if a:
+                        dead.update(range(a, b + 1))
+    except Exception:
+        return src
+    lines = src.split("\n")
+    kept = [("" if (i + 1) in dead else ln) for i, ln in enumerate(lines)]
+    # then the # comments, via the tokenizer so a # inside a string is not mistaken for one
+    try:
+        joined = "\n".join(kept)
+        drop = []
+        for tok in _tk.generate_tokens(_io.StringIO(joined).readline):
+            if tok.type == _tk.COMMENT:
+                drop.append((tok.start[0], tok.start[1], tok.end[1]))
+        arr = joined.split("\n")
+        for ln_no, c0, c1 in drop:
+            if 1 <= ln_no <= len(arr):
+                row = arr[ln_no - 1]
+                arr[ln_no - 1] = row[:c0] + " " * (c1 - c0) + row[c1:]
+        return "\n".join(arr)
+    except Exception:
+        return "\n".join(kept)          # docstrings gone, comments not — still safer than before
+
+
 def test_referenced_reels(repo=None):
     """Reel ids the TEST SUITE opens by name. A reel a test reads is a FIXTURE, whatever the ledgers
     say about it.
@@ -382,7 +469,7 @@ def test_referenced_reels(repo=None):
                     src = fh.read()
             except OSError:
                 continue
-            out.update(re.findall(r"reel_s_\d{10,16}_\d+", src))
+            out.update(re.findall(r"reel_s_\d{10,16}_\d+", _executable_only(src, f)))
     if stamp is not None:
         globals()["_FIXTURE_CACHE"] = (stamp, frozenset(out))
     return out

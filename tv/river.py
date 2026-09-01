@@ -51,6 +51,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ THIS FILE PRINTS ⚠ AND ARROWS. Without this, a non-UTF-8 console makes it crash while
+# REPORTING — so a perfectly healthy tree exits non-zero for a reason that has nothing to do with
+# the river. Caught by TestToolsCanReportTheirVerdict before it shipped.
+try:
+    from console_safe import enable as _console_safe_enable
+    _console_safe_enable()
+except Exception:
+    pass
+
 CARRIES, STARVED, DRY, UNKNOWN = "CARRIES", "STARVED", "DRY", "UNKNOWN"
 
 # order matters — it is the river
@@ -71,10 +80,21 @@ def _ring(pattern):
 
 
 def _hist_dir():
-    for c in (os.environ.get("TV_HIST"), os.path.expanduser("~/Library/Application Support/TV DIABLO/history")):
-        if c and os.path.isdir(c):
-            return c
-    return None
+    """Where the footage actually is. -> path or None
+
+    ⚠ RESOLVED THE SAME WAY THE CONSOLE DOES, and the first cut of this did not. It guessed
+    `~/Library/Application Support/TV DIABLO/history`, found nothing, and reported capture,
+    prune and disk as UNKNOWN — which reads as "the pipeline could not be measured" when the real
+    answer was "the instrument looked in the wrong place". A probe that fails on its own REACH
+    and reports it as a fact about the system is worse than no probe.
+    `control_app.py:113` is the authority: TV_HIST, else <tv>/frames/hist.
+    [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+    """
+    c = os.environ.get("TV_HIST")
+    if c and os.path.isdir(c):
+        return c
+    d = os.path.join(HERE, "frames", "hist")
+    return d if os.path.isdir(d) else None
 
 
 def _joint(name, what, n, upstream, why="", unit="item"):
