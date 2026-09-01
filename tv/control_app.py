@@ -14693,7 +14693,22 @@ def _eagle_once():
     # has an owner. Only the COUNT is needed to answer "did the eagle cover its roster".
     # [[copy-drift]]
     try:
-        _ep = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eagle_last.json")
+        # ⚠ v2411 — WRITE-SIDE ISOLATION, BECAUSE STAMPING THE AUTHOR ONLY MADE THE RACE VISIBLE.
+        # v2408/v2409 labelled the record and taught the reader to refuse a non-primary one. A cold
+        # review put the remaining hole plainly: "It only makes the last writer visible, then throws
+        # the number away. It does not fix the race." Both loops run on the same interval, so a
+        # scratch writing a second after the primary makes every CLI, gate and CI read UNKNOWN for
+        # most of each 600 s window — while the canonical console is perfectly healthy. That is a
+        # FALSE UNKNOWN I introduced while removing a false number.
+        #
+        # ⚠ AND THE MECHANISM ALREADY EXISTED ~400 LINES ABOVE THIS LINE. `_decision_path` returns
+        # the real path for the primary console and `<stem>.scratch-<port><ext>` for anything else,
+        # written for exactly this reason: a scratch must not overwrite a choice every other process
+        # treats as the console. This is the SECOND time in two ships I built a weaker copy of
+        # something the repo already had — v2409 invented a discriminator while _is_primary_console
+        # sat unused. Verified before switching: _decision_path resolves to the identical path for
+        # the primary, so the reader is unaffected. [[copy-drift]] [[the-unjoined-end]]
+        _ep = _decision_path(".eagle_last.json")
         _tmp = _ep + ".tmp"
         with open(_tmp, "w", encoding="utf-8") as _fh:
             # ⚠ v2408 — THE RECORD MUST NAME ITS AUTHOR. There is exactly one writer in this
@@ -21411,7 +21426,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2410",
+        "ver": "v2411",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

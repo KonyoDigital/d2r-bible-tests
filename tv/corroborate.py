@@ -482,6 +482,15 @@ def _inv_the_two_owned_fields():
 #: v2394 — how old the eagle's durable pass may be and still mean something. The loop runs every
 #: few minutes; an hour is generous and still refuses a record from yesterday. [[stale-reading]]
 _EAGLE_RECORD_MAX_AGE_MS = 60 * 60 * 1000
+#: the canonical console port. ⚠ A SECOND COPY OF A CONSTANT IS A THING THAT CAN DRIFT — the cold
+#: review flagged control_app's own `_PRIMARY_CONTROL_PORT = 17772` as already duplicating
+#: TV_CONTROL_PORT's fallback. So this reads control_app's value and only falls back to the literal
+#: when the module cannot be imported at all (a gate on a machine without it).
+try:
+    import control_app as _ca_for_port
+    _PRIMARY_PORT = int(getattr(_ca_for_port, "_PRIMARY_CONTROL_PORT", 17772))
+except Exception:
+    _PRIMARY_PORT = 17772
 
 #: The durable pass. A MODULE CONSTANT so a test can point it somewhere harmless.
 #: ⚠ THE FIRST CUT HARDCODED THIS PATH AND THE GUARD RACED HIS RUNNING CONSOLE. The live console
@@ -536,6 +545,16 @@ def _durable_pass(max_age_ms=None):
         # ⚠ ABSENT IS NOT False. A pre-v2409 record carries no `primary` key at all and must still
         # be read, or upgrading blinds this on every machine until each rewrites its file.
         if _row.get("primary") is False:
+            return (None, None)
+        # ⚠ THE COMPATIBILITY HOLE THE COLD REVIEW FOUND, AND IT WAS THE ONE CASE THAT MATTERS.
+        # A pre-v2409 record carries no `primary` key and is deliberately still read — but the
+        # record an OLD SCRATCH actually produces is `{port: 17985}` with no `primary`, which sailed
+        # straight through. The suite covered `{port: 17772}` with no primary and `{port: 17985,
+        # primary: false}`, and missed exactly the combination a live older scratch writes.
+        # `port` was already stamped by the previous writer, so it closes the hole without blinding
+        # a genuinely keyless file.
+        if _row.get("primary") is None and isinstance(_row.get("port"), int) \
+                and _row.get("port") != _PRIMARY_PORT:
             return (None, None)
         if "port" in _row and _row.get("port") is None:
             return (None, None)

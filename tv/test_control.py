@@ -38520,6 +38520,35 @@ class TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess(unittest.TestCase):
                         "a pre-v2409 record was refused for lacking a key it could not have had "
                         "— %r" % (r.get("why"),))
 
+    def test_an_OLD_SCRATCH_record_is_UNKNOWN_even_with_no_primary_key(self):
+        """⚠ THE COMBINATION THE SUITE MISSED, and it is the one a live older scratch writes.
+
+        A cold review reduced the compatibility tolerance to its three cases and found the gap:
+
+            {port: 17772}                  no primary  ->  still used      (covered)
+            {port: 17985, primary: false}              ->  UNKNOWN         (covered)
+            {port: 17985}                  no primary  ->  NOT TESTED, and accepted
+
+        So "a pre-v2409 record is still read" was fail-OPEN for as long as an old scratch stayed
+        alive, while refusing it would have been fail-closed and brief — the canonical writer
+        rewrites within one eagle period. `port` was already stamped by the PREVIOUS writer, so
+        this closes the hole without blinding a genuinely keyless file."""
+        self._write(2, 0, slow=False, port=17985, primary=self._OMIT)
+        r = self._row()
+        self.assertIsNone(r["exercised"],
+                          "an old scratch's record was accepted because it predated the `primary` "
+                          "key — %r" % (r.get("why"),))
+
+    def test_a_KEYLESS_record_from_the_canonical_port_is_still_read(self):
+        """And the tolerance must survive: a genuinely old record from the real console has neither
+        key and must keep working, or upgrading blinds this until each machine rewrites its file."""
+        import console_doctor as cd
+        self._write(len(cd.CHECKS), 0, primary=self._OMIT, port=17772)
+        r = self._row()
+        self.assertTrue(r["proven"],
+                        "a pre-v2409 record from the canonical port was refused — %r"
+                        % (r.get("why"),))
+
     def test_a_STALE_record_goes_back_to_UNKNOWN(self):
         """The defect this guards: a durable record that outlives its meaning and reads as a pass."""
         import console_doctor as cd
