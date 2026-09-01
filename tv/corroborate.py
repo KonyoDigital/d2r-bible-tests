@@ -84,7 +84,32 @@ def _reading(who, fn):
 # `relation` is "==" or "<=" and is applied LEFT rel RIGHT.
 
 def _inv_vault_worklist():
-    """The v2223 near-miss, asserted forever."""
+    """★ THE v2223 NEAR-MISS — AND FOR MONTHS THIS INVARIANT CORROBORATED A THING AGAINST ITSELF.
+
+    MEASURED 2026-09-01 on his live tree, and it is the reason a whole pipeline stage had never
+    run without anything noticing:
+
+        the vault watchdog                       owed  0
+        reel_retention (this check's old right)  owed  0        -> AGREE ✅ for months
+        _vault_lane_owes(), asked per reel       owed 43        -> the truth
+
+    BOTH OLD SIDES READ plan()'s TAGS, and plan() checks its rules IN ORDER with first-match-wins.
+    `vault-owes` is 8th of 10; his 44 reels all match an earlier rule (test-fixture 15,
+    zero-pages 24, recent 5), so `vault-owes` fires ZERO times. Two derivations of one broken
+    source agreeing with each other is not corroboration — it is one number wearing two names.
+
+    ⚠ AND THE OLD `prove` LINE NAMED THE FIX AS THE SABOTAGE: "make _vault_owed_reels ask its own
+    question instead of retention's, and this parts". The author knew. It was written down as the
+    way to BREAK the invariant rather than as the way to build it.
+
+    WHAT IT COST: no vault sweep -> no seal -> 72.5% of his 6,380 frames held as "not sealed" ->
+    0 frames prunable -> 7.4 GB of reels -> 7 GB free against an 8 GB floor -> CAPTURE BLOCKED.
+    Every stage individually correct. [[feedback-contradiction-is-the-finding]] [[the-unjoined-end]]
+
+    The right side is now an INDEPENDENT question — _vault_lane_owes asked of each reel directory
+    on disk — which is what "corroborate" was supposed to mean. It reads no plan and no tag, so it
+    cannot inherit the ordering that hid the work.
+    """
     import control_app as ca
     import reel_retention as rr
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
@@ -94,16 +119,26 @@ def _inv_vault_worklist():
         return None if got is None else len(got)
 
     def right():
-        p = rr.plan(hist)
-        if not p.get("ok"):
+        # ⚠ NOT plan(). Ask the predicate itself, once per reel on disk. A directory that cannot
+        # be listed is UNKNOWN, never zero — "I could not look" and "there is nothing" are the
+        # two facts this whole file exists to keep apart.
+        try:
+            reels = [d for d in sorted(os.listdir(hist)) if d.startswith("reel_")]
+        except OSError:
             return None
-        return len([k for k in (p.get("kept") or [])
-                    if "VAULT lane has never swept" in (k.get("why") or "")])
+        n = 0
+        for d in reels:
+            try:
+                if rr._vault_lane_owes(os.path.join(hist, d)):
+                    n += 1
+            except Exception:
+                return None
+        return n
 
     return ("vault-worklist",
-            "the vault watchdog works exactly the reels retention holds for the vault lane",
-            "make _vault_owed_reels ask its own question instead of retention's, and this parts",
-            "the vault watchdog", left, "reel_retention", right, "==")
+            "the vault watchdog's worklist matches the reels that actually owe it a read",
+            "point the right side back at plan()'s tags and this agrees at 0 while 43 reels wait",
+            "the vault watchdog", left, "reels that owe a vault read", right, "==")
 
 
 def _inv_shadow_names_fit_the_universe():
@@ -690,6 +725,146 @@ def selftest():
                 "157" in row["say"] and "7" in row["say"]))
     out.append(("it does not pick a side",
                 "is not knowable" in row["say"]))
+
+    # ══ v2390 — AND THE CORROBORATOR NOW POLICES ITS OWN INVARIANTS ═══════════════════════════
+    # Konyo: "that is why we built corroborator so all 54 modules/engines can be communicating..
+    # and doctor that can fix it all and flag whats needed" — after a whole pipeline stage was
+    # found never to have run.
+    #
+    # The machinery was not missing. `_inv_vault_worklist` existed and was GREEN for months
+    # because BOTH of its sides read reel_retention.plan()'s tags: two derivations of one broken
+    # source agreeing with each other. 0 == 0, while an independent question answered 43.
+    #
+    # Two numbers that share a source cannot corroborate anything, so this is now checked
+    # STRUCTURALLY, on every invariant, forever — rather than by someone noticing.
+    # [[feedback-contradiction-is-the-finding]] [[the-unjoined-end]]
+    #
+    # ⚠ ONE DELIBERATE EXCEPTION, NAMED RATHER THAN PATTERN-MATCHED AROUND.
+    # `_inv_the_tooltip_finder_refuses_more_than_it_finds` reads two DIFFERENT COUNTERS out of one
+    # report (refused >= located). That is an internal-ratio check, not self-corroboration: it
+    # genuinely goes red when the area floor is lowered. An exception list of one, with its
+    # reason, is honest; a regex that quietly excused this shape would not be.
+    # ⚠ EXCEPTIONS ARE NAMED ONE BY ONE, WITH THE MEASUREMENT THAT EARNED THEM. A regex that
+    # quietly excused this shape would re-open the hole this whole audit exists to close, and a
+    # syntactic pass genuinely cannot tell "delegates entirely" from "consults, then falls back".
+    # So each entry below was PROVEN independent by driving its own `prove` line and watching the
+    # two sides part.
+    _SHARED_SOURCE_OK = {
+        # two DIFFERENT counters out of one report (refused >= located) — an internal ratio, not a
+        # shared source. It goes red when _MIN_AREA_FRAC is lowered, which is what it is for.
+        "_inv_the_tooltip_finder_refuses_more_than_it_finds",
+        # left calls ca._register_is_anchor, which CONSULTS inventory_law.is_locked and then falls
+        # back to its own frozenset and a "tome of" test — so the console keeps independent
+        # knowledge. MEASURED 2026-09-01 by driving its own prove line: drop one entry from
+        # inventory_law.LOCKED and the sides part 4 vs 3. A real invariant with a shared call in it.
+        "_inv_the_console_and_the_law_agree_about_furniture",
+    }
+    try:
+        import inspect as _insp
+        import re as _re
+        shared_bad = []
+        unjudged = []
+        for _name in sorted(n for n in globals() if n.startswith("_inv_")):
+            _f = globals()[_name]
+            if not callable(_f):
+                continue
+            try:
+                src = _insp.getsource(_f)
+            except Exception:
+                unjudged.append(_name)
+                continue
+            if "def left()" not in src or "def right()" not in src:
+                unjudged.append(_name)          # NOT the same as clean
+                continue
+            # local import aliases declared inside this invariant: {alias: real module}
+            _aliases = dict((a, m) for m, a in
+                            _re.findall(r"import\s+([A-Za-z_][\w.]*)\s+as\s+(\w+)", src))
+            l = src[src.index("def left()"):src.index("def right()")]
+            r = src[src.index("def right()"):]
+            def _direct(b):
+                return set(_re.findall(r"\b([a-z_]{2,}(?:\.[a-zA-Z_]+)+)\s*\(", b))
+
+            def _norm(tok, al):
+                """alias.fn -> realmodule.fn. The comparison must be on what a call RESOLVES to."""
+                head, _, rest = tok.partition(".")
+                return "%s.%s" % (al.get(head, head), rest) if rest else tok
+
+            def _calls(b, depth=1):
+                """Calls this body makes, plus the calls THOSE make, one level down.
+
+                ⚠ ONE LEVEL IS NOT DECORATION — IT IS THE WHOLE POINT, AND THE FIRST CUT OF THIS
+                AUDIT WITHOUT IT WOULD HAVE MISSED THE DEFECT IT WAS WRITTEN FOR. In the real
+                case, left called `ca._vault_owed_reels(hist)` and right called `rr.plan(hist)`:
+                two different literals, no direct overlap, "independent" by a syntactic reading —
+                and _vault_owed_reels is nothing but a filter over plan(). The sharing was one
+                hop down. Proven by sabotage: with direct-only matching, restoring the original
+                shape kept the self-test GREEN. [[feedback-suspect-the-instrument]]
+                """
+                out = set(_norm(t, _aliases) for t in _direct(b))
+                if depth <= 0:
+                    return out
+                for tok in list(out):
+                    mod, _, fn = tok.rpartition(".")
+                    # ⚠ THE ALIAS IS LOCAL TO THE INVARIANT, AND THE FIRST TWO CUTS OF THIS AUDIT
+                    # BOTH DIED HERE. Invariants do `import control_app as ca` INSIDE themselves,
+                    # so "ca" is not in globals() and __import__("ca") raises — every callee went
+                    # unresolved, the expansion found nothing, and the self-test stayed green
+                    # through a sabotage that restored the exact defect. Resolve the alias from
+                    # the invariant's own import lines first. [[feedback-suspect-the-instrument]]
+                    mod = _aliases.get(mod, mod)
+                    try:
+                        m = globals().get(mod) or __import__(mod)
+                        tgt = getattr(m, fn, None)
+                        if tgt is None or not callable(tgt):
+                            continue
+                        # ⚠ NORMALISE THE CALLEE'S OWN TOKENS TOO, THROUGH ITS OWN ALIASES.
+                        # The fifth cut of this audit failed here and it is the subtlest step:
+                        # control_app._vault_owed_reels calls `_rr.plan(...)` while the invariant's
+                        # right side calls `rr.plan(...)`. Same module, different local alias, so a
+                        # literal comparison found no overlap and the sabotage stayed GREEN.
+                        # Compare RESOLVED module.function, never the alias someone happened to type.
+                        _sub = _insp.getsource(tgt)
+                        _sub_al = dict((a, m) for m, a in
+                                       _re.findall(r"import\s+([A-Za-z_][\w.]*)\s+as\s+(\w+)", _sub))
+                        out |= set(_norm(t, _sub_al) for t in _direct(_sub))
+                    except Exception:
+                        # a callee we cannot read is a callee whose sharing we cannot rule out.
+                        # Record it so the pair is judged, never silently cleared.
+                        out.add("?unreadable:" + tok)
+                return out
+
+            def _is_ours(tok):
+                """Is this call into one of THIS PROJECT's engines?
+
+                ⚠ THE THIRD CUT OF THIS AUDIT OVER-FIRED, and an over-firing gate is as useless
+                as a silent one. Following callees one level surfaced os.path.join, io.open and
+                json.load as "shared" on seven invariants — true, and meaningless: two sides both
+                opening a file share PLUMBING, not a SOURCE. The question is only ever whether
+                they read the same ENGINE. Resolved by asking where the module lives, not by a
+                name blocklist that would rot the moment an engine is renamed.
+                """
+                mod = tok.split(".")[0]      # already normalised by _norm
+                try:
+                    m = globals().get(mod) or __import__(mod)
+                    f = getattr(m, "__file__", "") or ""
+                except Exception:
+                    return False
+                return os.path.dirname(os.path.abspath(f)) == HERE
+
+            shared = {c for c in (_calls(l) & _calls(r))
+                      if _is_ours(c)
+                      and not c.split(".")[-1].startswith(("get", "int", "str", "len"))}
+            if shared and _name not in _SHARED_SOURCE_OK:
+                shared_bad.append("%s (%s)" % (_name, ",".join(sorted(shared))))
+        out.append(("no invariant corroborates a thing against ITSELF"
+                    + (" — %s" % "; ".join(shared_bad) if shared_bad else ""),
+                    not shared_bad))
+        # an invariant this audit could not read is UNJUDGED, and unjudged is not clean
+        out.append(("every invariant was judgeable"
+                    + (" — could not read: %s" % ",".join(unjudged) if unjudged else ""),
+                    not unjudged))
+    except Exception as _e:
+        out.append(("the independence audit ran at all (%s)" % str(_e)[:60], False))
     return out
 
 

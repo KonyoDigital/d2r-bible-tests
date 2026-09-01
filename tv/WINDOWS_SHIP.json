@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2389",
+  "ver": "v2390",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2389: An unparseable file hid its swallows, a drop passed unenforced, and a malformed baseline graded as zero.",
+  "note": "v2390: An invariant compared two derivations of one broken source and agreed at zero while 43 reels went unswept.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

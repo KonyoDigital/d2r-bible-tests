@@ -4923,8 +4923,17 @@ class TestV2304ShadowOnlyRollsAReelWhenItShould(unittest.TestCase):
         ca._agent_alive = lambda: False
         ca.mini_state = lambda: {"running": False}
         ca.start_agent = lambda *a, **k: (self._started.append(k) or {"ok": True, "msg": "on air"})
+        # ⚠ v2390 — THIS CLASS WAS HOSTAGE TO FREE DISK. shadow_watch_tick runs the capture
+        # preflight, which refuses on the disk floor BEFORE it reaches anything this class is
+        # about — so "does the shadow watcher roll a reel when the game is on screen" silently
+        # became "is his laptop less than 8GB full". Two pushes green, the third red, no code
+        # change between them. A test whose verdict depends on the environment is not measuring
+        # what it names. [[feedback-blind-fixture-green-gate]]
+        self._saved_floor = ca.ON_AIR_FLOOR_GB
+        ca.ON_AIR_FLOOR_GB = 0
 
     def tearDown(self):
+        ca.ON_AIR_FLOOR_GB = self._saved_floor
         for k, v in self._saved.items():
             if v is not None:
                 setattr(ca, k, v)
@@ -5650,12 +5659,22 @@ class TestV2316OnePreflightForEveryCaptureDoor(unittest.TestCase):
         this asserts, and removing the branch makes it fail. A guard must fail for the reason it
         names. [[regression-guard]] [[feedback-blind-fixture-green-gate]]
         """
+        # ⚠ v2390 — AND THE DISK FLOOR MUST BE STUBBED TOO, OR THIS TEST IS HOSTAGE TO HOW FULL
+        # HIS MACHINE IS. The preflight checks disk BEFORE the grant, so the moment free space
+        # fell under the floor this went red with "DISK TOO FULL to record — 8.0GB free, need
+        # 8GB" — a true sentence about the wrong subject. It had passed on the two pushes before
+        # and failed on the third with no code change between them. A guard whose verdict depends
+        # on the environment is not measuring the thing it names.
+        # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
         real = ca._screen_recording_ok_quick
+        real_floor = ca.ON_AIR_FLOOR_GB
         ca._screen_recording_ok_quick = lambda: False
+        ca.ON_AIR_FLOOR_GB = 0            # the disk is not what this test is about
         try:
             r = ca.mini_start(seconds=25, test=True)
         finally:
             ca._screen_recording_ok_quick = real
+            ca.ON_AIR_FLOOR_GB = real_floor
         self.assertFalse(r.get("ok"), "MINI recorded with no Screen Recording grant: %s" % r)
         err = str(r.get("error") or "")
         self.assertIn("Screen Recording", err, "the grant must be named")
@@ -37563,6 +37582,74 @@ class TestV2387TheVendoredCensusHasNotDRIFTED(unittest.TestCase):
         self.assertIn("rank1", b.get("counts") or {},
                       "the baseline carries no rank1 count, so the ratchet grades against 0 and "
                       "would fail every push")
+
+
+class TestV2390AnInvariantMayNotCorroborateAThingAgainstITSELF(unittest.TestCase):
+    """★ Konyo, on why a whole pipeline stage had never run without anything noticing: "how do we
+    find these before i tell you about them? i said eagle eye watchdog doctor corroborator and you
+    still have GAPS within the same types of logic systems."
+
+    He is right, and the machinery was not missing — it was pointed at itself.
+
+    MEASURED 2026-09-01. `_inv_vault_worklist` compared:
+        left   ca._vault_owed_reels(hist)                              -> 0
+        right  plan().kept filtered on "VAULT lane has never swept"    -> 0     AGREE ✅ for months
+    BOTH SIDES READ plan()'s TAGS, and plan() checks its rules in order, first match wins.
+    `vault-owes` is 8th of 10 and every one of his reels matched an earlier rule, so it fired zero
+    times. An independent question — _vault_lane_owes() asked per reel — answers 43.
+
+    Two derivations of one broken source agreeing is not corroboration. It is one number wearing
+    two names, and it read as a green gate while no reel was ever swept, no seal was written,
+    72.5% of 6,380 frames were held as "not sealed", nothing could be pruned, and capture blocked
+    on an 8 GB floor.
+
+    ⚠ THE OLD `prove` LINE NAMED THE FIX AS THE SABOTAGE — "make _vault_owed_reels ask its own
+    question instead of retention's, and this parts." It was written down as the way to BREAK the
+    check rather than as the way to build it.
+    [[feedback-contradiction-is-the-finding]] [[the-unjoined-end]]"""
+
+    def _src_of(self, fn):
+        import inspect
+        return inspect.getsource(fn)
+
+    def test_the_two_sides_do_not_share_a_source(self):
+        import sys as _s
+        _s.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import corroborate as C
+        body = self._src_of(C._inv_vault_worklist)
+        # the LEFT side is the thing under test and legitimately calls the watchdog's own worklist.
+        # the RIGHT side must not re-derive it from the same planner.
+        right = body[body.index("def right()"):]
+        self.assertNotIn(".plan(", right,
+                         "the right-hand side reads reel_retention.plan() again — that is the "
+                         "self-corroboration this class exists to prevent: both sides inherit "
+                         "plan()'s first-match ordering and agree at 0 while work waits")
+        self.assertIn("_vault_lane_owes", right,
+                      "the right-hand side no longer asks the independent predicate, so nothing "
+                      "is corroborating anything")
+
+    def test_an_unlistable_directory_is_UNKNOWN_not_zero(self):
+        """'I could not look' and 'there is nothing' are the two facts this whole file keeps
+        apart. A right side that returns 0 on an OSError would agree with a broken left side."""
+        import sys as _s
+        _s.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import corroborate as C
+        right = self._src_of(C._inv_vault_worklist)
+        right = right[right.index("def right()"):]
+        self.assertIn("return None", right,
+                      "the right side has no UNKNOWN path — an unreadable hist dir would score 0 "
+                      "and manufacture agreement [[unknown-stays-unknown]]")
+
+    def test_the_selftest_still_drives_every_relation_red(self):
+        """The gate that protects the corroborator itself. If a relation stops being able to fail,
+        every invariant built on it reports agreement whatever the engines said."""
+        import sys as _s
+        _s.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import corroborate as C
+        rows = C.selftest()
+        bad = [name for name, ok in rows if not ok]
+        self.assertEqual(bad, [], "the corroborator's own self-test failed: %s" % bad)
+        self.assertGreater(len(rows), 6, "the self-test shrank — it is proving less than it did")
 
 
 if __name__ == "__main__":
