@@ -38465,9 +38465,14 @@ class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCas
             R.check, R._chrome_up, R.TARGETS = old_check, old_up, old_targets
 
     def test_a_lost_socket_is_UNKNOWN_and_exits_2_not_a_pass(self):
-        import websocket
-        code = self._run_with(
-            websocket._exceptions.WebSocketConnectionClosedException("Connection to remote host was lost."))
+        """⚠ RAISED AS A PLAIN ConnectionError, NOT AS A websocket TYPE. The first cut did
+        `import websocket` — a package CI does not install (it installs only pillow), so the test
+        would have errored in the one environment it most needs to run in. A fixture that cannot
+        execute where it matters is the same blind-fixture defect as one that cannot fail, pointing
+        the other way. ConnectionError is in _TRANSPORT_ERRORS and needs nothing installed; the
+        websocket-specific type is covered by the separate test below, which SKIPS honestly when
+        the package is absent rather than passing."""
+        code = self._run_with(ConnectionError("Connection to remote host was lost."))
         self.assertEqual(code, 2,
                          "a dropped CDP socket must exit 2 (nobody looked), not 0 (a pass) and not "
                          "1 (a layout defect) — got %r" % code)
@@ -38475,11 +38480,22 @@ class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCas
     def test_it_does_NOT_raise(self):
         """The whole point: the gate must produce a verdict rather than a traceback. A gate that
         dies mid-verdict is indistinguishable from one that found nothing."""
-        import websocket
         try:
-            self._run_with(websocket._exceptions.WebSocketConnectionClosedException("lost"))
+            self._run_with(ConnectionError("lost"))
         except Exception as e:
             self.fail("the gate raised instead of reporting: %r" % (e,))
+
+    def test_the_REAL_websocket_type_is_also_treated_as_transport(self):
+        """And the exact class the push actually hit — when the package is present. ⚠ SKIPPED, NOT
+        PASSED, when it is not: CI installs only pillow, and a green produced by an absent import
+        would be the emptiest kind."""
+        try:
+            import websocket
+            exc = websocket._exceptions.WebSocketConnectionClosedException("lost")
+        except Exception:
+            self.skipTest("websocket-client is not installed here — UNKNOWN, not a pass")
+        self.assertEqual(self._run_with(exc), 2,
+                         "the real WebSocketConnectionClosedException was not treated as transport")
 
     def test_a_HARNESS_bug_is_NOT_labelled_a_transport_failure(self):
         """⚠ THE FIRST CUT CAUGHT `Exception` AND ALWAYS SAID "the browser connection was lost", so
