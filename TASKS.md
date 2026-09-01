@@ -124,7 +124,12 @@ was stale. **This is the only check that can catch two stages that each work and
 
 An honest census of every lane in the console: does it exist, does it run, does it collaborate with
 its neighbours, and has it been reverse-engineered. ⚠ Precedent: THE HEART can only supervise what
-reports in one vocabulary and what it knows exists — **21 thread starts, 11 registered.** A lane
+reports in one vocabulary and what it knows exists — ⚠ **28 thread targets, 11 supervised, SEVEN
+persistent loops unwatched** (`tv/lane_census.py`, the `lane-census` gate, 2026-09-01). The
+earlier figure here was **21 starts / 11 registered**, from an ad-hoc classifier that was wrong
+twice in the same way; the census carries its own `--prove`. Grok Bot flagged this line as stale
+(GB-B-6) while the gate at the same SHA already said 28/11/7 — a next model restoring this task
+from TASKS.md would have briefed the wrong number. A lane
 nobody registered is a lane nobody watches. Output is a table with UNKNOWN as a legal answer.
 
 ## A12 · BLUEPRINTS AND REVERSE BLUEPRINTS · 2026-09-01 19:0x
@@ -138,7 +143,12 @@ two-way-agreement principle as A5, applied to the whole console rather than to o
 ## A13 · THE VISUAL HARNESS MUST FEED THE GATE · 2026-09-01 19:1x
 > *"i want this part of the workflow.. what about the visual harness with grok bot where is that?"*
 
-**IT EXISTS AND IT REACHES NOTHING.** `tv/ask_view.py`, `tv/human_eyes_ledger.py`, the
+✅ **IT NOW REACHES A GATE** (v2404, `tv/human_eyes_gate.py`, registered as `human-eyes`;
+hardened v2405 after a cold cross-family read found its exit code was decided by string-matching
+its own output, and that a brief timestamped ahead of `now` read as fresh). ⚠ This line said
+**IT EXISTS AND IT REACHES NOTHING** for a whole ship after the reaching landed — Grok Bot caught
+it (GB-B-7). The half still NOT built is the live-console contradiction check, filed rather than
+faked. Originally: `tv/ask_view.py`, `tv/human_eyes_ledger.py`, the
 `human-eyes-harness` skill and briefs HE-1…HE-5 (gh #181-#186) are all built. The ledger has 8 rows
 and one of them is a real catch: on 2026-09-01 at 16:21:45, verdict **LOOKED**, the eye reported his
 webview blank white while the beat published `taskforce shown H=502 top=1050` in a **660px** window.
@@ -256,8 +266,10 @@ heart reaching further.
 
 1. **IT CAN ONLY SUPERVISE WHAT REPORTS IN ONE VOCABULARY.** Four organs speaking four dialects is
    four dashboards, not a heart. One status vocabulary, one shape, every lane.
-2. **IT CAN ONLY SUPERVISE WHAT IT KNOWS EXISTS — and it does not know.** Measured: **21 thread
-   starts, 11 registered.** Ten live threads run unwatched, and the heart reports green over them
+2. **IT CAN ONLY SUPERVISE WHAT IT KNOWS EXISTS — and it does not know.** Measured by the
+   `lane-census` gate: **28 thread targets, 11 supervised, SEVEN persistent loops unwatched.**
+   (The **21 / 11** that stood here was from a classifier later proven wrong; do not quote it.)
+   Seven live loops run unwatched, and the heart reports green over them
    because absence and health look identical. That is A11, and it is a PREREQUISITE, not a sibling.
 
 ### WILSON SCORE IT ALL

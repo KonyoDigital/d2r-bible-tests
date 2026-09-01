@@ -19470,7 +19470,19 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                    box of height 0. So: no boxes = OFF-VIEW, a fact about which tab is open; boxes
                    but no height = ZERO-HEIGHT, the real defect this state was added to name.
                    [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]] */
-                var boxes = 0; try { boxes = box.getClientRects().length; } catch(e){}
+                /* ⚠ AND THE FALLBACK MUST NOT BE THE BENIGN ANSWER. The first cut wrote
+                   `var boxes = 0; try { boxes = box.getClientRects().length } catch(e){}` — so any
+                   node that could not answer landed on boxes===0, which is OFF-VIEW, which is the
+                   state that means "nothing is wrong here". The suite caught it immediately: its
+                   mock nodes implement getBoundingClientRect and not getClientRects, and three
+                   tests that assert ZERO-HEIGHT and BELOW-FOLD all flipped to OFF-VIEW.
+                   Not knowing must never resolve to fine. When getClientRects is unavailable the
+                   off-view question is UNANSWERABLE, so fall through to the height test — which
+                   reports the state that gets LOOKED AT rather than the one that gets skipped.
+                   [[unknown-stays-unknown]] */
+                var canAsk = (typeof box.getClientRects === 'function');
+                var boxes = -1;
+                if (canAsk) { try { boxes = box.getClientRects().length; } catch(e){ boxes = -1; } }
                 if (st === 'shown' && boxes === 0) st = 'OFF-VIEW';
                 else if (st === 'shown' && h <= 2) st = 'ZERO-HEIGHT';
                 /* ══ v2401 — AND 'shown' STILL DID NOT MEAN ON HIS SCREEN. THIRD TIME.

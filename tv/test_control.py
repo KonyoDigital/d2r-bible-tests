@@ -38843,8 +38843,11 @@ class TestV2401PanelsKnowLaidOutFromOnScreen(unittest.TestCase):
         j = ui.index("})()", ui.index("return o;", i)) + 4
         return "(" + ui[i + len("panels: "):j] + ")"
 
-    def _run(self, vh, top, height):
-        """Drive the SHIPPED expression in node against a fake DOM. One knob: the viewport."""
+    def _run(self, vh, top, height, rects=True):
+        """Drive the SHIPPED expression in node against a fake DOM.
+
+        `rects=False` models display:none — the element generates NO layout boxes at all, which is
+        what separates "not on this tab" from "laid out and collapsed"."""
         import shutil, subprocess, tempfile
         if shutil.which("node") is None:
             self.skipTest("node is not installed — this is UNKNOWN, not a pass")
@@ -38853,7 +38856,15 @@ class TestV2401PanelsKnowLaidOutFromOnScreen(unittest.TestCase):
         function mkBox(h, top){ return {
           hidden: false,
           getBoundingClientRect: function(){
-            return {height: h, top: top, bottom: top + h, left: 0, right: 900}; } }; }
+            return {height: h, top: top, bottom: top + h, left: 0, right: 900}; },
+          /* v2406 — A MOCK THAT CANNOT ANSWER THE QUESTION SILENTLY CHANGES THE ANSWER. These
+             nodes implemented getBoundingClientRect and not getClientRects, so when the beat
+             learned to separate OFF-VIEW (display:none, no layout boxes) from ZERO-HEIGHT (laid
+             out and collapsed), every case here fell into the unanswerable branch at once and
+             three assertions flipped. The mock now answers both, and `rects` is a parameter so a
+             test can ask for the display:none shape on purpose. */
+          getClientRects: function(){ return rects ? [{height: h, top: top}] : []; } }; }
+        var rects = %s;
         var NODES = {
           'hd-taskforce': mkBox(H, TOP),   'hd-tf-rows':        {children: [1, 2]},
           'hd-forge':     mkBox(H, TOP),   'hd-forge-chips':    {children: [1]},
@@ -38861,7 +38872,7 @@ class TestV2401PanelsKnowLaidOutFromOnScreen(unittest.TestCase):
         global.document = { getElementById: function(id){ return NODES[id] || null; } };
         global.window = { innerHeight: VH, innerWidth: 1440 };
         console.log(JSON.stringify(%s));
-        """ % (vh, top, height, self._block())
+        """ % (vh, top, height, "true" if rects else "false", self._block())
         d = tempfile.mkdtemp(prefix="panels_")
         self.addCleanup(shutil.rmtree, d, True)
         f = os.path.join(d, "h.js")
@@ -38890,6 +38901,64 @@ class TestV2401PanelsKnowLaidOutFromOnScreen(unittest.TestCase):
         collapsing them would hide the one that needs a different fix."""
         got = self._run(vh=700, top=1530, height=0)
         self.assertEqual(got["taskforce"], "ZERO-HEIGHT")
+
+    def test_display_none_is_OFF_VIEW_and_not_a_collapse(self):
+        """v2406 — THE FALSE RED THAT REACHED HIS LIVE CONSOLE. #hd-tallybar is display:none off
+        its own view, which renders at height 0, so the h<=2 test published ZERO-HEIGHT for a
+        perfectly healthy panel and tv/live_panel_gate.py duly refused his console over it.
+
+        The note at the top of the shipped block already warned that a display-based test "would
+        fire on every other tab and be switched off within a day"; the height test reintroduced
+        exactly that through the back door. Same geometry as the case above — top and height
+        identical — and only the presence of layout boxes differs."""
+        got = self._run(vh=700, top=1530, height=0, rects=False)
+        self.assertEqual(got["taskforce"], "OFF-VIEW",
+                         "a panel with NO layout boxes is not on this tab; calling that a collapse "
+                         "refuses a working console, which is how a gate gets switched off. "
+                         "got %r" % got["taskforce"])
+
+    def test_a_node_that_cannot_answer_does_NOT_read_as_fine(self):
+        """⚠ THE FALLBACK MUST NOT BE THE BENIGN ANSWER. The first cut of the OFF-VIEW split wrote
+        `var boxes = 0; try { boxes = box.getClientRects().length } catch(e){}`, so ANY node that
+        could not answer landed on boxes===0 — which is OFF-VIEW, the state meaning nothing is
+        wrong. This suite caught it at once, because its own mocks did not implement the method.
+
+        Not knowing must never resolve to fine. With the question unanswerable, the reading falls
+        through to the height test and reports the state that gets LOOKED AT."""
+        harness_says = self._run_without_getClientRects(vh=700, top=1530, height=0)
+        self.assertEqual(harness_says["taskforce"], "ZERO-HEIGHT",
+                         "a node that could not be asked about layout boxes was published as %r — "
+                         "an unanswerable question resolved to the harmless answer."
+                         % harness_says["taskforce"])
+
+    def _run_without_getClientRects(self, vh, top, height):
+        """Same harness with the method DELETED, not merely returning [] — the shape that produced
+        the defect."""
+        import shutil, subprocess, tempfile, json as _j
+        if shutil.which("node") is None:
+            self.skipTest("node is not installed — this is UNKNOWN, not a pass")
+        harness = """
+        var VH = %d, TOP = %d, H = %d;
+        function mkBox(h, top){ return {
+          hidden: false,
+          getBoundingClientRect: function(){
+            return {height: h, top: top, bottom: top + h, left: 0, right: 900}; } }; }
+        var NODES = {
+          'hd-taskforce': mkBox(H, TOP),   'hd-tf-rows':        {children: [1, 2]},
+          'hd-forge':     mkBox(H, TOP),   'hd-forge-chips':    {children: [1]},
+          'hd-tallybar':  mkBox(H, TOP),   'hd-tallybar-chips': {children: [1]} };
+        global.document = { getElementById: function(id){ return NODES[id] || null; } };
+        global.window = { innerHeight: VH, innerWidth: 1440 };
+        console.log(JSON.stringify(%s));
+        """ % (vh, top, height, self._block())
+        d = tempfile.mkdtemp(prefix="panels_norects_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "h.js")
+        with io.open(f, "w", encoding="utf-8") as fh:
+            fh.write(harness)
+        r = subprocess.run(["node", f], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, "the shipped block did not run: %s" % r.stderr[:400])
+        return _j.loads(r.stdout.strip().splitlines()[-1])
 
     def test_the_viewport_travels_WITH_the_reading(self):
         """A top of 1530 is a defect at 700px tall and fine at 2400. A number whose meaning depends
