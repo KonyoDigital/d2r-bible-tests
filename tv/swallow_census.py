@@ -317,12 +317,34 @@ def check(root=None):
         print("🔴 the baseline at %s would not parse (%s) — refusing to grade against it." % (p, e))
         return 1
 
-    b_now, b_was = now["rank1"], int(was.get("rank1", 0))
+    # ⚠ v2389 — A MALFORMED BASELINE IS NOT A BASELINE OF ZERO. `int(was.get("rank1", 0))` turned
+    # a missing or non-integer key into 0, so a perfectly healthy tree reported "74 NEW sites" and
+    # the message pointed at the code instead of at the file. Found by a cross-family read of the
+    # v2387 gate. [[unknown-stays-unknown]]
+    if not isinstance(was.get("rank1"), int):
+        print("🔴 the baseline at %s has no integer counts.rank1 (%r) — it is MALFORMED, not a "
+              "count of zero. Refusing to grade against it." % (p, was.get("rank1")))
+        print("   regenerate:  python3 tv/swallow_census.py --write-baseline")
+        return 1
+
+    b_now, b_was = now["rank1"], was["rank1"]
+    u_now, u_was = now.get("unparsed", 0), int(was.get("unparsed", 0) or 0)
     print("swallow ratchet — RANK 1 (a failed read handed back as DATA)")
     print("   baseline %d   now %d" % (b_was, b_now))
-    if now.get("unparsed"):
-        print("   ⚠ %d file(s) could not be parsed — their handlers are in NEITHER number"
-              % now["unparsed"])
+
+    # ⚠ v2389 — AN UNPARSEABLE FILE HIDES ITS OWN SWALLOWS. The census records files it cannot
+    # parse, and this used to only PRINT about them: rank1 stayed flat while the new handlers went
+    # uncounted, so adding a broken file was a way to smuggle sites past the gate. Unparsed
+    # ratchets too. A file that will not parse is also, separately, a file that will not run.
+    if u_now > u_was:
+        print()
+        print("🔴 %d file(s) newly UNPARSEABLE (baseline %d, now %d). Their handlers are in "
+              "NEITHER number, so this gate cannot see them at all — an uncounted site is not a "
+              "clean one." % (u_now - u_was, u_was, u_now))
+        return 1
+    if u_now:
+        print("   (%d file(s) unparseable, same as the baseline — still uncounted)" % u_now)
+
     if b_now > b_was:
         print()
         print("🔴 %d NEW site(s) where a failed read becomes DATA (0 / {} / [] / '')."
@@ -331,10 +353,19 @@ def check(root=None):
         print("   report UNKNOWN, or — if the caller genuinely treats the default as failure —")
         print("   say so in a comment AT THE SITE and lower the baseline deliberately.")
         return 1
+
+    # ⚠ v2389 — A DROP FAILS TOO, AND THAT IS THE POINT. The count can fall with nobody fixing
+    # anything: delete a file, move one under a skipped directory, and the gate used to print
+    # "down N, please lower the baseline" and PASS. Nothing enforced the lowering, so slack
+    # accumulated silently and a later real regression fitted inside it unnoticed.
+    # An EXACT-MATCH baseline has no slack to hide in. The cost is one command in the same commit,
+    # which is also the moment to say in the message WHICH sites went and why each was real.
     if b_now < b_was:
-        print("✅ down %d. Lower the baseline in this same commit:" % (b_was - b_now))
-        print("      python3 tv/swallow_census.py --write-baseline")
-        return 0
+        print()
+        print("🟡 down %d — good, and the baseline must move with it or the gap becomes slack "
+              "a future regression can hide inside." % (b_was - b_now))
+        print("   run, in this same commit:  python3 tv/swallow_census.py --write-baseline")
+        return 1
     print("✅ held.")
     return 0
 
