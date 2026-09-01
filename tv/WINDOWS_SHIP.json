@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2395",
+  "ver": "v2396",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2395: Grok Bot drives the live console as him and reports on GitHub 3; Claude owns the code; the ledger keeps the loop visible and refuses to call it proven",
+  "note": "v2396: six hovered items collapsed into one page and produced zero rows; the run now splits when the tooltip moves",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

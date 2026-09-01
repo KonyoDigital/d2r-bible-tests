@@ -1048,7 +1048,29 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         frames_seen += len(frames)
         # BORROWED grouping — chronicle_retro owns STILL_MAX_DIFF / MIN_RUN_FRAMES and the run logic.
         sig_of = lambda n, _d=reel_dir: sig(os.path.join(_d, n))          # noqa: E731 — per-reel bind
-        runs = _cr.still_runs(frames, sig_of)
+        # ══ v2396 — SPLIT THE RUN ON THE TOOLTIP, NOT ONLY ON THE GRID ═══════════════════════
+        # MEASURED on reel_s_1788099914191_40921: 20 frames, all carrying an open stash panel,
+        # median consecutive sig_diff 0.0000, collapsed to ONE run, ONE page read, ZERO rows — while
+        # 16 of those 20 frames carried a tooltip in SIX DISTINCT POSITIONS. He hovered slot to
+        # slot; the grid behind never changed, and sig_diff runs over the whole frame where the
+        # static grid dominates. Six items became one page became nothing.
+        #
+        # With the split: 1 run -> 7 runs, 1 candidate page -> 4. The control reel (7 frames, ZERO
+        # tooltips) is unchanged at 1 -> 1, so it splits on evidence and leaves the rest alone.
+        #
+        # ⚠ MEMOISED PER REEL. locate() measured at 0.239 s/frame cold on 40 real frames; the cache
+        # brought a 20-frame reel to +4s total. It is a crop and a text-density pass — no model
+        # call — but it must never run corpus-wide (15,956 frames would be ~64 minutes).
+        # ⚠ AND A FAILED LOOK IS UNKNOWN, NOT "no tooltip". still_runs breaks the run on an
+        # exception rather than welding two screens together. [[unknown-stays-unknown]]
+        _tips = {}
+        def _tip_of(n, _d=reel_dir, _c=_tips):
+            if n not in _c:
+                import tooltip_find as _tf
+                r = _tf.locate(os.path.join(_d, n))
+                _c[n] = r[0] if isinstance(r, tuple) else r
+            return _c[n]
+        runs = _cr.still_runs(frames, sig_of, tooltip_of=_tip_of)
         cands = _cr.candidate_runs(runs, min_frames=MIN_RUN_FRAMES)
         read_this_reel = False
         # v1792 — RE-LOOK BUCKETS. Candidate runs are already separated by a signature change, so a

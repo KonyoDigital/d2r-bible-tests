@@ -38315,5 +38315,119 @@ class TestV2395TheHumanEyesHarnessIsREAL(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+
+class TestV2396TheStillDetectorCanSeeTheTOOLTIP(unittest.TestCase):
+    """★ Six hovered items collapsed into one page and produced zero rows.
+
+    Konyo: "we had focused reels twice of like 4-5 or more items... 11 items i remember even. and
+    they were focused stash mini on air.. check and verify why these were missed."
+
+    MEASURED on reel_s_1788099914191_40921 — 20 frames, every one carrying an open stash panel,
+    vault-swept, ZERO rows:
+        sig_diff across consecutive pairs : min 0.0000  MEDIAN 0.0000  max 0.0430
+        pairs under STILL_MAX_DIFF (0.22) : 19 of 19  ->  ONE run  ->  ONE page
+        frames carrying a tooltip         : 16 of 20, in SIX DISTINCT POSITIONS
+
+    He hovered slot to slot. The tooltip moved six times; the grid behind it did not. sig_diff runs
+    over the WHOLE FRAME, where the static grid dominates and a tooltip overlay barely registers —
+    so the only thing changing, the only thing carrying an item NAME, was invisible to the detector
+    that decides what to read.
+
+    ⚠ THE CONTROL CASE IS WHAT MAKES IT CERTAIN, and it inverts the intuition: the reel with 16
+    tooltips produced NOTHING; a reel with ZERO tooltips PRODUCED ROWS. That is not a reader
+    failing on hard input — it is a gate discarding the good input before the reader sees it.
+    """
+
+    BOX = (0, 0, 1000, 800)
+
+    def _frames(self, n):
+        return [{"f": "f_%d.jpg" % i, "ts": i * 1000} for i in range(n)]
+
+    def test_a_static_grid_with_a_MOVING_tooltip_splits_into_runs(self):
+        """The fault itself. One unchanging signature, six tooltip positions."""
+        import chronicle_retro as cr
+        frames = self._frames(12)
+        sig = lambda n: b"IDENTICAL"                       # the grid never changes
+        tips = {"f_0.jpg": (0, 0, 10, 10), "f_1.jpg": (0, 0, 10, 10),
+                "f_2.jpg": (0, 0, 10, 10),
+                "f_3.jpg": (50, 50, 60, 60), "f_4.jpg": (50, 50, 60, 60),
+                "f_5.jpg": (50, 50, 60, 60),
+                "f_6.jpg": (99, 99, 110, 110), "f_7.jpg": (99, 99, 110, 110),
+                "f_8.jpg": (99, 99, 110, 110),
+                "f_9.jpg": (5, 5, 15, 15), "f_10.jpg": (5, 5, 15, 15),
+                "f_11.jpg": (5, 5, 15, 15)}
+        one = cr.still_runs(frames, sig)
+        self.assertEqual(len(one), 1, "setup: without the tooltip these are one run")
+        many = cr.still_runs(frames, sig, tooltip_of=lambda n: tips.get(n))
+        self.assertEqual(len(many), 4,
+                         "four distinct tooltip positions did not produce four runs — the "
+                         "detector is still blind to the only thing that changed")
+
+    def test_tooltip_free_footage_is_UNCHANGED(self):
+        """It must split on EVIDENCE, not on being switched on.
+
+        The control reel in the real measurement had zero tooltips and produced rows. If enabling
+        the split fragmented that footage, it would turn one honest page into several and pay for
+        each — trading a missed read for a wasted one.
+        """
+        import chronicle_retro as cr
+        frames = self._frames(9)
+        sig = lambda n: b"IDENTICAL"
+        before = cr.still_runs(frames, sig)
+        after = cr.still_runs(frames, sig, tooltip_of=lambda n: None)
+        self.assertEqual(len(after), len(before),
+                         "footage with NO tooltip was fragmented — the split is firing on absence")
+
+    def test_a_MISSING_tooltip_is_not_a_MATCHING_one(self):
+        """None means "looked, none here" — a real difference that must break the run.
+
+        Welding a tooltip frame to a bare one would put two different screens in a run the reader
+        pays to classify ONCE, which is the misgrouping this whole function exists to avoid.
+        """
+        import chronicle_retro as cr
+        frames = self._frames(6)
+        sig = lambda n: b"IDENTICAL"
+        tips = {"f_0.jpg": (0, 0, 10, 10), "f_1.jpg": (0, 0, 10, 10), "f_2.jpg": (0, 0, 10, 10),
+                "f_3.jpg": None, "f_4.jpg": None, "f_5.jpg": None}
+        runs = cr.still_runs(frames, sig, tooltip_of=lambda n: tips.get(n))
+        self.assertEqual(len(runs), 2,
+                         "a run with a tooltip was welded to one without — absent and equal were "
+                         "treated as the same thing")
+
+    def test_a_tooltip_lookup_that_RAISES_breaks_the_run(self):
+        """UNKNOWN breaks a run, exactly as an unreadable signature does. Same rule, same reason."""
+        import chronicle_retro as cr
+        frames = self._frames(4)
+        sig = lambda n: b"IDENTICAL"
+        def boom(n):
+            if n == "f_2.jpg":
+                raise RuntimeError("could not look")
+            return (0, 0, 10, 10)
+        runs = cr.still_runs(frames, sig, tooltip_of=boom)
+        self.assertGreater(len(runs), 1,
+                           "a frame whose tooltip could not be looked for was absorbed into the "
+                           "run — 'nobody could ask' was treated as 'the same screen'")
+
+    def test_it_is_OFF_by_default_so_no_caller_changes_by_accident(self):
+        import chronicle_retro as cr
+        frames = self._frames(6)
+        sig = lambda n: b"IDENTICAL"
+        self.assertEqual(len(cr.still_runs(frames, sig)), 1,
+                         "still_runs changed behaviour with no tooltip_of supplied — every "
+                         "existing caller just moved under it")
+
+    def test_the_VAULT_SWEEP_actually_passes_it(self):
+        """⚠ THE WIRE, not the rule. still_runs gaining the parameter buys nothing if the lane
+        that pays for pages never supplies it — which is how the tooltip finder came to have zero
+        callers in the first place. [[the-unjoined-end]]"""
+        d = os.path.dirname(os.path.abspath(__file__))
+        with io.open(os.path.join(d, "vault_retro.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        body = _between(self, src, "def sweep(", "\ndef ", what="the vault sweep")
+        self.assertIn("tooltip_of=", body,
+                      "the vault sweep no longer passes tooltip_of — the split is unreachable from "
+                      "the one lane it was built for")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

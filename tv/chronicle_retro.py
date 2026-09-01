@@ -243,7 +243,13 @@ def sig_diff(a, b, tol=28):
     return sum(1 for i in range(m) if abs(a[i] - b[i]) > tol) / m
 
 
-def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF, tol=28):
+#: v2396 — "no tooltip was looked for" must be distinguishable from "looked, and there was none".
+#: None is a REAL answer from tooltip_of and BREAKS a run; this sentinel means the question was
+#: never asked, which must not. [[unknown-stays-unknown]]
+_NO_TIP = object()
+
+
+def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF, tol=28, tooltip_of=None):
     """Group consecutive frames into runs of "the same screen held still".
 
     frames: [{"f": name, "ts": ms}, ...] in capture order (a reel's index.json shape).
@@ -252,10 +258,54 @@ def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF, tol=28):
     An unreadable frame BREAKS the run rather than joining it. Silently absorbing a frame we could not
     compare would let one unreadable frame weld two different screens into a single run, and the run
     is what we then pay to classify ONCE — the misgrouping would be invisible and wrong.
+
+    ══ v2396 — AND THE SAME THING WAS HAPPENING TO THE TOOLTIP, ON EVERY STASH REEL ═══════════
+    Konyo, about reels he filmed deliberately: "we had focused reels twice of like 4-5 or more
+    items... 11 items i remember even. and they were focused stash mini on air.. check and verify
+    why these were missed."
+
+    MEASURED on reel_s_1788099914191_40921 — 20 frames, every one carrying an open stash panel,
+    vault-swept, ZERO rows produced:
+
+        sig_diff across consecutive pairs : min 0.0000  MEDIAN 0.0000  max 0.0430
+        pairs under STILL_MAX_DIFF (0.22) : 19 of 19
+        runs formed                       : 1
+        pages the reader was handed       : 1
+
+        frames carrying a tooltip         : 16 of 20
+        DISTINCT tooltip rectangles       : 6
+
+    He hovered slot to slot. The tooltip MOVED six times. The stash grid behind it did not change
+    at all — and sig_diff is computed over the WHOLE FRAME, where the static grid dominates and a
+    tooltip overlay barely registers. So the one thing that WAS changing, the only thing carrying
+    an item NAME, was invisible to the detector that decides what to read.
+
+        ⇒ six items became one page became zero rows.
+
+    ⚠ THE CONTROL CASE IS WHAT MAKES IT CERTAIN, and it is the opposite of the intuition:
+        reel_s_1788099914191_40921   16 of 20 frames HAVE a tooltip  ->  0 rows
+        reel_s_1787242455315_9654     0 of 7  frames have a tooltip  ->  PRODUCED rows
+    The reel full of tooltips produced nothing; the reel with none produced rows. That is not a
+    reader failing on hard input — it is a gate discarding the good input before the reader sees it.
+
+    ⚠ TWO HYPOTHESES WERE RAISED AND KILLED BEFORE THIS ONE, both mine:
+      · "OWNERSHIP_SURFACES rejects shared/personal" — REFUTED: a reel gating entirely as
+        'personal' PRODUCED rows while one with 8 'stash' frames produced none.
+      · "MIN_RUN_FRAMES=3 can never be met" — REFUTED: measured with byte equality, the wrong
+        operator. Under sig_diff with tol=28 the runs form fine. The collapse is CORRECT by its
+        own logic; the logic is blind.
+
+    ⚠ INJECTED AND OFF BY DEFAULT. tooltip_of=None behaves exactly as before, so no existing caller
+    changes behaviour by accident. The vault lane opts in — it is the lane that pays for pages and
+    the lane whose surface declares tooltips (surfaces.tooltip_surfaces() lists 'stash').
+    ⚠ COSTED FIRST: tooltip_find.locate measured on 40 REAL frames at 0.239 s/frame mean. The sweep
+    is PER REEL, so a typical 80-frame reel adds ~19s against a sweep that currently yields zero
+    rows. Corpus-wide it would be 64 minutes and must be refused.
     """
     runs = []
     cur = None
     prev_sig = None
+    prev_tip = _NO_TIP                    # distinct from None, which is a real answer
     for fr in (frames or []):
         name = (fr or {}).get("f")
         if not name:
@@ -270,13 +320,29 @@ def still_runs(frames, sig_of, max_diff=STILL_MAX_DIFF, tol=28):
         if sig is None:
             cur, prev_sig = None, None
             continue
-        if cur is not None and sig_diff(prev_sig, sig, tol=tol) <= max_diff:
+        tip = None
+        if tooltip_of is not None:
+            try:
+                tip = tooltip_of(name)
+            except Exception:
+                # a tooltip we could not look for is UNKNOWN, and UNKNOWN breaks the run rather
+                # than joining it — same rule as an unreadable signature, same reason.
+                cur, prev_sig, prev_tip = None, None, _NO_TIP
+                continue
+        _same_screen = cur is not None and sig_diff(prev_sig, sig, tol=tol) <= max_diff
+        # ⚠ A MISSING TOOLTIP IS NOT A MATCHING ONE. tooltip_of returning None means "looked, none
+        # here" — a REAL difference from a frame that has one, so it breaks the run.
+        _same_tip = (tooltip_of is None) or (prev_tip is _NO_TIP) or (tip == prev_tip)
+        if _same_screen and _same_tip:
             cur["frames"].append(name)
             cur["end_ts"] = (fr.get("ts") or cur["end_ts"])
         else:
             cur = {"frames": [name], "start_ts": fr.get("ts") or 0, "end_ts": fr.get("ts") or 0}
             runs.append(cur)
         prev_sig = sig
+        prev_tip = tip          # ⚠ v2396 — without this the tooltip never advances and every
+                                # frame is compared against the FIRST one, so a run splits once
+                                # and then welds everything after it back together.
     return runs
 
 
