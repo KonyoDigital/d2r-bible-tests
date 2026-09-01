@@ -170,6 +170,16 @@ def prove():
 
 
 def main(argv):
+    # ⚠ THIS PRINTS 🟢/🔴/⚠ AND WOULD CRASH WHILE REPORTING ON A NON-UTF-8 CONSOLE — which means a
+    # CLEAN tree would exit non-zero and the gate would blame the code instead of the terminal.
+    # test_every_cli_that_prints_non_ascii_is_encoding_safe caught this on the v2402 push, before it
+    # ever ran on a machine that could hit it. A tool that dies while saying "everything is fine" is
+    # worse than one that says nothing.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     if "--prove" in argv:
         return prove()
     rows = census()
