@@ -11981,6 +11981,19 @@ def ui_faults_recent(hours=24, path=None):
         return None, "the fault log will not parse (%s)" % str(e)[:70]
 
 
+def _disk_history_path():
+    """v2423 — the same defect as shadow_ledger and capture_doors, found the same way.
+
+    CI's per-gate attribution named disk_history.jsonl as a file a suite writes; it resolved from HERE at import and
+    so ignored `_fixture_root_for_state()` entirely. Resolved at CALL time now, like its siblings —
+    an env honoured only at import is a redirect that silently does not take. In production TV_HIST
+    is unset and this is exactly HERE, so nothing about his tree changes.
+    """
+    return os.path.join(_fixture_root_for_state(), "disk_history.jsonl")
+
+
+#: kept so existing readers of the module attribute resolve; the CALLABLE is the source
+#: of truth and every read/write goes through it.
 _DISK_HISTORY = os.path.join(HERE, "disk_history.jsonl")
 # ⚠ v2244 — THIS COMMENT WAS WRONG BY A FACTOR OF 100, AND THAT IS WHY HIS QUESTION HAD NO ANSWER.
 # It read "~90 days at the retention cadence". MEASURED on his own file: 882 samples spanning 9.0
@@ -12018,7 +12031,7 @@ def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible
     The honest answer that day was that the pruner had deleted NOTHING, ever, and could not have:
     the entire reel corpus was 8.9 GB against a claimed 15 GB gain.
     """
-    p = path or _DISK_HISTORY
+    p = path or _disk_history_path()
     row = {"at": int(time.time() * 1000), "freeGb": round(float(free_gb), 2),
            "floorGb": floor_gb, "histBytes": hist_bytes, "reels": reels,
            "eligibleMb": eligible_mb, "prunedMb": pruned_mb}
@@ -12064,7 +12077,7 @@ def disk_delta(hours=24, path=None):
     of zero: "we have no reading from then" and "it did not move" are opposite facts, and this is
     the exact question he asked. [[unknown-stays-unknown]]
     """
-    p = path or _DISK_HISTORY
+    p = path or _disk_history_path()
     out = {"now": None, "then": None, "deltaGb": None, "hours": hours,
            "prunedMbInWindow": None, "why": None, "samples": 0}
     if not os.path.exists(p):
@@ -16867,13 +16880,26 @@ def vault_autoreel_tick():
 # read it from other processes; in-memory state is invisible across the board-window boundary and
 # that has already cost a whole feature here. [[d2r-board-window-kill-loses-writes]]
 _SHADOW_WATCH_EVERY_S = 20
+def _shadow_watch_path():
+    """v2423 — the same defect as shadow_ledger and capture_doors, found the same way.
+
+    CI's per-gate attribution named shadow_watch.json as a file a suite writes; it resolved from HERE at import and
+    so ignored `_fixture_root_for_state()` entirely. Resolved at CALL time now, like its siblings —
+    an env honoured only at import is a redirect that silently does not take. In production TV_HIST
+    is unset and this is exactly HERE, so nothing about his tree changes.
+    """
+    return os.path.join(_fixture_root_for_state(), "shadow_watch.json")
+
+
+#: kept so existing readers of the module attribute resolve; the CALLABLE is the source
+#: of truth and every read/write goes through it.
 _SHADOW_WATCH_PATH = os.path.join(HERE, "shadow_watch.json")
 
 
 def shadow_watch_state():
     """What the watcher has actually done. -> dict. Unreadable is UNKNOWN, never a clean zero."""
     try:
-        with open(_SHADOW_WATCH_PATH, encoding="utf-8") as fh:
+        with open(_shadow_watch_path(), encoding="utf-8") as fh:
             j = json.load(fh)
         return j if isinstance(j, dict) else {"ok": False, "why": "the record is not a mapping"}
     except OSError:
@@ -16889,7 +16915,7 @@ def _shadow_watch_note(**kw):
         cur = {}
     cur.update(kw)
     try:
-        with open(_SHADOW_WATCH_PATH, "w", encoding="utf-8") as fh:
+        with open(_shadow_watch_path(), "w", encoding="utf-8") as fh:
             json.dump(cur, fh)
     except Exception:
         pass
@@ -21445,7 +21471,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2422",
+        "ver": "v2423",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

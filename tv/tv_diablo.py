@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2422"   # A FIXED SLEEP MADE A GATE FLAKY
+VERSION = "v2423"   # FIVE FILES, ONE DEFECT
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -2322,13 +2322,29 @@ _KNOWN_DEAD = []
 # was built from a bare HERE, so a run driven against a fixture hist taught HIS agent the
 # fixture's dead frames — permanently, since the whole point of the file is that learning
 # survives restarts. Guard the PATH, not the call site.
+def _known_dead_file():
+    """v2423 — IMPORT-BOUND WAS THE WHOLE DEFECT, even though the root rule was already right.
+
+    This resolved `_fixture_root(HERE)` correctly — ONCE, at import. So a suite that sets TV_HIST in
+    setUp, after the module is loaded, got the LIVE path and believed it was isolated. CI's
+    per-gate attribution named test_agent as the writer of `known_frames.json`, and this is why:
+    the rule was correct and the moment it was applied was not.
+
+    That is exactly the class the import-bound-path registry exists to name — "a redirect that
+    silently does not take". Resolved at call time now, like its four siblings fixed this session.
+    """
+    return (os.environ.get("TV_KNOWN_FRAMES")
+            or os.path.join(_fixture_root(HERE), "known_frames.json"))
+
+
+#: kept so existing readers of the module attribute resolve; the CALLABLE is the source of truth.
 _KNOWN_DEAD_FILE = (os.environ.get("TV_KNOWN_FRAMES")
                     or os.path.join(_fixture_root(HERE), "known_frames.json"))
 def _known_dead_load():
     """v742 — learning survives restarts: the loading screen is learned ONCE, ever."""
     try:
         import base64
-        with open(_KNOWN_DEAD_FILE, encoding="utf-8") as f:
+        with open(_known_dead_file(), encoding="utf-8") as f:
             for b in json.load(f)[:KNOWN_DEAD_CAP]:
                 _KNOWN_DEAD.append(bytes(base64.b64decode(b)))
     except Exception:
@@ -2337,7 +2353,7 @@ def _known_dead_load():
 def _known_dead_save():
     try:
         import base64
-        with open(_KNOWN_DEAD_FILE, "w", encoding="utf-8") as f:
+        with open(_known_dead_file(), "w", encoding="utf-8") as f:
             json.dump([base64.b64encode(bytes(k)).decode() for k in _KNOWN_DEAD], f)
     except Exception:
         pass

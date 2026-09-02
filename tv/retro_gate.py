@@ -50,6 +50,26 @@ import re
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+def _ledger_path():
+    """v2423 — the same defect as shadow_ledger, capture_doors, disk_history and shadow_watch.
+
+    CI's per-gate attribution named `retro_gate.json` as a file test_retro_gate writes; it resolved
+    from HERE at import and so ignored the fixture root entirely. Resolved at CALL time now — an
+    env honoured only at import is a redirect that silently does not take. In production TV_HIST is
+    unset and this is exactly HERE, so nothing about his tree changes.
+
+    ⚠ ImportError ONLY on the fallback: a blanket except would swallow a FAILING root rule and
+    answer HERE, so a suite that set TV_HIST would write live believing it was isolated — which is
+    the failure this exists to close.
+    """
+    try:
+        import tv_diablo as _tvd
+    except ImportError:
+        return os.path.join(HERE, "retro_gate.json")
+    return os.path.join(_tvd._fixture_root(HERE), "retro_gate.json")
+
+
+#: kept so existing readers of the module attribute resolve; the CALLABLE is the source of truth.
 LEDGER = os.path.join(HERE, "retro_gate.json")
 
 #: verdicts. AGREE/DISAGREE are the only two that count as evidence.
@@ -76,7 +96,7 @@ def normalise(name):
 
 def _load():
     try:
-        with io.open(LEDGER, encoding="utf-8") as fh:
+        with io.open(_ledger_path(), encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -85,10 +105,10 @@ def _load():
 
 def _save(d):
     try:
-        tmp = LEDGER + ".tmp"
+        tmp = _ledger_path() + ".tmp"
         with io.open(tmp, "w", encoding="utf-8") as fh:
             json.dump(d, fh, indent=1, sort_keys=True)
-        os.replace(tmp, LEDGER)
+        os.replace(tmp, _ledger_path())
     except Exception:
         pass
 

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2422",
+  "ver": "v2423",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2422: one UNKNOWN then three greens, no code change between them",
+  "note": "v2423: the root rule was right; the moment it was applied was not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
