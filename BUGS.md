@@ -14899,3 +14899,39 @@ rows went ragged; widening the card to 372px fixed the crop and not his window.
 **Fix:** four tracks — label · value · unit · bar — at FIXED widths (`96px 82px 54px minmax(48px,1fr)`).
 `max-content` was not enough: each `.ftt-row` is its own grid container, so the three rows each
 solved their own column widths and the bars started at three different x positions.
+
+## RESOLVED — the Chronicle is 403, re-derived from the game files (2026-09-03)
+
+Konyo, after a Google AI Overview told him 415: *"so check if its 403 or 404.. and make sure it
+renders that way allround and unified so its not confusing"* and *"we extracted from the local 28
+gigas the data right? so we know the real number?"*
+
+`bible.html` had carried this as unanswerable for months — the CASC extractor lived in `/tmp` and
+`/tmp` does not survive a reboot. **The extractor SOURCE survived in this repo and the 28 GB store
+survived on disk; only the OUTPUT was lost.** Rebuilt CascLib, compiled `tv/casc_extract.c`, pulled
+`data:data/global/excel/uniqueitems.txt` out of the live RotW store.
+
+The RotW schema has a `disableChronicle` column — the flag that decides membership:
+```
+  439 data rows   −24 disableChronicle=1  =  415   ← exactly what diablo2.io lists
+  415             −12 not spawnable       =  403   ← THE GAME'S CHRONICLE
+  403 rows hold 396 DISTINCT names (Rainbow Facet occupies 8 rows, one per element)
+```
+**`chronTotal = 403` is correct.** The panel reading of **404** recorded in bible.html was a misread.
+**415** is a real number answering a different question. All four reconcile from one file.
+
+Recorded in `tv/chronicle_total.py` with the reproduction recipe and a `--count` mode that
+re-derives from an extracted file. ⚠ The game data itself is NOT committed — this repo is public.
+
+⚠ **OPEN, and NOT a defect claim:** the game has **396 distinct** Chronicle names while
+`unique_roster.json` carries **398**. Different quantities — the roster comes from the page's
+`_gUniqueRoster()`, which includes `_UNI_EXTRA`. Whoever looks starts at the 8 Rainbow Facet rows.
+
+## REG-359 — v2457 published the paint VERDICT and not the number it derives from
+
+The beat-reachability gate refused the push: *"the page beats ['raf'] and /api/status publishes
+none of it under any name."* Correct. I added `painting` / `frozenBeats` / `paintWhy` — all
+derived — and never published the frame counter itself, so a supervisor could read my conclusion
+and never check it. Aliasing `raf` to `painting` would have satisfied the gate and kept the hole:
+a boolean is not a frame count. **Fix:** `"raf"` published under the same name the page sends.
+**Seen RED for its own reason** — it refused the push.

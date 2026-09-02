@@ -22114,6 +22114,13 @@ def status_payload():
                    # the last beat · False = the page is beating and NOT painting, which is his
                    # black window · None = this console predates v2457 or has sent only one beat,
                    # and one sample cannot decide. [[the-unjoined-end]] [[unknown-stays-unknown]]
+                   # the RAW counter, published under the same name the page sends. The
+                   # reachability gate refused v2457 for this and it was right: I shipped
+                   # the DERIVED verdict and not the number it derives from, so a
+                   # supervisor could read my conclusion and never check it. Aliasing it
+                   # to `painting` would have satisfied the gate and kept that hole — a
+                   # boolean is not the frame count. [[the-unjoined-end]]
+                   "raf": _UI_BEAT.get("rafNow"),
                    "painting": _UI_BEAT.get("painting"),
                    "frozenBeats": int(_UI_BEAT.get("frozenBeats") or 0),
                    "paintWhy": _UI_BEAT.get("paintWhy") or "",

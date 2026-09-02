@@ -42155,8 +42155,25 @@ function renderJournal(){
        here as `:17315`; the file has grown since and that line now holds crafted-amulet
        definitions, so the citation is by SEARCHABLE TEXT from now on. A line number is a
        reference with a short half-life, which is the same defect as a stale count.
-       One of the two is wrong by one entry, and neither can be re-derived on this machine right
-       now: the CASC extractor lives at /tmp/casc_extract and /tmp does not survive a reboot.
+       ✅ RESOLVED 2026-09-03 — RE-DERIVED FROM THE GAME FILES, AND 403 IS RIGHT.
+       He asked "so check if its 403 or 404" after a Google AI Overview told him 415. The CASC
+       toolchain was rebuilt (CascLib from source, the extractor from this repo's own
+       tv/casc_extract.c) and uniqueitems.txt pulled out of the live RotW store. The RotW schema
+       carries a `disableChronicle` column, which is literally the flag that decides membership:
+
+           439 data rows  −24 disableChronicle=1  =  415   ← what diablo2.io lists
+           415            −12 not spawnable       =  403   ← THE GAME'S CHRONICLE
+           403 rows hold 396 DISTINCT names — Rainbow Facet occupies 8 rows, one per element
+
+       So chronTotal 403 matches the game exactly, the panel reading of 404 above was a misread,
+       and 415 is a real number answering a different question. The arithmetic, the provenance and
+       the reproduction recipe are in tv/chronicle_total.py, which can re-derive it from an
+       extracted file — the game data itself is NOT committed, this repo is public.
+
+       ⚠ WHY THIS WAS UNANSWERABLE FOR MONTHS, and it is the part worth keeping: the extractor
+       SOURCE survived in the repo and the 28 GB store survived on disk. The only thing that did
+       not survive was the OUTPUT, which lived in /tmp. The lesson is not "do not use /tmp" — it is
+       that a derivation nobody wrote down has to be paid for again every time it is needed.
        Stated rather than averaged, because a denominator quietly nudged to make a percentage look
        right is the exact defect this board keeps finding. It does NOT move the answer he asked
        about — 259 found is 64% either way. [[unknown-stays-unknown]] */
