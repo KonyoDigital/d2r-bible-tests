@@ -284,6 +284,75 @@ class TestADoorMayNotFailInSilence(unittest.TestCase):
                          "(no way to close the theatre, which is how this broke)")
 
 
+class TestAMeasurementNobodyReadsIsNoMeasurement(unittest.TestCase):
+    """★ CF-13. The auditor was RIGHT and read by NOBODY.
+
+    auto_scope.undeclared_reach_abilities computes which lanes forbid an ability their reach can
+    still perform. It is correct, it is deliberately non-failing, and its author wrote the rule
+    into the docstring: "DO NOT PROMOTE THIS TO A FAILING GATE... a gate that fails on all four
+    teaches him to skip the row — the exact defect CF-10 records three instances of."
+
+    The defect CF-13 names was never the function. It was that its ONLY CALLERS REPO-WIDE WERE ITS
+    OWN TESTS. A measurement computed correctly and read by nobody is identical, from every surface
+    he looks at, to one never taken. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    """
+
+    def test_the_auditor_has_a_PRODUCTION_caller_not_only_tests(self):
+        import glob
+        callers = []
+        for p in glob.glob(os.path.join(HERE, "*.py")):
+            name = os.path.basename(p)
+            if name.startswith("test_") or name == "auto_scope.py":
+                continue
+            if "undeclared_reach_abilities" in io.open(p, encoding="utf-8").read():
+                callers.append(name)
+        self.assertTrue(callers,
+                        "undeclared_reach_abilities has no caller outside its own tests. It is "
+                        "computed correctly and read by nobody, which from every surface he looks "
+                        "at is the same as never having been measured")
+
+    def test_it_reaches_the_heart_payload(self):
+        src = io.open(APP, encoding="utf-8").read()
+        self.assertIn('"reach": scope_reach_state()', src,
+                      "the scope rows never reach /api/heart, so nothing renders them")
+
+    def test_it_REPORTS_and_never_REFUSES(self):
+        """Its author's ruling, kept enforceable: this may inform, never fail a build. If it ever
+        starts refusing, three rows of reach-noise begin failing pushes and he learns to skip the
+        row — which is the exact outcome the ruling exists to prevent."""
+        import control_app as C
+        rep = C.scope_reach_state()
+        self.assertIn("ok", rep)
+        # ⚠ THE FIRST VERSION OF THIS ASSERTION FAILED ON ITS OWN PROSE — it searched the summary
+        # for the word "fail", and the summary explains WHY it must not fail ("a gate failing on
+        # all of them would teach you to skip the row"). Judging a behaviour by looking for a word
+        # is the same mistake as grepping source and hitting your own comment. The behaviour is
+        # what matters: it must not be registered as a GATE, because a gate is the one thing that
+        # can turn this into a refusal. [[source-reading-guard]] [[feedback-comments-vs-code]]
+        gates = io.open(os.path.join(HERE, "run_gates.py"), encoding="utf-8").read()
+        self.assertNotIn("scope_reach", gates,
+                         "the scope reach rows are registered as a GATE. Its author forbade "
+                         "exactly this: three rows of reach-noise would start failing pushes and "
+                         "he would learn to skip the row, which is the outcome the ruling exists "
+                         "to prevent")
+        for row in (rep.get("rows") or []):
+            self.assertIn("reach", row,
+                          "a row without its reach count hides the noise that makes it unreadable "
+                          "— the count is the only thing that tells a signal from an artefact here")
+
+    def test_a_broken_auditor_is_UNKNOWN_never_an_empty_all_clear(self):
+        import control_app as C, auto_scope as A
+        real = A.undeclared_reach_abilities
+        A.undeclared_reach_abilities = lambda m: (_ for _ in ()).throw(RuntimeError("boom"))
+        self.addCleanup(setattr, A, "undeclared_reach_abilities", real)
+        rep = C.scope_reach_state()
+        self.assertFalse(rep["ok"])
+        self.assertEqual(rep["rows"], [])
+        self.assertIn("boom", rep["why"],
+                      "the failure was swallowed — an auditor that cannot run must not render as "
+                      "a lane list of length zero, which reads as 'nothing to see'")
+
+
 class TestTheRouteFailsToUnknownNeverToZero(unittest.TestCase):
     """[[unknown-stays-unknown]] — 'nothing runs unwatched' and 'nobody could look' are opposite
     facts, and a heart that renders empty on a broken census claims the safe one."""

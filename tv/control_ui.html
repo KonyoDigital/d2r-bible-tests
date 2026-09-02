@@ -10589,6 +10589,51 @@ body[data-origin="shadow"] #stage::after {
       + nodes + labels + '</svg>';
   }
 
+  /* CF-13 — WHAT A LANE PROMISED NOT TO DO, AND CAN STILL REACH. Rendered as EVIDENCE and never
+     as a verdict, which is the original author's own instruction: "DO NOT PROMOTE THIS TO A
+     FAILING GATE... a gate that fails on all four teaches him to skip the row — the exact defect
+     CF-10 records three instances of."
+     The defect CF-13 names was never the function; the function is right. It was that NOTHING
+     CALLED IT — its only callers repo-wide were its own tests. Every row shows its reach count so
+     the noise is legible AS noise: at 24, 34 and 72 functions this is the everything-reaches-
+     everything case, and only the small-reach rows carry a readable signal. Nothing here refuses
+     anything. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  function _hrtReach(rc){
+    if (!rc) return '';
+    if (!rc.ok){
+      return '<div class="hrt-sec"><div class="hrt-h">Promises a lane can still break</div>'
+        + '<div class="hrt-row"><span class="hrt-k">the scope auditor</span>'
+        + '<span class="hrt-s st-UNKNOWN">UNKNOWN</span>'
+        + '<span class="hrt-w">' + _hrtEsc(rc.why || 'it could not be asked')
+        + ' — nobody could look, which is not the same as nothing being wrong.</span></div></div>';
+    }
+    var rows = rc.rows || [];
+    if (!rows.length){
+      return '<div class="hrt-sec"><div class="hrt-h">Promises a lane can still break · none</div>'
+        + '<div class="hrt-row"><span class="hrt-k">every lane</span>'
+        + '<span class="hrt-s st-FLOWING">CLEAR</span>'
+        + '<span class="hrt-w">no lane forbids an ability its reach can perform.</span></div></div>';
+    }
+    var h = '<div class="hrt-sec"><div class="hrt-h">Promises a lane can still break · '
+          + rows.length + ' · evidence, not a verdict</div>';
+    for (var i = 0; i < rows.length; i++){
+      var r = rows[i];
+      var lbl = r.permitted ? 'PERMITTED' : (r.narrow ? 'READABLE' : 'TOO BROAD');
+      var cls = r.permitted ? 'st-FLOWING' : (r.narrow ? 'st-WATCHED' : 'st-UNKNOWN');
+      var say = r.permitted
+        ? 'it does this to its OWN artefacts, under a declared clause naming the directory, the glob and the keep-count'
+        : (r.narrow
+            ? 'a small enough reach to actually read — this one is worth your eye'
+            : 'reach ' + r.reach + ' is the everything-reaches-everything case; this instrument '
+              + 'cannot say anything useful at that width, and says so rather than crying wolf');
+      h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(r.lane) + ' · '
+        + _hrtEsc(r.ability) + '</span>'
+        + '<span class="hrt-s ' + cls + '">' + lbl + ' · reach ' + _hrtEsc(r.reach) + '</span>'
+        + '<span class="hrt-w">' + say + '</span></div>';
+    }
+    return h + '</div>';
+  }
+
   function _hrtBuild(d){
     var c = d.counts || {};
     var head = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head">'
@@ -10643,6 +10688,7 @@ body[data-origin="shadow"] #stage::after {
       + 'score clears the bar, and never by hand.'
       + _hrtEsc(d.notVessels ? ' (' + d.notVessels + ' one-shot tasks are excluded: they inherit their caller’s vessel, so a roster entry would be a lie.)' : '')
       + _hrtEsc(age) + '</div>'
+      + _hrtReach(d.reach)
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
       + (d.total || lk.length) + ' open</div>' + lrows + '</div>'
       + '<div class="hrt-sec"><div class="hrt-h">Every vessel · dark first</div>' + rows + '</div>'

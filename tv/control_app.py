@@ -15083,6 +15083,10 @@ def heart_state(force=False):
         "locksOk": bool(locks.get("ok")),
         "locksWhy": locks.get("why", ""),
         "open": locks.get("open"), "total": locks.get("total"),
+        # CF-13 — the scope auditor's rows, joined here as EVIDENCE. It was computed correctly and
+        # read by nobody; its only callers repo-wide were its own tests. It fails nothing and is
+        # rendered with every reach count visible so the noise reads as noise. [[the-unjoined-end]]
+        "reach": scope_reach_state(),
         "vocab": {"FLOWING": getattr(_h, "FLOWING", "FLOWING"),
                   "WATCHED": getattr(_h, "WATCHED", "WATCHED"),
                   "DARK": getattr(_h, "DARK", "DARK"),
@@ -15092,6 +15096,62 @@ def heart_state(force=False):
     _HEART_MEMO["t"] = now
     _HEART_MEMO["v"] = out
     return out
+
+
+def scope_reach_state():
+    """CF-13 — what each lane PROMISED NOT TO DO, and can still reach. -> dict
+
+    ⚠ EVIDENCE, NOT A VERDICT, AND THAT IS ITS AUTHOR'S OWN RULING. auto_scope.undeclared_reach_abilities
+    carries the instruction verbatim: "DO NOT PROMOTE THIS TO A FAILING GATE ON THE STRENGTH OF THE
+    LEDGER-BACKUP CASE. Three of the four rows are almost certainly reach-noise, and a gate that
+    fails on all four teaches him to skip the row — the exact defect CF-10 records three instances
+    of." That author also caught themselves writing "exactly ONE lane of eleven" off a grepped
+    excerpt and corrected it to four after actually counting.
+
+    THE DEFECT CF-13 NAMES IS NOT THE FUNCTION — the function is right. It is that NOTHING CALLS
+    IT. Measured: its only callers repo-wide are its own tests. A measurement computed correctly
+    and read by nobody is the same as one never taken. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    So this JOINS it to a surface and changes nothing about its authority: every row carries its
+    reach count so the noise is visible as noise, and `actionable` is the small-reach subset the
+    author identified by READING it rather than by a gate failing. Nothing here fails a build.
+
+    MEASURED on this tree, 2026-09-02:
+        tvd-ledger-backup   delete   reach= 6   permitted=True   (rotates its own backups)
+        tvd-shadow-watch    delete   reach=24   permitted=False
+        tvd-stash-watch     delete   reach=34   permitted=False
+        tvd-version-drift   delete   reach=72   permitted=False
+    """
+    try:
+        import auto_scope as _as
+    except Exception as e:
+        return {"ok": False, "rows": [], "why": "the scope auditor will not import (%s)" % str(e)[:90]}
+    try:
+        raw = _as.undeclared_reach_abilities(sys.modules[__name__])
+    except Exception as e:
+        return {"ok": False, "rows": [], "why": "the reach could not be walked (%s)" % str(e)[:90]}
+    rows = []
+    for r in (raw or []):
+        fns = r.get("functions")
+        reach = len(fns) if isinstance(fns, (list, tuple)) else (fns if isinstance(fns, int) else None)
+        rows.append({
+            "lane": r.get("lane"), "ability": r.get("ability"),
+            "reach": reach, "permitted": bool(r.get("permitted")),
+            # ⚠ THE THRESHOLD IS A READING AID, NOT A RULE. It exists so the noise looks like
+            # noise at a glance; it decides nothing and refuses nothing. A row above it is not
+            # "safe" — it is "too broad for this instrument to say anything about".
+            "narrow": (reach is not None and reach <= 10),
+        })
+    actionable = [r for r in rows if r["narrow"] and not r["permitted"]]
+    return {
+        "ok": True, "rows": rows, "total": len(rows),
+        "actionable": len(actionable),
+        "why": ("%d lane(s) forbid an ability their reach can still perform. This REPORTS and does "
+                "not refuse: at reach 24-72 it is the everything-reaches-everything case, and a "
+                "gate failing on all of them would teach you to skip the row. The narrow ones are "
+                "the readable signal." % len(rows)) if rows else
+               "no lane forbids an ability its reach can perform",
+    }
 
 
 def retention_state():
@@ -21704,7 +21764,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2447",
+        "ver": "v2448",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
