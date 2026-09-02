@@ -408,6 +408,15 @@ def routes():
 
 
 if __name__ == "__main__":
+    # ⚠ HIS CONSOLE IS HEBREW (cp1255) AND CANNOT ENCODE THE ARROWS THIS PRINTS.
+    # Without this the failure lands in the dangerous direction: a CORRECT tree
+    # reports FAILURE while merely REPORTING, which teaches people to ignore the
+    # tool — and the pre-push gate caught exactly that on this file.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     d = routes()
     print("CHRONICLE ROUTES — %s" % (d["why"] or "derived from disk"))
     for r in d.get("routes", []):

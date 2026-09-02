@@ -137,4 +137,9 @@ class TheRunewordRouteIsNowWatchedLikeItsSiblings(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    try:                       # cp1255 cannot encode the ⚠ these tests print
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     unittest.main(verbosity=2)
