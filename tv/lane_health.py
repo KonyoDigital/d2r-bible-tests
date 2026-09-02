@@ -165,7 +165,13 @@ def lane(name, now_ms=None, owed=None):
                                  "" if owed is not None else
                                  " (and nobody counted what was owed, so IDLE cannot be ruled in)"))
     else:
-        tail = ""
+        # ★ v2439 — A BARE AGE IS NOT A VERDICT, AND IT READ AS ONE. Cross-family, cold, on
+        # v2437's panel text: "'last did work 21.9 h ago' — a precise idle time with no verdict,
+        # so it can be read as a problem it has not earned", and among what a reader needs and
+        # cannot get: "whether 21.9 h is late or normal". The threshold that decides it was
+        # nowhere on the screen. A number he could act on, published without the thing that gives
+        # it meaning. [[unknown-stays-unknown]] [[stale-reading]]
+        tail = " — well inside the %.0f h mark, so this lane is FRESH" % stall_h
     return {
         "lane": name, "state": ("idle" if idle else ("stalled" if stalled else "fresh")),
         "sessions": len(blob), "ageHours": round(age, 1), "stallAfterHours": stall_h,
@@ -237,11 +243,22 @@ def divergence(a, b):
         actionable = [s for s in only if s in disk]
         historic = [s for s in only if s not in disk]
 
+    # ★ v2439 — THE CROSS-FAMILY EYE CRITICISED THIS SENTENCE AND IT WAS RIGHT ABOUT MY OWN FIX.
+    # Asked COLD about v2437's panel text, Grok's single worst finding was:
+    #
+    #     "the +346 older session(s) whose footage is already gone clause. The live claim is 25
+    #      sessions. The aside is a larger, unfixable historical count IN THE SAME SENTENCE, so
+    #      THE NUMBER THAT WILL STICK IS THE ONE THAT CANNOT BE ACTED ON."
+    #
+    # v2437 fixed a panel that could not say what was wrong, and then buried the answer under a
+    # bigger number nobody can do anything about. It also noted the reader could read 25 + 346 as
+    # "371 broken sessions". So the historic count LEAVES the sentence: it stays in the payload as
+    # `historyOnly`, where a surface that wants context can quote it, and it stops competing with
+    # the only number he can act on. [[label-outlived-referent]]
     tail = ""
-    if historic:
-        tail = (" (+%d older session(s) whose footage is already gone — no lane work can ever "
-                "change those)" % len(historic))
-    elif historic is None:
+    if historic is None:
+        # this one MUST stay in the sentence: it changes what the number MEANS, rather than
+        # adding context to it. A raw difference presented as a measured one is the lie.
         tail = " (footage could not be listed: %s — so this is the raw difference)" % disk_why
 
     if actionable:
@@ -250,9 +267,12 @@ def divergence(a, b):
         # deleter's own tally of 5022 held frames: NOT SEALED 1247, while the LARGEST held
         # class — 3314 — is reels the vault lane DID seal, and the 346 footage-less sessions
         # hold zero frames between them. [[label-outlived-referent]]
-        why = ("%d session(s) with footage still on disk that the %s lane covered and %s never "
-               "did — %s's seal is the one the frame deleter reads, so those reels stay held"
-               % (len(actionable), a, b, b)) + tail
+        # ⚠ AND IT SAYS WHAT TO DO. Grok's other findings on the v2437 text: nothing named an
+        # action, and nothing said whether it needed attention now. A panel that diagnoses and
+        # never prescribes leaves him to guess, which is the state this whole check replaced.
+        why = ("%d reel(s) still on disk need a %s sweep — %s read them, %s never sealed them, and "
+               "%s's seal is the one the frame deleter reads, so they stay held. Sweep %s to free "
+               "them." % (len(actionable), b, a, b, b, b)) + tail
     else:
         why = ("%s and %s agree on every session whose footage is still on disk" % (a, b)) + tail
 

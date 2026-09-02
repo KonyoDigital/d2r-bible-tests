@@ -124,9 +124,16 @@ def check_lanes():
         # sentences is the deciding one, and this producer already computed `worst`. Every other
         # consumer of `evidence` gets the same ordering for free. [[the-unjoined-end]]
         ev = [worst["why"]] + [e for e in ev if e != worst["why"]]
+        # ★ v2439 — "1 lane issue — chronicle+vault" DESCRIBED THE WRONG SHAPE. A cross-family
+        # read of v2437's panel: "one issue, two lane names", and "it is a GAP BETWEEN TWO LANES,
+        # not one lane failing". A stalled lane and a divergence are different faults with
+        # different remedies, and the heading called them the same thing.
+        if worst.get("pair"):
+            head = "%s and %s disagree" % tuple(worst["pair"][:2])
+        else:
+            head = "%s has stopped" % worst.get("lane")
         return _row("lanes", WARN,
-                    "%d lane issue%s — %s" % (n, "" if n == 1 else "s",
-                                              (worst.get("lane") or "+".join(worst.get("pair", [])))),
+                    "%s%s" % (head, ("" if n == 1 else " (+%d more)" % (n - 1))),
                     ev)
     return _row("lanes", OK, "every extraction lane is fresh and aligned", ev)
 

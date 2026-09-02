@@ -136,8 +136,16 @@ class TestDivergenceCountsOnlyWhatALaneCanStillActOn(_Tree):
                          "8 sessions differ but NONE has footage — a lane cannot act on any of "
                          "them, so calling it diverged is a red that can never be cleared")
         self.assertEqual(d["actionable"], 0)
-        self.assertEqual(d["historyOnly"], 8)
-        self.assertIn("footage is already gone", d["why"])
+        # ⚠ v2439 — THIS ASSERTED THE PROSE AND WENT RED ON A DELIBERATE REWORDING. The law is
+        # "footage-less differences do not count as a fault and are still REPORTED"; the sentence
+        # that carried the second half moved into the payload when a cross-family read pointed out
+        # that a larger unfixable number inside the actionable sentence is the number that sticks.
+        # Pin the FIELD, which is where the fact now lives and cannot be lost to an edit.
+        # [[regression-guard]] §4 — pin the law, not the number, and prose is a number here.
+        self.assertEqual(d["historyOnly"], 8,
+                         "the historic count vanished. It must stay REPORTED even though it no "
+                         "longer competes with the actionable one in the sentence — dropping it "
+                         "would make 'aligned' unexplainable")
 
     def test_only_the_sessions_WITH_footage_count_as_diverged(self):
         """The 25 case. Mixed tree: some differences are actionable, most are not."""
@@ -317,7 +325,15 @@ class TestTheCorroboratorCanSayALIGNED(_Tree):
         self._write("vault_swept.json", self._ids(["s_1_a"]))
         d = LH.divergence("chronicle", "vault")
         self.assertEqual(d["state"], "diverged")
-        self.assertIn("1 session", d["why"])
+        # ⚠ v2439 — was `assertIn("1 session", why)` and went red when the sentence started saying
+        # "reel(s)" instead. The LAW is that exactly one difference is reported and that the reader
+        # is told what to DO about it; the noun is presentation. Asserting the count as a FIELD
+        # survives every rewording, and the action clause is pinned separately because a panel that
+        # diagnoses and never prescribes was the cross-family finding this ship exists to answer.
+        self.assertEqual(d["onlyInFirst"], 1)
+        self.assertIn("sweep", d["why"].lower(),
+                      "the sentence names no action. A reader learns something is wrong and not "
+                      "what to do, which is the state this check was written to replace.")
 
     def test_the_normaliser_is_idempotent_and_leaves_bare_ids_alone(self):
         self.assertEqual(LH._sid("reel_s_1_a"), "s_1_a")

@@ -14,6 +14,88 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 
 ---
 
+# ✅ LANDED 2026-09-02 — four ships, and what each one CLOSED
+
+> Written because this file went four versions stale (last touched at v2435) while the work carried
+> on somewhere else. A task file that stops moving is a task file nobody can restart from, which is
+> the exact failure its own header is about. Live view, regenerated from here:
+> **claude.ai/code/artifact/6291b84e-b408-4f04-8a38-ec48826bc753**
+
+| ship | what it closed |
+|---|---|
+| **v2435** | the page published which tab is showing, and `tasks_freshness` became a gate |
+| **v2436** | ONE COUNT HAS ONE PLACE — the eagle panel said 9 need-you while the server said 7, on the same rows in the same second. `/api/eagle` returned raw rows so the panel re-derived with the rule v2284 abandoned |
+| **v2437** | the console could not say what was wrong, **and it leaked children** |
+| **v2438** | **THE AUDITOR READ THE WRONG FUNCTION AND TEN LANES PASSED ON IT** |
+| **v2439** | the panel said what was wrong and buried it under a number nobody can act on |
+
+### ✅ CF-1 — CLOSED, and the premise was FALSE
+
+Filed as *"chronicle and vault both stopped doing work hours ago"*. **Neither lane ever stopped.**
+Measured against the live console: chronicle 401 sessions / **owed 0** / 19.9 h, vault 30 / **owed
+0** / 23.0 h — both well inside their 48 h threshold, both correctly idle. Two real defects hid
+behind the wrong label:
+
+- `console_doctor` renders `evidence[:2]`, and `health_engine` built it lanes-first — so the panel
+  printed two sentences describing a **healthy** lane under the word `missing`, and dropped the one
+  that named the fault. Fixed at the producer; the consumer cannot know which of three is deciding.
+- `lane_health.divergence()` was **always-red a second time**. v2302 fixed the dialect; the same
+  defect survived one level up, differencing two LIFETIME ledgers against nothing on disk:
+  371 "diverged", of which **346 have no footage at all** and can never be sealed by any amount of
+  lane work — a red that grows every time footage is correctly pruned. Now `actionable 25 ·
+  historyOnly 346`, and it can finally report ALIGNED.
+
+### ✅ B-86 — CLOSED, and it was ten times worse than filed
+
+`auto_scope._fn_source` used `inspect.getsource`, which slices the file ON DISK at the RUNNING code
+object's `co_firstlineno`. His console runs the build it booted with while the tree moves under it,
+so **11 of 11 lanes resolved to the wrong function**:
+
+    _ledger_backup_loop  ->  _ledger_snapshot_once     _prune_loop   ->  live.sort
+    _warden_loop         ->  live.sort                 _eagle_watch  ->  _eagle_once   ...and 7 more
+
+One visible false red — and **TEN SILENT PASSES** about functions nobody declared. `tvd-rolling-prune`
+is the only lane that can remove his footage and it was being audited against `live.sort`.
+**Unswept sibling:** `control_app._app_ver()` carries the identical paragraph and was fixed at v2155.
+
+### ✅ Also closed today
+
+| # | outcome |
+|---|---|
+| **B-70** | REFUTED — the extraction lanes finished; both owed 0 |
+| **B-81** | ALREADY FIXED at v2400, 2h21m after the fault fired. The wolf-crying now lives in the eagle check, whose N is **1** |
+| **B-82** | CORRECTLY REFUSED — folding the orphan frame would mint a second session id for one recording |
+| **B-63** | **NOT defects.** session-901 is an allowlisted designed truncation (the v2221 64px reserve); forge-901 is an honest 0% over a fixture that forged nothing |
+| **Q-6/7** | two dead sessions still claiming "working", reconciled with the reason |
+| **A11** | census run: **30 thread targets · 11 supervised · 8 UNWATCHED loops · 2 unclassifiable** |
+| **A12** | earned its keep first time out — census 19 vs `BLUEPRINT.md` 18, a loop unsupervised since v2433 |
+
+### 🔓 NEW — the lock that unlocks itself (his ruling, 2026-09-02)
+
+> *"a lock until it automatically unlocks with a que for wilson score. arithmetic as you see."*
+
+`tv/self_arming.py` replaces the hand-flipped `_PRUNE_SAFE_TO_RUN`. **k and n count SABOTAGES
+ATTEMPTED and REFUSALS EARNED, never agreements** — an invariant that always agrees may be perfect
+or INERT, so a lock fed by an agreement rate opens *because nobody tested it*. Wilson AND confluence
+both. His order enforced. No override parameter. And **Wilson is now the fifth organ of the heart**:
+any `health_engine` row can carry a score, computed in one place.
+
+⚠ Every lock currently reads **UNPROVEN** — that is work owed, not a fault, and the console says so
+in those words.
+
+### ⚠ STILL OWED BY ME, named rather than buried
+
+- **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
+  not write an anchor that matches the wrong occurrence.
+- **The render gate does not cover what I changed.** The `console` target went 3/3 → 2/2 when a
+  control was hidden and **re-baselined silently**; the new vault lock chip has no target at all.
+  Unmeasured reads identical to clean in a green run.
+- **A2's next step:** the sabotage harnesses already catch 3/3 and 4/4 and **throw every result
+  away.** That is why every score is null — not because nothing was tested, but because nothing was
+  recorded. Printer and reels first, in his order.
+
+---
+
 # 🏛 THE ARCHITECTURE ASKS — recovered 2026-09-01, and they were NEVER in the 22
 
 **These are the ones that went missing.** The numbered list was the DEFECT queue — P1s, briefs,
