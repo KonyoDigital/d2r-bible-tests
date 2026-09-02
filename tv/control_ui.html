@@ -19640,7 +19640,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                  [[heart-first]] [[unknown-stays-unknown]] */
               var _thi = window._thInk || null;
               o.theatre = {
-                open: !!document.body.classList.contains('theatre-open'),
+                /* ⚠ document.body IS NOT GUARANTEED HERE. TestV2401PanelsKnowLaidOutFromOnScreen
+                   extracts this exact block and runs it against MOCK nodes, where body is
+                   undefined — the same reason the height test above asks
+                   `typeof box.getClientRects === 'function'` instead of just calling it. A block
+                   that only works in a real page cannot be checked by the suite that guards it. */
+                open: !!(document.body && document.body.classList
+                         && document.body.classList.contains('theatre-open')),
                 loaded: (function(){ try { return !!(window.TH && TH.sessions && TH.sessions.length); }
                                      catch(e){ return null; } })(),
                 painted: _thi ? _thi.painted : null,
