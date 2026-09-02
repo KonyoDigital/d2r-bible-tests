@@ -437,6 +437,19 @@ GATES = [
              "quoted into gh #198. What the census currently reports: 28 thread targets, 11 "
              "supervised, and SEVEN persistent loops running unwatched.",
          skip_ok=()),
+    Gate("task-freshness", [sys.executable, os.path.join(HERE, "tasks_freshness.py")], 60,
+         skip_ok=(),
+         why="v2435 — A LIST THAT NAMES FINISHED WORK AS READY COSTS SOMEONE THE WORK TWICE. Grok "
+             "Bot filed this as GB-B-3/GB-B-4 on 2026-09-01 and repeated it on NINETEEN consecutive "
+             "watch ticks; it was right every time. Four of the five rows under READY TO APPLY had "
+             "shipped in v2400 and sat there for thirty-four versions: 143 (`fv.onclick` occurs 0 "
+             "times), 159 (the doc now says KEEP 3 / THROW 4 and v2400's message says 'Closes "
+             "GB-B-1'), 153 (hover_wilson has 5 refs in this very file) and 164. Keeping the list "
+             "current by remembering is exactly what failed, so each row now carries a FINGERPRINT "
+             "— the string whose PRESENCE means the work is undone — and this refuses when one "
+             "disappears. Seen RED on his real file before the rows were closed. A row with no "
+             "fingerprint reports UNKNOWN on every run and is never rounded up to clean.",
+         ),
     Gate("human-eyes", [sys.executable, os.path.join(HERE, "human_eyes_gate.py"), "--gate"], 120,
          skip_ok=(r"no human-eyes ledger",),
          why="v2404 — THE VISUAL HARNESS NOW REACHES SOMETHING. Konyo: 'i want this part of the "

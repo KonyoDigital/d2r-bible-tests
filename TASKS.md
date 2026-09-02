@@ -353,15 +353,32 @@ times measured. Human side of the harness closes it. [[visual-regression-detecto
 
 ---
 
-## ✅ READY TO APPLY — five, each already diagnosed
+## ✅ READY TO APPLY — one, and four that quietly landed
 
-| # | What | Where |
+⚠ **v2435 — FOUR OF THE FIVE ROWS BELOW SHIPPED IN v2400 AND SAT HERE FOR THIRTY-FOUR VERSIONS.**
+Grok Bot filed it as **GB-B-3 / GB-B-4** on 2026-09-01 and repeated it on nineteen consecutive
+watch ticks; it was right every time. A list that names finished work as READY costs someone the
+work twice, and it is why `tv/tasks_freshness.py` now exists — a row carries a FINGERPRINT (the
+string whose PRESENCE means the work is undone) and the gate refuses when one disappears.
+
+⚠ AND THE RE-MEASUREMENT ALMOST GOT **159** WRONG IN THE OTHER DIRECTION. Grepping the doc for the
+old wording still returns a hit — inside the note recording the fix (*"This page said 'KEEP = 2
+distinct sessions...' until this"*). My own prose about a fix satisfying my own search for the bug.
+Closed on what the page ASSERTS today (line 70: *"THREE LOOKS TO KEEP, FOUR RECORDINGS TO THROW"*),
+never on a grep count.
+
+| # | What | Where | Fingerprint |
+|---|---|---|---|
+| **135** | Daily-pick dead branch. 3 edits + 1 spec test. ⚠ Three namespaces use `'grail'`; **only the chron-entry key may change.** | `bible.html` | ⚪ **none** — the undone-ness has no single string, so `tasks_freshness` reports it UNKNOWN every run rather than passing it silently. |
+
+### Landed in v2400, verified by measurement 2026-09-02
+
+| # | What | The measurement that closed it |
 |---|---|---|
-| **135** | Daily-pick dead branch. 3 edits + 1 spec test. ⚠ Three namespaces use `'grail'`; **only the chron-entry key may change.** | `bible.html` |
-| **143** | Delete `fv.onclick`, extend the panel's FLEET section. | `bible.html:12021` |
-| **159** | Brief self-contradiction — the doc says `KEEP = 2 distinct sessions, THROW = 3 distinct recordings`; the code ships `KEEP_MIN_WITNESSES = 3` and `THROWOUT_MIN_WITNESSES = 4`. **And the semantics are wrong too:** KEEP counts *witnesses* (re-looks gated by `REOPEN_GAP_MS`, 3 min — three reads can come from ONE recording); only THROW passes `witness_field="session"`. Same defect Grok filed as **GB-B-1**. | `PROJECT_VAULT_MANAGER.md:69,71` vs `tv/vault_retro.py:163-167` |
-| **153** | Register `hover_wilson` as a gate — **fail on LEAKS, never on UNPROVEN.** | `tv/run_gates.py` |
-| **164** | Paint-witness invariant: `>=`, not `==`. | `tv/` |
+| **143** | Delete `fv.onclick`, extend the panel's FLEET section. | `grep -c 'fv\.onclick' bible.html` → **0** |
+| **159** | Doc said KEEP=2 / THROW=3; code ships 3 / 4. Same as **GB-B-1**. | `PROJECT_VAULT_MANAGER.md:70` now asserts *"THREE LOOKS TO KEEP, FOUR RECORDINGS TO THROW"*; `vault_retro.py:163,165` ship `KEEP_MIN_WITNESSES = 3` / `THROWOUT_MIN_WITNESSES = 4`. v2400's own message: *"Closes Grok's GB-B-1."* |
+| **153** | Register `hover_wilson` as a gate — fail on LEAKS, never on UNPROVEN. | **5** references in `tv/run_gates.py`; v2400 pinned its predicate in both directions. |
+| **164** | Paint-witness invariant: `>=`, not `==`. | `control_app.py:11592` — `elsHigh >= _UI_PAINT_FLOOR_ELS` |
 
 ---
 
@@ -395,8 +412,8 @@ Grok Bot reads, disagrees, and queues. It does not edit. Claude owns the fix and
 
 | ID | Claim | State |
 |---|---|---|
-| **GB-B-1** | `PROJECT_VAULT_MANAGER.md` still says KEEP=2 / THROW=3; the code ships 3 and 4. | **OPEN** — same as task **159**; fix once, close both. |
-| **GB-B-2** | HOLDS *writers* are gated, but ~289 possession claims already sitting in `d2r_owned` are undone by no gate. | **OPEN** — cleanup, not an open door. ⚠ `d2r_owned` is TESTIMONY; only he may overrule his own ticks. |
+| **GB-B-1** | `PROJECT_VAULT_MANAGER.md` said KEEP=2 / THROW=3; the code ships 3 and 4. | **CLOSED v2400** — the page now asserts *"THREE LOOKS TO KEEP, FOUR RECORDINGS TO THROW"* (line 70). Re-verified 2026-09-02. ⚠ Grepping for the OLD wording still hits, inside the note recording the fix — read the assertion, not the grep. |
+| **GB-B-2** | HOLDS *writers* are gated, but ~289 possession claims already sitting in `d2r_owned` are undone by no gate. | **ANSWERED** — 289 = owned 169 + setPieces 120, which is arithmetic and not a leak. ⚠ `d2r_owned` is TESTIMONY; only he may overrule his own ticks, so there is no cleanup for me to do here. |
 | **GB-L-1** | HE-1 look — hovered cell matches tooltip item + true slot. | **UNKNOWN** 2026-09-01 — no `D2R.exe` on konyo-3. Re-run when the stash is open. |
 | **gh #186** | The eye's half of task 165 — the contract for what Claude may ask an eye to photograph. | **OPEN** |
 

@@ -21565,7 +21565,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2434",
+        "ver": "v2435",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -21643,6 +21643,31 @@ def status_payload():
                    # v2336 — what the page says about its own panels, so the eagle can see his
                    # SCREEN and not merely his engines. None = this console predates v2336.
                    "panels": ((_UI_BEAT.get("state") or {}).get("panels") or None),
+                   # ══ v2435 — WHICH TAB IS SHOWING, WHICH IS THE ONLY THING THAT MAKES
+                   # `OFF-VIEW` READABLE FROM OUTSIDE. The page has sent `view` on every beat
+                   # since v2325 (control_ui.html: `view: document.body.getAttribute('data-view')`)
+                   # and ui_beat_record has stored it in `state` the whole time. It was never
+                   # PUBLISHED — so a supervisor reading /api/status saw
+                   #     taskforce OFF-VIEW H=0 · forge OFF-VIEW H=0 · tally OFF-VIEW H=0
+                   # with no way on earth to tell a healthy background tab from three dead panels.
+                   # Those two facts are opposite and they rendered identically.
+                   #
+                   # ⚠ THE PANEL BLOCK ALREADY GOT THIS RIGHT AND IT DID NOT HELP. The v2406 note
+                   # in control_ui.html separates OFF-VIEW (no layout boxes — a fact about which
+                   # tab is open) from ZERO-HEIGHT (laid out and collapsed — the real defect), and
+                   # it is correct. But correctness that cannot be CHECKED from outside is a claim,
+                   # not a measurement: Grok Bot filed GB-L-3 asking "are the three panels really
+                   # zero-height ON HIS SCREEN?" and the question was unanswerable for six days
+                   # because the discriminating field was dropped one line above here.
+                   # Built at both ends, joined at neither. [[the-unjoined-end]]
+                   #
+                   # ⚠ HONEST-ABSENT, like `panels` and `elsNow`. None = this console predates
+                   # v2325 or has never beaten, so nobody could ask. '' = the page answered and
+                   # body carries no data-view. Those are different facts and `or None` would
+                   # collapse them into one. [[unknown-stays-unknown]]
+                   "view": ((_UI_BEAT.get("state") or {}).get("view")
+                            if isinstance(_UI_BEAT.get("state"), dict)
+                            and "view" in (_UI_BEAT.get("state") or {}) else None),
                    "rescues": _UI_RESCUE["count"],
                    "lastRescueWhy": _UI_RESCUE["why"] or None,
                    "silenceBoundS": _UI_BEAT_SILENCE_S,

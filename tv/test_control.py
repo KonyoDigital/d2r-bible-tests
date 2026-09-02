@@ -40703,5 +40703,150 @@ class TestAScratchConsoleDiesWithItsParent(unittest.TestCase):
                          "parent, so the child has nothing to watch and survives a killed run.")
 
 
+class TestEveryBeatFieldReachesASupervisor(unittest.TestCase):
+    """v2435 — THE PAGE SENT `view` FOR 110 VERSIONS AND NOTHING OUTSIDE COULD READ IT.
+
+    control_ui.html has posted `view: document.body.getAttribute('data-view')` on every 5s beat
+    since v2325, and ui_beat_record has stored it in `state` the whole time. The /api/status
+    payload published `panels` and simply never published `view` — so a supervisor saw
+
+        taskforce OFF-VIEW H=0 · forge OFF-VIEW H=0 · tally OFF-VIEW H=0
+
+    and had no way to tell three healthy background tabs from three dead panels. Those are
+    opposite facts and they rendered identically. Grok Bot filed GB-L-3 asking exactly that
+    question and it was unanswerable from outside for six days.
+
+    ⚠ THE PANEL CODE WAS ALREADY RIGHT, AND THAT IS THE POINT. v2406's note in control_ui.html
+    separates OFF-VIEW (no layout boxes — which tab is open) from ZERO-HEIGHT (laid out and
+    collapsed — the real defect). Correct, and useless from outside, because the field that makes
+    it checkable was dropped one line before publication. Built at both ends, joined at neither.
+
+    So this does not pin `view`. It pins the LAW: every field the page beats must be REACHABLE
+    in the published payload, or be declared here with its reason. That catches the NEXT dropped
+    field, which pinning the name would not. [[the-unjoined-end]] [[regression-guard]]
+    """
+
+    #: sent under one name, published under another. Each entry must say where it comes out.
+    ALIASED = {
+        # the paint witness is published as a windowed high-water mark, not the raw count
+        "els": ("elsNow", "elsHigh", "blankStrikes"),
+        # the theatre's two flags come out INSIDE panels.theatre as open/loaded/painted/ink
+        "loaded": ("panels",),
+        "theatreOpen": ("panels",),
+    }
+
+    def _beat_body(self, ui):
+        """The JSON.stringify({state:{...}}) block the page POSTs to /api/ui_alive."""
+        i = ui.find("fetch('/api/ui_alive'")
+        self.assertGreater(i, 0, "the console no longer POSTs a heartbeat to /api/ui_alive")
+        j = ui.find("JSON.stringify({state:{", i)
+        self.assertGreater(j, 0, "the heartbeat no longer carries a {state:{...}} body")
+        k = ui.find("{", ui.find("state:", j))
+        depth = 0
+        for e in range(k, len(ui)):
+            if ui[e] == "{":
+                depth += 1
+            elif ui[e] == "}":
+                depth -= 1
+                if depth == 0:
+                    return ui[k:e + 1]
+        self.fail("the beat body never closes its brace")
+
+    def _sent_keys(self, ui):
+        body = self._beat_body(ui)
+        # ⚠ STRIP COMMENTS FIRST. Every key in this block is preceded by a long /* */ note, so a
+        # `[,{]`-anchored scan finds 4 of 6 and silently omits `hidden` and `panels`. That is the
+        # instrument failing on its own REACH, and the tell was the COUNT, never the output.
+        # [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+        clean = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
+        clean = re.sub(r"//[^\n]*", "", clean)
+        buf, depth = [], 0
+        for ch in clean:
+            if ch in "{[(":
+                depth += 1
+                if depth == 1:
+                    buf.append(ch)
+                continue
+            if ch in "}])":
+                depth -= 1
+                continue
+            if depth == 1:
+                buf.append(ch)
+        return set(re.findall(r"(?:^|[,{])\s*([A-Za-z_]\w*)\s*:", "".join(buf)))
+
+    def _published_keys(self, app):
+        m = re.search(r'"uiBeat":\s*\{(.*?)\n\s{8}\}', app, re.S)
+        self.assertIsNotNone(m, "the /api/status payload no longer carries a uiBeat block")
+        # a commented-out key is not a published key — my own explanatory prose has satisfied a
+        # grep before, and it disarmed the guard silently. [[feedback-comments-vs-code]]
+        blk = re.sub(r"^\s*#[^\n]*$", "", m.group(1), flags=re.M)
+        return set(re.findall(r'"([A-Za-z_]\w*)"\s*:', blk))
+
+    def _uncovered(self, sent, published):
+        out = []
+        for k in sorted(sent):
+            if k in published:
+                continue
+            alias = self.ALIASED.get(k)
+            if alias and all(a in published for a in alias):
+                continue
+            out.append(k)
+        return out
+
+    def test_every_field_the_page_beats_is_reachable_from_api_status(self):
+        here = os.path.dirname(ca.__file__)
+        with open(os.path.join(here, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        with open(os.path.join(here, "control_app.py"), encoding="utf-8") as fh:
+            app = fh.read()
+        sent = self._sent_keys(ui)
+        published = self._published_keys(app)
+        # PRINT THE COUNT. A scan that finds too few looks exactly like a codebase that is clean.
+        self.assertGreaterEqual(
+            len(sent), 6,
+            "only %d beat fields found (%s) — the extractor is broken, not the console. It has "
+            "read 4 of 6 before by anchoring on [,{] with comments left in."
+            % (len(sent), sorted(sent)))
+        self.assertGreater(len(published), 20,
+                           "only %d uiBeat fields parsed — the payload regex lost its anchor"
+                           % len(published))
+        missing = self._uncovered(sent, published)
+        self.assertEqual(
+            missing, [],
+            "the page beats %s and /api/status publishes none of it under any name. A field the "
+            "console sends and no supervisor can read is a joint built at both ends and connected "
+            "at neither — it is how `view` stayed invisible for 110 versions while three healthy "
+            "panels read as three dead ones. Publish it, or add it to ALIASED with the name it "
+            "comes out under." % missing)
+
+    def test_view_in_particular_is_published(self):
+        """The specific join that was missing — kept beside the law, because the law would also
+        pass if someone deleted the field from the page instead of publishing it."""
+        here = os.path.dirname(ca.__file__)
+        with open(os.path.join(here, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        with open(os.path.join(here, "control_app.py"), encoding="utf-8") as fh:
+            app = fh.read()
+        self.assertIn("view", self._sent_keys(ui),
+                      "the console stopped sending which tab is showing")
+        self.assertIn("view", self._published_keys(app),
+                      "uiBeat.view is not published, so OFF-VIEW is unreadable from outside")
+
+    def test_the_law_actually_refuses_a_dropped_field(self):
+        """A guard nobody has seen refuse is measuring nothing. Sabotage the PUBLISHED set and
+        require the same code path to name the field. [[feedback-blind-fixture-green-gate]]"""
+        sent = {"hidden", "view", "els", "panels", "loaded", "theatreOpen"}
+        full = {"hidden", "view", "panels", "elsNow", "elsHigh", "blankStrikes"}
+        self.assertEqual(self._uncovered(sent, full), [],
+                         "the clean baseline is already red, so a sabotage would prove nothing")
+        dropped = set(full) - {"view"}
+        self.assertEqual(self._uncovered(sent, dropped), ["view"],
+                         "dropping `view` from the payload did not raise it — the guard is inert")
+        # and an alias that only half-resolves must NOT count as covered
+        half = set(full) - {"elsHigh"}
+        self.assertEqual(self._uncovered(sent, half), ["els"],
+                         "a partially-published alias read as covered")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
