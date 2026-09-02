@@ -284,6 +284,89 @@ class TestADoorMayNotFailInSilence(unittest.TestCase):
                          "(no way to close the theatre, which is how this broke)")
 
 
+class TestTheShelfIsNotATrap(unittest.TestCase):
+    """★ Konyo: "the shelf is kinda of a trapped area when clicked i cant really get out of it..
+    where is the logic of close theatre mode or close the shelf.. something there is meshing up"
+
+    MEASURED, all four ways out, from a real shelf-open state — NOT ONE closed both layers:
+
+        the shelf's own ✕          shelf SHUT        stage STILL OPEN
+        the Close Theatre button   shelf STILL OPEN  stage SHUT
+        Escape                     shelf SHUT        stage STILL OPEN
+        clicking THE SHELF again   nothing at all    nothing at all
+
+    ⚠ AND THIS RETRACTED AN EARLIER DIAGNOSIS. His "black empty panel" was attributed to a
+    rejected thOpen() swallowing the shelf. That defect was real, but THIS reproduces every time:
+    ✕ or Escape closed the shelf and left him on the bare stage one layer down.
+
+    ⚠ TWO WRONG FIXES BEFORE THE RIGHT ONE, both kept in the comments because the second looked
+    more principled than the first and was not:
+      1. a TH.shelfIsDoor flag set at the door — wrong for the flow he uses (door -> open a reel ->
+         peek at the shelf -> ✕ would have thrown him out of the reel)
+      2. "does the stage have a reel loaded" — sounds better, measured worse: opening the theatre
+         AUTO-LOADS the last session, so a reel is always loaded even straight through the door.
+         Having a reel is not the same as having asked for one.
+    The flag is right; it just has to be CLEARED where its meaning changes — thLoadSession, the
+    moment he opens a reel.
+    """
+
+    def setUp(self):
+        self.code = TestAStampMustSurviveARepaint._strip_comments(
+            io.open(UI, encoding="utf-8").read())
+
+    def test_closing_the_theatre_does_not_leave_the_shelf_armed(self):
+        """thClose's own comment states the rule for a sibling layer: 'never leave the drawer armed
+        behind a closed theatre'. The shelf was the one exception."""
+        i = self.code.find("function thClose()")
+        self.assertGreater(i, 0, "thClose could not be found")
+        body = self.code[i:i + 1200]
+        self.assertIn("th-shelfov", body,
+                      "thClose does not hide the shelf overlay, so Close Theatre leaves it hanging "
+                      "over a closed stage")
+
+    def test_the_door_toggles(self):
+        i = self.code.find("_bshelf.onclick")
+        self.assertGreater(i, 0)
+        body = self.code[i:i + 900]
+        self.assertIn("thClose()", body,
+                      "clicking THE SHELF while it is open does nothing — the one control he would "
+                      "reach for first cannot get him out")
+
+    def test_both_quiet_exits_consult_the_door(self):
+        """✕ and Escape must both ask whether the shelf WAS the door. One without the other is the
+        half-fix that made Escape keep failing after ✕ was fixed."""
+        # ⚠ ANCHOR ON THE HANDLER, NOT THE NAME. The first version searched for "th-shelf-x" and
+        # found the CSS rule `#th-shelf-x:focus-visible` six thousand lines above the handler, then
+        # judged the wrong window. Grepping a bare id finds whichever occurrence comes first, and
+        # the first one is almost never the code. [[source-reading-guard]]
+        for marker, what in (('closest(\'#th-shelf-x\')', "the shelf's x"),
+                             ("function thEscUnwind", "Escape")):
+            i = self.code.find(marker)
+            self.assertGreater(i, 0, "%s handler not found — this guard cannot answer, which is "
+                                     "not the same as passing" % what)
+            self.assertIn("_thShelfWasTheDoor", self.code[max(0, i - 400):i + 700],
+                          "%s does not consult the door flag, so it drops him onto a bare stage"
+                          % what)
+
+    def test_the_flag_is_cleared_where_its_meaning_changes(self):
+        """Set at the door, cleared when a reel is opened. Without the clear, ✕ throws him out of
+        a reel he chose — the over-fix. thLoadSession is the single path into a reel
+        (_dossierToTheatre calls it), so clearing there covers every route in."""
+        i = self.code.find("async function thLoadSession")
+        self.assertGreater(i, 0, "thLoadSession not found")
+        self.assertIn("shelfIsDoor = false", self.code[i:i + 500],
+                      "the door flag is never cleared when a reel opens, so ✕ would close the "
+                      "whole theatre out from under a reel he chose to watch")
+
+    def test_the_way_out_appears_with_the_stage_not_on_the_next_poll(self):
+        i = self.code.find("function thLit()")
+        self.assertGreater(i, 0)
+        self.assertIn("sim.hidden = !TH.open", self.code[i:i + 700],
+                      "btn-sim's visibility is set only by the status poll, so after opening the "
+                      "theatre the Close control stays hidden until the next tick — measured as "
+                      "HIDDEN/ABSENT by a probe clicking it right after opening")
+
+
 class TestEveryLockNamesItself(unittest.TestCase):
     """★ v2450 — THREE ROWS ALL SAID "VAULT", and a cold cross-family read of the panel found it:
     "several rows are identical (three VAULT entries) with no visible differentiation."

@@ -11895,6 +11895,11 @@ body[data-origin="shadow"] #stage::after {
     t.__timer = setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.hidden = true; }, 220); }, 1600);
   }
   async function thLoadSession(n, isEntry){
+    /* v2451 — HE IS WATCHING SOMETHING NOW. Until this call, the shelf was the top surface and ✕
+       meant "back to the console". From here on there is a reel he chose, and ✕ means "back to the
+       reel". Clearing it HERE rather than guessing at close time is the whole difference between
+       the two wrong versions of this fix. */
+    try { TH.shelfIsDoor = false; } catch (e) {}
     var gen = (TH.loadGen = (TH.loadGen || 0) + 1);   // v859 — stale responses never paint
     // v1380.2 — refuse ghost/empty n when we already know the shelf metadata
     var meta0 = (TH.sessions || []).filter(function(s){ return (s.n || 0) === n; })[0]
@@ -12118,6 +12123,10 @@ body[data-origin="shadow"] #stage::after {
     $('theatre').hidden = true;
     document.body.classList.remove('theatre-open');
     try { var _mp = $('th-more-pop'); if (_mp) thMore(false); } catch(e){}   // v940.5 — never leave the drawer armed behind a closed theatre
+    /* v2451 — THE SHELF IS A LAYER TOO, and it was the one exception to the rule on the line
+       above. MEASURED: pressing Close Theatre with the shelf open shut the stage and left the
+       shelf overlay hanging over a closed theatre. [[sweep-dont-ask]] */
+    try { var _sv = $('th-shelfov'); if (_sv) _sv.hidden = true; } catch(e){}
     try { var _c = $('th-coach'); if (_c) _c.hidden = true; } catch(e){}
     thCinema(false);   // v825 — leaving the theatre always leaves cinema
     thLit();
@@ -12127,6 +12136,14 @@ body[data-origin="shadow"] #stage::after {
     if (bt) bt.classList.toggle('on', TH.open);
     var sim = $('btn-sim');
     if (sim) {
+      /* v2451 — THE WAY OUT MUST EXIST THE MOMENT THERE IS SOMETHING TO LEAVE. v2446 set this
+         from the STATUS POLL, which runs every few seconds — so after opening the theatre the
+         Close control stayed hidden until the next tick. MEASURED: a probe clicking it right
+         after opening got HIDDEN/ABSENT. thLit() is called synchronously by thOpen and thClose,
+         so the button now appears and disappears with the stage rather than trailing it.
+         The poll still sets it too; that is belt-and-braces, not a second source — both read
+         the same TH.open. */
+      sim.hidden = !TH.open;
       sim.classList.toggle('lit', TH.open);   // v785 — '.lit' is the one glow mechanism
       // v1406 — morph label: open → "Close Theatre" so leaving is obvious (not another open)
       try {
@@ -12735,7 +12752,16 @@ body[data-origin="shadow"] #stage::after {
       _shSort();                                  // apply the (persisted or default) sort on every render
     }
     ov.onclick = function(e){
-      if (e.target.closest && e.target.closest('#th-shelf-x')){ ov.hidden = true; return; }
+      /* v2451 — ✕ LEAVES THE WAY HE CAME IN. Measured: it hid the overlay and left him on a bare
+         theatre stage — a black rectangle he never asked for, which is very likely the "empty
+         panel" he photographed earlier and I mis-attributed to a rejected thOpen().
+         If THE SHELF was the door, ✕ closes everything. If he opened the shelf from inside the
+         theatre, ✕ returns him to the REEL, which is where he actually was. */
+      if (e.target.closest && e.target.closest('#th-shelf-x')){
+        ov.hidden = true;
+        if (_thShelfWasTheDoor()) { try { thClose(); } catch(_e){} }
+        return;
+      }
       var chip = e.target.closest && e.target.closest('.sh-chip');
       if (chip){ _shToggleFilter(chip.dataset.f || ''); return; }   // v1283 (D9) — chips toggle composable filters (not seed the search)
       if (e.target.closest && (e.target.closest('.sh-search-wrap') || e.target.closest('.sh-filter-bar') || e.target.closest('.find-card'))) return;   // search UI + filter bar + find-cards handle themselves
@@ -13269,11 +13295,39 @@ body[data-origin="shadow"] #stage::after {
   // the theatre's layers from the top down: rare-controls drawer → the shelf → the forensics/
   // intake side panel → cinema → the theatre itself. Every panel closes the same three ways
   // (its own ✕, Esc, and a click outside it); the tally overlay owns its own capture-phase Esc.
+  /* ⚠ v2451 — ASK THE STAGE, DO NOT REMEMBER AN INTENTION. My first cut carried a
+     TH.shelfIsDoor flag set when the Shelf opened the theatre. It was wrong for the flow he
+     actually uses: Shelf (door) -> open a reel -> press `s` for the shelf again -> ✕. The flag
+     was still true from the original open, so ✕ would have thrown him out of a reel he was
+     watching — over-fixing the trap into a different trap.
+     THEN I REPLACED IT WITH "does the stage have a reel loaded", AND MEASURED THAT WRONG TOO:
+     opening the theatre AUTO-LOADS the last session, so a reel is always loaded even straight
+     through the door, and ✕ went back to leaving him on a stage he never asked for. Having a reel
+     is not the same as having asked for one.
+     So the flag is right after all — it just has to be CLEARED at the moment its meaning changes,
+     which is when he opens a reel FROM the shelf. After that he is watching something, and ✕
+     should put him back to it. Both wrong answers are kept here because the second one looks more
+     principled than the first and is not.
+     [[unknown-stays-unknown]] [[feedback-verify-not-proxy]] */
+  function _thShelfWasTheDoor(){
+    try { return !!TH.shelfIsDoor; } catch (e) { return false; }
+  }
+
   function thEscUnwind(){
     if (TH.hdOpen){ thHdClose(); return; }   // v944.7 — the frame lightbox is the topmost layer
     var dsr = $('th-dossier-ov'); if (dsr && !dsr.hidden){ dsr.hidden = true; return; }   // v1268 (D2) — the dossier is above the shelf; Esc backs out to the shelf first
     var mp = $('th-more-pop'); if (mp && !mp.hidden){ thMore(false); return; }
-    var sh = $('th-shelfov');  if (sh && !sh.hidden){ thShelf(false); return; }
+    /* v2451 — UNWINDING ONE LAYER IS RIGHT ONLY IF THERE IS A LAYER UNDERNEATH. This peels the
+       shelf and returns, which is correct when he opened the theatre first and the shelf on top
+       of it. When THE SHELF WAS THE DOOR there is no reel under it — so Escape dropped him onto a
+       bare stage, a black rectangle he never asked for. MEASURED: Escape left shelf SHUT and
+       stage STILL OPEN, the same half-exit as the ✕. [[sweep-dont-ask]] */
+    var sh = $('th-shelfov');
+    if (sh && !sh.hidden){
+      thShelf(false);
+      if (_thShelfWasTheDoor()) thClose();
+      return;
+    }
     if (CARD.open){ thCardToggle(); return; }
     if (document.body.classList.contains('cinema')){ thCinema(false); return; }
     thClose();
@@ -14821,11 +14875,17 @@ body[data-origin="shadow"] #stage::after {
        cannot render either, _shelfRefused says so ON SCREEN and tells the Doctor — a door that
        fails silently is worse than one that is missing, because he cannot tell it apart from a
        door he mis-clicked. [[the-unjoined-end]] [[feedback-silence-is-not-evidence]] */
+    /* v2451 — THE DOOR TOGGLES. Measured: clicking THE SHELF while the shelf was open did
+       NOTHING AT ALL — not a toggle, not a refresh, nothing. The one control he would reach for
+       first was the one that could not get him out. */
+    var _ov0 = $('th-shelfov');
+    if (TH.open && _ov0 && !_ov0.hidden) { thClose(); return; }
     var openErr = null;
     if (!TH.open) {
       try { await thOpen(); }
       catch (e) { openErr = e; }
     }
+    try { TH.shelfIsDoor = true; } catch (e) {}   // he came in HERE; every exit returns him here
     try {
       thShelf(true);
       var _ov = $('th-shelfov');
