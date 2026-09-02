@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2439",
+  "ver": "v2441",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2439: A cold cross-family read of v2437 found my own fix put the unfixable 346 inside the actionable sentence, called a two-lane gap a lane issue, and printed an age with no verdict.",
+  "note": "v2441: A lock you cannot see from the surface it governs is half a lock. The tab strip is the one surface present on every tab, so the padlock rides there - glyph only, because that strip is width-critical.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

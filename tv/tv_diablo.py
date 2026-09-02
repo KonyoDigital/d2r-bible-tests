@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2439"   # THE PANEL SAID WHAT WAS WRONG AND BURIED IT UNDER A NUMBER NOBODY CAN ACT ON
+VERSION = "v2441"   # THE VAULT LOCK IS ON THE TAB NOW, VISIBLE FROM THE VAULT ITSELF
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

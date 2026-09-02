@@ -4558,6 +4558,15 @@
   .lockchip[data-state="unproven"] { color: #9aa6b2; }
   .lockchip[data-state="open"]     { color: #8fd0a0; }
   .lockchip .lc-n { opacity: .7; font-weight: var(--fw-normal); letter-spacing: var(--ls-normal); }
+  /* ★ v2441 — THE VAULT'S LOCK WAS NOT VISIBLE FROM THE VAULT. Clicking the Vault tab loads the
+     Mule Manager, which REPLACES the home dash where #lock-vault lives — so the one surface that
+     acts on his ledger showed no lock while he was looking at it.
+     The tab strip is the answer because it is the ONE surface present on every tab, the vault's
+     own included. ⚠ It is width-critical: a bare `1fr` track here once laid the shell out at
+     1575px inside a 1120px window and pushed the Vault and TV·D tabs off the edge entirely. So
+     this variant is the PADLOCK GLYPH ONLY — no words, no border, no extra track width — and the
+     state lives in colour plus the title. ADDITIVE: #lock-vault on the dash is untouched. */
+  .lockchip.lc-tab { margin-left: 5px; padding: 0; border: 0; letter-spacing: var(--ls-normal); }
   .hd-chips { display: flex; flex-wrap: wrap; gap: var(--hd-gap-in); }
   /* ══ v1636 · THE FORGE QUESTS SIT ON A GRID ═══════════════════════════════════════════════════
      Measured at v1635: four quest chips came out 127 / 108 / 137 / 237px wide, because .hd-chips
@@ -5893,7 +5902,7 @@ body[data-origin="shadow"] #stage::after {
                question. [[the-unjoined-end]]
                No routing needed: _shellRoute calls switchTab(tab) on the board iframe and the board
                has owned a 'vault' tab since v2085, so this button works through the existing path. -->
-          <button class="ht" type="button" data-tab="vault"><img class="ht-i" src="/art/ui_foc_stash.png" alt="" onerror="this.remove()"> Vault</button>
+          <button class="ht" type="button" data-tab="vault"><img class="ht-i" src="/art/ui_foc_stash.png" alt="" onerror="this.remove()"> Vault<span class="lockchip lc-tab" id="lock-vault-tab" data-state="locked" title="the vault acts on your ledger — no lock state has been read yet, so it is LOCKED">🔒</span></button>
           <button class="ht" type="button" data-tab="tvd"><img class="ht-i" src="/art/ui_tab_tvd.png" alt="" onerror="this.remove()"> TV·D</button>
         </nav>
       </div>
@@ -6249,7 +6258,7 @@ body[data-origin="shadow"] #stage::after {
                THROW    a SUGGESTION, held to a stricter bar than keep, and never applied by anything.
                         There is no un-throw in Diablo, so this lane has no button that acts on it. -->
         <div class="hd-col hd-wide hd-vault" id="hd-vault">
-          <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="lockchip" id="lock-vault" hidden></span><span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="lockchip" id="lock-vault" data-state="locked" title="the vault acts on your ledger — no lock state has been read yet, so it is LOCKED">🔒 locked</span><span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
           <!-- v2091 — SAY WHERE THE OTHER VAULT IS. Konyo, looking at this console: "on the
                console where is vault manager?" Nothing here is broken — this panel is the VAULT
                ACCUMULATOR and it does what it says. But the MULE MANAGER is a different capability
@@ -6679,7 +6688,7 @@ body[data-origin="shadow"] #stage::after {
       <button class="ghost" id="btn-shelf" type="button" style="margin-top:8px;width:100%">
         <img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'">
         <span class="glab">📚 The Shelf — every recorded run</span>
-        <span class="lockchip" id="lock-prune" hidden></span>
+        <span class="lockchip" id="lock-prune" data-state="locked" title="the deleter removes footage, and there is no undo — no lock state has been read yet, so it is LOCKED">🔒 locked</span>
       </button>
       <!-- v2438 — Theatre RELOCATED, not removed. It keeps its id, class, title and handler, so
            every binding and every spec that reaches for #btn-sim still finds it; only its place
@@ -8648,7 +8657,10 @@ body[data-origin="shadow"] #stage::after {
         var l = _lockFor(prefix);
         var state = l ? String(l.state || '').toLowerCase() : 'locked';
         if (state !== 'open' && state !== 'unproven') state = 'locked';
-        el.hidden = false;
+        /* v2440 — no `hidden = false` here any more. The chip ships LOCKED in the
+           markup, because a chip that only appears after a poll is INVISIBLE until
+           one lands, and an absent badge reads as NO LOCK. The render target that
+           caught it refused to activate for exactly that reason. */
         el.setAttribute('data-state', state);
         var n = l && typeof l.n === 'number' ? l.n : null;
         var sc = l && typeof l.score === 'number' ? l.score : null;
@@ -8656,13 +8668,25 @@ body[data-origin="shadow"] #stage::after {
            facts, and the second one is the dangerous state. */
         var num = (n === null) ? '' : (n === 0 ? 'untested'
                     : (sc === null ? 'untested' : sc.toFixed(2) + '/' + (l.bar || 0).toFixed(2)));
-        el.innerHTML = (state === 'open' ? '\u{1F513} open' : '\u{1F512} locked')
-          + (num ? ' <span class="lc-n">' + num + '</span>' : '');
+        /* ⚠ v2441 — THE COMPACT VARIANT MUST STAY COMPACT, AND THE FIRST CUT DID NOT.
+           The tab-strip chip was authored as the padlock GLYPH ONLY because that strip is
+           width-critical — a blown-out track once laid the shell out at 1575px inside a 1120px
+           window and pushed the Vault and TV·D tabs off the edge. But this line rewrote its
+           innerHTML with the full label, so it rendered 150.9px wide. MEASURED, not assumed.
+           The state still travels: colour via data-state, and the whole sentence in the title. */
+        var compact = el.classList.contains('lc-tab');
+        el.innerHTML = compact
+          ? (state === 'open' ? '\u{1F513}' : '\u{1F512}')
+          : ((state === 'open' ? '\u{1F513} open' : '\u{1F512} locked')
+             + (num ? ' <span class="lc-n">' + num + '</span>' : ''));
         el.title = what + ' — '
           + (l ? (l.state + ': ' + (l.why || ''))
                : ((_sa && _sa.why) || 'this console could not read the locks, so it stays locked'));
       };
       _paintChip('lock-vault', 'vault.', 'the vault acts on your ledger');
+      /* the SAME lock, quoted twice, never derived twice — one place decides and every
+         surface reads it. The tab variant renders the padlock alone. */
+      _paintChip('lock-vault-tab', 'vault.', 'the vault acts on your ledger');
       _paintChip('lock-prune', 'prune.', 'the deleter removes footage, and there is no undo');
     } catch (e) { /* a paint that throws must not take the rest of the status render with it */ }
 

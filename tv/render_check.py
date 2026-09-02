@@ -270,6 +270,25 @@ TARGETS = {
                             "in the title attribute",
         },
     },
+    # ⚠ v2440 — A `locks` TARGET WAS WRITTEN AND WITHDRAWN, AND SAYING SO IS THE POINT.
+    # The vault lock chip (#lock-vault, added v2438) has NO TARGET here, so it is UNMEASURED — and
+    # in a green run unmeasured reads exactly like clean. That is a real gap, named rather than
+    # hidden. What was tried and why it was pulled:
+    #
+    #   · the chip IS correct, measured directly over CDP at 1120x628:
+    #       171.0 x 19.6 · data-state="unproven" · text "locked untested" · every ancestor visible
+    #   · but the target could not be made to ACTIVATE reliably, and a gate that always refuses is
+    #     furniture in the same way one that always passes is. Shipping it would have trained us to
+    #     skim its refusal, and then the real one goes with it.
+    #
+    # TWO THINGS IT FOUND BEFORE IT WAS PULLED, both kept:
+    #   1. the chips shipped `hidden` and only appeared after a status poll — so before the first
+    #      poll, or if none ever lands, the lock was INVISIBLE. An absent badge reads as NO LOCK,
+    #      which is the one direction it must never fail in. They now ship data-state="locked".
+    #   2. AN ACTIVATE IS POLLED, SO IT MUST BE IDEMPOTENT. check() re-runs it every 0.4s for 12s;
+    #      an unconditional tab click TOGGLES, so each poll undid the last and the answer came down
+    #      to parity. Any future target here must check before it acts.
+    #
     "taskforce": {
         "why": "the Task Force card — the mission line, the date, the DAILY PICK tag",
         "seed": """(function(){ localStorage.setItem('d2r_ownerClaim','*'); return 1; })()""",
