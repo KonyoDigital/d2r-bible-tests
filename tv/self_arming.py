@@ -126,6 +126,18 @@ LOCKS = {
         "surface": "VAULT", "acts": "drops the ledger",
         "bar": 0.722, "kinds_bar": 1.3, "after": ["vault.sweep_start"],
     },
+    # step 1 — MINI AUTO. His ruling, 2026-09-02: "i want it not enforced... i want it BADGED...
+    # my point was i want it KNOWN on the console is all", with "a logical coding to it with wilson
+    # via connected to the heart for real".
+    # ⚠ SO THIS LOCK IS A STAMP, NOT A GATE — nothing calls may("miniauto.run") to block the
+    # button, and that is deliberate rather than unfinished. It still earns its state the same way
+    # every other lock does, so the console can say what has been proven instead of staying silent.
+    # It sits at step 1 because MINI AUTO drives the pointer over his stash and films what the game
+    # draws: it is the printer and the reels, which is where he said Wilson starts.
+    "miniauto.run": {
+        "surface": "MINI AUTO", "acts": "moves the pointer over his stash and films the tooltips",
+        "bar": 0.510, "kinds_bar": 1.0, "after": [],
+    },
     # step 4 — the deleter. Last, and it cannot be reached early.
     "prune.arm": {
         "surface": "THE RIVER", "acts": "deletes footage — there is no undo",

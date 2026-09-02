@@ -306,6 +306,18 @@ GATES = [
              "This extracts the SHIPPED block out of bible.html, runs it in node, and fails on the "
              "first name where the two disagree — a drifted cutoff folds 'Gul' onto 'Gull' and "
              "writes a find he never made"),
+    Gate("test_heart", [sys.executable, os.path.join(HERE, "test_heart.py")], 60,
+         why="v2442 — A16, THE HEART. It can only supervise what it KNOWS EXISTS, and it did "
+             "not: measured 30 thread targets, 11 supervised, 8 UNWATCHED loops, 2 that could "
+             "not be classified — and two of those eight unwatched loops had a real defect the "
+             "same day. These cases defend the distinctions that would let the heart report "
+             "green over them: DARK (runs, nothing watches) is not UNKNOWN (could not be "
+             "classified) and neither is harmless; WATCHED is work owed and NOT a fault, so it "
+             "carries no score rather than a zero; and FLOWING must be EARNED — a watcher that "
+             "was sabotaged and never refused scores 0.0 and must never be mistaken for a "
+             "proven one, which a plain `if score:` would do. Also pins that it DERIVES and "
+             "never writes, because a stored picture is a map that drifts from the territory — "
+             "BLUEPRINT.md went stale exactly that way and a gate graded the last build."),
     Gate("test_self_arming", [sys.executable, os.path.join(HERE, "test_self_arming.py")], 60,
          why="v2438 — KONYO RULED THE PRUNE MUST NOT BE ARMED BY HAND. \"a lock until it "
              "automatically unlocks with a que for wilson score. arithmetic as you see.\" This "

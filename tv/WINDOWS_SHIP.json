@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2441",
+  "ver": "v2442",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2441: A lock you cannot see from the surface it governs is half a lock. The tab strip is the one surface present on every tab, so the padlock rides there - glyph only, because that strip is width-critical.",
+  "note": "v2442: A16 built and guarded; MINI AUTO badged not enforced; and B-65 dissolved - 31,664 of 414 was an event count over a distinct-name denominator, the same defect v2225 fixed one field over and never swept.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

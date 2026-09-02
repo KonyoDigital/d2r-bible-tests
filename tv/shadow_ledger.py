@@ -187,6 +187,26 @@ def observe(scores, at=None, path=None, lane="chronicle"):
     doc["scorings"] = int(doc.get("scorings") or 0) + scored   # the old number, honestly labelled
     doc["agree"] = int(doc.get("agree") or 0) + (scored - len(dis))
     doc["disagree"] = int(doc.get("disagree") or 0) + len(dis)
+    # ⚠⚠ v2443 — B-65. THE FIX ABOVE WAS MADE FOR `names` AND ITS TWIN WAS LEFT RUNNING.
+    # v2225's comment, twelve lines up, is about exactly this defect: a per-sweep `+=` counting
+    # repetitions while calling itself a count of names. It fixed `names` with a set and left
+    # `disagree` accumulating events. MEASURED on his live ledger 2026-09-02:
+    #
+    #     sweeps 17,579 · names 414 (distinct, correct) · scorings 343,515
+    #     agree 311,851 · disagree 31,664      <- agree + disagree == scorings, NOT names
+    #
+    # So `disagree` is an EVENT count over SCORINGS, and state() divided it by NAMES — which is how
+    # the console came to print "disagreed on 31,664 of 414 names", a numerator 76x its
+    # denominator. THE COUNT WAS THE TELL, exactly as v2225 said, and nobody read it again.
+    #
+    # `disagree` keeps its meaning and its name (it is a true event count, and other readers may
+    # rely on it). What was MISSING is the number he would actually act on: how many DISTINCT names
+    # the two rules judge differently. That has never been tracked, so it was UNKNOWN rather than
+    # wrong — and unknown is what a set fixes. [[sweep-dont-ask]] [[unknown-stays-unknown]]
+    _dseen = set(doc.get("disagreeSet") or [])
+    _dseen.update(str(x.get("name")) for x in dis if isinstance(x, dict) and x.get("name"))
+    doc["disagreeSet"] = sorted(_dseen)[:2000]     # bounded like nameSet; the universe is ~523
+    doc["disagreeNames"] = len(doc["disagreeSet"])
     # PER LANE, because the totals above pool two different questions. The chronicle decides what to
     # GROUND; the vault decides what to THROW AWAY. A pooled ratio lets a chatty, well-behaved lane
     # vouch for a quiet one nobody has checked — and the quiet one is the one that deletes things.
@@ -249,14 +269,28 @@ def state(path=None):
         "⚠ the surface rule GROUNDED %d name(s) the live gate holds — it is built so that cannot "
         "happen (would = live_pass and meets_surface), so this is the invariant broken, not a "
         "statistic" % surf["wouldGround"])
+    # v2443 — B-65. `dis` is an EVENT count whose denominator is `scorings`, and the sentence below
+    # used to divide it by `names`. Both numbers were true; putting them either side of "of" was
+    # not. `disagreeNames` is the distinct count, and it is None on a ledger written before this
+    # ship — which must read as UNKNOWN rather than as zero. [[unknown-stays-unknown]]
+    dis_names = d.get("disagreeNames")
     if dis:
         names = ", ".join(str(r.get("name", "?")) for r in recent[-5:])
-        return {"ok": True, "scorings": scg, "state": "disagrees", "surface": surf, "names": n, "sweeps": sw, "disagree": dis,
+        pct = (100.0 * dis / scg) if scg else None
+        head = ("the Wilson rule and the live gate have disagreed %d times out of %d scorings "
+                "across %d sweeps" % (dis, scg, sw)) + (" (%.1f%%)" % pct if pct is not None else "")
+        if isinstance(dis_names, int):
+            tail = ("%d distinct name(s) of the %d ever scored disagree" % (dis_names, n))
+        else:
+            # a ledger written before this ship cannot answer it, and saying so beats implying zero
+            tail = ("how many DISTINCT names that is has never been counted on this ledger, so it "
+                    "is unknown rather than none")
+        return {"ok": True, "scorings": scg, "state": "disagrees", "surface": surf, "names": n,
+                "sweeps": sw, "disagree": dis, "disagreeNames": dis_names,
                 "byDirection": d.get("byDirection"), "recent": recent[-20:],
-                "say": "the Wilson rule and the live gate have disagreed on %d of %d names across "
-                       "%d sweeps (%s). Each is a name the two rules judge differently — that list "
-                       "is the argument for or against switching, and it is yours to read."
-                       % (dis, n, sw, names)}
+                "say": "%s. %s. Recently: %s. Each is a name the two rules judge differently — "
+                       "that list is the argument for or against switching, and it is yours to "
+                       "read." % (head, tail, names)}
     if n < ENOUGH_NAMES or sw < ENOUGH_SWEEPS:
         return {"ok": True, "scorings": scg, "state": "thin", "surface": surf, "names": n, "sweeps": sw, "disagree": 0,
                 "say": "the Wilson rule has agreed with the live gate on all %d names it has scored "

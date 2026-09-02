@@ -96,6 +96,118 @@ in those words.
 
 ---
 
+## A20 · THE RIVER, VISIBLE — ONE STORYLINE INSIDE THEATRE/SHELF · 2026-09-02 · READY
+
+> *"the SHELF/THEATRE should be one section and tab in general just additive within one or the
+> other.. and also there the structure and everything meaning it should be STORY LINE STRUCTURED..
+> from where the reel gets received and then eventually gets processed and through the 3d filter and
+> templates that route the garbage to the garbage and down the stream litteraly visually showing
+> this.. the reels coming in show they come in.. and section down is the sections the reels start
+> getting filtered through and at the bottom is an organized END ROUTE for each reel down the stream
+> it goes — that way we can SURGICALLY FIX anything not correctly routed.. like a game.. like a sort
+> of tetris.. the last section where the garbage is goes straight to garbage and inbetween there is
+> the extraction area and processing.. and afterwards ALSO go to the same route end which is
+> garbage! and pruned and optimized and deleted — eventually THE END ROUTE IS THE SAME, ALL UNIFIED.
+> The difference is WHERE those reels get processed through that same filtered and template based
+> coding."*
+
+### ★ THE INVARIANT HIDING IN THAT SENTENCE, AND IT IS WHY THIS IS A GATE AND NOT A DIAGRAM
+
+**Every reel reaches the SAME terminal. Only the path differs.** Garbage goes straight there;
+gold goes through extraction and processing and arrives there too. That makes the picture
+*falsifiable*:
+
+    a reel that never arrives at the terminal is a ROUTING DEFECT, and the screen names which
+    stage it is stuck in
+
+That is the difference between a drawing and an instrument. A pretty pipeline that cannot say
+"this reel is stuck at stage 3" is decoration; one that can is A10's fish-down-the-stream made
+visible, permanently, for every reel at once.
+
+### THE SHAPE — top to bottom, and the vertical IS the story
+
+    ┌ RECEIVED ─────────  reels arriving, as they arrive
+    │
+    ├ FILTERED ─────────  the 3D/4D printer's stages · the templates live INSIDE the routing (A8)
+    │                     the 10–15% law throws garbage out BY DEFAULT here (A9)
+    ├ EXTRACTION ───────  the paid reads, the processing
+    │
+    └ TERMINAL ─────────  ONE end route: pruned · optimised · deleted. Everything lands here.
+
+⚠ **DERIVED, NEVER DRAWN — the same rule the heart carries.** Every stage's contents come from the
+real routing state on read. A hand-maintained pipeline picture is a map that drifts from the
+territory, and this repo already paid for that when `BLUEPRINT.md` went stale and a gate graded the
+last build.
+
+⚠ **AND IT MUST NOT BE ABLE TO SHOW AN EMPTY STAGE AS A CLEAN ONE.** A stage with no reels in it is
+either "nothing is owed" or "nothing reaches this stage" — opposite facts, and the second one is the
+routing defect this exists to find. They must render differently.
+
+**PREREQUISITE:** the printer/river itself (A4 · A15) still has to be architected. This is its
+surface, and building the surface first would be a picture of something that does not exist.
+Shelf/Theatre being one door is already done (v2440–v2441).
+
+---
+
+## A18 · THE D2R MACRO — HE IS THE CALIBRATION SOURCE · 2026-09-02 · READY
+
+> *"for the hover automatic MINI with grok bot it aint gonna work, i thought of another clever
+> idea.. like MACRO ISSTA and MACRO FIBI we created repos based on my movements cursor. this is the
+> same.. we can construct a DIABLO II MACRO — i can be the one doing the calliberating to the
+> system :) you just hook it up with like the same style demonstration demo test just like we have
+> for MACRO ISSTA.. its like designed to record me then we can test it and sync it until perfection"*
+
+**WHY THIS BEATS THE ROUTE IT REPLACES, and it is not a matter of taste.** The Grok-Bot hover plan
+needed two things that were never true: synthetic pointer events (which on macOS need Accessibility,
+and without it `CGEventPost` SUCCEEDS SILENTLY while moving nothing), and a known stream transform
+(the Windows game runs in a browser over a cloud stream, so screen space is game space times a scale
+and offset nobody has measured). A recording of HIS OWN hand needs neither. He is on the real screen,
+and the recording IS the ground truth rather than something derived through an unmeasured factor.
+
+It is also his own ruling applied: *"anything done manually by a human is proof and witness enough."*
+
+### WHAT IT PRODUCES — the thing `screen_point` has never had
+
+Each recorded hover yields one triple:
+
+    (col, row)  ->  screen point he actually hovered  ->  the item the tooltip actually named
+
+That is ground truth. Today `hover_wilson.probe_coordinate` round-trips `point_of_cell` through
+`cell_of` and proves **those two functions agree with each other** — never that either agrees with
+Diablo. `human-eyes-harness` names it as the canonical instrument-agreeing-with-itself, and this is
+what stops it being one.
+
+⚠ And in Wilson terms that matters more than it sounds: an instrument that only agrees with itself
+is an INERT invariant. It would score beautifully on agreements and prove nothing. A recorded human
+hover is a genuinely INDEPENDENT KIND of evidence, which is exactly what `confluence` needs so a
+score is not thirty copies of one fixture.
+
+### THE SHAPE — copy MACRO ISSTA, do not reinvent it
+
+Record → replay → diff, with the demonstration-demo test style that repo already uses. Sync until
+the replay names the same items he did.
+
+⚠ DO NOT bake any coordinate constant from a single session. Measure, report raw, decide after — a
+number fitted to one recording is a stream-shaped or resolution-shaped constant wearing a general
+name. [[label-outlived-referent]]
+
+---
+
+## A19 · MINI AUTO CARRIES A LOCK — BADGED, NOT ENFORCED · 2026-09-02 · SHIPPED
+
+> *"i want it not enforced... i want it badged... my point was i want it KNOWN on the console is
+> all. a visual stamp is fine. and obviously a logical coding to it with wilson via connected to
+> the heart for real."*
+
+`miniauto.run` is declared in `tv/self_arming.py`, scored the same way as every other lock, and
+rides `st.selfArming` to a chip on the MINI AUTO card. **Nothing calls `may()` to block the button,
+and that is deliberate rather than unfinished.** The point is not to stop him — it is to stop the
+console PRETENDING. It sits at step 1 of his order because MINI AUTO drives the pointer over the
+stash and films the tooltips: that IS the printer and the reels, which is where he said Wilson
+starts.
+
+---
+
 # 🏛 THE ARCHITECTURE ASKS — recovered 2026-09-01, and they were NEVER in the 22
 
 **These are the ones that went missing.** The numbered list was the DEFECT queue — P1s, briefs,

@@ -4566,7 +4566,39 @@
      1575px inside a 1120px window and pushed the Vault and TV·D tabs off the edge entirely. So
      this variant is the PADLOCK GLYPH ONLY — no words, no border, no extra track width — and the
      state lives in colour plus the title. ADDITIVE: #lock-vault on the dash is untouched. */
-  .lockchip.lc-tab { margin-left: 5px; padding: 0; border: 0; letter-spacing: var(--ls-normal); }
+  /* ⚠ IT MUST COST ZERO LAYOUT WIDTH. The first cut added the padlock inline with a 5px margin
+     and the console-demo gate refused the push: "J10 HEADER GEOMETRY — 900px wraps to 2 rows".
+     MEASURED at 900: the eight tabs already total 1082px inside a 553px head, so the strip is
+     ~529px over on its own and my ~22px was simply the straw. Hiding it below 900 was the obvious
+     fix and it is the WRONG one — an invisible lock reads as no lock, which is the one direction
+     this must never fail in.
+     So it is taken OUT OF FLOW: absolutely positioned in the tab's own corner, contributing
+     nothing to the track width at any viewport, and still present on every tab including the
+     vault's own. [[visual-regression-detector]] — a control that is clipped or gone is the defect;
+     one that costs no width cannot cause it. */
+  .ht.ht-locked { position: relative; }
+  /* ★ v2442 — MINI AUTO CARRIES THE SAME LOCK, AND IT IS A STAMP RATHER THAN A GATE.
+     Konyo: "i want it not enforced... i want it badged... my point was i want it KNOWN on the
+     console is all. a visual stamp is fine. and obviously a logical coding to it with wilson via
+     connected to the heart for real."
+     So the button still works. What changes is that the console stops being silent about which of
+     its own surfaces have been proven — which is the whole point of a self-proving system: not to
+     stop him, to stop PRETENDING. */
+  .lockchip.lc-inline {
+    display: inline-flex; margin-left: 6px; padding: 0 5px;
+    font-size: var(--fs-2xs); vertical-align: middle;
+  }
+  .lockchip.lc-tab {
+    position: absolute; top: 1px; right: 3px;
+    margin: 0; padding: 0; border: 0; line-height: 1;
+    /* ⚠ v2443 — THIS WAS `9px` AND TWO GATES REFUSED IT: visual-lock ('every size must be a
+       var(--fs-*) token') and TestV1504TypeFloor ('[9.0] != []'). The floor exists so
+       nothing renders too small to read, and a lock badge nobody can read is the same
+       failure as no badge at all — which is the direction this must never fail in.
+       --fs-2xs is the smallest declared step. It costs nothing here: the chip is absolutely
+       positioned, so its size never touches the tab strip's track width. */
+    font-size: var(--fs-2xs); letter-spacing: var(--ls-normal); pointer-events: none;
+  }
   .hd-chips { display: flex; flex-wrap: wrap; gap: var(--hd-gap-in); }
   /* ══ v1636 · THE FORGE QUESTS SIT ON A GRID ═══════════════════════════════════════════════════
      Measured at v1635: four quest chips came out 127 / 108 / 137 / 237px wide, because .hd-chips
@@ -5902,7 +5934,7 @@ body[data-origin="shadow"] #stage::after {
                question. [[the-unjoined-end]]
                No routing needed: _shellRoute calls switchTab(tab) on the board iframe and the board
                has owned a 'vault' tab since v2085, so this button works through the existing path. -->
-          <button class="ht" type="button" data-tab="vault"><img class="ht-i" src="/art/ui_foc_stash.png" alt="" onerror="this.remove()"> Vault<span class="lockchip lc-tab" id="lock-vault-tab" data-state="locked" title="the vault acts on your ledger — no lock state has been read yet, so it is LOCKED">🔒</span></button>
+          <button class="ht ht-locked" type="button" data-tab="vault"><img class="ht-i" src="/art/ui_foc_stash.png" alt="" onerror="this.remove()"> Vault<span class="lockchip lc-tab" id="lock-vault-tab" data-state="locked" title="the vault acts on your ledger — no lock state has been read yet, so it is LOCKED">🔒</span></button>
           <button class="ht" type="button" data-tab="tvd"><img class="ht-i" src="/art/ui_tab_tvd.png" alt="" onerror="this.remove()"> TV·D</button>
         </nav>
       </div>
@@ -6358,7 +6390,7 @@ body[data-origin="shadow"] #stage::after {
              (info blue, not ON AIR's mint or MINI's gold) because this is the one that takes
              the mouse out of his hand: at a glance it must not be mistakable for either
              manual button. [[visual-regression-detector]] -->
-        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl">Mini &middot; Auto</b><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
+        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl">Mini &middot; Auto</b><span class="lockchip lc-inline" id="lock-miniauto" data-state="locked" title="MINI AUTO — no lock state has been read yet, so it is LOCKED. The badge does not block the button; it says what has been proven.">🔒 locked</span><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
         <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
              fact that it is reading stash/runes/gems/materials and to look out specifically for
              this" — and then "for chronicles too.. a button for it so its focused specifically for
@@ -8687,6 +8719,7 @@ body[data-origin="shadow"] #stage::after {
       /* the SAME lock, quoted twice, never derived twice — one place decides and every
          surface reads it. The tab variant renders the padlock alone. */
       _paintChip('lock-vault-tab', 'vault.', 'the vault acts on your ledger');
+      _paintChip('lock-miniauto', 'miniauto.', 'MINI AUTO moves the pointer over your stash and films what the game draws');
       _paintChip('lock-prune', 'prune.', 'the deleter removes footage, and there is no undo');
     } catch (e) { /* a paint that throws must not take the rest of the status render with it */ }
 

@@ -2413,6 +2413,79 @@ class TestV2217TheShadowLaneLearnsAndNeverPromotesItself(unittest.TestCase):
                          "one name is not enough to be worth a decision and must not read as if "
                          "it were")
 
+    def test_the_DISAGREE_counter_has_the_SAME_defect_v2225_fixed_for_names(self):
+        """★★ B-65 — v2225 FIXED `names` WITH A SET AND LEFT ITS TWIN COUNTING EVENTS.
+
+        Twelve lines below that fix, `disagree` still did `+= len(dis)` on every sweep. So it is an
+        EVENT count whose denominator is `scorings`, while state() divided it by `names`. MEASURED
+        on his live ledger 2026-09-02:
+
+            sweeps 17,579 · names 414 (distinct, correct) · scorings 343,515
+            agree 311,851 · disagree 31,664      <- agree + disagree == scorings, NOT names
+
+        and the console printed "disagreed on 31,664 of 414 names" — a numerator 76x its
+        denominator. THE COUNT WAS THE TELL, which is the same sentence v2225 wrote about the same
+        defect one field over, and nobody read it again. [[sweep-dont-ask]]
+
+        This pins BOTH halves: the event count keeps growing honestly, and the DISTINCT count —
+        the number he would actually act on — is tracked separately instead of not at all."""
+        for i in range(4):
+            r = _sl().observe(cr.shadow_scores({"Shako": self._disagree()}), at=2000 + i,
+                              path=self.led)
+            self.assertTrue(r["ok"], r)
+        st = _sl().state(path=self.led)
+        self.assertEqual(st["state"], "disagrees", "fixture check: this shape must split the rules")
+        self.assertEqual(st["disagree"], 4,
+                         "the EVENT count must keep counting events — it is true and other readers "
+                         "use it; renaming its meaning would be a second defect")
+        self.assertEqual(st["disagreeNames"], 1,
+                         "one name that disagrees on four sweeps is ONE disagreeing name. %r says "
+                         "otherwise, which is exactly the shape that produced '31,664 of 414'"
+                         % st.get("disagreeNames"))
+
+    def test_the_sentence_divides_by_the_denominator_it_actually_HAS(self):
+        """The arithmetic must be sayable out loud without being impossible."""
+        for i in range(4):
+            _sl().observe(cr.shadow_scores({"Shako": self._disagree()}), at=3000 + i, path=self.led)
+        st = _sl().state(path=self.led)
+        say = st["say"]
+        # ⚠ THE FIRST CUT OF THIS TEST WAS TOO WEAK AND A SABOTAGE PROVED IT. Asserting that the
+        # word "scorings" appears, and that the old phrasing does not, both survived swapping
+        # "across N sweeps" for "across N names" — the word was still there and the old phrasing
+        # still absent, while the sentence had gone wrong again. A guard that names a WORD instead
+        # of a RELATIONSHIP measures the vocabulary, not the arithmetic.
+        # [[regression-guard]] §5a — when a sabotage stays green, suspect the sabotage first, and
+        # when the sabotage turns out to be real, the test is what has to get stronger.
+        # So: assert the actual NUMBERS land beside the actual WORDS.
+        import re as _re
+        m = _re.search(r"disagreed (\d+) times out of (\d+) scorings across (\d+) sweeps", say)
+        self.assertIsNotNone(
+            m, "the sentence no longer states <disagree> out of <scorings> across <sweeps>. Each "
+               "number must sit beside the unit it is actually counted in — pairing the event "
+               "count with `names` is exactly how it read as 76x its own denominator.\n%s" % say)
+        self.assertEqual(int(m.group(1)), st["disagree"], "the printed count is not `disagree`")
+        self.assertEqual(int(m.group(2)), st["scorings"],
+                         "the DENOMINATOR printed is not `scorings`. agree + disagree == scorings, "
+                         "so that is the only denominator this numerator has")
+        self.assertEqual(int(m.group(3)), st["sweeps"], "the printed sweeps figure is not `sweeps`")
+        self.assertNotRegex(say, r"disagreed on \d+ of \d+ names",
+                            "the impossible phrasing is back")
+
+    def test_a_ledger_from_BEFORE_this_ship_says_UNKNOWN_not_zero(self):
+        """His real ledger has 17,579 sweeps banked with no disagreeSet. It CANNOT answer the
+        distinct question, and answering 0 would be a measurement nobody took — the same lie as
+        collapsing None into 0. [[unknown-stays-unknown]]"""
+        import json
+        with io.open(self.led, "w", encoding="utf-8") as fh:
+            json.dump({"v": 1, "sweeps": 900, "names": 400, "scorings": 9000,
+                       "agree": 8000, "disagree": 1000, "nameSet": ["n%d" % i for i in range(400)],
+                       "recent": [{"name": "Shako"}]}, fh)
+        st = _sl().state(path=self.led)
+        self.assertIsNone(st["disagreeNames"],
+                          "a ledger with no disagreeSet reported a NUMBER for distinct names. It "
+                          "has never counted them; 0 would be a measurement nobody took")
+        self.assertIn("unknown rather than none", st["say"])
+
     def test_two_DIFFERENT_names_do_accumulate(self):
         """The other half, or the fix could pass by always answering 1."""
         _sl().observe(cr.shadow_scores({"Shako": self._agree()}), at=1, path=self.led)
