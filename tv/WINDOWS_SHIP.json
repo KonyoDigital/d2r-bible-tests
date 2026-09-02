@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2423",
+  "ver": "v2424",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2423: the root rule was right; the moment it was applied was not",
+  "note": "v2424: third weaker copy of the night",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

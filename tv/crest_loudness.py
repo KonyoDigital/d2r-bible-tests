@@ -77,33 +77,28 @@ def main():
                deviceScaleFactor=1, mobile=False)
         t.ev("try{localStorage.setItem('d2r_ownerClaim','*')}catch(e){}")
         t.send("Page.reload")
-        # ⚠ v2422 — A FIXED SLEEP AFTER A RELOAD IS THE DEFECT `_settled` EXISTS TO REMOVE, and it
-        # made this gate flaky rather than wrong. Measured 2026-09-02: it answered
-        # "⚪ UNKNOWN — no crest in the DOM" once and then GREEN three times in a row with no code
-        # change between them, and the first run followed a 400-second suite. Polling for the
-        # element shows it normally appears within 0.5s — so 3.0s is generous until the machine is
-        # loaded, and then it is not.
+        # ⚠ v2424 — CALL THE HELPER THAT ALREADY EXISTS, THIRD TIME OF ASKING THIS SESSION.
+        # v2422 replaced a fixed sleep(3.0) with an inline poll, which was the right idea aimed at
+        # the WRONG PREDICATE. A cold review: "_selector_ready already polls, already uses 20s,
+        # already swallows evaluate failures, already has FakeTab tests. It also requires a PAINTED
+        # rect. This loop only asks 'is the node in the document?'"
         #
-        # ⚠ THIS IS NOT A RE-RUN UNTIL IT AGREES. Four runs told me the gate is non-deterministic,
-        # which is a finding about the gate; the fix is to stop asking at an arbitrary moment. Same
-        # correction render_check took when its own fixed 0.6s blocked a good page under load: a
-        # gate you re-run until it agrees has stopped being evidence.
-        deadline = time.time() + 20.0
-        seen = False
-        while time.time() < deadline:
-            try:
-                if t.ev("!!document.querySelector('.bd-sigil')"):
-                    seen = True
-                    break
-            except Exception:
-                pass                      # a probe that cannot ask yet is not an absent crest
-            time.sleep(0.25)
-        if seen:
-            rc._settled(t)                # only settle once the subject is actually there
-        if not seen:
-            print("⚪ UNKNOWN — no crest in the DOM after 20s, so this gate measured nothing. "
-                  "That is a page that did not render, not a quiet crest.")
+        # Two consequences, both real:
+        #   · the static button carries `hidden` and still satisfies "is it in the document", so the
+        #     loop could return on a node the gate is not there to measure — the LIVE crest is the
+        #     one paint() un-hides (204x32).
+        #   · the node is true on BOTH SIDES of the reload, so the poll could observe the PREVIOUS
+        #     page and call it ready.
+        #
+        # ⚠ AND IT IS THE THIRD WEAKER COPY I HAVE WRITTEN TONIGHT — after _is_primary_console and
+        # _decision_path. The helper built for this exact flake sits in the module this file already
+        # imports. [[the-unjoined-end]] [[copy-drift]]
+        why = rc._selector_ready(t, ".bd-sigil")
+        if why:
+            print("⚪ UNKNOWN — %s. This gate measured nothing: a page that did not paint the "
+                  "crest, not a quiet crest." % why)
             return 2
+        rc._settled(t)
         data = t.send("Page.captureScreenshot", format="png",
                       captureBeyondViewport=False).get("data")
         p = os.path.join(HERE, ".render_shots", "crest_loudness.png")
