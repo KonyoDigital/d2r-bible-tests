@@ -6465,7 +6465,7 @@ body[data-origin="shadow"] #stage::after {
              (info blue, not ON AIR's mint or MINI's gold) because this is the one that takes
              the mouse out of his hand: at a glance it must not be mistakable for either
              manual button. [[visual-regression-detector]] -->
-        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl">Mini &middot; Auto<span class="lockchip lc-inline" id="lock-miniauto" data-state="locked" title="MINI AUTO — no lock state has been read yet, so it is LOCKED. This is a stamp, not a gate: it does not block the button.">🔒</span></b><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
+        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl"><span id="miniauto-lbl-t">Mini &middot; Auto</span><span class="lockchip lc-inline" id="lock-miniauto" data-state="locked" title="MINI AUTO — no lock state has been read yet, so it is LOCKED. This is a stamp, not a gate: it does not block the button.">🔒</span></b><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
         <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
              fact that it is reading stash/runes/gems/materials and to look out specifically for
              this" — and then "for chronicles too.. a button for it so its focused specifically for
@@ -13913,6 +13913,26 @@ body[data-origin="shadow"] #stage::after {
      switch was wired to a string that does not exist. Running-ness is now the SERVER's answer,
      carried on the element as data-running, and the label is free to say whatever reads best.
      [[the-unjoined-end]] [[feedback-verify-not-proxy]] */
+  /* ⚠⚠ v2445 — THE STAMP MUST SURVIVE THE REPAINT, AND IT DID NOT.
+     v2443 moved the mini-auto padlock INSIDE <b id="miniauto-lbl"> so it would sit inline with the
+     words instead of stretching to 147px on its own row. That put it inside the one element this
+     function rewrites with `lbl.textContent = ...` on EVERY POLL — so the padlock existed for a
+     fraction of a second at page load and was then destroyed for ever. On his console the stamp
+     was simply absent, on the one surface whose whole purpose is making the lock KNOWN.
+
+     My own probe had already said so — it found THREE .lockchip elements where the markup declares
+     four — and I read past it. A cold cross-family look at the real pixels is what named it.
+     [[feedback-suspect-the-instrument]] [[grok-second-eye]]
+
+     The label now owns a text node of its own (#miniauto-lbl-t) and the stamp is its sibling, so a
+     repaint touches the words and nothing else. */
+  function _miniLbl(text){
+    var t = $('miniauto-lbl-t');
+    if (t) { t.textContent = text; return; }
+    /* no text node means the markup changed under this function. Writing the parent would delete
+       the stamp again, which is the defect this exists to prevent — so say so and write nothing. */
+    try { console.warn('[miniauto] #miniauto-lbl-t is missing; label not repainted'); } catch (e) {}
+  }
   function _miniPaint(j){
     var lbl = $('miniauto-lbl'), btn = $('btn-miniauto');
     var ic = $('miniauto-ic'), sub = $('miniauto-sub');
@@ -13923,7 +13943,7 @@ body[data-origin="shadow"] #stage::after {
          or as running. [[unknown-stays-unknown]] */
       btn.dataset.running = '';
       btn.classList.add('miniauto-unknown');
-      lbl.textContent = 'Mini \u00b7 Auto';
+      _miniLbl('Mini \u00b7 Auto');
       if (ic) ic.textContent = '\u2753';
       if (sub) sub.textContent = 'state unknown \u2014 the console did not answer';
       return;
@@ -13931,12 +13951,12 @@ body[data-origin="shadow"] #stage::after {
     if (j.running){
       btn.dataset.running = '1';
       btn.classList.add('miniauto-live');
-      lbl.textContent = 'Stop \u00b7 ' + (j.moved || 0) + '/' + (j.planned || 0);
+      _miniLbl('Stop \u00b7 ' + (j.moved || 0) + '/' + (j.planned || 0));
       if (ic) ic.textContent = '\u23f9';
       if (sub) sub.textContent = 'sweeping \u2014 press to stop, or touch the mouse';
     } else {
       btn.dataset.running = '';
-      lbl.textContent = 'Mini \u00b7 Auto';
+      _miniLbl('Mini \u00b7 Auto');
       if (ic) ic.textContent = '\ud83d\uddb1';
       if (sub) sub.textContent = j.stopped
         ? ('last run: ' + j.stopped + ' \u00b7 ' + (j.moved||0) + '/' + (j.planned||0))

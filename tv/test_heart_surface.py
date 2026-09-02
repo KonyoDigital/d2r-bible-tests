@@ -89,6 +89,122 @@ class TestABorrowedShellBringsItsLayout(unittest.TestCase):
                         "next to the version, after it")
 
 
+class TestAStampMustSurviveARepaint(unittest.TestCase):
+    """★ v2445 — THE DEFECT A COLD CROSS-FAMILY LOOK NAMED AND MY OWN PROBE HAD ALREADY MEASURED.
+
+    v2443 moved the mini-auto padlock INSIDE <b id="miniauto-lbl"> so it would sit inline with the
+    words rather than stretching to 147px on its own row. That element is rewritten by
+    `_miniPaint` with `lbl.textContent = ...` on EVERY POLL — so the stamp existed for a fraction
+    of a second at page load and was then destroyed for ever. On his console the padlock was simply
+    ABSENT, on the surface whose entire purpose is making the lock KNOWN.
+
+    The probe had said so: it found THREE .lockchip elements where the markup declares four. I read
+    past a count that disagreed with the source. [[feedback-suspect-the-instrument]]
+
+    The law: NO ELEMENT THAT CONTAINS A STAMP MAY BE THE TARGET OF A textContent WRITE. Pinned as a
+    rule rather than as "#miniauto-lbl specifically", because the next stamp will be put somewhere
+    else by someone who has not read this.
+    """
+
+    def setUp(self):
+        self.src = io.open(UI, encoding="utf-8").read()
+        # ⚠ JUDGE CODE, NOT PROSE. The first run of this guard failed on its OWN comment — the note
+        # three lines above `_miniPaint` quotes `lbl.textContent = ...` while explaining the defect,
+        # and the regex found it and called it live code. The markup scan needs the HTML comments
+        # kept out too, or a commented-out stamp counts as a real one.
+        # [[source-reading-guard]] [[feedback-comments-vs-code]]
+        self.code = self._strip_comments(self.src)
+
+    @staticmethod
+    def _strip_comments(src):
+        out, i, n = [], 0, len(src)
+        while i < n:
+            if src.startswith("<!--", i):
+                j = src.find("-->", i)
+                i = n if j < 0 else j + 3
+            elif src.startswith("/*", i):
+                j = src.find("*/", i)
+                i = n if j < 0 else j + 2
+            elif src.startswith("//", i) and not src.startswith("://", i - 1):
+                j = src.find("\n", i)
+                i = n if j < 0 else j
+            else:
+                out.append(src[i])
+                i += 1
+        return "".join(out)
+
+    def _wrappers(self):
+        """Every id whose element CONTAINS a .lockchip. -> list of (ancestor_id, chip_id)
+
+        ⚠ A REAL PARSER, because the hand-rolled version was wrong and said so loudly. Walking
+        backwards for "the nearest opening tag with an id, whose closing tag has not appeared yet"
+        named ONE element (#ch-search) as the parent of all four chips — a `</span>` counting error
+        across 6 MB of nested markup. A guard that misidentifies its own subject reports confident
+        nonsense, and would have sent the next reader to rewrite an unrelated element.
+        """
+        from html.parser import HTMLParser
+
+        class _P(HTMLParser):
+            def __init__(self):
+                HTMLParser.__init__(self, convert_charrefs=True)
+                self.stack, self.found = [], []
+
+            def handle_starttag(self, tag, attrs):
+                a = dict(attrs)
+                if "lockchip" in (a.get("class") or "").split() or \
+                   re.search(r"\blockchip\b", a.get("class") or ""):
+                    chip = a.get("id") or "?"
+                    for _t, eid in self.stack:
+                        if eid:
+                            self.found.append((eid, chip))
+                if tag not in ("br", "img", "input", "hr", "meta", "link", "source"):
+                    self.stack.append((tag, a.get("id")))
+
+            def handle_endtag(self, tag):
+                for idx in range(len(self.stack) - 1, -1, -1):
+                    if self.stack[idx][0] == tag:
+                        del self.stack[idx:]
+                        return
+
+        p = _P()
+        p.feed(self.code)
+        return sorted(set(p.found))
+
+    def test_no_element_holding_a_stamp_is_rewritten_by_textContent(self):
+        wrappers = self._wrappers()
+        # PRINT THE MATCH COUNT — a guard that silently matched nothing is a guard that passes for
+        # the wrong reason, and this repo has paid for that four times. [[regression-guard]]
+        self.assertTrue(wrappers,
+                        "this guard found ZERO stamp wrappers, so it is measuring nothing. Either "
+                        "every .lockchip was removed or the markup shape changed under the regex")
+        bad = []
+        for eid, chip in wrappers:
+            # `$('id').textContent =` , and `var x = $('id')` followed by `x.textContent =`
+            if re.search(r"\$\(\s*['\"]%s['\"]\s*\)\s*\.textContent\s*=" % re.escape(eid), self.code):
+                bad.append("%s (holds %s) is written directly" % (eid, chip))
+                continue
+            for vm in re.finditer(r"var\s+(\w+)\s*=\s*\$\(\s*['\"]%s['\"]\s*\)" % re.escape(eid),
+                                  self.code):
+                var = vm.group(1)
+                # ⚠ SCOPED TO THE FUNCTION BODY, NOT THE WHOLE FILE. `lbl` is an ordinary variable
+                # name used in several unrelated handlers here; a file-wide search for
+                # `lbl.textContent =` would convict this element of somebody else's write. The
+                # window is a heuristic (a function body, not a parsed scope) and it is stated as
+                # one — it can still miss a write further down its own function. It cannot invent
+                # one belonging to a different function, which is the direction that matters.
+                # And it reads self.code: the first two runs of this guard failed on its OWN
+                # comment, which quotes `lbl.textContent = ...` while explaining the defect.
+                window = self.code[vm.end():vm.end() + 3000]
+                if re.search(r"\b%s\s*\.textContent\s*=" % re.escape(var), window):
+                    bad.append("%s (holds %s) is written via `%s.textContent =`" % (eid, chip, var))
+                    break
+        self.assertEqual(bad, [],
+                         "a stamp lives inside an element that gets rewritten, so it is destroyed "
+                         "on the first repaint and the lock silently stops being shown: %s. Give "
+                         "the element a text node of its own and write THAT."
+                         % "; ".join(bad))
+
+
 class TestTheRouteFailsToUnknownNeverToZero(unittest.TestCase):
     """[[unknown-stays-unknown]] — 'nothing runs unwatched' and 'nobody could look' are opposite
     facts, and a heart that renders empty on a broken census claims the safe one."""

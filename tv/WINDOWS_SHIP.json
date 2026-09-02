@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2444",
+  "ver": "v2445",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2444: hover wilson banks its sabotages and mini auto unlocked on 55 of 55 refused",
+  "note": "v2445: the mini auto padlock was destroyed on every poll and a cold eye on the pixels found it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
