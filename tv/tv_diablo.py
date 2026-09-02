@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2435"   # THE PAGE SENT WHICH TAB IS SHOWING AND NOTHING COULD READ IT
+VERSION = "v2436"   # ONE COUNT HAS ONE PLACE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

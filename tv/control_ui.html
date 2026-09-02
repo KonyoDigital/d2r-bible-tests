@@ -13526,8 +13526,24 @@ body[data-origin="shadow"] #stage::after {
         return;
       }
       var checks = j.checks || [];
-      var needs = checks.filter(function(c){ return c.state === 'missing'; }).length;
-      var unk   = checks.filter(function(c){ return c.state === 'unknown'; }).length;
+      /* ══ v2436 — READ THE SERVER'S PARTITION; DO NOT RE-DERIVE IT ════════════════════════════
+         This counted `state === 'missing'` itself, which is the rule the server ABANDONED in
+         v2284 when it started excluding console_doctor.MINE — the checks that are MY code
+         defects and that he cannot act on by clicking anything. So this panel said "9 need you"
+         while /api/status said 7, on the same rows in the same second, and v2284's own comment
+         states the two "cannot disagree". They could, because only one of them had the list.
+         Two paths computing one number always ends here. [[the-unjoined-end]] [[copy-drift]]
+
+         ⚠ HONEST FALLBACK. A console older than v2436 ships no partition, and silently printing
+         a number computed by a different rule is what this fix exists to stop — so when the
+         field is absent we count locally AND SAY the split is unavailable, rather than passing
+         it off as the server's answer. [[unknown-stays-unknown]] */
+      var hasSplit = (typeof j.needsYou === 'number');
+      var needs = hasSplit ? j.needsYou
+                           : checks.filter(function(c){ return c.state === 'missing'; }).length;
+      var mine  = hasSplit ? (j.mine || 0) : null;
+      var unk   = (typeof j.unknown === 'number') ? j.unknown
+                           : checks.filter(function(c){ return c.state === 'unknown'; }).length;
       var col = needs ? '#e9b96e' : (unk ? '#9aa6b2' : '#8fd0a0');
       var rows = checks.map(function(c){
         var ic = c.state === 'ok' ? '\u2713' : (c.state === 'missing' ? '\u26a0' : '?');
@@ -13536,7 +13552,12 @@ body[data-origin="shadow"] #stage::after {
       }).join('');
       out.style.borderColor = col;
       out.innerHTML = '<div style="color:' + col + ';font-weight:var(--fw-semibold);letter-spacing:.6px">'
-        + '🦅 EAGLE EYE · ' + (needs ? (needs + ' need you') : (unk ? (unk + ' not measured') : 'all clear'))
+        + '🦅 EAGLE EYE · '
+        + (needs ? (needs + ' need you') : (unk ? (unk + ' not measured') : 'all clear'))
+        /* mine is NOT hidden — it is named separately, because a defect of mine that nobody can
+           see is one I get to forget about. null means this console predates the split. */
+        + (mine ? (' · ' + mine + ' mine') : '')
+        + (hasSplit ? '' : ' · (this console cannot split mine from yours)')
         + '</div>' + rows;
     } catch(e){
       out.style.borderColor = '#e07070';

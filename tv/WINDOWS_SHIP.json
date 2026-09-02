@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2435",
+  "ver": "v2436",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2435: uiBeat.view published; TASKS.md honesty becomes a gate",
+  "note": "v2436: the eagle panel was re-deriving needsYou without MINE",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

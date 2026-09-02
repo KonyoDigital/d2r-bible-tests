@@ -175,6 +175,15 @@ def prove():
 
 
 def main(argv):
+    # ⚠ THIS FILE PRINTS 🔴/🟢/⚪ AND A GATE MUST SURVIVE ITS OWN OUTPUT. Caught by
+    # test_every_cli_that_prints_non_ascii_is_encoding_safe on the v2435 push: without this, a
+    # non-UTF-8 console raises while REPORTING, so a clean tree exits non-zero and the failure
+    # looks nothing like its cause. The gate refused my own new gate, which is the system working.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     if "--prove" in argv:
         print("PROVING THE TASK-FRESHNESS GATE — on fixtures, never on his list.\n")
         return prove()

@@ -40848,5 +40848,107 @@ class TestEveryBeatFieldReachesASupervisor(unittest.TestCase):
                          "a partially-published alias read as covered")
 
 
+class TestOneCountHasOnePlace(unittest.TestCase):
+    """v2436 — TWO SURFACES OF ONE CONSOLE COUNTED 'NEED YOU' DIFFERENTLY, AND ONE WAS WRONG.
+
+    MEASURED on his live console 2026-09-02, same rows, same second:
+
+        the EAGLE EYE panel   9 need you   (control_ui.html — checks.filter(c.state==='missing'))
+        /api/status           needsYou 7   (control_app.py — excludes console_doctor.MINE)
+
+    v2284's own comment in the file says this cannot happen: *"console_doctor.MINE is the single
+    list, so the rail and the bar cannot disagree about whose problem a thing is."* True of the
+    SERVER, and it never reached this panel: /api/eagle returned `{"ok":True,"checks":_cd.run()}` —
+    raw rows and nothing else — so the panel had no partition to read and re-derived the count with
+    the rule the server ABANDONED in v2284.
+
+    ⚠ WHY THIS IS NOT ABOUT ARITHMETIC. v2284 exists because Konyo read "4 need me" and said "make
+    sure to verify and fix what needs me for real" — two of the three were MY code defects, fixable
+    by no click of his. Billing him for my bugs is how the number becomes noise, "after which the
+    one line that really is his gets skimmed with the rest". This panel had been doing exactly that.
+
+    The law pinned here is NOT the number 7: it is that /api/eagle must PUBLISH the partition and
+    the panel must READ it, so one place decides and every surface quotes it.
+    [[the-unjoined-end]] [[copy-drift]]
+    """
+
+    def _src(self):
+        here = os.path.dirname(ca.__file__)
+        with open(os.path.join(here, "control_app.py"), encoding="utf-8") as fh:
+            app = fh.read()
+        with open(os.path.join(here, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        return app, ui
+
+    def _eagle_handler(self, app):
+        i = app.find('if path == "/api/eagle":')
+        self.assertGreater(i, 0, "the /api/eagle route is gone")
+        j = app.find('if path == "/api/', i + 10)
+        return app[i:j if j > 0 else i + 6000]
+
+    def test_api_eagle_publishes_the_partition_it_already_computes(self):
+        app, _ = self._src()
+        blk = self._eagle_handler(app)
+        # a commented-out key is not a published key. [[feedback-comments-vs-code]]
+        code = re.sub(r"^\s*#[^\n]*$", "", blk, flags=re.M)
+        for field in ("needsYou", "mine", "mineWhat", "unknown"):
+            self.assertIn('"%s"' % field, code,
+                          "/api/eagle does not publish %r, so any surface reading it has to "
+                          "re-derive the split and will get a different number than /api/status."
+                          % field)
+
+    def _panel_block(self, ui):
+        """The panel's own code — anchored on the FETCH, never on the string '/api/eagle'.
+
+        ⚠ THE FIRST CUT ANCHORED ON `ui.find("/api/eagle")` AND LANDED ON A COMMENT. There are
+        three occurrences in this file and the first two are v2028 prose about a route with no
+        tap; the fetch is the third. All three assertions failed against explanatory text rather
+        than against code, which is the guard failing on its own REACH and not on the subject.
+        Anchor on the call, and PRINT THE COUNT so too-few never looks like clean.
+        [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+        """
+        hits = [m.start() for m in re.finditer(r"fetch\(API \+ '/api/eagle'\)", ui)]
+        self.assertEqual(len(hits), 1,
+                         "expected exactly one /api/eagle fetch, found %d — the anchor is wrong "
+                         "or the panel was duplicated" % len(hits))
+        blk = ui[hits[0]:hits[0] + 3000]
+        return re.sub(r"/\*.*?\*/", "", blk, flags=re.S)
+
+    def test_the_panel_reads_the_partition_instead_of_recounting(self):
+        _, ui = self._src()
+        blk = self._panel_block(ui)
+        body = blk
+        self.assertIn("j.needsYou", body,
+                      "the EAGLE EYE panel does not read the server's needsYou — it is counting "
+                      "for itself, which is how it came to say 9 while the server said 7.")
+        # and it must not go back to deriving `needs` from a raw filter
+        bad = re.search(r"var\s+needs\s*=\s*checks\.filter", body)
+        self.assertIsNone(
+            bad, "`needs` is being re-derived from checks.filter(...) again. One count, one place: "
+                 "the server owns the MINE split and this surface quotes it.")
+
+    def test_an_older_console_is_told_apart_from_a_split_of_zero(self):
+        """A console that ships no partition must fall back AND SAY SO. Silently printing a
+        number computed by a different rule is the whole defect. [[unknown-stays-unknown]]"""
+        _, ui = self._src()
+        body = self._panel_block(ui)
+        self.assertIn("hasSplit", body,
+                      "nothing distinguishes 'this console cannot split mine from yours' from "
+                      "'the split is zero' — two opposite facts printed identically.")
+        self.assertRegex(
+            body, r"hasSplit\s*\?\s*''\s*:",
+            "the fallback does not announce itself, so an old console's locally-computed number "
+            "would be shown as if the server had answered.")
+
+    def test_mine_is_named_not_hidden(self):
+        """v2284 kept `mine` at full colour on purpose — a defect of mine nobody can see is one I
+        get to forget about. The fix must not quietly drop it."""
+        _, ui = self._src()
+        body = self._panel_block(ui)
+        self.assertIn("' mine'", body,
+                      "the panel no longer names how many are MINE, so excluding them from "
+                      "'need you' would just be hiding them.")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

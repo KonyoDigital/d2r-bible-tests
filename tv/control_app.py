@@ -21565,7 +21565,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2435",
+        "ver": "v2436",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -23593,7 +23593,38 @@ class Handler(BaseHTTPRequestHandler):
             # collapses "I could not check" into "it is fine".
             try:
                 import console_doctor as _cd
-                self._json(200, {"ok": True, "checks": _cd.run(),
+                _rows = _cd.run()
+                # ══ v2436 — PUBLISH THE PARTITION, BECAUSE THE PANEL WAS RE-DERIVING IT ═══════
+                # This returned raw rows and nothing else, so control_ui.html:13529 had no
+                # partition to read and counted `state === 'missing'` itself — WITHOUT MINE.
+                # Measured on his live console: the panel said 9 need you while /api/status said
+                # 7, same instant, same rows. v2284's own comment asserts this cannot happen
+                # ("console_doctor.MINE is the single list, so the rail and the bar cannot
+                # disagree about whose problem a thing is"); true of the server, never joined
+                # here. Two paths computing one number is the defect, not the arithmetic.
+                # [[the-unjoined-end]] [[copy-drift]]
+                #
+                # ⚠ AND THE POINT OF THE SPLIT IS NOT TIDINESS. v2284 exists because he read
+                # "4 need me" and said "make sure to verify and fix what needs me for real" —
+                # two of the three were MY defects, fixable by no click of his. Billing him for
+                # my bugs is how the number becomes noise, after which the one line that really
+                # is his gets skimmed with the rest.
+                try:
+                    _mine_names = set(getattr(_cd, "MINE", {}) or {})
+                except Exception:
+                    _mine_names = set()
+                _miss = [r for r in _rows if r.get("state") == "missing"]
+                self._json(200, {"ok": True, "checks": _rows,
+                                 # the SAME rule as the _EAGLE partition, and the only one any
+                                 # surface may quote from here on.
+                                 "needsYou": len([r for r in _miss
+                                                  if r.get("check") not in _mine_names]),
+                                 "mine": len([r for r in _miss
+                                              if r.get("check") in _mine_names]),
+                                 "mineWhat": [r.get("check") for r in _miss
+                                              if r.get("check") in _mine_names],
+                                 "unknown": len([r for r in _rows
+                                                 if r.get("state") == "unknown"]),
                                  "generatedTs": int(time.time() * 1000)})
             except Exception as _e:
                 # a doctor that cannot run must say so, never answer "all clear"
