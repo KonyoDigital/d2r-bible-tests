@@ -671,9 +671,31 @@ _PROBE = r"""(function(sel, OK_TRUNC){
         if (clippedWhat.length < 5) clippedWhat.push(
           (cls||c.tagName) + ' :: ' + (c.textContent||'').trim().slice(0,28) + ' [' + why + ']');
       }
+      /* ⚠ v2432 — A TITLE CARRYING THE WHOLE STRING IS A RECOVERY PATH, exactly as a scrollable
+         ancestor is. The note above already draws this line for scrollers: "content outside a
+         scroller is one scroll away, not destroyed". A `title` is the same fact by a different
+         route, and this file's own subject proved it — v1753 measured the Theatre sub-label at
+         562px inside a 208px box, found that shortening could not fix it, and concluded "a title
+         is the honest answer". Until now the harness could not tell that answer from a raw cut, so
+         the only way to stop it complaining was OK_TRUNC — a hand-maintained allowlist BY CLASS
+         NAME, which goes stale silently and says nothing about whether the text is recoverable.
+         Measured on the TV·D tab at 1120x628: 18 truncated elements, of which 13 were `.rcpt-t`
+         ticker lines with NO title (fixed in v2432), 2 already carried one, and 3 sat inside a
+         scrollable `.chron-list`. After the fix every one has a way back — which is what #207's
+         "Nothing ellipsised" can actually mean, since some strings genuinely cannot fit.
+         ⚠ THE TITLE MUST CONTAIN THE FULL TEXT. A title that merely exists, or that paraphrases,
+         recovers nothing — that would be the allowlist again wearing an attribute. */
+      function _recoverable(node, full){
+        if (!full) return false;
+        var t = node.getAttribute && node.getAttribute('title');
+        if (!t && node.closest) { var a = node.closest('[title]'); t = a && a.getAttribute('title'); }
+        return !!(t && String(t).indexOf(full) >= 0);
+      }
       /* the original question: this box hides its own overflowing content */
       if (c.scrollWidth > c.clientWidth+1 && getComputedStyle(c).overflow!=='visible'
-          && c.clientWidth>0) { flag('self'); return; }
+          && c.clientWidth>0) {
+        if (_recoverable(c, (c.textContent||'').trim())) { okTrunc++; return; }
+        flag('self'); return; }
       /* the question it was missing: this box's INK leaves an ancestor that clips */
       var txt = (c.textContent||'').trim();
       if (!txt) return;

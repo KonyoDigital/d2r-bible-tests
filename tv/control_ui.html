@@ -1445,7 +1445,9 @@
      owns no film surface. thOpen() routes to the cockpit first, so the reel still plays. */
   body.theatre-open:not([data-view="sessions"]) .stage {
     display: flex !important;
-    min-height: 0 !important;            /* beat off-air clamp(256px,26vh,330px) */
+    min-height: 0 !important;            /* beat the off-air clamp, whatever it currently is
+                                            (v2431 moved its floor 256px -> 190px; naming a value
+                                            here is how a comment outlives its referent) */
     height: auto !important;
     max-height: none !important;
     flex: 1 1 auto;
@@ -7160,7 +7162,25 @@ body[data-origin="shadow"] #stage::after {
       + (held ? ' rc-held' : '') + (r.empty ? ' rc-empty' : '') + '"'
       + ' data-id="' + esc(r.id || '') + '"' + (refs.frameId ? (' data-frame="' + esc(refs.frameId) + '"') : '')
       + (go ? (' data-rtype="' + esc(r.route.type) + '" data-rtarget="' + esc(r.route.target) + '"') : '') + '>'
-      + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t">' + esc(txt) + '</span>' + chip + ownChip
+      /* ⚠ v2432 (A17 · gh #207) — 13 OF THE CONSOLE'S 18 TRUNCATIONS ARE THIS ONE SPAN, AND NONE
+         OF THEM HAD A WAY BACK. Measured at his window size (1120x628), every truncated element on
+         the TV·D tab, by owner class:
+             .rcpt-t   13   over 47-165px   ellipsis   title? NO
+             .lab       1   over 355px      ellipsis   title? YES  (v1753, argued, kept)
+             .chron-n   3   over 7px        clip       title? no
+             .hh-grail  1   over 3px        ellipsis   title? YES
+         `.rcpt-t` is a bare `overflow:hidden; text-overflow:ellipsis` with no comment justifying
+         it and no fallback, so lines like "routed · ROUTED personal · read fine — nothing on this
+         screen to count" end at the ellipsis and the rest is unrecoverable. #207's acceptance
+         criteria say it outright: "Nothing ellipsised."
+         ⚠ AND THE FILE ALREADY DECIDED THIS EXACT QUESTION ONE CLASS OVER. v1753 measured the
+         Theatre sub-label at 562px inside a 208px box, concluded "shortening cannot fix it and a
+         title is the honest answer", and recorded the principle: text in a nowrap/ellipsis surface
+         is "present in textContent, invisible to him, and a DOM-reading test goes green over it".
+         Same problem, same answer — the ticker just never got it. esc() escapes &<>"' so the same
+         string is safe in the attribute. This does not make the line fit; it makes the truncation
+         RECOVERABLE, which is what the sibling class already offers. */
+      + '<span class="rcpt-ic">' + eng.ic + '</span><span class="rcpt-t" title="' + esc(txt) + '">' + esc(txt) + '</span>' + chip + ownChip
       + (go ? '<span class="rcpt-arrow">→</span>' : '') + '</div>';
   }
   // event delegation, bound once: click → route into the board · hover → floating captured frame
@@ -19611,6 +19631,22 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                               : null;
               /* and the one thing that names the defect he reported, in the words of the DOM:
                  the fleet still showing the copy that means "nobody has asked yet". */
+              /* ⚠ v2432 — THE THEATRE JOINS THE BEAT, because he asked for it in the same breath
+                 as the bug: "connect it to the heart of the console too". A stage that is open and
+                 carrying no ink was visible to nobody but him — the self-heal could not see it
+                 (see the rect-vs-ink note at the theatre poll) and nothing published it, so the
+                 only detector was his eye. Three states, never two: `open:false` says nothing
+                 about ink; `ink:null` is a surface that cannot be judged and is NOT a fault.
+                 [[heart-first]] [[unknown-stays-unknown]] */
+              var _thi = window._thInk || null;
+              o.theatre = {
+                open: !!document.body.classList.contains('theatre-open'),
+                loaded: (function(){ try { return !!(window.TH && TH.sessions && TH.sessions.length); }
+                                     catch(e){ return null; } })(),
+                painted: _thi ? _thi.painted : null,
+                ink: _thi ? _thi.ink : null,
+                why: _thi ? (_thi.why || null) : null
+              };
               var _fl = document.getElementById('fleet-list');
               o.advFleetPlaceholder = _fl ? /open .{0,3} ?advanced to check the fleet/i
                                               .test(_fl.textContent || '') : null;
@@ -19673,7 +19709,49 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
           return;
         }
         var film = th.querySelector('.th-film, #th-film, img, video, canvas');
+        /* ══ v2432 — "PAINTED" WAS A RECT, AND A RECT CANNOT REPORT INK. THIRD TIME HE HAS HAD TO
+           SAY THE STAGE IS BLACK. ═══════════════════════════════════════════════════════════════
+           Konyo, 2026-09-02, with a screenshot: "the shelf and the theatre arent rendering
+           correctly.. still bugged.." — a full-height black stage with CLOSE THEATRE showing and
+           its own caption bar rendering underneath ("42 photos · 23 film · REAL/FAST keep all").
+           Chrome painting, film not.
+
+           `film.getBoundingClientRect().height > 40` asks whether the element has a BOX. #th-film
+           is an <img> stretched to `inset: 0` by CSS, so it has a full-size box whether or not a
+           single pixel ever decoded. THE FILE ALREADY NAMES THIS EXACT FAILURE twenty lines up, in
+           v1612: "#th-film with src=(none): a black rectangle exactly where Konyo expects the live
+           feed, which cost him a night of believing recording was broken". The witness built to
+           catch a black stage could not see the one black stage this repo had already written down.
+
+           And it compounds: the heal only fires when `!(painted && loaded)`. On his screen BOTH are
+           true — sessions are loaded (the caption proves it) and the box is 40px+ tall — so the
+           self-heal returns early forever and the stage stays black until he reports it by hand.
+           v2322's own comment predicted this: "A guard that only recognises the one failure I
+           imagined is the failure it will miss." It recognised two shapes and missed the third.
+
+           An <img> knows whether it decoded: `complete` and `naturalWidth`. A failed or absent src
+           gives naturalWidth 0 — which is why the markup already carries onerror="opacity=.15".
+           That signal existed and only ever changed a style. [[visual-regression-detector]]
+           ⚠ UNKNOWN STAYS UNKNOWN: for a surface whose ink cannot be judged (a canvas we may not
+           read, an unexpected tag) `ink` is null and the heal treats it exactly as it did before —
+           this may make the guard see MORE, never make it fire on something it cannot judge. */
         var painted = film && film.getBoundingClientRect().height > 40;
+        var ink = null, inkWhy = '';
+        try {
+          if (film) {
+            var _tag = film.tagName.toLowerCase();
+            if (_tag === 'img') {
+              if (!film.complete) { ink = false; inkWhy = 'the film image has not finished loading'; }
+              else if (!(film.naturalWidth > 0)) { ink = false; inkWhy = 'the film image decoded to nothing (naturalWidth 0) — a black rectangle with a full-size box'; }
+              else { ink = true; }
+            } else if (_tag === 'video') {
+              ink = film.readyState >= 2;
+              if (!ink) inkWhy = 'the film video has no current frame (readyState ' + film.readyState + ')';
+            }
+            /* any other surface: ink stays null = UNKNOWN, and nothing is claimed */
+          }
+        } catch (e) { ink = null; inkWhy = 'could not judge the film surface: ' + (e && e.message); }
+        window._thInk = { ink: ink, why: inkWhy, painted: !!painted };
         /* ══ v2322 — "PAINTED" WAS THE WRONG QUESTION, AND IT COST HIM THE FIX ═══════════════
            He reported the black console AGAIN on 2026-08-30, with v2228's self-heal shipped and
            live in the page. It had never fired once: tv/ui_faults.jsonl does not exist.
@@ -19697,7 +19775,9 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         var loaded = false;
         try { loaded = !!(window.TH && TH.sessions && TH.sessions.length); } catch (e) { loaded = false; }
         var touchedRecently = (Date.now() - (window._thTouchedAt || 0)) < 12000;
-        if ((painted && loaded) || touchedRecently) { window._thEmptyFor = 0; return; }
+        /* v2432 — `ink === false` is a MEASURED absence of pixels and now defeats the early
+           return. `ink === null` (unjudgeable surface) leaves the old behaviour exactly as it was. */
+        if (((painted && loaded && ink !== false)) || touchedRecently) { window._thEmptyFor = 0; return; }
         window._thEmptyFor = (window._thEmptyFor || 0) + 1;
         if (window._thEmptyFor >= 4) {               /* ~12s open and never finished loading */
           window._thEmptyFor = 0;
@@ -19713,7 +19793,8 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                 why:'the stage was open for 12s and ' + (painted
                       ? 'still held no sessions though a frame was painted (v2322 shape)'
                       : 'had nothing on it at all (v2228 shape)') + ' - it closed itself',
-                where:'control_ui thOpen / self-heal'})});
+                where:'control_ui thOpen / self-heal',
+                ink: (window._thInk || {}).ink, inkWhy: (window._thInk || {}).why})});
           } catch(e){}
         }
       } catch(e){}

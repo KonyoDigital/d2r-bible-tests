@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2431",
+  "ver": "v2432",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2431: the resting hero clamp bottomed out at 256px while 26vh was 163px",
+  "note": "v2432: the black-stage witness measured a box and the img decoded to nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -74,6 +74,11 @@ except Exception:
 
 STATUS = os.environ.get("TV_CONSOLE_URL", "http://127.0.0.1:17772") + "/api/status"
 
+#: how old the page's last beat may be before this gate declines to grade it. The page beats every
+#: 5s; a multiple of that is generous enough to survive a slow frame and short enough that a closed
+#: or reloading page is never graded as if it were on screen.
+BEAT_STALE_S = 30.0
+
 #: states that mean "this panel cannot be reached by any amount of scrolling"
 FATAL = ("ZERO-HEIGHT", "OFF-SIDE")
 
@@ -98,6 +103,69 @@ def fill_of(status):
     if not isinstance(p, dict):
         return None, None
     return p.get("advFill"), p.get("advFleetPlaceholder")
+
+
+def theatre_of(status):
+    """The theatre block out of the raw beat. -> dict | None.
+
+    ⚠ NOT FROM panels_of(). That helper deliberately keeps only STRING values — the per-panel
+    states — and drops every dict, which is why `advFill` is read the same way. The first cut of
+    _theatre_lines took the filtered mapping and therefore reported "theatre NOT PUBLISHED" against
+    a fixture that published one. Its own sabotage caught it on the first run.
+    [[feedback-suspect-the-instrument]]
+    """
+    if not isinstance(status, dict):
+        return None
+    beat = status.get("uiBeat")
+    if not isinstance(beat, dict):
+        return None
+    p = beat.get("panels")
+    if not isinstance(p, dict):
+        return None
+    return p.get("theatre")
+
+
+def _theatre_lines(pan):
+    """The THEATRE half. -> (bad, notes).
+
+    v2432 — Konyo, 2026-09-02, with a screenshot of a full-height black stage: "the shelf and the
+    theatre arent rendering correctly.. still bugged.." and, in the same breath, "connect it to the
+    heart of the console too". This is that connection.
+
+    The console's own self-heal could not see it: it asked `film.getBoundingClientRect().height >
+    40`, and #th-film is an <img> stretched to inset:0, so it has a full-size box whether or not a
+    pixel ever decoded — which is the failure v1612 already wrote down ("#th-film with src=(none):
+    a black rectangle exactly where Konyo expects the live feed"). The beat now carries the img's
+    own decode state instead of its rectangle.
+
+    ⚠ THREE STATES. `ink: null` means the surface could not be judged (an unexpected tag, a canvas
+    we may not read) and is NEVER a finding — that is the difference between a fault and a question
+    nobody could ask. A closed theatre says nothing about ink either. [[unknown-stays-unknown]]
+    """
+    bad, notes = [], []
+    th = pan   # already extracted by theatre_of()
+    if th is None:
+        notes.append("\u26aa theatre     NOT PUBLISHED — this console predates v2432, so whether the "
+                     "stage is carrying film is UNKNOWN, not fine.")
+        return bad, notes
+    if not isinstance(th, dict):
+        notes.append("\u26aa theatre     unreadable (%r) — UNKNOWN." % (th,))
+        return bad, notes
+    if not th.get("open"):
+        notes.append("\U0001f7e2 theatre     closed — nothing is claimed about the film.")
+        return bad, notes
+    ink = th.get("ink")
+    if ink is False:
+        bad.append("\U0001f534 theatre     OPEN AND CARRYING NO FILM — %s. The stage is a black "
+                   "rectangle with its chrome still painting, which is exactly what he "
+                   "photographed. The old witness measured the element's BOX and could not see "
+                   "this." % (th.get("why") or "the film surface reported no pixels"))
+    elif ink is None:
+        notes.append("\u26aa theatre     open · the film surface could not be judged, so nothing is "
+                     "asserted about it. UNKNOWN, not clean.")
+    else:
+        notes.append("\U0001f7e2 theatre     open and carrying film (loaded=%s)." % th.get("loaded"))
+    return bad, notes
 
 
 def _fill_lines(status, pan):
@@ -201,6 +269,19 @@ def check(status=None):
         return 2, ["⚪ UNKNOWN — the console did not answer on %s. That is not a clean console: "
                    "an instrument I could not reach is an EMPTY SEAT, never agreement. Open the "
                    "console and run this again." % STATUS]
+    # ⚠ v2432 — A STALE BEAT IS UNKNOWN, NOT A FINDING. The console RETAINS the last beat when the
+    # page reloads or closes, so a gate run in that window grades a snapshot of a page that no
+    # longer exists. Produced on purpose while testing: killing the browser 3s after load left a
+    # beat in which the drawer was open and the fleet had not yet answered, and this gate refused
+    # over it — a red about a page that had already gone. With the page alive the same check is
+    # green from t+5s on. A reading carries the age of the THING IT MEASURED, and past a point it
+    # measures nothing. [[stale-reading]] [[feedback-blind-fixture-green-gate]]
+    _beat = st.get("uiBeat") if isinstance(st, dict) else None
+    _age = (_beat or {}).get("ageS")
+    if isinstance(_age, (int, float)) and _age > BEAT_STALE_S:
+        return 2, ["\u26aa UNKNOWN — the console's last beat is %.0fs old (fresh is every 5s), so "
+                   "this is a snapshot of a page that may no longer be on screen. Nothing is graded "
+                   "from it. Not a pass." % _age]
     pan = panels_of(st)
     if pan is None:
         return 2, ["⚪ UNKNOWN — the console answered but carries no uiBeat.panels. Either the page "
@@ -233,6 +314,9 @@ def check(status=None):
     fbad, fnotes = _fill_lines(st, pan)
     bad += fbad
     notes += fnotes
+    tbad, tnotes = _theatre_lines(theatre_of(st))
+    bad += tbad
+    notes += tnotes
     out = bad + notes
     if not bad:
         out.append("   %d panel(s) read from the LIVE beat; none collapsed or clipped sideways, "
@@ -256,6 +340,13 @@ def prove():
          beat({"taskforce": "shown", "taskforceH": 502, "taskforceTop": 40,
                "taskforceVh": 628}), 0),
         ("a console that did not answer", None, 2),
+        # v2432 — a beat older than the page that produced it
+        ("a STALE beat from a page that may be gone",
+         {"uiBeat": {"ageS": 240.0, "panels": {"tally": "ZERO-HEIGHT", "tallyH": 0,
+                                               "tallyTop": 0, "tallyVh": 628}}}, 2),
+        ("a FRESH beat is graded normally",
+         {"uiBeat": {"ageS": 3.1, "panels": {"tally": "ZERO-HEIGHT", "tallyH": 0,
+                                             "tallyTop": 0, "tallyVh": 628}}}, 1),
         ("a build with no panels in its beat", {"uiBeat": {"n": 3}}, 2),
         # ⚠ v2406 — THE FALSE RED THAT ACTUALLY HAPPENED, pinned so it cannot come back. On its
         # first run against his live console this gate refused over `tally ZERO-HEIGHT`, which was
@@ -293,6 +384,30 @@ def prove():
         ("an older console that never published the drawer",
          beat({"taskforce": "shown", "taskforceH": 502, "taskforceTop": 40,
                "taskforceVh": 628}), 0),
+        # ══ v2432 — THE THEATRE. His screenshot: an open stage, chrome painting, film black.
+        ("an OPEN theatre carrying no film",
+         beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False,
+               "theatre": {"open": True, "loaded": True, "painted": True, "ink": False,
+                           "why": "the film image decoded to nothing (naturalWidth 0)"}}), 1),
+        # ⚠ AND THE THREE IT MUST NOT REFUSE, or it becomes furniture within a week.
+        ("an open theatre that IS carrying film",
+         beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False,
+               "theatre": {"open": True, "loaded": True, "painted": True, "ink": True}}), 0),
+        ("a theatre he simply has not opened",
+         beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False,
+               "theatre": {"open": False, "loaded": None, "painted": None, "ink": None}}), 0),
+        ("an open theatre whose surface cannot be judged",
+         beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False,
+               "theatre": {"open": True, "loaded": True, "painted": True, "ink": None,
+                           "why": "could not judge the film surface"}}), 0),
     ]
     bad = 0
     print("PROVING THE LIVE-PANEL GATE — on fixtures, never on his console.\n")
