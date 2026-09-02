@@ -1735,9 +1735,21 @@
   #th-shelfov .shs-wpct { flex: none; width: 3.2em; text-align: right; color: var(--mint, #8fe6a0); }
   #th-shelfov .shs-wpct.nil { color: #d98f8f; }
   #th-shelfov .shs-wmb { flex: none; width: 5em; text-align: right; color: var(--text); }
-  #th-shelfov .shs-wtag { flex: none; color: var(--gold-dim); }
-  #th-shelfov .shs-wreel { color: var(--muted); overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; min-width: 0; }
+  /* ⚠ v2434 — THE TWO COLUMNS HAD THEIR ROLES BACKWARDS THE MOMENT THE CONTENT CHANGED, and a
+     cross-family cold read of the v2433 render is what caught it. Asked only to transcribe the
+     rows and say whether anything was cut, it answered: raw machine identifier — NO (the epoch id
+     and the `zero-pages` code word are gone, which was the fix), and text cut off — YES, with the
+     date truncated to "A..." and "J...".
+     WHY: `.shs-wtag` was `flex: none` — correct while it held a SHORT code word like `zero-pages`,
+     and wrong the instant v2433 put a full sentence there. It refuses to shrink, so it takes the
+     whole row; and `.shs-wreel`, the DATE, was the flexible one with ellipsis — so the one field
+     that must never be cut is the one that got cut.
+     A date is short and fixed and carries no more meaning when truncated; a sentence truncates
+     gracefully AND has its full text in a title (v2432's law: a cut is acceptable only when it has
+     a way back). So the roles swap. [[visual-regression-detector]] [[label-outlived-referent]] */
+  #th-shelfov .shs-wtag { flex: 1 1 auto; min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; color: var(--gold-dim); }
+  #th-shelfov .shs-wreel { flex: none; white-space: nowrap; color: var(--muted); }
   #th-shelfov .sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(244px, 1fr)); gap: 12px; }
   /* ══ D18 · CINEMATIC SHELF CARD — each run reads like a film-reel still / collectible: cover-art hero with
      the session title + verdict seal as a broadcast lower-third, a grail headline find, and a clean stat grid.
