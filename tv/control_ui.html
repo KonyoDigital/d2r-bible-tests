@@ -4526,6 +4526,38 @@
   }
   @media (max-width: 900px) {
     body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto auto; }
+    /* ⚠⚠ v2453 — THE STAGE HAD ZERO HEIGHT AT <=900px, AND HE FOUND THE CAUSE HIMSELF:
+       "maybe it because i wasnt full screen." Two black-panel screenshots came from this.
+
+       MEASURED, opening the shelf at each size — width-driven, not height, so it is a hard
+       breakpoint and not a squeeze:
+           920x660 -> stage 464 · 900x900 -> 0 · 900x680 -> 0 · 860x700 -> 0 · 760x900 -> 0
+
+       THE CAUSE, and I was wrong about it twice before measuring the cascade properly.
+       `body.theatre-open .shell` (line ~1445) carries:
+           grid-template-rows: auto minmax(0,1fr) 0 auto auto !important;
+       FIVE track sizes, written for the DESKTOP layout — head · stage · dash(0) · tick · foot.
+       At <=900px the template has SIX rows, because the rail stops being a column and stacks in:
+           "head" "stage" "dash" "rail" "tick" "foot"
+       So every size lands one row short of its area, and the computed track list came out
+       `72px 0px 0px 498px 38px 16px` — matching NO authored rule, which is what made it look
+       impossible. The `!important` is also why my first attempt did nothing: it beats a
+       higher-specificity rule without one.
+
+       ⚠ MY FIRST TWO CAUSES WERE WRONG AND ARE RECORDED SO NOBODY RE-DERIVES THEM: (a) the
+       data-state="off" override moving the 1fr — it does not, and countering it changed nothing;
+       (b) a watchdog rescue loop — read off fault-log rows that turned out to be 50.7 HOURS old,
+       from before the guard that fixed them. A cross-family read named the mechanism class
+       ("the areas template and the rows template disagreeing in COUNT") and named the single
+       measurement that would show it, which is how this was finally settled.
+
+       THE FIX: the same rule, media-scoped, with the SIXTH value the mobile template needs, and
+       a 220px floor so the stage cannot vanish. `!important` because it has to beat the
+       five-value rule above, which stays exactly as it is for >=901px.
+       [[d2r-css-last-rule-wins]] [[feedback-suspect-the-instrument]] */
+    body.theatre-open .shell {
+      grid-template-rows: auto minmax(220px, 1fr) 0 auto auto auto !important;
+    }
   }
   /* v945 CONSOLE PARITY C1 — dashboard cards adopt the theatre's card language: warm hairline
      border, a faint top-surface highlight, roomier padding. One product, one surface. */

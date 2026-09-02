@@ -11716,7 +11716,32 @@ def ui_beat_record(state=None):
             #                      the healthy mark and the witness goes permanently blind.
             _hi_before = max(w) if w else 0
             _collapsed = els < _UI_PAINT_FLOOR_ELS
-            if not _collapsed:
+            # ⚠⚠ v2453 — THE BASELINE MUST NOT LEARN FROM A BEAT WITH THE THEATRE OPEN, or the
+            # collapse RATIO does no work on this console at all.
+            #
+            # MEASURED tonight, same page, seconds apart:
+            #     theatre shut  ->  11,803 elements
+            #     shelf open    ->  84,311 elements   (3,084 reel cards, 2,556 of them then hidden)
+            #
+            # So the shelf swings the DOM by 72,000 elements, LEGITIMATELY. A window that saw one
+            # shelf-open beat sets elsHigh to ~84k, and from then on a perfectly healthy resting
+            # console reads as 14% of baseline — deep inside the 25% collapse band. The only thing
+            # standing between that and a rescue is the `els < 200` floor, which means the ratio
+            # test is INERT here: anything it would catch, the floor already caught.
+            #
+            # That is exactly the shape this file already refuses elsewhere — an invariant that
+            # always agrees may be perfect or it may be inert, and those are opposite facts. The
+            # baseline now learns only from RESTING beats, so elsHigh describes the console he
+            # actually leaves on screen and the ratio means something again.
+            #
+            # ⚠ AND IT DOES NOT MAKE THE WATCHDOG BLINDER. A theatre-open beat is still measured,
+            # still strikes, still rescues — it is only barred from TEACHING the baseline. The
+            # historical rows in ui_faults.jsonl (Aug 31, "11817 against a high-water mark of
+            # 84541") are this defect's own fingerprint, from before the floor guard existed.
+            # [[unknown-stays-unknown]] [[regression-guard]]
+            _st = _UI_BEAT.get("state") or {}
+            _transient = bool(_st.get("theatreOpen"))
+            if not _collapsed and not _transient:
                 w.append(els)
                 if len(w) > _UI_PAINT_WINDOW:
                     del w[:-_UI_PAINT_WINDOW]
@@ -21764,7 +21789,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2452",
+        "ver": "v2453",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

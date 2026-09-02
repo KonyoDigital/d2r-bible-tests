@@ -338,6 +338,18 @@ GATES = [
          "everything. Pins the LAW (any borrower must override) rather than the two panels that "
          "exist today. Also holds the render seam, without which the blood animation can never be "
          "seen run on a console with 0 flowing vessels, and the route's failure direction."),
+    Gate("test_shell_tracks", [sys.executable, os.path.join(HERE, "test_shell_tracks.py")], 60,
+         why="v2453 — THE TRACK COUNT MUST MATCH THE AREA ROW COUNT. Konyo photographed a black "
+             "panel twice and found the cause himself: \"maybe it because i wasnt full screen\". "
+             "`body.theatre-open .shell` carried FIVE track sizes with !important, written for the "
+             "desktop layout; at <=900px the rail stops being a column and stacks in, so the "
+             "template has SIX rows. Every size landed one row short of its area and the computed "
+             "track list came out `72px 0px 0px 498px 38px 16px` — matching NO authored rule, "
+             "which is what made it look impossible and produced TWO wrong diagnoses before the "
+             "cascade was measured properly. The !important is also why a higher-specificity "
+             "counter-rule did nothing. Pins the LAW (tracks must equal area rows, in every media "
+             "block) rather than the numbers, and pins that the narrow rule keeps both its "
+             "!important and a pixel floor — without either, the stage can collapse again."),
     Gate("test_item_classifier", [sys.executable, os.path.join(HERE, "test_item_classifier.py")], 90,
          why="A21a — ONE CLASSIFIER, AND NOTHING MAY CLAIM A NAME IT DOES NOT RECOGNISE. Konyo "
              "found Rotting Fissure — a sunder charm, a UNIQUE — sitting on the SETS chronicle. "
