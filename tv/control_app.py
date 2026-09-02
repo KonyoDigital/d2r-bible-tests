@@ -15022,6 +15022,78 @@ def _self_arming_state():
     }
 
 
+# ── ♥ THE HEART, AS A SURFACE ────────────────────────────────────────────────────────────────
+# v2443 — Konyo: "i want a visual architecture of it within the console so i can click a widget
+# HEART on the bottom of the console next to the version... when i click it it opens the derived
+# heart within the console connected with all the vains and blood streaming correctly and to where
+# it isnt BLUE area."
+#
+# ⚠ IT IS ITS OWN ROUTE AND NOT PART OF status_payload, FOR A MEASURED REASON. heart.vessels()
+# walks the source to take a census; it costs **2.495 s** on this tree. status_payload is polled
+# every few seconds, so folding the heart into it would put a 2.5 s source walk on a hot poll —
+# the exact shape of [[poll-slower-than-its-interval]], where /api/sessions took 172 s and was
+# asked every 12 s until fourteen walks were always in flight. So: separate route, memoised, and
+# the panel asks for it when it OPENS rather than forever.
+_HEART_MEMO = {"t": 0.0, "v": None}
+_HEART_TTL = 45.0
+
+
+def heart_state(force=False):
+    """The heart, derived on every read. -> dict
+
+    NOTHING IS STORED. tv/heart.py has a guard asserting the module never opens a file, because a
+    hand-maintained diagram is a map that drifts from the territory — this repo paid for that on
+    2026-09-02 when BLUEPRINT.md, a GENERATED artifact, went stale and a gate graded the last
+    build. The memo below is a 45 s cache of a DERIVATION, not a stored picture: it expires, and
+    ?force=1 skips it.
+
+    ⚠ EVERY FAILURE PATH RETURNS ok:False WITH NO COUNTS. An unreadable census must not arrive as
+    zero vessels — "nothing runs unwatched" and "nobody could look" are opposite facts and only one
+    of them is safe to act on. [[unknown-stays-unknown]]
+    """
+    import time as _t
+    now = _t.time()
+    if not force and _HEART_MEMO["v"] is not None and (now - _HEART_MEMO["t"]) < _HEART_TTL:
+        out = dict(_HEART_MEMO["v"])
+        out["ageMs"] = int((now - _HEART_MEMO["t"]) * 1000)
+        return out
+    try:
+        import heart as _h
+    except Exception as e:
+        return {"ok": False, "counts": None, "vessels": [], "locks": [], "ageMs": 0,
+                "why": "the heart module will not import (%s), so nothing could be derived"
+                       % str(e)[:90]}
+    try:
+        rep = _h.vessels()
+    except Exception as e:
+        return {"ok": False, "counts": None, "vessels": [], "locks": [], "ageMs": 0,
+                "why": "the census could not be taken (%s)" % str(e)[:90]}
+
+    # THE JOIN. The locks are read from the SAME function the badges read, never re-derived here —
+    # two derivations of one truth is how a badge and a diagram come to disagree on screen.
+    # [[copy-drift]] §1: name ONE source, everything else quotes it.
+    locks = _self_arming_state()
+    out = {
+        "ok": bool(rep.get("ok")),
+        "why": rep.get("why", ""),
+        "counts": rep.get("counts"),
+        "notVessels": rep.get("notVessels"),
+        "vessels": rep.get("vessels") or [],
+        "locks": locks.get("locks") or [],
+        "locksOk": bool(locks.get("ok")),
+        "locksWhy": locks.get("why", ""),
+        "open": locks.get("open"), "total": locks.get("total"),
+        "vocab": {"FLOWING": getattr(_h, "FLOWING", "FLOWING"),
+                  "WATCHED": getattr(_h, "WATCHED", "WATCHED"),
+                  "DARK": getattr(_h, "DARK", "DARK"),
+                  "UNKNOWN": getattr(_h, "UNKNOWN", "UNKNOWN")},
+        "ageMs": 0,
+    }
+    _HEART_MEMO["t"] = now
+    _HEART_MEMO["v"] = out
+    return out
+
+
 def retention_state():
     with _PRUNE_LOCK:
         st = dict(_RETENTION)
@@ -21632,7 +21704,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2442",
+        "ver": "v2443",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -23462,6 +23534,10 @@ class Handler(BaseHTTPRequestHandler):
             # v2329 — the ledger reaches the function that has always taken one.
             self._json(200, fleet_compare((_q.get("machine") or [""])[0],
                                           (_q.get("ledger") or ["sets"])[0]))
+            return
+        if path == "/api/heart":
+            # v2443 — ♥ THE HEART. Derived per read (45 s memo), never stored. ?force=1 re-derives.
+            self._json(200, heart_state(force=("force=1" in (self.path or ""))))
             return
         if path == "/api/chronicle_sweep":
             # v1519 — progress + result of the REAL sweep. GET never starts one; starting spends

@@ -823,6 +823,16 @@
     filter: drop-shadow(0 0 5px rgba(240,192,96,.55)); opacity: .92; animation: jewelGlow 3.6s ease-in-out infinite; }
   @keyframes jewelGlow { 0%,100% { filter: drop-shadow(0 0 4px rgba(240,192,96,.4)); } 50% { filter: drop-shadow(0 0 9px rgba(240,192,96,.7)); } }
   .primary { display: flex; flex-direction: column; gap: clamp(8px, .9vw, 13px); flex: 0 0 auto; }
+  /* ⚠⚠ v2443 — `hidden` DID NOTHING HERE, AND HE IS THE ONE WHO NOTICED.
+     v2438 hid #btn-sim with the `hidden` attribute so the Shelf could be the single door. It kept
+     rendering. `[hidden] { display: none }` comes from the USER-AGENT stylesheet, and ANY author
+     rule that sets `display` beats it — `button.act` sets `display: flex` right below. So the
+     attribute was set, the element was still laid out, and the console still showed two buttons
+     while the source said one.
+     THIS FILE ALREADY KNEW: `.sigil[hidden]`, `.stage-hold[hidden]`, `#forensics-ov[hidden]` and
+     `.fx-reassure[hidden]` all carry this exact guard. The pattern was here and I did not apply
+     it. [[d2r-css-last-rule-wins]] [[feedback-generalize-fixes]] */
+  button.act[hidden] { display: none !important; }
   button.act {
     appearance: none;
     flex: 1;
@@ -4547,12 +4557,20 @@
        · open     — it earned it. Arithmetic, not a human decision.
      A chip with NO state renders as `locked`, never as absent: a missing badge reads as an open
      lock, which is the one direction this must never fail in. */
+  /* ★ v2443 — ONE STAMP, EVERYWHERE THE LOCK IS MENTIONED. His words: "just like it is on vault.
+     i want the lock visually stamped just like it all round and unified anywhere we mention the
+     lock is at."
+     The first cut printed a boxed sentence — "🔒 LOCKED UNTESTED" — and on the Shelf button it ate
+     the width and broke the label into five stacked lines: THE / SHELF — / EVERY / RECORDED / RUN.
+     He saw that before any gate did, which is the one thing that must not happen.
+     A stamp is a MARK, not a sentence. The padlock alone, no border, no box, no words. The state
+     lives in COLOUR and the whole explanation lives in the title — which is where a reader looks
+     when a mark makes them curious, and which costs no layout at all. */
   .lockchip {
-    display: inline-flex; align-items: center; gap: 5px; margin-left: 8px;
-    padding: 1px 7px; border: 1px solid currentColor; border-radius: 2px;
-    font-size: var(--fs-2xs); font-weight: var(--fw-semibold);
-    letter-spacing: var(--ls-wide); text-transform: uppercase;
-    color: #9aa6b2; opacity: .9; vertical-align: middle; cursor: help;
+    display: inline-flex; align-items: center; margin-left: 6px;
+    padding: 0; border: 0; font-size: var(--fs-2xs);
+    letter-spacing: var(--ls-normal); line-height: 1;
+    color: #9aa6b2; opacity: .95; vertical-align: middle; cursor: help;
   }
   .lockchip[data-state="locked"]   { color: #e0857c; }
   .lockchip[data-state="unproven"] { color: #9aa6b2; }
@@ -4584,10 +4602,11 @@
      So the button still works. What changes is that the console stops being silent about which of
      its own surfaces have been proven — which is the whole point of a self-proving system: not to
      stop him, to stop PRETENDING. */
-  .lockchip.lc-inline {
-    display: inline-flex; margin-left: 6px; padding: 0 5px;
-    font-size: var(--fs-2xs); vertical-align: middle;
-  }
+  /* v2443 — INSIDE the label's text flow, not a sibling of it. As a sibling inside .lab
+     (a flex COLUMN) it stretched to the full 147px and took its own row, floating
+     between the title and the description. MEASURED: 147x14 against the vault tab
+     stamp's 17x13. align-self keeps it honest if it is ever reparented. */
+  .lockchip.lc-inline { align-self: flex-start; flex: 0 0 auto; }
   .lockchip.lc-tab {
     position: absolute; top: 1px; right: 3px;
     margin: 0; padding: 0; border: 0; line-height: 1;
@@ -5001,9 +5020,14 @@
      under the shorter one, and DISK stranded in a narrow right column. Reusing another
      component's shell buys its design AND its layout; this panel wants the design and reads top
      to bottom. [[d2r-css-last-rule-wins]] */
-  #ver-xref .fx-body { display: block; }
-  #ver-xref .fx-head { position: relative; padding-right: 40px; }
-  #ver-xref .fx-head .th-x { position: absolute; right: 0; top: -2px; }
+  /* v2443 — #heart-ov joins these. It reuses .fleet-xref/.fxr-win for the same reason #ver-xref
+     does, so it inherits the same two-column grid, and it inherited the same bug: measured at
+     1440 the diagram was squeezed to its 640px min-width and THE VALVES were stranded in the
+     right column with a horizontal scrollbar under everything. The warning was already written
+     directly above and I walked into it anyway. One selector, both panels. */
+  #ver-xref .fx-body, #heart-ov .fx-body { display: block; }
+  #ver-xref .fx-head, #heart-ov .fx-head { position: relative; padding-right: 40px; }
+  #ver-xref .fx-head .th-x, #heart-ov .fx-head .th-x { position: absolute; right: 0; top: -2px; }
   #ver-xref .vx-sec { margin: 0 0 18px; }
   #ver-xref .vx-h { margin: 0 0 7px; font-size: var(--fs-2xs); letter-spacing: var(--ls-widest);
     text-transform: uppercase; color: var(--gold-dim); font-weight: var(--fw-bold);
@@ -5027,6 +5051,57 @@
   #ver-xref .vx-unknown { color: #9aa6b2; letter-spacing: var(--ls-label); }
   #ver-xref .vx-warn .vx-v { color: #e9b96e; }
   #ver-xref .vx-ok   .vx-v { color: var(--mint, #8fe6a0); }
+  /* ═══ ♥ THE HEART ═══ v2443 ══════════════════════════════════════════════════════════════
+     THE COLOUR RULE IS HIS, VERBATIM: "connected with all the vains and blood streaming correctly
+     and to where it isnt BLUE area." So blood is warm and moving; where it is NOT, the vein and
+     its territory go BLUE and stand still. Those two are the only states a glance has to tell
+     apart, and they are opposite in hue, in motion and in brightness — three signals, not one,
+     because a colour-only encoding is one colourblind reader away from saying nothing.
+
+     ⚠ AND THE BLUE IS AN AREA, NOT CONFETTI. The nodes are laid out grouped by state rather than
+     in census order, so every unwatched vessel sits in ONE contiguous arc. Scattered around the
+     ring the same eight vessels read as "a few specks here and there"; gathered, they read as
+     what they are — a quarter of the console with nothing watching it. */
+  #heart-chip {
+    appearance: none; background: none; border: 0; padding: 0 2px; margin: 0;
+    font: inherit; color: inherit; cursor: pointer; letter-spacing: inherit;
+    opacity: .82; transition: opacity .15s ease, color .15s ease;
+  }
+  #heart-chip:hover, #heart-chip:focus-visible { opacity: 1; color: var(--gold, #d8a94a); }
+  #heart-chip .hc-n { font-variant-numeric: tabular-nums; }
+  /* a heart with DARK vessels beats quietly in his eyeline; a fully-flowing one does not need to */
+  #heart-chip[data-dark="1"] { color: #6fa8ff; opacity: 1; animation: hc-beat 2.6s ease-in-out infinite; }
+  @keyframes hc-beat { 0%,72%,100% { opacity: 1; } 80% { opacity: .55; } 88% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { #heart-chip[data-dark="1"] { animation: none; } }
+
+  #heart-ov .hrt-sub { color: var(--muted); font-size: var(--fs-2xs); letter-spacing: var(--ls-label);
+    text-transform: uppercase; margin: 5px 0 0; }
+  #heart-ov .hrt-svgwrap { overflow-x: auto; margin: 14px 0 4px; }
+  #heart-ov svg.hrt { display: block; width: 100%; min-width: 640px; height: auto; }
+  #heart-ov .hrt-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 2px;
+    font-size: var(--fs-2xs); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  #heart-ov .hrt-legend b { font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+  #heart-ov .lg-flowing { color: #e0857c; }
+  #heart-ov .lg-watched { color: #e9b96e; }
+  #heart-ov .lg-dark    { color: #6fa8ff; }
+  #heart-ov .lg-unknown { color: #9aa6b2; }
+  #heart-ov .hrt-note { color: var(--muted); font-size: var(--fs-xs); margin: 10px 0 0;
+    line-height: 1.55; overflow-wrap: anywhere; }
+  #heart-ov .hrt-sec { margin: 18px 0 0; }
+  #heart-ov .hrt-h { margin: 0 0 7px; font-size: var(--fs-2xs); letter-spacing: var(--ls-widest);
+    text-transform: uppercase; color: var(--muted); }
+  #heart-ov .hrt-row { display: grid; grid-template-columns: minmax(0,13em) minmax(0,7em) minmax(0,1fr);
+    gap: 4px 12px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.06);
+    font-size: var(--fs-xs); align-items: baseline; }
+  @media (max-width: 700px) { #heart-ov .hrt-row { grid-template-columns: minmax(0,1fr); gap: 1px; } }
+  #heart-ov .hrt-k { color: var(--text); overflow-wrap: anywhere; }
+  #heart-ov .hrt-s { font-variant-numeric: tabular-nums; letter-spacing: var(--ls-label);
+    text-transform: uppercase; font-size: var(--fs-2xs); }
+  #heart-ov .hrt-w { color: var(--muted); overflow-wrap: anywhere; }
+  #heart-ov .st-FLOWING { color: #e0857c; }
+  #heart-ov .st-WATCHED { color: #e9b96e; }
+  #heart-ov .st-DARK    { color: #6fa8ff; }
+  #heart-ov .st-UNKNOWN { color: #9aa6b2; }
   .fx-x { background: none; border: none; color: var(--text-muted, #b5a48a); cursor: pointer;
     font-size: var(--fs-xs); line-height: 1; padding: 2px 4px; }
   .fx-x:hover { color: var(--text, #e8dcc8); }
@@ -6290,7 +6365,7 @@ body[data-origin="shadow"] #stage::after {
                THROW    a SUGGESTION, held to a stricter bar than keep, and never applied by anything.
                         There is no un-throw in Diablo, so this lane has no button that acts on it. -->
         <div class="hd-col hd-wide hd-vault" id="hd-vault">
-          <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="lockchip" id="lock-vault" data-state="locked" title="the vault acts on your ledger — no lock state has been read yet, so it is LOCKED">🔒 locked</span><span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="lockchip" id="lock-vault" data-state="locked" title="the vault acts on your ledger — no lock state has been read yet, so it is LOCKED. This is a stamp, not a gate: it does not block anything.">🔒</span><span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
           <!-- v2091 — SAY WHERE THE OTHER VAULT IS. Konyo, looking at this console: "on the
                console where is vault manager?" Nothing here is broken — this panel is the VAULT
                ACCUMULATOR and it does what it says. But the MULE MANAGER is a different capability
@@ -6390,7 +6465,7 @@ body[data-origin="shadow"] #stage::after {
              (info blue, not ON AIR's mint or MINI's gold) because this is the one that takes
              the mouse out of his hand: at a glance it must not be mistakable for either
              manual button. [[visual-regression-detector]] -->
-        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl">Mini &middot; Auto</b><span class="lockchip lc-inline" id="lock-miniauto" data-state="locked" title="MINI AUTO — no lock state has been read yet, so it is LOCKED. The badge does not block the button; it says what has been proven.">🔒 locked</span><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
+        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl">Mini &middot; Auto<span class="lockchip lc-inline" id="lock-miniauto" data-state="locked" title="MINI AUTO — no lock state has been read yet, so it is LOCKED. This is a stamp, not a gate: it does not block the button.">🔒</span></b><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
         <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
              fact that it is reading stash/runes/gems/materials and to look out specifically for
              this" — and then "for chronicles too.. a button for it so its focused specifically for
@@ -6688,6 +6763,10 @@ body[data-origin="shadow"] #stage::after {
              green gate is the kind he ends up reporting by hand.
              Found by a second reader on the v2400 work — no gate could see it. [[the-unjoined-end]] -->
         <div id="ver-xref" class="fleet-xref" hidden></div>
+        <!-- v2443 — ♥ THE DERIVED HEART. Filled by _heartOpen() from /api/heart on every open;
+             there is no stored copy anywhere, which is the whole point (tv/heart.py carries a
+             guard asserting the module never opens a file). -->
+        <div id="heart-ov" class="fleet-xref" hidden role="dialog" aria-modal="true" aria-label="The Heart"></div>
         <!-- v945.6 — ONE door: THEATRE (was dual-labeled Simulation/Theatre; same player) -->
         <!-- v1753 — TITLE, because this sub-label lives in a CLIP ZONE. Measured: the closed-state
      text is 562px inside a 208px box at 1440 and 508px inside 148px at 901 — 63% and 71% of
@@ -6720,7 +6799,7 @@ body[data-origin="shadow"] #stage::after {
       <button class="ghost" id="btn-shelf" type="button" style="margin-top:8px;width:100%">
         <img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'">
         <span class="glab">📚 The Shelf — every recorded run</span>
-        <span class="lockchip" id="lock-prune" data-state="locked" title="the deleter removes footage, and there is no undo — no lock state has been read yet, so it is LOCKED">🔒 locked</span>
+        <span class="lockchip" id="lock-prune" data-state="locked" title="the deleter removes footage, and there is no undo — no lock state has been read yet, so it is LOCKED. This is a stamp, not a gate: it does not block anything.">🔒</span>
       </button>
       <!-- v2438 — Theatre RELOCATED, not removed. It keeps its id, class, title and handler, so
            every binding and every spec that reaches for #btn-sim still finds it; only its place
@@ -6770,6 +6849,13 @@ body[data-origin="shadow"] #stage::after {
            it when we hit version 2000.. i want to call it millenium 2027.. etc from there".
            The number tracks the ship, LAST TWO DIGITS: v2027 -> Millenium 27. -->
       <span id="foot-ver">Millenium</span>
+      <!-- v2443 — ♥ THE HEART WIDGET. Konyo: "i can click a widget HEART on the bottom of the
+           console next to the version... thats where it should be located". The counts are
+           DERIVED (/api/heart) and painted in only once an answer lands — before that it reads
+           "not derived yet", never a zero, because "nothing runs unwatched" and "nobody has
+           looked" are opposite facts. [[unknown-stays-unknown]] -->
+      <span class="dot">·</span><button id="heart-chip" type="button" aria-haspopup="dialog"
+        title="♥ THE HEART — the console's own circulation, derived live. Click to open it.">♥ <span id="heart-chip-n" class="hc-n">heart</span></button>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -8706,11 +8792,10 @@ body[data-origin="shadow"] #stage::after {
            window and pushed the Vault and TV·D tabs off the edge. But this line rewrote its
            innerHTML with the full label, so it rendered 150.9px wide. MEASURED, not assumed.
            The state still travels: colour via data-state, and the whole sentence in the title. */
-        var compact = el.classList.contains('lc-tab');
-        el.innerHTML = compact
-          ? (state === 'open' ? '\u{1F513}' : '\u{1F512}')
-          : ((state === 'open' ? '\u{1F513} open' : '\u{1F512} locked')
-             + (num ? ' <span class="lc-n">' + num + '</span>' : ''));
+        /* v2443 — THE MARK, NEVER THE SENTENCE, and the same one on every surface. `compact` used
+           to be true only for the tab; the verbose form is gone entirely because it broke the
+           Shelf's label and because two looks for one meaning is the opposite of unified. */
+        el.innerHTML = (state === 'open' ? '\u{1F513}' : '\u{1F512}');
         el.title = what + ' — '
           + (l ? (l.state + ': ' + (l.why || ''))
                : ((_sa && _sa.why) || 'this console could not read the locks, so it stays locked'));
@@ -10235,6 +10320,249 @@ body[data-origin="shadow"] #stage::after {
   }
   window._verXrefOpen = _verXrefOpen;
   window._verXrefClose = _verXrefClose;
+
+  /* ═══ ♥ THE HEART ═══════════════════════════════════════════════════════════════════════════
+     v2443 — Konyo: "when i click it it opens the derived heart within the console connected with
+     all the vains and blood streaming correctly and to where it isnt BLUE area."
+
+     DERIVED ON EVERY OPEN. There is no stored diagram and there must never be one: on 2026-09-02
+     this repo shipped a gate that graded BLUEPRINT.md — a GENERATED artifact that had gone stale —
+     and passed the last build instead of this one. tv/heart.py carries a test asserting the module
+     never opens a file for exactly that reason. The picture below is a function of the census, and
+     it is wrong the instant the census is, which is the only way a diagram stays true.
+
+     ⚠ AND IT MUST NOT DRAW A HEALTHY HEART OVER AN UNWATCHED ONE. The core fills from the bottom
+     in the real proportion — flowing, then watched, then cold — so a console with nothing proven
+     renders a heart that is entirely BLUE. That is the honest picture today (0 flowing of 21), and
+     if this drew a warm heart anyway it would be a fabricated reassurance on the one surface whose
+     whole job is telling him what nobody is watching. [[unknown-stays-unknown]] [[heart-first]] */
+  var _HRT_COL = { FLOWING: '#e0857c', WATCHED: '#e9b96e', DARK: '#6fa8ff', UNKNOWN: '#9aa6b2' };
+  var _HRT_LOCKCOL = { OPEN: '#8fd0a0', LOCKED: '#e0857c', UNPROVEN: '#9aa6b2', UNKNOWN: '#9aa6b2' };
+  var _hrtBusy = false;
+
+  function _hrtEsc(s){
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /* The nodes are grouped by state, not left in census order, so every unwatched vessel lands in
+     ONE contiguous arc. Scattered, eight dark vessels read as a few specks; gathered, they read as
+     the quarter of the console that they are. DARK leads because it is what needs him. */
+  var _HRT_ORDER = ['DARK', 'UNKNOWN', 'WATCHED', 'FLOWING'];
+
+  function _hrtSvg(d){
+    var W = 960, H = 660, cx = 480, cy = 316, rx = 330, ry = 232;
+    var vs = (d.vessels || []).slice().sort(function(a, b){
+      var ia = _HRT_ORDER.indexOf(a.state), ib = _HRT_ORDER.indexOf(b.state);
+      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      return String(a.name).localeCompare(String(b.name));
+    });
+    var n = vs.length;
+    if (!n) return '';
+    var c = d.counts || {}, tot = 0, k;
+    for (k in _HRT_COL) { if (typeof c[k] === 'number') tot += c[k]; }
+
+    /* the core, filled bottom-up in the measured proportion — a stacked bar wearing a heart */
+    var stops = '', acc = 0, seq = ['FLOWING', 'WATCHED', 'UNKNOWN', 'DARK'];
+    if (tot > 0) {
+      for (var si = 0; si < seq.length; si++) {
+        var frac = (c[seq[si]] || 0) / tot;
+        if (frac <= 0) continue;
+        stops += '<stop offset="' + (acc * 100).toFixed(2) + '%" stop-color="' + _HRT_COL[seq[si]] + '"/>';
+        acc += frac;
+        stops += '<stop offset="' + (acc * 100).toFixed(2) + '%" stop-color="' + _HRT_COL[seq[si]] + '"/>';
+      }
+    }
+    if (!stops) stops = '<stop offset="0%" stop-color="#9aa6b2"/><stop offset="100%" stop-color="#9aa6b2"/>';
+
+    var veins = '', nodes = '', labels = '';
+    for (var i = 0; i < n; i++) {
+      var v = vs[i], st = v.state || 'UNKNOWN', col = _HRT_COL[st] || '#9aa6b2';
+      var ang = (-90 + i * (360 / n)) * Math.PI / 180;
+      var nx = cx + Math.cos(ang) * rx, ny = cy + Math.sin(ang) * ry;
+      /* a vein bows rather than spoking — the control point sits at mid-radius, pushed sideways */
+      var mx = cx + Math.cos(ang) * rx * 0.55 - Math.sin(ang) * 34;
+      var my = cy + Math.sin(ang) * ry * 0.55 + Math.cos(ang) * 34;
+      var pth = 'M ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' Q ' + mx.toFixed(1) + ' ' + my.toFixed(1)
+                + ' ' + nx.toFixed(1) + ' ' + ny.toFixed(1);
+      var flowing = (st === 'FLOWING');
+      veins += '<path d="' + pth + '" fill="none" stroke="' + col + '" stroke-width="'
+             + (flowing ? 2.2 : 1.4) + '" opacity="' + (flowing ? 0.95 : (st === 'DARK' ? 0.6 : 0.42))
+             + '"' + (st === 'DARK' ? ' stroke-dasharray="1 5" stroke-linecap="round"' : '') + '/>';
+      /* BLOOD STREAMING — only on veins that actually carry it. A dash animation on a vein nobody
+         watches would be a moving picture of a thing that is not moving. */
+      if (flowing) {
+        veins += '<path d="' + pth + '" fill="none" stroke="#ffd9d3" stroke-width="2.6"'
+               + ' stroke-linecap="round" stroke-dasharray="5 26" opacity=".85">'
+               + '<animate attributeName="stroke-dashoffset" from="31" to="0" dur="1.5s"'
+               + ' repeatCount="indefinite"/></path>';
+      }
+      nodes += '<circle cx="' + nx.toFixed(1) + '" cy="' + ny.toFixed(1) + '" r="'
+             + (flowing ? 5.5 : 4.4) + '" fill="' + col + '" opacity="'
+             + (st === 'DARK' ? 0.95 : 0.85) + '"><title>' + _hrtEsc(v.name + ' — ' + st + '. ' + (v.why || ''))
+             + '</title></circle>';
+      var right = Math.cos(ang) > -0.08;
+      labels += '<text x="' + (nx + (right ? 11 : -11)).toFixed(1) + '" y="' + (ny + 3.4).toFixed(1)
+              + '" text-anchor="' + (right ? 'start' : 'end') + '" font-size="11" fill="' + col
+              + '" opacity="' + (st === 'DARK' ? 0.98 : 0.72) + '">' + _hrtEsc(v.name) + '</text>';
+    }
+
+    /* THE VALVES — the five self-arming locks, on a ring inside the veins. They gate SURFACES, not
+       vessels, which is why they are drawn as valves on the core rather than as more veins. */
+    var lk = d.locks || [], valves = '';
+    for (var j = 0; j < lk.length; j++) {
+      var L = lk[j], lst = String(L.state || 'UNKNOWN').toUpperCase();
+      var la = (-90 + j * (360 / Math.max(1, lk.length))) * Math.PI / 180;
+      var lxx = cx + Math.cos(la) * 132, lyy = cy + Math.sin(la) * 120;
+      var lc = _HRT_LOCKCOL[lst] || '#9aa6b2';
+      var arith = (typeof L.n === 'number' && L.n > 0)
+        ? (L.k + '/' + L.n + ' sabotages refused, Wilson ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
+           + ' vs a bar of ' + L.bar)
+        : 'no sabotage has been attempted yet, so there is no evidence in either direction';
+      valves += '<g><circle cx="' + lxx.toFixed(1) + '" cy="' + lyy.toFixed(1) + '" r="10.5" fill="#0d1117"'
+              + ' stroke="' + lc + '" stroke-width="1.2" opacity=".95"/>'
+              + '<text x="' + lxx.toFixed(1) + '" y="' + (lyy + 4).toFixed(1) + '" text-anchor="middle"'
+              + ' font-size="11">' + (lst === 'OPEN' ? '\u{1F513}' : '\u{1F512}') + '</text>'
+              + '<title>' + _hrtEsc((L.surface || L.lock) + ' — ' + lst + '. ' + arith) + '</title></g>';
+    }
+
+    var beat = (c.FLOWING > 0)
+      ? '<animate attributeName="r" values="104;110;104" dur="1.5s" repeatCount="indefinite"/>' : '';
+    return '<svg class="hrt" viewBox="0 0 ' + W + ' ' + H + '" role="img"'
+      + ' aria-label="the console’s circulation, derived">'
+      + '<defs><linearGradient id="hrtFill" x1="0" y1="1" x2="0" y2="0">' + stops + '</linearGradient>'
+      + '<radialGradient id="hrtGlow"><stop offset="0%" stop-color="' + (c.FLOWING > 0 ? '#e0857c' : '#6fa8ff')
+      + '" stop-opacity=".22"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient></defs>'
+      + '<circle cx="' + cx + '" cy="' + cy + '" r="104" fill="url(#hrtGlow)">' + beat + '</circle>'
+      + veins + valves
+      + '<g transform="translate(' + cx + ',' + (cy - 8) + ') scale(1.45)">'
+      + '<path d="M 0,-18 C -14,-38 -44,-30 -44,-6 C -44,16 -20,30 0,46 C 20,30 44,16 44,-6'
+      + ' C 44,-30 14,-38 0,-18 Z" fill="url(#hrtFill)" stroke="rgba(255,255,255,.18)"'
+      + ' stroke-width="1"/></g>'
+      + nodes + labels + '</svg>';
+  }
+
+  function _hrtBuild(d){
+    var c = d.counts || {};
+    var head = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head">'
+      + '<b>♥ THE HEART</b><button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button>'
+      + '<div class="hrt-sub">the console’s own circulation · derived on every open, never stored</div>'
+      + '</div><div class="fx-body">';
+    if (!d.ok) {
+      return head + '<div class="hrt-note"><b class="st-UNKNOWN">THE CENSUS COULD NOT BE TAKEN.</b> '
+        + _hrtEsc(d.why || 'no reason given') + '<br>This is not “all clear” — nobody could look, '
+        + 'which is a different fact from nothing being wrong.</div></div></div>';
+    }
+    var legend = '<div class="hrt-legend">'
+      + '<span class="lg-flowing">● flowing <b>' + (c.FLOWING || 0) + '</b></span>'
+      + '<span class="lg-watched">● watched <b>' + (c.WATCHED || 0) + '</b></span>'
+      + '<span class="lg-dark">● dark <b>' + (c.DARK || 0) + '</b> — nothing watches these</span>'
+      + '<span class="lg-unknown">● unknown <b>' + (c.UNKNOWN || 0) + '</b></span>'
+      + '</div>';
+    var rows = '', vs = (d.vessels || []);
+    for (var i = 0; i < vs.length; i++) {
+      var v = vs[i], st = v.state || 'UNKNOWN';
+      rows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(v.name) + '</span>'
+        + '<span class="hrt-s st-' + _hrtEsc(st) + '">' + _hrtEsc(st)
+        + (v.score == null ? '' : ' · ' + Number(v.score).toFixed(3)) + '</span>'
+        + '<span class="hrt-w">' + _hrtEsc(v.why || '') + '</span></div>';
+    }
+    var lrows = '', lk = (d.locks || []);
+    for (var j = 0; j < lk.length; j++) {
+      var L = lk[j], lst = String(L.state || 'UNKNOWN').toUpperCase();
+      /* the arithmetic, in full, because the lock's whole promise is that it opens itself and a
+         promise you cannot check is a promise. n is SABOTAGES ATTEMPTED, never agreements. */
+      var ar = (typeof L.n === 'number' && L.n > 0)
+        ? (L.k + '/' + L.n + ' refused · Wilson ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
+           + ' · needs ' + L.bar)
+        : 'n=0 · needs ' + L.bar;
+      lrows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(L.surface || L.lock) + '</span>'
+        + '<span class="hrt-s" style="color:' + (_HRT_LOCKCOL[lst] || '#9aa6b2') + '">'
+        + (lst === 'OPEN' ? '\u{1F513} ' : '\u{1F512} ') + _hrtEsc(lst) + '</span>'
+        + '<span class="hrt-w">' + _hrtEsc(ar) + ' — ' + _hrtEsc(L.why || '') + '</span></div>';
+    }
+    var age = (typeof d.ageMs === 'number' && d.ageMs > 1500)
+      ? ' · derived ' + Math.round(d.ageMs / 1000) + 's ago' : ' · derived just now';
+    return head + legend + '<div class="hrt-svgwrap">' + _hrtSvg(d) + '</div>'
+      + '<div class="hrt-note">Every vein is a thread this console actually starts. Warm and moving '
+      + 'means something watches it and has proven it; <b class="st-DARK">blue and still means '
+      + 'nothing watches it at all</b>. The core fills in that same proportion, so it is only as '
+      + 'warm as the console has earned. The five valves are the self-arming locks — they open '
+      + 'themselves when their Wilson score clears the bar, and never by hand.'
+      + _hrtEsc(d.notVessels ? ' (' + d.notVessels + ' one-shot tasks are excluded: they inherit their caller’s vessel, so a roster entry would be a lie.)' : '')
+      + _hrtEsc(age) + '</div>'
+      + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
+      + (d.total || lk.length) + ' open</div>' + lrows + '</div>'
+      + '<div class="hrt-sec"><div class="hrt-h">Every vessel · dark first</div>' + rows + '</div>'
+      + '</div></div>';
+  }
+
+  function _heartOpen(){
+    var ov = document.getElementById('heart-ov');
+    if (!ov || _hrtBusy) return;
+    _hrtBusy = true;
+    ov.innerHTML = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head"><b>♥ THE HEART</b>'
+      + '<button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button></div>'
+      + '<div class="fx-body"><div class="hrt-note">taking the census… this walks the source, so '
+      + 'it takes a couple of seconds.</div></div></div>';
+    ov.hidden = false;
+    fetch('/api/heart').then(function(r){ return r.json(); }).then(function(d){
+      ov.innerHTML = _hrtBuild(d || {});
+      _heartChipPaint(d);
+    })['catch'](function(e){
+      /* a failed fetch is not an empty heart — say which it was */
+      ov.innerHTML = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head"><b>♥ THE HEART</b>'
+        + '<button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button></div>'
+        + '<div class="fx-body"><div class="hrt-note"><b class="st-UNKNOWN">THE CONSOLE DID NOT ANSWER</b>'
+        + ' (' + _hrtEsc(String(e && e.message || e)) + '). Nothing was derived, so nothing here is a '
+        + 'claim about the system.</div></div></div>';
+    })['finally'](function(){ _hrtBusy = false; });
+  }
+  function _heartClose(){ var ov = document.getElementById('heart-ov'); if (ov) ov.hidden = true; }
+
+  function _heartChipPaint(d){
+    var el = document.getElementById('heart-chip'), nm = document.getElementById('heart-chip-n');
+    if (!el || !nm) return;
+    if (!d || !d.ok || !d.counts) {
+      nm.textContent = 'heart';
+      el.removeAttribute('data-dark');
+      el.title = '♥ THE HEART — not derived yet. Click to take the census.';
+      return;
+    }
+    var c = d.counts, dark = c.DARK || 0;
+    nm.textContent = dark ? (dark + ' dark') : 'heart';
+    if (dark) el.setAttribute('data-dark', '1'); else el.removeAttribute('data-dark');
+    el.title = '♥ THE HEART — ' + (c.FLOWING || 0) + ' flowing · ' + (c.WATCHED || 0)
+      + ' watched · ' + dark + ' DARK (nothing watches these) · ' + (c.UNKNOWN || 0)
+      + ' unknown. Click to open it.';
+  }
+  window._heartOpen = _heartOpen;
+  window._heartClose = _heartClose;
+  /* v2443 — A NAMED SEAM, AND IT EXISTS FOR ONE REASON. His console has 0 FLOWING vessels, so the
+     blood animation, the heartbeat and an OPEN padlock have never once rendered on real data —
+     and an animation nobody has seen run is a claim nobody has checked. This lets a probe hand the
+     renderer a SYNTHETIC census and assert the moving parts appear, without calling /api/heart and
+     without touching anything he owns. It renders; it does not fetch, store or decide.
+     [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]] */
+  window._heartRender = _hrtBuild;
+
+  try {
+    var _hcEl = document.getElementById('heart-chip');
+    if (_hcEl) _hcEl.addEventListener('click', function(ev){ ev.preventDefault(); _heartOpen(); });
+    var _hOv = document.getElementById('heart-ov');
+    if (_hOv) _hOv.addEventListener('click', function(ev){
+      if (ev.target === _hOv || (ev.target.closest && ev.target.closest('#hrt-close'))) _heartClose();
+    });
+    document.addEventListener('keydown', function(ev){
+      if (ev.key === 'Escape') _heartClose();
+    });
+    /* The chip's counts are painted from a DEFERRED first read, never from the hot status poll:
+       the census walks the source and costs ~2.5s, and a 2.5s job on a few-second poll is how
+       /api/sessions came to have fourteen walks always in flight. [[poll-slower-than-its-interval]] */
+    setTimeout(function(){
+      fetch('/api/heart').then(function(r){ return r.json(); }).then(_heartChipPaint)['catch'](function(){});
+    }, 4000);
+  } catch (e) {}
 
   try {
     var _fvEl = document.getElementById('foot-ver');

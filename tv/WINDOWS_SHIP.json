@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2442",
+  "ver": "v2443",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2442: A16 built and guarded; MINI AUTO badged not enforced; and B-65 dissolved - 31,664 of 414 was an event count over a distinct-name denominator, the same defect v2225 fixed one field over and never swept.",
+  "note": "v2443: the heart is a clickable widget beside the version and the lock stamp is one mark everywhere",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

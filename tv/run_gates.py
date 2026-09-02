@@ -329,6 +329,15 @@ GATES = [
              "is enforced so the deleter cannot arm before the lanes feeding it, that an "
              "unreadable proof queue fails CLOSED, and that may() never grows an override "
              "parameter — which would quietly restore the hand-arming this replaces."),
+    Gate("test_heart_surface", [sys.executable, os.path.join(HERE, "test_heart_surface.py")], 60,
+         "♥ THE HEART AS A SURFACE — the route and the shell it borrows. test_heart covers the "
+         "derivation; this covers what actually broke on the way in. A panel reusing .fleet-xref "
+         "inherits a TWO-COLUMN GRID along with the design: #ver-xref hit that and wrote a warning, "
+         "and v2443 added #heart-ov three lines under the warning and hit it again — the diagram "
+         "squeezed to its 640px min-width, the valves stranded in a right column, a scrollbar under "
+         "everything. Pins the LAW (any borrower must override) rather than the two panels that "
+         "exist today. Also holds the render seam, without which the blood animation can never be "
+         "seen run on a console with 0 flowing vessels, and the route's failure direction."),
     Gate("test_lane_health", [sys.executable, os.path.join(HERE, "test_lane_health.py")], 60,
          why="v2272 — HE HAD TO ASK WHY NOTHING HAD BEEN EXTRACTED FOR DAYS. Measured that day: the "
              "chronicle lane had swept 36 sessions and the vault lane had sealed 8, its newest seal "
