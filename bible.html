@@ -16384,6 +16384,19 @@ function _artRarity(name){
     // "Rune" (Rune Sword / Rune Bow / Rune Staff / Rune Scepter / Rune Master) — same trailing-word guard as
     // SHARED_STASH_RE, so those bases keep their proper basic/set/unique colour instead of an orange rune glow.
     if (!r && /\brunes?\b(?!\s+[a-z])/i.test(name)) r = 'rune';
+    /* v2449 — THE SUNDER CHARMS ARE UNIQUES, and nothing here knew it. Konyo, live: "rotting
+       fissure is a sunder charm related to the uniques chronicle and not the SETS chornicle".
+       ITEM_CODEX carries "Latent Rotting Fissure" (rarity: unique) but NOT the bare name, nor any
+       "Renewed …" variant, nor the other five charms — so every one of them fell through this
+       whole chain to '' and was claimed by the Sets bar downstream.
+       SUNDER_CHARMS is the roster this feature already maintains for its own card, so this reads
+       an EXISTING source rather than adding a fifth hand-kept exceptions list — v1913's lesson,
+       applied: "A list of exceptions is not a classifier."
+       Runs BEFORE findSetPiece so a charm can never be mistaken for a set piece by name. */
+    if (!r && typeof SUNDER_CHARMS !== 'undefined'){
+      var _sn = String(name).replace(/^(Latent|Renewed|PreCrafted)\s+/i, '');
+      if (SUNDER_CHARMS.some(function(c){ return c.n === _sn; })) r = 'unique';
+    }
     if (!r && typeof findSetPiece === 'function' && findSetPiece(name)) r = 'set';
     // v311 — THE ONE SWITCH: _artRarity is the single source of truth for an item's in-game
     // quality colour. Any KNOWN grail/registry item that didn't resolve above falls through to
@@ -41565,7 +41578,15 @@ function renderJournal(){
       var rar=''; try { rar = window._artRarity ? (window._artRarity(n)||'') : ''; } catch(e){}
       var listU = _L.some(function(i){return i.n===n;}) || !!(window._UNI_EXTRA && window._UNI_EXTRA[n]);
       var isU = (rar==='unique') || (rar!=='set' && listU);
-      var isS = (rar==='set') || (!listU && rar==='');
+      /* ⚠⚠ v2449 — THE CATCH-ALL v1913 SAID IT HAD DELETED, STILL HERE. Its comment above reads
+         "AND `else -> set` IS GONE. A name neither side recognises is claimed by NEITHER bar" —
+         and then this line claimed every unrecognised name for the Sets bar via `rar===''`. The
+         comment and the code disagreed, and the comment is the one people read. Fourth shipment
+         of this defect class (v664, v1692, v1913, now the sunder charms).
+         A name the classifier has no opinion about is claimed by NEITHER bar, which is what the
+         promise actually said. An undo that cannot undo is worse than no button.
+         [[feedback-comments-vs-code]] [[the-unjoined-end]] */
+      var isS = (rar==='set');
       return kind==='uni' ? isU : (isS && !isU);
     });
     if(!mine.length) return '';
@@ -48197,7 +48218,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2448', name:'v2448 - CF-13 A MEASUREMENT NOBODY READ', date:'2026-09-02', note:'the scope auditor was right and had no caller outside its own tests' };
+  window.D2R_BUILD = { id:'v2449', name:'v2449 - THE SUNDER CHARMS ARE UNIQUES', date:'2026-09-02', note:'rotting fissure sat on the sets chronicle and so did the other five charms' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

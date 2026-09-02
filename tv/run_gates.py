@@ -338,6 +338,20 @@ GATES = [
          "everything. Pins the LAW (any borrower must override) rather than the two panels that "
          "exist today. Also holds the render seam, without which the blood animation can never be "
          "seen run on a console with 0 flowing vessels, and the route's failure direction."),
+    Gate("test_item_classifier", [sys.executable, os.path.join(HERE, "test_item_classifier.py")], 90,
+         why="A21a — ONE CLASSIFIER, AND NOTHING MAY CLAIM A NAME IT DOES NOT RECOGNISE. Konyo "
+             "found Rotting Fissure — a sunder charm, a UNIQUE — sitting on the SETS chronicle. "
+             "FOURTH shipment of one class: v664 walked 62 mod-chronicle uniques into "
+             "d2r_setPieces, v1692 routed a find into the physical vault, v1913 put Blood Crescent "
+             "on the Sets bar. v1913 diagnosed it correctly and its own comment PROMISED the cure "
+             "— \"`else -> set` IS GONE, a name neither side recognises is claimed by NEITHER "
+             "bar\" — and the code kept the catch-all for two hundred versions while the comment "
+             "said otherwise. This pins BOTH halves: the sets bucket may not claim a name the "
+             "classifier has no opinion about, and a comment claiming the catch-all is gone must "
+             "be true. It also pins that the sunder charms resolve through the roster the feature "
+             "already maintains rather than a fifth hand-kept exceptions list, that the roster "
+             "still holds six, and that Latent/Renewed prefixes are stripped — the codex carries "
+             "only the 'Latent …' form, so without stripping it recognises one form in three."),
     Gate("test_lane_health", [sys.executable, os.path.join(HERE, "test_lane_health.py")], 60,
          why="v2272 — HE HAD TO ASK WHY NOTHING HAD BEEN EXTRACTED FOR DAYS. Measured that day: the "
              "chronicle lane had swept 36 sessions and the vault lane had sealed 8, its newest seal "

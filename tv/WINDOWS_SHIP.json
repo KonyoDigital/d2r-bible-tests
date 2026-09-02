@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2448",
+  "ver": "v2449",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2448: the scope auditor was right and had no caller outside its own tests",
+  "note": "v2449: rotting fissure sat on the sets chronicle and so did the other five charms",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
