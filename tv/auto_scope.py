@@ -149,16 +149,64 @@ LANES = {
 }
 
 
+#: `_fn_source` could not prove it read the function it was asked for. Distinct from None (the
+#: function does not exist) because the honest answers differ: absent is a real finding, STALE is
+#: "the audit could not be performed", which is UNKNOWN and must never render as a pass.
+_STALE = "\x00STALE"
+
+
 def _fn_source(mod, name):
-    """The source of the function a lane runs, or None if it cannot be found."""
+    """The source of the function a lane runs. -> str | None | _STALE
+
+    ★ v2438 — THIS RETURNED SOMEBODY ELSE'S FUNCTION FOR ALL ELEVEN LANES, AND TEN OF THEM PASSED.
+
+    `inspect.getsource` slices the file ON DISK at the RUNNING code object's `co_firstlineno`,
+    then walks backwards to the nearest `def`. His console runs the build it booted with while the
+    tree moves under it, so the moment a version bump adds lines above a lane, every lookup lands
+    off by that many lines and returns whatever function the walk-back happens to hit.
+
+    MEASURED 2026-09-02, console on v2436 against a v2437 tree 30 lines longer:
+
+        declared                 actually read
+        _ledger_backup_loop  ->  _ledger_snapshot_once   <- the only one that happens to delete
+        _prune_loop          ->  live.sort
+        _warden_loop         ->  live.sort
+        _eagle_watch_loop    ->  _eagle_once
+        ... 11 of 11 wrong
+
+    So the eagle reported ONE false MISSING ("tvd-ledger-backup promises it never deletes, and
+    _ledger_backup_loop itself calls os.remove(") and — far worse — TEN SILENT PASSES about
+    functions nobody declared. `check_declarations`' OK line, "no lane's own body contradicts its
+    promise", was a statement about ten unrelated bodies. **`tvd-rolling-prune` is the only lane
+    that can remove his footage and it was being audited against `live.sort`.**
+
+    ⚠ THIS REPO ALREADY CLOSED THIS EXACT DEFECT AND NEVER SWEPT IT. `control_app._app_ver()`
+    carries the same paragraph and was fixed at v2155 (#175) by reading `co_consts` instead of
+    slicing the file. `co_firstlineno` appears nowhere in this module; the sibling sat here for
+    283 versions. [[feedback-generalize-fixes]] [[sweep-dont-ask]]
+
+    THE FIX IS TO VERIFY THE INSTRUMENT GOT WHAT IT ASKED FOR — not to follow more hops. A
+    transitive walk was already measured and rejected next door (`undeclared_reach_abilities`:
+    reach 6, 23, 34 and **71**, "in a module this size nearly everything reaches everything"), and
+    trading one false red for four is not an improvement.
+
+    ⚠ AND IT MUST BE UNKNOWN, NOT A SKIP. "The file on disk no longer matches the running process"
+    is a true and useful statement; silently passing the lane would convert a visible false red
+    into an invisible false green, which is the direction that gets somebody's footage deleted.
+    """
     import inspect
+    import re as _re
     fn = getattr(mod, name, None)
     if fn is None:
         return None
     try:
-        return inspect.getsource(fn)
+        src = inspect.getsource(fn)
     except Exception:
         return None
+    # the whole guard: does the text we were handed actually START with the def we asked for?
+    if not _re.match(r"[ \t]*(async[ \t]+)?def[ \t]+%s[ \t]*\(" % _re.escape(name), src):
+        return _STALE
+    return src
 
 
 def reachable_source(mod, name, depth=3):
@@ -253,6 +301,14 @@ def check_declarations(mod):
         if direct is None:
             breaks.append("%s: names %s, which does not exist — the declaration describes code "
                           "nobody can find" % (lane, fname))
+            continue
+        if direct is _STALE:
+            # v2438 — the audit COULD NOT BE PERFORMED. Say that, rather than passing the lane on
+            # evidence about a function nobody declared. This is the ten-silent-passes case, and
+            # the fix is only worth anything because it refuses in the QUIET direction too.
+            breaks.append("%s: the file on disk no longer matches the running process, so %s "
+                          "could not be read — this lane is UNAUDITED, not clean. Relaunch the "
+                          "console to re-measure." % (lane, fname))
             continue
         for word in spec.get("forbids") or []:
             for call in FORBIDDEN_CALLS.get(word, ()):

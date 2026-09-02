@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2437"   # THE CONSOLE COULD NOT SAY WHAT WAS WRONG, AND IT LEAKED CHILDREN
+VERSION = "v2438"   # THE AUDITOR READ THE WRONG FUNCTION AND TEN LANES PASSED ON IT
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

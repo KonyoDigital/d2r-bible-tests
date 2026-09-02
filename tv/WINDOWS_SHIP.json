@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2437",
+  "ver": "v2438",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2437: CF-1 was a misdiagnosis the panel forced: two healthy sentences printed under the word missing. Plus two unreaped Popens and the gate that was blind to both.",
+  "note": "v2438: Plus the lock that unlocks itself, Wilson as the fifth organ of the heart, and a visible lock on the vault and the deleter.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

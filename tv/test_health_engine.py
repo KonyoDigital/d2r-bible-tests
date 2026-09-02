@@ -281,6 +281,58 @@ class TestTheArmedMigrationCheck(unittest.TestCase):
         self.assertIn("ARMED", r["line"])
 
 
+class TestWilsonIsTheFifthOrganOfTheHeart(unittest.TestCase):
+    """★ v2438 — Konyo: "the heart should be wilson score too, not just doctor / eagle eye /
+    watchdog / corroborator — wilson score embedded in it too."
+
+    The heart scores rows in ONE place. What these cases defend is the distinction the whole
+    self-proving idea rests on, and it is easy to lose to a `or 0`:
+
+        UNTESTED (n=0)  -> score None   work owed, and NOT a fault
+        INERT   (0 of N)-> score 0.0    it WAS tested and could not refuse — the dangerous one
+
+    An invariant that always agrees may be perfect or inert, and no amount of agreement tells
+    them apart. If these two collapse, a lock opens because nobody ever tried to break it.
+    """
+
+    def test_untested_scores_NONE_not_zero(self):
+        r = HE._row("x", HE.OK, "l", k=0, n=0)
+        self.assertIsNone(r["score"],
+                          "n=0 produced a NUMBER. 'nobody looked' would then be indistinguishable "
+                          "from 'it scored zero', and untested work would read as a failure")
+        self.assertEqual(r["proofN"], 0)
+
+    def test_INERT_scores_zero_and_is_NOT_none(self):
+        r = HE._row("x", HE.OK, "l", k=0, n=40)
+        self.assertEqual(r["score"], 0.0,
+                         "40 sabotages, 0 refusals must score 0.0 — a guard that cannot say no is "
+                         "the defect, and it must never hide behind the untested state")
+
+    def test_a_row_with_no_proof_history_carries_no_score_FIELD_at_all(self):
+        r = HE._row("x", HE.OK, "l")
+        self.assertNotIn("score", r,
+                         "a check with no proof history published a score field. An absent field "
+                         "and a null score are both honest; a fabricated one is not")
+
+    def test_the_score_comes_from_confidence_not_a_local_copy(self):
+        import inspect
+        src = inspect.getsource(HE._row)
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        self.assertIn("from confidence import wilson_lower", code)
+        self.assertNotIn("def wilson", code,
+                         "a second copy of the Wilson maths in the heart. [[copy-drift]] — two "
+                         "copies of one law diverge and only one gets tuned")
+
+    def test_the_scale_matches_the_published_reference(self):
+        """confidence.py publishes 2/2=0.342, 4/4=0.510, 10/10=0.722, 20/20=0.839 and the lock
+        bars are set from those. If the scale moves, every bar silently means something else."""
+        for k, n, want in ((2, 2, 0.342), (4, 4, 0.510), (10, 10, 0.722), (20, 20, 0.839)):
+            got = HE._row("x", HE.OK, "l", k=k, n=n)["score"]
+            self.assertAlmostEqual(got, want, places=2,
+                                   msg="%d/%d scored %.3f, not the published %.3f — the lock bars "
+                                       "are calibrated to this scale" % (k, n, got, want))
+
+
 class TestTheDecidingSentenceIsTHEONEPRINTED(unittest.TestCase):
     """★ v2437 — THE PANEL PRINTED TWO SENTENCES DESCRIBING A HEALTHY LANE, UNDER THE WORD MISSING.
 

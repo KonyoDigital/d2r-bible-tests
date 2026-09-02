@@ -350,6 +350,88 @@ class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
                         "a one-frame contradiction from 71 functions of noise")
 
 
+class TestTheAuditorPROVESItGotTheFunctionItAskedFor(unittest.TestCase):
+    """★ v2438 — IT READ SOMEBODY ELSE'S FUNCTION FOR ALL ELEVEN LANES, AND TEN OF THEM PASSED.
+
+    `inspect.getsource` slices the file ON DISK at the RUNNING code object's `co_firstlineno` and
+    walks back to the nearest `def`. His console runs the build it booted with while the tree moves
+    under it, so after any bump that adds lines above a lane, every lookup lands off by that many
+    lines. Measured on a console at v2436 against a v2437 tree 30 lines longer, 11 of 11 lanes
+    resolved wrong — `_prune_loop` was audited against `live.sort`, and that is the ONLY lane that
+    can remove his footage.
+
+    The one false red was visible. The TEN SILENT PASSES were not, and they are the reason the
+    second case below matters more than the first.
+
+    ⚠ WHY THE EXISTING SUITE COULD NEVER SEE THIS: `check_declarations(ca) == []` is asserted in a
+    FRESH process, where the file and `co_firstlineno` agree by construction. The bug needs a
+    long-running process whose file changed underneath it — his console's normal state between
+    every bump and relaunch, and something CI structurally cannot produce.
+    [[gate-blind-to-unexercised-input]] [[feedback-blind-fixture-green-gate]]
+
+    ⚠ AND IT IS AN UNSWEPT SIBLING: `control_app._app_ver()` carries this same paragraph and was
+    fixed at v2155 (#175). `co_firstlineno` appears nowhere in auto_scope; the sibling sat here for
+    283 versions. [[sweep-dont-ask]]
+    """
+
+    def _with_getsource(self, fake):
+        import inspect
+        real = inspect.getsource
+        inspect.getsource = fake
+        self.addCleanup(setattr, inspect, "getsource", real)
+
+    def _ca(self):
+        import control_app as ca
+        return ca
+
+    def test_the_clean_tree_has_no_breaks(self):
+        """Baseline. Without this the two sabotages below could 'pass' against an already-red
+        subject and prove nothing. [[regression-guard]] §5"""
+        self.assertEqual(AS.check_declarations(self._ca()), [])
+
+    def test_a_wrong_function_that_DELETES_is_UNAUDITED_not_an_accusation(self):
+        self._with_getsource(lambda fn: "def _ledger_snapshot_once(force=False):\n    os.remove(x)\n")
+        breaks = AS.check_declarations(self._ca())
+        self.assertTrue(breaks, "the auditor said nothing at all about an unreadable tree")
+        self.assertFalse([b for b in breaks if "itself calls os.remove(" in b],
+                         "the lane was ACCUSED on the strength of a body it never declared — "
+                         "this is the false red that was on his eagle for a whole day")
+        self.assertTrue(all("UNAUDITED" in b for b in breaks),
+                        "an unreadable audit must say UNAUDITED, because 'could not be performed' "
+                        "is a true statement and 'this lane breaks its promise' is not")
+
+    def test_a_wrong_function_that_is_CLEAN_still_does_not_PASS(self):
+        """The half that matters more: ten lanes were passing on evidence about other functions,
+        and a fix that only stopped the false red would have left every one of them green."""
+        self._with_getsource(lambda fn: "def _retention_once():\n    pass\n")
+        breaks = AS.check_declarations(self._ca())
+        self.assertTrue(breaks,
+                        "the auditor PASSED every lane while reading somebody else's body. A "
+                        "green earned from the wrong function is worse than a red, because "
+                        "nobody looks again.")
+        self.assertTrue(all("UNAUDITED" in b for b in breaks))
+
+    def test_a_function_that_does_not_exist_is_still_a_REAL_finding(self):
+        """STALE and ABSENT must not collapse: a declaration naming code nobody can find is a
+        genuine defect, and folding it into 'could not audit' would hide it."""
+        self._with_getsource(lambda fn: (_ for _ in ()).throw(OSError("no source")))
+        breaks = AS.check_declarations(self._ca())
+        self.assertTrue(breaks)
+        self.assertTrue(all("does not exist" in b for b in breaks),
+                        "an unreadable-source failure was reported as a stale-file one; the two "
+                        "have different remedies and must stay apart")
+
+    def test_the_guard_is_the_NAME_check_and_not_a_line_number(self):
+        import inspect
+        src = inspect.getsource(AS._fn_source)
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        self.assertIn("_STALE", code)
+        self.assertIn("re.escape(name)", code.replace("_re.escape(name)", "re.escape(name)"),
+                      "the check must be that the text STARTS WITH the def it asked for. Pinning "
+                      "a line number would go wrong the next time the file moves, which is the "
+                      "exact failure being fixed.")
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

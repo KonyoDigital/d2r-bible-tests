@@ -4533,6 +4533,31 @@
     margin-bottom: var(--hd-head-mb); padding: 0 0 6px 10px; border-left: 2px solid var(--gold-antique);
     border-bottom: 1px solid rgba(200,180,120,.12); }
   .hd-sub { font-weight: var(--fw-normal); opacity: .55; letter-spacing: var(--ls-normal); margin-left: 8px; font-size: var(--fs-xs); }
+  /* ══ v2438 — THE VISIBLE HALF OF THE SELF-ARMING LOCK ════════════════════════════════════════
+     Konyo: "i want a visual lock on whats locked in the console resembling the BACKEND coding lock
+     for wilson score on anything.. so for instance the vault should have a lock on it until its
+     proven to be working clean and perfectly" — and, narrowing it himself: "most of the console
+     works. just the vault" plus "the theatre mode, the pruning section for it.. where the videos
+     get pruned and deleted. those are locked."
+
+     THREE looks, because the states are three and collapsing any two is the defect:
+       · locked   — tested, and it could not refuse. The dangerous one, and it reads loudest.
+       · unproven — nobody has tried to break it yet. WORK OWED, NOT A FAULT, so it is quiet
+                    rather than red; a chip that shouts at its own newest surfaces gets ignored.
+       · open     — it earned it. Arithmetic, not a human decision.
+     A chip with NO state renders as `locked`, never as absent: a missing badge reads as an open
+     lock, which is the one direction this must never fail in. */
+  .lockchip {
+    display: inline-flex; align-items: center; gap: 5px; margin-left: 8px;
+    padding: 1px 7px; border: 1px solid currentColor; border-radius: 2px;
+    font-size: var(--fs-2xs); font-weight: var(--fw-semibold);
+    letter-spacing: var(--ls-wide); text-transform: uppercase;
+    color: #9aa6b2; opacity: .9; vertical-align: middle; cursor: help;
+  }
+  .lockchip[data-state="locked"]   { color: #e0857c; }
+  .lockchip[data-state="unproven"] { color: #9aa6b2; }
+  .lockchip[data-state="open"]     { color: #8fd0a0; }
+  .lockchip .lc-n { opacity: .7; font-weight: var(--fw-normal); letter-spacing: var(--ls-normal); }
   .hd-chips { display: flex; flex-wrap: wrap; gap: var(--hd-gap-in); }
   /* ══ v1636 · THE FORGE QUESTS SIT ON A GRID ═══════════════════════════════════════════════════
      Measured at v1635: four quest chips came out 127 / 108 / 137 / 237px wide, because .hd-chips
@@ -6224,7 +6249,7 @@ body[data-origin="shadow"] #stage::after {
                THROW    a SUGGESTION, held to a stricter bar than keep, and never applied by anything.
                         There is no un-throw in Diablo, so this lane has no button that acts on it. -->
         <div class="hd-col hd-wide hd-vault" id="hd-vault">
-          <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_foc_stash.png" alt="" loading="lazy" onerror="this.remove()"> VAULT ACCUMULATOR <span class="lockchip" id="lock-vault" hidden></span><span class="hd-sub" id="vault-sub">what your sealed reels say you own</span></div>
           <!-- v2091 — SAY WHERE THE OTHER VAULT IS. Konyo, looking at this console: "on the
                console where is vault manager?" Nothing here is broken — this panel is the VAULT
                ACCUMULATOR and it does what it says. But the MULE MANAGER is a different capability
@@ -6631,17 +6656,37 @@ body[data-origin="shadow"] #stage::after {
      at 901px, so shortening cannot fix it and a title is the honest answer. This repo already
      carries the scar in bible.html: text in a nowrap/ellipsis surface is "present in
      textContent, invisible to him", and a DOM-reading test goes green over it. -->
-        <button class="act b-sim" id="btn-sim" type="button" title="replay last session · scrub ts + frames · click again = off"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       </div>
       <!-- v882 (Konyo: 'wiped — we moved them to the top') — the BIBLE rail is retired;
            the header tabs are the one nav. The util row inherits the room. -->
       <!-- v888 (Konyo: 'what do they do? structure or remove') — the strip dissolved:
            TV·D = 6th header tab · shelf = named button under THEATRE · log toggle lives
            in the Agent Mind bar. Hidden compat stubs keep old wiring + specs honest. -->
+      <!-- ══ v2438 — ONE DOOR, NOT TWO STACKED ═══════════════════════════════════════════════
+           Konyo: "the theatre and the shelf need to be one button that opens the other.. not two
+           button ontop of eachother its very confusing to me", then: "theatre when click is last
+           reel session? but this button can be located within the SHELF instead... i dont want
+           you deleting anything or pruning i want you making it as an additive".
+
+           So THE SHELF is the door, and Theatre moves INSIDE it as the named shortcut to the
+           last recorded run. ADDITIVE: #btn-sim keeps its id, its class, its title and its
+           handler — it is relocated, not removed, so every existing binding and spec still
+           finds it. Same idiom this file already uses for btn-board / btn-theatre / btn-log.
+
+           The prune chip lives here because this is where the reels are. ⚠ AND THERE IS NO
+           PRUNING SECTION TO PUT IT IN — the deleter reports into one segment of a footer
+           label that `_lbl.split(' · ')[0]` then throws away. Filed, not fixed here. -->
       <button class="ghost" id="btn-shelf" type="button" style="margin-top:8px;width:100%">
         <img class="gjewel" src="/art/hd_zod_rune.png" alt="" onerror="this.style.display='none'">
         <span class="glab">📚 The Shelf — every recorded run</span>
+        <span class="lockchip" id="lock-prune" hidden></span>
       </button>
+      <!-- v2438 — Theatre RELOCATED, not removed. It keeps its id, class, title and handler, so
+           every binding and every spec that reaches for #btn-sim still finds it; only its place
+           in the layout changed. The Shelf is now the single door, and Theatre is reached from
+           inside it (the shelf's own rows already carry "▶ Open in Theatre" via
+           window._dossierToTheatre). Same compat-stub idiom as the three buttons below. -->
+      <button class="act b-sim" id="btn-sim" type="button" hidden title="replay last session · scrub ts + frames · click again = off"><span class="ic">🎞</span><span class="lab"><b>Theatre</b><span>replay last session · scrub ts + frames · click again = off</span></span></button>
       <button id="btn-board" type="button" hidden></button>
       <button id="btn-theatre" type="button" hidden></button>
       <button id="btn-log" type="button" hidden><span class="glab" hidden></span></button>
@@ -8576,6 +8621,51 @@ body[data-origin="shadow"] #stage::after {
     /* v2080 — and the retention cycle, on the same line, for the same reason: it was built to act
        on its own, so the ONE thing he must be able to see is what it did or why it did not. A
        deleter that runs unattended and reports nowhere is worse than one that never runs. */
+    /* ══ v2438 — PAINT THE LOCKS. Reads st.selfArming and NEVER derives a state of its own —
+       two surfaces computing one status is exactly how the eagle panel and the server came to
+       disagree about "need you" in v2436. One place decides; this quotes it.
+
+       ⚠ FAILS LOCKED IN EVERY DIRECTION. No payload, no row, an unreadable queue, an old console
+       that ships no field — all render LOCKED. A badge that goes blank or absent reads as an OPEN
+       lock, and that is the one way this must never fail. */
+    try {
+      var _sa = st.selfArming || null;
+      var _saRows = (_sa && _sa.locks) || [];
+      var _lockFor = function(prefix){
+        var mine = _saRows.filter(function(l){ return String(l.lock || '').indexOf(prefix) === 0; });
+        if (!_sa || !mine.length) return null;      // null -> caller renders LOCKED, not blank
+        // the WORST state wins: one unproven surface locks the group, because a group badge that
+        // averaged its members would let a proven lane vouch for an untested one
+        var rank = { locked: 0, unproven: 1, open: 2 };
+        mine.sort(function(a, b){
+          return (rank[String(a.state || '').toLowerCase()] ?? -1)
+               - (rank[String(b.state || '').toLowerCase()] ?? -1);
+        });
+        return mine[0];
+      };
+      var _paintChip = function(id, prefix, what){
+        var el = document.getElementById(id); if (!el) return;
+        var l = _lockFor(prefix);
+        var state = l ? String(l.state || '').toLowerCase() : 'locked';
+        if (state !== 'open' && state !== 'unproven') state = 'locked';
+        el.hidden = false;
+        el.setAttribute('data-state', state);
+        var n = l && typeof l.n === 'number' ? l.n : null;
+        var sc = l && typeof l.score === 'number' ? l.score : null;
+        /* n=0 must NOT print a number. "nobody has tested it" and "it scored zero" are different
+           facts, and the second one is the dangerous state. */
+        var num = (n === null) ? '' : (n === 0 ? 'untested'
+                    : (sc === null ? 'untested' : sc.toFixed(2) + '/' + (l.bar || 0).toFixed(2)));
+        el.innerHTML = (state === 'open' ? '\u{1F513} open' : '\u{1F512} locked')
+          + (num ? ' <span class="lc-n">' + num + '</span>' : '');
+        el.title = what + ' — '
+          + (l ? (l.state + ': ' + (l.why || ''))
+               : ((_sa && _sa.why) || 'this console could not read the locks, so it stays locked'));
+      };
+      _paintChip('lock-vault', 'vault.', 'the vault acts on your ledger');
+      _paintChip('lock-prune', 'prune.', 'the deleter removes footage, and there is no undo');
+    } catch (e) { /* a paint that throws must not take the rest of the status render with it */ }
+
     var _rt = st.retention || {};
     if (_rt.freedMb) {
       _lbl += ' · \ud83d\uddc3 freed ' + Math.round(_rt.freedMb) + 'MB';

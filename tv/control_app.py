@@ -14985,6 +14985,43 @@ ON_AIR_FLOOR_GB = 8.0
 PRUNE_HEADROOM_GB = 2.0     # clear to floor + this, so it does not re-fire on every tick
 
 
+def _self_arming_state():
+    """The locks, small enough to ride the status poll. -> dict
+
+    v2438 — Konyo ruled the prune must not be armed by hand: "a lock until it automatically
+    unlocks with a que for wilson score. arithmetic as you see." The console needs a lock badge
+    that is ALWAYS right, so it reads this, and this reads tv/self_arming.py. One source.
+
+    ⚠ EVERY FAILURE PATH HERE IS LOCKED, and each says WHICH failure it was. A badge that goes
+    blank when the module cannot be imported would read as an OPEN lock — the one direction this
+    must never fail in. [[unknown-stays-unknown]]
+    """
+    try:
+        import self_arming as _sa
+    except Exception as e:
+        return {"ok": False, "open": 0, "total": 0, "locks": [],
+                "why": "the lock module will not import (%s) — everything stays LOCKED"
+                       % str(e)[:90]}
+    try:
+        rep = _sa.report()
+    except Exception as e:
+        return {"ok": False, "open": 0, "total": 0, "locks": [],
+                "why": "the locks could not be read (%s) — everything stays LOCKED" % str(e)[:90]}
+    locks = rep.get("locks") or []
+    return {
+        "ok": bool(rep.get("ok")),
+        "open": rep.get("open", 0), "total": rep.get("total", len(locks)),
+        "why": rep.get("why", ""),
+        # trimmed for a poll: the badge needs state + why + the arithmetic, not the whole row
+        "locks": [{"lock": l.get("lock"), "surface": l.get("surface"), "acts": l.get("acts"),
+                   "state": l.get("state"), "why": l.get("why"),
+                   # score is None when UNPROVEN and 0.0 when INERT — the console must be able to
+                   # tell "nobody tested it" from "it was tested and never refused"
+                   "score": l.get("wilson"), "bar": l.get("bar"),
+                   "k": l.get("k"), "n": l.get("n")} for l in locks],
+    }
+
+
 def retention_state():
     with _PRUNE_LOCK:
         st = dict(_RETENTION)
@@ -21595,7 +21632,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2437",
+        "ver": "v2438",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -21603,6 +21640,11 @@ def status_payload():
         "prune": prune_stats(),
         "drift": drift_state(),   # v2072 — running vs disk, so a five-ship-behind window says so
         "eagle": eagle_state(),   # v2078 — the watchdog's last look at the running system
+        # v2438 — THE LOCKS, ON THE SURFACE THE CONSOLE ALREADY POLLS. The eagle is on-demand and
+        # slow ("the sub-doctors take a moment"); a lock badge that has to wait for it would be
+        # blank most of the time, and a blank lock reads as an OPEN one. This is a small file read.
+        # ONE source: the badge quotes this, it does not re-derive a state of its own. [[v2436]]
+        "selfArming": _self_arming_state(),
         "retention": retention_state(),   # v2080 — extract -> prune, and why nothing moved
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": ledger_backup_state(),

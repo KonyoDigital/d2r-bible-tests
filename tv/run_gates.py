@@ -306,6 +306,17 @@ GATES = [
              "This extracts the SHIPPED block out of bible.html, runs it in node, and fails on the "
              "first name where the two disagree — a drifted cutoff folds 'Gul' onto 'Gull' and "
              "writes a find he never made"),
+    Gate("test_self_arming", [sys.executable, os.path.join(HERE, "test_self_arming.py")], 60,
+         why="v2438 — KONYO RULED THE PRUNE MUST NOT BE ARMED BY HAND. \"a lock until it "
+             "automatically unlocks with a que for wilson score. arithmetic as you see.\" This "
+             "suite guards the one thing that would make that a lie: the denominator counts "
+             "SABOTAGES ATTEMPTED, never agreements. An invariant that always agrees may be "
+             "perfect or INERT and those are indistinguishable, so a lock fed by an agreement "
+             "rate opens BECAUSE nobody tested it. It also pins that UNPROVEN (n=0) never "
+             "renders as a score, that Wilson and confluence must BOTH clear, that his order "
+             "is enforced so the deleter cannot arm before the lanes feeding it, that an "
+             "unreadable proof queue fails CLOSED, and that may() never grows an override "
+             "parameter — which would quietly restore the hand-arming this replaces."),
     Gate("test_lane_health", [sys.executable, os.path.join(HERE, "test_lane_health.py")], 60,
          why="v2272 — HE HAD TO ASK WHY NOTHING HAD BEEN EXTRACTED FOR DAYS. Measured that day: the "
              "chronicle lane had swept 36 sessions and the vault lane had sealed 8, its newest seal "

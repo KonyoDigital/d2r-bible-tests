@@ -41,10 +41,45 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OK, WARN, BLOCKED, UNKNOWN = "ok", "warn", "blocked", "unknown"
 
 
-def _row(cid, state, line, evidence=None, measured_at=None):
-    """One flag. `line` is what he reads; `evidence` is what earned it."""
-    return {"id": cid, "state": state, "line": line,
-            "evidence": list(evidence or []), "measuredAt": measured_at or int(time.time() * 1000)}
+def _row(cid, state, line, evidence=None, measured_at=None, k=None, n=None):
+    """One flag. `line` is what he reads; `evidence` is what earned it.
+
+    ★ v2438 — WILSON IS THE FIFTH ORGAN OF THE HEART, NOT A SIDE MODULE.
+    Konyo, 2026-09-02: *"the heart should be wilson score too, not just doctor / eagle eye /
+    watchdog / corroborator — wilson score embedded in it too."*
+
+    So a row may carry `k` and `n` and the heart scores it here, in ONE place, for every check
+    that has a proof history. A check with no history passes nothing and the field is absent —
+    which is the point:
+
+        `score: None`  nobody has tested this check      (UNPROVEN — work owed, not a fault)
+        `score: 0.0`   it WAS tested and never refused   (INERT — the dangerous one)
+
+    Collapsing those two is the exact failure a self-proving system cannot survive, because an
+    invariant that always agrees may be perfect or inert and no amount of agreement separates
+    them. [[heart-first]] §5 · [[unknown-stays-unknown]]
+
+    ⚠ k and n count SABOTAGES ATTEMPTED and REFUSALS EARNED — never runs and passes. A score
+    fed by pass-rate rises fastest for the check that is never exercised.
+    """
+    row = {"id": cid, "state": state, "line": line,
+           "evidence": list(evidence or []), "measuredAt": measured_at or int(time.time() * 1000)}
+    if n is not None:
+        try:
+            n_i, k_i = int(n), int(k or 0)
+        except (TypeError, ValueError):
+            n_i, k_i = 0, 0
+        row["proofK"] = k_i
+        row["proofN"] = n_i
+        if n_i > 0:
+            try:
+                from confidence import wilson_lower     # one home for the maths — never a copy
+                row["score"] = round(wilson_lower(k_i, n_i), 4)
+            except Exception:
+                row["score"] = None
+        else:
+            row["score"] = None          # untested is not zero
+    return row
 
 
 def _read_json(path):
@@ -334,8 +369,57 @@ def check_orphans():
     return _row("orphans", WARN, "%d process(es) busy and old" % len(rows), ev)
 
 
+def check_self_arming():
+    """★ v2438 — THE LOCKS THAT UNLOCK THEMSELVES, REPORTING INTO THE HEART.
+
+    Konyo, 2026-09-02: *"connect everything to the heart of the console, it should all be
+    communicating"* — so the lock does not get its own private endpoint. It reports here, the
+    eagle publishes it, and every surface QUOTES one source. That is v2436's lesson applied
+    forward: two surfaces deriving one number is how the panel and the server disagreed.
+
+    ⚠ THE STATE MAPPING IS THE WHOLE CARE HERE. A lock that has never been sabotaged is
+    UNPROVEN, and UNPROVEN IS NOT A FAULT — it is work not yet done. Painting it WARN would turn
+    the newest surfaces amber and the mechanism would be ignored inside a week ([[heart-first]]).
+    So unproven reports OK with an honest line; only an UNREADABLE queue is UNKNOWN, and only a
+    lock that was tested and could not refuse is WARN.
+    """
+    try:
+        import self_arming as SA
+    except Exception as e:
+        return _row("selfArming", UNKNOWN, "the lock module will not import — %s" % str(e)[:70])
+    try:
+        rep = SA.report()
+    except Exception as e:
+        return _row("selfArming", UNKNOWN, "the locks could not be read — %s" % str(e)[:70])
+    if not rep.get("ok"):
+        return _row("selfArming", UNKNOWN,
+                    "the proof queue could not be read, so no lock may open — %s"
+                    % rep.get("why", ""))
+    locks = rep.get("locks") or []
+    ev = ["%s: %s — %s" % (l.get("lock"), l.get("state"), l.get("why", "")) for l in locks]
+    inert = [l for l in locks if l.get("state") == SA.LOCKED]
+    unproven = [l for l in locks if l.get("state") == SA.UNPROVEN]
+    opened = [l for l in locks if l.get("state") == SA.OPEN]
+    if inert:
+        # tested, and could not refuse. THAT is the finding — a guard that cannot say no.
+        worst = inert[0]
+        ev = [("%s: %s — %s" % (worst.get("lock"), worst.get("state"), worst.get("why", "")))] \
+             + [e for e in ev if not e.startswith("%s:" % worst.get("lock"))]
+        return _row("selfArming", WARN,
+                    "%d lock(s) were sabotaged and did not refuse — %s"
+                    % (len(inert), worst.get("lock")), ev)
+    # the heart scores this row from the SAME proof queue the locks read — one denominator,
+    # not a second tally that could drift from the first
+    tot_k = sum(int(l.get("k") or 0) for l in locks)
+    tot_n = sum(int(l.get("n") or 0) for l in locks)
+    return _row("selfArming", OK,
+                "%d of %d locks open · %d still unproven (nobody has tried to break them yet, "
+                "which is work owed and not a fault)" % (len(opened), len(locks), len(unproven)),
+                ev, k=tot_k, n=tot_n)
+
+
 CHECKS = [check_lanes, check_armed_migrations, check_board_join, check_orphans,
-          check_shadow_watch, check_readers_agree]
+          check_shadow_watch, check_readers_agree, check_self_arming]
 
 
 def report(evaluate=None, board=None):
