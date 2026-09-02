@@ -14816,3 +14816,86 @@ Measured 2026-09-03 while timing A21c: `heart.vessels()` 10.428s, `scope_reach_s
 `_self_arming_state` 0.000s. The memo comment in `control_app.heart_state` records 2.495s when it
 was written. That is a 4x regression on a click path, it is NOT caused by this ship, and it is why
 the heart takes seconds to open. Recorded rather than fixed — naming it beats absorbing it.
+
+## REG-355 — the beat could not tell RUNNING from PAINTING, so his black console read healthy (v2457)
+
+**Konyo, twice in one night:** *"its a blank screen again something regressed"* and then the detail
+that solved it — *"but i do see the tool tip images when the cursor is floating so something is
+just bugged agian"*.
+
+**Measured on his live console while he was looking at nothing:** the beat was perfectly healthy.
+`n` advancing, `ageS` under 6s, `elsNow` 11,707, `elsHigh` 11,707, `blankStrikes` 0, `rescues` 0.
+
+The beat's own comment states its premise: *"a renderer that has wedged runs no timers, so it stops
+beating"*. **That is false for this failure.** `setInterval` and `requestAnimationFrame` are
+throttled by different machinery, so a page that has stopped PAINTING keeps every timer-driven
+signal green — the DOM is fully populated, the panels measure real geometry, and a hover still
+repaints its own layer. His tooltips were not a contradiction; they were the clue. v2336's comment
+records the same report about one panel a month earlier.
+
+**Fix:** the page reports `window.__rafTicks` per beat; the server derives three-valued `painting`
+(True / False / **None** for a pre-v2457 page or a single sample) and publishes it on
+`/api/status`. It REPORTS and never acts — no reload, no strike, per the standing rule that nothing
+auto-heals until it has proven itself.
+
+**Proven RED:** treating an absent counter as "not painting" reddens 5 of 6; `>=` instead of `>`
+reddens the frozen-counter test.
+
+⚠ **WHAT THIS DOES NOT ESTABLISH, and the code says so.** A backgrounded WebKit window stops
+running rAF exactly like a wedged one, and this console reports `hidden: true` CONSTANTLY —
+measured on a freshly relaunched, healthy window — so visibility cannot separate them. The first
+wording asserted "this is the black window" outright and was an over-claim on its own first live
+reading. **The observation that would settle it has not been taken: does `raf` resume when the
+console is the FRONT window?**
+
+## REG-356 — the alignment gate measured unsettled layout, blocked a push, and did not reproduce
+
+`j2_alignment` in `tv/demo_console.mjs` carried `await page.waitForFunction(() => true)` under the
+comment *"let the fixed-topbar layout settle a paint"*. It resolves on its first poll and waits for
+**nothing**, so every rect was read off possibly-unsettled layout. It reported
+`home↔home Δ(top 0.92)` — home measured against ITSELF, twice, disagreeing — and refused a push.
+Three consecutive local runs after that: 10/10, Δ 0.00 each time.
+
+**Fix:** a real double-`requestAnimationFrame` settle at both measurement points.
+⚠ **The tolerance is untouched, deliberately.** Widening `TOL` would have made the symptom vanish
+and the gate weaker; a real 0.92px drift would then pass forever.
+
+## REG-357 — no machine on the fleet has ever published a uniques mask (found by Grok, confirmed by me)
+
+**Measured on the live fleet record 2026-09-03:**
+```
+Konyo     masks published: ['sets']    sets n=135 have=121
+Dean      masks published: ['sets']    sets n=135 have=125
+Wife PC   masks published: None
+```
+The UNIQUES tab of the fleet cross-reference is a surface that cannot answer **for anyone**. Its
+refusal is correct and will stay correct until a uniques mask exists. My brief framed this as one
+broken board; Grok measured it as an unjoined end on every board, and he was right.
+
+**The discriminator:** the tally probe reads `d2r_owned` perfectly — Konyo's live tally is
+`uniques have=292` — while `board_mask('uniques')` produces nothing from that same store. Two
+readers of one store, one works. So it is not "the store is empty".
+
+⚠ **A harness cannot measure this.** `board_mask()` needs `_BOARD_WIN`, so a fresh import returns
+None for BOTH ledgers and would support the false claim that sets is broken too. Only the running
+console can answer. NOT FIXED — the next measurement is which of roster/fingerprint, store read, or
+encode gives up first.
+
+⚠ `fleet_mask.encode()` has **zero production callers**: the wire mask is built in JS inside the
+board. Same shape as B-84. Not the cause, but that encoder has never run against real data.
+
+## REG-358 — the fleet card painted its progress bars across the words "pieces" and "found"
+
+Konyo, at full screen: *"what is this line now? it should be strucuted and aligned and symmetric.."*
+
+Adding a unit to each number put it INSIDE the number cell, which is `white-space: nowrap`. A
+nowrap cell in an `auto` grid track overflows rather than shrinking, so the bar — the next track —
+was painted straight over the unit text. **He was the detector, because my crops were taken at a
+width where the card had room.** That is the exact failure `visual-regression-detector` names.
+
+Two more wrong shapes before the right one: giving the bar a `1fr` floor let the unit WRAP and the
+rows went ragged; widening the card to 372px fixed the crop and not his window.
+
+**Fix:** four tracks — label · value · unit · bar — at FIXED widths (`96px 82px 54px minmax(48px,1fr)`).
+`max-content` was not enough: each `.ftt-row` is its own grid container, so the three rows each
+solved their own column widths and the bars started at three different x positions.

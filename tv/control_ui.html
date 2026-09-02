@@ -4953,11 +4953,20 @@
      clarification of the number beside it, never as another number. */
   /* the number column may shrink so the bar always has room; the unit never pushes it out */
   .fleet-row .ftt-n { min-width: 0; overflow-wrap: anywhere; }
+  /* a machine on a different roster is MARKED, not hidden — the mark sits ON the number
+     it qualifies, the same rule every lock badge in this console follows. */
+  .fleet-row .ftt-drift { font-style: normal; margin-left: 5px; color: #e9b96e;
+    cursor: help; }
   .fleet-row .ftt-u { font-style: italic; font-weight: var(--fw-normal); color: var(--muted);
     letter-spacing: 0; text-transform: none; }
   .fleet-row .ftt {
     position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 60;
-    min-width: 232px; max-width: 300px; padding: 9px 11px;
+    /* ⚠ v2457 — 300px WAS THE REAL CONSTRAINT, not the grid. Once each number carried its
+       unit ('121 / 135 pieces') the row no longer fit, so either the bar collapsed to a
+       stub or the unit wrapped and the rows went ragged — I shipped both of those in turn
+       and only saw them by looking at the screenshot. The card is what had to give: it is
+       a flagship surface and it was sized for numbers that said nothing about themselves. */
+    min-width: 232px; max-width: 372px; padding: 9px 11px;
     background: linear-gradient(180deg, rgba(20,15,8,.98), rgba(9,7,4,.99));
     border: 1px solid var(--gold-dim); border-radius: var(--hd-radius);
     box-shadow: 0 10px 26px rgba(0,0,0,.66);
@@ -4979,13 +4988,39 @@
      the shipped type size the longest label needs ~75px. min-content on the first column lets it
      size to the real longest word instead of a guess that goes stale the next time a label is
      added. [[visual-regression-detector]] */
-  .ftt .ftt-row { display: grid; grid-template-columns: minmax(62px, min-content) auto 1fr;
-                  align-items: center; gap: 8px; margin-bottom: 5px; }
+  /* ⚠ v2457 — THE BAR COLUMN HAD NO FLOOR AND THE UNITS ATE IT. Adding "pieces" / "named" to
+     the number widened the `auto` middle column; `1fr` gets only what is left, so both bars
+     collapsed to stubs while RUNEWORDS — the one lane with no unit — kept a full-width bar. Seen
+     on a real screenshot at 1440, not reasoned about; nothing in the tree could have caught it,
+     because every element was present and correctly sized for the space it was given.
+     A floor on the bar is the fix, not a shorter unit: the unit is the thing he asked for.
+     [[visual-regression-detector]] */
+  /* label · value · unit · bar. FOUR tracks, and the first three are sized from their own
+     content so the columns line up across every row instead of each row solving its own layout.
+     `min-content` on the value track is what stops the overflow that painted the bar across the
+     units — a nowrap cell in an `auto` track will happily spill; in a min-content track it cannot. */
+  /* ⚠ FIXED TRACKS, BECAUSE max-content DOES NOT ALIGN ACROSS ROWS. Each .ftt-row is its own
+     grid container, so `max-content` is solved per row: SETS, UNIQUES and RUNEWORDS each sized
+     their own columns and the three bars started at three different x positions. It read as
+     "structured" in isolation and ragged as a block, which is exactly what he pointed at.
+     `display: contents` on the rows would share one grid, but the row carries the title= that
+     explains the number and a box-less element cannot be hovered. Fixed tracks give the same
+     alignment and keep the tooltip. The value track fits "292 / 403" at this size with tabular
+     figures, so every slash lands on the same column. */
+  .ftt .ftt-row { display: grid;
+                  grid-template-columns: 96px 82px 54px minmax(48px, 1fr);
+                  align-items: center; column-gap: 9px; margin-bottom: 6px; }
   .ftt .ftt-l { white-space: nowrap; }
   .ftt .ftt-l { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); color: var(--gold-dim);
                 text-transform: uppercase; letter-spacing: var(--ls-snug); }
+  /* the digits stay on one line; only the trailing UNIT may wrap, so a bar floor can never
+     hyphenate a number. `line-height` grows from 1 so a wrapped unit does not collide. */
+  /* the numbers are the thing being compared, so they are right-aligned and tabular: the
+     slashes stack, and 99 sits under 292 without the eye having to hunt for it. */
   .ftt .ftt-n { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono); color: var(--text);
-                font-variant-numeric: tabular-nums; white-space: nowrap; }
+                font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+  .ftt .ftt-u { font: italic var(--fw-normal) var(--fs-2xs)/1 var(--mono); color: var(--muted);
+                white-space: nowrap; letter-spacing: 0; text-transform: none; }
   .ftt .ftt-bar { height: 5px; border-radius: 999px; background: rgba(255,255,255,.07);
                   border: 1px solid rgba(240,192,96,.14); overflow: hidden; }
   .ftt .ftt-bar > i { display: block; height: 100%; border-radius: 999px;
@@ -18093,31 +18128,73 @@ function escC(s) {
          denominator is not on screen), so it is swept with it rather than left for him to find on
          a night when it matters. [[unknown-stays-unknown]] [[sweep-dont-ask]] */
       var _DEN = {
-        uniques: {w: 'named', why: 'the game\u2019s Chronicle counts 403. Five of those are '
+        uniques: {w: 'found', why: 'the game\u2019s Chronicle counts 403. Five of those are '
           + 'silhouettes it will not name until they are found, so 398 is every unique this board '
-          + 'can match BY NAME \u2014 403 minus those five. Both numbers are true; they count '
-          + 'different things.'},
+          + 'can match BY NAME \u2014 403 minus those five. This card now divides by 403, the '
+          + 'same number the Uniques tab headlines, so one quantity no longer wears two '
+          + 'denominators on two surfaces. A cross-reference can still only MATCH the 398 it can '
+          + 'name, which is why a row can never reach 403 of 403 by matching alone.'},
         sets:      {w: 'pieces', why: 'set pieces, not sets.'},
-        runewords: {w: '',       why: ''}
+        /* v2457 — FLAGGED BY GROK'S ROSTER CORROBORATOR, not by me. Sets said "pieces"
+           and uniques said "found" and this one said nothing, so two lanes of three
+           carried a unit and the odd one out was mine. "made" rather than "found":
+           a runeword is not discovered in the world, it is assembled from runes in a
+           base, and the whole point of these words is that they say what the number
+           actually counts. */
+        runewords: {w: 'made', why: 'runewords you have made, out of the runewords this board knows. A runeword is assembled, never dropped, so this counts making \u2014 not finding.'}
       };
+      /* ── v2457 — ONE DENOMINATOR, THE ONE THE COMPARISON IS DEFINED AGAINST ──────────────
+         Konyo, on Dean's row: "still reads for the fleet 398 instead of 403 for dean.. + the sets
+         should read 125/135 not UNKNOWN number... something isnt coordinated and coded properly
+         here."
+
+         He is right and the cause is that each row rendered the REPORTING machine's own roster
+         size. Dean is on v2454, whose board has no _gSetRoster at all, so he sends no set total;
+         his uniques roster genuinely holds 398 while this console's holds 403. Two machines, two
+         denominators, one card — and "125 total unknown" beside "0 / 398" is not something anyone
+         can read.
+
+         The cross-reference is only DEFINED against a single shared roster; fleet_mask.decode()
+         refuses outright on a fingerprint mismatch rather than lining bits up against the wrong
+         items. So every row is measured against THIS console's roster, and a remote reporting a
+         different one is SURFACED — a ⚠ on the number and the whole story in the title — never
+         silently replaced. Hiding that would be the actual fabrication.
+         [[unknown-stays-unknown]] [[copy-drift]] */
+      var _ROSTERS = (j && j.rosters) || null;
       var _bar = function (lab, p) {
         if (!p || typeof p.have !== 'number') return '';
-        var t = (typeof p.total === 'number' && p.total > 0) ? p.total : null;
+        var own = (typeof p.total === 'number' && p.total > 0) ? p.total : null;
+        var shared = (_ROSTERS && typeof _ROSTERS[lab] === 'number' && _ROSTERS[lab] > 0)
+          ? _ROSTERS[lab] : null;
+        var t = shared || own;
         var pct = t ? Math.max(0, Math.min(100, 100 * p.have / t)) : null;
         var d = _DEN[lab] || {w: '', why: ''};
-        var num = t
-          ? (escC(String(p.have)) + ' / ' + escC(String(t)) + (d.w ? ' <i class="ftt-u">' + escC(d.w) + '</i>' : ''))
-          /* ⚠ SHORT, BECAUSE THE LONG ONE DID NOT FIT. "of an unreported total" clipped at the
-             right edge of the card and pushed its bar clean out of view — measured on a real
-             screenshot at 1440, not reasoned about. The full sentence moved to the row title,
-             where length costs nothing. */
-          : (escC(String(p.have)) + ' <i class="ftt-u">total unknown</i>');
-        var ttl = t ? d.why
-          : ('this machine reported ' + p.have + ' but no total to measure it against, so the bar '
-             + 'is left empty rather than drawn full. ' + (d.why || ''));
+        var drift = (own && shared && own !== shared)
+          ? (' \u26a0 that machine reports its own roster as ' + own + ', not ' + shared
+             + ' \u2014 it is on a different roster, so this figure is measured against THIS '
+             + 'console\u2019s and the two are not strictly comparable.')
+          : '';
+        /* ⚠⚠ v2457 — THE UNIT IS ITS OWN CELL. It used to live INSIDE the number, and with
+           `white-space: nowrap` that cell overflowed its grid track instead of shrinking — so the
+           progress bar was painted straight across the words "pieces" and "found". He saw it at
+           full screen and I did not, because my crop was taken at a width where the card had room.
+           Four fixed tracks: label · value · unit · bar. Every slash, every unit and every bar now
+           starts at the same x on all three rows, which is the whole ask — "structured and aligned
+           and symmetric". [[visual-regression-detector]] */
+        var val = t ? (escC(String(p.have)) + ' / ' + escC(String(t)))
+                    : escC(String(p.have));
+        var unit = t ? (d.w || '') : 'total unknown';
+        var ttl = t
+          ? ((d.why || '') + drift)
+          : ('this machine reported ' + p.have + ' and nothing could say what to measure it '
+             + 'against \u2014 not even this console\u2019s own roster \u2014 so the bar is left '
+             + 'empty rather than drawn full. ' + (d.why || ''));
         return '<div class="ftt-row"' + (ttl ? ' title="' + escC(ttl) + '"' : '') + '>'
           + '<span class="ftt-l">' + escC(lab) + '</span>'
-          + '<span class="ftt-n">' + num + '</span>'
+          + '<span class="ftt-n">' + val
+          + (drift ? '<i class="ftt-drift" title="that machine is on a different roster">\u26a0</i>' : '')
+          + '</span>'
+          + '<span class="ftt-u">' + escC(unit) + '</span>'
           /* an unknown draws EMPTY, never full. A 100%-wide bar under a number with no
              denominator is the one reading nobody should take from this card. */
           + '<span class="ftt-bar' + (pct === null ? ' ftt-unk' : '') + '"><i style="width:'
@@ -20602,6 +20679,16 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
      can tell the difference between a console that is quiet and a console that is stopped.
      Fire-and-forget on purpose — a heartbeat that awaits a starved server would stop beating
      for the very reason it exists to report. */
+  /* v2457 — the frame counter the beat above reports. Deliberately the whole loop and nothing
+     else: it must not do work, because work is what would keep a wedged compositor alive and hide
+     the very thing this measures. */
+  try {
+    window.__rafTicks = 0;
+    (function _tick(){
+      window.__rafTicks++;
+      try { requestAnimationFrame(_tick); } catch (e) {}
+    })();
+  } catch (e) {}
   try {
     var _beat = function(){
       try {
@@ -20613,6 +20700,25 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
             hidden: (document.visibilityState !== 'visible'),
             view: document.body.getAttribute('data-view') || '',
             els: document.querySelectorAll('body *').length,
+            /* ⚠⚠ v2457 — THE HOLE IN THIS BEAT'S OWN PREMISE, WHICH IT STATES 15 LINES ABOVE:
+               "a renderer that has wedged runs no timers, so it stops beating". Measured on his
+               machine 2026-09-03 while he was looking at a black window: it beat the whole time.
+               n advanced, ageS stayed under 6s, els was 11,707, blankStrikes 0, rescues 0. His
+               words: "i do see the tooltip images when the cursor is floating so something is just
+               bugged" — and v2336's comment records the SAME report about one panel.
+
+               setInterval and rAF are throttled by DIFFERENT machinery. A WebKit page that has
+               stopped PAINTING keeps running its timers, so every signal this beat carried stayed
+               healthy: the DOM is fully populated, the panels measure real geometry, and a hover
+               still repaints its own layer, which is why the tooltips he saw were not a
+               contradiction — they were the clue.
+
+               `raf` is the one number that separates them. A painting page advances it every
+               frame; a page whose compositor has stopped leaves it frozen while `n` keeps
+               climbing. It is REPORTED, not acted on — the console does not reload itself under
+               him, per the standing rule that nothing auto-heals until it has proven itself.
+               [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]] */
+            raf: (window.__rafTicks || 0),
             theatreOpen: !!(th && !th.hidden),
             loaded: !!(window.TH && TH.sessions && TH.sessions.length),
             /* v2336 — IS A PANEL THAT HAS CONTENT ACTUALLY ON SCREEN? Konyo reported the DAILY

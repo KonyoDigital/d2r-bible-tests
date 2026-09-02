@@ -169,10 +169,26 @@ async function j2_alignment(page) {
   const home1 = await headRect(page);
   await page.click('#head-tabs .ht[data-tab="forge"]');
   await page.waitForFunction(() => document.body.classList.contains('shell-open'), null, { timeout: 8000 });
-  // let the fixed-topbar layout settle a paint
-  await page.waitForFunction(() => true);
+  // ⚠⚠ `await page.waitForFunction(() => true)` STOOD HERE AND WAITED FOR NOTHING. It resolves on
+  // its first poll, so the comment above it ("let the fixed-topbar layout settle a paint") described
+  // an intention the code never carried out — every rect below was read off possibly-unsettled
+  // layout. That is why this gate can report `home↔home Δ(top 0.92)`: home measured against ITSELF,
+  // twice, disagreeing. It blocked a push on 2026-09-03 and did not reproduce in three consecutive
+  // local runs (10/10, Δ 0.00 each time).
+  //
+  // A double requestAnimationFrame is an actual settle: the first frame flushes the pending style
+  // and layout, the second runs after that frame has been painted.
+  //
+  // ⚠ THE TOLERANCE IS UNTOUCHED, DELIBERATELY. Widening TOL would have made the symptom go away
+  // and made the gate weaker — a real 0.92px drift would then pass forever. This makes the
+  // measurement honest and leaves the bar exactly where it was, so a genuine misalignment still
+  // fails. [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+  const settle = () => page.evaluate(
+    () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await settle();
   const pane = await headRect(page);
   await goHome(page);
+  await settle();                    // home2 is the half that actually disagreed; settle it too
   const home2 = await headRect(page);
   const dTop1 = Math.abs(pane.top - home1.top), dLeft1 = Math.abs(pane.left - home1.left);
   const dTop2 = Math.abs(home2.top - home1.top), dLeft2 = Math.abs(home2.left - home1.left);

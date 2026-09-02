@@ -11658,7 +11658,10 @@ def _ui_faults_path():
 #     becomes an infinite reload loop with his window flashing
 _UI_BEAT = {"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
             # v2393 — the paint witness (see ui_rescue_due)
-            "elsHigh": 0, "elsNow": None, "blankStrikes": 0, "elsWindow": []}
+            "elsHigh": 0, "elsNow": None, "blankStrikes": 0, "elsWindow": [],
+            # v2457 — the paint witness. None means "never asked", which is not "not painting".
+            "rafNow": None, "rafPrev": None, "painting": None, "frozenBeats": 0,
+            "paintWhy": "no beat has been received yet"}
 _UI_RESCUE = {"last": 0.0, "count": 0, "why": ""}
 _UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
 _UI_RESCUE_COOLDOWN_S = 300.0
@@ -11736,6 +11739,60 @@ def ui_beat_record(state=None):
         except Exception:
             els = None
         _UI_BEAT["elsNow"] = els
+        # ── v2457 — IS IT PAINTING, OR MERELY RUNNING? ───────────────────────────────────────
+        # `els` answers "is the DOM populated". It cannot answer "is anything reaching the
+        # screen", and on 2026-09-03 that gap was the whole bug: a black window whose beat was
+        # perfectly healthy (els 11,707, blankStrikes 0, rescues 0, ageS < 6s) while he looked at
+        # nothing. The page's timers ran; its compositor did not.
+        #
+        # rAF advances once per painted frame. Frozen `raf` across consecutive beats, while `n`
+        # keeps climbing, is the signature no other field here can produce.
+        #
+        # ⚠ REPORTED, NEVER ACTED ON. No reload, no rescue, no strike — his standing rule is that
+        # nothing auto-heals until it has proven itself, and a watchdog that reloads his console
+        # on a signal this new would be exactly the wrong first move. [[unknown-stays-unknown]]
+        try:
+            _raf = state.get("raf")
+            _raf = int(_raf) if isinstance(_raf, (int, float)) and not isinstance(_raf, bool) else None
+        except Exception:
+            _raf = None
+        _prev = _UI_BEAT.get("rafNow")
+        _UI_BEAT["rafPrev"] = _prev
+        _UI_BEAT["rafNow"] = _raf
+        if _raf is None or _prev is None:
+            # an older page that does not send `raf` is UNKNOWN about painting, never "not
+            # painting" — the field arrived in v2457 and a console left open across the upgrade
+            # would otherwise be accused of a wedge it is not in.
+            _UI_BEAT["painting"] = None
+            _UI_BEAT["paintWhy"] = ("this page does not report a frame counter (pre-v2457), so "
+                                    "whether it is painting is unknown, not false")
+        elif _raf > _prev:
+            _UI_BEAT["painting"] = True
+            _UI_BEAT["frozenBeats"] = 0
+            _UI_BEAT["paintWhy"] = "%d frame(s) painted since the last beat" % (_raf - _prev)
+        else:
+            _UI_BEAT["painting"] = False
+            _UI_BEAT["frozenBeats"] = int(_UI_BEAT.get("frozenBeats") or 0) + 1
+            # ⚠⚠ IT DOES NOT SAY WHICH OF TWO THINGS THIS IS, BECAUSE IT CANNOT YET.
+            # A backgrounded WebKit window also stops running rAF, and this console reports
+            # `hidden: true` CONSTANTLY — measured on a freshly relaunched, perfectly healthy
+            # window — so the visibility flag cannot separate "the front window has wedged" from
+            # "he is looking at his terminal". The first version of this sentence asserted the
+            # black window outright. That was an over-claim on its first live reading, and a
+            # diagnostic that cries wolf is worse than none: he would learn to ignore it, which is
+            # the exact defect the encoding gate two files away exists to prevent.
+            # Establishing the discriminator needs one observation nobody has taken yet: does
+            # `raf` advance while the console is the FRONT window? Until then this reports the
+            # measurement and names both readings. [[unknown-stays-unknown]] [[feedback-verify-not-proxy]]
+            _UI_BEAT["paintWhy"] = (
+                "no frame has been drawn for %d beat(s), while the page keeps beating and its DOM "
+                "is intact (%s elements). TWO THINGS LOOK LIKE THIS and this cannot yet tell them "
+                "apart: the window is simply not frontmost (WebKit throttles frames in the "
+                "background, which is normal and harmless), or the renderer has wedged while the "
+                "DOM stays alive — the black window, where hover still repaints a tooltip's own "
+                "layer and nothing else draws. What settles it is whether frames resume when the "
+                "console is brought to the front."
+                % (int(_UI_BEAT.get("frozenBeats") or 0), els if els is not None else "?"))
         if els is not None:
             # v2394 — a bounded RECENT window, not an all-time mark (see the constants above).
             # ⚠⚠ v2395 — THE BASELINE MUST NOT LEARN FROM THE FAILURE IT IS DETECTING.
@@ -11957,6 +12014,11 @@ def ui_pre_rescue_snapshot(beat=None):
     els_high = b.get("elsHigh")
     return {
         "elsNow": els_now if isinstance(els_now, int) else None,
+        # v2457 — surfaced beside elsNow because they answer DIFFERENT questions and his black
+        # window is the case where one is healthy and the other is not.
+        "painting": b.get("painting"),
+        "frozenBeats": int(b.get("frozenBeats") or 0),
+        "paintWhy": b.get("paintWhy") or "",
         "elsHigh": els_high if isinstance(els_high, int) else None,
         "blankStrikes": b.get("blankStrikes") if isinstance(b.get("blankStrikes"), int) else None,
         "hidden": b.get("hidden") if isinstance(b.get("hidden"), bool) else None,
@@ -21961,7 +22023,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2456",
+        "ver": "v2457",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22041,6 +22103,20 @@ def status_payload():
         # long time" and must not be shown as a big number. [[unknown-stays-unknown]]
         "uiBeat": {"n": _UI_BEAT["n"], "hidden": bool(_UI_BEAT.get("hidden")),
                    "ageS": (round(ui_beat_age(), 1) if ui_beat_age() is not None else None),
+                   # ⚠⚠ v2457 — PUBLISHED HERE, AND I ALMOST REPEATED THE EXACT MISTAKE THE v2435
+                   # COMMENT TWELVE LINES BELOW IS ABOUT. I recorded the paint witness, added it to
+                   # the CF-4 forensic snapshot, and shipped nothing to the surface a supervisor
+                   # actually reads — so /api/status kept answering painting=None on a console that
+                   # was reporting frames perfectly well. I only caught it because I checked the
+                   # live console and `frozenBeats` came back None where the code returns 0.
+                   #
+                   # `painting` is THREE-VALUED and must stay that way: True = frames drawn since
+                   # the last beat · False = the page is beating and NOT painting, which is his
+                   # black window · None = this console predates v2457 or has sent only one beat,
+                   # and one sample cannot decide. [[the-unjoined-end]] [[unknown-stays-unknown]]
+                   "painting": _UI_BEAT.get("painting"),
+                   "frozenBeats": int(_UI_BEAT.get("frozenBeats") or 0),
+                   "paintWhy": _UI_BEAT.get("paintWhy") or "",
                    # v2336 — what the page says about its own panels, so the eagle can see his
                    # SCREEN and not merely his engines. None = this console predates v2336.
                    "panels": ((_UI_BEAT.get("state") or {}).get("panels") or None),
@@ -23768,6 +23844,105 @@ class Handler(BaseHTTPRequestHandler):
                     _fl = dict(_fl)
                     import socket as _sk
                     _fl["me"] = _sk.gethostname().split(".")[0]
+                    # ── v2457 — THE DENOMINATOR THE COMPARISON IS ACTUALLY DEFINED AGAINST ────
+                    # Konyo, on Dean's row: "still reads for the fleet 398 instead of 403 for
+                    # dean.. + the sets should read 125/135 not UNKNOWN number... something isnt
+                    # coordinated and coded properly here."
+                    #
+                    # He is right, and the cause is that each row was rendering the REPORTING
+                    # machine's own roster size. Dean is on v2454, so his board has no
+                    # `_gSetRoster` at all and sends no set total; his uniques roster genuinely
+                    # holds 398 while this one holds 403. Two machines, two denominators, one
+                    # card — and "125 of an unreported total" beside "0 / 398" is not something
+                    # anyone can read.
+                    #
+                    # The cross-reference is only DEFINED against a single shared roster — that is
+                    # why `fleet_mask.decode` refuses outright on a fingerprint mismatch rather
+                    # than lining bits up against the wrong items. So the honest denominator for
+                    # every row is THIS console's roster, and a remote that reports a different
+                    # one is information to surface, never a second denominator to render.
+                    # [[unknown-stays-unknown]] [[copy-drift]]
+                    # ⚠⚠ FROM THE GATED ARTIFACTS, NOT FROM A LIVE BOARD READ. The first cut
+                    # asked `_tally_cached()` and it answered `uniques: 398` in the same payload
+                    # whose own row carried `292/403` — one source disagreeing with itself, minutes
+                    # apart, because a board read depends on whether its boot seed has applied yet.
+                    # A denominator that flickers 398↔403 is worse than no denominator: every
+                    # percentage on the card would move without anything he owns having changed.
+                    #
+                    # `unique_roster.json` / `set_roster.json` / `runeword_roster.json` are
+                    # hash-stamped against bible.html and their freshness is now a GATE (v2455), so
+                    # they are the one roster on this machine that cannot silently drift. That is
+                    # also the join he asked for — "connect that roster to the heart of the console
+                    # too": the number this card divides by is the number the chronicle routes
+                    # watch. [[copy-drift]] [[stale-reading]]
+                    try:
+                        import json as _js
+                        _here = os.path.dirname(os.path.abspath(__file__))
+
+                        def _rn(fn, *keys):
+                            try:
+                                _d = _js.load(io.open(os.path.join(_here, fn), encoding="utf-8"))
+                            except Exception:
+                                return None       # unreadable -> UNKNOWN, never a guess
+                            for k in keys:
+                                v = _d.get(k)
+                                if isinstance(v, int) and v > 0:
+                                    return v
+                            return None
+                        # ── UNIQUES USES chronTotal, THE SAME NUMBER HIS CHRONICLE HEADLINES ──
+                        # Konyo: "the fleet for me and dean still say 398 and here they say 403 in
+                        # the tab.. it needs unified logic obivously and number."
+                        #
+                        # His Uniques tab prints BOTH, two lines apart: "292 / 403 found · 72%" and
+                        # "named cards: 292 / 398 ticked · 5 chronicle rows still dark (names
+                        # reveal on find)". Both are true — 403 is what the in-game Chronicle
+                        # counts, 398 is what this board can put a NAME on, and the difference is
+                        # exactly those five silhouettes. The fleet card was quoting the second
+                        # number while the page headlines the first, so one quantity wore two
+                        # denominators on two surfaces.
+                        #
+                        # `chronTotal` is a PINNED CONSTANT in bible.html, identical on every
+                        # machine that has the same page, which is what makes it the one honest
+                        # cross-machine denominator — `_gUniqueRoster().length` is not: it was
+                        # measured at 398 on a fresh load and 403 on his live board, because that
+                        # roster grows with his own finds. A denominator that differs per machine
+                        # cannot compare machines. [[label-outlived-referent]] [[copy-drift]]
+                        def _chron_total():
+                            try:
+                                _b = io.open(os.path.join(os.path.dirname(_here), "bible.html"),
+                                             encoding="utf-8", errors="replace").read()
+                            except Exception:
+                                return None
+                            # the ASSIGNMENT, never the prose — "chronTotal 403 is the game's own"
+                            # appears in comments megabytes earlier and must not be what this reads.
+                            _m = re.search(r"chronTotal\s*[:=]\s*(\d+)", _b)
+                            return int(_m.group(1)) if _m else None
+                        _fl["rosters"] = {
+                            "sets": _rn("set_roster.json", "pieceCount", "count"),
+                            "uniques": _chron_total() or _rn("unique_roster.json", "count"),
+                            # ⚠ RUNEWORDS IS DELIBERATELY None, AND THAT IS THE HONEST ANSWER.
+                            # `runeword_roster.json` stores BOTH forms of a name on purpose — its
+                            # own header says so, because a chronicle page prints the bare name
+                            # while the ledger stores the qualified one. Measured: 105 names, of
+                            # which 100 carry no parenthetical, against a board that reports 99
+                            # runewords. Neither 105 nor 100 is the count of runewords, and the
+                            # off-by-one has no derivation I can defend. So this artifact cannot
+                            # serve as a denominator, the card falls back to the number the board
+                            # itself reports, and nothing here invents the difference.
+                            # [[unknown-stays-unknown]]
+                            "runewords": None,
+                        }
+                        _fl["rostersWhy"] = (
+                            "the hash-stamped rosters this console generates from bible.html "
+                            "and re-checks under a gate — the only sizes here that cannot drift. "
+                            "runewords is null on purpose: that roster keeps two spellings of each "
+                            "name, so its length is not a count of runewords, and the card uses "
+                            "what the board itself reports rather than a number nobody can derive")
+                    except Exception as _e:
+                        # no local roster -> the card keeps saying UNKNOWN, which is correct:
+                        # a denominator nobody could read must not be invented here.
+                        _fl["rosters"] = None
+                        _fl["rostersWhy"] = "this console could not read its own rosters (%s)" % str(_e)[:60]
                     _os_ = fleet_origin_status()
                     _fl["ahead"] = _os_.get("ahead")
                     _fl["publishedVer"] = _os_.get("publishedVer")

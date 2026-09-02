@@ -209,6 +209,23 @@ GATES = [
     # ⚠ `why` IS A KEYWORD HERE. Passing it 4th positional lands it in `needs_app` and registers a
     # gate that requires a running console; that mistake produced two defects from one line on
     # 2026-09-02 and the table was swept by AST afterwards. [[the-unjoined-end]]
+    # v2457 — the paint witness. `why` IS A KEYWORD (name, argv, timeout, needs_app, cwd, why).
+    # v2457 — GROK'S. He wrote roster_routes.py and its guard, reverted his own Gate() row
+    # because run_gates.py was mine and dirty while he worked, and asked me to register it when I
+    # landed the batch. That is the protocol working: whoever holds the file adds the line.
+    Gate("test_roster_routes", [sys.executable, os.path.join(HERE, "test_roster_routes.py")], 180,
+         why="a roster reaches a screen through declared -> getter -> probe -> wire -> unit, and "
+             "nothing compared those chains to each other. On its first run against this tree it "
+             "flagged that runewords carried no UNIT on the fleet card while sets and uniques "
+             "did — my defect, found by his corroborator. Proven both ways: 2-vs-1 flags and "
+             "names the siblings, 1-vs-1 stays silent because a coincidence is not a divergence."),
+    Gate("test_paint_witness", [sys.executable, os.path.join(HERE, "test_paint_witness.py")], 180,
+         why="he reported a black console twice while its beat was perfectly healthy — n advancing, "
+             "els 11,707, blankStrikes 0, rescues 0 — because the blank detector counts DOM "
+             "elements and his blank has a full DOM. setInterval and requestAnimationFrame are "
+             "throttled by different machinery, so a page that stops PAINTING keeps every "
+             "timer-driven signal green. This holds the three-valued paint witness and, as much as "
+             "the code itself, the rule that it must NOT claim which of two causes it is seeing."),
     Gate("test_chronicle_routes", [sys.executable, os.path.join(HERE, "test_chronicle_routes.py")], 180,
          why="the uniques / sets / runewords rosters are siblings and should carry the same lanes. "
              "The runeword roster was stamped at write time and NOTHING ever re-checked that "
