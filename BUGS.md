@@ -14754,3 +14754,65 @@ of the system.** A figure that is not produced by code nobody can re-run is a fi
 check — and two of these were on surfaces the site serves. Where a number matters, it needs a
 committed script that regenerates it, or it needs to be stated as a one-off observation with its
 date and its method.
+
+## REG-352 — the runeword roster was stamped and never re-checked (v2455)
+
+**Found by:** A21c's own corroborator, on its first run.
+
+`build_runeword_roster.py` writes `sourceHash` into `runeword_roster.json` and **nothing on this
+machine ever recomputed it.** Its two siblings both do — `roster_sync.is_stale()` is called by a
+gate in `test_control.py`. So one chronicle route of three had no watcher.
+
+**It was not wrong when found.** Measured 2026-09-03: 105 names, block hash equal, nothing on the
+page missing from the roster and nothing in the roster missing from the page. That is the point —
+a lane with no watcher is correct until it is not, and on that day `chronicle_resolve` keeps
+folding names against a roster the page has moved past, so every name it fails to canonicalise
+looks like a name he simply does not own.
+
+**Fix:** `build_runeword_roster.is_stale()`, mirroring its siblings, plus a gate that runs it.
+**Proven RED:** excising the function drops the route to DARK and the corroborator names it.
+
+## REG-353 — window._gSetRoster was never defined, so the fleet's set denominator was null (v2456)
+
+**Konyo:** *"i just tallied my console within sets tab.. its reading 121/135 how come my FLEET is
+stale and not reading the 121/135"*
+
+**His fleet was not stale** — `/api/fleet` already carried `sets.have = 121` at the time. It could
+not print `/135` because `setsTotal` was null and had been on every read since the feature shipped.
+The console's board probe asks `window._gSetRoster()`; bible.html defines `_gUniqueRoster` and
+`_rwTotalN` and **never defined `_gSetRoster`**. The probe called `undefined`, the total came back
+null, and the card printed a bare `121` with an indeterminate bar drawn at **width:100%** — an
+unknown rendered as complete.
+
+v2163 fixed exactly this shape for uniques and runewords after a cross-family review and left the
+third twin running. Nothing compared the three lanes to each other.
+
+**Fix:** `window._gSetRoster()` in bible.html (measured live: 135 pieces, 135 distinct, matching
+`set_roster.json`); the unknown bar now draws EMPTY; both denominators carry their unit.
+**Proven RED:** renaming the getter drops the lane to DARK and turns 3 guards red.
+
+## REG-354 — the cross-reference refusal blamed the other console for a silence on your own side
+
+**Konyo:** *"cross reference for the fleet might b estuck.. my cuzin says he clicks it and its not
+working from his end"*
+
+`fleet_mask.decode()` serves BOTH sides and carried one noun. With the local mask missing the box
+read `your side: no mask reported by that machine yet` — "your side", then "that machine", in one
+sentence. Read from either end it accuses the other person, so both conclude the other console is
+broken and nobody looks at the side that is actually silent.
+
+**Measured:** his own console is fine — against his cousin's row, ok, mine 121, theirs 124, both
+118, six they have that he does not. The UNIQUES tab genuinely refuses because that machine reports
+`uniques have = 0` and has never published a uniques mask — **that root cause is NOT fixed here and
+is not reachable from this machine.**
+
+**Fix:** `decode(..., side=)`; the refusal names YOUR side or THEIR side and says what to do.
+⚠ The old test pinned the literal string `"no mask reported"` and would have gone red on this fix
+and green on the defect; it now pins the law.
+
+## OPEN — heart.vessels() has gone from 2.5s to 10.4s
+
+Measured 2026-09-03 while timing A21c: `heart.vessels()` 10.428s, `scope_reach_state` 0.370s,
+`_self_arming_state` 0.000s. The memo comment in `control_app.heart_state` records 2.495s when it
+was written. That is a 4x regression on a click path, it is NOT caused by this ship, and it is why
+the heart takes seconds to open. Recorded rather than fixed — naming it beats absorbing it.

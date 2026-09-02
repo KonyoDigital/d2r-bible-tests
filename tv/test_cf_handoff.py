@@ -59,6 +59,16 @@ class TestCF8UnknownCarriesAge(unittest.TestCase):
         self.assertEqual(rows2[0]["unknownCount"], 2)
         self.assertIn("5m", rows2[0]["why"])
 
+    def test_a_corrupt_stamp_file_is_not_overwritten(self):
+        """A failed read is UNKNOWN, not {}. Saving {} over garbage would wipe history."""
+        with open(self.path, "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        rows = [{"check": "board is claimed", "state": "unknown", "why": "closed"}]
+        self.ua.attach(rows, now_ms=1_000_000_000_000)
+        raw = open(self.path, encoding="utf-8").read()
+        self.assertEqual(raw, "{not json")
+        self.assertEqual(rows[0]["state"], "unknown")
+
     def test_time_passing_does_not_promote_unknown_to_ok_or_missing(self):
         t0 = 1_700_000_000_000
         rows = [{"check": "board is claimed", "state": "unknown", "why": "closed"}]
@@ -158,6 +168,12 @@ class TestCF12SlowChecksReachASidecar(unittest.TestCase):
         self.assertTrue(all(r["state"] == self.cd.UNMEASURED for r in rows),
                         "an empty persist painted %s instead of NEVER" % [r["state"] for r in rows])
         self.assertTrue(all("NEVER" in r["why"] for r in rows))
+
+    def test_an_unreadable_sidecar_paints_NEVER_not_ok(self):
+        with open(self.path, "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        rows = self.cd.slow_surface()
+        self.assertTrue(all(r["state"] == self.cd.UNMEASURED for r in rows))
 
     def test_a_stored_full_pass_surfaces_with_age(self):
         self.cd._persist_slow([

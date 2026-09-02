@@ -1549,12 +1549,20 @@ def _slow_path():
 
 
 def _load_slow():
-    try:
-        with open(_slow_path(), encoding="utf-8") as fh:
-            d = json.load(fh)
-        return d if isinstance(d, dict) else {}
-    except Exception:
+    """-> dict | None. None is UNKNOWN. {} is measured-empty (no sidecar yet).
+
+    A missing sidecar is NEVER (no full pass stored). A file that exists and will not
+    parse is None — slow_surface still paints NEVER, and must not look like a stored pass.
+    """
+    p = _slow_path()
+    if not os.path.exists(p):
         return {}
+    try:
+        with open(p, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else None
+    except Exception:
+        return None
 
 
 def _persist_slow(rows):
@@ -1588,6 +1596,8 @@ def slow_surface(now_ms=None):
     """
     now = int(now_ms if now_ms is not None else time.time() * 1000)
     persist = _load_slow()
+    if not isinstance(persist, dict):
+        persist = {}
     by = {r.get("check"): r for r in (persist.get("rows") or []) if isinstance(r, dict)}
     at = persist.get("at")
     out = []

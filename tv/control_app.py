@@ -15220,6 +15220,16 @@ def heart_state(force=False):
         # read by nobody; its only callers repo-wide were its own tests. It fails nothing and is
         # rendered with every reach count visible so the noise reads as noise. [[the-unjoined-end]]
         "reach": scope_reach_state(),
+        # A21c — THE CHRONICLE ROUTES, on the same heart, in the same four words. His ask:
+        # "the chronicles routes should also be there.. the sets and the uniques espeically..
+        # reverse engineered like the routes and lanes here also for accuracy going forward".
+        # A name on a Chronicle page reaches his ledger through source -> generator -> roster ->
+        # freshness -> resolver, and until this shipped nobody could see which of those links a
+        # given chronicle was missing. [[the-unjoined-end]]
+        "chronicles": chronicle_route_state(),
+        # A21c — THE FLEET LANES, his instruction: "sync them and connect it to the heart
+        # of the console the fleet". Same four words, same corroborator function.
+        "fleet": fleet_route_state(),
         "vocab": {"FLOWING": getattr(_h, "FLOWING", "FLOWING"),
                   "WATCHED": getattr(_h, "WATCHED", "WATCHED"),
                   "DARK": getattr(_h, "DARK", "DARK"),
@@ -15229,6 +15239,60 @@ def heart_state(force=False):
     _HEART_MEMO["t"] = now
     _HEART_MEMO["v"] = out
     return out
+
+
+def chronicle_route_state():
+    """A21c — the chronicle routes for the heart. -> dict
+
+    ⚠ A FAILURE HERE IS UNKNOWN, NEVER AN EMPTY LIST. "there are no chronicle routes" and "the
+    routes could not be derived" are opposite facts, and only the second one is true when this
+    breaks. An empty `routes` with ok:True would paint a heart with no chronicles on it and look
+    entirely healthy. [[unknown-stays-unknown]]
+
+    ⚠ FLAGS ARE BADGES. The corroborator names the route whose lane shape diverges from its
+    siblings; nothing here blocks anything, in keeping with the standing rule that a lock in this
+    console is a stamp.
+    """
+    try:
+        import chronicle_routes as _cr
+    except Exception as e:
+        return {"ok": False, "routes": [], "counts": None, "flags": [],
+                "why": "the chronicle-route module will not import (%s), so the routes are "
+                       "UNKNOWN rather than absent" % str(e)[:90]}
+    try:
+        d = _cr.routes()
+    except Exception as e:
+        return {"ok": False, "routes": [], "counts": None, "flags": [],
+                "why": "the routes could not be derived (%s)" % str(e)[:90]}
+    return {"ok": bool(d.get("ok")), "why": d.get("why", ""),
+            "routes": d.get("routes") or [], "counts": d.get("counts"),
+            "flags": d.get("flags") or [], "lanes": list(getattr(_cr, "LANES", ()))}
+
+
+def fleet_route_state():
+    """A21c — the fleet lanes for the heart. -> dict
+
+    ⚠ IT IS GIVEN THE LIVE TALLY ON PURPOSE. Half of this chain is only visible at runtime: a
+    getter can exist and a probe can ask for it and the wire can still carry nothing. Without a
+    live read the `total` link is UNKNOWN, and that is the honest answer rather than a pass.
+    """
+    try:
+        import fleet_routes as _fr
+    except Exception as e:
+        return {"ok": False, "routes": [], "counts": None, "flags": [],
+                "why": "the fleet-lane module will not import (%s)" % str(e)[:90]}
+    try:
+        tally = _tally_cached()
+    except Exception:
+        tally = None                    # UNKNOWN totals, not absent ones
+    try:
+        d = _fr.routes(tally)
+    except Exception as e:
+        return {"ok": False, "routes": [], "counts": None, "flags": [],
+                "why": "the fleet lanes could not be derived (%s)" % str(e)[:90]}
+    return {"ok": bool(d.get("ok")), "why": d.get("why", ""),
+            "routes": d.get("routes") or [], "counts": d.get("counts"),
+            "flags": d.get("flags") or [], "lanes": list(getattr(_fr, "LINKS", ()))}
 
 
 def scope_reach_state():
@@ -21897,7 +21961,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2454",
+        "ver": "v2455",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

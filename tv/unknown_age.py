@@ -31,13 +31,20 @@ def _now():
 
 
 def _load():
+    """-> dict | None. None is UNKNOWN (could not read). {} is measured-empty (no file yet).
+
+    A missing file is empty history, not a failed read — no except returns {}. A file that
+    exists and will not parse is None, and attach() must not _save over it.
+    """
     p = path()
+    if not os.path.exists(p):
+        return {}
     try:
         with io.open(p, encoding="utf-8") as fh:
             d = json.load(fh)
-        return d if isinstance(d, dict) else {}
+        return d if isinstance(d, dict) else None
     except Exception:
-        return {}
+        return None
 
 
 def _save(d):
@@ -80,6 +87,9 @@ def attach(rows, now_ms=None):
     """
     now = int(now_ms if now_ms is not None else _now())
     blob = _load()
+    writable = isinstance(blob, dict)
+    if blob is None:
+        blob = {}
     recs = blob.setdefault("checks", {})
     out = rows or []
     for r in out:
@@ -117,5 +127,6 @@ def attach(rows, now_ms=None):
             rec["lastAttemptTs"] = now
         recs[name] = rec
     blob["checks"] = recs
-    _save(blob)
+    if writable:
+        _save(blob)
     return out

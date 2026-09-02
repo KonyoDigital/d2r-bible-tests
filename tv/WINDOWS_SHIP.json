@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2454",
+  "ver": "v2455",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2454: cf15 solved with ast from disk and three findings sent back with measurements",
+  "note": "v2455: A21c. The uniques, sets and runeword rosters are siblings and nothing ever compared them to each other. The runeword roster was hash-stamped at write time and NOTHING re-checked that stamp, so it was correct on the day and silent on the day it stopped. One corroborator now names the route whose lane shape diverges from its siblings, in his words: when ten share one logic, the one that does not is flagged. It badges, it never blocks.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -139,14 +139,25 @@ def encode(owned, roster, fingerprint):
             "b": base64.urlsafe_b64encode(bytes(buf)).decode("ascii").rstrip("=")}
 
 
-def decode(mask, roster, fingerprint):
+def decode(mask, roster, fingerprint, side="that machine"):
     """-> (names, why). `names` is None whenever the answer would be a guess.
 
     Every refusal says WHY, because "he owns none of these" and "I could not read this" reach the
     same box and must never render the same.
+
+    ⚠ v2456 — `side` EXISTS BECAUSE THIS FUNCTION SERVES BOTH SIDES AND ONLY KNEW ONE NOUN.
+    Konyo: "cross reference for the fleet might b estuck.. my cuzin says he clicks it and its not
+    working from his end". His own console was fine — measured live against his cousin's row:
+    ok, mine 121, theirs 124, both 118, six they have that he does not. What his cousin sees when
+    his OWN mask is missing is `your side: no mask reported by that machine yet` — a sentence that
+    says "your side" and then blames "that machine" in the same breath. Read from either end it
+    accuses the other person, so both of them conclude the other one is broken and nobody looks at
+    the side that is actually silent. The measurement was right and its attribution was not, which
+    is the borrowed-surface rule arriving on a fleet card. [[borrowed-surface]]
+    [[label-outlived-referent]]
     """
     if not isinstance(mask, dict):
-        return None, "no mask reported by that machine yet"
+        return None, "no mask has been reported by %s yet" % side
     if not roster:
         return None, "this machine cannot read its own roster, so it cannot decode anyone's mask"
     got = str(mask.get("v") or "")
@@ -184,12 +195,16 @@ def compare(mine, theirs, roster, fingerprint):
     could produces a complete, confident, wrong answer — every one of my items would look like
     something he is missing.
     """
-    a, why_a = decode(mine, roster, fingerprint)
-    b, why_b = decode(theirs, roster, fingerprint)
+    a, why_a = decode(mine, roster, fingerprint, side="this console")
+    b, why_b = decode(theirs, roster, fingerprint, side="that machine")
     if a is None:
-        return {"ok": False, "why": "your side: %s" % why_a}
+        # names the side that is silent, and says what to do about it — a refusal a person cannot
+        # act on is the same as a hang, which is exactly how this one was reported.
+        return {"ok": False, "why": "YOUR side is the one missing: %s. Open the board on this "
+                                    "machine and it publishes on the next heartbeat; nothing is "
+                                    "wrong with the other console." % why_a}
     if b is None:
-        return {"ok": False, "why": "their side: %s" % why_b}
+        return {"ok": False, "why": "THEIR side is the one missing: %s." % why_b}
     sa, sb = set(a), set(b)
     return {"ok": True, "why": None,
             "theyHaveIDont": [n for n in roster if n in sb and n not in sa],

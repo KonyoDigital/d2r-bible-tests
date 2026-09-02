@@ -41,6 +41,50 @@ def extract(src):
     return sorted(names, key=lambda x: x.lower()), blk
 
 
+def is_stale(path=None, bible_path=None):
+    """-> (stale: bool, why: str). A missing or unreadable artifact counts as STALE, never as fine.
+
+    ⚠ v2455 — A21c. THIS LANE DID NOT EXIST, and nothing said so. `build()` stamps `sourceHash`
+    into the artifact and that is where the story ended: no function on this machine ever
+    recomputed it, and no gate ever asked. Its two siblings both do — `roster_sync.is_stale()` is
+    called by a gate in `test_control.py` — so the runeword chronicle was the one route of three
+    with no watcher.
+
+    It was not WRONG when this was written: measured 2026-09-03, 105 names, block hash equal,
+    nothing on the page missing from the roster and nothing in the roster missing from the page.
+    That is the whole point. A lane with no watcher is correct right up until it is not, and the
+    day it stops nobody is told — `chronicle_resolve` keeps folding names against a roster the
+    page has moved past, and every name it silently fails to canonicalise looks like a name he
+    simply does not own. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+    STAMPING IS NOT CHECKING. `build()` writes the hash; this reads it back and compares.
+    """
+    path = path or OUT
+    bible_path = bible_path or BIBLE
+    if not os.path.isfile(path):
+        return True, "no runeword roster on disk — nothing to resolve chronicle names against"
+    try:
+        doc = json.load(io.open(path, encoding="utf-8"))
+    except Exception as e:
+        return True, "runeword roster will not parse — %s" % str(e)[:70]
+    try:
+        names, blk = extract(io.open(bible_path, encoding="utf-8").read())
+    except Exception as e:
+        # the PAGE could not be read. That is UNKNOWN about the page, and reporting it as
+        # "in sync" would be a green produced by a broken instrument.
+        return True, "could not read RUNEWORDS out of bible.html — %s" % str(e)[:70]
+    want = hashlib.sha256(blk.encode("utf-8")).hexdigest()
+    got = doc.get("sourceHash")
+    if got != want:
+        return True, ("bible.html's RUNEWORDS block has changed since the roster was built "
+                      "(stamped %s, page now %s) — run: python3 tv/build_runeword_roster.py"
+                      % (str(got)[:12], want[:12]))
+    if doc.get("count") != len(names):
+        return True, ("the roster says %s names and the page yields %d — the stamp matches, so "
+                      "the artifact was hand-edited" % (doc.get("count"), len(names)))
+    return False, "in sync (%d names)" % len(names)
+
+
 def build():
     src = io.open(BIBLE, encoding="utf-8").read()
     names, blk = extract(src)

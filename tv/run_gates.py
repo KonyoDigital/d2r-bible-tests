@@ -205,6 +205,21 @@ GATES = [
              "refusals, and the three-language chain — the encoder runs in the BOARD (JS), the "
              "validator in the WORKER (JS) and the decoder here (Python), each of which can be "
              "individually correct while the chain is wrong"),
+    # v2455/v2456 — A21c. The chronicle routes and the fleet lanes, judged by ONE corroborator.
+    # ⚠ `why` IS A KEYWORD HERE. Passing it 4th positional lands it in `needs_app` and registers a
+    # gate that requires a running console; that mistake produced two defects from one line on
+    # 2026-09-02 and the table was swept by AST afterwards. [[the-unjoined-end]]
+    Gate("test_chronicle_routes", [sys.executable, os.path.join(HERE, "test_chronicle_routes.py")], 180,
+         why="the uniques / sets / runewords rosters are siblings and should carry the same lanes. "
+             "The runeword roster was stamped at write time and NOTHING ever re-checked that "
+             "stamp, so it was correct on the day and nothing would say a word when it stopped. "
+             "This holds the corroborator that names the odd one out, and the rule that a "
+             "describer never counts as a watcher."),
+    Gate("test_fleet_routes", [sys.executable, os.path.join(HERE, "test_fleet_routes.py")], 180,
+         why="window._gSetRoster was never defined in bible.html while the console asked for it "
+             "on every read, so the fleet card's set denominator was null forever and printed a "
+             "bare number with an indeterminate bar. This holds the rule that a MENTION is not a "
+             "definition, and that an unknown total never reads as a missing one."),
     Gate("test_vault_doctor", [sys.executable, os.path.join(HERE, "test_vault_doctor.py")], 120,
          why="v2013 — the doctor answers 'why is the vault empty', and its three causes need three "
              "different actions from him. On his real tree it reports ONE of them, so without these "

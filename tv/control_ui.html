@@ -4949,6 +4949,12 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (max-width: 760px) { .fb-eta .fbe-say { display: none; } }
 .fleet-row.has-ftt { position: relative; cursor: default; }
+  /* v2455 — the unit that says what a denominator is OVER. Dimmed and italic so it reads as a
+     clarification of the number beside it, never as another number. */
+  /* the number column may shrink so the bar always has room; the unit never pushes it out */
+  .fleet-row .ftt-n { min-width: 0; overflow-wrap: anywhere; }
+  .fleet-row .ftt-u { font-style: italic; font-weight: var(--fw-normal); color: var(--muted);
+    letter-spacing: 0; text-transform: none; }
   .fleet-row .ftt {
     position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 60;
     min-width: 232px; max-width: 300px; padding: 9px 11px;
@@ -5155,6 +5161,16 @@
   #heart-ov .hrt-s { font-variant-numeric: tabular-nums; letter-spacing: var(--ls-label);
     text-transform: uppercase; font-size: var(--fs-2xs); }
   #heart-ov .hrt-w { color: var(--muted); overflow-wrap: anywhere; }
+  /* A21c — the route chain. The pips inherit the row's colour vocabulary rather than inventing a
+     second one; a broken link is the only thing that changes weight, so the eye lands on it. */
+  #heart-ov .hrt-chain { display: block; margin: 0 0 3px; letter-spacing: var(--ls-label);
+    font-size: var(--fs-2xs); text-transform: uppercase; }
+  #heart-ov .hrt-chain .cl { white-space: nowrap; }
+  #heart-ov .hrt-chain .cl-ok  { color: #7f8b98; }
+  #heart-ov .hrt-chain .cl-out { color: #e0857c; font-weight: var(--fw-semibold); }
+  #heart-ov .hrt-chain .cl-unk { color: #9aa6b2; }
+  #heart-ov .hrt-chain .cl-j   { color: #4a5560; margin: 0 5px; }
+  #heart-ov .hrt-flag .hrt-k { color: #e9b96e; }
   #heart-ov .st-FLOWING { color: #e0857c; }
   #heart-ov .st-WATCHED { color: #e9b96e; }
   #heart-ov .st-DARK    { color: #6fa8ff; }
@@ -10719,6 +10735,79 @@ body[data-origin="shadow"] #stage::after {
     return h + '</div>';
   }
 
+  /* A21c — THE CHRONICLE ROUTES, drawn as the chain a name actually travels. His ask, verbatim:
+     "the chronicles routes should also be there.. the sets and the uniques espeically.. reverse
+     engineered like the routes and lanes here also for accuracy going forward".
+     Each route prints its five links in order, and a MISSING link is drawn broken and in place —
+     the same rule as the lock badges: the mark sits ON the thing it is about, so nobody has to
+     work out which half of the route is the problem. */
+  function _hrtChron(cc, title, noun){
+    var TT = title || 'The chronicle routes';
+    /* ⚠ the NOUN is per route set. The first cut hardcoded 'names' and the fleet lanes then
+       read "sets · 135 names" — set PIECES, counted in the wrong word, three lines above the
+       card where that exact unit had just been fixed. A shared renderer must take its unit
+       from its caller or it launders one surface's vocabulary onto another. */
+    var NN = (noun === undefined) ? ' names' : noun;
+    if (!cc) return '';
+    if (!cc.ok){
+      return '<div class="hrt-sec"><div class="hrt-h">' + _hrtEsc(TT) + '</div>'
+        + '<div class="hrt-row"><span class="hrt-k">the chronicles</span>'
+        + '<span class="hrt-s st-UNKNOWN">UNKNOWN</span>'
+        + '<span class="hrt-w">' + _hrtEsc(cc.why || 'they could not be derived')
+        + ' — that is nobody having looked, not a console without chronicles.</span></div></div>';
+    }
+    var rows = cc.routes || [], lanes = cc.lanes || [], flags = cc.flags || [];
+    var c = cc.counts || {};
+    /* ⚠ ONE WORD PER LINK, FROM ONE PLACE. The first cut typed the chain into the header by hand
+       and let the rows print the raw lane keys, so the header said ROSTER where every row six
+       lines below said ARTIFACT — one link wearing two names on the same screen. I saw it only
+       by looking at the photograph; no gate here can. Two spellings of one thing is copy-drift
+       at its smallest, and it is exactly the noise he asked to have fixed. [[copy-drift]] */
+    var LBL = {source: 'source', generator: 'generator', artifact: 'roster',
+               freshness: 'freshness', resolver: 'resolver'};
+    function _cl(k){ return LBL[k] || k; }
+    var h = '<div class="hrt-sec"><div class="hrt-h">' + _hrtEsc(TT) + ' · ' + rows.length
+          + ' · ' + lanes.map(_cl).join(' \u2192 ') + '</div>';
+    /* an explanation every route repeats verbatim is one fact printed N times. Say it once, and
+       keep the per-row line only where a route actually differs from its siblings. */
+    var whys = rows.map(function(r){ return r.why || ''; });
+    var shared = (rows.length > 1 && whys.every(function(w){ return w === whys[0]; })) ? whys[0] : '';
+    for (var i = 0; i < rows.length; i++){
+      var r = rows[i], ln = r.lanes || {}, chain = '';
+      for (var j = 0; j < lanes.length; j++){
+        var key = lanes[j], v = ln[key] || {}, ok = v.ok;
+        var cls = (ok === true) ? 'cl-ok' : (ok === null ? 'cl-unk' : 'cl-out');
+        /* the broken link carries the mark, not the row — "i want it locked on the route so its
+           not confusig" */
+        chain += (j ? '<span class="cl-j">\u2192</span>' : '')
+              + '<span class="cl ' + cls + '">' + (ok === true ? '' : (ok === null ? '? ' : '\u2715 '))
+              + _hrtEsc(_cl(key)) + '</span>';
+      }
+      var n = (r.count === null || r.count === undefined) ? '\u2014' : r.count;
+      h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(r.key) + ' \u00b7 ' + n
+        + NN + '</span>'
+        + '<span class="hrt-s st-' + _hrtEsc(r.state) + '">' + _hrtEsc(r.state) + '</span>'
+        + '<span class="hrt-w"><span class="hrt-chain">' + chain + '</span>'
+        + (shared ? '' : _hrtEsc(r.why || '')) + '</span></div>';
+    }
+    for (var k = 0; k < flags.length; k++){
+      h += '<div class="hrt-row hrt-flag"><span class="hrt-k">\u2691 ' + _hrtEsc(flags[k].route)
+        + ' \u00b7 ' + _hrtEsc(flags[k].lane) + '</span>'
+        + '<span class="hrt-s st-WATCHED">ODD ONE OUT</span>'
+        + '<span class="hrt-w">' + _hrtEsc(flags[k].say) + '</span></div>';
+    }
+    if (shared){
+      h += '<p class="hrt-note">All ' + rows.length + ' read the same: ' + _hrtEsc(shared) + '.</p>';
+    }
+    if (!flags.length && rows.length){
+      h += '<p class="hrt-note">Every route carries the same five links, so the corroborator has '
+        + 'nothing to flag. It compares the routes against each other rather than against a list '
+        + 'anyone keeps by hand \u2014 when ten share one shape, the one that does not is named '
+        + 'here with its siblings, and it badges, it never blocks.</p>';
+    }
+    return h + '</div>';
+  }
+
   function _hrtBuild(d){
     var c = d.counts || {};
     var head = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head">'
@@ -10783,6 +10872,10 @@ body[data-origin="shadow"] #stage::after {
       + 'score clears the bar, and never by hand.'
       + _hrtEsc(d.notVessels ? ' (' + d.notVessels + ' one-shot tasks are excluded: they inherit their caller’s vessel, so a roster entry would be a lie.)' : '')
       + _hrtEsc(age) + '</div>'
+      + _hrtChron(d.chronicles)
+      /* A21c — the fleet lanes, drawn by the SAME renderer. One picture-maker for two
+         route sets is the point: a second copy would drift from this one within a week. */
+      + _hrtChron(d.fleet, 'The fleet lanes', ' reported as the total')
       + _hrtReach(d.reach)
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
       + (d.total || lk.length) + ' open</div>' + lrows + '</div>'
@@ -17981,15 +18074,54 @@ function escC(s) {
          Putting "5 / 403" under another person's name is worse than putting nothing, so a
          machine that has not reported says so, and a reported one carries the AGE of what it
          reported. [[unknown-stays-unknown]] [[stale-reading]] */
+      /* ── v2455 — TWO NUMBERS ON THIS CARD DID NOT SAY WHAT THEY WERE OVER ────────────────
+         Konyo, reading Dean's row: "thers clearly a bug it says for dean 0/398 it should be
+         0/403 in the fleet when i look.. so his console is diffrent? how is that happening?"
+
+         HIS CONSOLE IS NOT DIFFERENT, AND NEITHER NUMBER IS WRONG. Measured, and already written
+         down in BUGS.md: `funiScan()` returns total 398, chronTotal 403. 403 is what the in-game
+         Chronicle counts; 398 is every unique this board can put a NAME on; the difference is
+         exactly the five silhouettes the game refuses to name until they are found. This card
+         matches OWNED NAMES against NAMEABLE NAMES, so 398 is the only denominator it can
+         honestly use — moving it to 403 would make 403/403 permanently unreachable and would be
+         a denominator nudged to make a number look right, which is the defect this board keeps
+         catching. So the number stays and the WORD arrives. [[label-outlived-referent]]
+
+         ⚠ AND THE SIBLING, WHICH HE HAS NOT ASKED ABOUT YET: `sets` reported no total at all, so
+         the row printed a bare "123" and then drew its bar at width:100% — an unknown rendered as
+         a full bar reads as COMPLETE. Same defect class as the one he found (a figure whose
+         denominator is not on screen), so it is swept with it rather than left for him to find on
+         a night when it matters. [[unknown-stays-unknown]] [[sweep-dont-ask]] */
+      var _DEN = {
+        uniques: {w: 'named', why: 'the game\u2019s Chronicle counts 403. Five of those are '
+          + 'silhouettes it will not name until they are found, so 398 is every unique this board '
+          + 'can match BY NAME \u2014 403 minus those five. Both numbers are true; they count '
+          + 'different things.'},
+        sets:      {w: 'pieces', why: 'set pieces, not sets.'},
+        runewords: {w: '',       why: ''}
+      };
       var _bar = function (lab, p) {
         if (!p || typeof p.have !== 'number') return '';
         var t = (typeof p.total === 'number' && p.total > 0) ? p.total : null;
         var pct = t ? Math.max(0, Math.min(100, 100 * p.have / t)) : null;
-        return '<div class="ftt-row"><span class="ftt-l">' + escC(lab) + '</span>'
-          + '<span class="ftt-n">' + escC(String(p.have)) + (t ? (' / ' + escC(String(t))) : '')
-          + '</span>'
+        var d = _DEN[lab] || {w: '', why: ''};
+        var num = t
+          ? (escC(String(p.have)) + ' / ' + escC(String(t)) + (d.w ? ' <i class="ftt-u">' + escC(d.w) + '</i>' : ''))
+          /* ⚠ SHORT, BECAUSE THE LONG ONE DID NOT FIT. "of an unreported total" clipped at the
+             right edge of the card and pushed its bar clean out of view — measured on a real
+             screenshot at 1440, not reasoned about. The full sentence moved to the row title,
+             where length costs nothing. */
+          : (escC(String(p.have)) + ' <i class="ftt-u">total unknown</i>');
+        var ttl = t ? d.why
+          : ('this machine reported ' + p.have + ' but no total to measure it against, so the bar '
+             + 'is left empty rather than drawn full. ' + (d.why || ''));
+        return '<div class="ftt-row"' + (ttl ? ' title="' + escC(ttl) + '"' : '') + '>'
+          + '<span class="ftt-l">' + escC(lab) + '</span>'
+          + '<span class="ftt-n">' + num + '</span>'
+          /* an unknown draws EMPTY, never full. A 100%-wide bar under a number with no
+             denominator is the one reading nobody should take from this card. */
           + '<span class="ftt-bar' + (pct === null ? ' ftt-unk' : '') + '"><i style="width:'
-          + (pct === null ? 100 : pct.toFixed(1)) + '%"></i></span></div>';
+          + (pct === null ? 0 : pct.toFixed(1)) + '%"></i></span></div>';
       };
       var _tip = function (m) {
         var t = m.tally;

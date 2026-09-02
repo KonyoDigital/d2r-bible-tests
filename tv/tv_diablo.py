@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2454"   # GROK BUILT IT AND I BROKE IT THREE WAYS
+VERSION = "v2455"   # THE CHRONICLE ROUTES ON THE HEART
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -149,7 +149,26 @@ class TestTheComparisonIsTheFeature(unittest.TestCase):
         c = fm.compare(self._m(self.mine), None, self.roster, self.fp)
         self.assertFalse(c["ok"], "a machine that has never reported was treated as owning "
                                   "nothing, so the box would say his cousin is missing all 135")
-        self.assertIn("no mask reported", c["why"])
+        self.assertIn("no mask", c["why"])
+        # ⚠ v2456 — THIS USED TO PIN THE SENTENCE AND NOW PINS THE LAW. It asserted the literal
+        # string "no mask reported", which held while the refusal blamed "that machine" for a
+        # silence on EITHER side. Konyo's cousin read that message about his own missing mask and
+        # concluded the other console was broken; both of them did. A test pinned to the wording
+        # would have gone red on the fix and green on the defect. [[regression-guard]]
+        self.assertIn("THEIR", c["why"], "a refusal must name WHICH side is silent — a message "
+                                         "that does not is indistinguishable from a hang")
+
+    def test_a_refusal_names_the_side_that_is_actually_silent(self):
+        """Both directions, because the whole defect was that one noun served both."""
+        mine_missing = fm.compare(None, self._m(self.theirs), self.roster, self.fp)
+        self.assertFalse(mine_missing["ok"])
+        self.assertIn("YOUR", mine_missing["why"])
+        self.assertNotIn("THEIR", mine_missing["why"],
+                         "the local side was silent and the message still accused the other one")
+        theirs_missing = fm.compare(self._m(self.mine), None, self.roster, self.fp)
+        self.assertFalse(theirs_missing["ok"])
+        self.assertIn("THEIR", theirs_missing["why"])
+        self.assertNotIn("YOUR side is", theirs_missing["why"])
 
     def test_either_side_unknown_makes_the_ANSWER_unknown(self):
         bad = self._m(self.theirs)
