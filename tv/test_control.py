@@ -38620,6 +38620,54 @@ class TestV2420TheShadowLedgerFollowsTheFIXTUREROOT(unittest.TestCase):
                          "the late redirect moved the path, but not into the fixture: %r" % after)
 
 
+class TestV2426TheCrestGateWAITSViaTheSharedHelper(unittest.TestCase):
+    """⚠ THE JOIN, WHICH v2424 MADE AND DID NOT PIN. A cold review: "Nothing asserts
+    `crest_loudness.main` calls `_selector_ready`. `check()` has exactly that join guard. This
+    caller can go back to an inline existence poll and stay green."
+
+    That is the same shape three times over now — a fix made, and nothing holding it. The inline
+    poll it replaced was itself the THIRD weaker copy of a shared helper written in one session.
+    """
+
+    def _src(self):
+        import io as _io, os as _os
+        return _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                      "crest_loudness.py"), encoding="utf-8").read()
+
+    def test_it_calls_the_shared_helper(self):
+        src = self._src()
+        self.assertIn("_selector_ready(t, \".bd-sigil\")", src,
+                      "the crest gate no longer waits via the shared helper — an inline poll here "
+                      "asks 'is the node in the document', which a HIDDEN crest satisfies")
+
+    def test_it_does_NOT_reintroduce_a_fixed_sleep_before_the_query(self):
+        """The original defect: sleep(3.0) then ask. Generous until the machine is loaded."""
+        src = self._src()
+        head = src[:src.index("_selector_ready(t")] if "_selector_ready(t" in src else src
+        self.assertNotIn("time.sleep(3.0)", head,
+                         "a fixed sleep is back before the wait — that is the v2422 flake")
+
+    def test_the_reload_is_WAITED_ON_not_fired_and_forgotten(self):
+        """⚠ v2424 CLAIMED THIS AND DID NOT DO IT. `.bd-sigil` is true on BOTH sides of a reload,
+        so any element wait can be satisfied by the document the reload was meant to replace.
+        Swapping the poll for the helper fixed the hidden-node predicate and left this untouched —
+        and the commit message said otherwise."""
+        src = self._src()
+        i = src.index('t.send("Page.reload")')
+        self.assertIn('Page.enable', src[:i],
+                      "page events are not enabled before the reload, so nothing can wait on it")
+        self.assertIn("performance.now()", src[i:i + 1200],
+                      "nothing after the reload distinguishes the NEW document from the old one")
+
+    def test_it_does_not_quote_the_helpers_activation_wording(self):
+        """The helper's `why` ends '...after the panel was activated'. This gate activates nothing,
+        so quoting it verbatim imports a cause this path does not have."""
+        src = self._src()
+        self.assertNotIn('% why)', src,
+                         "the helper's message is quoted verbatim; it names an activation step "
+                         "this gate does not perform")
+
+
 class TestV2419TheWatchlistNAMESTheGateThatMovedState(unittest.TestCase):
     """⚠ CI COULD SAY WHAT MOVED AND NEVER WHICH GATE MOVED IT.
 

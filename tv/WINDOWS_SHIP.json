@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2425",
+  "ver": "v2426",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2425: seven files, five suites, closed at both ends",
+  "note": "v2426: I claimed it was, and a cold read caught the claim",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -76,7 +76,33 @@ def main():
         t.send("Emulation.setDeviceMetricsOverride", width=W, height=H,
                deviceScaleFactor=1, mobile=False)
         t.ev("try{localStorage.setItem('d2r_ownerClaim','*')}catch(e){}")
+        # ⚠ v2426 — THE RELOAD WAS FIRE-AND-FORGET, AND v2424's MESSAGE CLAIMED OTHERWISE.
+        # Swapping an inline poll for `_selector_ready` fixed the HIDDEN-NODE predicate and did
+        # nothing about the reload: `.bd-sigil` is true on BOTH sides of it, so any wait can be
+        # satisfied by the document the reload was meant to replace. A cold read put it plainly —
+        # "replacing the poll does not replace a load wait" — and I had said it did.
+        #
+        # Other CDP callers in this tree (render_check.check, coldread, a11y_check) enable page
+        # events and wait for the load. This one did not. Waiting for a NEW document id is the
+        # cheapest honest join: the old page cannot satisfy it.
+        try:
+            t.send("Page.enable")
+            _before = t.ev("String(document.readyState) + '|' + String(performance.now())")
+        except Exception:
+            _before = None
         t.send("Page.reload")
+        if _before is not None:
+            _dl = time.time() + 20.0
+            while time.time() < _dl:
+                try:
+                    # performance.now() resets on a real navigation, so a smaller value than the
+                    # pre-reload reading means THIS is a new document, not the old one.
+                    _now = t.ev("String(performance.now())")
+                    if _now and float(_now) < float(_before.split("|")[1]):
+                        break
+                except Exception:
+                    pass
+                time.sleep(0.1)
         # ⚠ v2424 — CALL THE HELPER THAT ALREADY EXISTS, THIRD TIME OF ASKING THIS SESSION.
         # v2422 replaced a fixed sleep(3.0) with an inline poll, which was the right idea aimed at
         # the WRONG PREDICATE. A cold review: "_selector_ready already polls, already uses 20s,
@@ -95,8 +121,13 @@ def main():
         # imports. [[the-unjoined-end]] [[copy-drift]]
         why = rc._selector_ready(t, ".bd-sigil")
         if why:
-            print("⚪ UNKNOWN — %s. This gate measured nothing: a page that did not paint the "
-                  "crest, not a quiet crest." % why)
+            # ⚠ DO NOT QUOTE THE HELPER'S `why` VERBATIM HERE. It ends "...after the panel was
+            # activated", which is true for render_check's targets and FALSE for this gate — it
+            # activates nothing. Quoting it imports a cause this path does not have, which is a
+            # miss painted as a fact. Say what THIS gate knows. [[label-outlived-referent]]
+            print("⚪ UNKNOWN — no PAINTED .bd-sigil within the wait, so this gate measured "
+                  "nothing. That is a page that did not paint the crest, not a quiet crest. "
+                  "(probe detail: %s)" % str(why).split(" after ")[0])
             return 2
         rc._settled(t)
         data = t.send("Page.captureScreenshot", format="png",
