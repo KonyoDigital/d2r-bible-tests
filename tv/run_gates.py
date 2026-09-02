@@ -904,6 +904,18 @@ def _live_fingerprint():
     return out
 
 
+#: state files a gate has been SEEN to write, named so coverage does not depend on their existing.
+#: Distinct from _LIVE_STATE, which is the list whose movement is a FAILURE — this one only decides
+#: what gets watched for ATTRIBUTION. Every entry here was named by a real CI run.
+_NAMED_STATE_FILES = (
+    "shadow_ledger.json",      # test_control, 14 tests, via a real sweep -> _shadow_bank
+    "capture_doors.json",      # test_control / test_roundtrip_sim / test_button_matrix
+    "disk_history.jsonl",      # test_control / test_button_matrix
+    "known_frames.json",       # test_agent
+    "retro_gate.json",         # test_retro_gate
+)
+
+
 def _state_fingerprint():
     """Every state file a gate could plausibly write, keyed by name. -> {name: hash or None}
 
@@ -929,6 +941,14 @@ def _state_fingerprint():
                 # [[unknown-stays-unknown]]
                 out[n] = "unreadable:%s" % str(_e)[:24]
     for n in _LIVE_STATE:                      # keep the named ones even if they are absent
+        out.setdefault(n, None)
+    # ⚠ AND THE ONES CI HAS ACTUALLY NAMED, WHETHER OR NOT THEY EXIST YET. The glob can only see
+    # files that are already there — and on a fresh CI checkout these are ABSENT, which is exactly
+    # the "absent -> created" case that started this. The union of before/after in run() does catch
+    # a creation, so the attribution was not broken; but a file that is absent at the first
+    # fingerprint is invisible to any check that asks "is it covered", and that ambiguity is not
+    # worth keeping. Naming them makes coverage independent of whether the file happens to exist.
+    for n in _NAMED_STATE_FILES:
         out.setdefault(n, None)
     return out
 

@@ -38587,6 +38587,24 @@ class TestV2419TheWatchlistNAMESTheGateThatMovedState(unittest.TestCase):
                           "wrote, so a net that cannot see it is inert on its own motivating case"
                           % name)
 
+    def test_a_file_that_APPEARS_mid_run_is_detected(self):
+        """⚠ THE PROPERTY THAT ACTUALLY MATTERS, and my first version of the test above did not
+        assert it. That one asked "is the file in the net RIGHT NOW", which on a fresh CI checkout
+        is False for `shadow_ledger.json` because it does not exist yet — and it failed there,
+        correctly, on a claim that was the wrong shape.
+
+        The real mechanism is the UNION: run() diffs with names=union(before, after), so a file
+        that appears between two fingerprints is caught even though the first one could not see it.
+        That is the absent->created case CI originally reported, so it is the one to pin."""
+        import run_gates as R
+        before = {"already_there.json": "aaaa"}
+        after = {"already_there.json": "aaaa", "brand_new.json": "bbbb"}
+        moved = R._live_state_diff(before, after,
+                                   names=sorted(set(before) | set(after)))
+        self.assertTrue(any("brand_new.json" in m for m in moved),
+                        "a file that appeared between two fingerprints was not detected — the "
+                        "absent->created case is the one CI actually reported. got %r" % moved)
+
     def test_the_net_is_WIDER_than_the_named_live_state_list(self):
         """The same point from the other side, so a future narrowing is caught rather than assumed
         harmless: the FAILURE list (_LIVE_STATE) and the ATTRIBUTION net are different sets on
