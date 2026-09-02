@@ -5261,7 +5261,26 @@
   /* v1175 R3 — the OFF hero is tall enough to clear its own bottom-pinned .meters (the caption's 2nd line
      overlapped them at fullscreen once R1 grew the fonts + the 250px cap clipped). No cap, no clip. The
      dash still owns the flex via the grid's 1fr row (the OFF stage is an `auto` grid row). */
-  body[data-state="off"] .stage { min-height: clamp(256px, 26vh, 330px); }   /* v1252 (CONSOLE r4 · #2 no-scroll) — the resting hero is compacter (was 310-380) so the dash below fits; still roomy enough the STANDBY caption clears the meters */
+  /* ⚠ v2431 (A17 · gh #207) — THE FLOOR WAS TUNED FOR A WINDOW HE DOES NOT HAVE. v1252 already
+     compacted the resting hero "so the dash below fits" and scaled it by 26vh — the right idea.
+     But the clamp's LOWER BOUND is 256px, and control_app.py creates the window at 1120x660, so
+     his viewport is 628px and 26vh is 163px. The floor wins by 57% and the vh intent never runs:
+     the hero is 256px on the one size the app actually opens at, and every taller window is the
+     only place the scaling was ever visible.
+     MEASURED consequence, `.home-dash` clientHeight vs its own content:
+         1120x628 (HIS)  163 / 2733 = 16.8x        1440x1000  497 / 2444 = 4.9x
+     He reads a 2,733px document through a 163px slot, which is why #207 says "messy and
+     complicated" — no focal path fits in 163px.
+     ⚠ AND THE CONTENT ALREADY FITS UNDER THE NEW FLOOR, so v1252's caveat still holds: measured
+     in the OFF state the two in-flow children are .center 152 and .meters 85 = 237, and the
+     STANDBY caption clears the meters at 190 because .center's own top padding drops with it
+     (same reason: its clamp floor of 34px was beating 4.4vh = 27.6px at this height).
+     ⚠ TWO EARLIER ATTEMPTS AT THIS WERE WRONG AND ARE NOT IN THE TREE: a min-height on .home-dash
+     (made the dash overflow its row and paint over the ticker and footer — the PNG caught it) and
+     a `body[data-state="off"] .shell` row split, which turned out to be a DUPLICATE of v903's
+     rule 4,000 lines below and was therefore inert. The lever was never the row; the row already
+     gives the dash the flex. It was this floor. [[d2r-css-last-rule-wins]] */
+  body[data-state="off"] .stage { min-height: clamp(190px, 26vh, 330px); }
   body[data-state="off"] .stage .phase { font-size: var(--fs-2xl); margin-top: 0; }   /* v956 R1 — deliberately smaller than the full .phase display size; v1290 — margin-top dropped, the flex column centers it now (was pushing the caption down into the meters) */
   body[data-state="off"] .stage .kicker { display: none; }        /* v903.1 — no overlap in compact */
   body[data-state="off"] .stage .marquee { top: 10px; }
@@ -5293,7 +5312,11 @@
   body[data-state="off"] .center {
     position: relative; inset: auto; flex: 1 1 auto; min-height: 0;
     /* top padding clears the absolute marquee (top:10 + ~22h) so the centered hero never rides under it */
-    padding: clamp(34px,4.4vh,50px) clamp(18px,3vw,50px) clamp(8px,1.4vh,18px);
+    /* v2431 — the top floor was 34px against 4.4vh = 27.6px at his 628px viewport, so it too
+       never scaled on the size he uses. Lowered to let the vh term govern; it still clears the
+       absolutely-positioned marquee (top:10 + ~22h = 32) at every height above ~730px, and below
+       that the marquee and the caption are both smaller. */
+    padding: clamp(24px,4.4vh,50px) clamp(18px,3vw,50px) clamp(8px,1.4vh,18px);
   }
   body[data-state="off"] .meters {
     position: relative; left: auto; right: auto; bottom: auto; flex: 0 0 auto;

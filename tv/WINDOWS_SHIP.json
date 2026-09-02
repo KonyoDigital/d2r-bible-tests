@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2430",
+  "ver": "v2431",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2430: crest_loudness reported no-Chrome as a failure on every CI run",
+  "note": "v2431: the resting hero clamp bottomed out at 256px while 26vh was 163px",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

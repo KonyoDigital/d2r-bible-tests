@@ -40549,6 +40549,60 @@ class TestADeclaredSkipCanActuallyFire(unittest.TestCase):
                         "reason, so v1925 counts that skip as a failure — which is the exact "
                         "state this ship fixed.")
 
+    def test_the_declared_pattern_matches_the_line_the_checker_REALLY_prints(self):
+        """v2431 — the end-to-end half, and a cross-family review of v2430 is why it exists.
+
+        Asked to refute v2430, a different model family said: *"Any subsequent print, exception
+        traceback, atexit handler, or logging flush after the skip line will make the last line not
+        match. Result: exit 77 is treated as a hard failure."* — and *"the whole skip path has no
+        test asserting that the declared regex actually matches the emitted line."*
+
+        The second half was WRONG (test_every_declared_skip_reason_matches_text_the_checker_can_print
+        exists), but it was wrong about a test that is WEAKER than it looks, which is the useful
+        half: that test greps the checker's SOURCE. The runner matches against the LAST LINE the
+        process actually printed. Those are different strings the moment anything prints after the
+        skip — and the failure is silent in the sense that it looks like a normal gate failure.
+
+        So this one RUNS the checker with its subject genuinely absent, takes the real last line the
+        way run_gates does, and asserts the declaration covers it. Source-grepping proves a pattern
+        COULD match; only this proves it DOES. [[source-reading-guard]] [[review-after-ship]]
+        """
+        import subprocess, tempfile, textwrap
+        rg = self._gates()
+        stub = textwrap.dedent("""
+            import sys
+            sys.path.insert(0, %r)
+            import render_check as rc
+            rc._chrome_up = lambda *a, **k: False      # the venue with no browser, exactly
+            import crest_loudness
+            sys.exit(crest_loudness.main())
+        """) % HERE
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as fh:
+            fh.write(stub)
+            path = fh.name
+        try:
+            p = subprocess.run([sys.executable, path], capture_output=True, text=True, timeout=180)
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        self.assertEqual(p.returncode, rg.SKIP_EXIT,
+                         "with no browser the checker exited %d, not SKIP_EXIT. run_gates maps only "
+                         "%d to SKIP; anything else non-zero is a build failure."
+                         % (p.returncode, rg.SKIP_EXIT))
+        blob = (p.stdout or "") + (p.stderr or "")
+        # exactly how run_gates derives the reason it matches against skip_ok
+        tail = [ln for ln in blob.strip().split("\n") if ln.strip()][-1:] or [""]
+        reason = tail[0][:150]
+        g = next(x for x in rg.GATES if x.name == "crest_loudness")
+        self.assertIsNotNone(
+            rg._skip_allowed(g, reason),
+            "the checker really printed %r as its LAST line, and crest_loudness declares %r — which "
+            "does not cover it. The gate would skip and be counted as a FAILURE, for a reason its "
+            "own registration claims to have declared. Something now prints after the skip line."
+            % (reason, g.skip_ok))
+
     def test_an_undeclared_skip_is_still_a_failure(self):
         """The anti-vacuity half. If any skip were tolerated, this would be a mute button."""
         rg = self._gates()
