@@ -38491,6 +38491,95 @@ class TestV2420TheShadowLedgerFollowsTheFIXTUREROOT(unittest.TestCase):
                              sl.__file__)), "shadow_ledger.json")),
                          "production no longer resolves to his tree")
 
+    def test_observe_and_state_ACTUALLY_USE_the_resolver(self):
+        """⚠ THE JOIN, WHICH MY OTHER TESTS DO NOT MAKE — a cold review, in one sentence:
+        "Reverting the two `path or _ledger_path()` lines back to `path or LEDGER` stays green."
+
+        They call `_ledger_path()` directly and never `observe()` or `state()`, so they prove the
+        resolver computes the right string and NOT that anything uses it. That is the same unjoined
+        shape the watchlist tests in this very ship were written to kill, applied to the path fix
+        itself. Drive the real entry points and require the write to land in the fixture."""
+        import shadow_ledger as sl
+        import tempfile, shutil, os as _os
+        d = tempfile.mkdtemp(prefix="ledger_join_")
+        self.addCleanup(shutil.rmtree, d, True)
+        old = _os.environ.get("TV_HIST")
+        _os.environ["TV_HIST"] = d
+        self.addCleanup(lambda: (_os.environ.__setitem__("TV_HIST", old) if old is not None
+                                 else _os.environ.pop("TV_HIST", None)))
+        r = sl.observe({"scored": 1, "disagreements": [], "names": ["Shako"]}, at=1)
+        self.assertTrue(r.get("ok"), "observe() failed: %r" % (r,))
+        landed = _os.path.join(d, "shadow_ledger.json")
+        self.assertTrue(_os.path.isfile(landed),
+                        "observe() did not write into the fixture root — its default is still "
+                        "bound to the module constant, so the resolver is decorative")
+        st = sl.state()
+        self.assertEqual(st.get("scorings"), 1,
+                         "state() did not read back the fixture's ledger — its default is bound to "
+                         "the constant while observe() writes elsewhere, which is worse than "
+                         "either alone: writer and reader on two different files")
+
+    def test_a_FIXTURE_caller_cannot_write_the_LIVE_ledger(self):
+        """⚠ THE GUARD THAT WOULD HAVE SAVED HIS DATA, and I learned it by damaging it.
+
+        Sabotage-testing the resolver, I reverted `observe()`'s default back to the module constant
+        and ran a test that had set TV_HIST. It wrote into HIS ledger — one phantom name, and
+        `at=1` overwrote `lastAt` so the record claimed its last activity was epoch millisecond 1.
+        Repaired by diffing against a backup, but my own care was the only thing between a routine
+        sabotage and his data. That is not a guard.
+
+        Now the door refuses: TV_HIST naming a world plus a resolved path outside it is a bug in
+        the caller, not a write to perform."""
+        import shadow_ledger as sl
+        import tempfile, shutil, os as _os
+        d = tempfile.mkdtemp(prefix="refuse_")
+        self.addCleanup(shutil.rmtree, d, True)
+        old = _os.environ.get("TV_HIST")
+        _os.environ["TV_HIST"] = d
+        self.addCleanup(lambda: (_os.environ.__setitem__("TV_HIST", old) if old is not None
+                                 else _os.environ.pop("TV_HIST", None)))
+        # simulate the reverted default: force the resolver to answer the LIVE path
+        real = sl._ledger_path
+        sl._ledger_path = lambda: sl.LEDGER
+        try:
+            r = sl.observe({"scored": 1, "disagreements": [], "names": ["Planted"]}, at=1)
+        finally:
+            sl._ledger_path = real
+        self.assertFalse(r.get("ok"),
+                         "a caller inside a declared fixture world wrote the LIVE ledger and was "
+                         "told it succeeded — %r" % (r,))
+        self.assertTrue(r.get("refused"), "the refusal was not marked as one: %r" % (r,))
+
+    def test_the_refusal_does_NOT_fire_for_an_EXPLICIT_path(self):
+        """A caller that names its own file has said where it wants the write; the guard is about
+        an unqualified default resolving to his tree, not about forbidding explicit targets."""
+        import shadow_ledger as sl
+        import tempfile, shutil, os as _os
+        d = tempfile.mkdtemp(prefix="explicit_")
+        self.addCleanup(shutil.rmtree, d, True)
+        old = _os.environ.get("TV_HIST")
+        _os.environ["TV_HIST"] = d
+        self.addCleanup(lambda: (_os.environ.__setitem__("TV_HIST", old) if old is not None
+                                 else _os.environ.pop("TV_HIST", None)))
+        target = _os.path.join(d, "explicit.json")
+        r = sl.observe({"scored": 1, "disagreements": [], "names": ["Ok"]}, at=2, path=target)
+        self.assertTrue(r.get("ok"), "an explicit path was refused: %r" % (r,))
+
+    def test_the_capture_doors_resolver_exists_and_follows_the_root(self):
+        """A cold review: "No capture-doors resolver test exists at all." It was fixed in the same
+        breath as the ledger and pinned by nothing."""
+        import control_app as ca
+        import tempfile, shutil, os as _os
+        d = tempfile.mkdtemp(prefix="doors_res_")
+        self.addCleanup(shutil.rmtree, d, True)
+        old = _os.environ.get("TV_HIST")
+        _os.environ["TV_HIST"] = d
+        self.addCleanup(lambda: (_os.environ.__setitem__("TV_HIST", old) if old is not None
+                                 else _os.environ.pop("TV_HIST", None)))
+        got = ca._capture_doors_path()
+        self.assertEqual(_os.path.dirname(_os.path.realpath(got)), _os.path.realpath(d),
+                         "capture_doors did not follow the fixture root: %r" % got)
+
     def test_it_is_resolved_at_CALL_time_not_at_import(self):
         """⚠ An env var honoured only at import is a redirect that silently does not take — the whole
         reason the import-bound-path registry exists. A suite that sets TV_HIST in setUp, after the
@@ -38512,6 +38601,11 @@ class TestV2420TheShadowLedgerFollowsTheFIXTUREROOT(unittest.TestCase):
         self.assertNotEqual(os.path.realpath(before), os.path.realpath(after),
                             "the path did not change after the env was set post-import — it is "
                             "import-bound, so a late redirect is a silent no-op")
+        # ⚠ AND WHERE IT LANDED, not merely that it moved. A cold review: this test "only asserts
+        # before != after ... weaker than its name" — a resolver that moved the path somewhere
+        # WRONG would have satisfied it.
+        self.assertEqual(os.path.dirname(os.path.realpath(after)), os.path.realpath(d),
+                         "the late redirect moved the path, but not into the fixture: %r" % after)
 
 
 class TestV2419TheWatchlistNAMESTheGateThatMovedState(unittest.TestCase):

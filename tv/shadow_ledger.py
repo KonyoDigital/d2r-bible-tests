@@ -53,11 +53,16 @@ def _ledger_path():
     Same rule as its siblings, so writer and readers agree in every world. In production TV_HIST is
     unset and this is exactly HERE, so nothing about his tree changes.
     """
+    # ⚠ ImportError ONLY. A blanket `except Exception` here would swallow a FAILING _fixture_root
+    # and silently answer HERE — so a suite that set TV_HIST would write the LIVE ledger while
+    # believing it was isolated, which is the exact failure this function exists to close. A cold
+    # review flagged it as "the same swallow as _fixture_root_for_state()". If the root rule is
+    # broken that must surface, not resolve to his tree.
     try:
         import tv_diablo as _tvd
-        return os.path.join(_tvd._fixture_root(HERE), "shadow_ledger.json")
-    except Exception:
+    except ImportError:
         return os.path.join(HERE, "shadow_ledger.json")
+    return os.path.join(_tvd._fixture_root(HERE), "shadow_ledger.json")
 
 
 #: kept for readers that reference the module attribute; the CALLABLE above is the source of truth
@@ -96,6 +101,29 @@ def observe(scores, at=None, path=None, lane="chronicle"):
         return {"ok": False, "why": "nothing in that proposal carried scoreable evidence — "
                                     "recorded nothing rather than a sweep of zero"}
     p = path or _ledger_path()
+    # ⚠⚠ A CALLER THAT DECLARED A FIXTURE WORLD MUST NOT WRITE HIS REAL LEDGER — AND I PROVED WHY
+    # THE HARD WAY. Sabotage-testing this very fix, I reverted the default back to the module
+    # constant and ran a test that had set TV_HIST. It wrote into HIS ledger: one phantom name
+    # ("Shako"), and `at=1` overwrote lastAt so the record claimed its last activity was epoch
+    # millisecond 1. Repaired surgically by diffing against a backup — but the point is that my
+    # own care was the only thing standing between a routine sabotage and his data.
+    #
+    # So the refusal moves into the door. If TV_HIST names a world and the resolved path is NOT
+    # inside it, that is a bug in the caller, not a write to perform. It returns an explicit
+    # refusal rather than raising, because a lane that dies of its own bookkeeping is its own
+    # defect — but it does NOT return ok, so nothing downstream reads it as a successful record.
+    # [[feedback-fixtures-never-touch-live-data]]
+    _hist = os.environ.get("TV_HIST")
+    if _hist and path is None:
+        try:
+            _root = os.path.realpath(_hist)
+            if not os.path.realpath(p).startswith(_root):
+                return {"ok": False, "refused": True,
+                        "why": ("TV_HIST names a fixture world (%s) but this write resolved to %s "
+                                "— refusing to write the live ledger from inside a fixture"
+                                % (_hist, p))}
+        except Exception:
+            pass
     doc = _blank()
     try:
         with io.open(p, encoding="utf-8") as fh:
