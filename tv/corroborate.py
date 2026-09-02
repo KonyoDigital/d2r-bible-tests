@@ -821,6 +821,29 @@ def _inv_the_tooltip_finder_refuses_more_than_it_finds():
             "frames refused", left, "tooltips located", right, ">=")
 
 
+#: v2434 — INVARIANTS DELIBERATELY NOT IN BUILDERS, each with the reason it is not run.
+#: ⚠ THIS EXISTS BECAUSE THE TWO REGISTRIES DISAGREED BY ONE AND NOTHING SAID SO.
+#: `run()` / `verdict()` / the eagle iterate BUILDERS. `prove_each()` (:1017) and the independence
+#: audit (:1116) enumerate `sorted(n for n in globals() if n.startswith("_inv_"))` instead. Those
+#: two rosters are not the same roster, and for the whole life of this file they have differed by
+#: `_inv_the_deleter_is_never_looser_than_the_planner` — graded by the self-proving surface as
+#: proven=True, and never once evaluated by the live path. `git log -S` finds no commit that ever
+#: added it to BUILDERS, so it has never run.
+#: A surface that reports on an invariant the engine cannot run is the shape this whole module
+#: exists to catch, one level up from the invariants themselves. Declaring it is not a fix for the
+#: invariant; it is what stops the DIVERGENCE being silent. The selftest below now refuses any
+#: `_inv_*` that is in neither list. [[the-unjoined-end]] [[unknown-stays-unknown]]
+RETIRED = {
+    "_inv_the_deleter_is_never_looser_than_the_planner":
+        "superseded in practice by `frame-deleter-not-looser` (:401), which asks the same question "
+        "-- the frame deleter must never free more than the reel planner offers -- against "
+        "frame_authority.free vs retention.candidate pages. This earlier version was never "
+        "registered. It is kept, not deleted, because its docstring records the 2026-08-30 "
+        "disagreement between reel_retention and frame_authority and why the strict one was RIGHT "
+        "to hold; that reasoning is worth more than the function. If it should run, move it into "
+        "BUILDERS and delete this entry -- do not leave it in both.",
+}
+
 BUILDERS = (_inv_the_tooltip_finder_refuses_more_than_it_finds,
             _inv_the_console_and_the_law_agree_about_furniture,
             _inv_every_declared_tooltip_surface_is_served,
@@ -1113,6 +1136,18 @@ def selftest():
         import re as _re
         shared_bad = []
         unjudged = []
+        # ⚠ v2434 — EVERY INVARIANT MUST BE IN ONE LIST OR THE OTHER. Without this an invariant
+        # can sit in the file, be graded by prove_each() and audited for independence, and never be
+        # evaluated by run() -- which is exactly what `deleter-not-looser` did from the day it was
+        # written. Neither roster noticed, because neither was compared to the other.
+        _declared = set(RETIRED) | {getattr(_b, "__name__", "") for _b in BUILDERS}
+        _orphans = [n for n in sorted(globals())
+                    if n.startswith("_inv_") and n not in _declared]
+        out.append(("no invariant is graded but never RUN"
+                    + (" — in neither BUILDERS nor RETIRED, so prove_each() and the independence "
+                       "audit grade them while run() and the eagle can never evaluate them: %s"
+                       % ", ".join(_orphans) if _orphans else ""),
+                   not _orphans))
         for _name in sorted(n for n in globals() if n.startswith("_inv_")):
             _f = globals()[_name]
             if not callable(_f):

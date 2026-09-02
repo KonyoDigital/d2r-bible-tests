@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2433",
+  "ver": "v2434",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2433: a surface he named three times reported to nobody, and my consoles outlived their parents",
+  "note": "v2434: the gate said 14 sabotages while running 23, and an invariant was graded but never run",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

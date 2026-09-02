@@ -542,6 +542,33 @@ def _port_open(host="127.0.0.1", port=None, timeout=1.0):
             pass
 
 
+def _sabotage_count():
+    """How many cases prove() actually runs. -> int, or "an unknown number of".
+
+    Read from the AST of this very file rather than kept in a variable, because prove() builds its
+    list inline and any counter I maintained by hand would drift exactly as the literal did.
+    ⚠ UNKNOWN IS A STRING ON PURPOSE. If the shape changes and the count cannot be read, the
+    sentence must say so out loud rather than printing a confident 0 — a gate claiming zero
+    sabotages reads as broken, and a gate claiming a made-up number is worse than both.
+    """
+    try:
+        import ast
+        with open(os.path.abspath(__file__), encoding="utf-8") as _fh:
+            src = _fh.read()          # NOT io.open — this module does not import io, and the
+                                      # first cut of this function silently printed "an unknown
+                                      # number of" because NameError landed in the except.
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, ast.FunctionDef) and node.name == "prove":
+                for sub in ast.walk(node):
+                    if (isinstance(sub, ast.Assign) and sub.targets
+                            and getattr(sub.targets[0], "id", "") == "cases"
+                            and isinstance(sub.value, (ast.List, ast.Tuple))):
+                        return len(sub.value.elts)
+    except Exception:
+        pass
+    return "an unknown number of"
+
+
 def gate_mode():
     """BOTH halves, in order: is the instrument trustworthy, and what does it say about the console?
 
@@ -561,6 +588,14 @@ def gate_mode():
       · the real check runs when a console is actually listening
       · unreachable is printed as UNKNOWN in its own words and does NOT claim a pass
     """
+    # ⚠ v2434 — THE COUNT IS DERIVED, NOT TYPED. The line below used to read "proven on 14
+    # sabotages" as a hardcoded literal. It was true when written this morning and was 23 by the
+    # afternoon — I added the theatre and shelf cases and never touched the sentence. A gate whose
+    # own summary misstates how hard it was tested is the smallest possible version of the defect
+    # this whole file exists to catch, and it drifted within hours of being written.
+    # A number a human types is a number that goes stale; a number the code counts cannot.
+    # [[label-outlived-referent]]
+    _n_sab = _sabotage_count()
     rc = prove()
     if rc != 0:
         print("\n\U0001f534 live-panel: the SABOTAGE failed — the instrument is broken, so nothing "
@@ -598,7 +633,8 @@ def gate_mode():
         print("\u26aa SKIPPED — the port was open but the console never answered, so nothing was "
               "asserted about it. Not a pass.")
         return 77
-    print("\U0001f7e2 live-panel: instrument proven on 14 sabotages AND the live console read clean.")
+    print("\U0001f7e2 live-panel: instrument proven on %s sabotage(s) AND the live console read "
+          "clean." % _n_sab)
     return 0
 
 
