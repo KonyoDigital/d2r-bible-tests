@@ -681,7 +681,10 @@ def run(only=None, live_watch=True, live_writer=None):
             _lw_prev = _lw_now
     if live_watch and _lw_blame:
         print()
-        print("\u26a0 WHICH GATE TOUCHED HIS LIVE STATE — attributed, not just detected:")
+        print("\u26a0 WHICH GATE %s:" % ("MAY HAVE TOUCHED HIS LIVE STATE — suspects, because "
+                                          "something else was writing too" if live_writer
+                                          else "TOUCHED HIS LIVE STATE — attributed, not just "
+                                               "detected"))
         for name, moved in _lw_blame:
             print("     %-22s %s" % (name, "; ".join(moved)))
         print("   Each gate runs as its own SUBPROCESS, so this is the only place the writer can be")
@@ -918,8 +921,13 @@ def _state_fingerprint():
             try:
                 with open(p, "rb") as fh:
                     out[n] = hashlib.md5(fh.read()).hexdigest()[:16]
-            except Exception:
-                out[n] = None
+            except Exception as _e:
+                # ⚠ UNREADABLE IS NOT ABSENT, and recording it as None made them the same fact.
+                # A torn read would look like absence and the next successful read like CREATION,
+                # attributed to whatever gate happened to be running. `_live_fingerprint` already
+                # records "unreadable:..." for this reason; matching it keeps one vocabulary.
+                # [[unknown-stays-unknown]]
+                out[n] = "unreadable:%s" % str(_e)[:24]
     for n in _LIVE_STATE:                      # keep the named ones even if they are absent
         out.setdefault(n, None)
     return out

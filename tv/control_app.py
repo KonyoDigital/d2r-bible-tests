@@ -4310,6 +4310,24 @@ def capture_preflight(door, look_for_window=True):
     return facts
 
 
+def _capture_doors_path():
+    """v2420 — the LAST of the four files CI named, and the same defect as the other three.
+
+    `CAPTURE_DOORS_PATH` was computed from HERE at import, so it ignored `_fixture_root_for_state()`
+    entirely and every suite that opened a capture door wrote HIS per-door Wilson ledger. CI's
+    per-gate attribution named the writers; instrumenting `os.replace` named the tests. Giving the
+    shadow ledger the shared root took test_control from 37 live writes to 2, and both survivors
+    were this file.
+
+    ⚠ RESOLVED AT CALL TIME, like its siblings. An env honoured only at import is a redirect that
+    silently does not take, which is the whole reason the import-bound-path registry exists.
+    In production TV_HIST is unset and this is exactly HERE, so nothing about his tree changes.
+    """
+    return os.path.join(_fixture_root_for_state(), "capture_doors.json")
+
+
+#: kept so existing readers of the module attribute still resolve; the CALLABLE is the source of
+#: truth and every read/write below goes through it.
 CAPTURE_DOORS_PATH = os.path.join(HERE, "capture_doors.json")
 
 
@@ -4342,7 +4360,7 @@ def _kai_missed_texts(missed):
 
 def _capture_door_load():
     try:
-        with open(CAPTURE_DOORS_PATH, encoding="utf-8") as f:
+        with open(_capture_doors_path(), encoding="utf-8") as f:
             d = json.load(f)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -4351,10 +4369,11 @@ def _capture_door_load():
 
 def _capture_door_save(d):
     try:
-        tmp = CAPTURE_DOORS_PATH + ".tmp"
+        _cdp = _capture_doors_path()
+        tmp = _cdp + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(d, f, indent=1, sort_keys=True)
-        os.replace(tmp, CAPTURE_DOORS_PATH)
+        os.replace(tmp, _cdp)
     except Exception:
         pass
 
@@ -21426,7 +21445,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2419",
+        "ver": "v2420",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

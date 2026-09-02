@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2419",
+  "ver": "v2420",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2419: a delta is not actionable, a name is",
+  "note": "v2420: 37 live-state writes to zero, and the test that proved nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

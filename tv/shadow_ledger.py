@@ -30,6 +30,38 @@ import os
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+def _ledger_path():
+    """Where the shadow ledger lives — HIS tree normally, a FIXTURE's when TV_HIST says so.
+
+    ⚠ v2420 — THIS FILE WAS THE SIBLING THAT NEVER GOT THE ISOLATION EVERY OTHER LIVE-STATE FILE
+    HAS. control_app resolves its state through `_fixture_root_for_state()` and the comment beside
+    one of them says why in as many words: "Goes through _fixture_root_for_state() like its
+    siblings so a test can never write his real one." shadow_ledger.json computed its path from its
+    OWN __file__ and therefore ignored that isolation completely.
+
+    MEASURED — this is not a theory. CI's per-gate attribution (v2419) named `test_control` as a
+    writer of four live files, and instrumenting `os.replace` named the exact tests: FOURTEEN of
+    them across TestChronicleSweepJob, TestSweepOneVisit and TestV1835EvidenceIsBankedAsItIsRead.
+    Every one runs a real sweep, which reaches control_app._shadow_bank -> observe() with no path,
+    and lands here.
+
+    ⚠ RESOLVED AT CALL TIME, NOT AT IMPORT. The registry of import-bound paths exists because an
+    env var honoured only at import is a redirect that silently does not take — a test setting
+    TV_HIST after importing this module would believe it was isolated and write his real ledger.
+    Call-time is the shape that cannot lie about when it applies.
+
+    Same rule as its siblings, so writer and readers agree in every world. In production TV_HIST is
+    unset and this is exactly HERE, so nothing about his tree changes.
+    """
+    try:
+        import tv_diablo as _tvd
+        return os.path.join(_tvd._fixture_root(HERE), "shadow_ledger.json")
+    except Exception:
+        return os.path.join(HERE, "shadow_ledger.json")
+
+
+#: kept for readers that reference the module attribute; the CALLABLE above is the source of truth
+#: and every default below goes through it.
 LEDGER = os.path.join(HERE, "shadow_ledger.json")
 
 # How much is enough to be worth HIS decision. Deliberately conservative: the cost of promoting too
@@ -63,7 +95,7 @@ def observe(scores, at=None, path=None, lane="chronicle"):
     if not scored:
         return {"ok": False, "why": "nothing in that proposal carried scoreable evidence — "
                                     "recorded nothing rather than a sweep of zero"}
-    p = path or LEDGER
+    p = path or _ledger_path()
     doc = _blank()
     try:
         with io.open(p, encoding="utf-8") as fh:
@@ -158,7 +190,7 @@ def state(path=None):
     """
     scg = 0          # v2225 — defined BEFORE the early returns below reference it
     try:
-        with io.open(path or LEDGER, encoding="utf-8") as fh:
+        with io.open(path or _ledger_path(), encoding="utf-8") as fh:
             d = json.load(fh)
     except FileNotFoundError:
         return {"ok": True, "scorings": scg, "state": "empty",

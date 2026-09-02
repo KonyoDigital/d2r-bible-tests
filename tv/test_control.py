@@ -4916,6 +4916,19 @@ class TestV2304ShadowOnlyRollsAReelWhenItShould(unittest.TestCase):
     """
 
     def setUp(self):
+        # ⚠ v2420 — DECLARE A WORLD. This class opens a capture door, and the door writes the
+        # per-door Wilson ledger — so with no root declared it wrote HIS `capture_doors.json` on
+        # every run. CI's per-gate attribution named it; production now resolves that path through
+        # _fixture_root_for_state(), and this is the other half: a suite that writes state must say
+        # which world it is in. [[feedback-fixtures-never-touch-live-data]]
+        import tempfile as _tf, shutil as _sh
+        _d = _tf.mkdtemp(prefix="doors_")
+        self.addCleanup(_sh.rmtree, _d, True)
+        _old_hist = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = _d
+        self.addCleanup(lambda: (os.environ.__setitem__("TV_HIST", _old_hist)
+                                 if _old_hist is not None
+                                 else os.environ.pop("TV_HIST", None)))
         self._saved = {k: getattr(ca, k, None) for k in
                        ("_shadow_state", "_agent_alive", "mini_state", "start_agent")}
         self._started = []
@@ -5644,6 +5657,22 @@ class TestV2316OnePreflightForEveryCaptureDoor(unittest.TestCase):
                              "this preflight exists to close" % door)
         for need in ("screenRecOk", "diskOk", "windowSeen", "reelRolling", "miniRunning"):
             self.assertIn(need, keys, "the preflight lost the %r fact" % need)
+
+    def setUp(self):
+        """⚠ v2420 — DECLARE A WORLD. This class exercises all three capture doors, and a door
+        writes the per-door Wilson ledger — so with no root declared it wrote HIS
+        `capture_doors.json` on every run. CI's per-gate attribution (v2419) named this class and
+        TestV2304 as the last two writers in test_control after the shared-root fix took the other
+        thirty-five. Production resolves that path through _fixture_root_for_state() now; this is
+        the other half — a suite that writes state must say which world it is in.
+        [[feedback-fixtures-never-touch-live-data]]"""
+        import tempfile as _tf, shutil as _sh
+        _d = _tf.mkdtemp(prefix="doors_")
+        self.addCleanup(_sh.rmtree, _d, True)
+        _old = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = _d
+        self.addCleanup(lambda: (os.environ.__setitem__("TV_HIST", _old)
+                                 if _old is not None else os.environ.pop("TV_HIST", None)))
 
     def test_MINI_refuses_AT_ITS_OWN_DOOR_and_names_its_own_button(self):
         """⚠ THIS TEST WAS FIRST WRITTEN AS A LIE, AND A SABOTAGE CAUGHT IT.
@@ -38415,6 +38444,76 @@ class TestV2419TheEagleReaderFallsBackONLYWhenControlAppIsAbsent(unittest.TestCa
             ca._chron_swept_path = old
 
 
+class TestV2420TheShadowLedgerFollowsTheFIXTUREROOT(unittest.TestCase):
+    """⚠ THE ONE LIVE-STATE FILE THAT NEVER GOT THE ISOLATION ITS SIBLINGS HAVE.
+
+    control_app resolves state through `_fixture_root_for_state()`, and the comment beside one of
+    them says why in as many words: "Goes through _fixture_root_for_state() like its siblings so a
+    test can never write his real one." `shadow_ledger.json` computed its path from its OWN
+    `__file__` and ignored that isolation completely.
+
+    MEASURED, not theorised. CI's per-gate attribution (v2419) named test_control as a writer of
+    four live files; instrumenting `os.replace` named the exact tests — FOURTEEN across
+    TestChronicleSweepJob, TestSweepOneVisit and TestV1835EvidenceIsBankedAsItIsRead. Every one runs
+    a real sweep, which reaches control_app._shadow_bank -> observe() with no path, and lands in his
+    ledger.
+    """
+
+    def test_TV_HIST_moves_the_ledger_into_the_fixture(self):
+        import shadow_ledger as sl
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="shadow_root_")
+        self.addCleanup(shutil.rmtree, d, True)
+        old = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = d
+        try:
+            got = sl._ledger_path()
+        finally:
+            if old is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old
+        self.assertTrue(os.path.realpath(got).startswith(os.path.realpath(d)),
+                        "a fixture root did not move the shadow ledger — a suite that sets TV_HIST "
+                        "still writes his real one. got %r" % got)
+
+    def test_WITHOUT_the_env_it_is_exactly_his_tree(self):
+        """The other direction, or the isolation has quietly relocated production."""
+        import shadow_ledger as sl
+        old = os.environ.pop("TV_HIST", None)
+        try:
+            got = sl._ledger_path()
+        finally:
+            if old is not None:
+                os.environ["TV_HIST"] = old
+        self.assertEqual(os.path.realpath(got),
+                         os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(
+                             sl.__file__)), "shadow_ledger.json")),
+                         "production no longer resolves to his tree")
+
+    def test_it_is_resolved_at_CALL_time_not_at_import(self):
+        """⚠ An env var honoured only at import is a redirect that silently does not take — the whole
+        reason the import-bound-path registry exists. A suite that sets TV_HIST in setUp, after the
+        module is already imported, must still be isolated."""
+        import shadow_ledger as sl
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="shadow_late_")
+        self.addCleanup(shutil.rmtree, d, True)
+        before = sl._ledger_path()          # module already imported, env not yet set
+        old = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = d
+        try:
+            after = sl._ledger_path()
+        finally:
+            if old is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old
+        self.assertNotEqual(os.path.realpath(before), os.path.realpath(after),
+                            "the path did not change after the env was set post-import — it is "
+                            "import-bound, so a late redirect is a silent no-op")
+
+
 class TestV2419TheWatchlistNAMESTheGateThatMovedState(unittest.TestCase):
     """⚠ CI COULD SAY WHAT MOVED AND NEVER WHICH GATE MOVED IT.
 
@@ -38467,6 +38566,41 @@ class TestV2419TheWatchlistNAMESTheGateThatMovedState(unittest.TestCase):
         finally:
             R.GATES, R._state_fingerprint, R._LIVE_STATE = old_gates, old_fp, old_ls
         return buf.getvalue()
+
+    def test_the_NET_actually_covers_the_file_that_prompted_this(self):
+        """⚠ THE JOIN MY OTHER TWO TESTS DO NOT MAKE, AND A COLD REVIEW SAID SO IN ONE SENTENCE:
+        "A revert of `_state_fingerprint` to the 16-name list stays green."
+
+        Both tests below STUB `_state_fingerprint` and then assert that run() prints a name when the
+        stub reports a delta. That proves the plumbing. It does not prove the NET — and the net is
+        the thing that was wrong: my first cut used `_live_fingerprint()`, whose sixteen named files
+        do not include `shadow_ledger.json`, so it was inert on the very case that prompted it.
+
+        I wrote that failure into the other test's docstring and then wrote a test that would pass
+        with the first cut restored. This one calls the REAL function and asserts the coverage.
+        [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]"""
+        import run_gates as R
+        got = R._state_fingerprint()
+        for name in ("shadow_ledger.json", "capture_doors.json", "disk_history.jsonl"):
+            self.assertIn(name, got,
+                          "%r is not in the attribution net — CI named it as the thing a gate "
+                          "wrote, so a net that cannot see it is inert on its own motivating case"
+                          % name)
+
+    def test_the_net_is_WIDER_than_the_named_live_state_list(self):
+        """The same point from the other side, so a future narrowing is caught rather than assumed
+        harmless: the FAILURE list (_LIVE_STATE) and the ATTRIBUTION net are different sets on
+        purpose. The first says what must not move; the second must cover anything a subprocess
+        might create in order to say WHO moved it."""
+        import run_gates as R
+        net = set(R._state_fingerprint())
+        named = set(R._LIVE_STATE)
+        self.assertTrue(net - named,
+                        "the attribution net has shrunk to the named live-state list — that is the "
+                        "inert first cut, which could not see shadow_ledger.json")
+        self.assertNotIn("shadow_ledger.json", named,
+                         "shadow_ledger.json joined _LIVE_STATE; if that is deliberate this test's "
+                         "premise has changed and it should be rewritten, not deleted")
 
     def test_it_NAMES_the_gate(self):
         out = self._run_with_a_writing_gate(True)
