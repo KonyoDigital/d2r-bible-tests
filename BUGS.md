@@ -14144,6 +14144,76 @@ INVENTORY itself can be opened separately with its own template"*. Chrome presen
 chrome absent means the inventory alone. Both legitimate, so the chrome can only tell them apart —
 it can never contradict an inventory read.
 
+## REG-442 - THE ADVANCED DRAWER'S FLEET NEVER FILLED, FOR 238 VERSIONS
+
+Konyo, 2026-09-02: *"the Advanced setting i suddenly cant see the advanced grok eyes and the
+fleet. it slike hidden.. make sure this is watchdogs control too.. visually pixel wise and
+backend ... only the tooltips are here. its regressed again"*
+
+MEASURED on a served console at the size `control_app.py` actually creates the window
+(1120x628), with a recorder installed **before any page script ran**:
+
+```
+t=19ms   SET .open = true   (it was already true)      <- v2190's restore line
+t=25ms   TOGGLE fires, open=true
+           _shadowAdvRefresh     function     ran
+           _autoRelaunchRefresh  function     ran
+           _advOpened            function     ran
+           _fleetRefresh         UNDEFINED    threw into an empty catch
+```
+
+`control_ui.html` has **two script blocks** - 6693..16583 and 16699..19652 - and `#sig-adv`'s
+inline `ontoggle` sits at 6361, above both. Chrome queues the toggle task BETWEEN them, so the
+handler ran at the one moment when block 1 had defined three of the four refreshers and block 2
+had defined none. `try { window._fleetRefresh(); } catch(e) {}` threw a TypeError into an empty
+catch on every load. Measured after a full load: `#fleet-list.innerText` was still the placeholder
+`open advanced to check the fleet...`.
+
+⚠ **THE FLEET PANEL HAS NOW BEEN BROKEN BY THIS SEAM TWICE.** The header of block 2 records the
+first: v1496's fleet *"reported 'fleet unreachable' even when the route answered perfectly - the
+fetch succeeded and the RENDER died"*, because `escC()` lived in the other block. Same file, same
+boundary, same panel, thirty-two ships apart.
+
+⚠ **AND IT ONLY BECAME PERMANENT AT v2190.** Before that the drawer shipped CLOSED, so he always
+CLICKED it - and a click happens long after block 2 has run, so the fleet filled and nobody could
+see the race. v2190 made it default-open and restored his stored choice, which is right, and in
+doing so removed the one event that had been papering over a load-order fault present all along.
+**The fix was never wrong; its only caller stopped firing.**
+
+⚠ **THE ASYNC HALF WAS UNREPORTABLE TOO.** `_fleetRefresh` is `async`, so even once it existed, a
+rejected promise walked straight past the enclosing `try`.
+
+**FIXED v2428** - `_advFill` is defined below every refresher it calls and is invoked outright on
+load, so the fill no longer depends on a toggle event firing (his console is pywebview/WebKit,
+where that behaviour cannot be assumed either way - v2113 already paid for that assumption).
+`_advOpened` is deliberately NOT on the load path: it scrolls the rail so the drawer sits at the
+top, and measured, the rail holds 1,794px in a 430px scroller with the drawer starting at offset
+592 - so scrolling to it on load hid ON AIR, MINI, MINI-AUTO and the stash/runes/gems/materials
+row, which is the primary capture block.
+
+**AND A SECOND, VISIBLE DEFECT IN THE SAME PANEL.** With the fleet finally rendering, the rows
+overflowed: at 1120x628 with the rail 227px wide, `#fleet-list` clientWidth **227** against
+scrollWidth **784**, rows at 334 and 401px, `overflow-x: visible` - so they spilled out and were
+cut by the rail. On screen: `Konyo idle - v2428 - unpublis`, `Dean offline - v2420 - 6 behi`.
+**A flex item never shrinks below min-content**, and `.fleet-meta` carried `white-space: nowrap`,
+so the row could not be narrower than that string. Third instance of this law in this repo after
+`.util-strip` and the `.shell` grid twin. ⚠ The render gate reported `clipped 0` and was right by
+its own rule - the row's BOX is 227px and only its CONTENT overflowed, which a rect cannot see.
+**The picture caught what the measurement could not.**
+
+**GUARDS, ALL SEEN RED:** `TestAdvancedDrawerFills` (7 cases) and `TestUiFaultsAreScratchScoped`
+(3) in `tv/test_control.py`; `tv/live_panel_gate.py` gained four fill refusals and now runs 14/14
+sabotages; `tv/render_check.py` gained `advanced`, `advanced-shadow` and `advanced-fleet`. Proven
+red on the real path: the fault was reproduced on the live page and the gate refused it from a
+green baseline.
+
+**AND ONE FOUND ON THE WAY.** `_UI_FAULTS` was a bare `HERE/ui_faults.jsonl`, so every headless
+console wrote into the record `console_doctor.py` and `console_healer.py` read to decide whether
+HIS console is sick - CF-11's shape exactly. Wiring the drawer's failures to POST `/api/ui_fault`
+would have turned rare pollution into routine pollution. Now scratch-scoped, both call sites, with
+the gitignore covering the SHAPE (`tv/*.scratch-*`) rather than a third named file.
+
+
 ## REG-441 - HE WAS ASKED TO FILE A GREY BASE IN HIS GRAIL
 
 Konyo, 2026-09-01: *"there are regular base items that are asking me to chronicle or vault which

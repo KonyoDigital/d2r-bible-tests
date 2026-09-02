@@ -11132,10 +11132,18 @@ class TestV2210TheAutoRelaunchSwitchIsReachableAndReadable(unittest.TestCase):
         TestTheSourceGuardsDoNotGetMoreDangerous exists to stop — it caught my first cut of this
         very test. A slice that silently truncates makes `assertIn` fail for the wrong reason and
         `assertNotIn` PASS for no reason. [[source-reading-guard]]
+
+        ⚠ v2428 — SAME LAW, NEW ADDRESS. The drawer's ontoggle no longer names the refreshers
+        one by one; it delegates to `_advFill`, which is declared BELOW every function it calls and
+        is invoked on load rather than only on a state change. That was forced: the attribute runs
+        during parse, between this file's two script blocks, so a block-2 function called from it
+        does not exist yet. Anything still asserting on the attribute would be pinning the very
+        shape that broke. The sibling-joint question is unchanged - is this switch in the list the
+        drawer refreshes? - so it is asked of the list.
         """
-        stanza = _between(self, self.ui, 'id="sig-adv"', "</details>",
-                          what="the ADVANCED drawer's open handler")
-        self.assertIn("_autoRelaunchRefresh", stanza,
+        fill = _between(self, self.ui, "window._advFill = function", "\n  };",
+                        min_len=200, what="the ADVANCED drawer's fill")
+        self.assertIn("_autoRelaunchRefresh", fill,
                       "opening ADVANCED refreshes the shadow switches and NOT this one, so it "
                       "would sit on 'checking…' until something else happened to repaint it")
 
@@ -23169,12 +23177,22 @@ class TestV2085TheSwitchesReachTheConsoleDrawer(unittest.TestCase):
     def test_the_painter_is_actually_CALLED_when_the_drawer_opens(self):
         """Built on both ends and never joined is the failure this whole file keeps finding. The
         hook lives in the ontoggle ATTRIBUTE, not a JS line — the first cut added the function and
-        nothing invoked it."""
-        ui = self._ui()
-        i = ui.index('<details class="sig-adv"')
-        tag = ui[i:ui.index(">", i)]
-        self.assertIn("_shadowAdvRefresh()", tag,
-                      "the painter exists and the drawer never calls it")
+        nothing invoked it.
+
+        ⚠ v2428 — THE LAW IS UNCHANGED AND THE MECHANISM MOVED, so this now looks in the new
+        place rather than asserting the old line. Until v2428 the drawer's ontoggle called each
+        refresher by name, inline. That is exactly what broke: the attribute fires during PARSE,
+        between the file's two script blocks, so `window._fleetRefresh` - defined in block 2 - did
+        not exist yet and its TypeError died in an empty catch on every load. The calls now live in
+        `_advFill`, declared below every function it calls and invoked outright on load.
+
+        This test's question is still the right one and still fails for the right reason: is the
+        painter actually REACHED when the drawer opens? Only the address changed.
+        """
+        fill = _between(self, self._ui(), "window._advFill = function", "\n  };",
+                        min_len=200, what="the _advFill body")
+        self.assertIn("_shadowAdvRefresh", fill,
+                      "the painter exists and nothing in the drawer's fill calls it")
 
 
 class TestV2086TheThreeThingsThatWereQuietlyTrue(unittest.TestCase):
@@ -38741,6 +38759,44 @@ class TestV2426TheCrestGateWAITSViaTheSharedHelper(unittest.TestCase):
                       "nothing between the reload and the element wait distinguishes the NEW "
                       "document from the old one")
 
+    def test_a_timeout_REFUSES_rather_than_scoring_the_old_page(self):
+        """⚠ v2426 WAITED AND THEN PROCEEDED ANYWAY. A cold review: the budget expiring means the
+        capture is of the document the reload was meant to replace — precisely what the wait exists
+        to prevent — and it went on to score it. Refusing is the only honest end."""
+        src = self._src()
+        tail = _between(self, src, 't.send("Page.reload")', "_selector_ready(t",
+                        what="the post-reload wait")
+        self.assertIn("return 2", tail,
+                      "the new-document wait cannot refuse: on timeout it proceeds to score a page "
+                      "that may be the one the reload was replacing")
+
+    def test_a_SILENT_probe_death_is_not_mistaken_for_patience(self):
+        """Every poll tick swallowed its exception, so 20s of a dead CDP connection ended in the
+        same state as a page that simply had not navigated — and then scored it."""
+        src = self._src()
+        tail = _between(self, src, 't.send("Page.reload")', "_selector_ready(t",
+                        what="the post-reload wait")
+        self.assertIn("_err", tail,
+                      "probe exceptions are counted nowhere, so a dead connection reads as a "
+                      "patient wait that timed out")
+
+    def test_settled_can_REFUSE_the_capture(self):
+        """`check()` in render_check refuses on _settled's answer; this gate discarded it and
+        screenshotted a page that never settled."""
+        src = self._src()
+        self.assertIn("_unsettled = rc._settled(t)", src,
+                      "_settled's answer is discarded again — a half-built page gets scored")
+
+    def test_the_enable_and_the_sample_are_SEPARATE_try_blocks(self):
+        """⚠ Sharing one block meant an enable failure set the pre-sample to None and silently
+        disarmed the ONLY new-document check. One failure must not disable an unrelated guard."""
+        src = self._src()
+        pre = _between(self, src, 'try:\n            t.send("Page.enable")',
+                       't.send("Page.reload")', what="the enable/sample preamble")
+        self.assertGreaterEqual(pre.count("try:"), 2,
+                                "the enable and the performance.now() sample share one try — an "
+                                "enable failure disarms the new-document check")
+
     def test_it_does_not_quote_the_helpers_activation_wording(self):
         """The helper's `why` ends '...after the panel was activated'. This gate activates nothing,
         so quoting it verbatim imports a cause this path does not have."""
@@ -40092,6 +40148,182 @@ class TestV2401TheVerdictCannotOutrunItsInputs(unittest.TestCase):
         self.assertIn("RELAUNCH", got,
                       "three parts on different builds is the loudest fact and must win: %s" % got)
 
+
+
+class TestAdvancedDrawerFills(unittest.TestCase):
+    """v2428 — the ⚙ ADVANCED drawer's FLEET never filled, and only he could tell.
+
+    Konyo, 2026-09-02: *"the Advanced setting i suddenly cant see the advanced grok eyes and the
+    fleet. it slike hidden.. make sure this is watchdogs control too.. visually pixel wise and
+    backend ... only the tooltips are here. its regressed again"*
+
+    MEASURED with a recorder installed before any page script ran, on a served console at the size
+    control_app.py actually creates the window:
+
+        t=19ms  SET .open = true  (it was already true)   <- v2190's restore line
+        t=25ms  TOGGLE fires, open=true
+                _shadowAdvRefresh / _autoRelaunchRefresh / _advOpened   defined
+                _fleetRefresh                                           UNDEFINED
+
+    control_ui.html has two script blocks; #sig-adv's inline ontoggle sits above both and Chrome
+    queues the toggle BETWEEN them. `try { window._fleetRefresh(); } catch(e) {}` threw a TypeError
+    into an empty catch on every load, and #fleet-list kept its placeholder forever.
+
+    ⚠ THESE PIN THE LAW, NOT THE LINE NUMBERS. The defect is not "the fleet was broken" - it is
+    "a function was called from a place that runs before the function exists". So what is asserted
+    is the ORDER and the DELEGATION, which stay true however the file is rearranged.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+
+    def _tag(self):
+        """The <details> OPENING TAG only.
+
+        ⚠ SLICED, NOT GREPPED. Every name in this test now also appears in the 40-line comment
+        explaining the fix, so a whole-file `assertNotIn('_fleetRefresh', ...)` would fail on my own
+        prose rather than on the code. Assert against the tag itself. [[source-reading-guard]]
+        """
+        return _between(self, self.ui, '<details class="sig-adv" id="sig-adv"', '>',
+                        min_len=60, what="the sig-adv opening tag")
+
+    def test_ontoggle_does_not_call_a_refresher_directly(self):
+        tag = self._tag()
+        for fn in ("_fleetRefresh", "_shadowAdvRefresh", "_autoRelaunchRefresh", "_advOpened"):
+            self.assertNotIn(fn, tag,
+                             "#sig-adv's ontoggle calls %s directly again. That attribute fires "
+                             "during PARSE, between the two script blocks, so a function defined in "
+                             "the second block does not exist yet and the call dies in a catch. "
+                             "Delegate to _advFill instead." % fn)
+
+    def test_ontoggle_delegates_to_the_fill(self):
+        self.assertIn("_advFill", self._tag(),
+                      "#sig-adv's ontoggle no longer reaches _advFill, so clicking the drawer open "
+                      "fills nothing.")
+
+    def test_the_fill_is_defined_after_every_function_it_calls(self):
+        """The actual law. _advFill may not be declared above anything it invokes."""
+        i = self.ui.find("window._advFill = function")
+        self.assertGreater(i, -1, "window._advFill is gone — the drawer has no filler at all.")
+        for fn in ("_fleetRefresh", "_shadowAdvRefresh", "_autoRelaunchRefresh", "_advOpened"):
+            j = self.ui.find("window.%s = " % fn)
+            self.assertGreater(j, -1, "window.%s is no longer assigned anywhere." % fn)
+            self.assertGreater(
+                i, j,
+                "window._advFill is defined BEFORE window.%s. That is the v2190..v2427 fault "
+                "exactly: at the moment the fill runs, the refresher does not exist yet, and the "
+                "per-call try/catch turns that into silence. The fill must be the last of the "
+                "family to be declared." % fn)
+
+    def test_the_fill_is_called_outside_the_inline_attribute(self):
+        """A caller that only fires on a state CHANGE cannot fill a drawer that loads open."""
+        tag = self._tag()
+        body = self.ui.replace(tag, "")
+        self.assertIn("window._advFill(", body,
+                      "the only call to _advFill is the inline ontoggle again. A <details> that "
+                      "ships `open` never toggles on load in every engine, so the drawer would "
+                      "fill only if he happens to click it — which is precisely how this hid for "
+                      "238 versions while the panel shipped CLOSED.")
+
+    def test_a_missing_refresher_is_recorded_not_swallowed(self):
+        fill = _between(self, self.ui, "window._advFill = function", "\n  };",
+                        min_len=200, what="the _advFill body")
+        self.assertIn("rec.missing.push", fill,
+                      "a refresher that is not a function must be RECORDED. 'not defined yet' is "
+                      "neither success nor failure, and it is the state that was invisible.")
+        self.assertIn("_advFailed", fill,
+                      "_advFill no longer reports failures to /api/ui_fault, so a drawer that "
+                      "cannot fill reaches nobody. console_doctor and console_healer read that "
+                      "record; a catch block reads nothing.")
+        self.assertIn(".then", fill,
+                      "_fleetRefresh is async, so a REJECTED promise walks straight past the "
+                      "enclosing try. Without a .catch, an async failure is unreportable — which "
+                      "is how this stayed silent even in the cases where the function existed.")
+
+    def test_the_drawer_is_in_the_watchdogs_roster(self):
+        """His words: 'make sure this is watchdogs control too'."""
+        self.assertIn("['advanced','sig-adv','fleet-list']", self.ui,
+                      "the ADVANCED drawer left uiBeat.panels, so tv/live_panel_gate.py is blind "
+                      "to it again and only he can notice it is empty.")
+        self.assertIn("o.advFill =", self.ui,
+                      "the beat no longer publishes the fill record, so the gate cannot tell a "
+                      "drawer that filled from one that merely rendered.")
+        self.assertIn("o.advFleetPlaceholder =", self.ui,
+                      "the beat no longer reports whether the fleet is still showing its "
+                      "placeholder copy — the one signal that names his actual complaint.")
+
+    def test_the_fleet_row_can_shrink_below_its_own_text(self):
+        """v2428 — a flex item never shrinks below min-content. Third time in this repo.
+
+        MEASURED at 1120x628, rail 227px: #fleet-list clientWidth 227 vs scrollWidth 784, rows at
+        334 and 401px, overflow-x VISIBLE — so they spilled out and were cut by the rail. On screen:
+        'Konyo idle - v2428 - unpublis'. The render gate said `clipped 0` and was right by its own
+        rule: the row's BOX is 227px and only its CONTENT overflowed, which a rect cannot see.
+        """
+        row = _between(self, self.ui, ".fleet-row { display: flex", "}",
+                       min_len=40, what="the .fleet-row rule")
+        self.assertIn("flex-wrap: wrap", row,
+                      ".fleet-row is a flex container again with no wrap. A flex item never "
+                      "shrinks below min-content, so the row cannot be narrower than its longest "
+                      "unbreakable child and spills out of a 227px rail. Same law as .util-strip "
+                      "and the .shell grid twin.")
+        meta = _between(self, self.ui, ".fleet-meta { margin-left: auto", "}",
+                        min_len=30, what="the .fleet-meta rule")
+        self.assertNotIn("nowrap", meta,
+                         ".fleet-meta is `white-space: nowrap` again. That is the child the row "
+                         "could not shrink past — its min-content width is the whole string.")
+
+
+class TestUiFaultsAreScratchScoped(unittest.TestCase):
+    """v2428 — every headless console was writing into HIS fault record.
+
+    `_UI_FAULTS` was a bare HERE/ui_faults.jsonl, so a scratch console on 17791 — the kind a render
+    probe or a gate run starts — appended into the file console_doctor.py and console_healer.py read
+    to decide whether HIS console is sick. console_healer acts specifically on a fault that KEEPS
+    COMING BACK, and a guest world repeating one looks exactly like that. Same shape as CF-11.
+    """
+
+    def test_both_call_sites_moved_together(self):
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        n = src.count("path or _UI_FAULTS")
+        self.assertEqual(n, 0,
+                         "%d call site(s) still resolve the fault record straight from the "
+                         "constant. Reader and writer must move together — a reader left behind "
+                         "makes a scratch console unable to see its own faults, which is a "
+                         "different bug wearing the same fix." % n)
+        self.assertEqual(src.count("path or _ui_faults_path()"), 2,
+                         "expected exactly the writer and the reader to go through "
+                         "_ui_faults_path().")
+
+    def test_a_scratch_console_gets_its_own_file(self):
+        import control_app as _ca
+        old = _ca.CONTROL_PORT
+        try:
+            _ca.CONTROL_PORT = 17791
+            scratch = _ca._ui_faults_path()
+            _ca.CONTROL_PORT = _ca._PRIMARY_CONTROL_PORT
+            primary = _ca._ui_faults_path()
+        finally:
+            _ca.CONTROL_PORT = old
+        self.assertNotEqual(scratch, primary,
+                            "a scratch console resolves to the SAME fault file as his primary "
+                            "console, so a fixture can write where the doctor looks.")
+        self.assertIn("scratch-17791", scratch)
+        self.assertTrue(primary.endswith("ui_faults.jsonl"),
+                        "the primary console must keep the plain filename: %s" % primary)
+
+    def test_the_scratch_shape_is_gitignored(self):
+        """⚠ v2413 wrote this scar and it happened anyway, because it listed two FILES.
+
+        The isolation and the ignore are two halves of one change. A new .scratch-<port> path with
+        no matching ignore gets committed to a PUBLIC repo and churns on every console pass.
+        """
+        ign = io.open(os.path.join(os.path.dirname(HERE), ".gitignore"), encoding="utf-8").read()
+        self.assertIn("tv/*.scratch-*", ign,
+                      "the gitignore lists scratch files one at a time again. Cover the SHAPE — "
+                      "`.scratch-<port>` is minted by construction for runtime decision records "
+                      "and none of them are ever meant to be tracked.")
 
 
 if __name__ == "__main__":

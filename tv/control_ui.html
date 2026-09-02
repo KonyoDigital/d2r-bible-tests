@@ -4993,14 +4993,33 @@
      (muted). An unknown must never be able to pass for level. */
   .fleet-lag{color:#e0b46a;font-style:italic;cursor:help;margin-left:4px}
   .fleet-lag.unk{color:var(--muted,#8b8071)}
-  .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
+  /* ⚠ v2428 — A FLEX ITEM NEVER SHRINKS BELOW MIN-CONTENT, AND THIS IS THE THIRD TIME IN THIS
+     REPO. `.util-strip` was the first (four buttons unreachable at 901 for three ships) and the
+     `.shell` grid twin was the second (a bare `1fr` track dragging the page to 1575px inside a
+     1120px window). Same law here, one level down: this row is a flex container with no wrap, and
+     `.fleet-meta` carries `white-space: nowrap`, so the meta's min-content width is the WHOLE
+     string and the row simply refuses to be narrower than it.
+     MEASURED at his window size (1120x628), rail 227px wide: #fleet-list clientWidth 227 against
+     scrollWidth 784 - the Konyo row 334px, the Dean row 401px - with overflow-x VISIBLE, so the
+     rows spilled out of the rail and were cut by its overflow-x:hidden. On screen that read
+     "Konyo idle - v2428 - unpublis", "Dean offline - v2420 - 6 behi", "Wife PC roster refused its
+     beac". CLIPPED, NOT SCROLLABLE - there is no scrollbar to reach the rest.
+     ⚠ AND THE RENDER GATE CALLED IT `clipped 0`, correctly by its own rule: the row's BOX is 227px
+     and only its CONTENT overflows, which a getBoundingClientRect check cannot see. The picture
+     caught what the rect could not. [[visual-regression-detector]] [[feedback-generalize-fixes]]
+     Wrapping rather than ellipsising on purpose: "unpublished" and "6 behind" are the words he
+     reads this panel FOR, and a truncation would hide exactly the state that matters. */
+  .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0; flex-wrap: wrap;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
+  .fleet-row > * { min-width: 0; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
   .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-good); flex: none;
     box-shadow: 0 0 7px var(--mint); }
   .fleet-dot.off { background: var(--st-idle); box-shadow: none; }
-  .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: nowrap; }
+  /* v2428 — `nowrap` here was the thing the row could not shrink past. It stays OFF; the row
+     wraps instead, and `margin-left:auto` still right-aligns the meta on whichever line it lands. */
+  .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
   .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
 
   /* ══ GROK EYES (G5) — optional advanced strip (removable) ══ */
@@ -6358,7 +6377,7 @@ body[data-origin="shadow"] #stage::after {
              `open` is the hardcoded default he asked for. The toggle is also PERSISTED, so if he
              ever does close it deliberately that survives too — a default may fill an unanswered
              question, never overrule an answered one. [[unknown-stays-unknown]] -->
-        <details class="sig-adv" id="sig-adv" open ontoggle="try { localStorage.setItem('d2r_advOpen', this.open ? '1' : '0'); } catch(e) {} if (this.open) { try { window._fleetRefresh(); } catch(e) {} try { window._shadowAdvRefresh(); } catch(e) {} try { window._autoRelaunchRefresh(); } catch(e) {} try { window._advOpened(this); } catch(e) {} }">
+        <details class="sig-adv" id="sig-adv" open ontoggle="try { localStorage.setItem('d2r_advOpen', this.open ? '1' : '0'); } catch(e) {} if (this.open) { if (window._advFill) { window._advFill(this, 'toggle'); } else { window.__advFillMissed = (window.__advFillMissed || 0) + 1; } }">
           <summary>⚙ ADVANCED</summary>
           <!-- v2076 — THE CONTROL THAT DECIDES WHETHER THE THIRD EYE RUNS WAS 20th OF 25.
                Konyo, twice: "when i click ADVANCED settings to toggle grok eyes ... i dont see it at
@@ -19466,9 +19485,17 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                the defect's actual signature. [[unknown-stays-unknown]] */
             panels: (function(){
               var o = {};
+              /* v2428 — THE ADVANCED DRAWER JOINS THE ROSTER, because he had to be the one who
+                 noticed it was empty. Konyo: "make sure this is watchdogs control too.. visually
+                 pixel wise and backend". Three panels were watched and this one - which holds the
+                 EYES switch, the shadow reader and the fleet - was watched by nobody, so
+                 tv/live_panel_gate.py could not have refused over it no matter how broken it got.
+                 Its body is #fleet-list on purpose: the fleet is the section that was actually
+                 dead, and `empty` is a state it can genuinely reach. */
               [['taskforce','hd-taskforce','hd-tf-rows'],
                ['forge','hd-forge','hd-forge-chips'],
-               ['tally','hd-tallybar','hd-tallybar-chips']].forEach(function(t){
+               ['tally','hd-tallybar','hd-tallybar-chips'],
+               ['advanced','sig-adv','fleet-list']].forEach(function(t){
                 var box = document.getElementById(t[1]), body = document.getElementById(t[2]);
                 if (!box || !body){ o[t[0]] = 'absent'; return; }
                 /* ══ v2356 — 'shown' MEANT 'the hidden attribute is false', WHICH IS NOT THE SAME
@@ -19544,6 +19571,26 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                    later. [[stale-reading]] */
                 o[t[0] + 'Vh'] = window.innerHeight || null;
               });
+              /* ══ v2428 — GEOMETRY CANNOT SEE AN UNFILLED DRAWER, AND THAT WAS THE ACTUAL FAULT.
+                 #fleet-list ships with a placeholder child, so it is never `empty`, is never
+                 hidden and has a perfectly good height: every visibility state above reports it
+                 SHOWN while it says "open advanced to check the fleet..." and has said so since
+                 the page loaded. A panel can be flawlessly on screen and carry nothing that was
+                 fetched - those are different questions and only one of them was being asked.
+                 So the fill records itself and is published beside the rects: which refreshers
+                 ran, which threw, and which were NOT DEFINED YET, which is the state that hid
+                 this for 238 versions. `null` means the fill never ran at all, which is not the
+                 same as running and failing. [[unknown-stays-unknown]] [[feedback-verify-not-proxy]] */
+              var _fr = window._advFillRec;
+              o.advFill = _fr ? { why: _fr.why, open: _fr.open, ran: _fr.ran.length,
+                                  failed: _fr.failed.length, missing: _fr.missing.slice(0, 6),
+                                  firstErr: (_fr.failed[0] || {}).err || null }
+                              : null;
+              /* and the one thing that names the defect he reported, in the words of the DOM:
+                 the fleet still showing the copy that means "nobody has asked yet". */
+              var _fl = document.getElementById('fleet-list');
+              o.advFleetPlaceholder = _fl ? /open .{0,3} ?advanced to check the fleet/i
+                                              .test(_fl.textContent || '') : null;
               return o;
             })()
           }})}).catch(function(){});
@@ -19649,6 +19696,114 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       } catch(e){}
     }, 3000);
   } catch(e){}
+
+
+  /* ══ v2428 — THE ADVANCED DRAWER FILLED THREE OF ITS FOUR SECTIONS, AND THE FLEET WAS THE ONE
+     THAT DID NOT. ═══════════════════════════════════════════════════════════════════════════
+     Konyo, 2026-09-02: "the Advanced setting i suddenly cant see the advanced grok eyes and the
+     fleet. it slike hidden.. only the tooltips are here. its regressed again".
+
+     MEASURED on a scratch console at the size control_app.py actually creates the window
+     (1120x628), with a recorder installed BEFORE any page script ran:
+
+         t=19ms   SET .open = true   (it was already true)   <- v2190's restore line, ~13655
+         t=25ms   TOGGLE fires, open=true
+                    _shadowAdvRefresh    function     ran
+                    _autoRelaunchRefresh function     ran
+                    _advOpened           function     ran
+                    _fleetRefresh        UNDEFINED    threw into an empty catch
+
+     This file has TWO script blocks - 6693..16583 and 16699..19652 - and #sig-adv's inline
+     ontoggle sits at 6361, above both. Chrome queues the toggle task BETWEEN them, so the handler
+     runs at the one moment when block 1 has defined three of the four refreshers and block 2 has
+     defined none. `try { window._fleetRefresh(); } catch(e) {}` threw a TypeError into an empty
+     catch on every single load, silently, and #fleet-list kept its placeholder - measured after a
+     full load: "open advanced to check the fleet...". [[console-ui-two-script-blocks]]
+
+     ⚠ THE FLEET PANEL HAS NOW BEEN BROKEN BY THIS BOUNDARY TWICE. The header of this very block
+     records the first one: v1496's fleet "reported 'fleet unreachable' even when the route
+     answered perfectly - the fetch succeeded and the RENDER died", because escC() lived in the
+     other block. Same file, same seam, same panel, thirty-two ships apart.
+
+     ⚠ AND IT ONLY BECAME PERMANENT AT v2190. Before that the drawer shipped CLOSED, so he always
+     CLICKED it open - and a click happens long after block 2 has run, so the fleet filled and
+     nobody could see the race. v2190 made it default-open and restored his stored choice, which is
+     right, and in doing so removed the one event that had been papering over a load-order fault
+     present all along. The fix was never wrong; its only caller stopped firing.
+     [[the-unjoined-end]] [[two-fixes-broke-each-other]]
+
+     ⚠ AND THE TOGGLE-ON-UNCHANGED-VALUE BEHAVIOUR IS NOT SOMETHING TO RELY ON EITHER WAY. Chrome
+     queues a toggle task when `.open` is ASSIGNED, even to the value it already held - that is
+     what the recorder above caught. His console is pywebview/WebKit, where I cannot run that
+     recorder, and v2113 already paid for assuming the two engines agree about this element. So
+     this fill does not depend on the event at all: it is called outright, below every function it
+     calls, and the toggle is now only about the case where he actually clicks. [[test-venue]]
+
+     ⚠ _advOpened IS DELIBERATELY NOT ON THE LOAD PATH. It scrolls the rail so the drawer sits at
+     the top, which is exactly right when he just clicked ADVANCED and wrong when he merely opened
+     the console: measured, the rail holds 1,794px in a 430px scroller and the drawer starts at
+     offset 592, so scrolling to it on load hides everything above - ON AIR, MINI, MINI-AUTO and
+     the stash/runes/gems/materials row, which is the primary capture block and the thing he opens
+     this console for. Filling content and stealing scroll are different acts and only one of them
+     was asked for.
+
+     Nothing here is silent. Every refresher's outcome is recorded for the beat, and a failure
+     POSTs /api/ui_fault - a channel console_doctor.py and console_healer.py already read - so a
+     drawer that will not fill reaches the Doctor instead of a catch block. [[heart-first]] */
+  function _advFailed(rec, fn, e, how) {
+    var msg = ((e && (e.message || e)) + '').slice(0, 200);
+    rec.failed.push({ fn: fn, how: how, err: msg });
+    try {
+      fetch('/api/ui_fault', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'advanced-drawer-unfilled',
+          why: fn + ' ' + how + ' while filling the ADVANCED drawer - ' + msg,
+          where: 'control_ui _advFill' }) });
+    } catch (e2) {}
+  }
+
+  window._advFill = function (det, why) {
+    var d = det || document.getElementById('sig-adv');
+    var rec = { ts: Date.now(), why: why || 'unknown', open: !!(d && d.open),
+                ran: [], failed: [], missing: [] };
+    window._advFillRec = rec;
+    if (!d || !d.open) return rec;
+    /* _advOpened only on a real click - see the note above about stealing his scroll. */
+    var fns = ['_fleetRefresh', '_shadowAdvRefresh', '_autoRelaunchRefresh'];
+    if (why === 'toggle') fns.push('_advOpened');
+    fns.forEach(function (fn) {
+      var f = window[fn];
+      if (typeof f !== 'function') {
+        /* NOT "it failed" and NOT "it worked" - the function is not here yet. That third state is
+           precisely what was invisible for the whole of v2190..v2427. [[unknown-stays-unknown]] */
+        rec.missing.push(fn);
+        _advFailed(rec, fn, new Error('not defined when the drawer filled'), 'missing');
+        return;
+      }
+      try {
+        var p = (fn === '_advOpened') ? f(d) : f();
+        rec.ran.push(fn);
+        /* ⚠ _fleetRefresh IS `async`, SO THE ORIGINAL try/catch COULD NOT HAVE SEEN ITS FAILURES
+           EITHER. A rejected promise walks straight past an enclosing try, so even once the
+           function existed, a fetch or render fault inside it was unreportable. */
+        if (p && typeof p.then === 'function')
+          p.catch(function (e) { _advFailed(rec, fn, e, 'rejected'); });
+      } catch (e) { _advFailed(rec, fn, e, 'threw'); }
+    });
+    return rec;
+  };
+
+  /* THE JOIN ITSELF. The toggle that fires during parse cannot reach the function above; this
+     call can, because it is the last statement in the block that defines it. */
+  try {
+    var _sadv = document.getElementById('sig-adv');
+    /* ⚠ CALLED EVEN WHEN THE DRAWER IS CLOSED, AND THE REASON IS THE GATE THAT READS THIS. The
+       record it writes is what tv/live_panel_gate.py refuses on, and a MISSING record has to mean
+       one thing only - "the fill never ran", which is a fault. If this call were skipped for a
+       closed drawer, absent would mean either that or "he closed it", and a gate cannot refuse on
+       a field with two meanings. _advFill returns early on a closed drawer anyway; it just says so
+       first. [[unknown-stays-unknown]] */
+    if (_sadv) window._advFill(_sadv, window.__advFillMissed ? 'deferred' : 'load');
+  } catch (e) {}
 </script>
 </body>
 </html>

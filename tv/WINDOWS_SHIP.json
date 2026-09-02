@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2427",
+  "ver": "v2428",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2427: the resolver was in the room and could not get out of the closure",
+  "note": "v2428: the fleet refresher did not exist when the inline ontoggle fired during parse",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

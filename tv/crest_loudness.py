@@ -85,40 +85,57 @@ def main():
         # Other CDP callers in this tree (render_check.check, coldread, a11y_check) enable page
         # events and wait for the load. This one did not. Waiting for a NEW document id is the
         # cheapest honest join: the old page cannot satisfy it.
+        # ⚠ v2428 — AND `Page.enable` DOES NOT MAKE THIS A LOAD WAIT. A cold review: `_Tab.send`
+        # reads until its OWN command id and discards everything else, so `frameNavigated` and
+        # `loadEventFired` are generated and thrown away. Nobody in this tree waits on CDP page
+        # events. v2426's message said page events were enabled "so nothing can wait on it"
+        # otherwise — implying they are what waits. They are not. The JS clock check below is the
+        # whole wait, and it should be described as such.
+        #
+        # The enable is kept ONLY because it makes _Tab's javascriptDialogOpening handler live,
+        # which is worth having and is a different benefit entirely.
         try:
             t.send("Page.enable")
-            _before = t.ev("String(document.readyState) + '|' + String(performance.now())")
+        except Exception:
+            pass
+        # ⚠ SEPARATE try, BECAUSE SHARING ONE DISABLED THE ONLY CHECK. Previously the enable and
+        # this sample sat in one block: an enable failure set `_before = None` and silently skipped
+        # the new-document test entirely. One failure must not disarm an unrelated guard.
+        try:
+            _before = float(t.ev("String(performance.now())"))
         except Exception:
             _before = None
         t.send("Page.reload")
+        # performance.now() restarts at ~0 on a real navigation, so a value BELOW the pre-reload
+        # reading is evidence THIS is a new document. It is a proxy and it is named as one.
+        _fresh = None
         if _before is not None:
             _dl = time.time() + 20.0
+            _err = 0
             while time.time() < _dl:
                 try:
-                    # performance.now() resets on a real navigation, so a smaller value than the
-                    # pre-reload reading means THIS is a new document, not the old one.
-                    _now = t.ev("String(performance.now())")
-                    if _now and float(_now) < float(_before.split("|")[1]):
+                    if float(t.ev("String(performance.now())")) < _before:
+                        _fresh = True
                         break
                 except Exception:
-                    pass
+                    _err += 1
                 time.sleep(0.1)
-        # ⚠ v2424 — CALL THE HELPER THAT ALREADY EXISTS, THIRD TIME OF ASKING THIS SESSION.
-        # v2422 replaced a fixed sleep(3.0) with an inline poll, which was the right idea aimed at
-        # the WRONG PREDICATE. A cold review: "_selector_ready already polls, already uses 20s,
-        # already swallows evaluate failures, already has FakeTab tests. It also requires a PAINTED
-        # rect. This loop only asks 'is the node in the document?'"
-        #
-        # Two consequences, both real:
-        #   · the static button carries `hidden` and still satisfies "is it in the document", so the
-        #     loop could return on a node the gate is not there to measure — the LIVE crest is the
-        #     one paint() un-hides (204x32).
-        #   · the node is true on BOTH SIDES of the reload, so the poll could observe the PREVIOUS
-        #     page and call it ready.
-        #
-        # ⚠ AND IT IS THE THIRD WEAKER COPY I HAVE WRITTEN TONIGHT — after _is_primary_console and
-        # _decision_path. The helper built for this exact flake sits in the module this file already
-        # imports. [[the-unjoined-end]] [[copy-drift]]
+            else:
+                _fresh = False
+            # ⚠ A SILENT CDP DEATH USED TO LOOK LIKE A PATIENT WAIT. Every tick swallowed its
+            # exception, so twenty seconds of a dead connection ended in the same "timed out" state
+            # as a page that simply had not navigated — and then proceeded to score it.
+            if _err and _fresh is not True:
+                print("⚪ UNKNOWN — the page never reported a new document and the probe raised %d "
+                      "time(s); this gate measured nothing." % _err)
+                return 2
+        if _fresh is False:
+            # ⚠ AND PROCEEDING ANYWAY WAS THE DEFECT. The budget expiring means the capture would
+            # be of the document the reload was meant to replace — which is precisely the thing
+            # this wait exists to prevent. Refusing is the only honest end. [[unknown-stays-unknown]]
+            print("⚪ UNKNOWN — no new document within 20s of the reload, so a capture here would "
+                  "be the page the reload was meant to replace. This gate measured nothing.")
+            return 2
         why = rc._selector_ready(t, ".bd-sigil")
         if why:
             # ⚠ DO NOT QUOTE THE HELPER'S `why` VERBATIM HERE. It ends "...after the panel was
@@ -129,7 +146,13 @@ def main():
                   "nothing. That is a page that did not paint the crest, not a quiet crest. "
                   "(probe detail: %s)" % str(why).split(" after ")[0])
             return 2
-        rc._settled(t)
+        # ⚠ _settled's ANSWER WAS THROWN AWAY. `check()` in render_check REFUSES on it; here the
+        # page could fail to settle and be screenshotted anyway — a half-built page, scored.
+        _unsettled = rc._settled(t)
+        if _unsettled:
+            print("⚪ UNKNOWN — the page never settled (%s), so this gate measured a page still "
+                  "assembling." % str(_unsettled)[:90])
+            return 2
         data = t.send("Page.captureScreenshot", format="png",
                       captureBeyondViewport=False).get("data")
         p = os.path.join(HERE, ".render_shots", "crest_loudness.png")

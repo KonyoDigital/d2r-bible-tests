@@ -37,6 +37,27 @@ So the refusals are deliberately narrow:
   · BELOW-FOLD    -> REPORTED, never failed. Grok Bot's eyes settle whether it is reachable (GB-L-5).
   · console down  -> UNKNOWN (exit 2). Not a pass. An instrument I could not reach is an empty seat.
 
+⚠ AND GEOMETRY WAS NOT ENOUGH — v2428 ADDED A SECOND QUESTION BECAUSE HE HAD TO ASK IT HIMSELF.
+Konyo, 2026-09-02: *"the Advanced setting i suddenly cant see the advanced grok eyes and the
+fleet. it slike hidden.. make sure this is watchdogs control too.. visually pixel wise and
+backend"*. The ADVANCED drawer's #fleet-list was measured SHOWN, un-hidden, full height and
+perfectly on screen while its entire content was the placeholder copy `open advanced to check the
+fleet...` - because `window._fleetRefresh` did not exist yet when the drawer's inline ontoggle
+fired during parse, and the empty `catch(e){}` under it ate the TypeError on every load.
+
+Every state above would have passed that, forever, and did for 238 versions. A panel can be
+flawlessly rendered and carry nothing that was ever fetched; those are two questions and this gate
+only asked one. So:
+
+  · advFill absent      -> RED. The fill never ran at all. It is called unconditionally on load,
+                           so absent has exactly one meaning.
+  · a refresher MISSING -> RED. Not defined at fill time - the load-order fault itself.
+  · a refresher FAILED  -> RED. Threw, or (being async) rejected past its own try.
+  · the fleet placeholder still showing on an OPEN drawer -> RED. That copy means "nobody has
+                           asked yet"; a real failure says "fleet unreachable" instead, so this
+                           cannot fire on a fleet route that is merely down.
+[[the-unjoined-end]] [[feedback-verify-not-proxy]] [[heart-first]]
+
     python3 tv/live_panel_gate.py             # the gate
     python3 tv/live_panel_gate.py --prove     # make it go RED for its own reason
 """
@@ -54,6 +75,69 @@ STATUS = os.environ.get("TV_CONSOLE_URL", "http://127.0.0.1:17772") + "/api/stat
 
 #: states that mean "this panel cannot be reached by any amount of scrolling"
 FATAL = ("ZERO-HEIGHT", "OFF-SIDE")
+
+#: the copy #fleet-list ships with, which means "nobody has asked the route yet". Matched loosely
+#: because the gear glyph in it is decorative and must not be what a refusal hinges on.
+_FLEET_PLACEHOLDER = "advanced to check the fleet"
+
+
+def fill_of(status):
+    """-> (advFill dict or None, fleet-placeholder tri-state) read out of the beat.
+
+    ⚠ THREE OUTCOMES, NOT TWO. `(None, None)` means this build does not publish the fill at all -
+    which is a different fact from a build that publishes `advFill: null`, and only the second is a
+    fault. The caller separates them; conflating them would refuse every older console.
+    """
+    if not isinstance(status, dict):
+        return None, None
+    beat = status.get("uiBeat")
+    if not isinstance(beat, dict):
+        return None, None
+    p = beat.get("panels")
+    if not isinstance(p, dict):
+        return None, None
+    return p.get("advFill"), p.get("advFleetPlaceholder")
+
+
+def _fill_lines(status, pan):
+    """-> (bad, notes). The FILL half of the gate: did the drawer's content ever get fetched?"""
+    bad, notes = [], []
+    fill, placeholder = fill_of(status)
+    if "advanced" not in (pan or {}):
+        # An older console never published the drawer. Say so; do not refuse a build that predates
+        # the field, and do not let silence read as a pass either. [[unknown-stays-unknown]]
+        notes.append("\u26aa advFill      NOT PUBLISHED — this console predates v2428, so whether "
+                     "the ADVANCED drawer filled is UNKNOWN, not fine.")
+        return bad, notes
+    if fill is None:
+        bad.append("\U0001f534 advFill      NEVER RAN — the drawer is in the beat but no fill was "
+                   "recorded. _advFill is called unconditionally at the end of the second script "
+                   "block, so a missing record means that call did not happen: the block threw "
+                   "before reaching it, or the join was removed.")
+        return bad, notes
+    if not isinstance(fill, dict):
+        notes.append("\u26aa advFill      unreadable (%r) — UNKNOWN, not clean." % (fill,))
+        return bad, notes
+    missing = fill.get("missing") or []
+    failed = int(fill.get("failed") or 0)
+    if missing:
+        bad.append("\U0001f534 advFill      %d refresher(s) NOT DEFINED when the drawer filled: %s. "
+                   "This is the v2190..v2427 fault exactly — a function called from an inline "
+                   "handler that fires before the block defining it has run."
+                   % (len(missing), ", ".join(map(str, missing))))
+    if failed:
+        bad.append("\U0001f534 advFill      %d refresher(s) failed while filling the drawer — first: "
+                   "%s" % (failed, fill.get("firstErr") or "no message"))
+    if placeholder and fill.get("open"):
+        bad.append("\U0001f534 advFleet     the drawer is OPEN and #fleet-list still shows the "
+                   "placeholder copy. That string means nobody has asked the route yet; a route "
+                   "that answered badly says 'fleet unreachable' instead.")
+    if not bad:
+        notes.append("\U0001f7e2 advFill      %s · ran %s · failed 0 · fleet %s"
+                     % (fill.get("why"), fill.get("ran"),
+                        "filled" if placeholder is False else
+                        ("placeholder (drawer closed — expected)" if placeholder else "UNKNOWN")))
+    return bad, notes
 
 
 def _fetch(url=None, timeout=15.0, tries=3):
@@ -145,10 +229,13 @@ def check(status=None):
                          % (name, d["h"], d["top"], d["vh"]))
         else:
             notes.append("🟢 %-10s %s" % (name, s))
+    fbad, fnotes = _fill_lines(st, pan)
+    bad += fbad
+    notes += fnotes
     out = bad + notes
     if not bad:
-        out.append("   %d panel(s) read from the LIVE beat; none collapsed or clipped sideways."
-                   % len(pan))
+        out.append("   %d panel(s) read from the LIVE beat; none collapsed or clipped sideways, "
+                   "and the ADVANCED drawer filled." % len(pan))
     return (1 if bad else 0), out
 
 
@@ -175,6 +262,36 @@ def prove():
         # a defect. A gate that refuses a working console is how a gate gets switched off.
         ("a panel that is simply not on this tab",
          beat({"tally": "OFF-VIEW", "tallyH": 0, "tallyTop": 0, "tallyVh": 628}), 0),
+        # ══ v2428 — THE FILL HALF. Each of these is a state the geometry half rates PERFECT.
+        ("the drawer rendered but never filled",
+         beat({"advanced": "shown", "advancedH": 1044, "advancedTop": 40, "advancedVh": 628,
+               "advFill": None, "advFleetPlaceholder": True}), 1),
+        ("a refresher that was not defined yet — the real v2190 fault",
+         beat({"advanced": "shown", "advancedH": 1044, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 2, "failed": 1,
+                           "missing": ["_fleetRefresh"], "firstErr": "not defined"},
+               "advFleetPlaceholder": True}), 1),
+        ("a refresher that threw or rejected",
+         beat({"advanced": "shown", "advancedH": 1044, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 1, "missing": [],
+                           "firstErr": "TypeError: box is null"},
+               "advFleetPlaceholder": False}), 1),
+        ("an OPEN drawer still showing the placeholder",
+         beat({"advanced": "shown", "advancedH": 1044, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": True}), 1),
+        # ⚠ AND THE TWO IT MUST NOT REFUSE, or it gets switched off within a week.
+        ("a drawer he deliberately CLOSED",
+         beat({"advanced": "shown", "advancedH": 30, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": False, "ran": 0, "failed": 0, "missing": []},
+               "advFleetPlaceholder": True}), 0),
+        ("a drawer that filled properly",
+         beat({"advanced": "shown", "advancedH": 1044, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "deferred", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False}), 0),
+        ("an older console that never published the drawer",
+         beat({"taskforce": "shown", "taskforceH": 502, "taskforceTop": 40,
+               "taskforceVh": 628}), 0),
     ]
     bad = 0
     print("PROVING THE LIVE-PANEL GATE — on fixtures, never on his console.\n")

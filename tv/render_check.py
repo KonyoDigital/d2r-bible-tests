@@ -193,6 +193,44 @@ _TRANSPORT_EXCLUDE = _transport_exclusions()
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 # A target says: how to set the board up, what to click, and what element IS the thing.
+def _adv_activate(el_id, require_filled=False):
+    """Open the ⚙ ADVANCED drawer and scroll `el_id` to the top of the rail scroller.
+
+    ⚠ RECTS, NOT offsetParent. `.rail` is declared with grid-area/flex/overflow and NO `position`,
+    so it is static and is therefore never an offsetParent — an offset walk sails straight past the
+    scroller it just found and lands on a document-relative number. That cost v2107 and v2113 a
+    round each in the app itself; the harness must not repeat it. getBoundingClientRect is
+    viewport-relative for both boxes, so their difference is the exact delta whatever is positioned.
+
+    `require_filled` additionally refuses while #fleet-list still shows the copy that means "nobody
+    has asked the route yet" — a section can be laid out perfectly and carry nothing. That is the
+    whole defect this target exists for, so photographing it green would be the false green.
+    """
+    return """(function(){
+        var d = document.getElementById('sig-adv');
+        if (!d) return false;
+        if (!d.open) d.open = true;
+        var el = document.getElementById('%s');
+        if (!el) return false;
+        %s
+        var sc = el.parentElement;
+        while (sc && sc !== document.body) {
+            var ov = getComputedStyle(sc).overflowY;
+            if ((ov === 'auto' || ov === 'scroll') && sc.scrollHeight > sc.clientHeight + 4) break;
+            sc = sc.parentElement;
+        }
+        if (sc && sc !== document.body) {
+            var delta = el.getBoundingClientRect().top - sc.getBoundingClientRect().top;
+            sc.scrollTop = Math.max(0, sc.scrollTop + delta - 6);
+        }
+        /* prove it from the RECT, never from the call returning - the harness's own scar */
+        var r = el.getBoundingClientRect();
+        return !!(r.width > 2 && r.height > 2); })()""" % (
+        el_id,
+        ("if (/advanced to check the fleet/i.test(el.textContent || '')) return false;"
+         if require_filled else ""))
+
+
 TARGETS = {
     "vault": {
         "why": "the vault shelf — his lockers, the gauge, the FULL state",
@@ -366,6 +404,67 @@ TARGETS = {
     # (never :17772) with CDP, which is what verified task 143 on real pixels. Closing this gap
     # properly means teaching this harness an optional http origin per target — filed, not faked.
     # A surface with no target is UNMEASURED, and unmeasured must never read as clean.
+    # ══ v2428 — THE ADVANCED DRAWER, ON PIXELS. Konyo, 2026-09-02: "the Advanced setting i
+    # suddenly cant see the advanced grok eyes and the fleet. it slike hidden.. make sure this is
+    # watchdogs control too.. visually pixel wise and backend". The backend half is
+    # tv/live_panel_gate.py reading uiBeat.advFill; this is the pixel half, and it needs BOTH
+    # because they fail differently: the beat can say a drawer filled while it renders as a black
+    # column, and this can photograph a drawer that is laid out perfectly and carries placeholder
+    # copy. Neither instrument is the other's proof.
+    #
+    # ⚠ IT MUST BE SERVED. Under file:// the fleet is a fetch to /api/fleet that cannot resolve, so
+    # the drawer renders its "unreachable" branch and a target would refuse on every run — the
+    # exact mistake the note above says a `tvd` target already made and got deleted for.
+    "advanced": {
+        "serve": True,
+        "why": "the ⚙ ADVANCED drawer — the EYES switch, the shadow reader and THE FLEET. It sits "
+               "1,026px deep in a 430px rail, so it is off-screen until scrolled, and for 238 "
+               "versions its fleet held placeholder copy because _fleetRefresh did not exist when "
+               "the inline ontoggle fired during parse",
+        "seed": """(function(){ try { localStorage.setItem('d2r_advOpen','1'); } catch(e){} return 1; })()""",
+        "activate": _adv_activate("g5-eyes-card"),
+        "sel": "#g5-eyes-card",
+        "settles": False,   # the fleet re-times its "last seen" strings; it never fully stills
+        "warmup": 10.0,     # /api/fleet must answer before there is anything to photograph
+    },
+
+    # ⚠ THREE TARGETS AND NOT ONE, AND THE REASON IS A FALSE POSITIVE THIS HARNESS PRODUCED ON ITS
+    # FIRST RUN. The first cut listed all three sections in one `sel` and scrolled the DRAWER to the
+    # top of the rail. The drawer is 1,026px tall inside a 430px scroller, so #shadow-adv landed at
+    # y=534..670 — entirely below the rail's visible box (bottom 533) — and the cover probe sampled
+    # a point inside that rect which lands over the ticker band at 544..582. It reported
+    # "ticker over shadow-adv".
+    #
+    # MEASURED, and it refutes the label: rail bottom 533, ticker top 544, railOverflowsTicker
+    # FALSE. Nothing covers anything. getBoundingClientRect returns the LAYOUT rect and knows
+    # nothing about an ancestor's overflow clip, so an element scrolled out of its own scroller
+    # still reports a rect sitting wherever the layout put it. The instrument was right that
+    # something was wrong with the reading and wrong about what. [[feedback-suspect-the-instrument]]
+    #
+    # A section can only be judged when it is actually inside its scroller, so each gets its own
+    # target and its own scroll. Cheaper than teaching the harness about clipped ancestors, and it
+    # covers the two sections he named by name - "the advanced grok eyes and the fleet".
+    "advanced-shadow": {
+        "serve": True,
+        "why": "the ADVANCED drawer's SHADOW READER — what watches while he plays",
+        "seed": """(function(){ try { localStorage.setItem('d2r_advOpen','1'); } catch(e){} return 1; })()""",
+        "activate": _adv_activate("shadow-adv"),
+        "sel": "#shadow-adv",
+        "settles": False,
+        "warmup": 10.0,
+    },
+
+    "advanced-fleet": {
+        "serve": True,
+        "why": "THE FLEET inside the ADVANCED drawer — the section that held placeholder copy for "
+               "238 versions because _fleetRefresh was undefined when the inline ontoggle fired",
+        "seed": """(function(){ try { localStorage.setItem('d2r_advOpen','1'); } catch(e){} return 1; })()""",
+        "activate": _adv_activate("fleet-list", require_filled=True),
+        "sel": "#fleet-list",
+        "settles": False,
+        "warmup": 10.0,
+    },
+
     "inbox": {
         "why": "the chronicle inbox — the rows he answers",
         "seed": """(function(){

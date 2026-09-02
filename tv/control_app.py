@@ -11428,6 +11428,28 @@ def board_tick(name, kind, want):
 
 _UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
 
+
+def _ui_faults_path():
+    """The UI-fault record — HIS if this is the primary console, scratch-scoped otherwise.
+
+    ⚠ v2428 — EVERY HEADLESS CONSOLE WAS WRITING INTO HIS FAULT RECORD, which is CF-11's shape
+    exactly: two console processes sharing one durable record, the headless one clobbering the real
+    one. `_UI_FAULTS` is a bare HERE/ui_faults.jsonl, so a scratch console on 17791 — the kind a
+    render probe or a gate run starts — appended straight into the file console_doctor.py and
+    console_healer.py read to decide whether HIS console is sick. console_healer acts specifically
+    on a fault that KEEPS COMING BACK, and a guest world repeating one looks precisely like that.
+
+    Found while wiring the ADVANCED drawer's fill failures to POST /api/ui_fault, which would have
+    turned rare pollution into routine pollution. A fixture must never be able to write where the
+    doctor looks. Reader and writer move together — a reader left on the old constant would have
+    made a scratch console silently unable to see its own faults.
+    [[fixtures-never-touch-live-data]] [[cf-11]]
+    """
+    if _is_primary_console():
+        return _UI_FAULTS
+    stem, ext = os.path.splitext(_UI_FAULTS)
+    return "%s.scratch-%s%s" % (stem, CONTROL_PORT, ext)
+
 # ══ v2322 — THE SHELF WAS RE-READING THE WHOLE ARCHIVE EVERY 12 SECONDS ═══════════════════
 # HIS REPORT, 2026-08-30, with a screenshot of a black console: "why does it bug out anyways?
 # like it should NOT." Earlier the same week: "my pc is super hot", "its lagging and doing weird
@@ -11937,7 +11959,7 @@ def ui_fault_record(kind, why=None, where=None, path=None):
     can notice is a fault that gets noticed late and reported as a mystery, which is exactly how
     this one arrived. His instruction: "watch dog it and eagle eye it."
     """
-    p = path or _UI_FAULTS
+    p = path or _ui_faults_path()
     row = {"at": int(time.time() * 1000), "kind": str(kind or "")[:40],
            "why": str(why or "")[:200], "where": str(where or "")[:120]}
     try:
@@ -11959,7 +11981,7 @@ def ui_fault_record(kind, why=None, where=None, path=None):
 
 def ui_faults_recent(hours=24, path=None):
     """-> (rows, why). Rows newest-last. UNKNOWN is None, never an empty list."""
-    p = path or _UI_FAULTS
+    p = path or _ui_faults_path()
     if not os.path.exists(p):
         return [], "no fault has ever been reported"      # measured empty, not unreadable
     try:
@@ -21471,7 +21493,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2427",
+        "ver": "v2428",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

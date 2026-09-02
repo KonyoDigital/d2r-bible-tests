@@ -187,6 +187,14 @@ tv/.eagle_last.scratch-*.json
 # one look identical in `git status`. Fixing the CLASS rather than the instance I introduced.
 # [[sweep-dont-ask]]
 tv/auto_relaunch.scratch-*.json
+# ⚠ v2428 — THIRD TIME, SO STOP LISTING INSTANCES AND COVER THE SHAPE. Routing ui_faults.jsonl
+# through the same primary/scratch split minted `tv/ui_faults.scratch-17791.jsonl`, and the note
+# six lines up — written when exactly this happened at v2413 — did not prevent it, because it
+# named two files rather than the pattern that generates them. `.scratch-<port>` is minted by
+# construction for runtime DECISION records only; nothing under tv/ wearing that infix is ever
+# meant to be tracked. [[sweep-dont-ask]] [[feedback-generalize-fixes]]
+tv/*.scratch-*
+tv/.*.scratch-*
 
 
 # v2395 — the human-eyes harness ledger. A RUNTIME DECISION RECORD like .second_eye.jsonl and
