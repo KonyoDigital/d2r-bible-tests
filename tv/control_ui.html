@@ -14794,6 +14794,14 @@ body[data-origin="shadow"] #stage::after {
         + '\u201cno runs\u201d. Press <b>ON AIR</b> to close the stage and try again; if it '
         + 'keeps refusing, the Doctor has been told and it will show on the console.</div></div>';
     }
+    /* ⚠ AND SAY IT SOMEWHERE THAT IS VISIBLE WHEN THE STAGE IS NOT. #th-shelfov lives INSIDE
+       #theatre, which is display:none while the theatre is shut — so in the exact case this
+       handler exists for (thOpen() rejected, the theatre never opened) the message above renders
+       into a zero-height box and he sees NOTHING. MEASURED: the overlay reported height 0 with the
+       full refusal text inside it. The toast is outside .shell and always visible, so the refusal
+       reaches him whether or not the stage came up. A message only visible when the thing works is
+       not an error message. [[unknown-stays-unknown]] */
+    try { toast('The Shelf did not open — ' + why, 6000); } catch (e1) {}
     try { console.error('[shelf] refused to open:', why); } catch (e2) {}
     /* one vocabulary, the one the console already collects faults in */
     try {
@@ -14804,6 +14812,13 @@ body[data-origin="shadow"] #stage::after {
         body: JSON.stringify({kind: 'shelf-door-refused', why: why, where: 'btn-shelf onclick'})});
     } catch (e3) {}
   }
+  /* v2447 — A NAMED SEAM, and it exists because this handler had NEVER RUN. Two attempts to reach
+     it failed as instrument errors: overriding thOpen only proved the shelf still renders, and
+     overriding `thShelf` from outside never took, because thShelf is a closure binding and a
+     global assignment does not rebind it. So the one function whose entire job is making a
+     failure LOUD was itself unproven — a refusal handler nobody has watched refuse.
+     It renders and reports; it decides nothing. [[feedback-blind-fixture-green-gate]] */
+  window._shelfRefused = _shelfRefused;
   // v1275 (D3) — the HISTORY region's "see all →" opens the full shelf (same door as the 📚 rail button)
   var _histAll = $('hd-hist-all');
   if (_histAll) _histAll.onclick = async function(e){

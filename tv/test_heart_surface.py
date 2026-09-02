@@ -256,6 +256,22 @@ class TestADoorMayNotFailInSilence(unittest.TestCase):
         self.assertIn("/api/ui_fault", body, "the refusal never reaches the fault channel")
         self.assertIn("kind", body, "the route REJECTS a fault that does not name its kind (400), "
                                     "so a payload without one is a report nobody ever hears")
+        # ⚠ AND IT MUST SAY IT SOMEWHERE VISIBLE WHEN THE STAGE IS NOT. #th-shelfov lives INSIDE
+        # #theatre, which is display:none while the theatre is shut — so in the exact case this
+        # handler exists for (thOpen rejected, the theatre never came up) the panel message renders
+        # into a ZERO-HEIGHT box and he sees nothing. Measured: overlay height 0, full text inside.
+        self.assertIn("toast(", body,
+                      "the refusal only writes into #th-shelfov, which is inside #theatre and has "
+                      "no layout box while the theatre is shut. A message that is only visible "
+                      "when the thing works is not an error message")
+
+    def test_the_refusal_handler_is_reachable_so_it_can_be_PROVEN(self):
+        """It had never run. Two attempts to reach it failed as instrument errors — overriding
+        thOpen only proved the shelf still renders, and overriding thShelf from outside never took
+        because it is a closure binding. A refusal handler nobody has watched refuse is a guess."""
+        self.assertIn("window._shelfRefused", self.code,
+                      "the seam is gone, and with it the only way anything has ever executed this "
+                      "handler")
 
     def test_the_close_control_appears_when_there_is_something_to_close(self):
         """v2443 hid #btn-sim so the Shelf could be the single door. Its handler begins

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2446",
+  "ver": "v2447",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2446: the heart is red and beats, every lock sits on the route it locks, and the shelf says so when it refuses",
+  "note": "v2447: the shelf refusal handler had never run and would have rendered into a zero height box",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
