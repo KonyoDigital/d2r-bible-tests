@@ -38652,12 +38652,22 @@ class TestV2426TheCrestGateWAITSViaTheSharedHelper(unittest.TestCase):
         so any element wait can be satisfied by the document the reload was meant to replace.
         Swapping the poll for the helper fixed the hidden-node predicate and left this untouched —
         and the commit message said otherwise."""
+        # ⚠ ANCHORS, NOT A CHAR WINDOW — and a ratchet caught me writing the latter. `src[i:i+1200]`
+        # is a byte-counted slice: if the code moves, the window silently measures the wrong region
+        # or nothing at all, and `assertIn` on an empty slice just fails while `assertNotIn` PASSES.
+        # `_between` refuses an empty or truncated slice and says which anchor moved. That is the
+        # FOURTH time tonight I have written a thinner version of a helper already in the file.
+        # [[source-reading-guard]]
         src = self._src()
-        i = src.index('t.send("Page.reload")')
-        self.assertIn('Page.enable', src[:i],
+        before = _between(self, src, "def main(", 't.send("Page.reload")',
+                          what="the reload preamble")
+        self.assertIn("Page.enable", before,
                       "page events are not enabled before the reload, so nothing can wait on it")
-        self.assertIn("performance.now()", src[i:i + 1200],
-                      "nothing after the reload distinguishes the NEW document from the old one")
+        after = _between(self, src, 't.send("Page.reload")', "_selector_ready(t",
+                         what="the post-reload wait")
+        self.assertIn("performance.now()", after,
+                      "nothing between the reload and the element wait distinguishes the NEW "
+                      "document from the old one")
 
     def test_it_does_not_quote_the_helpers_activation_wording(self):
         """The helper's `why` ends '...after the panel was activated'. This gate activates nothing,
