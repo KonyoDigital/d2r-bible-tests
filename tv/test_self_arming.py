@@ -206,6 +206,117 @@ class TestThereIsNoHandOverride(unittest.TestCase):
                          "safety routine diverge, and only one of them gets tuned.")
 
 
+class TestBankingCannotOpenALockByBeingLookedAt(unittest.TestCase):
+    """★ A2. THE DEFECT THIS EXISTS TO PREVENT IS THE WORST ONE AVAILABLE HERE.
+
+    record() had ZERO callers, so every lock sat at n=0 UNPROVEN by construction however many
+    sabotages actually ran. hover_wilson already scores the autopilot's four claims on real
+    sabotage attempts and threw every result away.
+
+    But score() counts ROWS (n = len(mine)), and hover_wilson hands out a rolling (n, k) AGGREGATE.
+    Append that on each run and n goes 4, 8, 12, 16 — and the lock OPENS BECAUSE SOMEBODY LOOKED AT
+    IT. On prune.arm, which deletes footage with no undo, that is the most expensive defect this
+    repo could ship. Every case below defends one edge of that.
+    """
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.led = os.path.join(self.tmp, "ledger.jsonl")
+        os.environ["TV_SELF_ARMING_LEDGER"] = self.led
+        self.addCleanup(os.environ.pop, "TV_SELF_ARMING_LEDGER", None)
+
+    def test_banking_TWICE_does_not_double_the_evidence(self):
+        """The load-bearing one. Run the harness ten times; the lock must be exactly as proven as
+        it was after the first run, because the same four sabotages were attempted each time."""
+        for _ in range(10):
+            SA.bank("miniauto.run", "sabotage", "hover_wilson", n=4, k=4, note="four claims")
+        sc = SA.score("miniauto.run")
+        self.assertEqual((sc["k"], sc["n"]), (4, 4),
+                         "ten reads of the same evidence produced %d/%d. A lock that grows stronger "
+                         "by being looked at is not a lock." % (sc["k"], sc["n"]))
+
+    def test_a_LATER_bank_from_the_same_source_REPLACES_the_earlier_one(self):
+        """A harness that gains a fifth sabotage must be able to say so — and one that loses a
+        sabotage must be able to say that too, downward."""
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=4, k=4)
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=5, k=4)
+        sc = SA.score("miniauto.run")
+        self.assertEqual((sc["k"], sc["n"]), (4, 5))
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=2, k=1)
+        sc = SA.score("miniauto.run")
+        self.assertEqual((sc["k"], sc["n"]), (1, 2),
+                         "evidence could not go DOWN. A harness whose sabotages started leaking "
+                         "must be able to weaken its own lock, or the ledger is a ratchet")
+
+    def test_an_UNDECLARED_source_is_refused(self):
+        with self.assertRaises(ValueError) as cm:
+            SA.bank("prune.arm", "sabotage", "some_new_harness", n=99, k=99)
+        self.assertIn("not a declared evidence source", str(cm.exception))
+
+    def test_a_source_may_not_bank_where_it_does_NOT_prove(self):
+        """render_check proves the RENDER GATE. It says nothing about whether footage may be
+        deleted, and prune.arm has no undo."""
+        with self.assertRaises(ValueError) as cm:
+            SA.bank("prune.arm", "sabotage", "render_check", n=40, k=40)
+        self.assertIn("does not prove", str(cm.exception))
+        self.assertEqual(SA.score("prune.arm")["n"], 0,
+                         "the refusal still wrote a row — a refusal that banks anyway is not a "
+                         "refusal")
+
+    def test_more_refusals_than_attempts_is_an_INSTRUMENT_FAULT_not_a_great_score(self):
+        with self.assertRaises(ValueError):
+            SA.bank("miniauto.run", "sabotage", "hover_wilson", n=3, k=7)
+
+    def test_single_attempts_still_ACCUMULATE_and_mix_with_aggregates(self):
+        """record() rows are events and must keep adding up; only banked aggregates fold. If this
+        broke, every row ever written by record() would silently change meaning."""
+        SA.record("miniauto.run", "fixture", True)
+        SA.record("miniauto.run", "fixture", True)
+        SA.record("miniauto.run", "fixture", False)
+        sc = SA.score("miniauto.run")
+        self.assertEqual((sc["k"], sc["n"]), (2, 3))
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=4, k=4)
+        sc = SA.score("miniauto.run")
+        self.assertEqual((sc["k"], sc["n"]), (6, 7),
+                         "aggregates and single attempts did not add up together")
+
+    def test_a_kind_counts_only_where_something_was_actually_REFUSED(self):
+        """confluence() weighs KINDS. A kind under which every sabotage LEAKED is not independent
+        corroboration — it is a second witness saying nothing."""
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=6, k=0)
+        self.assertEqual(SA.score("miniauto.run")["kinds"], [],
+                         "a kind that refused nothing was counted as evidence")
+
+    def test_an_UNDECLARED_TIER_is_refused_rather_than_silently_scoring_zero(self):
+        """FOUND ON THE FIRST REAL RUN, and it is the quiet kind. `kind` is the TIER confluence
+        weighs, not a free label. Banking the four hover claims under their own names gave kinds
+        ['coordinate', 'read', 'slot'] scoring 0.00 against a bar of 1.00 — so the lock stayed shut
+        FOREVER while its Wilson figure read 0.935 and every number on the page looked healthy.
+        A lock nobody can explain is worse than a loud refusal."""
+        with self.assertRaises(ValueError) as cm:
+            SA.bank("miniauto.run", "coordinate", "hover_wilson", n=48, k=48)
+        self.assertIn("not a declared evidence tier", str(cm.exception))
+        self.assertEqual(SA.score("miniauto.run")["n"], 0, "the refusal still wrote a row")
+
+    def test_two_claims_sharing_a_TIER_do_not_fold_into_one(self):
+        """ALSO FOUND ON THE FIRST REAL RUN. All four hover claims are `sabotage` tier, so
+        (lock, kind, src) is the SAME key for every one of them. Folding on that kept only the last
+        row written — coordinate's 48/48 was thrown away and slot's 2/2 kept. n fell from 55 to 2
+        and nothing said so. `ref` is what keeps them apart."""
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=48, k=48, ref="coordinate")
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=5, k=5, ref="read")
+        SA.bank("miniauto.run", "sabotage", "hover_wilson", n=2, k=2, ref="slot")
+        sc = SA.score("miniauto.run")
+        self.assertEqual((sc["k"], sc["n"]), (55, 55),
+                         "three distinct sabotage families collapsed to %d/%d — they share a tier "
+                         "and were folded into one another" % (sc["k"], sc["n"]))
+        # and re-running the same three still must not double them
+        for _ in range(4):
+            SA.bank("miniauto.run", "sabotage", "hover_wilson", n=48, k=48, ref="coordinate")
+        self.assertEqual(SA.score("miniauto.run")["n"], 55)
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

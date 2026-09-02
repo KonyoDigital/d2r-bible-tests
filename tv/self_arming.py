@@ -168,6 +168,101 @@ def record(lock, kind, refused, note=""):
     return row
 
 
+# ── WHERE EACH HARNESS'S EVIDENCE IS ALLOWED TO LAND ─────────────────────────────────────────
+# v2444 — AN ALLOW-LIST, BECAUSE THE FAILURE IT PREVENTS IS THE WORST ONE AVAILABLE HERE. A
+# sabotage against the render gate proves THE RENDER GATE. It is real evidence and it says nothing
+# whatever about whether the vault may mule an item or whether footage may be deleted. Banking it
+# under prune.arm would let the deleter open itself on somebody else's proof, and footage has no
+# undo. So a source declares what it bears on, and bank() refuses everything else.
+#
+# A source that proves NOTHING declared here is listed with an empty tuple ON PURPOSE — that is a
+# statement that its evidence has no lock, not an oversight, and it keeps the next person from
+# quietly wiring it to whichever lock happens to be nearby.
+PROVES = {
+    # hover_wilson scores the autopilot's four claims on real sabotage attempts, and the autopilot
+    # IS mini-auto: "moves the pointer over his stash and films the tooltips". Same surface, same
+    # guards, same three-state vocabulary (UNPROVEN / PROVEN / LEAKS).
+    "hover_wilson": ("miniauto.run",),
+    # render_check proves that the RENDER GATE can be seen red. There is no render lock, and there
+    # should not be one — nothing it sabotages can delete footage or touch his ledger.
+    "render_check": (),
+}
+
+
+def bank(lock, kind, src, n, k, note="", ref=""):
+    """Bank a harness's OWN aggregate for one lock. -> dict (the row written)
+
+    Idempotent by construction: the row carries `src`, and _fold keeps only the newest row per
+    (lock, kind, src). Running the harness twice does not make the evidence twice as strong.
+
+    ⚠ IT REFUSES RATHER THAN GUESSES, in three directions, because every one of them ends with a
+    lock opening on evidence that was never about it:
+      · an undeclared source, or a lock that source does not prove -> refuse
+      · k > n -> refuse; more refusals than attempts is an instrument fault, not a great result
+      · a lock that is not declared -> refuse
+    [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+    """
+    if lock not in LOCKS:
+        raise ValueError("no such lock is declared: %r" % (lock,))
+    allowed = PROVES.get(str(src))
+    if allowed is None:
+        raise ValueError("%r is not a declared evidence source. Add it to PROVES and say what its "
+                         "sabotages actually bear on — an undeclared source is how a lock opens on "
+                         "somebody else's proof." % (src,))
+    if lock not in allowed:
+        raise ValueError("%r does not prove %r. It is declared as proving %s. Evidence about one "
+                         "surface is not evidence about another, and this refusal is the whole "
+                         "point of the allow-list." % (src, lock, allowed or "NOTHING"))
+    # ⚠ AN UNDECLARED KIND IS A SILENT STOP, WHICH IS WORSE THAN A LOUD ONE. `kind` is the TIER
+    # confluence() weighs, not a free label — KINDS maps sabotage 1.0 / cross-family 0.8 / live 0.7
+    # / ci 0.6 / fixture 0.3. An unrecognised tier scores 0.00, so the lock stays shut FOREVER while
+    # its Wilson figure reads 0.935 and every number on the page looks healthy. Measured here on the
+    # first real run: banking the four hover claims under their own names gave kinds ['coordinate',
+    # 'read', 'slot'] scoring 0.00 against a bar of 1.00. Refusing beats a lock nobody can explain.
+    if str(kind) not in KINDS:
+        raise ValueError("%r is not a declared evidence tier. confluence() weighs KINDS (%s), and "
+                         "an unrecognised kind scores 0.00 — the lock would stay shut for ever with "
+                         "a healthy-looking Wilson score and no reason on screen."
+                         % (kind, ", ".join(sorted(KINDS))))
+    n = int(n or 0)
+    k = int(k or 0)
+    if n < 0 or k < 0 or k > n:
+        raise ValueError("k=%d of n=%d is not a possible sabotage record — more refusals than "
+                         "attempts is an instrument fault" % (k, n))
+    row = {
+        "lock": str(lock), "kind": str(kind), "src": str(src), "ref": str(ref or ""),
+        "n": n, "k": k, "refused": bool(k > 0),
+        "note": str(note or "")[:400], "ts": int(time.time() * 1000),
+    }
+    with io.open(_ledger_path(), "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    return row
+
+
+def _fold(rows):
+    """Reduce banked aggregates to one row per (lock, kind, src), newest wins. -> list
+
+    Single-attempt rows (no `src`) are never folded — each one is its own event and they
+    accumulate, which is what record() means.
+    """
+    out, latest = [], {}
+    for r in rows:
+        src = r.get("src")
+        if not src:
+            out.append(r)
+            continue
+        # ⚠ ref IS PART OF THE KEY, and leaving it out cost three of four claims on the first
+        # real run. The four hover claims are all `sabotage` tier, so (lock, kind, src) is the SAME
+        # key for all of them — folding on that kept only the last one written and threw away
+        # coordinate's 48/48, keeping slot's 2/2. n fell from 55 to 2 and nothing said so.
+        key = (r.get("lock"), r.get("kind"), src, r.get("ref") or "")
+        cur = latest.get(key)
+        if cur is None or int(r.get("ts", 0) or 0) >= int(cur.get("ts", 0) or 0):
+            latest[key] = r
+    out.extend(latest.values())
+    return out
+
+
 def _rows():
     """-> (list|None, why). None means UNREADABLE, which is never 'no proofs'."""
     p = _ledger_path()
@@ -206,10 +301,17 @@ def score(lock, rows=None):
         if rows is None:
             return {"lock": lock, "state": UNKNOWN, "why": why,
                     "k": None, "n": None, "wilson": None, "kinds": None}
-    mine = [r for r in rows if r.get("lock") == lock]
-    n = len(mine)
-    k = len([r for r in mine if r.get("refused")])
-    kinds = sorted({str(r.get("kind")) for r in mine if r.get("refused")})
+    mine = _fold([r for r in rows if r.get("lock") == lock])
+    # v2444 — A ROW IS EITHER ONE ATTEMPT OR AN AGGREGATE, and the two must add up the same way.
+    # A row with no "n" is a single attempt worth 1 (everything record() has ever written), so the
+    # old arithmetic is unchanged for it. A row WITH "n" was banked by a harness that owns its own
+    # counting, and _fold has already reduced its family to the newest one — so re-running that
+    # harness replaces its evidence rather than doubling it.
+    n = sum(int(r.get("n", 1) or 0) for r in mine)
+    k = sum(int(r.get("k", 1 if r.get("refused") else 0) or 0) for r in mine)
+    # a kind counts as evidence only where something was actually REFUSED under it
+    kinds = sorted({str(r.get("kind")) for r in mine
+                    if int(r.get("k", 1 if r.get("refused") else 0) or 0) > 0})
     conf = confluence(kinds, KINDS)
     out = {"lock": lock, "surface": spec["surface"], "acts": spec["acts"],
            "k": k, "n": n, "kinds": kinds, "confluence": conf,

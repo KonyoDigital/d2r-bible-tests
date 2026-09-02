@@ -266,9 +266,57 @@ def score():
     return out
 
 
+def bank_into_proof_queue(rows):
+    """Hand this harness's OWN sabotage record to the self-arming ledger. -> dict
+
+    v2444 — A2. Konyo: "wilson scores all over.. once thats integrated anywhere and anyplace it can
+    be the system proves itself. start at the printer and reels with the wilson score first... then
+    it should work and then arm it self."
+
+    THIS FUNCTION IS THE JOIN THAT DID NOT EXIST. self_arming.record() had ZERO callers, so all five
+    locks sat at n=0 UNPROVEN BY CONSTRUCTION — however many sabotages this file actually ran, the
+    console could only ever say "nobody has tried". Meanwhile this harness was already scoring four
+    claims on real sabotage attempts and printing them to a terminal nobody keeps.
+
+    ⚠ ONE CLAIM IS ONE KIND, NOT ONE ATTEMPT. Each claim carries its own (n, k), and self_arming
+    folds by (lock, kind, src) so re-running this harness REPLACES its evidence rather than adding
+    to it. Without that fold a gate run would inflate n every time, and the lock would open because
+    the gate had run often enough — which is the opposite of proving anything. Four distinct kinds
+    also give confluence() something real to weigh: Wilson counts how many looks agreed, never
+    whether they were independent.
+
+    ⚠ AND AN UNKNOWN CLAIM BANKS NOTHING. attempts=None means the probe itself raised — that is not
+    zero attempts, and writing it as 0/0 would turn "the instrument broke" into "nobody tried",
+    which reads the same on screen and is a different fact. [[unknown-stays-unknown]]
+    """
+    import self_arming as _sa
+    banked, skipped = [], []
+    for r in rows:
+        n, k = r.get("attempts"), r.get("caught")
+        if n is None or k is None:
+            skipped.append("%s (%s — the probe could not answer, so it banks nothing)"
+                           % (r.get("claim"), r.get("state")))
+            continue
+        try:
+            # kind is the evidence TIER confluence weighs; ref is WHICH sabotage inside this
+            # harness. These four break a guard on purpose and watch it go red for its own reason,
+            # which is exactly what KINDS calls `sabotage`.
+            _sa.bank("miniauto.run", "sabotage", "hover_wilson", n=n, k=k,
+                     ref=str(r.get("claim")), note=str(r.get("what") or "")[:200])
+            banked.append("%s %d/%d" % (r.get("claim"), k, n))
+        except ValueError as e:
+            # a refusal here is the allow-list or the instrument check doing its job; it must be
+            # SAID, never swallowed, or a lock silently stops being fed
+            skipped.append("%s REFUSED: %s" % (r.get("claim"), str(e)[:120]))
+    return {"banked": banked, "skipped": skipped}
+
+
 def main(argv=None):
     argv = list(argv if argv is not None else sys.argv[1:])
     rows = score()
+    # v2444 — bank BEFORE printing, and only from main(): importing this module must not write to
+    # his ledger, and neither must a test that calls score(). [[feedback-fixtures-never-touch-live-data]]
+    _bank = bank_into_proof_queue(rows)
     if "--json" in argv:
         import json
         print(json.dumps(rows, indent=2))
@@ -283,6 +331,14 @@ def main(argv=None):
             "?" if r["caught"] is None else r["caught"],
             "—" if r["wilson"] is None else ("%.3f" % r["wilson"]),
             r["state"]))
+    print()
+    if _bank["banked"]:
+        print("  banked into the proof queue -> miniauto.run: " + ", ".join(_bank["banked"]))
+    if _bank["skipped"]:
+        for sk in _bank["skipped"]:
+            print("  NOT banked: " + sk)
+    if not _bank["banked"] and not _bank["skipped"]:
+        print("  nothing was banked — no claim produced a countable sabotage record")
     leaks = [r for r in rows if r["state"] == "LEAKS"]
     unp = [r for r in rows if r["state"] in ("UNPROVEN", "UNKNOWN")]
     print()

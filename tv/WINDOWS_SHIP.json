@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2443",
+  "ver": "v2444",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2443: the heart is a clickable widget beside the version and the lock stamp is one mark everywhere",
+  "note": "v2444: hover wilson banks its sabotages and mini auto unlocked on 55 of 55 refused",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
