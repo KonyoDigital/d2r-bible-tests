@@ -77,11 +77,32 @@ def main():
                deviceScaleFactor=1, mobile=False)
         t.ev("try{localStorage.setItem('d2r_ownerClaim','*')}catch(e){}")
         t.send("Page.reload")
-        time.sleep(3.0)
-        rc._settled(t)
-        seen = t.ev("!!document.querySelector('.bd-sigil')")
+        # ⚠ v2422 — A FIXED SLEEP AFTER A RELOAD IS THE DEFECT `_settled` EXISTS TO REMOVE, and it
+        # made this gate flaky rather than wrong. Measured 2026-09-02: it answered
+        # "⚪ UNKNOWN — no crest in the DOM" once and then GREEN three times in a row with no code
+        # change between them, and the first run followed a 400-second suite. Polling for the
+        # element shows it normally appears within 0.5s — so 3.0s is generous until the machine is
+        # loaded, and then it is not.
+        #
+        # ⚠ THIS IS NOT A RE-RUN UNTIL IT AGREES. Four runs told me the gate is non-deterministic,
+        # which is a finding about the gate; the fix is to stop asking at an arbitrary moment. Same
+        # correction render_check took when its own fixed 0.6s blocked a good page under load: a
+        # gate you re-run until it agrees has stopped being evidence.
+        deadline = time.time() + 20.0
+        seen = False
+        while time.time() < deadline:
+            try:
+                if t.ev("!!document.querySelector('.bd-sigil')"):
+                    seen = True
+                    break
+            except Exception:
+                pass                      # a probe that cannot ask yet is not an absent crest
+            time.sleep(0.25)
+        if seen:
+            rc._settled(t)                # only settle once the subject is actually there
         if not seen:
-            print("⚪ UNKNOWN — no crest in the DOM, so this gate measured nothing")
+            print("⚪ UNKNOWN — no crest in the DOM after 20s, so this gate measured nothing. "
+                  "That is a page that did not render, not a quiet crest.")
             return 2
         data = t.send("Page.captureScreenshot", format="png",
                       captureBeyondViewport=False).get("data")

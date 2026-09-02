@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2421",
+  "ver": "v2422",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2421: my own test failed on CI, and it was right to",
+  "note": "v2422: one UNKNOWN then three greens, no code change between them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

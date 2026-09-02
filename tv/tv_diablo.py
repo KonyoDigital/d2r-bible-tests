@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2421"   # COVERAGE MUST NOT DEPEND ON EXISTENCE
+VERSION = "v2422"   # A FIXED SLEEP MADE A GATE FLAKY
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
