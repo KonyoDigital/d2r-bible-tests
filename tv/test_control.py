@@ -40617,5 +40617,91 @@ class TestADeclaredSkipCanActuallyFire(unittest.TestCase):
                               % (unrelated or "no reason at all"))
 
 
+class TestAScratchConsoleDiesWithItsParent(unittest.TestCase):
+    """v2433 — his Mac got hot and three of my consoles were why.
+
+    Konyo, 2026-09-02: *"my pc is kinda hot.. can you check no background processes open for
+    nothing stale"*. Measured, every one PPID 1 and every one a FULL console with its whole
+    background roster turning:
+
+        pid 26840  :17985   15h06m elapsed
+        pid 74560  :56781    3h24m
+        pid 75418  :57219    3h23m
+        load average 5.42 -> 3.08 the moment they were killed
+
+    render_check.py starts a private console per served target and calls `proc.terminate()` when
+    it finishes — correct, and not enough. ⚠ THE SAME FILE ALREADY CARRIED THIS SCAR FOR ITS OTHER
+    CHILD: render_check.py:515, "⚠ v2369 — THIS IS WHERE HIS MAC GOT HOT, TWICE", whose atexit
+    backstop says in its own words that "a KILLED parent never runs atexit". Runs here are killed
+    routinely. The browser got the defence; the console did not.
+
+    ⚠ AND MY CLEANUP COULD NEVER HAVE CAUGHT THEM. I swept the ports I INTENDED to use — 17791,
+    9224 — while render_check binds an EPHEMERAL one (56781, 57219). Sweep by signature, never by
+    a list of ports you chose. [[feedback-generalize-fixes]] [[process-port-discipline]]
+
+    PROVEN WITH REAL PROCESSES before shipping (too slow for this suite, so the fast safety
+    properties are pinned here instead):
+        parent SIGKILLed        -> child exited on its own        🟢
+        no TV_PARENT_PID        -> still running after 13s        🟢
+        primary console         -> the guard never arms           🟢
+    """
+
+    def _ca(self):
+        sys.path.insert(0, HERE)
+        import control_app
+        return control_app
+
+    def test_the_guard_never_arms_for_HIS_console(self):
+        """The one case that must be impossible: his live console exiting because of this."""
+        ca = self._ca()
+        old_port, old_env = ca.CONTROL_PORT, os.environ.get("TV_PARENT_PID")
+        try:
+            ca.CONTROL_PORT = ca._PRIMARY_CONTROL_PORT
+            os.environ["TV_PARENT_PID"] = "999999"
+            self.assertEqual(
+                ca._orphan_watch_pid(), 0,
+                "the orphan guard would ARM on the primary console. It must watch NOTHING there: "
+                "his console is legitimately parentless and must never exit because something "
+                "claimed to have started it.")
+        finally:
+            ca.CONTROL_PORT = old_port
+            if old_env is None:
+                os.environ.pop("TV_PARENT_PID", None)
+            else:
+                os.environ["TV_PARENT_PID"] = old_env
+
+    def test_an_unclaimed_console_is_left_alone(self):
+        """⚠ NOT `getppid() == 1`. A hand-started `nohup ... &` console is orphaned within a
+        second — that test would kill every scratch console anyone starts by hand."""
+        ca = self._ca()
+        old_port, old_env = ca.CONTROL_PORT, os.environ.get("TV_PARENT_PID")
+        try:
+            ca.CONTROL_PORT = 17791          # non-primary
+            os.environ.pop("TV_PARENT_PID", None)
+            self.assertEqual(ca._orphan_watch_pid(), 0,
+                             "a console nobody claimed must not watch anything.")
+        finally:
+            ca.CONTROL_PORT = old_port
+            if old_env is not None:
+                os.environ["TV_PARENT_PID"] = old_env
+
+    def test_the_guard_is_actually_STARTED(self):
+        """[[the-unjoined-end]] — a loop nobody starts is prose."""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        body = _between(self, src, "def start_background_watchers(", "    roster = [",
+                        min_len=60, what="start_background_watchers' preamble")
+        self.assertIn("_orphan_exit_loop", body,
+                      "the orphan guard is defined and never started, so a scratch console still "
+                      "outlives whatever launched it.")
+
+    def test_render_check_TELLS_the_child_who_its_parent_is(self):
+        """The other half of the handshake. Without this the guard can never arm on the process
+        that actually leaked three consoles onto his Mac."""
+        src = io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8").read()
+        self.assertRegex(src, r"TV_PARENT_PID\s*=\s*str\(os\.getpid\(\)\)",
+                         "render_check starts a private console without naming itself as the "
+                         "parent, so the child has nothing to watch and survives a killed run.")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

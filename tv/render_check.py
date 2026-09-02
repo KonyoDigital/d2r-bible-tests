@@ -1050,7 +1050,14 @@ def _serve_console():
     s_.close()
     if port == 17772:                      # cannot happen from an ephemeral bind; refuse anyway
         raise RuntimeError("refusing to serve on :17772 — that is his live console")
-    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1")
+    # v2433 — TELL THE CHILD WHO ITS PARENT IS, so it can outlive nothing. `proc.terminate()`
+    # below only runs when THIS process finishes normally; a killed or timed-out run leaves the
+    # console orphaned with PPID 1 and every one of its lanes still turning. Measured on his Mac:
+    # three of them, one 15 hours old, load 5.42 -> 3.08 when they were killed. The Chrome child
+    # already learned this at v2369 ("THIS IS WHERE HIS MAC GOT HOT, TWICE"); the console child
+    # had not. See _orphan_exit_loop in control_app.py. [[feedback-generalize-fixes]]
+    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1",
+               TV_PARENT_PID=str(os.getpid()))
     proc = subprocess.Popen([sys.executable, os.path.join(HERE, "control_app.py"), "--no-open"],
                             cwd=HERE, env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

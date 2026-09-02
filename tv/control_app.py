@@ -4786,8 +4786,80 @@ _HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
                       "tvd-retro-triage")
 
 
+def _orphan_watch_pid():
+    """Which pid this console should die with, or 0 for "watch nothing". -> int
+
+    ⚠ SPLIT OUT OF THE LOOP SO IT CAN BE TESTED WITHOUT RISKING THE TEST RUNNER. The first cut put
+    this decision inside _orphan_exit_loop, so a test had to CALL the loop — and a sabotage that
+    broke the primary-console exemption then reached `os._exit(0)` and killed pytest itself. My
+    sabotage harness read that as a pass, because a killed runner prints no "failed". A guard whose
+    only test can destroy the process running it will be tested badly or not at all.
+    The decision is a pure function; the loop is the dangerous part; only the decision is asserted.
+    [[sabotage-is-usually-the-wrong-one]]
+    """
+    try:
+        ppid = int(os.environ.get("TV_PARENT_PID") or 0)
+    except Exception:
+        return 0
+    if ppid <= 1:
+        return 0                    # nobody claimed us
+    if _is_primary_console():
+        return 0                    # HIS console: never self-exit, whatever claims to own it
+    return ppid
+
+
+def _orphan_exit_loop():
+    """A console started BY something must die WITH it. -> never returns.
+
+    ⚠ v2433 — HIS MAC GOT HOT AND THREE OF MY CONSOLES WERE WHY. Konyo, 2026-09-02: "my pc is
+    kinda hot.. can you check no background processes open for nothing stale". Measured, all with
+    PPID 1, every one a FULL console with its whole background roster running:
+
+        pid 26840  :17985   15h06m elapsed
+        pid 74560  :56781    3h24m
+        pid 75418  :57219    3h23m
+        load average 5.42 -> 3.08 the moment they were killed
+
+    render_check.py starts a private console per served target and does `proc.terminate()` when it
+    finishes. That is correct and it is not enough: ⚠ THE SAME FILE ALREADY CARRIES THIS SCAR FOR
+    ITS OTHER CHILD — render_check.py:515, "⚠ v2369 — THIS IS WHERE HIS MAC GOT HOT, TWICE",
+    which added an atexit backstop for Chrome and says in its own words that "a KILLED parent never
+    runs atexit". Background runs here are killed routinely — timeouts, waiters, a cancelled job —
+    and every one of those leaves the console child orphaned and running forever. The browser got
+    the defence; the console did not. [[feedback-generalize-fixes]] [[unbounded-search-orphans]]
+
+    So the guarantee moves INTO THE CHILD, where it holds however the parent dies — which neither
+    atexit nor terminate() can promise.
+
+    ⚠ SCOPED BY AN EXPLICIT HANDSHAKE, NOT BY `getppid() == 1`. A bare orphan test would kill every
+    console launched with `nohup ... &`, which is how a scratch console is started BY HAND — the
+    shell exits immediately and PPID is 1 within a second. Only a console that was TOLD who its
+    parent is will watch for it. No TV_PARENT_PID, no watching; and his primary console never has
+    one, so it can never be affected by this at all.
+    """
+    ppid = _orphan_watch_pid()
+    if not ppid:
+        return                      # nobody claimed us, or we ARE his console: never self-exit
+    while True:
+        time.sleep(5)
+        try:
+            os.kill(ppid, 0)        # signal 0 = existence check only, delivers nothing
+        except ProcessLookupError:
+            print("\u267b scratch console on :%s exiting - the process that started it (pid %d) "
+                  "is gone" % (CONTROL_PORT, ppid), flush=True)
+            os._exit(0)             # _exit, not sys.exit: daemon threads must not outlive this
+        except Exception:
+            return                  # cannot ask (permissions): stop guessing, keep running
+
+
 def start_background_watchers(why):
     """Start every background job that does NOT need a native window. Idempotent by name."""
+    # v2433 — started FIRST and outside the roster on purpose: it is not a lane doing work, it is
+    # the thing that stops this process existing after its reason to exist has gone.
+    try:
+        threading.Thread(target=_orphan_exit_loop, name="tvd-orphan-exit", daemon=True).start()
+    except Exception:
+        pass
     roster = [
         # v1745 — reads only visits whose LEDGER is known, only when no session is live and no
         # sweep is running, and never applies. See chronicle_autoread_tick.
@@ -21493,7 +21565,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2432",
+        "ver": "v2433",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

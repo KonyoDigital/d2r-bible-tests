@@ -168,6 +168,50 @@ def _theatre_lines(pan):
     return bad, notes
 
 
+def shelf_of(status):
+    """The shelf block out of the raw beat. -> dict | None. (Same reason as theatre_of: panels_of
+    keeps only string values and drops every dict.)"""
+    if not isinstance(status, dict):
+        return None
+    beat = status.get("uiBeat")
+    if not isinstance(beat, dict):
+        return None
+    p = beat.get("panels")
+    if not isinstance(p, dict):
+        return None
+    return p.get("shelf")
+
+
+def _shelf_lines(sh):
+    """v2433 — THE SHELF. -> (bad, notes).
+
+    He named it three times before it was looked at, and named the right fix himself: "this is part
+    of the connect it to the heart also.. its part of the console.. and its visually not rendering".
+    An overlay that is UP and carries nothing is the same failure shape as a theatre that is open
+    and carries no film, so it gets the same three states and the same refusal.
+    """
+    bad, notes = [], []
+    if sh is None:
+        notes.append("\u26aa shelf       NOT PUBLISHED — this console predates v2433, so whether "
+                     "the shelf renders is UNKNOWN, not fine.")
+        return bad, notes
+    if not isinstance(sh, dict):
+        notes.append("\u26aa shelf       unreadable (%r) — UNKNOWN." % (sh,))
+        return bad, notes
+    if not sh.get("open"):
+        notes.append("\U0001f7e2 shelf       closed — nothing is claimed about it.")
+        return bad, notes
+    if sh.get("filled") is False:
+        bad.append("\U0001f534 shelf       OPEN AND EMPTY — %s. The overlay is up with its chrome "
+                   "and carries no runs, which is what he reported three times."
+                   % (sh.get("why") or "it holds no cards and no text"))
+    elif sh.get("filled") is None:
+        notes.append("\u26aa shelf       open · could not be judged. UNKNOWN, not clean.")
+    else:
+        notes.append("\U0001f7e2 shelf       open and filled (%s card(s))." % sh.get("cards"))
+    return bad, notes
+
+
 def _fill_lines(status, pan):
     """-> (bad, notes). The FILL half of the gate: did the drawer's content ever get fetched?"""
     bad, notes = [], []
@@ -317,6 +361,9 @@ def check(status=None):
     tbad, tnotes = _theatre_lines(theatre_of(st))
     bad += tbad
     notes += tnotes
+    sbad, snotes = _shelf_lines(shelf_of(st))
+    bad += sbad
+    notes += snotes
     out = bad + notes
     if not bad:
         out.append("   %d panel(s) read from the LIVE beat; none collapsed or clipped sideways, "
@@ -402,6 +449,23 @@ def prove():
                "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
                "advFleetPlaceholder": False,
                "theatre": {"open": False, "loaded": None, "painted": None, "ink": None}}), 0),
+        # ══ v2433 — THE SHELF, the surface he named three times.
+        ("an OPEN shelf carrying nothing",
+         beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False,
+               "shelf": {"open": True, "filled": False, "cards": 0,
+                         "why": "the shelf overlay is open and carries no cards and no text"}}), 1),
+        ("an open shelf that IS filled",
+         beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False,
+               "shelf": {"open": True, "filled": True, "cards": 98, "why": None}}), 0),
+        ("a shelf he simply has not opened",
+         beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
+               "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},
+               "advFleetPlaceholder": False,
+               "shelf": {"open": False, "filled": None, "cards": None, "why": None}}), 0),
         ("an open theatre whose surface cannot be judged",
          beat({"advanced": "shown", "advancedH": 900, "advancedTop": 40, "advancedVh": 628,
                "advFill": {"why": "load", "open": True, "ran": 3, "failed": 0, "missing": []},

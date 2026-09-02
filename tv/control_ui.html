@@ -9857,12 +9857,37 @@ body[data-origin="shadow"] #stage::after {
       + 'too young), not waste</span></div>'
       + worst.map(function(r){
           var pct = Math.round(r['yield'] * 100);
-          return '<div class="shs-wrow" title="' + esc(r.why || '') + '">'
+          /* ⚠ v2433 (A17 · gh #207 defect 4) — THE SENTENCE WAS ALREADY IN THE PAYLOAD AND THE
+             ROW SHOWED THE MACHINE FIELDS INSTEAD. He quoted this row verbatim in the issue:
+             "RAW MACHINE OUTPUT ON A HUMAN SURFACE. `1% 3002.9MB zero-pages 1787523300658_1` x5.
+             Epoch ids and internal lane names rendered for a person."
+             MEASURED on his live console, GET /api/reel_story — one row carries BOTH:
+                 tag  "zero-pages"                        <- an internal lane name, rendered
+                 reel "reel_s_1787523300658_1"            <- an ms epoch, rendered
+                 why  "sealed with 0 pages - that is      <- written FOR HIM, hover only
+                       'this reader found nothing'..."
+             So the engine persisted the explanation and the surface printed the ids. That is
+             heart-first §6 with the loss at the LAST step rather than the first: nothing had to be
+             re-derived, it simply was not shown. [[label-outlived-referent]] [[the-unjoined-end]]
+             The id keeps a home in the title, because it is what a debugger needs and what he
+             never does. And the sentence gets the title too, since it can outrun the column —
+             v2432's law: a truncation is acceptable only when it has a way back. */
+          var _when = (function(){
+            var m = /(\d{13})/.exec(String(r.reel || ''));
+            if (!m) return '';
+            var d = new Date(+m[1]);
+            return isFinite(d.getTime())
+              ? d.toLocaleString(undefined, {month:'short', day:'numeric',
+                                             hour:'2-digit', minute:'2-digit'})
+              : '';
+          })();
+          var _say = String(r.why || r.tag || '?');
+          return '<div class="shs-wrow" title="' + esc(_say + '  ·  ' + String(r.reel || '')) + '">'
                + '<span class="shs-wpct' + (pct === 0 ? ' nil' : '') + '">' + pct + '%</span>'
                + '<span class="shs-wmb">' + (r.mb != null ? r.mb + 'MB' : '—') + '</span>'
-               + '<span class="shs-wtag shs-hk-' + esc(r.holdKind || 'none') + '">'
-               +   esc(r.tag || '?') + '</span>'
-               + '<span class="shs-wreel">' + esc(String(r.reel || '').replace(/^reel_s_/, '')) + '</span>'
+               + '<span class="shs-wtag shs-hk-' + esc(r.holdKind || 'none') + '" title="'
+               +   esc(_say) + '">' + esc(_say) + '</span>'
+               + '<span class="shs-wreel">' + esc(_when || 'undated') + '</span>'
                + '</div>';
         }).join('')
       + '</div>';
@@ -19638,6 +19663,35 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                  only detector was his eye. Three states, never two: `open:false` says nothing
                  about ink; `ink:null` is a surface that cannot be judged and is NOT a fault.
                  [[heart-first]] [[unknown-stays-unknown]] */
+              /* ⚠ v2433 — AND THE SHELF, BECAUSE HE HAD TO SAY IT THREE TIMES. Konyo,
+                 2026-09-02: "i said it 3 times and you now look?" — then "like this is part of the
+                 connect it to the heart also.. its part of the console.. and its visually not
+                 rendering". He is right on both counts: it is a console surface, and the heart was
+                 watching four panels, a drawer and the theatre while the shelf — the overlay he
+                 opens most — reported to nobody.
+                 MEASURED on a scratch console at his window size: the shelf opens 1484x977 with
+                 real content (894 panels / 5022 frames · 40 reels surveyed, session cards with
+                 frames). It renders here and not on his screen, which is precisely why a number
+                 has to leave his machine instead of me rendering mine again.
+                 SAME SHAPE AS THE THEATRE ON PURPOSE — open / filled / why — so a supervisor can
+                 ask both surfaces one question in one vocabulary, and the next surface joins with
+                 one line rather than another investigation. [[heart-first]] */
+              var _sov = document.getElementById('th-shelfov');
+              o.shelf = (function(){
+                if (!_sov) return null;                       /* not in this build: UNKNOWN */
+                var _open = !_sov.hidden;
+                if (!_open) return { open: false, filled: null, cards: null, why: null };
+                var _cards = _sov.querySelectorAll('.sh-card, .shs-wrow, .sh-run').length;
+                var _txt = (_sov.textContent || '').trim().length;
+                return { open: true,
+                         /* an overlay that is up and holds nothing is the failure he photographed;
+                            `filled` is measured from CONTENT, never from the box being present. */
+                         filled: !!(_cards > 0 || _txt > 40),
+                         cards: _cards,
+                         why: (_cards === 0 && _txt <= 40)
+                                ? 'the shelf overlay is open and carries no cards and no text'
+                                : null };
+              })();
               var _thi = window._thInk || null;
               o.theatre = {
                 /* ⚠ document.body IS NOT GUARANTEED HERE. TestV2401PanelsKnowLaidOutFromOnScreen
