@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2451",
+  "ver": "v2452",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2451: four exits and not one of them closed both layers",
+  "note": "v2452: the transports tooltip crossed the reel cards and the first fix patched the wrong path",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

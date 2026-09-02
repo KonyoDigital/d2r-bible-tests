@@ -7569,6 +7569,24 @@ body[data-origin="shadow"] #stage::after {
         this.release();
         el.classList.add('on');
       },
+      /* ⚠ v2452 — ONE CLAMP, AND BOTH PLACEMENT PATHS MUST REACH IT. This tip is positioned two
+         ways: move() follows the cursor, anchor() pins to an element. A `title=` hint goes through
+         say() -> anchor(). My first cut clamped only move(), and the measurement said the tip was
+         STILL at top 671 against a shelf bottom of 700 — the clamp had never run, because I had
+         patched the path this tooltip does not take. Same shape as the probe that enumerated four
+         strip selectors and never looked at the tip itself.
+         [[the-unjoined-end]] [[feedback-suspect-the-instrument]] */
+      _clampBelowOverlay: function(top, h){
+        try {
+          var ov = document.getElementById('th-shelfov');
+          if (!ov || ov.hidden) return top;
+          var b = ov.getBoundingClientRect();
+          if (!b.height || top >= b.bottom) return top;
+          /* the transport stays reachable under an open shelf, so its tips are legitimate — they
+             just belong in the band the transport lives in, not over the reels he is reading. */
+          return Math.min(b.bottom + 6, window.innerHeight - h - 8);
+        } catch (e) { return top; }
+      },
       move: function(x, y){
         if (!el) return;
         var pad = 18, w = el.offsetWidth || 300, h = el.offsetHeight || 180;
@@ -7576,7 +7594,22 @@ body[data-origin="shadow"] #stage::after {
         var left = (x + pad + w > window.innerWidth - 8) ? (x - pad - w) : (x + pad);
         var top  = (y + pad + h > window.innerHeight - 8) ? (y - pad - h) : (y + pad);
         el.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
-        el.style.top  = Math.max(8, Math.min(top,  window.innerHeight - h - 8)) + 'px';
+        top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+        /* ⚠ v2452 — A TIP FOR A CONTROL BELOW AN OVERLAY MUST NOT PAINT ACROSS THE OVERLAY.
+           A cold cross-family read of the shelf: "the dark floating box overlaps and partially
+           obscures the three Session cards below it", naming the transport's own tooltip text.
+           It was right, and it is not the strip: MEASURED at 1440x900 the shelf ends at y=700 and
+           the strip starts at 708 — an 8px gap, zero cards under it. The thing crossing the line
+           is #itip, which is position:fixed z-index:9999 and opens UPWARD from a control sitting
+           at the very bottom of the window.
+           Floating above the page is what a tooltip is FOR, so this does not fight that. It only
+           refuses to cross the bottom edge of an open full-height overlay: the transport is still
+           reachable while the shelf is up, so its tips are legitimate — they just belong in the
+           band the transport lives in, not over the reels he is reading.
+           ⚠ MY OWN PROBE SAID cardsUnderAStrip: 0 AND MEANT NOTHING — it enumerated .th-strip,
+           .th-transport, #th-drawer and #th-lower and never looked at the tooltip. A green about
+           the wrong elements. The PNG settled it. [[feedback-suspect-the-instrument]] */
+        el.style.top = this._clampBelowOverlay(top, h) + 'px';
       },
       touched: function(){ sayTouch = Date.now(); },
       release: function(){
@@ -7619,7 +7652,8 @@ body[data-origin="shadow"] #stage::after {
         }
         el.classList.remove('tip-side-right','tip-side-left','tip-side-below','tip-side-above');
         el.classList.add('tip-side-' + side);
-        el.style.left = x + 'px'; el.style.top = y + 'px';
+        el.style.left = x + 'px';
+        el.style.top = this._clampBelowOverlay(y, h) + 'px';
       },
       /* v2105 — the same card, carrying the words a native `title=` used to carry. */
       say: function(node, viaFocus){

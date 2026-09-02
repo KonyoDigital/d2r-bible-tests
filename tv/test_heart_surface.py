@@ -284,6 +284,54 @@ class TestADoorMayNotFailInSilence(unittest.TestCase):
                          "(no way to close the theatre, which is how this broke)")
 
 
+class TestATipDoesNotPaintOverWhatYouAreReading(unittest.TestCase):
+    """★ v2452 — the transport's tooltip painted across the shelf's reel cards.
+
+    A cold cross-family read named it: "the dark floating box overlaps and partially obscures the
+    three Session cards below it", quoting the transport's own tooltip text.
+
+    ⚠ IT IS NOT THE STRIP, AND MY FIRST PROBE PROVED NOTHING. MEASURED at 1440x900: the shelf ends
+    at y=700 and .th-strip starts at 708 — an 8px gap, zero cards under it. The probe enumerated
+    .th-strip, .th-transport, #th-drawer and #th-lower, reported cardsUnderAStrip: 0, and had
+    simply never looked at #itip. A green about the wrong elements is not a green; the PNG settled
+    it and the eye was right.
+
+    ⚠ AND THE FIRST FIX PATCHED THE WRONG PATH. #itip is placed two ways — move() follows the
+    cursor, anchor() pins to an element — and a `title=` hint goes through say() -> anchor().
+    Clamping only move() left the tip at top 671 against a shelf bottom of 700: the clamp existed
+    and never ran. Hence this guard is about BOTH paths, not about the behaviour of one.
+    """
+
+    def setUp(self):
+        self.code = TestAStampMustSurviveARepaint._strip_comments(
+            io.open(UI, encoding="utf-8").read())
+
+    def test_both_placement_paths_reach_the_one_clamp(self):
+        i = self.code.find("_clampBelowOverlay: function")
+        self.assertGreater(i, 0, "the shared clamp is gone")
+        for fn in ("move: function(x, y){\n        if (!el) return;", "anchor: function(node){"):
+            j = self.code.find(fn)
+            self.assertGreater(j, 0, "placement path %r not found — this guard cannot answer, "
+                                     "which is not the same as passing" % fn[:20])
+            window = self.code[j:j + 1600]
+            self.assertIn("_clampBelowOverlay", window,
+                          "the %r placement path does not reach the clamp. Patching one path and "
+                          "not the other is exactly how the first fix measured as having no effect"
+                          % fn[:20])
+
+    def test_the_clamp_only_fires_for_an_OPEN_overlay(self):
+        """A tooltip floating above the page is what a tooltip is FOR. This must not fight that —
+        it only refuses to cross an open full-height overlay."""
+        i = self.code.find("_clampBelowOverlay: function")
+        body = self.code[i:i + 700]
+        self.assertIn("ov.hidden", body,
+                      "the clamp does not check whether the overlay is open, so it would displace "
+                      "every tooltip on the console whether or not the shelf is up")
+        self.assertIn("return top", body,
+                      "the clamp never returns the position unchanged, so it has no pass-through "
+                      "case and always moves the tip")
+
+
 class TestTheShelfIsNotATrap(unittest.TestCase):
     """★ Konyo: "the shelf is kinda of a trapped area when clicked i cant really get out of it..
     where is the logic of close theatre mode or close the shelf.. something there is meshing up"
