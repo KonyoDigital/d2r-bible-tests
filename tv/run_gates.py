@@ -430,7 +430,7 @@ GATES = [
              "quoted into gh #198. What the census currently reports: 28 thread targets, 11 "
              "supervised, and SEVEN persistent loops running unwatched.",
          skip_ok=()),
-    Gate("human-eyes", [sys.executable, os.path.join(HERE, "human_eyes_gate.py"), "--prove"], 60,
+    Gate("human-eyes", [sys.executable, os.path.join(HERE, "human_eyes_gate.py"), "--gate"], 120,
          why="v2404 — THE VISUAL HARNESS NOW REACHES SOMETHING. Konyo: 'i want this part of the "
              "workflow.. what about the visual harness with grok bot where is that?' It was built "
              "— ask_view.py, human_eyes_ledger.py, the skill, briefs HE-1..HE-5 as issues — and it "
@@ -442,9 +442,9 @@ GATES = [
              "unreadable ledger must be UNKNOWN rather than a pass. ⚠ It asserts only what the "
              "RECORD proves; the full ask — a LOOKED observation contradicting the live console "
              "raising a blocker — needs a running console and belongs beside the render gate. "
-             "Filed, not faked.",
+             "Filed, not faked. ⚠ v2428 — AND FOR ITS WHOLE LIFE IT RAN ONLY THAT SABOTAGE. Registered as --prove, it proved the CHECKER on temp fixtures and never once opened the real ledger, so the record this harness exists to make reachable stayed unread by the thing built to read it. --gate runs both: sabotage first (an untrustworthy checker must not be believed), then HIS ledger, with an absent ledger reported as UNKNOWN rather than folded into a verdict — it is gitignored, so absent is the normal state of every venue but his Mac, and the old code called that RED.",
          skip_ok=()),
-    Gate("live-panel", [sys.executable, os.path.join(HERE, "live_panel_gate.py"), "--prove"], 60,
+    Gate("live-panel", [sys.executable, os.path.join(HERE, "live_panel_gate.py"), "--gate"], 120,
          why="v2406 — THE LIVE BEAT FINALLY REFUSES SOMETHING, AND THIS GATE IS THE JOIN THAT WAS "
              "MISSING FOR A WHOLE SHIP. uiBeat.panels has reported ON-SCREEN / BELOW-FOLD / "
              "OFF-SIDE / OFF-VIEW since v2404 — because `shown` was TRUE for a card sitting at "

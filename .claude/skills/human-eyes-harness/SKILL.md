@@ -123,20 +123,57 @@ itself?* If not, it is a tautology with a green light, and this harness is how i
 
 ---
 
-## 5b. THE CHANNEL IS GITHUB ISSUE #3 — not a person relaying prose
+## 5b. THE CHANNEL IS GITHUB ISSUES #179 AND #180 — not #3, and not a person relaying prose
 
 ⚠ **CORRECTING A WRONG STATEMENT MADE WHILE WRITING THIS SKILL.** I told him "I have no direct
 channel to Grok Bot; the relay is you." **That is wrong.** Konyo: *"its connected VIA GITHUB."*
 
-`KonyoDigital/d2r-bible-tests` issue **#3** is the wire. Grok Bot posts there itself — observed on
+⚠ **AND #3 HAS BEEN CLOSED SINCE 2026-08-28. THIS SECTION SAID OTHERWISE FOR FIVE DAYS.** Konyo
+named it himself on 2026-09-02: *"human-eyes still says the wire is #3; the watch posts #179 /
+#180"*. Verified the same day — `#3 CLOSED 2026-08-28T14:11:39Z`, `#179 OPEN`, `#180 OPEN` — and
+Grok Bot's own watch ticks say it in every post: *"Posted here because #3 is CLOSED"*. A skill that
+names a dead address is how a fresh session dumps a brief where nobody reads it, which is the exact
+failure this harness exists to end. Name ONE wire, and let the doc be where it is named.
+[[copy-drift]] [[stale-reading]]
+
+**THE LIVE WIRES:**
+
+| issue | queue | ids |
+|---|---|---|
+| **#179** | backend third-eye, version by version | `GB-B-n` |
+| **#180** | live console / eyes, version by version | `GB-L-n` |
+
+**#3 is HISTORY** — 492 comments, last useful on 2026-08-28. Read it to understand a past finding;
+never post to it.
+
+### ⚠ THE SAME BLOCK GOES IN EVERY BRIEF, WORD FOR WORD
+
+Konyo, 2026-09-02: *"One block ... Until that is identical in human-eyes, WATCH.md, and Claude's
+prompt, you will keep getting the #3 dump."* Paste this verbatim — do not paraphrase it, because a
+paraphrase is a second source and the two will drift:
+
+```
+WIRE: #179 backend (GB-B-n) · #180 live/eyes (GB-L-n). #3 is CLOSED — never post there.
+ROLES: Grok Bot LOOKS and never edits the tree. Claude CODES and never drives :17772.
+DON'T TOUCH: no relaunch, no kill, no pid. The prune stays OFF — that is HIS call, not ours.
+UNKNOWN is a first-class answer. An eye that did not look is an EMPTY SEAT, never agreement.
+THE THREE CHECKS every finding must pass:
+  1. it came from a real reel / GET / pixel — not a session claim
+  2. one reel, one route — not four jobs in one ship
+  3. someone can act on it today
+PUBLIC REPO: no install ids, no hostnames, no tokens, no /Users paths.
+```
+
+`KonyoDigital/d2r-bible-tests` #179 and #180 are the wire. Grok Bot posts there itself — observed on
 2026-09-01: *"Queued. Comment on #3 — Claude, read-only, v2393 paint vs heartbeat"* — and he
 authorised it: *"you can write on github as long as its where its needed to be."* Claude reads and
 writes the same thread with `gh`, verified working:
 
 ```bash
-gh issue view 3 --repo KonyoDigital/d2r-bible-tests --json comments \
+gh issue view 180 --repo KonyoDigital/d2r-bible-tests --json comments \
    -q '.comments[-4:] | .[] | .createdAt + " · " + .author.login + "\n" + .body'
-gh issue comment 3 --repo KonyoDigital/d2r-bible-tests --body-file brief.md
+gh issue comment 180 --repo KonyoDigital/d2r-bible-tests --body-file brief.md   # live/eyes
+gh issue comment 179 --repo KonyoDigital/d2r-bible-tests --body-file brief.md   # backend
 ```
 
 **So a brief is a COMMENT, not a message passed by hand.** That matters for three reasons:
@@ -149,12 +186,10 @@ gh issue comment 3 --repo KonyoDigital/d2r-bible-tests --body-file brief.md
    reel names, tokens or absolute paths under `/Users/konyo`. Name the reel by its shape ("a
    20-frame stash reel"), not its id, unless the id is already in the thread.
 
-⚠ **#3 IS A DRAIN SLOT, NOT A REOPEN.** Its parent body and children `#5–#102` are history — the
-Aug 25 table was ~130 versions stale by v2232. Add a new comment; do not reopen the old table.
-
-⚠ **AND THE THREAD IS 492 COMMENTS LONG.** Read the LAST few, never the body, or you will answer a
-question that was closed weeks ago. That is precisely how the "#133 is still live" claim came back
-on 2026-09-01 — it was true when written and stale when quoted. [[stale-reading]]
+⚠ **READ THE LAST FEW COMMENTS, NEVER THE BODY.** #179 and #180 are version-by-version watch
+queues and grow all day; #3 is 492 comments long. Reading a thread's opening post answers a
+question that was closed weeks ago — precisely how the "#133 is still live" claim came back on
+2026-09-01, true when written and stale when quoted. [[stale-reading]]
 
 ## 6. THE STANDING BRIEFS
 

@@ -56,8 +56,25 @@ def check(path=None, now_ms=None):
         return 2, ["⚪ UNKNOWN — the human-eyes ledger could not be read. That is not agreement, "
                    "and it is not an empty ledger: the two are opposite facts."]
     if not st:
-        return 1, ["🔴 the ledger is EMPTY — no brief has ever been sent, so the harness is "
-                   "designed and not exercised. That is the shape of every defect it exists to "
+        # ⚠ v2428 (cont) — "THERE IS NO LEDGER HERE" AND "THE LEDGER IS EMPTY" ARE DIFFERENT FACTS,
+        # AND THIS GATE COLLAPSED THEM. `_rows()` returns [] for a missing file, deliberately and
+        # correctly — a ledger that does not exist genuinely has no rows, and its own docstring
+        # argues that at length. But THIS layer then read [] as "no brief has ever been sent",
+        # which is a claim about the HARNESS. The ledger is gitignored (.gitignore:202), so on CI
+        # it can never exist, and the real check therefore went RED on every CI run for a reason
+        # that is about the VENUE and not about the harness at all. Measured:
+        #     TV_HUMAN_EYES_LEDGER=/nonexistent python3 tv/human_eyes_gate.py  ->  exit 1
+        # A gate that is red on a venue for existing there is a gate switched off within a week —
+        # and this is the third state discipline this very file preaches two paragraphs above.
+        # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+        p = path or getattr(H, "LEDGER_PATH", None)
+        if p and not os.path.exists(p):
+            return 2, ["⚪ UNKNOWN — there is no human-eyes ledger on this venue (%s). The harness "
+                       "records a loop that runs on HIS machine, and its ledger is a runtime "
+                       "record, not a tracked file. 'It has not run here' is not 'it has never "
+                       "run', and only the second would be a finding." % p]
+        return 1, ["🔴 the ledger EXISTS and is EMPTY — no brief has ever been sent, so the harness "
+                   "is designed and not exercised. That is the shape of every defect it exists to "
                    "catch: built at both ends, joined at neither."]
     ok, why = H.proven(path)
     if not ok:
@@ -182,6 +199,15 @@ def prove():
             for l in lines:
                 print("        %s" % l)
 
+        # 3b. v2428 — AN ABSENT LEDGER IS UNKNOWN, AND AN EXISTING EMPTY ONE IS A FINDING.
+        # These were one branch and the difference is the whole CI story: the ledger is gitignored,
+        # so "absent" is the normal state of every venue that is not his Mac.
+        missing = os.path.join(d, "no-such-ledger.jsonl")
+        code, _ = check(missing)
+        ok = code == 2
+        bad += 0 if ok else 1
+        print("   %s absent ledger         want 2  got %d" % ("🟢" if ok else "🔴", code))
+
         # 4. an unreadable ledger is UNKNOWN, never a pass
         broken = os.path.join(d, "broken.jsonl")
         io.open(broken, "w", encoding="utf-8").write("{not json at all\n")
@@ -200,6 +226,39 @@ def prove():
     return 0
 
 
+def gate_mode():
+    """BOTH halves: is the checker trustworthy, and what does HIS ledger actually say?
+
+    ⚠ v2428 (cont) — REGISTERED AS `--prove` AND ONLY `--prove`, so for its whole life this gate
+    ran its own sabotage on temp fixtures and never once opened the real ledger. The record it was
+    built to make reachable stayed unread by the thing built to read it. That is the harness's own
+    defect one level up: an observation that reaches nothing is a diagnosis nobody made, and a
+    checker that never looks is the same silence wearing a green tick. [[the-unjoined-end]]
+
+    The sabotage still runs first — a checker that cannot be trusted must not be believed about
+    his record — and the real read follows, with an absent ledger reported as UNKNOWN rather than
+    folded into either verdict.
+    """
+    print("PROVING THE HUMAN-EYES GATE — on fixtures, never on his record.\n")
+    if prove() != 0:
+        print("\n🔴 human-eyes: the SABOTAGE failed — the checker is broken, so nothing it reports "
+              "about his ledger can be trusted. Fix the checker before reading its verdict.")
+        return 1
+    print("\n── AND NOW HIS ACTUAL LEDGER ──")
+    code, lines = check()
+    for l in lines:
+        print(l)
+    if code == 1:
+        print("🔴 human-eyes: a REAL finding in the human-eyes ledger — see the lines above.")
+        return 1
+    if code == 2:
+        print("⚪ human-eyes: checker PROVEN · his ledger could not be read on this venue, so "
+              "NOTHING was asserted about the loop. UNKNOWN, not a pass.")
+        return 0
+    print("🟢 human-eyes: checker proven on fixtures AND his real ledger read clean.")
+    return 0
+
+
 def main(argv):
     try:
         from console_safe import enable
@@ -209,6 +268,8 @@ def main(argv):
     if "--prove" in argv:
         print("PROVING THE HUMAN-EYES GATE — on fixtures, never on his record.\n")
         return prove()
+    if "--gate" in argv:
+        return gate_mode()
     code, lines = check()
     for l in lines:
         print(l)

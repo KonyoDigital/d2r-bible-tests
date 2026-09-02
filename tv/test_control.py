@@ -40326,5 +40326,148 @@ class TestUiFaultsAreScratchScoped(unittest.TestCase):
                       "and none of them are ever meant to be tracked.")
 
 
+class TestAGateMustPointAtItsSubject(unittest.TestCase):
+    """v2428 (cont) — three gates ran only their own sabotage and never asked the system anything.
+
+    FOUND while verifying A13 was genuinely joined. tv/run_gates.py registered `lane-census`,
+    `human-eyes` and `live-panel` with "--prove" and nothing else. Each of those runs the checker's
+    OWN SABOTAGE, which proves the INSTRUMENT and asserts NOTHING about the subject:
+    `live_panel_gate.py --prove` passes on a machine with no console at all.
+
+    ⚠ AND IT WAS THE UNJOINED END ON WORK ONE HOUR OLD. v2428 shipped four fill refusals into
+    live_panel_gate.py so the ADVANCED drawer could never silently empty again — into a gate that
+    never ran the check that fires them. The only reason it was ever pointed at his console that
+    day is that the command was typed by hand. [[the-unjoined-end]]
+
+    ⚠ THE FIX IS BOTH, NOT EITHER, AND THAT IS WHY THIS TEST EXISTS RATHER THAN A FLIP. On CI there
+    is no console and no ledger, so the real check is honestly UNKNOWN there — and a gate that is
+    UNKNOWN or RED on every CI run is switched off inside a week, which is the same defect as one
+    that is green forever. `--gate` runs the sabotage FIRST (an untrustworthy instrument must not
+    be believed), then the real subject, and reports an unreachable subject as UNKNOWN without
+    claiming a pass. [[feedback-blind-fixture-green-gate]] [[unknown-stays-unknown]]
+
+    THE LAW: if a checker has grown a gate_mode(), the gate set must use it. A checker that offers
+    to look at the real thing and is invoked with --prove anyway is strictly worse than one that
+    never offered.
+    """
+
+    def _gates(self):
+        sys.path.insert(0, HERE)
+        import run_gates
+        return run_gates.GATES
+
+    def test_every_checker_with_a_gate_mode_is_registered_in_gate_mode(self):
+        checked = 0
+        for g in self._gates():
+            script = next((a for a in g.argv
+                           if isinstance(a, str) and a.endswith(".py")
+                           and os.path.basename(os.path.dirname(a)) == os.path.basename(HERE)), None)
+            if not script or not os.path.exists(script):
+                continue
+            src = io.open(script, encoding="utf-8").read()
+            # ⚠ ANCHORED AT COLUMN 0, AND THIS TEST'S FIRST RUN IS WHY. A bare
+            # `if "def gate_mode(" not in src` matched THIS FILE — the string is quoted in the
+            # assertion message thirty lines below — so the scan decided test_control.py was a
+            # checker registered without --gate and went red on its own prose. The guard failed on
+            # its REACH, not on the code. A top-level def starts at column 0; every mention in a
+            # docstring or an assertion message is indented. [[source-reading-guard]]
+            if not re.search(r"^def gate_mode\(", src, re.M):
+                continue
+            checked += 1
+            self.assertIn(
+                "--gate", g.argv,
+                "gate %r runs %s with %r. That checker HAS a gate_mode() — it can look at the real "
+                "subject — and the gate set is telling it to run its own sabotage instead. A gate "
+                "that only ever proves its instrument has asserted nothing about the system."
+                % (g.name, os.path.basename(script), [a for a in g.argv if a.startswith("--")]))
+            self.assertNotIn(
+                "--prove", g.argv,
+                "gate %r passes BOTH --gate and --prove; only one mode runs, so the intent is "
+                "ambiguous and which one wins depends on the checker's argument order." % g.name)
+        # ⚠ AND THE COUNT IS THE GUARD ON THE GUARD. If the discovery above matches nothing — a
+        # renamed directory, a moved script, argv built some other way — every assertion in this
+        # loop is skipped and the test passes green having read nothing at all. That is the vacuous
+        # pass this repo keeps paying for. [[source-reading-guard]]
+        self.assertGreaterEqual(checked, 2,
+                                "this test found only %d checker(s) with a gate_mode(). It is "
+                                "supposed to find human-eyes and live-panel at minimum; finding "
+                                "fewer means the discovery broke, not that the tree is clean."
+                                % checked)
+
+    def test_a_gate_mode_runs_the_sabotage_before_the_subject(self):
+        """Order matters: a broken instrument must stop the gate BEFORE its reading is printed,
+        or a wrong verdict about his console gets published with a green tick above it."""
+        for name in ("live_panel_gate.py", "human_eyes_gate.py"):
+            src = io.open(os.path.join(HERE, name), encoding="utf-8").read()
+            body = _between(self, src, "def gate_mode(", "\ndef ", min_len=200,
+                            what="%s gate_mode body" % name)
+            i_prove, i_check = body.find("prove()"), body.find("check()")
+            self.assertGreater(i_prove, -1, "%s: gate_mode no longer runs the sabotage at all — it "
+                                            "is back to being a bare check with no proof that the "
+                                            "instrument works." % name)
+            self.assertGreater(i_check, -1, "%s: gate_mode no longer reads the real subject, which "
+                                            "is the entire point of the mode." % name)
+            self.assertLess(i_prove, i_check,
+                            "%s: gate_mode reads the subject BEFORE proving the instrument. If the "
+                            "sabotage is going to fail, its verdict about his console must never "
+                            "be printed as though it meant something." % name)
+
+
+class TestTheGrokBotWireIsOneAddress(unittest.TestCase):
+    """v2428 (cont) — the human-eyes skill named a CLOSED issue as the wire for five days.
+
+    Konyo, 2026-09-02: *"Strategy said differently to each agent ... human-eyes still says the wire
+    is #3; the watch posts #179 / #180"*, and *"Until that is identical in human-eyes, WATCH.md and
+    Claude's prompt, you will keep getting the #3 dump."*
+
+    VERIFIED the same day: #3 CLOSED 2026-08-28T14:11:39Z, #179 OPEN, #180 OPEN. Grok Bot's own
+    watch ticks open with "Posted here because #3 is CLOSED". The skill's section heading still
+    read "THE CHANNEL IS GITHUB ISSUE #3", and CLAUDE.md already said #179/#180 — so the two
+    documents a fresh session reads at step 0 disagreed about where to send a brief. A brief sent
+    to a closed issue is an observation that reaches nobody, which is the precise failure the
+    harness exists to end. [[copy-drift]] [[stale-reading]]
+    """
+
+    def _skill(self):
+        p = os.path.join(os.path.dirname(HERE), ".claude", "skills",
+                         "human-eyes-harness", "SKILL.md")
+        self.assertTrue(os.path.exists(p), "the human-eyes skill is gone from %s" % p)
+        return io.open(p, encoding="utf-8").read()
+
+    def test_the_skill_does_not_tell_anyone_to_post_to_the_closed_issue(self):
+        """⚠ ASSERTED ON THE COMMAND, NOT ON THE STRING '#3'.
+
+        The corrected skill mentions #3 eleven times — every one of them saying it is CLOSED and
+        must not be posted to. A guard grepping for '#3' would fail on the very prose that fixes
+        the problem, which is this repo's own source-reading scar. What must not exist is an
+        INSTRUCTION: a gh command addressed to issue 3. [[source-reading-guard]]
+        """
+        sk = self._skill()
+        for bad in ("gh issue comment 3 ", "gh issue view 3 "):
+            self.assertNotIn(bad, sk,
+                             "the human-eyes skill still hands out %r. #3 has been CLOSED since "
+                             "2026-08-28; a brief sent there reaches nobody." % bad)
+
+    def test_the_skill_and_CLAUDE_md_agree_on_the_wire(self):
+        sk = self._skill()
+        cl = io.open(os.path.join(os.path.dirname(HERE), "CLAUDE.md"), encoding="utf-8").read()
+        for doc, name in ((sk, "the human-eyes skill"), (cl, "CLAUDE.md")):
+            for issue in ("179", "180"):
+                self.assertIn("#" + issue, doc,
+                              "%s does not name #%s. The two documents a fresh session reads at "
+                              "step 0 must give the SAME address, or it will guess — and it "
+                              "guessed #3 for five days." % (name, issue))
+
+    def test_the_skill_carries_the_one_block_that_goes_in_every_brief(self):
+        """His words: 'One block, pasted into every agent.' A paraphrase is a second source."""
+        sk = self._skill()
+        for phrase in ("#3 is CLOSED", "never drives :17772", "prune stays OFF",
+                       "EMPTY SEAT", "PUBLIC REPO"):
+            self.assertIn(phrase, sk,
+                          "the standing brief block lost %r. Every brief carries the same block "
+                          "word for word; the moment it is paraphrased there are two versions of "
+                          "the rules and they drift." % phrase)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

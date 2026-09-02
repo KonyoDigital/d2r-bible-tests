@@ -58,8 +58,9 @@ only asked one. So:
                            cannot fire on a fleet route that is merely down.
 [[the-unjoined-end]] [[feedback-verify-not-proxy]] [[heart-first]]
 
-    python3 tv/live_panel_gate.py             # the gate
+    python3 tv/live_panel_gate.py             # read the live console only
     python3 tv/live_panel_gate.py --prove     # make it go RED for its own reason
+    python3 tv/live_panel_gate.py --gate      # BOTH — what run_gates runs
 """
 import json
 import os
@@ -324,9 +325,89 @@ class _Down(object):
 _SENTINEL_DOWN = _Down()
 
 
+def _port_open(host="127.0.0.1", port=None, timeout=1.0):
+    """Is anything listening? -> True | False.
+
+    ⚠ THIS EXISTS TO KEEP TWO SCARS FROM CANCELLING EACH OTHER OUT. _fetch() deliberately retries
+    with a generous budget, because a 6s timeout once reported "the console did not answer" over a
+    console that was alive and answered the very next request — a FALSE UNKNOWN, and a gate that
+    cries wolf is switched off inside a week. But in gate mode that same generosity would spend 45s
+    on every CI run, where the console does not exist and never will, against a 60s gate budget.
+
+    A TCP connect settles "is there a console at all" in milliseconds and cannot be fooled by a
+    slow one. So: closed port -> UNKNOWN immediately, and CI pays nothing. Open port -> hand it to
+    _fetch() with its full budget, and his Mac keeps the retries the scar bought.
+    """
+    import socket
+    if port is None:
+        try:
+            port = int(STATUS.split("//", 1)[1].split("/", 1)[0].rsplit(":", 1)[1])
+        except Exception:
+            return False
+    sk = socket.socket()
+    sk.settimeout(timeout)
+    try:
+        sk.connect((host, port))
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            sk.close()
+        except Exception:
+            pass
+
+
+def gate_mode():
+    """BOTH halves, in order: is the instrument trustworthy, and what does it say about the console?
+
+    ⚠ v2428 (cont) — THIS GATE WAS REGISTERED AS `--prove` AND ONLY `--prove`, so for its whole
+    life it ran its own SABOTAGE and never once asked the live console anything. That is the
+    unjoined end on the gate built to catch unjoined ends: the four ADVANCED-drawer refusals
+    shipped hours earlier could not fire in a gate run, and the only reason they were ever run
+    against his console was that I typed the command by hand. A checker that proves its instrument
+    and never points it at the subject has asserted nothing about the system.
+    [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]
+
+    ⚠ AND SIMPLY FLIPPING IT TO THE REAL CHECK WOULD HAVE BEEN WORSE. CI has no console, so the
+    real check is honestly UNKNOWN there, and a gate that is UNKNOWN on every CI run is furniture.
+    Both, or neither is worth having:
+      · the sabotage always runs — if the instrument is broken, nothing below it means anything,
+        so that failure comes FIRST and stops the gate
+      · the real check runs when a console is actually listening
+      · unreachable is printed as UNKNOWN in its own words and does NOT claim a pass
+    """
+    rc = prove()
+    if rc != 0:
+        print("\n\U0001f534 live-panel: the SABOTAGE failed — the instrument is broken, so nothing "
+              "it might say about the live console can be trusted. Fixing the checker comes before "
+              "reading anything it reports.")
+        return 1
+    print("\n── AND NOW THE SUBJECT ITSELF ──")
+    if not _port_open():
+        print("\u26aa live-panel: instrument PROVEN · no console is listening on %s, so NOTHING was "
+              "asserted about a live page. That is UNKNOWN, not clean — on this venue the live half "
+              "of this gate did not run." % STATUS)
+        return 0
+    code, lines = check()
+    for l in lines:
+        print(l)
+    if code == 1:
+        print("\U0001f534 live-panel: a REAL finding on the live console — see the lines above.")
+        return 1
+    if code == 2:
+        print("\u26aa live-panel: instrument PROVEN · the port was open but the console never "
+              "answered, so nothing was asserted about it. UNKNOWN, not a pass.")
+        return 0
+    print("\U0001f7e2 live-panel: instrument proven on 14 sabotages AND the live console read clean.")
+    return 0
+
+
 def main(argv):
     if "--prove" in argv:
         return prove()
+    if "--gate" in argv:
+        return gate_mode()
     code, lines = check()
     for l in lines:
         print(l)
