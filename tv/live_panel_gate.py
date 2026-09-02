@@ -326,7 +326,7 @@ _SENTINEL_DOWN = _Down()
 
 
 def _port_open(host="127.0.0.1", port=None, timeout=1.0):
-    """Is anything listening? -> True | False.
+    """Is anything listening? -> True | False | None (the address could not be parsed).
 
     ⚠ THIS EXISTS TO KEEP TWO SCARS FROM CANCELLING EACH OTHER OUT. _fetch() deliberately retries
     with a generous budget, because a 6s timeout once reported "the console did not answer" over a
@@ -343,7 +343,12 @@ def _port_open(host="127.0.0.1", port=None, timeout=1.0):
         try:
             port = int(STATUS.split("//", 1)[1].split("/", 1)[0].rsplit(":", 1)[1])
         except Exception:
-            return False
+            # ⚠ v2430 — None, NOT False. A cross-family review of v2429 named this: "any exception
+            # in port parsing silently yields False and a pass". False means "measured, nothing is
+            # listening" — a fact about the venue. Failing to parse OUR OWN config is a fact about
+            # the CHECKER, and collapsing the two let a broken TV_CONSOLE_URL read as a healthy CI
+            # run. Three states, not two. [[unknown-stays-unknown]]
+            return None
     sk = socket.socket()
     sk.settimeout(timeout)
     try:
@@ -384,11 +389,26 @@ def gate_mode():
               "reading anything it reports.")
         return 1
     print("\n── AND NOW THE SUBJECT ITSELF ──")
-    if not _port_open():
-        print("\u26aa live-panel: instrument PROVEN · no console is listening on %s, so NOTHING was "
-              "asserted about a live page. That is UNKNOWN, not clean — on this venue the live half "
-              "of this gate did not run." % STATUS)
-        return 0
+    up = _port_open()
+    if up is None:
+        # our own config is unreadable — a broken CHECKER, not an absent console
+        print("\U0001f534 live-panel: could not parse a port out of TV_CONSOLE_URL (%r). That is "
+              "this gate being broken, not the console being down, and the two must not share an "
+              "exit code." % STATUS)
+        return 1
+    if not up:
+        # ⚠ v2430 — SKIP_EXIT (77), NOT 0, AND A CROSS-FAMILY REVIEW OF v2429 IS WHY. Asked to
+        # refute the gate, it named this first: "when _port_open() returns False, gate_mode returns
+        # 0 without ever calling check() — concrete case: the real defect is present but the console
+        # process is not running". Correct, and returning 0 makes an unmeasured run wear a green
+        # tick. run_gates maps 77 to SKIP, counts it apart from PASS, and — since v1925 — treats an
+        # UNDECLARED skip as a FAILURE, so the reason has to be named in the Gate's skip_ok=.
+        # ⚠ AND I SHIPPED THE MECHANISM FOR THIS ONE VERSION EARLIER, for crest_loudness, and did
+        # not apply it to my own gate. Same defect, same day, one file apart.
+        # [[unknown-stays-unknown]] [[feedback-generalize-fixes]]
+        print("\u26aa SKIPPED — no console is listening on %s, so the live half of this gate did "
+              "NOT run and nothing was asserted about a live page. Not a pass." % STATUS)
+        return 77
     code, lines = check()
     for l in lines:
         print(l)
@@ -396,9 +416,9 @@ def gate_mode():
         print("\U0001f534 live-panel: a REAL finding on the live console — see the lines above.")
         return 1
     if code == 2:
-        print("\u26aa live-panel: instrument PROVEN · the port was open but the console never "
-              "answered, so nothing was asserted about it. UNKNOWN, not a pass.")
-        return 0
+        print("\u26aa SKIPPED — the port was open but the console never answered, so nothing was "
+              "asserted about it. Not a pass.")
+        return 77
     print("\U0001f7e2 live-panel: instrument proven on 14 sabotages AND the live console read clean.")
     return 0
 

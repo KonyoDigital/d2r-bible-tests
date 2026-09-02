@@ -69,8 +69,26 @@ def main():
         print("⚪ UNKNOWN — cannot load the harness: %s" % str(e)[:90])
         return 2
     if not rc._chrome_up():
-        print("⚪ UNKNOWN — no Chrome on :%d. A skip is not a pass." % rc.PORT)
-        return 2
+        # ⚠ v2430 — EXIT 77, NOT 2, AND THIS GATE HAD BEEN FAILING CI ON EVERY SINGLE RUN.
+        # run_gates.py maps 77 to SKIP and everything else non-zero to FAIL, so returning 2 for
+        # "there is no Chrome on this machine" reported a VENUE FACT as a build failure. Measured
+        # on CI run 33594870851: thirty gates ran, twenty-nine passed, and the whole agent-tests
+        # workflow was red on this one line — which means a REAL failure landing beside it would
+        # have been camouflaged by a red that everyone had learned to expect.
+        #
+        # The gate's own registration in run_gates.py claimed otherwise, in these words: "exits 2
+        # (UNKNOWN) without it, which run_gates reports as a loud SKIP". That was the intent and it
+        # was never the code. A description of behaviour the runner does not have is worse than no
+        # description, because it stops anyone checking. [[label-outlived-referent]]
+        #
+        # ⚠ AND THIS IS STILL NOT A PASS. 77 is its own status: run_gates prints it as SKIP, counts
+        # it apart from both PASS and FAIL, and — since v1925 — treats an UNDECLARED skip as a
+        # failure, so the Gate has to name this reason in skip_ok= before it is tolerated. The
+        # absence stays visible; it just stops being called a break. [[unknown-stays-unknown]]
+        print("⚪ SKIPPED — no Chrome on :%d, so the crest was never measured here. "
+              "That is not a pass: this gate has asserted NOTHING about loudness on this venue."
+              % rc.PORT)
+        return 77
     t = rc._Tab(URL)
     try:
         t.send("Emulation.setDeviceMetricsOverride", width=W, height=H,

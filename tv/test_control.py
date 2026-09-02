@@ -40469,5 +40469,99 @@ class TestTheGrokBotWireIsOneAddress(unittest.TestCase):
                           "the rules and they drift." % phrase)
 
 
+class TestADeclaredSkipCanActuallyFire(unittest.TestCase):
+    """v2430 — crest_loudness failed CI on EVERY run, and its own registration said it would not.
+
+    MEASURED on CI run 33594870851: thirty gates ran, twenty-nine passed, and the whole
+    "TV DIABLO — agent tests" workflow was red on one line:
+
+        ❌ crest_loudness   0.1s   ⚪ UNKNOWN — no Chrome on :9224. A skip is not a pass.
+
+    The Gate's `why` claimed: "exits 2 (UNKNOWN) without it, which run_gates reports as a loud
+    SKIP". It does not. SKIP_EXIT is 77; every other non-zero code is a FAIL. So a VENUE FACT — this
+    machine has no Chrome — was reported as a broken build, on every run, which is camouflage: a
+    real failure landing beside a red everyone expects is a failure nobody sees.
+    [[label-outlived-referent]] [[the-unjoined-end]]
+
+    ⚠ AND THE FIX IS NOT "TOLERATE THE SKIP". v1925 requires a skip to be DECLARED in advance via
+    `skip_ok=`, and counts an undeclared one as a failure. That mechanism existed and, measured the
+    same day, NOT ONE gate used it. Declaring the reason is what makes this honest rather than a
+    mute button — the absence stays visible and stays counted apart from PASS.
+
+    THE LAW: a declared skip reason must be able to MATCH SOMETHING THE CHECKER ACTUALLY PRINTS. A
+    pattern that can never fire is a declaration that does nothing, and it reads in the source
+    exactly like one that works.
+    """
+
+    def _gates(self):
+        sys.path.insert(0, HERE)
+        import run_gates
+        return run_gates
+
+    def test_every_declared_skip_reason_matches_text_the_checker_can_print(self):
+        rg = self._gates()
+        checked = 0
+        for g in rg.GATES:
+            if not g.skip_ok:
+                continue
+            script = next((a for a in g.argv if isinstance(a, str) and a.endswith(".py")), None)
+            if not script or not os.path.exists(script):
+                continue
+            src = io.open(script, encoding="utf-8").read()
+            for pat in g.skip_ok:
+                checked += 1
+                self.assertTrue(
+                    re.search(pat, src, re.I),
+                    "gate %r declares skip reason %r, and nothing in %s can ever print it. A "
+                    "pattern that cannot match is a declaration that does nothing — and an "
+                    "undeclared skip is counted as a FAILURE, so this gate would go red the moment "
+                    "it skipped, for a reason its own registration claims to have covered."
+                    % (g.name, pat, os.path.basename(script)))
+        # ⚠ THE COUNT IS THE GUARD ON THE GUARD. Before v2430 not one gate declared a skip reason,
+        # so this loop had nothing to iterate and would have passed green having checked nothing —
+        # the vacuous pass this repo keeps paying for. [[source-reading-guard]]
+        self.assertGreaterEqual(checked, 1,
+                                "no gate declares a skip reason at all, so this test asserted "
+                                "nothing. Either skip_ok= fell out of the gate set, or the "
+                                "discovery above broke.")
+
+    def test_a_venue_absence_skips_rather_than_fails(self):
+        """crest_loudness specifically: no Chrome must be SKIP_EXIT, never a plain failure."""
+        rg = self._gates()
+        src = io.open(os.path.join(HERE, "crest_loudness.py"), encoding="utf-8").read()
+        branch = _between(self, src, "if not rc._chrome_up():", "\n    t = ",
+                          min_len=80, what="the no-Chrome branch")
+        # ⚠ THE STATEMENT, NOT THE MENTION — and the first cut of this assertion was `assertIn
+        # ("77", branch)`, which stayed GREEN when the code was sabotaged back to `return 2`. The
+        # branch carries a long comment explaining why 77 is right, and that comment says "77"
+        # three times, so the guard was reading my own prose instead of the code. Caught by its own
+        # sabotage run. A `return` at the start of a line cannot be satisfied by a `#` comment.
+        # [[feedback-comments-vs-code]] [[sabotage-is-usually-the-wrong-one]]
+        self.assertRegex(branch, r"(?m)^\s*return\s+77\s*$",
+                         "crest_loudness returns something other than SKIP_EXIT when Chrome is "
+                         "absent. run_gates maps only 77 to SKIP; anything else non-zero is a "
+                         "FAIL, so the gate reports 'this machine has no browser' as a broken "
+                         "build.")
+        self.assertEqual(rg.SKIP_EXIT, 77, "SKIP_EXIT moved; the checker hardcodes 77.")
+        g = next(x for x in rg.GATES if x.name == "crest_loudness")
+        self.assertTrue(g.skip_ok,
+                        "crest_loudness skips on any machine without Chrome and declares no "
+                        "reason, so v1925 counts that skip as a failure — which is the exact "
+                        "state this ship fixed.")
+
+    def test_an_undeclared_skip_is_still_a_failure(self):
+        """The anti-vacuity half. If any skip were tolerated, this would be a mute button."""
+        rg = self._gates()
+        g = next(x for x in rg.GATES if x.name == "crest_loudness")
+        self.assertIsNotNone(rg._skip_allowed(g, "⚪ SKIPPED — no Chrome on :9224"),
+                             "the declared reason no longer covers the message the checker prints.")
+        for unrelated in ("⚪ SKIPPED — the render harness would not import", ""):
+            self.assertIsNone(rg._skip_allowed(g, unrelated),
+                              "a skip for %r is covered by crest_loudness's declaration. Only the "
+                              "reason that was declared may be tolerated; an unexplained skip is "
+                              "the least trustworthy state a required gate can be in."
+                              % (unrelated or "no reason at all"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

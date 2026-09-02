@@ -358,9 +358,16 @@ GATES = [
              "22% tint puts the closest pair of crests (Hollow vs Iron) at dE 2.4 — the "
              "just-noticeable threshold, i.e. two machines that look the same colour, which v1466 "
              "calls worse than showing no crest at all. So the hue is untouched at full strength "
-             "and only its FOOTPRINT shrank. ⚠ This gate NEEDS Chrome and exits 2 (UNKNOWN) "
-             "without it, which run_gates reports as a loud SKIP — in CI that skip is expected and "
-             "is not a pass. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]"),
+             "and only its FOOTPRINT shrank. ⚠ v2430 — THIS GATE NEEDS CHROME, AND FOR ITS "
+             "WHOLE LIFE IT REPORTED THAT ABSENCE AS A BUILD FAILURE. The line here used to read "
+             "'exits 2 (UNKNOWN) without it, which run_gates reports as a loud SKIP'. It does not: "
+             "SKIP_EXIT is 77 and every other non-zero code is a FAIL, so CI run 33594870851 went "
+             "red on this one gate with the other twenty-nine green — camouflage for any real "
+             "failure landing beside it. The checker now exits 77 and the reason is DECLARED below, "
+             "which is the v1925 mechanism finally being used by something: an undeclared skip is "
+             "still counted as a failure, so this stays visible and stays honest. A skip is not a "
+             "pass. [[unknown-stays-unknown]] [[label-outlived-referent]]",
+         skip_ok=(r"no Chrome",)),
     Gate("test_auto_scope", [sys.executable, os.path.join(HERE, "test_auto_scope.py")], 60,
          why="v2293 — EVERY AUTOMATIC LANE DECLARES WHAT IT WOULD DO WITHOUT HIM. The cold-read "
              "question \"if this app were about to do something on your behalf, could you tell what "
@@ -431,6 +438,7 @@ GATES = [
              "supervised, and SEVEN persistent loops running unwatched.",
          skip_ok=()),
     Gate("human-eyes", [sys.executable, os.path.join(HERE, "human_eyes_gate.py"), "--gate"], 120,
+         skip_ok=(r"no human-eyes ledger",),
          why="v2404 — THE VISUAL HARNESS NOW REACHES SOMETHING. Konyo: 'i want this part of the "
              "workflow.. what about the visual harness with grok bot where is that?' It was built "
              "— ask_view.py, human_eyes_ledger.py, the skill, briefs HE-1..HE-5 as issues — and it "
@@ -443,8 +451,9 @@ GATES = [
              "RECORD proves; the full ask — a LOOKED observation contradicting the live console "
              "raising a blocker — needs a running console and belongs beside the render gate. "
              "Filed, not faked. ⚠ v2428 — AND FOR ITS WHOLE LIFE IT RAN ONLY THAT SABOTAGE. Registered as --prove, it proved the CHECKER on temp fixtures and never once opened the real ledger, so the record this harness exists to make reachable stayed unread by the thing built to read it. --gate runs both: sabotage first (an untrustworthy checker must not be believed), then HIS ledger, with an absent ledger reported as UNKNOWN rather than folded into a verdict — it is gitignored, so absent is the normal state of every venue but his Mac, and the old code called that RED.",
-         skip_ok=()),
+         ),
     Gate("live-panel", [sys.executable, os.path.join(HERE, "live_panel_gate.py"), "--gate"], 120,
+         skip_ok=(r"no console is listening", r"console never answered"),
          why="v2406 — THE LIVE BEAT FINALLY REFUSES SOMETHING, AND THIS GATE IS THE JOIN THAT WAS "
              "MISSING FOR A WHOLE SHIP. uiBeat.panels has reported ON-SCREEN / BELOW-FOLD / "
              "OFF-SIDE / OFF-VIEW since v2404 — because `shown` was TRUE for a card sitting at "
@@ -463,7 +472,7 @@ GATES = [
              "case is pinned because the first cut REFUSED HIS LIVE CONSOLE over #hd-tallybar "
              "being display:none off its own view, and a gate that refuses a working console is "
              "how a gate gets switched off.",
-         skip_ok=()),
+         ),
     Gate("blueprint-agrees", [sys.executable, os.path.join(HERE, "lane_census.py"),
                               "--vs-blueprint"], 60,
          why="v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING. BLUEPRINT.md "

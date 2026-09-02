@@ -252,9 +252,12 @@ def gate_mode():
         print("🔴 human-eyes: a REAL finding in the human-eyes ledger — see the lines above.")
         return 1
     if code == 2:
-        print("⚪ human-eyes: checker PROVEN · his ledger could not be read on this venue, so "
-              "NOTHING was asserted about the loop. UNKNOWN, not a pass.")
-        return 0
+        # v2430 — 77, not 0, for the same reason as live-panel: a run that asserted nothing must
+        # not wear a green tick. run_gates counts a DECLARED skip apart from PASS, and an
+        # undeclared one as a failure.
+        print("⚪ SKIPPED — no human-eyes ledger on this venue, so the loop was NOT graded here. "
+              "Not a pass.")
+        return 77
     print("🟢 human-eyes: checker proven on fixtures AND his real ledger read clean.")
     return 0
 

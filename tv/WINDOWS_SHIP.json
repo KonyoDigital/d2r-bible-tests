@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2429",
+  "ver": "v2430",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2429: three gates ran their own sabotage and never asked the system anything",
+  "note": "v2430: crest_loudness reported no-Chrome as a failure on every CI run",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
