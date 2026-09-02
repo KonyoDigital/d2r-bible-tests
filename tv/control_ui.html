@@ -10512,7 +10512,7 @@ body[data-origin="shadow"] #stage::after {
              + ' stroke="' + lc + '" stroke-width="1.4"/>'
              + '<text x="' + px.toFixed(1) + '" y="' + (py + 4).toFixed(1) + '" text-anchor="middle"'
              + ' font-size="11">' + (open ? '\u{1F513}' : '\u{1F512}') + '</text>'
-             + '<title>' + _hrtEsc((L.surface || L.lock) + ' — ' + waiting + '. ' + arith
+             + '<title>' + _hrtEsc((L.lock || L.surface) + ' — ' + waiting + '. ' + arith
                                    + '. ' + (L.why || '')) + '</title></g>'
              + '<circle cx="' + gx.toFixed(1) + '" cy="' + gy.toFixed(1) + '" r="4.6" fill="' + lc + '"/>';
       /* CENTRED UNDER THE NODE, never anchored sideways. The first cut anchored start/end by the
@@ -10668,7 +10668,17 @@ body[data-origin="shadow"] #stage::after {
         ? (L.k + '/' + L.n + ' refused · Wilson ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
            + ' · needs ' + L.bar)
         : 'n=0 · needs ' + L.bar;
-      lrows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(L.surface || L.lock) + '</span>'
+      /* ⚠ v2450 — THREE ROWS ALL SAID "VAULT". A cold cross-family read of this very panel:
+         "several rows are identical (three VAULT entries) with no visible differentiation."
+         It is right, and it is the defect Konyo already named once: "i want to know which
+         specifically is still locked and waiting to self prove itself." I fixed the DIAGRAM to
+         carry the specific lock name and left the LIST rendering `surface || lock` — and three of
+         the five locks share the surface VAULT, so the list printed VAULT, VAULT, VAULT with only
+         the bar numbers to tell them apart. Half a fix reads as a whole one until someone counts.
+         The lock id leads because it is the unique part; the surface follows as context.
+         [[sweep-dont-ask]] [[grok-second-eye]] */
+      var _lname = L.lock ? (L.lock + (L.surface ? ' · ' + L.surface : '')) : (L.surface || '?');
+      lrows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(_lname) + '</span>'
         + '<span class="hrt-s" style="color:' + (_HRT_LOCKCOL[lst] || '#9aa6b2') + '">'
         + (lst === 'OPEN' ? '\u{1F513} ' : '\u{1F512} ') + _hrtEsc(lst) + '</span>'
         + '<span class="hrt-w">' + _hrtEsc(ar) + ' — ' + _hrtEsc(L.why || '') + '</span></div>';

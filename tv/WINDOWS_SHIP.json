@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2449",
+  "ver": "v2450",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2449: rotting fissure sat on the sets chronicle and so did the other five charms",
+  "note": "v2450: three valve rows all said vault and a cold eye counted them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

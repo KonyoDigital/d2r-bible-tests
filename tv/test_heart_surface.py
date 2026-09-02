@@ -284,6 +284,40 @@ class TestADoorMayNotFailInSilence(unittest.TestCase):
                          "(no way to close the theatre, which is how this broke)")
 
 
+class TestEveryLockNamesItself(unittest.TestCase):
+    """★ v2450 — THREE ROWS ALL SAID "VAULT", and a cold cross-family read of the panel found it:
+    "several rows are identical (three VAULT entries) with no visible differentiation."
+
+    It is the defect Konyo had already named once — "i want to know which specifically is still
+    locked and waiting to self prove itself" — and I fixed only half of it. The DIAGRAM got the
+    specific lock id; the LIST kept rendering `surface || lock`, and three of the five locks share
+    the surface VAULT. Half a fix reads as a whole one until someone counts.
+
+    The law: the label a lock renders under must be UNIQUE among the locks, because a lock you
+    cannot tell from its neighbour cannot be acted on. [[sweep-dont-ask]]
+    """
+
+    def test_the_list_label_leads_with_the_unique_part(self):
+        code = TestAStampMustSurviveARepaint._strip_comments(
+            io.open(UI, encoding="utf-8").read())
+        self.assertNotIn("_hrtEsc(L.surface || L.lock)", code,
+                         "a lock row is labelled by SURFACE first. Three locks share the surface "
+                         "VAULT, so the list prints VAULT three times with only the bar numbers to "
+                         "tell them apart")
+
+    def test_the_declared_locks_have_unique_ids_but_NOT_unique_surfaces(self):
+        """The reason this defect exists at all, pinned so nobody 'simplifies' the label back:
+        surfaces are deliberately shared and ids are not."""
+        import self_arming as SA
+        ids = sorted(SA.LOCKS)
+        surfaces = [SA.LOCKS[k]["surface"] for k in ids]
+        self.assertEqual(len(set(ids)), len(ids), "two locks share an id")
+        self.assertLess(len(set(surfaces)), len(surfaces),
+                        "every lock now has a unique surface, so this guard is measuring nothing "
+                        "and the label could safely be the surface again — check before deleting "
+                        "it, but do not leave it passing vacuously")
+
+
 class TestAMeasurementNobodyReadsIsNoMeasurement(unittest.TestCase):
     """★ CF-13. The auditor was RIGHT and read by NOBODY.
 
