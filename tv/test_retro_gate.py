@@ -67,6 +67,20 @@ class TestTheThreeDimensionsFailSEPARATELY(unittest.TestCase):
 
 class TestTheGateCannotManufactureEVIDENCE(unittest.TestCase):
 
+    def setUp(self):
+        """⚠ v2425 — DECLARE A WORLD. CI's per-gate attribution named this class as a writer of
+        `retro_gate.json`, and instrumenting the writes named the exact tests. Production resolves that
+        path through the fixture root now (v2423); this is the other half — a suite that writes
+        state must say which world it is in, or the correct rule is applied to the wrong root.
+        [[feedback-fixtures-never-touch-live-data]]"""
+        import tempfile as _tf, shutil as _sh, os as _os
+        _d = _tf.mkdtemp(prefix="rg_")
+        self.addCleanup(_sh.rmtree, _d, True)
+        _old = _os.environ.get("TV_HIST")
+        _os.environ["TV_HIST"] = _d
+        self.addCleanup(lambda: (_os.environ.__setitem__("TV_HIST", _old) if _old is not None
+                                 else _os.environ.pop("TV_HIST", None)))
+
     def test_a_curly_apostrophe_is_not_a_disagreement(self):
         """202 straight and 4 curly in his roster; that split already cost a wrong mule for
         Gheed's Fortune. Two readers arguing about a quote mark are not arguing about the ITEM."""

@@ -23192,6 +23192,18 @@ class TestV2086TheThreeThingsThatWereQuietlyTrue(unittest.TestCase):
         return control_app
 
     # ── ONE FLOOR ────────────────────────────────────────────────────────────────────────────
+    def setUp(self):
+        """⚠ v2425 — DECLARE A WORLD. The last writer CI named, found by instrumenting the writes
+        after the other six were closed: this class writes `disk_history.jsonl`. Production
+        resolves that path through the fixture root now (v2423); this is the other half."""
+        import tempfile as _tf, shutil as _sh, os as _os
+        _d = _tf.mkdtemp(prefix="dh_")
+        self.addCleanup(_sh.rmtree, _d, True)
+        _old = _os.environ.get("TV_HIST")
+        _os.environ["TV_HIST"] = _d
+        self.addCleanup(lambda: (_os.environ.__setitem__("TV_HIST", _old) if _old is not None
+                                 else _os.environ.pop("TV_HIST", None)))
+
     def test_the_ON_AIR_floor_exists_exactly_ONCE(self):
         """This number decides two different things: whether /api/on will RECORD, and whether the
         auto-prune may DELETE. They must be the same by construction, because the whole argument
