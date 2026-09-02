@@ -330,7 +330,7 @@ GATES = [
              "unreadable proof queue fails CLOSED, and that may() never grows an override "
              "parameter — which would quietly restore the hand-arming this replaces."),
     Gate("test_heart_surface", [sys.executable, os.path.join(HERE, "test_heart_surface.py")], 60,
-         "♥ THE HEART AS A SURFACE — the route and the shell it borrows. test_heart covers the "
+         why="♥ THE HEART AS A SURFACE — the route and the shell it borrows. test_heart covers the "
          "derivation; this covers what actually broke on the way in. A panel reusing .fleet-xref "
          "inherits a TWO-COLUMN GRID along with the design: #ver-xref hit that and wrote a warning, "
          "and v2443 added #heart-ov three lines under the warning and hit it again — the diagram "
