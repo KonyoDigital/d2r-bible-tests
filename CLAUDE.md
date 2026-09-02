@@ -1,5 +1,10 @@
 # Working in this repo — read this before the first tool call
 
+> ## ⏩ RESUMING? READ `RESUME_HERE.md` FIRST.
+> It carries the exact next action, what is committed but unpushed, what the gate refused and why,
+> and the three files holding the open work (`OPEN_WORK.md`, `OPEN_WORK_NOTES.md`, `TASKS.md`).
+> Written 2026-09-02 after a forced restart, so a new session starts where the last one stopped.
+
 This file loads automatically for every session in `~/d2r_bible_tests`. It exists because on
 2026-09-01 Konyo had to say, six separate times, that carved skills were not loaded — while a
 SessionStart hook that names them was already firing. **A hook is advisory text and depends on the
