@@ -2144,7 +2144,7 @@ def _surface_row(nm, v, ss):
                           else "same-verdict-different-reason")}
 
 
-def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
+def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES, surface_of=None):
     """Score a whole proposal under BOTH rules and return what was seen. WRITES NOTHING.
 
     Konyo: "make it self improving and really accurate so its locked and locks in the console."
@@ -2163,7 +2163,12 @@ def shadow_scores(by_name, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES):
         if not isinstance(sg, list) or not sg:
             continue
         try:
-            v = gate_verdict(nm, sg, conf_floor, min_witnesses)
+            # ⚠ THE PARAMETER EXISTED AND THIS CALL DID NOT USE IT — a socket with no
+            # wire, the same unjoined shape one level down, and it would have shipped
+            # as a fix. An identical line lives in shadow_disagreements (2072), so a
+            # text anchor matched TWICE and the edit correctly refused rather than
+            # patching the wrong occurrence. [[source-reading-guard]]
+            v = gate_verdict(nm, sg, conf_floor, min_witnesses, surface_of=surface_of)
         except Exception:
             continue
         sh = v.get("shadow") or {}
@@ -2207,6 +2212,17 @@ def strict_gate(conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES, surface_of=N
         return v["pass"]
 
     _gate.verdicts = seen
+    # ⚠ v2427 — THE CLOSURE MUST CARRY ITS RESOLVER, OR THE SHADOW LEDGER CANNOT SEE IT.
+    # apply_proposal receives this gate — with `surface_of` already baked in — and then calls
+    # shadow_scores() SEPARATELY, which built its own verdicts with no resolver. So the path that
+    # decides the live answer had a surface and the path that FEEDS THE LEDGER did not.
+    #
+    # MEASURED on his ledger before this fix: surface scored 146,748 times with wouldHold 0 and
+    # wouldGround 0. The docstring above says exactly why — "without it every sighting reads NOT
+    # ESTABLISHED, which is honest but measures nothing" — and that is what 146,748 of them did.
+    # An invariant that always agrees may be perfect or inert, and those are indistinguishable
+    # from the outside. [[heart-first]] rule 5 [[the-unjoined-end]]
+    _gate.surface_of = surface_of
     return _gate
 
 
@@ -2566,7 +2582,11 @@ def apply_proposal(proposal, existing, gate=None):
             for _nm, _sg in ((proposal or {}).get(_ledger) or {}).items():
                 if isinstance(_sg, list) and _sg:
                     _by[_nm] = _sg
-        out["shadow"] = shadow_scores(_by) if _by else {"scored": 0, "disagreements": []}
+        # ⚠ THE RESOLVER WAS ALREADY IN THE ROOM, INSIDE THE GATE CLOSURE. Reading it back is what
+        # joins the surface shadow to the ledger; before v2427 this called shadow_scores with no
+        # resolver while the very gate beside it had one.
+        out["shadow"] = (shadow_scores(_by, surface_of=getattr(gate, "surface_of", None))
+                         if _by else {"scored": 0, "disagreements": []})
     except Exception as _se:
         # ⚠ RECORDED, NOT SWALLOWED. The first cut called time.time() in a module that did not
         # import `time`; the NameError went into a bare `except: pass`, nothing was written, and

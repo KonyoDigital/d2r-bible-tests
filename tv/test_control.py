@@ -38620,6 +38620,78 @@ class TestV2420TheShadowLedgerFollowsTheFIXTUREROOT(unittest.TestCase):
                          "the late redirect moved the path, but not into the fixture: %r" % after)
 
 
+class TestV2427TheSurfaceResolverREACHESTheShadowLedger(unittest.TestCase):
+    """⚠ 146,748 SCORINGS THAT MEASURED NOTHING, AND THE CODE SAID WHY ALL ALONG.
+
+    Measured on his shadow ledger: `surface.scored = 146748`, `wouldHold = 0`, `wouldGround = 0`.
+    `wouldGround: 0` is correct BY DESIGN — the code says so: "surface_shadow computes
+    `would = live_pass and meets_surface`, so it cannot ground what the gate holds." But
+    `wouldHold: 0` across 146,748 scorings is heart-first rule 5: an invariant that always agrees
+    may be perfect or INERT, and those are indistinguishable from outside.
+
+    THE CAUSE, traced link by link:
+
+        strict_gate(surface_of=_sighting_loc) -> gate_verdict(surface_of=..) -> surface_shadow  ✅
+        shadow_scores(by_name, ...)           -> gate_verdict(NO surface_of) -> surface_shadow  ✗
+
+    The path that decides the LIVE verdict carried a resolver. The path that FEEDS THE LEDGER could
+    not: `shadow_scores` had no `surface_of` parameter at all. And surface_shadow's own docstring
+    states the consequence — "with no resolver every sighting is NOT ESTABLISHED, which is the
+    honest answer and never a veto." 146,748 honest answers about nothing.
+
+    ⚠ The resolver was never missing. `apply_proposal` is HANDED the gate closure that already has
+    it baked in; it just could not read it back out. Four links joined and the middle one had no
+    socket. [[the-unjoined-end]] [[heart-first]]
+    """
+
+    def _sightings(self):
+        return {"Shako": [{"lane": "deep", "conf": 0.9}, {"lane": "deep", "conf": 0.9}]}
+
+    def _saw_resolver(self, **kw):
+        import chronicle_retro as cr
+        calls, real = [], cr.surface_shadow
+        def watched(sightings, surface_of=None, live_verdict=None):
+            calls.append(surface_of is not None)
+            return real(sightings, surface_of=surface_of, live_verdict=live_verdict)
+        cr.surface_shadow = watched
+        try:
+            cr.shadow_scores(self._sightings(), **kw)
+        finally:
+            cr.surface_shadow = real
+        return any(calls)
+
+    def test_a_resolver_handed_to_shadow_scores_REACHES_surface_shadow(self):
+        self.assertTrue(self._saw_resolver(surface_of=lambda sg: "chronicle"),
+                        "shadow_scores accepted a resolver and did not pass it on — the parameter "
+                        "is a socket with no wire, which is the same defect one level down")
+
+    def test_without_one_it_still_honestly_reads_NOT_ESTABLISHED(self):
+        """The other direction: absent must stay absent, never invented."""
+        self.assertFalse(self._saw_resolver(),
+                         "a resolver appeared from nowhere when none was given")
+
+    def test_the_gate_closure_CARRIES_its_resolver(self):
+        """`apply_proposal` gets the closure, not the resolver. It can only thread it to the ledger
+        path if the closure kept it — which is how the resolver gets out of the room."""
+        import chronicle_retro as cr
+        g = cr.strict_gate(surface_of=lambda sg: "chronicle")
+        self.assertIsNotNone(getattr(g, "surface_of", None),
+                             "the gate closure does not carry its resolver, so apply_proposal "
+                             "cannot hand it to shadow_scores and the ledger goes blind again")
+        self.assertIsNone(getattr(cr.strict_gate(), "surface_of", "MISSING"),
+                          "a gate built with no resolver claims to have one")
+
+    def test_apply_proposal_READS_it_off_the_gate(self):
+        """The join itself, asserted on the source rather than inferred: apply_proposal must take
+        the resolver from the gate it was handed."""
+        import inspect
+        import chronicle_retro as cr
+        src = inspect.getsource(cr.apply_proposal)
+        self.assertIn('getattr(gate, "surface_of", None)', src,
+                      "apply_proposal no longer reads the resolver off its gate — the ledger path "
+                      "is unjoined again and surface.wouldHold will return to a permanent 0")
+
+
 class TestV2426TheCrestGateWAITSViaTheSharedHelper(unittest.TestCase):
     """⚠ THE JOIN, WHICH v2424 MADE AND DID NOT PIN. A cold review: "Nothing asserts
     `crest_loudness.main` calls `_selector_ready`. `check()` has exactly that join guard. This

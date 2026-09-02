@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2426",
+  "ver": "v2427",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2426: I claimed it was, and a cold read caught the claim",
+  "note": "v2427: the resolver was in the room and could not get out of the closure",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
