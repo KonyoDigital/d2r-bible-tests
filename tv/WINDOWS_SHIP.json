@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2455",
+  "ver": "v2456",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2455: A21c. The uniques, sets and runeword rosters are siblings and nothing ever compared them to each other. The runeword roster was hash-stamped at write time and NOTHING re-checked that stamp, so it was correct on the day and silent on the day it stopped. One corroborator now names the route whose lane shape diverges from its siblings, in his words: when ten share one logic, the one that does not is flagged. It badges, it never blocks.",
+  "note": "v2456: The board never defined _gSetRoster while the console asked for it on every read, so the fleet set denominator was null forever and printed a bare number with a bar drawn full. It is defined now, both denominators carry their unit, an unknown draws EMPTY, and the cross-reference refusal names YOUR side or THEIR side instead of blaming the other console for a silence on your own.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
