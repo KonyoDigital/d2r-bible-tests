@@ -76,6 +76,19 @@ def check_lanes():
     if bad or div:
         worst = (bad + div)[0]
         n = len(bad) + len(div)
+        # ★ v2437 — THE DECIDING SENTENCE LEADS, BECAUSE THE CONSOLE ONLY PRINTS TWO.
+        # console_doctor renders `"; ".join(_clip(x, 110) for x in evidence[:2])`, and `ev` was
+        # built lanes-first, divergences-last. With two lanes and one divergence the [:2] kept
+        # both "last did work N h ago" freshness lines and DROPPED the divergence — the only
+        # sentence that says what is actually wrong. That is why CF-1 was filed as "chronicle
+        # and vault both stopped doing work hours ago" when neither lane had stopped: both were
+        # under their 48h threshold and owed 0, measured. The panel printed the word `missing`
+        # over two sentences that describe a healthy lane.
+        #
+        # Fixed HERE rather than in the renderer: the consumer cannot know which of three
+        # sentences is the deciding one, and this producer already computed `worst`. Every other
+        # consumer of `evidence` gets the same ordering for free. [[the-unjoined-end]]
+        ev = [worst["why"]] + [e for e in ev if e != worst["why"]]
         return _row("lanes", WARN,
                     "%d lane issue%s — %s" % (n, "" if n == 1 else "s",
                                               (worst.get("lane") or "+".join(worst.get("pair", [])))),

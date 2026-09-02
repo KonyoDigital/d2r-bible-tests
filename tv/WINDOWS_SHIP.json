@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2436",
+  "ver": "v2437",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2436: the eagle panel was re-deriving needsYou without MINE",
+  "note": "v2437: CF-1 was a misdiagnosis the panel forced: two healthy sentences printed under the word missing. Plus two unreaped Popens and the gate that was blind to both.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

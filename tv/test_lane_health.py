@@ -90,6 +90,114 @@ class TestDivergenceIsTheCorroborator(_Tree):
         self.assertEqual(LH.divergence("vault", "chronicle")["state"], "diverged")
 
 
+class TestDivergenceCountsOnlyWhatALaneCanStillActOn(_Tree):
+    """★ v2437 — THE CORROBORATOR WAS ALWAYS-RED A SECOND TIME, AND NO FIXTURE COULD SEE IT.
+
+    v2302 fixed the DIALECT (`reel_` prefix) and the identical defect survived one level up:
+    divergence() differenced two LIFETIME ledgers against nothing on disk. Measured on his tree
+    2026-09-02 — 401 chronicle entries, 30 vault, 40 reels on disk, 371 "diverged", of which
+    **346 have no footage at all**. The vault lane can only sweep a directory, so those 346 can
+    never be sealed by any amount of lane work, and the number GROWS every time footage is
+    correctly pruned. A red that gets worse the better the system behaves carries no information.
+
+    ⚠ WHY EVERY EXISTING TEST STAYED GREEN THROUGH IT: none of them creates footage, so the
+    hist dir never existed and the fallback path was the only one a fixture ever ran. That is
+    [[gate-blind-to-unexercised-input]] exactly — real gate, real data, still green — so these
+    cases exist to exercise the branch his tree actually takes.
+    """
+
+    def _reel(self, sid):
+        os.makedirs(os.path.join(self.hist, "reel_%s" % sid), exist_ok=True)
+
+    def setUp(self):
+        _Tree.setUp(self)
+        # ⚠ point TV_HIST at the fixture. Without this the module resolves HERE/frames/hist —
+        # and HERE is already the temp root, so it would be absent rather than wrong; the env
+        # var is set anyway because a future default change must not silently read his footage.
+        self.hist = os.path.join(self.root, "frames", "hist")
+        os.makedirs(self.hist)
+        self._old_hist = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = self.hist
+        self.addCleanup(self._restore_hist)
+
+    def _restore_hist(self):
+        if self._old_hist is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = self._old_hist
+
+    def test_a_divergence_whose_FOOTAGE_IS_GONE_reads_as_aligned(self):
+        """The 346 case. No lane can seal a reel that no longer exists, so it is not a fault."""
+        self._write("chronicle_swept.json", self._seal(9, 1))
+        self._write("vault_swept.json", {"s_0": {"ts": self.now, "rows": 1}})
+        # no reel_* directories at all -> every difference is historic
+        d = LH.divergence("chronicle", "vault")
+        self.assertEqual(d["state"], "aligned",
+                         "8 sessions differ but NONE has footage — a lane cannot act on any of "
+                         "them, so calling it diverged is a red that can never be cleared")
+        self.assertEqual(d["actionable"], 0)
+        self.assertEqual(d["historyOnly"], 8)
+        self.assertIn("footage is already gone", d["why"])
+
+    def test_only_the_sessions_WITH_footage_count_as_diverged(self):
+        """The 25 case. Mixed tree: some differences are actionable, most are not."""
+        self._write("chronicle_swept.json", self._seal(9, 1))
+        self._write("vault_swept.json", {"s_0": {"ts": self.now, "rows": 1}})
+        self._reel("s_3")
+        self._reel("s_7")
+        d = LH.divergence("chronicle", "vault")
+        self.assertEqual(d["state"], "diverged")
+        self.assertEqual(d["actionable"], 2, "only s_3 and s_7 still have footage")
+        self.assertEqual(d["historyOnly"], 6)
+        self.assertEqual(d["onlyInFirst"], 8, "the raw lifetime difference must stay truthful")
+        self.assertEqual(sorted(d["sample"]), ["s_3", "s_7"],
+                         "the sample must name reels somebody can actually go and sweep")
+
+    def test_a_reel_on_disk_that_BOTH_lanes_swept_is_not_a_divergence(self):
+        same = self._seal(4, 1)
+        self._write("chronicle_swept.json", same)
+        self._write("vault_swept.json", same)
+        for i in range(4):
+            self._reel("s_%d" % i)
+        self.assertEqual(LH.divergence("chronicle", "vault")["state"], "aligned")
+
+    def test_the_reel_DIALECT_still_normalises_against_disk(self):
+        """A reel dir is `reel_s_x`; vault keys are `s_x`. Comparing those raw is the v2302 bug
+        arriving through the new door — so it is pinned here too, not just at _sid."""
+        self._write("chronicle_swept.json", {"reel_s_9": {"ts": self.now, "rows": 1}})
+        self._write("vault_swept.json", {"s_1": {"ts": self.now, "rows": 1}})
+        self._reel("s_9")
+        d = LH.divergence("chronicle", "vault")
+        self.assertEqual(d["actionable"], 1,
+                         "reel_s_9 on disk must match chronicle's `reel_s_9` key; if the prefix "
+                         "is compared raw this reads 0 and the divergence silently vanishes")
+
+    def test_UNREADABLE_footage_is_the_RAW_difference_and_SAYS_SO(self):
+        """⚠ THE FALSE-GREEN THIS FIX COULD HAVE INTRODUCED. If a missing hist dir returned an
+        empty SET instead of None, every session would be 'no footage' and every divergence
+        would read ALIGNED — a green corroborator produced by not looking, which is worse than
+        the always-red it replaced. [[unknown-stays-unknown]]"""
+        self._write("chronicle_swept.json", self._seal(9, 1))
+        self._write("vault_swept.json", {"s_0": {"ts": self.now, "rows": 1}})
+        os.environ["TV_HIST"] = os.path.join(self.root, "no-such-dir")
+        d = LH.divergence("chronicle", "vault")
+        self.assertEqual(d["state"], "diverged",
+                         "footage unreadable must NOT collapse to aligned — that would be a "
+                         "clean bill of health earned by failing to look")
+        self.assertIsNone(d["historyOnly"], "unknown is not zero")
+        self.assertIn("could not be listed", d["why"],
+                      "the answer must disclose that it is the raw difference, not a measurement")
+
+    def test_it_reads_HIS_footage_only_through_TV_HIST(self):
+        """[[feedback-fixtures-never-touch-live-data]] — guard the FIXTURE, not the call site."""
+        import inspect
+        src = inspect.getsource(LH._reels_on_disk)
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        self.assertIn('os.environ.get("TV_HIST")', code,
+                      "a fixture that repoints the ledgers and not the footage would compare "
+                      "test sessions against his real reels")
+
+
 class TestTheReportRefusesToBeGreenOnAnyProblem(_Tree):
     def test_everything_fresh_and_aligned_is_ok(self):
         same = self._seal(4, 1)

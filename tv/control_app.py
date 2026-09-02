@@ -3989,13 +3989,22 @@ def _open_board_native(tab="session"):
     except Exception:
         pass
     try:
-        proc = subprocess.Popen(
+        # v2437 — was a raw subprocess.Popen whose object was never wait()ed. The old instance
+        # above is killed by RAW PID (os.kill), not through this object, so nothing ever reaped
+        # it either: every board reopen left a <defunct> child. _spawn_and_reap hands the wait
+        # to a daemon thread, which matters here more than anywhere — the board is a LONG-LIVED
+        # GUI child and a blocking wait() would hang this request handler until Konyo closes the
+        # window. v2352 wrote this helper for the bare `open`/`xdg-open` launchers and never
+        # swept it to the two ASSIGNED Popens. [[feedback-generalize-fixes]] [[copy-drift]]
+        proc = _spawn_and_reap(
             [sys.executable, os.path.abspath(__file__), "--board-window", "--hash=" + (tab or "session")],
             cwd=REPO,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
+        if proc is None:
+            return False          # _spawn_and_reap returns None rather than raising
         try:
             with open(BOARD_PID_PATH, "w") as f:
                 f.write(str(proc.pid))
@@ -4800,7 +4809,15 @@ def _orphan_watch_pid():
     try:
         ppid = int(os.environ.get("TV_PARENT_PID") or 0)
     except Exception:
-        return 0
+        # ⚠ NOT 0. Every other exit from this function is a MEASURED decision — "nobody claimed
+        # us" (below) and "this is HIS console" — and the caller's own comment enumerates exactly
+        # those two. This branch is a THIRD case the caller never reasoned about: the variable was
+        # SET and could not be parsed. Returning 0 dressed that up as "not configured", so a
+        # console that WAS claimed would silently never arm its orphan watch — becoming the
+        # forever-running orphan v2433 exists to prevent. None is falsy, so the caller's
+        # `if not ppid: return` behaves identically; what changes is that the value no longer
+        # claims to be a measurement. [[unknown-stays-unknown]]
+        return None
     if ppid <= 1:
         return 0                    # nobody claimed us
     if _is_primary_console():
@@ -9141,6 +9158,19 @@ def _kai_closer_loop():
             finally:
                 try:
                     wp.stdin.close(); wp.terminate()
+                    # ⚠ terminate() SIGNALS; it does not REAP. Without a wait() the child sits
+                    # <defunct> forever, and this loop spawns one worker PER REEL off a backlog
+                    # that "can be dozens of reels deep" — so it leaked one zombie per tick.
+                    # Measured 2026-09-01: 12 defunct children, oldest 16.5h, while every other
+                    # parent on the machine had at most 1. This is the SAME defect v2352 already
+                    # fixed for the bare `open`/`xdg-open` Popens via _spawn_and_reap(); that fix
+                    # was never swept to this site. [[feedback-generalize-fixes]]
+                    #
+                    # ⚠ AND IT MUST NOT BLOCK. A bare wp.wait() here stalls the closer thread —
+                    # and therefore the whole reel backlog — if the worker ever ignores SIGTERM.
+                    # A daemon thread reaps whenever the child actually dies and never stalls.
+                    threading.Thread(target=wp.wait, daemon=True,
+                                     name="tvd-ocr-reap").start()
                 except Exception:
                     pass
             # v948.7 RETRO CLUSTER PROMOTE — consecutive plain-stash stills get majority
@@ -21565,7 +21595,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2436",
+        "ver": "v2437",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

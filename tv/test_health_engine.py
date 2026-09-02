@@ -281,6 +281,72 @@ class TestTheArmedMigrationCheck(unittest.TestCase):
         self.assertIn("ARMED", r["line"])
 
 
+class TestTheDecidingSentenceIsTHEONEPRINTED(unittest.TestCase):
+    """★ v2437 — THE PANEL PRINTED TWO SENTENCES DESCRIBING A HEALTHY LANE, UNDER THE WORD MISSING.
+
+    console_doctor renders `"; ".join(_clip(x, 110) for x in evidence[:2])` — only the first TWO.
+    check_lanes built its evidence lanes-first, divergences-last, so with two lanes and one
+    divergence the [:2] kept both "last did work N h ago" lines and DROPPED the divergence, which
+    is the only sentence that says what is wrong.
+
+    The cost was a MISDIAGNOSIS, not a cosmetic one: CF-1 was filed as "chronicle and vault both
+    stopped doing work hours ago". Measured, neither had stopped — both sat under their 48h
+    threshold with owed 0. The fault was a divergence, and the console could not say so.
+
+    The law pinned here is ORDERING, not a number: whatever `worst` is, its sentence is first.
+    Pinning "evidence[0] mentions divergence" would go quietly wrong the day a stalled lane is
+    the worst finding. [[regression-guard]] — pin the law, not the number.
+    """
+
+    def _row(self, lanes, divs):
+        class _LH(object):
+            @staticmethod
+            def report(*a, **k):
+                return {"lanes": lanes, "divergences": divs, "ok": False}
+        return _LH
+
+    def test_the_worst_finding_leads_the_evidence(self):
+        lanes = {"chronicle": {"state": "fresh", "why": "chronicle: fine, 20h ago"},
+                 "vault": {"state": "fresh", "why": "vault: fine, 23h ago"}}
+        divs = [{"state": "diverged", "pair": ["chronicle", "vault"],
+                 "why": "THE ACTUAL PROBLEM: 25 sessions with footage the vault never sealed"}]
+        sys.modules["lane_health"] = self._row(lanes, divs)
+        try:
+            r = HE.check_lanes()
+        finally:
+            sys.modules.pop("lane_health", None)
+        ev = r["evidence"]
+        self.assertEqual(ev[0], divs[0]["why"],
+                         "the deciding sentence is not first, so the console's [:2] will drop "
+                         "it and print two healthy-looking lines under a fault")
+        self.assertIn(divs[0]["why"], ev[:2],
+                      "the reason must survive the two-item cut the renderer applies")
+
+    def test_a_STALLED_lane_leads_when_IT_is_the_worst(self):
+        """The ordering must follow `worst`, not the word 'divergence'."""
+        lanes = {"chronicle": {"state": "stalled", "why": "chronicle: STOPPED 90h ago"},
+                 "vault": {"state": "fresh", "why": "vault: fine"}}
+        divs = [{"state": "aligned", "pair": ["chronicle", "vault"], "why": "they agree"}]
+        sys.modules["lane_health"] = self._row(lanes, divs)
+        try:
+            r = HE.check_lanes()
+        finally:
+            sys.modules.pop("lane_health", None)
+        self.assertEqual(r["evidence"][0], "chronicle: STOPPED 90h ago")
+
+    def test_no_sentence_is_LOST_by_the_reordering(self):
+        """Reordering must not drop evidence — the panel cuts it, this function must not."""
+        lanes = {"chronicle": {"state": "fresh", "why": "A"},
+                 "vault": {"state": "fresh", "why": "B"}}
+        divs = [{"state": "diverged", "pair": ["chronicle", "vault"], "why": "C"}]
+        sys.modules["lane_health"] = self._row(lanes, divs)
+        try:
+            r = HE.check_lanes()
+        finally:
+            sys.modules.pop("lane_health", None)
+        self.assertEqual(sorted(r["evidence"]), ["A", "B", "C"])
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

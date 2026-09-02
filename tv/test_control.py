@@ -2453,10 +2453,51 @@ class TestCloserOcrWorkerNeverOrphaned(unittest.TestCase):
         finally_idx = after_spawn.index("finally:")
         self.assertGreater(finally_idx, try_idx,
                             "finally: must come after the try: wrapping the for-loop")
-        tail = after_spawn[finally_idx:finally_idx + 200]
-        self.assertIn("wp.stdin.close(); wp.terminate()", tail)
+
+        # ⚠ v2437 — THIS WINDOW WAS 200 CHARACTERS AND A COMMENT PUSHED THE CODE OUT OF IT.
+        # Adding the non-blocking reap (and the paragraph explaining why terminate() does not
+        # reap) moved `except Exception:` past byte 200, and this guard went RED pointing at
+        # code that was strictly MORE correct than before. That is [[source-reading-guard]] §3
+        # exactly: a fixed character window is a guess about someone's prose, and a guard that
+        # breaks when someone documents the code punishes the right behaviour.
+        #
+        # Bounded by the BLOCK'S REAL END now — the first non-blank line indented no deeper
+        # than `finally:` itself — so the region is the finally block whatever its length. And
+        # comments are STRIPPED before asserting, which closes the mirror defect too: with
+        # prose in scope, `assertIn("except Exception:")` could have been satisfied by a
+        # comment ABOUT the except while the code itself was gone. [[source-reading-guard]] §4b
+        # ⚠ the boundary is the `finally:`'s OWN indent, not 0. Inside a function body no line
+        # ever returns to indent 0, so a `<= 0` test would run to the end of _kai_closer_loop —
+        # and then a later, unrelated `except Exception:` elsewhere in this 300-line function
+        # would satisfy the assertion below while the finally block was empty. A region that is
+        # too WIDE fails green, which is the quiet direction.
+        raw = after_spawn[finally_idx:].split("\n")
+        head_indent = len(after_spawn[:finally_idx].split("\n")[-1])   # cols before `finally:`
+        blk_lines = [raw[0]]
+        for ln in raw[1:]:
+            if ln.strip() and (len(ln) - len(ln.lstrip())) <= head_indent:
+                break
+            blk_lines.append(ln)
+        block = "\n".join(blk_lines)
+        code = "\n".join(l.split("#", 1)[0] for l in block.split("\n"))
+
+        self.assertIn("wp.stdin.close(); wp.terminate()", code,
+                      "the worker cleanup left the finally block, so an exception in the "
+                      "per-frame loop leaks the OCR worker again")
         # terminate() itself must stay defensively wrapped — a dead/gone process can raise
-        self.assertIn("except Exception:", tail)
+        self.assertIn("except Exception:", code,
+                      "terminate() is no longer defensively wrapped; a process that already "
+                      "exited raises here and takes the closer thread with it")
+        # v2437 — and terminate() SIGNALS without REAPING, which is how this loop left 12
+        # defunct children (oldest 16.5h) on his Mac while every other parent had at most 1.
+        # The reap must be non-blocking: a bare wp.wait() here stalls the whole reel backlog
+        # if the worker ever ignores SIGTERM.
+        self.assertIn("target=wp.wait", code,
+                      "terminate() only SIGNALS — without a wait() the worker sits <defunct> "
+                      "forever, one per reel closed, which is the leak this line prevents")
+        self.assertIn("daemon=True", code,
+                      "the reap must not block the closer thread — a worker that ignores "
+                      "SIGTERM would otherwise stall the entire reel backlog")
 
     def test_worker_spawn_failure_path_unchanged(self):
         # regression guard: the spawn-failure branch (worker never even started) must still
@@ -6975,7 +7016,24 @@ class TestV2274TheConsoleMustNotASKITSELFForBoardFunctions(unittest.TestCase):
         """
         src = self._src()
         self.assertIn('"--board-window"', src)
-        spawns = src.count("subprocess.Popen(\n            [sys.executable, os.path.abspath(__file__), \"--board-window\"")
+        # ⚠ v2437 — THIS ANCHOR NAMED THE CALLEE, NOT THE LAW, AND WENT RED ON A CORRECT CHANGE.
+        # It counted the literal `subprocess.Popen(` in front of the argv. Swapping that call for
+        # `_spawn_and_reap(` — same child, same file, same `--board-window` flag, same process
+        # boundary, only now the child is actually reaped — took the count 1 -> 0 and this guard
+        # reported "the process topology CHANGED". It had not. The law is ONE SPAWN OF THIS FILE
+        # WITH --board-window and ONE in-process call, so the argv is the anchor and the helper
+        # that runs it is free to change. [[regression-guard]] — pin the law, not the number.
+        argv = '[sys.executable, os.path.abspath(__file__), "--board-window"'
+        spawns = src.count(argv)
+        # ...and it must still be a SUBPROCESS. If someone ever calls board_window() in-process
+        # the whole premise below collapses, so assert the spawn mechanism separately rather than
+        # letting a rename hide it: the argv must sit behind Popen or the reaper that wraps Popen.
+        i = src.find(argv)
+        head = src[max(0, i - 120):i]
+        self.assertTrue("subprocess.Popen(" in head or "_spawn_and_reap(" in head,
+                        "the --board-window argv is no longer handed to a subprocess spawner. If "
+                        "the board window is now created IN PROCESS, _BOARD_WIN becomes reachable "
+                        "from the server and every guard that greps for it must be re-measured.")
         calls = src.count("\n        board_window()")
         self.assertEqual(
             (spawns, calls), (1, 1),
@@ -36062,6 +36120,77 @@ class TestV2352NothingIsSpawnedWithoutBeingReaped(unittest.TestCase):
                          "bare subprocess.Popen at line(s) %s - the object is discarded, so "
                          "nothing can ever wait() it and it becomes a <defunct> child. Use "
                          "_spawn_and_reap()." % bare)
+
+    # ⚠ v2437 — THE TEST ABOVE COVERS ONE OF TWO LEAK SHAPES, AND THE OTHER ONE WAS LIVE.
+    # `bare` matches lines that START WITH `subprocess.Popen(` — a DISCARDED object. But
+    # `wp = subprocess.Popen(...)` is assigned, never waited, and rots into <defunct> exactly
+    # the same way. Measured 2026-09-01: 12 defunct children, oldest 16.5h, from the OCR worker
+    # in _kai_closer_loop, while every other parent on the machine had at most 1 — and this
+    # suite was GREEN throughout. The board-window spawn was the second instance. A gate that
+    # covers one half of a class reads as coverage for the whole class.
+    # [[sweep-dont-ask]] — same defect, wider blast radius: fix the class.
+    def test_no_ASSIGNED_popen_goes_unreaped(self):
+        import ast, io as _io, os as _os
+        path = _os.path.join(HERE, "control_app.py")
+        src = _io.open(path, encoding="utf-8").read()
+        tree = ast.parse(src)
+
+        # map every function body so a name can be resolved to the scope that owns it
+        funcs = [n for n in ast.walk(tree)
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+
+        def enclosing(node):
+            best = None
+            for f in funcs:
+                if getattr(f, "lineno", 0) <= node.lineno <= (getattr(f, "end_lineno", 0) or 0):
+                    if best is None or f.lineno > best.lineno:
+                        best = f
+            return best
+
+        offenders = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+                continue
+            fn = node.value.func
+            if not (isinstance(fn, ast.Attribute) and fn.attr == "Popen"
+                    and isinstance(fn.value, ast.Name) and fn.value.id == "subprocess"):
+                continue
+            tgt = node.targets[0]
+            if not isinstance(tgt, ast.Name):
+                continue
+            name = tgt.id
+            owner = enclosing(node)
+            # a name declared `global` in its function is reaped elsewhere, so the search for
+            # its reap must widen to the module — narrowing it there would be a false RED
+            is_global = bool(owner) and any(
+                isinstance(g, ast.Global) and name in g.names for g in ast.walk(owner))
+            if owner is None or is_global:
+                scope = src
+                where = "module"
+            else:
+                scope = ast.get_source_segment(src, owner) or ""
+                where = owner.name
+            # ⚠ grade CODE, not prose — a comment saying "we wait() it" must never satisfy this
+            scope = "\n".join(l.split("#", 1)[0] for l in scope.split("\n"))
+            reaped = ("%s.wait(" % name in scope
+                      or "%s.poll(" % name in scope
+                      or "target=%s.wait" % name in scope
+                      # ⚠ the reaper reaps through a NESTED helper — `args=(p,)` handed to a
+                      # thread whose target does `proc.wait()` — so `p.wait(` never appears and
+                      # the first cut of this guard flagged _spawn_and_reap ITSELF. A reaper
+                      # failing its own reap check is the instrument, not the subject (founding
+                      # rule 4). Teaching the pattern beats allowlisting the file: an allowlist
+                      # would also excuse a FUTURE unreaped Popen added to the same function.
+                      or ("args=(%s,)" % name in scope and ".wait()" in scope))
+            if not reaped:
+                offenders.append("%s:%d  `%s = subprocess.Popen(...)` never waited in %s"
+                                 % ("control_app.py", node.lineno, name, where))
+
+        self.assertEqual(offenders, [],
+                         "an ASSIGNED subprocess.Popen is never wait()/poll()'d, so its child "
+                         "becomes <defunct> and stays there for the life of the console:\n  %s\n"
+                         "Either reap it on a daemon thread (see _spawn_and_reap) or call "
+                         ".poll()/.wait() on the retained object." % "\n  ".join(offenders))
 
     def test_the_reaper_exists_and_actually_waits(self):
         src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())

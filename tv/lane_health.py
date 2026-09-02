@@ -174,6 +174,25 @@ def lane(name, now_ms=None, owed=None):
     }
 
 
+def _reels_on_disk():
+    """Session ids that still have FOOTAGE. -> (set|None, why)
+
+    None means the store could not be READ, which is UNKNOWN and must never be read as "no
+    reels" — an empty set would silently turn every divergence into "aligned", i.e. a green
+    corroborator produced by not looking. [[unknown-stays-unknown]]
+
+    ⚠ Honours TV_HIST, because a fixture that repoints the ledgers and not the footage would
+    compare his real reels against a test's sessions. Same resolution rule as
+    reel_retention.plan, and a reel is a `reel_*` DIRECTORY there — the loose .jpg frames beside
+    them are not reels. Keys come back through _sid so all three dialects compare like with like.
+    """
+    hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+    try:
+        return {_sid(d) for d in os.listdir(hist) if d.startswith("reel_")}, ""
+    except OSError as e:
+        return None, "cannot read %s: %s" % (hist, e)
+
+
 def divergence(a, b):
     """Sessions lane A covered that lane B never did. -> dict
 
@@ -187,13 +206,63 @@ def divergence(a, b):
         return {"pair": [a, b], "state": "unknown",
                 "why": "cannot compare: %s" % (wa or wb)}
     only = sorted(set(sa) - set(sb))
+
+    # ★ v2437 — AND IT STILL COULD NEVER SAY "ALIGNED". v2302 fixed the DIALECT (see _sid) and
+    # the identical always-red survived one level up, through a HISTORY-vs-DISK mismatch: this
+    # differenced two LIFETIME ledgers with no reference to what footage still exists.
+    # MEASURED on his tree 2026-09-02:
+    #
+    #     chronicle entries 401 · vault entries 30 · reels on disk 40 · diverged 371
+    #     of those 371 — reel directory still EXISTS: 25 · NO footage at all: 346
+    #
+    # The vault lane can only sweep a DIRECTORY, so 346 of them can NEVER be sealed by any
+    # amount of lane work — and the count GROWS every time footage is pruned. A corroborator
+    # whose red gets worse the more correctly the system behaves has stopped carrying
+    # information, which is this module's own stated failure mode wearing the other colour.
+    #
+    # ⚠ AND A SIBLING CHECK CALLS THE SAME FACT HEALTHY: "reel extract" reports
+    # "all 40 reel(s) have been read · 361 more entries retained for footage since pruned
+    # (the read is the record)". 401 = 40 on disk + 361 retained. One check counted history as
+    # a fault while the other counted it as the record. [[feedback-contradiction-is-the-finding]]
+    #
+    # So the question becomes ACTIONABLE divergence: sessions one lane covered, the other did
+    # not, AND whose footage is still there for the other lane to act on. History-only entries
+    # are still reported — they are not deleted from the answer, only from the verdict.
+    disk, disk_why = _reels_on_disk()
+    if disk is None:
+        # UNKNOWN is not "no reels". Without the footage we cannot tell actionable from
+        # historic, so fall back to the raw difference and SAY that is what this is.
+        actionable, historic = only, None
+    else:
+        actionable = [s for s in only if s in disk]
+        historic = [s for s in only if s not in disk]
+
+    tail = ""
+    if historic:
+        tail = (" (+%d older session(s) whose footage is already gone — no lane work can ever "
+                "change those)" % len(historic))
+    elif historic is None:
+        tail = " (footage could not be listed: %s — so this is the raw difference)" % disk_why
+
+    if actionable:
+        # ⚠ THE OLD SENTENCE ASSERTED A CONSEQUENCE THAT WAS FALSE FOR 93% OF WHAT IT COUNTED.
+        # It said "every one of those reels is held as 'not sealed'". Against the frame
+        # deleter's own tally of 5022 held frames: NOT SEALED 1247, while the LARGEST held
+        # class — 3314 — is reels the vault lane DID seal, and the 346 footage-less sessions
+        # hold zero frames between them. [[label-outlived-referent]]
+        why = ("%d session(s) with footage still on disk that the %s lane covered and %s never "
+               "did — %s's seal is the one the frame deleter reads, so those reels stay held"
+               % (len(actionable), a, b, b)) + tail
+    else:
+        why = ("%s and %s agree on every session whose footage is still on disk" % (a, b)) + tail
+
     return {
-        "pair": [a, b], "state": ("diverged" if only else "aligned"),
-        "onlyInFirst": len(only), "sample": only[:4],
-        "why": ("%d session(s) the %s lane covered that %s never did — and %s's seal is the one "
-                "the frame deleter reads, so every one of those reels is held as 'not sealed'"
-                % (len(only), a, b, b)) if only else
-               ("%s and %s agree on every session" % (a, b)),
+        "pair": [a, b], "state": ("diverged" if actionable else "aligned"),
+        "onlyInFirst": len(only),          # unchanged meaning: the raw lifetime difference
+        "actionable": len(actionable),     # what a lane could still do something about
+        "historyOnly": (None if historic is None else len(historic)),
+        "sample": actionable[:4] if actionable else only[:4],
+        "why": why,
     }
 
 
