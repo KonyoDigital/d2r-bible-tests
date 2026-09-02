@@ -205,6 +205,69 @@ class TestAStampMustSurviveARepaint(unittest.TestCase):
                          % "; ".join(bad))
 
 
+class TestADoorMayNotFailInSilence(unittest.TestCase):
+    """★ v2446 — HE FOUND THIS ONE ON HIS OWN SCREEN, and the console had nothing to say about it.
+
+    "now the theatre mode/shelf mode is swallowed i cant see it rendering when i click on it...
+    but its like swallowed." Then: "hook that to the heart of the console so it doesnt regress in
+    the future either."
+
+    THE DEFECT: the Shelf handler was `if (!TH.open) { await thOpen(); }` with no catch, followed by
+    `try { thShelf(true); } catch(e){}`. A REJECTED thOpen() throws straight out of the async
+    handler, so thShelf never runs — the stage is left open and empty and NOTHING anywhere says so.
+    He photographed a black rectangle.
+
+    ⚠ AND THE CHANNEL TO SAY IT ALREADY EXISTED. ui_fault_record's own docstring reads: "THE
+    CONSOLE HAD NO WAY TO SAY IT WAS BROKEN. He found the black-screen stage himself, twice, and
+    reported it with screenshots; nothing in the tree knew." That was v2228. This is the third
+    time, on the same surface, through a door nobody wired to it.
+    """
+
+    def setUp(self):
+        self.code = TestAStampMustSurviveARepaint._strip_comments(
+            io.open(UI, encoding="utf-8").read())
+
+    def test_the_shelf_door_catches_a_refused_stage(self):
+        m = re.search(r"_bshelf\.onclick\s*=\s*async function\s*\([^)]*\)\s*\{(.{0,1400}?)\n  \};",
+                      self.code, re.S)
+        self.assertIsNotNone(m, "the Shelf handler could not be found — this guard cannot answer, "
+                                "which is not the same as passing")
+        body = m.group(1)
+        self.assertIn("await thOpen()", body, "the handler no longer opens the stage — if that is "
+                                              "deliberate this guard is measuring nothing")
+        # the await must sit inside a try, and the shelf must still be attempted afterwards
+        awaits = body.index("await thOpen()")
+        before = body[:awaits]
+        self.assertRegex(before[-120:], r"try\s*\{",
+                         "`await thOpen()` is not inside a try. A rejected stage throws out of the "
+                         "handler and thShelf() never runs, leaving an open black stage and total "
+                         "silence — which is exactly what he photographed")
+        self.assertLess(body.index("thShelf(true)"), len(body),
+                        "the shelf is never attempted")
+        self.assertIn("_shelfRefused", body,
+                      "nothing reports the refusal. A door that fails silently is worse than one "
+                      "that is missing: he cannot tell it from a mis-click")
+
+    def test_the_refusal_reaches_the_console_fault_channel(self):
+        """[[the-unjoined-end]] — a reporter with no route is plumbing with no tap."""
+        m = re.search(r"function _shelfRefused\b(.{0,1800}?)\n  \}", self.code, re.S)
+        self.assertIsNotNone(m, "_shelfRefused is gone")
+        body = m.group(1)
+        self.assertIn("/api/ui_fault", body, "the refusal never reaches the fault channel")
+        self.assertIn("kind", body, "the route REJECTS a fault that does not name its kind (400), "
+                                    "so a payload without one is a report nobody ever hears")
+
+    def test_the_close_control_appears_when_there_is_something_to_close(self):
+        """v2443 hid #btn-sim so the Shelf could be the single door. Its handler begins
+        `if (TH.open) { thClose(); return; }` and its label becomes "Close Theatre" once open — so
+        hiding it unconditionally deleted the way OUT, not a duplicate way in. He said so:
+        "it use to say close theatre mode after i click theatre mode"."""
+        self.assertRegex(self.code, r"\$\('btn-sim'\)\.hidden\s*=\s*!\s*thOpenNow",
+                         "#btn-sim is not tied to whether the theatre is open, so either it is "
+                         "always visible (two doors, which he asked me to stop) or always hidden "
+                         "(no way to close the theatre, which is how this broke)")
+
+
 class TestTheRouteFailsToUnknownNeverToZero(unittest.TestCase):
     """[[unknown-stays-unknown]] — 'nothing runs unwatched' and 'nobody could look' are opposite
     facts, and a heart that renders empty on a broken census claims the safe one."""

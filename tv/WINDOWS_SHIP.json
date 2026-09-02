@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2445",
+  "ver": "v2446",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2445: the mini auto padlock was destroyed on every poll and a cold eye on the pixels found it",
+  "note": "v2446: the heart is red and beats, every lock sits on the route it locks, and the shelf says so when it refuses",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

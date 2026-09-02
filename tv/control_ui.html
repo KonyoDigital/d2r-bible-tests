@@ -5076,6 +5076,31 @@
 
   #heart-ov .hrt-sub { color: var(--muted); font-size: var(--fs-2xs); letter-spacing: var(--ls-label);
     text-transform: uppercase; margin: 5px 0 0; }
+  /* v2446 — THE BEAT. CSS rather than SMIL for one reason: prefers-reduced-motion can switch it
+     off and a media query cannot reach SMIL. lub-dub, not a sine wave — a fast contraction, a
+     small second kick, then a long fill. `transform-box: fill-box` makes transform-origin mean the
+     shape's own centre inside the SVG rather than the viewport's. */
+  #heart-ov .hrt-core {
+    transform-box: fill-box; transform-origin: 50% 46%;
+    animation: hrt-beat 1.15s cubic-bezier(.4,0,.3,1) infinite;
+    will-change: transform;
+  }
+  #heart-ov .hrt-glow { animation: hrt-halo 1.15s ease-in-out infinite; transform-origin: center; }
+  @keyframes hrt-beat {
+    0%   { transform: scale(1); }
+    9%   { transform: scale(1.062); }
+    18%  { transform: scale(.996); }
+    27%  { transform: scale(1.028); }
+    46%  { transform: scale(1); }
+    100% { transform: scale(1); }
+  }
+  @keyframes hrt-halo {
+    0%, 46%, 100% { opacity: .62; }
+    9%            { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #heart-ov .hrt-core, #heart-ov .hrt-glow { animation: none; }
+  }
   #heart-ov .hrt-svgwrap { overflow-x: auto; margin: 14px 0 4px; }
   #heart-ov svg.hrt { display: block; width: 100%; min-width: 640px; height: auto; }
   #heart-ov .hrt-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 2px;
@@ -8339,6 +8364,19 @@ body[data-origin="shadow"] #stage::after {
     $('btn-on').classList.toggle('lit', state === 'on' && !thOpenNow);
     $('btn-off').classList.toggle('lit', state === 'off' && !stopping && !thOpenNow);
     $('btn-sim').classList.toggle('lit', !!thOpenNow);   // Theatre owns the purple lit when open
+    /* ⚠⚠ v2446 — I TOOK HIS WAY OUT OF THE THEATRE AWAY, and he had to tell me.
+       "it use to say close theatre mode after i click theatre mode. but now i cant see the
+       theatre mode ONLY the shelf mode."
+       v2443 hid #btn-sim so the Shelf could be the single door. That was right for the CLOSED
+       state and wrong for the open one, because this button is not only "Theatre" — its handler
+       begins `if (TH.open) { thClose(); return; }` and its own label becomes "Close Theatre ·
+       leave the reel · back to the console" the moment the theatre opens. Hiding it deleted the
+       close control, not a duplicate opener.
+       MEASURED, which is how it was confirmed rather than argued: with the theatre open the
+       element's text really is "Close Theatre…", and its computed display was `none`.
+       So: hidden while shut — one door, the way he asked — and present the instant it has
+       something to close. [[the-unjoined-end]] */
+    $('btn-sim').hidden = !thOpenNow;
     $('btn-stop').classList.remove('lit');
     $('btn-restart').classList.remove('lit');
     // stop in flight: ON/RESTART/SIM start are inert until truly off
@@ -10351,7 +10389,7 @@ body[data-origin="shadow"] #stage::after {
   var _HRT_ORDER = ['DARK', 'UNKNOWN', 'WATCHED', 'FLOWING'];
 
   function _hrtSvg(d){
-    var W = 960, H = 660, cx = 480, cy = 316, rx = 330, ry = 232;
+    var W = 960, H = 780, cx = 480, cy = 286, rx = 330, ry = 208;
     var vs = (d.vessels || []).slice().sort(function(a, b){
       var ia = _HRT_ORDER.indexOf(a.state), ib = _HRT_ORDER.indexOf(b.state);
       if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
@@ -10362,27 +10400,41 @@ body[data-origin="shadow"] #stage::after {
     var c = d.counts || {}, tot = 0, k;
     for (k in _HRT_COL) { if (typeof c[k] === 'number') tot += c[k]; }
 
-    /* the core, filled bottom-up in the measured proportion — a stacked bar wearing a heart */
+    /* v2446 — PERFUSION, NOT A BAR CHART. The wash runs bottom-up in the SAME proportions the
+       legend prints, over flesh that is always red:
+         FLOWING  -> transparent  (bright, fully perfused muscle)
+         WATCHED  -> a warm dim   (alive and running, not yet proven — value moves, hue does not)
+         UNKNOWN  -> a grey haze  (the census could not classify it)
+         DARK     -> a cold blue  (nothing watches it — dusky, the way unperfused tissue goes)
+       Today that draws a red heart with a cold blue crown, which is exactly the measurement. */
     var stops = '', acc = 0, seq = ['FLOWING', 'WATCHED', 'UNKNOWN', 'DARK'];
+    var WASH = { FLOWING: 'rgba(255,120,110,0)', WATCHED: 'rgba(26,6,10,.44)',
+                 UNKNOWN: 'rgba(126,136,150,.52)', DARK: 'rgba(95,155,255,.80)' };
     if (tot > 0) {
       for (var si = 0; si < seq.length; si++) {
         var frac = (c[seq[si]] || 0) / tot;
         if (frac <= 0) continue;
-        stops += '<stop offset="' + (acc * 100).toFixed(2) + '%" stop-color="' + _HRT_COL[seq[si]] + '"/>';
+        stops += '<stop offset="' + (acc * 100).toFixed(2) + '%" stop-color="' + WASH[seq[si]] + '"/>';
         acc += frac;
-        stops += '<stop offset="' + (acc * 100).toFixed(2) + '%" stop-color="' + _HRT_COL[seq[si]] + '"/>';
+        stops += '<stop offset="' + (acc * 100).toFixed(2) + '%" stop-color="' + WASH[seq[si]] + '"/>';
       }
     }
-    if (!stops) stops = '<stop offset="0%" stop-color="#9aa6b2"/><stop offset="100%" stop-color="#9aa6b2"/>';
+    /* no census -> a full grey haze, NOT a clean red heart. "nobody could look" must never render
+       as "everything is fine" — the one direction this surface may not fail in. */
+    if (!stops) stops = '<stop offset="0%" stop-color="rgba(126,136,150,.62)"/>'
+                      + '<stop offset="100%" stop-color="rgba(126,136,150,.62)"/>';
 
+    /* ⚠ THE VESSEL RING IS 270°, NOT 360°, AND THE MISSING 90° IS RESERVED. The five locks need
+       routes of their own down there; without the reserved wedge a padlock sits between two veins
+       and reads as gating both, which is what he saw and said so. */
+    var SWEEP = 250, START = 145;
     var veins = '', nodes = '', labels = '';
     for (var i = 0; i < n; i++) {
       var v = vs[i], st = v.state || 'UNKNOWN', col = _HRT_COL[st] || '#9aa6b2';
-      var ang = (-90 + i * (360 / n)) * Math.PI / 180;
+      var ang = (START + i * (SWEEP / (n - 1 || 1))) * Math.PI / 180;
       var nx = cx + Math.cos(ang) * rx, ny = cy + Math.sin(ang) * ry;
-      /* a vein bows rather than spoking — the control point sits at mid-radius, pushed sideways */
-      var mx = cx + Math.cos(ang) * rx * 0.55 - Math.sin(ang) * 34;
-      var my = cy + Math.sin(ang) * ry * 0.55 + Math.cos(ang) * 34;
+      var mx = cx + Math.cos(ang) * rx * 0.55 - Math.sin(ang) * 30;
+      var my = cy + Math.sin(ang) * ry * 0.55 + Math.cos(ang) * 30;
       var pth = 'M ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' Q ' + mx.toFixed(1) + ' ' + my.toFixed(1)
                 + ' ' + nx.toFixed(1) + ' ' + ny.toFixed(1);
       var flowing = (st === 'FLOWING');
@@ -10407,38 +10459,133 @@ body[data-origin="shadow"] #stage::after {
               + '" opacity="' + (st === 'DARK' ? 0.98 : 0.72) + '">' + _hrtEsc(v.name) + '</text>';
     }
 
-    /* THE VALVES — the five self-arming locks, on a ring inside the veins. They gate SURFACES, not
-       vessels, which is why they are drawn as valves on the core rather than as more veins. */
-    var lk = d.locks || [], valves = '';
-    for (var j = 0; j < lk.length; j++) {
+    /* ═══ THE GATED ROUTES ═══════════════════════════════════════════════════════════════════
+       His words: "i want it locked on the route so its not confusing... i want to know which
+       specifically is still locked and waiting to self prove itself."
+
+       One route per lock, leaving the heart into the reserved wedge. The padlock sits ON its own
+       line at the midpoint — never floating between two of them — and the end of the line names
+       the surface and prints the arithmetic that would open it. An OPEN route is drawn solid and
+       green with an open padlock; a shut one is dashed and carries what it is still waiting for. */
+    var lk = (d.locks || []).slice().sort(function(a, b){
+      var ao = (String(a.state).toUpperCase() === 'OPEN') ? 1 : 0;
+      var bo = (String(b.state).toUpperCase() === 'OPEN') ? 1 : 0;
+      if (ao !== bo) return ao - bo;                       // still-shut routes read first
+      return String(a.surface || a.lock).localeCompare(String(b.surface || b.lock));
+    });
+    var gates = '';
+    var GN = lk.length;
+    for (var j = 0; j < GN; j++) {
       var L = lk[j], lst = String(L.state || 'UNKNOWN').toUpperCase();
-      var la = (-90 + j * (360 / Math.max(1, lk.length))) * Math.PI / 180;
-      var lxx = cx + Math.cos(la) * 132, lyy = cy + Math.sin(la) * 120;
+      var open = (lst === 'OPEN');
       var lc = _HRT_LOCKCOL[lst] || '#9aa6b2';
-      var arith = (typeof L.n === 'number' && L.n > 0)
-        ? (L.k + '/' + L.n + ' sabotages refused, Wilson ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
-           + ' vs a bar of ' + L.bar)
-        : 'no sabotage has been attempted yet, so there is no evidence in either direction';
-      valves += '<g><circle cx="' + lxx.toFixed(1) + '" cy="' + lyy.toFixed(1) + '" r="10.5" fill="#0d1117"'
-              + ' stroke="' + lc + '" stroke-width="1.2" opacity=".95"/>'
-              + '<text x="' + lxx.toFixed(1) + '" y="' + (lyy + 4).toFixed(1) + '" text-anchor="middle"'
-              + ' font-size="11">' + (lst === 'OPEN' ? '\u{1F513}' : '\u{1F512}') + '</text>'
-              + '<title>' + _hrtEsc((L.surface || L.lock) + ' — ' + lst + '. ' + arith) + '</title></g>';
+      /* fan across the reserved wedge: 50°..130°, straight down being 90° */
+      var la = (GN === 1 ? 90 : (48 + j * (84 / (GN - 1)))) * Math.PI / 180;
+      /* staggered radii AND centred labels — with five routes in one wedge, either alone still
+         overlaps. Measured on the render: 0.60/0.78 with sideways labels collided four ways. */
+      var reach = (j % 2 === 0) ? 0.88 : 1.18;
+      var gx = cx + Math.cos(la) * rx * reach, gy = cy + Math.sin(la) * ry * reach;
+      var gmx = cx + Math.cos(la) * rx * reach * 0.5 - Math.sin(la) * 12;
+      var gmy = cy + Math.sin(la) * ry * reach * 0.5 + Math.cos(la) * 12;
+      var gp = 'M ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' Q ' + gmx.toFixed(1) + ' '
+             + gmy.toFixed(1) + ' ' + gx.toFixed(1) + ' ' + gy.toFixed(1);
+      /* the padlock rides the line itself, at its middle — that is the whole point */
+      var px = 0.25 * cx + 0.5 * gmx + 0.25 * gx;          // quadratic Bezier at t = 0.5
+      var py = 0.25 * cy + 0.5 * gmy + 0.25 * gy;
+      var n_ = (typeof L.n === 'number') ? L.n : null;
+      var arith = (n_ && n_ > 0)
+        ? (L.k + '/' + n_ + ' refused · ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
+           + (open ? ' ≥ ' : ' < ') + Number(L.bar).toFixed(3))
+        : 'no sabotage attempted yet · needs ' + Number(L.bar).toFixed(3);
+      var waiting = open ? 'OPEN — it proved itself'
+                         : (n_ ? 'LOCKED — waiting on its own score' : 'LOCKED — waiting for a first sabotage');
+      gates += '<path d="' + gp + '" fill="none" stroke="' + lc + '" stroke-width="'
+             + (open ? 2.4 : 1.8) + '" opacity="' + (open ? .95 : .8) + '"'
+             + (open ? '' : ' stroke-dasharray="6 5" stroke-linecap="round"') + '/>';
+      if (open) {
+        gates += '<path d="' + gp + '" fill="none" stroke="#d8ffe4" stroke-width="2.6"'
+               + ' stroke-linecap="round" stroke-dasharray="5 26" opacity=".8">'
+               + '<animate attributeName="stroke-dashoffset" from="31" to="0" dur="1.7s"'
+               + ' repeatCount="indefinite"/></path>';
+      }
+      gates += '<g><circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="11" fill="#0d1117"'
+             + ' stroke="' + lc + '" stroke-width="1.4"/>'
+             + '<text x="' + px.toFixed(1) + '" y="' + (py + 4).toFixed(1) + '" text-anchor="middle"'
+             + ' font-size="11">' + (open ? '\u{1F513}' : '\u{1F512}') + '</text>'
+             + '<title>' + _hrtEsc((L.surface || L.lock) + ' — ' + waiting + '. ' + arith
+                                   + '. ' + (L.why || '')) + '</title></g>'
+             + '<circle cx="' + gx.toFixed(1) + '" cy="' + gy.toFixed(1) + '" r="4.6" fill="' + lc + '"/>';
+      /* CENTRED UNDER THE NODE, never anchored sideways. The first cut anchored start/end by the
+         sign of cos(angle), so every gate below-left threw its name and its arithmetic leftwards
+         across the vessel labels — "no sabotage attempted yet · needs 0.510" landed on top of
+         _console_beacon_loop. Down is the one direction with nothing in it. */
+      gates += '<text x="' + gx.toFixed(1) + '" y="' + (gy + 19).toFixed(1)
+             + '" text-anchor="middle" font-size="11.5" fill="' + lc
+             + '" font-weight="600">' + _hrtEsc(L.lock || L.surface) + '</text>'
+             + '<text x="' + gx.toFixed(1) + '" y="' + (gy + 32).toFixed(1)
+             + '" text-anchor="middle" font-size="9.5" fill="' + lc
+             + '" opacity=".75">' + _hrtEsc(arith) + '</text>';
     }
 
-    var beat = (c.FLOWING > 0)
-      ? '<animate attributeName="r" values="104;110;104" dur="1.5s" repeatCount="indefinite"/>' : '';
+    /* ⚠ IT BEATS WHETHER OR NOT ANYTHING IS PROVEN, and that is deliberate. The beat says THE
+       CONSOLE IS RUNNING — true right now, and a different fact from whether its vessels have been
+       tested. Tying the beat to FLOWING drew a dead heart over a live console, which reads as a
+       claim about the machine rather than about the evidence. Proof lives in the perfusion wash,
+       motion lives in the beat, and neither borrows the other's meaning. */
+    var HEART_D = 'M 0,-18 C -14,-38 -44,-30 -44,-6 C -44,16 -20,30 0,46 C 20,30 44,16 44,-6'
+                + ' C 44,-30 14,-38 0,-18 Z';
+    var COR = '<path d="M -3,-16 C -10,-4 -12,10 -6,26" fill="none" stroke="#5e0d16"'
+            + ' stroke-width="2.1" stroke-linecap="round" opacity=".55"/>'
+            + '<path d="M -6,-2 C -14,2 -20,8 -23,16" fill="none" stroke="#5e0d16"'
+            + ' stroke-width="1.5" stroke-linecap="round" opacity=".45"/>'
+            + '<path d="M 4,-14 C 14,-6 20,4 22,16" fill="none" stroke="#5e0d16"'
+            + ' stroke-width="1.8" stroke-linecap="round" opacity=".48"/>'
+            + '<path d="M 12,-2 C 18,0 24,-2 30,-6" fill="none" stroke="#5e0d16"'
+            + ' stroke-width="1.2" stroke-linecap="round" opacity=".38"/>';
     return '<svg class="hrt" viewBox="0 0 ' + W + ' ' + H + '" role="img"'
       + ' aria-label="the console’s circulation, derived">'
-      + '<defs><linearGradient id="hrtFill" x1="0" y1="1" x2="0" y2="0">' + stops + '</linearGradient>'
-      + '<radialGradient id="hrtGlow"><stop offset="0%" stop-color="' + (c.FLOWING > 0 ? '#e0857c' : '#6fa8ff')
-      + '" stop-opacity=".22"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient></defs>'
-      + '<circle cx="' + cx + '" cy="' + cy + '" r="104" fill="url(#hrtGlow)">' + beat + '</circle>'
-      + veins + valves
-      + '<g transform="translate(' + cx + ',' + (cy - 8) + ') scale(1.45)">'
-      + '<path d="M 0,-18 C -14,-38 -44,-30 -44,-6 C -44,16 -20,30 0,46 C 20,30 44,16 44,-6'
-      + ' C 44,-30 14,-38 0,-18 Z" fill="url(#hrtFill)" stroke="rgba(255,255,255,.18)"'
-      + ' stroke-width="1"/></g>'
+      + '<defs>'
+      + '<linearGradient id="hrtWash" x1="0" y1="1" x2="0" y2="0">' + stops + '</linearGradient>'
+      + '<radialGradient id="hrtFlesh" cx="36%" cy="26%" r="82%">'
+      +   '<stop offset="0%" stop-color="#ff8a80"/><stop offset="26%" stop-color="#e34b4f"/>'
+      +   '<stop offset="58%" stop-color="#b31f2c"/><stop offset="84%" stop-color="#6f0e18"/>'
+      +   '<stop offset="100%" stop-color="#3a060d"/></radialGradient>'
+      + '<radialGradient id="hrtSpec" cx="50%" cy="50%" r="50%">'
+      +   '<stop offset="0%" stop-color="#fff" stop-opacity=".42"/>'
+      +   '<stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient>'
+      + '<radialGradient id="hrtGlow">'
+      +   '<stop offset="0%" stop-color="#e0413f" stop-opacity=".32"/>'
+      +   '<stop offset="55%" stop-color="#8e1220" stop-opacity=".12"/>'
+      +   '<stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient>'
+      + '<filter id="hrtGrain" x="-10%" y="-10%" width="120%" height="120%">'
+      +   '<feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="9" result="n"/>'
+      +   '<feColorMatrix in="n" type="saturate" values="0" result="g"/>'
+      +   '<feComponentTransfer in="g" result="a"><feFuncA type="linear" slope=".16"/></feComponentTransfer>'
+      +   '<feComposite in="a" in2="SourceGraphic" operator="in"/></filter>'
+      + '<filter id="hrtDeep" x="-30%" y="-30%" width="160%" height="160%">'
+      +   '<feGaussianBlur stdDeviation="3.2"/></filter>'
+      + '<clipPath id="hrtClip"><path d="' + HEART_D + '"/></clipPath>'
+      + '</defs>'
+      + '<circle class="hrt-glow" cx="' + cx + '" cy="' + cy + '" r="112" fill="url(#hrtGlow)"/>'
+      + veins + gates
+      /* ⚠⚠ v2446 — TWO GROUPS, AND THE SECOND ONE IS NOT OPTIONAL. A CSS `transform` on an SVG
+         element REPLACES its `transform` presentation attribute; it does not compose with it. The
+         first cut put the beat animation on the same <g> that carried translate()+scale(), so the
+         moment the keyframes applied the heart lost its position entirely — it rendered at the
+         SVG origin as a red wedge in the top-left corner and left a bare dot where the core should
+         be. MEASURED on the render, not reasoned about. Placement lives on the outer group as an
+         attribute; the animation lives on the inner one and owns its transform outright. */
+      + '<g transform="translate(' + cx + ',' + (cy - 8) + ') scale(1.45)"><g class="hrt-core">'
+      +   '<path d="' + HEART_D + '" fill="#2a0409" filter="url(#hrtDeep)" opacity=".9"/>'
+      +   '<path d="' + HEART_D + '" fill="url(#hrtFlesh)"/>'
+      +   '<g clip-path="url(#hrtClip)">'
+      +     COR
+      +     '<rect x="-50" y="-40" width="100" height="92" fill="#8a8f99" filter="url(#hrtGrain)" opacity=".5"/>'
+      +     '<rect x="-50" y="-40" width="100" height="92" fill="url(#hrtWash)"/>'
+      +     '<ellipse cx="-16" cy="-14" rx="17" ry="12" fill="url(#hrtSpec)" transform="rotate(-24 -16 -14)"/>'
+      +   '</g>'
+      +   '<path d="' + HEART_D + '" fill="none" stroke="rgba(255,190,185,.30)" stroke-width="1.1"/>'
+      + '</g></g>'
       + nodes + labels + '</svg>';
   }
 
@@ -10486,9 +10633,14 @@ body[data-origin="shadow"] #stage::after {
     return head + legend + '<div class="hrt-svgwrap">' + _hrtSvg(d) + '</div>'
       + '<div class="hrt-note">Every vein is a thread this console actually starts. Warm and moving '
       + 'means something watches it and has proven it; <b class="st-DARK">blue and still means '
-      + 'nothing watches it at all</b>. The core fills in that same proportion, so it is only as '
-      + 'warm as the console has earned. The five valves are the self-arming locks — they open '
-      + 'themselves when their Wilson score clears the bar, and never by hand.'
+      + 'nothing watches it at all</b>. The heart beats because the console is RUNNING — that is '
+      + 'not a claim about evidence. What has been PROVEN reads as perfusion: bright muscle where '
+      + 'a vessel is proven, dimmed where it is only watched, and <b class="st-DARK">cold blue over '
+      + 'the top where nothing watches at all</b>, in the same proportions the counts above print. '
+      + 'The five routes into the lower wedge are the self-arming locks, each with its padlock ON '
+      + 'its own line and its own arithmetic beside it — so what is still shut, and what it is '
+      + 'waiting for, is readable without opening anything. They open themselves when their Wilson '
+      + 'score clears the bar, and never by hand.'
       + _hrtEsc(d.notVessels ? ' (' + d.notVessels + ' one-shot tasks are excluded: they inherit their caller’s vessel, so a roster entry would be a lie.)' : '')
       + _hrtEsc(age) + '</div>'
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
@@ -14602,9 +14754,56 @@ body[data-origin="shadow"] #stage::after {
   };
   var _bshelf = $('btn-shelf');
   if (_bshelf) _bshelf.onclick = async function(){
-    if (!TH.open) { await thOpen(); }
-    try { thShelf(true); } catch(e){}
+    /* ⚠⚠ v2446 — THE SWALLOWED SHELF. Konyo: "now the theatre mode/shelf mode is swallowed i
+       cant see it rendering when i click on it... but its like swallowed."
+       `await thOpen()` had no catch. If it REJECTS, the await throws straight out of this async
+       handler, `thShelf(true)` never runs, and nothing anywhere says so — the stage is left open
+       and empty and the console reports a black rectangle as if that were a state. That is
+       exactly what he photographed.
+       Now: opening the stage may fail and the shelf is STILL attempted, because the shelf is the
+       thing he asked for and it does not need the stage to have loaded a reel. If the shelf
+       cannot render either, _shelfRefused says so ON SCREEN and tells the Doctor — a door that
+       fails silently is worse than one that is missing, because he cannot tell it apart from a
+       door he mis-clicked. [[the-unjoined-end]] [[feedback-silence-is-not-evidence]] */
+    var openErr = null;
+    if (!TH.open) {
+      try { await thOpen(); }
+      catch (e) { openErr = e; }
+    }
+    try {
+      thShelf(true);
+      var _ov = $('th-shelfov');
+      if (!_ov || _ov.hidden) throw new Error('the shelf did not open');
+    } catch (e) {
+      _shelfRefused(e, openErr);
+    }
   };
+
+  /* v2446 — SAY IT, AND TELL THE DOCTOR. Konyo: "hook that to the heart of the console so it
+     doesnt regress in the future either." A refusal that only reaches the console log is a
+     refusal he cannot see, and the heart can only supervise what reports in one vocabulary. */
+  function _shelfRefused(err, openErr){
+    var ov = $('th-shelfov');
+    var why = String((err && err.message) || err || 'unknown');
+    if (openErr) why += ' (the stage also refused: ' + String((openErr && openErr.message) || openErr) + ')';
+    if (ov){
+      ov.hidden = false;
+      ov.innerHTML = '<div class="sh-head">\uD83C\uDF9E THE SHELF \u2014 it did not open</div>'
+        + '<div class="sh-story"><div class="shs-wait">' + _hrtEsc(why) + '</div>'
+        + '<div class="shs-wait">Nothing was established about your reels \u2014 this is NOT '
+        + '\u201cno runs\u201d. Press <b>ON AIR</b> to close the stage and try again; if it '
+        + 'keeps refusing, the Doctor has been told and it will show on the console.</div></div>';
+    }
+    try { console.error('[shelf] refused to open:', why); } catch (e2) {}
+    /* one vocabulary, the one the console already collects faults in */
+    try {
+      fetch('/api/ui_fault', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        /* the route's real shape is {kind, why, where} — `surface` is not a field it reads, and
+           a POST it shape-rejects is a fault nobody ever hears about. Checked against the handler
+           rather than assumed. [[the-unjoined-end]] */
+        body: JSON.stringify({kind: 'shelf-door-refused', why: why, where: 'btn-shelf onclick'})});
+    } catch (e3) {}
+  }
   // v1275 (D3) — the HISTORY region's "see all →" opens the full shelf (same door as the 📚 rail button)
   var _histAll = $('hd-hist-all');
   if (_histAll) _histAll.onclick = async function(e){
