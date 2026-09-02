@@ -1490,6 +1490,21 @@ def board_tally_merge(t):
     if not key:
         return False
     doc = board_tally_load() or {}
+    # CF-6 — STOP AT THE DOOR. A world that has never spoken and posts all zeros is a CDP
+    # probe / guest iframe, not a tally. Banking it mints an empty route that nothing prunes.
+    # Measured 2026-09-02 on this tree: byRoute 403, all-zero 401, nonzero 2 (the two real
+    # worlds). Ticket said ~148; the pile grew. A deleter is NOT shipped — a brand-new real
+    # board also posts zeros before the first tick, and that is indistinguishable from a
+    # probe once the row exists. A world ALREADY in byRoute may still post a real drop to
+    # zero. [[unknown-stays-unknown]]
+    _haves = []
+    for _lane in ("sets", "uniques", "runewords"):
+        _pair = t.get(_lane)
+        if isinstance(_pair, dict) and isinstance(_pair.get("have"), int):
+            _haves.append(_pair["have"])
+    _seen = isinstance(doc.get("byRoute"), dict) and key in doc["byRoute"]
+    if _haves and max(_haves) == 0 and not _seen:
+        return False
     if not isinstance(doc.get("byRoute"), dict):
         # first merge on an older single-slot file: keep what is there as its own world rather
         # than discarding it, so nothing is lost by the upgrade itself
@@ -2278,6 +2293,9 @@ def _console_beacon(event="hb"):
             # board cannot answer for is OMITTED rather than sent as an all-zero mask, so the far
             # end says "we have not heard a uniques mask from it" instead of "it owns none".
             "masks": _masks_for_wire(),
+            # 167 — is the capture eye live on this machine, so THE FLEET can show it.
+            # live is a boolean we measured; ageMs None means no frame yet, not 0.
+            "eye": _eye_for_wire(),
             # v1597 — the PREVIOUS attempt's verdict. The server stores it defensively and
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
@@ -6811,8 +6829,11 @@ def _kai_compile_register(sess_rows):
                     # misread as items. Measured earlier the same day: 94-100% of names off every
                     # surface except deep/chronicle are not real items at all. A learner that
                     # ingests that learns it, and then it is a confident record of noise.
-                    if _act and _mc_is_real_item(nm):
-                        _mc.saw(nm, _act, session=str(r.get("sessionId") or "") or None)
+                    if _mc_is_real_item(nm):
+                        _loc_nm = nl.get(nm) if isinstance(nl, dict) else None
+                        _lane = _mc.lane_from_sighting(_act, _loc_nm)
+                        if _lane:
+                            _mc.saw(nm, _lane, session=str(r.get("sessionId") or "") or None)
                 except Exception:
                     pass              # a learner that fails must never take the register with it
         if r.get("lane") == "kai":
@@ -10615,6 +10636,28 @@ def _engine_driver():
 
 
 
+def _eye_for_wire():
+    """167 — counts only, for THE FLEET. {live, ageMs} or None.
+
+    None = the pulse did not run (UNKNOWN, omit the field).
+    live false + ageMs None = pulse ran, no frame yet (not a dark chip).
+    live true = last deep read is younger than the stall threshold the banner already uses.
+    """
+    try:
+        eyes = _eyes_pulse()
+    except Exception:
+        return None
+    if not isinstance(eyes, dict):
+        return None
+    live_ts = int(eyes.get("liveTs") or 0)
+    if live_ts <= 0:
+        return {"live": False, "ageMs": None}
+    age = int(time.time() * 1000) - live_ts
+    if age < 0:
+        return {"live": False, "ageMs": None}
+    return {"live": age < 6000, "ageMs": age}
+
+
 def _eyes_pulse():
     """v935.11 — truthful badge data: when did the 🔵 verify lane and 🧠 KAI actually
     last act? Derived from the journal (mtime-cached); badges must never claim activity
@@ -11144,8 +11187,12 @@ def chronicle_apply(proposal=None):
     # v2274 made this refusal HONEST (it names the page that answered instead of blaming the
     # board's version). v2288's investigation then showed the refusal is UNAVOIDABLE: board_window()
     # is spawned as a SEPARATE OS PROCESS (control_app.py Popen --board-window), so the handle it
-    # keeps lives in the child's interpreter and this server reads None every time. There is no
-    # window here that has chronicleApply, and there never was.
+    # keeps lives in the child's interpreter and this server reads None every time.
+    #
+    # ⚠ CF-2: the board IS one hop away now — `#tvd-eng` inside this window serves /board, and
+    # board_ownership hops there to READ. This WRITE path does not. Joining chronicleApply
+    # through the iframe would restore a direct write into his ledger that he never approved.
+    # Leave the note. The board drains it. He accepts.
     #
     # ⚠ BUT THE TWO PAGES SHARE A LOCALSTORAGE. Measured live: a read through _MAIN_WIN (path "/")
     # returned his real ledger — foundLog 400, owned 157, setPieces 120 — because localStorage is
@@ -11356,10 +11403,24 @@ def board_ownership(sample=0, dump_stores=False):
     # BOARD-OWNED javascript (bible.html globals / d2r_* stores), and _MAIN_WIN is the
     # console UI once TV DIABLO opens the board in its own window. Asking it returned a
     # perfectly honest refusal about the wrong page. [[sweep-dont-ask]]
+    #
+    # CF-2 (READ SIDE ONLY) — `_BOARD_WIN` is assigned in a child process, so this server
+    # always falls through to `_MAIN_WIN`, whose top document is the console. The board
+    # has been one hop away since the engine iframe `#tvd-eng` started serving `/board`
+    # inside that same window (control_ui.html already reaches through contentWindow
+    # twelve times). Hop the JS *context* into the iframe when the top document lacks
+    # the board globals. Do NOT copy this hop onto chronicle_apply / board_tick /
+    # vault_apply — those are WRITE doors, and the console never writes his grail.
     w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
     js = ("(function(){try{"
+          "var _ctx=window;"
+          "if(typeof window.chronicleApply!=='function'&&typeof window._D2R_PFX!=='string'){"
+          "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
+          "if(_cw&&(typeof _cw.chronicleApply==='function'||typeof _cw._D2R_PFX==='string'))_ctx=_cw;}"
+          "catch(_hop){}}"
+          "return (function(window,hopped){try{"
           "var raw=function(k){try{var v=(window.LSR?window.LSR.getItem(k):localStorage.getItem(k));"
           "return v?JSON.parse(v):null;}catch(e){return null;}};"
           "var g=function(k){try{var p=raw(k);"
@@ -11388,6 +11449,7 @@ def board_ownership(sample=0, dump_stores=False):
           # never joined. This is the read side of the door chronicle_apply pushes, and it
           # costs one typeof. [[plumbing-with-no-tap]] [[the-unjoined-end]]
           "var hasApply=(typeof window.chronicleApply==='function');"
+          "var canHandoff=!!(window.LSR&&window.LSR.setItem);"
           # v2147 — SEND THE ROUTE. A cross-family review found the world identity was {owner, pfx}
           # only, and a CLAIMED board publishes pfx:'' — so a brand-new claimed store was
           # byte-identical to the old one and the drift guard answered "ok" over an empty vault:
@@ -11433,7 +11495,8 @@ def board_ownership(sample=0, dump_stores=False):
              "catch(_e){nn=v?1:0;}stores[k]=nn;}}catch(_s){stores={err:String(_s)}}}"
              % ("true" if dump_stores else "false"))
           + "return JSON.stringify({ok:true,owner:owner,pfx:pfx,boardLoaded:boardLoaded,"
-          "hasChronicleApply:hasApply,path:String(location.pathname||'/'),"
+          "hasChronicleApply:hasApply,canHandoff:canHandoff,hopped:!!hopped,"
+          "path:String(location.pathname||'/'),"
           "route:route,"
           # v2163 — ASK THE BOARD FOR ITS OWN TOTALS. v2157 published a fleet tally whose
           # denominators it INVENTED: `c.get("uniquesTotal") or 403` with a docstring saying
@@ -11447,6 +11510,7 @@ def board_ownership(sample=0, dump_stores=False):
           "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
           "stores:stores,dates:dates,gameFound:gameFound,storeEmptied:storeEmptied});"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})(_ctx,_ctx!==window);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
         raw = _ejs(w, js, timeout=8.0)
@@ -11874,6 +11938,33 @@ def _spawn_and_reap(argv, **kw):
     return p
 
 
+def ui_pre_rescue_snapshot(beat=None):
+    """CF-4 — the page as it was BEFORE the reload throws it away.
+
+    A self-heal converts a reproducible blank into an intermittent one. The only copy of
+    `elsNow` / `elsHigh` / hidden / beat age that can still be compared to his screenshot
+    is the one taken here. None stays None — a missing beat is UNKNOWN, not 0.
+    """
+    b = beat if isinstance(beat, dict) else dict(globals().get("_UI_BEAT") or {})
+    age = None
+    try:
+        t = b.get("t")
+        if t:
+            age = time.time() - float(t)
+    except Exception:
+        age = None
+    els_now = b.get("elsNow")
+    els_high = b.get("elsHigh")
+    return {
+        "elsNow": els_now if isinstance(els_now, int) else None,
+        "elsHigh": els_high if isinstance(els_high, int) else None,
+        "blankStrikes": b.get("blankStrikes") if isinstance(b.get("blankStrikes"), int) else None,
+        "hidden": b.get("hidden") if isinstance(b.get("hidden"), bool) else None,
+        "beats": b.get("n") if isinstance(b.get("n"), int) else None,
+        "beatAgeS": round(age, 1) if isinstance(age, (int, float)) else None,
+    }
+
+
 def _console_rescue_loop():
     """The generator itself. Sleeps, asks, and acts — and writes down every time it acts,
     because a self-heal nobody records is a fault that keeps being reported by HIM instead of
@@ -11896,19 +11987,23 @@ def _console_rescue_loop():
                     why = "the window is no longer on the console (%s)" % str(cur)[:80]
             except Exception:
                 pass
+            # CF-4 — SNAPSHOT FIRST. Clearing elsHigh below would make this record a healthy
+            # empty page, which is the opposite of the fault. Record, then clear, then reload.
+            before = ui_pre_rescue_snapshot()
             _UI_RESCUE["last"] = time.time()
             _UI_RESCUE["count"] += 1
             _UI_RESCUE["why"] = why
+            try:
+                ui_fault_record("console-rescued-by-server", why=why,
+                                where="_console_rescue_loop", before=before)
+            except Exception:
+                pass
             # v2394 — THE RELOADED PAGE IS A NEW PAGE. Clearing the window here is what stops the
             # rescue re-triggering on its own repair; without it the fresh DOM is judged against
             # the peak of the one we just threw away. [[feedback-contradiction-is-the-finding]]
             _UI_BEAT["elsWindow"] = []
             _UI_BEAT["elsHigh"] = 0
             _UI_BEAT["blankStrikes"] = 0
-            try:
-                ui_fault_record("console-rescued-by-server", why=why, where="_console_rescue_loop")
-            except Exception:
-                pass
             print("\u267b console rescue: reloading the window - %s" % why, flush=True)
             try:
                 win.load_url(url)
@@ -12078,17 +12173,22 @@ def _theatre_row_fingerprint(sess, hist_dir):
 
 
 
-def ui_fault_record(kind, why=None, where=None, path=None):
+def ui_fault_record(kind, why=None, where=None, path=None, before=None):
     """Append one fault the UI reported about ITSELF. Append-only, capped, never raises.
 
     ⚠ v2228 — THE CONSOLE HAD NO WAY TO SAY IT WAS BROKEN. He found the black-screen stage himself,
     twice, and reported it with screenshots; nothing in the tree knew. A UI fault that only a human
     can notice is a fault that gets noticed late and reported as a mystery, which is exactly how
     this one arrived. His instruction: "watch dog it and eagle eye it."
+
+    CF-4 — `before` is the pre-rescue snapshot. Without it the reload destroys the only
+    evidence that the page was blank, and the bug becomes intermittent by construction.
     """
     p = path or _ui_faults_path()
     row = {"at": int(time.time() * 1000), "kind": str(kind or "")[:40],
            "why": str(why or "")[:200], "where": str(where or "")[:120]}
+    if isinstance(before, dict):
+        row["before"] = before
     try:
         with open(p, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -12268,7 +12368,8 @@ def disk_delta(hours=24, path=None):
     out["deltaGb"] = round((out["now"] or 0) - (out["then"] or 0), 2)
     inwin = [r for r in rows if (r.get("at") or 0) > cut]
     pruned = [r.get("prunedMb") for r in inwin if isinstance(r.get("prunedMb"), (int, float))]
-    out["prunedMbInWindow"] = round(sum(pruned), 1) if pruned else 0.0
+    # 154 — no numeric sample is UNKNOWN, never 0. 0 means we measured and freed nothing.
+    out["prunedMbInWindow"] = round(sum(pruned), 1) if pruned else None
     return out
 
 
@@ -12279,9 +12380,13 @@ def disk_delta_say(hours=24, path=None):
         return "free space: %s" % (d.get("why") or "UNKNOWN")
     mv = d["deltaGb"]
     word = "up" if mv > 0 else ("down" if mv < 0 else "flat")
-    ours = d.get("prunedMbInWindow") or 0
-    tail = (" and none of it was us" if ours <= 0 else
-            " — %.0f MB of that was our pruning" % ours)
+    ours = d.get("prunedMbInWindow")
+    if ours is None:
+        tail = " — how much was us is UNKNOWN (no prune byte-count was recorded)"
+    elif ours <= 0:
+        tail = " and none of it was us"
+    else:
+        tail = " — %.0f MB of that was our pruning" % ours
     return ("%.1fGB free — %s%s since %dh ago (%.1fGB then)%s"
             % (d["now"], word, ("" if mv == 0 else " %.1fGB" % abs(mv)), hours, d["then"], tail))
 
@@ -14839,6 +14944,9 @@ def _eagle_once():
             # only ever runs the cheap subset. Persist what you knew at the moment you knew it.
             # [[heart-first]] rule 6
             "slow": _include_slow,  # the ARGUMENT actually passed, never a restated literal
+            # CF-12 — the two SLOW checks live here, not inside `rows`. Mixing them into a cheap
+            # pass makes eagle-ran-every-check 34 vs 32, permanently red. Last-known or NEVER.
+            "slowRows": getattr(_cd, "slow_surface", lambda: [])(),
             "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
             "mineWhat": [r.get("check") for r in mine],
             # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
@@ -15365,7 +15473,7 @@ def _retention_once():
     try:
         disk_history_append(free_gb, ON_AIR_FLOOR_GB,
                             hist_bytes=None, reels=len(p.get("kept") or []) + len(cands),
-                            eligible_mb=round(p.get("freeMb") or 0, 1), pruned_mb=0)
+                            eligible_mb=round(p.get("freeMb") or 0, 1), pruned_mb=None)
     except Exception:
         pass
     base = {"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
@@ -21789,7 +21897,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2453",
+        "ver": "v2454",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -44,8 +44,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
-OK, MISSING, UNKNOWN = "ok", "missing", "unknown"
-ICON = {OK: "🟢", MISSING: "🟠", UNKNOWN: "⚪"}
+OK, MISSING, UNKNOWN, UNMEASURED = "ok", "missing", "unknown", "unmeasured"
+ICON = {OK: "🟢", MISSING: "🟠", UNKNOWN: "⚪", UNMEASURED: "◻"}
 CONSOLE = "http://127.0.0.1:17772"
 
 
@@ -1541,6 +1541,80 @@ CHECKS = [
 SLOW = ("the other doctors", "sweep would find")
 
 
+def _slow_path():
+    env = os.environ.get("TV_EAGLE_SLOW")
+    if env:
+        return env
+    return os.path.join(HERE, ".eagle_slow.json")
+
+
+def _load_slow():
+    try:
+        with open(_slow_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _persist_slow(rows):
+    """CF-12 — the two SLOW checks reach a durable sidecar, not the cheap pass.
+
+    Joining them INTO `run(include_slow=False)` would make that pass emit 34 rows, and
+    eagle-ran-every-check (which expects 32 on a labelled cheap pass) would go permanently
+    red again — the exact alarm he photographed. Persist here; `slow_surface()` is the tap.
+    """
+    blob = {"at": int(time.time() * 1000),
+            "rows": [dict(r) for r in (rows or []) if r.get("check") in SLOW]}
+    p = _slow_path()
+    tmp = p + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(blob, fh, indent=1, sort_keys=True)
+        os.replace(tmp, p)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+
+
+def slow_surface(now_ms=None):
+    """The two checks the timer never runs, last-known or NEVER. Always len(SLOW) rows.
+
+    Tradeoff: they are not live on the 10-minute pass. They are last-known-with-age, or
+    UNMEASURED if no full pass has ever been stored. The cheap `run()` row count stays
+    len(CHECKS)-len(SLOW).
+    """
+    now = int(now_ms if now_ms is not None else time.time() * 1000)
+    persist = _load_slow()
+    by = {r.get("check"): r for r in (persist.get("rows") or []) if isinstance(r, dict)}
+    at = persist.get("at")
+    out = []
+    for name in SLOW:
+        prev = by.get(name)
+        if not prev:
+            out.append({
+                "check": name, "state": UNMEASURED,
+                "why": ("not in the unattended pass (SLOW; ~2 min). never stored from a full "
+                        "pass. NEVER, not missing."),
+            })
+            continue
+        age = "UNKNOWN"
+        try:
+            import unknown_age as _ua
+            age = _ua.age_say(at, now)
+        except Exception:
+            pass
+        out.append({
+            "check": name,
+            "state": prev.get("state"),
+            "why": (prev.get("why") or "") + " · last full pass %s ago" % age,
+            "lastFullPassTs": at,
+        })
+    return out
+
+
 def run(include_slow=True):
     rows = []
     # v2277 — ONE TICK, ONE READ OF HIS BOARD. Three checks need /api/board_ownership and that
@@ -1561,6 +1635,13 @@ def run(include_slow=True):
     finally:
         _board_cache["active"], _board_cache["got"] = False, None
         _health_cache["active"], _health_cache["rep"] = False, None
+    if include_slow:
+        _persist_slow(rows)
+    try:
+        import unknown_age as _ua
+        _ua.attach(rows)
+    except Exception:
+        pass
     return rows
 
 

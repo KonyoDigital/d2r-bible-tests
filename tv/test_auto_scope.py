@@ -138,7 +138,39 @@ class TestItReportsAndNeverActs(unittest.TestCase):
                     called.add("%s.%s" % (base, f.attr) if base else f.attr)
                 elif isinstance(f, ast.Name):
                     called.add(f.id)
-        for forbidden in ("os.remove", "os.unlink", "shutil.rmtree", "open", "run", "Popen"):
+        # ⚠⚠ v2454 — `open` IS THE ONLY ENTRY HERE THAT IS NOT INHERENTLY AN ACT, and treating it
+        # as one made this guard imprecise about the property it names. Every other name on the
+        # list MUTATES by definition. A read-mode `open` changes nothing, and this module ALREADY
+        # reads files — `inspect.getsource` at :206 and :323 do exactly that, just indirectly.
+        #
+        # It surfaced when CF-15's fix added `file_def`, which reads a def straight off disk with
+        # AST because `inspect.getsource` slices at a stale line number inside a long suite. That
+        # is a DESCRIBE, and the test's own name is `cannot_change_anything`.
+        #
+        # ⚠ THIS IS A REFINEMENT, NOT A RELAXATION, and the difference matters: the guard now
+        # catches every WRITE-mode open, which the old version could not distinguish, while no
+        # longer failing on a pure read. Loosening a guard to admit new code would be the move I
+        # refused elsewhere tonight; narrowing one onto the property it actually names is not.
+        # [[regression-guard]] [[feedback-verify-not-proxy]]
+        writes = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            nm = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if nm != "open":
+                continue
+            mode = None
+            if len(node.args) > 1 and isinstance(node.args[1], ast.Constant):
+                mode = node.args[1].value
+            for kw in node.keywords or []:
+                if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
+                    mode = kw.value.value
+            if mode and any(ch in str(mode) for ch in ("w", "a", "x", "+")):
+                writes.append("line %d, mode %r" % (node.lineno, mode))
+        self.assertEqual(writes, [],
+                         "auto_scope opens a file for WRITING (%s). It must only DESCRIBE."
+                         % "; ".join(writes))
+        for forbidden in ("os.remove", "os.unlink", "shutil.rmtree", "run", "Popen"):
             self.assertNotIn(forbidden, called,
                              "auto_scope must only DESCRIBE; it actually calls %r" % forbidden)
 

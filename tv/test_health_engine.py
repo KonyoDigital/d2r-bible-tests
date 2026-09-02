@@ -74,6 +74,33 @@ class TestTheBoardJoinCheck(unittest.TestCase):
         r = HE.check_board_join(lambda _js: '{"p":"/board","has":true}')
         self.assertEqual(r["state"], HE.OK)
 
+    def test_console_with_handoff_note_is_UNKNOWN_not_blocked_and_not_ok(self):
+        """CF-2 — the console cannot call chronicleApply; it CAN leave a note. That is the door,
+        and calling it BLOCKED is the tautology that taught him to skip the row.
+
+        ⚠ BUT IT IS NOT OK EITHER, AND THE FIRST CUT OF THIS TEST SAID IT WAS — its own name
+        asserted `is_ok_not_blocked`. The flag it rests on, control_app.py:11406, is
+
+            var canHandoff = !!(window.LSR && window.LSR.setItem);
+
+        which proves A WRITER OBJECT EXISTS — not that a note was written, that the board drained
+        it, or that any handoff completed. An OK built on "the capability is present" is how an
+        unjoined end hides, and a test named after the wrong answer is how it survives review.
+
+        UNKNOWN is the honest state and it composes with CF-8, which now gives the row its age.
+        OK becomes correct when there is a drained marker or an acknowledgement from the board
+        side — evidence a handoff COMPLETED, not that one could be attempted.
+        [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+        r = HE.check_board_join(payload={
+            "ok": True, "path": "/", "hasChronicleApply": False, "canHandoff": True})
+        self.assertEqual(r["state"], HE.UNKNOWN, r.get("line"))
+        self.assertNotEqual(r["state"], HE.BLOCKED,
+                            "a designed handoff path must not read as a fault")
+        self.assertIn("note", r["line"])
+        self.assertIn("confirm", r["line"].lower(),
+                      "the row must say WHY it is unknown — that nobody has seen the handoff "
+                      "complete — or the state is just a word")
+
 
 class TestTheArmedSweepReadsTheREALSHAPES(unittest.TestCase):
     """★ v2281 — NO HARDCODED FLAG NAMES. The first cut carried one tuple naming

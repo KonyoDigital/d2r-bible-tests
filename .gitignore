@@ -173,6 +173,13 @@ tv/disk_history.jsonl
 # .console_scars.json: his running console rewrites it every pass, so tracking it leaves the
 # working tree permanently dirty and every pre-push reports "local tracked edits present".
 tv/.eagle_last.json
+# v2454 — CF-8 unknown-age + CF-12 last slow pass. Runtime, per-machine, never committed.
+tv/.unknown_age.json
+tv/.unknown_age.json.tmp
+tv/.eagle_slow.json
+tv/.eagle_slow.json.tmp
+tv/.unknown_age.scratch-*.json
+tv/.eagle_slow.scratch-*.json
 # ⚠ v2413 — AND EVERY SCRATCH VARIANT OF IT. v2411 routed the eagle record through _decision_path
 # so a scratch console writes `<stem>.scratch-<port><ext>` instead of clobbering the primary's
 # file. That was the right fix and it minted a filename this list did not match — so

@@ -5229,6 +5229,12 @@
   .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-good); flex: none;
     box-shadow: 0 0 7px var(--mint); }
   .fleet-dot.off { background: var(--st-idle); box-shadow: none; }
+  /* 167 — the capture eye, only when it is live. Absent/dark is no chip, never a lying 👁. */
+  /* v2454 — 11px was below the declared type floor and the ratchet caught it
+     (TestV1504TypeFloor: `[11.0] != []`). The scale's smallest token is --fs-2xs at
+     clamp(13px, 1.0vw, 15px); there is deliberately nothing under it. A raw pixel value
+     is how a scale stops being a scale. */
+  .fleet-eye { flex: none; font-size: var(--fs-2xs); line-height: 1; }
   /* v2428 — `nowrap` here was the thing the row could not shrink past. It stays OFF; the row
      wraps instead, and `margin-left:auto` still right-aligns the meta on whichever line it lands. */
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
@@ -10351,7 +10357,7 @@ body[data-origin="shadow"] #stage::after {
     /* ── 3. WHAT NEEDS YOU ────────────────────────────────────────────────────────────────── */
     var eRows = [];
     if (e.needsYou != null) eRows.push(_vxRow('waiting on you', e.needsYou, 'rows the readers could not settle'));
-    if (e.unknown != null)  eRows.push(_vxRow('not measured', e.unknown, 'nobody has looked at these yet'));
+    if (e.unknown != null)  eRows.push(_vxRow('can\'t ask', e.unknown, 'designed refusals and closed windows — not a fault'));
     if (e.mine != null)     eRows.push(_vxRow('mine to fix', e.mine, 'flagged for the engines, not for you'));
     /* ══ v2397 — THE FAILING CHECKS THEMSELVES, not just how many there are ═════════════════
        Konyo, on the footer hover: "this tooltip here is pointless — anything needed put it in the
@@ -10361,10 +10367,23 @@ body[data-origin="shadow"] #stage::after {
        failing checks appeared. The panel carried the COUNTS ('3 need you') and never the NAMES, so
        stripping the hover would have removed information rather than moved it. Counts tell him
        there is a problem; names tell him which. [[the-unjoined-end]] */
+    function _vxHealthRow(r){
+      /* CF-10 — four states, two words was the defect. ok is hidden; missing is a fault;
+         unknown is a designed refusal (CAN'T ASK); unmeasured is NEVER. Same row height,
+         no fifth accent: the WORD is the distinguisher, warn-tone only on missing. */
+      if (!r || r.state === 'ok') return '';
+      var word = r.state === 'missing' ? 'MISSING'
+               : r.state === 'unmeasured' ? 'NEVER'
+               : r.state === 'unknown' ? 'CAN\'T ASK'
+               : 'UNKNOWN';
+      var tone = r.state === 'missing' ? 'warn' : '';
+      return _vxRow(r.check, word, r.why || '', tone);
+    }
     (e.rows || []).forEach(function (r) {
-      if (r.state === 'ok') return;
-      eRows.push(_vxRow(r.check, (r.state === 'missing' ? 'MISSING' : 'UNKNOWN'),
-                        r.why || '', r.state === 'missing' ? 'warn' : ''));
+      var h = _vxHealthRow(r); if (h) eRows.push(h);
+    });
+    (e.slowRows || []).forEach(function (r) {
+      var h = _vxHealthRow(r); if (h) eRows.push(h);
     });
     if (!eRows.length)      eRows.push(_vxRow('the watcher', null, 'no eagle figures on this payload'));
 
@@ -18111,6 +18130,7 @@ function escC(s) {
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
           + '<b>' + escC(nameFor) + '</b>'
+          + (m.eye && m.eye.live ? '<span class="fleet-eye" title="capture eye is live">\uD83D\uDC41</span>' : '')
           + '<span class="fleet-meta">' + meta + '</span>'
           + _tip(m) + '</div>';
       };

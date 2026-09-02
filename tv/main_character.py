@@ -48,8 +48,25 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LEDGER = os.path.join(HERE, "main_character.json")
 
 EQUIPMENT_LANE = "equipment"
+# names_loc (g5 / journal) spells this "equipped". The scene classifier never emits either.
+# Accepting only one spelling is how a fed learner still pins equip at 0. [[the-unjoined-end]]
+EQUIPMENT_ALIASES = (EQUIPMENT_LANE, "equipped")
 _LOCK_FLOOR = 0.43          # 3-of-3 clears it; the same floor the vault's KEEP rule uses
 _MIN_SIGHTINGS = 3          # "1 frame is a fixture; 2 is a coincidence" — his own witness rule
+
+
+def lane_from_sighting(activity, names_loc=None):
+    """Which lane a sighting should teach. -> str|None
+
+    names_loc "equipped" is the ONLY safe equipment signal: it is a per-name location from the
+    reader, not a frame class. Promoting every inventory FRAME to equipment would fire on charms,
+    the cube and the tomes and lock them as gear. [[unknown-stays-unknown]]
+    """
+    loc = str(names_loc or "").strip().lower()
+    if loc in EQUIPMENT_ALIASES:
+        return EQUIPMENT_LANE
+    act = str(activity or "").strip().lower()
+    return act or None
 
 
 def _load():
@@ -98,7 +115,7 @@ def saw(name, lane, session=None):
         row.setdefault("sessions", []).append(sid)
         row["sessions"] = row["sessions"][-40:]
     row["seen"] = int(row.get("seen") or 0) + 1
-    if str(lane or "").strip().lower() == EQUIPMENT_LANE:
+    if str(lane or "").strip().lower() in EQUIPMENT_ALIASES:
         row["equip"] = int(row.get("equip") or 0) + 1
     row["lastAt"] = int(time.time() * 1000)
     d[k] = row
@@ -204,11 +221,11 @@ def blocked_why():
     except Exception:
         vocab = ()
     if vocab and EQUIPMENT_LANE not in vocab:
-        return ("no sighting has EVER reached the equipment lane, and none can: reel_segments "
-                "knows only %s, so activity_at cannot return %r. `equip` is pinned at 0, so the "
-                "Wilson floor cannot be cleared by evidence and nothing will lock however long he "
-                "farms. This needs an equipment/character-panel activity before it can mean "
-                "anything." % (" · ".join(vocab), EQUIPMENT_LANE))
+        return ("no sighting has EVER reached the equipment lane. activity_at cannot return %r "
+                "(reel_segments knows only %s). The remaining door is names_loc 'equipped' via "
+                "lane_from_sighting — adding an equipment FRAME CLASS would fire on inventory "
+                "grids and lock charms as gear. Zero equip sightings means that door has not "
+                "been fed, not that a scene is missing." % (EQUIPMENT_LANE, " · ".join(vocab)))
     return ("no sighting has ever reached the equipment lane, so every confidence is 0.0 and "
             "nothing can lock — the ledger is being fed, but never from that lane")
 

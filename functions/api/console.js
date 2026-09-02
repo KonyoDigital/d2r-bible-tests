@@ -208,6 +208,16 @@ export async function onRequestPost(context) {
     // that length. Anything else is dropped whole rather than stored half-understood — a mask
     // decoded against the wrong roster names real items that are simply the wrong ones, and that
     // failure is silent.
+    // 167 — is this machine's capture eye live. Boolean + age only; no paths, no reel ids.
+    // Absent means the client did not report it. live:false is measured-dark, not missing.
+    eye: (function (e) {
+      if (!e || typeof e !== 'object') return null;
+      const age = Number(e.ageMs);
+      return {
+        live: e.live === true,
+        ageMs: (Number.isFinite(age) && age >= 0) ? Math.min(age, 86400000) : null,
+      };
+    })(body.eye),
     masks: (function (m) {
       if (!m || typeof m !== 'object') return null;
       const one = (x) => {
@@ -292,7 +302,8 @@ export async function onRequestPost(context) {
     || prev.diskVer !== rec.diskVer
     || JSON.stringify(prev.tally || null) !== JSON.stringify(rec.tally || null)
     || JSON.stringify(prev.masks || null) !== JSON.stringify(rec.masks || null)
-    || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null);
+    || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null)
+    || !!(prev.eye && prev.eye.live) !== !!(rec.eye && rec.eye.live);
 
   try {
     if (material || ageS >= REFRESH_S) {

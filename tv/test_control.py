@@ -410,6 +410,35 @@ def _code_only(src):
     return "\n".join(l for l in out.split("\n") if not l.strip().startswith("#"))
 
 
+def _def_from_disk(name, path=None):
+    """The named def from DISK, not inspect.getsource.
+
+    CF-15: inspect.getsource slices the file at the running co_firstlineno. Inside the
+    full suite that handed `drift_may_relaunch` the body of `_drift_once` and
+    `_theatre_sessions` the body of `_load_journal_cached`. Isolation the same minute
+    was green. AST-from-disk cannot land on a neighbour unless two defs share a name.
+    """
+    import auto_scope as _as
+    p = path or os.path.join(HERE, "control_app.py")
+    src = _as.file_def(p, name)
+    if src is None:
+        raise AssertionError("def %s is absent from %s" % (name, p))
+    if src is _as._STALE:
+        raise AssertionError("def %s is STALE/ambiguous on disk in %s — the instrument "
+                             "could not prove it read the function it asked for" % (name, p))
+    return src
+
+
+# CF-15 — THE PUSH THAT DID NOT LAND. HIS v2453 pre-push ran 2167 tests / 480s and
+# died 39 FAIL + 4 ERROR, every one a source-reading guard handed a neighbour's
+# body (`drift_may_relaunch` → `_drift_once`, `fleet_compare` → `fleet_presence`,
+# `board_window` → `_exec_soon`). Isolation of those same tests was green.
+# Patching inspect.getsource here covers every call in this file, including the
+# ones that do `import inspect` inside a method — they share the module.
+import inspect as _inspect_mod  # noqa: E402
+_inspect_mod.getsource = __import__("auto_scope", fromlist=["getsource"]).getsource
+
+
 def _markup_only(html):
     """HTML with its <!-- comments --> stripped. -> str
 
@@ -33562,8 +33591,7 @@ class TestV2322TheShelfStoppedRewalkingTheWholeArchive(unittest.TestCase):
     def test_the_loop_actually_consults_the_memo(self):
         """[[the-unjoined-end]] - the helpers can be perfect and never wired in. This reads the
         source of the loop rather than trusting that it calls them."""
-        import inspect
-        src = inspect.getsource(ca.Handler._theatre_sessions)
+        src = _def_from_disk("_theatre_sessions")
         self.assertIn("_theatre_row_fingerprint(sess", src,
                       "the loop does not compute a key - the memo is unreachable")
         self.assertIn("_theatre_row_cache_get", src, "the loop never asks the memo")
@@ -33763,8 +33791,7 @@ class TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing(unittest.TestCase):
     def test_the_relaunch_DECISION_actually_asks(self):
         """[[the-unjoined-end]] - a guard nothing consults is decoration, which is the exact
         wording v2147 used about the world-drift guard for the same reason."""
-        import inspect
-        src = inspect.getsource(ca.drift_may_relaunch)
+        src = _def_from_disk("drift_may_relaunch")
         self.assertIn("_tree_is_mid_edit", src,
                       "drift_may_relaunch never asks whether the tree is being edited")
         i_ask = src.index("_tree_is_mid_edit")
@@ -34031,8 +34058,7 @@ class TestV2329TheCrossReferenceHasTwoLedgers(unittest.TestCase):
 
     def test_fleet_compare_decodes_against_the_LEDGERS_OWN_roster(self):
         """[[the-unjoined-end]] - the argument must reach the roster loader, not just be stored."""
-        import inspect
-        src = inspect.getsource(ca.fleet_compare)
+        src = _def_from_disk("fleet_compare")
         self.assertIn("load_roster_for(ledger)", src,
                       "fleet_compare still loads a roster without reference to the ledger - a "
                       "uniques comparison would name set pieces")

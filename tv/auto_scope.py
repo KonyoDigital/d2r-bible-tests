@@ -154,6 +154,9 @@ LANES = {
 #: "the audit could not be performed", which is UNKNOWN and must never render as a pass.
 _STALE = "\x00STALE"
 
+import inspect as _inspect_mod
+_REAL_GETSOURCE = _inspect_mod.getsource
+
 
 def _fn_source(mod, name):
     """The source of the function a lane runs. -> str | None | _STALE
@@ -206,6 +209,88 @@ def _fn_source(mod, name):
     # the whole guard: does the text we were handed actually START with the def we asked for?
     if not _re.match(r"[ \t]*(async[ \t]+)?def[ \t]+%s[ \t]*\(" % _re.escape(name), src):
         return _STALE
+    return src
+
+
+def file_def(path, name):
+    """The def named `name` as it sits on disk. -> str | None | _STALE
+
+    ★ CF-15 — `inspect.getsource` is the WRONG instrument for a source-reading guard that
+    runs inside a long suite. It slices the file at the RUNNING code object's
+    `co_firstlineno` (a fact about the import, not the file). Measured in the full
+    `test_control` run: `drift_may_relaunch` was handed `_drift_once`, and
+    `_theatre_sessions` was handed `_load_journal_cached`. Isolation the same minute
+    was green. The product was fine; the instrument was reading a neighbour.
+
+    AST-from-disk cannot land on a neighbour unless two defs share a name — and two
+    defs sharing a name is itself STALE (ambiguous), not a pass. None means the name
+    is absent. Same three-way as `_fn_source`.
+    """
+    import ast
+    try:
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+    except Exception:
+        return None
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return _STALE
+    hits = [n for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name]
+    if not hits:
+        return None
+    if len(hits) > 1:
+        return _STALE
+    n = hits[0]
+    start = n.lineno - 1
+    end = getattr(n, "end_lineno", None)
+    if end is None:
+        return _STALE
+    lines = src.splitlines(True)
+    return "".join(lines[start:end])
+
+
+def getsource(obj):
+    """inspect.getsource, refusing a neighbour's body.
+
+    CF-15, measured on the blocked v2453 push: 39 failures / 4 errors, 480s. Isolation
+    of the same tests was green. inspect.getsource had sliced the file at a stale
+    co_firstlineno and handed `_drift_once` for `drift_may_relaunch`, `fleet_presence`
+    for `fleet_compare`, `_exec_soon` for `board_window`.
+
+    If the inspect slice STARTS with the def we asked for, keep it (decorators live
+    on that slice). If it does not, the unique def on disk is the source. STALE /
+    absent / a class or module falls back to inspect — we do not invent a body.
+
+    ⚠ CALL THE SAVED REAL inspect.getsource. test_control patches inspect.getsource
+    to THIS function; using the module attribute would recurse until the stack dies,
+    and the 39 reds would become a hang that looks like a hung suite.
+    """
+    import re as _re
+    try:
+        src = _REAL_GETSOURCE(obj)
+    except Exception:
+        src = None
+    name = getattr(obj, "__name__", None)
+    if not name or str(name).startswith("<"):
+        if src is None:
+            raise TypeError("could not get source")
+        return src
+    short = str(name).rsplit(".", 1)[-1]
+    if src and _re.match(r"[ \t]*(async[ \t]+)?def[ \t]+%s[ \t]*\(" % _re.escape(short), src):
+        return src
+    try:
+        path = _inspect_mod.getfile(obj)
+    except TypeError:
+        if src is None:
+            raise
+        return src
+    disk = file_def(path, short)
+    if disk not in (None, _STALE):
+        return disk
+    if src is None:
+        raise OSError("could not get source for %s" % short)
     return src
 
 

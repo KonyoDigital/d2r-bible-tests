@@ -441,6 +441,11 @@ GATES = [
              "cover is stated in its own output: the wider call graph is measured and labelled "
              "unverified, never folded into the verdict, because a promise nobody measured is not "
              "a promise. [[source-reading-guard]] [[unknown-stays-unknown]]"),
+    Gate("test_cf_handoff", [sys.executable, os.path.join(HERE, "test_cf_handoff.py")], 60,
+         why="v2454 — five inverted-role tasks. CF-8 UNKNOWN carries first-seen/last-attempt; "
+             "CF-10 four states are four words; CF-12 SLOW checks reach slowRows not the cheap "
+             "pass; B-83 equipment is names_loc not a frame class; #135 stays unfingerprinted. "
+             "Each guard has a named sabotage."),
     Gate("test_health_engine", [sys.executable, os.path.join(HERE, "test_health_engine.py")], 60,
          why="v2277 — ONE HEALTH ENGINE, RED/GREEN, REPORTING ONLY. Konyo: \"not sure we need a "
              "live watchdog that fixes things might be wrong for the console and make a bug worse.. "

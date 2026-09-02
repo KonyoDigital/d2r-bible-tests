@@ -335,6 +335,33 @@ def check_board_join(evaluate=None, payload=None):
         if payload.get("hasChronicleApply"):
             return _row("board_join", OK, "the board is reachable at %s" % path,
                         ["chronicleApply present"])
+        # CF-2 — path=/ without chronicleApply is the CONSOLE. Register already leaves a
+        # localStorage note the board drains (v2289). Calling that a BLOCKED fault is the
+        # tautology that taught him to skip the row. The note door is the join.
+        if payload.get("canHandoff"):
+            # ⚠⚠ v2454 — THE REFRAME ABOVE IS RIGHT AND THE STATE WAS NOT. Calling a designed
+            # handoff path BLOCKED is the tautology that taught him to skip the row — that part
+            # stands. But this shipped as OK, and OK is a claim larger than its evidence.
+            #
+            # MEASURED, control_app.py:11406 — the flag it rests on is:
+            #     var canHandoff = !!(window.LSR && window.LSR.setItem);
+            # That proves A LOCALSTORAGE WRITER OBJECT EXISTS. It does not prove a note was
+            # written, that the board drained it, or that any handoff ever completed. An OK built
+            # on "the capability is present" is exactly how an unjoined end hides, and this repo
+            # treats a claim larger than its evidence as the one unforgivable direction.
+            #
+            # UNKNOWN is both honest and useful, and it composes with CF-8: the row now carries
+            # its own age, so "unaskable for 5 minutes" and "for 45 hours" stop looking identical.
+            # OK becomes correct the moment there is a drained marker or an acknowledgement from
+            # the board side — a signal that a handoff COMPLETED, not that it could be attempted.
+            # [[unknown-stays-unknown]] [[the-unjoined-end]]
+            return _row("board_join", UNKNOWN,
+                        "this window is %s and has no chronicleApply; registering leaves a note "
+                        "the board drains, and no handoff has been confirmed from here. That is "
+                        "the designed door, not a broken one — but nobody has seen it complete."
+                        % path,
+                        ["path=%s" % path, "handoff note available",
+                         "no drained-note confirmation"])
         return _row("board_join", BLOCKED,
                     "the window that answered is %s and has no chronicleApply — registering "
                     "cannot work from here%s" % (path,
