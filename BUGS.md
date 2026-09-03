@@ -17425,3 +17425,29 @@ never reach that state by construction.
 Guard: two laws in `tv/test_reel_river.py` — the counts are **separate, not merged**, and the report
 says out loud that it is declining to choose, so a reader does not take whichever number they saw
 first as the answer. **2 sabotages, 2 RED**, including a baseline proving the two counts CAN differ.
+
+## v2530 — a cap too small to hold its own marker, and a diagnosis that dropped the message
+
+**REG-530 — no guard when the cap cannot hold the marker.** At `_CAP = 8` or `5`, `keep` goes
+**negative**, `head` goes negative, and the slicing returns something **longer than the cap it
+exists to enforce**. `_CAP` is a fixed 160, so nothing was wrong — but the review's own wording is
+the tell: *"acceptable for its narrow purpose **if `_CAP` is known to stay large**."* **Correctness
+resting on a convention the code does not check is the exact shape A8 was about.** Guarded; measured
+at `_CAP` = 160 / 20 / 10 / 9 / 8 / 5 / 1 / 0, the output never exceeds the cap.
+
+**REG-531 — the exception path reported only the TYPE.** `<repr() raised RuntimeError>` tells a
+reader almost nothing; **the message is usually the whole diagnosis.** Now
+`<repr() raised RuntimeError: the actual reason>`, with `str(e)` itself guarded, because a broken
+exception can raise there too.
+
+⚠ **One arithmetic claim refuted by measurement.** It worked the split as `keep=151, head=50,
+tail=101`. `len(" …snip… ")` is **8, not 9** — measured directly — so `keep=152` and the split is
+**50/102**. Its own earlier review of this same function had it right at 8. The total is 160 either
+way, which is why the slip changes nothing; recorded so a future reader does not adopt the wrong
+figures from the ledger.
+
+**One settled, and it is a fair point I did not take:** it argued 1:1 or 2:1 can beat 1:2, because
+*"the head usually contains the type name and opening structure, which provides essential context
+for interpreting the tail."* True in general — and this function's stated purpose is that the
+telling detail is at the END, which is what v2528 corrected. Left at 1:2 deliberately, with both
+sides of the reasoning now on the record.

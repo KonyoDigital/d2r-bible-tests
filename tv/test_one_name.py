@@ -432,7 +432,15 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                     try:
                         r = repr(x)
                     except Exception as e:
-                        return "<repr() raised %s>" % type(e).__name__
+                        # ⚠ THE MESSAGE, NOT JUST THE TYPE. "<repr() raised RuntimeError>" tells a
+                        # reader almost nothing; the message is usually the whole diagnosis. Kept
+                        # short, and itself guarded — str(e) on a broken exception can raise too.
+                        try:
+                            _m = str(e)[:60]
+                        except Exception:
+                            _m = ""
+                        return "<repr() raised %s%s>" % (type(e).__name__,
+                                                         (": " + _m) if _m else "")
                     # ⚠ THE ARITHMETIC DID NOT ADD UP: 100 head + 56 tail + an 8-char marker is
                     # 164 — LONGER than the 160 it claimed to enforce. A truncator that exceeds
                     # its own limit is a small thing that makes every other number in the file
@@ -443,7 +451,16 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                     # The docstring says the telling element is often at the END, and the code
                     # kept 102 head against 50 tail — a comment contradicting the code it sits on.
                     # The tail now gets the larger share, which is what "head AND tail" was for.
+                    # ⚠⚠ A CAP TOO SMALL FOR THE MARKER MADE THIS PRODUCE GARBAGE. At _CAP=8 or
+                    # 5, `keep` goes NEGATIVE, `head` goes negative, and the slicing returns
+                    # something LONGER than the cap it exists to enforce. _CAP is 160 here, so
+                    # nothing was wrong — but "acceptable if _CAP is known to stay large" is
+                    # correctness resting on a convention the code does not check, which is the
+                    # exact shape A8 was about. A cap that cannot hold the marker means there is
+                    # no room to snip: return a hard cut instead of nonsense.
                     keep = _CAP - len(_SNIP)
+                    if keep <= 1:
+                        return r[:max(0, _CAP)]
                     head = keep // 3
                     return r[:head] + _SNIP + r[-(keep - head):]
 

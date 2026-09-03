@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2529",
+  "ver": "v2530",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2529: A15 says every reel must come out clean at the far end and that clean is a state the pipeline must be able to assert. It never says which door decides, and the two candidates disagree: 12 of 40 reels are finished by the reel door, 0 satisfy the frame contract, 0 satisfy both. Conjoining them is exactly the collapse v2312 attempted and withdrew, because they answer different questions at different granularities. reel_river reports both readings and calls neither the answer - defining clean is a decision about what finished means, and it gates the prune.",
+  "note": "v2530: At a small cap the truncator arithmetic goes negative and returns something longer than the cap it exists to enforce. The cap is a fixed 160 so nothing was wrong, but the review own wording is the tell - acceptable if the cap is known to stay large - and correctness resting on a convention the code does not check is the exact shape A8 was about. Guarded and measured across caps down to zero. The exception path also reported only the type, and the message is usually the whole diagnosis. One arithmetic claim refuted by measurement: the marker is 8 characters, not 9.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
