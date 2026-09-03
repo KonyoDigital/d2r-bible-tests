@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2467",
+  "ver": "v2468",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2467: The vault apply door writes his ledger and no sabotage had ever been attempted against it. It now takes proposals it must reject, each row carrying no evidence so it fails the witness gate by construction, and sixteen of sixteen were refused at the re gate before the board was ever asked. The lock stays shut anyway and is right to: the score clears but the evidence is all one kind, and that door requires more than one independent kind. Also recorded: vault forget has no refusal path at all, so nothing can prove it by sabotage and nothing pretends to.",
+  "note": "v2468: The vault apply lock was proven at sixteen of sixteen and still shut, because all its evidence was one kind against a confluence bar that exists precisely so one kind cannot open a door that writes his ledger. More sabotages would never have opened it. What it needed was a different witness, so the same refusal is now asked of the running console over its own HTTP route, which exercises the routing and the live process that an import never touches. Twenty four of twenty four refused, two independent kinds, and the lock opened itself. Three of five are now open and none was opened by hand.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

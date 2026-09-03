@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2467"   # THE WRITE DOOR PROVEN AND STILL SHUT
+VERSION = "v2468"   # A SECOND KIND OPENED THE WRITE DOOR
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

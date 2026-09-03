@@ -199,6 +199,10 @@ PROVES = {
     # lines, one return, always ok), so nothing can prove it by sabotage and nothing here
     # pretends to.
     "vault_wilson": ("vault.apply",),
+    # the same refusal asked of the RUNNING console over its own HTTP route — a different
+    # KIND, not a second helping of the same one. vault.apply carries kinds_bar 1.3 exactly
+    # so that one kind cannot open it.
+    "vault_live": ("vault.apply",),
 }
 
 

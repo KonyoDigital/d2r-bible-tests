@@ -15415,3 +15415,80 @@ he cannot clear is a cage"*, and the ledger is rebuildable from the reels.
 because nobody tried, but because there is nothing to try. Inventing a sabotage for it would be
 manufacturing proof. `PROVES` declares `vault_wilson` for `vault.apply` ONLY, and the harness prints
 this reason every run rather than leaving a silent blank.
+
+## ⚠ MY OWN INVESTIGATION, CORRECTED TWICE — the dock, the panel, and a documented artifact
+
+A cold cross-family eye called the MF dock "drawn on top of content" on THREE reads. I refuted it
+twice, then confirmed it as a defect, and both of those were wrong. The sequence is worth keeping
+because each error had a different cause.
+
+**1. My first two refutations measured the WRONG ELEMENT.** I selected the innermost div containing
+"TZ ROTATES IN" — a 183x33 box — and reported "position static, in flow, covers nothing". The
+element it was describing is `div.dock-inner`, **925x118**. Refuting a claim about one element by
+measuring another is not a refutation.
+
+**2. My `elementFromPoint` test ran in the WRONG DIRECTION.** I sampled the dock's own centre and
+asked what was on top of IT. That tests whether something covers the dock, not whether the dock
+covers something. The correct test samples the dock's rect and asks what it is painted over.
+
+**3. Then I over-claimed a defect.** With the right element and direction, 5 controls at his real
+1120x628 hit-tested to `div.dock-inner` — `📖 Chronicle`, `🏦 Vault`, `📖🏦 Both`, `ignore`, and a
+stash warning — and 0 at 1440. I called that "5 controls he cannot click". **It is not.** Measured:
+```
+#inbox-sticky  overflow auto · max-height 203px · box y285-488
+               clientH 201 · scrollH 331   (130px below its own fold)
+rows           [359-481] and [481-603]
+```
+The second row is **below the fold of its own scrollable panel**, not under the dock. It is reached
+by scrolling that panel. **And v2336's comment says exactly this, in the file, about the same
+panel:** *"taller rows pushed four buttons past the panel's own fold ... so they were reachable
+only by scrolling and elementFromPoint reported the page behind them."* I reproduced a documented
+measurement artifact and read it as occlusion.
+
+**The dock itself is deliberate** — `toggleDock()`, keyboard `D`, *"Hide MF / Players dock
+(bottom)"*, with a collapse handle. v2316 already pins the sticky's bottom above it and that bound
+is holding: sticky ends 488, dock starts 496.
+
+**NOT A DEFECT. Nothing changed.** What is worth keeping is the method failure: three wrong
+measurements in one investigation, each of which produced a confident sentence. The one that
+finally settled it was reading the code's own comment about this panel — which had the answer, in
+its own words, before any of my probes ran.
+
+⚠ **Left open honestly:** whether a 203px panel that hides 130px of its own actions behind a scroll
+is GOOD at his window height is a judgement about design, not a measurement, and it is his to make.
+
+## A2 — a THIRD lock opened itself, on a second KIND of evidence (v2468)
+
+`vault.apply` was PROVEN at 16/16 and still LOCKED, in the lock's own words: *"the score clears
+(0.806) but the evidence is too alike: kinds ['sabotage'] score 1.00 against 1.30. Wilson counts
+how many looks agreed, never whether they were independent."*
+
+**More sabotages would never have opened it, and that is the design.** What it needed was a
+different KIND. `vault_wilson.score_live()` asks the SAME refusal of the RUNNING console, over its
+own HTTP route — exercising the routing, the JSON body handling and the live process, none of which
+an import touches.
+
+```
+sabotage  ungated 8/8 · empty 8/8
+live      live-ungated 8/8
+-> vault.apply OPEN · 24 of 24 refused · wilson 0.862 >= 0.722
+   kinds ['live','sabotage'] = 1.70 >= 1.30
+```
+**Three of five locks are now open and none was opened by hand.**
+
+⚠ **ONE PROBE FIRST, READ, THEN THE BATCH.** The first live request was sent alone and its answer
+read before anything repeated: `ok:false`, and the response NAMES the rejected row. Every row
+carries an empty evidence list, so the re-gate rejects it before the board is ever asked — verified
+against the live console, not assumed.
+
+**Proven RED, both directions:**
+- pointed at a dead port, `score_live` returns **None** — UNKNOWN, and nothing is banked. An
+  unreachable console is an empty seat, not agreement.
+- an undeclared source is refused outright: *"'some_other_harness' is not a declared evidence
+  source"* — a lock cannot open on somebody else's proof.
+
+**The remaining two are honest, not owed:**
+- `vault.forget` — UNPROVEN **by construction**: measured by AST, 7 lines, one return, ZERO refusal
+  paths. There is no wrong input for it to catch.
+- `prune.arm` — bar 0.839, confluence **1.8** (the highest in the table), and it waits on both vault
+  locks. It guards the one door that deletes footage with no undo, and it should be the hardest.

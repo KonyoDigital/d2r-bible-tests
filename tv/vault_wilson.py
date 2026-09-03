@@ -102,6 +102,52 @@ def forget_note():
             "evidence, and a sabotage invented for it would be manufactured proof.")
 
 
+def score_live(port=17772, n=8, timeout=6.0):
+    """The SAME refusal, asked of the RUNNING console over HTTP. -> row or None
+
+    ⚠ WHY THIS EXISTS AND WHY IT IS A DIFFERENT KIND. `score()` above imports the module and calls
+    the function; that is a sabotage, and sabotage is one kind of evidence. vault.apply carries
+    kinds_bar 1.3 precisely so that one kind cannot open it — "Wilson counts how many looks agreed,
+    never whether they were independent". Asking the LIVE console, over the wire, through the route
+    his own UI posts to, is a genuinely different witness: it exercises the routing, the JSON body
+    handling and the running process, none of which an import touches.
+
+    ⚠ IT IS STILL THE SAFE ATTEMPT. Every row carries an empty evidence list, so the re-gate
+    rejects the proposal before the board is asked. Verified with ONE request before any batch was
+    sent: ok False, and the response NAMES the rejected row.
+
+    ⚠ AN UNREACHABLE CONSOLE BANKS NOTHING. Returns None, which the caller reports as UNKNOWN —
+    never as a pass. A dead endpoint is an empty seat, not agreement.
+    """
+    import json as _json
+    import urllib.request as _u
+    caught, attempted = 0, 0
+    body = _json.dumps({"proposal": {"owned": [{"name": "SABOTAGE PROBE — no evidence, must never "
+                                                       "be written", "evidence": []}],
+                                     "unsure": [], "throwOut": []}}).encode("utf-8")
+    for _ in range(n):
+        try:
+            req = _u.Request("http://127.0.0.1:%d/api/vault_apply" % port, data=body,
+                             headers={"Content-Type": "application/json"})
+            r = _json.loads(_u.urlopen(req, timeout=timeout).read().decode("utf-8", "replace"))
+        except Exception:
+            return None                  # unreachable -> UNKNOWN, and nothing is banked
+        attempted += 1
+        if isinstance(r, dict) and r.get("ok") is False and "gate" in str(r.get("why", "")).lower():
+            caught += 1
+    if not attempted:
+        return None
+    import confidence
+    return {"claim": "live-ungated", "attempts": attempted, "caught": caught,
+            "wilson": confidence.wilson_lower(caught, attempted),
+            "state": "PROVEN" if caught == attempted else "LEAKS",
+            "what": "the RUNNING console, over its own HTTP route, refuses a proposal whose rows "
+                    "clear no witness gate",
+            "notes": ([] if caught == attempted else
+                      ["the live console ACCEPTED %d of %d proposals it must refuse — that is a "
+                       "write into his ledger over the wire" % (attempted - caught, attempted)])}
+
+
 def bank_into_proof_queue(rows):
     import self_arming as _sa
     banked, skipped = [], []
@@ -122,6 +168,21 @@ def bank_into_proof_queue(rows):
 def main(argv=None):
     rows = score()
     b = bank_into_proof_queue(rows)
+    # the LIVE witness, banked under its own kind so confluence can see two independent sources
+    live = score_live()
+    live_note = ""
+    if live is None:
+        live_note = ("the running console could not be reached, so there is no LIVE witness — "
+                     "UNKNOWN, not a pass, and nothing was banked for it")
+    else:
+        try:
+            import self_arming as _sa
+            _sa.bank("vault.apply", "live", "vault_live", n=live["attempts"], k=live["caught"],
+                     ref=live["claim"], note=live["what"][:200])
+            live_note = ("banked LIVE -> vault.apply: %s %d/%d"
+                         % (live["claim"], live["caught"], live["attempts"]))
+        except ValueError as e:
+            live_note = "live NOT banked: %s" % str(e)[:140]
     print("VAULT WILSON — can the write door refuse when it must?\n")
     print("  %-9s %9s %8s %8s  %s" % ("claim", "sabotages", "caught", "wilson", "state"))
     print("  " + "-" * 58)
@@ -138,6 +199,10 @@ def main(argv=None):
     for r in rows:
         for n in (r["notes"] or []):
             print("  %-9s %s" % (r["claim"], n))
+    if live is not None:
+        print("  %-9s %9s %8s %8s  %s" % (live["claim"], live["attempts"], live["caught"],
+                                          "%.3f" % live["wilson"], live["state"]))
+    print("  " + live_note)
     print("\n  vault.forget: " + forget_note())
     print("\n  ⚠ nothing was applied. Every attempt is a proposal the door MUST reject, and each "
           "is rejected before the board is asked.")
