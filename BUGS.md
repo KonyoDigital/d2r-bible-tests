@@ -16806,3 +16806,44 @@ the rule testable against a constructed tuple at all, which is how the undeclare
 exercised without touching the live census.
 
 2 sabotages, 2 RED.
+
+## v2511 — A13: the eye and the beat could never be compared, and my check was wrong on its own case
+
+TASKS.md named the unbuilt half: *"an observation with verdict `LOOKED` that CONTRADICTS the
+console's own beat raises a blocker... not a note in a file."*
+
+**REG-499 — the join was impossible, which is why the one real catch reached nothing.** On
+2026-09-01 the eye reported his webview **blank white** while the beat published
+`taskforce shown H=502 top=1050` in a 660px window. That sat in an untracked jsonl and raised no
+blocker — and it **could not have**, because the console publishes a beat and **stores no history
+of it**. An observation carries a timestamp; the beat exists only live. `observed()` now captures
+the beat at the moment of looking, and `tv/eye_vs_beat.py` judges the pair.
+
+⚠ It only works forward. The 13 rows already in the ledger have no beat and report
+**NO-BEAT-CAPTURED** — never "no contradiction". A zero over rows carrying no evidence measures
+the absence of the evidence.
+
+⚠⚠ **REG-500 — THE CHECK WAS WRONG ON THE EXACT CASE IT EXISTS FOR.** `_shown_panels` was written
+against the **flat** beats in `live_panel_gate.prove()` (`{"tally": "ZERO-HEIGHT", "tallyH": 0}`)
+because those were the examples in front of me. The **live** `panels_of()` returns them nested:
+
+```
+{"advanced": {"state": "shown", "h": 1309, "top": 232, "vh": 628}, ...}
+```
+
+Against his running console it returned `[]` and reported **AGREES** while the beat plainly claimed
+a panel shown at h=1309. **Reading the fixture and assuming it is the world is how a guard passes
+the one case it was written for.** Both shapes are read now.
+
+**REG-501 — `rows=None` meant two opposite things.** It was both the default (*"read the ledger
+yourself"*) and the ledger's own UNREADABLE sentinel, so a caller that read the ledger, got `None`
+because it would not parse, and passed it here received a clean **OK**. Two meanings on one value,
+and the harmless-looking one wins. Caught by its own test.
+
+⚠ **It does not read the observation's prose.** `saw` is free text; deciding in general whether it
+agrees with a beat is not something this file can do honestly. It checks ONE mechanical
+contradiction — blank eye against a panel shown at real height — and everything else is
+**NEEDS-A-READER**, a state rather than a pass. A gate that guessed would produce confident
+nonsense, and a row that cries wolf is one he learns to skip.
+
+Guard: `tv/test_eye_vs_beat.py`, registered (103 gates). **6 sabotages, 6 RED.**

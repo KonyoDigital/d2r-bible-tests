@@ -462,7 +462,7 @@ two-way-agreement principle as A5, applied to the whole console rather than to o
 
 
 ## A13 · THE VISUAL HARNESS MUST FEED THE GATE · 2026-09-01 19:1x
-**Topic:** GATES · **Progress:** in progress · the render gate feeds the ratchet since v2475; the visual harness does not yet feed the gate
+**Topic:** GATES · **Progress:** ✅ **SHIPPED v2511** — the render gate feeds the ratchet since v2475, and the visual harness now feeds the gate too (`tv/eye_vs_beat.py`, registered). ⚠ THE JOIN WAS IMPOSSIBLE BEFORE: the console publishes a beat and stores NO HISTORY, so an observation and the beat to check it against could never be reconciled afterwards — which is exactly why the 2026-09-01 blank-white catch reached nothing. `observed()` captures the beat AT THE MOMENT OF LOOKING now. ⚠ It only works FORWARD: the 13 existing rows report NO-BEAT-CAPTURED, never 'no contradiction'. ⚠⚠ And the check was WRONG ON ITS OWN CASE — written against the FLAT fixture beats while the live `panels_of()` returns them NESTED, so against his running console it reported AGREES while the beat claimed a panel shown at h=1309
 
 > *"i want this part of the workflow.. what about the visual harness with grok bot where is that?"*
 

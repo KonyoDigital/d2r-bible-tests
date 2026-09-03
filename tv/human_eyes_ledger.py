@@ -105,8 +105,26 @@ def observed(brief, saw, verdict, conclusion="", shot="", path=None):
     v = str(verdict).upper()
     if v not in (LOOKED, UNKNOWN):
         v = UNKNOWN
+    # ⚠⚠ CAPTURE WHAT THE CONSOLE IS CLAIMING, AT THIS MOMENT. The console publishes a beat and
+    # stores NO HISTORY of it, so an observation and the beat it should be checked against can
+    # never be reconciled afterwards — which is exactly why the one real catch this ledger holds
+    # reached nothing. On 2026-09-01 the eye reported the webview BLANK WHITE while the beat
+    # published `taskforce shown H=502 top=1050`, and that contradiction sat in an untracked file
+    # because nothing had recorded the two halves together.
+    #
+    # ⚠ A console that is not answering records NOTHING here, never `{}`. An absent claim cannot
+    # contradict anything, and an empty beat would make every future observation look agreed-with.
+    # tv/eye_vs_beat.py reports a row with no captured beat as UNKNOWN, never as clean.
+    _beat = None
+    try:
+        import eye_vs_beat as _evb
+        _beat, _why = _evb.capture_beat()
+    except Exception:
+        _beat = None
     row = {"ts": int(time.time() * 1000), "kind": "observation", "brief": str(brief),
            "saw": str(saw), "verdict": v, "conclusion": str(conclusion), "shot": str(shot)}
+    if _beat:
+        row["beatAt"] = _beat
     p = path or LEDGER_PATH
     try:
         with io.open(p, "a", encoding="utf-8") as fh:

@@ -538,6 +538,23 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_eye_vs_beat", [sys.executable, os.path.join(HERE, "test_eye_vs_beat.py")], 120,
+         why="A13 — the half TASKS.md said was unbuilt: an observation with verdict LOOKED that "
+             "CONTRADICTS the console-s own beat. On 2026-09-01 the eye reported his webview BLANK "
+             "WHITE while the beat published taskforce shown H=502 top=1050, and that finding "
+             "reached no gate — it COULD NOT HAVE, because the console publishes a beat and stores "
+             "no history, so an observation and the beat to check it against can never be "
+             "reconciled afterwards. observed() captures the beat AT THE MOMENT OF LOOKING now. "
+             "⚠⚠ THE CHECK ITSELF WAS WRONG ON THE EXACT CASE IT EXISTS FOR: _shown_panels was "
+             "written against the FLAT beats in live_panel_gate.prove() because those were the "
+             "examples in front of me, while the LIVE panels_of() returns them NESTED — against "
+             "his running console it returned [] and reported AGREES while the beat claimed a "
+             "panel shown at h=1309. Both shapes are asserted. These also pin: a row with NO "
+             "captured beat is UNKNOWN, never agreement (the 13 existing rows can never be "
+             "judged); prose that does not claim blankness is NEEDS-A-READER rather than guessed "
+             "at; a silent console captures NOTHING, since an empty beat would make every future "
+             "observation look agreed-with; and a panel shown at height 0 is not shown. "
+             "6 sabotages, 6 RED."),
     Gate("test_ledger_highwater",
          [sys.executable, os.path.join(HERE, "test_ledger_highwater.py")], 120,
          why="A14 — his ask was \"a counter for chronicles only going up never down\", and a "
