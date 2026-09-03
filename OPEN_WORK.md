@@ -91,7 +91,7 @@ decided BEFORE the type scale and the titles — both grow scrollHeight.
 | CF-9 | the render gate rendered four viewports his console never has; his real one is 1120x628 |
 | CF-10 | the state panel cannot tell a FAULT from a DESIGNED REFUSAL *(in progress — see #59)* |
 | CF-12 | two of thirty-four checks never run unattended, and nothing says so |
-| CF-13 | the scope auditor already names a broken promise and prints it to nobody |
+| ~~CF-13~~ | ✅ **DONE, and it was already done — this row was the stale thing.** Verified end to end 2026-09-03 and photographed on the live console: `scope_reach_state()` returns 4 rows, `heart_state()` carries them, `_hrtReach` renders them, and the section reads **"Promises a lane can still break · 4 · evidence, not a verdict"** with every reach count visible (ledger-backup 6 PERMITTED · shadow-watch 24 · stash-watch 34 · version-drift 72, all TOO BROAD). ⚠ My first grep said the UI rendered nothing — I searched for `scopeReach`/`scope_reach` when the function is `_hrtReach`. The zero was my search terms, not the code. |
 | CF-15 | five suites write live state during a gate run; fix at the seam *(in progress)* |
 
 ### Numbered defects and blocked work
