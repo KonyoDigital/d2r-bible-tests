@@ -329,7 +329,7 @@ frames through the printer, kept the 104 for extra 3D/4D processing, and pruned 
 by template, technique and filter — alone.
 
 ## A5 · THE SURFACE IS KNOWN AT CAPTURE — KEEP IT · 2026-09-01 10:55 · HALVED 2026-09-03
-**Topic:** BACKEND · **Progress:** 0/1 · not started — **the INTAKE half only.**
+**Topic:** BACKEND · **Progress:** ✅ **SHIPPED v2515** — **the INTAKE half only.** `_sighting_loc` has answered *where a name was seen* since v2353 and **nothing kept the answer**: measured on the live store, **0 of 14,034 evidence rows carry a persisted `loc`**, while **39 reels are named and 3 still exist — 92% gone**, so only 25% of rows could ever have it re-derived. Computed, rendered, thrown away. The stamp now runs at evidence-merge time, the last moment the reel is reliably present. ⚠ THE FIGURES BELOW WERE UNDERSTATED — 20/6/70% was the earlier reading; it is 39/3/92% now. ⚠ It cannot recover the past: a row whose reel is gone stays without a loc for ever, which is the 75%. Future loss only.
 ⛔ **THE REVERSE-DERIVATION HALF IS CUT** (his call, 2026-09-03: *"delete it too"*). "Prove it both
 ways" only validates data already captured, and **70% of that film is gone** — 20 reels named in the
 evidence, 6 still on disk. Building a reverse direction to re-check 6 reels is work priced for 20.

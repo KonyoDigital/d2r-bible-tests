@@ -16940,3 +16940,46 @@ exactly those three keys in that insertion order. Replaced with `SOURCES[:1]`, w
 
 4 sabotages, 4 RED — inlining the rule, calling with only the first source, calling with a reach
 missing a source, and forcing an earlier assertion to fail first.
+
+## v2515 — A5: the surface was computed on every read and never once written down
+
+His words: *"the fact was in hand at intake, discarded, and the re-derivation needs footage that no
+longer exists."*
+
+**REG-506 — `_sighting_loc` already answers the question, and nothing kept the answer.** v2353 built
+it to ask the reel timeline where the cursor was when a name was read; the report renders it. It is
+recomputed from scratch on **every read**, from footage that is mostly gone.
+
+**MEASURED on the live store before building anything:**
+
+```
+evidence rows                     14,034
+rows carrying a persisted `loc`        0
+distinct reels named                  39
+reels still on disk                    3     92% GONE
+rows whose frame could be re-read  3,446     only 25%
+```
+
+⚠ **The task's own figures were understated** — TASKS.md said *"20 reels named, 6 exist, 70% gone"*.
+Measured on the current store it is **39 named, 3 alive, 92% gone**, and three quarters of all rows
+can never have their surface re-derived at all.
+
+The stamp now runs at evidence-merge time — the last moment the reel is reliably present.
+
+⚠ **It cannot recover the past and does not pretend to.** A row whose reel is gone stays without a
+loc for ever; that is the 75%. This stops **future** loss only.
+
+⚠ **An UNKNOWN surface is never stamped.** `_sighting_loc` returns None for *not established* — no
+segments for that reel, an unparseable frame name — and **a stored "unknown" is indistinguishable
+from a stored fact the moment the reel is pruned**, which is the exact confusion this task exists
+to end. An existing loc is never overwritten either: the earlier answer was taken closer to the
+capture.
+
+⚠ **One sabotage went GREEN and taught me what the inner handler is really for.** Removing the
+per-sighting `try` left the test passing, because an outer `except` already saves the sweep. What
+changes is **reach**: with only the outer handler the first bad sighting aborts the whole loop, so
+**one unparseable frame name would cost the surface of every name behind it in the same sweep**.
+That case is now its own test.
+
+Guard: `tv/test_sighting_loc_persist.py`, registered (104 gates). **6 sabotages, 6 RED** — including
+the merge calling the stamper *before* the save, since computed-and-not-kept is the defect itself.

@@ -538,6 +538,24 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_sighting_loc_persist",
+         [sys.executable, os.path.join(HERE, "test_sighting_loc_persist.py")], 120,
+         why="A5 — his words: the fact was in hand at intake, discarded, and the re-derivation "
+             "needs footage that no longer exists. _sighting_loc (v2353) ALREADY ANSWERS where a "
+             "name was seen and NOTHING KEPT THE ANSWER: measured on the live store, 0 of 14,034 "
+             "evidence rows carry a persisted loc, while 39 reels are named and 3 still exist "
+             "(92% gone) so only 25% of rows could ever have it re-derived. Computed, rendered, "
+             "and thrown away. The stamp runs at merge time, the last moment the reel is reliably "
+             "present. These pin: a KNOWN surface is written down; an UNKNOWN one is NEVER stamped "
+             "(a stored unknown is indistinguishable from a stored fact once the reel is pruned, "
+             "which is the exact confusion this task exists to end); an existing loc is never "
+             "overwritten, because the earlier answer was taken closer to the capture; a resolver "
+             "failure does not cost the sweep; ONE bad sighting does not skip every sighting "
+             "after it (the outer except already saves the sweep — the inner one is about REACH, "
+             "and removing it left the first test green); and the MERGE actually calls the "
+             "stamper BEFORE the save, since computed-and-not-kept is the defect being fixed. "
+             "⚠ It cannot recover the past and does not pretend to: a row whose reel is gone "
+             "stays without a loc for ever. 6 sabotages, 6 RED."),
     Gate("test_eye_vs_beat", [sys.executable, os.path.join(HERE, "test_eye_vs_beat.py")], 120,
          why="A13 — the half TASKS.md said was unbuilt: an observation with verdict LOOKED that "
              "CONTRADICTS the console-s own beat. On 2026-09-01 the eye reported his webview BLANK "

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2514",
+  "ver": "v2515",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2514: A cold review named the upgrade: capture the arguments on call and assert they match, which proves both that the rule was called and that it was called correctly. Adopted - the patch is a spy recording pool, reach and sources. That closes two of its own other findings at once: an earlier assertion failing no longer satisfies the test, and nothing depends on a fragment of assertion prose. Its claim that a rename breaks the test silently is refuted - unittest raises ValueError at construction. And one of my sabotages went green because the sabotage was identical to the real call, not because the guard was weak.",
+  "note": "v2515: _sighting_loc has answered where a name was seen since v2353 and nothing kept the answer. Measured on the live store: 0 of 14034 evidence rows carry a persisted loc, 39 reels named and 3 still on disk at 92 percent gone, only 25 percent of rows could ever have it re-derived. The task own figures were understated. The stamp now runs at evidence merge time, the last moment the reel is reliably present. It cannot recover the past and does not pretend to. An unknown surface is never stamped because a stored unknown is indistinguishable from a stored fact once the reel is pruned.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2514"   # the join proof now records what the rule was CALLED WITH, not just that something failed
+VERSION = "v2515"   # A5 - the surface was computed on every read and never once written down
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

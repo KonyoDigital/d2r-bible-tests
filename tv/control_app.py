@@ -19657,8 +19657,57 @@ def _chron_evidence_merge(prop):
         merged = _cr.merge_proposals(base, prop or {})
     except Exception:
         return prop or {}
+    _stamp_sighting_locs(merged)
     _chron_evidence_save(merged)
     return merged
+
+
+def _stamp_sighting_locs(merged):
+    """A5 — WRITE THE SURFACE ONTO THE SIGHTING WHILE THE REEL IS STILL HERE. -> int stamped
+
+    His words: *"the fact was in hand at intake, discarded, and the re-derivation needs footage
+    that no longer exists."*
+
+    ⚠⚠ `_sighting_loc` (v2353) ALREADY ANSWERS THIS QUESTION AND NOTHING KEPT THE ANSWER. It asks
+    the reel timeline where the cursor was when a name was read, the report renders it — and it is
+    recomputed from scratch on every read, from footage that is mostly gone. MEASURED on the live
+    store: **0 of 14,034 evidence rows carry a persisted `loc`**, while **39 reels are named and 3
+    still exist — 92% gone**, so only 25% of rows could ever have it re-derived at all. Computed,
+    rendered, and thrown away. [[the-unjoined-end]]
+
+    This stamps the answer at merge time, which is the last moment the reel is reliably present.
+
+    ⚠ IT CANNOT RECOVER THE PAST and does not pretend to: a row whose reel is gone stays without a
+    loc for ever, and that is the 75% his own note is about. This stops future loss only.
+
+    ⚠ AND A LOC IS ONLY WRITTEN WHEN IT IS KNOWN. `_sighting_loc` returns None for "not
+    established" — no segments for that reel, or an unparseable frame name — and None is NEVER
+    stamped. A stored "unknown" would be indistinguishable from a stored fact the moment the reel
+    is pruned, which is the exact confusion this task exists to end. An existing loc is never
+    overwritten either: the earlier answer was taken closer to the capture.
+    [[unknown-stays-unknown]]
+    """
+    stamped = 0
+    try:
+        for _lg, names in (merged or {}).items():
+            if not isinstance(names, dict):
+                continue
+            for _n, sightings in names.items():
+                if not isinstance(sightings, list):
+                    continue
+                for sg in sightings:
+                    if not isinstance(sg, dict) or sg.get("loc"):
+                        continue
+                    try:
+                        loc = _sighting_loc(sg)
+                    except Exception:
+                        loc = None
+                    if loc:
+                        sg["loc"] = loc
+                        stamped += 1
+    except Exception:
+        return stamped
+    return stamped
 
 
 def _chron_fold(prop):
@@ -22184,7 +22233,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2514",
+        "ver": "v2515",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
