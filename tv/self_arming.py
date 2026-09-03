@@ -203,6 +203,16 @@ PROVES = {
     # KIND, not a second helping of the same one. vault.apply carries kinds_bar 1.3 exactly
     # so that one kind cannot open it.
     "vault_live": ("vault.apply",),
+    # A2 step 4 — the deleter. prune_wilson attempts states in which retention_may_act() MUST
+    # refuse: every spelling of OFF (v2082's scar, where only the byte "0" held and every other
+    # spelling armed an unattended deleter), an unconfirmed board world, a world check that
+    # raises, and a drift answer of the wrong shape. It calls exactly one function, whose own
+    # docstring is "Decides; never acts" — there is no path in it that deletes a byte, and
+    # tv/test_prune_wilson.py asserts that from the source.
+    # ⚠ It is declared for prune.arm ONLY, and even a perfect record cannot open that lock:
+    # kinds_bar is 1.8 and sabotage weighs 1.0. The door with no undo does not open on one kind
+    # of look, which is the point of the bar rather than a gap in this harness.
+    "prune_wilson": ("prune.arm",),
 }
 
 

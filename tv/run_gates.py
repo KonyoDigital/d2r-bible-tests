@@ -279,6 +279,15 @@ GATES = [
     # v2466 — the build stamp renders whole. Needs headless Chrome; skips, never passes, without
     # it. `why` IS A KEYWORD.
     # v2469 — the probe primitives. `why` IS A KEYWORD.
+    Gate("test_prune_wilson", [sys.executable, os.path.join(HERE, "test_prune_wilson.py")], 120,
+         why="the harness that sabotages the DELETER must be unable to delete, and must be\n"
+             "able to go RED (A2 step 4). It calls exactly one console function, whose own\n"
+             "docstring is \"Decides; never acts\", and refuses at write time to set\n"
+             "TV_AUTO_PRUNE to anything that is not a spelling of OFF — v2082's scar, where\n"
+             "only the byte \"0\" held and off/false/no/OFF all ARMED an unattended deleter.\n"
+             "⚠ It strips comments before looking for forbidden calls, because prune_wilson's\n"
+             "own docstring NAMES every one of them: a naive grep goes red on the sentence\n"
+             "promising it does not delete."),
     Gate("test_app_ctx_nav", [sys.executable, os.path.join(HERE, "test_app_ctx_nav.py")], 120,
          why="the board hid its own tab row on a URL flag and never checked the flag was "
              "true (REG-443). `?engine=1` is written only by the #tvd-eng iframe, and the "

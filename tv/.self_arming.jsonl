@@ -7,3 +7,7 @@
 {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson", "ref": "anchor", "n": 0, "k": 0, "refused": false, "note": "the tooltip rectangle identifies the cursor it belongs to", "ts": 1788408191409}
 {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson", "ref": "read", "n": 5, "k": 5, "refused": true, "note": "two reads of one frame must agree to be written", "ts": 1788408191409}
 {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson", "ref": "slot", "n": 2, "k": 2, "refused": true, "note": "agreement about the cell is a witness the name cannot fake", "ts": 1788408191409}
+{"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson", "ref": "offspelling", "n": 18, "k": 18, "refused": true, "note": "every spelling of OFF holds the deleter — v2082 matched the byte \"0\" alone and every other spelling armed it", "ts": 1788415060135}
+{"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson", "ref": "worldunknown", "n": 8, "k": 8, "refused": true, "note": "footage is not deleted while the board's world is unconfirmed", "ts": 1788415060135}
+{"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson", "ref": "worldraises", "n": 8, "k": 8, "refused": true, "note": "a world check that cannot answer must refuse, not fail open", "ts": 1788415060136}
+{"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson", "ref": "worldshapeless", "n": 8, "k": 8, "refused": true, "note": "a drift answer of the wrong shape, or missing its state, is not permission", "ts": 1788415060136}
