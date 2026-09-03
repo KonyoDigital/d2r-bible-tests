@@ -48317,7 +48317,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2465', name:'v2465 - THE PRINTER AND THE REELS OPENED THEIR OWN LOCK', date:'2026-09-03', note:'The lock table calls vault sweep start step one the printer and the reels and it sat unproven at n equals zero because nothing was ever permitted to feed it. A harness now attempts the two states the paid door must refuse, a sweep already running which would double spend and no lane to read with which would spend and learn nothing, and counts whether it refused. Sixteen of sixteen refused, wilson zero point eight zero six against a bar of zero point five one, and the lock opened itself. It never starts a sweep: there is no attempt in it whose success path runs.' };
+  window.D2R_BUILD = { id:'v2466', name:'v2466 - A HALF WORD READS AS A BUG', date:'2026-09-03', note:'Two independent cold reads called the build stamp an unintended cut off because it always ended mid word. The cap was deliberate and its rule stands, id and date must survive and the name is decoration, but my version names had grown long enough that the decoration was always half a word. The name is now shown only when it fits, measured after render, and the full name has never left the title.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48397,6 +48397,25 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
     var _shipName = String(window.D2R_BUILD.name || '').replace(/^\s*v\d+(\.\d+)?\s*[-—·:]\s*/i, '');
     el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.date + ' · ' + _shipName;
     document.body.appendChild(el);
+    /* ⚠ v2466 — A HALF-WORD READS AS A BUG EVEN WHEN THE CLIP IS DELIBERATE.
+       v1691.1 decided this cap on purpose and its rule stands: "id + date must survive; the name
+       is the decoration that clips". That rule is right and is NOT being changed here. What
+       changed is that the decoration had grown long enough to always end mid-word — measured on
+       the shipped stamp, 259px of 437 hidden, rendering "v2465 · 2026-09-03 · THE ...".
+       TWO INDEPENDENT COLD READS called exactly that fragment an unintended cut-off, and the
+       second one — on the same screenshots — correctly identified a genuinely deliberate overlay
+       elsewhere as intentional. So it is not an eye that cries bug at everything: this fragment
+       specifically reads as broken.
+       The name is now shown only when it FITS. id and date always survive, which is v1691.1's
+       whole point, and the full name has never left the title. Nothing is hidden that was not
+       already hidden — the difference is that a truncated word no longer looks like a failure.
+       Measured after render, because whether it fits depends on the font the browser actually
+       used, not on a character count. [[visual-regression-detector]] */
+    try {
+      if (el.scrollWidth > el.clientWidth + 1) {
+        el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.date;
+      }
+    } catch (e) {}
     // v708.1 (Grok: 'identity hygiene') — ONE identity source: title + meta follow D2R_BUILD at
     // runtime, so the static tags can lag a ship without the DOM ever split-braining again.
     try {

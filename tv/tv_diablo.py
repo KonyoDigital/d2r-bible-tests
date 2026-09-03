@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2465"   # THE PRINTER AND THE REELS OPENED THEIR OWN LOCK
+VERSION = "v2466"   # A HALF WORD READS AS A BUG
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

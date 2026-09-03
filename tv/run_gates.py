@@ -266,6 +266,18 @@ GATES = [
              "that a banking failure is SAID rather than swallowed, and that banking the same "
              "evidence three times is still one measurement — the gate now runs on every push, so "
              "a non-folding bank would let Wilson climb on repetition alone."),
+    # v2466 — the build stamp renders whole. Needs headless Chrome; skips, never passes, without
+    # it. `why` IS A KEYWORD.
+    Gate("test_build_stamp", [sys.executable, os.path.join(HERE, "test_build_stamp.py")], 240,
+         why="v1691.1 capped this badge deliberately and ruled 'id + date must survive; the name is "
+             "the decoration that clips'. Underneath that rule the version NAMES grew to 45 "
+             "characters in a box fitting 24, so the decoration was ALWAYS cut mid-word — 259px of "
+             "437 hidden. Two independent cold cross-family reads called that fragment an "
+             "unintended cut-off, and the second one had just correctly identified a genuinely "
+             "deliberate overlay elsewhere as intentional, so it distinguishes deliberate from "
+             "broken. Pins the law that whatever the stamp renders it renders WHOLE — dropping the "
+             "decoration is allowed, ending mid-word is not — while protecting v1691.1's actual "
+             "rule that id and date survive and the full note stays one hover away."),
     Gate("test_classify_corroborator",
          [sys.executable, os.path.join(HERE, "test_classify_corroborator.py")], 240,
          why="every member of a roster should classify the same way, and nothing had ever compared "

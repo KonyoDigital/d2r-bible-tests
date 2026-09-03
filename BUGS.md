@@ -15348,3 +15348,28 @@ the sabotage's 0/8, verified at 16/16 after.
 **Still honestly UNPROVEN:** `vault.apply`, `vault.forget` (bar 0.722 each) and `prune.arm` (0.839,
 and it additionally waits on sweep_start AND apply). No sabotage has been attempted against those
 three. That is a missing measurement, not a fault.
+
+## REG-366 — a half-word reads as a bug even when the clip is deliberate (v2466)
+
+Two independent cold cross-family reads, on different screenshots, called the build stamp's ending
+an unintended cut-off: *"v2465 · 2026-09-03 · THE ..."* — *"ends abruptly mid-word ... looks like
+width-capped/truncated label, not deliberate design"*.
+
+**It WAS deliberate.** v1691.1 capped that badge at 180px and ruled *"id + date must survive; the
+name is the decoration that clips"*, and v1748 removed an echo so the clipped part carries
+information. **That rule is right and is not changed here.** What changed underneath it is that my
+version NAMES grew long enough that the decoration always ends mid-word: measured on the shipped
+stamp, **259px of 437 hidden (59%)**, up from 128px.
+
+⚠ **THE SECOND READ IS WHY THIS IS CREDIBLE AND NOT AN EYE THAT CRIES BUG AT EVERYTHING.** On the
+same screenshots it correctly identified a genuinely deliberate overlay elsewhere as *"intentional
+UI behaviour, not a rendering error"* — reversing its own earlier call on that same element, which
+I had refuted by measurement. It distinguishes deliberate from broken; it called this one broken.
+
+**Fix:** the name is shown only when it FITS, measured after render because whether it fits depends
+on the font the browser actually used, not on a character count. id and date always survive, which
+is v1691.1's whole point, and the full name has never left the title.
+**Measured after: `scrollWidth == clientWidth`, nothing clipped, reading `v2465 · 2026-09-03`.**
+
+⚠ **AND THE REAL CAUSE IS MINE, NOT THE CODE'S:** my version names had grown to 45 characters in a
+box that fits about 24. Shorter names are the habit change; this is the guard against the habit.
