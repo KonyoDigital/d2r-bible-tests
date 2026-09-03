@@ -165,7 +165,45 @@ LOCKS = {
     },
 }
 
+#: ⚠⚠ THE ROUTES, ON THE SAME ARITHMETIC. His ruling: "each of the locked routes needs that same
+#: unified logic for wilson score and that same lock/unlock prove themselves style ... and all
+#: connected to the heart of the console obviously".
+#:
+#: A VALVE earns permission to ACT — it deletes footage, it mules items. A ROUTE only REPORTS, so
+#: what it can earn is trust in the NUMBER IT PRINTS, not a licence. Same Wilson lower bound, same
+#: kinds/confluence bars, same self-proving flip with nothing hand-set; the earned word is PROVEN
+#: rather than OPEN. Keeping them in ONE table and ONE score() is the whole point — a second
+#: implementation of this arithmetic would drift from the first within a week. [[copy-drift]]
+#:
+#: The bars are LOWER than a valve's on purpose: being wrong about a printed number is recoverable
+#: and being wrong about the deleter is not. One kind of look is enough to trust a count.
+ROUTES = {}
+for _set, _keys in (("chronicle", ("runeword", "set", "unique")),
+                    ("fleet", ("runewords", "sets", "uniques")),
+                    ("roster", ("runeword", "set", "unique"))):
+    for _k in _keys:
+        ROUTES["%s.%s" % (_set, _k)] = {
+            "surface": _set.upper(),
+            "acts": "reports the %s count on the %s route" % (_k, _set),
+            "bar": 0.510, "kinds_bar": 1.0, "after": [],
+        }
+
 # the four states, and they are four on purpose
+#: ⚠⚠ A TIER ABOVE MERELY-PROVEN. His ruling: "is there a way for the confluence there to like
+#: surpass the defaulted or standard proven state ... is there a HARD MODE for this".
+#:
+#: Clearing a bar is a floor, not a ceiling, and a surface that stops at the floor looks identical
+#: to one that could not do better. HARDENED is what a surface earns by continuing: a much higher
+#: Wilson lower bound AND evidence from genuinely INDEPENDENT kinds. The confluence axis is the
+#: one that matters here — Wilson counts how many looks agreed, never whether they were the same
+#: look repeated, so more attempts of one kind can reach 0.95 while proving only that one
+#: instrument keeps agreeing with itself. The maximum confluence is 3.40 (all five kinds).
+#:
+#: It is EARNED the same way everything else here is: derived from the ledger, never assigned.
+HARD_BAR = 0.900        #: the Wilson lower bound a HARDENED surface must clear
+HARD_KINDS_BAR = 2.50   #: needs three genuinely different kinds — e.g. sabotage+cross-family+live
+
+HARDENED = "HARDENED"
 OPEN = "OPEN"
 LOCKED = "LOCKED"          # proven, and it did not clear the bar
 UNPROVEN = "UNPROVEN"      # n == 0 — nobody has tested it. NOT a failure, NOT a score.
@@ -232,6 +270,12 @@ PROVES = {
     # kinds_bar is 1.8 and sabotage weighs 1.0. The door with no undo does not open on one kind
     # of look, which is the point of the bar rather than a gap in this harness.
     "prune_wilson": ("prune.arm",),
+    # ⚠ THE ROUTES. route_wilson removes what each lane CLAIMS TO HAVE FOUND — deletes the
+    # artifact, deletes bible.html, blanks every mention of the roster stem, removes the file a
+    # lane names — and counts whether the lane noticed. A lane that still says ok with its
+    # evidence gone was decorative. It proves ONLY the routes, never a valve: evidence about a
+    # thing that reports may not open a door that acts.
+    "route_wilson": tuple(sorted(ROUTES)),
 }
 
 
@@ -248,8 +292,8 @@ def bank(lock, kind, src, n, k, note="", ref=""):
       · a lock that is not declared -> refuse
     [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
     """
-    if lock not in LOCKS:
-        raise ValueError("no such lock is declared: %r" % (lock,))
+    if lock not in LOCKS and lock not in ROUTES:
+        raise ValueError("no such lock or route is declared: %r" % (lock,))
     allowed = PROVES.get(str(src))
     if allowed is None:
         raise ValueError("%r is not a declared evidence source. Add it to PROVES and say what its "
@@ -339,7 +383,8 @@ def score(lock, rows=None):
     Never returns a wilson figure when n == 0. `wilson: None` means nobody looked; `0.0` would be
     a measurement nobody took. [[unknown-stays-unknown]]
     """
-    spec = LOCKS.get(lock)
+    # a route scores on the SAME arithmetic as a valve — one table lookup, one score()
+    spec = LOCKS.get(lock) or ROUTES.get(lock)
     if not spec:
         return {"lock": lock, "state": UNKNOWN, "why": "no such lock is declared"}
     if rows is None:
@@ -379,6 +424,10 @@ def score(lock, rows=None):
         return out
     w = wilson_lower(k, n)
     out["wilson"] = round(w, 4)
+    # the tier above the bar — reported on every row so a surface can show how far past it is
+    out["hardBar"] = HARD_BAR
+    out["hardKindsBar"] = HARD_KINDS_BAR
+    out["hardened"] = bool(w >= HARD_BAR and conf >= HARD_KINDS_BAR)
     if w < spec["bar"]:
         out["state"] = LOCKED
         out["why"] = ("%d of %d sabotages were refused; the Wilson lower bound is %.3f against a "
@@ -389,7 +438,11 @@ def score(lock, rows=None):
                       "against %.2f. Wilson counts how many looks agreed, never whether they were "
                       "independent." % (w, kinds or "[]", conf, spec["kinds_bar"]))
     else:
-        out["state"] = OPEN
+        # ⚠ THE LADDER, NOT A BOOLEAN. "Wilson score" here is his nickname for the WHOLE standard
+        # — the lower bound AND the confluence — so the tier above the bar is a real STATE that
+        # every surface can reach, not a flag riding alongside OPEN. Clearing the bar is the floor;
+        # HARDENED says a surface kept going and did it with independent kinds.
+        out["state"] = HARDENED if out.get("hardened") else OPEN
         out["why"] = ("%d of %d sabotages refused · wilson %.3f >= %.3f · kinds %s = %.2f >= %.2f"
                       % (k, n, w, spec["bar"], kinds, conf, spec["kinds_bar"]))
     return out
@@ -401,7 +454,8 @@ def may(lock):
     THE ORDER IS CHECKED FIRST. A lock late in his chain reports its blocked prerequisite rather
     than its own score, so a high number is never mistaken for "nearly there".
     """
-    spec = LOCKS.get(lock)
+    # a route scores on the SAME arithmetic as a valve — one table lookup, one score()
+    spec = LOCKS.get(lock) or ROUTES.get(lock)
     if not spec:
         return False, "no such lock is declared — an undeclared surface is never permitted"
     rows, why = _rows()
@@ -409,11 +463,12 @@ def may(lock):
         return False, "UNKNOWN: %s. An unreadable proof queue fails CLOSED." % why
     for pre in spec["after"]:
         s = score(pre, rows)
-        if s.get("state") != OPEN:
+        if s.get("state") not in (OPEN, HARDENED):
             return False, ("blocked upstream: %s is %s — %s. Proving this surface in isolation "
                            "proves nothing about what feeds it." % (pre, s.get("state"), s.get("why")))
     s = score(lock, rows)
-    return (s.get("state") == OPEN), s.get("why")
+    # HARDENED is strictly stronger than OPEN — a surface that exceeded the bar may certainly act
+    return (s.get("state") in (OPEN, HARDENED)), s.get("why")
 
 
 def report():
@@ -422,9 +477,16 @@ def report():
     if rows is None:
         return {"ok": False, "why": why,
                 "locks": [{"lock": k, "state": UNKNOWN, "why": why} for k in sorted(LOCKS)]}
+    # ⚠ ROUTES RIDE THE SAME REPORT, not a second one. The heart reads ONE self_arming.report(),
+    # so a route appears beside the valves in the same four words and the corroborator sees them
+    # as siblings — which is what he asked for: "all connected to the heart of the console
+    # obviously.. so its all communicating and intertwined and integrated together properly".
     out = [score(k, rows) for k in sorted(LOCKS)]
+    out += [dict(score(k, rows), kind="route") for k in sorted(ROUTES)]
     return {"ok": True, "locks": out,
-            "open": len([x for x in out if x.get("state") == OPEN]), "total": len(out)}
+            "open": len([x for x in out if x.get("state") in (OPEN, HARDENED)]),
+            "hardened": len([x for x in out if x.get("state") == HARDENED]),
+            "total": len(out)}
 
 
 def main(argv):

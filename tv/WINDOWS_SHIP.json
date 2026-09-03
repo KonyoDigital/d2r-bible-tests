@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2486",
+  "ver": "v2487",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2486: Routine M went red - the swallow ratchet may only fall and had gone 74 to 77. My first diagnosis was wrong and the fix changed nothing: I assumed the three were cache-key handlers I had just added, and the count stayed at 77. Asking the census WHICH sites took one command. The real three: two modules turned an unreadable control_ui.html into an empty string, so the lane reported that the screen declares no unit when the truth was that the file could not be opened; and render_check recorded an unparseable width as zero found, into the very map that becomes the coverage floor - so it could have lowered its own ratchet.",
+  "note": "v2487: tv/route_wilson.py removes what each lane claims to have found and counts whether it noticed. Nine routes registered in the same self_arming table, same score, same ledger, declared in PROVES. HARD MODE leaves the evidence in place and breaks its meaning, and it found two real defects easy mode called perfect: source only checked that bible.html EXISTS so a zero-byte file read as healthy, and declared matched an emptied declaration and a name left in a comment. After both fixes 48 of 48 refused. Plus HARDENED, a real state above the bar needing wilson 0.90 and confluence 2.50 - nothing has reached it, and miniauto.run shows why: 55 of 55 refused and all 55 are one instrument agreeing with itself.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

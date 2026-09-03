@@ -15271,10 +15271,26 @@ def _self_arming_state():
     except Exception as e:
         return {"ok": False, "open": 0, "total": 0, "locks": [],
                 "why": "the locks could not be read (%s) — everything stays LOCKED" % str(e)[:90]}
-    locks = rep.get("locks") or []
+    # ⚠⚠ A ROUTE IS NOT A VALVE, AND THE WORD MUST NOT SAY IT IS. Since v2487 the same report
+    # carries both: five VALVES that earn permission to ACT, and nine ROUTES that earn trust in
+    # the NUMBER THEY PRINT. One table, one score(), one report — that is the unified logic he
+    # asked for — but "OPEN" is a door's word and a route has no door. The surface picks the verb:
+    # PROVEN / ASSERTED for routes, OPEN / LOCKED for valves. Mapping it HERE rather than in
+    # self_arming keeps the arithmetic single and the vocabulary per-surface. [[copy-drift]]
+    _all = rep.get("locks") or []
+    locks = [l for l in _all if l.get("kind") != "route"]
+    routes = [l for l in _all if l.get("kind") == "route"]
+    _WORD = {"OPEN": "PROVEN", "LOCKED": "ASSERTED", "UNPROVEN": "UNPROVEN",
+             "UNKNOWN": "UNKNOWN", "INERT": "INERT"}
     return {
         "ok": bool(rep.get("ok")),
-        "open": rep.get("open", 0), "total": rep.get("total", len(locks)),
+        "open": sum(1 for l in locks if l.get("state") == "OPEN"), "total": len(locks),
+        "routesProven": sum(1 for r in routes if r.get("state") == "OPEN"),
+        "routesTotal": len(routes),
+        "routes": [{"lock": r.get("lock"), "surface": r.get("surface"), "acts": r.get("acts"),
+                    "state": _WORD.get(r.get("state"), r.get("state")),
+                    "why": r.get("why"), "score": r.get("wilson"), "bar": r.get("bar"),
+                    "k": r.get("k"), "n": r.get("n")} for r in routes],
         "why": rep.get("why", ""),
         # trimmed for a poll: the badge needs state + why + the arithmetic, not the whole row
         "locks": [{"lock": l.get("lock"), "surface": l.get("surface"), "acts": l.get("acts"),
@@ -15359,6 +15375,10 @@ def heart_state(force=False):
         "notVessels": rep.get("notVessels"),
         "vessels": rep.get("vessels") or [],
         "locks": locks.get("locks") or [],
+        # v2487 — THE ROUTES, on the same heart, from the same report. Nine of them, each earning
+        # trust in the number it prints the way a valve earns permission to act.
+        "routes": locks.get("routes") or [],
+        "routesProven": locks.get("routesProven"), "routesTotal": locks.get("routesTotal"),
         "locksOk": bool(locks.get("ok")),
         "locksWhy": locks.get("why", ""),
         "open": locks.get("open"), "total": locks.get("total"),
@@ -22136,7 +22156,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2486",
+        "ver": "v2487",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

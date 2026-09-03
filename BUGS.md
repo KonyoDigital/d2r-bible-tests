@@ -15932,3 +15932,50 @@ rewritten to make this pass.
 ⚠ Worth naming: the census says in its own output that RANK 1 is *a shape, not a defect count* and
 that a hand-read of a sample graded most sites as non-defects. All three of these were real, but
 that is a fact about these three — not a reason to trust the shape next time.
+
+## v2487 — the twelve routes prove themselves, on the same arithmetic as the valves
+
+His ruling: *"each of the locked routes needs that same unified logic for wilson score and that same
+lock/unlock prove themselves style"*, *"all connected to the heart of the console obviously"*, and
+then *"is there a way to make it HARD MODE"*.
+
+**`tv/route_wilson.py`** — a route's guard IS its lane detection: every lane says
+`{"ok": true, "by": [what it found]}`, so the sabotage writes itself. **Remove what the lane claims
+to have found and see whether it still says ok.** Every attempt physically edits a real copy made
+with `safe_copy.py`, the route module is RUN out of that copy in a subprocess, and the recorded
+outcome is whatever the lane actually returned. Nothing is predicted.
+
+**ONE vocabulary.** The 9 routes are registered in `self_arming.ROUTES`, scored by the same
+`score()`, banked to the same ledger folded on `lock+kind+src`, and declared in `PROVES` so no other
+source can bank for a route. A VALVE earns permission to ACT; a ROUTE earns trust in the NUMBER IT
+PRINTS — so the surface prints PROVEN/ASSERTED over one arithmetic, never a second implementation.
+
+**HARD MODE found two real defects that easy mode called perfect.** Gross removals (delete the file,
+rename the symbol) scored 33/33 — a weak fact, because it only says the lanes catch the obvious.
+Hard mode leaves the evidence in place and breaks its MEANING:
+
+- **REG-460 — `source` was `bool(os.path.isfile(BIBLE))`.** A `bible.html` **emptied to zero bytes**
+  read as a perfectly healthy source on all three chronicle routes. A file being emptied or
+  truncated is far commoner than one being deleted, so the lane was blind to the failure it is most
+  likely to meet. It now asks whether the source still carries the declaration it is generated from.
+- **REG-461 — `declared` matched a declaration that declares nothing.** `const ITEM_VALUE = []`,
+  body emptied and the declaration line byte-identical, still read as DECLARED; so did a name
+  surviving only inside a COMMENT. A match now needs a non-empty body and must not be in a comment.
+
+After both fixes: **48 of 48 attempts refused across 9 routes**, all nine PROVEN.
+
+**HARDENED — a tier above the bar**, his ask that confluence "surpass the standard proven state".
+A real state, not a flag: `wilson ≥ 0.900` AND `confluence ≥ 2.50`, which needs three genuinely
+independent kinds. `may()` treats it as strictly stronger than OPEN. **Nothing is HARDENED yet, and
+`miniauto.run` shows why the confluence axis is the right one — 55 of 55 refused and it still cannot
+harden, because all 55 are one instrument agreeing with itself.**
+
+⚠ **THE HARNESS WAS PROVEN ABLE TO REPORT A LEAK BEFORE ITS SCORE WAS BELIEVED.** A planted
+always-ok lane was caught, exit 1. Without that, 48/48 would be the green that lies.
+
+⚠ **AND IT MADE FOUR INSTRUMENT ERRORS, EVERY ONE CORRECTED BEFORE REPORTING.** It attempted only
+the 3 chronicle routes and printed a perfect score for the third of the work it understood; it
+sabotaged a FILENAME as if it were a symbol and manufactured 12 false leaks; and twice it removed
+one of several declarations and called the survivor a leak. Each was found by asking the code rather
+than trusting the count. **A defect count from a harness that has not been checked against itself is
+not a measurement.**

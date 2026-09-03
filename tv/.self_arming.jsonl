@@ -11,3 +11,21 @@
 {"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson", "ref": "worldunknown", "n": 8, "k": 8, "refused": true, "note": "footage is not deleted while the board's world is unconfirmed", "ts": 1788415060135}
 {"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson", "ref": "worldraises", "n": 8, "k": 8, "refused": true, "note": "a world check that cannot answer must refuse, not fail open", "ts": 1788415060136}
 {"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson", "ref": "worldshapeless", "n": 8, "k": 8, "refused": true, "note": "a drift answer of the wrong shape, or missing its state, is not permission", "ts": 1788415060136}
+{"lock": "chronicle.runeword", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399884}
+{"lock": "chronicle.set", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399884}
+{"lock": "chronicle.unique", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399884}
+{"lock": "fleet.runewords", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 3, "k": 3, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399885}
+{"lock": "fleet.sets", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 3, "k": 3, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399885}
+{"lock": "fleet.uniques", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 3, "k": 3, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399885}
+{"lock": "roster.runeword", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399885}
+{"lock": "roster.set", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399885}
+{"lock": "roster.unique", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788437399885}
+{"lock": "chronicle.runeword", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 5, "k": 5, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371628}
+{"lock": "chronicle.set", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 5, "k": 5, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371628}
+{"lock": "chronicle.unique", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 5, "k": 5, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371628}
+{"lock": "fleet.runewords", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371628}
+{"lock": "fleet.sets", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371628}
+{"lock": "fleet.uniques", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 4, "k": 4, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371629}
+{"lock": "roster.runeword", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 7, "k": 7, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371629}
+{"lock": "roster.set", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 7, "k": 7, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371629}
+{"lock": "roster.unique", "kind": "sabotage", "src": "route_wilson", "ref": "", "n": 7, "k": 7, "refused": true, "note": "removed what each lane claims to have found", "ts": 1788438371629}

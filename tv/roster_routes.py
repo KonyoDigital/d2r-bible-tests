@@ -137,13 +137,60 @@ def _declared(bible, key):
     pats = _decl_patterns(key)
     if not pats:
         return None                     # no generator to ask — UNKNOWN, never False
+    # ⚠⚠ A DECLARATION THAT DECLARES NOTHING IS NOT A CATALOG, AND HARD MODE PROVED IT. This
+    # returned True on the first pattern that matched anywhere — so `const ITEM_VALUE = []`, with
+    # the body emptied and the declaration line byte-identical, still read as DECLARED. So did a
+    # name left behind in a COMMENT after the code was removed. Measured by tv/route_wilson.py,
+    # which leaves the evidence in place and breaks its meaning; both are commoner in real life
+    # than a declaration being deleted outright.
+    #
+    # A match now has to be followed by a body with something in it, and it may not be inside a
+    # comment. Anything this cannot judge stays UNKNOWN rather than being counted either way.
+    # [[unknown-stays-unknown]]
     for p in pats:
         try:
-            if re.search(p, bible):
-                return True
+            m = re.search(p, bible)
         except re.error:
             return None
+        if not m:
+            continue
+        if _in_comment(bible, m.start()):
+            continue                    # the name survives, the code does not
+        if _has_body(bible, m.end()):
+            return True
     return False
+
+
+def _in_comment(src, pos):
+    """Is this offset inside a // or /* */ comment? -> bool"""
+    line_start = src.rfind("\n", 0, pos) + 1
+    line = src[line_start:pos]
+    if "//" in line:
+        return True
+    open_block = src.rfind("/*", 0, pos)
+    if open_block != -1 and src.find("*/", open_block) > pos:
+        return True
+    return False
+
+
+def _has_body(src, pos):
+    """After a declaration match, is there a NON-EMPTY [ ... ] or { ... }? -> bool
+
+    `const X = []` and `const X = {}` are declarations of nothing. They satisfy every pattern that
+    looks for the declaration line, which is exactly how an emptied catalog read as present.
+    """
+    i = pos
+    n = len(src)
+    while i < n and src[i] in " \t\r\n=":
+        i += 1
+    if i >= n or src[i] not in "[{":
+        return True          # not a bracketed catalog — nothing to judge, do not invent a failure
+    opench = src[i]
+    closech = "]" if opench == "[" else "}"
+    j = i + 1
+    while j < n and src[j] in " \t\r\n":
+        j += 1
+    return j < n and src[j] != closech
 
 
 def _defined_getters(bible):

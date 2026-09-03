@@ -108,6 +108,29 @@ def _routes_on_disk():
     return out
 
 
+#: What each chronicle's source must still declare for `source` to mean anything. Kept beside the
+#: lane it serves; a route with no entry gets the honest existence-only answer and says so.
+_SOURCE_TOKENS = {
+    "runeword": ("const RUNEWORDS",),
+    "set": ("ITEM_SETS", "SET_PIECES_EXTRA"),
+    "unique": ("ITEM_VALUE",),
+}
+
+
+def _source_ok(key):
+    """Does bible.html still CARRY this chronicle's source, not merely exist? -> bool | None"""
+    if not os.path.isfile(BIBLE):
+        return False
+    toks = _SOURCE_TOKENS.get(key)
+    if not toks:
+        return None          # no token declared for this route — UNKNOWN, never a bare True
+    try:
+        s = io.open(BIBLE, encoding="utf-8", errors="replace").read()
+    except Exception:
+        return None          # unreadable is UNKNOWN, not absent
+    return any(t in s for t in toks)
+
+
 def _artifact_lane(fn):
     """The roster itself: does it exist, what does it hold, what does it claim about its source."""
     path = os.path.join(HERE, fn)
@@ -454,7 +477,14 @@ def routes():
         res = _mentions(files, stem)
 
         lanes = {
-            "source": {"ok": bool(os.path.isfile(BIBLE)), "by": ["bible.html"]},
+            # ⚠⚠ EXISTENCE IS NOT CONTENT, AND HARD MODE PROVED IT. This was
+            # `bool(os.path.isfile(BIBLE))`, so a bible.html EMPTIED TO ZERO BYTES read as a
+            # perfectly healthy source on all three chronicle routes — measured by
+            # tv/route_wilson.py, which leaves the file in place and removes what is inside it.
+            # A file getting emptied or truncated is far commoner than a file being deleted, so
+            # this lane was blind to the failure it is most likely to meet. It now asks whether
+            # the source still carries the declaration this route is generated FROM.
+            "source": {"ok": _source_ok(key), "by": ["bible.html"]},
             "generator": {"ok": bool(gen), "by": gen},
             "artifact": {"ok": art["ok"], "by": [fn], "count": art["count"],
                          "stamp": (art["stamp"] or "")[:12] or None},
