@@ -257,9 +257,16 @@ def _live_names(by_source=None):
             if isinstance(r, dict):
                 src_heart |= _keep([r.get("lock")])
 
-    seen["organ_matrix.surfaces"] = len(src_surfaces)
-    seen["organ_matrix.organ_coverage"] = len(src_coverage)
-    seen["heart.vessels"] = len(src_heart)
+    # ⚠⚠ THE SETS, NOT THE COUNTS — because counts cannot be reconciled against the pool. A cold
+    # review found the hole in v2504's own fix: the undeclared/unrecorded pair compares KEYS, so a
+    # fourth source that CONTRIBUTES NAMES and records nothing is invisible to both assertions.
+    # Confirmed by construction: undeclared=[] unrecorded=[] and both pass, while the pool carries
+    # a name no recorded source accounts for. Recording the sets lets the caller assert the pool
+    # IS exactly what the declared sources supplied — a silent contributor then breaks equality
+    # rather than hiding in it. [[the-unjoined-end]]
+    seen["organ_matrix.surfaces"] = src_surfaces
+    seen["organ_matrix.organ_coverage"] = src_coverage
+    seen["heart.vessels"] = src_heart
     return src_surfaces | src_coverage | src_heart
 
 
@@ -298,6 +305,36 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             "_keep_names kept padding or a blank: %r. A padded name collides with its own trimmed "
             "form under _shape and reads as an unreviewed merge." % (sorted(got),))
 
+    def test_an_unaskable_organ_does_not_crash_the_census(self):
+        """⚠ REFUTES a cold review that called the `if names:` guard a no-op.
+
+        Its claim: "_keep already returns an empty set on any falsy or empty names, so the guard
+        merely skips a no-op." It does not — `_keep_names(None)` raises TypeError, and
+        `organ_matrix.organ_coverage()` returns `(None, why)` for an organ that CANNOT BE ASKED.
+        Today every organ answers with a set, so removing the guard leaves the census green — the
+        guard protects a state his tree does not currently produce, which is exactly when a guard
+        stops being exercised and starts being deleted by someone tidying up.
+        """
+        with self.assertRaises(TypeError):
+            _keep_names(None)
+        self.assertEqual(_keep_names([]), set(),
+                         "an EMPTY list is a different input from None and must not raise")
+
+    def test_a_source_recording_an_EMPTY_contribution_is_still_dead(self):
+        """The `dead` check earns its place only if a present-but-empty entry fails.
+
+        A source that records nothing at all is caught by the unrecorded assertion. A source that
+        records an EMPTY SET is not — its key is present — and that is precisely the shape the
+        heart source had for its whole existence: reachable, recorded, and contributing zero.
+        """
+        reach = {s: {"x"} for s in SOURCES}
+        reach[SOURCES[-1]] = set()
+        dead = sorted(s for s in SOURCES if not reach.get(s))
+        self.assertEqual(
+            dead, [SOURCES[-1]],
+            "a source recording an EMPTY contribution was not reported dead. Its key is present, "
+            "so the unrecorded assertion passes it, and nothing else would notice.")
+
     def test_no_unreviewed_shape_collision_has_appeared(self):
         reach = {}
         pool = _live_names(reach)
@@ -322,6 +359,19 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
         # this file's own defect one level up — SOURCES is a promise about reach, and a promise
         # nothing checks is how the heart source sat dead behind a hasattr guard in the first
         # place. [[the-unjoined-end]]
+        # ⚠ AND THE POOL MUST BE EXACTLY WHAT THE DECLARED SOURCES SUPPLIED. The key comparison
+        # below catches a source declared-but-not-read and read-but-not-declared; it cannot catch
+        # a source that quietly adds names and records nothing, which is the same silence the
+        # heart source sat in behind its hasattr guard.
+        accounted = set()
+        for v in reach.values():
+            accounted |= set(v)
+        orphan = sorted(pool - accounted)
+        self.assertFalse(
+            orphan,
+            "%d name(s) are in the pool that NO declared source accounts for: %s. Something is "
+            "contributing to this census without recording that it did, so it can go dead and the "
+            "reach check will not notice." % (len(orphan), orphan[:5]))
         undeclared = sorted(set(reach) - set(SOURCES))
         unrecorded = sorted(set(SOURCES) - set(reach))
         self.assertFalse(
@@ -334,7 +384,7 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             "SOURCES declares source(s) that _live_names() never records: %s. The reach check "
             "would read them as 0 and fail forever, or worse, be quietly relaxed to accommodate "
             "them." % unrecorded)
-        dead = sorted(s for s in SOURCES if reach.get(s, 0) <= 0)
+        dead = sorted(s for s in SOURCES if not reach.get(s))
         self.assertFalse(
             dead,
             "%d source(s) contributed NOTHING to this census: %s. That is not a smaller pool, it "

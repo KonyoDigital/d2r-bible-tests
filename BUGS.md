@@ -16629,3 +16629,35 @@ and recording a question nobody put as a "no" invents an answer.
 Guard: `tv/test_reel_river.py`, registered (100 gates), subjects constructed. **5 sabotages, 5
 RED**, including the baseline that keeps `gaps` reachable at all — without it, "0 gaps" would be
 true of every possible input.
+
+## v2506 — the fix I shipped one version ago did not close the hole it was written for
+
+**REG-491 — v2504's undeclared/unrecorded pair compares KEYS, so a source that contributes names
+and records nothing is invisible to both.** A cold review of that very fix: *"It does not catch it.
+A fourth source can be added that contributes names to the final union but never writes anything
+into `reach`. Both assertions only look at keys that were recorded."*
+
+**Confirmed by construction:** `undeclared=[]`, `unrecorded=[]`, both assertions pass, and the pool
+carries a name no recorded source accounts for. That is the same silence the `heart` source sat in
+behind its `hasattr` guard — a contributor nothing was watching.
+
+The sources now record their **sets**, not counts, and the pool must equal the union of what the
+declared sources supplied. A silent contributor breaks that equality instead of hiding in it.
+
+⚠ **REFUTED WITH THE INTERPRETER:** it called the `if names:` guard a no-op — *"`_keep` already
+returns an empty set on any falsy or empty names"*. It does not: `_keep_names(None)` raises
+TypeError, and `organ_coverage()` returns `(None, why)` for an organ that **cannot be asked**, so
+the guard prevents a crash. ⚠ But removing it leaves the census **green** today, because every
+organ currently answers with a set — the guard protects a state his tree does not produce, which
+is exactly when one gets tidied away by someone cleaning up. Pinned by its own test now.
+
+⚠ **And one more found while acting on it:** a source recording an **empty set** is not caught by
+the unrecorded assertion, since its key is present — precisely the shape `heart` had for its whole
+existence: reachable, recorded, contributing zero. The `dead` check only earns its place if that
+fails, so that is its own test now.
+
+Three of its answers were **confirmations** and are recorded as such rather than dropped: the
+filter and the stored value cannot disagree, and the pool is exactly the union of the recorded
+sets.
+
+4 sabotages, 4 RED.

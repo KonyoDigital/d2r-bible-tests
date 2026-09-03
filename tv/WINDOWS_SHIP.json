@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2505",
+  "ver": "v2506",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2505: Walking the river found 12 reels reporting RELEASABLE while frame_authority refused every seal on the tree, which reads exactly like a defect and is not one - reel_retention settled it in v2314, two authorities at two granularities answering different questions, and the attempt to collapse them was withdrawn because it would have stopped the prune firing on every existing reel. That is the actual gap A10 names: both numbers right, different questions, and nothing on any screen saying so. reel_river walks each reel and names the decider and the question for every stage. A gap is two deciders answering the SAME question differently.",
+  "note": "v2506: v2504 added undeclared and unrecorded assertions so a fourth census source could not be added without being declared. A cold review found they compare KEYS only, so a source that contributes names and records nothing is invisible to both - confirmed by construction, both pass while the pool carries a name no recorded source accounts for. The sources record their sets now and the pool must equal the union of what the declared sources supplied. Also refuted its claim that the if-names guard is a no-op, with the interpreter.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
