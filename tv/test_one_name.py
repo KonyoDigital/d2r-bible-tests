@@ -210,6 +210,11 @@ def _keep_names(names):
     return {str(n).strip() for n in names if str(n or "").strip()}
 
 
+#: ⚠ NOT None. A spy that reports "I could not take this reading" with the same value the subject
+#: might legitimately have passed cannot tell a broken instrument from a real defect.
+_UNSNAPPABLE = object()
+
+
 def _orphan_names(pool, reach, sources):
     """Names in the pool that no DECLARED source accounts for. -> sorted list
 
@@ -412,13 +417,26 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                 # An instrument that can break the measurement reports its own failure as the
                 # subject's. Snapshot defensively; a snapshot that could not be taken is recorded
                 # as None rather than raising. [[feedback-suspect-the-instrument]]
+                # ⚠⚠ A DISTINCT SENTINEL, BECAUSE None MEANT TWO OPPOSITE THINGS. v2518 recorded
+                # None when a conversion failed — and None is also a value the census could
+                # legitimately pass. A cold review: "the assertion cannot distinguish 'spy failed
+                # to snapshot' from 'the code under test passed None'", and the message blamed THE
+                # SPY either way, misattributing a real defect to the instrument. Two meanings on
+                # one value, in the fix written to stop exactly that. [[unknown-stays-unknown]]
                 def _snap(fn, x):
                     try:
                         return fn(x)
                     except Exception:
-                        return None
+                        return _UNSNAPPABLE
+                # ⚠⚠ KEEP THE RAW VALUE BESIDE THE SNAPSHOT. A sentinel alone did NOT separate
+                # the two cases — it moved the conflation: when the census passed None, `set(None)`
+                # raised INSIDE the spy, so the failure was recorded as "the spy could not take
+                # this reading" and the message blamed the instrument for a defect in the CALL.
+                # Proven by sabotage: passing None or a non-mapping produced the wrong accusation.
+                # The raw value is what says which of the two it is.
                 calls.append({"pool": _snap(set, pool), "reach": _snap(dict, reach),
-                              "sources": _snap(tuple, sources)})
+                              "sources": _snap(tuple, sources),
+                              "raw": {"pool": pool, "reach": reach, "sources": sources}})
                 return ["sentinel-orphan"]
             globals()["_orphan_names"] = _spy
             case = TheShapeRuleDoesNotQuietlyMergeThings(
@@ -455,29 +473,25 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             len(calls), 1,
             "the orphan rule was called %d times; the census should ask once" % len(calls))
         got = calls[0]
-        # ⚠⚠ THE SNAPSHOT MUST BE CHECKED BEFORE ITS CONTENTS, AND v2516 MADE THE SPY DEFENSIVE
-        # WITHOUT HANDLING WHAT IT NOW RETURNS. A cold review traced all three:
-        #   sources None -> `set(None or ())` is set(), so the assertion fails claiming the
-        #                   sources were empty — a SNAPSHOT failure reported as a defect in the
-        #                   code under test, with a message that says nothing about it
-        #   pool    None -> falsy, so it fails identically to "called with an empty pool"
-        #   reach   None -> `set(None)` RAISES TypeError, crashing this test outright
-        # Fixing the spy so it cannot raise, and then letting its None crash the assertions, is
-        # fixing one end of a wire. An instrument that cannot take its reading says so IN THOSE
-        # WORDS. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+        # ⚠ THE CALL IS JUDGED ON THE RAW VALUE, THE INSTRUMENT ON THE SNAPSHOT. Judging both on
+        # the snapshot blames whichever one the reader happens to assume.
+        _raw = got["raw"]
+        _contract = (("pool", (set, frozenset, list, tuple)),
+                     ("reach", dict),
+                     ("sources", (list, tuple, set, frozenset)))
+        for _k, _ty in _contract:
+            self.assertIsInstance(
+                _raw[_k], _ty,
+                "the census called the rule with %s=%r. That is a defect in THE CALL, not in this "
+                "instrument — the rule iterates it and would misbehave." % (_k, _raw[_k]))
         for _k in ("pool", "reach", "sources"):
-            self.assertIsNotNone(
-                got[_k], "THE SPY could not snapshot %r. That is a failure of this instrument, "
-                         "not evidence about the census — and reported as anything else it would "
-                         "read as the code under test being wrong." % _k)
-        # ⚠ CONTENT, NOT ORDER. Same review: comparing tuples "asserts an ordering guarantee the
-        # helper does not need to provide" — the rule iterates `sources` and unions, so order is
-        # meaningless to it. An ordered comparison would break the day someone sorts SOURCES, and
-        # a guard that fails for a reason that is not a defect gets loosened rather than read.
-        # The real detection survives: SOURCES[:1] still differs as a SET, and that sabotage is
-        # what this assertion is for.
+            self.assertIsNot(
+                got[_k], _UNSNAPPABLE,
+                "THE SPY could not snapshot %r even though the call passed a %s. That is a failure "
+                "of this instrument, and reported as anything else it would read as the code under "
+                "test being wrong." % (_k, type(_raw[_k]).__name__))
         self.assertEqual(
-            set(got["sources"] or ()), set(SOURCES),
+            set(got["sources"]), set(SOURCES),
             "the rule was called with %r instead of the declared SOURCES. Called with the wrong "
             "list, it would account for names no declared source supplied." % (got["sources"],))
         self.assertTrue(

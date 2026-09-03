@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2519",
+  "ver": "v2520",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2519: v2517 said the prefix bridge was necessary and not sufficient. This measures what refuses next. lane_at asks which segment contains the moment, and segments are the instants of reads rather than the intervals between them - measured on one session, 14231 ms covered across a 404296 ms span, 3.52 percent, and 13 of 483 frames fall inside a segment. Store-wide, 8748 of 10101 lookups now FIND their segments and still cannot answer. Widening this to the nearest read would make provenance a guess and it feeds a door that refuses vault claims, so it is put to him rather than changed underneath him.",
+  "note": "v2520: A cold review found None meant two opposite things inside the instrument built to stop exactly that - the spy records None on conversion failure and the argument itself could legitimately be None, so the message blamed THE SPY either way. My first fix only moved the conflation: with a distinct sentinel, a census passing None made set(None) raise inside the spy and it was recorded as an instrument fault again. The spy keeps the raw value beside the snapshot now and the call is judged on the raw while the instrument is judged on the snapshot.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

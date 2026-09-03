@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2519"   # the second refusal, named - provenance asks for containment against instantaneous segments
+VERSION = "v2520"   # the spy could not tell its own failure from the callers, and my first fix only moved it
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

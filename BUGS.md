@@ -17115,3 +17115,32 @@ What shipped is only the honest instrumentation: the refusal now records `segmen
 
 **The open question, stated once:** should a frame captured between two reads inherit the lane of
 the nearest read (and within what window), or stay UNKNOWN?
+
+## v2520 — the spy could not tell its own failure from the caller's, and my first fix only moved it
+
+**REG-514 — `None` meant two opposite things inside the instrument built to stop exactly that.** A
+cold review of v2518: *"the spy records None on conversion failure, but the actual argument value
+could legitimately be None... the assertion cannot distinguish 'spy failed to snapshot' from 'the
+code under test passed None'"* — and the message blamed **THE SPY** either way, misattributing a
+real defect to the instrument.
+
+⚠⚠ **MY FIRST FIX ONLY MOVED THE CONFLATION.** A distinct sentinel meant that when the census passed
+`None`, `set(None)` raised **inside the spy**, so the failure was recorded as an instrument fault
+again — the wrong accusation, in the other direction. Proven by sabotage before it shipped.
+
+**The spy keeps the RAW value beside the snapshot now, and the two are judged separately:** the
+**CALL** on the raw value, the **INSTRUMENT** on the snapshot. Judging both on the snapshot blames
+whichever one the reader happens to assume. Three sabotages, three **right accusations**:
+
+```
+the spy cannot snapshot        → "THE SPY could not snapshot ..."
+the census passes None         → "a defect in THE CALL ..."
+the census passes reach=42     → "a defect in THE CALL ..."
+```
+
+**REG-515 — the `or ()` on `sources` was vestigial** once `None` was ruled out, and *"a vestigial
+guard reads as a live one"* — it claims a case is handled that can no longer occur. Dropped.
+
+**One finding refuted:** *"`calls[0]` assumes `calls` is non-empty with no guard"* — `assertTrue(calls)`
+and `assertEqual(len(calls), 1)` both run before that line. They were outside the excerpt it was
+shown, so that is a limit of the quotation rather than of the code.
