@@ -87,10 +87,27 @@ def _door_of(idx):
         return "UNREADABLE", "the index is %s, not an object" % type(idx).__name__
     if idx.get(FIXTURE_MARK) or ("reel" in idx and "sessionId" not in idx):
         return "fixture", "carries %r / keys on `reel` — vault_fixture_reels built it" % FIXTURE_MARK
-    missing = [k for k in CORE if k not in idx]
+    # ⚠⚠ THE CORE IS A SHAPE, NOT A SET OF KEY NAMES, AND THE FIRST CUT CHECKED ONLY THE NAMES.
+    # A cold cross-family review of v2533 found it: `{"sessionId": "x", "n": 3, "frames": None}`
+    # was attributed to THE RECORDER, because "frames" was present. Reproduced — `frames` as 0,
+    # as "98" and as None all returned "recorder". Nothing that mints a reel writes any of those,
+    # so a broken index was being read as a healthy birth record and the shelf still said ONE_DOOR.
+    # Key presence standing in for a measurement is [[unknown-stays-unknown]] wearing a dict.
+    missing = []
+    for k in CORE:
+        if k not in idx:
+            missing.append("%s absent" % k)
+        elif k == "frames" and not isinstance(idx[k], list):
+            missing.append("frames is %s, not a list" % type(idx[k]).__name__)
+        elif k == "sessionId" and not str(idx[k] or "").strip():
+            missing.append("sessionId is empty")
+        elif k == "n" and (isinstance(idx[k], bool) or not isinstance(idx[k], int)):
+            # ⚠ `isinstance(True, int)` is True in Python, so a bare int check lets `n: true`
+            # through as a frame count. Named rather than left to a reader to spot.
+            missing.append("n is %s, not a number" % type(idx[k]).__name__)
     if missing:
-        return "UNKNOWN", ("no mark, and the core is incomplete (missing %s) — nothing here knows "
-                           "what wrote it" % ", ".join(missing))
+        return "UNKNOWN", ("no mark, and the core does not hold its shape (%s) — nothing here "
+                           "knows what wrote it" % "; ".join(missing))
     if idx.get(REPAIR_MARK):
         return "repair", "carries %r — reel_index rebuilt it from the frame names" % REPAIR_MARK
     return "recorder", "the full core with no repair or fixture mark"

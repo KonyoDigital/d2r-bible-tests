@@ -17648,3 +17648,34 @@ route reads as divergence → `'EARNED' != 'UNEXERCISED'`; rounding an untaught 
 `None != 1`; keeping a private copy of POLICY_HOLDS so a move in `reel_story` does not follow →
 `None != 1`. An EARNED baseline keeps UNEXERCISED a measurement rather than the only reachable answer.
 
+## v2536 — the birth record was checked by KEY NAME, not by shape
+
+**REG-535 — found by a COLD cross-family review of v2533, and reproduced before it was believed.**
+The v2533 module was handed to a different model family with **no statement of what it is supposed
+to show**, and it went straight to the field I had not thought about:
+
+> *"CORE only requires the key `frames` to exist; it does not require the value to be a list.
+> Concrete case: `{"sessionId": "x", "n": 3, "frames": 0}` … the two uses disagree on this input."*
+
+**Reproduced:** `frames` as `0`, as `"98"` and as `None` **all returned `recorder`.** Nothing that
+mints a reel writes any of those, so a broken index was reading as a healthy birth record and the
+shelf still answered ONE_DOOR. **Key presence standing in for a measurement is
+[[unknown-stays-unknown]] wearing a dict.**
+
+**Fixed:** the core is a SHAPE now — `frames` a list, `sessionId` a non-empty string, `n` a number
+— and the reason names the field that failed. ⚠ `isinstance(True, int)` is True in Python, so a
+bare int check lets `n: true` through as a frame count; that trap is pinned by its own test.
+
+⚠ **IT CHANGED NOTHING ON HIS SHELF** — still 38 recorder / 2 repair / ONE_DOOR. This is insurance,
+not a live correction, and reporting it as a fix to a real number would be inventing one.
+
+⚠ **The review's second finding is NOT a defect and was not taken:** `foreign` can be 0 while both
+`repair` and `recorder` are present. That is the documented intent — a repair is not a second front
+door — and taking a review wholesale is how the fix for one real defect arrives beside a wrong fix
+for another.
+
+**Guard:** three laws in `tv/test_one_start_point.py`. **3 sabotages, 3 RED:** reverting to
+key-presence only (the shipped v2533 behaviour) → `'recorder' != 'UNKNOWN'`; a bare `int` check so
+`n: True` passes → same; requiring a tuple so nothing can ever be attributed → the BASELINE fires,
+`'UNKNOWN' != 'recorder'`.
+

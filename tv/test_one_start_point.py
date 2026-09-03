@@ -102,6 +102,43 @@ class OneStartPointIsAskedOfTheShelf(unittest.TestCase):
         self.assertEqual(r["state"], "MULTIPLE_DOORS",
                          "a reel nobody can attribute was folded into 'one door': %s" % r["why"])
 
+    def test_the_CORE_is_a_SHAPE_not_a_set_of_key_names(self):
+        """⚠⚠ REG-535, found by a COLD cross-family review of v2533 and reproduced before believed.
+
+        The first cut asked only `k not in idx`, so `{"sessionId": "x", "n": 3, "frames": None}`
+        was attributed to THE RECORDER — `frames` as 0, as "98" and as None all returned
+        "recorder". Nothing that mints a reel writes any of those, so a broken index read as a
+        healthy birth record and the shelf still said ONE_DOOR. Key presence standing in for a
+        measurement is [[unknown-stays-unknown]] wearing a dict.
+
+        ⚠ It changed NOTHING on his shelf — still 38 recorder / 2 repair / ONE_DOOR — so this is
+        insurance, not a live correction, and saying otherwise would be inventing a fix.
+        """
+        for bad, tell in ((0, "frames is int"), ("98", "frames is str"), (None, "frames is None")):
+            door, why = OSP._door_of({"sessionId": "s_1", "n": 3, "frames": bad})
+            self.assertEqual(
+                door, "UNKNOWN",
+                "an index whose `frames` is %r was attributed to the recorder. The key is there "
+                "and the SHAPE is not, and nothing that mints a reel writes that." % (bad,))
+            self.assertIn(tell, why, "the reason does not name what is wrong: %r" % why)
+        self.assertEqual(OSP._door_of({"sessionId": "", "n": 3, "frames": []})[0], "UNKNOWN",
+                         "an empty sessionId passed as a birth record")
+        self.assertEqual(OSP._door_of({"sessionId": "s", "n": "3", "frames": []})[0], "UNKNOWN",
+                         "a string frame count passed as a number")
+
+    def test_a_BOOLEAN_frame_count_is_not_a_number(self):
+        """⚠ `isinstance(True, int)` is True in Python, so a bare int check lets `n: true` through
+        as a frame count. The classic trap, pinned rather than left to a reader."""
+        self.assertEqual(OSP._door_of({"sessionId": "s", "n": True, "frames": []})[0], "UNKNOWN",
+                         "`n: True` was accepted as a frame count")
+
+    def test_BASELINE_a_well_shaped_core_still_reads_as_the_recorder(self):
+        """⚠ Or the shape check is refusing everything and ONE_DOOR became unreachable."""
+        self.assertEqual(
+            OSP._door_of({"sessionId": "s_1", "n": 3, "frames": [{"f": "a.jpg", "ts": 1}]})[0],
+            "recorder",
+            "the shape check now refuses a healthy record, so nothing can ever be attributed")
+
     def test_a_reel_with_no_index_is_reported_not_skipped(self):
         r = OSP.start_points(self._shelf({"reel_s_5": None}))
         self.assertEqual([x["door"] for x in r["rows"]], ["UNKNOWN"],
