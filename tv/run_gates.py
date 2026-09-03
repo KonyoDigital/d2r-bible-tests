@@ -279,6 +279,14 @@ GATES = [
     # v2466 — the build stamp renders whole. Needs headless Chrome; skips, never passes, without
     # it. `why` IS A KEYWORD.
     # v2469 — the probe primitives. `why` IS A KEYWORD.
+    Gate("test_app_ctx_nav", [sys.executable, os.path.join(HERE, "test_app_ctx_nav.py")], 120,
+         why="the board hid its own tab row on a URL flag and never checked the flag was "
+             "true (REG-443). `?engine=1` is written only by the #tvd-eng iframe, and the "
+             "CSS it arms hides the whole rail because inside the shell the console header "
+             "IS the rail; top-level there is no rail and he was left with 0 of 19 tabs. "
+             "Pins two LAWS: every site adding `engine-driven` tests for a real frame, and "
+             "every tab re-shown in app context lives in .tabs-workshop — which is the "
+             "premise under hiding the otherwise-empty .tabs-data cluster frames"),
     Gate("test_dom_probe", [sys.executable, os.path.join(HERE, "test_dom_probe.py")], 120,
          why="five DOM probes in one night measured something ADJACENT to the question and each "
              "produced a confident sentence: `body *` returned <script> source as screen text "

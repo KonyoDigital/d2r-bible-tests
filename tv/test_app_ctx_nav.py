@@ -30,9 +30,16 @@ TWO LAWS, both pinned here, neither pinned to a number or a roster:
 import io
 import os
 import re
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+# this file prints ⚔/🪜 in its failure messages; without this it CRASHES WHILE REPORTING on a
+# non-UTF-8 console, so a clean tree would exit non-zero for a reason that is not the code
+from console_safe import enable  # noqa: E402
+
+enable()
 BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
 SHELL = os.path.join(HERE, "control_ui.html")
 
