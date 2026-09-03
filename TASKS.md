@@ -281,7 +281,7 @@ roster can ground where three 0.60 looks cannot. The curve: 1/1 → 0.207 · 3/3
 6/6 → 0.610 · 12/12 → 0.757.
 
 ## A3 · UNIFY THE SURFACE × CAPABILITY MATRIX · 2026-08-30 ~17:20
-**Topic:** ARCHITECTURE · **Progress:** 0/1 · not started
+**Topic:** ARCHITECTURE · **Progress:** 1/3 · v2491 MEASURED the matrix — 44 surfaces × 4 organs, and the holes are three different things: 9 MISNAMED (the organ watches it under another name — a join nobody made, and how the table came to look empty), 1 organ UNKNOWN everywhere (console_doctor has no report), the rest genuinely ABSENT. REMAINING: make the join so MISNAMED becomes COVERED, and give console_doctor a report so its column is answerable.
 
 > *"fix those gaps and anywhere else.. make it unified and logical and coded properly with
 > watchdogged and eagle eyed and doctor and corraborotror"*

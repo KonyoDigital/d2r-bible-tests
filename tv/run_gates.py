@@ -508,6 +508,20 @@ GATES = [
              "proven one, which a plain `if score:` would do. Also pins that it DERIVES and "
              "never writes, because a stored picture is a map that drifts from the territory — "
              "BLUEPRINT.md went stale exactly that way and a gate graded the last build."),
+    Gate("test_organ_matrix", [sys.executable, os.path.join(HERE, "test_organ_matrix.py")], 120,
+         why="A3 — he was shown a surface x capability table that was mostly holes and said "
+             "\"fix those gaps and anywhere else.. make it unified\", every surface getting the "
+             "same four organs OR being honestly marked as not having them. The danger is not an "
+             "incomplete matrix, it is one that FILLS ITSELF IN: a cell claiming coverage nobody "
+             "demonstrated is worse than the blank he was already looking at. These assert that "
+             "every COVERED cell is re-derivable from the organ's own output, that an organ which "
+             "cannot be asked at all reads UNKNOWN and never ABSENT (console_doctor has no "
+             "report(), so accusing it of gaps would be inventing a measurement), and that "
+             "MISNAMED stays apart from ABSENT — 9 cells are an organ watching a thing under "
+             "another name, which is a join nobody made rather than a hole, and is HOW that table "
+             "came to look empty. ⚠ The MISNAMED guard was VACUOUS on its first cut and passed "
+             "while every such cell collapsed to ABSENT; it now re-derives the pairs and demands "
+             "the label. All four sabotages seen RED."),
     Gate("test_route_totals", [sys.executable, os.path.join(HERE, "test_route_totals.py")], 120,
          why="v2484 — ONE TAB, ONE NUMBER. The heart drew three route sets and each read a "
              "different producer: runeword 105/99/99 and unique 398/403/403. Every number was "

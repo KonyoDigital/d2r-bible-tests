@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2490",
+  "ver": "v2491",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2490: A17s heading carries a separator inside its own title, TV-D, so the A-list parser failed to match and the task was absent from the board with nothing saying so. The generator reports orphaned rows but a row that never parsed was never a row - so coverage() now counts every A-header in the file against the rows derived and names any that produced none. Seen red with the original regex restored. Also six moving tasks filed as PENDING because the classifier read the header word READY, which says whether a task may be started and not whether it has been.",
+  "note": "v2491: tv/organ_matrix.py measures 44 surfaces against the four organs instead of filling the table in. Two states were not enough: 9 cells are MISNAMED, where the organ is watching the thing under another name, which is how the table he was shown came to look empty; and console_doctor has no report at all so its column is UNKNOWN rather than absent. Third instance today of one root cause, disjoint vocabularies. The MISNAMED guard was vacuous on its first cut and passed while every such cell collapsed to ABSENT.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

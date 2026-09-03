@@ -16048,3 +16048,38 @@ honest form of not-started.
 matched A17, merely truncating its title, so it never reproduced the loss. Re-run with the ACTUAL
 original regex it went red immediately. A sabotage that does not reproduce the defect proves nothing
 about the guard — the sixth time this session that the instrument, not the subject, was the problem.
+
+## v2491 — A3: the empty table was not empty, it was unjoined
+
+His ask, over a surface × capability table that was mostly holes: *"fix those gaps and anywhere
+else.. make it unified and logical and coded properly with watchdogged and eagle eyed and doctor
+and corraborotror"* — every surface gets the same four organs, **or is honestly marked as not
+having them**.
+
+**`tv/organ_matrix.py` measures it rather than filling it in.** 44 surfaces (render targets, valves,
+routes, vessels) × 4 organs, and every cell is one of four states — because two states were not
+enough and that is the finding:
+
+- **9 cells are MISNAMED** — the organ IS watching that thing and calls it something else. The
+  corroborator names `runeword`, `sets`, `uniques`; the surfaces are `chronicle.runeword`,
+  `fleet.sets`. A plain membership test reports ABSENT, **and that is how the table he was shown
+  came to look empty.** Those are not holes; they are a join nobody made.
+- **1 organ is UNKNOWN everywhere** — `console_doctor` exposes no `report()`. Its column is unknown
+  rather than empty: an organ nobody can ask has not been shown to miss anything, and has not been
+  shown to do anything either.
+- the rest are genuinely ABSENT, and stay visible as such.
+
+⚠ **THIS IS THE THIRD INSTANCE TODAY OF ONE ROOT CAUSE — disjoint vocabularies.** A1's FLOWING
+(organ ids against lane names, v2485), the tab vocabulary (`unique` against `uniques`, v2480), and
+now surfaces against organs. Three in one territory in one day is a pattern, not a coincidence, and
+it is worth carving.
+
+⚠ **TWO INSTRUMENT ERRORS, BOTH MINE, BOTH CAUGHT BEFORE REPORTING.** The name extractor did not
+read `key`, so the corroborator — which had answered all day — reported as *"no route set
+answered"*; a reader would have concluded the organ was dead. And without MISNAMED the matrix would
+have claimed 44 empty rows while 9 were watched.
+
+⚠ **AND THE MISNAMED GUARD WAS VACUOUS.** It validated cells already labelled MISNAMED and never
+asserted the label was applied — so collapsing every one into ABSENT passed. Proven by sabotage
+going GREEN. It now re-derives the pairs from the organs and demands the label; re-run, it names the
+exact cells. All four sabotages seen RED.
