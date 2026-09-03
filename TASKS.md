@@ -539,7 +539,7 @@ Closes the hole under tasks **133** and **166**.
 
 
 ## A15 · THE RIVER — ONE START POINT, ONE FUNNEL, THEN PER-REEL ROUTES · 2026-09-01 19:3x
-**Topic:** BACKEND · **Progress:** 0/1 · not started — THE RIVER
+**Topic:** BACKEND · **Progress:** 1/5 · **v2525 tested the clause that CAN be tested** — *the route is derived from the CONTENT, never guessed from a declared stamp* (`tv/declared_vs_content.py`). ⚠⚠ THE ANSWER IS **UNTESTABLE ON HIS CORPUS**, and that is the finding: 40 reel dirs, 40 with an index.json, and exactly **1 declaring a chronicle focus — carrying 0 surveyed panels**. Zero disagreements over a sample that cannot disagree measures the SAMPLE; it will say AGREES the moment three declaring reels carry content, and a real disagreement outranks the floor immediately. ⚠ `chronicle_retro._declared_kind` DOES route on a declaration (it picks which sweep owns a reel; the sweep then judges content) — whether A15's letter forbids that is a judgement today's corpus cannot settle, recorded rather than decided. ⚠ And the SOURCE refuted my suspicion before publication: `_vault_lane_owes` returning True with no declared focus looks exactly like v1783 and is the deliberate safe direction — *"I could not tell must never resolve to delete it"*. REMAINING: the other four clauses (one start point, one funnel, per-reel divergence, and *clean* assertable per reel)
 
 > *"the same feeding system and same routing system working and funneling starting from the same
 > start point and slowly down the river changing routes individually and acocridngly relvant to

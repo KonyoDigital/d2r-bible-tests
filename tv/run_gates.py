@@ -538,6 +538,26 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_declared_vs_content",
+         [sys.executable, os.path.join(HERE, "test_declared_vs_content.py")], 120,
+         why="A15 — the route must be DERIVED FROM THE CONTENT, never guessed from a declared "
+             "stamp (v1783: a default is not a declaration, and an untouched `stash` stamp "
+             "labelled a town, a fight and a Chronicle page as stash panels). ⚠⚠ THE ANSWER ON "
+             "HIS TREE IS UNTESTABLE AND THAT IS THE POINT: 40 reel dirs, 40 with an index.json, "
+             "and exactly ONE declaring a chronicle focus — carrying ZERO surveyed panels. Zero "
+             "disagreements over a sample that cannot disagree measures the SAMPLE, and reported "
+             "as AGREES it would say the routing law holds when nobody has shown it. These pin: "
+             "one declaring reel with no content is UNTESTABLE; a declaration its own content "
+             "contradicts is REPORTED; AGREES needs enough exercised reels, because two agreeing "
+             "reels is an anecdote; a real disagreement OUTRANKS the sample floor rather than "
+             "hiding behind it; AGREES stays REACHABLE, since a check that can never agree is as "
+             "useless as one that always does; THREE empty reels are still UNTESTABLE (the "
+             "sample floor masked that guard, so its first sabotage passed — it takes three to "
+             "tell the two paths apart); and both unreadable branches SAY unknown rather than "
+             "printing an errno. 6 sabotages, 6 RED. ⚠ Recorded in the module: one suspicion was "
+             "REFUTED BY THE SOURCE before publication — _vault_lane_owes returning True with no "
+             "declared focus looks exactly like v1783 and is the deliberate safe direction, per "
+             "its own docstring: I could not tell must never resolve to delete it."),
     Gate("test_template_is_the_mechanism",
          [sys.executable, os.path.join(HERE, "test_template_is_the_mechanism.py")], 120,
          why="A8 — his ask was that the templates be what the routing filters WITH, not a pass "

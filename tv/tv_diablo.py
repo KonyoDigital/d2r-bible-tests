@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2524"   # the diagnostic could crash while describing the defect, and the fourth round on one instrument
+VERSION = "v2525"   # A15 routing law is UNTESTABLE on his corpus, and the source refuted my suspicion first
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

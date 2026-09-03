@@ -17268,3 +17268,46 @@ reporting one that did not isolate what it claimed.
 defect and each was found by the cold eye rather than by me — but the instrument has now cost more
 versions than the rule it watches, and that is worth saying plainly rather than letting it continue
 by momentum.
+
+## v2525 — A15's routing law is UNTESTABLE on his corpus, and the source refuted my suspicion first
+
+A15's most testable clause: **the route is derived from the CONTENT, never declared up front, never
+guessed from a filename or a focus stamp** — with precedent v1783, *a default is not a declaration*.
+
+**REG-523 — measured, and the honest answer is UNTESTABLE:**
+
+```
+reel dirs on disk                    40
+with an index.json                   40
+DECLARING a chronicle focus           1   ← carrying 0 surveyed panels
+declared-vs-content disagreements     0
+```
+
+**Zero disagreements over one declaring reel with no content measures the SAMPLE, not the
+pipeline.** `tv/declared_vs_content.py` says exactly that rather than AGREES, and it will say
+AGREES the moment three declaring reels carry content that does not contradict them — a real
+disagreement outranks the floor immediately.
+
+⚠⚠ **THE SOURCE REFUTED MY SUSPICION BEFORE I PUBLISHED IT — the second time today.**
+`reel_retention._vault_lane_owes` returns **True when there is no declared focus**, which looks
+exactly like v1783. Its own docstring:
+
+> *"Errs toward KEEPING: an unreadable index, or no declared focus at all, still owes the lane.
+> Deleting footage is irreversible and 'I could not tell' must never resolve to 'delete it'."*
+
+An absent stamp **holds** the reel. That is the safe direction, deliberately — and I nearly filed
+it as the defect. (The first was `reel_retention`'s v2314 note on two granularities, which stopped
+me reporting a false contradiction in A10.)
+
+⚠ **One site does route on a declaration:** `chronicle_retro._declared_kind` reads
+`index.json["focus"]` to pick which sweep owns a reel. That is routing by declaration — though the
+sweep then judges content, so the stamp selects the *reader* rather than labelling the *contents*.
+Whether A15's letter forbids it is a judgement, and **today's corpus cannot settle it either way**.
+Recorded in the module rather than decided.
+
+⚠ **A sabotage passed and the sample floor was why.** With ONE no-content reel, the guarded and
+unguarded paths both end UNTESTABLE. It takes **three** to tell them apart — without the
+"no panels means nothing to compare" branch, three empty reels count as exercised and the report
+says AGREES from reels that surveyed nothing.
+
+Guard: `tv/test_declared_vs_content.py`, registered (106 gates). **6 sabotages, 6 RED.**

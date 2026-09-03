@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2524",
+  "ver": "v2525",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2524: repr itself can raise on a broken __repr__, and then the rawRepr key was never written so the later failure message raised KeyError - the diagnostic became a secondary crash. Every part of an instrument must survive the thing it is describing. The message also read the type off the live reference while rawRepr exists precisely because references change. Both captured at call time now, with head-and-tail truncation. I could not isolate the defensive repr end to end and say so rather than reporting a sabotage that did not isolate what it claimed.",
+  "note": "v2525: A15 says the route must be derived from the content and never guessed from a declared stamp. Measured: 40 reel dirs, 40 with an index, and exactly one declaring a chronicle focus - carrying zero surveyed panels. Zero disagreements over a sample that cannot disagree measures the sample, so the check says UNTESTABLE rather than agrees. And the source refuted my suspicion before publication for the second time today - _vault_lane_owes returning True with no declared focus looks exactly like the v1783 defect and is the deliberate safe direction per its own docstring.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
