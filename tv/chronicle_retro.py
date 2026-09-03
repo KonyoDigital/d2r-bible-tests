@@ -1765,6 +1765,26 @@ def witnesses(sightings, surface_of=None):
         tags.add("cross-frame")
     if any((s.get("witness") == "agree") for s in (sightings or [])):
         tags.add("printed")
+    # ══ v2462 — A21b · HIS HAND IS A WITNESS, AND IT WAS THE ONLY LANE THAT EARNED NO TAG ═══════
+    # His ruling, twice: "YES its enough. manual anything is enough witness obivously :)" and then
+    # "anything i manually do needs to ledgered as if there is proof.. same unified logic connected
+    # to the leder proof of.. same style same unified logic as the rest of the console."
+    #
+    # Every tag above is derived from reels and frames. A manual tick has NEITHER, so before this
+    # it produced NO TAG AT ALL — his own testimony was the one signal this function could not
+    # count, while an OCR read of a blurry row counted twice.
+    #
+    # ⚠ IT IS ITS OWN TAG, NOT A SYNONYM FOR ANOTHER. `hand` must never masquerade as `cross-reel`
+    # or `printed`: a reader asking WHY a name is grounded has to be able to see that the answer is
+    # "he says so", which is a different fact from "two reels agree" and is weighed differently by
+    # whoever reads it.
+    #
+    # ⚠ AND IT IS NEVER INFERRED FROM OWNERSHIP. Only a sighting a manual action actually WROTE
+    # carries lane 'manual'. The 8 owned items with no log row stay UNKNOWN — no rule manufactures
+    # testimony never given, which is the limit he did NOT rule away.
+    # [[manual-tally-is-witness]] [[unknown-stays-unknown]]
+    if any((s.get("lane") == "manual") for s in (sightings or [])):
+        tags.add("hand")
     # ══ v2380 — THE SAME ITEM ON TWO DIFFERENT PANELS ═══════════════════════════════════════════
     # Konyo described the lifecycle this exists for: "i find it on the floor from farming.. and
     # then its in my inventory and then its identified and then its seen and registerd also as a

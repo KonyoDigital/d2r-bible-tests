@@ -219,6 +219,25 @@ GATES = [
              "WHICH link gave up, and that a failure dict is never what `if m:` would keep."),
     # v2460 — the two ends of the mask wire. `why` IS A KEYWORD.
     # v2461 — the type floor, at the TOKEN level. `why` IS A KEYWORD.
+    # v2462 — A21b, his hand as a witness. `why` IS A KEYWORD.
+    # A21d — his rule over the item classifier. Needs headless Chrome; skips (never passes)
+    # without it. `why` IS A KEYWORD.
+    Gate("test_classify_corroborator",
+         [sys.executable, os.path.join(HERE, "test_classify_corroborator.py")], 240,
+         why="every member of a roster should classify the same way, and nothing had ever compared "
+             "them. On its first run 9 of 398 uniques did NOT resolve to unique: four carried a "
+             "curly apostrophe where every lookup table holds a straight one, four (Harlequin "
+             "Crest, Hellfire Torch, Gull, The Cranium Basher) were in no table at all and rendered "
+             "with no rarity, and one is a genuine dual-name. The two dual-names are DECLARED with "
+             "their reasons, and the gate also fails if a declaration stops being true — a stale "
+             "exception is how a corroborator quietly stops finding anything."),
+    Gate("test_manual_witness", [sys.executable, os.path.join(HERE, "test_manual_witness.py")], 120,
+         why="every tag witnesses() produced came from reels and frames, so a manual tick — which "
+             "has neither — earned NO witness at all, while an OCR read of a blurry row counted "
+             "twice. His ruling is that a manual tally is witness enough. Holds four laws: his hand "
+             "earns its OWN tag and never a synonym for another; a tick banks a row the witness "
+             "counter can actually read; saying it twice is not two witnesses; and ownership alone "
+             "never mints one, because no rule manufactures testimony never given."),
     Gate("test_type_floor", [sys.executable, os.path.join(HERE, "test_type_floor.py")], 120,
          why="16 nodes rendered below the 13px floor at his real 1120x628 and NOTHING in the "
              "stylesheet was typed below it. Two font tokens were referenced and never defined, so "

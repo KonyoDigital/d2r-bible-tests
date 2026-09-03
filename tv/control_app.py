@@ -11611,9 +11611,54 @@ def board_tick(name, kind, want):
     if not raw:
         return {"ok": False, "why": "the board did not answer in time"}
     try:
-        return json.loads(raw)
+        out = json.loads(raw)
     except Exception:
         return {"ok": False, "why": "the board answered something unreadable"}
+    # ══ v2462 — A21b · THE TICK BANKS ITS OWN WITNESS ══════════════════════════════════════════
+    # The other end of `witnesses()`'s new `hand` tag, shipped WITH it on purpose. A tag nothing
+    # can produce is the defect this repo keeps finding — plumbing built at both ends and joined at
+    # neither — so the writer lands in the same change as the reader.
+    #
+    # ⚠ ONLY ON A REAL, CONFIRMED TICK. `ok` false, `unchanged` true, or want=False (an un-tick)
+    # all bank NOTHING: a refusal is not testimony, a no-op is not an act, and an un-tick is him
+    # taking a claim BACK. Banking any of those would be inventing evidence out of a button press.
+    # [[manual-tally-is-witness]] [[the-unjoined-end]]
+    try:
+        if want and isinstance(out, dict) and out.get("ok") and not out.get("unchanged"):
+            _bank_manual_sighting(n, k)
+    except Exception:
+        pass          # a witness that cannot be written must never break the tick itself
+    return out
+
+
+def _bank_manual_sighting(name, kind):
+    """Record that HE ticked this by hand, in the same store every other sighting uses.
+
+    ⚠ SAME VOCABULARY, NOT A SIDE TABLE. His words: "same unified logic connected to the leder
+    proof of.. same style same unified logic as the rest of the console." A `manual` lane in the
+    ledger every reader already walks means a corroborator asking "what witnesses does this name
+    have?" gets his hand back in the same words it gets a reel. A separate manual table would be a
+    second thing to remember to check, and it would be forgotten. [[copy-drift]]
+
+    No reel, no frame — because there was none. The absence is the honest record of what happened.
+    """
+    # ⚠ THESE LIVE IN THIS MODULE, NOT IN chronicle_retro, AND MY FIRST CUT GUESSED WRONG. It
+    # called `chronicle_retro._chron_evidence_load()` behind a `hasattr` guard, so on a tree where
+    # that name does not exist — which is every tree — the writer returned False silently and the
+    # `hand` tag would have been a tag nothing could ever produce. A defensive `hasattr` around a
+    # wrong name is not defence, it is a silent no-op. Caught by running it, not by reading it.
+    # [[the-unjoined-end]] [[feedback-verify-not-proxy]]
+    ledger = "sets" if kind in ("set", "set-drop") else "uniques"
+    ev = _chron_evidence_load()
+    if not isinstance(ev, dict):
+        return False
+    rows = ev.setdefault(ledger, {}).setdefault(str(name), [])
+    if any((r or {}).get("lane") == "manual" for r in rows):
+        return False                      # he has already said so; saying it twice is not two witnesses
+    rows.append({"lane": "manual", "witness": "hand", "at": int(time.time() * 1000),
+                 "why": "he ticked it by hand on the board"})
+    _chron_evidence_save(ev)
+    return True
 
 
 _UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
@@ -22076,7 +22121,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2461",
+        "ver": "v2463",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

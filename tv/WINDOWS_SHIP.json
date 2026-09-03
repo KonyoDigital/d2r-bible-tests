@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2461",
+  "ver": "v2463",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2461: Sixteen text nodes rendered below the smallest type token at his real window size and nothing in the stylesheet was typed below it. Two font tokens were referenced and never defined, so every use of them silently rendered at its fallback of twelve and ten pixels, and an audit reading the CSS for small numbers would have found nothing wrong. A fallback is a font size nobody reviewed. Also the bottom status strip now says there is more below instead of always showing a half row with no affordance.",
+  "note": "v2463: His rule run over the item classifier for the first time. Every member of a roster should classify the same way and nothing had ever compared them. Nine of three hundred and ninety eight uniques did not resolve to unique: four carried a curly apostrophe where every lookup table holds a straight one, four of the most famous uniques in the game were in no table at all and rendered with no rarity, and one is a genuine dual name. The resolver now folds the apostrophe for the lookup only and falls back to the roster the page already maintains.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

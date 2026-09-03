@@ -14810,12 +14810,28 @@ is not reachable from this machine.**
 ⚠ The old test pinned the literal string `"no mask reported"` and would have gone red on this fix
 and green on the defect; it now pins the law.
 
-## OPEN — heart.vessels() has gone from 2.5s to 10.4s
+## ⚠ RETRACTED BY ME — heart.vessels() has NOT regressed. The 10.4s was my instrument.
 
-Measured 2026-09-03 while timing A21c: `heart.vessels()` 10.428s, `scope_reach_state` 0.370s,
-`_self_arming_state` 0.000s. The memo comment in `control_app.heart_state` records 2.495s when it
-was written. That is a 4x regression on a click path, it is NOT caused by this ship, and it is why
-the heart takes seconds to open. Recorded rather than fixed — naming it beats absorbing it.
+**I reported a 4x regression that does not exist, and this is the correction.**
+
+What I originally wrote: *"Measured 2026-09-03 while timing A21c: heart.vessels() 10.428s ... The
+memo comment records 2.495s when it was written. That is a 4x regression on a click path."*
+
+**Re-measured in three clean processes, one call each:**
+```
+  first vessels()  2.736s / 2.770s / 2.875s      second call  0.350s / 0.354s / 0.352s
+```
+Against the recorded 2.495s that is roughly 10% drift over months, not a 4x regression. **There is
+nothing here to fix.**
+
+**Why the first number was wrong:** I took it inside a loop that was timing five components in one
+process while several browser probes and a version bump were running on the same machine. The
+figure was real arithmetic over a contended machine, and I published it as a property of the code.
+A timing measured under load is a measurement of the load. [[feedback-suspect-the-instrument]]
+
+For the record, where the warm 0.35s actually goes: `lane_census.classify` -> `_body` -> 186
+`re.search` calls (0.205s) and 46 `splitlines` (0.066s). Cold is 2.7s because the census reads and
+scans the source of every lane. Both are as designed and neither is new.
 
 ## REG-355 — the beat could not tell RUNNING from PAINTING, so his black console read healthy (v2457)
 
@@ -15079,3 +15095,112 @@ inherits its parent's size and the author's size has no effect.
 
 **Guard:** `tv/test_type_floor.py`, comments stripped before scanning because its own header quotes
 the broken declarations. **Seen RED for both rules.**
+
+## A21b DESIGN NOTE — where a manual proof row belongs, and where it must NOT go
+
+His strengthened #166: *"anything i manually do needs to ledgered as if there is proof.. same
+unified logic connected to the leder proof of.. same style same unified logic as the rest of the
+console."*
+
+**Measured first, so the build is not aimed at the wrong half.**
+
+### A21b's classifier half is ALREADY SATISFIED
+`_artRarity` has **1 definition and 21 callers**. Every other rarity read outside its body is a DATA
+read or a FILTER (`ITEM_CODEX[x].rarity` for a base lookup, `EXTRA_ITEMS[n].rarity === 'unique'` to
+build a list), not a second colour decision. The one suspicious pattern — `_artRarity(n) ||
+itemQuality(it)`, which could re-introduce the `material` the resolver deliberately maps to `''` —
+**diverges on 0 of 547 registry items, measured in a browser.** Nothing to fix here.
+
+### THE MANUAL ROW MUST NOT GO IN THE SELF-ARMING PROOF QUEUE
+`self_arming.KINDS` is `sabotage 1.0 · cross-family 0.8 · live 0.7 · ci 0.6 · fixture 0.3`, and its
+denominator is **SABOTAGES ATTEMPTED, never agreements** — that is the whole reason the locks cannot
+be talked open. A manual tick is testimony about **what he owns**; a sabotage is evidence that **a
+guard can refuse**. Two different questions wearing the word "proof". Adding a `manual` tier there
+would let hand-ticking open a lock no sabotage ever tested, which is precisely the failure the
+denominator rule exists to prevent.
+
+### IT BELONGS IN THE WITNESS COUNT
+`chronicle_retro.witnesses(sightings)` returns TAGS OF INDEPENDENCE — `cross-lane`, `cross-reel`,
+`cross-reel-3+`, `cross-frame`, `printed`, `cross-panel` — derived from sightings carrying
+`lane` / `reel` / `frame`. **A manual tick has no reel and no frame, so today it yields NO TAG AT
+ALL.** That is exactly what #166 overrides: he ruled a manual tally is witness enough on its own.
+
+### THE BUILD, AND ITS TWO HARD CONSTRAINTS
+1. A sighting recorded from a real manual action earns its own witness tag, counted like any other.
+2. ⚠ **It must be built WITH its writer or not at all.** A tag nothing can produce is the
+   unjoined-end defect this repo keeps finding — plumbing with no tap.
+3. ⚠ **NO RULE MANUFACTURES TESTIMONY NEVER GIVEN.** The 8 owned items with no log row stay UNKNOWN.
+   A manual tag is created only by an action he actually took, never inferred from ownership.
+
+## A21b SHIPPED — his hand is a witness, and the tick that banks it (v2462)
+
+His ruling, twice: *"YES its enough. manual anything is enough witness obivously :)"* then
+*"anything i manually do needs to ledgered as if there is proof.. same unified logic connected to
+the leder proof of.. same style same unified logic as the rest of the console."*
+
+**Every tag `chronicle_retro.witnesses()` produced was derived from reels and frames** —
+`cross-lane`, `cross-reel`, `cross-reel-3+`, `cross-frame`, `printed`, `cross-panel`. A manual tick
+has neither a reel nor a frame, so it earned **no witness at all**, while an OCR read of a blurry
+row counted twice. Measured: `witnesses([{lane:'manual'}])` returned `[]`.
+
+**Now:** `['hand']` alone, and `['cross-lane', 'hand']` when a reel agrees too — two independent
+witnesses, which is what they are.
+
+**BOTH ENDS SHIPPED TOGETHER, on purpose.** A tag nothing can produce is the unjoined-end defect
+this repo keeps finding, so `board_tick` — his own door, the one that presses the board's existing
+toggle — banks the sighting in the same change. It banks ONLY on a real confirmed tick: `ok` false,
+`unchanged` true, and want=False (an un-tick, him taking a claim back) all bank nothing.
+
+⚠ **DELIBERATELY NOT IN THE SELF-ARMING PROOF QUEUE.** `self_arming.KINDS` weighs sabotages and its
+denominator is sabotages ATTEMPTED, never agreements — the only reason the locks cannot be talked
+open. A manual tick is testimony about what he OWNS; a sabotage is evidence a GUARD CAN REFUSE. A
+`manual` tier there would let hand-ticking open a lock no sabotage ever tested.
+
+⚠ **MY FIRST WRITER WAS A SILENT NO-OP AND MY OWN CHECK CAUGHT IT.** It called
+`chronicle_retro._chron_evidence_load()` behind a `hasattr` guard — that name lives in
+`control_app`, so on every real tree the guard was False, the writer returned quietly, and the
+`hand` tag would have been a tag nothing could ever produce. **A defensive `hasattr` around a wrong
+name is not defence, it is a silent no-op.** Found by running it, not by reading it.
+
+**Guard:** `tv/test_manual_witness.py`, 8 tests, fixtures swap the evidence store for an in-memory
+pair so nothing touches `chron_evidence.json`. **All four laws seen RED**, including the wrong-module
+no-op above.
+
+## A21d SHIPPED — his rule over the item classifier, and it found 8 real defects (v2463)
+
+Konyo: *"when 10 are the same logic obviously one isnt its flagged.. by corrobarator and all"*.
+
+Every member of a roster should classify the same way, and **nothing had ever compared them**.
+Classifying all four rosters through the ONE resolver:
+
+```
+sunder charms   6/6   unique        set pieces  135/135  set
+runewords     100/101 rw            uniques     389/398  unique   <- NINE OUTLIERS
+```
+
+**The nine, diagnosed:**
+- **FOUR curly apostrophes** — `Atma’s Scarab`, `Seraph’s Hymn`, `The Cat’s Eye`, `Saracen’s Chance`
+  carry U+2019 where every lookup table holds U+0027. With the straight form each resolved to
+  `unique` instantly. `d2r-curly-apostrophe-class` records exactly four curly names against 202
+  straight; it was fixed at the VAULT in v1958 and never in the classifier.
+- **FOUR absent from every table** — `Harlequin Crest`, `Hellfire Torch`, `Gull`, `The Cranium
+  Basher`. Not ITEM_CODEX, not EXTRA_ITEMS, not runewords, not set pieces. Four of the most famous
+  uniques in the game, rendering with **no rarity at all**.
+- **ONE genuine dual-name** — `Crescent Moon` is both a runeword (Shael+Um+Tir) and a unique amulet.
+
+**Fix:** the resolver folds the apostrophe for the LOOKUP only (never for the key — the raw name is
+what the ledger stores and what a click resolves against), and falls back to the uniques roster the
+page already maintains rather than a hand-kept exceptions list — v1913's lesson, the same move
+v2449 made for the sunder charms. **Result: uniques 389/398 -> 397/398.**
+
+⚠ **MY OWN SABOTAGE CORRECTED MY OWN CLAIM.** Disabling the apostrophe fold left the corroborator
+GREEN — the roster fallback folds apostrophes too and catches all four. Only the roster fallback is
+load-bearing. The fold is kept because it is correct and covers a curly name NOT on the uniques
+roster, of which there are currently none. **"This fixed four items" would have been a claim the
+measurement refuses.**
+
+⚠ The two remaining flags are BOTH correct: `Crescent Moon` is truly ambiguous, and `Death's Web`
+sits in RUNEWORDS with its runes field reading `"(unique, not RW)"` — the page deliberately lists it
+there while marking it a unique. **That second one was my probe's flaw**, reading that array as a
+roster of runewords. Both are DECLARED with their reasons, and the gate fails if a declaration stops
+being true — a stale exception is how a corroborator quietly stops finding anything.

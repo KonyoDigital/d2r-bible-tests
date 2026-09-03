@@ -16433,6 +16433,32 @@ function _artRarity(name){
       var _sn = String(name).replace(/^(Latent|Renewed|PreCrafted)\s+/i, '');
       if (SUNDER_CHARMS.some(function(c){ return c.n === _sn; })) r = 'unique';
     }
+    /* ⚠⚠ v2463 — A21d · THE CURLY APOSTROPHE, STILL BITING, AND THE CORROBORATOR FOUND IT.
+       Ran his own rule over the rosters — "when 10 are the same logic obviously one isnt its
+       flagged" — by classifying every member of every roster and naming the ones that disagree
+       with their siblings. 9 of 398 uniques did not resolve to 'unique'. FOUR of them were this:
+
+           Atma’s Scarab · Seraph’s Hymn · The Cat’s Eye · Saracen’s Chance
+
+       Each carries U+2019 (’) where every lookup table holds U+0027 ('). With the straight form
+       each one resolves to 'unique' immediately; with his, to nothing at all. `d2r-curly-apostrophe-class`
+       records exactly four curly names against 202 straight, and it cost 158/206 names the wrong
+       mule once already. It was fixed at the VAULT and never here.
+
+       ⚠ NORMALISE FOR THE LOOKUP, NEVER FOR THE KEY. `name` itself is untouched — it is what the
+       ledger stores and what a click resolves against, and rewriting it here would be the far
+       worse bug. Only the string used to ASK is folded.
+
+       ⚠⚠ AND THIS FOLD IS NOT LOAD-BEARING TODAY — MY OWN SABOTAGE PROVED IT. Disabling it left
+       the corroborator GREEN, because the uniques-roster fallback further down folds apostrophes
+       too and catches all four. It is kept because it is correct and because it covers a name with
+       a curly apostrophe that is NOT on the uniques roster — a set piece, a codex entry — of which
+       there are currently none. Saying "this fixed four items" would have been a claim the
+       measurement refuses. [[d2r-curly-apostrophe-class]] [[regression-guard]] */
+    if (!r && /\u2019/.test(name)) {
+      var _straight = String(name).replace(/\u2019/g, "'");
+      if (_straight !== name) { try { r = _artRarity(_straight) || ''; } catch (e) {} }
+    }
     if (!r && typeof findSetPiece === 'function' && findSetPiece(name)) r = 'set';
     // v311 — THE ONE SWITCH: _artRarity is the single source of truth for an item's in-game
     // quality colour. Any KNOWN grail/registry item that didn't resolve above falls through to
@@ -16451,6 +16477,26 @@ function _artRarity(name){
       || /Essence of (Suffering|Hatred|Terror|Destruction)$/.test(name)
       || /^Token of Absolution$/.test(name)
       || /^Worldstone Shard/.test(name))) r = 'crafted';
+    /* ⚠ v2463 — A21d · IF IT IS ON THE UNIQUES ROSTER, IT IS A UNIQUE. The other four the
+       corroborator flagged — Harlequin Crest, Hellfire Torch, Gull, The Cranium Basher — are in
+       none of the tables above: not ITEM_CODEX, not EXTRA_ITEMS, not a runeword, not a set piece.
+       Four of the most famous uniques in the game, rendering with no rarity at all.
+       This reads the roster the page ALREADY maintains rather than adding a hand-kept exceptions
+       list, which is v1913's lesson and the same move v2449 made for the sunder charms: "a list of
+       exceptions is not a classifier."
+       ⚠ LATE ON PURPOSE. Everything specific has had its say first, so a name that is genuinely a
+       runeword or a set piece keeps that answer — this only catches what nothing else could name.
+       [[d2r-nine-untick-contradiction]] */
+    if (!r && typeof window !== 'undefined' && typeof window._gUniqueRoster === 'function') {
+      try {
+        var _ur = window._gUniqueRoster() || [];
+        var _fold = String(name).replace(/\u2019/g, "'");
+        for (var _i = 0; _i < _ur.length; _i++) {
+          var _c = String(_ur[_i]);
+          if (_c === name || _c.replace(/\u2019/g, "'") === _fold) { r = 'unique'; break; }
+        }
+      } catch (e) {}
+    }
     // last-resort name heuristic so set aggregates ("... (set)" / "(any piece)") read green
     if (!r && /\(set\)|\(set piece\)|\(any piece\)/i.test(name)) r = 'set';
     // v428 — a recognised BASE ITEM (any of the 498 game-data bases, incl. a "(Nos)" / "(Larzuk base)"
@@ -48271,7 +48317,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2461', name:'v2461 - THE FLOOR WAS CROSSED BY A DEFAULT', date:'2026-09-03', note:'Sixteen text nodes rendered below the smallest type token at his real window size and nothing in the stylesheet was typed below it. Two font tokens were referenced and never defined, so every use of them silently rendered at its fallback of twelve and ten pixels, and an audit reading the CSS for small numbers would have found nothing wrong. A fallback is a font size nobody reviewed. Also the bottom status strip now says there is more below instead of always showing a half row with no affordance.' };
+  window.D2R_BUILD = { id:'v2463', name:'v2463 - TEN AGREE AND ONE DOES NOT', date:'2026-09-03', note:'His rule run over the item classifier for the first time. Every member of a roster should classify the same way and nothing had ever compared them. Nine of three hundred and ninety eight uniques did not resolve to unique: four carried a curly apostrophe where every lookup table holds a straight one, four of the most famous uniques in the game were in no table at all and rendered with no rarity, and one is a genuine dual name. The resolver now folds the apostrophe for the lookup only and falls back to the roster the page already maintains.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
