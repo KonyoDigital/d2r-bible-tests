@@ -16426,3 +16426,58 @@ publishing anything under their name, which is the missing lane SCORER, exactly 
 ⚠ Also measured and worth stating: **the vessel → watcher link needs no resolver at all.** 11 of
 21 vessel rows NAME their own watcher (`_shadow_watch_loop` → `tvd-shadow-watch`), so that join is
 already made in the data structure and was never the gap.
+
+## v2501 — a different family armed the deleter with a value that means OFF, and the fifth lock opened itself
+
+**REG-481 — `TV_AUTO_PRUNE="​0"` ARMED an unattended, irreversible deleter.** Found by handing
+`retention_may_act` **cold** to a different model family — no hint of what to look for, no mention
+that anything had ever been tested — and asking it to design attacks. It proposed four; **three
+refused immediately and one landed.** Measured with the world guard satisfied, so the switch was
+tested on its own axis:
+
+```
+TV_AUTO_PRUNE="​0"   ARMED   a zero-width space before a valid OFF value
+TV_AUTO_PRUNE="offf"      ARMED   a typo
+TV_AUTO_PRUNE="disabled"  ARMED   a word that plainly means off
+TV_AUTO_PRUNE="flase"     ARMED   a transposition of "false"
+```
+
+**REG-482 — and the code's own comment had been describing behaviour it did not have.** Three lines
+above the switch: *"A typo is not permission."* A typo **was** permission. This is v2082's scar in a
+new costume — that one was *"0 with a trailing space arms an unattended deleter"*, and `.strip()`
+fixed the spellings someone had imagined while leaving every unimagined one arming, because **the
+unrecognised arm was the permissive one.** A list of ways to say no is only ever as complete as the
+person who wrote it.
+
+So the shape changed rather than the list growing: OFF holds, ON proceeds, **UNSET proceeds** (his
+explicit ruling — *"automatically prune its not a question.. needs to be defaulted in"*), and a
+value that is SET but UNRECOGNISED now holds. An unset switch is his decision; a misspelt one is
+nobody's. ⚠ `test_it_is_STILL_ARMED_when_he_has_not_switched_it_off` pins that his ruling survived
+— the over-reaching version of this fix is one line away and reads as safety.
+
+⚠ **Two of the four predictions were BACKWARDS**, and that belongs on the record too: it expected a
+`UserDict` and a Cyrillic-homoglyph `"оk"` to pass, and both **refuse** — `isinstance` is False so
+the state reads as None, and a spoofed state is not `"ok"`. A second family is worth having because
+it attacks along axes I do not, **not** because it is more often right.
+
+**REG-483 — my own harness refused my attack, correctly, and I nearly widened the interlock.**
+`_Env` may only ever write a spelling of OFF, because a harness able to set an ARMING value in this
+process is a harness able to arm a real deleter, whatever its docstring promises. `xyzzy` and
+`flase` are precisely the values that used to arm it. **The interlock was not weakened** — the
+attempts moved to a child process with `TV_STUB=1`, which has no deleter to arm.
+
+**REG-484 — and that made the new claim immune to the red proof.** Every other claim is shown able
+to fail by stubbing `retention_may_act` in-process; a child imports the real module and never sees
+that stub, so `crossfamily` was the one claim in the file **that could not be shown to fail** —
+the exact shape of a guard measuring nothing. It now has a red proof that reaches where it runs
+(the parent passes a flag; the child honours it): normal `(6,6)`, permit-all `(6,0)`.
+
+**RESULT — `prune.arm` OPENED ITSELF**, on its own arithmetic and not by hand:
+
+```
+48 of 48 refused · wilson 0.926 >= 0.839 · kinds ['cross-family','sabotage'] = 1.80 >= 1.80
+```
+
+That is A2's remaining quarter. ⚠ **Nothing was armed by this.** `may()` is defined and never
+called anywhere in the tree — the locks are badges, exactly as the standing constraint requires —
+and the switch is now strictly more conservative than before. 4 sabotages, 4 RED.

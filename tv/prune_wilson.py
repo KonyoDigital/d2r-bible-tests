@@ -189,7 +189,104 @@ def _attempt_worldshapeless(ca, n=8):
     return n, caught
 
 
+#: ⚠⚠ ATTACKS A DIFFERENT MODEL FAMILY DESIGNED, NOT ONES I THOUGHT OF. This is the whole reason
+#: `prune.arm` carries kinds_bar 1.8 against sabotage's 1.0: every case above came out of MY reading
+#: of this function, and forty-two of my own attempts agreeing with each other is one instrument
+#: agreeing with itself, however high the Wilson score climbs.
+#:
+#: These four were produced by handing `retention_may_act` COLD to grok-4-1 — no hint of what it
+#: should find, no mention that anything had ever been tested — and asking it to design attacks that
+#: would make the deleter say yes when it must say no. THREE REFUSED IMMEDIATELY and ONE LEAKED:
+#:
+#:     TV_AUTO_PRUNE="\u200b0"    ARMED   ⚠ a zero-width space before a valid OFF value
+#:     TV_AUTO_PRUNE="\xa00ff"    held    (\xa0 IS stripped by str.strip; its prediction was wrong)
+#:     a UserDict, not a dict     held    (it predicted this would pass; isinstance is False, so
+#:                                        _st is None, so the guard refuses — the SAFE direction)
+#:     state "оk" (Cyrillic о)    held    (it predicted a pass; a spoofed state is not "ok", refuse)
+#:
+#: So two of its four predictions were backwards, and the one that landed was real and is now
+#: fixed (v2501). Both facts belong here: a second family is worth having because it attacks along
+#: axes I do not, NOT because it is more often right. [[grok-second-eye]]
+CROSS_FAMILY = (
+    ("zero-width", "\u200b0"),        # invisible char before a valid OFF value
+    ("nbsp", "\xa0off"),
+    ("typo", "offf"),                 # the comment above says "a typo is not permission"
+    ("plain-word", "disabled"),
+    ("transposed", "flase"),
+    ("garbage", "xyzzy"),
+)
+
+
+def _attempt_crossfamily(ca, n=None, permit_all=False):
+    """Values a DIFFERENT FAMILY expected to defeat this switch. -> (attempted, refused)
+
+    Every one of these is a value a person could plausibly have meant as OFF, or typed by mistake.
+    The switch's own comment claims "A typo is not permission"; until v2501 a typo WAS permission,
+    because the unrecognised arm was the permissive one.
+
+    ⚠ The world guard is forced to "ok" so each case is tested on the SWITCH's own axis — a case
+    that only refuses because a different guard caught it has not tested the thing it names.
+
+    ⚠⚠ IT RUNS IN A CHILD PROCESS, AND THE HARNESS'S OWN INTERLOCK IS WHY. `_Env` REFUSES to
+    write any value that is not a spelling of OFF — because a harness that can set an ARMING value
+    in this process is a harness that can arm a real deleter, whatever its docstring promises. My
+    first cut of these cases went straight into `_Env` and was refused by it:
+
+        prune_wilson refused to set TV_AUTO_PRUNE='\u200b0' — it is not a spelling of OFF.
+
+    That refusal was CORRECT and the interlock is not weakened to accommodate this. `xyzzy` and
+    `flase` are exactly the values that USED to arm the deleter, which is the whole point of
+    attempting them — so they are attempted somewhere that has no deleter to arm: a child process
+    reading a scratch copy, with TV_STUB=1, which never starts a retention loop.
+    """
+    import json as _json
+    import subprocess as _sp
+    cases = CROSS_FAMILY if n is None else CROSS_FAMILY[:n]
+    root = os.path.dirname(os.path.abspath(getattr(ca, "__file__", HERE) or HERE))
+    prog = (
+        "import os,sys,json\n"
+        "sys.path.insert(0, %r)\n"
+        "os.environ['TV_STUB']='1'\n"
+        "import control_app as ca\n"
+        "ca.board_identity_drift = lambda *a, **k: {'state':'ok','why':''}\n"
+        # ⚠ THE RED PROOF HAS TO REACH WHERE THE CLAIM ACTUALLY RUNS. Every other claim here is
+        # proven able to go red by stubbing `retention_may_act` IN THIS PROCESS — and this one is
+        # immune to that, because it runs in a child that imports the real module. It was
+        # therefore the one claim in the file that could not be shown to fail, which is the exact
+        # shape of a guard that measures nothing. The parent passes the flag; the child honours it.
+        "if os.environ.get('TV_PW_PERMIT_ALL') == '1':\n"
+        "    ca.retention_may_act = lambda *a, **k: (True, 'sabotage: permits anything')\n"
+        "out=[]\n"
+        "for val in json.loads(sys.argv[1]):\n"
+        "    os.environ['TV_AUTO_PRUNE']=val\n"
+        "    try:\n"
+        "        r=ca.retention_may_act()\n"
+        "        ok = isinstance(r,tuple) and len(r)==2 and r[0] is False and bool(str(r[1] or '').strip())\n"
+        "    except Exception:\n"
+        "        ok=False\n"
+        "    out.append(bool(ok))\n"
+        "print(json.dumps(out))\n" % (root,)
+    )
+    env = dict(os.environ)
+    env.pop("TV_AUTO_PRUNE", None)          # the CHILD sets it per case; the parent never does
+    if permit_all:
+        env["TV_PW_PERMIT_ALL"] = "1"
+    else:
+        env.pop("TV_PW_PERMIT_ALL", None)
+    try:
+        raw = _sp.check_output([sys.executable, "-c", prog, _json.dumps([v for _l, v in cases])],
+                               stderr=_sp.STDOUT, timeout=180, env=env)
+        got = _json.loads(raw.decode("utf-8", "replace").strip().splitlines()[-1])
+    except Exception:
+        # the probe could not answer — UNKNOWN, which banks nothing. Not a score of zero.
+        return 0, 0
+    return len(cases), sum(1 for x in got if x)
+
+
 CLAIMS = (
+    ("crossfamily", "values a DIFFERENT model family designed to defeat the off-switch are held — "
+                    "one of its four landed, and a typo used to be permission",
+     _attempt_crossfamily),  # ⚠ runs OUT OF PROCESS; see PERMIT_ALL for how it is proven red
     ("offspelling", "every spelling of OFF holds the deleter — v2082 matched the byte \"0\" alone "
                     "and every other spelling armed it", _attempt_offspelling),
     ("worldunknown", "footage is not deleted while the board's world is unconfirmed",
@@ -249,7 +346,12 @@ def bank_into_proof_queue(rows):
                            % (r.get("claim"), r.get("state")))
             continue
         try:
-            _sa.bank("prune.arm", "sabotage", "prune_wilson", n=n, k=k,
+            _kind = "cross-family" if r["claim"] == "crossfamily" else "sabotage"
+            # ⚠ src stays `prune_wilson` — it is the DECLARED evidence source in PROVES, and
+            # bank() folds on (lock, kind, src), so the two kinds already stay apart without
+            # inventing a source name the declaration does not know. My first cut appended the
+            # claim and every bank was refused: "not a declared evidence source".
+            _sa.bank("prune.arm", _kind, "prune_wilson", n=n, k=k,
                      ref=str(r.get("claim")), note=str(r.get("what") or "")[:200])
             banked.append("%s %d/%d" % (r.get("claim"), k, n))
         except ValueError as e:

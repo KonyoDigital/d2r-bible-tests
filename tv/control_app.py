@@ -15602,9 +15602,37 @@ def retention_may_act():
     # same reel, correctly, for exactly that reason — two authorities, and the looser one acted.
     # The safety belongs in WHAT IS ELIGIBLE, not in a switch he asked to have defaulted on.
     # See reel_retention: eligibility now consults the same extraction contract.
-    _sw = str(os.environ.get("TV_AUTO_PRUNE", "")).strip().lower()
-    if _sw in ("0", "off", "false", "no", "none", "never"):
+    # ⚠⚠⚠ v2501 — A CROSS-FAMILY ATTACK ARMED THIS SWITCH WITH A VALUE THAT MEANS OFF, and the
+    # comment above ("A typo is not permission") was describing behaviour this code did not have.
+    # Both found by handing the function COLD to a different model family and asking it to design
+    # attacks. Measured, with the world guard satisfied so the switch was tested on its own axis:
+    #
+    #     TV_AUTO_PRUNE="\u200b0"   -> ARMED   a zero-width space before a valid OFF value
+    #     TV_AUTO_PRUNE="offf"      -> ARMED   a typo
+    #     TV_AUTO_PRUNE="disabled"  -> ARMED   a word that plainly means off
+    #     TV_AUTO_PRUNE="flase"     -> ARMED   a transposition of "false"
+    #
+    # This is v2082's scar in a new costume. That one was "0 with a trailing space arms an
+    # unattended deleter"; `.strip()` fixed the spellings anyone predicted and left every
+    # UNPREDICTED one arming, because the switch's default arm is the permissive one. A list of
+    # ways to say no can only ever be as complete as the imagination of whoever wrote it.
+    #
+    # So the shape changes rather than the list growing: OFF holds, ON proceeds, UNSET proceeds
+    # (his explicit ruling — "automatically prune its not a question.. needs to be defaulted in"),
+    # and a value that is SET but UNRECOGNISED now HOLDS. An unset switch is his decision; a
+    # misspelt one is nobody's. [[unknown-stays-unknown]]
+    _raw = str(os.environ.get("TV_AUTO_PRUNE", ""))
+    # strip invisibles BEFORE whitespace: str.strip() removes \xa0 but NOT \u200b/\u200c/\ufeff,
+    # which is precisely how a copied-and-pasted "0" came through as armed.
+    _sw = "".join(c for c in _raw if c not in "\u200b\u200c\u200d\ufeff").strip().lower()
+    if _sw in ("0", "off", "false", "no", "none", "never", "disabled", "disable", "stop"):
         return False, "auto-prune is switched off (TV_AUTO_PRUNE=%s) — reporting only" % _sw
+    if _sw and _sw not in ("1", "on", "true", "yes", "always", "auto"):
+        # ⚠ THE ONE DOOR WITH NO UNDO DOES NOT GUESS. He never typed this, or he typed it wrong;
+        # either way it is not the "defaulted in" case he asked for, and it is not consent.
+        return False, ("TV_AUTO_PRUNE=%r is not a value this switch understands, and the deleter "
+                       "does not guess. Unset it to get the automatic behaviour, or set it to one "
+                       "of on/off." % _raw[:40])
     # ── v2164 — THE DELETER ASKS THE WORLD GUARD TOO. ────────────────────────────────────────
     # Konyo: "make sure the other profile locking of the chronicles and everything is connected to
     # the profile and pc related to it, so nothing ever gets deleted or regressed."
@@ -22156,7 +22184,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2500",
+        "ver": "v2501",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

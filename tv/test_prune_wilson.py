@@ -16,6 +16,7 @@ stripped of comments and string literals before any forbidden token is looked fo
 [[source-reading-guard]] [[feedback-comments-vs-code]]
 """
 import io
+import inspect
 import os
 import sys
 import tokenize
@@ -173,11 +174,42 @@ class TheHarnessCanGoRed(unittest.TestCase):
         finally:
             ca.retention_may_act = orig
         self.assertTrue(rows, "score() returned nothing")
-        leaked = [r for r in rows if r["state"] == "LEAKS"]
+        # ⚠⚠ ONE CLAIM IS IMMUNE TO THIS STUB, AND THAT IS A FACT ABOUT WHERE IT RUNS. `crossfamily`
+        # executes in a CHILD process — it has to, because its values are the ones that USED to arm
+        # the deleter and `_Env` rightly refuses to write them here. A child imports the real
+        # module and never sees this in-process stub, so including it would fail this test for a
+        # reason that has nothing to do with the claim's quality. It is excluded HERE and proven
+        # red in test_the_out_of_process_claim_can_also_go_red, which reaches where it runs.
+        # A claim with no red proof at all would be the one thing this file exists to prevent.
+        inproc = [r for r in rows if r["claim"] != "crossfamily"]
+        self.assertTrue(inproc, "BASELINE: no in-process claims left to prove red")
+        leaked = [r for r in inproc if r["state"] == "LEAKS"]
         self.assertEqual(
-            len(leaked), len(rows),
-            "with the deleter permitting EVERY sabotaged state, only %d of %d claims reported "
-            "LEAKS. The rest are measuring nothing." % (len(leaked), len(rows)))
+            len(leaked), len(inproc),
+            "with the deleter permitting EVERY sabotaged state, only %d of %d in-process claims "
+            "reported LEAKS. The rest are measuring nothing." % (len(leaked), len(inproc)))
+
+    def test_the_out_of_process_claim_can_also_go_red(self):
+        """The red proof for `crossfamily`, run where the claim actually runs.
+
+        Every other claim is proven able to fail by stubbing `retention_may_act` in this process.
+        This one runs in a child, so that stub cannot reach it — and a claim that cannot be shown
+        to fail is measuring nothing, however perfect its record looks.
+        """
+        try:
+            import control_app as ca
+            import prune_wilson as pw
+        except Exception as e:
+            self.skipTest("console module would not import: %s" % str(e)[:80])
+        n_ok, k_ok = pw._attempt_crossfamily(ca)
+        self.assertTrue(n_ok, "the cross-family probe attempted nothing — UNKNOWN, not a pass")
+        self.assertEqual(k_ok, n_ok,
+                         "the switch let %d of %d cross-family values through" % (n_ok - k_ok, n_ok))
+        n_bad, k_bad = pw._attempt_crossfamily(ca, permit_all=True)
+        self.assertEqual(
+            (n_bad, k_bad), (n_ok, 0),
+            "with the child's deleter permitting EVERYTHING, the cross-family probe still counted "
+            "%d refusals of %d. It is not measuring the deleter." % (k_bad, n_bad))
 
     def test_a_bare_False_with_no_reason_does_not_count_as_a_refusal(self):
         """The console must be able to say WHY it did not delete."""
@@ -206,7 +238,114 @@ class TheHarnessCanGoRed(unittest.TestCase):
                 os.environ.pop("TV_AUTO_PRUNE", None)
 
 
+def _console():
+    """-> the control_app module, or None. Import failure is UNKNOWN, never a pass."""
+    try:
+        import control_app as ca
+        return ca
+    except Exception:
+        return None
+
+
 class ItIsDeclaredForOneLockOnly(unittest.TestCase):
+
+    def test_a_typo_is_not_permission(self):
+        """The switch's own comment said so for 419 versions while the code did the opposite.
+
+        ⚠⚠ FOUND BY A DIFFERENT MODEL FAMILY, HANDED THE FUNCTION COLD. Measured before v2501,
+        with the world guard satisfied so the switch was tested on its own axis:
+
+            TV_AUTO_PRUNE="\u200b0"   ARMED   a zero-width space before a valid OFF value
+            TV_AUTO_PRUNE="offf"      ARMED   a typo
+            TV_AUTO_PRUNE="disabled"  ARMED   a word that plainly means off
+            TV_AUTO_PRUNE="flase"     ARMED   a transposition of "false"
+
+        This is v2082's scar in a new costume. That one was "0 with a trailing space arms an
+        unattended deleter", and `.strip()` fixed the spellings someone had imagined while leaving
+        every unimagined one arming — because the UNRECOGNISED arm was the permissive one. A list
+        of ways to say no is only ever as complete as the person who wrote it.
+        """
+        ca = _console()
+        if ca is None:
+            raise unittest.SkipTest("control_app would not import — UNKNOWN, not a pass")
+        orig = ca.board_identity_drift
+        was_set, was = ("TV_AUTO_PRUNE" in os.environ), os.environ.get("TV_AUTO_PRUNE")
+        try:
+            ca.board_identity_drift = lambda *a, **k: {"state": "ok", "why": ""}
+            for val in ("\u200b0", "offf", "disabled", "flase", "xyzzy", "0\u200b"):
+                os.environ["TV_AUTO_PRUNE"] = val
+                ok, why = ca.retention_may_act()
+                self.assertFalse(
+                    ok,
+                    "TV_AUTO_PRUNE=%r ARMED an unattended, irreversible deleter. Every one of "
+                    "these is a value a person could have meant as OFF or typed by mistake, and "
+                    "the one door with no undo is the last place that may assume yes." % val)
+                self.assertTrue(str(why or "").strip(),
+                                "it held, but gave no reason — the console has to be able to say "
+                                "why it did not delete")
+        finally:
+            ca.board_identity_drift = orig
+            if was_set:
+                os.environ["TV_AUTO_PRUNE"] = was
+            else:
+                os.environ.pop("TV_AUTO_PRUNE", None)
+
+    def test_it_is_STILL_ARMED_when_he_has_not_switched_it_off(self):
+        """⚠⚠ HIS RULING, AND THE FIX ABOVE MUST NOT QUIETLY REVERSE IT.
+
+        "automatically prune its not a question.. needs to be defaulted in". Making unrecognised
+        values hold is one line away from making EVERYTHING hold, which would read as safety and
+        would deliver the opposite of what he asked for. UNSET is his decision and still arms;
+        only a value that is set and not understood is refused.
+        """
+        ca = _console()
+        if ca is None:
+            raise unittest.SkipTest("control_app would not import — UNKNOWN, not a pass")
+        orig = ca.board_identity_drift
+        orig_flight = ca.nothing_in_flight
+        was_set, was = ("TV_AUTO_PRUNE" in os.environ), os.environ.get("TV_AUTO_PRUNE")
+        try:
+            ca.board_identity_drift = lambda *a, **k: {"state": "ok", "why": ""}
+            ca.nothing_in_flight = lambda msg: (True, "")
+            os.environ.pop("TV_AUTO_PRUNE", None)
+            ok, _why = ca.retention_may_act()
+            self.assertTrue(
+                ok,
+                "with TV_AUTO_PRUNE UNSET the deleter is HELD. He asked for this to be automatic; "
+                "a guard that turns it off for every value delivers the opposite of what he asked "
+                "for and reads as safety.")
+            for val in ("1", "on", "true", "yes", "always"):
+                os.environ["TV_AUTO_PRUNE"] = val
+                ok, _why = ca.retention_may_act()
+                self.assertTrue(ok, "TV_AUTO_PRUNE=%r is an explicit YES and it was held" % val)
+        finally:
+            ca.board_identity_drift = orig
+            ca.nothing_in_flight = orig_flight
+            if was_set:
+                os.environ["TV_AUTO_PRUNE"] = was
+            else:
+                os.environ.pop("TV_AUTO_PRUNE", None)
+
+    def test_the_cross_family_cases_never_touch_this_process(self):
+        """The harness may not set an ARMING value in a process that owns a deleter.
+
+        `_Env` refuses any value that is not a spelling of OFF, and that interlock is why the
+        cross-family attempts run in a CHILD. My first cut sent them through `_Env` and was
+        correctly refused; the fix was to move the attempt, never to widen the interlock.
+        """
+        import prune_wilson as PW
+        src = inspect.getsource(PW._attempt_crossfamily)
+        self.assertIn("subprocess", src,
+                      "the cross-family attempts no longer run in a child process, so an arming "
+                      "value is being written into a process that can delete")
+        self.assertNotIn("_Env(", src,
+                         "the cross-family attempts go through _Env again — either they are being "
+                         "refused, or the interlock has been widened to let an arming value "
+                         "through. Both are wrong.")
+        for _label, val in PW.CROSS_FAMILY:
+            self.assertNotIn(val, PW.OFF_SPELLINGS,
+                             "%r is already a known OFF spelling, so attempting it proves nothing "
+                             "the offspelling claim did not" % val)
 
     def test_PROVES_binds_prune_wilson_to_prune_arm_alone(self):
         import self_arming as sa
