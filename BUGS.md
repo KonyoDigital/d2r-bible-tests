@@ -17311,3 +17311,28 @@ unguarded paths both end UNTESTABLE. It takes **three** to tell them apart — w
 says AGREES from reels that surveyed nothing.
 
 Guard: `tv/test_declared_vs_content.py`, registered (106 gates). **6 sabotages, 6 RED.**
+
+## v2526 — a truncator that exceeded its own cap, and the stop signal on a five-version thread
+
+**REG-524 — the truncator returned 164 characters for an input over its own 160 cap.** 100 head +
+56 tail + an 8-char marker. *"Incoherent... longer than the 160 threshold it claims to enforce."*
+Small — and **a truncator that exceeds its own limit makes every other number in the file slightly
+less believable.** Derived from the cap now; verified at 159 / 160 / 161 / 500 / 5000 characters,
+output never exceeds 160.
+
+⚠⚠ **AND THE ANSWER I ACTUALLY NEEDED.** I asked the cold eye outright whether this helper was
+over-engineered for a test spy. Its answer: **"Fine as is. The complexity is modest, the intent is
+clear, and the safety measures are reasonable for a test spy that must not break the observed
+code."**
+
+That is the stop signal I said one version earlier I would watch for. This spy had consumed **five
+consecutive versions** — every round finding a real defect, every one found by the cold eye rather
+than by me — and an independent read now says it needs nothing further. **Stopping here rather than
+continuing by momentum**, which is the failure mode that thread was heading toward.
+
+**Two confirmations recorded rather than dropped:** `type(e).__name__` inside an `except` cannot
+raise; and `repr()` is the right capture, because *"it preserves type information and structure that
+`str()` would lose, which is what you need in an assertion failure message."*
+
+**One settled:** the docstring's *"repr at call time"* describes intended usage rather than a
+guarantee the function enforces — *"just wording"*. Left as is.

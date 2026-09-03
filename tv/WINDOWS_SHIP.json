@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2525",
+  "ver": "v2526",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2525: A15 says the route must be derived from the content and never guessed from a declared stamp. Measured: 40 reel dirs, 40 with an index, and exactly one declaring a chronicle focus - carrying zero surveyed panels. Zero disagreements over a sample that cannot disagree measures the sample, so the check says UNTESTABLE rather than agrees. And the source refuted my suspicion before publication for the second time today - _vault_lane_owes returning True with no declared focus looks exactly like the v1783 defect and is the deliberate safe direction per its own docstring.",
+  "note": "v2526: The truncator returned 164 characters for an input over its own 160 cap - 100 head plus 56 tail plus an 8-char marker. Small, and a truncator that exceeds its own limit makes every other number in the file slightly less believable. Derived from the cap now and verified across sizes. And the answer I actually needed: I asked the cold eye outright whether the helper was over-engineered and it said fine as is. That is the stop signal I said I would watch for - this spy had consumed five consecutive versions and an independent read says it needs nothing further.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

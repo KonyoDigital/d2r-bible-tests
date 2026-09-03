@@ -423,6 +423,9 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                 # to snapshot' from 'the code under test passed None'", and the message blamed THE
                 # SPY either way, misattributing a real defect to the instrument. Two meanings on
                 # one value, in the fix written to stop exactly that. [[unknown-stays-unknown]]
+                _SNIP = " …snip… "
+                _CAP = 160
+
                 def _describe(x):
                     """repr at call time, head AND tail — a truncation that hides the telling
                     element is the message failing at the one moment it is needed."""
@@ -430,7 +433,14 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                         r = repr(x)
                     except Exception as e:
                         return "<repr() raised %s>" % type(e).__name__
-                    return r if len(r) <= 160 else (r[:100] + " …snip… " + r[-56:])
+                    # ⚠ THE ARITHMETIC DID NOT ADD UP: 100 head + 56 tail + an 8-char marker is
+                    # 164 — LONGER than the 160 it claimed to enforce. A truncator that exceeds
+                    # its own limit is a small thing that makes every other number in the file
+                    # slightly less believable. Derived from the cap now rather than hand-summed.
+                    if len(r) <= _CAP:
+                        return r
+                    keep = _CAP - len(_SNIP)
+                    return r[:keep - keep // 3] + _SNIP + r[-(keep // 3):]
 
                 def _snap(fn, x):
                     try:
