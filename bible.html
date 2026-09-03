@@ -43607,13 +43607,31 @@ function renderJournal(){
            Measured in this file and in his own store:
              window.RUNEWORDS      101   the FARM roster — carries variants ("Spirit (sword)"
                                          and "Spirit (shield)" are two rows for one runeword)
-             RUNEWORD_TIP           97   what the chronicle KPI divides by today
+             RUNEWORD_TIP           99   the catalogue, and what the chronicle KPI divides by
              his d2r_rwMade         99   what he has actually made
              of those 99, 97 appear in RUNEWORD_TIP
 
-           So my first cut published 99/101 (the farm roster) and the board's own KPI would say
-           97/97. The comment beside that KPI still claims "(99/99)" — a label that outlived its
-           referent: the map drifted to 97 and the sentence did not move. [[label-outlived-referent]]
+           ⚠⚠ CORRECTED v2484 — THIS TABLE ONCE READ "RUNEWORD_TIP 97 what the chronicle KPI
+           divides by today", AND THAT WAS NEVER TRUE. The KPI at the `(99/99)` comment below
+           returns `total: Object.keys(_tip).length` — UNFILTERED — so it has always divided by
+           99. The 97 is the NUMERATOR: `made` is the filtered count
+           `Object.keys(rm).filter(n => _tip[n]).length`, i.e. the 97 of his 99 made runewords
+           that appear in the map, which is the very next line of this table. So the row named
+           the wrong side of the fraction, and then the sentence after it used that to conclude
+           the KPI "would say 97/97". It would say 97/99.
+
+           WORSE, IT ACCUSED A CORRECT COMMENT. It said the `(99/99)` label beside that KPI was
+           "a label that outlived its referent: the map drifted to 97 and the sentence did not
+           move." The map never drifted — RUNEWORD_TIP held 99 keys at the commit that authored
+           THIS note, at v2104, and at HEAD, measured three ways including a real JS engine
+           evaluating the object. The stale number was in this note, pointing at a comment that
+           was right. A note invoking [[label-outlived-referent]] is exactly where that scar is
+           easiest to inflict and hardest to notice.
+
+           ⚠ NOTHING ON ANY SCREEN WAS WRONG, AND HIS RULING IS UNTOUCHED. RUNEWORD_CHRONICLE_TOTAL
+           stays 99 — it is his call, dated, and it happens to equal the derived catalogue size.
+           The defect was in the reasoning record: anyone reading this note was told the KPI
+           divides by 97. [[label-outlived-referent]] [[inherited-claim-is-not-evidence]]
 
            He plays the game and he is the authority on how many runewords count for his
            chronicle. It is a named constant, so the number has ONE home and the next person can
@@ -48430,7 +48448,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2483', name:'v2483 - two right numbers that read as a contradiction', date:'2026-09-03', note:'the heart printed a route roster count beside a chronicle total for the same tab and never said they measure different things, so a cold reader called it a bug; runewords 105 vs 99 is his v2192 ruling and uniques 398 vs 403 is chronTotal. Labelling the quantities was not enough - the second eye refuted that fix, because a reader can see two words differ and still not know whether the difference is deliberate. The panel now says it is, and why. My first guard for it could not fail.' };
+  window.D2R_BUILD = { id:'v2484', name:'v2484 - one tab, one number, on every surface that prints it', date:'2026-09-03', note:'the heart showed runeword 105/99/99 and unique 398/403/403 because three route sets read three different producers; every number was right and the panel read as a defect. All three now quote tv/route_totals.py: runewords 99 (his v2192 ruling and the RUNEWORD_TIP catalogue size), sets 135 pieces, uniques 403 (his v1751 ruling from the game files). The roster lengths are kept and said out loud as ODD ONE OUT rather than winning a column. The third route set was computed and rendered nowhere; it is joined. And a cache key folded every mtime into max, so touching bible.html left it byte-identical in all three modules.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

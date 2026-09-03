@@ -15801,3 +15801,65 @@ must not share a unit word. Fed the shipped rows it went GREEN — because the u
 goes wrong is a unit that does not IDENTIFY its quantity, so that is what it checks now, against a
 set of vague units. Re-fed the shipped rows it throws, naming **both** `runeword` and `unique` —
 catching the case the cold eye missed — and passes the fix and the counts-agree case.
+
+## v2484 — one tab, one number, on every surface that prints it
+
+His ruling, verbatim, on being shown the heart's three route sets: *"sync and match them obivously..
+no reason to have this gap"*.
+
+```
+tab            chronicle routes   fleet lanes   roster routes
+runeword(s)         105                99            99
+set(s)              135               135           135
+unique(s)           398               403           403
+```
+
+**REG-456 — three surfaces, three producers.** `chronicle_routes` read a roster ARTIFACT while the
+other two read the chronicle. Every number was right and the panel read as a defect. All three now
+quote **`tv/route_totals.py`**, one producer per tab, reading `bible.html` rather than the artifacts
+— so the artifacts stop being denominators and become checked copies.
+
+| tab | shown | it is |
+|---|---|---|
+| runeword | **99** | his v2192 ruling, and independently `Object.keys(RUNEWORD_TIP).length` — the catalogue |
+| set | **135 pieces** | 34 sets, 135 distinct pieces |
+| unique | **403** | his v1751 ruling, re-derived from the game files |
+
+**Nothing of his was deleted and neither demoted number is wrong.** 105 is `runeword_roster.json`'s
+length — 101 rows plus 4 bare forms, both spellings kept on purpose because a chronicle page prints
+the bare one. 398 is every unique this board can put a NAME on. Both ride along and are now said
+out loud as **ODD ONE OUT**, naming both numbers and the two questions they answer, rather than one
+of them quietly winning the column.
+
+**REG-457 — the third column was computed and drawn nowhere.** `d.rosters` is built and gated, and
+the only `j.rosters` in `control_ui.html` was the `/api/fleet` payload — a different object. So the
+very table he pasted could not be checked on screen. Joined. [[the-unjoined-end]]
+
+**REG-458 — the unit word did not travel with the number.** One noun per SECTION cannot be right
+for three rows when sets count PIECES and the others count entries — which is how `set · 135 names`
+came to mean 135 set pieces. The unit now comes from the same producer as the figure.
+
+⚠ **THE SET WALK RETURNED 81 AND LOOKED ENTIRELY PLAUSIBLE.** Two of the three set declarations
+write `pieces:[...]` and the third writes `"pieces": [...]`. A bare pattern found 12 arrays, then 7,
+then **zero**, and returned a confident 81 instead of 135. Nothing was broken; the scan had silently
+stopped seeing one of its three inputs. **The count was the tell**, and the guard now fails if any
+declaration contributes zero.
+
+⚠ **AND A CACHE KEY THAT COULD NOT SEE ITS OWN INPUT.** The rows are memoised on `_source_key()`,
+which folded every mtime into `max()`. Since the counts now come from `bible.html`, a change to his
+ruling had to move that key — and measured, **touching `bible.html` left the key byte-identical in
+all three modules**, because some `.py` carried a newer mtime. A real edit usually moves `max` too,
+but a digest that can *collapse two different states into one value* is a false equality waiting for
+the day it matters, and that day is the day he changes a ruling. `bible.html` now has its own slot.
+
+**Guards, all seen RED for their own reason** (`tv/test_route_totals.py`, 11 tests): the three
+surfaces print the producer's number · they all follow when the producer moves · the unit is
+identical across surfaces · a divergence names both numbers · an unreadable producer is UNKNOWN not
+zero · every declaration contributes to the set walk · a truncated source refuses rather than
+counting what it happened to see · touching `bible.html` moves every cache key.
+**No test names 99, 135 or 403** — a gate pinned to a number is the next label that outlives its
+referent.
+
+⚠ **One red proof was GREEN first and it was my harness.** `safe_copy … tv` copies only `tv/`, so
+`BIBLE` does not exist in the scratch tree and the bible tests SKIP. A skip is not a pass. Re-run
+against a full-repo copy — with a baseline proving the test actually ran — it went red.

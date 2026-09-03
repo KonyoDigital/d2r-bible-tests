@@ -21,6 +21,30 @@ The join snippet is in the module docstring at the bottom so Claude can land it 
 """
 import io
 import os
+# ⚠ THE ONE PRODUCER. Every route set quotes this rather than its own reading, so three surfaces
+# cannot drift apart again. Imported defensively: if it will not load, `total()` is simply absent
+# and the row goes UNKNOWN — which is the honest state, and better than a lane inventing a total.
+try:
+    import route_totals as _rt
+except Exception:          # pragma: no cover - a tree without the producer still serves
+    _rt = None
+
+
+class _NoProducer(object):
+    """Stands in when route_totals will not import. Everything is UNKNOWN, nothing is invented."""
+
+    @staticmethod
+    def total(_k):
+        return None
+
+    @staticmethod
+    def disagreements(_rows, own_field=None):
+        return []
+
+
+if _rt is None:
+    _rt = _NoProducer()
+
 # ⚠ `_crt`, not `_cr`: both of these files already bind `_cr` with a
 # function-local import further down, and a name assigned anywhere in a function
 # is local for the WHOLE function — so using `_cr` above it raised
@@ -193,7 +217,14 @@ def _source_key():
                       os.path.join(HERE, "control_app.py")):
             if os.path.isfile(extra):
                 stamps.append(os.path.getmtime(extra))
-        return (len(stamps), round(max(stamps), 3) if stamps else 0)
+        # ⚠ BIBLE GETS ITS OWN SLOT — see the note in chronicle_routes._source_key. `max` is a
+        # lossy digest and cannot tell a bible.html change from no change whenever another source
+        # carries a newer mtime, and bible.html is where the counts come from since v2484.
+        try:
+            _bib = round(os.path.getmtime(BIBLE), 3) if os.path.isfile(BIBLE) else 0
+        except Exception:
+            _bib = 0
+        return (len(stamps), round(max(stamps), 3) if stamps else 0, _bib)
     except Exception:
         return None
 
@@ -300,8 +331,19 @@ def routes(tally=None, bible=None, probe=None, ui=None):
         else:
             state, why = FLOWING, ("declared, exposed, asked, reported, and the screen says "
                                    "what it is counting")
+        # ⚠⚠ THE COUNT COMES FROM THE ONE PRODUCER, NOT FROM THIS LANE'S OWN READING. Until v2484
+        # the three route sets each read a different source and the heart showed runeword 105 / 99
+        # / 99 and unique 398 / 403 / 403 — every number right, and the panel reading as a
+        # contradiction. His ruling: "sync and match them obivously.. no reason to have this gap".
+        # This lane's own number is kept beside it, never dropped, and route_totals.disagreements()
+        # says so out loud if the two ever differ. [[copy-drift]] [[unknown-stays-unknown]]
         out.append({"key": key, "artifact": fn, "state": state, "why": why, "lanes": lanes,
-                    "count": ((tally or {}).get(tkey) or {}).get("total") if tally else None})
+                    "count": _rt.total(key),
+                    # the UNIT travels with the number, from the same producer. Sets count PIECES
+                    # and the other two count entries; a section-wide noun could not say that, and
+                    # a wrong unit is how "135 names" once meant 135 set pieces.
+                    "noun": _rt.noun(key),
+                    "boardCount": ((tally or {}).get(tkey) or {}).get("total") if tally else None})
 
     try:
         import chronicle_routes as _cr

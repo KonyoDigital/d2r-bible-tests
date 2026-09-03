@@ -35,6 +35,30 @@ import io
 import json
 import os
 import re
+# ⚠ THE ONE PRODUCER. Every route set quotes this rather than its own reading, so three surfaces
+# cannot drift apart again. Imported defensively: if it will not load, `total()` is simply absent
+# and the row goes UNKNOWN — which is the honest state, and better than a lane inventing a total.
+try:
+    import route_totals as _rt
+except Exception:          # pragma: no cover - a tree without the producer still serves
+    _rt = None
+
+
+class _NoProducer(object):
+    """Stands in when route_totals will not import. Everything is UNKNOWN, nothing is invented."""
+
+    @staticmethod
+    def total(_k):
+        return None
+
+    @staticmethod
+    def disagreements(_rows, own_field=None):
+        return []
+
+
+if _rt is None:
+    _rt = _NoProducer()
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -362,7 +386,19 @@ def _source_key():
         for p in sorted(os.listdir(HERE)):
             if p.endswith("_roster.json"):
                 stamps.append(os.path.getmtime(os.path.join(HERE, p)))
-        return (len(stamps), round(max(stamps), 3) if stamps else 0)
+        # ⚠⚠ BIBLE GETS ITS OWN SLOT, NOT JUST A SEAT IN max(). The counts come from bible.html
+        # now, and `max` is a LOSSY digest: it cannot tell "bible changed" from "bible did not
+        # change" whenever some .py in this directory carries a newer mtime. A real edit usually
+        # moves max too — it stamps mtime to now — but a key that CAN collapse two different
+        # states into one value is a false equality waiting for the day it matters, and the day it
+        # matters here is the day he changes a ruling and the panel keeps printing the old total.
+        # Measured: bumping bible.html's mtime left the old key byte-identical.
+        # [[stale-reading]] [[unknown-stays-unknown]]
+        try:
+            _bib = round(os.path.getmtime(BIBLE), 3) if os.path.isfile(BIBLE) else 0
+        except Exception:
+            _bib = 0
+        return (len(stamps), round(max(stamps), 3) if stamps else 0, _bib)
     except Exception:
         return None                     # unkeyable -> never cached, which is slow and never wrong
 
@@ -433,10 +469,22 @@ def routes():
         else:
             state, why = FLOWING, ("generated, stamped, and a gate re-checks the stamp against "
                                    "the page")
+        # ⚠⚠ THE COUNT COMES FROM THE ONE PRODUCER, NOT FROM THIS LANE'S OWN READING. Until v2484
+        # the three route sets each read a different source and the heart showed runeword 105 / 99
+        # / 99 and unique 398 / 403 / 403 — every number right, and the panel reading as a
+        # contradiction. His ruling: "sync and match them obivously.. no reason to have this gap".
+        # This lane's own number is kept beside it, never dropped, and route_totals.disagreements()
+        # says so out loud if the two ever differ. [[copy-drift]] [[unknown-stays-unknown]]
         out.append({"key": key, "artifact": fn, "state": state, "why": why, "lanes": lanes,
-                    "count": art["count"]})
+                    "count": _rt.total(key),
+                    # the UNIT travels with the number, from the same producer. Sets count PIECES
+                    # and the other two count entries; a section-wide noun could not say that, and
+                    # a wrong unit is how "135 names" once meant 135 set pieces.
+                    "noun": _rt.noun(key),
+                    "artifactCount": art["count"]})
 
     flags = corroborate(out)
+    flags = list(flags) + _rt.disagreements(out, own_field="artifactCount")
 
     counts = {FLOWING: 0, WATCHED: 0, DARK: 0, UNKNOWN: 0}
     for r in out:

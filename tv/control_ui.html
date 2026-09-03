@@ -10917,6 +10917,11 @@ body[data-origin="shadow"] #stage::after {
        card where that exact unit had just been fixed. A shared renderer must take its unit
        from its caller or it launders one surface's vocabulary onto another. */
     var NN = (noun === undefined) ? ' names' : noun;
+    /* ⚠ AND A ROW MAY CARRY ITS OWN UNIT, which now overrides the section's. Sets count PIECES
+       while the other two count entries, so one word for a whole section cannot be right for all
+       three rows — that is how "set · 135 names" came to mean 135 set PIECES. The unit travels
+       with the number from tv/route_totals.py, so the word and the figure cannot drift apart. */
+    var _rowNoun = function(r){ return (r && typeof r.noun === 'string' && r.noun) ? r.noun : NN; };
     if (!cc) return '';
     if (!cc.ok){
       /* ⚠ v2473 — THE SAME DEFECT THE NOUN COMMENT ABOVE FIXES, LEFT RUNNING IN THE ERROR BRANCH.
@@ -10963,7 +10968,7 @@ body[data-origin="shadow"] #stage::after {
       }
       var n = (r.count === null || r.count === undefined) ? '\u2014' : r.count;
       h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(r.key) + ' \u00b7 ' + n
-        + NN + '</span>'
+        + _hrtEsc(_rowNoun(r)) + '</span>'
         + '<span class="hrt-s st-' + _hrtEsc(r.state) + '">' + _hrtEsc(r.state) + '</span>'
         + '<span class="hrt-w"><span class="hrt-chain">' + chain + '</span>'
         + (shared ? '' : _hrtEsc(r.why || '')) + '</span></div>';
@@ -11121,16 +11126,26 @@ body[data-origin="shadow"] #stage::after {
          WORD. The renderer already takes its noun from the caller, for exactly this reason one
          comment up; this caller was the one still using the bare default.
          [[label-outlived-referent]] [[unknown-stays-unknown]] */
-      + _hrtChron(d.chronicles, undefined, ' names in its roster',
-          'These count the names in each route\u2019s own ROSTER. THE FLEET LANES below count the '
-        + 'CHRONICLE TOTAL, so two of the three differ ON PURPOSE and neither number is wrong: '
-        + 'runewords 105 here against 99 there is Konyo\u2019s v2192 ruling that the chronicle '
-        + 'counts 99, and uniques 398 against 403 is chronTotal, the figure the Uniques tab '
-        + 'headlines. Sets agree at 135 only because that roster happens to be the whole '
-        + 'chronicle. A row where these two AGREED for runewords or uniques would be the bug.')
+      + _hrtChron(d.chronicles, undefined, ' in the chronicle',
+          'All three sections now show the SAME number per tab, because they quote one producer '
+        + '(tv/route_totals.py): runewords 99 \u2014 his v2192 ruling, and independently the size '
+        + 'of the RUNEWORD_TIP catalogue; sets 135 pieces across 34 sets; uniques 403 \u2014 his '
+        + 'v1751 ruling, re-derived from the game files. They used to disagree \u2014 105/99/99 '
+        + 'and 398/403/403 \u2014 and every number was right: this column was reading a roster '
+        + 'artifact while the others read the chronicle. Those roster lengths are not deleted and '
+        + 'are not wrong; they ride along and are said out loud as ODD ONE OUT when they differ, '
+        + 'because 105 is name strings (both spellings of a name) and 398 is the uniques this '
+        + 'board can put a NAME on. A row where the three now DISAGREE is the bug.')
       /* A21c — the fleet lanes, drawn by the SAME renderer. One picture-maker for two
          route sets is the point: a second copy would drift from this one within a week. */
-      + _hrtChron(d.fleet, 'The fleet lanes', ' reported as the total')
+      + _hrtChron(d.fleet, 'The fleet lanes', ' in the chronicle')
+      /* ⚠ THE THIRD COLUMN WAS COMPUTED AND RENDERED NOWHERE. d.rosters is built at
+         control_app.py:15381 and gated by test_heart_surface.py, and the only `j.rosters` in this
+         file is the /api/fleet payload — a different object. So the table he pasted, the one whose
+         third column disagreed, could not be checked on screen at all. Joining it is the point:
+         "three rows agree" is unobservable while one of the three is not drawn.
+         [[the-unjoined-end]] */
+      + _hrtChron(d.rosters, 'The roster routes', ' in the chronicle')
       + _hrtReach(d.reach)
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
       + (d.total || lk.length) + ' open</div>' + lrows + '</div>'

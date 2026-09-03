@@ -508,6 +508,32 @@ GATES = [
              "proven one, which a plain `if score:` would do. Also pins that it DERIVES and "
              "never writes, because a stored picture is a map that drifts from the territory — "
              "BLUEPRINT.md went stale exactly that way and a gate graded the last build."),
+    Gate("test_route_totals", [sys.executable, os.path.join(HERE, "test_route_totals.py")], 120,
+         why="v2484 — ONE TAB, ONE NUMBER. The heart drew three route sets and each read a "
+             "different producer: runeword 105/99/99 and unique 398/403/403. Every number was "
+             "right and the panel read as a defect, which is what he said out loud: \"sync and "
+             "match them obivously.. no reason to have this gap\". All three now quote "
+             "tv/route_totals.py. NO TEST HERE NAMES 99, 135 OR 403 — a gate pinned to a number "
+             "is the next label that outlives its referent. They assert the LAWS: the three print "
+             "the producer's figure, they all MOVE when it moves (equality today could be a "
+             "coincidence — sets looked exactly like this before), the unit word is identical "
+             "across surfaces, a divergence names BOTH numbers instead of dropping the loser, an "
+             "unreadable producer is UNKNOWN and never zero, every set declaration contributes to "
+             "the walk (a bare `pieces:` pattern once returned a confident 81 instead of 135 "
+             "because the third declaration quotes its key), and touching bible.html moves every "
+             "row cache key — measured, it did not in any of the three."),
+    Gate("test_ruling_note_numbers", [sys.executable,
+                                      os.path.join(HERE, "test_ruling_note_numbers.py")], 60,
+         why="v2484 — A NOTE THAT QUOTES A MEASURED NUMBER MUST STILL BE TELLING THE TRUTH. The "
+             "v2192 ruling comment carried the row \"RUNEWORD_TIP 97 what the chronicle KPI "
+             "divides by today\". It was never true: that KPI returns Object.keys(_tip).length "
+             "UNFILTERED and has always divided by 99, and the 97 is the NUMERATOR — the filtered "
+             "`made` count, which is the next line of the same table. The note then used its own "
+             "wrong figure to accuse the neighbouring (99/99) comment of being a label that "
+             "outlived its referent. The map never drifted; the accusing note carried the stale "
+             "number. Nothing on any screen was wrong and his ruling is untouched — the defect "
+             "lived in the reasoning record, where nothing reads prose. This reads it, and fails "
+             "if anyone but him moves RUNEWORD_CHRONICLE_TOTAL."),
     Gate("test_self_arming", [sys.executable, os.path.join(HERE, "test_self_arming.py")], 60,
          why="v2438 — KONYO RULED THE PRUNE MUST NOT BE ARMED BY HAND. \"a lock until it "
              "automatically unlocks with a que for wilson score. arithmetic as you see.\" This "
