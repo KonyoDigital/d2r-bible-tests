@@ -667,6 +667,35 @@ GATES = [
              "and STALE couplings both fail, the owner must actually mention its store, a reader "
              "needs a real reason, the exclusion stays narrow (widening it would make a hiding "
              "place), and nothing here fails a build. 5 sabotages, 5 RED."),
+    Gate("test_one_funnel", [sys.executable, os.path.join(HERE, "test_one_funnel.py")], 90,
+         why="A15 clause 2 — ONE FUNNEL: *they all flow down the same river together*. The clause "
+             "holds TWO questions and only one has an answer today: THE LADDER (is there one "
+             "stage vocabulary?) is answerable and the answer is yes — 6 rungs, no rung naming "
+             "two stages, 0 reels at a stage the ladder does not know; THE PASSAGE (did each reel "
+             "actually flow down it, in order?) is PARTIAL — exactly 2 of the 6 rungs leave a "
+             "dated waypoint (retro_triage 40/40, vault_swept 15/40) and the other four leave "
+             "nothing at all. Answering the easy half and marking the clause done is how a task "
+             "gets called shipped while the thing he asked for is unbuilt, so these pin that a "
+             "ONE_LADDER verdict may never imply the passage is known. ⚠ AND OCCUPANCY IS NOT A "
+             "ROUTE: `reel_story._stage_of` maps a reel's current HOLD TAG to the rung it is stuck "
+             "BEFORE, so an empty rung means nobody is STUCK there, never that nobody passed — "
+             "the same misreading that opened A10. An unreadable store stays UNKNOWN rather than "
+             "counting as zero coverage. 3 sabotages, 3 RED, plus a SPLIT_LADDER baseline."),
+    Gate("test_one_start_point", [sys.executable, os.path.join(HERE, "test_one_start_point.py")], 90,
+         why="A15 clause 1 — ONE START POINT: *every reel enters at the same place; no lane has "
+             "its own front door*. It is asked of the ARTIFACT, not of a source grep, because A7 "
+             "tried counting writers twice — a filename-adjacency grep, then an AST walk — and "
+             "BOTH returned zero for all four stores while measuring only my own instrument's "
+             "reach. His forty reels cannot do that. THE TWO WAYS THIS PROBE LIES, both pinned: "
+             "(1) crying wolf — three modules can write a reel's index.json and only ONE is a "
+             "front door, so counting the repair door (reel_index, which restores an index a reel "
+             "already had and refuses to rewrite one that parses) as a violation reports a defect "
+             "on a healthy shelf, where 2 of 40 are repairs; (2) rounding UNKNOWN up to the common "
+             "case, which is the default-as-measurement defect. A FIXTURE reel on his LIVE shelf "
+             "IS a second door and must reach MULTIPLE_DOORS, or the first law is describing a "
+             "function that can never object — and the fixture is caught by its SHAPE (keys on "
+             "`reel`, not `sessionId`) as well as by its `synthetic` mark, so one word a future "
+             "edit could drop is not the only tell. 4 sabotages, 4 RED."),
     Gate("test_reel_river", [sys.executable, os.path.join(HERE, "test_reel_river.py")], 120,
          why="A10 — the fish down the stream, and the law that keeps it readable: a GAP is two "
              "deciders answering the SAME question differently. Walking the river found 12 reels "

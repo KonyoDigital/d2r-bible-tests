@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2530",
+  "ver": "v2533",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2530: At a small cap the truncator arithmetic goes negative and returns something longer than the cap it exists to enforce. The cap is a fixed 160 so nothing was wrong, but the review own wording is the tell - acceptable if the cap is known to stay large - and correctness resting on a convention the code does not check is the exact shape A8 was about. Guarded and measured across caps down to zero. The exception path also reported only the type, and the message is usually the whole diagnosis. One arithmetic claim refuted by measurement: the marker is 8 characters, not 9.",
+  "note": "v2533: ",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

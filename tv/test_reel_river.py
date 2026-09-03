@@ -113,6 +113,45 @@ class AGapIsOnlyASameQuestionDisagreement(unittest.TestCase):
         self.assertEqual((c["byReelDoor"], c["byFrameContract"], c["byBoth"]), (1, 1, 1),
                          "a reel that satisfies BOTH doors was not counted by both: %s" % c)
 
+    def test_CLEAN_does_not_bury_the_UNASKED_reels_inside_its_zero(self):
+        """⚠⚠ REG-532. The rows keep a TRI-STATE and the first summary flattened it.
+
+        Measured on his shelf: frame UNASKED 25, frame no 15, frame yes 0 — published as a bare
+        `byFrameContract: 0`, which reads as a door refusing all forty. Fifteen of those are
+        refusals; twenty-five are questions NOBODY PUT, because no seal exists for them. Every row
+        already says so in `frameWhy`; the aggregate threw it away one layer above where this
+        repo usually catches it. A count is only comparable next to its own denominator.
+        [[unknown-stays-unknown]] §1
+        """
+        rows = [{"reel": "reel_s_1", "stage": "releasable"},     # sealed, contract unmet -> refused
+                {"reel": "reel_s_2", "stage": "releasable"},     # no seal at all       -> UNASKED
+                {"reel": "reel_s_3", "stage": "swept"}]          # mid-river at the reel door
+        r = self._run(rows, {"s_1": {"ts": 1, "promptVer": "v"}})
+        c = r["clean"]
+        self.assertEqual(
+            (c["byFrameRefused"], c["byFrameUnasked"]), (1, 2),
+            "the frame door's zero does not separate refusals from questions never put: %s. One "
+            "reel was refused and two were never asked — publishing them as one flat zero says "
+            "the door turned away three reels it never saw." % c)
+        self.assertEqual(
+            (c["byReelDoor"], c["walked"], c["notYetAtReelDoor"]), (2, 3, 1),
+            "the reel door's numerator arrives without its denominator: %s. `swept` is mid-river, "
+            "not a refusal, so 2-of-3 is the honest reading and a bare 2 is not." % c)
+        self.assertIn(
+            "never asked", c["why"],
+            "the `why` does not warn that the two counts have DIFFERENT denominators, so a reader "
+            "comparing them directly is misled by the very block that promised not to choose")
+
+    def test_BASELINE_the_unasked_count_can_be_zero(self):
+        """⚠ Or the assertion above passes on a constant. Every reel sealed -> nothing unasked."""
+        rows = [{"reel": "reel_s_1", "stage": "releasable"}]
+        r = self._run(rows, {"s_1": {"ts": 1, "promptVer": "v"}})
+        c = r["clean"]
+        self.assertEqual(c["byFrameUnasked"], 0,
+                         "a fully-sealed shelf still reports unasked reels, so the count is not "
+                         "measuring what it names: %s" % c)
+        self.assertEqual(c["byFrameRefused"], 1, "and the refusal was not counted either: %s" % c)
+
     def test_a_stage_with_no_declared_decider_IS_a_gap(self):
         """⚠ BASELINE for the whole file: `gaps` must be reachable, or the assertions above are
         just describing a function that can never report anything."""

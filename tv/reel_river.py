@@ -143,15 +143,38 @@ def river(reel=None):
     # answer different questions at different granularities (v2314). Reporting both readings is
     # the honest shape; choosing between them is a decision about what "finished" means, and it
     # gates the prune. [[unknown-stays-unknown]]
+    # ⚠⚠ AND THE FIRST CUT OF THIS BLOCK THREW AWAY THE TRI-STATE THE ROWS WERE BUILT TO KEEP.
+    # It published `byFrameContract: 0` as a flat zero. Measured on his shelf the same run:
+    # frame UNASKED 25, frame no 15, frame yes 0 — so that zero is fifteen REFUSALS and
+    # twenty-five questions NOBODY PUT, and only one of those is evidence about the door. Every
+    # row already says so (`frameWhy`: "no seal exists for this reel, so the frame question is
+    # UNASKED — not answered no"); the summary collapsed the distinction the rows preserve, which
+    # is the [[unknown-stays-unknown]] §1 defect one layer up from where it is usually caught.
+    #
+    # ⚠ THE SAME SHAPE ON THE OTHER DOOR, swept by class: stages are swept 28 / releasable 12, and
+    # `swept` is mid-river, not a refusal. So byReelDoor is *12 ARRIVED*, never *28 refused*.
+    # Both numerators now travel with what the rest of the shelf actually is.
     _reel_door = sum(1 for o in out if o["reelAnswer"])
     _frame_door = sum(1 for o in out if o["frameAnswer"] is True)
     _both = sum(1 for o in out if o["reelAnswer"] and o["frameAnswer"] is True)
+    _frame_unasked = sum(1 for o in out if o["frameAnswer"] is None)
+    _frame_refused = sum(1 for o in out if o["frameAnswer"] is False)
+    _not_yet = len(out) - _reel_door
     return {"ok": True, "rows": out, "gaps": gaps,
             "clean": {"byReelDoor": _reel_door, "byFrameContract": _frame_door, "byBoth": _both,
+                      "walked": len(out),
+                      "notYetAtReelDoor": _not_yet,
+                      "byFrameRefused": _frame_refused, "byFrameUnasked": _frame_unasked,
                       "why": ("A15 requires a far-end state the pipeline can ASSERT, and does not "
                               "say which door decides. These two answer DIFFERENT questions "
                               "(v2314), so neither is 'the' answer and conjoining them is the "
-                              "collapse v2312 withdrew. Reported, not chosen.")},
+                              "collapse v2312 withdrew. Reported, not chosen. ⚠ AND THE TWO ARE "
+                              "NOT COMPARABLE ACROSS THE SHELF: byFrameContract is a count over "
+                              "the %d reel(s) the frame question was actually PUT to — %d were "
+                              "never asked, because no seal exists for them, and a question "
+                              "nobody put is not a refusal. byReelDoor likewise counts reels that "
+                              "ARRIVED; the other %d are mid-river, not turned away."
+                              % (_frame_refused + _frame_door, _frame_unasked, _not_yet))},
             "why": ("%d reel(s) walked. %d gap(s) — a gap is two deciders answering the SAME "
                     "question differently, which is why the reel/frame split is not one."
                     % (len(out), len(gaps)))}
@@ -195,12 +218,19 @@ def main(argv):
     c = r.get("clean") or {}
     if c:
         print()
+        _asked = (c.get("byFrameRefused") or 0) + (c.get("byFrameContract") or 0)
         print("  CLEAN AT THE FAR END (A15) — and the two doors disagree:")
-        print("     by the REEL door        %s" % c.get("byReelDoor"))
-        print("     by the FRAME contract   %s" % c.get("byFrameContract"))
+        print("     by the REEL door        %s of %s   (%s still mid-river, NOT turned away)"
+              % (c.get("byReelDoor"), c.get("walked"), c.get("notYetAtReelDoor")))
+        print("     by the FRAME contract   %s of %s asked   (%s refused, %s NEVER ASKED)"
+              % (c.get("byFrameContract"), _asked, c.get("byFrameRefused"),
+                 c.get("byFrameUnasked")))
         print("     by BOTH                 %s" % c.get("byBoth"))
         print("     ⚠ A15 does not say which decides, and these answer different questions.")
         print("       Reported, not chosen — picking one is the collapse v2312 withdrew.")
+        print("     ⚠ AND THE DENOMINATORS DIFFER. A flat '0 by the frame contract' reads as a")
+        print("       door refusing everything; %s of those reels were never put to it at all."
+              % c.get("byFrameUnasked"))
     print("\n  %s" % r["why"])
     for g in r["gaps"][:8]:
         print("     ⚠ %s — %s" % (g["reel"], g["gap"]))

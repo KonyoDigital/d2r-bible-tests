@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2530"   # a cap too small to hold its own marker, and a diagnosis that dropped the message
+VERSION = "v2533"   # A15 clause 2: one ladder proven, and the passage down it is mostly unrecorded
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

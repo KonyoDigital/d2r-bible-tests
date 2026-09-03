@@ -17451,3 +17451,117 @@ figures from the ledger.
 for interpreting the tail."* True in general — and this function's stated purpose is that the
 telling detail is at the END, which is what v2528 corrected. Left at 1:2 deliberately, with both
 sides of the reasoning now on the record.
+
+## v2531 — the rows kept the tri-state and the summary threw it away
+
+**REG-532 — `byFrameContract: 0` was fifteen refusals and twenty-five questions nobody asked.**
+Found by the review-after-ship pass on v2529+v2530 — my own bytes, one tick after they landed.
+
+v2529's `clean` block reported the two candidate doors for A15 and explicitly declined to choose.
+Measured on his shelf, the same run that printed it:
+
+```
+by the REEL door        12          frame: UNASKED  25   <-- no seal, so NEVER PUT
+by the FRAME contract    0          frame: no       15
+                                    frame: yes       0
+```
+
+⚠⚠ **THE MODULE ALREADY KNEW.** Every row carries `frameWhy` = *"no seal exists for this reel, so
+the frame question is UNASKED — not answered no"*, and `frameAnswer` is deliberately tri-state
+(`True`/`False`/`None`) for exactly this. **The aggregate I added on top collapsed the distinction
+the rows were built to preserve** — [[unknown-stays-unknown]] §1, one layer above where this repo
+usually catches it. And the block's entire claim is that the two doors disagree and it will not
+choose: with 25 reels silent on one side, **the summary that promised honesty overstated the
+disagreement it was reporting**.
+
+⚠ **Swept by class — the same shape on the other door.** Stages are `swept 28 / releasable 12`, and
+`swept` is mid-river, not a refusal. `byReelDoor: 12` is *12 ARRIVED*, never *28 turned away*.
+
+**Fixed:** `clean` carries `walked`, `notYetAtReelDoor`, `byFrameRefused`, `byFrameUnasked`, and its
+`why` says outright that the two counts have different denominators. The CLI now prints
+`0 of 15 asked (15 refused, 25 NEVER ASKED)` beside `12 of 40 (28 still mid-river)`.
+
+**Guard:** `tv/test_reel_river.py::test_CLEAN_does_not_bury_the_UNASKED_reels_inside_its_zero`, with
+`test_BASELINE_the_unasked_count_can_be_zero` so it cannot pass on a constant. **Seen RED for its
+own reason:** folding unasked into refused — the pre-v2531 flattening — reports `(3, 0)` on a
+fixture holding one refusal and two never-asked: `Tuples differ: (3, 0) != (1, 2)`.
+
+## v2532 — A15 clause 1 measured on the ARTIFACT: one start point, and a thinner record behind it
+
+**A15 clause 1: *"every reel enters at the same place. No lane has its own front door."*** Built as
+`tv/one_start_point.py`.
+
+⚠⚠ **IT IS ASKED OF THE SHELF, NOT OF A SOURCE GREP, and that choice is the whole design.** A7 tried
+to count writers twice in this same cluster — a filename-adjacency grep, then an AST walk resolving
+path constants — and **both returned ZERO for all four stores**, because both were measuring my own
+instrument's reach rather than the codebase. [[source-reading-guard]] fails on its own reach. His
+forty reels cannot.
+
+**MEASURED, 2026-09-04, 40 reels:**
+
+```
+core present (sessionId · n · frames)     40 of 40    <-- ONE START POINT, on the artifact
+minted by the RECORDER                    38
+restored by the REPAIR door                2
+born through the FIXTURE door              0          <-- fixtures never touched his live footage
+core MISSING / unattributable              0
+```
+
+⚠ **THREE MODULES CAN WRITE A REEL'S `index.json` AND ONLY ONE IS A FRONT DOOR.** `reel_index`
+restores an index a reel already had — and refuses outright to rewrite one that parses;
+`vault_fixture_reels` writes a tree it is handed. Reporting those as violations would report a
+defect on a healthy shelf, and **a row that cries wolf is a row he learns to skip**. Reporting them
+as invisible would hide a real asymmetry. Both are named.
+
+⚠ **THE ASYMMETRY, AND I MEASURED IT BEFORE CLAIMING HARM.** A repaired index is THINNER: it carries
+the core and nothing else, because `reconstruct_index` derives `(f, ts)` from frame names and cannot
+recover what the recorder OBSERVED. I suspected that loses per-frame `blank` markings and re-feeds
+dead frames to a paid reader. **The shelf refutes the harm** — only **3 of 40** reels carry a
+`blank` flag on any row at all, **5 frames in total**, and neither repaired reel is one of them. A
+real difference in the record; not evidence of live damage. Publishing only the first half would be
+a wolf, only the second a whitewash.
+
+**Guard:** `tv/test_one_start_point.py`, registered in `run_gates.py`. **4 sabotages, 4 RED**, each
+for its own reason: rounding UNKNOWN up to the common case → `None != 1`; counting a repair as a
+foreign door → `'MULTIPLE_DOORS' != 'ONE_DOOR'`; dropping the fixture SHAPE tell and keeping only
+its `synthetic` mark → `{'UNKNOWN': 1}`; an empty shelf answering ONE_DOOR → `'ONE_DOOR' !=
+'UNKNOWN'`. A fixture reel on the live shelf reaching MULTIPLE_DOORS is the baseline, or the
+repair-is-not-a-violation law would be describing a function that can never object.
+
+## v2533 — A15 clause 2: one ladder proven, and the passage down it is mostly unrecorded
+
+**A15 clause 2: *"they all flow down the same river together, through the same feeding and routing
+system, for as long as they are indistinguishable."*** Built as `tv/one_funnel.py`.
+
+⚠⚠ **THE CLAUSE HOLDS TWO QUESTIONS AND ONLY ONE HAS AN ANSWER TODAY.** Answering the easy one and
+calling the clause done is how a task gets marked shipped while the thing he asked for is unbuilt,
+so both are reported as separate fields and neither speaks for the other.
+
+```
+THE LADDER   ONE_LADDER   6 rungs · no rung naming two stages · no stage at two rungs · 0 untaught
+THE PASSAGE  PARTIAL      2 of 6 rungs leave a dated waypoint
+
+  filmed       occupied  0   no store records this rung — passing it leaves no trace
+  triaged      occupied  0   retro_triage.json   40 of 40 reels dated
+  swept        occupied 28   vault_swept.json    15 of 40 reels dated
+  banked       occupied  0   no store
+  vault-done   occupied  0   no store
+  releasable   occupied 12   no store
+```
+
+⚠⚠ **AN EMPTY RUNG IS NOT AN UNUSED ONE, AND OCCUPANCY IS NOT A ROUTE.** `reel_story._stage_of`
+maps a reel's current HOLD TAG to the rung it is stuck **BEFORE** — so `stage` is a BLOCKER, not a
+trajectory. *"No reel sits at `banked`"* and *"no reel ever passed `banked`"* are opposite facts and
+the field cannot tell them apart. Reading occupancy as a route is the same misreading that opened
+A10: 12 RELEASABLE beside a refusing frame authority, read as a contradiction it was not.
+
+**So the passage is asked of the DATED WAYPOINTS instead, and the answer is PARTIAL** — for four of
+the six rungs the order a reel travelled in is recorded nowhere and no probe can recover it. That is
+the honest state of clause 2, and it names exactly what would change it: a dated waypoint per rung.
+
+**Guard:** `tv/test_one_funnel.py`, registered in `run_gates.py`. **3 sabotages, 3 RED:** letting
+ONE_LADDER speak for the passage → `'RECORDED' != 'PARTIAL'`; dropping untaught-stage reels instead
+of breaking the ladder → `'ONE_LADDER' != 'SPLIT_LADDER'`; counting an unreadable store as zero
+coverage → `'swept' unexpectedly found in [...]`. A rung naming two stages reaching SPLIT_LADDER is
+the baseline, or ONE_LADDER would not be a measurement.
+
