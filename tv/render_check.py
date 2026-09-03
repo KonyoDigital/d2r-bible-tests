@@ -1608,14 +1608,26 @@ def main(argv):
     _full = (len(targets) == len(TARGETS))
     if "--bless" in argv:
         return _coverage_bless(results, _full and not bad and not unknown, _say)
+    # ⚠⚠ COVERAGE REFUSALS GET THEIR OWN COUNTER — `bad += _coverage_check(...)` mixed them into
+    # the RENDER-FAILURE count and three things broke at once. `clean = len(targets) - bad` went
+    # NEGATIVE (measured: Chrome dies, 9 targets each counted once as a lost socket and again as
+    # "did not report", bad=18, clean=-9), and because that also made `unknown != bad` BOTH v2412
+    # branches that exist to say "nothing was established" were skipped — so a dead browser
+    # printed "🔴 9 target(s) did not render cleanly — LOOK AT THE PNGs above" for PNGs that were
+    # never written. A count of one kind of thing must not absorb a different kind.
+    cov_missing = 0
     if _full:
-        bad += _coverage_check(results, _say)
+        cov_missing = _coverage_check(results, _say)
     elif _coverage_floor() is not None:
         _say("     ⓘ coverage ratchet skipped — this run asked for %d of %d targets, and a subset "
              "cannot tell a deliberate filter from a surface that vanished."
              % (len(targets), len(TARGETS)))
 
     _say("shots: %s" % os.path.relpath(SHOTS, REPO))
+    if cov_missing:
+        _say("🔴 %d surface(s) the ratchet expected were never reported — a COVERAGE refusal, "
+             "counted apart from the %d render failure(s) above because it is a different fact."
+             % (cov_missing, bad))
     if bad:
         # ⚠ v2412 — AN UNMEASURED SURFACE IS NOT A DIRTY ONE, AND SENDING HIM TO PNGs THAT SHOW
         # NOTHING IS ITS OWN SMALL LIE. This line said "did not render cleanly — LOOK AT THE PNGs"
@@ -1642,6 +1654,10 @@ def main(argv):
                  "%d rendered clean." % (bad - unknown, unknown, clean))
             return 1
         _say("🔴 %d target(s) did not render cleanly — LOOK AT THE PNGs above." % bad)
+        return 1
+    if cov_missing:
+        # every target that RAN rendered clean; the SET is what shrank
+        _say("   (every target that ran rendered cleanly — it is the set of surfaces that shrank.)")
         return 1
     _say("🟢 every target rendered, at every width, with text and no clipping.")
     return 0

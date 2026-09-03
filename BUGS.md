@@ -15637,3 +15637,71 @@ markup would find attributes and tags the reader never saw.
 
 **Seen RED three ways:** collapsing it to yes/no, calling an empty quote absent rather than UNKNOWN,
 and checking against markup instead of rendered text.
+
+## v2481 — the disk guard was off on the one command shape that caused the ENOSPC
+
+Six versions of guards shipped in v2474–v2479, so the v2479 review was pointed at them rather than
+at the product. It raised 36 findings; **26 were refuted by the skeptics and 10 survived**, two of
+which were the same defect reported by two lenses. Every one of the eight is in the layer written
+to stop the 2026-09-03 disk-full, and the two worst say the same thing: *the guard was satisfied by
+a name, never by the mechanism.*
+
+**REG-444 — `safe_copy`'s free-space floor was silently OFF whenever the destination's parent did
+not exist.** `_free_mb` called `os.statvfs` on a path that does not exist yet, which raises, so it
+returned `None` — and the floor read `if free is not None and ...`, skipping itself entirely while
+`shutil.copytree` called `os.makedirs` and wrote anyway. The invocation this file's own docstring
+recounts as the disaster is exactly that shape:
+
+```
+python3 tv/safe_copy.py /tmp/skep_3/tv tv          # /tmp/skep_3 not created yet -> floor OFF
+```
+
+So the 4 GB floor — the entire reason the file exists — was inert on the command that caused the
+event it was written for. `_free_mb` now climbs to the nearest existing ancestor (measured: 25,953
+MB where it returned `None`), and free space that cannot be established at all is a **REFUSAL**, not
+permission. [[unknown-stays-unknown]]
+
+**REG-445 — `--force` was parsed and dropped**, so the refusal message advised a flag that did
+nothing: over the ceiling, `--force` printed the identical refusal and exited 1. `main()` now
+forwards it (proven: rc 1 → 0).
+
+**REG-446 — the fixture put the heavy directories only at the TOP level, so "excluded at any depth"
+was never tested.** Change `_ignore` to `if os.path.abspath(_d) != src: return set()` — a plausible
+"only screen the top level" tidy-up — and all 11 tests stayed green while the REAL invocation
+(source = the repo, so the store sits at `tv/frames`, one level down) copied the 5.8 GB of his
+footage. `plan()` still reported "0.0 MB, skipped tv/frames", so the 400 MB ceiling never fired
+either. The fixture now nests footage at both depths.
+
+**REG-447 — the Chrome-profile guard asked what `_CHROME_PROFILE` is ASSIGNED, never what
+`--user-data-dir` RECEIVES.** Keep the `tempfile.mkdtemp` assignment exactly as it is — so the AST
+check and every `_chrome_down` grep still pass — then hand `Popen` a different directory, and the
+1,413 MB persistent profile is back with all 11 tests green. The new guard stubs `Popen`, RUNS
+`_chrome_up`, and reads the argv Chrome was actually given.
+
+**REG-448 — coverage refusals were added to `bad`, the render-failure counter.** Three things broke
+at once: `clean = len(targets) - bad` went NEGATIVE (Chrome dies → 9 targets counted once as a lost
+socket and again as "did not report" → bad=18, clean=-9), and because that also made
+`unknown != bad`, **both** v2412 branches that exist to say "nothing was established" were skipped —
+so a dead browser printed `🔴 9 target(s) did not render cleanly — LOOK AT THE PNGs above` for PNGs
+that were never written. Reproduced, then fixed: coverage has its own counter and its own line.
+Measured after: exit **2**, no negative count, the UNKNOWN branch fires. [[label-outlived-referent]]
+
+**REG-449 — a COMMENT could still answer for the framing law.** `_strip_js_comments` treats every
+backtick as a plain string opener, with no handling of `${}` interpolation or regex literals; on the
+shipped `bible.html` it swallows 1.29 M chars in bogus "string" spans and **1,019 of 4,749 script
+comments survive it byte for byte**. Perfecting a hand-rolled JS tokenizer is not the fix — not
+depending on one is. `framed()` and `engineDriven()` are now extracted from the real file and RUN in
+node under both framing states. Not framed + `?engine=1` must be `false`; that is the v2471 blank
+screen he photographed. A comment cannot change what node computes.
+
+**REG-450 — the ratchet was never JOINED to the verdict.** Every test in `test_render_coverage.py`
+called `_coverage_check` directly, so the ratchet could be correct in every case and never consulted
+by the run that decides the exit code. Gate the call behind `if False:` and the whole file stayed
+green. Two new tests run `main()` itself. [[the-unjoined-end]]
+
+**All five sabotages seen RED, each for its own reason** — and one was seen GREEN first and is worth
+recording: disabling the ancestor-climb still ended in a refusal, because the *other* new fix
+(unknown → REFUSE) caught it. Two layers, one visible outcome, so the outcome could not tell them
+apart. The test now asserts the mechanism — `_free_mb` must return a number for a directory that
+does not exist yet — and only then went red. **A sabotage that stays green is a fact about the
+sabotage or about what the test can see, never a pass.**

@@ -281,6 +281,93 @@ class AppCtxNav(unittest.TestCase):
                 "local assignments; a dead `_framed` variable the condition never reads does not "
                 "count.)" % (how, cond.strip()[:200]))
 
+    def test_the_framing_LAW_holds_when_the_function_is_RUN(self):
+        """⚠⚠ NO COMMENT CAN ANSWER THIS ONE, BECAUSE IT EXECUTES THE FUNCTION.
+
+        The sibling test above reads source text, and the v2479 review proved a comment can
+        still answer for the law: `_strip_js_comments` treats every ` as a plain string opener
+        with no handling of ${} interpolation or regex literals, so on the SHIPPED bible.html it
+        swallows 1.29 M chars in bogus 'string' spans and **1,019 of 4,749 script comments
+        survive it byte for byte**. Delete `&& framed()` from engineDriven(), leave a comment
+        containing `window.top !== window.self` anywhere the resolver reaches, and the module
+        reports "Ran 3 tests ... OK" while a top-level ?engine=1 board hides all 19 tabs.
+
+        Perfecting a hand-rolled JS tokenizer is not the fix; not depending on one is. This
+        extracts the real functions from the real bible.html and RUNS them under both framing
+        states. A comment cannot change what node computes. [[source-reading-guard]]
+        """
+        import json as _json
+        import shutil as _shutil
+        import subprocess as _subprocess
+        import tempfile as _tempfile
+
+        node = _shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("node is not installed, so the law could not be RUN — that "
+                                    "is UNKNOWN, not a pass")
+
+        src = _src()
+        bodies = []
+        for fn in ("framed", "engineDriven"):
+            m = re.search(r"function\s+%s\s*\(" % fn, src)
+            self.assertTrue(m, "function %s() is gone from bible.html — has the framing gate "
+                               "been renamed or removed?" % fn)
+            i = src.index("{", m.end() - 1)
+            depth = 0
+            for j in range(i, len(src)):
+                if src[j] == "{":
+                    depth += 1
+                elif src[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            bodies.append(src[m.start():j + 1])
+
+        harness = """
+        var __FRAMED_STATE = %s, __QS = %s;
+        var window = {};  window.self = {};  window.top = __FRAMED_STATE ? {} : window.self;
+        var location = { search: __QS };
+        function URLSearchParams(q){ this._q = String(q || ""); }
+        URLSearchParams.prototype.get = function(k){
+          var m = this._q.replace(/^\\?/, "").split("&").filter(function(p){
+            return p.split("=")[0] === k; });
+          return m.length ? m[0].split("=").slice(1).join("=") : null;
+        };
+        %s
+        console.log(JSON.stringify(engineDriven()));
+        """
+
+        def run(is_framed, qs):
+            js = harness % ("true" if is_framed else "false", _json.dumps(qs),
+                            "\n".join(bodies))
+            with _tempfile.NamedTemporaryFile("w", suffix=".js", delete=False,
+                                              encoding="utf-8") as fh:
+                fh.write(js)
+                path = fh.name
+            try:
+                out = _subprocess.check_output([node, path], stderr=_subprocess.STDOUT,
+                                               timeout=60)
+                return _json.loads(out.decode("utf-8", "replace").strip())
+            finally:
+                try:
+                    os.unlink(path)
+                except Exception:
+                    pass
+
+        self.assertIs(
+            run(False, "?engine=1"), False,
+            "engineDriven() returned TRUE for a document that is NOT framed. That is the v2471 "
+            "defect exactly: opening the board top-level with ?engine=1 adds engine-driven and "
+            "HIDES ALL 19 TABS — the blank screen he photographed.")
+        self.assertIs(
+            run(True, "?engine=1"), True,
+            "engineDriven() returned FALSE inside a real frame with ?engine=1, so the engine "
+            "shell can no longer drive the board at all.")
+        self.assertIs(
+            run(True, ""), False,
+            "engineDriven() returned TRUE with no engine flag — the query parameter is no "
+            "longer part of the condition.")
+
     def test_engine_flag_is_only_ever_written_by_the_iframe(self):
         """The premise of law 1: the shell is the only writer of engine=1."""
         shell = io.open(SHELL, encoding="utf-8").read()

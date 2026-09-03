@@ -44,6 +44,74 @@ def _run(**widths):
             "widths": {k: {"found": v, "painted": v} for k, v in widths.items()}}
 
 
+class TheRatchetIsActuallyJOINEDToTheVerdict(unittest.TestCase):
+    """⚠⚠ EVERY OTHER TEST IN THIS FILE CALLS `_coverage_check` DIRECTLY, SO NOTHING GUARDED THE
+    JOIN. The ratchet could be correct in every case and never consulted by the run that decides
+    the exit code — [[the-unjoined-end]], the defect class this repo repeats most. Gate the call
+    behind `if False:` and all of this file stays green while a vanished surface ships.
+
+    It also pins the SEPARATION that v2481 introduced: coverage refusals must not be added to the
+    render-failure counter. Mixing them made `clean = len(targets) - bad` go NEGATIVE and skipped
+    both branches that exist to say 'nothing was established'.
+    """
+
+    def setUp(self):
+        self._realcov, self._realup, self._realdown, self._realcheck = (
+            R.COVERAGE, R._chrome_up, R._chrome_down, R.check)
+        fd, self.path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        R.COVERAGE = self.path
+        R._chrome_up = lambda *a, **k: True
+        R._chrome_down = lambda *a, **k: None
+
+    def tearDown(self):
+        R.COVERAGE, R._chrome_up, R._chrome_down, R.check = (
+            self._realcov, self._realup, self._realdown, self._realcheck)
+        try:
+            os.unlink(self.path)
+        except Exception:
+            pass
+
+    def _main(self):
+        """Run main([]) with every target rendering CLEAN, capturing what it printed."""
+        out = []
+        import builtins
+        real = builtins.print
+        builtins.print = lambda *a, **k: out.append(" ".join(str(x) for x in a))
+        try:
+            rc = R.main([])
+        finally:
+            builtins.print = real
+        return rc, "\n".join(out)
+
+    def test_main_consults_the_ratchet_and_a_shrink_fails_the_RUN(self):
+        # a floor demanding a width nobody will report, for a target that DOES render clean
+        name = sorted(R.TARGETS)[0]
+        io.open(self.path, "w", encoding="utf-8").write(
+            json.dumps({"floor": {name: {"1120x628": 99}}}))
+        R.check = lambda *a, **k: _run(**{"1120x628": 1})
+        rc, out = self._main()
+        self.assertNotEqual(rc, 0,
+                            "main() exited 0 while the coverage floor was not met — the ratchet "
+                            "is not JOINED to the verdict, so it can be right and ignored.\n%s"
+                            % out[-600:])
+
+    def test_a_coverage_refusal_is_not_counted_as_a_render_failure(self):
+        name = sorted(R.TARGETS)[0]
+        io.open(self.path, "w", encoding="utf-8").write(
+            json.dumps({"floor": {name: {"1120x628": 99}}}))
+        R.check = lambda *a, **k: _run(**{"1120x628": 1})
+        _rc, out = self._main()
+        self.assertNotIn(
+            "-", [w for w in out.split() if w.lstrip("-").isdigit() and w.startswith("-")] and "-" or "",
+            "a negative count was printed")
+        self.assertTrue(
+            "COVERAGE refusal" in out or "ratchet expected" in out,
+            "a coverage shortfall was not reported AS a coverage shortfall — it was folded into "
+            "the render-failure count, which is how a dead browser printed 'did not render "
+            "cleanly, LOOK AT THE PNGs' for PNGs that were never written.\n%s" % out[-600:])
+
+
 class TheRatchetRefusesAShrink(unittest.TestCase):
 
     def setUp(self):

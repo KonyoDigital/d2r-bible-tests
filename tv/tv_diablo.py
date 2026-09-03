@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2480"   # FOUR COPIES OF ONE TAB VOCABULARY
+VERSION = "v2481"   # the disk guard that was off on the one command shape that caused the disk-full
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

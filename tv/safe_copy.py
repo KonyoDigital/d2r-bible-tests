@@ -58,11 +58,30 @@ KEEP_FREE_MB = 4096
 
 
 def _free_mb(path):
-    try:
-        st = os.statvfs(path)
-        return (st.f_bavail * st.f_frsize) // (1024 * 1024)
-    except Exception:
-        return None
+    """Free MB on the volume that will hold `path`. -> int | None
+
+    ⚠⚠ IT MUST CLIMB TO AN EXISTING ANCESTOR, AND THE FIRST VERSION DID NOT. `os.statvfs`
+    raises on a directory that does not exist yet, so this returned None for exactly the
+    invocation this file's own docstring recounts as the disaster:
+
+        python3 tv/safe_copy.py /tmp/skep_3/tv tv     # /tmp/skep_3 not created yet
+
+    None then skipped the floor entirely (`if free is not None and ...`) while
+    `shutil.copytree` happily called `os.makedirs` and wrote anyway. The 4 GB floor — the
+    whole reason this file exists — was OFF on the one command shape that caused the
+    ENOSPC. `copytree` creates the intermediates, so the volume that matters is the one
+    under the nearest ancestor that already exists. Climb to it.
+    """
+    p = os.path.abspath(path)
+    while True:
+        try:
+            st = os.statvfs(p)
+            return (st.f_bavail * st.f_frsize) // (1024 * 1024)
+        except Exception:
+            parent = os.path.dirname(p)
+            if parent == p:       # reached the root and still nothing — genuinely unknown
+                return None
+            p = parent
 
 
 def plan(src):
@@ -111,7 +130,15 @@ def copy(src, dst, force=False, say=print):
         say("REFUSED — %.1f MB is over the %d MB ceiling. This copier is for source, not data. "
             "If you really mean it, pass --force, and check `df` first." % (mb, MAX_MB))
         return 1
-    if free is not None and (free - mb) < KEEP_FREE_MB:
+    # ⚠ AND UNKNOWN IS NOT PERMISSION. If the free space could not be established at all,
+    # refuse — a floor that abstains whenever it cannot measure is not a floor. Reaching
+    # here means statvfs failed on every ancestor up to the root, which is not a normal
+    # state and is not a reason to write gigabytes. [[unknown-stays-unknown]]
+    if free is None:
+        say("REFUSED — could not establish free space for %s (statvfs failed on every "
+            "ancestor up to the root). That is UNKNOWN, not enough room." % dst)
+        return 1
+    if (free - mb) < KEEP_FREE_MB:
         say("REFUSED — the volume has %d MB free and this would leave %d MB, under the %d MB "
             "floor. At zero bytes nothing can run at all, not even the command that would clean "
             "up: on 2026-09-03 every shell in the session died at spawn."
@@ -146,7 +173,9 @@ def main(argv=None):
         for s in skipped:
             print("   skipping %s" % s)
         return 0
-    return copy(src, a.dest)
+    # ⚠ `force` was parsed and dropped here, so the refusal message advised a flag that did
+    # nothing: over the ceiling, `--force` printed the identical refusal and exited 1.
+    return copy(src, a.dest, force=a.force)
 
 
 if __name__ == "__main__":
