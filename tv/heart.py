@@ -133,6 +133,26 @@ def vessels():
         s = r.get("score")
         scored[str(r.get("id") or "")] = s if isinstance(s, (int, float)) else None
 
+    # ⚠⚠ CAN A VESSEL EVER BECOME FLOWING? ASK BEFORE TELLING HIM WORK IS OWED.
+    # `scored` is keyed on the organ rows' OWN ids — lanes, readers, selfArming, board_join — and
+    # `watcher` is a LANE name, tvd-eagle-watch and its siblings. The two vocabularies are
+    # DISJOINT, so `scored.get(watcher)` returns None for every vessel that exists and the FLOWING
+    # branch is unreachable with real data. Measured: score every organ 1.0 and the census still
+    # reads FLOWING 0; score the WATCHER names instead and 11 turn FLOWING at once.
+    #
+    # The sentence that shipped under that was "watched, but nothing has ever tried to break the
+    # watcher — that is work owed, not a fault". It is FALSE in the way that costs most: it names
+    # a job which, if someone did it, would change nothing. Nobody-has-tested-it and
+    # nothing-can-record-a-test-here are different facts, exactly as they were for vault.forget,
+    # and a panel that cannot tell them apart sends him to do work that cannot land.
+    # [[unknown-stays-unknown]] [[the-unjoined-end]]
+    _watchers = set()
+    for row in rows:
+        _n, _k, _w = _read_census_row(row)
+        if _w:
+            _watchers.add(_w)
+    _scorable = bool(_watchers & set(k for k, v in scored.items() if v is not None))
+
     out, not_vessels = [], 0
     for row in rows:
         name, kind, watcher = _read_census_row(row)
@@ -157,8 +177,14 @@ def vessels():
         else:
             out.append({"name": name, "kind": kind, "state": WATCHED, "watcher": watcher,
                         "score": None,
-                        "why": "watched, but nothing has ever tried to break the watcher — that "
-                               "is work owed, not a fault"})
+                        "scorable": _scorable,
+                        "why": ("watched, but nothing has ever tried to break the watcher — that "
+                                "is work owed, not a fault")
+                               if _scorable else
+                               ("watched, and NOTHING CAN SCORE THIS WATCHER YET. No organ "
+                                "publishes a score under a lane name, so no amount of sabotage "
+                                "would move this row — that is a missing scorer, not work owed "
+                                "by anyone")})
 
     counts = {FLOWING: 0, WATCHED: 0, DARK: 0, UNKNOWN: 0}
     for v in out:

@@ -578,6 +578,84 @@ class TestRosterRoutesJoinTheHeart(unittest.TestCase):
         self.assertIn("def roster_route_state():", code)
 
 
+class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
+    """⚠⚠ FLOWING WAS UNREACHABLE, AND THE PANEL CALLED IT WORK OWED.
+
+    A vessel turns FLOWING when `scored.get(watcher)` yields a number above zero. `scored` is keyed
+    on the ORGAN rows' own ids — lanes, readers, selfArming, board_join — and `watcher` is a LANE
+    name, tvd-eagle-watch and its siblings. The two vocabularies are DISJOINT, so the lookup misses
+    for every vessel that exists.
+
+    MEASURED, end to end: give every organ a perfect score and the census still reads FLOWING 0;
+    give the WATCHER names the same score and 11 turn FLOWING at once. So the branch is dead with
+    real data, and under it the panel said "nothing has ever tried to break the watcher — that is
+    work owed, not a fault". That is the expensive kind of false: it names a job which, done
+    perfectly, would change nothing on the screen.
+
+    This asserts the LAW, not the wiring: a row may only say work is owed when a score for that
+    watcher could actually be recorded. It stays green when someone later builds a lane scorer —
+    that is the point. [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+
+    def _heart(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import heart
+        return heart
+
+    def test_work_owed_is_only_said_when_a_score_could_land(self):
+        H = self._heart()
+        rep = H.vessels()
+        organs, _why = H._health_rows()
+        ids = {str(r.get("id") or "") for r in organs if isinstance(r, dict)}
+        watchers = {v.get("watcher") for v in (rep.get("vessels") or []) if v.get("watcher")}
+        scorable = bool(ids & watchers)
+        for v in (rep.get("vessels") or []):
+            if v.get("state") != "WATCHED":
+                continue
+            why = str(v.get("why") or "")
+            # ⚠ MATCH THE CLAIM, NOT A SUBSTRING OF IT. The first version asserted `"work owed"
+            # not in why` and went red on the CORRECT sentence, because that sentence ends
+            # "...a missing scorer, not work owed by anyone" — the phrase appears inside its own
+            # negation. A guard that cannot tell an assertion from its denial is measuring the
+            # letters, not the claim.
+            if scorable:
+                self.assertIn("work owed, not a fault", why,
+                              "%s can be scored but the row does not say the work is owed"
+                              % v.get("name"))
+            else:
+                self.assertNotIn(
+                    "work owed, not a fault", why,
+                    "%s is told sabotage is owed, but no organ publishes a score under a lane "
+                    "name — the intersection of organ ids and watcher names is EMPTY, so that "
+                    "work could not land however well it was done. Nobody-tested-it and "
+                    "nothing-can-record-a-test are different facts." % v.get("name"))
+                self.assertIn("scorer", why,
+                              "%s does not say WHY it cannot be proven" % v.get("name"))
+
+    def test_the_census_never_reports_a_state_it_cannot_reach(self):
+        """If FLOWING is unreachable, the panel must not imply otherwise by silence."""
+        H = self._heart()
+        rep = H.vessels()
+        counts = rep.get("counts") or {}
+        watched = [v for v in (rep.get("vessels") or []) if v.get("state") == "WATCHED"]
+        if not watched:
+            raise unittest.SkipTest("no WATCHED vessels to judge")
+        for v in watched:
+            self.assertIn("scorable", v,
+                          "%s does not publish whether a score could ever land for it, so a "
+                          "reader cannot tell an unearned state from an unreachable one"
+                          % v.get("name"))
+        # and the flag must agree with the arithmetic, not be typed in
+        organs, _ = H._health_rows()
+        ids = {str(r.get("id") or "") for r in organs if isinstance(r, dict)}
+        names = {v.get("watcher") for v in watched}
+        self.assertEqual(
+            watched[0].get("scorable"), bool(ids & names),
+            "the scorable flag disagrees with whether any watcher name appears among the organ "
+            "ids — it is being asserted rather than derived")
+        self.assertIsInstance(counts.get("FLOWING"), int)
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

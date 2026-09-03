@@ -15863,3 +15863,39 @@ referent.
 ⚠ **One red proof was GREEN first and it was my harness.** `safe_copy … tv` copies only `tv/`, so
 `BIBLE` does not exist in the scratch tree and the bible tests SKIP. A skip is not a pass. Re-run
 against a full-repo copy — with a baseline proving the test actually ran — it went red.
+
+## v2485 — A1: the heart called a job "work owed" that could never land
+
+**REG-459 — FLOWING was unreachable, and the census reported it as unearned.** A vessel turns
+FLOWING when `scored.get(watcher)` yields a number above zero. `scored` is keyed on the ORGAN rows'
+own ids — `lanes`, `readers`, `selfArming`, `board_join` — and `watcher` is a LANE name,
+`tvd-eagle-watch` and its siblings. **The two vocabularies are disjoint**, so the lookup misses for
+every vessel that exists.
+
+Measured end to end, not inferred:
+
+```
+every ORGAN   scored 1.0 -> {FLOWING: 0,  WATCHED: 11, DARK: 8, UNKNOWN: 2}   <- the real path
+every WATCHER scored 1.0 -> {FLOWING: 11, WATCHED: 0,  DARK: 8, UNKNOWN: 2}
+```
+
+So `FLOWING 0` was never a measurement of how much has been proven — it was a dead branch. And the
+sentence under it read *"watched, but nothing has ever tried to break the watcher — that is work
+owed, not a fault"*. That is the expensive kind of false: **it names a job which, done perfectly,
+would change nothing on the screen.** It is the same defect as `vault.forget` in v2482, one layer
+up — nobody-has-tested-it and nothing-can-record-a-test-here are different facts, and a panel that
+cannot tell them apart sends him to do work that cannot land.
+
+The row now derives `scorable` from the actual intersection and says which it is: *"watched, and
+NOTHING CAN SCORE THIS WATCHER YET. No organ publishes a score under a lane name, so no amount of
+sabotage would move this row — that is a missing scorer, not work owed by anyone."* Verified in the
+rendered DOM: 11 of 26 `<title>` nodes carry it and **zero** carry the old claim.
+
+⚠ **THE FIX IS THE HONEST HALF, NOT THE WHOLE.** Nothing here builds a lane scorer, so FLOWING is
+still 0 — it just stops lying about why. Building the scorer is the rest of A1 and is not claimed.
+
+⚠ **AND MY FIRST GUARD WENT RED ON THE CORRECT SENTENCE.** It asserted `"work owed" not in why`,
+which the new copy contains inside its own negation — *"...a missing scorer, not work owed by
+anyone"*. A guard that cannot tell an assertion from its denial is matching letters, not claims.
+Tightened to the affirmative phrase. Both sabotages then seen RED: restoring the false sentence, and
+asserting `scorable` instead of deriving it.
