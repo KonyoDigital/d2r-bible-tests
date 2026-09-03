@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2491",
+  "ver": "v2492",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2491: tv/organ_matrix.py measures 44 surfaces against the four organs instead of filling the table in. Two states were not enough: 9 cells are MISNAMED, where the organ is watching the thing under another name, which is how the table he was shown came to look empty; and console_doctor has no report at all so its column is UNKNOWN rather than absent. Third instance today of one root cause, disjoint vocabularies. The MISNAMED guard was vacuous on its first cut and passed while every such cell collapsed to ABSENT.",
+  "note": "v2492: four defects shared one missing piece and I had been fixing them one at a time: A1s unreachable FLOWING, A3s nine MISNAMED cells, the tab vocabulary and the duplicate board topics. Measured, three resolvers now disagree on six of nine inputs, each correct for its own consumers, so flattening them would break all three quietly. tv/one_name.py holds one concept identity and every surface asks for the form it needs, plus same_thing which is the question A1 and A3 could not ask. The guard asserts agreement not replacement, so adoption cannot change behaviour.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -16083,3 +16083,53 @@ have claimed 44 empty rows while 9 were watched.
 asserted the label was applied — so collapsing every one into ABSENT passed. Proven by sabotage
 going GREEN. It now re-derives the pairs from the organs and demands the label; re-run, it names the
 exact cells. All four sabotages seen RED.
+
+## v2492 — ARCHITECTURE: one concept, many renderings
+
+His direction: *"do the architecture build first within the tasks... mostly the architecture first"*.
+
+**Four defects, one missing piece, and I had been fixing them one at a time.** Each was found by
+measurement and each got its own local alias map:
+
+| where | the two names nothing could join |
+|---|---|
+| A1 · FLOWING unreachable (v2485) | organ ids (`lanes`, `readers`) vs lane names (`tvd-eagle-watch`) |
+| A3 · 9 MISNAMED cells (v2491) | surfaces (`chronicle.runeword`) vs organ names (`runeword`) |
+| tab vocabulary (v2480) | `unique` vs `uniques` |
+| board topics (v2490) | `THE ARCHITECTURE ASKS` vs `ARCHITECTURE` |
+
+**Measured: three resolvers now exist and they DISAGREE on 6 of 9 inputs.**
+
+```
+input        chronicle_template   route_totals   lane_lock
+set          sets                 set            sets
+runeword     runewords            runeword       runewords
+unique       unique               unique         uniques
+```
+
+Each is correct for its own consumers — the template's ledger map, `route_totals.ROUTES` and
+lane_lock's surfaces key on three different forms — so flattening them to one output string breaks
+all three, and does it quietly: the call sites keep compiling and start missing. **The defect is not
+the disagreement; it is that there was nowhere to ask what they were disagreeing ABOUT.**
+
+⚠ **TWO OF THOSE ALIAS MAPS I WROTE MYSELF, TODAY, WHILE FIXING INSTANCES OF THIS.** A fifth would
+have been the obvious next move and the wrong one.
+
+**`tv/one_name.py`** holds one concept identity and every surface asks for the form it needs —
+`form(x, "template" | "route" | "lane" | "ledger")` — plus `same_thing(a, b)`, which is exactly the
+question A1 and A3 could not ask.
+
+The guard asserts **agreement, not replacement**: every rendering must equal what the live resolver
+returns today, so adopting this cannot change behaviour, and a later divergence goes red instead of
+silent. Four sabotages seen RED, including the two traps every naive version has — two unknowns
+comparing equal, and an unknown word echoed back as if resolved.
+
+⚠ **MEASURED AND RECORDED RATHER THAN QUIETLY WORKED AROUND:** `lane_lock._canon_tab` returns its
+INPUT for a word it does not know (`_canon_tab('zzz_unknown')` → `'zzz_unknown'`), so a caller
+cannot tell resolved from unrecognised. Pre-existing, and its callers may depend on it, so this
+names it rather than changing it.
+
+⚠ **AND MY FIRST GUARD FAILED FOR THE WRONG REASON** — it fed a dotted SURFACE name to a TAB
+resolver and called the mismatch a disagreement. Two vocabularies, two kinds of input; the
+reproduction tests use tabs only, and the dotted names belong to `same_thing()`, which is the
+function that spans them.

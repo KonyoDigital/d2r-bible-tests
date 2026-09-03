@@ -508,6 +508,20 @@ GATES = [
              "proven one, which a plain `if score:` would do. Also pins that it DERIVES and "
              "never writes, because a stored picture is a map that drifts from the territory — "
              "BLUEPRINT.md went stale exactly that way and a gate graded the last build."),
+    Gate("test_one_name", [sys.executable, os.path.join(HERE, "test_one_name.py")], 60,
+         why="THE JOIN THE CONSOLE WAS MISSING FIVE TIMES OVER. Measured: three resolvers disagree "
+             "on 6 of 9 inputs — chronicle_template says `sets` where route_totals says `set`, "
+             "lane_lock says `uniques` where both others say `unique`. Each is right for ITS OWN "
+             "consumers, so flattening them to one string breaks all three, quietly: the call "
+             "sites keep compiling and start missing. The same missing piece caused A1's "
+             "unreachable FLOWING, A3's 9 MISNAMED cells, v2480's tab vocabulary and v2490's "
+             "duplicate board topics — and I wrote two of those local alias maps myself, the same "
+             "day, while fixing instances of the problem. So one_name holds ONE concept identity "
+             "and every surface asks for the form IT needs. These assert AGREEMENT, not "
+             "replacement: each rendering must equal what the live resolver returns today, so "
+             "adoption cannot change behaviour and a later divergence goes red instead of "
+             "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
+             "be None and never echoed back as if resolved. All four sabotages seen RED."),
     Gate("test_organ_matrix", [sys.executable, os.path.join(HERE, "test_organ_matrix.py")], 120,
          why="A3 — he was shown a surface x capability table that was mostly holes and said "
              "\"fix those gaps and anywhere else.. make it unified\", every surface getting the "
