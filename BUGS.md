@@ -15373,3 +15373,45 @@ is v1691.1's whole point, and the full name has never left the title.
 
 ⚠ **AND THE REAL CAUSE IS MINE, NOT THE CODE'S:** my version names had grown to 45 characters in a
 box that fits about 24. Shorter names are the habit change; this is the guard against the habit.
+
+## A2 — the write door was proven, and it is STILL SHUT on purpose (v2467)
+
+`vault.apply` guards "mules items between characters" — the door that writes his ledger. It sat
+UNPROVEN at n=0 because nothing was permitted to feed it.
+
+`tv/vault_wilson.py` hands it proposals it MUST reject:
+- **ungated** — v1595's re-gate at the WRITE: a hand-supplied proposal whose rows clear no witness
+  gate. (Grok's third eye flagged that hole originally; this is the first thing that has ever
+  tested the fix.)
+- **empty** — an empty proposal must refuse rather than fall through to whatever was last swept.
+
+```
+ungated 8/8 · empty 8/8 -> vault.apply  16/16  wilson 0.806 > bar 0.722   ... and it stays LOCKED
+```
+
+**THE LOCK IS RIGHT TO STAY SHUT, and its own words are the best thing in this batch:**
+> *"the score clears (0.806) but the evidence is too alike: kinds ['sabotage'] score 1.00 against
+> 1.30. Wilson counts how many looks agreed, never whether they were independent."*
+
+`vault.apply` carries `kinds_bar 1.3` because it writes his ledger: **one kind of evidence is not
+enough however good the score.** It has moved from "nobody ever tried" to "tried, proven at 16/16,
+and still shut until a second INDEPENDENT kind of witness exists". That is confluence doing exactly
+what it was built for, and it is the opposite of a lock that can be talked open.
+
+⚠ **IT NEVER APPLIES ANYTHING.** Every row it hands in carries an empty evidence list, so it fails
+the witness gate by construction and is rejected before the board is ever asked. A row that might
+pass would be a row that might be written into his stash, and that is not a risk a test may take.
+
+**Proven RED:** removing v1595's re-gate takes `ungated` to **8/0 LEAKS, wilson 0.000** while
+`empty` stays PROVEN — it fails for its own reason.
+
+## A2 — vault.forget CANNOT be proven by sabotage, and that is a fact about the door
+
+Measured by AST: **`vault_forget` is 7 lines, one return, and ZERO refusal paths.** It clears the
+swept memory and always answers ok. Its own docstring says why that is correct — *"an optimisation
+he cannot clear is a cage"*, and the ledger is rebuildable from the reels.
+
+**So there is no wrong input for it to catch, and its lock stays UNPROVEN by construction** — not
+because nobody tried, but because there is nothing to try. Inventing a sabotage for it would be
+manufacturing proof. `PROVES` declares `vault_wilson` for `vault.apply` ONLY, and the harness prints
+this reason every run rather than leaving a silent blank.

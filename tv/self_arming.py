@@ -192,6 +192,13 @@ PROVES = {
     # sweep: there is no attempt in it whose success path runs, because the door it guards spends
     # money.
     "sweep_wilson": ("vault.sweep_start",),
+    # vault_wilson attempts proposals the WRITE door must reject — v1595's re-gate, which
+    # returns before the board is ever asked. It never applies anything: every row it hands
+    # in carries an empty evidence list, so it fails the witness gate by construction.
+    # ⚠ It is declared for vault.apply ONLY. vault.forget has no refusal path at all (7
+    # lines, one return, always ok), so nothing can prove it by sabotage and nothing here
+    # pretends to.
+    "vault_wilson": ("vault.apply",),
 }
 
 

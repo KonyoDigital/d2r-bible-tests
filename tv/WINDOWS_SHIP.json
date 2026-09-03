@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2466",
+  "ver": "v2467",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2466: Two independent cold reads called the build stamp an unintended cut off because it always ended mid word. The cap was deliberate and its rule stands, id and date must survive and the name is decoration, but my version names had grown long enough that the decoration was always half a word. The name is now shown only when it fits, measured after render, and the full name has never left the title.",
+  "note": "v2467: The vault apply door writes his ledger and no sabotage had ever been attempted against it. It now takes proposals it must reject, each row carrying no evidence so it fails the witness gate by construction, and sixteen of sixteen were refused at the re gate before the board was ever asked. The lock stays shut anyway and is right to: the score clears but the evidence is all one kind, and that door requires more than one independent kind. Also recorded: vault forget has no refusal path at all, so nothing can prove it by sabotage and nothing pretends to.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

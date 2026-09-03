@@ -249,6 +249,16 @@ GATES = [
     # v2464 — A2 · the gate must bank what it scores. `why` IS A KEYWORD.
     # A2 step 1 — "the printer and the reels". Runs the harness as a SCRIPT so it banks, the way
     # the hover-wilson gate now does. `why` IS A KEYWORD.
+    # A2 — the WRITE door. `why` IS A KEYWORD.
+    Gate("vault-wilson", [sys.executable, os.path.join(HERE, "vault_wilson.py")], 180,
+         why="vault.apply mules items between characters — it writes his ledger — and no sabotage "
+             "had ever been attempted against it. This hands it proposals it MUST reject, each row "
+             "carrying an EMPTY evidence list so it fails the witness gate by construction, and "
+             "counts whether v1595's re-gate refused. ⚠ It never applies anything: every rejection "
+             "happens before the board is asked. Proven RED: removing the re-gate takes that claim "
+             "to 8/0 LEAKS while the empty-proposal claim stays PROVEN. It also REPORTS, rather "
+             "than papers over, that vault.forget has no refusal path at all and therefore cannot "
+             "be proven by sabotage."),
     Gate("sweep-wilson", [sys.executable, os.path.join(HERE, "sweep_wilson.py")], 180,
          why="vault.sweep_start guards an action that SPENDS MONEY and no sabotage had ever been "
              "attempted against it, so it sat UNPROVEN at n=0 with nothing to move it. This "
