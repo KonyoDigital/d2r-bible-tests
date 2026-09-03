@@ -25707,6 +25707,15 @@ window.dailyCreateAi = function(force){
       var _rot = (typeof window._chronRotation==='function') ? window._chronRotation() : null;
       if (_rot && _rot.target && _rot.target.pick){ window.LSR.setItem('d2r_createNowAi', _rot.target.pick); }
       else if (_rot && _rot.sealed){ window.LSR.setItem('d2r_createNowAi', '🏅 All chronicles sealed — runewords, chronicle & sets complete. Enjoy the spoils or hunt trades.'); }
+      /* #135 — the third arm used to WIPE the card whenever a chronicle was incomplete and had no
+         pick. That is the only state in which a reader most needs a sentence, and it got a blank.
+         An empty Daily Pick is indistinguishable from a broken one; say which it is. */
+      else if (_rot && _rot.incomplete && _rot.incomplete.length){
+        window.LSR.setItem('d2r_createNowAi', '🧭 No move to name right now — '
+          + _rot.incomplete.length + ' chronicle' + (_rot.incomplete.length===1?' is':'s are')
+          + ' still open but none of them could produce a next action. That is worth looking at, '
+          + 'not a completion.');
+      }
       else { window.LSR.removeItem('d2r_createNowAi'); }
     } catch(e){ try{ window.LSR.removeItem('d2r_createNowAi'); }catch(e2){} }
     try { window._syncCreateNowAiArt(); } catch(e){}     // v1616 — the DAILY PICK gets its item's face
@@ -44965,6 +44974,24 @@ function renderJournal(){
                  bestHours:_bh,
                  route:(run&&run.ev>0?('this run yields ~1 missing unique every '+_fuRate(run.ev)):'') };
           c.pick='🏆 Chronicle · '+c.done+'/'+c.total+' — hunt '+it.n+(boss?(' (best at '+boss+(oddsStr?', '+oddsStr:'')+')'):'')+'; '+c.left+' uniques left';
+        } else {
+          /* ⚠⚠ #135 — NOTHING LEFT TO HUNT IS NOT THE SAME AS NOTHING TO SAY, and leaving
+             `c.pick` undefined here is what made the DAILY PICK VANISH.
+             The grail chronicle counts the game's 403 Chronicle ROWS while the wall offers 398
+             NAMES, so `done` tops out below `total` and `complete` never becomes true. Once the
+             wall is exhausted there is no runs[0] and no missing[0], so `it` is null, no pick is
+             written, and dailyCreateAi falls past both of its arms to removeItem — the pick is
+             wiped and, because the same state recurs every day, it never returns.
+             MEASURED: 0/403 -> a pick; 398/403 -> pick undefined -> WIPED; 403/403 -> unreachable.
+             The honest answer names the state instead of disappearing. It deliberately does NOT
+             explain the gap: tv/chronicle_total.py records 403 rows vs 396 distinct names vs a
+             398 roster and calls that difference an OPEN MEASUREMENT, so this says how big it is
+             and that nobody has accounted for it. [[unknown-stays-unknown]] */
+          c.pick='🏆 Chronicle · '+c.done+'/'+c.total+' — every unique the wall can offer is '
+               + 'already yours. The Chronicle still counts '+c.left+' more row'+(c.left===1?'':'s')
+               + ' than the wall has names, and that gap has never been accounted for — so there '
+               + 'is nothing left to hunt here, and this is not a completion.';
+          c.exhausted = true;
         }
       } else if (c.key==='sets' && c.data){
         var w=(c.data.working&&c.data.working[0])||null;   // fewest pieces left = closest set
@@ -48356,7 +48383,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2473', name:'v2473 - HE CLICKED LEDGER AND THE PANEL BURIED ITS OWN WAY OUT', date:'2026-09-03', note:'Clicking the ledger under ADVANCED rendered a 3224px block into a rail whose visible height is 705px, taking the rails scrollHeight to 5114 - 4.6 screens of output between him and every control below it, ADVANCED included. The rail scrolls, so he was not frozen, he was buried. All five output panes declared neither max-height nor overflow; ledger was only the loudest. Also in this ship: the fleet lanes had been reading UNKNOWN on his console because a cache key folded every value of the tally with .get(total) and the tally is an envelope whose ok, why, at, source and profile are scalars, so every real call raised. The heart printed the exception where the lanes belong. And the shared route renderer named one callers subject in its error branch, so the FLEET section printed a row called the chronicles. Plus the three findings the v2471 review-after-ship pass reproduced, two of them holes in a guard written the same morning.' };
+  window.D2R_BUILD = { id:'v2474', name:'v2474 - THE DAILY PICK VANISHED WHEN THE GRAIL WALL RAN OUT', date:'2026-09-03', note:'135. The grail chronicle counts the games 403 Chronicle ROWS while the wall offers 398 NAMES, so done tops out below total and complete never becomes true for grail. The rotations grail arm only assigned a pick inside if(it), and once the wall is exhausted there is no runs[0] and no missing[0], so no pick was written and dailyCreateAi fell past both of its arms to removeItem. The Daily Pick was wiped, and because the same state recurs every day it never came back. Measured through the real page over three states: 0 of 403 gives a pick, 398 of 403 gave none and was WIPED, 403 of 403 is unreachable by the arithmetic. It now names the state instead of disappearing, and deliberately does not explain the gap - chronicle_total.py records 403 rows against 396 distinct names and a 398 roster, and calls that difference unaccounted, so the sentence says how big it is and that nobody has explained it rather than inventing a reason.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2473",
+  "ver": "v2474",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2473: Clicking the ledger under ADVANCED rendered a 3224px block into a rail whose visible height is 705px, taking the rails scrollHeight to 5114 - 4.6 screens of output between him and every control below it, ADVANCED included. The rail scrolls, so he was not frozen, he was buried. All five output panes declared neither max-height nor overflow; ledger was only the loudest. Also in this ship: the fleet lanes had been reading UNKNOWN on his console because a cache key folded every value of the tally with .get(total) and the tally is an envelope whose ok, why, at, source and profile are scalars, so every real call raised. The heart printed the exception where the lanes belong. And the shared route renderer named one callers subject in its error branch, so the FLEET section printed a row called the chronicles. Plus the three findings the v2471 review-after-ship pass reproduced, two of them holes in a guard written the same morning.",
+  "note": "v2474: 135. The grail chronicle counts the games 403 Chronicle ROWS while the wall offers 398 NAMES, so done tops out below total and complete never becomes true for grail. The rotations grail arm only assigned a pick inside if(it), and once the wall is exhausted there is no runs[0] and no missing[0], so no pick was written and dailyCreateAi fell past both of its arms to removeItem. The Daily Pick was wiped, and because the same state recurs every day it never came back. Measured through the real page over three states: 0 of 403 gives a pick, 398 of 403 gave none and was WIPED, 403 of 403 is unreachable by the arithmetic. It now names the state instead of disappearing, and deliberately does not explain the gap - chronicle_total.py records 403 rows against 396 distinct names and a 398 roster, and calls that difference unaccounted, so the sentence says how big it is and that nobody has explained it rather than inventing a reason.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
