@@ -186,6 +186,12 @@ PROVES = {
     # render_check proves that the RENDER GATE can be seen red. There is no render lock, and there
     # should not be one — nothing it sabotages can delete footage or touch his ledger.
     "render_check": (),
+    # A2 step 1 — "the printer and the reels", which is this table's own label for
+    # vault.sweep_start. sweep_wilson attempts states in which chronicle_sweep_start MUST refuse
+    # (a sweep already running; no lane to read with) and counts whether it did. It never starts a
+    # sweep: there is no attempt in it whose success path runs, because the door it guards spends
+    # money.
+    "sweep_wilson": ("vault.sweep_start",),
 }
 
 

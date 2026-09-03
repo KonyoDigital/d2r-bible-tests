@@ -1,0 +1,112 @@
+"""v2464 — A2 · the gate must BANK what it scores, not only print it.
+
+⚠ THE DEFECT THIS EXISTS FOR, and it was one of my own shipped claims. The board has said since
+v2444 that "the sabotages BANK, first lock opened itself". Measured on the live console months
+later: **open 0 of 5, every lock n=0, and tv/.self_arming.jsonl did not exist.**
+
+v2444 put banking in `hover_wilson.main()` only, so that importing the module — or a test calling
+`score()` — could not write his ledger. That rule is right. But the GATE also imports and calls
+`score()`, so every push measured 55 sabotage attempts and fed the proof queue with NONE of them.
+The only path from evidence to the queue was a human typing `python3 tv/hover_wilson.py`, and the
+proof decayed to nothing with nothing saying so.
+
+⚠ THIS READS THE STRING THE GATE ACTUALLY EXECUTES, not the file around it. `run_gates.py` now
+carries a long comment explaining the fix, and that comment names `bank_into_proof_queue` — a scan
+over the file would be satisfied by the prose describing the bug. The verdict script is a string
+constant; reading only that is reading code. [[source-reading-guard]]
+
+⚠ NOTHING HERE TOUCHES HIS LEDGER. The banking test points self_arming.LEDGER at a temp file.
+[[feedback-fixtures-never-touch-live-data]]
+"""
+import os
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+
+class TheGateBanksWhatItScores(unittest.TestCase):
+
+    def test_the_verdict_script_feeds_the_proof_queue(self):
+        import run_gates
+        src = getattr(run_gates, "_HOVER_WILSON_VERDICT", None)
+        self.assertIsInstance(src, str, "the hover-wilson verdict script is gone or renamed — this "
+                                        "guard would then pass forever while measuring nothing")
+        self.assertIn("HW.score()", src, "the verdict no longer scores — the extractor is broken, "
+                                         "not the gate")
+        self.assertIn("bank_into_proof_queue", src,
+                      "the gate SCORES the sabotages and banks none of them. That is exactly the "
+                      "state that left all five locks UNPROVEN with n=0 while the board said "
+                      "miniauto.run had opened itself: evidence measured on every push and fed to "
+                      "nothing.")
+
+    def test_a_banking_failure_is_said_out_loud_and_not_swallowed(self):
+        """A lock silently ceasing to be fed is how this defect survived. If banking raises, the
+        gate must SAY so — a bare `except: pass` here would recreate the bug with a comment."""
+        import re
+        import run_gates
+        src = run_gates._HOVER_WILSON_VERDICT
+        self.assertIn("bank_into_proof_queue", src)
+        # ⚠ MY FIRST VERSION OF THIS ASSERTION WAS GREEN FOR THE WRONG REASON, and my own sabotage
+        # caught it: it looked for "print" anywhere in a 700-character window after the bank call,
+        # and the SUCCESS branch prints right there. Replacing the error print with `pass` left it
+        # passing. A window is not a scope. This reads the except BLOCK — the lines indented under
+        # `except ... :` — and nothing else. [[sabotage-is-usually-the-wrong-one]]
+        m = re.search(r"(?m)^(\s*)except\b[^\n]*:\n((?:\1[ \t]+[^\n]*\n|\s*\n)+)", src)
+        self.assertIsNotNone(m, "banking is unguarded — a raise inside it would fail the whole "
+                                "gate, so a transient banking error would block a push")
+        body = m.group(2)
+        self.assertIn("print", body,
+                      "the except block swallows a banking failure silently. A lock quietly "
+                      "ceasing to be fed is exactly how this defect survived from v2444 to now, "
+                      "and a bare `pass` here recreates it wearing a try/except:\n%r" % body[:200])
+
+
+class BankingIsIdempotent(unittest.TestCase):
+    """Three runs must not read as three times the evidence. The gate now banks on EVERY push, so
+    a non-folding bank would inflate n without a single new sabotage being attempted — and Wilson
+    would climb on repetition alone, which is the one thing the denominator rule forbids."""
+
+    def setUp(self):
+        import self_arming
+        self.sa = self_arming
+        self._orig = self_arming.LEDGER
+        self.tmp = tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False)
+        self.tmp.close()
+        self_arming.LEDGER = self.tmp.name
+
+    def tearDown(self):
+        self.sa.LEDGER = self._orig
+        try:
+            os.unlink(self.tmp.name)
+        except OSError:
+            pass
+
+    def test_banking_the_same_evidence_three_times_is_still_one_measurement(self):
+        for _ in range(3):
+            self.sa.bank("miniauto.run", "sabotage", "hover_wilson", n=48, k=48, ref="coordinate")
+        # ⚠ self_arming has no state(); the folded view is score(lock). My first version of this
+        # test called a function that does not exist and reported it as a FAILURE OF THE CODE. A
+        # test that cannot find its own subject fails for its own reason, and reads exactly like a
+        # real defect. [[feedback-suspect-the-instrument]]
+        got = self.sa.score("miniauto.run")
+        self.assertEqual(got["n"], 48,
+                         "three identical runs banked as %s attempts — repetition became evidence, "
+                         "which is the one thing the denominator rule forbids" % got["n"])
+        self.assertEqual(got["k"], 48)
+
+    def test_an_undeclared_source_is_refused(self):
+        """A lock must never open on somebody else's proof."""
+        with self.assertRaises(ValueError):
+            self.sa.bank("miniauto.run", "sabotage", "some_other_harness", n=9, k=9, ref="x")
+
+
+if __name__ == "__main__":
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
+    unittest.main(verbosity=2)

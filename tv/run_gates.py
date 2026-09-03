@@ -96,6 +96,30 @@ sys.path.insert(0, os.path.dirname(_p))
 import hover_wilson as HW
 
 rows = HW.score()
+
+# ⚠⚠ v2464 — A2 · THIS GATE SCORED THE SABOTAGES AND BANKED NOTHING, AND THAT IS WHY THE LOCKS
+# WERE ALL UNPROVEN. v2444 deliberately put banking in main() only, so that importing the module
+# or calling score() from a test could not write his ledger. This gate calls score() — so every
+# push measured 55 sabotages and fed the proof queue with none of them, and the only way evidence
+# ever reached the queue was a human typing `python3 tv/hover_wilson.py`.
+# MEASURED: tv/.self_arming.jsonl did not exist, and all five locks read UNPROVEN n=0 on the live
+# console, while the board recorded miniauto.run as OPEN at 55/55 since v2444. The proof had
+# decayed to nothing and nothing said so.
+# Banking here is safe and idempotent: bank() folds on (lock, kind, src, ref), so three runs in a
+# row still read 55/55 rather than 165/165 — measured before this line was written.
+# ⚠ A GATE IS NOT A FIXTURE. v2444's rule was about tests importing the module for other reasons;
+# this is the harness deliberately run against real code, which is exactly what should feed the
+# queue. [[the-unjoined-end]] [[feedback-fixtures-never-touch-live-data]]
+try:
+    _b = HW.bank_into_proof_queue(rows)
+    if _b.get("banked"):
+        print("  banked into the proof queue -> miniauto.run: " + ", ".join(_b["banked"]))
+    for _sk in (_b.get("skipped") or []):
+        print("  NOT banked: " + _sk)
+except Exception as _e:
+    # a banking failure must be SAID, never swallowed, or a lock silently stops being fed
+    print("  ⚠ banking RAISED and the proof queue was not fed: %s" % str(_e)[:140])
+
 leaks = [r for r in rows if r["state"] == "LEAKS"]
 unproven = [r for r in rows if r["state"] in ("UNPROVEN", "UNKNOWN")]
 for r in rows:
@@ -222,6 +246,26 @@ GATES = [
     # v2462 — A21b, his hand as a witness. `why` IS A KEYWORD.
     # A21d — his rule over the item classifier. Needs headless Chrome; skips (never passes)
     # without it. `why` IS A KEYWORD.
+    # v2464 — A2 · the gate must bank what it scores. `why` IS A KEYWORD.
+    # A2 step 1 — "the printer and the reels". Runs the harness as a SCRIPT so it banks, the way
+    # the hover-wilson gate now does. `why` IS A KEYWORD.
+    Gate("sweep-wilson", [sys.executable, os.path.join(HERE, "sweep_wilson.py")], 180,
+         why="vault.sweep_start guards an action that SPENDS MONEY and no sabotage had ever been "
+             "attempted against it, so it sat UNPROVEN at n=0 with nothing to move it. This "
+             "attempts the two states the door must refuse — a sweep already running, which would "
+             "double-spend, and no lane to read with, which would spend and learn nothing — and "
+             "counts whether it refused. ⚠ It never STARTS a sweep: there is no attempt in it "
+             "whose success path runs. Proven RED: removing the busy guard takes that claim to "
+             "8/0 LEAKS while the lane claim stays PROVEN."),
+    Gate("test_gate_banks", [sys.executable, os.path.join(HERE, "test_gate_banks.py")], 120,
+         why="the board said since v2444 that the sabotages BANK and the first lock opened itself; "
+             "the live console said open 0 of 5, every lock n=0, and the ledger file did not "
+             "exist. v2444 put banking in main() only so a test importing the module could not "
+             "write his ledger — but the GATE imports and calls score(), so every push measured 55 "
+             "sabotages and fed the queue with none of them. Pins that the verdict script banks, "
+             "that a banking failure is SAID rather than swallowed, and that banking the same "
+             "evidence three times is still one measurement — the gate now runs on every push, so "
+             "a non-folding bank would let Wilson climb on repetition alone."),
     Gate("test_classify_corroborator",
          [sys.executable, os.path.join(HERE, "test_classify_corroborator.py")], 240,
          why="every member of a roster should classify the same way, and nothing had ever compared "

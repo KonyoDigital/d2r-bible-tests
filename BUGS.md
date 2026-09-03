@@ -15204,3 +15204,147 @@ sits in RUNEWORDS with its runes field reading `"(unique, not RW)"` — the page
 there while marking it a unique. **That second one was my probe's flaw**, reading that array as a
 roster of runewords. Both are DECLARED with their reasons, and the gate fails if a declaration stops
 being true — a stale exception is how a corroborator quietly stops finding anything.
+
+## MY OWN DEBT — a probe that reads `<script>` bodies as screen text, twice
+
+`document.querySelectorAll('body *')` includes SCRIPT, STYLE, NOSCRIPT and TEMPLATE nodes, and
+their `textContent` is source code. Two of my measuring probes this session matched one:
+
+- a type-size sweep returned a JS comment (`/* ══ v1615 …`) as if it were rendered text
+- a truncation sweep reported the D2R_BUILD **script tag** as the clipped element, sending me
+  looking at the wrong thing
+
+Neither changed a verdict, because both times the numbers beside them were obviously wrong. **That
+is luck, not a method** — a probe that reads script bodies as screen content is one plausible-looking
+regex away from a false finding, and a false finding gets FIXED, which is worse than being missed.
+Every DOM probe here now skips `script|style|noscript|template`.
+
+## REVIEW OF v2462+v2463 ON ORIGIN — clean, with two cold-eye claims refuted
+
+The classifier change is confirmed on the shipped bytes: all eight names that previously resolved to
+nothing now resolve `unique` -> `q-unique`, so they render in unique gold where they had no colour.
+The cold eye, asked cold about item-name colour: **"NOTHING FOUND — all readable unique names use
+the expected gold/yellow rarity colour consistently"** and **uncoloured names: NOTHING FOUND**. So
+nothing was over-coloured by the roster fallback and nothing is left plain beside coloured siblings.
+
+**REFUTED — "the MF settings panel is drawn on top of content".** Measured: that element is
+`position: static`, in normal flow, and `elementFromPoint` at its own centre does not report it
+covering anything. It is an adjacent panel, not an overlay. (Its `z-index: 100` is a no-op on a
+static element — latent, not a defect.)
+
+**REFUTED AS QUOTED — "Best ru" and "op" clipped at the right edge.** Neither string is clipped.
+The one genuinely clipped node on that page is the build stamp — `v2463 · 2026-09-03 · TEN AGREE
+AND ONE DOES NOT`, losing 128px of 306 — **and it already carries a `title`**, which is exactly
+v2432's ruling that a truncation must be RECOVERABLE. Clipped by design, with the fallback in place.
+
+⚠ The pre-push gate SKIPPED the console demos on this push ("control_ui.html unchanged"). **A skip
+is not a pass.** J11/J12/J13 were green 13/13 locally before the commit, and this ship did not touch
+that file — but the gate did not re-prove it and the record should say so.
+
+## REG-357 UPDATE — the server half is FIXED AND PROVEN; the board half is one machine
+
+**The uniques cross-reference now answers.** Measured against his cousin's row after v2460 shipped:
+
+```
+ledger=uniques   ok=True   mine=160  theirs=0  both=0      <- it REFUSED for months
+ledger=sets      ok=True   mine=121  theirs=125 both=119
+```
+
+**And the fleet record now shows that machine publishing BOTH masks — `['sets','uniques']`.** It was
+publishing a uniques mask all along; `functions/api/console.js` was discarding it on arrival.
+
+⚠ **SO THE PREMISE GROK AND I BOTH WORKED FROM WAS WRONG, AND IT WAS WRONG THE SAME WAY FOR BOTH OF
+US.** We each concluded "no machine has ever published a uniques mask" by reading `/api/fleet` —
+which is the SERVER's copy, already filtered by the very bug. We were reading the output of the
+defect and calling it evidence about the input. A record that is produced by the thing you are
+investigating cannot testify about it.
+
+**What is left, isolated:**
+```
+Konyo   tally 292/403   mask: NONE right now  (maskWhy: "no board window")
+Dean    tally   0/398   mask n=398 have=0     <- his mask is CORRECT; his d2r_owned is empty
+```
+That machine's mask honestly encodes zero because its `d2r_owned` store holds zero, while its
+`d2r_setPieces` holds 125. **That is on his machine and cannot be reached from here.**
+
+**CHECKED AND NOT A DEFECT:** the compare reported `mine=160` while the live tally says 292, because
+his own board window is closed so the server is serving the last mask he published. The panel
+ALREADY prints both ages — *"your list Xh ago, theirs Yh ago"* (v2279, which also handled the two
+stamps being different types). A stale reading that says how stale it is is not a stale-reading
+defect.
+
+## REG-365 — the gate scored 55 sabotages every push and banked NONE of them (v2464)
+
+**One of my own shipped claims, contradicted by the running system.** The board has said since
+v2444 that *"the sabotages BANK, first lock opened itself"*. Measured on the live console:
+
+```
+open 0 of 5    every lock UNPROVEN, n=0    tv/.self_arming.jsonl DOES NOT EXIST
+```
+
+**Root cause:** v2444 deliberately put banking in `hover_wilson.main()` only, so that importing the
+module — or a test calling `score()` — could not write his ledger. That rule is right. **But the
+GATE also imports and calls `score()`.** So every push measured 55 sabotage attempts and fed the
+proof queue with none of them, and the only path from evidence to the queue was a human typing
+`python3 tv/hover_wilson.py` by hand. The proof decayed to nothing and nothing said so.
+
+**Fix:** the verdict script banks what it scores. **Proven by deleting the ledger first:**
+```
+ledger deleted -> open 0 of 5
+gate runs      -> banked: coordinate 48/48, anchor 0/0, read 5/5, slot 2/2
+after          -> open 1 of 5 · miniauto.run OPEN k=55 n=55 wilson 0.9347 vs bar 0.51
+```
+Idempotent, **measured before the line was written**: three runs still read 55/55, not 165, because
+`bank()` folds on `(lock, kind, src, ref)`. That matters more now the gate runs it on every push — a
+non-folding bank would let Wilson climb on repetition alone, which is the one thing the
+denominator rule forbids.
+
+⚠ **MY FIRST GUARD WAS GREEN FOR THE WRONG REASON and my own sabotage caught it.** It asserted
+`"print" in src[i:i+700]` to prove a banking failure is announced — but the SUCCESS branch prints in
+that same window, so replacing the error print with `pass` left it passing. **A window is not a
+scope.** It now reads the `except` block by indentation and nothing else.
+
+⚠ My other mistake: the idempotence test called `self_arming.state()`, which does not exist, and
+pytest reported that as a failure of the CODE. A test that cannot find its own subject fails for
+its own reason and reads exactly like a real defect. The folded view is `score(lock)`.
+
+**Still honestly open:** the other four locks (vault.sweep_start, vault.apply, vault.forget,
+prune.arm) remain UNPROVEN at n=0 because **no sabotage has ever been attempted against them** —
+`PROVES` declares only `hover_wilson -> miniauto.run`. That is a missing measurement, not a fault,
+and it is the next piece of A2.
+
+## A2 STEP 1 — the printer and the reels: a second lock opened itself (v2465)
+
+`self_arming.LOCKS` labels `vault.sweep_start` in its own words *"step 1 — the printer and the
+reels"*, which is the lock his priority names first: the lowest bar (0.510), no prerequisites, and
+it guards **an action that spends money**.
+
+It sat UNPROVEN at n=0 because **no sabotage had ever been attempted against it** — `PROVES`
+declared only `hover_wilson -> miniauto.run`, so nothing was permitted to feed it.
+
+`tv/sweep_wilson.py` attempts the two states `chronicle_sweep_start` MUST refuse:
+- **busy** — a sweep is already running; starting a second would double-spend
+- **lane** — no primary lane; the sweep would spend and learn nothing
+
+```
+busy  8/8  wilson 0.676  PROVEN        vault.sweep_start -> OPEN
+lane  8/8  wilson 0.676  PROVEN        16 of 16 refused · wilson 0.806 >= 0.510
+```
+**Two of five locks are now open, and neither was opened by hand.**
+
+⚠ **IT NEVER STARTS A SWEEP.** Every attempt is a state the door must refuse, and the only thing
+counted is whether it did. There is no attempt in the harness whose success path runs — a test for
+a paid door that could itself open the door would be the most expensive test in this repo.
+
+⚠ **IT NEVER TOUCHES HIS REAL JOB STATE.** `_CHRON_JOB` and the lane accessor are swapped per
+attempt and restored in a `finally`, so a crash mid-attempt cannot leave the console believing a
+sweep is running.
+
+**Proven RED:** removing the `busy` guard takes that claim to **8/0 LEAKS, wilson 0.000**, while the
+`lane` claim stays PROVEN — it fails for its own reason rather than blanket-failing. The ledger is
+clean afterwards because `bank()` folds on `(lock, kind, src, ref)`: the restored run's 8/8 replaces
+the sabotage's 0/8, verified at 16/16 after.
+
+**Still honestly UNPROVEN:** `vault.apply`, `vault.forget` (bar 0.722 each) and `prune.arm` (0.839,
+and it additionally waits on sweep_start AND apply). No sabotage has been attempted against those
+three. That is a missing measurement, not a fault.
