@@ -96,6 +96,50 @@ class TheContradictionIsTheOneItCanActuallyJudge(unittest.TestCase):
         r = EVB.report(None)
         self.assertEqual(r["state"], "UNKNOWN")
 
+    def test_the_ledger_does_not_inherit_the_GATE_s_long_budget(self):
+        """⚠⚠ SHIPPED IN v2511 AND MEASURED AT 45 SECONDS.
+
+        `live_panel_gate._fetch` defaults to 15s across 3 tries — correct THERE, because for a
+        gate a missed beat is a FALSE ALARM, and its own docstring records a 6s budget once
+        reporting a healthy console as absent. That reasoning does not transfer: `observed()`
+        calls capture_beat on EVERY observation, and for the ledger a missed beat is UNKNOWN,
+        which this module already reports honestly. So recording what the eye saw blocked for
+        three quarters of a minute against a console that ACCEPTS a connection and never answers.
+        (A console that is simply DOWN refuses instantly and was never the problem.)
+
+        Two callers, two consequences, two budgets — the same split as A10's two granularities.
+        """
+        self.assertLessEqual(
+            EVB.BEAT_TIMEOUT * max(1, EVB.BEAT_TRIES), 6.0,
+            "the ledger's beat budget is %ss x %s tries. observed() runs this on every "
+            "observation; a hung console would stall the person writing the ledger."
+            % (EVB.BEAT_TIMEOUT, EVB.BEAT_TRIES))
+
+        import live_panel_gate as LPG
+        d = LPG._fetch.__defaults__
+        self.assertEqual(
+            (d[1], d[2]), (15.0, 3),
+            "the GATE's budget was changed to suit the ledger. It is generous on purpose — a "
+            "gate that cries wolf over a slow endpoint gets ignored within a week, which costs "
+            "more than having no gate at all.")
+
+        seen = {}
+
+        def _fake(timeout=None, tries=None):
+            seen["timeout"], seen["tries"] = timeout, tries
+            return None
+
+        real = LPG._fetch
+        try:
+            LPG._fetch = _fake
+            EVB.capture_beat()
+        finally:
+            LPG._fetch = real
+        self.assertEqual(
+            (seen.get("timeout"), seen.get("tries")), (EVB.BEAT_TIMEOUT, EVB.BEAT_TRIES),
+            "capture_beat did not pass its own budget down to _fetch (%s), so it silently used "
+            "the gate's 15s x 3." % (seen,))
+
     def test_a_console_that_does_not_answer_captures_NOTHING(self):
         """⚠ An empty beat would make every future observation look agreed-with."""
         pan, why = EVB.capture_beat(fetch=lambda: None)

@@ -16879,3 +16879,31 @@ rather than assumed. And the census does read live data as a side effect — abo
 fixture census, would be a second source of truth about the same thing.
 
 3 sabotages, 3 RED.
+
+## v2513 — v2511 made every observation wait 45 seconds on a hung console
+
+**REG-504 — `observed()` inherited the GATE's retry budget.** v2511 had `capture_beat` call
+`live_panel_gate._fetch`, whose defaults are **15s across 3 tries**. Those are correct *there*: for
+a gate a missed beat is a **false alarm**, and `_fetch`'s own docstring records a 6s budget once
+reporting a healthy console as absent — *"a gate that cries wolf gets ignored within a week, so it
+costs more than having no gate at all."*
+
+**That reasoning does not transfer.** `observed()` calls `capture_beat` on **every observation**,
+and for the ledger a missed beat is UNKNOWN — which `eye_vs_beat` already reports honestly. So
+waiting buys nothing and costs everything.
+
+**MEASURED after v2511 shipped, against a socket that accepts a connection and never answers:**
+
+```
+before   45.0s      after   2.0s
+```
+
+⚠ **A console that is simply DOWN was never the problem** — a closed port refuses in 0.02s. It is
+the **hung** one that stalls, and that is the case nobody tests by accident.
+
+The gate's own budget is untouched, and the guard asserts both halves: the ledger's budget stays
+short **and** `_fetch`'s defaults stay at 15s × 3, so a future tidy-up cannot "unify" them and
+reintroduce either failure. Same shape as A10's two granularities — **two callers, two
+consequences, two budgets.**
+
+2 sabotages, 2 RED.

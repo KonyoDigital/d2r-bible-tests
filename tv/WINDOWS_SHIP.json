@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2512",
+  "ver": "v2513",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2512: Accepting failures OR errors let an unrelated crash vouch for the join - an error means something else blew up, not that the census reached the patched rule. Errors are asserted empty now and only a genuine assertion failure counts, proven by a crash placed before the orphan check. The sentinel was also searched across the whole failure blob where it could appear in a traceback; it must appear in the orphan assertion own message, and that tightening immediately caught my own case mismatch.",
+  "note": "v2513: capture_beat called live_panel_gate._fetch, whose defaults are 15s across 3 tries. Those are correct for a gate, where a missed beat is a false alarm, but observed() calls capture_beat on every observation and for the ledger a missed beat is UNKNOWN which is already reported honestly. Measured against a socket that accepts and never answers: 45.0s before, 2.0s after. A console that is simply down refuses instantly and was never the problem - it is the hung one that stalls. The gate budget is untouched and the guard asserts both halves.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

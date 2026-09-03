@@ -48448,7 +48448,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2512', name:'v2512 - the join proof accepted a crash as evidence, and searched for its sentinel too loosely', date:'2026-09-03', note:'Accepting failures OR errors let an unrelated crash vouch for the join - an error means something else blew up, not that the census reached the patched rule. Errors are asserted empty now and only a genuine assertion failure counts, proven by a crash placed before the orphan check. The sentinel was also searched across the whole failure blob where it could appear in a traceback; it must appear in the orphan assertion own message, and that tightening immediately caught my own case mismatch.' };
+  window.D2R_BUILD = { id:'v2513', name:'v2513 - v2511 made every observation wait 45 seconds on a hung console', date:'2026-09-03', note:'capture_beat called live_panel_gate._fetch, whose defaults are 15s across 3 tries. Those are correct for a gate, where a missed beat is a false alarm, but observed() calls capture_beat on every observation and for the ledger a missed beat is UNKNOWN which is already reported honestly. Measured against a socket that accepts and never answers: 45.0s before, 2.0s after. A console that is simply down refuses instantly and was never the problem - it is the hung one that stalls. The gate budget is untouched and the guard asserts both halves.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

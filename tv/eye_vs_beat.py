@@ -51,7 +51,22 @@ _BLANK = re.compile(
     r"no\s+content|showed\s+nothing|all\s+white)\b", re.I)
 
 
-def capture_beat(fetch=None):
+#: ⚠⚠ THE LEDGER GETS A SHORT BUDGET, AND THE GATE KEEPS ITS LONG ONE. `live_panel_gate._fetch`
+#: defaults to 15s across 3 tries — deliberately generous, because for a GATE a missed beat is a
+#: FALSE ALARM, and its docstring records a 6s budget once reporting a healthy console as absent.
+#: That reasoning does not transfer: for the LEDGER a missed beat is UNKNOWN, which this file
+#: already reports honestly, so waiting costs everything and buys nothing.
+#:
+#: MEASURED after v2511 shipped: against a console that ACCEPTS a connection and never answers,
+#: capture_beat took 45.0 SECONDS — and observed() calls it on every observation, so recording
+#: what the eye saw would have blocked for three quarters of a minute. (A console that is simply
+#: DOWN refuses instantly and was never the problem; a hung one is.) Same shape as A10's two
+#: granularities: two callers, two consequences, two budgets.
+BEAT_TIMEOUT = 2.0
+BEAT_TRIES = 1
+
+
+def capture_beat(fetch=None, timeout=BEAT_TIMEOUT, tries=BEAT_TRIES):
     """What the console is CLAIMING right now. -> (panels, why)
 
     ⚠ A console that is not running is UNKNOWN, never an empty beat. An absent claim cannot
@@ -63,7 +78,7 @@ def capture_beat(fetch=None):
     except Exception as e:
         return None, "live_panel_gate will not import (%s)" % str(e)[:70]
     try:
-        status = (fetch or LPG._fetch)()
+        status = fetch() if fetch else LPG._fetch(timeout=timeout, tries=tries)
     except Exception as e:
         return None, "the console did not answer (%s)" % str(e)[:70]
     if not status:
