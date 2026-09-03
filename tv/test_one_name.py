@@ -436,6 +436,14 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                 # The raw value is what says which of the two it is.
                 calls.append({"pool": _snap(set, pool), "reach": _snap(dict, reach),
                               "sources": _snap(tuple, sources),
+                              # ⚠ A REPR TAKEN NOW, BESIDE THE REFERENCE. The raw values are
+                              # stored by REFERENCE, and the whole reason a snapshot exists is
+                              # that references change: a caller doing
+                              # `_orphan_names(pool, ...); pool.clear()` leaves the contract check
+                              # passing (a list is still a list) while the failure message prints
+                              # `pool=[]` — the wrong value, in the sentence a reader trusts most.
+                              "rawRepr": {"pool": repr(pool)[:120], "reach": repr(reach)[:120],
+                                          "sources": repr(sources)[:120]},
                               "raw": {"pool": pool, "reach": reach, "sources": sources}})
                 return ["sentinel-orphan"]
             globals()["_orphan_names"] = _spy
@@ -482,14 +490,20 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
         for _k, _ty in _contract:
             self.assertIsInstance(
                 _raw[_k], _ty,
-                "the census called the rule with %s=%r. That is a defect in THE CALL, not in this "
-                "instrument — the rule iterates it and would misbehave." % (_k, _raw[_k]))
-        for _k in ("pool", "reach", "sources"):
-            self.assertIsNot(
-                got[_k], _UNSNAPPABLE,
-                "THE SPY could not snapshot %r even though the call passed a %s. That is a failure "
-                "of this instrument, and reported as anything else it would read as the code under "
-                "test being wrong." % (_k, type(_raw[_k]).__name__))
+                "the census called the rule with %s=%s. That is a defect in THE CALL, not in this "
+                "instrument — the rule iterates it and would misbehave."
+                % (_k, got["rawRepr"][_k]))
+        # ⚠ ONLY `pool` CAN LEGITIMATELY REACH THE SENTINEL, and asserting it for all three was a
+        # guard that cannot fire — the thing v2520 removed one version ago, reappearing here. Once
+        # the contract above passes, `dict(a_dict)` and `tuple(an_iterable)` always succeed; only
+        # `set(pool)` can still raise, on a list of UNHASHABLE items such as [[]]. A permanently
+        # unreachable assertion reads as a live one and is worse than none.
+        self.assertIsNot(
+            got["pool"], _UNSNAPPABLE,
+            "THE SPY could not snapshot `pool` even though the call passed a %s (%s). That is a "
+            "failure of this instrument — the likely cause is unhashable items, and reported as "
+            "anything else it would read as the code under test being wrong."
+            % (type(_raw["pool"]).__name__, got["rawRepr"]["pool"]))
         self.assertEqual(
             set(got["sources"]), set(SOURCES),
             "the rule was called with %r instead of the declared SOURCES. Called with the wrong "

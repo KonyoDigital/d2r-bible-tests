@@ -17182,3 +17182,25 @@ rather than resolved by whichever reading makes the surface look better.
 **The open question, stated once:** should each watcher lane write a heartbeat when it completes a
 pass, so FLOWING means *"this lane did work recently"* — or should FLOWING stay unreachable until
 there is something truer to score?
+
+## v2522 — the spy stored references and asserted two things that could never fire
+
+**REG-518 — the raw values were kept BY REFERENCE, and a snapshot exists precisely because
+references change.** A cold review's case: `pool=[x]; _orphan_names(pool, ...); pool.clear()` leaves
+the contract check passing — a list is still a list — while the failure message prints `pool=[]`,
+**the wrong value in the sentence a reader trusts most.** A repr is now taken **at call time**
+beside the reference, and the messages quote the repr.
+
+**REG-519 — and the sentinel check could never fire for two of its three arguments, which is the
+defect I removed ONE VERSION EARLIER reappearing.** Once the contract check passes, `dict(a_dict)`
+and `tuple(an_iterable)` **always** succeed; only `set(pool)` can still raise. So *"THE SPY could
+not snapshot reach"* was unreachable prose — and v2520 dropped a vestigial `or ()` for exactly that
+reason: **a permanently unreachable assertion reads as a live one.** Narrowed to `pool`.
+
+⚠ **The same review named the case that makes it reachable**, which is now the sabotage that proves
+it: `pool=[[]]` satisfies the contract (a list is allowed) and `set(pool)` raises on unhashable
+items — producing the right accusation, **THE SPY**, rather than blaming the call.
+
+**Two settled rather than changed:** the contract permitting `list`/`tuple` is *wider than a set*
+and correctly so — the rule does `set(pool)` and needs an iterable of hashables, so requiring a set
+would refuse calls it handles fine. And `type(x).__name__` in a failure message cannot raise.
