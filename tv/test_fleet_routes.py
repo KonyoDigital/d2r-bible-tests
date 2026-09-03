@@ -153,6 +153,61 @@ class TheMemoKeyMustSurviveTheRealTally(unittest.TestCase):
                          "on — measured identical both ways. That costs every memo hit for nothing")
 
 
+def _run_hrt_chron():
+    """Render _hrtChron's ERROR branch for both callers. -> {"chronicle": html, "fleet": html}
+
+    ⚠ IT RUNS THE FUNCTION. The assertion this replaces checked that the token `SUBJ` appeared
+    somewhere in the source, which `var SUBJ = TT;` satisfies while the hardcoded "the chronicles"
+    is restored — the v2472 review reproduced exactly that, green, with THE FLEET LANES shipping
+    the photographed defect. A token existing is not a token being used.
+    """
+    import json as _json
+    import re as _re
+    import shutil as _shutil
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+    node = _shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("node is not installed, so the renderer could not be RUN — that "
+                                "is UNKNOWN, not a pass")
+    ui = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html"),
+                 encoding="utf-8").read()
+
+    def _fn(name):
+        i = ui.index("function %s(" % name)
+        j, depth, seen = ui.index("{", i), 0, False
+        k = j
+        while k < len(ui):
+            if ui[k] == "{":
+                depth += 1
+                seen = True
+            elif ui[k] == "}":
+                depth -= 1
+                if seen and depth == 0:
+                    return ui[i:k + 1]
+            k += 1
+        raise AssertionError("could not bound function %s" % name)
+
+    js = _fn("_hrtEsc") + "\n" + _fn("_hrtChron") + """
+    var bad = {ok:false, why:'the wire said nothing'};
+    console.log(JSON.stringify({
+      chronicle: _hrtChron(bad),
+      fleet:     _hrtChron(bad, 'The fleet lanes', ' reported as the total')
+    }));
+    """
+    with _tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+        fh.write(js)
+        path = fh.name
+    try:
+        out = _subprocess.check_output([node, path], stderr=_subprocess.STDOUT, timeout=60)
+        return _json.loads(out.decode("utf-8", "replace"))
+    finally:
+        try:
+            os.unlink(path)
+        except Exception:
+            pass
+
+
 class TheSharedRendererTakesEveryWordFromItsCaller(unittest.TestCase):
     """v2473 — the FLEET section printed a row called "the chronicles"."""
 
@@ -166,14 +221,30 @@ class TheSharedRendererTakesEveryWordFromItsCaller(unittest.TestCase):
         j = src.find("var rows = cc.routes", i)
         self.assertGreater(j, i, "could not find the end of the error branch")
         branch = src[i:j]
+        # ⚠⚠ `assertIn("SUBJ", branch)` PASSED ON THE DEFECT. The v2472 review reproduced it:
+        # restore the hardcoded "the chronicles" while leaving `var SUBJ = TT;` declared and
+        # UNUSED, and this file reported "Ran 12 tests ... OK" while THE FLEET LANES shipped a row
+        # headed "the chronicles" — the photographed v2473 defect. A token existing is not a token
+        # being used. So the renderer is RUN, for both of its callers, and judged on what it
+        # produces. [[source-reading-guard]]
         self.assertNotIn(
             "'the chronicles'", branch,
             "the shared renderer's error branch names one caller's subject. It is used by BOTH "
             "the chronicle routes and the fleet lanes, so the one moment it has something to "
             "report it reports it under the wrong surface's name.")
+        rendered = _run_hrt_chron()
         self.assertIn(
-            "SUBJ", branch,
-            "the error branch no longer derives its subject from the caller's title")
+            "fleet lanes", rendered["fleet"].lower(),
+            "the FLEET error row does not name the fleet. Rendered: %s"
+            % rendered["fleet"][:200])
+        self.assertNotIn(
+            "chronicle", rendered["fleet"].lower(),
+            "the FLEET error row still says 'chronicle' — that is the other caller's subject, and "
+            "it is the exact row he photographed. Rendered: %s" % rendered["fleet"][:200])
+        self.assertIn(
+            "chronicle", rendered["chronicle"].lower(),
+            "the CHRONICLE error row no longer names the chronicles either — the fix swapped one "
+            "wrong subject for another. Rendered: %s" % rendered["chronicle"][:200])
 
 
 if __name__ == "__main__":

@@ -11,12 +11,25 @@ docstring is *"Decides; never acts."* It never touches `apply_plan`, `_prune_onc
 `TV_AUTO_PRUNE` is a spelling of OFF or the empty string. There is no code path here that deletes
 a byte, and `tv/test_prune_wilson.py` asserts that by reading this file's own source.
 
-⚠ AND IMPORTING THE CONSOLE DOES NOT START THE DELETER — checked rather than assumed, because if
-it did, merely importing it here would arm an unattended irreversible loop. Measured by AST:
-`main()` is the only module-level call and it sits under `if __name__ == "__main__"`;
-`start_background_watchers()`, which owns both `_prune_loop` and `_retention_loop`, has no call
-site that runs on import. (My first version of that check walked INTO every function body and
-reported 50 thread starts — an artifact of the walk, not of the module. The count was the tell.)
+⚠ IMPORTING THE CONSOLE DOES NOT START THE DELETER — and the first version of this paragraph
+OVERSTATED that. The v2472 review disproved it by re-deriving the measurement the paragraph told
+the reader to trust, which is the whole point of writing measurements down. Corrected here rather
+than quietly edited:
+
+  WHAT I WROTE: "main() is the only module-level call". FALSE. An AST walk over control_app's
+  module body finds 119 calls outside the `__main__` guard; even the charitable reading — bare
+  call statements only — leaves 7, including `_beacon_state_load()` at line 1352 and `_log_root()`
+  at 107. The transitive `import tv_diablo` additionally runs `os.makedirs(_VISION_CWD,
+  exist_ok=True)`, so IMPORTING THE CONSOLE DOES WRITE TO DISK.
+
+  WHAT IS TRUE, and is the property this harness actually needs: `main()` is the only call under
+  the `__main__` guard, and `start_background_watchers()` — which owns both `_prune_loop` and
+  `_retention_loop` — has no call site that runs on import. So importing does not start the
+  DELETER. That is not the same statement as "nothing happens on import", and the difference is
+  exactly the kind a reader would have accepted without re-deriving.
+
+(My first attempt at that check also walked INTO every function body and reported 50 thread starts
+— an artifact of the walk. The count was the tell, twice.)
 
 WHAT IS BEING SABOTAGED, and why these four:
 
@@ -281,4 +294,13 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    # ⚠ THE LINE THAT CRASHES IS THE LINE THAT HAS SOMETHING TO SAY. main() prints "⚠ %s: %s" only
+    # when a claim carries notes — on LEAKS or UNKNOWN — so a clean run prints fine and the run
+    # reporting that the DELETER LEAKED dies with a UnicodeEncodeError on a console that cannot
+    # encode U+26A0. Every other wilson harness enables this; this one did not.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     sys.exit(main(sys.argv[1:]))

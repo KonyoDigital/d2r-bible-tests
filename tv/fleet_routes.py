@@ -143,7 +143,15 @@ def routes(tally=None):
         asked = ("window.%s" % getter) in probe
         # the wire: only a LIVE tally can answer this. No tally -> UNKNOWN, never False.
         tot = None
-        if tally is not None:
+        # ⚠ A TALLY THAT REFUSED IS NOT A TALLY THAT SAID ZERO. `grail_tally()` hands back
+        # {'ok': False, 'why': '... these counts are UNKNOWN, not zero', 'sets': None, ...} when
+        # the board cannot be read at all. Asking only `is not None` made every lane tot=False and
+        # sent all three down the `not tot` branch, reading DARK with "the wire still carried no
+        # total — the break is between them". That accuses the WIRE of a failure the BOARD already
+        # explained, on machines where it is the normal state. Leaving tot as None keeps the lane
+        # UNKNOWN, which is what it is. [[unknown-stays-unknown]]
+        _refused = isinstance(tally, dict) and tally.get("ok") is False
+        if tally is not None and not _refused:
             p = (tally or {}).get(key)
             tot = bool(isinstance(p, dict) and isinstance(p.get("total"), int) and p["total"] > 0)
         # the unit: does the surface say what the denominator is OVER

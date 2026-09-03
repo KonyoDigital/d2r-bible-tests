@@ -146,6 +146,14 @@ def _strip_js_comments(js):
             j = n if j < 0 else j + 2
             out.append("".join(ch if ch == "\n" else " " for ch in js[i:j])); i = j
         elif c in "\"'`":
+            # ⚠ STRINGS ARE SKIPPED OVER, NOT BLANKED. Blanking them removed the very literal the
+            # site detector searches for — `classList.add('engine-driven')` became
+            # `classList.add()` and the guard reported "no site writes the class", failing on
+            # correct code. That is the same mistake as test_safe_copy's positive assertion an
+            # hour earlier: a stripper that removes string literals cannot be used by a check that
+            # looks FOR a string literal. Comments are the thing that must not answer for code;
+            # strings are code. They are still walked past so a `//` inside one is not mistaken
+            # for a comment. [[source-reading-guard]]
             j, q = i + 1, c
             while j < n and js[j] != q:
                 if js[j] == "\\":
@@ -154,7 +162,7 @@ def _strip_js_comments(js):
                     break
                 j += 1
             j = min(j + 1, n)
-            out.append("".join(ch if ch == "\n" else " " for ch in js[i:j])); i = j
+            out.append(js[i:j]); i = j
         else:
             out.append(c); i += 1
     return "".join(out)
@@ -242,7 +250,15 @@ class AppCtxNav(unittest.TestCase):
         ⚠ A source guard can always be out-refactored. `tests/v2473_engine_driven_nav.spec.ts`
         asserts the same law BEHAVIOURALLY on a rendered page, and that one cannot be.
         """
-        src = _src()
+        # ⚠⚠ STRIP FIRST, THEN EXTRACT — the order was the whole defect. Comments were being
+        # blanked inside `_resolve`, but `_controlling_condition` read the RAW source, so
+        #     if (engineDriven() /* window.top !== window.self */) ...add('engine-driven')
+        # handed the framing phrase to the matcher inside a COMMENT while `framed()` had been
+        # deleted from engineDriven(). Reproduced by the review: both write sites ungated, a
+        # top-level ?engine=1 board back to 0 of 19 tabs, and this module reporting "Ran 3 tests
+        # ... OK". The strip has to happen before anything is read out of the text, not after.
+        # [[source-reading-guard]]
+        src = _strip_js_comments(_src())
         sites = _class_write_sites(src)
         self.assertTrue(
             sites,

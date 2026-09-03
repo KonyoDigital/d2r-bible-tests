@@ -17,6 +17,64 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dom_probe as DP
 
 
+def _run_leaf_text(html):
+    """Run __leafText over a stub document and return what it considers screen text. -> str
+
+    A minimal DOM is enough: the walker needs querySelectorAll, tagName, textContent and a box.
+    Every element reports a box so nothing is excluded for SIZE — this test is about the TAG
+    filter, and an element skipped for the wrong reason would pass it while the filter was gone.
+    """
+    import json as _json
+    import shutil as _shutil
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+    node = _shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("node is not installed, so the walker could not be RUN — that is "
+                                "UNKNOWN, not a pass")
+    stub = """
+    function El(tag, text, kids){ this.tagName=tag; this._t=text||''; this.children=kids||[]; }
+    El.prototype.getBoundingClientRect=function(){ return {width:120,height:20,top:0,left:0}; };
+    /* __leafText walks ROOT.querySelectorAll('*'), not document's — the first stub put that on
+       `document` only and node said so: "(root || document.body).querySelectorAll is not a
+       function". A stub that does not answer the call under test proves nothing about it. */
+    El.prototype.querySelectorAll=function(){
+      var out=[]; (function walk(n){ n.children.forEach(function(c){ out.push(c); walk(c); }); })(this);
+      return out; };
+    Object.defineProperty(El.prototype,'textContent',{get:function(){
+      return this._t + this.children.map(function(c){return c.textContent;}).join(''); }});
+    Object.defineProperty(El.prototype,'innerText',{get:function(){ return this.textContent; }});
+    var __ALL = [];
+    function build(){
+      var p  = new El('P','visible copy');
+      var sc = new El('SCRIPT','var SENTINEL_SCRIPT = 1;');
+      var st = new El('STYLE',".x{content:'SENTINEL_STYLE'}");
+      var ns = new El('NOSCRIPT','SENTINEL_NOSCRIPT');
+      var host = new El('DIV','',[p,sc,st,ns]);
+      __ALL = [host,p,sc,st,ns];
+      return host;
+    }
+    var __HOST = build();
+    var document = { body: __HOST,
+      querySelectorAll: function(){ return __ALL; },
+      querySelector: function(){ return __HOST; } };
+    var getComputedStyle = function(){ return {display:'block', visibility:'visible', opacity:'1',
+                                               overflow:'visible', overflowY:'visible'}; };
+    """
+    src = stub + "\n" + DP.prelude() + "\nconsole.log(JSON.stringify(__leafText(__HOST)))"
+    with _tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+        fh.write(src)
+        path = fh.name
+    try:
+        out = _subprocess.check_output([node, path], stderr=_subprocess.STDOUT, timeout=60)
+        return str(_json.loads(out.decode("utf-8", "replace")))
+    finally:
+        try:
+            os.unlink(path)
+        except Exception:
+            pass
+
+
 def _run_quoted(pairs):
     """EXECUTE the helper in a real JS engine and return its answers. -> [dict]
 
@@ -56,8 +114,29 @@ class TheCorrectionsSurvive(unittest.TestCase):
         a naive walk matches 21 script nodes."""
         for tag in ("script", "style", "noscript", "template"):
             self.assertIn(tag, DP.SKIP_TAGS, "%r is not skipped — its text is source, not screen" % tag)
-        self.assertIn("SKIP", DP.LEAF_TEXT.upper().replace("__LEAFTEXT", "SKIP"),
-                      "the leaf walker no longer filters by tag at all")
+
+        # ⚠⚠ THE ASSERTION THAT USED TO STAND HERE COULD NOT FAIL. It read:
+        #     assertIn("SKIP", DP.LEAF_TEXT.upper().replace("__LEAFTEXT", "SKIP"))
+        # which uppercases the source, renames the FUNCTION'S OWN NAME `__leafText` to "SKIP", and
+        # then finds "SKIP". Always. Reproduced by the v2472 review: delete the tag filter outright
+        # and all 11 tests stayed green while __leafText read <script> source as screen text — the
+        # exact scar this test is named for. A guard that reads for a token is satisfied by the
+        # token. So it RUNS the walker now. [[source-reading-guard]]
+        got = _run_leaf_text(
+            "<div id=host>"
+            "  <p>visible copy</p>"
+            "  <script>var SENTINEL_SCRIPT = 1;</script>"
+            "  <style>.x{content:'SENTINEL_STYLE'}</style>"
+            "  <noscript>SENTINEL_NOSCRIPT</noscript>"
+            "</div>")
+        self.assertIn("visible copy", got,
+                      "the leaf walker no longer returns the text a reader can actually see")
+        for sentinel in ("SENTINEL_SCRIPT", "SENTINEL_STYLE", "SENTINEL_NOSCRIPT"):
+            self.assertNotIn(
+                sentinel, got,
+                "%s came back as screen text. That is source, not something a reader saw — the "
+                "defect that produced this file (a naive walk matched 21 script nodes on his "
+                "page)." % sentinel)
         self.assertRegex(DP.LEAF_TEXT, r"getBoundingClientRect|clientWidth|width<2",
                          "the leaf walker no longer checks that the element has a box")
 
