@@ -565,6 +565,19 @@ class TestTheRouteFailsToUnknownNeverToZero(unittest.TestCase):
                              "derivation, not a stored diagram, and the difference is the TTL")
 
 
+class TestRosterRoutesJoinTheHeart(unittest.TestCase):
+    """The gate was registered in v2457; the join into heart_state() was not. A mention of
+    roster_routes in a comment is not the call. [[the-unjoined-end]] [[source-reading-guard]]"""
+
+    def test_heart_state_calls_roster_route_state(self):
+        raw = io.open(APP, encoding="utf-8").read()
+        code = "\n".join(l.split("#", 1)[0] for l in raw.split("\n"))
+        self.assertEqual(code.count('"rosters": roster_route_state()'), 1,
+                         "the roster routes are not joined to the heart, or the join is "
+                         "satisfied by a comment")
+        self.assertIn("def roster_route_state():", code)
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

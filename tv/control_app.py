@@ -1948,6 +1948,20 @@ def _tally_cached():
 
 _MASK_CACHE = {"sets": {"t": 0.0, "val": None}, "uniques": {"t": 0.0, "val": None}}
 _MASK_TTL_S = 300.0
+# N-3 — every None from board_mask used to look the same on the wire. The next heartbeat
+# names WHICH link gave up. Never an item name. Cleared on a successful mask.
+_MASK_WHY = {"sets": None, "uniques": None}
+
+
+def _mask_give_up(ledger, why):
+    """Omit the mask AND remember why. -> None
+
+    ⚠ `if m:` on a dict is True even for `{ok: False}`. Returning a failure object would
+    PUBLISH it onto the fleet wire as a mask. None stays omitted; the why rides separately.
+    """
+    key = str(ledger or "").strip().lower() or "sets"
+    _MASK_WHY[key] = str(why or "gave up")[:160]
+    return None
 
 
 def board_mask(ledger="sets"):
@@ -1976,14 +1990,14 @@ def board_mask(ledger="sets"):
     """
     try:
         import fleet_mask as _fm
-    except Exception:
-        return None
-    spec, _why = _fm.ledger_spec(ledger)
+    except Exception as e:
+        return _mask_give_up(ledger, "fleet_mask will not import (%s)" % str(e)[:70])
+    spec, _lwhy = _fm.ledger_spec(ledger)
     if not spec:
-        return None                       # an unknown ledger is refused, never defaulted to sets
+        return _mask_give_up(ledger, _lwhy or "unknown ledger")
     roster, fp = _fm.load_roster_for(spec["name"])
     if not roster or not fp:
-        return None                       # cannot name the roster -> cannot honestly stamp a mask
+        return _mask_give_up(ledger, "no roster/fingerprint for %s" % spec["name"])
     # the same accessor board_ownership uses — a module global set when TV DIABLO opens the board.
     # ⚠ I first wrote `_board_window()`, a function that does not exist in this file. It would have
     # raised NameError inside the caller's `except Exception: return None`, so the mask would have
@@ -1995,12 +2009,14 @@ def board_mask(ledger="sets"):
     # asked rather than accusing the build.
     w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None:
-        return None
+        return _mask_give_up(ledger, "no board window")
     js = ("(function(){try{"
           "var R=%s;"
           "var K=%s;"
-          "var sp=JSON.parse((window.LSR?window.LSR.getItem(K)"
-          ":localStorage.getItem(K))||'[]')||[];"
+          "var rawv=(window.LSR?window.LSR.getItem(K):localStorage.getItem(K));"
+          "var p=null;try{p=JSON.parse(rawv||'[]');}catch(_p){"
+          "return JSON.stringify({ok:false,why:'store will not parse'});}"
+          "var sp=Array.isArray(p)?p:(p&&typeof p==='object'?Object.keys(p):[]);"
           "var have={};for(var i=0;i<sp.length;i++){have[String(sp[i])]=1;}"
           "var bytes=new Array(Math.ceil(R.length/8));for(var k=0;k<bytes.length;k++)bytes[k]=0;"
           "var hits=0;"
@@ -2012,18 +2028,23 @@ def board_mask(ledger="sets"):
           % (json.dumps(roster), json.dumps(spec["store"])))
     try:
         raw = _ejs(w, js, timeout=8.0)
-    except Exception:
-        return None
+    except Exception as e:
+        return _mask_give_up(ledger, "_ejs threw (%s)" % str(e)[:70])
     if not raw:
-        return None
+        return _mask_give_up(ledger, "_ejs returned empty")
     try:
         out = json.loads(raw)
     except Exception:
-        return None
+        return _mask_give_up(ledger, "board JS was not JSON")
     if not isinstance(out, dict) or out.get("ok") is not True:
-        return None
+        return _mask_give_up(ledger, "board JS: %s"
+                             % str((out or {}).get("why") if isinstance(out, dict) else "not a dict")[:80])
     mask = {"v": fp, "n": out.get("n"), "have": out.get("have"), "b": out.get("b")}
-    return _fm.sanitize_for_wire(mask)
+    san = _fm.sanitize_for_wire(mask)
+    if not san:
+        return _mask_give_up(ledger, "sanitize refused the mask")
+    _MASK_WHY[str(ledger or "").strip().lower()] = None
+    return san
 
 
 def _mask_cached(ledger="sets"):
@@ -2293,6 +2314,9 @@ def _console_beacon(event="hb"):
             # board cannot answer for is OMITTED rather than sent as an all-zero mask, so the far
             # end says "we have not heard a uniques mask from it" instead of "it owns none".
             "masks": _masks_for_wire(),
+            # N-3 — which link gave up, for ledgers that were omitted. Older readers ignore
+            # unknown keys. Never an item name. An empty object means every ledger published.
+            "maskWhy": {k: v for k, v in _MASK_WHY.items() if v},
             # 167 — is the capture eye live on this machine, so THE FLEET can show it.
             # live is a boolean we measured; ageMs None means no frame yet, not 0.
             "eye": _eye_for_wire(),
@@ -15292,6 +15316,9 @@ def heart_state(force=False):
         # A21c — THE FLEET LANES, his instruction: "sync them and connect it to the heart
         # of the console the fleet". Same four words, same corroborator function.
         "fleet": fleet_route_state(),
+        # A21c — THE ROSTER ROUTES. Grok built tv/roster_routes.py; the gate is registered;
+        # this join was the unjoined end. Same four words, same corroborator, live tally.
+        "rosters": roster_route_state(),
         "vocab": {"FLOWING": getattr(_h, "FLOWING", "FLOWING"),
                   "WATCHED": getattr(_h, "WATCHED", "WATCHED"),
                   "DARK": getattr(_h, "DARK", "DARK"),
@@ -15355,6 +15382,32 @@ def fleet_route_state():
     return {"ok": bool(d.get("ok")), "why": d.get("why", ""),
             "routes": d.get("routes") or [], "counts": d.get("counts"),
             "flags": d.get("flags") or [], "lanes": list(getattr(_fr, "LINKS", ()))}
+
+
+def roster_route_state():
+    """A21c — the roster routes for the heart. -> dict
+
+    ⚠ A FAILURE HERE IS UNKNOWN, NEVER AN EMPTY LIST. Same contract as chronicle_route_state:
+    "there are no roster routes" and "the routes could not be derived" are opposite facts.
+    """
+    try:
+        import roster_routes as _rr
+    except Exception as e:
+        return {"ok": False, "routes": [], "counts": None, "flags": [],
+                "why": "the roster-route module will not import (%s), so the routes are "
+                       "UNKNOWN rather than absent" % str(e)[:90]}
+    try:
+        tally = _tally_cached()
+    except Exception:
+        tally = None
+    try:
+        d = _rr.routes(tally)
+    except Exception as e:
+        return {"ok": False, "routes": [], "counts": None, "flags": [],
+                "why": "the roster routes could not be derived (%s)" % str(e)[:90]}
+    return {"ok": bool(d.get("ok")), "why": d.get("why", ""),
+            "routes": d.get("routes") or [], "counts": d.get("counts"),
+            "flags": d.get("flags") or [], "lanes": list(getattr(_rr, "LINKS", ()))}
 
 
 def scope_reach_state():
@@ -22023,7 +22076,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2457",
+        "ver": "v2459",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

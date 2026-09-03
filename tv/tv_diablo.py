@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2457"   # THE BEAT COULD NOT TELL RUNNING FROM PAINTING
+VERSION = "v2459"   # NINETEEN ROWS, TWO SENTENCES
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -14935,3 +14935,62 @@ derived — and never published the frame counter itself, so a supervisor could 
 and never check it. Aliasing `raf` to `painting` would have satisfied the gate and kept the hole:
 a boolean is not a frame count. **Fix:** `"raf"` published under the same name the page sends.
 **Seen RED for its own reason** — it refused the push.
+
+## REG-360 — the AI READS feed printed its verb twice, and that WAS the truncation (v2458)
+
+Measured at his real 1120x628: **13 of 14 receipt lines clipped**, the text reading
+`"routed · ROUTED personal · read fine — nothing on this screen to count"`. The row prefixes the
+KIND (`routed`) and the backend's Diablo label already opens with the same verb (`ROUTED personal`).
+Two halves each behaving correctly; nothing ever looked at the joined string.
+
+That prefix measures ~65px in this font and 10 of the 13 clipped rows were losing exactly 47-65px.
+**Removing it took the clipped count from 13 to 2** — eleven rows now fit exactly, one loses 11px.
+
+⚠ **It does not fix all 13 and does not claim to.** The worst row needs 732px inside a row that is
+only 720px wide, so it cannot fit on one line at any width. v2432's `title` fallback stays and
+stays load-bearing.
+
+⚠ **WRAPPING WOULD HAVE BEEN WORSE — the obvious fix was the harmful one.** `.brain` is
+`overflow:hidden` with `justify-content:center` and a fixed height, so a second line does not
+scroll into view, it disappears entirely with no ellipsis and no title. Measured before trying it.
+
+⚠ **My first hypothesis was REFUTED by its own measurement:** I guessed the label was repeated as
+`LABEL: value` and tested for a colon. 0 of 13 matched — these use `·`. The right answer was
+visible in the strings the failed test printed.
+
+**Guard:** `j11_receiptVerbs` in `tv/demo_console.mjs` — pins the LAW (no line prints its first
+word twice), never the count. **Seen RED:** with the de-dup removed the demos drop to 10/11.
+
+## MEASURED, AND IT CONTRADICTS THE BOARD — "52 elements overflow the right edge at 1120x628"
+
+Re-measured at that exact viewport: **0 elements past the right edge.** Either it was fixed by the
+A17 work or the original count included hidden/zero-size nodes. What IS true at 1120x628 is text
+clipped INSIDE its own box, which was 13 rows of one class before this ship and is 2 after.
+Recorded rather than silently dropped — the contradiction is the finding.
+
+## REG-361 — nineteen heart rows printed two sentences between them (v2459)
+
+Measured on the live panel: **11 WATCHED rows carried ONE explanation repeated 11 times, and 8 DARK
+rows carried ONE repeated 8 times.** His noise ruling in its purest form — every word true, and
+saying them nineteen times told him nothing he had not learned on the first row.
+
+**And the thing that DIFFERS per row was never shown at all.** A WATCHED vessel knows which watcher
+watches it; `v.watcher` has been on the wire since the heart shipped and no surface read it.
+
+**Fix:** the shared sentence is hoisted once, as the group's own header, and the row spends its
+width on the per-row fact. Measured after: WATCHED went from **1 distinct explanation across 11
+rows to 11 distinct** — `watched by tvd-chron-autoread`, `tvd-version-drift`, `tvd-space-warden`
+and so on. A DARK vessel has no watcher BY DEFINITION, so its detail column is now empty rather
+than restating in three words what the chip beside it already says.
+
+**Guard:** `j12_heartNoEcho` in `tv/demo_console.mjs` — drives `window._heartRender` directly with
+synthetic vessels rather than opening the real heart, because the law under test is the RENDERER
+and the real panel costs a live census. **Seen RED:** with the hoist disabled the demos drop to
+11/12.
+
+## NOT REPRODUCED — "PRODUCTIVITY numbers sliced in half by the AI READS bar at 1120x628"
+
+Re-measured at that exact viewport: no PRODUCTIVITY element is cut. What IS cut is the AI READS
+feed's own last row, hanging 3px past the viewport bottom (`.rcpt-t` / `.rcpt-guess` / `.rcpt-arrow`
+at y606-631 against a 628px viewport). A sliver, and a different element than the board recorded.
+Left open and correctly described rather than closed on a claim that no longer measures true.

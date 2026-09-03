@@ -199,6 +199,70 @@ async function j2_alignment(page) {
   record(name, true, detail);
 }
 
+async function j12_heartNoEcho(page) {
+  const name = 'J12 HEART · NO ECHOED ROWS';
+  await goHome(page);
+  // ⚠ calls the RENDER SEAM directly with synthetic vessels. Opening the real heart costs an
+  // /api/heart derivation (seconds) and would make this journey depend on his live census — the
+  // law under test is about the RENDERER, so it is fed rows chosen to exercise it.
+  const got = await page.evaluate(() => {
+    if (typeof window._heartRender !== 'function') return { skip: 'no _heartRender seam' };
+    const mk = (n, state, why, watcher) => ({ name: n, state, why, watcher, score: null });
+    const SHARED = 'it runs and NOTHING watches it.';
+    const d = {
+      ok: true, counts: { FLOWING: 0, WATCHED: 2, DARK: 3, UNKNOWN: 0 }, locks: [], vessels: [
+        mk('a_loop', 'DARK', SHARED), mk('b_loop', 'DARK', SHARED), mk('c_loop', 'DARK', SHARED),
+        mk('d_loop', 'WATCHED', 'watched, but nothing has tried to break it', 'w-one'),
+        mk('e_loop', 'WATCHED', 'watched, but nothing has tried to break it', 'w-two'),
+      ],
+    };
+    const box = document.createElement('div');
+    box.innerHTML = window._heartRender(d);
+    const rows = [...box.querySelectorAll('.hrt-row')].map(r => {
+      const w = r.querySelector('.hrt-w');
+      return (w ? w.textContent : '').trim();
+    }).filter(Boolean);
+    const seen = {};
+    rows.forEach(t => { seen[t] = (seen[t] || 0) + 1; });
+    const echoed = Object.keys(seen).filter(t => seen[t] > 1);
+    const groups = [...box.querySelectorAll('.hrt-grp')].length;
+    return { rows: rows.length, echoed, groups, sample: rows.slice(0, 3) };
+  });
+  if (got.skip) { record(name, true, got.skip); return; }
+  if (got.echoed && got.echoed.length) {
+    throw new Error(`a row explanation is repeated verbatim: "${got.echoed[0].slice(0, 60)}"`);
+  }
+  if (!got.groups) {
+    throw new Error('no group header rendered — the shared sentence was dropped instead of hoisted');
+  }
+  record(name, true, `${got.groups} group header(s), ${got.rows} detail row(s), none echoed`);
+}
+
+async function j11_receiptVerbs(page) {
+  const name = 'J11 RECEIPT VERBS';
+  await goHome(page);
+  // the AI READS feed lives on the console shell; give it a beat to fill
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const got = await page.evaluate(() => {
+    const ts = [...document.querySelectorAll('.rcpt-t')];
+    const doubled = [];
+    for (const t of ts) {
+      const s = (t.textContent || '').trim();
+      // "routed · ROUTED personal" — the same verb twice, once as the kind and once inside the
+      // backend's own label. Compare the first two words case-insensitively, ignoring separators.
+      const w = s.split(/[\s·]+/).filter(Boolean);
+      if (w.length >= 2 && w[0].toLowerCase() === w[1].toLowerCase()) doubled.push(s.slice(0, 70));
+    }
+    return { n: ts.length, doubled };
+  });
+  if (!got.n) { record(name, true, 'no receipt lines rendered — nothing to check'); return; }
+  if (got.doubled.length) {
+    throw new Error(`${got.doubled.length}/${got.n} receipt line(s) print their verb twice: `
+      + got.doubled.slice(0, 2).join(' | '));
+  }
+  record(name, true, `${got.n} receipt line(s), none printing its verb twice`);
+}
+
 async function j3_tally(page) {
   const name = 'J3 TALLY ENGINE';
   await goHome(page);
@@ -795,7 +859,7 @@ async function j10_headerGeometry(page) {
   record(name, bad.length === 0, bad.length ? bad.join(' · ') : `one row at ${seen.join(' ')}`);
 }
 
-  const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship];
+  const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship, j11_receiptVerbs, j12_heartNoEcho];
   for (const j of journeys) {
     try {
       await j(page);

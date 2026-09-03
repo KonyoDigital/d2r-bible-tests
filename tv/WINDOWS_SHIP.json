@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2457",
+  "ver": "v2459",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2457: He reported a black console twice while its heartbeat read perfectly healthy: n advancing, 11,707 elements, zero blank strikes. The blank detector counts DOM elements and his blank has a full DOM. Timers and animation frames are throttled by different machinery, so a page that stops painting keeps every timer-driven signal green, and the tooltips he could still see on hover were the clue rather than a contradiction. The page now reports a frame counter and the server publishes a three-valued paint witness that reports and never acts. Also: every fleet row is measured against one denominator now, the chronicle routes and the roster routes are on the heart, and the card no longer paints its bars across its own words.",
+  "note": "v2459: The heart printed one explanation eleven times under WATCHED and another eight times under DARK, while the one fact that differs per row was never shown at all. The shared sentence is said once as the group header and each watched vessel now names its own watcher. A dark vessel has no watcher by definition, so its row says nothing the chip beside it has not already said.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

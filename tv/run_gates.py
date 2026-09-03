@@ -213,6 +213,10 @@ GATES = [
     # v2457 — GROK'S. He wrote roster_routes.py and its guard, reverted his own Gate() row
     # because run_gates.py was mine and dirty while he worked, and asked me to register it when I
     # landed the batch. That is the protocol working: whoever holds the file adds the line.
+    Gate("test_mask_why", [sys.executable, os.path.join(HERE, "test_mask_why.py")], 120,
+         why="no machine on the fleet has ever published a uniques mask, and every None from "
+             "board_mask looked the same on the wire. This holds that a missing mask names "
+             "WHICH link gave up, and that a failure dict is never what `if m:` would keep."),
     Gate("test_roster_routes", [sys.executable, os.path.join(HERE, "test_roster_routes.py")], 180,
          why="a roster reaches a screen through declared -> getter -> probe -> wire -> unit, and "
              "nothing compared those chains to each other. On its first run against this tree it "

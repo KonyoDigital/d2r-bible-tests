@@ -5196,6 +5196,10 @@
   #heart-ov .hrt-s { font-variant-numeric: tabular-nums; letter-spacing: var(--ls-label);
     text-transform: uppercase; font-size: var(--fs-2xs); }
   #heart-ov .hrt-w { color: var(--muted); overflow-wrap: anywhere; }
+  /* the sentence a whole state shares, said once above its rows instead of on each of them */
+  #heart-ov .hrt-grp { margin: 10px 0 4px; padding: 5px 8px; border-left: 2px solid #2c3742;
+    color: var(--muted); font-size: var(--fs-2xs); line-height: var(--lh-snug); }
+  #heart-ov .hrt-grp b { letter-spacing: var(--ls-label); }
   /* A21c — the route chain. The pips inherit the row's colour vocabulary rather than inventing a
      second one; a broken link is the only thing that changes weight, so the eye lands on it. */
   #heart-ov .hrt-chain { display: block; margin: 0 0 3px; letter-spacing: var(--ls-label);
@@ -7418,7 +7422,33 @@ body[data-origin="shadow"] #stage::after {
   function _receiptRow(r){
     var eng = _RCPT_ENG[r.engine] || { ic: '•', cls: '' }, refs = r.refs || {};
     var name = refs.itemName || '', dl = (r.diablo && r.diablo.label) || '';
-    var txt = (_RCPT_KIND[r.kind] || (r.kind || '')) + (name ? ' ' + name : '') + (dl ? ' · ' + dl : '');
+    /* ⚠⚠ v2458 — DO NOT SAY THE VERB TWICE. Measured at his real 1120x628: 13 of 14 receipt
+       lines clip, and the text of the worst offenders reads
+
+           "routed · ROUTED personal · read fine — nothing on this screen to count"
+
+       This line prefixes the KIND ("routed") and the backend's Diablo label ALREADY opens with
+       the same verb ("ROUTED personal"). Nobody wrote that on purpose — two halves each behaved
+       correctly and nothing looked at the joined string. The duplicate prefix measures ~65px in
+       this font, and 10 of the 13 clipped rows lose exactly 47-65px, so removing it is not a
+       cosmetic trim: it is most of the truncation.
+
+       ⚠ IT DOES NOT FIX ALL 13, AND I AM NOT CLAIMING IT DOES. The worst row loses 165px and its
+       row is only 720px wide while the text needs 732px, so that one cannot fit on a line at any
+       width — v2432's title fallback stays, and stays load-bearing.
+
+       ⚠ WRAPPING WOULD HAVE BEEN WORSE, which is why it is not the fix: `.brain` is
+       `overflow:hidden` with `justify-content:center` and a fixed height, so a second line does
+       not scroll into view — it disappears entirely, with no ellipsis and no title. The obvious
+       fix was the harmful one. [[label-outlived-referent]] [[the-unjoined-end]] */
+    var _kind = (_RCPT_KIND[r.kind] || (r.kind || ''));
+    var _dlHead = String(dl).replace(/^[^A-Za-z]+/, '').split(/[\s·]/)[0].toLowerCase();
+    if (_kind && _dlHead && _dlHead === _kind.toLowerCase()) _kind = '';
+    var _parts = [];
+    if (_kind) _parts.push(_kind + (name ? ' ' + name : ''));
+    else if (name) _parts.push(name);
+    if (dl) _parts.push(dl);
+    var txt = _parts.join(' · ');
     var go = !!(r.route && r.route.target);
     // v1456 HONESTY (audit): a read the accuracy gate REFUSED used to look exactly as authoritative
     // as a proven one. Doctrine is surface, never hide — a held read keeps its row (and its route)
@@ -10861,12 +10891,47 @@ body[data-origin="shadow"] #stage::after {
       + '<span class="lg-unknown">● unknown <b>' + (c.UNKNOWN || 0) + '</b></span>'
       + '</div>';
     var rows = '', vs = (d.vessels || []);
+    /* ⚠⚠ v2459 — NINETEEN ROWS WERE PRINTING TWO SENTENCES. Measured on the live panel:
+       11 WATCHED rows carried ONE explanation repeated 11 times, and 8 DARK rows carried ONE
+       repeated 8 times. It is his noise ruling in its purest form — the words were true, and
+       saying them nineteen times told him nothing he did not learn on the first row, while the
+       one thing that DIFFERS per row was never shown at all.
+       A WATCHED vessel knows WHICH watcher watches it, and `v.watcher` has been on the wire the
+       whole time. So the shared sentence is said ONCE, as the group's own header, and the row
+       spends its width on the fact that is actually per-row. A DARK vessel has no watcher by
+       definition — that is what DARK means — so its row says so in three words instead of
+       thirty-two. [[label-outlived-referent]] */
+    var _byState = {};
+    for (var i = 0; i < vs.length; i++) {
+      var _v = vs[i], _s = _v.state || 'UNKNOWN';
+      (_byState[_s] = _byState[_s] || []).push(_v.why || '');
+    }
+    var _sharedWhy = {};
+    Object.keys(_byState).forEach(function(k){
+      var ws = _byState[k];
+      /* only when EVERY row of that state says the same thing, and there is more than one — two
+         rows agreeing is not a pattern worth hoisting. */
+      if (ws.length > 1 && ws.every(function(w){ return w === ws[0]; }) && ws[0]) _sharedWhy[k] = ws[0];
+    });
+    var _seenState = {};
     for (var i = 0; i < vs.length; i++) {
       var v = vs[i], st = v.state || 'UNKNOWN';
+      if (_sharedWhy[st] && !_seenState[st]) {
+        _seenState[st] = 1;
+        rows += '<div class="hrt-grp"><b class="st-' + _hrtEsc(st) + '">' + _hrtEsc(st) + '</b> · '
+          + _byState[st].length + ' · ' + _hrtEsc(_sharedWhy[st]) + '</div>';
+      }
+      var _detail = _sharedWhy[st]
+        /* a DARK vessel has NOTHING per-row to say — having no watcher is what DARK means, the
+           chip beside it already says DARK, and the group header above already explains it. A
+           third restatement on every row is the noise this whole change removes, so the column
+           stays empty rather than saying the same three words eight times. */
+        ? (v.watcher ? 'watched by ' + v.watcher : '')
+        : (v.why || '');
       rows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(v.name) + '</span>'
         + '<span class="hrt-s st-' + _hrtEsc(st) + '">' + _hrtEsc(st)
         + (v.score == null ? '' : ' · ' + Number(v.score).toFixed(3)) + '</span>'
-        + '<span class="hrt-w">' + _hrtEsc(v.why || '') + '</span></div>';
+        + '<span class="hrt-w">' + _hrtEsc(_detail) + '</span></div>';
     }
     var lrows = '', lk = (d.locks || []);
     for (var j = 0; j < lk.length; j++) {
@@ -18448,19 +18513,24 @@ function escC(s) {
     try {
     thArtInit();                       // the board may still be booting; it retries and repaints
     var tile = function (n, mine) {
-      var bare = String(n).replace(/\s*\([^)]*\)\s*$/, '').trim();
-      var u = thArt(n) || thArt(bare) || '';
-      if (!u) { try { u = (_art && (_art(n) || _art(bare))) || ''; } catch (e) { u = ''; } }
-      /* a SET piece, so the card paints it in the board's set green rather than a neutral chip.
-         `facts` carries only what this panel already computed — nothing derived, nothing invented. */
+      /* n is the KEY. Display may strip the slot via the board's _pieceLabel; lookup
+         (art, rarity, itip name) never does. [[N-2]] */
+      var u = thArt(n) || '';
+      if (!u) { try { u = (_art && _art(n)) || ''; } catch (e) { u = ''; } }
+      var rar = SPEC.rarity;
+      var shown = n;
+      try {
+        if (_w && typeof _w._artRarity === 'function') rar = _w._artRarity(n) || rar;
+        if (_w && typeof _w._pieceLabel === 'function') shown = _w._pieceLabel(n) || n;
+      } catch (e) {}
       var itip = _itipAttr({
-        name: n, rarity: SPEC.rarity, art: u,
+        name: n, rarity: rar, art: u,
         facts: [[mine ? 'you have it' : 'they have it', mine ? 'they do not' : 'you do not']]
       });
       return '<div class="fx-item"' + itip + '>'
         + (u ? '<img class="fx-img" src="/' + escC(u) + '" alt="" loading="lazy">'
              : '<span class="fx-noimg">◻</span>')
-        + '<span class="fx-name">' + escC(n) + '</span></div>';
+        + '<span class="fx-name">' + escC(shown) + '</span></div>';
     };
     var col = function (title, names, why, mine) {
       return '<div class="fx-col"><div class="fx-col-h">' + escC(title)
