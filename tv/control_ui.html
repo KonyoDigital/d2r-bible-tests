@@ -5325,6 +5325,23 @@
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
   .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
 
+  /* ⚠⚠ v2473 — AN OUTPUT PANE MAY NOT PUSH THE PANEL IT LIVES IN PAST THE HORIZON.
+     Measured on his console: one click on 📒 ledger rendered a 3224px block into a rail whose
+     visible height is 705px, taking its scrollHeight to 5114 — 4.6 screens of output between him
+     and every control below it. He reported it as being trapped in the settings and as ADVANCED
+     no longer rendering; both are the same 3224px.
+     Scoped by SHAPE, not by name: every `*-out` pane inside the rail, so the next one added is
+     covered without anyone remembering this. All five existing panes declared neither max-height
+     nor overflow, and inline styles do not override properties they never set, so this rule wins
+     for exactly the two it needs and leaves their inline styling alone.
+     `overscroll-behavior: contain` stops a scroll inside the pane from chaining out and dragging
+     the whole rail with it — the other half of not being trapped. [[sweep-dont-ask]] */
+  aside.rail [id$="-out"] {
+    max-height: 44vh;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
   /* ══ GROK EYES (G5) — optional advanced strip (removable) ══ */
   .g5-auth-btn {
     margin-left: 8px; flex: none; padding: 4px 10px; border-radius: 8px; cursor: pointer;
@@ -10845,11 +10862,20 @@ body[data-origin="shadow"] #stage::after {
     var NN = (noun === undefined) ? ' names' : noun;
     if (!cc) return '';
     if (!cc.ok){
+      /* ⚠ v2473 — THE SAME DEFECT THE NOUN COMMENT ABOVE FIXES, LEFT RUNNING IN THE ERROR BRANCH.
+         Photographed on his live console: a section headed THE FLEET LANES whose only row read
+         "the chronicles" and whose sentence ended "not a console without chronicles". The success
+         path was taught to take its vocabulary from the caller; this path was not, so the one
+         moment the panel has something to report is the moment it reports it under another
+         surface's name. A shared renderer must take EVERY word from its caller, not most of them.
+         [[label-outlived-referent]] [[copy-drift]] */
+      var SUBJ = TT.replace(/^The\s+/i, 'the ');
       return '<div class="hrt-sec"><div class="hrt-h">' + _hrtEsc(TT) + '</div>'
-        + '<div class="hrt-row"><span class="hrt-k">the chronicles</span>'
+        + '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(SUBJ) + '</span>'
         + '<span class="hrt-s st-UNKNOWN">UNKNOWN</span>'
         + '<span class="hrt-w">' + _hrtEsc(cc.why || 'they could not be derived')
-        + ' — that is nobody having looked, not a console without chronicles.</span></div></div>';
+        + ' — that is nobody having looked, not a console without ' + _hrtEsc(SUBJ.replace(/^the\s+/i, ''))
+        + '.</span></div></div>';
     }
     var rows = cc.routes || [], lanes = cc.lanes || [], flags = cc.flags || [];
     var c = cc.counts || {};

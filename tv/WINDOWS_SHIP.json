@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2472",
+  "ver": "v2473",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2472: prune.arm was the last of the five self-arming locks with evidence left to gather, and it sat at n=0 UNPROVEN - nobody had attempted anything against it. prune_wilson attempts 42 states in which retention_may_act must refuse: every spelling of OFF (v2082s scar, where the switch matched the byte 0 alone and off, false, no, OFF and 0-with-a-space all armed an unattended deleter), an unconfirmed board world, a world check that raises, and a drift answer of the wrong shape. All 42 refused, wilson 0.916 against a bar of 0.839. The lock still reads LOCKED, and that is the design rather than a shortfall: kinds_bar is 1.8 and sabotage weighs 1.0, so the one door with no undo does not open on a single kind of look. The harness calls exactly one function, whose own docstring is decides never acts, and refuses at write time to set the switch to anything that is not a spelling of OFF.",
+  "note": "v2473: Clicking the ledger under ADVANCED rendered a 3224px block into a rail whose visible height is 705px, taking the rails scrollHeight to 5114 - 4.6 screens of output between him and every control below it, ADVANCED included. The rail scrolls, so he was not frozen, he was buried. All five output panes declared neither max-height nor overflow; ledger was only the loudest. Also in this ship: the fleet lanes had been reading UNKNOWN on his console because a cache key folded every value of the tally with .get(total) and the tally is an envelope whose ok, why, at, source and profile are scalars, so every real call raised. The heart printed the exception where the lanes belong. And the shared route renderer named one callers subject in its error branch, so the FLEET section printed a row called the chronicles. Plus the three findings the v2471 review-after-ship pass reproduced, two of them holes in a guard written the same morning.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

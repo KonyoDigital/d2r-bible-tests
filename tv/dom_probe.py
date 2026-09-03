@@ -124,13 +124,36 @@ function __quotedIn(s, bodyText){
   // a partial match is the interesting case: real fragments stitched into an unreal sentence
   var words = needle.split(' ').filter(function(w){ return w.length > 3; });
   var found = words.filter(function(w){ return body.indexOf(w) >= 0; });
-  return {exists:false, against:against,
+  // FOUR OUTCOMES, NOT TWO. They are different findings and the strongest one used to wear the
+  // weakest one's name: 2-of-2 words present with the phrase absent is a STITCHED sentence, the
+  // exact thing this helper exists to catch, and it read "NOT on the page at all".
+  var why, verdict;
+  if (!words.length) {
+    // every token was <= 3 chars, so nothing was actually tested. Saying "absent" here would be
+    // a claim about a page this never looked at. [[unknown-stays-unknown]]
+    verdict = 'untestable';
+    why = 'the quote has no word longer than three characters, so nothing in it could be checked '
+        + 'separately. This is UNKNOWN, not absent.';
+  } else if (found.length === words.length) {
+    verdict = 'stitched';
+    why = 'NOT on the page as quoted, and EVERY word of it is — all ' + words.length + ' appear '
+        + 'separately while the phrase does not. That is a sentence assembled out of things that '
+        + 'are on screen, which is the strongest form of the confabulation this check exists for. '
+        + 'It is also what a quote differing only in punctuation looks like, so re-quote before '
+        + 'concluding either.';
+  } else if (found.length) {
+    verdict = 'partly';
+    why = 'NOT on the page as quoted — ' + found.length + ' of ' + words.length + ' words appear '
+        + 'separately, which is what a stitched sentence looks like. Treat the claim as '
+        + 'unverified until re-quoted.';
+  } else {
+    verdict = 'absent';
+    why = 'NOT on the page at all — not one of its ' + words.length + ' words appears.';
+  }
+  return {exists:false, against:against, verdict:verdict,
           fragmentsPresent: found.length, fragmentsTotal: words.length,
           missing: words.filter(function(w){ return body.indexOf(w) < 0; }).slice(0, 8),
-          why: (found.length && found.length < words.length)
-            ? 'NOT on the page as quoted — some words appear separately, which is what a stitched '
-              + 'sentence looks like. Treat the claim as unverified until re-quoted.'
-            : 'NOT on the page at all'};
+          why: why};
 }
 function __quoted(s){ return __quotedIn(s, null); }   // convenience: checks NOW, and says so
 """

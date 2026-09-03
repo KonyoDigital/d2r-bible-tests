@@ -74,6 +74,35 @@ def _source_key():
         return None                     # unkeyable -> never cached, which is slow and never wrong
 
 
+#: Envelope fields that are NOT lanes. `at` is excluded from the memo key on purpose (see below).
+_TALLY_ENVELOPE_SKIP = ("at",)
+
+
+def _tally_key(tally):
+    """A hashable fingerprint of the tally, tolerant of every value shape. -> tuple | None
+
+    Lanes contribute their `total`; scalars contribute themselves. Anything unhashable or exotic
+    contributes its repr, so a new field can never again raise from this line — a cache key is
+    the last place a crash should come from, and this one took the whole fleet panel down with it.
+    """
+    if not isinstance(tally, dict):
+        return None
+    out = []
+    for k in sorted(tally):
+        if k in _TALLY_ENVELOPE_SKIP:
+            continue
+        v = tally[k]
+        if isinstance(v, dict):
+            out.append((k, v.get("total")))
+        else:
+            try:
+                hash(v)
+                out.append((k, v))
+            except Exception:
+                out.append((k, repr(v)[:80]))
+    return tuple(out)
+
+
 def routes(tally=None):
     """-> dict, in the heart's four words. `tally` is the live per-lane payload when one is
     available; without it the `total` link is UNKNOWN, never absent."""
@@ -82,10 +111,20 @@ def routes(tally=None):
     # cached UNKNOWN and the next call WITH a real tally got that UNKNOWN back. A cache whose key
     # omits an input is not a cache, it is a wrong answer with good latency. Its own guard caught
     # it within a minute of being written. [[stale-reading]]
+    # ⚠⚠ AND THE VALUES ARE NOT ALL DICTS — that is what broke it. `tally` is an ENVELOPE, not a
+    # map of lanes: measured on his live console it carries 8 keys of which only 3 are lanes
+    # (runewords/sets/uniques -> {have,total}); the rest are `ok` (bool), `why` (None), `at` (int)
+    # and `source`/`profile` (str). `(v or {}).get("total")` threw on the first scalar it met, so
+    # `routes()` raised for every real call and the heart printed the fleet lanes as UNKNOWN with
+    # "'bool' object has no attribute 'get'" — for days, on his screen. He was the detector.
+    #
+    # `at` is deliberately EXCLUDED: it is a fresh timestamp on every read, so folding it in would
+    # change the key every call and the memo would never hit once. `profile` is deliberately
+    # INCLUDED: main and ladder are different answers, and serving one for the other is the exact
+    # shape of [[d2r-ladder-doctrine]]. [[stale-reading]] [[the-unjoined-end]]
     _k = _source_key()
     if _k is not None:
-        _k = (_k, tuple(sorted((k, (v or {}).get("total")) for k, v in (tally or {}).items()))
-              if isinstance(tally, dict) else None)
+        _k = (_k, _tally_key(tally))
     if _k is not None and _MEMO["key"] == _k and _MEMO["val"] is not None:
         return _MEMO["val"]
 

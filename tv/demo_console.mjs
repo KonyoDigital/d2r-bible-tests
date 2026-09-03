@@ -199,6 +199,79 @@ async function j2_alignment(page) {
   record(name, true, detail);
 }
 
+async function j14_outputPanesStayBounded(page) {
+  const name = 'J14 AN OUTPUT PANE MAY NOT BURY THE PANEL';
+  await goHome(page);
+  // ⚠ REPORTED FROM HIS SCREEN, NOT BY A GATE. Konyo: "i clicked on ledger under advanced..
+  // something traps me in the settings and is bugged.. now it suddenly not rendering the advanced".
+  // MEASURED: #ledger-out rendered 3224px into a rail whose visible height is 705px, taking the
+  // rail's scrollHeight to 5114 — 4.6 screens of output between him and every control below it,
+  // ADVANCED's own included. The rail scrolls, so he was not frozen; he was buried.
+  //
+  // This asserts the LAW — a pane that overflows carries its own scroll and does not push its
+  // container past a sane height — over EVERY *-out pane in the rail, not just the one he clicked.
+  // All five declared neither max-height nor overflow; ledger was only the loudest.
+  const before = await page.evaluate(() => {
+    const rail = document.querySelector('aside.rail');
+    return rail ? Math.round(rail.scrollHeight) : null;
+  });
+  if (before == null) { record(name, true, 'no rail on this view'); return; }
+
+  const clicked = await page.evaluate(() => {
+    const b = document.getElementById('btn-ledger');
+    if (!b) return false;
+    b.click();
+    return true;
+  });
+  if (!clicked) { record(name, true, 'no ledger button on this view'); return; }
+  await page.waitForTimeout(6000);
+
+  const got = await page.evaluate(() => {
+    const rail = document.querySelector('aside.rail');
+    const panes = Array.from(document.querySelectorAll('aside.rail [id$="-out"]')).map((p) => {
+      const cs = getComputedStyle(p);
+      return {
+        id: p.id,
+        shown: cs.display !== 'none',
+        clientH: Math.round(p.clientHeight),
+        scrollH: Math.round(p.scrollHeight),
+        overflows: p.scrollHeight > p.clientHeight + 1,
+        scrolls: /auto|scroll/.test(cs.overflowY),
+        capped: cs.maxHeight !== 'none',
+      };
+    });
+    return { railScrollH: Math.round(rail.scrollHeight), vh: window.innerHeight, panes };
+  });
+
+  // ⚠⚠ THE FIRST VERSION OF THIS CHECK COULD NOT FAIL, AND ONLY THE RED PROOF SAID SO.
+  // It flagged panes where `scrollHeight > clientHeight && !scrolls`. But an UNBOUNDED pane does
+  // not overflow — it GROWS to fit, so scrollHeight === clientHeight and the filter never fired.
+  // Measured with the fix removed: "0/4 panes bounded" and the journey still passed. I was testing
+  // the symptom of the FIXED state (a scrollable pane) instead of the law.
+  // The law is about SIZE RELATIVE TO THE PANEL: a pane taller than half the viewport that cannot
+  // scroll itself is one that pushes everything below it away. [[sabotage-is-usually-the-wrong-one]]
+  const unbounded = got.panes.filter((p) => p.shown && !p.scrolls && p.clientH > got.vh * 0.55);
+  if (unbounded.length) {
+    throw new Error(`${unbounded.map((p) => '#' + p.id + ' (' + p.clientH + 'px tall in a '
+      + got.vh + 'px viewport, no scroll of its own)').join(', ')} — a pane that tall with nowhere `
+      + `to go pushes every control below it off the panel, which is what "trapped in the `
+      + `settings" looks like`);
+  }
+  // and the rail itself must not have become absurd. MEASURED both ways on his console so the
+  // threshold sits between two real states rather than being guessed: fixed 2.6 screens, broken
+  // 5.8. A cap of 6 was ABOVE the broken value and let it through — a threshold above the ceiling
+  // is an absent one. 4 separates them with room either side.
+  // [[feedback-threshold-above-the-ceiling]]
+  const cap = got.vh * 4;
+  if (got.railScrollH > cap) {
+    throw new Error(`the rail grew to ${got.railScrollH}px (${(got.railScrollH / got.vh).toFixed(1)}`
+      + ` screens) after one click; anything below the output is now unreachable in practice`);
+  }
+  record(name, true, `rail ${before} -> ${got.railScrollH}px `
+    + `(${(got.railScrollH / got.vh).toFixed(1)} screens), `
+    + `${got.panes.filter((p) => p.capped).length}/${got.panes.length} panes bounded`);
+}
+
 async function j13_overflowSaysSo(page) {
   const name = 'J13 OVERFLOW SAYS SO';
   await goHome(page);
@@ -888,7 +961,8 @@ async function j10_headerGeometry(page) {
   record(name, bad.length === 0, bad.length ? bad.join(' · ') : `one row at ${seen.join(' ')}`);
 }
 
-  const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship, j11_receiptVerbs, j12_heartNoEcho, j13_overflowSaysSo];
+  const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship, j11_receiptVerbs, j12_heartNoEcho, j13_overflowSaysSo,
+    j14_outputPanesStayBounded];
   for (const j of journeys) {
     try {
       await j(page);

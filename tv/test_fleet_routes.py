@@ -4,6 +4,7 @@
 DEFINED reads DARK, that a MENTION never counts as a definition, and that an unknown total never
 reads as a missing one. [[regression-guard]] [[unknown-stays-unknown]]
 """
+import io
 import os
 import sys
 import unittest
@@ -73,6 +74,106 @@ class TheCorroboratorIsTheSameFunction(unittest.TestCase):
         flags = CR.corroborate(rows)
         self.assertTrue(any(f["route"] == "c" and f["lane"] == "getter" for f in flags),
                         "the shared corroborator did not flag the lane missing its getter")
+
+
+class TheMemoKeyMustSurviveTheRealTally(unittest.TestCase):
+    """v2473 — the fleet lanes read UNKNOWN on his console for one line in a CACHE KEY.
+
+    Photographed, not gated: "THE FLEET LANES · UNKNOWN · the fleet lanes could not be derived
+    ('bool' object has no attribute 'get')". `routes(tally)` folded every value of the tally with
+    `(v or {}).get("total")`, and the tally is an ENVELOPE — measured on his live console, 8 keys
+    of which only 3 are lanes; `ok` is a bool, `why` is None, `at` an int, `source`/`profile` str.
+    So every real call raised and the panel showed the exception instead of the lanes.
+
+    ⚠ These pin the LAW — a key survives ANY value shape — not the roster of fields, so adding a
+    field to the tally tomorrow cannot bring the panel down again. [[regression-guard]]
+    """
+
+    def _envelope(self, **over):
+        """The shape his console actually hands over, scalars and all."""
+        t = {"ok": True, "why": None, "at": 1788415464867, "source": "board-store",
+             "profile": "main",
+             "sets": {"have": 121, "total": 135},
+             "uniques": {"have": 248, "total": 403},
+             "runewords": {"have": 0, "total": 99}}
+        t.update(over)
+        return t
+
+    def test_routes_survives_the_real_envelope(self):
+        """The reproduction. RED before the fix with AttributeError, green after."""
+        try:
+            d = FR.routes(self._envelope())
+        except AttributeError as e:
+            self.fail("routes() still raises on the real tally shape (%s) — this is the defect "
+                      "that printed the exception where the fleet lanes belong" % e)
+        self.assertTrue(d.get("ok"), "routes() refused on a well-formed tally: %s" % d.get("why"))
+        self.assertTrue(d.get("routes"), "no lanes came back")
+
+    def test_no_value_shape_can_raise_from_the_key(self):
+        """A cache key is the last place a crash may come from — it took the whole panel down."""
+        exotic = self._envelope(weird=object(), nested=[1, 2], nothing=None, flag=False,
+                                num=3.5, blank="")
+        try:
+            FR._tally_key(exotic)
+        except Exception as e:
+            self.fail("_tally_key raised on an exotic value (%s: %s). A field added to the tally "
+                      "must never be able to take the fleet panel down again."
+                      % (type(e).__name__, e))
+
+    def test_the_timestamp_is_excluded_or_the_memo_never_hits(self):
+        """`at` moves on every read; folding it in would make every key unique."""
+        a = FR._tally_key(self._envelope(at=1))
+        b = FR._tally_key(self._envelope(at=999999))
+        self.assertEqual(a, b, "the key changes with `at`, so the memo can never hit once — that "
+                               "is not a cache, it is overhead")
+
+    def test_the_profile_is_INCLUDED_or_one_account_answers_for_the_other(self):
+        """main and ladder are different answers; serving one for the other is the ladder scar."""
+        m = FR._tally_key(self._envelope(profile="main"))
+        l = FR._tally_key(self._envelope(profile="ladder"))
+        self.assertNotEqual(m, l, "the key ignores `profile`, so a ladder read can be served a "
+                                  "main-profile answer out of the memo")
+
+    def test_a_changed_lane_total_still_busts_the_key(self):
+        """The reason the argument is in the key at all — do not lose it while fixing the crash.
+
+        ⚠ MY FIRST VERSION OF THIS TEST WAS WRONG AND THE FAILURE WAS ITS OWN. It changed `have`
+        (121 -> 122) and expected a new key. Measured instead of argued: re-running routes() with
+        only `have` changed produces byte-identical output, and with `total` changed produces
+        different output. So `have` does not reach the answer and keying on it would only cost
+        memo hits. A key must carry exactly the inputs the OUTPUT depends on — no fewer, and no
+        more. [[sabotage-is-usually-the-wrong-one]]
+        """
+        a = FR._tally_key(self._envelope())
+        b = FR._tally_key(self._envelope(sets={"have": 121, "total": 999}))
+        self.assertNotEqual(a, b, "a changed lane total no longer changes the key")
+        same = FR._tally_key(self._envelope(sets={"have": 122, "total": 135}))
+        self.assertEqual(a, same,
+                         "the key now varies with `have`, which routes() output does not depend "
+                         "on — measured identical both ways. That costs every memo hit for nothing")
+
+
+class TheSharedRendererTakesEveryWordFromItsCaller(unittest.TestCase):
+    """v2473 — the FLEET section printed a row called "the chronicles"."""
+
+    def test_the_error_branch_does_not_hardcode_one_surfaces_noun(self):
+        import os as _os
+        ui = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "control_ui.html")
+        src = io.open(ui, encoding="utf-8").read()
+        i = src.find("function _hrtChron(")
+        self.assertGreater(i, 0, "_hrtChron is gone; this guard needs re-deriving")
+        # the ERROR branch only — bounded by the next `var rows =`, not a character window
+        j = src.find("var rows = cc.routes", i)
+        self.assertGreater(j, i, "could not find the end of the error branch")
+        branch = src[i:j]
+        self.assertNotIn(
+            "'the chronicles'", branch,
+            "the shared renderer's error branch names one caller's subject. It is used by BOTH "
+            "the chronicle routes and the fleet lanes, so the one moment it has something to "
+            "report it reports it under the wrong surface's name.")
+        self.assertIn(
+            "SUBJ", branch,
+            "the error branch no longer derives its subject from the caller's title")
 
 
 if __name__ == "__main__":

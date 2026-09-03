@@ -17,6 +17,37 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dom_probe as DP
 
 
+def _run_quoted(pairs):
+    """EXECUTE the helper in a real JS engine and return its answers. -> [dict]
+
+    Reading the source cannot tell which branch a ternary takes, which is exactly how the previous
+    version of this test stayed green. `node` is required; without it the answer is UNKNOWN and the
+    test SKIPS loudly rather than passing on no evidence. [[feedback-blind-fixture-green-gate]]
+    """
+    import json as _json
+    import shutil as _shutil
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+    node = _shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("node is not installed, so the helper could not be RUN — that is "
+                                "UNKNOWN, not a pass")
+    calls = ",".join("__quotedIn(%s, %s)" % (_json.dumps(q), _json.dumps(b)) for q, b in pairs)
+    src = ("var document={body:{innerText:''}};\n" + DP.prelude()
+           + "\nconsole.log(JSON.stringify([" + calls + "]))")
+    with _tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+        fh.write(src)
+        path = fh.name
+    try:
+        out = _subprocess.check_output([node, path], stderr=_subprocess.STDOUT, timeout=60)
+        return _json.loads(out.decode("utf-8", "replace"))
+    finally:
+        try:
+            os.unlink(path)
+        except Exception:
+            pass
+
+
 class TheCorrectionsSurvive(unittest.TestCase):
 
     def test_leaf_text_skips_source_bearing_tags(self):
@@ -84,14 +115,50 @@ class TheCorrectionsSurvive(unittest.TestCase):
                       "would find markup and attributes the reader never saw")
 
     def test_a_stitched_quote_is_distinguished_from_an_absent_one(self):
-        """The interesting case is not 'absent'. It is 'nearly every word is here and the sentence
-        is not' — measured on the real confabulation, 5 of 6 words present. A checker that only
-        answered yes/no would call that identical to a typo."""
-        self.assertRegex(DP.QUOTED, r"fragmentsPresent",
-                         "it no longer counts how many words of the quote appear separately, so a "
-                         "stitched sentence is indistinguishable from a wrong one")
-        self.assertIn("stitched", DP.QUOTED,
-                      "it no longer NAMES the stitched-sentence case, which is the whole finding")
+        """The interesting case is not 'absent'. It is 'every word is here and the sentence is not'.
+
+        ⚠⚠ THIS TEST USED TO GREP AND IT STAYED GREEN OVER THE EXACT DEFECT IT NAMES. It asserted
+        that the source CONTAINS "fragmentsPresent" and "stitched" — both of which remained true
+        while the helper answered "NOT on the page at all" about a quote whose every word was on
+        the page. A guard that reads for a WORD cannot see a wrong BRANCH; the words were there
+        and the ternary sent the strongest case to the weakest label. Caught by the v2471
+        review-after-ship pass, not by this file. It now RUNS the helper. [[source-reading-guard]]
+        """
+        got = _run_quoted([
+            ("Fleshrender mighty", "the mighty Fleshrender item"),   # every word present
+            ("mighty Fleshrender sword", "the mighty Fleshrender item"),  # 2 of 3
+            ("Fleshrender absent", "nothing similar here at all"),    # none present
+            ("of the", "the top of it"),                              # nothing testable
+            ("best expected yield", "best expected yield is shown"),  # really there
+        ])
+        self.assertEqual(
+            got[0]["verdict"], "stitched",
+            "a quote whose EVERY word is on the page and whose phrase is not was reported as %r. "
+            "That is the strongest form of the confabulation this helper exists to name, and it "
+            "was wearing the label for total absence: %s"
+            % (got[0].get("verdict"), str(got[0].get("why"))[:110]))
+        self.assertEqual(got[0]["fragmentsPresent"], got[0]["fragmentsTotal"],
+                         "the 100%-present case no longer reports all words present")
+        self.assertEqual(got[1]["verdict"], "partly", "a partly-present quote lost its own name")
+        self.assertEqual(got[2]["verdict"], "absent", "a genuinely absent quote lost its own name")
+        self.assertEqual(
+            got[3]["verdict"], "untestable",
+            "a quote with no word over three characters was judged %r. Nothing in it could be "
+            "checked, so the honest answer is UNKNOWN rather than a verdict about the page."
+            % got[3].get("verdict"))
+        self.assertTrue(got[4]["exists"], "a quote that IS on the page was not found")
+
+    def test_the_verdicts_are_all_different_words(self):
+        """Four outcomes collapsing into one label is the defect; pin that they stay four."""
+        got = _run_quoted([
+            ("Fleshrender mighty", "the mighty Fleshrender item"),
+            ("mighty Fleshrender sword", "the mighty Fleshrender item"),
+            ("Fleshrender absent", "nothing similar here at all"),
+            ("of the", "the top of it"),
+        ])
+        verdicts = [g["verdict"] for g in got]
+        self.assertEqual(len(set(verdicts)), 4,
+                         "two of the four outcomes now answer with the same word: %s" % verdicts)
 
     def test_an_empty_quote_is_UNKNOWN_not_false(self):
         """Nothing to check is not the same as checked-and-absent."""
