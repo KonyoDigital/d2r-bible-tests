@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2513",
+  "ver": "v2514",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2513: capture_beat called live_panel_gate._fetch, whose defaults are 15s across 3 tries. Those are correct for a gate, where a missed beat is a false alarm, but observed() calls capture_beat on every observation and for the ledger a missed beat is UNKNOWN which is already reported honestly. Measured against a socket that accepts and never answers: 45.0s before, 2.0s after. A console that is simply down refuses instantly and was never the problem - it is the hung one that stalls. The gate budget is untouched and the guard asserts both halves.",
+  "note": "v2514: A cold review named the upgrade: capture the arguments on call and assert they match, which proves both that the rule was called and that it was called correctly. Adopted - the patch is a spy recording pool, reach and sources. That closes two of its own other findings at once: an earlier assertion failing no longer satisfies the test, and nothing depends on a fragment of assertion prose. Its claim that a rename breaks the test silently is refuted - unittest raises ValueError at construction. And one of my sabotages went green because the sabotage was identical to the real call, not because the guard was weak.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

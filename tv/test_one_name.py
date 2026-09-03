@@ -392,8 +392,22 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
         """
         import unittest as _ut
         real = globals()["_orphan_names"]
+        # ⚠⚠ CAPTURE THE ARGUMENTS, NOT JUST THE FACT OF A FAILURE. A cold review of the first
+        # version: matching a fragment of an assertion message "matches a substring anywhere in
+        # any failure message... if another assertion's message is edited to include that phrase,
+        # the assertion passes while proving nothing about which specific check failed" — and an
+        # assertion EARLIER in the census could fail first, leaving this test satisfied by a
+        # failure that never reached the orphan check.
+        #
+        # Recording the call answers both, and more than either: it proves the rule was called AND
+        # what it was called WITH. A patch that ignores its arguments cannot tell a correct call
+        # from an incorrect one.
+        calls = []
         try:
-            globals()["_orphan_names"] = lambda pool, reach, sources: ["sentinel-orphan"]
+            def _spy(pool, reach, sources):
+                calls.append({"pool": set(pool), "reach": dict(reach), "sources": tuple(sources)})
+                return ["sentinel-orphan"]
+            globals()["_orphan_names"] = _spy
             case = TheShapeRuleDoesNotQuietlyMergeThings(
                 "test_no_unreviewed_shape_collision_has_appeared")
             result = _ut.TestResult()
@@ -419,6 +433,28 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
         # somewhere in the text. Same review: the string "could appear in a traceback, repr of the
         # test object, a log line, or an error message about the patching itself" — so a bare
         # substring search over the whole blob would accept the right answer for the wrong reason.
+        # THE PRIMARY EVIDENCE: it was called, and called with the census's own values.
+        self.assertTrue(
+            calls,
+            "the orphan rule was never called at all. The census is computing its own answer — "
+            "the extraction proved a helper works while the real check does something else.")
+        self.assertEqual(
+            len(calls), 1,
+            "the orphan rule was called %d times; the census should ask once" % len(calls))
+        got = calls[0]
+        self.assertEqual(
+            got["sources"], tuple(SOURCES),
+            "the rule was called with %r instead of the declared SOURCES. Called with the wrong "
+            "list, it would account for names no declared source supplied." % (got["sources"],))
+        self.assertTrue(
+            got["pool"],
+            "the rule was called with an EMPTY pool, so it could not have found anything and the "
+            "call proves nothing")
+        self.assertTrue(
+            set(got["reach"]) >= set(SOURCES),
+            "the rule was called with reach=%r, which does not carry every declared source"
+            % (sorted(got["reach"]),))
+
         blob = "".join(t for _c, t in result.failures)
         self.assertIn("sentinel-orphan", blob,
                       "the census failed, but the sentinel never reached it")

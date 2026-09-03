@@ -16907,3 +16907,36 @@ reintroduce either failure. Same shape as A10's two granularities — **two call
 consequences, two budgets.**
 
 2 sabotages, 2 RED.
+
+## v2514 — the join proof now records what the rule was CALLED WITH, not just that something failed
+
+**REG-505 — proving a failure happened is weaker than proving the call happened.** A cold review of
+v2512 named the upgrade and, in doing so, two of its own findings: *"capture the arguments on call
+and assert they match the expected `pool`/`reach`/`sources`... that proves both 'was called' and
+'called correctly'. The patch ignores arguments, so it cannot distinguish a correct call from an
+incorrect one."*
+
+Adopted. The patch is a **spy** that records `pool`, `reach` and `sources`, and the test asserts the
+rule was called **once**, with the declared `SOURCES`, a non-empty pool, and a reach carrying every
+declared source.
+
+That single change closes two findings it also raised:
+
+- **its finding 1** — an assertion *earlier* in the census failing would leave this test satisfied
+  by a failure that never reached the orphan check. The message-fragment check only mitigated that;
+  the spy settles it.
+- **its finding 2** — matching a fragment of assertion prose *"matches a substring anywhere in any
+  failure message"*. Nothing now depends on that text as primary evidence.
+
+**Two findings refuted or settled.** *"Any rename breaks it silently"* is false — 
+`unittest.TestCase("a_method_that_does_not_exist")` raises **ValueError at construction**, so a
+rename errors and the suite goes red; verified in the interpreter. And a kill between the patch and
+`finally` leaves the global patched — true of any patch-and-restore, and the process ends with the
+run, so there is no next test to mislead.
+
+⚠ **One of my sabotages went GREEN and the sabotage was the thing at fault**, not the guard: calling
+the rule with `tuple(reach)` instead of `SOURCES` is behaviourally identical, because `reach` holds
+exactly those three keys in that insertion order. Replaced with `SOURCES[:1]`, which lands.
+
+4 sabotages, 4 RED — inlining the rule, calling with only the first source, calling with a reach
+missing a source, and forcing an earlier assertion to fail first.
