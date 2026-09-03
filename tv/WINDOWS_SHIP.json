@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2515",
+  "ver": "v2516",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2515: _sighting_loc has answered where a name was seen since v2353 and nothing kept the answer. Measured on the live store: 0 of 14034 evidence rows carry a persisted loc, 39 reels named and 3 still on disk at 92 percent gone, only 25 percent of rows could ever have it re-derived. The task own figures were understated. The stamp now runs at evidence merge time, the last moment the reel is reliably present. It cannot recover the past and does not pretend to. An unknown surface is never stamped because a stored unknown is indistinguishable from a stored fact once the reel is pruned.",
+  "note": "v2516: A cold review found the argument spy could fail the census it was watching - a conversion inside it raising turns a correct call into a test error, so the instrument reports its own failure as the subject. It snapshots defensively now. It also compared sources as an ordered tuple, asserting a guarantee the helper does not owe; a guard that fails for a reason that is not a defect gets loosened rather than read. Changed to a set comparison, and calling with only the first source is still caught while a mere reorder is not.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

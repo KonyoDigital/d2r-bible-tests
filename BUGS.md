@@ -16983,3 +16983,27 @@ That case is now its own test.
 
 Guard: `tv/test_sighting_loc_persist.py`, registered (104 gates). **6 sabotages, 6 RED** — including
 the merge calling the stamper *before* the save, since computed-and-not-kept is the defect itself.
+
+## v2516 — the spy could break the measurement it was taking, and asserted an order nobody owes
+
+**REG-507 — the argument spy could fail the very thing it was watching.** A cold review of v2514:
+*"the census could call `_orphan_names` but pass arguments whose conversion inside the spy raises...
+the test would then see `result.errors` non-empty and `result.failures` empty, failing its
+assertions even though the call occurred."*
+
+An instrument that can break the measurement **reports its own failure as the subject's**. The spy
+snapshots defensively now — a conversion that cannot be taken records `None` rather than raising.
+
+**REG-508 — it compared `sources` as an ORDERED tuple**, which *"asserts an ordering guarantee the
+helper does not need to provide"*. The rule iterates and unions; order is meaningless to it. An
+ordered comparison would break the day someone sorts `SOURCES` — and **a guard that fails for a
+reason that is not a defect gets loosened rather than read**, which is how a real check dies.
+
+Changed to a set comparison, and the detection survives exactly: calling with `SOURCES[:1]` is
+**still RED**, while merely reversing `SOURCES` is now correctly green.
+
+**Three answers were confirmations and are recorded as such rather than dropped:** snapshotting the
+arguments is correct (*"the live object would be empty afterward"* if the caller mutates them);
+`result.failures` is **not** redundant beside `calls` — *"calls proves the helper was invoked;
+failures additionally proves the return value was CONSUMED"*; and the spy returning a list matches
+the real rule's `sorted(...)` contract exactly.

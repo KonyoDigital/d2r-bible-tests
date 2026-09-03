@@ -405,7 +405,20 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
         calls = []
         try:
             def _spy(pool, reach, sources):
-                calls.append({"pool": set(pool), "reach": dict(reach), "sources": tuple(sources)})
+                # ⚠ THE SPY MUST NOT BE ABLE TO FAIL THE THING IT IS WATCHING. A cold review: if
+                # a conversion inside it raises — an unhashable item in `pool`, a `reach` that is
+                # not dict-like — the census ERRORS, and this test then fails its own
+                # assertFalse(result.errors) even though the call it was checking for DID happen.
+                # An instrument that can break the measurement reports its own failure as the
+                # subject's. Snapshot defensively; a snapshot that could not be taken is recorded
+                # as None rather than raising. [[feedback-suspect-the-instrument]]
+                def _snap(fn, x):
+                    try:
+                        return fn(x)
+                    except Exception:
+                        return None
+                calls.append({"pool": _snap(set, pool), "reach": _snap(dict, reach),
+                              "sources": _snap(tuple, sources)})
                 return ["sentinel-orphan"]
             globals()["_orphan_names"] = _spy
             case = TheShapeRuleDoesNotQuietlyMergeThings(
@@ -442,8 +455,14 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             len(calls), 1,
             "the orphan rule was called %d times; the census should ask once" % len(calls))
         got = calls[0]
+        # ⚠ CONTENT, NOT ORDER. Same review: comparing tuples "asserts an ordering guarantee the
+        # helper does not need to provide" — the rule iterates `sources` and unions, so order is
+        # meaningless to it. An ordered comparison would break the day someone sorts SOURCES, and
+        # a guard that fails for a reason that is not a defect gets loosened rather than read.
+        # The real detection survives: SOURCES[:1] still differs as a SET, and that sabotage is
+        # what this assertion is for.
         self.assertEqual(
-            got["sources"], tuple(SOURCES),
+            set(got["sources"] or ()), set(SOURCES),
             "the rule was called with %r instead of the declared SOURCES. Called with the wrong "
             "list, it would account for names no declared source supplied." % (got["sources"],))
         self.assertTrue(
