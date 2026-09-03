@@ -127,7 +127,7 @@ in those words.
 ---
 
 ## A20 · THE RIVER, VISIBLE — ONE STORYLINE INSIDE THEATRE/SHELF · 2026-09-02 · READY
-**Topic:** VISUAL · **Progress:** READY · not started — THE RIVER made visible
+**Topic:** VISUAL · **Progress:** READY · not started — THE RIVER made visible, reels flowing so the eye can follow one
 
 
 > *"the SHELF/THEATRE should be one section and tab in general just additive within one or the
@@ -182,7 +182,7 @@ Shelf/Theatre being one door is already done (v2440–v2441).
 ---
 
 ## A18 · THE D2R MACRO — HE IS THE CALIBRATION SOURCE · 2026-09-02 · READY
-**Topic:** VISUAL · **Progress:** READY · not started — the D2R macro, he is the calibration source
+**Topic:** CAPTURE · **Progress:** READY · not started — he records his own cursor, and he is the calibration source
 
 
 > *"for the hover automatic MINI with grok bot it aint gonna work, i thought of another clever
@@ -228,7 +228,7 @@ name. [[label-outlived-referent]]
 ---
 
 ## A19 · MINI AUTO CARRIES A LOCK — BADGED, NOT ENFORCED · 2026-09-02 · SHIPPED
-**Topic:** VISUAL · **Progress:** SHIPPED · MINI AUTO carries a lock, badged not enforced
+**Topic:** ARCHITECTURE · **Progress:** SHIPPED · MINI AUTO carries a lock, badged not enforced
 
 
 > *"i want it not enforced... i want it badged... my point was i want it KNOWN on the console is
@@ -395,7 +395,7 @@ two-way-agreement principle as A5, applied to the whole console rather than to o
 
 
 ## A13 · THE VISUAL HARNESS MUST FEED THE GATE · 2026-09-01 19:1x
-**Topic:** VISUAL · **Progress:** in progress · the render gate feeds the ratchet since v2475; the visual harness does not yet feed the gate
+**Topic:** GATES · **Progress:** in progress · the render gate feeds the ratchet since v2475; the visual harness does not yet feed the gate
 
 > *"i want this part of the workflow.. what about the visual harness with grok bot where is that?"*
 
@@ -548,7 +548,7 @@ failure this whole layer exists to prevent. [[unknown-stays-unknown]]
 
 
 ## A17 · THE TV·D CONSOLE NEEDS AN EDITORIAL REDESIGN · 2026-09-01 20:0x
-**Topic:** VISUAL · **Progress:** in progress · the hero/dash split, type scale and titles landed across v2147-v2181; the console redesign continues
+**Topic:** VISUAL · **Progress:** in progress · typography, type scale and the hero/dash split landed across v2147-v2181; the editorial redesign continues
 
 > *"i want this visually structured alot better. flagship style.. i want titles for whats needed
 > editorial style.. this looks messy and complicated. i want it unerstanding and typography and
