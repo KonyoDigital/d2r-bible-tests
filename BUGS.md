@@ -15759,3 +15759,45 @@ REG-453 rather than left for him to find.
 `_drift_loop` collide by 64px at 1120 and 66px at 1440. Not fixed here: the labels are placed
 radially and the fix is a placement change, not a string change. Recorded so it is not discovered
 from his screen.
+
+## v2483 — two right numbers that read as a contradiction, and a guard that could not catch it
+
+**REG-454 — the heart showed two counts for the same tab and never said they measure different
+things.** A cold cross-family read of the panel reported `runeword · 105 names` against the fleet's
+`runewords · 99 reported as the total` as an inconsistency. It was reading fairly: sets agree at
+135, so a reader concludes the odd one out is a defect. Measured across all three route sets:
+
+```
+tab            chronicle routes   fleet lanes   roster routes
+runeword(s)         105                99            99
+set(s)              135               135           135
+unique(s)           398               403           403
+```
+
+⚠ **THE EYE SAW ONE AND THERE WERE TWO.** Uniques disagrees the same way, 398 against 403, and
+nobody had reported it. **Every one of those numbers is right.** The chronicle-routes column counts
+the names in each route's own ROSTER; the other two count the CHRONICLE TOTAL — 99 is his v2192
+ruling ("the chronicle counts 99 runewords", with a note naming the three lists that disagree and
+why none of them is the answer) and 403 is `chronTotal`, the figure the Uniques tab headlines. Sets
+agree only because that roster happens to be the whole chronicle.
+
+**IT TOOK THREE PASSES, AND THE SECOND EYE REFUTED MY FIRST FIX.** Labelling the column ` names in
+its roster` was not enough: re-read cold, it still called the panel contradictory —
+*"it is not stated whether these are intended to be the same quantity or deliberately different
+views."* Exactly right, and the distinction matters: a reader can see two words differ and still not
+know whether the difference is a bug. The panel now says which, with the reason, and says that a row
+where those two AGREED would be the defect. Re-read cold a third time: *"the panel explicitly
+explains both differences and states that the discrepancy is intentional"*, ambiguity **"None."**
+
+**REG-455 — a footer claimed sameness about the wrong thing.** `All 3 read the same: generated,
+stamped, ...` sat directly under three rows whose counts differ, and the cold eye quoted it back as
+proof that *"the numeric results contradict that claim"*. The sentence was true and about each
+route's SHAPE; nothing said so. It now reads `All 3 carry the same SHAPE — … That is about the
+route, never about the counts.`
+
+⚠ **AND MY FIRST GUARD FOR THIS COULD NOT FAIL.** J16 originally asserted that two rows for one tab
+must not share a unit word. Fed the shipped rows it went GREEN — because the units already differed
+(`names` against `reported as the total`). It tested a condition the defect satisfied. What actually
+goes wrong is a unit that does not IDENTIFY its quantity, so that is what it checks now, against a
+set of vague units. Re-fed the shipped rows it throws, naming **both** `runeword` and `unique` —
+catching the case the cold eye missed — and passes the fix and the counts-agree case.

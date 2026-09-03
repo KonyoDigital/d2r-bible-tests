@@ -10910,7 +10910,7 @@ body[data-origin="shadow"] #stage::after {
      Each route prints its five links in order, and a MISSING link is drawn broken and in place —
      the same rule as the lock badges: the mark sits ON the thing it is about, so nobody has to
      work out which half of the route is the problem. */
-  function _hrtChron(cc, title, noun){
+  function _hrtChron(cc, title, noun, note){
     var TT = title || 'The chronicle routes';
     /* ⚠ the NOUN is per route set. The first cut hardcoded 'names' and the fleet lanes then
        read "sets · 135 names" — set PIECES, counted in the wrong word, three lines above the
@@ -10975,7 +10975,22 @@ body[data-origin="shadow"] #stage::after {
         + '<span class="hrt-w">' + _hrtEsc(flags[k].say) + '</span></div>';
     }
     if (shared){
-      h += '<p class="hrt-note">All ' + rows.length + ' read the same: ' + _hrtEsc(shared) + '.</p>';
+      /* ⚠ "READ THE SAME" IS ABOUT THE LINKS, AND A COLD READER TOOK IT FOR THE NUMBERS. This
+         said "All 3 read the same: generated, stamped, ..." directly under three rows whose
+         counts differ (105/135/398 against 99/135/403), and a cross-family read quoted it back
+         as evidence that "the numeric results contradict that claim". The sentence was true and
+         about the SHAPE of each route; nothing told the reader that. Say shape. */
+      h += '<p class="hrt-note">All ' + rows.length + ' carry the same SHAPE \u2014 '
+         + _hrtEsc(shared) + '. That is about the route, never about the counts.</p>';
+    }
+    /* CF-16 — SAY THAT THE DIFFERENCE IS DELIBERATE, because naming the two quantities was not
+       enough. The first fix relabelled these rows "names in its roster" against the fleet's
+       "reported as the total", and a cold cross-family read STILL called it a contradiction:
+       "it is not stated whether these are intended to be the same quantity or deliberately
+       different views." Exactly right. A reader can see the words differ and still not know
+       whether that is a bug. So the panel now says which, with the reason. */
+    if (note){
+      h += '<p class="hrt-note">' + _hrtEsc(note) + '</p>';
     }
     if (!flags.length && rows.length){
       h += '<p class="hrt-note">Every route carries the same five links, so the corroborator has '
@@ -11085,7 +11100,34 @@ body[data-origin="shadow"] #stage::after {
       + 'score clears the bar, and never by hand.'
       + _hrtEsc(d.notVessels ? ' (' + d.notVessels + ' one-shot tasks are excluded: they inherit their caller’s vessel, so a roster entry would be a lie.)' : '')
       + _hrtEsc(age) + '</div>'
-      + _hrtChron(d.chronicles)
+      /* ⚠⚠ CF-16 — SAY WHICH QUANTITY, OR TWO CORRECT NUMBERS READ AS A CONTRADICTION. A cold
+         cross-family read of this panel reported "runeword · 105 names" against the fleet's
+         "runewords · 99 reported as the total" as an inconsistency, and it was reading fairly:
+         set(s) agree at 135, so a reader concludes the odd one out is a bug. MEASURED across the
+         three route sets:
+
+             tab            chronicle routes   fleet lanes   roster routes
+             runeword(s)         105                99            99
+             set(s)              135               135           135
+             unique(s)           398               403           403
+
+         EVERY ONE OF THOSE IS RIGHT. This column counts the names in a route's own ROSTER; the
+         other two count the CHRONICLE TOTAL — 99 is his v2192 ruling ("the chronicle counts 99
+         runewords", with a note naming the three lists that disagree and why none of them is the
+         answer) and 403 is chronTotal, the figure his Uniques tab headlines. Sets agree only
+         because that roster happens to be the whole chronicle.
+
+         So nothing here is a wrong number and nothing needs recounting — what was missing is the
+         WORD. The renderer already takes its noun from the caller, for exactly this reason one
+         comment up; this caller was the one still using the bare default.
+         [[label-outlived-referent]] [[unknown-stays-unknown]] */
+      + _hrtChron(d.chronicles, undefined, ' names in its roster',
+          'These count the names in each route\u2019s own ROSTER. THE FLEET LANES below count the '
+        + 'CHRONICLE TOTAL, so two of the three differ ON PURPOSE and neither number is wrong: '
+        + 'runewords 105 here against 99 there is Konyo\u2019s v2192 ruling that the chronicle '
+        + 'counts 99, and uniques 398 against 403 is chronTotal, the figure the Uniques tab '
+        + 'headlines. Sets agree at 135 only because that roster happens to be the whole '
+        + 'chronicle. A row where these two AGREED for runewords or uniques would be the bug.')
       /* A21c — the fleet lanes, drawn by the SAME renderer. One picture-maker for two
          route sets is the point: a second copy would drift from this one within a week. */
       + _hrtChron(d.fleet, 'The fleet lanes', ' reported as the total')

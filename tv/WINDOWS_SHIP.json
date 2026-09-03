@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2482",
+  "ver": "v2483",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2482: prune.arm showed 0.916 < 0.839 under a correct verdict because the sign came from the lock state instead of the two numbers beside it; it is held by confluence, not by its score. And n=0 meant two different things: a door nobody has sabotaged yet, and vault.forget, which has no refusal path at all and never will. The distinction died twice on the way to the screen, once in the status whitelist and once in the renderer.",
+  "note": "v2483: the heart printed a route roster count beside a chronicle total for the same tab and never said they measure different things, so a cold reader called it a bug; runewords 105 vs 99 is his v2192 ruling and uniques 398 vs 403 is chronTotal. Labelling the quantities was not enough - the second eye refuted that fix, because a reader can see two words differ and still not know whether the difference is deliberate. The panel now says it is, and why. My first guard for it could not fail.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

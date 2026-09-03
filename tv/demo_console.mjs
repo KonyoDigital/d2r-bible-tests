@@ -311,6 +311,73 @@ async function j15_heartArithmeticIsTrue(page) {
   record(name, true, `${rows.length} inequality line(s), all true`);
 }
 
+async function j16_twoCountsMustNameTheirQuantity(page) {
+  const name = 'J16 TWO NUMBERS FOR ONE TAB MUST SAY WHAT EACH COUNTS';
+  await goHome(page);
+  // ⚠⚠ CF-16, FOUND BY A COLD CROSS-FAMILY READ OF THE PIXELS. The heart showed
+  //     runeword · 105 names          (chronicle routes — the names in that route's ROSTER)
+  //     runewords · 99 reported as the total   (fleet lanes — the CHRONICLE TOTAL, his v2192 ruling)
+  // and the eye called it a contradiction. It was reading fairly: sets agree at 135, so the odd
+  // one out looks like a bug. Both numbers are right; the panel just never said they measure
+  // different things. Uniques does the same, 398 against 403.
+  //
+  // The law: if two route sets print DIFFERENT numbers for the same tab, they must not print them
+  // under the SAME unit word. It does not pin any count — the rosters and the rulings are free to
+  // move — only that a reader can tell which quantity each number is.
+  const rows = await page.evaluate(async () => {
+    if (typeof window._heartOpen !== 'function') return null;
+    window._heartOpen();
+    await new Promise(r => setTimeout(r, 2500));
+    const ov = document.getElementById('heart-ov');
+    if (!ov || ov.hidden) return null;
+    return [].slice.call(ov.querySelectorAll('.hrt-sec')).flatMap(sec => {
+      const head = (sec.querySelector('.hrt-h') || {}).textContent || '';
+      return [].slice.call(sec.querySelectorAll('*'))
+        .map(e => (e.childElementCount === 0 ? (e.textContent || '').trim() : ''))
+        .filter(t => /^(runeword|runewords|set|sets|unique|uniques)\s*·\s*\d+/.test(t))
+        .map(t => ({ head, t }));
+    });
+  });
+  if (rows == null) { record(name, true, 'the heart did not open on this view'); return; }
+  if (rows.length < 2) { record(name, true, `only ${rows.length} counted row(s) on screen`); return; }
+
+  // group by the tab CONCEPT, not its spelling — runeword and runewords are one thing
+  const seen = new Map();
+  for (const { t } of rows) {
+    const m = t.match(/^(runewords?|sets?|uniques?)\s*·\s*(\d+)\s*(.*)$/);
+    if (!m) continue;
+    const concept = m[1].replace(/s$/, '');
+    const count = parseInt(m[2], 10);
+    const unit = (m[3] || '').trim();
+    if (!seen.has(concept)) seen.set(concept, []);
+    seen.get(concept).push({ count, unit, t });
+  }
+  // ⚠⚠ THE FIRST VERSION OF THIS CHECK COULD NOT FAIL, and it took feeding it the shipped rows
+  // to find that out. It asserted the two units must DIFFER — but they already did:
+  // "runeword · 105 names" against "runewords · 99 reported as the total". Different words, and
+  // still unreadable, because "names" never says WHOSE names. Testing for difference tested a
+  // condition the defect already satisfied. What actually goes wrong is a unit that does not
+  // IDENTIFY its quantity, so that is what is checked. [[source-reading-guard]]
+  const VAGUE = new Set(['', 'names', 'items', 'rows', 'entries', 'total', 'counted']);
+  const bad = [];
+  for (const [concept, entries] of seen) {
+    const counts = new Set(entries.map(e => e.count));
+    if (counts.size < 2) continue;                    // they agree; nothing to disambiguate
+    for (const e of entries) {
+      if (VAGUE.has(e.unit.toLowerCase())) {
+        bad.push(`${concept}: "${e.t}" — the unit ${JSON.stringify(e.unit)} does not say which `
+          + `quantity this is, and another surface reports a different number for the same tab `
+          + `(${[...counts].join(' vs ')})`);
+      }
+    }
+  }
+  if (bad.length) {
+    throw new Error(`two different numbers for one tab, under the same unit word — a reader `
+      + `cannot tell these are different quantities: ${bad.join(' | ')}`);
+  }
+  record(name, true, `${seen.size} tab concept(s), every differing pair names its quantity`);
+}
+
 async function j13_overflowSaysSo(page) {
   const name = 'J13 OVERFLOW SAYS SO';
   await goHome(page);
@@ -1001,7 +1068,7 @@ async function j10_headerGeometry(page) {
 }
 
   const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship, j11_receiptVerbs, j12_heartNoEcho, j13_overflowSaysSo,
-    j14_outputPanesStayBounded, j15_heartArithmeticIsTrue];
+    j14_outputPanesStayBounded, j15_heartArithmeticIsTrue, j16_twoCountsMustNameTheirQuantity];
   for (const j of journeys) {
     try {
       await j(page);
