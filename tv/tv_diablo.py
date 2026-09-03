@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2487"   # the twelve routes prove themselves, on the same arithmetic as the valves
+VERSION = "v2488"   # the board becomes a build output of TASKS.md, and the story is the structure
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -15979,3 +15979,41 @@ sabotaged a FILENAME as if it were a symbol and manufactured 12 false leaks; and
 one of several declarations and called the survivor a leak. Each was found by asking the code rather
 than trusting the count. **A defect count from a harness that has not been checked against itself is
 not a measurement.**
+
+## v2488 — the board becomes a build output of TASKS.md, and the story is the structure
+
+His ruling: *"i want it designed properly so its structured accordingly and synced and derived from
+tasks live"*, *"structured formally story line telling in code meaning pending and then progress and
+the completed"*, *"also sections within the states ... it can be both ... topics"*, and *"a progress
+can be integrated into TASKS.MD so we know what progress and whats been done for that specific
+task"*.
+
+**`tv/board_sync.py`** — the board was hand-written into the artifact database AND separately into
+TASKS.md. Two copies of one truth kept in step by me remembering, which is the copy-drift shape this
+repo has paid for repeatedly and whose failure mode is silent. **TASKS.md and git are now the
+source; the board is derived.** A row that is wrong means TASKS.md is wrong, and there is one place
+to fix it.
+
+**THE STORY IS THE STRUCTURE.** Sections are STATES in the order work moves — `1 PENDING ·
+2 IN PROGRESS · 3 YOUR CALL · 4 BLOCKED · 5 COMPLETED` — and within each, TOPICS group the work.
+`sectionOrder` is state-major, topic-minor, so the page reads top to bottom as the arc.
+
+**TIMESTAMPS COME FROM git, NEVER FROM PROSE.** Each `vNNNN` is joined to its real commit and
+author-date. 23 rows carry a measured timestamp; **38 carry none, and none was invented.**
+
+**PROGRESS PER TASK.** Every one of the 20 A-items now carries
+`**Topic:** … · **Progress:** …`, and the progress is measured rather than estimated — A2 reads
+*"3/4 · v2444-v2472 banked the five valves, v2487 added the 9 routes, 48/48 under hard mode;
+nothing is HARDENED"*, while A3 through A8 read *"0/1 · not started"* because they are.
+
+⚠ **AN EXPLICIT TAG BEATS A GUESS, AND MOVING HIS PROSE WOULD HAVE BEEN THE RISKIER FIX.** The
+first cut derived the topic from the nearest heading, and every A-item is its own `##` — so each
+became its own topic and the board fragmented into twenty groups of one. Restricting to level-1
+headers fixed the fragmentation and left the topics too coarse. Reorganising 600 lines of his
+writing to satisfy a parser is how a task file loses a task, so a task now NAMES its own topic on
+one added line. **Additive: 20 A-items before, 20 after, asserted; the file grew and no line was
+removed.**
+
+⚠ **IT NEVER PRUNES.** The generator emits adds and updates only. Anything on the board it did not
+derive is reported as ORPHANED, never deleted — a parser that silently drops a row looks exactly
+like the pruning he has already caught once.

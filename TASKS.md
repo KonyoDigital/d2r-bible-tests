@@ -127,6 +127,8 @@ in those words.
 ---
 
 ## A20 · THE RIVER, VISIBLE — ONE STORYLINE INSIDE THEATRE/SHELF · 2026-09-02 · READY
+**Topic:** VISUAL · **Progress:** READY · not started — THE RIVER made visible
+
 
 > *"the SHELF/THEATRE should be one section and tab in general just additive within one or the
 > other.. and also there the structure and everything meaning it should be STORY LINE STRUCTURED..
@@ -180,6 +182,8 @@ Shelf/Theatre being one door is already done (v2440–v2441).
 ---
 
 ## A18 · THE D2R MACRO — HE IS THE CALIBRATION SOURCE · 2026-09-02 · READY
+**Topic:** VISUAL · **Progress:** READY · not started — the D2R macro, he is the calibration source
+
 
 > *"for the hover automatic MINI with grok bot it aint gonna work, i thought of another clever
 > idea.. like MACRO ISSTA and MACRO FIBI we created repos based on my movements cursor. this is the
@@ -224,6 +228,8 @@ name. [[label-outlived-referent]]
 ---
 
 ## A19 · MINI AUTO CARRIES A LOCK — BADGED, NOT ENFORCED · 2026-09-02 · SHIPPED
+**Topic:** VISUAL · **Progress:** SHIPPED · MINI AUTO carries a lock, badged not enforced
+
 
 > *"i want it not enforced... i want it badged... my point was i want it KNOWN on the console is
 > all. a visual stamp is fine. and obviously a logical coding to it with wilson via connected to
@@ -248,6 +254,8 @@ turns out of the 688 MB transcript.
 Quotes are verbatim, including the typing. They are the spec.
 
 ## A1 · SELF-PROVING GAPS, EVERYWHERE ROUND THE CONSOLE  · 2026-09-01 11:00
+**Topic:** ARCHITECTURE · **Progress:** 1/4 · v2485 made the heart stop calling unreachable work 'owed'. The lane SCORER does not exist, so FLOWING is still 0 for all 11 watched vessels. Not started: the four organs on every surface
+
 > *"self-proving gaps i want taken care of everywhere all round the console i want this logic and
 > its own logic coded proving itself! and if it drifts it gets flagged accoridngly and designed
 > like we designed to either get fixed or we fix it and the doctor it to be watchdgoged and
@@ -259,6 +267,8 @@ THE HEART (eagle eye · watchdog · corroborator · doctor). ⚠ **Self-healing 
 he said "maybe not just yet". Build the proving and the flagging; leave the self-repair for later.
 
 ## A2 · WILSON EVERYWHERE — and make it actually mean something · 2026-08-30 09:25 + 09:30
+**Topic:** ARCHITECTURE · **Progress:** 3/4 · v2444-v2472 banked the five valves (3 of 5 open, none by hand); v2487 added the 9 ROUTES on the same arithmetic, 48/48 under hard mode. Remaining: nothing is HARDENED — needs a second independent KIND, which is prune.arm's only gap
+
 > *"YES wilson score it .. thats why i keep saying put this system everywhere.. do a full audit
 > around the entire console to where WILSON can be added"*
 
@@ -271,6 +281,8 @@ roster can ground where three 0.60 looks cannot. The curve: 1/1 → 0.207 · 3/3
 6/6 → 0.610 · 12/12 → 0.757.
 
 ## A3 · UNIFY THE SURFACE × CAPABILITY MATRIX · 2026-08-30 ~17:20
+**Topic:** ARCHITECTURE · **Progress:** 0/1 · not started
+
 > *"fix those gaps and anywhere else.. make it unified and logical and coded properly with
 > watchdogged and eagle eyed and doctor and corraborotror"*
 
@@ -280,6 +292,8 @@ empty across every column, `stash_eye grid` empty across every column, `enlarge 
 marked as not having them.
 
 ## A4 · THE 3D / 4D PRINTER PIPELINE · 2026-09-01 10:49
+**Topic:** BACKEND · **Progress:** 0/1 · not started — the printer pipeline
+
 > *"we already said if this were to be procesed through our 3D printer it shouldnt matter the
 > engines console and filtering and routing system should have done that already and left those
 > 104 frames for extra 3D and 4D printer processing and filtering and routing so those other
@@ -292,6 +306,8 @@ frames through the printer, kept the 104 for extra 3D/4D processing, and pruned 
 by template, technique and filter — alone.
 
 ## A5 · THE SURFACE IS KNOWN AT CAPTURE — KEEP IT, AND PROVE IT BOTH WAYS · 2026-09-01 10:55
+**Topic:** BACKEND · **Progress:** 0/1 · not started
+
 > *"the fact was in hand at intake, discarded, and the re-derivation needs footage that no longer
 > exists … a logic both ways reverese enginnered and agreeing would also prove to fix this.. so
 > connect it to the heart of the console too."*
@@ -301,6 +317,8 @@ is re-deriving from film that has been pruned. Two halves: stop throwing the sur
 intake, AND build the reverse direction so the two must AGREE. Wire it to the heart.
 
 ## A6 · THE RETRO ANALYZERS NEED A GATED ACCURACY CHECKER BETWEEN THEM · 2026-08-30 16:01
+**Topic:** BACKEND · **Progress:** 0/1 · not started
+
 > *"the retro analyzers need to be accurate and thorough with an extra AI reader if needed
 > inbetween them as a gated and accuracy checker"*
 
@@ -308,6 +326,8 @@ An independent reader sitting between the analyzers as a gate, not a second opin
 
 
 ## A7 · EVERY REEL GOES THROUGH THE SAME PATH — ONE UNIFIED LOGIC · 2026-09-01 19:0x
+**Topic:** BACKEND · **Progress:** 0/1 · not started
+
 > *"all reels need to be processed the same way all unified logic"*
 
 No reel gets a special path, a bypass, or a second implementation. One pipeline, one set of rules,
@@ -315,6 +335,8 @@ every reel. Any lane that processes a reel differently is either folded in or de
 as a deliberate exception with a reason.
 
 ## A8 · THE TEMPLATES LIVE **INSIDE** THE PRINTER'S FILTERING AND ROUTING · 2026-09-01 19:0x
+**Topic:** BACKEND · **Progress:** 0/1 · not started
+
 > *"the templates also need to be within the printer filtering and routing correctly and
 > discarding"*
 
@@ -323,6 +345,8 @@ printer filters, routes and discards WITH. If a template can be removed without 
 changing, it is not wired in.
 
 ## A9 · THE 10-15% LAW — THE ENGINE THROWS THE GARBAGE OUT BY DEFAULT · 2026-09-01 19:0x
+**Topic:** BACKEND · **Progress:** in progress · the 10-15% law
+
 > *"withing the 100% reels only 10-15% are worth saving.. the rest should by default within the
 > processing engines automaticaly filter the garbage out and leave the information reels with data
 > to extract from and then there another layer"*
@@ -333,6 +357,8 @@ then a further layer works only the survivors. ⚠ If the pipeline is keeping fa
 filter is not working; if far less, it is eating data. Either way the number is the alarm.
 
 ## A10 · THE FISH DOWN THE STREAM — PROBE ONE REEL THROUGH THE WHOLE RIVER · 2026-09-01 19:0x
+**Topic:** BACKEND · **Progress:** 0/1 · not started
+
 > *"remembe the fish needs to go down the stream.. probe it down the stream meaning the reel needs
 > to go do the river stream an see that its properly syncned and no gaps... and everything is
 > working and collaborating.. and all is working an nothing is stale"*
@@ -344,6 +370,8 @@ was stale. **This is the only check that can catch two stages that each work and
 ([[the-unjoined-end]]). Wire the result to the heart.
 
 ## A11 · ARE ALL THE LANES EVEN HERE? — INVENTORY, THEN PROVE EACH ONE · 2026-09-01 19:0x
+**Topic:** ARCHITECTURE · **Progress:** measured · the census counts 21 vessels: 11 WATCHED, 8 DARK, 2 UNKNOWN. Proving each one is unstarted
+
 > *"im not sure all the lanes are here.. working and reverse engineeered"*
 
 An honest census of every lane in the console: does it exist, does it run, does it collaborate with
@@ -357,6 +385,8 @@ from TASKS.md would have briefed the wrong number. A lane
 nobody registered is a lane nobody watches. Output is a table with UNKNOWN as a legal answer.
 
 ## A12 · BLUEPRINTS AND REVERSE BLUEPRINTS · 2026-09-01 19:0x
+**Topic:** ARCHITECTURE · **Progress:** proven · blueprints regenerate and agree (19·19)
+
 > *"blueprints.. reverse blueprints.. everything"*
 
 Both directions, and they must AGREE. Forward: what the system is supposed to do. Reverse: what the
@@ -365,6 +395,8 @@ two-way-agreement principle as A5, applied to the whole console rather than to o
 
 
 ## A13 · THE VISUAL HARNESS MUST FEED THE GATE · 2026-09-01 19:1x
+**Topic:** VISUAL · **Progress:** in progress · the render gate feeds the ratchet since v2475; the visual harness does not yet feed the gate
+
 > *"i want this part of the workflow.. what about the visual harness with grok bot where is that?"*
 
 ✅ **IT NOW REACHES A GATE** (v2404, `tv/human_eyes_gate.py`, registered as `human-eyes`;
@@ -391,6 +423,8 @@ Live consequence already filed as gh #200.
 
 
 ## A14 · THE CHRONICLE COUNTER ONLY GOES UP, AND THE LEDGER IS THE PROOF · 2026-09-01 19:2x
+**Topic:** BACKEND · **Progress:** 0/1 · not started — monotonic chronicle counter
+
 > *"i want to see ledgers proof and a counter for chronicles only going up never down they can
 > always verify proof with the ledger that way profile and data cant ever be lost!"*
 
@@ -438,6 +472,8 @@ Closes the hole under tasks **133** and **166**.
 
 
 ## A15 · THE RIVER — ONE START POINT, ONE FUNNEL, THEN PER-REEL ROUTES · 2026-09-01 19:3x
+**Topic:** BACKEND · **Progress:** 0/1 · not started — THE RIVER
+
 > *"the same feeding system and same routing system working and funneling starting from the same
 > start point and slowly down the river changing routes individually and acocridngly relvant to
 > that speicfic routed reel... depending on what inititially has been processed through out 3d
@@ -469,6 +505,8 @@ conditional on this being built and running first.
 
 
 ## A16 · THE HEART OF THE CONSOLE — AND WILSON SCORE IT ALL · 2026-09-01 19:4x
+**Topic:** ARCHITECTURE · **Progress:** shipped as the heart · v2443-v2446; Wilson scoring extended to routes in v2487
+
 > *"make sure watchdog and corrobator eagle eye and doctor (the Heart of the Console) is what we
 > called it and wilson score it all!! connect it all to the HEART OF THE CONSOLE"*
 
@@ -510,6 +548,8 @@ failure this whole layer exists to prevent. [[unknown-stays-unknown]]
 
 
 ## A17 · THE TV·D CONSOLE NEEDS AN EDITORIAL REDESIGN · 2026-09-01 20:0x
+**Topic:** VISUAL · **Progress:** in progress · the hero/dash split, type scale and titles landed across v2147-v2181; the console redesign continues
+
 > *"i want this visually structured alot better. flagship style.. i want titles for whats needed
 > editorial style.. this looks messy and complicated. i want it unerstanding and typography and
 > clear and symmetric OCD alligned"*
