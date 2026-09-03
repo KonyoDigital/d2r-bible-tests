@@ -538,6 +538,25 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_write_witness", [sys.executable, os.path.join(HERE, "test_write_witness.py")], 120,
+         why="A7-s remaining half — who ACTUALLY writes a reel store, witnessed at runtime, "
+             "because two static walks both measured themselves (a filename-adjacency grep and an "
+             "AST walk resolving path constants each returned 0 writers for all four stores, "
+             "v2507). ⚠⚠ AND IT NEARLY BECAME THE THIRD ZERO: patching only builtins.open missed "
+             "io.open, which this codebase uses everywhere, so a module whose entire job is "
+             "counting writers reported ZERO for a store it had just watched being written — "
+             "caught by its own demo before shipping. ⚠ It also NAMED A MODULE THAT DOES NOT "
+             "EXIST: abspath('<stdin>') lands inside the tree, so an interactive frame passed the "
+             "is-it-ours test and a blind [:-3] reported the writer as `<std`. A witness naming a "
+             "module that does not exist is worse than one naming nobody — the first is believed. "
+             "These pin: an io.open write is seen; the ATOMIC write is seen (these stores are "
+             "written to <name>.tmp and MOVED, so watching only `open` would see the tmp file and "
+             "never the store — the same shape as the two static failures); a READ is not a write; "
+             "every name printed is a module on disk; an UNWATCHED store is None and not zero; the "
+             "patches are restored; and it never redirects or blocks a write, because it watches "
+             "the one door with no undo. ⚠ It is an INSTRUMENT, not a measurement — the per-store "
+             "answer needs a sweep to run while it is on, and that is a measurement nobody has "
+             "taken. 5 sabotages, 5 RED."),
     Gate("test_declared_vs_content",
          [sys.executable, os.path.join(HERE, "test_declared_vs_content.py")], 120,
          why="A15 — the route must be DERIVED FROM THE CONTENT, never guessed from a declared "

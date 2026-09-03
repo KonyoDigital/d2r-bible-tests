@@ -17336,3 +17336,36 @@ raise; and `repr()` is the right capture, because *"it preserves type informatio
 
 **One settled:** the docstring's *"repr at call time"* describes intended usage rather than a
 guarantee the function enforces — *"just wording"*. Left as is.
+
+## v2527 — A7's runtime half, and the witness that would have been the third zero
+
+Two static walks both returned **0 writers for all four stores** (v2507) and both were measuring
+themselves. `tv/write_witness.py` is the other half: it watches the writes happen.
+
+**REG-525 — ITS OWN DEMO CAUGHT IT BLIND.** Patching only `builtins.open` missed **`io.open`**,
+which this codebase uses everywhere — so a module whose entire job is counting writers reported
+**ZERO for a store it had just watched being written**. That would have been the **third**
+instrument in this task returning a zero about itself. Caught before shipping, and only because the
+demo wrote a real store instead of asserting success.
+
+**REG-526 — it named a module that does not exist.** `os.path.abspath("<stdin>")` is *inside* the
+tree, so an interactive frame passed the is-it-ours test, and a blind `[:-3]` reported the writer as
+**`<std`**. **A witness naming a module that does not exist is worse than one naming nobody — the
+first is believed.** Every name it prints is now a `.py` file on disk.
+
+**REG-527 — and the write that matters never opens the store.** These stores are written to
+`<name>.tmp` and **moved** into place, so a witness watching only `open` would see the tmp file and
+never the store — reporting no writers for a store written on every sweep. `os.replace` is watched
+too.
+
+⚠ **One of my own test expectations was wrong and the witness was right.** I asserted an exec'd
+write should be attributed to nobody; it correctly blames **the module that ran the exec**, which is
+the responsible one. The law is not *"nobody"* — it is that **every name printed must be a module
+someone can open**.
+
+⚠⚠ **IT IS AN INSTRUMENT, NOT A MEASUREMENT.** Enabling it gathers nothing; a sweep has to run while
+it is on. **The per-store answer is a measurement nobody has taken**, which is a different fact from
+"one writer" and is said in the module rather than implied. It only ever observes — it calls
+straight through, never redirects or blocks, because it watches the one door with no undo.
+
+Guard: `tv/test_write_witness.py`, registered (107 gates). **5 sabotages, 5 RED.**

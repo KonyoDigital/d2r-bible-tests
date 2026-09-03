@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2526",
+  "ver": "v2527",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2526: The truncator returned 164 characters for an input over its own 160 cap - 100 head plus 56 tail plus an 8-char marker. Small, and a truncator that exceeds its own limit makes every other number in the file slightly less believable. Derived from the cap now and verified across sizes. And the answer I actually needed: I asked the cold eye outright whether the helper was over-engineered and it said fine as is. That is the stop signal I said I would watch for - this spy had consumed five consecutive versions and an independent read says it needs nothing further.",
+  "note": "v2527: Two static walks both returned zero writers for all four stores and both were measuring themselves. write_witness watches the writes happen instead. Its own demo caught it blind - patching only builtins.open missed io.open which this codebase uses everywhere, so a module whose entire job is counting writers reported zero for a store it had just watched being written. It also named a module that does not exist, because abspath of stdin lands inside the tree. And the write that matters never opens the store - these stores are written to a tmp file and moved, so watching only open would see the tmp and never the store. It is an instrument, not a measurement.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
