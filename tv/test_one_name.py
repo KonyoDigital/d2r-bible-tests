@@ -173,24 +173,66 @@ class ItAnswersTheQuestionNothingCouldAsk(unittest.TestCase):
 SHAPE_COLLISIONS = {
     "armedmigration": ("armed migration", "armed_migration"),
     "boardjoin":      ("board join", "board_join"),
-    "shadowwatch":    ("shadow watch", "shadowWatch"),
+    # ⚠ THESE TWO GREW THE MOMENT THE CENSUS COULD ACTUALLY SEE THE HEART, which is the ratchet
+    # doing its job rather than a defect: `tvd-shadow-watch` and `tvd-version-drift` are the LANE
+    # names, and `shadow watch` / `version drift` are what console_doctor calls the same concerns.
+    # Reviewed and correct — and they are also the whole of A1's naming overlap: 2 of 11 lanes are
+    # named by an organ under another spelling, the other 9 by nobody.
+    "shadowwatch":    ("shadow watch", "shadowWatch", "tvd-shadow-watch"),
+    "versiondrift":   ("tvd-version-drift", "version drift"),
 }
 
+#: Each source this census reads, and the fact that it must contribute SOMETHING.
+#:
+#: ⚠⚠ CARVED FROM A SABOTAGE THAT WENT GREEN. Disabling the heart block entirely left this file
+#: passing, because the reviewed collisions all happened to come from another source — so the
+#: census could lose a whole source and never say so. It had in fact ALREADY lost one: the heart
+#: block asked for `heart.snapshot()`, which does not exist, so behind its `hasattr` guard it
+#: contributed ZERO names on every run since it was written. A guard must fail on its own REACH,
+#: not only on its subject. [[source-reading-guard]]
+SOURCES = ("organ_matrix.surfaces", "organ_matrix.organ_coverage", "heart.vessels")
 
-def _live_names():
-    """Every name the resolver is actually asked about. -> set"""
+
+def _live_names(by_source=None):
+    """Every name the resolver is actually asked about. -> set
+
+    Pass a dict as `by_source` to also receive {source: count}, so a caller can assert this
+    function's REACH and not merely its output.
+    """
     import organ_matrix as OM
+    seen = {} if by_source is None else by_source
     pool = set(OM.surfaces())
+    seen["organ_matrix.surfaces"] = len(pool)
+    before = len(pool)
     for _o, (names, _w) in OM.organ_coverage().items():
         if names:
             pool |= set(names)
+    seen["organ_matrix.organ_coverage"] = len(pool) - before
+    before = len(pool)
+    # ⚠ ABSENT AND BROKEN ARE DIFFERENT FACTS, and one bare `except Exception: pass` reported
+    # them identically — so a heart that raised silently removed every organ and lane name from
+    # this census, and the census went on passing. A source that is MISSING is a smaller pool; a
+    # source that is BROKEN is an unknown one. [[unknown-stays-unknown]]
     try:
         import heart
-        d = heart.snapshot() if hasattr(heart, "snapshot") else {}
-        pool |= {str(k) for k in (d.get("organs") or {})}
-        pool |= {str(r.get("key") or "") for r in (d.get("lanes") or [])}
-    except Exception:
-        pass
+    except ImportError:
+        heart = None                       # genuinely not here — a smaller pool, honestly
+    if heart is not None:
+        # ⚠⚠ IT WAS ASKING FOR A FUNCTION THAT DOES NOT EXIST. This read `heart.snapshot()` behind
+        # a `hasattr` guard — and heart has no `snapshot`, so the guard was False every single run
+        # and this source contributed ZERO names, silently, for as long as it existed. A hasattr
+        # guard around a name that is simply wrong is not defensive, it is a way of never finding
+        # out. The real accessor is vessels(), and it publishes 21 vessels and 14 locks.
+        # [[plumbing-with-no-tap]]
+        v = heart.vessels()
+        for r in (v.get("vessels") or []):
+            if isinstance(r, dict):
+                pool.add(str(r.get("name") or ""))
+                pool.add(str(r.get("watcher") or ""))
+        for r in (v.get("locks") or []):
+            if isinstance(r, dict):
+                pool.add(str(r.get("lock") or ""))
+    seen["heart.vessels"] = len(pool) - before
     return {p for p in pool if p}
 
 
@@ -215,7 +257,36 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                 "whether two subsystems are the same, and it needs its own evidence." % probe)
 
     def test_no_unreviewed_shape_collision_has_appeared(self):
-        pool = _live_names()
+        reach = {}
+        pool = _live_names(reach)
+        # ⚠ THE INSTRUMENT'S REACH IS CHECKED BEFORE ITS FINDINGS. A census reading three sources
+        # of which one silently returns nothing is not a smaller census, it is a blind one — and
+        # `heart` was exactly that for its whole existence.
+        dead = sorted(s for s in SOURCES if reach.get(s, 0) <= 0)
+        self.assertFalse(
+            dead,
+            "%d source(s) contributed NOTHING to this census: %s. That is not a smaller pool, it "
+            "is a region of the console this test can no longer see — and it reads as a pass. "
+            "Reach measured: %s" % (len(dead), dead, reach))
+        shapes = {ON._shape(n) for n in pool}
+        # ⚠⚠ THE BASELINE WAS A SIZE, AND A SIZE IS NOT A SUBJECT. `len(pool) > 20` passes on any
+        # pool that is merely not tiny — including one that has lost every name this census was
+        # written to watch. A cold review put it exactly: "if _live_names() fails to return one or
+        # more of the colliding names, a genuine new collision simply never appears in `live` and
+        # the test passes." That is the same shape as the guard that iterated the classification it
+        # was meant to check: the instrument decides its own scope.
+        #
+        # So the baseline names its SUBJECTS. Every reviewed collision must still be present as a
+        # shape, or this census has stopped watching the thing it was written for and says so
+        # rather than going quiet. [[gate-blind-to-unexercised-input]]
+        missing = sorted(k for k in SHAPE_COLLISIONS if k not in shapes)
+        self.assertFalse(
+            missing,
+            "BASELINE LOST: %d reviewed collision(s) no longer appear in the live pool at all: %s. "
+            "Either those names were renamed — in which case update SHAPE_COLLISIONS deliberately "
+            "— or _live_names() stopped reaching a source it used to read, and this census is now "
+            "blind in exactly the region it was built to watch. Passing here would be an UNKNOWN "
+            "wearing a green tick." % (len(missing), missing))
         self.assertGreater(len(pool), 20,
                            "BASELINE: only %d names in play, too few for this census to be "
                            "measuring anything. UNKNOWN, not a pass." % len(pool))

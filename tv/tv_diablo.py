@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2499"   # the board is a build output, and it could not hold his own decisions
+VERSION = "v2500"   # the census had a source that never once answered, and my A1 correction was measured on names I typed
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

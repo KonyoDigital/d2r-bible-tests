@@ -16386,3 +16386,43 @@ shipped, and `test_board_story` now fails if a second table reappears. [[copy-dr
 Guard: `tv/test_board_story.py`, registered in `run_gates.py` (98 gates). **5 sabotages, 5 RED**,
 each caught by its own test — including the v2490 bug restored (stages numbered positive, sorting
 the whole storyline unreachable beneath the sections it replaces).
+
+## v2500 — the census had a source that never once answered, and my A1 correction was measured on names I typed
+
+**REG-479 — the collision census read `heart.snapshot()`, which does not exist.** Behind a
+`hasattr(heart, "snapshot")` guard, that source contributed **zero names on every run since it was
+written** — and a `try/except Exception: pass` around it meant absent, broken and empty all
+reported identically. A cold review reached the same conclusion from the code alone (*"can
+completely miss collisions involving names that only appear via heart... not defensible for a
+census test"*); the code was worse than it guessed. The real accessor is `heart.vessels()` — **21
+vessels, 14 locks**. Joined: the pool went 100 → 111 and two more collisions surfaced at once,
+both correct (`tvd-shadow-watch` ↔ `shadow watch`, `tvd-version-drift` ↔ `version drift`).
+
+⚠ **A sabotage went GREEN and that is what exposed it.** Disabling the heart block entirely left
+the file passing, because every reviewed collision happened to come from another source. **A guard
+must fail on its own REACH, not only on its subject** — each of the three sources must now
+contribute something or the census reports itself blind. Proven RED on the original bug restored.
+
+**REG-480 — MY v2495 CORRECTION WAS MEASURED ON A FALLBACK LIST I TYPED MYSELF, AND IT IS THE
+SECOND TIME THIS CLAIM HAS MOVED.** v2493 said A1 was *"proven NOT a naming problem"*. v2495
+retracted that, citing `shadowWatch == tvd-shadow-watch` as a real join. **`shadowWatch` is not in
+the heart's data at all** — that probe used `heart.snapshot()` too, got nothing, and fell through
+to an `or [...]` default of names I had written into the probe. I measured my own fallback and
+published it as a fact about his console.
+
+**THE MEASUREMENT, TAKEN PROPERLY**, against what the heart actually publishes — and it was only
+possible because v2496 gave `console_doctor` a `report()`:
+
+```
+lane (watcher) names: 11        organ-published names: 65
+exact matches: NONE
+resolver matches: 2 of 11 lanes
+    tvd-shadow-watch   <-  'shadow watch'  (console_doctor)  ·  'shadowWatch' (health_engine)
+    tvd-version-drift  <-  'version drift' (console_doctor)
+```
+
+So **A1 is partly a naming problem — 2 of 11, not 1 of 7** — and the other 9 lanes have no organ
+publishing anything under their name, which is the missing lane SCORER, exactly as A1 always said.
+⚠ Also measured and worth stating: **the vessel → watcher link needs no resolver at all.** 11 of
+21 vessel rows NAME their own watcher (`_shadow_watch_loop` → `tvd-shadow-watch`), so that join is
+already made in the data structure and was never the gap.
