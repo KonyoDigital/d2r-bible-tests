@@ -9021,9 +9021,18 @@ body[data-origin="shadow"] #stage::after {
         var n = l && typeof l.n === 'number' ? l.n : null;
         var sc = l && typeof l.score === 'number' ? l.score : null;
         /* n=0 must NOT print a number. "nobody has tested it" and "it scored zero" are different
-           facts, and the second one is the dangerous state. */
-        var num = (n === null) ? '' : (n === 0 ? 'untested'
-                    : (sc === null ? 'untested' : sc.toFixed(2) + '/' + (l.bar || 0).toFixed(2)));
+           facts, and the second one is the dangerous state.
+           ⚠ AND n=0 ITSELF IS TWO FACTS. A door nobody has sabotaged YET is waiting on work; a
+           door with NO REFUSAL PATH can never be sabotaged at all and is already in its final
+           state. vault.forget is the second kind — clearing a rebuildable optimisation is a
+           button, and gating it would be a cage — so it sat here reading 'untested' forever,
+           indistinguishable from a harness someone still owed. self_arming publishes `provable`
+           precisely to tell them apart; printing 'untested' for both threw that away at the last
+           step. [[unknown-stays-unknown]] */
+        var unprovable = l && l.provable === false;
+        var num = (n === null) ? '' : (unprovable ? 'by design · not sabotageable'
+                    : (n === 0 ? 'untested'
+                    : (sc === null ? 'untested' : sc.toFixed(2) + '/' + (l.bar || 0).toFixed(2))));
         /* ⚠ v2441 — THE COMPACT VARIANT MUST STAY COMPACT, AND THE FIRST CUT DID NOT.
            The tab-strip chip was authored as the padlock GLYPH ONLY because that strip is
            width-critical — a blown-out track once laid the shell out at 1575px inside a 1120px
@@ -10706,12 +10715,40 @@ body[data-origin="shadow"] #stage::after {
       var px = 0.25 * cx + 0.5 * gmx + 0.25 * gx;          // quadratic Bezier at t = 0.5
       var py = 0.25 * cy + 0.5 * gmy + 0.25 * gy;
       var n_ = (typeof L.n === 'number') ? L.n : null;
+      /* ⚠⚠ THE SIGN WAS DERIVED FROM open/LOCKED, NOT FROM THE NUMBERS, and a lock can be held
+         by EITHER of two things. prune.arm scores 0.916 against a bar of 0.839 — it CLEARS — and
+         is LOCKED because its evidence is all one kind (confluence 1.0 against a kinds bar of
+         1.8). So this line printed "0.916 < 0.839" on his screen: false arithmetic under a
+         correct verdict, which is exactly the shape he keeps catching — a right conclusion with a
+         wrong number under it. Compare the numbers, and name the bar that is actually holding. */
+      var _sc = (L.score == null) ? null : Number(L.score);
+      var _bar = Number(L.bar);
+      var _conf = (typeof L.confluence === 'number') ? L.confluence : null;
+      var _kbar = (typeof L.kindsBar === 'number') ? L.kindsBar : null;
+      var _scoreClears = (_sc != null) && (_sc >= _bar);
+      var _kindsShort = (_conf != null && _kbar != null && _conf < _kbar);
+      /* ⚠ TWO SHORT LINES, NOT ONE LONG ONE. These labels are centred on their node, so every
+         extra character reaches FURTHER IN BOTH DIRECTIONS across the vessel field — and prune.arm
+         sits far right, so its one-line form stretched back over the dashed vessels and a cold
+         reader took "0.916" for "0.816". The halo stops a line crossing a glyph; it cannot stop a
+         label being too wide to sit in clear space. Keep the arithmetic short and put the
+         confluence clause on its own row. */
       var arith = (n_ && n_ > 0)
-        ? (L.k + '/' + n_ + ' refused · ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
-           + (open ? ' ≥ ' : ' < ') + Number(L.bar).toFixed(3))
-        : 'no sabotage attempted yet · needs ' + Number(L.bar).toFixed(3);
+        ? (L.k + '/' + n_ + ' refused · ' + (_sc == null ? '?' : _sc.toFixed(3))
+           + (_scoreClears ? ' ≥ ' : ' < ') + _bar.toFixed(3))
+        : (L.provable === false
+             ? 'by design · no refusal path to sabotage'
+             : 'no sabotage attempted yet · needs ' + _bar.toFixed(3));
+      var arith2 = (n_ && n_ > 0 && _kindsShort)
+        ? ('one kind of look only · ' + _conf.toFixed(2) + ' of ' + _kbar.toFixed(2))
+        : '';
       var waiting = open ? 'OPEN — it proved itself'
-                         : (n_ ? 'LOCKED — waiting on its own score' : 'LOCKED — waiting for a first sabotage');
+                    : (L.provable === false
+                         ? 'LOCKED — and it can never prove itself: there is nothing to sabotage'
+                    : (!n_ ? 'LOCKED — waiting for a first sabotage'
+                    : (_scoreClears && _kindsShort
+                         ? 'LOCKED — the score clears; it is waiting for a DIFFERENT kind of look'
+                         : 'LOCKED — waiting on its own score')));
       gates += '<path d="' + gp + '" fill="none" stroke="' + lc + '" stroke-width="'
              + (open ? 2.4 : 1.8) + '" opacity="' + (open ? .95 : .8) + '"'
              + (open ? '' : ' stroke-dasharray="6 5" stroke-linecap="round"') + '/>';
@@ -10732,12 +10769,32 @@ body[data-origin="shadow"] #stage::after {
          sign of cos(angle), so every gate below-left threw its name and its arithmetic leftwards
          across the vessel labels — "no sabotage attempted yet · needs 0.510" landed on top of
          _console_beacon_loop. Down is the one direction with nothing in it. */
+      /* ⚠⚠ HALO THE GLYPHS, OR A VESSEL DRAWS STRAIGHT THROUGH A DIGIT. Found by a COLD cross-family
+         read of the rendered pixels, then reproduced by zooming the PNG: vault.sweep_start's green
+         connector crosses the "2" of "42/42" and the dashed prune vessel crosses the "9" of
+         "0.916", so the line reads as "4/42 ... 0.816 ≥ 0.839" — and 0.816 ≥ 0.839 is FALSE. The
+         panel was telling the truth and the pixels were not, which is the worse of the two: every
+         reader who looks at it concludes the console lies. I misread the same two digits from my
+         own screenshot before the second eye did.
+         ⚠ AND MY OVERLAP GATE COULD NOT SEE IT — it compared text boxes to other TEXT boxes, and
+         nothing here overlaps text. The thing striking the glyphs is a <path>. paint-order puts a
+         stroke of the panel's own background behind each glyph, so a vessel passing under a label
+         is masked by it instead of running through it. [[visual-regression-detector]] */
+      var _halo = 'paint-order:stroke;stroke:var(--surface-read,#14100c);stroke-width:3.5px;'
+                + 'stroke-linejoin:round;';
       gates += '<text x="' + gx.toFixed(1) + '" y="' + (gy + 19).toFixed(1)
              + '" text-anchor="middle" font-size="11.5" fill="' + lc
-             + '" font-weight="600">' + _hrtEsc(L.lock || L.surface) + '</text>'
+             + '" style="' + _halo + '" font-weight="600">' + _hrtEsc(L.lock || L.surface) + '</text>'
              + '<text x="' + gx.toFixed(1) + '" y="' + (gy + 32).toFixed(1)
              + '" text-anchor="middle" font-size="9.5" fill="' + lc
-             + '" opacity=".75">' + _hrtEsc(arith) + '</text>';
+             + '" style="' + _halo + '" opacity=".75">' + _hrtEsc(arith) + '</text>'
+             + (arith2 ? '<text x="' + gx.toFixed(1) + '" y="' + (gy + 44).toFixed(1)
+                 + '" text-anchor="middle" font-size="9.5" fill="' + lc
+                 // ⚠ .62 WAS TOO FAINT FOR A DIGIT. The cold eye read "1.00 of 1.80" as
+                 // "1.00 of 1.00" — and 1.00 of 1.00 says the confluence bar is MET, which is the
+                 // opposite of what this row exists to say. A number nobody can read is worse than
+                 // no number, because it is read anyway. Same weight as the line above it.
+                 + '" style="' + _halo + '" opacity=".75">' + _hrtEsc(arith2) + '</text>' : '');
     }
 
     /* ⚠ IT BEATS WHETHER OR NOT ANYTHING IS PROVEN, and that is deliberate. The beat says THE

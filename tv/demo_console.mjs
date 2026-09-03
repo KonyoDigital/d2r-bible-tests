@@ -272,6 +272,45 @@ async function j14_outputPanesStayBounded(page) {
     + `${got.panes.filter((p) => p.capped).length}/${got.panes.length} panes bounded`);
 }
 
+async function j15_heartArithmeticIsTrue(page) {
+  const name = 'J15 THE HEART MAY NOT PRINT FALSE ARITHMETIC';
+  await goHome(page);
+  // ⚠⚠ FOUND ON REAL PIXELS, NOT BY A GATE. The heart printed, under a CORRECT verdict:
+  //     prune.arm   42/42 refused · 0.916 < 0.839
+  // 0.916 is not less than 0.839. The sign came from `(open ? ' ≥ ' : ' < ')` — derived from the
+  // lock's STATE rather than from the two numbers beside it — and prune.arm is LOCKED for a
+  // reason that has nothing to do with its score: it clears the bar (0.916 ≥ 0.839) and is held
+  // by CONFLUENCE, its evidence being all one kind (1.00 against a kinds bar of 1.80). A right
+  // conclusion with a false number under it is the exact shape he keeps catching.
+  //
+  // This asserts the LAW over every lock the heart draws: if the panel prints "a ≥ b" then a ≥ b,
+  // and if it prints "a < b" then a < b. It does not care which locks exist or what they score.
+  const rows = await page.evaluate(async () => {
+    if (typeof window._heartOpen !== 'function') return null;
+    window._heartOpen();
+    await new Promise(r => setTimeout(r, 2500));
+    const ov = document.getElementById('heart-ov');
+    if (!ov || ov.hidden) return null;
+    return [].slice.call(ov.querySelectorAll('svg text'))
+      .map(t => (t.textContent || '').trim())
+      .filter(s => / [≥<] /.test(s));
+  });
+  if (rows == null) { record(name, true, 'the heart did not open on this view'); return; }
+  if (!rows.length) { record(name, true, 'no lock printed an inequality'); return; }
+  const bad = [];
+  for (const line of rows) {
+    const m = line.match(/([0-9]*\.?[0-9]+)\s+([≥<])\s+([0-9]*\.?[0-9]+)/);
+    if (!m) continue;
+    const a = parseFloat(m[1]), sign = m[2], b = parseFloat(m[3]);
+    const claimed = sign === '≥' ? (a >= b) : (a < b);
+    if (!claimed) bad.push(line);
+  }
+  if (bad.length) {
+    throw new Error(`the heart printed arithmetic that is not true: ${bad.join(' | ')}`);
+  }
+  record(name, true, `${rows.length} inequality line(s), all true`);
+}
+
 async function j13_overflowSaysSo(page) {
   const name = 'J13 OVERFLOW SAYS SO';
   await goHome(page);
@@ -962,7 +1001,7 @@ async function j10_headerGeometry(page) {
 }
 
   const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship, j11_receiptVerbs, j12_heartNoEcho, j13_overflowSaysSo,
-    j14_outputPanesStayBounded];
+    j14_outputPanesStayBounded, j15_heartArithmeticIsTrue];
   for (const j of journeys) {
     try {
       await j(page);

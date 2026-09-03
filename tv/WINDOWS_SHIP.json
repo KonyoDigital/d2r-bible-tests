@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2481",
+  "ver": "v2482",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2481: eight confirmed findings from the v2479 review: the free-space floor in safe_copy was inert whenever the destination parent did not exist, which is the exact shape its own docstring recounts as the disaster; --force was parsed and dropped; the fixture screened only the top level so nested footage rode along; the Chrome-profile guard read an assignment instead of the argv Chrome was given; coverage refusals were counted as render failures and could print a negative clean count; a comment could still answer for the framing law; and the ratchet was never joined to the verdict",
+  "note": "v2482: prune.arm showed 0.916 < 0.839 under a correct verdict because the sign came from the lock state instead of the two numbers beside it; it is held by confluence, not by its score. And n=0 meant two different things: a door nobody has sabotaged yet, and vault.forget, which has no refusal path at all and never will. The distinction died twice on the way to the screen, once in the status whitelist and once in the renderer.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

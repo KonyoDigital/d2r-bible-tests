@@ -122,9 +122,28 @@ LOCKS = {
         "surface": "VAULT", "acts": "mules items between characters",
         "bar": 0.722, "kinds_bar": 1.3, "after": ["vault.sweep_start"],
     },
+    # ⚠⚠ THIS ONE CAN NEVER BE PROVEN, AND THAT IS A PROPERTY OF THE DOOR, NOT A MISSING HARNESS.
+    # `vault_forget()` is seven lines, one return, always ok — it has NO refusal path, so there is
+    # no state in which it must say no and therefore nothing a sabotage could attempt. That is
+    # deliberate: its own docstring says the swept memory is an optimisation and "an optimisation
+    # he cannot clear is a cage", and the ledger it drops is rebuildable from the reels. Gating it
+    # would be exactly the button-blocking his standing ruling forbids — locks are BADGED, never
+    # enforced.
+    #
+    # So it sits at n=0 forever, and the panel used to explain that with the same sentence it uses
+    # for a door nobody has got round to testing: "no sabotage has been attempted ... That is not a
+    # failure." True, and it implies a harness is merely MISSING. Those are different facts —
+    # nobody-looked versus there-is-nothing-to-look-at — and collapsing them is the seventh shape
+    # of an unmeasured number. `unprovable` says which one this is, in the panel, out loud.
+    # [[unknown-stays-unknown]]
     "vault.forget": {
         "surface": "VAULT", "acts": "drops the ledger",
         "bar": 0.722, "kinds_bar": 1.3, "after": ["vault.sweep_start"],
+        "unprovable": ("the door has no refusal path by design — clearing a rebuildable "
+                       "optimisation is a button, and gating it would be a cage. There is no "
+                       "state in which it must refuse, so sabotage cannot produce evidence in "
+                       "either direction"),
+        "unprovable_fn": "vault_forget",
     },
     # step 1 — MINI AUTO. His ruling, 2026-09-02: "i want it not enforced... i want it BADGED...
     # my point was i want it KNOWN on the console is all", with "a logical coding to it with wilson
@@ -346,8 +365,17 @@ def score(lock, rows=None):
     if n == 0:
         out["wilson"] = None
         out["state"] = UNPROVEN
-        out["why"] = ("no sabotage has been attempted against this surface's guards, so there is "
-                      "no evidence in either direction. That is not a failure.")
+        # NOBODY LOOKED and THERE IS NOTHING TO LOOK AT are different facts. Both leave n=0 and
+        # neither is a failure, but only one of them is waiting on work.
+        if spec.get("unprovable"):
+            out["provable"] = False
+            out["why"] = ("this cannot be proven by sabotage and never will be: %s. n=0 here is "
+                          "the correct and final state, not a harness anyone still owes."
+                          % spec["unprovable"])
+        else:
+            out["provable"] = True
+            out["why"] = ("no sabotage has been attempted against this surface's guards, so there "
+                          "is no evidence in either direction. That is not a failure.")
         return out
     w = wilson_lower(k, n)
     out["wilson"] = round(w, 4)

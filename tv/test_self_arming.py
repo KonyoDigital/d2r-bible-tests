@@ -317,6 +317,125 @@ class TestBankingCannotOpenALockByBeingLookedAt(unittest.TestCase):
         self.assertEqual(SA.score("miniauto.run")["n"], 55)
 
 
+class AnUnprovableLockSaysSoAndTheClaimIsCHECKED(unittest.TestCase):
+    """⚠⚠ A LOCK THAT DECLARES ITSELF UNPROVABLE IS MAKING A CLAIM ABOUT ANOTHER FILE.
+
+    `vault.forget` sits at n=0 forever because `vault_forget()` has NO refusal path — seven lines,
+    one return, always ok — so there is no state in which it must say no and nothing a sabotage
+    could attempt. That is deliberate (its docstring: an optimisation he cannot clear is a cage),
+    and it is why the panel must not imply a harness is merely missing.
+
+    But "this door has no refusal path" is a statement about `control_app.vault_forget`, sitting in
+    a different file, and the day someone gives it one the declaration becomes a LIE that reads as
+    documentation — a right sentence under a word that stopped being true. So it is CHECKED, by
+    structure rather than by prose. [[label-outlived-referent]] [[source-reading-guard]]
+    """
+
+    def _fn(self, name):
+        import ast
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = io.open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, ast.FunctionDef) and node.name == name:
+                return node
+        return None
+
+    def test_every_unprovable_lock_names_a_function_that_really_cannot_refuse(self):
+        import ast
+        declared = [(k, v) for k, v in SA.LOCKS.items() if v.get("unprovable")]
+        self.assertTrue(declared, "no lock declares itself unprovable — has vault.forget changed?")
+        for lock, spec in declared:
+            fname = spec.get("unprovable_fn")
+            self.assertTrue(
+                fname, "%s claims it cannot be proven but names no function, so the claim cannot "
+                       "be checked and will rot silently" % lock)
+            fn = self._fn(fname)
+            self.assertTrue(fn, "%s names %s(), which no longer exists in control_app"
+                                % (lock, fname))
+            returns = [n for n in ast.walk(fn) if isinstance(n, ast.Return)]
+            raises = [n for n in ast.walk(fn) if isinstance(n, ast.Raise)]
+            self.assertEqual(
+                len(returns), 1,
+                "%s() now has %d return statements. %s is declared UNPROVABLE on the grounds that "
+                "the door has no refusal path, so a second exit means either it CAN now refuse — "
+                "in which case it is provable by sabotage and the declaration is a lie — or the "
+                "function grew a shape nobody re-checked." % (fname, len(returns), lock))
+            self.assertFalse(
+                raises,
+                "%s() can now raise, which is a refusal path by another name. %s claims it has "
+                "none." % (fname, lock))
+            # and it must not report failure through its payload either
+            for node in ast.walk(fn):
+                if isinstance(node, ast.Constant) and node.value is False:
+                    parent_keys = [k for k in ast.walk(fn) if isinstance(k, ast.Dict)]
+                    for d in parent_keys:
+                        for key, val in zip(d.keys, d.values):
+                            if (isinstance(key, ast.Constant) and key.value == "ok"
+                                    and isinstance(val, ast.Constant) and val.value is False):
+                                self.fail("%s() can return ok:False — that IS a refusal, so %s is "
+                                          "provable and must not claim otherwise" % (fname, lock))
+
+    def test_the_field_SURVIVES_the_status_trim(self):
+        """⚠ THE TRIM IS A WHITELIST, AND A NEW FIELD IS DROPPED BY DEFAULT.
+
+        `_self_arming_state()` rebuilds each lock row with a fixed set of keys "trimmed for a
+        poll". `provable` was not in it, so the report carried the distinction and the BADGE never
+        received it — measured on a freshly started console: the new `why` arrived and
+        `provable` came back None. Built on both ends and joined on neither, which is this repo's
+        most repeated defect. [[the-unjoined-end]]
+        """
+        import ast
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = io.open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        fn = None
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, ast.FunctionDef) and node.name == "_self_arming_state":
+                fn = node
+        self.assertTrue(fn, "_self_arming_state is gone — who publishes the locks now?")
+        keys = set()
+        for d in [n for n in ast.walk(fn) if isinstance(n, ast.Dict)]:
+            for k in d.keys:
+                if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                    keys.add(k.value)
+        for need in ("state", "why", "provable", "n"):
+            self.assertIn(need, keys,
+                          "the status trim drops %r, so the console cannot render it however "
+                          "correct self_arming.report() is" % need)
+
+    def test_the_RENDERER_tells_them_apart_too(self):
+        """The last joint. report() -> _self_arming_state() -> the badge; break any one and the
+        distinction dies silently at that step. It died at the third: the renderer printed
+        'untested' whenever n===0, so an unprovable door and an untested one read identically on
+        screen however correct the two layers behind them were. [[the-unjoined-end]]"""
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = io.open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn(
+            "provable === false", ui,
+            "the console's lock renderer never reads `provable`, so the field is published and "
+            "unused — plumbing with no tap, and the badge still says 'untested' for a door that "
+            "can never be sabotaged")
+
+    def test_the_panel_tells_UNTESTED_apart_from_UNPROVABLE(self):
+        """Both are n=0 and neither is a failure, but only one is waiting on work."""
+        rows = {r["lock"]: r for r in SA.report()["locks"]}
+        forget = rows.get("vault.forget")
+        self.assertTrue(forget, "vault.forget is no longer reported")
+        self.assertEqual(forget["state"], SA.UNPROVEN)
+        self.assertIs(forget.get("provable"), False,
+                      "vault.forget is reported as still-provable, so the panel is telling him a "
+                      "harness is owed for a door that can never be sabotaged")
+        self.assertIn("cannot be proven", forget["why"])
+        self.assertNotIn(
+            "no sabotage has been attempted", forget["why"],
+            "vault.forget still uses the nobody-has-tested-it sentence, which reads as a missing "
+            "harness rather than a door with no refusal path")
+        # a lock with real evidence must NOT be mislabelled
+        for name, r in rows.items():
+            if r.get("n"):
+                self.assertNotIn("provable", [k for k in r if k == "provable" and r[k] is False],
+                                 "%s has evidence and is marked unprovable" % name)
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

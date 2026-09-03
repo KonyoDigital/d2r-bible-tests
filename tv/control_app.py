@@ -15282,6 +15282,21 @@ def _self_arming_state():
                    # score is None when UNPROVEN and 0.0 when INERT — the console must be able to
                    # tell "nobody tested it" from "it was tested and never refused"
                    "score": l.get("wilson"), "bar": l.get("bar"),
+                   # ⚠ AND WHETHER n=0 IS EVEN ANSWERABLE. self_arming distinguishes a door
+                   # nobody has sabotaged yet (provable, waiting on work) from one that has no
+                   # refusal path at all and never will be (vault.forget — clearing a rebuildable
+                   # optimisation is a button, and gating it would be a cage). The trim dropped
+                   # the field, so the two arrived at the badge identical and the panel could only
+                   # say the first thing. Built on both ends, joined on neither.
+                   # [[the-unjoined-end]] [[unknown-stays-unknown]]
+                   "provable": l.get("provable"),
+                   # ⚠ AND THE CONFLUENCE, because a lock can be held by EITHER of two things and
+                   # the heart could not tell which. prune.arm scores 0.916 against a bar of
+                   # 0.839 — it CLEARS — and stays LOCKED because its evidence is all one kind
+                   # (1.0 against a kinds bar of 1.8). Without these the panel could only talk
+                   # about the score, and it printed "0.916 < 0.839", which is false arithmetic
+                   # on his screen under a correct verdict.
+                   "confluence": l.get("confluence"), "kindsBar": l.get("kindsBar"),
                    "k": l.get("k"), "n": l.get("n")} for l in locks],
     }
 
@@ -22121,7 +22136,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2481",
+        "ver": "v2482",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

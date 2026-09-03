@@ -15705,3 +15705,57 @@ recording: disabling the ancestor-climb still ended in a refusal, because the *o
 apart. The test now asserts the mechanism — `_free_mb` must return a number for a directory that
 does not exist yet — and only then went red. **A sabotage that stays green is a fact about the
 sabotage or about what the test can see, never a pass.**
+
+## v2482 — the heart printed arithmetic that was not true, and n=0 meant two different things
+
+A2 asked for the sabotage harnesses to bank so the five self-arming locks stop sitting at n=0. The
+first measurement refuted the premise: **four of the five already carry real evidence.**
+
+```
+miniauto.run       OPEN      55/55   wilson 0.935 ≥ 0.510
+vault.apply        OPEN      24/24   wilson 0.862 ≥ 0.722
+vault.sweep_start  OPEN      16/16   wilson 0.806 ≥ 0.510
+prune.arm          LOCKED    42/42   wilson 0.916 ≥ 0.839  — held by CONFLUENCE, not by score
+vault.forget       UNPROVEN   0/0    — and it can never be anything else
+```
+
+**REG-451 — the heart printed `prune.arm · 42/42 refused · 0.916 < 0.839`.** 0.916 is not less than
+0.839. The sign came from `(open ? ' ≥ ' : ' < ')` — derived from the lock's STATE rather than from
+the two numbers printed beside it — and `prune.arm` is locked for a reason that has nothing to do
+with its score: it CLEARS the bar and is held by confluence, its 42 sabotages being all one kind
+(1.00 against a kinds bar of 1.80). A correct verdict with a false number under it, on his screen,
+for as long as that lock has existed. It now compares the numbers and names the bar that is
+actually holding: `0.916 ≥ 0.839 · but one kind of look only · 1.00 of 1.80`. Guarded by **J15**,
+which asserts the law over every lock the heart draws — if the panel prints `a ≥ b` then a ≥ b —
+rather than pinning any lock's numbers.
+
+**REG-452 — `n=0` collapsed two different facts.** A door nobody has sabotaged YET is waiting on
+work. A door with NO REFUSAL PATH can never be sabotaged and is already in its final state.
+`vault_forget()` is the second kind — seven lines, one return, always ok — and deliberately so: its
+docstring says the swept memory is an optimisation and *"an optimisation he cannot clear is a
+cage"*, and the ledger it drops is rebuildable from the reels. Gating it would be exactly the
+button-blocking his standing ruling forbids. So it read `no sabotage attempted yet · needs 0.722`
+forever, indistinguishable from a harness someone still owed. It now reads **`by design · no
+refusal path to sabotage`**.
+
+⚠ **AND THE DISTINCTION DIED TWICE ON THE WAY TO THE SCREEN** — the same defect, one layer apart
+each time. `self_arming.report()` learned `provable`; `_self_arming_state()` rebuilds each row from
+a **whitelist** "trimmed for a poll" and silently dropped it, so a freshly started console showed
+the new sentence with `provable: None`. Joined, and then the renderer still printed `untested` for
+any `n === 0`, throwing the distinction away at the last step. Three layers, two unjoined ends,
+each individually correct. [[the-unjoined-end]]
+
+The claim `vault.forget cannot be sabotaged` is a statement about a function in **another file**, so
+it is CHECKED rather than asserted in prose: the guard parses `control_app.vault_forget` and fails
+if it grows a second return, a raise, or an `ok: False` — any of which would make the declaration a
+lie that reads as documentation. Both sabotages seen RED.
+
+**Measured on real pixels at 1120 and 1440**, heart open: 36 text nodes, **zero** off-edge, and the
+longer `prune.arm` string adds **no** overlap. One overlap exists at both widths and is
+PRE-EXISTING, not from this change — `_chron_autoread_loop` × `_drift_loop`, 64-66px, logged as
+REG-453 rather than left for him to find.
+
+**REG-453 — two vessel labels overlap in the heart at every width.** `_chron_autoread_loop` and
+`_drift_loop` collide by 64px at 1120 and 66px at 1440. Not fixed here: the labels are placed
+radially and the fix is a placement change, not a string change. Recorded so it is not discovered
+from his screen.
