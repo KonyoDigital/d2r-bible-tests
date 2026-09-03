@@ -538,6 +538,22 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_organ_comparability",
+         [sys.executable, os.path.join(HERE, "test_organ_comparability.py")], 180,
+         why="A3, the half that would have made the table LIE. console_doctor had no report(), so "
+             "a quarter of the organ matrix was UNKNOWN — and simply adding one nearly replaced "
+             "that honest unknown with 44 confident ABSENT cells, because the doctor names "
+             "CONCERNS ('armed migration', 'art corpus') while the surfaces are CODE OBJECTS "
+             "('_bridge_prober'), and ZERO of its 34 names resolve to any of the 44. One word was "
+             "about to be printed for three different situations and only one of them was a "
+             "measurement. These assert the law that stops it: a cell may say ABSENT only when "
+             "that organ's vocabulary actually reaches this list, report() must answer without "
+             "touching the window he is looking at (run() posts to /api/board_ownership, which "
+             "evaluates JS in his live board), and the summary must state how many organs its "
+             "verdict rests on. ⚠ The FIRST version of this suite passed the sabotage — it "
+             "iterated the organs the module had already labelled incomparable, so disabling the "
+             "label removed them from its own scope. It counts the overlap itself now; 5 "
+             "sabotages, 5 RED, each caught by its own test."),
     Gate("test_organ_matrix", [sys.executable, os.path.join(HERE, "test_organ_matrix.py")], 120,
          why="A3 — he was shown a surface x capability table that was mostly holes and said "
              "\"fix those gaps and anywhere else.. make it unified\", every surface getting the "

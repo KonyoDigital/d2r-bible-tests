@@ -57,6 +57,17 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 | **v2485** | **A1 — THE HEART CALLED A JOB "WORK OWED" THAT COULD NEVER LAND.** FLOWING was unreachable: `scored` is keyed on ORGAN ids, the lookup uses LANE names, and the two vocabularies are disjoint. Measured — score every organ 1.0 and it stays FLOWING 0; score every watcher and 11 turn at once. The row now derives whether a score could ever land. ⚠ The honest half: no lane scorer exists yet, so FLOWING is still 0 — it just stops lying about why |
 | **v2486** | **HIS OWN CI CAUGHT THREE LYING DEFAULTS, ONE IN A RATCHET.** Routine M red, swallow ratchet 74→77. A failed read of `control_ui.html` became `""`, so a lane reported "the screen does not say what it is counting" — a fault blamed on the UI. And an unparseable width was recorded as `0` **into the map `--bless` writes as the coverage FLOOR**, so it could have lowered its own ratchet. ⚠ My first diagnosis was wrong and the fix changed nothing; asking the census WHICH sites was one command |
 | **v2487** | **THE TWELVE ROUTES PROVE THEMSELVES — HIS RULING.** `tv/route_wilson.py` removes what each lane claims to have found and counts whether it noticed; 9 routes in the SAME `self_arming` table, same `score()`, same ledger, declared in `PROVES`. A valve earns permission to ACT, a route earns trust in the NUMBER IT PRINTS. **HARD MODE** (leave the evidence, break its meaning) found two real defects easy mode called perfect: `source` was `isfile()` so a **zero-byte bible.html read as healthy**, and `declared` matched an **emptied** `const ITEM_VALUE = []` and a name left in a comment. After both fixes **48/48 across 9 routes**. Plus **HARDENED**, a state above the bar (wilson ≥ 0.90 AND confluence ≥ 2.50) — nothing has reached it, and `miniauto.run` shows why: 55/55 refused, all one kind. ⚠ The harness was proven able to catch a planted always-ok lane BEFORE its score was believed, and made four instrument errors, each corrected before reporting |
+| **v2488** | **A TASK VANISHED FROM THE BOARD BECAUSE ITS TITLE CONTAINED THE SEPARATOR.** A17's title carries a `·` and the parser split on it, so the row was never derived — and a generator that promises it never prunes cannot report a row that failed to PARSE. Coverage now counts every `## AN ·` header against derived rows; that is the only check that catches a silent loss. |
+| **v2489** | **THE NINE ROUTES ARE DRAWN ON THE HEART, DERIVED — NOT LISTED.** His words: *"not draw it needs to derive / live / for real"*. The routes section reads `d.routes` at render time on the same arithmetic as the valves. |
+| **v2490** | **A TASK VANISHED AGAIN, AND THE STORYLINE WAS INVISIBLE.** `sectionOrder` 2001-5001 sorted the new pending→progress→completed storyline BELOW the existing 0-11 sections, so the structure he asked for was published and unreachable. Renumbered negative. |
+| **v2491** | **A3 — THE EMPTY TABLE WAS NOT EMPTY, IT WAS UNJOINED.** 44 surfaces × 4 organs measured. The holes are three different things: 9 MISNAMED (the organ watches it under another name), 1 organ UNKNOWN everywhere, the rest genuinely ABSENT. Reporting a MISNAMED cell as ABSENT is how the table came to look empty. |
+| **v2492** | **ARCHITECTURE: ONE CONCEPT, MANY RENDERINGS.** `tv/one_name.py` — three resolvers disagreed on 6 of 9 inputs, so the console had five local alias maps and no source. One table, every surface quotes it. |
+| **v2493** | **THE FIRST LOCAL RESOLVER RETIRES INTO `one_name`**, measured behaviour-neutral before the swap (132 cells agree, 0 differ). ⚠ Its commit ALSO published a wrong claim, corrected in v2495. |
+| **v2494** | **A NINTH RESOLVER MAY NOT APPEAR UNNOTICED.** A ratchet over 8 known `(file, name)` pairs, scanning by SHAPE rather than by a list of names. |
+| **v2495** | **I PUBLISHED A WRONG CLAIM AND A COLD REVIEW REFUSED THE INFERENCE BEHIND IT.** v2493 said A1 was *"proven NOT a naming problem"* from 0 joinable pairs. The review: *"zero joinable pairs only tells you the resolver, as currently configured, found no matches"* — and one command found `shadowWatch == tvd-shadow-watch`. **The 0 measured my own function's reach, not the world.** A1 is PARTLY a naming problem: 1 of 7. |
+| **v2496** | **A3 — THE DOCTOR ANSWERS NOW, AND THE TABLE REFUSES TO CALL AN UNMEASURED CELL A HOLE.** `console_doctor.report()` names all 34 checks in 0.000s with the network booby-trapped — it could not be a thin alias for `run()`, which posts to `/api/board_ownership` and **evaluates JavaScript in the window he is looking at**. ⚠ Three joins, not one: the matrix was missing the `check` synonym and would have silently reported an EMPTY name set; and even then ABSENT was a verdict nobody had earned, because the doctor names CONCERNS and the surfaces are CODE OBJECTS with ZERO overlap. ⚠ My first guard PASSED the sabotage — it asked the module whether the module was right. |
+| **v2497** | **A3 DONE — NINE MISNAMED CELLS WERE ONE DROPPED QUALIFIER.** `_corr()` flattened three route modules into one set of bare names and discarded which lane each came from. All 9 COVERED, and exactly those 9. ⚠ The first form joined only SIX; the three holdouts named a real split — chronicle/roster spell their routes SINGULAR, fleet PLURAL — logged as REG-470 and deliberately NOT absorbed silently in the reader. |
+| **v2498** | **A COLD REVIEW FOUND DEAD CODE INSIDE THE FIX I HAD JUST SHIPPED.** The camelCase substitution in `_shape()` inserted a `-` the next line deleted; zero inputs changed result. It also refused *"not a fuzzy match"* — `user_id` and `userid` collide — so the honest version is a measurement held as a ratchet: 3 collisions across 100 live names, all correct. One finding REFUTED with a proof. ⚠ And my own new test never ran: `cat >>` appended it below the `__main__` runner — **8 tests, 0.004 seconds, GREEN**. The clock was the tell. |
 | **v2439** | the panel said what was wrong and buried it under a number nobody can act on |
 
 ### ✅ CF-1 — CLOSED, and the premise was FALSE
@@ -126,8 +137,8 @@ in those words.
 
 ---
 
-## A20 · THE RIVER, VISIBLE — ONE STORYLINE INSIDE THEATRE/SHELF · 2026-09-02 · READY
-**Topic:** VISUAL · **Progress:** READY · not started — THE RIVER made visible, reels flowing so the eye can follow one
+## A20 · THE RIVER, VISIBLE — ONE STORYLINE INSIDE THEATRE/SHELF · 2026-09-02 · ⏸ HIBERNATING
+**Topic:** VISUAL · **Progress:** ⏸ HIBERNATION — his call, 2026-09-03: *"put it aside.. and in hibernation mode.. until every task first is done before it.. defer it regardelss what ever you recommend.. not drop for sure"*. **DEFERRED, EXPLICITLY NOT DROPPED.** Build A10 (the fish down the stream) first — it gives most of the same diagnostic power in text. **CONSEQUENCE ACCEPTED:** routing is diagnosed textually until this wakes up. Nothing about accuracy changes
 
 
 > *"the SHELF/THEATRE should be one section and tab in general just additive within one or the
@@ -181,8 +192,8 @@ Shelf/Theatre being one door is already done (v2440–v2441).
 
 ---
 
-## A18 · THE D2R MACRO — HE IS THE CALIBRATION SOURCE · 2026-09-02 · READY
-**Topic:** CAPTURE · **Progress:** READY · not started — he records his own cursor, and he is the calibration source
+## A18 · THE D2R MACRO — HE IS THE CALIBRATION SOURCE · 2026-09-02 · ⏸ HIBERNATING
+**Topic:** CAPTURE · **Progress:** ⏸ HIBERNATION — his call, 2026-09-03, same ruling as A20: aside until everything before it is done, **deferred not dropped**. **CONSEQUENCE ACCEPTED:** the hover stays manual. That is labour, not correctness — no accuracy is lost by waiting
 
 
 > *"for the hover automatic MINI with grok bot it aint gonna work, i thought of another clever
@@ -254,7 +265,7 @@ turns out of the 688 MB transcript.
 Quotes are verbatim, including the typing. They are the spec.
 
 ## A1 · SELF-PROVING GAPS, EVERYWHERE ROUND THE CONSOLE  · 2026-09-01 11:00
-**Topic:** ARCHITECTURE · **Progress:** 1/4 · v2485 made the heart stop calling unreachable work 'owed'. The lane SCORER does not exist, so FLOWING is still 0 for all 11 watched vessels. Not started: the four organs on every surface
+**Topic:** ARCHITECTURE · **Progress:** 1/3 · v2485 made the heart stop calling unreachable work 'owed'. The lane SCORER does not exist, so FLOWING is still 0 for all 11 watched vessels. ⛔ **SCOPE CUT 2026-09-03, his call — "scratch it off the list":** *the four organs on every surface* is OUT. A3 measured the ground truth — 44 surfaces, most of them internal loops like `_bridge_prober` and `_chron_autoread_loop`; four organs each is **176 wirings** for no gain. What replaces it: declare in code which surfaces can **lose data or show him a number**, wire those, and mark the rest out of scope WITH A STATED REASON, so the matrix stops being a 44-row guilt list. Denominator moved 4 → 3
 
 > *"self-proving gaps i want taken care of everywhere all round the console i want this logic and
 > its own logic coded proving itself! and if it drifts it gets flagged accoridngly and designed
@@ -305,8 +316,14 @@ have reached a human.** The console's own filtering and routing should already h
 frames through the printer, kept the 104 for extra 3D/4D processing, and pruned the worthless ones
 by template, technique and filter — alone.
 
-## A5 · THE SURFACE IS KNOWN AT CAPTURE — KEEP IT, AND PROVE IT BOTH WAYS · 2026-09-01 10:55
-**Topic:** BACKEND · **Progress:** 0/1 · not started
+## A5 · THE SURFACE IS KNOWN AT CAPTURE — KEEP IT · 2026-09-01 10:55 · HALVED 2026-09-03
+**Topic:** BACKEND · **Progress:** 0/1 · not started — **the INTAKE half only.**
+⛔ **THE REVERSE-DERIVATION HALF IS CUT** (his call, 2026-09-03: *"delete it too"*). "Prove it both
+ways" only validates data already captured, and **70% of that film is gone** — 20 reels named in the
+evidence, 6 still on disk. Building a reverse direction to re-check 6 reels is work priced for 20.
+⚠ **KEPT, and it is the part that matters:** stop throwing the surface away at intake. That is cheap
+and it stops ALL future loss. **CONSEQUENCE ACCEPTED:** the 6 surviving reels are never retro-validated.
+⚠ If he meant to cut A5 whole rather than its reverse half, say so — I took the narrower reading
 
 > *"the fact was in hand at intake, discarded, and the re-derivation needs footage that no longer
 > exists … a logic both ways reverese enginnered and agreeing would also prove to fix this.. so
@@ -316,8 +333,15 @@ Measured: 20 reels are named in the evidence and **only 6 still exist — 70% go
 is re-deriving from film that has been pruned. Two halves: stop throwing the surface away at
 intake, AND build the reverse direction so the two must AGREE. Wire it to the heart.
 
-## A6 · THE RETRO ANALYZERS NEED A GATED ACCURACY CHECKER BETWEEN THEM · 2026-08-30 16:01
-**Topic:** BACKEND · **Progress:** 0/1 · not started
+## A6 · ~~A GATED AI READER BETWEEN THE RETRO ANALYZERS~~ · RETIRED 2026-09-03
+**Topic:** BACKEND · **Progress:** ⛔ RETIRED — his call, 2026-09-03: *"scratch it off the list"*
+
+> **NOT DELETED, RETIRED WITH THE REASON**, so nobody re-derives it in three weeks. The console
+> already has `engines corroborate` adjudicating analyzer disagreement, and the third-eye seat
+> has **zero replies across 284 briefs** — an AI gate between two analyzers is a chair for
+> someone who has never sat down.
+> **CONSEQUENCE ACCEPTED:** if two analyzers disagree, the existing corroborator still flags it.
+> What is given up is a second opinion that was not arriving.
 
 > *"the retro analyzers need to be accurate and thorough with an extra AI reader if needed
 > inbetween them as a gated and accuracy checker"*
@@ -345,7 +369,38 @@ printer filters, routes and discards WITH. If a template can be removed without 
 changing, it is not wired in.
 
 ## A9 · THE 10-15% LAW — THE ENGINE THROWS THE GARBAGE OUT BY DEFAULT · 2026-09-01 19:0x
-**Topic:** BACKEND · **Progress:** in progress · the 10-15% law
+**Topic:** BACKEND · **Progress:** MEASURED 2026-09-03 · **folded into the PRINTER ZONE** with A4·A7·A8·A15 (his call: *"i want this related to the 3/4D printer it should be in the same zone. that unified printer needs to be built"*). Not a separate build — it is the printer's own acceptance test.
+
+### THE NUMBER, TAKEN 2026-09-03 — and it does not say what it looks like it says
+
+Source: `tv/retro_triage.json`, **437 reels, all fully triaged** (`full=437, partial=0`), 15,947 frames.
+
+| reading | measured | vs the 10-15% band |
+| --- | --- | --- |
+| frames that carried data | **1,029 / 15,947 = 6.45%** | **BELOW** |
+| reels worth saving | **33 / 437 = 7.55%** | **BELOW** |
+| **frames kept, counting only the 33 reels that HAVE panels** | **1,029 / 5,489 = 18.75%** | **ABOVE** |
+
+**⚠ THE AGGREGATE IS A STATEMENT ABOUT WHAT HE FILMED, NOT ABOUT THE FILTER.** 404 of 437 reels contain
+ZERO panels and they hold **65.6% of every frame** — those are gameplay reels, not stash reels, and no
+filter quality can move that number. Read against reels that actually contain panels, the pipeline sits
+at **18.75%**, just above his band, not below it. The two readings differ by 3x and both are honest;
+which one is the law is a decision, not a measurement.
+
+**⚠ A CHECK I RAN ON MY OWN INSTRUMENT, because a 3x spread invites a wrong story.** Per-reel keep-rates
+run from 0.8% to 100%, and my first bucketing printed a `100-109%` row that looked like panels exceeding
+frames — an impossible reading that would have meant the units were incommensurable. It was **my bucket
+label**, not the data: `int(100.0//10)*10` lands in a bucket named for 100-109. Verified directly —
+**zero reels have panels > frames**, and `sum(panels) == sum(kinds) == 1029` exactly. The units are
+commensurable and 6.45% stands. [[feedback-suspect-the-instrument]]
+
+**WHAT THIS DECIDES ABOUT THE PRINTER CLUSTER.** The number cannot yet distinguish *"the filter is
+working"* from *"404 reels genuinely had nothing"*. The test that CAN is the contradiction A4 was born
+from — reels claiming "examined, nothing to take" that a survey says held panels. **That is the first
+thing to build in the printer zone**, because it is the acceptance test the whole cluster is graded by.
+Until it exists, the 10-15% law is a badge; after it, it is a gate.
+
+_(previously: in progress · the 10-15% law)_
 
 > *"withing the 100% reels only 10-15% are worth saving.. the rest should by default within the
 > processing engines automaticaly filter the garbage out and leave the information reels with data
@@ -423,7 +478,7 @@ Live consequence already filed as gh #200.
 
 
 ## A14 · THE CHRONICLE COUNTER ONLY GOES UP, AND THE LEDGER IS THE PROOF · 2026-09-01 19:2x
-**Topic:** BACKEND · **Progress:** 0/1 · not started — monotonic chronicle counter
+**Topic:** BACKEND · **Progress:** 0/1 · not started — **the MONOTONIC COUNTER only** (his call, 2026-09-03: *"do whats recomendeed"*). Requirement 1 is cheap and carries almost all the safety: a chronicle count may rise and may never fall, and a drop is raised as a DEFECT rather than rendered. ⏸ **Requirements 2-4 — every ledger entry carrying its own re-verifiable proof — are DEFERRED**, being a retrofit across the whole ledger. **CONSEQUENCE ACCEPTED:** a drop is still caught the moment it happens; what is given up is re-proving one specific OLD entry later
 
 > *"i want to see ledgers proof and a counter for chronicles only going up never down they can
 > always verify proof with the ledger that way profile and data cant ever be lost!"*
