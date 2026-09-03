@@ -371,7 +371,7 @@ every reel. Any lane that processes a reel differently is either folded in or de
 as a deliberate exception with a reason.
 
 ## A8 · THE TEMPLATES LIVE **INSIDE** THE PRINTER'S FILTERING AND ROUTING · 2026-09-01 19:0x
-**Topic:** BACKEND · **Progress:** 0/1 · not started
+**Topic:** BACKEND · **Progress:** ✅ **1/1 SHIPPED v2523** — its testable form was *"if a template can be removed without the routing changing, it is not wired in"*. ⚠⚠ MEASURED, AND IT WAS THE INVERSE: `resolve_tab` named ANY tab in the marker dict, including one with **no template band at all** — handed `{'tab_marker': {'hardcore': 0.05}}` it answered `hardcore`. Nothing was wrong on this tree (geometry_signals only produces TAB_BANDS keys), but the router's correctness rested on an upstream convention it did not check. An undeclared tab is dropped WITH ITS REASON now, and A8's own test runs literally: remove the `sets` template and `sets` becomes unnameable. ⚠ One deliberate behaviour change pinned: a stray key used to make a real read AMBIGUOUS and refuse; it is dropped now and the real marker wins — two REAL tabs lit still refuse
 
 > *"the templates also need to be within the printer filtering and routing correctly and
 > discarding"*

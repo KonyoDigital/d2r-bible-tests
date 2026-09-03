@@ -492,10 +492,28 @@ def resolve_tab(sig: Dict[str, Any]) -> Tuple[Optional[str], str]:
       - the winner's own window is contaminated: a blue blob is not a diamond.
     """
     marker = sig.get("tab_marker") or {}
+    # ⚠⚠ A8 — THE TEMPLATE MUST BE THE MECHANISM, AND IT WAS NOT. This named ANY tab present in
+    # the marker dict, including one with no template band at all: handed
+    # {"tab_marker": {"hardcore": 0.05}} it answered `hardcore`, a tab TAB_BANDS has never heard
+    # of. `geometry_signals` only ever produces keys from TAB_BANDS today, so nothing was wrong on
+    # this tree — but the router's correctness rested on an upstream convention it did not check,
+    # which is the shape that breaks the day a band is renamed, a dict is merged, or an OCR
+    # artefact adds a key. His ask for A8 was that the templates be what the routing filters WITH,
+    # not a pass beside it; a tab that can be routed without a template is the opposite.
+    #
+    # ⚠ AND AN UNDECLARED TAB IS DROPPED, NOT GUESSED AT. `ledger_kind_for_tab` returns None for
+    # it, so letting it through means an unknown kind flowing onward under a real-looking name.
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _no_template = sorted(t for t in marker if t not in TAB_BANDS)
+    if _no_template:
+        marker = {t: v for t, v in marker.items() if t in TAB_BANDS}
     contaminated = [t for t, v in marker.items() if v > _TAB_MARKER_MAX]
     lit = [t for t, v in marker.items() if _TAB_MARKER_MIN <= v <= _TAB_MARKER_MAX]
 
     note = ""
+    if _no_template:
+        note = ("; marker window(s) %s have NO TEMPLATE BAND — dropped, because a tab this module "
+                "cannot describe is not a tab it may name" % _no_template)
     if contaminated:
         note = ("; marker window(s) %s CONTAMINATED (>%.2f, tooltip blue text) — excluded"
                 % (sorted(contaminated), _TAB_MARKER_MAX))

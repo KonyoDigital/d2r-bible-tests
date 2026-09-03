@@ -17204,3 +17204,38 @@ items — producing the right accusation, **THE SPY**, rather than blaming the c
 **Two settled rather than changed:** the contract permitting `list`/`tuple` is *wider than a set*
 and correctly so — the rule does `set(pool)` and needs an iterable of hashables, so requiring a set
 would refuse calls it handles fine. And `type(x).__name__` in a failure message cannot raise.
+
+## v2523 — A8: the templates were not what the routing filtered with, and the router named tabs it had no template for
+
+His ask: *"the templates also need to be within the printer filtering and routing correctly and
+discarding"*, with TASKS.md's testable form: **if a template can be removed without the routing
+changing, it is not wired in.**
+
+**REG-520 — measured, and it was the INVERSE.** `resolve_tab` named **any** tab present in the
+marker dict, including one with no template band at all:
+
+```
+resolve_tab({"tab_marker": {"hardcore": 0.05}})  ->  'hardcore'
+```
+
+`hardcore` is a tab `TAB_BANDS` has never heard of. `geometry_signals` only ever produces TAB_BANDS
+keys today, so **nothing was wrong on this tree** — the router's correctness rested on an upstream
+convention it did not check, which is the shape that breaks the day a band is renamed, a dict is
+merged, or an artefact adds a key. **A tab that can be ROUTED WITHOUT A TEMPLATE is the opposite of
+what A8 asks for.**
+
+An undeclared tab is now dropped **with its reason**, and A8's own test runs literally: remove the
+`sets` template and `sets` becomes unnameable.
+
+⚠ **ONE DELIBERATE BEHAVIOUR CHANGE, PINNED SO IT IS NOT MISTAKEN FOR A DEFECT.** A stray key used
+to count as a second lit window, so the whole read went **AMBIGUOUS and refused** — safe, and it
+threw away a legitimate answer. It is now dropped with its reason and the real marker wins. Two
+**real** tabs lit still refuse, because a Sets page tallied as Uniques writes a wrong count into
+his grail truth.
+
+⚠ **Two of my sabotages went green and both were the sabotage's fault, not the guard's** — one
+edited a line that only runs on the stray-key path, the other added a spurious note without
+changing the filter's condition. Inverting the condition is what actually breaks it, and that goes
+RED on two tests.
+
+Guard: `tv/test_template_is_the_mechanism.py`, registered (105 gates). **5 sabotages, 5 RED.**

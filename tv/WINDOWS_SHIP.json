@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2522",
+  "ver": "v2523",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2522: A cold review found the raw values were kept by reference, and a snapshot exists precisely because references change - a caller mutating after the call leaves the contract check passing while the message prints the wrong value. A repr is taken at call time now. And the sentinel check could never fire for reach or sources, because dict and tuple conversions always succeed once the contract passes - the vestigial-guard defect I removed one version earlier, reappearing. Narrowed to pool, and the review named the case that makes it reachable.",
+  "note": "v2523: The testable form of A8 is that removing a template must change the routing. Measured, it was the inverse - resolve_tab named any tab present in the marker dict including one with no template band at all, answering hardcore for a tab TAB_BANDS has never heard of. geometry_signals only produces TAB_BANDS keys today so nothing was wrong on this tree, but the router correctness rested on an upstream convention it did not check. An undeclared tab is dropped with its reason now, and removing the sets template makes sets unnameable. One deliberate behaviour change is pinned: a stray key used to make a real read ambiguous and refuse.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

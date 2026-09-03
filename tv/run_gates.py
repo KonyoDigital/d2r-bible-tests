@@ -538,6 +538,27 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_template_is_the_mechanism",
+         [sys.executable, os.path.join(HERE, "test_template_is_the_mechanism.py")], 120,
+         why="A8 — his ask was that the templates be what the routing filters WITH, not a pass "
+             "beside it, and TASKS.md gives the testable form: if a template can be removed "
+             "without the routing changing, it is not wired in. ⚠⚠ MEASURED, AND IT WAS THE "
+             "INVERSE: resolve_tab named ANY tab present in the marker dict, including one with "
+             "NO template band at all — handed {'tab_marker': {'hardcore': 0.05}} it answered "
+             "`hardcore`, a tab TAB_BANDS has never heard of. geometry_signals only produces "
+             "TAB_BANDS keys today, so nothing was wrong on this tree; the router's correctness "
+             "rested on an upstream convention it did not check, which breaks the day a band is "
+             "renamed or a dict merged. A tab that can be ROUTED WITHOUT A TEMPLATE is the "
+             "opposite of A8. These pin: an undeclared tab is never named and the refusal SAYS "
+             "it had no template; every banded tab can still be named (a filter that refuses "
+             "everything would pass the first test and be useless); removing a template makes "
+             "its tab unnameable, which is A8's own test run literally; two REAL tabs lit stay "
+             "AMBIGUOUS, because a Sets page tallied as Uniques writes a wrong count into his "
+             "grail truth; a contaminated window is still excluded; and every ledger tab has a "
+             "template, since one without would route to a kind nothing can produce. ⚠ One "
+             "deliberate behaviour change is pinned so it is not mistaken for a defect: a stray "
+             "key used to make a real read AMBIGUOUS and refuse; it is now dropped WITH ITS "
+             "REASON and the real marker wins. 5 sabotages, 5 RED."),
     Gate("test_sighting_loc_persist",
          [sys.executable, os.path.join(HERE, "test_sighting_loc_persist.py")], 120,
          why="A5 — his words: the fact was in hand at intake, discarded, and the re-derivation "
