@@ -100,6 +100,15 @@ The channel is GitHub, and it is **looped every 10 minutes leaving messages**. P
   silently disagree from that moment on.
 - **Never `git checkout <file>` while a fleet is running.** Agents write unstaged and edit via Bash,
   so there are no Edit calls to replay. Measured 2026-09-01: it destroyed a completed build.
+- **⚠ NEVER `cp -R tv/` OR `cp -R` THE REPO. Use `python3 tv/safe_copy.py <dest> [subdir]`.**
+  `tv/` carries the reel store (**5.8 GB** of his footage). On 2026-09-03 three review agents each
+  copied it to `/tmp` for a sabotage test — **20.5 GB in four minutes** onto a volume with ~9 GB
+  free. It hit ENOSPC, and then *every Bash call in the session failed before it ran*, because the
+  harness could not create its own output file: nobody could run `df`, let alone `rm`. The prompt
+  that said "work on copies under /tmp" was the defect — reasonable words, catastrophic in a repo
+  holding gigabytes of footage. `safe_copy.py` excludes `frames`, `.render_shots`, `.git` and
+  `node_modules`, refuses above 400 MB, and refuses any copy that would leave under 4 GB free.
+  Measured: `tv/` is 5,865 MB; the safe copy is **43.7 MB**.
 - **Never `pkill -f`.** It cannot tell his process from mine. Kill by port. `:17772` is his live
   console, `:9222` his Chrome, `:9223` TradingView; scratch goes on `:9224+` and `:179xx`.
 - **`timeout` is NOT installed on this Mac.** Use `perl -e 'alarm N; exec @ARGV'`.

@@ -21,6 +21,12 @@ The join snippet is in the module docstring at the bottom so Claude can land it 
 """
 import io
 import os
+# ⚠ `_crt`, not `_cr`: both of these files already bind `_cr` with a
+# function-local import further down, and a name assigned anywhere in a function
+# is local for the WHOLE function — so using `_cr` above it raised
+# UnboundLocalError and the route state kept reporting ok:False with a new
+# reason. A fix that fails like the bug it replaces is the worst kind.
+import chronicle_routes as _crt
 import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -202,9 +208,15 @@ def routes(tally=None, bible=None, probe=None, ui=None):
     injected = any(x is not None for x in (bible, probe, ui))
     _k = None if injected else _source_key()
     if _k is not None:
-        _k = (_k, tuple(sorted((k, (v or {}).get("total"))
-                               for k, v in (tally or {}).items()))
-              if isinstance(tally, dict) else None)
+        # ⚠⚠ THIS RAISED FOR EVERY REAL CALL AND THE ROSTER ROUTES READ DEAD ON HIS CONSOLE.
+        # `tally` is an ENVELOPE — 8 keys of which only 3 are lanes; `ok` is a bool, `why` None,
+        # `at` an int, `source`/`profile` str — and folding every value with `.get("total")` threw
+        # on the first scalar. Measured: roster_route_state() -> ok False, "the roster routes could
+        # not be derived ('bool' object has no attribute 'get')". fleet_routes carried the same
+        # line and was fixed in v2473; this one was not, because that fix touched the file in front
+        # of it instead of sweeping the shape. ONE builder now, quoted here and there.
+        # [[sweep-dont-ask]] [[copy-drift]]
+        _k = (_k, _crt.tally_memo_key(tally))
     if _k is not None and _MEMO["key"] == _k and _MEMO["val"] is not None:
         return _MEMO["val"]
 

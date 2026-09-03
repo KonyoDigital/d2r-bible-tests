@@ -247,6 +247,46 @@ def _callers(targets):
     return {k: sorted(v) for k, v in out.items()}
 
 
+#: Envelope fields that are NOT lanes and must not enter a memo key. `at` is a fresh timestamp on
+#: every read, so folding it in would change the key every call and the memo would never hit once.
+TALLY_ENVELOPE_SKIP = ("at",)
+
+
+def tally_memo_key(tally):
+    """A hashable fingerprint of a live tally, tolerant of EVERY value shape. -> tuple | None
+
+    ⚠ THE TALLY IS AN ENVELOPE, NOT A MAP OF LANES, and assuming otherwise took two surfaces down.
+    Measured on his console: 8 keys, of which only three are lanes —
+        runewords/sets/uniques -> {have, total}
+        ok (bool) · why (None) · at (int) · source (str) · profile (str)
+    Both fleet_routes and roster_routes folded every value with `(v or {}).get("total")` and raised
+    on the first scalar they met, so `routes()` failed for every real call and the heart printed
+    the exception where the lanes belong. fleet_routes was fixed in v2473; roster_routes was not,
+    because I fixed the file in front of me instead of sweeping the shape. The review found it.
+
+    Lanes contribute their `total`; scalars contribute themselves; anything unhashable contributes
+    its repr. A cache key is the last place a crash should come from — this one took two panels
+    down with it. `profile` is deliberately INCLUDED: main and ladder are different answers, and
+    serving one for the other is the ladder scar. [[unknown-stays-unknown]] [[sweep-dont-ask]]
+    """
+    if not isinstance(tally, dict):
+        return None
+    out = []
+    for k in sorted(tally):
+        if k in TALLY_ENVELOPE_SKIP:
+            continue
+        v = tally[k]
+        if isinstance(v, dict):
+            out.append((k, v.get("total")))
+        else:
+            try:
+                hash(v)
+                out.append((k, v))
+            except Exception:
+                out.append((k, repr(v)[:80]))
+    return tuple(out)
+
+
 def corroborate(rows):
     """-> [flag]. His sentence, made runnable: *"when 10 are the same logic obviously one isnt
     its flagged.. by corrobarator and all"*.

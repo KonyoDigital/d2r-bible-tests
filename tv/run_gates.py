@@ -279,6 +279,13 @@ GATES = [
     # v2466 — the build stamp renders whole. Needs headless Chrome; skips, never passes, without
     # it. `why` IS A KEYWORD.
     # v2469 — the probe primitives. `why` IS A KEYWORD.
+    Gate("test_safe_copy", [sys.executable, os.path.join(HERE, "test_safe_copy.py")], 120,
+         why="nothing in this repo may be copied in a way that can fill his disk. Three review\n"
+             "agents ran `cp -R tv /tmp/...` and wrote 20.5 GB in four minutes onto a volume\n"
+             "with 9 GB free; at ENOSPC every Bash call in the session failed BEFORE IT RAN,\n"
+             "so nobody could even run df or rm. Guards tv/safe_copy.py (excludes frames and\n"
+             ".render_shots, refuses above a ceiling and below a free-space floor) and the\n"
+             "render gate's Chrome profile being temporary — it had reached 1.4 GB."),
     Gate("test_render_coverage", [sys.executable, os.path.join(HERE, "test_render_coverage.py")], 120,
          why="the render gate could not notice its own COVERAGE SHRINKING. It refuses a\n"
              "zero-size element, a black capture, an unsettled page and a dropped socket —\n"

@@ -41,6 +41,8 @@ import base64
 import io
 import json
 import os
+import shutil
+import tempfile
 import subprocess
 import sys
 import time
@@ -526,6 +528,7 @@ def _say(msg):
 
 
 _CHROME_PROC = None          # set ONLY when this process spawned it — see _chrome_down
+_CHROME_PROFILE = None       # the temp profile this process made, removed with the browser
 
 
 def _chrome_down():
@@ -563,6 +566,19 @@ def _chrome_down():
         return True
     except Exception:
         return False
+    finally:
+        # ⚠ IN `finally`, AND AFTER THE KILL. A profile removed while Chrome still holds it comes
+        # straight back; one removed only on the happy path survives every crash, which is exactly
+        # how it reached 1.4 GB. Failing to remove it is never fatal to the gate's verdict — the
+        # verdict is about the page, not about housekeeping — so this swallows its own errors and
+        # says nothing rather than turning a full disk into a red render.
+        global _CHROME_PROFILE
+        _prof, _CHROME_PROFILE = _CHROME_PROFILE, None
+        if _prof and os.path.isdir(_prof) and "render_check-profile-" in os.path.basename(_prof):
+            try:
+                shutil.rmtree(_prof, ignore_errors=True)
+            except Exception:
+                pass
 
 
 try:
@@ -582,8 +598,17 @@ def _chrome_up():
         pass
     if not os.path.exists(CHROME):
         return False
-    prof = os.path.join(SHOTS, "chrome-profile")
-    os.makedirs(prof, exist_ok=True)
+    # ⚠⚠ A TEMPORARY PROFILE, NOT A PERSISTENT ONE — IT REACHED 1.4 GB AND ENOSPC'D HIS MAC.
+    # This used to be `os.path.join(SHOTS, "chrome-profile")`, which Chrome fills with caches,
+    # code cache and service-worker storage on every run and nothing ever emptied. Measured on
+    # 2026-09-03: 1,413 MB of profile beside 63 MB of the PNGs this directory exists for. The gate
+    # written to refuse a false green had become the largest disposable object in the tree, and
+    # copying `tv/` — which review agents were told to do — carried it three times over.
+    # A fresh profile per run also removes a whole class of "it passed because of state left by
+    # the last run" that this file has no other defence against. [[process-port-discipline]]
+    global _CHROME_PROFILE
+    _CHROME_PROFILE = tempfile.mkdtemp(prefix="render_check-profile-")
+    prof = _CHROME_PROFILE
     global _CHROME_PROC
     _CHROME_PROC = subprocess.Popen(
         [CHROME, "--headless=new", "--remote-debugging-port=%d" % PORT,

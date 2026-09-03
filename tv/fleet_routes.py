@@ -21,6 +21,12 @@ this whole module is what that costs. [[copy-drift]] [[the-unjoined-end]]
 """
 import io
 import os
+# ⚠ `_crt`, not `_cr`: both of these files already bind `_cr` with a
+# function-local import further down, and a name assigned anywhere in a function
+# is local for the WHOLE function — so using `_cr` above it raised
+# UnboundLocalError and the route state kept reporting ok:False with a new
+# reason. A fix that fails like the bug it replaces is the worst kind.
+import chronicle_routes as _crt
 import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -79,28 +85,14 @@ _TALLY_ENVELOPE_SKIP = ("at",)
 
 
 def _tally_key(tally):
-    """A hashable fingerprint of the tally, tolerant of every value shape. -> tuple | None
+    """Kept as a name because this module's tests and callers use it; the BODY moved.
 
-    Lanes contribute their `total`; scalars contribute themselves. Anything unhashable or exotic
-    contributes its repr, so a new field can never again raise from this line — a cache key is
-    the last place a crash should come from, and this one took the whole fleet panel down with it.
+    ⚠ It delegates rather than duplicating. roster_routes carried this same line unfixed for a
+    version because v2473 fixed the file in front of it and did not sweep the shape — the review
+    found it dead on his console. Two copies of one rule is how that happens, so there is now one
+    implementation in chronicle_routes and two quotations of it. [[copy-drift]] [[sweep-dont-ask]]
     """
-    if not isinstance(tally, dict):
-        return None
-    out = []
-    for k in sorted(tally):
-        if k in _TALLY_ENVELOPE_SKIP:
-            continue
-        v = tally[k]
-        if isinstance(v, dict):
-            out.append((k, v.get("total")))
-        else:
-            try:
-                hash(v)
-                out.append((k, v))
-            except Exception:
-                out.append((k, repr(v)[:80]))
-    return tuple(out)
+    return _crt.tally_memo_key(tally)
 
 
 def routes(tally=None):

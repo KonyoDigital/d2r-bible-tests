@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2475",
+  "ver": "v2476",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2475: Owed by me and named in TASKS.md rather than buried: the console target went 3/3 to 2/2 when the DOM changed and re-baselined silently, because two clean measurements are two clean measurements and the missing third left no trace. render_check refuses a zero-size element, a black capture, an unsettled page and a dropped socket - every way ONE reading can lie - and had no way to notice it was taking FEWER readings than before. tv/render_coverage.json is now a ratchet, the swallow census shape inverted: that one counts a defect and may only fall, this counts coverage and may only rise. A drop names the target, the width and both numbers. Blessing refuses on a partial run, so one busy afternoon cannot become the new normal, and it MERGES so a target absent from a run keeps its floor instead of vanishing. Blessed at 285 node-measurements across 9 targets and 5 widths. It stops the NEXT silent drop; it cannot recover the one that already happened.",
+  "note": "v2476: The v2472-v2473 review pass found it: roster_routes carried the identical line v2473 fixed in fleet_routes - folding every value of the tally with .get(total) when the tally is an 8-key envelope whose ok, why, at, source and profile are scalars. Measured on his live console: roster_route_state returned ok False, the roster routes could not be derived, bool object has no attribute get. Dead, in exactly the way the fleet lanes were, because v2473 fixed the file in front of it instead of sweeping the shape. There is now ONE builder in chronicle_routes quoted by both, verified identical. All three route sets on the heart derive: 3, 3, 3. Also the disk: three review agents copied tv wholesale to tmp and wrote 20.5 GB in four minutes onto a volume with 9 GB free, hit ENOSPC, and then every shell in the session died at spawn because the tool could not create its own output file. The render gate Chrome profile is now temporary and removed in a finally - it had reached 1.4 GB beside 63 MB of the PNGs the directory is for - and safe_copy.py makes that copy impossible: 5865 MB becomes 43.7 MB, refusing above a ceiling and below a free-space floor.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
