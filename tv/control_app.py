@@ -6564,7 +6564,11 @@ _KAI_TIER_RANK = {"grail": 3, "keep": 2, "border": 1}   # v1193 — see _kai_com
 
 
 _SIGHTING_LOC_CACHE = {}          # sessionId -> segments, built once per sweep
-_SIGHTING_LOC_STATS = {"asked": 0, "answered": 0, "no_segments": 0, "no_ts": 0}
+_SIGHTING_LOC_STATS = {"asked": 0, "answered": 0, "no_segments": 0, "no_ts": 0,
+                       # ⚠ DECLARED, NOT CONJURED ON FIRST USE. v2519 added this key inside a
+                       # branch, so it existed only after a lookup had reached that branch — a
+                       # reader of the stats could not tell "none yet" from "never counted".
+                       "segments_found": 0}
 
 
 def _sighting_loc(sg, _segments=None):
@@ -22265,7 +22269,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2520",
+        "ver": "v2521",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

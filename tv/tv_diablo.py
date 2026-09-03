@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2520"   # the spy could not tell its own failure from the callers, and my first fix only moved it
+VERSION = "v2521"   # A1 lane scorer is not missing work, it is missing evidence
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2520",
+  "ver": "v2521",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2520: A cold review found None meant two opposite things inside the instrument built to stop exactly that - the spy records None on conversion failure and the argument itself could legitimately be None, so the message blamed THE SPY either way. My first fix only moved the conflation: with a distinct sentinel, a census passing None made set(None) raise inside the spy and it was recorded as an instrument fault again. The spy keeps the raw value beside the snapshot now and the call is judged on the raw while the instrument is judged on the snapshot.",
+  "note": "v2521: A1 has said for several versions that FLOWING is 0 because no lane scorer exists. Measured what a scorer could honestly be built on: only 2 of 11 watcher lanes have anything published under their name. And naming is not scoring - health_engine reports shadowWatch state ok while its own line says the shadow reader is switched OFF so nothing is watching for the game. Scoring FLOWING from that would report a switched-off lane as working, on the one surface whose purpose is saying which vessels are alive. Not built deliberately; the question of whether lanes should write a heartbeat is his.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

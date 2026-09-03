@@ -17144,3 +17144,41 @@ guard reads as a live one"* — it claims a case is handled that can no longer o
 **One finding refuted:** *"`calls[0]` assumes `calls` is non-empty with no guard"* — `assertTrue(calls)`
 and `assertEqual(len(calls), 1)` both run before that line. They were outside the excerpt it was
 shown, so that is a limit of the quotation rather than of the code.
+
+## v2521 — A1's lane scorer is not missing work, it is missing EVIDENCE, and building it on organ states would lie
+
+A1 has said for several versions that FLOWING is 0 for all 11 watched vessels *"because no lane
+SCORER exists"*. Before building one, I measured what a scorer could honestly be built ON.
+
+**REG-516 — only 2 of 11 watcher lanes have anything published under their name at all:**
+
+```
+tvd-shadow-watch    watchdog(shadowWatch) · doctor(shadow watch)
+tvd-version-drift   doctor(version drift)
+the other 9         — nothing publishes anything under this name
+```
+
+**REG-517 — and NAMING IS NOT SCORING. A scorer built on organ states would have reported a
+switched-off lane as FLOWING.** `health_engine` gives `shadowWatch` **state = ok**, and its own line
+reads:
+
+> *"the shadow reader is switched OFF, so nothing is watching for the game"*
+
+**`ok` is a verdict on the CHECK, not evidence that the lane ran.** Scoring FLOWING from it would put
+a right number under a word that stopped being true, on the one surface whose whole purpose is
+saying which vessels are alive — and it would have looked like A1 finally working.
+
+⚠ **So A1's scorer is not missing work; it is missing an evidence stream.** Nothing in this console
+currently records *"this watcher lane did its job"* — only checks that a concern is fine. Ten of the
+fourteen `health_engine`/doctor rows are concerns, not lane activity, and the one that names a lane
+directly is `ok` about that lane being off.
+
+**Not built, deliberately.** The honest options are (a) give each lane a heartbeat it writes when it
+actually does work, and score from that, or (b) leave FLOWING unreachable and say so. **(a) is a
+real build with a real cost and it changes what the heart asserts; (b) is what stands today.** This
+is the same shape as A5's provenance question — a decision about what counts as evidence, put to him
+rather than resolved by whichever reading makes the surface look better.
+
+**The open question, stated once:** should each watcher lane write a heartbeat when it completes a
+pass, so FLOWING means *"this lane did work recently"* — or should FLOWING stay unreachable until
+there is something truer to score?
