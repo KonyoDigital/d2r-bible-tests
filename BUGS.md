@@ -15492,3 +15492,35 @@ against the live console, not assumed.
   paths. There is no wrong input for it to catch.
 - `prune.arm` — bar 0.839, confluence **1.8** (the highest in the table), and it waits on both vault
   locks. It guards the one door that deletes footage with no undo, and it should be the hardest.
+
+## v2469 — five probe failures in one night became one helper
+
+Every DOM probe tonight was hand-rolled, and **five of them measured something adjacent to the
+question**. None was a wrong answer about the page; each was a right answer to a question I had not
+meant to ask, and each produced a confident sentence I nearly published.
+
+1. **`body *` includes `<script>`** — twice. One probe reported a JS comment as a type-size
+   violation; another named the `D2R_BUILD` script tag as the clipped element. Measured on his
+   page: a naive walk matches **21 script nodes**.
+2. **A clip test on an INLINE box is meaningless** — inline boxes report `clientWidth 0`, so
+   `scrollWidth > clientWidth` is false however long the text is. I nearly published "this element
+   structurally cannot clip" off exactly that.
+3. **Occlusion has a direction** — sampling an element's own centre asks what covers IT. I used
+   that twice to "refute" a claim that it covered something else.
+4. **Selecting by text finds the wrong box** — a phrase search returned a 183x33 inner div while
+   the element under discussion was a 925x118 panel.
+5. **Assuming the mechanism** — I checked for a `q-*` rarity class, found ZERO, and nearly reported
+   "no item names are coloured". Measured: the class is `gp-nm`, which says nothing about rarity,
+   and it paints `rgb(199,179,119)` — D2's unique gold. **Ask what it PAINTS.**
+
+`tv/dom_probe.py` carries `__leafText` / `__clipped` / `__covers` / `__painted` with each correction,
+and every probe now prepends it instead of hand-rolling the same mistakes.
+
+⚠ **AND A SIXTH, WHICH BRIEFLY FAKED A RESULT.** My sabotage harness reported one correction as
+"STAYED GREEN" — wrong, because sabotage and restore inside one second left a **stale .pyc** that
+the next run loaded instead of the source. On this Mac the bytecode is NOT in `__pycache__`; it is
+under `~/Library/Caches/com.apple.python/<full path>`. The harness now clears it between runs.
+⚠ Re-run with the cache cleared, three of four went red and **one genuinely stayed green** — the
+assertion was `"inline" in DP.CLIPPED`, satisfied by the word appearing in a comment. Same "a word
+is not a mechanism" error as the earlier `"print" in a 700-char window` guard. It now requires the
+branch to actually read `cs.display`. All four seen RED.

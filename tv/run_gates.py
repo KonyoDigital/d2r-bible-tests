@@ -278,6 +278,15 @@ GATES = [
              "a non-folding bank would let Wilson climb on repetition alone."),
     # v2466 — the build stamp renders whole. Needs headless Chrome; skips, never passes, without
     # it. `why` IS A KEYWORD.
+    # v2469 — the probe primitives. `why` IS A KEYWORD.
+    Gate("test_dom_probe", [sys.executable, os.path.join(HERE, "test_dom_probe.py")], 120,
+         why="five DOM probes in one night measured something ADJACENT to the question and each "
+             "produced a confident sentence: `body *` returned <script> source as screen text "
+             "(twice), a clip test on an inline box can never be true because clientWidth is 0, an "
+             "occlusion test sampled the coverer's own centre instead of the target, a text search "
+             "grabbed a 183x33 inner div instead of the 925x118 panel under discussion, and a "
+             "colour check looked for a class instead of asking what the element PAINTS. This pins "
+             "each correction in the JS the probes actually inject."),
     Gate("test_build_stamp", [sys.executable, os.path.join(HERE, "test_build_stamp.py")], 240,
          why="v1691.1 capped this badge deliberately and ruled 'id + date must survive; the name is "
              "the decoration that clips'. Underneath that rule the version NAMES grew to 45 "
