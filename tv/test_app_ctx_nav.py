@@ -127,6 +127,39 @@ _NOFOLLOW = frozenset((
 ))
 
 
+def _strip_js_comments(js):
+    """JS with // and /* */ comments and string/regex literals blanked, line count preserved.
+
+    Blanked rather than removed so offsets and line numbers still line up — a guard that reports
+    the wrong line sends the next reader to the wrong place.
+    """
+    out, i, n = [], 0, len(js)
+    while i < n:
+        c = js[i]
+        two = js[i:i + 2]
+        if two == "//":
+            j = js.find("\n", i)
+            j = n if j < 0 else j
+            out.append(" " * (j - i)); i = j
+        elif two == "/*":
+            j = js.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append("".join(ch if ch == "\n" else " " for ch in js[i:j])); i = j
+        elif c in "\"'`":
+            j, q = i + 1, c
+            while j < n and js[j] != q:
+                if js[j] == "\\":
+                    j += 1
+                if js[j:j + 1] == "\n" and q != "`":
+                    break
+                j += 1
+            j = min(j + 1, n)
+            out.append("".join(ch if ch == "\n" else " " for ch in js[i:j])); i = j
+        else:
+            out.append(c); i += 1
+    return "".join(out)
+
+
 def _resolve(src, expr, hops=4):
     """Inline what the expression READS: same-file functions it calls, and vars it names.
 
@@ -137,7 +170,15 @@ def _resolve(src, expr, hops=4):
     """
     # SEARCH THE SCRIPT BODIES, NOT THE 6 MB DOCUMENT. The class literal only ever appears in JS;
     # scanning the stylesheet and 45k lines of markup for every identifier is what made this slow.
-    hay = "\n".join(src[a:b] for a, b in _script_regions(src)) or src
+    # ⚠ AND IT MUST BE CODE, NOT PROSE. The resolver was reading raw source, so an inlined value
+    # could carry comment text and regex literals with it — a real run pulled in
+    # "/* = engine */ 1` IS A CLAIM ABOUT CONTEXT..." from a comment and a `engine=1` from inside
+    # a regex literal. It happened to still fail correctly, by the arrangement of that file rather
+    # than by design, and the review named the general case: a comment saying
+    # `window.top !== window.self` would satisfy the assertion. Comments and string literals are
+    # blanked before anything is resolved, so only executable text can answer for the code.
+    # [[source-reading-guard]] [[feedback-comments-vs-code]]
+    hay = _strip_js_comments("\n".join(src[a:b] for a, b in _script_regions(src)) or src)
     seen, out = set(), expr
     for _ in range(hops):
         grew = False
@@ -246,16 +287,26 @@ class AppCtxNav(unittest.TestCase):
                         "the empty-cluster rule is gone; law 2 no longer guards anything")
 
         # every tab re-shown by name in app context
+        # ⚠ THE FIRST VERSION MATCHED ONE FORMATTING AND MISSED SIX. It required double quotes
+        # around the tab name, so `[data-tab='bosses']` — valid CSS, single-quoted — was invisible
+        # to it. Reproduced: adding `body.app-ctx .tabs .tab[data-tab='bosses']{display:inline-flex}`
+        # left the whole module GREEN while a DATA tab was re-shown by name into a container that
+        # `body.app-ctx .tabs-data{display:none}` hides — built, styled, and invisible in the
+        # console, which is the exact trap this law exists to catch.
+        # Quotes are now optional and either kind, and whitespace is tolerated throughout.
+        # ⚠ A regex over CSS will always be approximate. The behavioural half —
+        # tests/v2473_engine_driven_nav.spec.ts — asserts this on the RENDERED page, where a
+        # formatting cannot hide anything. This is the cheap early warning, not the proof.
         shown = set()
-        for m in re.finditer(r"body\.app-ctx\s+\.tabs\s+\.tab\[data-tab=\"([^\"]+)\"\]([^{]*)\{([^}]*)\}",
-                             src):
+        _TAB = r"body\.app-ctx\s+\.tabs\s+\.tab\[\s*data-tab\s*=\s*['\"]?([^'\"\]]+)['\"]?\s*\]"
+        for m in re.finditer(_TAB + r"([^{]*)\{([^}]*)\}", src):
             name, tail, body = m.group(1), m.group(2), m.group(3)
             if re.search(r"display\s*:\s*none", body):
                 continue
             if re.search(r"display\s*:\s*(inline-flex|flex|block|inline-block)", body):
                 shown.add(name)
             # a selector list: earlier names in the same rule share this body
-            for n2 in re.findall(r"body\.app-ctx\s+\.tabs\s+\.tab\[data-tab=\"([^\"]+)\"\]", tail):
+            for n2 in re.findall(_TAB, tail):
                 shown.add(n2)
         self.assertTrue(shown, "no tab is re-shown in app context — the console would be empty")
 

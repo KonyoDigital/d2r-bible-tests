@@ -76,6 +76,55 @@ class TheCorrectionsSurvive(unittest.TestCase):
                       "the inline branch no longer compares against the parent content edge, "
                       "which is the only thing that can answer for an inline box")
 
+    def test_it_reads_what_the_reader_SAW_not_the_markup(self):
+        """innerText is what a person read; innerHTML is markup and attributes they never saw.
+
+        ⚠ THE ASSERTION THAT USED TO PIN THIS COULD NOT FAIL. It grepped the source for the word
+        "innerText", which also appears in the comment explaining why innerText is used — so
+        swapping the body read to innerHTML kept every test green while the helper started
+        matching quotes against tag names, class attributes and title text. Reproduced on a copy:
+        10/10 passed with the defect live. This RUNS it against a body whose markup contains a
+        string its rendered text does not. [[source-reading-guard]]
+        """
+        import json as _json
+        import shutil as _shutil
+        import subprocess as _subprocess
+        import tempfile as _tempfile
+        node = _shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("node is not installed, so the helper could not be RUN — "
+                                    "UNKNOWN, not a pass")
+        # innerText says one thing; innerHTML hides a word in an attribute and a tag name.
+        doc = ("var document={body:{"
+               "innerText:'the mighty Fleshrender item',"
+               "textContent:'the mighty Fleshrender item',"
+               "innerHTML:'<b class=\\'markupsentinel\\' title=\\'attrsentinel\\'>"
+               "the mighty Fleshrender item</b>'}};")
+        src = (doc + "\n" + DP.prelude()
+               + "\nconsole.log(JSON.stringify([__quoted('markupsentinel'),"
+               + " __quoted('attrsentinel'), __quoted('Fleshrender')]))")
+        with _tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+            fh.write(src)
+            path = fh.name
+        try:
+            out = _subprocess.check_output([node, path], stderr=_subprocess.STDOUT, timeout=60)
+            got = _json.loads(out.decode("utf-8", "replace"))
+        finally:
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
+        self.assertFalse(
+            got[0].get("exists"),
+            "a CLASS NAME that appears only in the markup was reported as being on the page. The "
+            "helper is reading innerHTML, so it will confirm quotes the reader never saw.")
+        self.assertFalse(
+            got[1].get("exists"),
+            "an ATTRIBUTE VALUE that appears only in the markup was reported as on the page.")
+        self.assertTrue(
+            got[2].get("exists"),
+            "a word that IS in the rendered text was not found — the read is broken the other way")
+
     def test_the_clip_test_says_when_overflow_is_visible(self):
         """An element with overflow:visible wraps; it cannot clip ITSELF. Saying so is the
         difference between a measurement and a guess."""
