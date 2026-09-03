@@ -232,4 +232,13 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    # ⚠ THE RUN WITH SOMETHING TO SAY IS THE ONE THAT DIES WITHOUT THIS. This file prints ⚠ and ·
+    # in its disagreement lines — the output that matters most — and on a console that cannot
+    # encode U+26A0 the report crashes while reporting. Same scar as prune_wilson at v2472, and
+    # his gate caught it here before it ever ran on the Windows side.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     sys.exit(main(sys.argv[1:]))

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2488",
+  "ver": "v2489",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2488: the board was hand-written into the artifact AND separately into TASKS.md - two copies of one truth kept in step by memory. tv/board_sync.py derives every row from TASKS.md and git instead. Sections are STATES in the order work moves and topics group within them, state-major and topic-minor. Timestamps come from git, never from prose: 23 rows carry a measured one and 38 carry none, none invented. All 20 A-items now name their own topic and their own measured progress. Additive - 20 A-items before, 20 after, asserted.",
+  "note": "v2489: the heart now draws the nine routes from the same live report as the valves - proven by appending one row to the ledger and watching fleet.sets move 4/4 to 13/13 with no restart, then restoring it. A cold read said PROVEN read as potentially automatic without visible criteria for what refused means, which was right, so the section now states what each attempt removes and that three perfect attempts do not clear the bar. Also the gate caught board_sync printing a warning glyph without console_safe - the run with something to say is the one that dies encoding it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

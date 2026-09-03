@@ -11149,6 +11149,53 @@ body[data-origin="shadow"] #stage::after {
       + _hrtReach(d.reach)
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
       + (d.total || lk.length) + ' open</div>' + lrows + '</div>'
+      /* v2489 — THE ROUTES, DERIVED LIVE ON EVERY OPEN, LIKE EVERYTHING ELSE ON THIS PANEL.
+         His ruling: "not draw it — it needs to derive, live, for real". This reads d.routes from
+         the SAME /api/heart payload the valves come from, and that payload re-reads the proof
+         ledger on every request — measured by appending one row to tv/.self_arming.jsonl and
+         watching fleet.sets go 4/4 -> 13/13 with NO restart, then restoring it. There is no
+         module-level memo of the report and no baked snapshot anywhere in the path.
+         A valve earns permission to ACT; a route earns trust in the NUMBER IT PRINTS, so the word
+         is PROVEN/ASSERTED — chosen here, over ONE arithmetic in self_arming.py. */
+      + (function(){
+          var rr = (d.routes || []);
+          if (!rr.length) return '';
+          var h2 = '<div class="hrt-sec"><div class="hrt-h">The routes · '
+                 + (d.routesProven == null ? 0 : d.routesProven) + ' of '
+                 + (d.routesTotal == null ? rr.length : d.routesTotal)
+                 + ' proved themselves</div>'
+            /* ⚠ SAY WHAT WAS ATTEMPTED, OR THE WORD READS AS A RUBBER STAMP. A cold cross-family
+               read of this panel put it exactly: "without visible criteria for how 'refused'
+               counts are derived, the PROVEN label still reads as potentially automatic". It was
+               right — the rows carried numbers and never said refused WHAT. A score a reader
+               cannot interrogate is a badge, and this console does not do badges. */
+            + '<p class="hrt-note">Each attempt REMOVES what a lane claims to have found — the '
+            + 'artifact, the declaration, the file it names — and counts whether the lane noticed. '
+            + 'Hard mode leaves the evidence in place and breaks its MEANING instead: a source '
+            + 'emptied to zero bytes, a declaration whose body is gone, a name left only in a '
+            + 'comment. Both of those found real defects here. A route is PROVEN when the Wilson '
+            + 'lower bound on its own record clears its bar — never by hand, and a perfect run of '
+            + 'three attempts does not clear it.</p>';
+          for (var i = 0; i < rr.length; i++){
+            var r = rr[i];
+            var nn = (typeof r.n === 'number') ? r.n : null;
+            var sc = (typeof r.score === 'number') ? r.score : null;
+            var bar = Number(r.bar || 0);
+            /* n=0 must not print a number, and a score UNDER the bar is not a failure — it is too
+               few attempts to say so yet. Both are said in words. [[unknown-stays-unknown]] */
+            var arith = (!nn) ? 'nothing attempted yet'
+                      : (r.k + '/' + nn + ' refused · '
+                         + (sc === null ? '?' : sc.toFixed(3))
+                         + ((sc !== null && sc >= bar) ? ' ≥ ' : ' < ') + bar.toFixed(3));
+            h2 += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(r.lock) + '</span>'
+                + '<span class="hrt-s st-' + (r.state === 'PROVEN' ? 'FLOWING' : 'WATCHED')
+                + '">' + _hrtEsc(r.state) + '</span>'
+                + '<span class="hrt-w">' + _hrtEsc(arith)
+                + (r.state === 'PROVEN' ? '' : ' — too few attempts to say, not a fault')
+                + '</span></div>';
+          }
+          return h2 + '</div>';
+        })()
       + '<div class="hrt-sec"><div class="hrt-h">Every vessel · dark first</div>' + rows + '</div>'
       + '</div></div>';
   }
