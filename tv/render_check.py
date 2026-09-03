@@ -814,7 +814,33 @@ _PROBE = r"""(function(sel, OK_TRUNC){
          second is worth his attention, and telling them apart is what stops this becoming noise.
          [[visual-regression-detector]] */
       var top=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
-      if (top && !e.contains(top) && top!==e && !inert(top)) {
+      /* ⚠ AND AN ELEMENT SCROLLED OUT OF ITS OWN SCROLLER IS NOT COVERED — IT IS ONE SCROLL AWAY.
+         Such an element still reports a layout rect, so the sampled point lands on whatever is
+         painted there and the ancestor gets recorded as "covering" it. Measured: shortening the
+         inbox panel so its action row clears the dock pushed the remaining rows below the panel's
+         own fold, and they began reporting as covered by `tab-content` at 1120x628. Tuning the
+         panel height only moved the failure between two messages, which is how you know the
+         instrument was the thing that could not tell them apart.
+         This does NOT weaken the real check: a control under fixed furniture is caught by the
+         control-reachability rule below, which has no fixed/sticky exception on purpose. */
+      var scrolledOut=false;
+      for (var sc=e.parentElement; sc && sc!==document.body; sc=sc.parentElement){
+        var scs=getComputedStyle(sc);
+        if (!/auto|scroll/.test(scs.overflowY) && !/auto|scroll/.test(scs.overflowX)) continue;
+        if (sc.scrollHeight <= sc.clientHeight + 2 && sc.scrollWidth <= sc.clientWidth + 2) continue;
+        /* ⚠ THE SAMPLED POINT, NOT THE WHOLE RECT. The first cut exempted an element only when
+           its ENTIRE rect lay outside the scroller, and the real case is a row STRADDLING the
+           fold: its rect overlaps the visible box while its centre — the point actually probed —
+           lands past the clip, so the ancestor answers and it reads as covered. Measured: with
+           the whole-rect test the inbox still refused, naming `.ibp-row`. The question this
+           clause asks is "was the point I sampled even visible", so it must be asked about the
+           point. */
+        var sr=sc.getBoundingClientRect();
+        var px=r.left+r.width/2, py=r.top+r.height/2;
+        if (py <= sr.top || py >= sr.bottom || px <= sr.left || px >= sr.right) { scrolledOut=true; }
+        break;
+      }
+      if (!scrolledOut && top && !e.contains(top) && top!==e && !inert(top)) {
         var fixed=false;
         for (var q=top; q && q!==document.body; q=q.parentElement){
           var pos=getComputedStyle(q).position;
@@ -823,7 +849,14 @@ _PROBE = r"""(function(sel, OK_TRUNC){
         if (!fixed) {
           covered++;
           if (coveredWhat.length < 3) coveredWhat.push(
-            (top.className||top.tagName) + ' over ' + (e.getAttribute('data-vault-mule')||e.id||''));
+            /* ⚠ IT COULD NOT NAME WHAT IT FLAGGED. `e.id` is empty for most elements, so the
+               refusal read "tab-content active over " with nothing after "over" — a refusal that
+               cannot say what it is about sends the reader nowhere. Fall through id -> class ->
+               tag -> a snippet of its own text, so there is always something to look for. */
+            (top.className||top.tagName) + ' over ' +
+            (e.getAttribute('data-vault-mule') || e.id ||
+             (typeof e.className==='string' && e.className ? '.'+e.className.trim().split(/\s+/)[0] : '') ||
+             e.tagName + ' "' + String(e.textContent||'').replace(/\s+/g,' ').trim().slice(0,24) + '"'));
         }
       }
       /* ⚠ v2316 — AND THE EXCLUSION ABOVE IS EXACTLY HOW A DEAD BUTTON SHIPS. The rule "a
