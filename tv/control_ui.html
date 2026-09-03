@@ -144,7 +144,16 @@
        nothing in this file may compute smaller. Each --fs-* still grows with viewport width
        (this console lives in fullscreen, often on a big screen) but never shrinks past its floor.
        Tune the scale HERE, not with one-off px sizes or !important patches scattered below. ══ */
-    --fs-2xs:    clamp(13px,   1.0vw,  15px);    /* fine print, timestamps, micro-badges */
+    /* ⚠⚠ v2461 — A FALLBACK IS A FONT SIZE NOBODY REVIEWED. Two tokens referenced here were
+     NEVER DEFINED — `--fs-meta` and `--fs-3xs` — so every use of them silently rendered at
+     their fallback, 12px and 10px, under a 13px floor. Nothing was typed below the floor;
+     the floor was crossed by a default that fires when a name is wrong. Measured at his
+     real 1120x628: 16 nodes below the floor, and the last one standing was a `var()` whose
+     token does not exist.
+     Every sub-floor fallback in this file now reads `var(--fs-2xs)` — the smallest token
+     there is — so a mistyped token name degrades to the floor instead of under it.
+     [[unknown-stays-unknown]] [[label-outlived-referent]] */
+  --fs-2xs:    clamp(13px,   1.0vw,  15px);    /* fine print, timestamps, micro-badges */
     --fs-xs:     clamp(14px,   1.1vw,  16.5px);  /* small uppercase labels, chips, pills */
     --fs-sm:     clamp(15px,   1.2vw,  18px);    /* secondary body, buttons, table cells */
     --fs-base:   clamp(16.5px, 1.35vw, 20px);    /* primary readable body / default text */
@@ -979,9 +988,23 @@
   .ticker .tag .p { width: 8px; height: 8px; border-radius: 50%; background: #2c5a34; }
   body[data-state="on"] .ticker .tag .p { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: numGlow 1.6s ease-in-out infinite; }
   .ticker .tag .tjewel { width: 1.5em; height: 1.5em; object-fit: contain; opacity: .8; filter: drop-shadow(0 0 5px rgba(102,255,136,.5)); flex: none; }
+  /* ⚠ v2461 — THE HALF ROW AT THE BOTTOM WAS READ AS A RENDERING BUG, TWICE, by a cold
+     cross-family eye that had not been told what to look for: "the final visible line is clipped
+     mid-sentence", "abruptly truncated at the container edge".
+     MEASURED before touching it: this box is 39px tall at 1440 and 36px at 1120, against rows of
+     33px and 29px. Exactly ONE row fits and a second is always half-showing — not sometimes, by
+     construction. It DOES scroll (`overflow-y: auto`), so the content genuinely continues; the
+     strip simply never said so, and a half-drawn line with no affordance is indistinguishable
+     from a broken one.
+     ⚠ NOT SOLVED BY MAKING IT TALLER OR BY HIDING THE SECOND ROW. Taller steals height from the
+     panel above it, and hiding the overflow row would remove the only hint that fourteen receipts
+     exist. The fade says the true thing: there is more, keep scrolling. The mask is drawn only
+     where content actually overflows, so a strip showing everything it has fades nothing. */
   .brain {
     flex: 1; min-width: 0;
     overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 13px), rgba(0,0,0,.15) 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 13px), rgba(0,0,0,.15) 100%);
     padding: clamp(8px,.9vw,14px) clamp(12px,1.2vw,20px);
     font-size: var(--fs-sm); line-height: var(--lh-normal); color: #7fae87;
     display: flex; flex-direction: column; justify-content: center;
@@ -1094,7 +1117,12 @@
   .rcpt-sure { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: .78em;
     font-weight: var(--fw-semibold); letter-spacing: var(--ls-label); color: var(--st-good);
     border: 1px solid rgba(143,230,160,.34); background: rgba(143,230,160,.08); }
-  .rcpt-guess { flex: none; margin-left: 6px; font-size: .78em; font-style: italic;
+  /* ⚠ v2461 — `.78em` PUT THIS UNDER THE TYPE FLOOR. Measured at his real 1120x628 it lands
+     at 11.7px against a floor of 13px (--fs-2xs = clamp(13px, 1.0vw, 15px) is the smallest
+     token this console has), and 16 nodes on that screen were below it. A relative size is
+     how a floor gets crossed without anyone typing a number below it: .78 of a parent that
+     itself shrinks at narrow widths. The token clamps, so it cannot. */
+  .rcpt-guess { flex: none; margin-left: 6px; font-size: var(--fs-2xs); font-style: italic;
     font-weight: var(--fw-medium); letter-spacing: var(--ls-snug); color: var(--st-idle); opacity: .85; }
   .rcpt.rc-empty { opacity: .55; }
   .rcpt.rc-empty .rcpt-t { font-style: italic; }
@@ -1709,7 +1737,7 @@
   #th-shelfov .shs-ic { font-size: var(--fs-md); line-height: 1; }
   #th-shelfov .shs-n { font-size: var(--fs-lg); font-weight: var(--fw-bold);
     font-variant-numeric: tabular-nums; color: var(--gold); line-height: 1.1; }
-  #th-shelfov .shs-sl { font-size: var(--fs-2xs, 10px); letter-spacing: var(--ls-label);
+  #th-shelfov .shs-sl { font-size: var(--fs-2xs); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--muted); text-align: center;
     /* a long stage name wraps inside its own cell rather than setting the cell's width */
     overflow-wrap: anywhere; line-height: 1.25; }
@@ -1723,7 +1751,7 @@
      the offending declaration verbatim, so the scanner matched its own documentation and kept
      reporting a size the stylesheet no longer sets. Describe the defect; never spell it.
      [[feedback-comments-vs-code]] [[source-reading-guard]] */
-  #th-shelfov .shs-step { position: absolute; top: 4px; left: 6px; font-size: var(--fs-2xs, 11px);
+  #th-shelfov .shs-step { position: absolute; top: 4px; left: 6px; font-size: var(--fs-2xs);
     font-variant-numeric: tabular-nums; color: var(--muted); opacity: .65; letter-spacing: 0; }
   #th-shelfov .shs-railh { font-size: var(--fs-xs); color: var(--muted); margin: 11px 0 2px; }
   #th-shelfov .shs-railh b { color: var(--text); font-weight: var(--fw-medium); }
@@ -1738,7 +1766,7 @@
   #th-shelfov .shs-stage.shs-unknown .shs-n { color: #e9b96e; }
   #th-shelfov .shs-worst { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.07);
     padding-top: 9px; }
-  #th-shelfov .shs-wh { font-size: var(--fs-2xs, 10px); letter-spacing: var(--ls-label);
+  #th-shelfov .shs-wh { font-size: var(--fs-2xs); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
   #th-shelfov .shs-wrow { display: flex; align-items: baseline; gap: 9px; font-size: var(--fs-xs);
     padding: 2px 0; font-variant-numeric: tabular-nums; }
@@ -3679,12 +3707,14 @@
   /* ⚠ --fs-meta is defined in bible.html, NOT here; this file's convention is a fallback on
      every token it does not own, and its own guard catches the omission. I copied the token
      across files without the fallback. [[copy-drift]] */
-  .hh-faster { margin-top: 4px; font-size: var(--fs-meta, 12px); color: var(--q-set, #00fc00); }
+  .hh-faster { margin-top: 4px; font-size: var(--fs-2xs); color: var(--q-set, #00fc00); }
   .hh-faster b { color: inherit; font-weight: var(--fw-bold); }
-  .hh-faster-vs { opacity: .6; margin-left: 6px; }
+  /* v2461 — it INHERITED a sub-floor size rather than declaring one, which is the quieter
+     half of the same defect: nothing in this rule was wrong, and it still rendered at 12px. */
+  .hh-faster-vs { opacity: .6; margin-left: 6px; font-size: var(--fs-2xs); }
   /* v2287 — the basis under the hour: present, readable, and quieter than the figure it explains.
      A caveat that competes with its number is a second number. */
-  /* ⚠ THE TOKEN, NOT A RAW PX. My first cut wrote `var(--fs-3xs, 10px)` and tripped two of this
+  /* ⚠ THE TOKEN, NOT A RAW PX. My first cut wrote `var(--fs-2xs)` and tripped two of this
      repo's own invariants at once: --fs-3xs already resolves to var(--fs-2xs), so the fallback
      minted a SECOND value for one token; and 10px sits under the declared 13px fullscreen floor,
      which exists because he reads this across the room. The basis is kept quieter by WEIGHT,

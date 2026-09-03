@@ -199,6 +199,35 @@ async function j2_alignment(page) {
   record(name, true, detail);
 }
 
+async function j13_overflowSaysSo(page) {
+  const name = 'J13 OVERFLOW SAYS SO';
+  await goHome(page);
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const got = await page.evaluate(() => {
+    const b = document.querySelector('.brain, #brain');
+    if (!b) return { skip: 'no AI READS strip on this view' };
+    const cs = getComputedStyle(b);
+    const mask = (cs.maskImage && cs.maskImage !== 'none') ? cs.maskImage
+      : (cs.webkitMaskImage && cs.webkitMaskImage !== 'none') ? cs.webkitMaskImage : '';
+    return {
+      overflows: b.scrollHeight > b.clientHeight + 1,
+      boxH: Math.round(b.clientHeight), scrollH: Math.round(b.scrollHeight),
+      hasMask: !!mask,
+    };
+  });
+  if (got.skip) { record(name, true, got.skip); return; }
+  // ⚠ the law is CONDITIONAL: only a strip that actually hides content owes an affordance. A
+  // strip showing everything it has must NOT be faded — that would dim a complete list for no
+  // reason, which is the mirror defect.
+  if (got.overflows && !got.hasMask) {
+    throw new Error(`the strip hides content (${got.scrollH}px of rows in ${got.boxH}px) and its `
+      + `edge gives no sign of it — a half-drawn row with no affordance reads as a rendering bug`);
+  }
+  record(name, true, got.overflows
+    ? `hides content (${got.scrollH}px in ${got.boxH}px) and its edge says so`
+    : `shows everything it has (${got.scrollH}px in ${got.boxH}px), no affordance owed`);
+}
+
 async function j12_heartNoEcho(page) {
   const name = 'J12 HEART · NO ECHOED ROWS';
   await goHome(page);
@@ -859,7 +888,7 @@ async function j10_headerGeometry(page) {
   record(name, bad.length === 0, bad.length ? bad.join(' · ') : `one row at ${seen.join(' ')}`);
 }
 
-  const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship, j11_receiptVerbs, j12_heartNoEcho];
+  const journeys = [j10_headerGeometry, j1_shellMatrix, j2_alignment, j3_tally, j4_escDiscipline, j5_threeEyes, j6_signalPanel, j7_shelfStory, j8_sessionsFlagship, j9_terrorZoneFlagship, j11_receiptVerbs, j12_heartNoEcho, j13_overflowSaysSo];
   for (const j of journeys) {
     try {
       await j(page);

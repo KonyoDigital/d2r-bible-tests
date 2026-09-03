@@ -218,6 +218,15 @@ GATES = [
              "board_mask looked the same on the wire. This holds that a missing mask names "
              "WHICH link gave up, and that a failure dict is never what `if m:` would keep."),
     # v2460 — the two ends of the mask wire. `why` IS A KEYWORD.
+    # v2461 — the type floor, at the TOKEN level. `why` IS A KEYWORD.
+    Gate("test_type_floor", [sys.executable, os.path.join(HERE, "test_type_floor.py")], 120,
+         why="16 nodes rendered below the 13px floor at his real 1120x628 and NOTHING in the "
+             "stylesheet was typed below it. Two font tokens were referenced and never defined, so "
+             "every use silently rendered at its fallback — 12px and 10px — and an audit for small "
+             "numbers would have found nothing. A fallback is a font size nobody reviewed. Pins two "
+             "rules: no fallback below the floor, and no BARE reference to an undefined token "
+             "(which makes the declaration invalid, so the element inherits and the size an author "
+             "wrote has no effect)."),
     Gate("test_ledger_parity", [sys.executable, os.path.join(HERE, "test_ledger_parity.py")], 120,
          why="the console has published 'every ledger this machine can build' since v2329 and the "
              "worker receiving those masks stored exactly one of them, so a uniques mask would be "

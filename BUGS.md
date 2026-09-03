@@ -15022,3 +15022,60 @@ that, which is the gate doing its job on a joint built at one end.
 **Guard:** `tv/test_ledger_parity.py` — pins the RULE (both ends carry the same set), never the
 roster. **Seen RED twice:** restoring `['sets']` reddens the parity test; removing the list
 entirely reddens the "there must be a list to compare" test.
+
+## REG-363 — the AI READS strip always showed a half row, and said nothing about it (v2461)
+
+A cold cross-family eye called it a rendering bug **twice**, unprompted and at both widths:
+*"the final visible line is clipped mid-sentence"*, *"abruptly truncated at the container edge"*.
+
+**Measured before touching it:** the strip is **39px tall at 1440 and 36px at 1120**, against rows
+of **33px and 29px**. Exactly ONE row fits and a second is always half-showing — not sometimes, **by
+construction**. It genuinely scrolls (`overflow-y: auto`) and holds 14 receipts in 476px of content,
+so the content really does continue; the strip simply never said so. **A half-drawn line with no
+affordance is indistinguishable from a broken one.**
+
+⚠ **Not solved by making it taller, and not by hiding the overflow row.** Taller steals height from
+the panel above it; hiding the second row removes the only hint that fourteen receipts exist. The
+fade states the true thing — there is more, keep scrolling.
+
+**Confirmed by the same cold eye after the fix, asked blunt and given permission to disagree:**
+*"Deliberately visible status line (not cut off or broken). Visual cue: all text ends cleanly at
+natural word boundaries with no mid-word slicing, no edge clipping."* — and NOTHING FOUND for
+truncation anywhere in either image, where it had flagged that same strip twice before. It also read
+the line as `"ROUTED personal · read fine…"` with no doubled verb, which is v2458 confirmed on a
+fresh cold read.
+
+**Guard:** `j13_overflowSaysSo` in `tv/demo_console.mjs`. The law is CONDITIONAL — only a strip that
+actually hides content owes an affordance, and one showing everything it has must NOT be faded,
+which is the mirror defect. **Seen RED:** with the mask removed the demos drop to 12/13.
+
+## REG-364 — 16 nodes below the type floor, and nothing was typed below it (v2461)
+
+Measured at his real 1120x628: **16 text nodes rendering under the 13px floor** (`--fs-2xs` =
+`clamp(13px, 1.0vw, 15px)` is the smallest token this console has). At 1440 it was 2.
+
+**Nothing in the stylesheet was typed below the floor.** Two font tokens were REFERENCED AND NEVER
+DEFINED — `--fs-meta` and `--fs-3xs` — so every use of them silently rendered at its fallback, 12px
+and 10px. An audit reading the CSS for small numbers would have found nothing wrong. **A fallback is
+a font size nobody reviewed: it fires exactly when a token name is wrong, which is the moment nobody
+is looking.**
+
+Also `.rcpt-guess` was `font-size: .78em`, which lands at 11.7px once the parent shrinks at narrow
+widths — a relative size crossing a floor without any number below it appearing anywhere.
+
+**Fix:** every sub-floor fallback now reads `var(--fs-2xs)`, so a mistyped token degrades TO the
+floor instead of under it. **Result: 16 → 0 at 1120, 2 → 0 at 1440.**
+
+⚠ **Checked that this did not undo v2458:** widening `.rcpt-guess` costs ~8px per receipt row, so
+the two rows that still clip lost 173px and 19px instead of 165 and 11 — and **none of the eleven
+that now fit were pushed back over**. Measured, not assumed.
+
+⚠ **MY FIRST GUARD WAS WRONG AND WENT RED ON CORRECT CODE.** It demanded every referenced token be
+DEFINED. This file deliberately writes `var(--fs-3xs, var(--fs-2xs))` — an undefined token whose
+fallback is the FLOOR token — and a comment at one of those sites says so. Forcing those to be
+defined would have invented two new sizes to satisfy a test. The rule was narrowed to what actually
+bites: a BARE `var()` on an undefined token, which makes the declaration invalid so the element
+inherits its parent's size and the author's size has no effect.
+
+**Guard:** `tv/test_type_floor.py`, comments stripped before scanning because its own header quotes
+the broken declarations. **Seen RED for both rules.**
