@@ -17239,3 +17239,32 @@ changing the filter's condition. Inverting the condition is what actually breaks
 RED on two tests.
 
 Guard: `tv/test_template_is_the_mechanism.py`, registered (105 gates). **5 sabotages, 5 RED.**
+
+## v2524 — the diagnostic could crash while describing the defect, and the fourth round on one instrument
+
+**REG-521 — `repr()` itself can raise, and then the failure message crashed instead of printing.**
+A broken `__repr__` on any element meant the `rawRepr` key was never written, so a later message
+indexing it raised **KeyError** — *"turning the original diagnostic into a secondary crash."*
+**Every part of an instrument must survive the thing it is describing.** `_describe()` now returns
+`<repr() raised X>` rather than propagating.
+
+**REG-522 — the message read the type off the LIVE reference**, while `rawRepr` exists precisely
+because live references change — so it could quote a type that was not the one passed. The type name
+is captured **at call time**, beside the repr. And truncation now keeps **head and tail**, because a
+cut at 120 chars hides the telling element *"exactly when the message is trying to tell the reader
+what the bad argument was."*
+
+**One finding refuted:** a later `assertIsInstance` cannot pass on `_UNSNAPPABLE` — the contract
+check reads `_raw`, the live argument, which is never the sentinel.
+
+⚠⚠ **AN HONEST LIMIT ON MY OWN PROOF.** I could not construct a sabotage that **isolates** the
+defensive repr end to end: putting an object with a broken `__repr__` into the pool also breaks
+`sorted()` inside the rule, so the guarded and unguarded runs both crash for that other reason.
+`_describe` is proven by **direct call** — a broken `__repr__` returns a string, a long value keeps
+head and tail. The end-to-end sabotage is **not available**, and I am recording that rather than
+reporting one that did not isolate what it claimed.
+
+⚠ **This is the fourth consecutive version spent on this one test spy.** Each round found a real
+defect and each was found by the cold eye rather than by me — but the instrument has now cost more
+versions than the rule it watches, and that is worth saying plainly rather than letting it continue
+by momentum.

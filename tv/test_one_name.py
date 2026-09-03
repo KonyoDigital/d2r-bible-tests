@@ -423,6 +423,15 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                 # to snapshot' from 'the code under test passed None'", and the message blamed THE
                 # SPY either way, misattributing a real defect to the instrument. Two meanings on
                 # one value, in the fix written to stop exactly that. [[unknown-stays-unknown]]
+                def _describe(x):
+                    """repr at call time, head AND tail — a truncation that hides the telling
+                    element is the message failing at the one moment it is needed."""
+                    try:
+                        r = repr(x)
+                    except Exception as e:
+                        return "<repr() raised %s>" % type(e).__name__
+                    return r if len(r) <= 160 else (r[:100] + " …snip… " + r[-56:])
+
                 def _snap(fn, x):
                     try:
                         return fn(x)
@@ -442,8 +451,19 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                               # `_orphan_names(pool, ...); pool.clear()` leaves the contract check
                               # passing (a list is still a list) while the failure message prints
                               # `pool=[]` — the wrong value, in the sentence a reader trusts most.
-                              "rawRepr": {"pool": repr(pool)[:120], "reach": repr(reach)[:120],
-                                          "sources": repr(sources)[:120]},
+                              # ⚠⚠ repr() ITSELF CAN RAISE — a broken __repr__ on any element —
+                              # and then the key was never written, so the later failure message
+                              # indexing rawRepr raised KeyError and the DIAGNOSTIC became a
+                              # secondary crash. Fourth round of the same class in this one spy:
+                              # every part of an instrument must survive the thing it is
+                              # describing. The type name is captured HERE too, because rawRepr
+                              # exists precisely because the live reference can change — reading
+                              # the type off it later would quote a type that was not the one
+                              # passed. [[feedback-suspect-the-instrument]]
+                              "rawRepr": {k: _describe(v) for k, v in
+                                          (("pool", pool), ("reach", reach), ("sources", sources))},
+                              "rawType": {k: type(v).__name__ for k, v in
+                                          (("pool", pool), ("reach", reach), ("sources", sources))},
                               "raw": {"pool": pool, "reach": reach, "sources": sources}})
                 return ["sentinel-orphan"]
             globals()["_orphan_names"] = _spy
@@ -503,7 +523,7 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             "THE SPY could not snapshot `pool` even though the call passed a %s (%s). That is a "
             "failure of this instrument — the likely cause is unhashable items, and reported as "
             "anything else it would read as the code under test being wrong."
-            % (type(_raw["pool"]).__name__, got["rawRepr"]["pool"]))
+            % (got["rawType"]["pool"], got["rawRepr"]["pool"]))
         self.assertEqual(
             set(got["sources"]), set(SOURCES),
             "the rule was called with %r instead of the declared SOURCES. Called with the wrong "

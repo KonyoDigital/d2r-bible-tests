@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2523",
+  "ver": "v2524",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2523: The testable form of A8 is that removing a template must change the routing. Measured, it was the inverse - resolve_tab named any tab present in the marker dict including one with no template band at all, answering hardcore for a tab TAB_BANDS has never heard of. geometry_signals only produces TAB_BANDS keys today so nothing was wrong on this tree, but the router correctness rested on an upstream convention it did not check. An undeclared tab is dropped with its reason now, and removing the sets template makes sets unnameable. One deliberate behaviour change is pinned: a stray key used to make a real read ambiguous and refuse.",
+  "note": "v2524: repr itself can raise on a broken __repr__, and then the rawRepr key was never written so the later failure message raised KeyError - the diagnostic became a secondary crash. Every part of an instrument must survive the thing it is describing. The message also read the type off the live reference while rawRepr exists precisely because references change. Both captured at call time now, with head-and-tail truncation. I could not isolate the defensive repr end to end and say so rather than reporting a sabotage that did not isolate what it claimed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

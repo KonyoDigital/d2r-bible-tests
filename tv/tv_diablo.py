@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2523"   # A8 - the templates were not what the routing filtered with
+VERSION = "v2524"   # the diagnostic could crash while describing the defect, and the fourth round on one instrument
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
