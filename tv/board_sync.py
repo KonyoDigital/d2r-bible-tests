@@ -71,8 +71,36 @@ def _git_ships():
     return ships
 
 
-def _classify(status_text):
-    """A TASKS.md status word -> which part of the story it belongs to. -> str"""
+def _classify(status_text, progress=None):
+    """Where a task sits in the story. -> str
+
+    ⚠⚠ THE PROGRESS OUTRANKS THE HEADER WORD, AND THE FIRST CUT IGNORED IT. A task's `##` header
+    carries a status like READY, which describes whether it MAY be started — not whether it HAS
+    been. So A1 (1/4 done), A2 (3/4 done), A9, A11, A13 and A17 all filed as PENDING while their
+    own Progress line said otherwise, and the board showed an empty IN PROGRESS column beside six
+    items that were visibly moving. A row that says "3/4" and sits under "nothing started" is
+    telling the reader two different things, and the wrong one is louder.
+
+    So: read the PROGRESS first, and only fall back to the header word when the progress line says
+    nothing. A fraction like 0/1 is explicitly NOT progress — it is the honest form of not-started.
+    """
+    prog = (progress or "").strip()
+    if prog:
+        up = prog.upper()
+        m = re.match(r"^\s*(\d+)\s*/\s*(\d+)", prog)
+        if m:
+            done, total = int(m.group(1)), int(m.group(2))
+            if done >= total > 0:
+                return "done"
+            if done > 0:
+                return "progress"
+            # 0/N is not-started, said honestly — fall through to the header word
+        elif "IN PROGRESS" in up or up.startswith("MEASURED") or up.startswith("PROVEN"):
+            return "progress"
+        elif "SHIPPED" in up or up.startswith("✅"):
+            return "done"
+        elif "BLOCKED" in up:
+            return "blocked"
     s = (status_text or "").upper()
     if "SHIPPED" in s or s.startswith("✅"):
         return "done"
@@ -143,12 +171,31 @@ def parse_tasks(text):
     topics = _topics_by_offset(text)
 
     # 1 — the A-list:  ## A20 · TITLE · 2026-09-02 · READY
-    for m in re.finditer(r"^##\s+(A\d+[^\n·]*)·\s*([^\n·]+?)\s*·\s*([^\n·]*?)\s*"
-                         r"(?:·\s*([A-Z ]+))?\s*$", text, re.M):
-        ident, title, when, status = m.group(1).strip(), m.group(2).strip(), \
-            m.group(3).strip(), (m.group(4) or "").strip()
+    # ⚠⚠ THE TITLE MAY CONTAIN THE SEPARATOR, AND A17 PROVED IT BY VANISHING. Its heading is
+    # "## A17 · THE TV·D CONSOLE NEEDS AN EDITORIAL REDESIGN · 2026-09-01 20:0x" — the "·" inside
+    # TV·D is the same character this splits on, so the pattern failed to match and the task was
+    # not merely mis-filed, it was ABSENT from the board with nothing saying so. A parser that
+    # silently loses a row is indistinguishable from the pruning he has already caught once.
+    # Split from the RIGHT on the trailing date/status instead, so the title keeps whatever it
+    # contains. The coverage check below is the real guard: it counts headers against rows.
+    for m in re.finditer(r"^##\s+(A\d+)\s*·\s*(.+?)\s*$", text, re.M):
+        ident = m.group(1).strip()
+        rest = m.group(2).strip()
+        # trailing "· STATUS" and "· date" are peeled from the RIGHT; the rest is the title
+        status = ""
+        mstat = re.search(r"·\s*([A-Z][A-Z ]{2,})\s*$", rest)
+        if mstat:
+            status = mstat.group(1).strip()
+            rest = rest[:mstat.start()].rstrip()
+        when = ""
+        mwhen = re.search(r"·\s*(\d{4}-\d{2}-\d{2}[^·]*)$", rest)
+        if mwhen:
+            when = mwhen.group(1).strip()
+            rest = rest[:mwhen.start()].rstrip()
+        title = rest
         rows.append({"id": ident, "what": title, "asked": when,
-                     "state": _classify(status), "src": "TASKS.md A-list",
+                     "state": _classify(status, _tagged(text, m.start())[1]),
+                     "src": "TASKS.md A-list",
                      "topic": (_tagged(text, m.start())[0] or _topic_at(topics, m.start())),
                      "progress": _tagged(text, m.start())[1],
                      "status": status or "pending"})
@@ -170,12 +217,29 @@ def parse_tasks(text):
     return rows
 
 
+def coverage(text, rows):
+    """Every `## AN ·` header in the file must reach a row. -> (missing, total)
+
+    ⚠ THIS IS THE ONE THAT MATTERS. The generator promises it never prunes — but a row that fails
+    to PARSE was never a row, so it cannot be reported as orphaned and simply is not there. A17
+    was absent for exactly that reason and nothing said so. Counting headers against derived rows
+    is the only check that catches a silent loss. [[unknown-stays-unknown]]
+    """
+    heads = set(re.findall(r"^##\s+(A\d+)\s*·", text, re.M))
+    got = {r["id"] for r in rows}
+    return sorted(heads - got), len(heads)
+
+
 def build():
     """-> (rows_for_board, notes). Every timestamp measured, never typed."""
     text = io.open(TASKS, encoding="utf-8").read()
     ships = _git_ships()
     rows = parse_tasks(text)
     notes = []
+    missing, total_heads = coverage(text, rows)
+    if missing:
+        notes.append("⚠ %d of %d A-headers produced NO ROW and would be invisible: %s"
+                     % (len(missing), total_heads, ", ".join(missing)))
 
     seen = {}
     for r in rows:

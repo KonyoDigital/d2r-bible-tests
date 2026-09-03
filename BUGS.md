@@ -16017,3 +16017,34 @@ removed.**
 ⚠ **IT NEVER PRUNES.** The generator emits adds and updates only. Anything on the board it did not
 derive is reported as ORPHANED, never deleted — a parser that silently drops a row looks exactly
 like the pruning he has already caught once.
+
+## v2490 — a task vanished from the board because its title contained the separator
+
+**REG-462 — the A-list parser split on `·`, and A17's title contains one.** Its heading is
+`## A17 · THE TV·D CONSOLE NEEDS AN EDITORIAL REDESIGN · 2026-09-01 20:0x` — the `·` inside
+**TV·D** is the same character the pattern splits on, so the match failed and A17 was not
+mis-filed, it was **absent from the board with nothing saying so**. Found by reading the derived
+rows and noticing an item I knew existed was not among them.
+
+That is the exact failure the generator promises it cannot have. It reports ORPHANED rows — ones on
+the board it did not derive — but **a row that never parsed was never a row**, so it cannot be
+orphaned and simply is not there. A parser that silently loses a task is indistinguishable from the
+pruning he has already caught once.
+
+Two fixes, and the second is the one that matters:
+- the title now keeps whatever it contains; the trailing date and status are peeled from the RIGHT
+- **`coverage()` counts every `## AN ·` header in the file against the rows derived**, and names any
+  that produced none. Seen RED with the original regex restored: *"1 of 20 A-headers produced NO ROW
+  and would be invisible: A17"*.
+
+**REG-463 — six moving tasks filed as PENDING because the classifier read the header word.** A
+heading says `READY`, which describes whether a task MAY be started, not whether it HAS been. So A1
+(1/4 done), A2 (3/4), A9, A11, A13 and A17 all sat under "nothing started" while their own Progress
+lines said otherwise, and the board showed an empty IN PROGRESS column beside six items visibly
+moving. Progress now outranks the header word — and `0/N` is explicitly NOT progress, it is the
+honest form of not-started.
+
+⚠ **THE FIRST RED PROOF WENT GREEN AND IT WAS THE SABOTAGE'S FAULT.** My replacement pattern still
+matched A17, merely truncating its title, so it never reproduced the loss. Re-run with the ACTUAL
+original regex it went red immediately. A sabotage that does not reproduce the defect proves nothing
+about the guard — the sixth time this session that the instrument, not the subject, was the problem.
