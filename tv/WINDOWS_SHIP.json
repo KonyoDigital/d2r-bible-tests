@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2459",
+  "ver": "v2460",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2459: The heart printed one explanation eleven times under WATCHED and another eight times under DARK, while the one fact that differs per row was never shown at all. The shared sentence is said once as the group header and each watched vessel now names its own watcher. A dark vessel has no watcher by definition, so its row says nothing the chip beside it has not already said.",
+  "note": "v2460: The console has published every ledger it can build since v2329 and the worker receiving those masks stored exactly one of them, so a uniques mask would have been discarded on arrival and the uniques cross-reference could never have worked end to end. Grok measured the board side and I confirmed it from the live record and both of us were looking at the wrong end. The worker now iterates a declared allow-list, and the reason a ledger was omitted is stored instead of vanishing.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -14994,3 +14994,31 @@ Re-measured at that exact viewport: no PRODUCTIVITY element is cut. What IS cut 
 feed's own last row, hanging 3px past the viewport bottom (`.rcpt-t` / `.rcpt-guess` / `.rcpt-arrow`
 at y606-631 against a 628px viewport). A sliver, and a different element than the board recorded.
 Left open and correctly described rather than closed on a claim that no longer measures true.
+
+## REG-362 — the worker stored ONE ledger, so a uniques mask would die on arrival (v2460)
+
+**This is the other half of REG-357, and it is the half both of us missed.** Grok measured that no
+machine has ever published a uniques mask; I confirmed it from the live fleet record. We were both
+looking at the BOARD. `functions/api/console.js` held:
+
+```js
+const sets = one(m.sets);
+return sets ? { sets: sets } : null;
+```
+
+The validator directly above it is already ledger-agnostic, and `_masks_for_wire()` has said *"every
+ledger this machine can build, not a hardcoded one"* since v2329. **One end was generalised and the
+other was left naming a single ledger, and nothing compared them** — so even a board that published
+a perfect uniques mask would have had it discarded by the server, and every surface downstream would
+correctly report "we have not heard one".
+
+**Fix:** the worker iterates a declared `LEDGERS` allow-list. It stays an allow-list — a client
+cannot invent ledgers — it is simply no longer one entry long.
+
+**Also joined:** `maskWhy` (Grok's N-3 producer — *which link gave up* for an omitted ledger) was
+POSTed by the console and stored by nothing. The reachability gate refused the push for exactly
+that, which is the gate doing its job on a joint built at one end.
+
+**Guard:** `tv/test_ledger_parity.py` — pins the RULE (both ends carry the same set), never the
+roster. **Seen RED twice:** restoring `['sets']` reddens the parity test; removing the list
+entirely reddens the "there must be a list to compare" test.

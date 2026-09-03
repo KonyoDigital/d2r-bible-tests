@@ -235,9 +235,38 @@ export async function onRequestPost(context) {
         if (Number.isInteger(have) && have >= 0 && have <= n) out.have = have;
         return out;
       };
-      const sets = one(m.sets);
-      return sets ? { sets: sets } : null;
+      /* ⚠⚠ v2460 — THIS STORED ONLY `sets`, AND THAT IS THE OTHER HALF OF REG-357.
+         Grok measured that no machine on the fleet has ever published a uniques mask and I
+         confirmed it from the live record. Both of us were looking at the board. THIS LINE would
+         have thrown a uniques mask away on arrival even if a board had published one — the
+         validator above is already ledger-agnostic and the caller (`_masks_for_wire`) has said
+         "every ledger this machine can build, not a hardcoded one" since v2329. One end was
+         generalised and the other was left naming a single ledger, so the uniques cross-reference
+         could never have worked end to end no matter what the boards did.
+         The allow-list stays an allow-list — a client cannot invent ledgers — it is just no
+         longer one entry long. [[the-unjoined-end]] [[copy-drift]] */
+      const LEDGERS = ['sets', 'uniques'];
+      const out = {};
+      for (const k of LEDGERS) {
+        const v = one(m[k]);
+        if (v) out[k] = v;
+      }
+      return Object.keys(out).length ? out : null;
     })(body.masks),
+    /* N-3 (Grok) — WHICH LINK GAVE UP, for a ledger that was omitted. He built the producer in
+       control_app and nothing here stored it, so it vanished on arrival and every surface
+       downstream stayed silent however correct the console was. The reachability gate refused the
+       push for exactly this, which is the gate doing its job on a joint built at one end.
+       Values are short strings the console writes about ITSELF — never an item name. */
+    maskWhy: (function (w) {
+      if (!w || typeof w !== 'object') return null;
+      const out = {};
+      for (const k of ['sets', 'uniques']) {
+        const v = w[k];
+        if (typeof v === 'string' && v) out[k] = v.slice(0, 160);
+      }
+      return Object.keys(out).length ? out : null;
+    })(body.maskWhy),
     ip: request.headers.get('CF-Connecting-IP') || '',
     country: cf.country || '',
     city: cf.city || '',

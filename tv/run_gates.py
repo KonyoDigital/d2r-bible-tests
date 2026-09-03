@@ -217,6 +217,14 @@ GATES = [
          why="no machine on the fleet has ever published a uniques mask, and every None from "
              "board_mask looked the same on the wire. This holds that a missing mask names "
              "WHICH link gave up, and that a failure dict is never what `if m:` would keep."),
+    # v2460 — the two ends of the mask wire. `why` IS A KEYWORD.
+    Gate("test_ledger_parity", [sys.executable, os.path.join(HERE, "test_ledger_parity.py")], 120,
+         why="the console has published 'every ledger this machine can build' since v2329 and the "
+             "worker receiving those masks stored exactly one of them, so a uniques mask would be "
+             "discarded on arrival and the uniques cross-reference could never work end to end. "
+             "Grok measured the board side, I confirmed it from the live record, and BOTH of us "
+             "were looking at the wrong end. This pins the rule that the two ends carry the same "
+             "set — never the roster, so adding a third ledger stays legal."),
     Gate("test_roster_routes", [sys.executable, os.path.join(HERE, "test_roster_routes.py")], 180,
          why="a roster reaches a screen through declared -> getter -> probe -> wire -> unit, and "
              "nothing compared those chains to each other. On its first run against this tree it "
