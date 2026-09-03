@@ -102,10 +102,19 @@ def _source_key():
         # ⚠ BIBLE GETS ITS OWN SLOT — see the note in chronicle_routes._source_key. `max` is a
         # lossy digest and cannot tell a bible.html change from no change whenever another source
         # carries a newer mtime, and bible.html is where the counts come from since v2484.
+        # ⚠⚠ A FAILED STAT MAY NOT BECOME A READING. This said `_bib = 0` on any failure, and
+        # 0 is indistinguishable from a real mtime — so an unreadable bible.html would produce a
+        # STABLE key, which is precisely the staleness this slot was added to prevent: the rows
+        # would cache forever against a file nobody could read. His swallow ratchet caught it
+        # within the hour (baseline 74 -> 77, three new sites, one per route module) and it was
+        # right. Unkeyable means NOT CACHED, which is slow and never wrong — the same answer the
+        # outer handler already gives. [[unknown-stays-unknown]]
         try:
-            _bib = round(os.path.getmtime(BIBLE), 3) if os.path.isfile(BIBLE) else 0
+            if not os.path.isfile(BIBLE):
+                return None
+            _bib = round(os.path.getmtime(BIBLE), 3)
         except Exception:
-            _bib = 0
+            return None
         return (len(stamps), round(max(stamps), 3) if stamps else 0, _bib)
     except Exception:
         return None                     # unkeyable -> never cached, which is slow and never wrong
@@ -166,7 +175,11 @@ def routes(tally=None):
         ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8",
                      errors="replace").read()
     except Exception:
-        ui = ""
+        # ⚠ NOT "". An unreadable control_ui.html made every `unit` search miss, so the lane
+        # reported "the screen does not say what it is counting" — a fault blamed on the UI when
+        # the truth is we could not open the file. None keeps the two apart and the link renders
+        # UNKNOWN, which the badge already draws as "?". [[unknown-stays-unknown]]
+        ui = None
 
     out = []
     for key, getter, wirekey in LANES:
@@ -186,7 +199,7 @@ def routes(tally=None):
             p = (tally or {}).get(key)
             tot = bool(isinstance(p, dict) and isinstance(p.get("total"), int) and p["total"] > 0)
         # the unit: does the surface say what the denominator is OVER
-        unit = bool(re.search(r"%s\s*:\s*\{w:" % re.escape(key), ui))
+        unit = None if ui is None else bool(re.search(r"%s\s*:\s*\{w:" % re.escape(key), ui))
 
         lanes = {"getter": {"ok": has_getter, "by": [getter]},
                  "probe": {"ok": asked, "by": ["control_app.py"]},

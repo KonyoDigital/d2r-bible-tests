@@ -1436,7 +1436,13 @@ def _coverage_of(results):
             try:
                 w[str(key)] = int(m.get("found") or 0)
             except Exception:
-                w[str(key)] = 0
+                # ⚠ A WIDTH THAT COULD NOT BE PARSED IS NOT A WIDTH THAT FOUND NOTHING. This
+                # recorded 0, and this map is what --bless writes as the coverage FLOOR — so an
+                # unparseable reading would silently lower the ratchet, which is the one direction
+                # a ratchet must never move on its own. Omit it instead: a width that is absent
+                # from the map is UNKNOWN, and the floor keeps whatever it already held.
+                # [[unknown-stays-unknown]] [[regression-guard]]
+                continue
         if w:
             out[name] = w
     return out

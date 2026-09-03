@@ -220,10 +220,19 @@ def _source_key():
         # ⚠ BIBLE GETS ITS OWN SLOT — see the note in chronicle_routes._source_key. `max` is a
         # lossy digest and cannot tell a bible.html change from no change whenever another source
         # carries a newer mtime, and bible.html is where the counts come from since v2484.
+        # ⚠⚠ A FAILED STAT MAY NOT BECOME A READING. This said `_bib = 0` on any failure, and
+        # 0 is indistinguishable from a real mtime — so an unreadable bible.html would produce a
+        # STABLE key, which is precisely the staleness this slot was added to prevent: the rows
+        # would cache forever against a file nobody could read. His swallow ratchet caught it
+        # within the hour (baseline 74 -> 77, three new sites, one per route module) and it was
+        # right. Unkeyable means NOT CACHED, which is slow and never wrong — the same answer the
+        # outer handler already gives. [[unknown-stays-unknown]]
         try:
-            _bib = round(os.path.getmtime(BIBLE), 3) if os.path.isfile(BIBLE) else 0
+            if not os.path.isfile(BIBLE):
+                return None
+            _bib = round(os.path.getmtime(BIBLE), 3)
         except Exception:
-            _bib = 0
+            return None
         return (len(stamps), round(max(stamps), 3) if stamps else 0, _bib)
     except Exception:
         return None
@@ -273,7 +282,9 @@ def routes(tally=None, bible=None, probe=None, ui=None):
                          errors="replace") as fh:
                 ui = fh.read()
         except Exception:
-            ui = ""
+            # ⚠ NOT "". See the note in fleet_routes: an unreadable file must not read as a UI
+            # that declares nothing. [[unknown-stays-unknown]]
+            ui = None
 
     probe_code = _decomment_py(probe)
     defined = _defined_getters(bible)

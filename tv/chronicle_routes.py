@@ -394,10 +394,19 @@ def _source_key():
         # matters here is the day he changes a ruling and the panel keeps printing the old total.
         # Measured: bumping bible.html's mtime left the old key byte-identical.
         # [[stale-reading]] [[unknown-stays-unknown]]
+        # ⚠⚠ A FAILED STAT MAY NOT BECOME A READING. This said `_bib = 0` on any failure, and
+        # 0 is indistinguishable from a real mtime — so an unreadable bible.html would produce a
+        # STABLE key, which is precisely the staleness this slot was added to prevent: the rows
+        # would cache forever against a file nobody could read. His swallow ratchet caught it
+        # within the hour (baseline 74 -> 77, three new sites, one per route module) and it was
+        # right. Unkeyable means NOT CACHED, which is slow and never wrong — the same answer the
+        # outer handler already gives. [[unknown-stays-unknown]]
         try:
-            _bib = round(os.path.getmtime(BIBLE), 3) if os.path.isfile(BIBLE) else 0
+            if not os.path.isfile(BIBLE):
+                return None
+            _bib = round(os.path.getmtime(BIBLE), 3)
         except Exception:
-            _bib = 0
+            return None
         return (len(stamps), round(max(stamps), 3) if stamps else 0, _bib)
     except Exception:
         return None                     # unkeyable -> never cached, which is slow and never wrong

@@ -15899,3 +15899,36 @@ which the new copy contains inside its own negation — *"...a missing scorer, n
 anyone"*. A guard that cannot tell an assertion from its denial is matching letters, not claims.
 Tightened to the affirmative phrase. Both sabotages then seen RED: restoring the false sentence, and
 asserting `scorable` instead of deriving it.
+
+## v2486 — his own CI caught three lying defaults, one of them in a ratchet
+
+Routine M went red on `b30bbe08` — the swallow ratchet, which may only fall: **baseline 74, now 77**.
+Three sites where a failed read is handed back as DATA.
+
+⚠ **MY FIRST DIAGNOSIS WAS WRONG AND THE FIX CHANGED NOTHING.** I assumed the three were the
+`except Exception: _bib = 0` handlers I had added to the cache keys an hour earlier, rewrote all
+three to refuse instead — and the count stayed at 77. `route_totals` and `chronicle_routes` carry no
+rank-1 site at all. Asking the census which sites, rather than guessing which, took one command.
+(The rewrite was still right and is kept: `0` is indistinguishable from a real mtime, so an
+unreadable `bible.html` would have produced a STABLE key — the exact staleness that slot exists to
+prevent. Unkeyable now means not cached, which is slow and never wrong.)
+
+**The three, each read at the site as the tool instructs:**
+
+- **`fleet_routes.py:178` and `roster_routes.py:284` — `ui = ""` on a failed read of
+  `control_ui.html`.** The string is then searched for a unit declaration, so an unreadable file
+  made every search miss and the lane reported *"the screen does not say what it is counting"* — a
+  fault blamed on the UI when the truth was that we could not open the file. Now `None`, and the
+  link renders UNKNOWN, which the badge already draws as `?`.
+- **`render_check.py:1438` — a width whose `found` would not parse was recorded as `0`.** That map
+  is what `--bless` writes as the coverage FLOOR, so an unparseable reading would have silently
+  **lowered the ratchet** — the one direction a ratchet must never move on its own. The width is
+  now omitted: absent means UNKNOWN and the floor keeps what it held.
+
+**Ratchet back to 74 and holding.** The baseline itself is from v2387 on 09-01, so these had
+accumulated across roughly a hundred ships — they are not all from one session, and no baseline was
+rewritten to make this pass.
+
+⚠ Worth naming: the census says in its own output that RANK 1 is *a shape, not a defect count* and
+that a hand-read of a sample graded most sites as non-defects. All three of these were real, but
+that is a fact about these three — not a reason to trust the shape next time.
