@@ -125,9 +125,19 @@ def surfaces():
 def _same_thing(surface, names):
     """Does the organ name this surface under a DIFFERENT string? -> bool
 
-    Deliberately narrow: the tail after a dot, and singular/plural. Anything looser would start
-    inventing coverage, which is the one thing this file must not do.
+    ⚠ THIS WAS THE FIFTH LOCAL ALIAS MAP AND IT IS NOW THE FIRST TO GO. It carried its own narrow
+    rule — tail-after-a-dot plus singular/plural — which is how the console came to hold five
+    resolvers that disagree on 6 of 9 inputs. tv/one_name.py answers this question for everyone
+    now; adopting it was measured behaviour-neutral first: 132 cells agree, 0 differ.
+    Falls back to the old rule only if one_name cannot be imported, because a matrix that stops
+    working is worse than one using a narrower rule. [[copy-drift]]
     """
+    try:
+        import one_name as _on
+    except Exception:
+        _on = None
+    if _on is not None:
+        return any(_on.same_thing(surface, n) for n in (names or ()))
     tail = surface.split(".")[-1].strip().lower()
     if not tail:
         return False

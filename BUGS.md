@@ -16133,3 +16133,30 @@ names it rather than changing it.
 resolver and called the mismatch a disagreement. Two vocabularies, two kinds of input; the
 reproduction tests use tabs only, and the dotted names belong to `same_thing()`, which is the
 function that spans them.
+
+## v2493 — the first local resolver retires into one_name, and A1 is proven NOT to be the same bug
+
+`organ_matrix._same_thing` was the fifth local alias map — its own narrow rule (tail-after-a-dot,
+singular/plural), which is exactly how five resolvers came to disagree on 6 of 9 inputs. It now
+delegates to `tv/one_name.py`.
+
+**Adoption was measured behaviour-neutral BEFORE it was made: 132 cells agree, 0 differ.** That is
+the only safe way to consolidate a resolver — a "tidy-up" that changes one answer changes it
+silently, because the call sites keep compiling.
+
+⚠ **AND THE SAME MEASUREMENT SAVED ME FROM FORCING one_name ONTO A1.** It looked like the same
+defect and it is not:
+
+```
+organ ids   : armed_migration, board_join, lanes, orphans, readers …
+lane names  : tvd-chron-autoread, tvd-eagle-watch, tvd-ledger-backup …
+pairs one_name can join: 0
+```
+
+An organ CHECK and a LANE are different things, not two names for one thing, so **there is no join
+to make** — A1's unreachable FLOWING needs the lane SCORER that TASKS.md already names as its
+remainder. Four defects shared a root cause; the fifth candidate did not, and asking rather than
+assuming is the only reason that is known.
+
+A fallback to the old rule is kept for the case where `one_name` cannot be imported: a matrix that
+narrows is better than a matrix that stops.
