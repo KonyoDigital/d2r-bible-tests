@@ -17565,3 +17565,14 @@ of breaking the ladder → `'ONE_LADDER' != 'SPLIT_LADDER'`; counting an unreada
 coverage → `'swept' unexpectedly found in [...]`. A rung naming two stages reaching SPLIT_LADDER is
 the baseline, or ONE_LADDER would not be a measurement.
 
+**REG-533 — the two new guards would have crashed WHILE REPORTING, on his Windows PC.** The
+pre-push gate refused v2531–v2533 for a reason that had nothing to do with what they measure:
+`test_every_cli_that_prints_non_ascii_is_encoding_safe` found `tv/test_one_funnel.py` and
+`tv/test_one_start_point.py` printing non-ASCII (every `⚠` in their assertion messages) without
+`console_safe.enable()`. **His PC prints stdout as `cp1255`**, so on that machine both suites die
+inside the `print` that reports the verdict — **a clean tree exiting non-zero with the failure in
+the messenger, not the subject.** I put `console_safe` on the two MODULES and not on their tests,
+which is the same omission wearing the half nobody looks at. Both patched; the gate check
+reproduces green (`Ran 2 tests … OK`), and the sweep is complete BY MEASUREMENT rather than by my
+reading — the check now returns an empty list, so there is no third file.
+

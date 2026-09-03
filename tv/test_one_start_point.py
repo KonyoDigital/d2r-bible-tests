@@ -120,4 +120,13 @@ class OneStartPointIsAskedOfTheShelf(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    # ⚠ HIS WINDOWS PC PRINTS STDOUT AS cp1255, AND EVERY ⚠ IN THIS FILE IS UNPRINTABLE THERE.
+    # Without this the suite crashes while REPORTING — a clean tree exits non-zero and the failure
+    # is in the messenger, not the subject. tv/test_control.py asserts every non-ASCII CLI enables
+    # it, and it caught these two at the gate.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     unittest.main(verbosity=2)
