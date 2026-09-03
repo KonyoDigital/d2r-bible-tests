@@ -17049,3 +17049,35 @@ directories exist**; 3 of the **39 named in the evidence** are among them.
 
 **A5 IS NOT DONE.** Its progress is corrected in TASKS.md from ✅ to the honest state: the intake
 half is wired, proven by 6 sabotages, and produces nothing until the resolver can answer.
+
+## v2518 — I made the spy unable to raise, then let what it returns crash the assertions
+
+**REG-512 — four findings, one shape: v2516 fixed one end of a wire.** The spy was made defensive so
+a conversion failure could not break the census — and nothing then handled the `None` it produces.
+A cold review traced all three cases exactly:
+
+```
+sources None  →  set(None or ()) is set(), so the assertion FAILS CLAIMING THE SOURCES WERE EMPTY
+pool    None  →  falsy, failing identically to "called with an empty pool"
+reach   None  →  set(None) RAISES TypeError — it crashes the test rather than failing it
+```
+
+So a failure of **the instrument** was reported as a defect in the code under test, with a message
+that said nothing about it — and in one case as a crash.
+
+⚠ **Its sharpest point:** `sources` carried an `or ()` guard and `reach` carried none. Two lines
+written in the same breath, one protected and one not, **and the unprotected one was the one that
+raised.**
+
+The snapshot is now asserted non-`None` **before anything reads its contents**, with a message that
+names the spy as the thing that failed. An instrument that cannot take its reading says so in those
+words rather than blaming the subject. Proven RED both ways: a failed `reach` snapshot now **fails
+instead of erroring**, and a failed `sources` snapshot says so instead of claiming the sources were
+empty.
+
+**One suggestion not adopted, recorded rather than dropped:** standard mocking utilities over the
+`globals()` patch. The globals patch is what the census's module-global lookup actually resolves,
+and v2514's inline-the-rule sabotage is direct evidence that it intercepts — a mocking library would
+add a dependency to prove something already proven.
+
+2 sabotages, 2 RED.

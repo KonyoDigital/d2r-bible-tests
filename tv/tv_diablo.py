@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2517"   # A5 stamp is wired and INERT, and my v2515 claim was wrong
+VERSION = "v2518"   # I made the spy unable to raise, then let what it returns crash the assertions
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
