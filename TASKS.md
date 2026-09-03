@@ -20,6 +20,17 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 > on somewhere else. A task file that stops moving is a task file nobody can restart from, which is
 > the exact failure its own header is about. Live view, regenerated from here:
 > **claude.ai/code/artifact/6291b84e-b408-4f04-8a38-ec48826bc753**
+>
+> ⚠ **2026-09-03 — the board changed shape, and the reason matters.** Every row lived in ONE
+> document (`board/state`), which has now grown past the size cap the agent reads through: it comes
+> back ELIDED, so the rows could no longer be diffed, and because `sections` is a single field any
+> write would have replaced all of them blind. That is precisely how a pending row gets pruned by
+> accident. Rows are therefore mirrored one-per-document into `rows/`, which can be read and
+> updated individually. `board/state` is never deleted — it stays the frozen pre-migration source.
+> The mirror runs once, under a lease, and writes its completion flag LAST, because a mirror
+> interrupted half-way would render a partial board that looks exactly like deleted rows.
+> Round-trip proven on 61 rows: 61 in, 61 distinct addresses, 61 out, every field identical, and
+> two ids that slug identically (`Q-6/7` and `Q-6-7`) still get two documents.
 
 | ship | what it closed |
 |---|---|
@@ -27,6 +38,9 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 | **v2436** | ONE COUNT HAS ONE PLACE — the eagle panel said 9 need-you while the server said 7, on the same rows in the same second. `/api/eagle` returned raw rows so the panel re-derived with the rule v2284 abandoned |
 | **v2437** | the console could not say what was wrong, **and it leaked children** |
 | **v2438** | **THE AUDITOR READ THE WRONG FUNCTION AND TEN LANES PASSED ON IT** |
+| **v2469** | five DOM probes that each measured something ADJACENT to the question, folded into one helper file with the failure that produced each |
+| **v2470** | a quote is not a safeguard until something checks it — the page can now be asked whether a quoted string is really on it. ⚠ Found on its FIRST real use: the check loaded the page fresh and so answered about a DIFFERENT page state than the screenshot it was judging. `__quotedIn(s, capturedText)` takes the text captured WITH the picture |
+| **v2471** | **THE PAGE HID ITS OWN NAV FOR A RAIL THAT WAS NOT THERE** — `?engine=1` is written only by the console's `#tvd-eng` iframe and hides the whole tab row on the theory that the console header replaces it. Nothing checked the document was in that iframe, so top-level he had **0 of 19 tabs** and an empty header band. The class now requires `window.top !== window.self`. Restoring the row exposed three more: two empty cluster frames, a 144px gutter under two fixed overlays, and the MAIN/LADDER toggle painted over at the same z-index and not clickable. REG-443 · guard `tv/test_app_ctx_nav.py` (RED on HEAD, green on the fix) |
 | **v2439** | the panel said what was wrong and buried it under a number nobody can act on |
 
 ### ✅ CF-1 — CLOSED, and the premise was FALSE
