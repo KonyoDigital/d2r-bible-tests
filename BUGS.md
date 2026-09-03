@@ -16512,3 +16512,42 @@ than be hidden"* — which is the absent-vs-broken distinction v2500 was written
 
 3 sabotages, 3 RED, including the original v2500 bug restored (asking for a function that does not
 exist).
+
+## v2503 — the printer zone's acceptance test, and the zero at the heart of it measures a filter
+
+His ruling folded A9 into the printer zone: *"that unified printer needs to be built, that
+processing system for the reels all need a unified logic coming in and out"*. Before building it,
+one measurement decides how much of it is real work — **what can the pipeline act on at all?**
+
+**REG-487 — the contradiction A4 was born from returns ZERO, and that zero is not a clean bill.**
+Measured on this tree:
+
+```
+437 reels in triage · 30 seals · 20 triage rows join a seal
+ 0 seals satisfy EXTRACTION_CONTRACT
+   22 fail on the SAME single fact — `name`
+    8 predate the contract entirely
+```
+
+So no reel can be judged disposable, and **the contradiction is structurally unreachable rather
+than absent.** A count of zero taken through a filter that rejects every input measures the filter.
+Reported as CLEAN it would have said *"the printer's routing is sound"*, which is not something
+anyone has established.
+
+⚠ **This is the third time this week.** v2493 read 0 joinable pairs as *"different kinds of
+thing"*; v2495 read a fallback list I had typed as a fact about his console. That is why
+`printer_reach.py` has **three** words instead of two — CLEAN, CONTRADICTION and **UNREACHABLE** —
+and why UNREACHABLE is what today's data returns.
+
+⚠ **`name` IS NOT A DEFECT TO FIX.** `_CONTRACT_WHY` states it: *"the item's name, which only ever
+appears in a hover tooltip"*. A reel of a plain stash GRID contains no names, REG-340 recorded the
+same for characters, and the vault audit ruled *"film cannot name grids"* to be DESIGN. **So a
+grid-only reel can never satisfy the contract, can never be judged disposable, and is permanently
+outside what the printer may act on.** That is the guard working, and it is the honest answer to
+how much of the pipeline cluster is real work: the disposable path is inert for grid reels by
+construction, and only hover reels can ever reach it.
+
+Guard: `tv/test_printer_reach.py`, registered (99 gates). Its subjects are **constructed**, because
+a guard that only fires while his stores contain an example goes blind exactly when the bug is
+absent. **5 sabotages, 5 RED** — including both baselines, since two UNREACHABLE assertions would
+pass happily on a function that can only ever say UNREACHABLE.

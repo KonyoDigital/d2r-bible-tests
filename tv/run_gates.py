@@ -538,6 +538,20 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_printer_reach", [sys.executable, os.path.join(HERE, "test_printer_reach.py")], 120,
+         why="The printer zone's acceptance test (A4·A7·A8·A9·A15), and the one law it exists to "
+             "hold: a zero taken through a filter that rejects every input measures the filter. "
+             "The contradiction A4 was born from — a seal certifying full extraction on a reel the "
+             "survey says held panels — returns ZERO on this tree, and the cause is that NOT ONE of "
+             "the 30 seals satisfies the extraction contract (22 fail on the same fact, `name`, "
+             "which only ever appears in a hover tooltip; 8 predate the contract). So no reel can "
+             "be judged disposable and the contradiction cannot arise at all. Reported as CLEAN "
+             "that zero would say the routing is sound; it says nothing of the kind. These pin "
+             "UNREACHABLE apart from CLEAN in both directions, keep CLEAN and CONTRADICTION both "
+             "REACHABLE so the report can still distinguish anything, and refuse a hardcoded copy "
+             "of the contract. Subjects are CONSTRUCTED, because a guard that only fires while his "
+             "stores contain an example goes blind exactly when the bug is absent. 5 sabotages, "
+             "5 RED."),
     Gate("test_board_story", [sys.executable, os.path.join(HERE, "test_board_story.py")], 120,
          why="The board is a BUILD OUTPUT of TASKS.md, so a decision the build cannot read does "
              "not survive a refresh. On 2026-09-03 he retired A6 and hibernated A18/A20; those "
