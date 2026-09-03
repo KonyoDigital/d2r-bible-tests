@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2493",
+  "ver": "v2494",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2493: organ_matrix._same_thing was the fifth local alias map and now delegates to one_name. Adoption was measured behaviour-neutral before it was made - 132 cells agree, 0 differ - which is the only safe way to consolidate a resolver, because a tidy-up that changes one answer changes it silently. The same measurement stopped me forcing one_name onto A1: it can join zero organ-id to lane-name pairs, because an organ CHECK and a LANE are different things rather than two names for one thing. A1 needs the lane scorer, not a resolver.",
+  "note": "v2494: a cold review predicted how one_name decays - someone adds a consumer and hard-codes another variant while the originals keep being patched. That has already happened five times here and two of those maps were written in one day by the same hand fixing the others. The census of resolver-shaped declarations is now a ratchet: 8 today, scanned by shape rather than name because a name is how these get missed, and it may only fall. It also fails if the baseline goes stale or if one_name disappears.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

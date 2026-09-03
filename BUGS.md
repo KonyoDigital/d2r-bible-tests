@@ -16160,3 +16160,31 @@ assuming is the only reason that is known.
 
 A fallback to the old rule is kept for the case where `one_name` cannot be imported: a matrix that
 narrows is better than a matrix that stops.
+
+## v2494 — a ninth resolver may not appear unnoticed
+
+A cold cross-family review of v2492's design was asked how it decays over a year, with no knowledge
+of this tree's history. It answered:
+
+> *"The most likely decay path is new surfaces or new items appearing outside the concept table.
+> Someone will add a fourth consumer... and either hard-code another variant or extend the table
+> inconsistently... the original resolvers continue to be patched directly."*
+
+**That is not a prediction here, it is a description.** It has happened five times already — A1's
+unreachable FLOWING, A3's nine mis-reported cells, a tab that resolved on one side and not the
+other, a board printing one topic twice — and **two of those alias maps were written in a single day
+by the same hand that was fixing the others.** Nothing detected any of them. Each was found by
+tripping over the defect it caused.
+
+`tv/test_resolver_ratchet.py` makes the census a ratchet. Scanning by SHAPE rather than by name —
+because a name is how these get missed — the tree holds **8** resolver-shaped declarations across 6
+files, one of which (`tv_diablo._STASH_TAB_ALIASES`) this scan found and I had not counted. The
+number may only FALL as they retire into `one_name`; a new one is a failure.
+
+⚠ **NOT BECAUSE A LOCAL MAP IS ALWAYS WRONG.** Sometimes it is genuinely local. The point is that it
+must be a decision someone makes in a diff — add it to BASELINE and say why — rather than the sixth
+accident.
+
+It also fails when the baseline goes STALE, so the remaining debt cannot read larger than it is, and
+when `one_name.py` itself disappears, which would leave every resolver unsanctioned and the ratchet
+guarding nothing. All four sabotages seen RED; the first names the offender by file and symbol.

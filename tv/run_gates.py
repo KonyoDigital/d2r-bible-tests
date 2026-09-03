@@ -508,6 +508,22 @@ GATES = [
              "proven one, which a plain `if score:` would do. Also pins that it DERIVES and "
              "never writes, because a stored picture is a map that drifts from the territory — "
              "BLUEPRINT.md went stale exactly that way and a gate graded the last build."),
+    Gate("test_resolver_ratchet",
+         [sys.executable, os.path.join(HERE, "test_resolver_ratchet.py")], 60,
+         why="A NINTH RESOLVER MAY NOT APPEAR UNNOTICED. A cold cross-family review, with no "
+             "knowledge of this tree's history, predicted exactly how one_name decays: someone "
+             "adds a consumer and hard-codes another variant while the original resolvers keep "
+             "being patched directly. That is not hypothetical — it has happened five times here "
+             "(A1's unreachable FLOWING, A3's nine mis-reported cells, a tab resolving on one "
+             "side only, a board printing one topic twice) and TWO of those alias maps were "
+             "written in a single day by the same hand that was fixing the others. Nothing "
+             "detected any of them; each was found by tripping over the defect it caused. So the "
+             "census of resolver-shaped declarations is a RATCHET: 8 today, it may only FALL as "
+             "they retire into one_name, and a new one fails. Not because a local map is always "
+             "wrong, but because it must be a decision in a diff rather than the sixth accident. "
+             "It also fails if the baseline goes STALE, so the remaining debt cannot read larger "
+             "than it is, and if one_name.py disappears. All four sabotages seen RED, the first "
+             "naming the offender by file and symbol."),
     Gate("test_one_name", [sys.executable, os.path.join(HERE, "test_one_name.py")], 60,
          why="THE JOIN THE CONSOLE WAS MISSING FIVE TIMES OVER. Measured: three resolvers disagree "
              "on 6 of 9 inputs — chronicle_template says `sets` where route_totals says `set`, "
