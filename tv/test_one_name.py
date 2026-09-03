@@ -193,6 +193,23 @@ SHAPE_COLLISIONS = {
 SOURCES = ("organ_matrix.surfaces", "organ_matrix.organ_coverage", "heart.vessels")
 
 
+def _keep_names(names):
+    """A source's OWN names, trimmed, minus the falsy ones. -> set
+
+    ⚠⚠ IT LIVES HERE BECAUSE AS A CLOSURE IT COULD NOT BE PUT TO A CASE. A cold review found that
+    the emptiness test used the STRIPPED value while the stored one was UNSTRIPPED, so `" foo "`
+    entered the pool with its padding. That matters: `_shape` deletes whitespace, so `" foo "` and
+    `"foo"` share a shape and would surface as a NEW unreviewed collision — this census failing for
+    a reason entirely of its own making.
+
+    Sabotaging it back went GREEN, because nothing in his stores has a padded name today. A guard
+    that can only fire while the live corpus happens to contain an example is blind, and hoisting
+    this out of `_live_names` is what makes the law checkable on constructed input instead.
+    [[gate-blind-to-unexercised-input]]
+    """
+    return {str(n).strip() for n in names if str(n or "").strip()}
+
+
 def _live_names(by_source=None):
     """Every name the resolver is actually asked about. -> set
 
@@ -202,26 +219,11 @@ def _live_names(by_source=None):
     import organ_matrix as OM
     seen = {} if by_source is None else by_source
 
-    def _keep(names):
-        """A source's OWN names, minus the falsy ones. -> set
-
-        ⚠⚠ EACH SOURCE IS MEASURED BY WHAT IT HOLDS, NOT BY WHAT IT ADDED. The first version
-        recorded `len(pool) - before` — a DELTA — and a cold review took it apart: "the count
-        records only new names not already present... overlap between sources makes later ones
-        appear to contribute nothing even when they are exercised", and "the first source stores
-        len(pool) while the others store deltas, so the three entries are not comparable
-        quantities."
-
-        Both true, and the measurement is worse than the argument: heart.vessels HOLDS 46 names
-        and the delta recorded 12, because 35 of them ARE the surfaces. A source can be perfectly
-        healthy and report 0 purely because another ran first — failing this test for no reason,
-        and making the reach figure something nobody can read.
-
-        The falsy filter moved here too: `pool.add(str(x or ""))` inserted empty strings that were
-        COUNTED before the final `if p` dropped them, so a source could score for contributing
-        nothing. Ten of heart's rows have no watcher. [[unknown-stays-unknown]]
-        """
-        return {str(n) for n in names if str(n or "").strip()}
+    # ⚠ ONE RULE, ONE PLACE. Hoisting `_keep` to module level so it could be put to a case left
+    # the original body sitting UNREACHABLE below a `return` — two copies of the same rule, in a
+    # file whose whole subject is two sources disagreeing, written while fixing exactly that.
+    # The alias stays only so the call sites below read as they did. [[copy-drift]] §1
+    _keep = _keep_names
 
     src_surfaces = _keep(OM.surfaces())
     src_coverage = set()
@@ -281,6 +283,21 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                 "That may be right — but it is a behaviour change to the thing that decides "
                 "whether two subsystems are the same, and it needs its own evidence." % probe)
 
+    def test_a_name_is_stored_the_way_it_was_tested(self):
+        """`" foo "` must not enter the pool with its padding.
+
+        The emptiness test stripped and the store did not, so a padded name kept its padding —
+        and since `_shape` deletes whitespace, `" foo "` and `"foo"` share a shape and would be
+        reported as a NEW unreviewed collision. Sabotaging this back left the census GREEN,
+        because nothing in his stores is padded today; the law is checked on constructed input
+        for exactly that reason. [[gate-blind-to-unexercised-input]]
+        """
+        got = _keep_names([" foo ", "foo", "\tbar\n", "", "   ", None])
+        self.assertEqual(
+            got, {"foo", "bar"},
+            "_keep_names kept padding or a blank: %r. A padded name collides with its own trimmed "
+            "form under _shape and reads as an unreviewed merge." % (sorted(got),))
+
     def test_no_unreviewed_shape_collision_has_appeared(self):
         reach = {}
         pool = _live_names(reach)
@@ -299,6 +316,24 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             "%d blank name(s) reached the pool. They cannot collide with anything, so they are "
             "invisible to the census while still counting toward every source's reach — a source "
             "emitting only blanks would look alive." % len(blank))
+        # ⚠⚠ AND THE DECLARED LIST MUST MATCH WHAT WAS ACTUALLY RECORDED, BOTH WAYS. Same review:
+        # "adding a fourth source requires three coordinated edits... nothing in the test will
+        # notice the omission; the new source can silently contribute zero names forever." That is
+        # this file's own defect one level up — SOURCES is a promise about reach, and a promise
+        # nothing checks is how the heart source sat dead behind a hasattr guard in the first
+        # place. [[the-unjoined-end]]
+        undeclared = sorted(set(reach) - set(SOURCES))
+        unrecorded = sorted(set(SOURCES) - set(reach))
+        self.assertFalse(
+            undeclared,
+            "_live_names() reads source(s) that SOURCES does not declare: %s. They are exempt from "
+            "the reach check below, so one of them can go dead and nothing here will say so."
+            % undeclared)
+        self.assertFalse(
+            unrecorded,
+            "SOURCES declares source(s) that _live_names() never records: %s. The reach check "
+            "would read them as 0 and fail forever, or worse, be quietly relaxed to accommodate "
+            "them." % unrecorded)
         dead = sorted(s for s in SOURCES if reach.get(s, 0) <= 0)
         self.assertFalse(
             dead,

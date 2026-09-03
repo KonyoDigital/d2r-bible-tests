@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2503"   # the printer zone acceptance test, and the zero at the heart of it measures a filter
+VERSION = "v2504"   # the reach helper tested one value and stored another, and its rule ended up written twice
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

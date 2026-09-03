@@ -16551,3 +16551,35 @@ Guard: `tv/test_printer_reach.py`, registered (99 gates). Its subjects are **con
 a guard that only fires while his stores contain an example goes blind exactly when the bug is
 absent. **5 sabotages, 5 RED** — including both baselines, since two UNREACHABLE assertions would
 pass happily on a function that can only ever say UNREACHABLE.
+
+## v2504 — the reach helper tested one value and stored another, and its rule ended up written twice
+
+**REG-488 — the emptiness test stripped and the store did not.** `" foo "` passes
+`str(n or "").strip()` and enters the pool with its padding — and it matters here, because
+`_shape` deletes whitespace, so the padded and trimmed forms share a shape and would surface as a
+**NEW unreviewed collision**, failing the census for a reason entirely of its own making.
+
+⚠ **Sabotaging it back went GREEN.** Nothing in his stores is padded today, so the live corpus
+cannot exercise the law at all — and `_keep` was a **closure nothing could call**, which is exactly
+why the rule had no test. Hoisted to module level and checked on constructed input.
+
+**REG-489 — `SOURCES` was a promise about reach that nothing checked.** The review: *"adding a
+fourth source requires three coordinated edits... nothing in the test will notice the omission;
+the new source can silently contribute zero names forever."* That is this file's own defect one
+level up — the same shape as the heart source that sat dead behind a `hasattr` guard. Now asserted
+**both ways**: a source read but not declared is exempt from the reach check, and a source declared
+but never recorded would read as 0 forever.
+
+⚠⚠ **AND HOISTING IT LEFT THE RULE WRITTEN TWICE.** The original body survived below a `return`,
+unreachable — **two copies of one rule, in the file whose entire subject is two sources
+disagreeing, created while fixing exactly that.** Collapsed to one; the alias remains only so the
+call sites read unchanged. [[copy-drift]] §1
+
+**Two findings settled rather than accepted.** It called the blank assertion *"dead code but
+harmless"* — true for a *correct* `_keep`, and the assertion exists to catch a broken one:
+removing the filter takes the file RED on that exact assertion, proven before this review and
+again after. And its warning that an exception could leave a `seen` entry wrong is answered by all
+three assignments now being the last statements before the return, so an earlier exception means
+no assignment at all rather than a partial one.
+
+4 sabotages, 4 RED.
