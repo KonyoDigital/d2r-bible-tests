@@ -44,6 +44,47 @@ SURFACES = ("chronicle.runeword", "fleet.sets", "roster.unique")
 INPUTS = TABS
 
 
+class TheParityTestsAreTransitionalAndThisSaysSo(unittest.TestCase):
+    """⚠⚠ A COLD CROSS-FAMILY REVIEW NAMED THE EXACT WAY THIS DECAYS, AND IT IS RIGHT.
+
+    Asked whether asserting parity with the live resolvers was sound or just froze the mess:
+
+        "Sound for the transition, but only if treated as temporary. However, if those assertions
+         are never replaced by a single canonical implementation that the three resolvers delegate
+         to, the tests DO freeze the mess: future changes will have to update both the concept
+         table and the three original functions plus their tests."
+
+    Exactly so. Parity is scaffolding, not the building. Every resolver still holding its own map
+    is a place the next divergence starts, and the parity tests would then dutifully enforce the
+    divergence. This test names what is still owed, so the debt is visible in the suite rather than
+    remembered — and it FAILS if a resolver is retired without the list being updated, which stops
+    the list rotting into fiction.
+
+    CUT OVER SO FAR:  organ_matrix._same_thing -> one_name (v2493, measured 132 agree / 0 differ)
+    """
+
+    #: resolvers that still carry their own map. Shrinking this is the point of the exercise.
+    OWED = ("chronicle_template", "route_totals", "lane_lock")
+
+    def test_the_remaining_resolvers_are_named_and_still_there(self):
+        import importlib
+        still = []
+        for mod in self.OWED:
+            try:
+                m = importlib.import_module(mod)
+            except Exception:
+                continue
+            src = __import__("inspect").getsource(m)
+            if "import one_name" in src:
+                continue          # it delegates now — the list is stale, deliberately
+            still.append(mod)
+        self.assertEqual(
+            sorted(still), sorted(self.OWED),
+            "the cut-over list no longer matches reality: %s still hold their own map, the list "
+            "says %s. Update OWED when a resolver delegates, or this becomes a fiction that reads "
+            "as progress." % (sorted(still), sorted(self.OWED)))
+
+
 class ItReproducesEveryLiveResolver(unittest.TestCase):
 
     def test_it_matches_chronicle_template(self):
