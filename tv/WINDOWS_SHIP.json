@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2498",
+  "ver": "v2499",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2498: The camelCase substitution in _shape was a no-op - it inserted a hyphen the next line deleted - and the docstring credited it with work lower() was doing. Removed. Not-a-fuzzy-match was also wrong; the honest version is that all three live collisions are correct ones, held as a ratchet. One finding refuted with a proof. And my own new test never ran because cat appended it below the __main__ runner - 8 tests in 4 milliseconds, green.",
+  "note": "v2499: He retired A6 and hibernated A18 and A20; re-running the deriver the same hour put all three back into PENDING because _classify knew five states and none of them was he-decided-not-to. Three more defects surfaced while fixing it - a global topic index that numbered VISUAL onto another stages base, stage bases one apart where a stage held two topics, and a ruling marker matched anywhere which retired A1 for merely mentioning a scope cut. The count was the tell. And my first cut added a second state table while fixing two sources disagreeing.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

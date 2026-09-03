@@ -16343,3 +16343,46 @@ existed: **8 tests, 0.004 seconds, green**, with both new tests silently absent.
 clock — 4 milliseconds for a suite that builds a 100-name pool from the live matrix. Moved above
 the runner: 10 tests, 4.5 s. This is the `append-below-the-runner` scar, and I walked into it while
 writing a guard about claims outrunning evidence.
+
+## v2499 — the board is a build output, and it could not hold his own decisions
+
+**REG-475 — his rulings had no state, so the deriver put every one of them back.** On 2026-09-03 he
+retired A6 and hibernated A18/A20. Those decisions went into `TASKS.md` and into the live board by
+hand — and re-running `board_sync.py` the same hour filed all three straight back into
+`1 · PENDING`, because `_classify` knew five states and none of them was *"he decided not to"*.
+**Correct now, silently wrong later**, which is worse than wrong now: nothing errors, and the board
+looks right until the next refresh quietly reopens a closed decision. A board that is a BUILD
+OUTPUT cannot hold a decision the build does not understand.
+
+Added `retired` and `hibernating`, placed AFTER `COMPLETED` because the story runs pending →
+progress → done and a ruling is off that river.
+
+**Three more defects surfaced while fixing it, each caught by a check rather than by reading:**
+
+**REG-476 — the topic index was GLOBAL, and had been latently mis-filing.** `topic_order` was one
+dict for the whole file, so a topic's number kept climbing across stages: `VISUAL` sat at index 5
+everywhere, and under `IN PROGRESS` (-80) that numbered it to **-75, which IS the base of
+YOUR CALL**. It never bit only because the old scheme multiplied the base by 100 and had room to
+hide it. The index means *which topic within THIS stage*, so it is counted within the stage — and
+a topic that would overflow its stage now **refuses the build** rather than rendering under
+another heading with nothing to notice.
+
+**REG-477 — the stage bases were one apart where a stage already held two topics.** The collision
+guard refused the build twice before the table was right. Twenty is not decoration: it is how many
+distinct TASKS.md headings one stage can hold.
+
+**REG-478 — matching the ruling marker ANYWHERE retired a live task.** A1 reads
+`1/3 · … ⛔ SCOPE CUT … the four organs on every surface is OUT`, an item very much in progress
+whose note describes a decision about *part* of itself — and it was filed under RETIRED whole.
+**THE COUNT WAS THE TELL:** two rows in a stage where exactly one thing had been retired. A ruling
+is a statement about THIS task and is written at the FRONT of the progress line; a marker
+mid-sentence is the task *talking about* a decision, not carrying one.
+
+⚠ **AND I WROTE THE DUPLICATION THIS REPO KEEPS PAYING FOR, WHILE FIXING A DUPLICATION.** My first
+cut added a second seven-state table (`STORY`) beside the existing `SECTIONS` — a new source of
+truth, authored the same hour as a fix for two sources disagreeing. Collapsed to one before it
+shipped, and `test_board_story` now fails if a second table reappears. [[copy-drift]] §1
+
+Guard: `tv/test_board_story.py`, registered in `run_gates.py` (98 gates). **5 sabotages, 5 RED**,
+each caught by its own test — including the v2490 bug restored (stages numbered positive, sorting
+the whole storyline unreachable beneath the sections it replaces).

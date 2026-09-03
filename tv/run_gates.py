@@ -538,6 +538,21 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_board_story", [sys.executable, os.path.join(HERE, "test_board_story.py")], 120,
+         why="The board is a BUILD OUTPUT of TASKS.md, so a decision the build cannot read does "
+             "not survive a refresh. On 2026-09-03 he retired A6 and hibernated A18/A20; those "
+             "rulings were written into TASKS.md and the live board by hand, and re-running the "
+             "deriver the same hour filed all three back into PENDING because _classify knew five "
+             "states and none of them was 'he decided not to'. Correct now, silently wrong later. "
+             "These pin: his two rulings HAVE a state; a ruling that OPENS the progress line is "
+             "read while one MENTIONED mid-line is not (that mis-file retired A1, a live 1/3 item "
+             "whose note describes a scope cut — the COUNT was the tell, two rows in a stage where "
+             "one thing was retired); no topic can renumber into the next stage (the index was "
+             "GLOBAL, so VISUAL under IN PROGRESS landed on YOUR CALL's base); every stage sorts "
+             "ABOVE the board's pre-storyline sections (v2490 published the whole storyline "
+             "unreachable underneath them); an unknown state does not quietly become pending; and "
+             "there is exactly ONE state table (my first cut of story_of carried a second copy, "
+             "written the same hour as a fix for two sources disagreeing). 5 sabotages, 5 RED."),
     Gate("test_organ_comparability",
          [sys.executable, os.path.join(HERE, "test_organ_comparability.py")], 180,
          why="A3, the half that would have made the table LIE. console_doctor had no report(), so "
