@@ -8301,7 +8301,15 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
    max-height above now subtracts the same number, or a panel that starts lower would run off the
    bottom by exactly as much as it gained at the top. */
 .inbox-sticky.has{top:calc(var(--hdr-h,282px) + 8px);
-                  max-height:calc(100vh - var(--hdr-h,282px) - var(--dock-h,84px) - 48px);
+/* v2477 — THE BUDGET SUBTRACTED THE HEADER AND THE PANEL DOES NOT START AT THE HEADER.
+   Measured at 1120x628 with the gate's fixture: --hdr-h 245, so max-height resolved to 208px —
+   but `.tab-content` starts at 351 and the panel at 361, so 106px of the budget was spent on
+   space the panel never occupies. It overshot the viewport by 28px and its last action row landed
+   in the dock's band, where elementFromPoint returned `dock-handle`: he could not click "Both".
+   `--inbox-top` is the panel's OWN measured top, published by the same observer idiom --hdr-h
+   uses, so the budget stops guessing. The --hdr-h form stays as the fallback for a machine where
+   the observer never runs — a smaller box is a scroll, a bigger one is an unclickable button. */
+                  max-height:calc(100vh - var(--inbox-top, var(--hdr-h,282px)) - var(--dock-h,84px) - 8px);
 /* v2316 — A BOTTOM BOUND, because max-height alone only holds while the panel is STUCK. At
    first paint it sits at its natural flow position: measured at 375px its bottom was 785 while
    the fixed dock starts at 587, so `tick it -> Chronicle + Vault` and `ignore` hit-tested to
@@ -8309,6 +8317,14 @@ body:has(#tab-session.active) .inbox-fab.has{display:none}
    sticky too. Pinning the bottom above the dock keeps it inside the band between header and
    dock in BOTH states. Found cold by a different model family off the pixels. */
   bottom:calc(var(--dock-h,84px) + 8px)}
+/* v2477 — the edge says there is more, and ONLY when there is. Same mask idiom the console's
+   AI-READS strip uses, and the same conditional law J13 pins: a strip that hides content owes an
+   affordance, a strip showing all of it must not be dimmed. `.scrolls` is set by the observer
+   below, because `overflow` is not a thing CSS can test. */
+.inbox-sticky.has.scrolls{
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), rgba(0,0,0,.12) 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), rgba(0,0,0,.12) 100%);
+}
 .inbox-sticky .ibp-h{font-family:var(--serif-display,serif);font-weight:var(--fw-bold);font-size:17px;color:var(--rune,#e0b96a);margin-bottom:7px}
 .inbox-sticky .ibp-sub{color:#8a7d64;font-size:11.5px;margin-bottom:9px}
 .inbox-sticky .ibp-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:4px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
@@ -48137,6 +48153,37 @@ try {
   _hdrSync();
   if (_hdrEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_hdrSync).observe(_hdrEl); }
   try { window.addEventListener('resize', _hdrSync); } catch(e){}
+
+  /* v2477 — AND THE INBOX'S OWN TOP, for the same reason and in the same shape. Its height budget
+     subtracted --hdr-h on the assumption that it begins under the header; it begins wherever its
+     containing block does, which at 1120x628 is 106px lower. Publishing the measured top lets the
+     budget stop guessing. Same two guards as above: never publish a value from an unlaid-out box,
+     and ignore reflow thrash, or a max-height that depends on this would oscillate. */
+  var _ibxLast = 0;
+  var _inboxSync = function(){
+    try {
+      var el = document.getElementById('inbox-sticky');
+      if (!el || !el.classList.contains('has')) return;   /* hidden: nothing to budget */
+      var t = Math.round(el.getBoundingClientRect().top);
+      if (t <= 0 || t > (window.innerHeight || 0)) return; /* not laid out, or off-screen */
+      /* the affordance is CONDITIONAL — set it from what the box actually does, every pass,
+         even when the top has not moved, because content can grow without the panel moving. */
+      try { el.classList.toggle('scrolls', el.scrollHeight > el.clientHeight + 2); } catch(e){}
+      if (_ibxLast && Math.abs(t - _ibxLast) < 4) return;
+      _ibxLast = t;
+      document.documentElement.style.setProperty('--inbox-top', t + 'px');
+    } catch(e){}
+  };
+  _inboxSync();
+  try {
+    var _ibxEl = document.getElementById('inbox-sticky');
+    if (_ibxEl && typeof ResizeObserver !== 'undefined'){ new ResizeObserver(_inboxSync).observe(_ibxEl); }
+    if (_ibxEl && typeof MutationObserver !== 'undefined'){
+      new MutationObserver(_inboxSync).observe(_ibxEl, { attributes: true, attributeFilter: ['class'] });
+    }
+    window.addEventListener('resize', _inboxSync);
+    window.addEventListener('scroll', _inboxSync, { passive: true });
+  } catch(e){}
   /* ...and re-measure when the dock COLLAPSES, which a ResizeObserver cannot see: the transform
      leaves its box the same size. Without this the fix above would only apply on the next resize. */
   try {
@@ -48383,7 +48430,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2476', name:'v2476 - THE SAME ENVELOPE CRASH I FIXED IN ONE FILE WAS ALIVE IN ITS SIBLING', date:'2026-09-03', note:'The v2472-v2473 review pass found it: roster_routes carried the identical line v2473 fixed in fleet_routes - folding every value of the tally with .get(total) when the tally is an 8-key envelope whose ok, why, at, source and profile are scalars. Measured on his live console: roster_route_state returned ok False, the roster routes could not be derived, bool object has no attribute get. Dead, in exactly the way the fleet lanes were, because v2473 fixed the file in front of it instead of sweeping the shape. There is now ONE builder in chronicle_routes quoted by both, verified identical. All three route sets on the heart derive: 3, 3, 3. Also the disk: three review agents copied tv wholesale to tmp and wrote 20.5 GB in four minutes onto a volume with 9 GB free, hit ENOSPC, and then every shell in the session died at spawn because the tool could not create its own output file. The render gate Chrome profile is now temporary and removed in a finally - it had reached 1.4 GB beside 63 MB of the PNGs the directory is for - and safe_copy.py makes that copy impossible: 5865 MB becomes 43.7 MB, refusing above a ceiling and below a free-space floor.' };
+  window.D2R_BUILD = { id:'v2477', name:'v2477 - THE INBOX HEIGHT BUDGET GUESSED WHERE THE PANEL STARTS', date:'2026-09-03', note:'The render gate blocked a push on the inbox target, and it was RIGHT and PRE-EXISTING - red at origin/main too. It had been passing only because the render gate reused a persistent Chrome profile, so accumulated browser state was hiding it; v2475 made that profile temporary and the defect surfaced. Measured at 1120x628 with the gates own fixture: max-height resolved to 208px from calc(100vh - hdr-h - dock-h - 48), which assumes the panel begins under the header. It begins where its containing block does, at 361 rather than 245, so 106px of the budget was spent on space the panel never occupies. The box ran to 569 in a 541 viewport and the Both button landed at 521..547 where elementFromPoint returned dock-handle - unclickable. The budget now subtracts the panels OWN measured top, published by the same observer idiom hdr-h already uses. Because the panel is now shorter than its content it carries a conditional fade, set from what the box actually does, because a strip that hides content owes an affordance and one showing all of it must not be dimmed.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
