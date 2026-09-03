@@ -538,6 +538,26 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_ledger_highwater",
+         [sys.executable, os.path.join(HERE, "test_ledger_highwater.py")], 120,
+         why="A14 — his ask was \"a counter for chronicles only going up never down\", and a "
+             "counter implies a STORED PEAK, not a diff. console_doctor already names what "
+             "vanished between the two NEWEST snapshots — which is the half that matters, and it "
+             "came out of 2026-08-28 when foundLog went 391->383 overnight with nothing saying a "
+             "word — but that finding survives only as long as nobody takes two more snapshots. "
+             "⚠ THE MODULE-S OWN FIRST ACT WAS THE BUG: seed() recorded the LATEST snapshot as the "
+             "peak, so a ledger that had already dropped would lock the loss in as its own high "
+             "water mark. It seeds from the highest value across every readable snapshot now. "
+             "These pin: seeding after a drop records the HIGH not today; re-seeding cannot lower "
+             "the bar even once the snapshot proving it is ROTATED AWAY (the sabotage for this "
+             "passed at first, because the proof was still on disk — the guard only matters when "
+             "it is not); a standing loss is reported until reconciled; accept() needs a REASON "
+             "and records what it replaced, because a ratchet with no reconcile path goes "
+             "permanently red the first time he removes something on purpose; no peak recorded is "
+             "UNKNOWN not OK; an ABSENT key is not a key worth zero, which would read as losing "
+             "every set piece he owns; and it never restores and never fails a build. Measured on "
+             "60 real snapshots: zero drops in the window, so it ships GREEN — insurance, not a "
+             "fix for a live bug. 6 sabotages, 6 RED."),
     Gate("test_store_owners", [sys.executable, os.path.join(HERE, "test_store_owners.py")], 120,
          why="A7 — one declared OWNER per reel store, everyone else a declared reader WITH A "
              "REASON, so a second implementation has to be argued in rather than appearing. "

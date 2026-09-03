@@ -16732,3 +16732,50 @@ those keys are unconditionally assigned. `seen.clear()` was added as hygiene ove
 out-parameter and is documented as hygiene, not as a fix.
 
 2 sabotages, 2 RED.
+
+## v2509 — A14: a counter that only goes up needs a stored peak, and my own seed() would have locked in a loss
+
+His ask: *"a counter for chronicles only going up never down... that way profile and data cant ever
+be lost"*.
+
+**What was already built:** `console_doctor._check_no_ledger_ENTRY_has_silently_vanished` compares
+snapshots and **names what went** — the half that matters, and it came out of 2026-08-28 when
+`foundLog` went 391 → 383 and `setPieces` 120 → 117 overnight with nothing saying a word.
+
+**REG-495 — but it compares only the TWO NEWEST snapshots, so a finding survives exactly as long
+as nobody takes two more.** Three snapshots after a loss the pairwise diff is clean again while
+the items are still gone. A counter that "only goes up" implies a **stored peak**, not a diff.
+`tv/ledger_highwater.py` is that peak.
+
+⚠⚠ **REG-496 — THE MODULE'S OWN FIRST ACT WAS THE BUG.** `seed()` recorded the **latest** snapshot
+as the peak — so a ledger that had already dropped would lock the reduced number in as its own
+high-water mark, and the loss would be invisible for ever. **That is precisely the failure this
+module exists to prevent, built into how it starts.** It seeds from the highest value across every
+readable snapshot now.
+
+⚠ **A sabotage passed at first and the guard it hit is not redundant.** Removing the
+"re-seeding may only raise" rule changed nothing, because `historic_peaks()` re-found the high on
+disk. The guard only matters once the snapshot **proving** the high has been rotated away — which
+is the one state where the stored peak and the history disagree, and otherwise the stored peak is
+only as durable as the oldest file on disk. The test exercises that case now.
+
+⚠ **`accept()` exists because a ratchet with no reconcile path goes permanently red the first time
+he removes something on purpose** — and a row that is always red is a row he learns to skip, the
+defect CF-10 records three instances of. It requires a **reason** and records what it replaced.
+
+**MEASURED on his 60 real snapshots, before building any of it:**
+
+```
+key          first   high-water   latest      consecutive drops in the window: 0
+foundLog       412          416      416
+owned          169          169      169
+setPieces      120          121      121
+```
+
+**So this ships GREEN — insurance, not a fix for a live bug**, and saying otherwise would be
+inventing an emergency. ⚠ And the window **begins after the incident that inspired it**: it starts
+at `foundLog` 412, so the 391 → 383 loss sits outside it. A clean window is not a clean history,
+and a peak cannot see a loss older than itself — that limit is structural and is printed, not
+filed away.
+
+Guard: `tv/test_ledger_highwater.py`, registered (102 gates). **6 sabotages, 6 RED.**

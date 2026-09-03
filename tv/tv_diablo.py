@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2508"   # the orphan check let an undeclared source account for its own names
+VERSION = "v2509"   # A14 - a counter that only goes up needs a stored peak, and my own seed would have locked in a loss
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

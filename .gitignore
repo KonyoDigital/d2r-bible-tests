@@ -214,3 +214,4 @@ tv/.human_eyes.jsonl
 # artifacts of the human-eyes work, the same class the mobile_audit_* rules above already cover.
 tv/he2_*.png
 tv/he_*.png
+tv/ledger_peaks.json

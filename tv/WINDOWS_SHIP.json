@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2508",
+  "ver": "v2509",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2508: The v2506 orphan rule summed all of reach.values including keys outside SOURCES, so an undeclared source could account for its own contribution and the check went quiet. It sums only declared sources now. My first two guards for this were both worthless and the sabotage said so - one recomputed the rule inside the test so breaking the real one left it green, the other asserted something that cannot happen. The rule is extracted so it can be sabotaged at all.",
+  "note": "v2509: console_doctor already names what vanished between the two newest snapshots, but that finding survives only as long as nobody takes two more - three snapshots after a loss the pairwise diff is clean while the items are still gone. A counter that only goes up implies a stored peak. The module first act was the bug: seed recorded the LATEST snapshot as the peak, so a ledger that had already dropped would lock the loss in as its own high water mark. It seeds from the highest value across every readable snapshot now. Measured on 60 real snapshots: zero drops in the window, so it ships green - insurance, not a fix for a live bug.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
