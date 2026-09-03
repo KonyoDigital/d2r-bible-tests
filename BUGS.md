@@ -16702,3 +16702,33 @@ the list has stopped describing the code, which is how the next undeclared modul
 name nobody re-checked.
 
 Guard: `tv/test_store_owners.py`, registered (101 gates). **5 sabotages, 5 RED.**
+
+## v2508 — the orphan check let an undeclared source account for its own names
+
+**REG-494 — v2506's orphan rule summed ALL of `reach.values()`, including keys outside `SOURCES`.**
+A cold review of that fix constructed the case: a fourth key whose value contains names present in
+the pool puts those names into `accounted`, so `pool - accounted` is empty and **the orphan
+assertion passes even though the names came from an undeclared source**. The `undeclared`
+assertion would still have caught it — but then two checks rest on one of them, and the orphan
+check stops being independent evidence. It now sums only the declared sources.
+
+⚠⚠ **MY FIRST TWO GUARDS FOR THIS WERE BOTH WORTHLESS, AND THE SABOTAGE SAID SO.** One recomputed
+the orphan rule *inside the test*, so breaking the real one left the file green — a tautology, the
+same class as the `SKIP` and `SUBJ` guards. The other asserted that a caller's pre-populated dict
+could vouch for a dead source, which **cannot happen**: all three declared keys are assigned
+unconditionally before the function returns. Both went green under sabotage and were replaced.
+
+The rule is extracted as `_orphan_names` for the same reason `_keep_names` was: **inline arithmetic
+inside a test method cannot be sabotaged**, so it cannot be shown to work.
+
+⚠ **REFUTED FROM THE CODE:** it claimed the heart block *"silently swallows any exception other
+than ImportError during `heart.vessels()`"*. Only the **import** is inside the `try`;
+`heart.vessels()` is called outside it, so a failure propagates and fails the test — the
+absent-versus-broken distinction v2500 was written to make, which this same reviewer had endorsed
+one version earlier.
+
+⚠ **SETTLED, not fixed:** a caller's pre-existing entry cannot vouch for a declared source, since
+those keys are unconditionally assigned. `seen.clear()` was added as hygiene over the
+out-parameter and is documented as hygiene, not as a fix.
+
+2 sabotages, 2 RED.

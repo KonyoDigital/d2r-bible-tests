@@ -210,6 +210,24 @@ def _keep_names(names):
     return {str(n).strip() for n in names if str(n or "").strip()}
 
 
+def _orphan_names(pool, reach, sources):
+    """Names in the pool that no DECLARED source accounts for. -> sorted list
+
+    ⚠⚠ IT LIVES HERE FOR THE SAME REASON `_keep_names` DOES: as inline arithmetic inside a test
+    method it could not be sabotaged, and my first attempt to guard it was a tautology — it
+    recomputed the rule locally, so breaking the real one left the file green.
+
+    The rule sums only the DECLARED sources. Summing all of `reach.values()` let an UNDECLARED
+    source account for its own contribution: it writes a fourth key, its names land in `accounted`,
+    and this check goes quiet. The `undeclared` assertion would still catch it — but then two
+    checks rest on one of them, and this stops being independent evidence.
+    """
+    accounted = set()
+    for s in sources:
+        accounted |= set(reach.get(s) or ())
+    return sorted(set(pool) - accounted)
+
+
 def _live_names(by_source=None):
     """Every name the resolver is actually asked about. -> set
 
@@ -218,6 +236,13 @@ def _live_names(by_source=None):
     """
     import organ_matrix as OM
     seen = {} if by_source is None else by_source
+    # ⚠⚠ IT IS AN OUT-PARAMETER AND MUST START EMPTY. A cold review: "a pre-existing key in
+    # `reach` that belongs to SOURCES and holds a non-empty set will make both the `unrecorded`
+    # and `dead` assertions pass even if the corresponding source later contributes nothing (or is
+    # never executed). Pre-existing entries can also inflate `accounted` and mask a genuine
+    # orphan." Every caller in the tree passes a fresh dict today, so nothing was wrong on this
+    # tree — and a contract that only holds while every caller is careful is not a contract.
+    seen.clear()
 
     # ⚠ ONE RULE, ONE PLACE. Hoisting `_keep` to module level so it could be put to a case left
     # the original body sitting UNREACHABLE below a `return` — two copies of the same rule, in a
@@ -335,6 +360,29 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             "a source recording an EMPTY contribution was not reported dead. Its key is present, "
             "so the unrecorded assertion passes it, and nothing else would notice.")
 
+    def test_an_undeclared_source_cannot_account_for_its_own_names(self):
+        """The orphan rule must be independent evidence, not a duplicate of the undeclared check.
+
+        ⚠ MY FIRST GUARD FOR THIS WAS A TAUTOLOGY — it recomputed the rule inside the test, so
+        breaking the real one left the file green. It drives `_orphan_names` now.
+
+        ⚠ AND ONE COLD-REVIEW FINDING IS REFUTED HERE RATHER THAN FIXED: it warned that a caller's
+        pre-existing entry in `reach` could vouch for a dead source. It cannot — all three declared
+        keys are assigned UNCONDITIONALLY before the function returns, so any prior value for them
+        is overwritten. `seen.clear()` stays as hygiene over the out-parameter, not as a fix.
+        """
+        reach = {s: set() for s in SOURCES}
+        reach["mystery.source"] = {"smuggled-name"}
+        self.assertEqual(
+            _orphan_names({"smuggled-name"}, reach, SOURCES), ["smuggled-name"],
+            "a name contributed by an UNDECLARED source was treated as accounted for. The orphan "
+            "check is then only as good as the undeclared check, and stops being evidence of its "
+            "own.")
+        self.assertEqual(
+            _orphan_names({"real"}, {SOURCES[0]: {"real"}}, SOURCES), [],
+            "BASELINE: a name a DECLARED source supplied was reported as an orphan, so this rule "
+            "would fire on every healthy run and teach him to skip it")
+
     def test_no_unreviewed_shape_collision_has_appeared(self):
         reach = {}
         pool = _live_names(reach)
@@ -363,10 +411,13 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
         # below catches a source declared-but-not-read and read-but-not-declared; it cannot catch
         # a source that quietly adds names and records nothing, which is the same silence the
         # heart source sat in behind its hasattr guard.
-        accounted = set()
-        for v in reach.values():
-            accounted |= set(v)
-        orphan = sorted(pool - accounted)
+        # ⚠ ONLY THE DECLARED SOURCES COUNT AS ACCOUNTING FOR A NAME. Summing ALL of
+        # reach.values() let an UNDECLARED source account for its own contribution: it writes a
+        # fourth key, its names land in `accounted`, and the orphan check goes quiet. The
+        # `undeclared` assertion below would still catch it — but then two checks rely on one of
+        # them, and the orphan check stops being independent evidence. A cold review constructed
+        # exactly that case.
+        orphan = _orphan_names(pool, reach, SOURCES)
         self.assertFalse(
             orphan,
             "%d name(s) are in the pool that NO declared source accounts for: %s. Something is "
