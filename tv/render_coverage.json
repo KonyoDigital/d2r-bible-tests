@@ -1,0 +1,68 @@
+{
+  "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may only RISE. A drop means a surface this gate used to watch has gone, which in a green run reads exactly like clean. Regenerate with: python3 tv/render_check.py --bless",
+  "floor": {
+    "advanced": {
+      "1120x628": 1,
+      "1120x900": 1,
+      "1440x1000": 1,
+      "375x800": 1,
+      "901x900": 1
+    },
+    "advanced-fleet": {
+      "1120x628": 1,
+      "1120x900": 1,
+      "1440x1000": 1,
+      "375x800": 1,
+      "901x900": 1
+    },
+    "advanced-shadow": {
+      "1120x628": 1,
+      "1120x900": 1,
+      "1440x1000": 1,
+      "375x800": 1,
+      "901x900": 1
+    },
+    "console": {
+      "1120x628": 2,
+      "1120x900": 2,
+      "1440x1000": 2,
+      "375x800": 2,
+      "901x900": 2
+    },
+    "inbox": {
+      "1120x628": 3,
+      "1120x900": 3,
+      "1440x1000": 3,
+      "375x800": 3,
+      "901x900": 3
+    },
+    "state-panel": {
+      "1120x628": 13,
+      "1120x900": 13,
+      "1440x1000": 13,
+      "375x800": 13,
+      "901x900": 13
+    },
+    "taskforce": {
+      "1120x628": 3,
+      "1120x900": 3,
+      "1440x1000": 3,
+      "375x800": 3,
+      "901x900": 3
+    },
+    "vault": {
+      "1120x628": 11,
+      "1120x900": 11,
+      "1440x1000": 11,
+      "375x800": 11,
+      "901x900": 11
+    },
+    "vault-full": {
+      "1120x628": 22,
+      "1120x900": 22,
+      "1440x1000": 22,
+      "375x800": 22,
+      "901x900": 22
+    }
+  }
+}

@@ -279,6 +279,15 @@ GATES = [
     # v2466 — the build stamp renders whole. Needs headless Chrome; skips, never passes, without
     # it. `why` IS A KEYWORD.
     # v2469 — the probe primitives. `why` IS A KEYWORD.
+    Gate("test_render_coverage", [sys.executable, os.path.join(HERE, "test_render_coverage.py")], 120,
+         why="the render gate could not notice its own COVERAGE SHRINKING. It refuses a\n"
+             "zero-size element, a black capture, an unsettled page and a dropped socket —\n"
+             "every way ONE reading can lie — and had no way to see it was taking FEWER\n"
+             "readings than before. `console` went 3/3 to 2/2 when the DOM changed and\n"
+             "re-baselined silently, because two clean measurements are two clean\n"
+             "measurements. tv/render_coverage.json is a ratchet: coverage may RISE freely,\n"
+             "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
+             "cannot become the new normal."),
     Gate("test_prune_wilson", [sys.executable, os.path.join(HERE, "test_prune_wilson.py")], 120,
          why="the harness that sabotages the DELETER must be unable to delete, and must be\n"
              "able to go RED (A2 step 4). It calls exactly one console function, whose own\n"

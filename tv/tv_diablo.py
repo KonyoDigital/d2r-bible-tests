@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2474"   # THE DAILY PICK VANISHED WHEN THE GRAIL WALL RAN OUT
+VERSION = "v2475"   # THE RENDER GATE COULD NOT SEE ITS OWN COVERAGE SHRINKING
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

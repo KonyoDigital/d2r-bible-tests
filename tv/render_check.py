@@ -1338,6 +1338,112 @@ def prove():
     return 0
 
 
+# ══ THE COVERAGE RATCHET ══════════════════════════════════════════════════════════════════════
+# Every other refusal in this file is about ONE reading being wrong. This one is about the SET of
+# readings getting smaller, which no single reading can see. `console` went 3/3 to 2/2 when a
+# control was hidden, and the run stayed green because two clean measurements are two clean
+# measurements — the missing third left no trace anywhere.
+#
+# Shape, deliberately the same as tv/swallow_census.py's RANK-1 ratchet so there is one idea here
+# and not two, but INVERTED: that one counts a defect and may only fall; this one counts COVERAGE
+# and may only rise. A drop is a refusal naming the target, the width and both numbers.
+#
+# ⚠ IT RECORDS `found`, NOT `painted`. `painted` is a verdict about the nodes and moves for honest
+# reasons — a legitimately hidden node paints zero. `found` is how many nodes the selector matched,
+# which is the question "is this surface still here at all". Ratcheting a verdict would fail every
+# time a panel is correctly empty; ratcheting the census fails when a surface goes missing.
+#
+# ⚠ AND IT IS BLESSED ONLY FROM A CLEAN RUN. A run where the browser went away mid-render must
+# never be allowed to write a lower floor — that is how "the machine was busy once" becomes the new
+# normal and the coverage quietly halves. `--bless` refuses unless every target reported.
+COVERAGE = os.path.join(HERE, "render_coverage.json")
+
+
+def _coverage_floor():
+    """-> {target: {width: n}}. Absent file is UNKNOWN, not zero. [[unknown-stays-unknown]]"""
+    try:
+        with io.open(COVERAGE, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d.get("floor") or {}
+    except Exception:
+        return None
+
+
+def _coverage_of(results):
+    """-> {target: {width: found}} from this run's per-width measurements."""
+    out = {}
+    for name, r in results.items():
+        w = {}
+        for key, m in (r.get("widths") or {}).items():
+            try:
+                w[str(key)] = int(m.get("found") or 0)
+            except Exception:
+                w[str(key)] = 0
+        if w:
+            out[name] = w
+    return out
+
+
+def _coverage_check(results, say):
+    """Refuse when a target measures FEWER nodes than its floor. -> n_refusals"""
+    floor = _coverage_floor()
+    now = _coverage_of(results)
+    if floor is None:
+        say("⚪ coverage ratchet UNKNOWN — %s has never been written, so this run cannot tell "
+            "whether coverage shrank. Run --bless on a clean run to set the floor."
+            % os.path.relpath(COVERAGE, REPO))
+        return 0
+    bad = 0
+    for name in sorted(floor):
+        if name not in now:
+            say("🔴 coverage %-8s the target did not report at all this run, and its floor says it "
+                "should measure %d width(s). A surface that stops being checked is UNMEASURED, and "
+                "unmeasured must never read as clean."
+                % (name, len(floor[name])))
+            bad += 1
+            continue
+        for key in sorted(floor[name]):
+            was, is_ = floor[name][key], now[name].get(key)
+            if is_ is None:
+                say("🔴 coverage %-8s %s is no longer measured at all (floor %d)."
+                    % (name, key, was))
+                bad += 1
+            elif is_ < was:
+                say("🔴 coverage %-8s %s measured %d node(s), was %d. Something this gate used to "
+                    "watch is gone. If that is intended, say so and re-bless; if it is not, this "
+                    "is the defect — and it would otherwise have been %d clean readings in a green "
+                    "run." % (name, key, is_, was, is_))
+                bad += 1
+    grew = [(n, k, now[n][k], floor[n][k]) for n in floor for k in floor[n]
+            if now.get(n, {}).get(k, 0) > floor[n][k]]
+    for n, k, is_, was in sorted(grew)[:6]:
+        say("     ⓘ coverage %s %s grew %d -> %d; --bless to raise the floor" % (n, k, was, is_))
+    return bad
+
+
+def _coverage_bless(results, complete, say):
+    """Write the floor. Refuses unless the run covered every target. -> exit code"""
+    if not complete:
+        say("🔴 refusing to bless: this run did not report every target, and a partial run must "
+             "never write a LOWER floor. That is how one busy afternoon becomes the new normal.")
+        return 2
+    now = _coverage_of(results)
+    old = _coverage_floor() or {}
+    merged = {}
+    for name in set(list(now) + list(old)):
+        merged[name] = dict(old.get(name) or {})
+        merged[name].update(now.get(name) or {})
+    with io.open(COVERAGE, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({
+            "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may "
+                    "only RISE. A drop means a surface this gate used to watch has gone, which in a "
+                    "green run reads exactly like clean. Regenerate with: "
+                    "python3 tv/render_check.py --bless",
+            "floor": merged}, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+    say("blessed %d target(s) into %s" % (len(merged), os.path.relpath(COVERAGE, REPO)))
+    return 0
+
+
 def main(argv):
     want = [a for a in argv if not a.startswith("-")]
     if "--list" in argv:
@@ -1364,6 +1470,7 @@ def main(argv):
         return 2
 
     bad, unknown = 0, 0
+    results = {}          # per-target, for the coverage ratchet after the loop
     for name, spec in sorted(targets.items()):
         # ⚠ v2412 — A DROPPED CDP SOCKET IS UNKNOWN, NOT A CRASH AND NOT A DEFECT. On 2026-09-02 a
         # push was blocked by a bare WebSocketConnectionClosedException propagating out of this
@@ -1432,9 +1539,24 @@ def main(argv):
                 _say("               text: %s" % m["text"][:96])
         for why in r["refusals"]:
             _say("     ⚠ %s" % why)
+        results[name] = r
         if not r["ok"]:
             bad += 1
     _say("")
+
+    # THE SET OF READINGS, not any one of them. Everything above judges a surface; this judges
+    # whether the same surfaces are still being looked at. Only meaningful over the FULL target
+    # set — a `--target vault` run legitimately reports one target and must not read as a drop.
+    _full = (len(targets) == len(TARGETS))
+    if "--bless" in argv:
+        return _coverage_bless(results, _full and not bad and not unknown, _say)
+    if _full:
+        bad += _coverage_check(results, _say)
+    elif _coverage_floor() is not None:
+        _say("     ⓘ coverage ratchet skipped — this run asked for %d of %d targets, and a subset "
+             "cannot tell a deliberate filter from a surface that vanished."
+             % (len(targets), len(TARGETS)))
+
     _say("shots: %s" % os.path.relpath(SHOTS, REPO))
     if bad:
         # ⚠ v2412 — AN UNMEASURED SURFACE IS NOT A DIRTY ONE, AND SENDING HIM TO PNGs THAT SHOW
