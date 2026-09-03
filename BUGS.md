@@ -7,6 +7,59 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-443 — the board hides its own tab row on a URL flag, and never checks the flag is true
+**2026-09-03 · v2471 · reported by Konyo with a screenshot: "i cant see any tabs... something is bugged"**
+
+`?engine=1` is written in ONE place in this repo — the `#tvd-eng` iframe in `tv/control_ui.html` —
+and it arms `body.app-ctx.engine-driven .tabs { display:none !important }`, whose own comment states
+the theory: *"console header is the one clickable rail"*. That is true inside the shell. Open the
+same URL as a top-level window and the flag still arms, the rail does not exist, and the document
+hides its navigation in favour of nothing.
+
+MEASURED, old build vs new, in both contexts (headless, 1600x1000):
+
+| build | context | `.tabs` display | tabs laid out | body classes |
+|---|---|---|---|---|
+| HEAD | top-level | `none` | **0 / 19** | `app-ctx engine-driven` |
+| HEAD | framed | `none` | 0 / 19 | `app-ctx engine-driven` |
+| fix | top-level | `flex` | **7 / 19** | `app-ctx` |
+| fix | framed | `none` | 0 / 19 | `app-ctx engine-driven` |
+
+Row 1 is his screenshot reproduced. Row 4 is the reason the fix is a frame check and not a deletion
+of the rule — the console pane must keep hiding the duplicate rail.
+
+**Fix.** The `engine-driven` CLASS now requires `window.top !== window.self` at both sites that add
+it. `ENGINE_DRIVEN` the VARIABLE is deliberately unchanged: it also decides whether the page arms
+its own intake poll, and loosening that would let a top-level pane double-arm against the control
+process.
+
+**Three defects the restored row then exposed**, none of them new — all were unreachable while the
+row was `display:none` on every path where these overlays are visible:
+
+1. `.tabs-data` (main + the HUNT and LORE clusters) is always empty in app context, and painted as
+   two empty captioned bordered boxes beside the real tools. Hidden.
+2. The ⌂ CONSOLE pill (`fixed`, z 10050) and `#v687-build-badge` (`fixed`, z 9990) are anchored
+   top-left and sat ON the row — 62x27 and 77x20 px of overlap. A 144px left gutter clears both.
+   ⚠ The first cut used a MORE SPECIFIC selector and still computed to `padding 0px`, because
+   `.tabs, .tab-bar { padding:12px 0 !important }` appears later in the file and `!important` beats
+   specificity. The `!important` on the gutter is load-bearing.
+3. `.profile-pill` (⚔ MAIN / 🪜 LADDER) is `position:absolute` at the SAME z-index (60) as the row
+   and earlier in the DOM, so the row painted over it — it read as "…DER" and `⚔ MAIN` hit-tested
+   to the row (`clickable=false`). ⚠ `margin-right` did NOT fix this: `.tabs` has a fixed width, so
+   the margin slid the whole row left instead of shrinking it. `z-index:70` on the toggle settles
+   paint and hit-testing at every width. Both halves now measure `clickable=true`.
+
+**Guard:** `tv/test_app_ctx_nav.py` — pins two LAWS, not a roster: (a) every site adding
+`engine-driven` tests that the document is framed, resolved TRANSITIVELY through
+`engineDriven()` -> `framed()`; (b) every tab re-shown in app context lives in `.tabs-workshop`,
+which is the premise under hiding `.tabs-data`. Proven RED on HEAD (2 of 3 fail) and green on the
+fix. ⚠ The guard's own first two reds were its fault, not the code's — it could not see through a
+function call, then could not see through two.
+
+**Not fixed, and stated rather than left implied:** in app context only the 7 workshop tabs are
+re-shown by name; the 11 data tabs stay hidden there BY DESIGN (v2084). If he wants the full rail
+top-level, the answer is to drop `?app=1`, not to widen that list.
+
 ## Strategy
 - Side branch: `/Users/konyo/Downloads/konyo_d2r_bible_v21_kai.html`
 - Test bench: `/Users/konyo/d2r_bible_tests/bible.html` (copy)
@@ -15524,3 +15577,63 @@ under `~/Library/Caches/com.apple.python/<full path>`. The harness now clears it
 assertion was `"inline" in DP.CLIPPED`, satisfied by the word appearing in a comment. Same "a word
 is not a mechanism" error as the earlier `"print" in a 700-char window` guard. It now requires the
 branch to actually read `cs.display`. All four seen RED.
+
+## ⚠ THE COLD EYE CAN QUOTE A SENTENCE THAT DOES NOT EXIST (measured 2026-09-03, v2469)
+
+On the v2469 pixels it reported, at BOTH widths:
+> *"the line under 'HELL TZ MEPHISTO' is cut mid-sentence at the right edge of the dark overlay
+> panel ('best expected yield — 30 missing uniques — ~1 every 43m — · Shadow Killer · Gut Siphon ·
+> The Gladiator's Bane')"*
+
+Measured on the same page:
+```
+Gut Siphon / Gladiator / Shadow Killer / HELL TZ MEPHISTO / Fleshrender  present and visible
+"best expected"                                                          inDOM = 0
+"1 every"                                                                inDOM = 0
+ACTUALLY CLIPPED text nodes on the whole visible page                     0
+```
+
+**It assembled a plausible sentence out of real item names it could see, and reported that sentence
+as clipped.** The names are real; the sentence is not; nothing on the page is clipped.
+
+⚠ **THIS BREAKS THE SAFEGUARD I HAD BEEN RELYING ON.** Every cold-read prompt tonight said "quote
+exact strings", on the assumption that a quote is checkable and therefore disciplining. It is
+checkable — but only if I actually check it. **A quoted string must be shown to EXIST before its
+claim is even considered.**
+
+**Tonight's tally for this instrument, stated so the ratio is not lost:** it produced 2 REAL
+findings that changed the product — the build stamp ending mid-word (became v2466) and the MF dock
+genuinely being painted over content (my two refutations were mis-measured) — against 6 claims that
+measurement refuted: ordinary word-wrap called truncation x3, the dock flip-flopped across four
+reads, item colours called "plain white/grey" when they paint #c7b377, and now a confabulated
+quote. **It is worth running every time and worth believing none of the time without a measurement.**
+
+## v2469's HELPER FOUND ITS OWN LIMIT ON FIRST USE
+
+`__leafText` returns LEAF nodes, so a sentence assembled from several spans has no single leaf and
+is invisible to it — the first thing I pointed it at returned 0 matches for text that was on screen.
+That is a seventh instance of the same class the helper exists to prevent, found by the helper.
+Searching the smallest CONTAINER holding a phrase is the companion move, and the fact that it took
+one use to surface is the argument for having written it down at all.
+
+## v2470 — the quote-check, because "quote exact strings" was never a safeguard on its own
+
+The confabulation above is now checkable rather than only recorded. `dom_probe.__quoted(s)` asks
+the page whether a quoted string is actually there, and answers three ways:
+
+```
+"best expected yield — 30 missing uniques — ~1 every 43m"
+   exists=False · 5 of 6 words present · missing ['expected']
+   "some words appear separately, which is what a stitched sentence looks like"
+"Forge"   exists=True  · found verbatim in the rendered text
+""        exists=None  · empty quote — nothing to check
+```
+
+⚠ **THE INTERESTING ANSWER IS NOT "ABSENT".** It is *nearly every word is here and the sentence is
+not* — measured at 5 of 6 on the real case. A checker that only said yes/no would call that
+identical to a typo, and I would have dismissed it as the eye mis-transcribing rather than
+recognising a stitched sentence. It reads `innerText`, not `innerHTML`: checking a quote against
+markup would find attributes and tags the reader never saw.
+
+**Seen RED three ways:** collapsing it to yes/no, calling an empty quote absent rather than UNKNOWN,
+and checking against markup instead of rendered text.

@@ -5344,6 +5344,45 @@ body.app-ctx .tabs .tab[data-tab="fsets"]{
   display:inline-flex;flex:1 1 auto;justify-content:center;font-size:13px;padding:9px 6px;
   letter-spacing:var(--ls-normal)}
 body.app-ctx .tabs .tab[data-tab="tvd"]{display:none !important} /* v901 SESSIONS is home */
+/* v2471 — AN EMPTY CLUSTER FRAME IS WORSE THAN NO FRAME. Every tab the block above re-shows lives
+   in `.tabs-workshop`; `.tabs-data` (main + the HUNT and LORE clusters) is therefore ALWAYS empty
+   in app context — and it still painted its captions and borders, so the restored rail read as two
+   empty boxes beside the real tools. Hiding the container is only right while that stays true, so
+   `tv/test_app_ctx_nav.py` pins the LAW: any tab re-shown here must be a workshop tab, or the
+   guard goes red and this rule gets revisited. */
+body.app-ctx .tabs-data{display:none}
+/* v2471 — RESERVE THE GUTTER THOSE TWO FIXED OVERLAYS OCCUPY. Both are anchored top-LEFT and
+   neither participates in layout, so the row has to be told about them. 144px = the measured
+   right edge of the wider one (the badge, 136) plus 8px of air. Scoped to :not(.engine-driven)
+   because that is exactly the state in which the pill and badge are on screen — inside the shell
+   the pill is hidden and this row is not rendered at all. */
+body.app-ctx:not(.engine-driven) .tabs{padding-left:144px !important}
+/* The toggle goes ABOVE the row, it does not get chased with a margin. `.tabs` has a FIXED width
+   (1472 at vw 1600), so `margin-right` did not shrink the box — it slid the whole row left, moved
+   its left edge 59 -> 14, and left ⚔ MAIN still hit-testing to the row (clickable=false, measured).
+   `.profile-pill` and `.tabs` both sit at z-index 60 and the row comes later in the DOM, so the row
+   won on paint AND on hit-testing. One number above it settles both, at every width. */
+body.app-ctx .profile-pill{z-index:70}
+/* ⚠ AND THE RIGHT GUTTER IS THE SAME DEFECT AT THE OTHER END. `.header-top` collapses to 2px in
+   app context, so the ⚔ MAIN / 🪜 LADDER toggle — position:absolute, z:60, the SAME z as this row —
+   lands ON the tab row instead of above it. MEASURED at 1600: the toggle occupies x 1436..1557
+   while the row runs to 1531, so the row painted over its left half and it read as "…DER". 176px
+   = 1600-1436 plus air. NOTE there are TWO `.profile-pill` nodes and the first measures 0x0; a
+   selector that assumes one match finds the dead twin. [[borrowed-surface]]
+   ⚠ `!important` IS LOAD-BEARING HERE AND MUST NOT BE TIDIED AWAY. `.tabs, .tab-bar{padding:12px 0
+   !important}` appears later in this file, and an `!important` shorthand beats specificity — the
+   first cut of this gutter was MORE specific, lost anyway, and computed to padding 0px while the
+   rule sat in the sheet looking applied. Measured, not assumed: getComputedStyle said `0px` with
+   the declaration present. [[d2r-css-last-rule-wins]]
+   ⚠ RIGHT SIDE IS A MARGIN, LEFT IS A PADDING, AND THE DIFFERENCE IS THE WHOLE POINT. Padding moved
+   the BUTTONS off the toggle and the row's own background still painted over it — the toggle stayed
+   cut to "…DER" in the render after the overlap measured 0 px². Padding does not shrink the box, and
+   the box is what paints and what hit-tests. So the right edge ENDS the row (margin); the left keeps
+   a padding because the ⌂ pill and badge are z:10050/9990 and paint above it anyway.
+   VERIFY THE THING, NOT A PROXY: "buttons do not overlap" was a proxy for "the control is visible",
+   and the picture disagreed with it. Then "the row ends before it" was a proxy for "he can click
+   it", and elementFromPoint disagreed with THAT. The question is only ever whether the control is
+   on screen and reachable, so that is what gets measured. */
 /* v935.6 — engine pane inside the console shell: console header owns the tab rail.
    Hide the board's duplicate sticky tabs + CONSOLE pill (host shell has ⌂ CONSOLE · esc). */
 body.app-ctx.engine-driven .tabs{display:none !important}
@@ -48317,7 +48356,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2469', name:'v2469 - FIVE PROBES THAT MEASURED THE WRONG THING', date:'2026-09-03', note:'Every DOM probe tonight was hand rolled and five of them measured something adjacent to the question, each producing a confident sentence I nearly published: body star returns script source as screen text, a clip test on an inline box can never be true, occlusion has a direction and I sampled the wrong one twice, a text search grabbed a small inner div instead of the panel under discussion, and a colour check looked for a class instead of asking what the element paints. Those five corrections are now one helper that every probe prepends.' };
+  window.D2R_BUILD = { id:'v2471', name:"v2471 - THE PAGE HID ITS OWN NAV FOR A RAIL THAT WAS NOT THERE", date:'2026-09-03', note:"He opened the board top-level with the shell's own ?engine=1 flag and had no tabs at all. That flag is written in exactly one place, the console's #tvd-eng iframe, and the CSS it arms hides the whole tab row because inside the shell the console header IS the rail. Nothing ever checked that the document was actually inside the shell, so top-level the page hid its navigation in favour of nothing. Measured on his build: display none, 0 of 19 tab buttons laid out. The class now requires a real frame. Restoring the row then exposed three things it had been hiding: two empty captioned cluster frames, a gutter under the fixed CONSOLE pill and build badge, and the MAIN/LADDER toggle painted over by the row at the same z-index and not clickable." };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -48440,7 +48479,16 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 // tab (8686) and file:// carry no ?app=1 flag, so they never see it. Click returns to the console ('/').
 (function(){
   function appCtx(){ try { return new URLSearchParams(location.search).get('app') === '1'; } catch(e){ return false; } }
-  function engineDriven(){ try { return new URLSearchParams(location.search).get('engine') === '1'; } catch(e){ return false; } }
+  // ⚠⚠ v2471 — `engine=1` IS A CLAIM ABOUT CONTEXT, AND NOTHING CHECKED THE CONTEXT.
+  // The flag is written in ONE place: the #tvd-eng IFRAME in tv/control_ui.html. The CSS it arms
+  // hides this document's whole tab row, because inside the shell the console header IS the rail.
+  // Top-level, there is no rail — so the page hid its own navigation and put nothing in its place.
+  // Konyo, 2026-09-03, with a screenshot of the empty header band: "i cant see any tabs...
+  // something is bugged". He was on a top-level window carrying ?engine=1.
+  // `framed()` is the missing half of the joint: hide the rail only while the OTHER rail is really
+  // there. Same-origin or cross-origin, a thrown SecurityError still means framed. [[the-unjoined-end]]
+  function framed(){ try { return window.top !== window.self; } catch(e){ return true; } }
+  function engineDriven(){ try { return new URLSearchParams(location.search).get('engine') === '1' && framed(); } catch(e){ return false; } }
   // v935.6/7 — stamp body classes ASAP (before late TV receiver IIFE) so shell CSS applies
   try {
     if (appCtx()) document.body.classList.add('app-ctx');
@@ -48488,7 +48536,13 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
   var ENGINE_DRIVEN = /[?&]engine=1/.test(location.search || '');
   // v935.6 — mark engine-driven so CSS can hide the duplicate board tab rail when this
   // document is the shell's #tvd-eng pane (console header is the one clickable rail).
-  try { if (ENGINE_DRIVEN) document.body.classList.add('engine-driven'); } catch(e){}
+  // v2471 — the CLASS needs the frame; ENGINE_DRIVEN itself does NOT change here. The variable
+  // also decides whether this page arms its own intake poll, and loosening that would let a
+  // top-level pane double-arm against the control process. Only the CSS marker is gated.
+  try {
+    var _framed = true; try { _framed = (window.top !== window.self); } catch(e){ _framed = true; }
+    if (ENGINE_DRIVEN && _framed) document.body.classList.add('engine-driven');
+  } catch(e){}
   var _lastBeatPhase='watching';   // v747 — the NOW ON AIR stage reads this to show its READING… state
   // v734 — stash-tab auto-intake: once per visit per tally tab (runes/gems/materials)
   var _stashVisitDone = {};   // tab → true for current open-stash visit

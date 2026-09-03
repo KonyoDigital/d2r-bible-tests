@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2469"   # FIVE PROBES THAT MEASURED THE WRONG THING
+VERSION = "v2471"   # THE PAGE HID ITS OWN NAV FOR A RAIL THAT WAS NOT THERE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

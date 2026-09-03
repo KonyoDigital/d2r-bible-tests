@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2469",
+  "ver": "v2471",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2469: Every DOM probe tonight was hand rolled and five of them measured something adjacent to the question, each producing a confident sentence I nearly published: body star returns script source as screen text, a clip test on an inline box can never be true, occlusion has a direction and I sampled the wrong one twice, a text search grabbed a small inner div instead of the panel under discussion, and a colour check looked for a class instead of asking what the element paints. Those five corrections are now one helper that every probe prepends.",
+  "note": "v2471: He opened the board top-level with the shell's own ?engine=1 flag and had no tabs at all. That flag is written in exactly one place, the console's #tvd-eng iframe, and the CSS it arms hides the whole tab row because inside the shell the console header IS the rail. Nothing ever checked that the document was actually inside the shell, so top-level the page hid its navigation in favour of nothing. Measured on his build: display none, 0 of 19 tab buttons laid out. The class now requires a real frame. Restoring the row then exposed three things it had been hiding: two empty captioned cluster frames, a gutter under the fixed CONSOLE pill and build badge, and the MAIN/LADDER toggle painted over by the row at the same z-index and not clickable.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

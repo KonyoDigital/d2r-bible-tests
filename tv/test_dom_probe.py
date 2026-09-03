@@ -71,9 +71,36 @@ class TheCorrectionsSurvive(unittest.TestCase):
         self.assertIn("getComputedStyle", DP.PAINTED)
         self.assertIn("color", DP.PAINTED, "the paint helper no longer reports the painted colour")
 
+    def test_a_quoted_claim_can_be_checked_against_the_page(self):
+        """SCAR 7: a cold read quoted a line as clipped. The item names in it were real and on
+        screen; the connecting phrases were NOT IN THE DOM; the page had ZERO clipped nodes. It
+        stitched a sentence out of words it could see.
+
+        Every cold-read prompt says 'quote exact strings', on the assumption that a quote
+        disciplines a claim. It only does if something checks it."""
+        self.assertIn("__quoted", DP.QUOTED, "the quote checker is gone")
+        self.assertIn("innerText", DP.QUOTED,
+                      "it no longer reads the RENDERED text — checking a quote against innerHTML "
+                      "would find markup and attributes the reader never saw")
+
+    def test_a_stitched_quote_is_distinguished_from_an_absent_one(self):
+        """The interesting case is not 'absent'. It is 'nearly every word is here and the sentence
+        is not' — measured on the real confabulation, 5 of 6 words present. A checker that only
+        answered yes/no would call that identical to a typo."""
+        self.assertRegex(DP.QUOTED, r"fragmentsPresent",
+                         "it no longer counts how many words of the quote appear separately, so a "
+                         "stitched sentence is indistinguishable from a wrong one")
+        self.assertIn("stitched", DP.QUOTED,
+                      "it no longer NAMES the stitched-sentence case, which is the whole finding")
+
+    def test_an_empty_quote_is_UNKNOWN_not_false(self):
+        """Nothing to check is not the same as checked-and-absent."""
+        self.assertRegex(DP.QUOTED, r"exists\s*:\s*null",
+                         "an empty quote must answer UNKNOWN, never 'does not exist'")
+
     def test_the_prelude_carries_all_four(self):
         p = DP.prelude()
-        for fn in ("__leafText", "__clipped", "__covers", "__painted"):
+        for fn in ("__leafText", "__clipped", "__covers", "__painted", "__quoted"):
             self.assertIn(fn, p, "%s is missing from the prelude, so probes will hand-roll it "
                                  "again — which is how all five scars happened" % fn)
 

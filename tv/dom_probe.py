@@ -95,8 +95,48 @@ function __painted(e){
 }
 """
 
+#: Does a QUOTED string actually exist on the page? Scar 7 — a cold read can quote a sentence
+#: that was never there.
+QUOTED = """
+function __quotedIn(s, bodyText){
+  // ⚠ SCAR 7, 2026-09-03. A cold cross-family read reported a line 'cut mid-sentence at the right
+  // edge' and QUOTED it. Measured: the item names inside the quote were real and on screen, the
+  // connecting phrases were NOT IN THE DOM AT ALL, and the page had ZERO clipped nodes. It had
+  // assembled a plausible sentence out of names it could see.
+  // Every cold-read prompt says 'quote exact strings', on the assumption that a quote disciplines
+  // a claim. It only does if somebody checks it. This is that check.
+  var norm = function(t){ return String(t||'').replace(/\\s+/g,' ').trim().toLowerCase(); };
+  var needle = norm(s);
+  if (!needle) return {exists:null, why:'empty quote — nothing to check'};
+  // ⚠⚠ THE TEXT MUST COME FROM THE STATE THAT WAS PHOTOGRAPHED, NOT A FRESH LOAD.
+  // Found on this helper's FIRST REAL USE: I checked three strings a cold read had quoted and got
+  // "Fleshrender — NOT on the page at all", an hour after measuring that exact element painting
+  // #c7b377. The page had simply re-rendered a rotating list between the screenshot and the check.
+  // A quote-checker that loads the page again is answering about a DIFFERENT page, which is the
+  // same class of error the rest of this file exists to stop — the right answer to the wrong
+  // question. Callers pass the innerText captured ALONGSIDE the screenshot; the no-argument form
+  // falls back to "right now" and SAYS so.
+  var body = norm(bodyText != null ? bodyText
+                                   : (document.body.innerText || document.body.textContent));
+  var against = (bodyText != null) ? 'the captured page text' : 'the page AS IT IS NOW (not the '
+              + 'state that was photographed — pass the captured text to be sure)';
+  if (body.indexOf(needle) >= 0) return {exists:true, against:against, why:'found verbatim in ' + against};
+  // a partial match is the interesting case: real fragments stitched into an unreal sentence
+  var words = needle.split(' ').filter(function(w){ return w.length > 3; });
+  var found = words.filter(function(w){ return body.indexOf(w) >= 0; });
+  return {exists:false, against:against,
+          fragmentsPresent: found.length, fragmentsTotal: words.length,
+          missing: words.filter(function(w){ return body.indexOf(w) < 0; }).slice(0, 8),
+          why: (found.length && found.length < words.length)
+            ? 'NOT on the page as quoted — some words appear separately, which is what a stitched '
+              + 'sentence looks like. Treat the claim as unverified until re-quoted.'
+            : 'NOT on the page at all'};
+}
+function __quoted(s){ return __quotedIn(s, null); }   // convenience: checks NOW, and says so
+"""
+
 #: Every helper, ready to prepend to a probe.
-PRELUDE = LEAF_TEXT + CLIPPED + COVERS + PAINTED
+PRELUDE = LEAF_TEXT + CLIPPED + COVERS + PAINTED + QUOTED
 
 
 def prelude():
@@ -111,5 +151,5 @@ if __name__ == "__main__":
     except Exception:
         pass
     print(__doc__)
-    print("helpers: __leafText(root) · __clipped(el) · __covers(a,b) · __painted(el)")
+    print("helpers: __leafText(root) · __clipped(el) · __covers(a,b) · __painted(el) · __quoted(str)")
     print("prelude is %d chars" % len(PRELUDE))
