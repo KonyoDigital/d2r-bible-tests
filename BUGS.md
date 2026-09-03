@@ -17576,3 +17576,75 @@ which is the same omission wearing the half nobody looks at. Both patched; the g
 reproduces green (`Ran 2 tests … OK`), and the sweep is complete BY MEASUREMENT rather than by my
 reading — the check now returns an empty list, so there is no third file.
 
+## v2534 — the funnel probe retyped two filenames their owners already declare
+
+**REG-534 — a rename would have made a covered rung vanish, silently.** Found by the
+review-after-ship pass on the pushed v2531–v2533 bytes.
+
+`one_funnel.WAYPOINTS` hardcoded `"retro_triage.json"` and `"vault_swept.json"` — two names the
+owning modules already declare as `retro_triage.STORE` and `frame_authority.SEAL_STORE`.
+**[[copy-drift]] §1: name ONE source, everything else quotes it.**
+
+⚠ **THE CONSEQUENCE WAS REPRODUCED, NOT IMAGINED.** Rename the store in its owning module and the
+probe does not follow:
+
+```
+after a rename:   passage PARTIAL · datedRungs ['swept']
+                  triaged: the store would not read ([Errno 2] ... '/Users/konyo/d2r_bible)
+before:           passage PARTIAL · datedRungs ['swept', 'triaged']
+```
+
+`triaged` — **40 of 40 reels covered** — silently vanishes from the dated rungs, the verdict stays
+PARTIAL, and nothing looks wrong. A wrong answer wearing a measurement's clothes.
+
+⚠ **AND A SECOND, SMALLER DEFECT INSIDE THE FIRST.** The unreadable reason printed `str(e)[:60]`,
+which on a real path cut off mid-directory — `'/Users/konyo/d2r_bible` — **hiding the one word that
+would diagnose it.** It names the store first now, then as much of the error as fits.
+
+**Fixed:** `WAYPOINT_SOURCES` maps each rung to `(module, constant)` and `_store_of()` asks the
+owner. An owner that will not import, or that stopped declaring its constant, returns `None` WITH A
+REASON — never a guessed filename, because a guess would read a file that may not be the store and
+report its coverage as the rung's.
+
+**Guard:** three laws in `tv/test_one_funnel.py`. **3 sabotages, 3 RED:** retyping the filename
+instead of quoting the owner → the rename-follows test fires; guessing `mod + ".json"` when the
+constant is gone → `'retro_triage.json' is not None`; dropping the filename from the unreadable
+reason → `'no_such_store_ever.json' not found in "…'/Users/konyo/d2r_bible)"`.
+
+## v2535 — A15 clause 3: every reel that reached the far end got there BY POLICY, not by content
+
+**A15 clause 3: *"then the routes separate, PER REEL, BY SCENARIO. Each reel takes the path its own
+content earns."*** Built as `tv/per_reel_routes.py`.
+
+⚠⚠ **THE QUESTION IS NOT WHETHER REELS DIFFER — THEY OBVIOUSLY DO.** It is whether the difference is
+EARNED BY THE CONTENT. A shelf where every route is decided by age, or by whether the test suite
+opens the reel, has divergence in it and **none of it is the divergence A15 asks for.** So each
+route is attributed using the split `reel_story` already draws in its own source (POLICY_HOLDS /
+GLOBAL_HOLDS), quoted rather than copied.
+
+**MEASURED, 2026-09-04, 40 reels:**
+
+```
+decided by CONTENT   28      zero-pages@swept              28
+decided by POLICY    12      recent@releasable              5
+                             test-fixture@releasable        7
+```
+
+⚠⚠ **THE TWO COLUMNS ARE THE SAME 28 AND THE SAME 12, AND THAT IS THE FINDING.** Every reel that has
+reached the far end got there **by policy** — five for being recent, seven for being a fixture the
+suite opens. Every content-routed reel is parked at one rung under one tag. So the content-earned
+divergence A15 describes exists in the code and **nothing on his shelf exercises it**: there are not
+two reels today taking different paths because of what they hold. **State: UNEXERCISED.**
+
+⚠ **AND THAT IS NOT A DEFECT.** `zero-pages` means *swept, and the sweep found nothing to read* —
+those reels are held as EVIDENCE on purpose, because the engine reopens them when the prompt
+improves (`reel_story`'s own words). A probe calling this a routing failure would **cry wolf on a
+shelf behaving exactly as designed.** UNEXERCISED is a third state, distinct from broken AND from
+working.
+
+**Guard:** `tv/test_per_reel_routes.py`, registered in `run_gates.py`. **4 sabotages, 4 RED:**
+counting policy routes as content-earned → `'EARNED' != 'POLICY_ONLY'`; `MIN_DISTINCT = 1` so one
+route reads as divergence → `'EARNED' != 'UNEXERCISED'`; rounding an untaught tag into content →
+`None != 1`; keeping a private copy of POLICY_HOLDS so a move in `reel_story` does not follow →
+`None != 1`. An EARNED baseline keeps UNEXERCISED a measurement rather than the only reachable answer.
+

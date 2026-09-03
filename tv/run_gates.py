@@ -667,6 +667,23 @@ GATES = [
              "and STALE couplings both fail, the owner must actually mention its store, a reader "
              "needs a real reason, the exclusion stays narrow (widening it would make a hiding "
              "place), and nothing here fails a build. 5 sabotages, 5 RED."),
+    Gate("test_per_reel_routes", [sys.executable, os.path.join(HERE, "test_per_reel_routes.py")], 90,
+         why="A15 clause 3 — *the routes separate PER REEL, BY SCENARIO; each reel takes the path "
+             "its own content earns*. ⚠ THE QUESTION IS NOT WHETHER REELS DIFFER — they obviously "
+             "do. It is whether the difference is EARNED BY THE CONTENT: a shelf where every route "
+             "is decided by age, or by whether the test suite opens the reel, has divergence in it "
+             "and none of it is the divergence A15 asks for. Measured on his 40 reels the two "
+             "columns are the same 28 and the same 12 — every reel that reached the far end got "
+             "there BY POLICY (5 recent, 7 test-fixture), and all 28 content-routed reels sit "
+             "under ONE tag at ONE rung. ⚠⚠ AND THAT IS NOT A DEFECT: `zero-pages` means *swept, "
+             "and the sweep found nothing to read*, a deliberate hold because the engine reopens "
+             "those when the prompt improves — a probe calling it a routing failure would cry wolf "
+             "on a shelf behaving exactly as designed. So UNEXERCISED is a THIRD state, distinct "
+             "from broken and from working, and these pin it stays distinct: a policy hold is "
+             "never counted as content, one content route is a queue not a divergence, an untaught "
+             "tag is not rounded into the content bucket, and the policy/content split is QUOTED "
+             "from reel_story.POLICY_HOLDS rather than copied. 4 sabotages, 4 RED, with an EARNED "
+             "baseline so UNEXERCISED is a measurement and not the only reachable answer."),
     Gate("test_one_funnel", [sys.executable, os.path.join(HERE, "test_one_funnel.py")], 90,
          why="A15 clause 2 — ONE FUNNEL: *they all flow down the same river together*. The clause "
              "holds TWO questions and only one has an answer today: THE LADDER (is there one "

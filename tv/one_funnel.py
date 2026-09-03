@@ -39,16 +39,49 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-#: Each rung, and the store that would carry a DATED waypoint proving a reel passed it. `None`
-#: means no store records that rung at all — which is a fact about the pipeline, not about a reel.
-WAYPOINTS = {
+#: Each rung, and WHERE THE NAME OF ITS STORE COMES FROM: the module that owns the store already
+#: declares it, so this quotes the constant rather than restating the filename. `None` means no
+#: store records that rung at all — a fact about the pipeline, not about a reel.
+#:
+#: ⚠⚠ THE FIRST CUT HARDCODED "retro_triage.json" AND "vault_swept.json", AND THE CONSEQUENCE WAS
+#: REPRODUCED, not imagined: rename the store in its owning module and this probe does not follow,
+#: so `triaged` — 40 of 40 reels covered — silently vanishes from the dated rungs while the verdict
+#: stays PARTIAL and nothing looks wrong. A wrong answer wearing a measurement's clothes.
+#: [[copy-drift]] §1: name ONE source, everything else quotes it.
+WAYPOINT_SOURCES = {
     "filmed":     None,
-    "triaged":    "retro_triage.json",
-    "swept":      "vault_swept.json",
+    "triaged":    ("retro_triage", "STORE"),
+    "swept":      ("frame_authority", "SEAL_STORE"),
     "banked":     None,
     "vault-done": None,
     "releasable": None,
 }
+
+
+def _store_of(rung):
+    """The store filename for a rung, asked of the module that owns it. -> (name, why)
+
+    ⚠ A store whose owner will not import, or which stopped declaring its constant, returns None
+    WITH A REASON — never a guessed filename. A guess here would read a file that may not be the
+    store and report its coverage as the rung's.
+    """
+    src = WAYPOINT_SOURCES.get(rung)
+    if not src:
+        return None, "no store records this rung, so passing it leaves no trace"
+    mod, const = src
+    try:
+        m = __import__(mod)
+    except Exception as e:
+        return None, "%s would not import, so its store cannot be named (%s)" % (mod, str(e)[:50])
+    name = getattr(m, const, None)
+    if not name:
+        return None, "%s no longer declares %s, so its store cannot be named" % (mod, const)
+    return str(name), ""
+
+
+#: Kept as a plain name->filename view for readers and for the guard that pins it against the
+#: owning modules. Built once, from the constants, never typed out a second time.
+WAYPOINTS = {rung: _store_of(rung)[0] for rung in WAYPOINT_SOURCES}
 
 
 def _ladder():
@@ -73,10 +106,10 @@ def _rows():
 def _waypoint_cover(sids):
     """For each rung with a store, how many of these reels it has a dated row for. -> dict"""
     out = {}
-    for rung, store in WAYPOINTS.items():
+    for rung in WAYPOINT_SOURCES:
+        store, swhy = _store_of(rung)
         if not store:
-            out[rung] = {"store": None, "covered": None,
-                         "why": "no store records this rung, so passing it leaves no trace"}
+            out[rung] = {"store": None, "covered": None, "why": swhy}
             continue
         p = os.path.join(HERE, store)
         try:
@@ -84,8 +117,11 @@ def _waypoint_cover(sids):
         except Exception as e:
             # ⚠ UNREADABLE IS NOT ZERO COVERAGE. A store we could not open tells us nothing about
             # how many reels it holds. [[unknown-stays-unknown]]
+            # ⚠ AND IT NAMES THE STORE. The first cut printed only str(e)[:60], which on a real
+            # path cut off mid-directory — "/Users/konyo/d2r_bible" — hiding the one word that
+            # would diagnose it. The filename comes first now, then as much of the error as fits.
             out[rung] = {"store": store, "covered": None,
-                         "why": "the store would not read (%s)" % str(e)[:60]}
+                         "why": "%s would not read (%s)" % (store, str(e)[-70:])}
             continue
         if not isinstance(blob, dict):
             out[rung] = {"store": store, "covered": None,

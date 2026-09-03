@@ -102,6 +102,56 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
         self.assertEqual(r["waypoints"]["swept"]["covered"], None,
                          "an unreadable store was flattened to a number: %s" % r["waypoints"])
 
+    def test_the_store_names_are_QUOTED_from_their_owners_never_retyped(self):
+        """⚠⚠ REG-534, and the consequence was REPRODUCED before it was believed. The first cut
+        hardcoded "retro_triage.json" and "vault_swept.json". Rename the store in its owning module
+        and this probe does not follow: `triaged` — 40 of 40 reels covered — silently vanishes from
+        the dated rungs while the verdict stays PARTIAL and nothing looks wrong. A wrong answer
+        wearing a measurement's clothes. [[copy-drift]] §1: name ONE source, everything else quotes
+        it. This is the check that a second name never appears here again.
+        """
+        import frame_authority as FA
+        import retro_triage as RT
+        self.assertEqual(
+            OF._store_of("triaged")[0], RT.STORE,
+            "the funnel names a different triage store than retro_triage declares. It must QUOTE "
+            "the owner's constant — a second copy of a filename is a rename away from silently "
+            "reporting a covered rung as undated.")
+        self.assertEqual(
+            OF._store_of("swept")[0], FA.SEAL_STORE,
+            "the funnel names a different seal store than frame_authority declares — same defect, "
+            "other rung.")
+
+    def test_a_renamed_store_is_named_UNKNOWN_not_guessed(self):
+        """⚠ BASELINE: the resolver must actually be able to fail, or the equality above is two
+        constants agreeing with themselves."""
+        import retro_triage as RT
+        real = RT.STORE
+        try:
+            RT.STORE = ""
+            name, why = OF._store_of("triaged")
+            self.assertIsNone(name, "an owner that stopped declaring its store still yielded a "
+                                    "filename, which is a guess: %r" % (name,))
+            self.assertIn("STORE", why, "the reason does not name what went missing: %r" % why)
+        finally:
+            RT.STORE = real
+
+    def test_an_unreadable_store_names_the_FILE_in_its_reason(self):
+        """⚠ The first cut printed str(e)[:60], which on a real path cut off mid-directory —
+        `/Users/konyo/d2r_bible` — hiding the one word that would diagnose it."""
+        import retro_triage as RT
+        real = RT.STORE
+        try:
+            RT.STORE = "no_such_store_ever.json"
+            cov = OF._waypoint_cover({"s_1"})
+            w = cov["triaged"]
+            self.assertIsNone(w["covered"], "a missing store was counted as coverage: %s" % w)
+            self.assertIn("no_such_store_ever.json", w["why"],
+                          "the reason does not name the file that would not read, so a reader "
+                          "cannot tell WHICH store is missing: %r" % w["why"])
+        finally:
+            RT.STORE = real
+
     def test_an_EMPTY_shelf_is_UNKNOWN_on_both_readings(self):
         r = self._run([])
         self.assertEqual((r["ladder"], r["passage"]), ("UNKNOWN", "UNKNOWN"), r["why"])
