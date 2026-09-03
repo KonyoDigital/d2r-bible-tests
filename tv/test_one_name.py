@@ -222,8 +222,17 @@ def _orphan_names(pool, reach, sources):
     and this check goes quiet. The `undeclared` assertion would still catch it — but then two
     checks rest on one of them, and this stops being independent evidence.
     """
+    # ⚠ A BARE STRING IS NOT A POOL OF ONE NAME. `set("abc")` is {"a","b","c"}, so a caller
+    # passing a single name instead of a collection would have this comparing CHARACTERS and
+    # reporting nonsense as orphans. Cheap to refuse, and impossible to spot in the output.
+    if isinstance(pool, str):
+        raise TypeError("pool is a string (%r); a pool of one name is still a collection" % pool[:40])
     accounted = set()
     for s in sources:
+        # ⚠ `or ()` treats an explicit EMPTY SET as absent. It does not change this result — no
+        # names are added either way — but the distinction is real and is kept where it matters:
+        # the `dead` check reads the sets directly, so a source recording "I contributed nothing"
+        # is caught there rather than here.
         accounted |= set(reach.get(s) or ())
     return sorted(set(pool) - accounted)
 
@@ -359,6 +368,48 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             dead, [SOURCES[-1]],
             "a source recording an EMPTY contribution was not reported dead. Its key is present, "
             "so the unrecorded assertion passes it, and nothing else would notice.")
+
+    def test_a_string_pool_is_refused(self):
+        """`set("abc")` is {"a","b","c"} — a caller passing one name instead of a collection
+        would have the rule comparing CHARACTERS and reporting nonsense as orphans, which is
+        impossible to spot in the output. Cheap to refuse."""
+        with self.assertRaises(TypeError):
+            _orphan_names("shadowWatch", {}, SOURCES)
+        self.assertEqual(_orphan_names(["shadowWatch"], {}, SOURCES), ["shadowWatch"],
+                         "a real one-name collection must still work")
+
+    def test_the_census_ACTUALLY_CALLS_the_orphan_rule(self):
+        """⚠⚠ EXTRACTING THE RULE PROVED IT WORKS, NOT THAT ANYTHING USES IT.
+
+        A cold review put it exactly: "the test only shows that the helper behaves correctly when
+        called directly. It does not prove the real census code actually calls `_orphan_names`
+        rather than an equivalent inline expression. If the production site duplicated the logic,
+        the helper test would still pass and the integration would be untested."
+
+        That is the same unjoined shape the helper was extracted to escape — the rule moved, and
+        nothing asserted the caller followed. So this REPLACES the rule with one that reports a
+        sentinel orphan and requires the census assertion to notice.
+        """
+        import unittest as _ut
+        real = globals()["_orphan_names"]
+        try:
+            globals()["_orphan_names"] = lambda pool, reach, sources: ["sentinel-orphan"]
+            case = TheShapeRuleDoesNotQuietlyMergeThings(
+                "test_no_unreviewed_shape_collision_has_appeared")
+            result = _ut.TestResult()
+            case.run(result)
+        finally:
+            globals()["_orphan_names"] = real
+        self.assertTrue(
+            result.failures or result.errors,
+            "the orphan rule was replaced with one that reports a sentinel on every input, and "
+            "the census test still PASSED. It is not calling this rule — the extraction proved a "
+            "helper works while the real check does something else.")
+        blob = "".join(t for _c, t in (result.failures + result.errors))
+        self.assertIn(
+            "sentinel-orphan", blob,
+            "the census failed, but not because of the orphan rule — so it still is not shown to "
+            "depend on it")
 
     def test_an_undeclared_source_cannot_account_for_its_own_names(self):
         """The orphan rule must be independent evidence, not a duplicate of the undeclared check.

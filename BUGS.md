@@ -16779,3 +16779,30 @@ and a peak cannot see a loss older than itself — that limit is structural and 
 filed away.
 
 Guard: `tv/test_ledger_highwater.py`, registered (102 gates). **6 sabotages, 6 RED.**
+
+## v2510 — extracting the rule proved it works, not that anything uses it
+
+**REG-497 — the join I extracted `_orphan_names` to make was never asserted.** A cold review of
+v2508: *"the test only shows that the helper behaves correctly when called directly. It does not
+prove the real census code actually calls `_orphan_names` rather than an equivalent inline
+expression. If the production site duplicated the logic, the helper test would still pass and the
+integration would be untested."*
+
+Exactly right, and **exactly the unjoined shape the extraction was meant to escape** — the rule
+moved out of the test method, and nothing asserted the caller followed it. The guard now replaces
+the rule at runtime with one that reports a sentinel orphan on every input and **requires the
+census assertion to notice**; sabotaged by inlining the rule back at the call site, it goes RED.
+
+**REG-498 — a bare string pool would have compared CHARACTERS.** `set("shadowWatch")` is a set of
+letters, so a caller passing one name instead of a collection would have the rule reporting
+nonsense as orphans — and nothing in the output would look wrong. Refused with a `TypeError`, with
+its own test.
+
+**Two findings settled rather than accepted.** `reach.get(s) or ()` does treat an explicit empty
+set as absent — it changes no result here, and the distinction is kept where it matters: the `dead`
+check reads the sets directly, so a source recording *"I contributed nothing"* is caught there. And
+the `sources` parameter *"buys nothing in the test"* only in the narrow sense — it is what makes
+the rule testable against a constructed tuple at all, which is how the undeclared-source case is
+exercised without touching the live census.
+
+2 sabotages, 2 RED.

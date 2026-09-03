@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2509",
+  "ver": "v2510",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2509: console_doctor already names what vanished between the two newest snapshots, but that finding survives only as long as nobody takes two more - three snapshots after a loss the pairwise diff is clean while the items are still gone. A counter that only goes up implies a stored peak. The module first act was the bug: seed recorded the LATEST snapshot as the peak, so a ledger that had already dropped would lock the loss in as its own high water mark. It seeds from the highest value across every readable snapshot now. Measured on 60 real snapshots: zero drops in the window, so it ships green - insurance, not a fix for a live bug.",
+  "note": "v2510: A cold review of v2508 caught that the helper test proves the rule behaves correctly when called directly and does not prove the census calls it at all - an inline duplicate would pass identically. That is the same unjoined shape the extraction was meant to escape. The guard now replaces the rule at runtime with one reporting a sentinel on every input and requires the census assertion to notice. Also: a bare string pool would have compared characters and reported nonsense as orphans, refused now.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
