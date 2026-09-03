@@ -81,6 +81,38 @@ class AGapIsOnlyASameQuestionDisagreement(unittest.TestCase):
             "recording that as a refusal invents an answer." % (row["frameAnswer"],))
         self.assertIn("UNASKED", row["frameWhy"])
 
+    def test_CLEAN_reports_both_doors_and_chooses_neither(self):
+        """A15: *every one comes out clean at the far end* — and it does not say WHICH DOOR decides.
+
+        ⚠ The two candidates disagree on his shelf: 12 finished by the reel door, 0 satisfying
+        the frame contract. Conjoining them is exactly the collapse v2312 attempted and WITHDREW,
+        because they answer different questions at different granularities (v2314). So both are
+        reported and neither is called *the* answer — choosing is a decision about what
+        "finished" means, and it gates the prune.
+        """
+        rows = [{"reel": "reel_s_1", "stage": "releasable"},
+                {"reel": "reel_s_2", "stage": "swept"}]
+        r = self._run(rows, {"s_1": {"ts": 1, "promptVer": "v"}})   # seal exists, contract unmet
+        c = r.get("clean")
+        self.assertTrue(c, "the report carries no `clean` reading at all")
+        self.assertEqual(c["byReelDoor"], 1, "the reel-door count is wrong: %s" % c)
+        self.assertEqual(c["byFrameContract"], 0, "the frame-contract count is wrong: %s" % c)
+        self.assertEqual(
+            c["byBoth"], 0,
+            "byBoth is not the conjunction it claims to be: %s" % c)
+        self.assertIn("Reported, not chosen", c["why"],
+                      "the report does not say it is declining to choose between the two doors, "
+                      "so a reader will take whichever number they saw first as the answer")
+
+    def test_the_two_CLEAN_readings_are_counted_separately_not_merged(self):
+        """⚠ BASELINE: if the two counts could never differ, reporting both would be theatre."""
+        rows = [{"reel": "reel_s_1", "stage": "releasable"}]
+        seal = {"s_1": {"ts": 1, "extracted": ["name", "location", "provenance"]}}
+        r = self._run(rows, seal)
+        c = r["clean"]
+        self.assertEqual((c["byReelDoor"], c["byFrameContract"], c["byBoth"]), (1, 1, 1),
+                         "a reel that satisfies BOTH doors was not counted by both: %s" % c)
+
     def test_a_stage_with_no_declared_decider_IS_a_gap(self):
         """⚠ BASELINE for the whole file: `gaps` must be reachable, or the assertions above are
         just describing a function that can never report anything."""

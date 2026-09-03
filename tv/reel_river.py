@@ -130,7 +130,28 @@ def river(reel=None):
         if o["stage"] not in QUESTIONS:
             gaps.append({"reel": o["reel"], "gap": "stage %r has no declared decider, so nothing "
                                                    "here knows what answered it" % o["stage"]})
+    # ⚠⚠ A15's LAST CLAUSE: "every one comes out clean at the far end... 'clean' is a state the
+    # pipeline must be able to ASSERT per reel, not a hope." IT DOES NOT SAY WHICH DOOR DECIDES,
+    # and the two candidates disagree — measured on the 40 reels of his shelf:
+    #
+    #     finished by the REEL door (stage == releasable)          12
+    #     satisfying the FRAME contract (seal covers extraction)    0
+    #     BOTH                                                      0
+    #
+    # So there is no single assertable definition of clean today. ⚠ AND I MUST NOT PICK ONE:
+    # conjoining the two doors is exactly the collapse v2312 attempted and WITHDREW, because they
+    # answer different questions at different granularities (v2314). Reporting both readings is
+    # the honest shape; choosing between them is a decision about what "finished" means, and it
+    # gates the prune. [[unknown-stays-unknown]]
+    _reel_door = sum(1 for o in out if o["reelAnswer"])
+    _frame_door = sum(1 for o in out if o["frameAnswer"] is True)
+    _both = sum(1 for o in out if o["reelAnswer"] and o["frameAnswer"] is True)
     return {"ok": True, "rows": out, "gaps": gaps,
+            "clean": {"byReelDoor": _reel_door, "byFrameContract": _frame_door, "byBoth": _both,
+                      "why": ("A15 requires a far-end state the pipeline can ASSERT, and does not "
+                              "say which door decides. These two answer DIFFERENT questions "
+                              "(v2314), so neither is 'the' answer and conjoining them is the "
+                              "collapse v2312 withdrew. Reported, not chosen.")},
             "why": ("%d reel(s) walked. %d gap(s) — a gap is two deciders answering the SAME "
                     "question differently, which is why the reel/frame split is not one."
                     % (len(out), len(gaps)))}
@@ -171,6 +192,15 @@ def main(argv):
         print("     does not know that reads 'releasable' beside 'frame: no' as a contradiction.")
         print("     It is not one — v2314 withdrew the attempt to collapse them, because doing so")
         print("     would have stopped the prune firing on every reel he owns.")
+    c = r.get("clean") or {}
+    if c:
+        print()
+        print("  CLEAN AT THE FAR END (A15) — and the two doors disagree:")
+        print("     by the REEL door        %s" % c.get("byReelDoor"))
+        print("     by the FRAME contract   %s" % c.get("byFrameContract"))
+        print("     by BOTH                 %s" % c.get("byBoth"))
+        print("     ⚠ A15 does not say which decides, and these answer different questions.")
+        print("       Reported, not chosen — picking one is the collapse v2312 withdrew.")
     print("\n  %s" % r["why"])
     for g in r["gaps"][:8]:
         print("     ⚠ %s — %s" % (g["reel"], g["gap"]))

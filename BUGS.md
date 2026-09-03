@@ -17394,3 +17394,34 @@ a future reader does not re-derive it as a defect.
 **And its overall verdict closes the thread:** *"the only real flaw is the head/tail ratio.
 Otherwise the function is correct and safe."* v2526 recorded the stop signal on this five-version
 thread; this was the one outstanding item it named, and it is now fixed.
+
+## v2529 — A15's last clause has no definition, and the two candidates disagree
+
+A15: *"every one comes out clean at the far end. **'Clean' is a state the pipeline must be able to
+ASSERT per reel, not a hope.** A reel that cannot be shown clean is not finished."*
+
+**REG-529 — A15 never says WHICH DOOR decides, and the two candidates give different answers.**
+Measured across the 40 reels on his shelf:
+
+```
+finished by the REEL door (stage == releasable)        12
+satisfying the FRAME contract (seal covers extraction)  0
+BOTH                                                    0
+```
+
+⚠⚠ **AND I MUST NOT PICK ONE.** Conjoining the two doors is exactly the collapse **v2312 attempted
+and WITHDREW** — they answer different questions at different granularities (v2314: *"may this FRAME
+go... not may this REEL go"*), and collapsing them would have stopped the prune firing on every reel
+he owns. So `reel_river` now reports **both readings and calls neither the answer**.
+
+That is the finding: **A15's last clause cannot be built until "clean" is defined**, and defining it
+is a decision about what *finished* means — which gates the prune (task 146). Inventing a definition
+here would be answering his question with my own preference and calling it a measurement.
+
+⚠ The zero on the frame side is not a pipeline fault either: **0 seals satisfy the extraction
+contract** (v2503) because `name` only ever appears in a hover tooltip, so a grid-only reel can
+never reach that state by construction.
+
+Guard: two laws in `tv/test_reel_river.py` — the counts are **separate, not merged**, and the report
+says out loud that it is declining to choose, so a reader does not take whichever number they saw
+first as the answer. **2 sabotages, 2 RED**, including a baseline proving the two counts CAN differ.

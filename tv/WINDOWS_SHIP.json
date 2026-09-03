@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2528",
+  "ver": "v2529",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2528: The docstring says a truncation that hides the telling element is the message failing at the one moment it is needed, and the code kept 102 head against 50 tail. Comment contradicting code, in the fix written one version earlier. The tail takes the larger share now - 50 head and 102 tail - verified so a marker at the very end of a long value survives while the output stays exactly at the cap. The review also confirmed the v2526 arithmetic independently, which matters because the round before that got it wrong at 164.",
+  "note": "v2529: A15 says every reel must come out clean at the far end and that clean is a state the pipeline must be able to assert. It never says which door decides, and the two candidates disagree: 12 of 40 reels are finished by the reel door, 0 satisfy the frame contract, 0 satisfy both. Conjoining them is exactly the collapse v2312 attempted and withdrew, because they answer different questions at different granularities. reel_river reports both readings and calls neither the answer - defining clean is a decision about what finished means, and it gates the prune.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
