@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2504"   # the reach helper tested one value and stored another, and its rule ended up written twice
+VERSION = "v2505"   # A10 the fish down the stream, and the measurement misled its own author first
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -538,6 +538,21 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_reel_river", [sys.executable, os.path.join(HERE, "test_reel_river.py")], 120,
+         why="A10 — the fish down the stream, and the law that keeps it readable: a GAP is two "
+             "deciders answering the SAME question differently. Walking the river found 12 reels "
+             "reporting RELEASABLE while frame_authority refused every seal on the tree, which "
+             "reads exactly like a defect and is not one — reel_retention settled it in v2314: "
+             "\"frame_authority is stricter because it answers a DIFFERENT question — may this "
+             "FRAME go, protecting the witness frames behind his vault rows — not may this REEL "
+             "go.\" The v2312 attempt to collapse them was WITHDRAWN because it would have stopped "
+             "the prune firing on every existing reel. A probe that counts that split reports 12 "
+             "gaps on a healthy shelf, and a row that cries wolf is a row he learns to skip. These "
+             "pin: the split is never a gap; both questions are named ON the row with different "
+             "deciders, since a reader cannot tell two questions apart when only one is named; a "
+             "reel with no seal is UNASKED and not refused (8 of his 12 are); gaps stay REACHABLE "
+             "via an undeclared stage, or the emptiness above proves nothing; an unreadable shelf "
+             "is UNKNOWN and not an empty river. 5 sabotages, 5 RED."),
     Gate("test_printer_reach", [sys.executable, os.path.join(HERE, "test_printer_reach.py")], 120,
          why="The printer zone's acceptance test (A4·A7·A8·A9·A15), and the one law it exists to "
              "hold: a zero taken through a filter that rejects every input measures the filter. "

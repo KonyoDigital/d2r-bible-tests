@@ -308,7 +308,7 @@ empty across every column, `stash_eye grid` empty across every column, `enlarge 
 marked as not having them.
 
 ## A4 · THE 3D / 4D PRINTER PIPELINE · 2026-09-01 10:49
-**Topic:** BACKEND · **Progress:** 0/1 · not started — the printer pipeline
+**Topic:** BACKEND · **Progress:** 1/3 · ⭐ **A10 SHIPPED in v2505** (`tv/reel_river.py`) — the acceptance test and the end-to-end probe both exist now. v2503 measured what the pipeline can act on AT ALL: 0 of 30 seals satisfy the extraction contract (22 fail on `name`, which only appears in a hover tooltip), so the A4 contradiction is structurally UNREACHABLE rather than absent and a grid-only reel can never be judged disposable. v2505 walks each reel naming the decider and question per stage. REMAINING: the unified printer itself (A7·A8·A15) — one path, templates inside the routing.
 
 > *"we already said if this were to be procesed through our 3D printer it shouldnt matter the
 > engines console and filtering and routing system should have done that already and left those
@@ -417,7 +417,7 @@ then a further layer works only the survivors. ⚠ If the pipeline is keeping fa
 filter is not working; if far less, it is eating data. Either way the number is the alarm.
 
 ## A10 · THE FISH DOWN THE STREAM — PROBE ONE REEL THROUGH THE WHOLE RIVER · 2026-09-01 19:0x
-**Topic:** BACKEND · **Progress:** 0/1 · not started
+**Topic:** BACKEND · **Progress:** ✅ SHIPPED v2505 · `tv/reel_river.py` walks every reel and names the DECIDER and the QUESTION for each stage. Measured: 40 reels, 28 swept, 12 releasable, frame door no on 15 / UNASKED on 25, **0 gaps**. ⚠ THE FINDING: 12 RELEASABLE beside a frame authority refusing every seal is NOT a contradiction — v2314 ruled two granularities correct and withdrew the collapse — and nothing on any screen said so, which is the gap A10 actually names. A gap is two deciders answering the SAME question differently
 
 > *"remembe the fish needs to go down the stream.. probe it down the stream meaning the reel needs
 > to go do the river stream an see that its properly syncned and no gaps... and everything is

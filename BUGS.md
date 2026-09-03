@@ -16583,3 +16583,49 @@ three assignments now being the last statements before the return, so an earlier
 no assignment at all rather than a partial one.
 
 4 sabotages, 4 RED.
+
+## v2505 — A10, the fish down the stream: and the measurement misled its own author first
+
+His ask: *"the fish needs to go down the stream... see that its properly syncned and no gaps... and
+everything is working and collaborating.. and all is working an nothing is stale"*.
+
+**REG-490 — I nearly published a contradiction that does not exist, and the code's own comment
+stopped me.** Walking the river measured:
+
+```
+reel_story     12 reels RELEASABLE — "both lanes done; it may be pruned"
+printer_reach   0 seals satisfy frame_authority's EXTRACTION_CONTRACT
+```
+
+Twelve reels cleared to go while the deletion authority refuses every one — the exact shape of the
+defects this repo keeps producing. **It is not one.** `reel_retention` settled it in v2314, in a
+comment I had not read when I took the measurement:
+
+> *"frame_authority is stricter because it answers a DIFFERENT question — may this FRAME go,
+> protecting the witness frames behind his vault rows — not may this REEL go. Two authorities at
+> two granularities is correct; collapsing them was my error."*
+
+The v2312 attempt to collapse them was **withdrawn**, because it would have stopped the prune
+firing on every existing reel — the opposite of *"automatically prune its not a question"*.
+[[measured-true-read-wrong]]: read the comments before judging a measurement.
+
+**AND THAT IS THE ACTUAL GAP A10 NAMES.** Both numbers are right, they answer different questions,
+and **nothing on any screen said so** — I am the reader it already misled. `tv/reel_river.py` walks
+each reel and reports every stage **with the decider and the question it answered**, so a
+granularity difference reads as one. Measured: 40 reels, 28 swept, 12 releasable; frame door
+**no** on 15, **UNASKED** on 25, and **0 gaps**.
+
+**THE LAW: a gap is two deciders answering the SAME question differently.** A probe that counted
+the reel/frame split would report 12 gaps on a healthy shelf, and a row that cries wolf is a row he
+learns to skip — the defect CF-10 records three instances of.
+
+⚠ Also fixed while guarding it: an unreadable shelf returned its underlying reason **verbatim**,
+so *"reel_story would not answer"* reached the reader with nothing saying whether the shelf is
+EMPTY or merely UNREAD — opposite facts about his footage.
+
+⚠ A reel with **no seal** reports UNASKED, never refused. Eight of the twelve have no seal at all,
+and recording a question nobody put as a "no" invents an answer.
+
+Guard: `tv/test_reel_river.py`, registered (100 gates), subjects constructed. **5 sabotages, 5
+RED**, including the baseline that keeps `gaps` reachable at all — without it, "0 gaps" would be
+true of every possible input.
