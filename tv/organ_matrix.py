@@ -181,9 +181,18 @@ def main(argv=None):
                                   "  ".join("%-12s" % r["cells"][o] for o in ORGANS)))
     tot = len(rows)
     full = sum(1 for r in rows if r["covered"] == len(ORGANS))
-    none = sum(1 for r in rows if r["covered"] == 0)
     mis = sum(r.get("misnamed", 0) for r in rows)
-    print("\n%d surface(s): %d have all four organs, %d have none." % (tot, full, none))
+    # ⚠⚠ "HAVE NONE" MUST NOT COUNT A SURFACE THAT IS WATCHED UNDER ANOTHER NAME. This read
+    # `covered == 0` and so reported 44-have-none on the same screen as 9-are-MISNAMED — a cold
+    # cross-family read caught it: "the first line treats the data at face value; the second
+    # directly contradicts that framing". It is the same collapse the MISNAMED state exists to
+    # prevent, reappearing in the SUMMARY of it. A count that ignores a state is that state
+    # deleted. [[unknown-stays-unknown]]
+    none = sum(1 for r in rows if r["covered"] == 0 and not r.get("misnamed"))
+    joined = sum(1 for r in rows if r["covered"] == 0 and r.get("misnamed"))
+    print("\n%d surface(s): %d have all four organs, %d have none at all, and %d are watched "
+          "under another name and would count as covered the moment the join is made."
+          % (tot, full, none, joined))
     if mis:
         print("⚠ %d cell(s) are MISNAMED — the organ IS watching that thing and calls it "
               "something else. Those are not holes; they are a join nobody made, and reporting "
