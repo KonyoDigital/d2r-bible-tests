@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2494",
+  "ver": "v2495",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2494: a cold review predicted how one_name decays - someone adds a consumer and hard-codes another variant while the originals keep being patched. That has already happened five times here and two of those maps were written in one day by the same hand fixing the others. The census of resolver-shaped declarations is now a ratchet: 8 today, scanned by shape rather than name because a name is how these get missed, and it may only fall. It also fails if the baseline goes stale or if one_name disappears.",
+  "note": "v2495: v2493s commit said A1 was proven not a naming problem because the resolver joined zero organ-id to lane-name pairs. A cold review refused that inference - zero only tells you the resolver found no matches, not that the keys are different kinds of thing - and named the test that settles it. One command found shadowWatch equals tvd-shadow-watch. The zero measured my own reach, not the world. same_thing now strips the tvd prefix and camelCase and joins that one pair while over-reaching on none. A1 is PARTLY a naming problem; the lane scorer is still its substance.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

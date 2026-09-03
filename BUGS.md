@@ -16188,3 +16188,39 @@ accident.
 It also fails when the baseline goes STALE, so the remaining debt cannot read larger than it is, and
 when `one_name.py` itself disappears, which would leave every resolver unsanctioned and the ratchet
 guarding nothing. All four sabotages seen RED; the first names the offender by file and symbol.
+
+## v2495 — I published a wrong claim, and a cold review refused the inference that produced it
+
+**REG-464 — "A1 is proven NOT a naming problem" was an overclaim, and it shipped in v2493's commit
+message.** The evidence was that `one_name.same_thing()` joined **0** of the organ-id/lane-name
+pairs, from which I concluded the two sides were different KINDS of thing.
+
+A cold cross-family review, handed the measurement with no idea who took it, refused the inference:
+
+> *"Zero joinable pairs only tells you the resolver, as currently configured, found no matches
+> between those two specific key sets. It does not prove the keys are 'different kinds of thing'...
+> The conclusion is an overclaim; the measurement only showed the resolver didn't help on this
+> attempt."*
+
+It then named the test that settles it — *"whether any manual or alternative matching technique
+could join the keys"* — and the answer took one command:
+
+```
+shadowWatch  ==  tvd-shadow-watch      (both are shadow-watch)
+```
+
+**So the 0 measured MY FUNCTION'S REACH, not the world's structure**, and I read my own instrument's
+silence as a fact about the console. `tvd-` is a prefix convention and camelCase against kebab-case
+is house style; neither carries meaning. `same_thing()` now strips both and demands exact equality —
+not a fuzzy match, so it joins that one pair and over-reaches on none of the others.
+
+**THE CORRECTED CLAIM:** A1 is **partly** a naming problem — 1 of 7 organ ids does correspond to a
+lane. The other 6 (`lanes`, `readers`, `orphans`, `board_join`, `armed_migration`, `selfArming`) are
+genuinely checks rather than lanes, so the lane SCORER is still the substance of A1. What is no
+longer true is "not a naming problem at all".
+
+⚠ **THE REVIEW ALSO CALLED THE FALLBACK A LIABILITY** and it has a point I have not acted on:
+`organ_matrix._same_thing` keeps the old rule if `one_name` will not import, which "masks import
+failures — you may not notice the shared module isn't being used". Recorded; the fallback stays for
+now because a matrix that narrows beats one that stops, but nothing currently reports that the
+fallback path was taken.

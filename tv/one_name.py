@@ -86,13 +86,41 @@ def form(name, surface):
     return _FORMS[c][ix]
 
 
+def _shape(s):
+    """Strip the conventions that are spelling, not meaning. -> str
+
+    ⚠⚠ ADDED BECAUSE ITS ABSENCE MADE ME PUBLISH A WRONG CLAIM. v2493's commit said A1's lookup
+    was "proven NOT a naming problem" because same_thing() joined 0 of the organ-id/lane-name
+    pairs. A cold cross-family review refused that inference — "zero joinable pairs only tells you
+    the resolver, as currently configured, found no matches... the conclusion is an overclaim" —
+    and asked whether any OTHER technique could join them. One could, immediately:
+
+        shadowWatch  ==  tvd-shadow-watch     (both are shadow-watch)
+
+    So the 0 measured THIS FUNCTION'S REACH, not the world's structure, and I read my own
+    instrument's silence as a fact about the console. `tvd-` is a prefix convention and camelCase
+    against kebab-case is a house style; neither carries meaning. [[source-reading-guard]]
+    """
+    t = re.sub(r"^tvd[-_]", "", str(s or ""))
+    t = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", t)      # camelCase -> camel-Case
+    return re.sub(r"[^a-z0-9]", "", t.lower())
+
+
 def same_thing(a, b):
     """Are these two strings about the same concept? -> bool
 
     This is the question A1 and A3 could not ask. Two unknowns are NOT the same thing.
+
+    Two ways to be the same: a shared CONCEPT from the table above, or the same name written in
+    two house styles. The second is not a fuzzy match — it removes a known prefix and a known
+    case convention and then demands exact equality, so `shadowWatch` meets `tvd-shadow-watch`
+    and nothing else drifts in.
     """
     ca, cb = concept(a), concept(b)
-    return bool(ca and cb and ca == cb)
+    if ca and cb:
+        return ca == cb
+    sa, sb = _shape(a), _shape(b)
+    return bool(sa and sb and sa == sb)
 
 
 def main(argv=None):
