@@ -17007,3 +17007,45 @@ arguments is correct (*"the live object would be empty afterward"* if the caller
 `result.failures` is **not** redundant beside `calls` — *"calls proves the helper was invoked;
 failures additionally proves the return value was CONSUMED"*; and the spy returning a list matches
 the real rule's `sorted(...)` contract exactly.
+
+## v2517 — A5's stamp is wired and INERT, and my v2515 claim was wrong
+
+**REG-509 — v2515 said the intake fix "stops all future loss". It does not, yet.** Review-after-ship
+measured the stamp against the real evidence store:
+
+```
+rows walked            14,034
+rows STAMPED                0
+_sighting_loc asked    10,101   → every one returned None
+```
+
+**The stamp is correctly wired and the resolver behind it cannot answer.** That is plumbing with a
+tap that does not run, and I published the opposite.
+
+**REG-510 — `_sighting_loc` has resolved NOTHING for a stored sighting since v2353.** The sighting
+carries `reel_<session>`; the journal is keyed `<session>`; nothing bridged them. Measured on a reel
+that is **both named in the evidence and on disk with 483 frames**:
+
+```
+sid "reel_s_1786999742937_35523"  →  no_segments   (the lookup never finds the reel)
+sid "s_1786999742937_35523"       →  gets past the segments lookup
+```
+
+That is exactly the failure its own docstring warns about — *"a gate that resolves nothing protects
+nothing"* — and the same shape as its first cut, where a swallowed NameError made every lookup
+return None. **The refusal was honest each time, and the provenance was absent each time.**
+
+Bridged. Across the whole store `no_segments` fell **10,101 → 1,353**, so 8,748 lookups now find
+their reel. ⚠ **And resolution is still 0** — the prefix was necessary and is **not sufficient**;
+something after the segments lookup still refuses, and I am not going to name it before measuring it.
+
+**REG-511 — the stamper reaches only 10,101 of 14,034 rows (28% unreached).** It walks a fixed
+two-level shape (`group → name → [sightings]`), and the store also carries `setGroups`,
+`completeSets`, `refused`, `notFound`, `notFoundSeen` and others whose sightings nest differently.
+A stamper that silently skips a quarter of the store is a coverage claim nobody made.
+
+⚠ Also corrected: v2515's *"3 reels still on disk"* is right but reads wrong — **40 reel
+directories exist**; 3 of the **39 named in the evidence** are among them.
+
+**A5 IS NOT DONE.** Its progress is corrected in TASKS.md from ✅ to the honest state: the intake
+half is wired, proven by 6 sabotages, and produces nothing until the resolver can answer.

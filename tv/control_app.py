@@ -6592,6 +6592,19 @@ def _sighting_loc(sg, _segments=None):
         return None
     if not sid or not frame:
         return None
+    # ⚠⚠ THE SIGHTING SAYS `reel_<session>`, THE JOURNAL IS KEYED `<session>`, AND NOTHING BRIDGED
+    # THEM — so this gate has resolved NOTHING for a stored sighting since v2353. Measured on a
+    # reel that is both named in the evidence AND on disk with 483 frames:
+    #
+    #     sid "reel_s_1786999742937_35523"  ->  no_segments   (the lookup never finds the reel)
+    #     sid "s_1786999742937_35523"       ->  gets past the segments lookup
+    #
+    # That is exactly the failure this function's own docstring warns about — "a gate that
+    # resolves nothing protects nothing" — and the same shape as its FIRST cut, where a NameError
+    # was swallowed and every lookup returned None. The refusal was honest each time and the
+    # provenance was absent each time. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    if sid.startswith("reel_"):
+        sid = sid[len("reel_"):]
     # ⚠ TWO FRAME-ID FORMATS, AND THE FIRST CUT ONLY KNEW ONE. Measured against his real
     # journal: 463 of 463 naming sightings failed to parse, because his frames are `<n>_<ms>`
     # (e.g. "3_1784984175075") and this only understood `f_<ms>.jpg`. The refusal was honest -
@@ -22233,7 +22246,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2516",
+        "ver": "v2517",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2516",
+  "ver": "v2517",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2516: A cold review found the argument spy could fail the census it was watching - a conversion inside it raising turns a correct call into a test error, so the instrument reports its own failure as the subject. It snapshots defensively now. It also compared sources as an ordered tuple, asserting a guarantee the helper does not owe; a guard that fails for a reason that is not a defect gets loosened rather than read. Changed to a set comparison, and calling with only the first source is still caught while a mere reorder is not.",
+  "note": "v2517: v2515 said the intake fix stops all future loss. It does not yet - the stamp is correctly wired and stamps 0 of 14034 rows because _sighting_loc returns None for every one. The sighting carries reel_session while the journal is keyed session and nothing bridged them, so that provenance gate has resolved nothing for a stored sighting since v2353 - the exact failure its own docstring warns about. Bridging collapsed no_segments from 10101 to 1353 and resolution is still 0: necessary, not sufficient. The stamper also reaches only 10101 of 14034 rows.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
