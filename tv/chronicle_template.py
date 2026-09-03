@@ -205,6 +205,40 @@ _LEDGER_KIND_BY_TAB = {
     # "runewords" intentionally absent — see NO_LEDGER_TABS.
 }
 
+#: ⚠ TWO PRODUCERS, TWO SPELLINGS, ONE CONCEPT — and for a while, two resolvers that each only
+#: understood their own. MEASURED before this existed:
+#:
+#:     tab        ledger_kind_for_tab   chronicle_kind
+#:     'unique'   chronicle-uniques     None              <-- disagree
+#:     'uniques'  None                  chronicle-uniques <-- disagree
+#:     'sets'     chronicle-sets        chronicle-sets
+#:
+#: `ct.detect()` reports "unique" (this file, :501, and the marker box at :165 is keyed on it);
+#: READ_PROMPT asks the model for "uniques" (tv_diablo.py:402-403). Neither is wrong for its own
+#: producer, so neither could simply be renamed. This is the one place that says they are the same
+#: word, and both resolvers quote it. A third spelling appearing anywhere fails
+#: tv/test_tab_vocabulary.py rather than silently resolving in one half of the console.
+TAB_ALIASES = {
+    "unique": "unique",
+    "uniques": "unique",
+    "set": "sets",
+    "sets": "sets",
+    "runeword": "runewords",
+    "runewords": "runewords",
+}
+
+
+def canonical_tab(tab):
+    """Any spelling either producer emits -> the one this module keys on. -> str | None
+
+    None means "not a tab word I know", which is a different fact from "a tab with no ledger"
+    (that is `runewords`, and it canonicalises fine before resolving to None as a ledger).
+    [[unknown-stays-unknown]]
+    """
+    if not tab:
+        return None
+    return TAB_ALIASES.get(str(tab).strip().lower())
+
 
 def ledger_kind_for_tab(tab: Optional[str]) -> Optional[str]:
     """The board/intake ledger kind for a detected tab, or None when there isn't one yet.
@@ -214,7 +248,8 @@ def ledger_kind_for_tab(tab: Optional[str]) -> Optional[str]:
     """
     if not tab:
         return None
-    return _LEDGER_KIND_BY_TAB.get(tab)
+    # through the alias map, so the model's "uniques" and the template's "unique" land together
+    return _LEDGER_KIND_BY_TAB.get(canonical_tab(tab) or "")
 
 
 # ── ASPECT SCALING — CENTER-PRESERVING, DIFFERENT FROM STASH_EYE'S LEFT-ANCHOR LAW ────────────────

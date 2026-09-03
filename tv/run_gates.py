@@ -279,6 +279,16 @@ GATES = [
     # v2466 — the build stamp renders whole. Needs headless Chrome; skips, never passes, without
     # it. `why` IS A KEYWORD.
     # v2469 — the probe primitives. `why` IS A KEYWORD.
+    Gate("test_tab_vocabulary", [sys.executable, os.path.join(HERE, "test_tab_vocabulary.py")], 120,
+         why="the console had FOUR copies of the Chronicle-tab vocabulary and two of them\n"
+             "disagreed. ct.detect() reports 'unique' (its marker box is keyed on it) while\n"
+             "READ_PROMPT asks the model for 'uniques', and each resolver understood only its\n"
+             "own: 'unique' resolved through ledger_kind_for_tab and returned None from\n"
+             "chronicle_kind, 'uniques' the reverse, 'sets' agreed by luck of spelling.\n"
+             "chronicle_kind also built its ledger name by concatenation, right only because\n"
+             "those two words pluralise correctly. Pins the LAWS: every alias resolves the\n"
+             "same in both resolvers, and every word either PRODUCER can emit is in the\n"
+             "shared map — so a new tab word understood by half the console goes red."),
     Gate("test_safe_copy", [sys.executable, os.path.join(HERE, "test_safe_copy.py")], 120,
          why="nothing in this repo may be copied in a way that can fill his disk. Three review\n"
              "agents ran `cp -R tv /tmp/...` and wrote 20.5 GB in four minutes onto a volume\n"

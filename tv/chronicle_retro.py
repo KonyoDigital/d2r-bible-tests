@@ -856,9 +856,21 @@ def chronicle_kind(read):
         return None
     if str(read.get("scene") or "").lower() != "chronicle":
         return None
+    # ⚠ THE ACCEPT-LIST AND THE LEDGER NAME BOTH CAME FROM HERE, AND BOTH ARE NOW QUOTED.
+    # This accepted ("uniques", "sets") — the model's spelling — while chronicle_template keyed its
+    # ledger map on "unique". Each matched its own producer and they disagreed on the same tab,
+    # measured: 'unique' resolved there and not here, 'uniques' here and not there.
     tab = str(read.get("chronicleTab") or "").lower()
-    if tab not in ("uniques", "sets"):
-        return None
+    try:
+        import chronicle_template as _ctv
+        tab = _ctv.canonical_tab(tab) or ""
+        if not tab or tab in _ctv.NO_LEDGER_TABS:
+            return None
+    except ImportError:
+        # the vocabulary is unavailable, not violated — fall back to what this function always
+        # accepted rather than refusing every read
+        if tab not in ("uniques", "sets"):
+            return None
     # ── v1999 — AND THE FRAME MUST NOT ALSO CLAIM AN OWNERSHIP PANEL ──────────────────────────
     # lane_lock.py states the law in its own words — "AT MOST ONE LANE IS EVER UNLOCKED" — and had
     # ZERO production callers: only tests imported it. A module that documents a law and enforces
@@ -884,7 +896,14 @@ def chronicle_kind(read):
             return None
     except ImportError:
         pass          # the law is unavailable, not violated — read as before rather than refuse all
-    return "chronicle-" + tab
+    # ⚠ NOT `"chronicle-" + tab`. That was a THIRD encoding of the tab->ledger relation and it
+    # was right only because "uniques" and "sets" happen to pluralise correctly; handed the
+    # template's "unique" it returned "chronicle-unique", a ledger name nothing uses. Ask the map.
+    try:
+        import chronicle_template as _ctv
+        return _ctv.ledger_kind_for_tab(tab)
+    except ImportError:
+        return "chronicle-" + tab
 
 
 def classifier(claude_read, on_seen=None):

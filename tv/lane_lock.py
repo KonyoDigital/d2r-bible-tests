@@ -53,6 +53,29 @@ VAULT_SURFACES = ("stash", "inventory", "equipment", "runes", "gems", "materials
 _TAB_TO_SURFACE = {"personal": "stash", "shared": "stash"}
 CHRONICLE_LEDGERS = ("uniques", "sets", "runewords")
 
+
+#: Map any spelling either producer emits onto the word THIS module matches on. The shared
+#: vocabulary lives in chronicle_template (TAB_ALIASES / canonical_tab); this translates its
+#: canonical form into lane_lock's own plural names, so there is one source of truth about which
+#: words mean the same tab and each module keeps the identifier its callers already use.
+_TO_LEDGER = {"unique": "uniques", "uniques": "uniques",
+              "set": "sets", "sets": "sets",
+              "runeword": "runewords", "runewords": "runewords"}
+
+
+def _canon_tab(word):
+    """-> the ledger word this module matches on, or the input unchanged when unknown."""
+    if not word:
+        return word
+    try:
+        import chronicle_template as _ct
+        c = _ct.canonical_tab(word)
+        if c:
+            return _TO_LEDGER.get(c, c)
+    except ImportError:
+        pass
+    return _TO_LEDGER.get(str(word).strip().lower(), word)
+
 VAULT = "vault"
 CHRONICLE = "chronicle"
 
@@ -85,6 +108,14 @@ def _chronicle_ledger(verdict):
     for key in ("chronicleTab", "ledger", "chronicle"):
         s = _clean(verdict.get(key))
         s = s.split("chronicle-")[-1] if "chronicle-" in s else s
+        # ⚠ THE SAME TAB, SPELLED THE OTHER WAY, WAS A NO. This list is plural — the model's
+        # spelling — while chronicle_template's detector reports "unique" and keys its ledger map
+        # on it. A frame carrying the template's word fell straight through here and lane_for
+        # answered "no chronicle tab", which then made chronicle_kind refuse the read entirely.
+        # Measured: chronicleTab='unique' -> lane None; 'uniques' -> lane chronicle.
+        # The INPUT is normalised for matching only; the ledger name returned stays in this
+        # module's own vocabulary, because callers use it as an identifier.
+        s = _canon_tab(s)
         if s in CHRONICLE_LEDGERS:
             return s
     s = _clean(verdict.get("scene"))
