@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2518",
+  "ver": "v2519",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2518: v2516 made the spy defensive so a conversion failure could not break the census, and nothing then handled the None it produces. A cold review traced all three: a None sources makes the assertion fail claiming the sources were empty, a None pool fails identically to an empty pool, and a None reach makes set(None) raise TypeError and crash the test. A failure of the instrument reported as a defect in the code under test. The snapshot is asserted non-None before anything reads its contents now, with a message naming the spy as the thing that failed.",
+  "note": "v2519: v2517 said the prefix bridge was necessary and not sufficient. This measures what refuses next. lane_at asks which segment contains the moment, and segments are the instants of reads rather than the intervals between them - measured on one session, 14231 ms covered across a 404296 ms span, 3.52 percent, and 13 of 483 frames fall inside a segment. Store-wide, 8748 of 10101 lookups now FIND their segments and still cannot answer. Widening this to the nearest read would make provenance a guess and it feeds a door that refuses vault claims, so it is put to him rather than changed underneath him.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

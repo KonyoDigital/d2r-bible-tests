@@ -6682,6 +6682,25 @@ def _sighting_loc(sg, _segments=None):
     if not segs:
         _SIGHTING_LOC_STATS["no_segments"] += 1
         return None
+    # ⚠⚠ WHY "UNKNOWN" IS THE NORMAL ANSWER HERE, MEASURED RATHER THAN GUESSED (v2519). `lane_at`
+    # asks which segment CONTAINS the moment, and segments are the INSTANTS OF READS, not the
+    # intervals between them. On session s_1786999742937_35523 — 189 journal rows, 4 segments:
+    #
+    #     covered        14,231 ms
+    #     session span  404,296 ms  (6.7 minutes)
+    #     COVERAGE           3.52%
+    #     frames on disk       483  ->  13 fall inside a segment  (2.69%)
+    #
+    # So even with the reel_ prefix bridged (v2517) and the segments found, containment can only
+    # ever answer for about 3% of captured frames. That is not a bug in this function — it is what
+    # containment means against instantaneous segments.
+    #
+    # ⚠ WIDENING IT TO "THE NEAREST READ" WOULD MAKE PROVENANCE A GUESS, and this answer feeds a
+    # door that refuses vault claims. Whether a nearest-read answer counts as evidence for WHERE an
+    # item was seen is his call, not a tidy-up, so it is put to him rather than changed underneath
+    # him. [[unknown-stays-unknown]] [[feedback-fix-it-dont-offer-it]] — this is the documented
+    # exception: it changes what a provenance gate asserts.
+    _SIGHTING_LOC_STATS["segments_found"] = _SIGHTING_LOC_STATS.get("segments_found", 0) + 1
     try:
         import reel_segments as _rseg
         lane, _why = _rseg.lane_at(segs, sid, ts)
@@ -22246,7 +22265,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2518",
+        "ver": "v2519",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

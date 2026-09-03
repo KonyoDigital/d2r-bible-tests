@@ -17081,3 +17081,37 @@ and v2514's inline-the-rule sabotage is direct evidence that it intercepts — a
 add a dependency to prove something already proven.
 
 2 sabotages, 2 RED.
+
+## v2519 — the second refusal, named: provenance asks for containment against instantaneous segments
+
+v2517 bridged the `reel_` prefix and said plainly that it was **necessary and not sufficient** —
+`no_segments` fell 10,101 → 1,353 and resolution stayed at 0. This measures what refuses next,
+rather than guessing at it.
+
+**REG-513 — `lane_at` asks which segment CONTAINS the moment, and segments are the instants of
+READS, not the intervals between them.** Measured on session `s_1786999742937_35523` — 189 journal
+rows, 4 segments:
+
+```
+covered           14,231 ms
+session span     404,296 ms   (6.7 minutes)
+COVERAGE              3.52%
+frames on disk          483   →  13 fall inside a segment  (2.69%)
+```
+
+Store-wide, the refusal is now itemised: of **10,101** lookups, **1,353** find no segments and
+**8,748 FIND THEIR SEGMENTS AND STILL CANNOT ANSWER.** So containment can only ever resolve about
+3% of captured frames. **That is not a defect in the resolver — it is what containment means
+against instantaneous segments.**
+
+⚠ **HIS CALL, NOT A TIDY-UP.** Widening this to *"the nearest read"* would make provenance a
+**guess**, and this answer feeds a door that refuses vault claims. Whether a nearest-read answer
+counts as evidence for **where an item was seen** is a decision about what the gate asserts, so it
+is put to him rather than changed underneath him — the documented exception to fix-it-don't-offer-it,
+because it changes what a provenance gate means.
+
+What shipped is only the honest instrumentation: the refusal now records `segments_found`, so
+"unknown" carries which of the two reasons it is instead of one undifferentiated silence.
+
+**The open question, stated once:** should a frame captured between two reads inherit the lane of
+the nearest read (and within what window), or stay UNKNOWN?
