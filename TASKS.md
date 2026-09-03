@@ -355,7 +355,7 @@ An independent reader sitting between the analyzers as a gate, not a second opin
 
 
 ## A7 · EVERY REEL GOES THROUGH THE SAME PATH — ONE UNIFIED LOGIC · 2026-09-01 19:0x
-**Topic:** BACKEND · **Progress:** 0/1 · not started
+**Topic:** BACKEND · **Progress:** 1/2 · **v2507 made A7 CHECKABLE** (`tv/store_owners.py`): one declared OWNER per reel store, every other module a declared reader WITH A REASON, and a module that starts touching a store fails until it is argued in. 4 stores, owners retro_triage · reel_retention · vault_retro · frame_authority, every toucher accounted for (3/3/7/9). ⚠ IT REPORTS COUPLING, NOT WRITES, and says so — TWO attempts to measure writers returned ZERO for all four stores (a filename-adjacency grep, then an AST walk resolving path constants), because paths are bound in helpers and threaded through arguments. Both zeros measured the instrument, so A7 is NOT scoped on a number I do not trust. ⚠ The registry caught ITSELF on its first run. REMAINING: the actual single-writer proof needs a runtime technique (a write hook or an owner-mediated API), not a static walk
 
 > *"all reels need to be processed the same way all unified logic"*
 

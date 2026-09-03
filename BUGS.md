@@ -16661,3 +16661,44 @@ filter and the stored value cannot disagree, and the pool is exactly the union o
 sets.
 
 4 sabotages, 4 RED.
+
+## v2507 — A7 as something checkable: two attempts to measure writers both measured the instrument
+
+His ask: *"all reels need to be processed the same way all unified logic"* — no reel gets a second
+implementation, and any lane that differs is *"declared, in code, as a deliberate exception with a
+reason"*. Scoping that needs a count of who **writes** each reel store.
+
+**REG-492 — I could not measure it, twice, and the zeros were mine.**
+
+```
+a filename-adjacency grep        0 writers, all four stores
+an AST walk resolving constants  0 writers, all four stores
+```
+
+Neither can follow a path bound in a helper (`TOMBSTONE_PATH = _tombstone_path()`) and threaded
+through arguments. **Two zeros in a row measured my instruments, not the code** — the fourth time
+this shape has appeared today — and a third detector would have been the same mistake with more
+effort. So A7 is not scoped on a number I do not trust.
+
+**What shipped instead is the technique the codebase already uses, made checkable.** `reel_index.py`
+says *"THE ONLY WRITER"*; `reel_repair.py` says *"exactly one writer of an index in the repo"* — real
+declarations, in prose, that nothing verified. `tv/store_owners.py` turns those into a registry:
+one **owner** per store, every other module a **declared reader with a reason**, and a module that
+starts touching a store fails until it is argued in. Measured: 4 stores, owners
+`retro_triage · reel_retention · vault_retro · frame_authority`, and **every module that mentions
+them accounted for** (3, 3, 7 and 9 respectively).
+
+⚠ **It reports COUPLING, not writes, and says so in its own docstring** — the CF-13 ruling applied
+to a new surface: evidence, never a verdict, and nothing here fails a build.
+
+**REG-493 — the registry caught ITSELF on its first run.** It names every store, so it appeared as
+an undeclared toucher of all four — the counts-itself defect this console has produced before (a
+deriver that counted itself as a watcher). Excluding it is honest **only while it never opens one**,
+so that is asserted rather than promised in a comment, and the exclusion is pinned narrow: widening
+it past the registry would make a place to hide modules.
+
+⚠ A **stale** allowance is a finding too — a declared reader that no longer touches the store means
+the list has stopped describing the code, which is how the next undeclared module slips in under a
+name nobody re-checked.
+
+Guard: `tv/test_store_owners.py`, registered (101 gates). **5 sabotages, 5 RED.**

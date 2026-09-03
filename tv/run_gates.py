@@ -538,6 +538,20 @@ GATES = [
              "adoption cannot change behaviour and a later divergence goes red instead of "
              "silent. Plus the traps: two unknowns must not compare equal, an unknown word must "
              "be None and never echoed back as if resolved. All four sabotages seen RED."),
+    Gate("test_store_owners", [sys.executable, os.path.join(HERE, "test_store_owners.py")], 120,
+         why="A7 — one declared OWNER per reel store, everyone else a declared reader WITH A "
+             "REASON, so a second implementation has to be argued in rather than appearing. "
+             "⚠ IT DOES NOT PROVE SINGLE-WRITER, and that limit is the point: two static attempts "
+             "to measure writers returned ZERO for all four stores — a filename-adjacency grep, "
+             "then an AST walk resolving path constants — because paths are bound in helpers and "
+             "threaded through arguments. Both zeros measured the instrument, so this checks "
+             "COUPLING, which is checkable. ⚠ The registry CAUGHT ITSELF on its first run: it "
+             "names every store, so it read as an undeclared toucher of all four. Excluding it is "
+             "honest only while it never OPENS one, and that is asserted here rather than promised "
+             "— this console has produced the counts-itself defect before. These pin: undeclared "
+             "and STALE couplings both fail, the owner must actually mention its store, a reader "
+             "needs a real reason, the exclusion stays narrow (widening it would make a hiding "
+             "place), and nothing here fails a build. 5 sabotages, 5 RED."),
     Gate("test_reel_river", [sys.executable, os.path.join(HERE, "test_reel_river.py")], 120,
          why="A10 — the fish down the stream, and the law that keeps it readable: a GAP is two "
              "deciders answering the SAME question differently. Walking the river found 12 reels "

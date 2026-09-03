@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2506",
+  "ver": "v2507",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2506: v2504 added undeclared and unrecorded assertions so a fourth census source could not be added without being declared. A cold review found they compare KEYS only, so a source that contributes names and records nothing is invisible to both - confirmed by construction, both pass while the pool carries a name no recorded source accounts for. The sources record their sets now and the pool must equal the union of what the declared sources supplied. Also refuted its claim that the if-names guard is a no-op, with the interpreter.",
+  "note": "v2507: Scoping A7 needs a count of who writes each reel store. A filename-adjacency grep returned zero writers for all four stores and so did an AST walk resolving path constants, because paths are bound in helpers and threaded through arguments. Two zeros measuring my instruments, so A7 is not scoped on a number I do not trust. What shipped is the technique the codebase already uses in prose, made checkable - one declared owner per store, every other module a declared reader with a reason, and a new toucher fails until argued in. It reports coupling not writes and says so. The registry caught itself on its first run.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
