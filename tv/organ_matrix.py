@@ -39,7 +39,15 @@ ORGANS = ("eagle", "watchdog", "doctor", "corroborator")
 #: themselves with `key`, not `id`/`name`/`route`, so the corroborator extracted nothing and this
 #: file reported "no route set answered" about three modules that had answered all day. A reader
 #: would have concluded the corroborator was broken; the extractor was. Suspect the instrument.
-def _names_from(rows, keys=("id", "key", "lane", "route", "name", "surface", "lock", "target")):
+#: ⚠ `check` WAS THE MISSING SYNONYM AND ITS ABSENCE WOULD HAVE BEEN SILENT. Every organ names
+#: the things it watches under some key, and this list is how the matrix reads all of them without
+#: forcing each organ to carry a second copy of its own vocabulary. console_doctor names its 34
+#: subjects under `check`, which was not here — so the moment console_doctor.report() existed, the
+#: doctor column would have flipped from an honest "cannot be asked" to a confident
+#: "watches nothing at all", with 44 ABSENT cells and no error anywhere. A reader missing one
+#: synonym does not fail; it reports emptiness. [[the-unjoined-end]] [[unknown-stays-unknown]]
+def _names_from(rows, keys=("id", "key", "lane", "route", "name", "surface", "lock", "target",
+                            "check")):
     out = set()
     for r in (rows or []):
         if isinstance(r, dict):
@@ -81,14 +89,56 @@ def organ_coverage():
                          lambda r: _names_from((r or {}).get("rows") if isinstance(r, dict) else r))
     # CORROBORATOR — the route sets compare siblings against each other and flag the odd one out.
     def _corr(_f):
+        """⚠⚠ IT WAS THROWING AWAY THE ONE FACT THAT MADE THE JOIN POSSIBLE. Three modules were
+        flattened into one set, so `chronicle_routes` saying `runeword` and `fleet_routes` saying
+        `runeword` became a single bare name — and every route surface (`chronicle.runeword`,
+        `fleet.sets`, `roster.unique`) could only ever come back MISNAMED. All nine of them, every
+        run, for exactly this reason: WHICH LANE a name came from is known right here, at the call
+        site, and was discarded one line later.
+
+        Those nine were 100% of the MISNAMED cells in the table. They are not a naming problem in
+        the route sets — the route sets are fine — they were a reader dropping a qualifier.
+
+        So each name is published twice: bare (nothing that resolved before stops resolving) and
+        qualified with its lane, spelled through the shared resolver so `runewords` and `runeword`
+        land on the one form the surface registry uses. [[the-unjoined-end]] [[copy-drift]] §1
+        """
         names = set()
+        try:
+            import one_name as _on
+        except Exception:
+            _on = None
         for m in ("chronicle_routes", "fleet_routes", "roster_routes"):
+            lane = m[:-len("_routes")]
             try:
                 mod = __import__(m)
                 rep = mod.routes() if m == "chronicle_routes" else mod.routes(None)
-                names |= _names_from(rep.get("routes"))
+                bare = _names_from(rep.get("routes"))
             except Exception:
-                pass
+                continue
+            names |= bare
+            for n in bare:
+                # ⚠ EVERY FORM, NOT THE ROUTE FORM — because his three route sets do not agree
+                # with each other. Measured: `chronicle.runeword` and `roster.runeword` are
+                # SINGULAR while `fleet.runewords`, `fleet.sets`, `fleet.uniques` are PLURAL. One
+                # form joined six of the nine and left fleet's three still reading MISNAMED, which
+                # would have looked like a partial fix and was really this table meeting a
+                # vocabulary split it did not cause.
+                #
+                # ⚠⚠ AND THAT SPLIT IS NOT FIXED HERE — it is only stopped from corrupting this
+                # measurement. Three route sets, two spellings, is a real inconsistency in the
+                # console and it is logged as REG-470; absorbing it silently in the reader is how
+                # a drift becomes permanent. The corroborator genuinely watches the CONCEPT in
+                # that lane however the lane spells it, so all forms are published and the
+                # coverage answer is honest either way.
+                forms = set()
+                if _on:
+                    for surface in ("route", "lane", "template"):
+                        f = _on.form(n, surface)
+                        if f:
+                            forms.add(f)
+                for f in (forms or {n}):
+                    names.add("%s.%s" % (lane, f))
         return names
     out["corroborator"] = (_corr(None), "") if _corr(None) else (None, "no route set answered")
     return out
@@ -149,17 +199,80 @@ def _same_thing(surface, names):
     return False
 
 
+def comparability(cov, surf):
+    """Can this organ's vocabulary be COMPARED to the surface list at all? -> {organ: (bool, why)}
+
+    ⚠⚠ THE TABLE PRINTED `ABSENT` FOR THREE DIFFERENT SITUATIONS AND ONLY ONE WAS A MEASUREMENT.
+    Measured the moment console_doctor became askable (v2496):
+
+        corroborator   6 names, 9 of the 44 surfaces resolve  -> comparable
+        doctor        34 names, ZERO resolve                  -> different KIND of name
+        watchdog       7 names, ZERO resolve                  -> different KIND of name
+        eagle          0 names                                -> answered with nothing at all
+
+    The doctor names CONCERNS — 'armed migration', 'art corpus', 'board join'. The surfaces are
+    CODE OBJECTS — '_bridge_prober', '_chron_autoread_loop', 'vault.apply'. Neither list is
+    wrong; they simply do not name the same kind of thing, so "the doctor does not watch
+    _bridge_prober" is not something this table has established. Printing ABSENT there asserts a
+    measurement nobody took, and it would have arrived as 44 confident cells replacing an honest
+    'could not be asked'. [[unknown-stays-unknown]] — the gap between "we did not look" and "we
+    looked and it was not there" is exactly where fabrication lives.
+
+    An organ that names NOTHING is the third case and it is not the same as the second: an empty
+    answer cannot distinguish "watches nothing" from "had nothing to say just now" (eagle_state()
+    returns no rows when the console is not running), so it is UNKNOWN rather than a verdict.
+
+    The rule is deliberately not a threshold: ONE surface resolving is enough to make the
+    vocabulary comparable, because at that point ABSENT for the rest is a real finding about
+    coverage rather than an artefact of two lists talking past each other.
+    """
+    out = {}
+    for organ in ORGANS:
+        names, _w = cov.get(organ, (None, "not asked"))
+        if names is None:
+            out[organ] = (False, "could not be asked")
+        elif not names:
+            out[organ] = (False, "answered, and named nothing at all — which cannot tell "
+                                 "'watches nothing' apart from 'had nothing to say just now'")
+        else:
+            hits = sum(1 for s in surf if s in names or _same_thing(s, names))
+            out[organ] = ((hits > 0),
+                          "" if hits else
+                          "names %d thing(s), and NONE of them resolves to any of the %d surfaces "
+                          "— it is naming a different KIND of thing (concerns, not code objects), "
+                          "so this table has not established what it does or does not watch"
+                          % (len(names), len(surf)))
+    return out
+
+
+#: Filled by matrix() so main() can say how wide its verdict is. A module-level handoff rather
+#: than a third return value, because matrix()'s (rows, why) shape is unpacked in four callers and
+#: widening a tuple breaks all of them at once — the v2228 lesson, which cost nine call sites.
+LAST_COMPARABILITY = {}
+
+
 def matrix():
     """-> (rows, organ_why). One row per surface, one cell per organ."""
     cov = organ_coverage()
     why = {o: cov[o][1] for o in ORGANS if cov.get(o) and cov[o][1]}
+    _surf_all = surfaces()
+    comp = comparability(cov, _surf_all)
+    LAST_COMPARABILITY.clear()
+    LAST_COMPARABILITY.update(comp)
+    for o, (ok, w) in comp.items():
+        if not ok and w and not why.get(o):
+            why[o] = w
     rows = []
-    for name, origin in sorted(surfaces().items()):
+    for name, origin in sorted(_surf_all.items()):
         cells = {}
         for o in ORGANS:
             names, _w = cov.get(o, (None, "not asked"))
             if names is None:
                 cells[o] = UNKNOWN          # the ORGAN could not be asked — not the surface's fault
+            elif not comp[o][0]:
+                # ⚠ ITS VOCABULARY DOES NOT MEET THIS LIST, so nothing about this cell was
+                # measured. ABSENT here would be a verdict on evidence that does not exist.
+                cells[o] = UNKNOWN
             elif name in names:
                 cells[o] = COVERED
             else:
@@ -182,8 +295,10 @@ def matrix():
 
 def main(argv=None):
     rows, why = matrix()
-    print("A3 — SURFACE × ORGAN, measured. COVERED = the organ names it · ABSENT = it runs and "
-          "does not · UNKNOWN = the organ could not be asked at all\n")
+    print("A3 — SURFACE × ORGAN, measured. COVERED = the organ names it · ABSENT = the organ's "
+          "vocabulary reaches this list and does not name it · UNKNOWN = nothing was established "
+          "(the organ could not be asked, answered with nothing, or names a different KIND of "
+          "thing)\n")
     print("%-24s %-14s %s" % ("surface", "origin", "  ".join("%-12s" % o for o in ORGANS)))
     print("-" * 96)
     for r in rows:
@@ -198,22 +313,52 @@ def main(argv=None):
     # directly contradicts that framing". It is the same collapse the MISNAMED state exists to
     # prevent, reappearing in the SUMMARY of it. A count that ignores a state is that state
     # deleted. [[unknown-stays-unknown]]
-    none = sum(1 for r in rows if r["covered"] == 0 and not r.get("misnamed"))
+    # ⚠⚠ AND IT MUST NOT COUNT AN UNKNOWN CELL AS A HOLE EITHER — the same collapse, one layer
+    # out. "have none at all" once meant `covered == 0 and not misnamed`, which was true while
+    # every organ's vocabulary was comparable. The moment console_doctor became askable (v2496),
+    # three of the four columns turned UNKNOWN — the organs name CONCERNS and the surfaces are
+    # CODE OBJECTS — and this line went on reporting 35-have-none from cells that had stopped
+    # being measurements. A RIGHT NUMBER UNDER A WORD THAT STOPPED BEING TRUE.
+    # [[label-outlived-referent]]
+    #
+    # A surface has been SHOWN to have nothing only when at least one organ could actually be
+    # compared against it and did not name it. Everything else is unmeasured, and says so.
+    none = sum(1 for r in rows
+               if r["covered"] == 0 and not r.get("misnamed")
+               and r.get("unknown", 0) < len(ORGANS))
+    dark = sum(1 for r in rows if r.get("unknown", 0) == len(ORGANS))
     joined = sum(1 for r in rows if r["covered"] == 0 and r.get("misnamed"))
-    print("\n%d surface(s): %d have all four organs, %d have none at all, and %d are watched "
-          "under another name and would count as covered the moment the join is made."
-          % (tot, full, none, joined))
+    # ⚠ AND SAY HOW MANY ORGANS THAT VERDICT RESTS ON. "35 have none" reads as "35 things
+    # nobody is watching", which would be a serious claim — and it rests on the ONE organ whose
+    # vocabulary reaches this list. The other three were not compared, so they have neither
+    # confirmed nor denied anything. A number is only as wide as the evidence under it.
+    comp = LAST_COMPARABILITY
+    ncomp = sum(1 for o in ORGANS if comp.get(o, (False, ""))[0])
+    print("\n%d surface(s): %d have all four organs, %d are named by NO organ that could be "
+          "compared — and only %d of the %d organs could be — and %d are watched under another "
+          "name and would count as covered the moment the join is made."
+          % (tot, full, none, ncomp, len(ORGANS), joined))
+    if dark:
+        print("⚠ %d surface(s) have every cell UNKNOWN — no organ's vocabulary could be compared "
+              "against them at all. They are not holes and they are not covered; nothing about "
+              "them has been established, and counting them as either is the fabrication this "
+              "table exists to avoid." % dark)
     if mis:
         print("⚠ %d cell(s) are MISNAMED — the organ IS watching that thing and calls it "
               "something else. Those are not holes; they are a join nobody made, and reporting "
               "them as ABSENT is how this table came to look empty." % mis)
     if why:
-        print("\n⚠ %d of %d organs could not be asked AT ALL, so their column is UNKNOWN "
-              "everywhere — not empty:" % (len(why), len(ORGANS)))
+        # ⚠ "COULD NOT BE ASKED" IS NOW ONLY ONE OF THE REASONS, and saying it for all of them
+        # is a second stale label. console_doctor answers perfectly well; what fails is that its
+        # 34 names and these 44 surfaces are different KINDS of name. An organ reported as
+        # unaskable when it is merely incomparable sends the reader to fix the wrong thing.
+        print("\n⚠ %d of %d organs have a column that is UNKNOWN everywhere — not empty, and for "
+              "these reasons:" % (len(why), len(ORGANS)))
         for o, w in sorted(why.items()):
             print("   %-14s %s" % (o, w))
-        print("   An organ nobody can ask has not been shown to miss anything, and has not been "
-              "shown to do anything either.")
+        print("   An organ that could not be asked — or that answers in a vocabulary this list "
+              "cannot meet — has not been shown to miss anything, and has not been shown to do "
+              "anything either.")
     return 0
 
 

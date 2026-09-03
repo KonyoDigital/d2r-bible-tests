@@ -1655,6 +1655,50 @@ def run(include_slow=True):
     return rows
 
 
+def report(deep=False):
+    """The organ interface — what this doctor WATCHES. -> {"ok", "rows", "why"}
+
+    Every other organ publishes one of these (`health_engine.report()`,
+    `control_app.eagle_state()`), and until v2496 this one did not, so `organ_matrix` answered
+    "console_doctor has no report()" and painted the doctor's column UNKNOWN across all 44
+    surfaces — a quarter of that table unanswerable because one function was absent.
+
+    ⚠⚠ IT DOES NOT RUN THE CHECKS BY DEFAULT, AND THAT IS THE DESIGN, NOT A SHORTCUT.
+    `run()` opens /api/board_ownership, and that route EVALUATES JAVASCRIPT IN THE WINDOW HE IS
+    LOOKING AT [[borrowed-surface]]; the two SLOW checks add ~2 minutes on top. An organ asked
+    "what do you watch?" must be able to answer without reaching into his screen, because the
+    asker — a matrix, the heart, a status poll — is asking about COVERAGE, not about findings.
+    Pass deep=True when you want the live states; that is `run()`, and it answers a different
+    question.
+
+    So every row here carries state UNMEASURED, which is a real state in this module's own
+    vocabulary and NOT a pass: it says this check exists and was not run just now.
+    [[unknown-stays-unknown]] — the gap between "we did not look" and "we looked and it was
+    fine" is the whole point of having a separate word for it.
+    """
+    if deep:
+        rows = run()
+        return {"ok": True, "rows": rows,
+                "why": "%d check(s), run live just now" % len(rows)}
+    rows = []
+    for name, _fn in CHECKS:
+        rows.append({
+            # ⚠ `check` IS THIS MODULE'S WORD AND IT STAYS. The matrix learned to read it
+            # (v2496) rather than this file learning to speak someone else's vocabulary — a
+            # synonym list belongs in the READER, or every organ ends up carrying a second
+            # copy of its own name for each consumer. [[copy-drift]] §1
+            "check": name,
+            "slow": name in SLOW,
+            "owner": owner_of(name),
+            "state": UNMEASURED,
+            "why": ("named by this doctor; not run by this call. UNMEASURED, not OK — "
+                    "pass deep=True to run it."),
+        })
+    return {"ok": True, "rows": rows,
+            "why": ("%d check(s) named without running any of them, because running them "
+                    "reaches into the window he is looking at" % len(rows))}
+
+
 def main(argv):
     rows = run()
     if "--json" in argv:

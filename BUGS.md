@@ -16224,3 +16224,122 @@ longer true is "not a naming problem at all".
 failures — you may not notice the shared module isn't being used". Recorded; the fallback stays for
 now because a matrix that narrows beats one that stops, but nothing currently reports that the
 fallback path was taken.
+
+## v2496 — A3: the doctor's column was UNKNOWN because of one missing function, and filling it in nearly made the table LIE
+
+**REG-465 — `console_doctor` had no `report()`, so a quarter of the organ matrix was
+unanswerable.** Every other organ publishes one (`health_engine.report()`,
+`control_app.eagle_state()`). The doctor had `run()` and nothing else, so `organ_matrix` printed
+*"console_doctor has no report()"* and painted UNKNOWN across all 44 surfaces.
+
+⚠ **It could not be a thin alias for `run()`.** `run()` opens `/api/board_ownership`, and that
+route **evaluates JavaScript in the window he is looking at** — plus the two SLOW checks add ~2
+minutes. An organ asked *"what do you watch?"* is being asked about COVERAGE, not findings, and
+must answer from its own table. `report()` names all 34 checks in **0.000s with the network
+booby-trapped**; `report(deep=True)` is the live answer to the different question.
+
+**REG-466 — the reader was missing the doctor's word, and that failure would have been SILENT.**
+`_names_from` reads eight synonym keys; the doctor names everything under `check`, which was not
+among them. So `report()` alone would have handed the matrix an **empty name set** — the column
+flipping from an honest *"cannot be asked"* to a confident *"watches nothing at all"*, 44 ABSENT
+cells, no error anywhere. A reader missing one synonym does not fail; it reports emptiness.
+
+**REG-467 — and even WITH the synonym, `ABSENT` was a verdict nobody had earned.** Measured the
+moment the doctor became askable:
+
+```
+corroborator    6 names,  9 of 44 surfaces resolve   -> comparable
+doctor         34 names,  ZERO resolve               -> a different KIND of name
+watchdog        7 names,  ZERO resolve               -> a different KIND of name
+eagle           0 names                              -> answered with nothing at all
+```
+
+The doctor names **concerns** — `armed migration`, `art corpus`, `board join`. The surfaces are
+**code objects** — `_bridge_prober`, `_chron_autoread_loop`, `vault.apply`. Neither list is wrong;
+they do not name the same kind of thing. So *"the doctor does not watch `_bridge_prober`"* is not
+something this table established, and printing ABSENT there asserts a measurement nobody took.
+**The table was about to print one word for three different situations, and only one of them was
+a measurement.** Cells in an incomparable column now say UNKNOWN with the reason.
+
+**REG-468 — two summary labels outlived their referent the instant the cells moved.** *"35 have
+none at all"* was computed from cells that had stopped being measurements, and *"3 of 4 organs
+could not be asked AT ALL"* was false for the doctor, which answers perfectly well. A reader sent
+to fix an unaskable organ would have been fixing the wrong thing. The line now reads *"named by NO
+organ that could be compared — and only 1 of the 4 organs could be"*: **a number that states its
+own width.**
+
+⚠⚠ **REG-469 — MY FIRST GUARD FOR ALL OF THIS PASSED THE SABOTAGE.** `test_organ_comparability`
+iterated the organs the module had *already labelled* incomparable. Forcing `hits = 1` inside
+`comparability()` — the exact defect, doctor and watchdog handing down 88 verdicts they had not
+earned — left the file **GREEN**, because disabling the label removed those organs from the test's
+own scope. **A guard that reads the system's classification cannot detect a wrong
+classification.** It now counts the overlap itself, from the organ's names and the surface list,
+through `one_name` directly rather than the matrix's wrapper. Re-proven: **5 sabotages, 5 RED, each
+caught by its own test.**
+
+The pre-existing `test_organ_matrix` caught the contract change unaided and was right to — `why`
+had meant *unaskable* and now means *this column is dark, and which of the three reasons*. Its law
+was restated (**a dark column must say why; an organ that produced verdicts must not claim it
+could not**), not loosened, and proven RED twice.
+
+## v2497 — A3 done: nine MISNAMED cells were ONE dropped qualifier, and behind them a real vocabulary split
+
+**REG-470 — `_corr()` flattened three route modules into one set of bare names, discarding the
+lane one line after learning it.** So `chronicle.runeword`, `fleet.sets`, `roster.unique` — **100%
+of the MISNAMED cells in the table** — could never resolve to anything but a near-match. Not nine
+naming problems: one reader dropping a qualifier that was in its hand. The corroborator now
+publishes each name twice, bare and lane-qualified.
+
+⚠ **The first form of the fix joined SIX of the nine and looked like a partial success.** The
+three that held out named the real defect underneath: **his three route sets do not agree with
+each other.** `chronicle.runeword` and `roster.runeword` are SINGULAR; `fleet.runewords`,
+`fleet.sets` and `fleet.uniques` are PLURAL. Two vocabularies inside one console, and the matrix
+had been meeting a split it did not cause.
+
+**That split is NOT fixed by v2497 — it is only stopped from corrupting the measurement.** The
+corroborator watches the CONCEPT in that lane however the lane spells it, so every form the
+resolver knows is published and the coverage answer is honest either way. Absorbing a drift
+silently in the reader is how a drift becomes permanent, so it is logged here as its own item; the
+real fix is the `one_name` cut-over reaching `fleet_routes`.
+
+Result: **9 MISNAMED → 9 COVERED, and exactly those nine.** No non-route surface moved.
+
+**REG-471 — fixing the bug blinded the guard that had been watching it.** `test_MISNAMED_is_kept_
+apart_from_ABSENT` carried a deliberate baseline — *"if the vocabularies really did align, this
+test has lost its subject and should be retired deliberately, not left passing on an empty set"* —
+and it fired the moment the last live MISNAMED cell became COVERED. It was right to. Retiring it
+was wrong too: the classification law must still hold the next time two vocabularies drift.
+
+**Its subject is now CONSTRUCTED rather than borrowed from live data.** A guard that can only fire
+while his console happens to contain an instance is blind the moment it does not — and *"the bug
+is fixed"* is exactly when that blindness arrives. Proven RED on three sabotages (dropped
+qualifier, invented lane, and a resolver that stops distinguishing anything).
+
+## v2498 — a cold review found dead code inside the fix I had just shipped, and refuted my description of it
+
+**REG-472 — the camelCase substitution in `_shape()` was a no-op, and its docstring credited it
+with work `.lower()` was doing.** It inserted a `-` and the next line deleted every `-`. Zero
+inputs across camel, kebab, snake, ALLCAPS and mixed change result. Removed. **A line that cannot
+change the answer is a claim, not a mechanism** — and this one made the function look more careful
+than it was, in the very commit whose subject was over-claiming.
+
+**REG-473 — "not a fuzzy match" was wrong, and the honest version is a measurement.** The review:
+*"the final step is a full normalization that collapses many distinct identifiers"* — `user_id`
+and `userid` land on one shape. True. Measured across the 100 names actually in play: **exactly 3
+colliding shapes, all 3 correct** — `armed migration`/`armed_migration`, `board join`/`board_join`,
+`shadow watch`/`shadowWatch`. That is a fact about today, not a property of the function, so
+`test_one_name.py` holds the census as a **ratchet**: a new collision fails and a person decides
+whether it is another house style or two different things being merged.
+
+⚠ **One finding REFUTED with a proof rather than an opinion.** It claimed the early return could
+be wrong when `concept(a)="SET"` and `concept(b)="UNIQUE"` *"even when both names are literally
+identical"*. `concept()` is a pure function of the string, so identical strings cannot carry
+different concepts — checked exhaustively over the live pool, zero such pairs. Not changed, and
+recorded as refuted rather than quietly skipped.
+
+⚠ **REG-474 — MY OWN TEST DID NOT RUN AND THE SUITE SAID OK.** `cat >> test_one_name.py` appended
+the new class **below** `if __name__ == "__main__"`, so `unittest.main()` executed before the class
+existed: **8 tests, 0.004 seconds, green**, with both new tests silently absent. The tell was the
+clock — 4 milliseconds for a suite that builds a 100-name pool from the live matrix. Moved above
+the runner: 10 tests, 4.5 s. This is the `append-below-the-runner` scar, and I walked into it while
+writing a guard about claims outrunning evidence.

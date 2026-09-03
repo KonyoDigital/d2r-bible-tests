@@ -160,6 +160,89 @@ class ItAnswersTheQuestionNothingCouldAsk(unittest.TestCase):
         self.assertIsNone(ON.form("set", "no_such_surface"),
                           "an unknown SURFACE must be None, not a default rendering")
 
+#: ⚠⚠ THE COLLISION CENSUS — a RATCHET, because `_shape` is genuinely fuzzy and the docstring now
+#: says so. It strips every non-alphanumeric, so `user_id` and `userid` land on one shape. A cold
+#: review of the shipped code named that, and the measurement is what settles how much it matters:
+#: across 100 live names there are exactly THREE colliding shapes and all three are the same thing
+#: written in two house styles. That is a fact about today, not a property of the function.
+#:
+#: So the census may only SHRINK. A new collision is not assumed wrong — it is assumed UNREVIEWED,
+#: which is a different thing and needs a person to say which of the two it is. The alternative is
+#: a resolver that quietly merges two unrelated subsystems the first time someone adds a name.
+#: [[unknown-stays-unknown]]
+SHAPE_COLLISIONS = {
+    "armedmigration": ("armed migration", "armed_migration"),
+    "boardjoin":      ("board join", "board_join"),
+    "shadowwatch":    ("shadow watch", "shadowWatch"),
+}
+
+
+def _live_names():
+    """Every name the resolver is actually asked about. -> set"""
+    import organ_matrix as OM
+    pool = set(OM.surfaces())
+    for _o, (names, _w) in OM.organ_coverage().items():
+        if names:
+            pool |= set(names)
+    try:
+        import heart
+        d = heart.snapshot() if hasattr(heart, "snapshot") else {}
+        pool |= {str(k) for k in (d.get("organs") or {})}
+        pool |= {str(r.get("key") or "") for r in (d.get("lanes") or [])}
+    except Exception:
+        pass
+    return {p for p in pool if p}
+
+
+class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
+
+    def test_the_dead_line_stays_dead(self):
+        """A line that cannot change the answer is a claim, not a mechanism.
+
+        The removed camelCase substitution inserted a "-" that the next line deleted. If someone
+        re-adds a normalisation step, it has to change at least one result or it is decoration.
+        """
+        import re as _re
+        def without_prefix_only(s):
+            return _re.sub(r"[^a-z0-9]", "",
+                           _re.sub(r"^tvd[-_]", "", str(s or "")).lower())
+        for probe in ("shadowWatch", "tvd-shadow-watch", "XMLHttpRequest", "a1B2c3",
+                      "tvd_stash_watch", "chronicle.runeword", "ALLCAPS", "mixed_Case-Thing"):
+            self.assertEqual(
+                ON._shape(probe), without_prefix_only(probe),
+                "_shape(%r) now does something beyond stripping the tvd prefix and folding case. "
+                "That may be right — but it is a behaviour change to the thing that decides "
+                "whether two subsystems are the same, and it needs its own evidence." % probe)
+
+    def test_no_unreviewed_shape_collision_has_appeared(self):
+        pool = _live_names()
+        self.assertGreater(len(pool), 20,
+                           "BASELINE: only %d names in play, too few for this census to be "
+                           "measuring anything. UNKNOWN, not a pass." % len(pool))
+        groups = {}
+        for n in pool:
+            groups.setdefault(ON._shape(n), set()).add(n)
+        live = {k: v for k, v in groups.items() if len(v) > 1}
+
+        new = {k: sorted(v) for k, v in live.items() if k not in SHAPE_COLLISIONS}
+        self.assertFalse(
+            new,
+            "%d NEW shape collision(s) — two or more names the resolver now treats as one thing, "
+            "and nobody has said whether that is right: %s\n"
+            "If they ARE the same thing in two house styles, add them to SHAPE_COLLISIONS. If "
+            "they are DIFFERENT things, _shape is merging them and the coverage table will report "
+            "one as watched because the other is." % (len(new), new))
+
+        for shape, expected in SHAPE_COLLISIONS.items():
+            got = live.get(shape)
+            if got is None:
+                continue      # a name disappeared; the census may shrink, that is the ratchet
+            extra = got - set(expected)
+            self.assertFalse(
+                extra,
+                "the known collision %r has GROWN to include %s. A census entry is permission for "
+                "the pair that was reviewed, not for the shape." % (shape, sorted(extra)))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

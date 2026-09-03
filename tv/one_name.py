@@ -100,9 +100,30 @@ def _shape(s):
     So the 0 measured THIS FUNCTION'S REACH, not the world's structure, and I read my own
     instrument's silence as a fact about the console. `tvd-` is a prefix convention and camelCase
     against kebab-case is a house style; neither carries meaning. [[source-reading-guard]]
+
+    ⚠⚠ AND IT IS FUZZIER THAN THE FIRST VERSION OF THIS DOCSTRING ADMITTED. A cold review of
+    the shipped code: "the claim that this is not a fuzzy match is inaccurate; the final step is a
+    full normalization that collapses many distinct identifiers" — `user_id` and `userid` land on
+    the same shape. TRUE. The honest defence is not that it cannot collide but that every
+    collision it makes today is one we want:
+
+        armed migration  ==  armed_migration      (the doctor and the health engine, same concern)
+        board join       ==  board_join
+        shadow watch     ==  shadowWatch
+
+    Three collisions across 100 live names, all the same thing in two house styles, none wrong.
+    That is a MEASUREMENT OF TODAY, not a property of the function — so tv/test_one_name.py holds
+    that census as a ratchet: a NEW collision fails, and a person decides whether it is another
+    house style or two different things being merged. [[unknown-stays-unknown]]
+
+    ⚠ THE CAMELCASE SPLIT THAT USED TO SIT HERE WAS DEAD CODE, and a cold review of the shipped
+    version found it in one read: it inserted a "-" and the very next line deleted every "-". No
+    input changed its result — checked across camel, kebab, snake, ALLCAPS and mixed. It was
+    removed rather than kept for clarity, because it made this function LOOK more careful than it
+    was: the docstring credited it with "removing a known case convention" when `.lower()` had
+    been doing that on its own. A line that cannot change the answer is a claim, not a mechanism.
     """
     t = re.sub(r"^tvd[-_]", "", str(s or ""))
-    t = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", t)      # camelCase -> camel-Case
     return re.sub(r"[^a-z0-9]", "", t.lower())
 
 
