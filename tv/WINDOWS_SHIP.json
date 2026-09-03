@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2527",
+  "ver": "v2528",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2527: Two static walks both returned zero writers for all four stores and both were measuring themselves. write_witness watches the writes happen instead. Its own demo caught it blind - patching only builtins.open missed io.open which this codebase uses everywhere, so a module whose entire job is counting writers reported zero for a store it had just watched being written. It also named a module that does not exist, because abspath of stdin lands inside the tree. And the write that matters never opens the store - these stores are written to a tmp file and moved, so watching only open would see the tmp and never the store. It is an instrument, not a measurement.",
+  "note": "v2528: The docstring says a truncation that hides the telling element is the message failing at the one moment it is needed, and the code kept 102 head against 50 tail. Comment contradicting code, in the fix written one version earlier. The tail takes the larger share now - 50 head and 102 tail - verified so a marker at the very end of a long value survives while the output stays exactly at the cap. The review also confirmed the v2526 arithmetic independently, which matters because the round before that got it wrong at 164.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

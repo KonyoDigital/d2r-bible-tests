@@ -439,8 +439,13 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                     # slightly less believable. Derived from the cap now rather than hand-summed.
                     if len(r) <= _CAP:
                         return r
+                    # ⚠ THE SPLIT WAS BACKWARDS AGAINST THIS FUNCTION-S OWN STATED REASON.
+                    # The docstring says the telling element is often at the END, and the code
+                    # kept 102 head against 50 tail — a comment contradicting the code it sits on.
+                    # The tail now gets the larger share, which is what "head AND tail" was for.
                     keep = _CAP - len(_SNIP)
-                    return r[:keep - keep // 3] + _SNIP + r[-(keep // 3):]
+                    head = keep // 3
+                    return r[:head] + _SNIP + r[-(keep - head):]
 
                 def _snap(fn, x):
                     try:

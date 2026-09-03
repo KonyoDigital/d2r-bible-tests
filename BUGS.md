@@ -17369,3 +17369,28 @@ it is on. **The per-store answer is a measurement nobody has taken**, which is a
 straight through, never redirects or blocks, because it watches the one door with no undo.
 
 Guard: `tv/test_write_witness.py`, registered (107 gates). **5 sabotages, 5 RED.**
+
+## v2528 — the truncator's split was backwards against its own stated reason
+
+**REG-528 — comment contradicting code, in the fix written one version earlier.** `_describe`'s
+docstring says *"a truncation that hides the telling element is the message failing at the one
+moment it is needed"* — and the code kept **102 head against 50 tail**. A cold review: *"the split
+is BACKWARDS relative to the stated goal. Since the telling detail is often at the end, the tail
+should be at least as long as the head, or longer."*
+
+The tail now takes the larger share — **50 head / 102 tail**. Verified: a marker placed at the very
+end of a 430-character value survives truncation, and the output is still **exactly 160** at
+159 / 160 / 161 / 400 / 5000.
+
+**It confirmed the v2526 arithmetic independently**, which is worth recording because the round
+before that got it wrong at 164: *"keep=152, keep//3=50, the result is `r[:102] + _SNIP + r[-50:]`,
+which is exactly 160 characters. It never exceeds `_CAP`."*
+
+**One settled with a distinction I had not stated:** `len(_SNIP)` counts **code points**, which is
+right for a human-readable message — *"if the result is later encoded to UTF-8, the two `…`
+characters cost 3 bytes each, so the byte length would be 162, but that is irrelevant."* Recorded so
+a future reader does not re-derive it as a defect.
+
+**And its overall verdict closes the thread:** *"the only real flaw is the head/tail ratio.
+Otherwise the function is correct and safe."* v2526 recorded the stop signal on this five-version
+thread; this was the one outstanding item it named, and it is now fixed.
