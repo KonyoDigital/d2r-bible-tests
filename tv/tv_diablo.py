@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2501"   # a different family armed the deleter with a value that means OFF, and the fifth lock opened itself
+VERSION = "v2502"   # the reach check I added to stop a blind census was itself measuring the wrong quantity
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

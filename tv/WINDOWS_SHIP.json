@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2501",
+  "ver": "v2502",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2501: Handing retention_may_act cold to another model family produced four attacks; three refused and one landed - a zero-width space before a valid OFF value armed an unattended irreversible deleter. The switch also armed on offf, disabled and flase, while its own comment three lines above said a typo is not permission. The unrecognised arm was the permissive one. OFF holds, ON proceeds, UNSET still proceeds per his ruling, and a set-but-unrecognised value now holds. My own harness refused my attack and the interlock was moved around rather than widened, which then left the new claim immune to the in-process red proof - it has its own now. prune.arm opened itself at 48/48 with two kinds.",
+  "note": "v2502: v2500 added a reach assertion so a dead census source fails instead of passing quietly. A cold review of that mechanism found it scored each source by a delta rather than by what it holds - heart holds 46 names and the delta recorded 12 because 35 of them are the surfaces, so a healthy source could report zero purely because another ran first. Each source is now measured by its own filtered set and the pool is unchanged at 111. Blank names also counted as contribution and my first fix did not catch it - sabotaging the filter left the file green.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

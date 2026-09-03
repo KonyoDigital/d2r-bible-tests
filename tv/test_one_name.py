@@ -201,14 +201,33 @@ def _live_names(by_source=None):
     """
     import organ_matrix as OM
     seen = {} if by_source is None else by_source
-    pool = set(OM.surfaces())
-    seen["organ_matrix.surfaces"] = len(pool)
-    before = len(pool)
+
+    def _keep(names):
+        """A source's OWN names, minus the falsy ones. -> set
+
+        ⚠⚠ EACH SOURCE IS MEASURED BY WHAT IT HOLDS, NOT BY WHAT IT ADDED. The first version
+        recorded `len(pool) - before` — a DELTA — and a cold review took it apart: "the count
+        records only new names not already present... overlap between sources makes later ones
+        appear to contribute nothing even when they are exercised", and "the first source stores
+        len(pool) while the others store deltas, so the three entries are not comparable
+        quantities."
+
+        Both true, and the measurement is worse than the argument: heart.vessels HOLDS 46 names
+        and the delta recorded 12, because 35 of them ARE the surfaces. A source can be perfectly
+        healthy and report 0 purely because another ran first — failing this test for no reason,
+        and making the reach figure something nobody can read.
+
+        The falsy filter moved here too: `pool.add(str(x or ""))` inserted empty strings that were
+        COUNTED before the final `if p` dropped them, so a source could score for contributing
+        nothing. Ten of heart's rows have no watcher. [[unknown-stays-unknown]]
+        """
+        return {str(n) for n in names if str(n or "").strip()}
+
+    src_surfaces = _keep(OM.surfaces())
+    src_coverage = set()
     for _o, (names, _w) in OM.organ_coverage().items():
         if names:
-            pool |= set(names)
-    seen["organ_matrix.organ_coverage"] = len(pool) - before
-    before = len(pool)
+            src_coverage |= _keep(names)
     # ⚠ ABSENT AND BROKEN ARE DIFFERENT FACTS, and one bare `except Exception: pass` reported
     # them identically — so a heart that raised silently removed every organ and lane name from
     # this census, and the census went on passing. A source that is MISSING is a smaller pool; a
@@ -217,6 +236,7 @@ def _live_names(by_source=None):
         import heart
     except ImportError:
         heart = None                       # genuinely not here — a smaller pool, honestly
+    src_heart = set()
     if heart is not None:
         # ⚠⚠ IT WAS ASKING FOR A FUNCTION THAT DOES NOT EXIST. This read `heart.snapshot()` behind
         # a `hasattr` guard — and heart has no `snapshot`, so the guard was False every single run
@@ -224,16 +244,21 @@ def _live_names(by_source=None):
         # guard around a name that is simply wrong is not defensive, it is a way of never finding
         # out. The real accessor is vessels(), and it publishes 21 vessels and 14 locks.
         # [[plumbing-with-no-tap]]
+        # ⚠ vessels() itself is called UNGUARDED, deliberately: if the module imports, a failure
+        # inside it is a BROKEN source and must fail this test. That is the distinction this
+        # function was rewritten to make, and catching here would erase it again.
         v = heart.vessels()
         for r in (v.get("vessels") or []):
             if isinstance(r, dict):
-                pool.add(str(r.get("name") or ""))
-                pool.add(str(r.get("watcher") or ""))
+                src_heart |= _keep([r.get("name"), r.get("watcher")])
         for r in (v.get("locks") or []):
             if isinstance(r, dict):
-                pool.add(str(r.get("lock") or ""))
-    seen["heart.vessels"] = len(pool) - before
-    return {p for p in pool if p}
+                src_heart |= _keep([r.get("lock")])
+
+    seen["organ_matrix.surfaces"] = len(src_surfaces)
+    seen["organ_matrix.organ_coverage"] = len(src_coverage)
+    seen["heart.vessels"] = len(src_heart)
+    return src_surfaces | src_coverage | src_heart
 
 
 class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
@@ -262,6 +287,18 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
         # ⚠ THE INSTRUMENT'S REACH IS CHECKED BEFORE ITS FINDINGS. A census reading three sources
         # of which one silently returns nothing is not a smaller census, it is a blind one — and
         # `heart` was exactly that for its whole existence.
+        # ⚠ AND A NAME THAT IS BLANK IS NOT A NAME. A sabotage that made _keep() pass falsy
+        # values through left this file GREEN: an empty string collapses to a single pool entry
+        # and one entry is never a collision, while the reach counts go UP — so a source
+        # contributing nothing but blanks would report itself healthy. That is precisely the
+        # false ALIVE signal the reach check exists to prevent, so it is asserted rather than
+        # trusted to _keep. [[unknown-stays-unknown]]
+        blank = [p for p in pool if not str(p).strip()]
+        self.assertFalse(
+            blank,
+            "%d blank name(s) reached the pool. They cannot collide with anything, so they are "
+            "invisible to the census while still counting toward every source's reach — a source "
+            "emitting only blanks would look alive." % len(blank))
         dead = sorted(s for s in SOURCES if reach.get(s, 0) <= 0)
         self.assertFalse(
             dead,

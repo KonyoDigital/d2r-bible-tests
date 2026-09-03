@@ -16481,3 +16481,34 @@ the exact shape of a guard measuring nothing. It now has a red proof that reache
 That is A2's remaining quarter. ⚠ **Nothing was armed by this.** `may()` is defined and never
 called anywhere in the tree — the locks are badges, exactly as the standing constraint requires —
 and the switch is now strictly more conservative than before. 4 sabotages, 4 RED.
+
+## v2502 — the reach check I added to stop a blind census was itself measuring the wrong quantity
+
+**REG-485 — each source was scored by a DELTA, not by what it contributes.** v2500 added a reach
+assertion so a census source that goes dead fails instead of passing quietly. A cold review of that
+very mechanism found it measured `len(pool) - before` — *"the count records only new names not
+already present... overlap between sources makes later ones appear to contribute nothing even when
+they are exercised"* — and that the first source recorded an absolute while the other two recorded
+deltas, so *"the three entries are not comparable quantities"* and the `<= 0` test means something
+different for each.
+
+**MEASURED, and worse than the argument:** `heart.vessels` **holds 46 names and the delta recorded
+12**, because 35 of them ARE the surfaces. A perfectly healthy source could report 0 purely because
+another ran first — failing the test for no reason, and making the reach figure unreadable. Each
+source is now measured by its own filtered set: heart 46, coverage 65, surfaces 44, **pool
+unchanged at 111** — the measurement was corrected without moving the data.
+
+**REG-486 — blank names counted as contribution, and my first fix did not catch it.** `pool.add(
+str(x or ""))` inserted empty strings that were counted *before* the final `if p` dropped them;
+ten of heart's rows have no watcher. I filtered them at the source — then sabotaged that filter and
+**the file stayed GREEN**: a blank collapses to one pool entry, one entry never collides, and reach
+goes *up*. So a source emitting nothing but blanks would report itself alive, which is exactly the
+false ALIVE signal the reach check exists to prevent. Now asserted directly and RED on that
+sabotage.
+
+⚠ **One finding was a CONFIRMATION, recorded as such:** it agreed `heart.vessels()` must be called
+**unguarded** — *"if the module imports, a failure inside vessels() should fail the test rather
+than be hidden"* — which is the absent-vs-broken distinction v2500 was written to make.
+
+3 sabotages, 3 RED, including the original v2500 bug restored (asking for a function that does not
+exist).
