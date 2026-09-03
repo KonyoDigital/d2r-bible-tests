@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2511"   # A13 - the eye and the beat could never be compared, and my check was wrong on its own case
+VERSION = "v2512"   # the join proof accepted a crash as evidence, and searched for its sentinel too loosely
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

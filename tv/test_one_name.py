@@ -400,16 +400,32 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
             case.run(result)
         finally:
             globals()["_orphan_names"] = real
+        # ⚠ FAILURES ONLY, NOT ERRORS. A cold review: "an error usually means an exception during
+        # setup, teardown, or an unexpected crash... the test would then pass even though the
+        # census never reached the patched rule, just because something else blew up." Accepting
+        # errors would let an import failure or a live-data hiccup stand in for the proof.
+        self.assertFalse(
+            result.errors,
+            "the census ERRORED rather than failing an assertion: %s. That is not evidence about "
+            "the orphan rule — it is something else breaking, and counting it would let any crash "
+            "vouch for this join."
+            % "".join(t for _c, t in result.errors)[:200])
         self.assertTrue(
-            result.failures or result.errors,
+            result.failures,
             "the orphan rule was replaced with one that reports a sentinel on every input, and "
             "the census test still PASSED. It is not calling this rule — the extraction proved a "
             "helper works while the real check does something else.")
-        blob = "".join(t for _c, t in (result.failures + result.errors))
+        # ⚠ AND THE SENTINEL MUST APPEAR IN THE ORPHAN ASSERTION'S OWN MESSAGE, not merely
+        # somewhere in the text. Same review: the string "could appear in a traceback, repr of the
+        # test object, a log line, or an error message about the patching itself" — so a bare
+        # substring search over the whole blob would accept the right answer for the wrong reason.
+        blob = "".join(t for _c, t in result.failures)
+        self.assertIn("sentinel-orphan", blob,
+                      "the census failed, but the sentinel never reached it")
         self.assertIn(
-            "sentinel-orphan", blob,
-            "the census failed, but not because of the orphan rule — so it still is not shown to "
-            "depend on it")
+            "declared source accounts for", blob,
+            "the census failed and the sentinel is somewhere in the text, but NOT in the orphan "
+            "assertion's own message — so the failure has not been shown to come from that check")
 
     def test_an_undeclared_source_cannot_account_for_its_own_names(self):
         """The orphan rule must be independent evidence, not a duplicate of the undeclared check.

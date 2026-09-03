@@ -16847,3 +16847,35 @@ contradiction — blank eye against a panel shown at real height — and everyth
 nonsense, and a row that cries wolf is one he learns to skip.
 
 Guard: `tv/test_eye_vs_beat.py`, registered (103 gates). **6 sabotages, 6 RED.**
+
+## v2512 — the join proof accepted a crash as evidence, and searched for its sentinel too loosely
+
+**REG-502 — `result.failures OR result.errors` let an unrelated crash vouch for the join.** A cold
+review of v2510: *"an error usually means an exception during setup, teardown, or an unexpected
+crash... the test would then pass even though the census never reached the patched rule, just
+because something else blew up."* Errors are now asserted **empty**, and only a genuine assertion
+FAILURE counts.
+
+Proven precisely: a crash placed **before** the orphan check takes the join test RED on that exact
+assertion, and a crash placed **after** it correctly does not — the orphan assertion fires first.
+
+**REG-503 — the sentinel was searched for across the whole failure blob**, where it *"could appear
+in a traceback, repr of the test object, a log line, or an error message about the patching
+itself"*. It must now appear in **the orphan assertion's own message**.
+
+⚠ **That tightening caught my own mistake before it was committed:** I searched for
+`"no declared source accounts for"` while the real message reads `"NO declared source accounts
+for"`. The stricter assertion earned its place immediately.
+
+**One finding REFUTED with the sabotage evidence:** *"a second, identical inline implementation
+would still pass once the name is restored"*. It would not — if the call site inlined the rule the
+patch has no effect, the census passes, and the join test fails on `assertTrue(result.failures)`.
+That is the sabotage that goes RED.
+
+**Two settled rather than fixed.** The `globals()` patch is verified to intercept (both functions
+are in the same module, the census does a module-global lookup, and the inline sabotage proves it)
+rather than assumed. And the census does read live data as a side effect — about 5 seconds through
+`organ_matrix` and `heart` — with the patch restored in `finally`; the alternative, a second
+fixture census, would be a second source of truth about the same thing.
+
+3 sabotages, 3 RED.

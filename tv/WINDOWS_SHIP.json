@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2511",
+  "ver": "v2512",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2511: The console publishes a beat and stores no history, so an observation and the beat to check it against could never be reconciled afterwards - which is why the 2026-09-01 blank-white finding reached no gate. observed() captures the beat at the moment of looking now. The check itself was wrong on the exact case it exists for: _shown_panels was written against the flat fixture beats while the live panels_of returns them nested, so against his running console it returned nothing and reported AGREES while the beat claimed a panel shown at h=1309. Also rows=None meant both the default and the unreadable sentinel.",
+  "note": "v2512: Accepting failures OR errors let an unrelated crash vouch for the join - an error means something else blew up, not that the census reached the patched rule. Errors are asserted empty now and only a genuine assertion failure counts, proven by a crash placed before the orphan check. The sentinel was also searched across the whole failure blob where it could appear in a traceback; it must appear in the orphan assertion own message, and that tightening immediately caught my own case mismatch.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
