@@ -17914,3 +17914,38 @@ clean written inside the fix for a crash. The pattern is not carelessness about 
 **the new code is not re-asked the question the rule exists to ask.** Recorded here rather than
 resolved, because the fix for that is a habit and not a patch.
 
+## v2542 — a law for the pattern, because four notes did not stop it
+
+**Not a defect — the guard for one.** Four times on 2026-09-04 a fix shipped the very class of
+defect it was fixing, one edit away:
+
+| | |
+|---|---|
+| REG-534 | two store filenames retyped instead of quoted |
+| REG-537 | a snapshot frozen at import — written **one line below** the fix for REG-534 |
+| REG-540 | a store path resolved two ways, **in the module built to catch dead fields** |
+| REG-541 | a wholly unreadable store reporting OK — shipped **inside** the fix for REG-540's crash |
+
+⚠⚠ **The rule was quoted correctly in every one of those commits.** What failed was never the rule.
+It is that **the NEW code was not re-asked the question the rule exists to ask** — and a note in
+this log cannot fix that, because the note is read when writing the fix, not when writing the line
+after it.
+
+`tv/test_probe_unknown_law.py` asks it mechanically instead: **every probe is handed nothing and
+must answer UNKNOWN**, across all four at once, so the next probe added inherits the question rather
+than needing someone to remember. It asserts BEHAVIOUR, not a roster, so adding a probe cannot make
+it stale.
+
+⚠ `one_funnel.funnel()` takes no argument, so unlike its three siblings its nothing-to-read path
+**cannot be driven from outside at all** — it always reads the live tree. Stated in the file rather
+than special-cased away; the law empties its SOURCE to reach it.
+
+⚠ It also holds a **count**, because a probe silently dropped from the list looks identical to a
+passing run — and a **reason** check, because UNKNOWN with no reason cannot tell *the shelf is
+empty* from *the shelf could not be read*, which are opposite facts about his footage.
+
+**Seen RED 3 times, each for its own reason:** making one probe round nothing up to a verdict →
+`'POLICY_ONLY' != 'UNKNOWN'`; dropping a probe from the law → `3 not greater than or equal to 4`;
+and the BASELINE — a probe that answers UNKNOWN to *everything* → `per_reel_routes cannot reach a
+verdict at all`, without which the law would pass on four functions that say UNKNOWN and nothing else.
+

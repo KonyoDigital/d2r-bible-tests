@@ -667,6 +667,24 @@ GATES = [
              "and STALE couplings both fail, the owner must actually mention its store, a reader "
              "needs a real reason, the exclusion stays narrow (widening it would make a hiding "
              "place), and nothing here fails a build. 5 sabotages, 5 RED."),
+    Gate("test_probe_unknown_law",
+         [sys.executable, os.path.join(HERE, "test_probe_unknown_law.py")], 90,
+         why="EVERY PROBE MUST BE ABLE TO SAY UNKNOWN, AND MUST SAY IT WHEN HANDED NOTHING. ⚠⚠ "
+             "This is a PATTERN, not an incident: FOUR times on 2026-09-04 a fix shipped the very "
+             "class it was fixing, one edit away — REG-534 (filenames retyped), REG-537 (a "
+             "snapshot frozen at import, written ONE LINE BELOW the fix for REG-534), REG-540 (a "
+             "store path resolved two ways, inside the module built to catch dead fields), REG-541 "
+             "(a wholly unreadable store reporting OK, shipped INSIDE the fix for REG-540's crash, "
+             "by the one module whose entire job is refusing to call the unmeasured clean). The "
+             "rule was quoted correctly in every one of those commits; what failed was that the "
+             "NEW code was never re-asked the question the rule exists to ask. A note cannot fix "
+             "that — this law can, because it runs against ALL four probes at once, so the next "
+             "one added inherits the question. It asserts BEHAVIOUR (nothing in -> UNKNOWN out) "
+             "rather than pinning a roster, carries a REASON check because UNKNOWN with no reason "
+             "cannot tell 'the shelf is empty' from 'the shelf could not be read', and holds a "
+             "count because a probe silently dropped from the list looks identical to a passing "
+             "run. ⚠ BASELINE: each probe must also reach a REAL verdict, or the law would pass on "
+             "four functions that answer UNKNOWN to everything. 3 sabotages, 3 RED."),
     Gate("test_dead_field", [sys.executable, os.path.join(HERE, "test_dead_field.py")], 90,
          why="A FIELD RECORDED ON EVERY ROW AND FILLED ON NONE. His instruction, 2026-09-04: "
              "\"connect it to the heart of the console that way we would have caught it\". "

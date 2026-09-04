@@ -1,0 +1,115 @@
+# -*- coding: utf-8 -*-
+"""EVERY PROBE MUST BE ABLE TO SAY UNKNOWN, AND MUST SAY IT WHEN HANDED NOTHING.
+
+⚠⚠ WHY THIS EXISTS, AND IT IS A PATTERN NOT AN INCIDENT. Four times on 2026-09-04 a fix shipped
+the very class of defect it was fixing, one edit away:
+
+    REG-534  two store filenames retyped instead of quoted
+    REG-537  a snapshot frozen at import — written ONE LINE BELOW the fix for REG-534
+    REG-540  a store path resolved two ways, in the module built to catch dead fields
+    REG-541  a wholly unreadable store reporting OK — shipped INSIDE the fix for REG-540's crash,
+             by the one module whose entire job is refusing to call the unmeasured clean
+
+The rule was quoted correctly in every one of those commits. What failed was never the rule; it was
+that **the NEW code was not re-asked the question the rule exists to ask.** A note cannot fix that.
+A law can: every probe on this list is handed nothing, and must answer UNKNOWN rather than a
+verdict. It runs against ALL of them, so the next probe added inherits the question automatically.
+
+⚠ IT IS A LAW, NOT A ROSTER. It asserts the BEHAVIOUR (nothing in -> UNKNOWN out) rather than
+pinning today's module list to a number, so adding a probe cannot make it stale — but an
+ENTRY that stops existing is a refusal, because a probe silently dropped from this list is exactly
+how the law stops covering the thing it was written for. [[unknown-stays-unknown]]
+"""
+import os
+import sys
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+def _nothing_for_funnel():
+    """⚠ `one_funnel.funnel()` TAKES NO ARGUMENT, so unlike its three siblings its nothing-to-read
+    path cannot be driven from outside at all — it always reads the live tree. That is a real
+    difference in shape, stated rather than special-cased away: to exercise it, the SOURCE has to
+    be emptied. Its own suite already does this, and doing it here keeps the law uniform across
+    four probes that are not uniform.
+    """
+    import one_funnel as OF
+    import reel_story as RS
+    real = RS.story
+    try:
+        RS.story = lambda *a, **k: {"reels": []}
+        return OF.funnel()
+    finally:
+        RS.story = real
+
+
+#: Each entry is a probe that publishes a `state`, and a callable that asks it with NOTHING TO
+#: READ. Each is here because a wrong CLEAN from it would be believed.
+PROBES = (
+    ("one_start_point.start_points",
+     lambda: __import__("one_start_point").start_points(os.path.join(HERE, ".no_such_shelf_ever"))),
+    ("one_funnel.funnel", _nothing_for_funnel),
+    ("per_reel_routes.routes", lambda: __import__("per_reel_routes").routes([])),
+    ("dead_field.dead_fields", lambda: __import__("dead_field").dead_fields(None)),
+)
+
+
+class NothingInMustGiveUnknownOut(unittest.TestCase):
+
+    def test_every_probe_answers_UNKNOWN_when_handed_nothing(self):
+        for name, ask in PROBES:
+            r = ask()
+            self.assertIsInstance(r, dict, "%s did not return a reading" % name)
+            state = r.get("state") or r.get("ladder")   # one_funnel publishes two readings
+            self.assertEqual(
+                state, "UNKNOWN",
+                "%s was handed nothing and answered %r. Nothing-to-read is not a clean verdict — "
+                "it is the ABSENCE of one, and a probe that rounds it up is the defect every probe "
+                "on this list was written to prevent. why=%r"
+                % (name, state, str(r.get("why"))[:160]))
+
+    def test_the_reason_is_carried_not_just_the_word(self):
+        """⚠ UNKNOWN with no reason is a shrug. A reader has to be able to tell 'the shelf is
+        empty' from 'the shelf could not be read' — opposite facts about his footage."""
+        for name, ask in PROBES:
+            why = str((ask() or {}).get("why") or "").strip()
+            self.assertTrue(why, "%s said UNKNOWN and gave no reason at all" % name)
+            self.assertGreater(len(why), 20,
+                               "%s's reason is too short to distinguish anything: %r" % (name, why))
+
+    def test_the_law_still_covers_four_probes(self):
+        """⚠ It asserts BEHAVIOUR, not a roster — but a probe silently dropped from PROBES is
+        exactly how a law stops covering the thing it was written for, and that deletion looks
+        identical to a passing run. The count is the only thing that catches it."""
+        self.assertGreaterEqual(
+            len(PROBES), 4,
+            "a probe was removed from this law. Adding one is free; removing one needs a reason "
+            "written down, because the run stays green either way.")
+
+    def test_BASELINE_these_probes_can_reach_a_real_verdict(self):
+        """⚠⚠ Or the law above passes on four functions that answer UNKNOWN to everything, which
+        would be a guard proving the opposite of what it claims. Each is handed real input and must
+        NOT say UNKNOWN."""
+        import dead_field as DF
+        import one_funnel as OF
+        import per_reel_routes as PRR
+        rows = [{"reel": "reel_%d" % i, "deletedTs": 1, "z": None} for i in range(40)]
+        self.assertNotEqual(DF.dead_fields(rows).get("state"), "UNKNOWN",
+                            "dead_fields cannot reach a verdict at all")
+        self.assertNotEqual(
+            PRR.routes([{"reel": "reel_a", "tag": "zero-pages", "stage": "swept"}]).get("state"),
+            "UNKNOWN", "per_reel_routes cannot reach a verdict at all")
+        got = OF.funnel()          # against the live tree, which has reels
+        self.assertNotEqual(got.get("ladder"), "UNKNOWN",
+                            "one_funnel cannot reach a verdict at all: %s" % got.get("why"))
+
+
+if __name__ == "__main__":
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
+    unittest.main(verbosity=2)
