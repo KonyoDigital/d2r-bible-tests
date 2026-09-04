@@ -507,7 +507,7 @@ was stale. **This is the only check that can catch two stages that each work and
 ([[the-unjoined-end]]). Wire the result to the heart.
 
 ## A11 · ARE ALL THE LANES EVEN HERE? — INVENTORY, THEN PROVE EACH ONE · 2026-09-01 19:0x
-**Topic:** ARCHITECTURE · **Progress:** measured · the census counts 21 vessels: 11 WATCHED, 8 DARK, 2 UNKNOWN. Proving each one is unstarted
+**Topic:** ARCHITECTURE · **Progress:** measured 2026-09-04 · **30 thread targets · 11 supervised · 8 unwatched loops** (the line below said 28/11/7 and had gone stale AGAIN — the third time this number has drifted in this file, which is why the census carries its own `--prove`). ⚠⚠ **AND THE EIGHT ARE NOT WHAT THEY LOOK LIKE: SIX OF THEM ARE SUPERVISORS.** `_console_rescue_loop` · `_mini_watchdog` · `_orphan_exit_loop` · `_orphan_watch` · `_console_beacon_loop` · `_bridge_prober` all watch something else; only `_engine_driver` and `_kai_closer_loop` are work. **The console supervises its WORK lanes and not its WATCHERS** — and `_console_rescue_loop` is the watchdog that rescued his black window on 2026-09-04, so if it dies nothing notices and the rescue silently stops working. The census names which unwatched lane is a supervisor now, because a flat list of eight could not say that. REMAINING: registering them means moving thread starts into `start_background_watchers`, which changes console startup — a bigger risk than the reading, so it is named rather than done
 
 > *"im not sure all the lanes are here.. working and reverse engineeered"*
 

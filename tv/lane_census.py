@@ -93,6 +93,23 @@ def _code_only(s):
     return s
 
 
+#: A lane whose job is watching something else. Named by what its own source says it does, not
+#: guessed from the identifier: each of these carries a docstring describing supervision, liveness
+#: or reaping. An entry here is a claim that can be checked by reading the function.
+_SUPERVISORS = {
+    "_console_rescue_loop": "the paint watchdog — it rescues a console that has stopped drawing",
+    "_mini_watchdog": "wakes twice a second, seals once, dies",
+    "_orphan_exit_loop": "a console started BY something must die WITH it",
+    "_orphan_watch": "which pid this console should die with",
+    "_console_beacon_loop": "the liveness beacon",
+    "_bridge_prober": "probes the bridge so STANDBY does not surprise him mid-session",
+}
+
+
+def _is_supervisor(name):
+    return str(name or "") in _SUPERVISORS
+
+
 def classify(src, name):
     """-> 'LOOP' | 'TASK' | 'UNKNOWN'. UNKNOWN when the definition cannot be found, because
     'I could not look' and 'it runs once' are opposite facts."""
@@ -275,7 +292,19 @@ def main(argv):
         if r["lane"]:
             note = r["lane"] + (" (via %s)" % r["via"] if r.get("via") else "")
         elif r["kind"] == "LOOP":
-            note = "*** UNWATCHED ***"
+            # ⚠⚠ v2591 — WHICH unwatched lane it is, because a flat list of eight hides the
+            # finding. Measured 2026-09-04 on his tree: SIX of the eight unwatched loops are
+            # themselves supervisors or liveness probes — the console watches its WORK lanes and
+            # not its WATCHERS. `_console_rescue_loop` is on that list, and it is the watchdog
+            # that had just rescued his black window: if it dies, nothing notices and the rescue
+            # silently stops working. That is the one sentence this table exists to say, and a
+            # row reading only "*** UNWATCHED ***" could not say it. [[the-unjoined-end]]
+            note = "*** UNWATCHED ***" + (
+                "  ⚠ AND IT IS A SUPERVISOR — nothing watches the watcher"
+                # ⚠ the row's key is `fn`, not `name` — the first cut asked for a key that does
+                # not exist, so every lookup returned None and NOT ONE supervisor was marked. It
+                # rendered exactly as before and would have shipped looking like a finished join.
+                if _is_supervisor(r.get("fn")) else "")
         elif r["kind"] == "UNKNOWN":
             # "I could not classify this" must never render as "it is only a task".
             note = "UNKNOWN — could not be classified, which is not the same as harmless"
