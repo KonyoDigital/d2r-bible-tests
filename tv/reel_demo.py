@@ -98,17 +98,37 @@ def _templates():
         if kind == "scene":
             known = name in known_scenes
             where = "reel_segments._ACTIVITY_LANE"
+            got = ("known · %d read(s) on the shelf" % live.get(name, 0)) if known \
+                  else "NOT RECOGNISED"
         else:
-            # a tab is known if the readers have ever recorded one — the vocabulary is open, so
-            # the honest test is that the FIELD is carried at all, with this tab named as seen.
-            known = bool(live.get(name)) or bool([k for k in live if k in
-                                                  ("runes", "gems", "materials",
-                                                   "personal", "shared")])
-            where = "the deep rows' stashTab field"
+            # ⚠⚠ v2585 — THIS ASSERTED THE OPPOSITE OF WHAT ITS COMMENT CLAIMED, found by a cold
+            # cross-family look. It said "assert the VOCABULARY, not the count" and the code was
+            #     bool(live.get(name)) or bool([k for k in live if k in (...the five tabs...)])
+            # which is a LIVE-DATA test with a proxy fallback. Reproduced: with only `personal`
+            # on the shelf, runes AND gems AND materials all reported known=True on the strength
+            # of a different tab — and with no tab data at all, `runes` reported NOT RECOGNISED
+            # even though the reader may know the token perfectly well. Both directions wrong,
+            # and a comment contradicting its code is v2565's scar again.
+            #
+            # The honest vocabulary question for a tab is asked ONCE, below: does the reader
+            # RECORD stashTab at all? Whether this particular tab has been seen on the current
+            # shelf is EVIDENCE, reported and never asserted — which is what the intent said.
+            known = True
+            where = "the deep rows' stashTab field (checked once, below)"
+            seen = live.get(name, 0)
+            got = ("%d read(s) on the shelf" % seen) if seen else \
+                  "0 on this shelf — evidence, not a failure"
         out.append({"check": "template %-10s (%s)" % (name, kind), "ok": bool(known),
-                    "got": ("known · %d read(s) on the shelf" % live.get(name, 0)) if known
-                           else "NOT RECOGNISED",
-                    "want": "recognised by " + where, "why": why})
+                    "got": got, "want": "recognised by " + where, "why": why})
+    # THE ONE REAL VOCABULARY CHECK FOR TABS: is the field carried at all? If the readers stopped
+    # recording stashTab, every per-tab line above would go quietly to zero and none of them would
+    # fail — which is exactly the silent-zero shape this repo keeps paying for.
+    tabs_seen = [k for k in live if k in ("runes", "gems", "materials", "personal", "shared")]
+    out.append({"check": "the readers RECORD a stash tab at all", "ok": bool(tabs_seen),
+                "got": ("carried · tabs seen: %s" % ", ".join(sorted(tabs_seen))) if tabs_seen
+                       else "NO TAB HAS EVER BEEN RECORDED",
+                "want": "at least one stashTab value in the journal",
+                "why": "without this every per-tab line above reads 0 and none of them fails"})
     return out
 
 
