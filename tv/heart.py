@@ -107,6 +107,36 @@ def _locks():
     return list(rep.get("locks") or []), ""
 
 
+def _live_of(watcher, name):
+    """Is this lane's THREAD alive? -> {"state","why","tickAgeS"} — always all three keys.
+
+    ⚠⚠ DELIBERATELY NOT FOLDED INTO `state`. FLOWING here means *a sabotage has proven the
+    watcher can refuse*; liveness means *the thread ran recently*. They are different questions
+    and a lane can be either without the other — a perfectly sabotage-proven watcher whose thread
+    died reads FLOWING, and that is the reading that would cost him most. Putting a second meaning
+    under an existing word is how a right number ends up under a label that stopped being true.
+    [[label-outlived-referent]]
+
+    ⚠ Keyed on the WATCHER name first and the vessel name second, because the supervisors have no
+    watcher and stamp under their own function name. A miss is UNKNOWN, never dead.
+    """
+    miss = {"state": "UNKNOWN", "tickAgeS": None,
+            "why": ("no tick has been stamped under this name. It may be switched off, or never "
+                    "started, or simply not wired to stamp - nobody looked, which is not the "
+                    "same as stopped")}
+    try:
+        import lane_liveness as _ll
+        by = dict((r["lane"], r) for r in _ll.rows())
+    except Exception as exc:
+        miss["why"] = ("the liveness reader would not load (%s), so nothing is known about this "
+                       "lane" % type(exc).__name__)
+        return miss
+    r = by.get(str(watcher or "")) or by.get(str(name or ""))
+    if not r:
+        return miss
+    return {"state": r["state"], "why": r["why"], "tickAgeS": r["tickAgeS"]}
+
+
 def vessels():
     """Everything that runs on its own, in ONE vocabulary. -> dict
 
@@ -186,8 +216,17 @@ def vessels():
                 _sup = bool(_lc._is_supervisor(name))
             except Exception as _e:
                 _sup_why = " (whether it supervises could not be asked: %s)" % str(_e)[:50]
+            # ⚠⚠ THE DARK ROWS NEED THIS MOST, AND THE FIRST CUT LEFT THEM OUT — the branch
+            # `continue`s before the liveness lookup, so the six SUPERVISORS came back live=None.
+            # `_console_rescue_loop` is one of them, and it is the loop that rescues his window:
+            # if it dies, the console simply stops being rescued, silently, forever. A DARK row is
+            # exactly the row where "is the thread alive" is the only question anyone can answer,
+            # because by definition no watcher will answer it for them. [[the-unjoined-end]]
+            _dlive = _live_of(None, name)
             out.append({"name": name, "kind": kind, "state": DARK, "watcher": None,
                         "supervises": _sup,
+                        "live": _dlive["state"], "liveWhy": _dlive["why"],
+                        "tickAgeS": _dlive["tickAgeS"],
                         "why": (("it is a SUPERVISOR and nothing supervises IT. Every supervision "
                                  "tree has an unsupervised root, so this is structural rather than "
                                  "an oversight — and answering it needs a different mechanism (a "
@@ -197,11 +236,14 @@ def vessels():
                                 ("it runs and NOTHING watches it. Not broken — unseen, which "
                                  "reads as fine and is worse")) + _sup_why})
             continue
+        _live = _live_of(watcher, name)
         sc = scored.get(watcher)
         if isinstance(sc, (int, float)) and sc > 0:
             out.append({"name": name, "kind": kind, "state": FLOWING, "watcher": watcher,
                         "score": round(float(sc), 4),
-                        "why": "watched, and a sabotage has proven the watcher can refuse"})
+                        "why": "watched, and a sabotage has proven the watcher can refuse",
+                        "live": _live["state"], "liveWhy": _live["why"],
+                        "tickAgeS": _live["tickAgeS"]})
         else:
             out.append({"name": name, "kind": kind, "state": WATCHED, "watcher": watcher,
                         "score": None,
@@ -212,7 +254,9 @@ def vessels():
                                ("watched, and NOTHING CAN SCORE THIS WATCHER YET. No organ "
                                 "publishes a score under a lane name, so no amount of sabotage "
                                 "would move this row — that is a missing scorer, not work owed "
-                                "by anyone")})
+                                "by anyone"),
+                        "live": _live["state"], "liveWhy": _live["why"],
+                        "tickAgeS": _live["tickAgeS"]})
 
     counts = {FLOWING: 0, WATCHED: 0, DARK: 0, UNKNOWN: 0}
     for v in out:

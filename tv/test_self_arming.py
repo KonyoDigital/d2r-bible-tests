@@ -710,6 +710,75 @@ class RecordHonoursTheAllowListToo(_Ledger):
                          "three events folded instead of accumulating: %r" % ((sc["k"], sc["n"]),))
 
 
+
+class TestV2618AScoreMayNotBeBoughtByRepetition(unittest.TestCase):
+    """★ HIS QUESTION, 2026-09-04: *"just check and make sure its really unlocked and not
+    fabricated"*, then *"83 only? why not 300+ for each wilson? like why so low the score?"*
+
+    The answer to the second is the reason for this class. Wilson tightens with n and **has no way
+    to tell 83 independent looks from ONE attack applied 83 times**, so running the same sabotage
+    over more inputs buys a higher score and proves nothing new.
+
+    ⚠⚠ MEASURED ON HIS OWN LEDGER, and it is not hypothetical. `printer.stream` banked **83/83 ->
+    wilson 0.9558**, the highest of the five, on ONE ledger line at ONE timestamp. Re-running the
+    harness: `ownerraises` **40** and `reachraises` **40** are each ONE attack applied to all forty
+    of his reels; `ownerempty`, `namelessrows` and `strangerreel` are 1 each. **Five distinct
+    attacks.** On five, the identical evidence scores **0.5655** — barely over its 0.510 bar.
+
+    **Nothing was faked.** Every refusal is real, the harness patches live functions, and it has
+    been seen RED (its own docstring records 0 of 40 refused, dragging it to 43/83). What was
+    wrong was the READING: the same objection already standing against `prune.arm` — *"one proof
+    wearing four hats"* — at forty hats.
+    """
+
+    def setUp(self):
+        self._rows = [{"lock": "printer.stream", "kind": "sabotage", "src": "printer_wilson",
+                       "n": 83, "k": 83, "attacks": 5, "ts": 1}]
+
+    def test_it_reports_the_score_the_DISTINCT_attacks_earn(self):
+        r = SA.score("printer.stream", rows=self._rows)
+        self.assertEqual(r["n"], 83)
+        self.assertEqual(r["attacks"], 5)
+        self.assertAlmostEqual(r["wilsonByAttack"], round(SA.wilson_lower(5, 5), 4), places=4)
+        self.assertLess(r["wilsonByAttack"], r["wilson"],
+                        "the by-attack score is not lower than the by-trial score, so repetition "
+                        "is invisible exactly where it inflates")
+
+    def test_it_says_HOW_MANY_TIMES_each_attack_was_repeated(self):
+        r = SA.score("printer.stream", rows=self._rows)
+        self.assertAlmostEqual(r["repetition"], 16.6, places=1)
+
+    def test_a_harness_that_did_NOT_declare_its_attacks_reports_None_not_one(self):
+        """⚠ THE TRAP. Defaulting an unstated attack count to 1 would report every older harness
+        as maximally repetitious, and defaulting it to n would report every one as perfectly
+        independent. Both are verdicts nobody measured. [[unknown-stays-unknown]]"""
+        rows = [{"lock": "printer.stream", "kind": "sabotage", "src": "printer_wilson",
+                 "n": 83, "k": 83, "ts": 1}]
+        r = SA.score("printer.stream", rows=rows)
+        self.assertIsNone(r["attacks"], "an unstated attack count became a number")
+        self.assertIsNone(r["wilsonByAttack"])
+        self.assertIsNone(r["repetition"])
+
+    def test_the_key_is_present_on_EVERY_path_including_n_zero(self):
+        """REG-547 — a row that carries `attacks` only sometimes makes 'not repetitious' and
+        'never computed' render identically."""
+        for rows in ([], self._rows):
+            r = SA.score("vault.forget" if not rows else "printer.stream", rows=rows)
+            for key in ("attacks", "wilsonByAttack", "repetition"):
+                self.assertIn(key, r, "%r is missing on one path" % key)
+
+    def test_the_LIVE_printer_harness_now_declares_its_attack_count(self):
+        """⚠ The arithmetic is worthless if the one harness that provoked it does not report.
+        Pins the JOIN, not the number — a sixth attack must not break this."""
+        import inspect
+        import printer_wilson as PW
+        src = inspect.getsource(PW.bank_into_proof_queue)
+        self.assertIn("attacks=", src,
+                      "printer_wilson banks without saying how many distinct attacks it ran, so "
+                      "its 83 still reads as 83 independent looks")
+
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

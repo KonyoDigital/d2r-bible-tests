@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2616",
+  "ver": "v2618",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2616: REG-595 - covered_by asked each window alone, so a console tiled behind two apps read as visible. The clipped rects are unioned now. 6 guards, RED-proven, 3 of them baselines.",
+  "note": "v2618: REG-596 occluded silence - REG-597 lane liveness - REG-598 a score bought by repetition - REG-599 a proven lock drawn like an unprovable one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

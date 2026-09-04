@@ -515,6 +515,13 @@ def run(say=print):
 
                 n = k = 0
                 notes = []
+                # ⚠⚠ HOW MANY DISTINCT SABOTAGES, NOT HOW MANY LANES. `what` names the attack, and
+                # the resolver and generator lanes carry a BYTE-IDENTICAL one ("blank every
+                # mention of ..."), so counting lanes would report two independent looks where
+                # there is one idea run twice. A Wilson bound cannot tell those apart and would
+                # read stronger than the evidence is. Counted on ATTEMPTED lanes only, so a lane
+                # that was skipped or answered UNKNOWN never inflates it. REG-598.
+                whats = set()
                 for lane in unattempted:
                     notes.append("%s: no removal exists for this lane kind — UNKNOWN" % lane)
                 for lane, apply_, undo_, what in _plan:
@@ -532,6 +539,7 @@ def run(say=print):
                         after = _read_lanes(tree, module) or {}
                         got = (after.get(key) or {}).get(lane)
                         n += 1
+                        whats.add(what)
                         if got is not True:
                             k += 1
                         else:
@@ -539,6 +547,7 @@ def run(say=print):
                     finally:
                         undo_(tree)
                 rows.append({"route": "%s.%s" % (label, key), "n": n, "k": k,
+                             "attacks": len(whats),
                              "notes": notes, "unattempted": len(unattempted)})
                 if True:
                     say("   %-22s %d/%d refused%s" % ("%s.%s" % (label, key), k, n,
@@ -576,6 +585,7 @@ def main(argv=None):
         for r in rows:
             try:
                 SA.bank(r["route"], "sabotage", "route_wilson", r["n"], r["k"],
+                        attacks=r.get("attacks"),
                         note="removed what each lane claims to have found")
                 banked += 1
             except Exception as e:

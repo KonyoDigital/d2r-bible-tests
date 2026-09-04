@@ -333,7 +333,7 @@ PROVES = {
 }
 
 
-def bank(lock, kind, src, n, k, note="", ref=""):
+def bank(lock, kind, src, n, k, note="", ref="", attacks=None):
     """Bank a harness's OWN aggregate for one lock. -> dict (the row written)
 
     Idempotent by construction: the row carries `src`, and _fold keeps only the newest row per
@@ -376,6 +376,15 @@ def bank(lock, kind, src, n, k, note="", ref=""):
     row = {
         "lock": str(lock), "kind": str(kind), "src": str(src), "ref": str(ref or ""),
         "n": n, "k": k, "refused": bool(k > 0),
+        # ⚠⚠ HOW MANY DISTINCT SABOTAGES ARE BEHIND THOSE n TRIALS — the number that stops a score
+        # being bought by repetition. Wilson tightens with n and has no way to know whether n is
+        # 83 independent looks or ONE attack applied 83 times, so it must be told.
+        # MEASURED 2026-09-04, and it is why this field exists: `printer.stream` banked 83/83 for
+        # wilson 0.9558, and 80 of those 83 were TWO attack functions applied to 40 reels each.
+        # Counted as the five distinct attacks it actually runs, the same evidence scores 0.5655
+        # — barely over its 0.510 bar. Nothing was faked and every refusal was real; the SCORE was
+        # inflated by looping. `None` means the harness did not say, which is not the same as one.
+        "attacks": (None if attacks is None else int(attacks)),
         "note": str(note or "")[:400], "ts": int(time.time() * 1000),
     }
     with io.open(_ledger_path(), "a", encoding="utf-8") as fh:
@@ -572,7 +581,20 @@ def score(lock, rows=None):
     kinds = sorted({str(r.get("kind")) for r in mine
                     if int(r.get("k", 1 if r.get("refused") else 0) or 0) > 0})
     conf = confluence(kinds, KINDS)
+    # ⚠⚠ HOW MANY DISTINCT SABOTAGES ARE UNDER THAT n — the repetition check.
+    # Wilson tightens with n and cannot tell 83 independent looks from ONE attack applied 83
+    # times. MEASURED 2026-09-04: `printer.stream` banked 83/83 -> 0.9558, and 80 of the 83 were
+    # TWO attack functions applied to 40 reels each. On its five distinct attacks the identical
+    # evidence scores 0.5655. Nothing was faked and every refusal was real — the SCORE was bought
+    # by looping, which is the same objection already standing against prune.arm ("one proof
+    # wearing four hats") at forty hats. `None` = the harness did not say how many, which is NOT
+    # the same as one, and must never be read as a clean bill. [[unknown-stays-unknown]]
+    _atk = [r.get("attacks") for r in mine if isinstance(r.get("attacks"), int)]
+    attacks = sum(_atk) if _atk else None
     out = {"lock": lock, "surface": spec["surface"], "acts": spec["acts"],
+           "attacks": attacks,
+           "wilsonByAttack": (None if not attacks else round(wilson_lower(min(k, attacks), attacks), 4)),
+           "repetition": (None if not attacks else round(float(n) / attacks, 1)),
            "k": k, "n": n, "kinds": kinds, "confluence": conf,
            "bar": spec["bar"], "kindsBar": spec["kinds_bar"], "after": list(spec["after"])}
     if n == 0:

@@ -7152,6 +7152,52 @@ body[data-origin="shadow"] #stage::after {
 
 <script>
 (function(){
+/* ⚠⚠ v2618 — ONE DRAWN PADLOCK, USED EVERYWHERE A LOCK STATE IS SHOWN AS A MARK ALONE.
+   Konyo caught the heart's badge by eye: *"how do i know what finally proved itself? the lock
+   should clear itself if working"*. The cause was not logic — every layer served OPEN correctly —
+   it was that U+1F513 and U+1F512 differ by a two-pixel shackle tilt at chip size, so a lock
+   proven 83 times looked exactly like one that can never be proven at all.
+
+   ⚠ AND IT WAS NOT ONE SITE. The same emoji pair renders the `lockchip` on FOUR of his surfaces
+   where the mark carries the whole meaning with no word beside it — the Vault tab, the VAULT
+   ACCUMULATOR header, the Mini·Auto button and the prune header. Fixing only the panel he
+   happened to be looking at would have left the identical defect on all four. [[sweep-dont-ask]]
+
+   His design: keep the padlock, swing the shackle a full 180° about its hinge so an open lock
+   cannot be mistaken for a shut one at any size. An emoji cannot rotate; two paths can.
+   ONE source, because a second copy of this would drift. [[copy-drift]] */
+window._lockMark = function(isOpen, px, label){
+  var w = px || 13, col = isOpen ? '#8fe6a0' : 'currentColor';
+  /* ⚠⚠ THE SHACKLE IS LIFTED CLEAR AS WELL AS ROTATED, AND A SECOND EYE IS WHY.
+     Rotating 180° about the hinge alone swings the arc to the RIGHT at body height, where it
+     overlaps the body's right edge and reads as a small tail rather than an open lock. Shown the
+     rendered panel cold, a different model family reported all six badges *"closed"* and
+     *"visually indistinguishable"*. It was WRONG — cropped at native scale the five open ones are
+     plainly a different shape from vault.forget's arch, and it had been given a 2,400px-tall
+     image in which each badge is about 22px. But being wrong for that reason is exactly the
+     evidence that mattered: if a reader at reduced scale cannot tell, the margin is too thin for
+     a glance at a 1120px console. So the shackle is also LIFTED, clear of the body, with a real
+     gap under it. [[feedback-contradiction-is-the-finding]] [[grok-second-eye]]
+
+  /* ⚠⚠ THE WORD LIVES IN <title>, AND TWO EARLIER ATTEMPTS WERE WORSE.
+     Replacing the emoji left this chip with NO TEXT, so the `locks` render target went red —
+     *"the panel painted but carries NO TEXT"* — and assistive tech got nothing at all, which an
+     emoji at least did not do. The obvious repair, an off-screen <span>, made the gate red a
+     SECOND time for a different reason: a 1px clipped box is exactly what "text cut off inside
+     an element" looks like, and a detector cannot tell a deliberate a11y label from real damage.
+     An SVG <title> counts toward textContent (which is what the gate measures), names the mark
+     for a screen reader, and is never laid out — so there is no box to clip and no width to add.
+     ⚠ The gate was right BOTH times and was not weakened either time. */
+  return '<svg class="lkm" width="' + w + '" height="' + w + '" viewBox="-8 -7 16 16"'
+       + (label ? ' role="img"' : ' aria-hidden="true"') + ' style="vertical-align:-2px">'
+       + (label ? '<title>' + label + '</title>' : '')
+       + '<g' + (isOpen ? ' transform="translate(1 -3.2) rotate(180 3 -1)"' : '') + '>'
+       + '<path d="M -3 -1 A 3 3.4 0 0 1 3 -1" fill="none" stroke="' + col
+       + '" stroke-width="1.5" stroke-linecap="round"/></g>'
+       + '<rect x="-5" y="-1" width="10" height="8" rx="1.6" fill="' + col + '"/>'
+       + '</svg>';
+};
+
   /* ══ v1615 — ONE CONCEPT, ONE PICTURE ═══════════════════════════════════════════════════════
      The console names the same nine things over and over: the Forge, the uniques chronicle, the
      sets chronicle, runes, the stash. Before this map each surface picked its own emoji for them,
@@ -9120,7 +9166,18 @@ body[data-origin="shadow"] #stage::after {
         /* v2443 — THE MARK, NEVER THE SENTENCE, and the same one on every surface. `compact` used
            to be true only for the tab; the verbose form is gone entirely because it broke the
            Shelf's label and because two looks for one meaning is the opposite of unified. */
-        el.innerHTML = (state === 'open' ? '\u{1F513}' : '\u{1F512}');
+        /* ⚠⚠ THE MARK CARRIES THE MEANING, AND A SCREEN READER GETS THE WORD.
+           Swapping the emoji for a drawn padlock left this chip with NO TEXT AT ALL, and two
+           things noticed at once: the `locks` render target went red — *"the panel painted but
+           carries NO TEXT — that is an empty box"* — and, more importantly, an emoji at least
+           announced itself to assistive tech while a bare <svg> announces nothing.
+           ⚠ THE GATE WAS RIGHT AND MUST NOT BE WEAKENED TO SUIT THIS CHANGE. It exists because
+           one of these chips *"was destroyed on every poll and nothing saw it"*, and textLen is
+           how it knows a chip has content. So the chip gets its word back — off-screen, so it
+           costs ZERO layout width. That matters: the verbose form was removed once because it
+           rendered this chip 150.9px wide and broke the Shelf label. */
+        el.innerHTML = window._lockMark(state === 'open', 13,
+                                        state === 'open' ? 'OPEN' : 'LOCKED');
         el.title = what + ' — '
           + (l ? (l.state + ': ' + (l.why || ''))
                : ((_sa && _sa.why) || 'this console could not read the locks, so it stays locked'));
@@ -10872,10 +10929,51 @@ body[data-origin="shadow"] #stage::after {
                + '<animate attributeName="stroke-dashoffset" from="31" to="0" dur="1.7s"'
                + ' repeatCount="indefinite"/></path>';
       }
-      gates += '<g><circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="11" fill="#0d1117"'
-             + ' stroke="' + lc + '" stroke-width="1.4"/>'
-             + '<text x="' + px.toFixed(1) + '" y="' + (py + 4).toFixed(1) + '" text-anchor="middle"'
-             + ' font-size="11">' + (open ? '\u{1F513}' : '\u{1F512}') + '</text>'
+      /* ⚠⚠ v2618 — AN OPEN LOCK NO LONGER WEARS A PADLOCK AT ALL, AND HE IS THE REASON.
+         Konyo, looking straight at this panel: "how do i know what finally proved itself? the
+         lock should clear itself if working". The logic underneath was already RIGHT — five locks
+         served state OPEN and this line emitted U+1F513 (open padlock) for them. The defect is
+         that at font-size 11, in a monochrome SVG glyph, U+1F513 and U+1F512 differ by the tilt
+         of a shackle a couple of pixels wide. `printer.stream` at 83/83 refused wore visually the
+         same badge as `vault.forget`, which can never prove anything.
+
+         A padlock of EITHER kind reads as "locked" at a glance, so the open state does not get a
+         better padlock — it stops being a padlock. A proven route carries a CHECK on a green
+         ring; only a shut one keeps the lock. The state was never in doubt to the code and was
+         never legible to him, which is the only audience that matters.
+         [[visual-regression-detector]] [[label-outlived-referent]] */
+      /* ⚠⚠ v2618 — THE PADLOCK IS DRAWN, NOT TYPED, SO THE SHACKLE CAN ACTUALLY SWING.
+         Konyo, looking straight at this panel: "how do i know what finally proved itself? the
+         lock should clear itself if working", then "make the UNLOCKED so the locker valve is
+         opposite meaning its all the way opened 180 degrees that would be distinguishable
+         enough".
+
+         The logic underneath was ALREADY RIGHT — five locks serve state OPEN and this line was
+         emitting U+1F513, the open-padlock emoji, for exactly those five. The defect is that at
+         font-size 11 a monochrome U+1F513 and U+1F512 differ by the tilt of a shackle two pixels
+         wide, so `printer.stream` at 83/83 refused wore visually the same badge as
+         `vault.forget`, which can never prove anything. A state that is correct in the data and
+         illegible on the glass is not reported. [[visual-regression-detector]]
+
+         An emoji cannot be rotated, so the padlock is now two SVG paths and the shackle is a
+         child of a <g> that rotates 180° about its own hinge when open — the shackle swings all
+         the way round and hangs off the far side. Nothing about it can be mistaken for shut at
+         any size, and it stays a padlock rather than becoming some other symbol. */
+      var _lkOpenCol = '#8fe6a0';
+      var _lkCol = open ? _lkOpenCol : lc;
+      gates += '<g><circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="11" fill="'
+             + (open ? '#0f2a17' : '#0d1117') + '"'
+             + ' stroke="' + _lkCol + '" stroke-width="' + (open ? 1.8 : 1.4) + '"/>'
+             + '<g transform="translate(' + px.toFixed(1) + ',' + py.toFixed(1) + ')">'
+             /* the hinge is the RIGHT foot of the shackle, at (3,-1); rotating about it is what
+                makes the shackle swing rather than merely flip in place */
+             + '<g' + (open ? ' transform="translate(1 -3.2) rotate(180 3 -1)"' : '') + '>'
+             + '<path d="M -3 -1 A 3 3.4 0 0 1 3 -1" fill="none" stroke="' + _lkCol
+             + '" stroke-width="1.5" stroke-linecap="round"/></g>'
+             + '<rect x="-5" y="-1" width="10" height="8" rx="1.6" fill="' + _lkCol
+             + '" opacity="' + (open ? '.95' : '.85') + '"/>'
+             + '<circle cx="0" cy="2.6" r="1.15" fill="' + (open ? '#0f2a17' : '#0d1117') + '"/>'
+             + '</g>'
              + '<title>' + _hrtEsc((L.lock || L.surface) + ' — ' + waiting + '. ' + arith
                                    + '. ' + (L.why || '')) + '</title></g>'
              + '<circle cx="' + gx.toFixed(1) + '" cy="' + gy.toFixed(1) + '" r="4.6" fill="' + lc + '"/>';
@@ -11298,7 +11396,7 @@ body[data-origin="shadow"] #stage::after {
       var _lname = L.lock ? (L.lock + (L.surface ? ' · ' + L.surface : '')) : (L.surface || '?');
       lrows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(_lname) + '</span>'
         + '<span class="hrt-s" style="color:' + (_HRT_LOCKCOL[lst] || '#9aa6b2') + '">'
-        + (lst === 'OPEN' ? '\u{1F513} ' : '\u{1F512} ') + _hrtEsc(lst) + '</span>'
+        + window._lockMark(lst === 'OPEN' || lst === 'HARDENED', 11) + ' ' + _hrtEsc(lst) + '</span>'
         + '<span class="hrt-w">' + _hrtEsc(ar) + ' — ' + _hrtEsc(L.why || '') + '</span></div>';
     }
     var age = (typeof d.ageMs === 'number' && d.ageMs > 1500)

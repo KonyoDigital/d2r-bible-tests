@@ -2370,6 +2370,7 @@ def _console_beacon_loop():
     _last_mode = [None]
     while True:
         time.sleep(240)
+        _lane_tick('_console_beacon_loop', 240)
         try:
             m = status_payload().get("mode")
             _console_beacon("mode:" + str(m) if m != _last_mode[0] and _last_mode[0] is not None else "hb")
@@ -12069,6 +12070,54 @@ def ui_beat_record(state=None):
     return dict(_UI_BEAT)
 
 
+def _lane_liveness_payload():
+    """-> {"rows": [...], "counts": {...}} or a shape saying WHY it is absent.
+
+    ⚠ REG-547 SHAPE LAW — the key is present on every path. A payload that carries `lanes` only
+    when the module imports makes "no lanes" and "the reader is broken" render identically.
+    """
+    try:
+        import lane_liveness as _ll
+        return _ll.report()
+    except Exception as _exc:
+        return {"rows": [], "counts": None,
+                "why": "the lane liveness reader would not load (%s), so nothing is known about "
+                       "any lane - which is not the same as every lane being fine"
+                       % type(_exc).__name__}
+
+
+def _lane_tick(lane, every_s=None):
+    """Stamp that a background loop just ran a cycle. Never raises into the loop.
+
+    ⚠⚠ THIS IS NOT THE HEARTBEAT HIS A1 RULING CANCELLED, and the difference is the whole reason
+    it exists. That ruling — *"I DO NOT want this to randomly just connect wires to it if theres
+    no need dont do it"* — was right, and it was cancelled because the vault lanes each leave a
+    DATED ROW when they act, so a second record of the same fact bought nothing.
+
+    Those rows say WORK WAS DONE. Nothing said THREAD IS ALIVE, and the two come apart the moment
+    a lane has nothing to do: `retro_triage_tick()` has SIX early returns before it writes
+    anything (lane off, he is playing, load too high, a capture is live, a paid sweep owns the
+    CPU, nothing to triage). So the age of `retro_triage.json` cannot tell a loop that ran and
+    correctly declined from a loop that died three days ago. Measured on his machine 2026-09-04:
+    `disk_history.jsonl` 0.1h and `shadow_watch.json` 0.0h against `retro_triage.json` 75.7h,
+    `vault_swept.json` 77.9h and `chron_autoread.json` 86.8h — with the console up throughout,
+    and no way to say which of the quiet ones were healthy.
+
+    ⚠ The period is passed BY THE LOOP because the loops differ by 1,800x — `_mini_watchdog`
+    sleeps 0.5s, `_retention_loop` sleeps 900s. See lane_liveness for why one constant cannot
+    serve both. [[feedback-threshold-above-the-ceiling]]
+    """
+    try:
+        import lane_liveness as _ll
+        _ll.tick(lane, every_s)
+    except Exception:
+        # ⚠ A LIVENESS STAMP MAY NEVER KILL THE LANE IT IS WATCHING. If this raised inside the
+        # try of a supervisor loop it would be caught by that loop's own handler and look like a
+        # fault in the work. An unrecorded tick reads as UNKNOWN, which is the honest answer and
+        # is exactly what this module refuses to turn into a verdict.
+        pass
+
+
 def ui_beat_age():
     """Seconds since the last beat, or None if the page has NEVER beaten.
 
@@ -12172,6 +12221,7 @@ def _console_rescue_loop():
     while True:
         try:
             time.sleep(10.0)
+            _lane_tick('_console_rescue_loop', 10.0)
             win = globals().get("_MAIN_WIN")
             if win is None:
                 continue
@@ -12396,6 +12446,32 @@ def ui_rescue_due(now=None, capture_live=False):
         _UI_RESCUE["staleHidden"] = _UI_RESCUE.get("staleHidden", 0) + 1
     if age < _UI_BEAT_SILENCE_S:
         return False, "the page beat %.0fs ago" % age
+    # ══ v2618 / REG-596 — THE SILENCE PATH NEVER ASKED WHETHER HE CAN SEE IT ═════════════════
+    # REG-594 taught this function about covered windows and REG-595 fixed the arithmetic, but
+    # BOTH consultations sit inside `if _UI_BEAT.get("hidden")`. This branch does not, and it is
+    # the one that reasons from silence alone.
+    #
+    # `hidden` can only be SET by a beat, and the beat is the very timer WebKit suspends in an
+    # occluded window. So a console covered BETWEEN two beats keeps `hidden: False` from its last
+    # visible beat, stops beating BECAUSE it is occluded, ages past the bound, and is reloaded —
+    # the REG-594 fault walking through the one door its fix did not cover. Measured: last beat
+    # hidden False, age 400s, window 100% covered -> True, "the page has been silent for 400s".
+    #
+    # ⚠⚠ ONLY A POSITIVELY OBSERVED COVERING REFUSES, AND THE ASYMMETRY IS THE POINT. In the
+    # hidden branch the default is already refuse, so "unknown" safely keeps it. HERE the default
+    # is RESCUE, so treating an unaskable window server as "covered" would switch the silence
+    # watchdog off wherever Quartz is missing — an over-correction strictly worse than the fault,
+    # and the same trap the Dock nearly sprang in REG-594. Unknown leaves this exactly as it was.
+    # ⚠ Asked only now, past the age test, so a healthy console never costs a window-server call.
+    try:
+        import window_visibility as _wv3
+        _cov3, _cwhy3 = _wv3.covered_by()
+    except Exception as _exc3:
+        _cov3, _cwhy3 = None, "the window witness raised %s" % type(_exc3).__name__
+    if _cov3:
+        return False, ("the page has been silent for %.0fs, but %s — an occluded window has its "
+                       "timers suspended by the browser, so its silence proves nothing and "
+                       "reloading it would only disturb a console he cannot see" % (age, _cwhy3))
     since = now - (_UI_RESCUE["last"] or 0.0)
     if _UI_RESCUE["last"] and since < _UI_RESCUE_COOLDOWN_S:
         return False, "rescued %.0fs ago - cooling off so a page that dies on load cannot loop" % since
@@ -13787,6 +13863,7 @@ def _chron_autoread_loop():
     while True:
         try:
             time.sleep(_CHRON_AUTOREAD_EVERY_S)
+            _lane_tick('tvd-chron-autoread', _CHRON_AUTOREAD_EVERY_S)
             v = chronicle_autoread_tick()
             # v1762 — a VISIT is cheaper and more targeted, so it always wins the tick. Only when
             # there is no visit left to read does the watchdog look at the bigger object.
@@ -14335,6 +14412,7 @@ def _mini_seal(token, why="deadline"):
 def _mini_watchdog(token, ends_ts):
     """Daemon. Wakes twice a second, seals once, dies. It never extends and never re-arms."""
     while True:
+        _lane_tick('_mini_watchdog', 0.5)
         with _MINI_LOCK:
             if not _MINI["running"] or token != _MINI["token"]:
                 return          # sealed by hand / superseded — stand down, do not kill
@@ -14380,6 +14458,7 @@ def _stash_watch_loop():
     while True:
         try:
             time.sleep(_STASH_WATCH_POLL_S)
+            _lane_tick('tvd-stash-watch', _STASH_WATCH_POLL_S)
             m = mini_state()
             # v2035 — `_agent_alive()`, not an invented `agent_running()`. The first cut called a
             # name nothing binds, which is the same defect TestV2010 caught in the relaunch route
@@ -15113,6 +15192,7 @@ def _drift_loop():
             if not first:
                 time.sleep(_DRIFT_EVERY_S)
             first = False
+            _lane_tick('tvd-version-drift', _DRIFT_EVERY_S)
             d = _drift_once()
             if not d:
                 announced = None
@@ -15345,6 +15425,7 @@ def _eagle_watch_loop():
             if not first:
                 time.sleep(_EAGLE_EVERY_S)
             first = False
+            _lane_tick('tvd-eagle-watch', _EAGLE_EVERY_S)
             bad = _eagle_once()
             for r in bad:
                 key = "%s|%s" % (r.get("check"), (r.get("why") or "")[:60])
@@ -16175,6 +16256,7 @@ def _retention_loop():
             if not first:
                 time.sleep(_RETENTION_EVERY_S)
             first = False
+            _lane_tick('tvd-retention', _RETENTION_EVERY_S)
             # ⚠⚠ A FAILURE THAT NEVER CLEARS IS THE SAME DEFECT POINTING THE OTHER WAY. The
             # success paths below all go through `_RETENTION.update(...)` and none of them touches
             # `error`, so without this a single bad ledger would have left the console saying
@@ -16456,6 +16538,7 @@ def _warden_loop():
     while True:
         try:
             time.sleep(_WARDEN_EVERY_S)
+            _lane_tick('tvd-space-warden', _WARDEN_EVERY_S)
             try:
                 import space_warden as _sw
             except Exception as _ie:
@@ -16477,6 +16560,7 @@ def _prune_loop():
     while True:
         try:
             time.sleep(_PRUNE_POLL_S)
+            _lane_tick('tvd-rolling-prune', _PRUNE_POLL_S)
             with _PRUNE_LOCK:
                 on = _PRUNE_STATS.get("enabled", True)
             # v2058 — a second, independent refusal. The flag above is data and data can be
@@ -17177,6 +17261,7 @@ def _ledger_backup_loop():
         try:
             time.sleep(_wait)
             _wait = _LEDGER_BACKUP_EVERY_S
+            _lane_tick('tvd-ledger-backup', _LEDGER_BACKUP_EVERY_S)
             path, why = _ledger_snapshot_once()
             _LEDGER_BACKUP_STATE["why"] = why if not path else _LEDGER_BACKUP_STATE["why"]
             if path:
@@ -17825,6 +17910,7 @@ def _retro_triage_loop():
     while True:
         try:
             time.sleep(_TRIAGE_EVERY_S)
+            _lane_tick('tvd-retro-triage', _TRIAGE_EVERY_S)
             r = retro_triage_tick()
             if r.get("ok") and r.get("reel"):
                 print("\U0001f9ea triage: %s - %s frame(s), %s panel(s), %s left"
@@ -18059,6 +18145,7 @@ def _shadow_watch_loop():
     while True:
         try:
             time.sleep(_SHADOW_WATCH_EVERY_S)
+            _lane_tick('tvd-shadow-watch', _SHADOW_WATCH_EVERY_S)
             r = shadow_watch_tick()
             if isinstance(r, dict) and (r.get("started") or r.get("unknown")):
                 print("   \U0001f441 shadow watch: %s" % str(r.get("why"))[:140], flush=True)
@@ -18070,6 +18157,7 @@ def _vault_autoread_loop():
     while True:
         try:
             time.sleep(_VAULT_AUTOREAD_EVERY_S)
+            _lane_tick('tvd-vault-autoread', _VAULT_AUTOREAD_EVERY_S)
             _r = vault_autoreel_tick()
             # v2225 — say it out loud when the lane retires a reel or cannot tell. Silence here is
             # what made a permanently-idle watchdog look identical to a busy one.
@@ -22617,7 +22705,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2616",
+        "ver": "v2618",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22656,6 +22744,11 @@ def status_payload():
         # last probe, so a consumer can tell a live reading from a frozen one.
         "engineAliveAgeMs": (None if not globals().get("_ENGINE_ALIVE_TS")
                              else int((time.time() - globals()["_ENGINE_ALIVE_TS"]) * 1000)),
+        # v2618 — IS EACH BACKGROUND LANE ALIVE? The stores on disk answer "did this lane DO
+        # anything", which is a different question and cannot separate a loop that ran and
+        # correctly declined from one that died. Every lane stamps its own tick with its own
+        # period; UNKNOWN here means nobody stamped, never "dead". See lane_liveness.
+        "lanes": _lane_liveness_payload(),
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
                    "fired": _drv.get("fired", 0), "refire": _drv.get("refire", 0),

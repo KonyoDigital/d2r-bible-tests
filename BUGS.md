@@ -7,6 +7,161 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-600 — 48 of miniauto.run's 55 "sabotages" are AGREEMENTS, not refusals
+
+**Found 2026-09-04 by the lock-evidence fleet and independently re-measured. NOT YET FIXED — logged
+so it is actionable, because fixing five harnesses unasked is not mine to decide.**
+
+⚠⚠ **THIS IS A DIFFERENT AND WORSE DEFECT THAN REG-598's INFLATION.** Inflation counts one real
+attack many times. This counts **correct behaviour on valid input** as a guard refusing.
+
+**MEASURED:** `hover_wilson.probe_coordinate` displaces an honest cell centre by one full cell and
+requires `slot_identity.cell_of()` to return a *different* cell. But `cell_of` is **a pure
+coordinate converter with no guard behaviour on that input** — the displaced point is a perfectly
+VALID in-panel point in the neighbouring cell, and returning `(c+1, r)` is its **ordinary correct
+answer**. Nothing is patched, no broken input is fed, no raise is forced. It is a floor-division
+unit assertion counted as **48 sabotage refusals**, and it is why `k` can never be less than `n`
+there.
+
+⚠ **`probe_anchor` IS AN AGREEMENT COUNTER BY CONSTRUCTION** — `if a1 and (abs(...) < 2 ...):
+caught += 1` increments when the function behaves CORRECTLY. It banks 0 today only by accident:
+`anchor_from_tooltip_rect` refuses the default `offset=(0,0)` as uncalibrated, so the loop never
+runs. **If that offset is ever calibrated, this probe silently starts banking 4 agreements as 4
+sabotage refusals with no other code change.**
+
+✅ **WHAT IS GENUINE:** `probe_read` (5/5) feeds real broken pairs to `double_read_agrees`, whose
+job is to refuse — and it runs an **uncounted honest-direction control** that would catch a
+refuse-everything implementation, which is the correct design. `probe_slot`'s first attempt is
+genuine; its second is a false-positive check, closer to correct-behaviour-on-valid-input.
+
+**SO AT MOST 7 OF 55 rest on a guard actually being asked to refuse.** ⚠ The lock still survives:
+`wilson_lower(7,7) = 0.6457` clears its 0.510 bar, as does `wilson_lower(9,9) = 0.7008`. **His read
+was right — miniauto was working before the heart and still is.** What is wrong is that the number
+claimed far more evidence than existed. ⚠ And `seenRed = NO`: no claim in this harness has ever
+been recorded at `k < n`. [[feedback-blind-fixture-green-gate]]
+
+⚠ **THE ONE TO LOOK AT FIRST IS NOT THIS ONE.** `vault.sweep_start` guards *"starts a paid sweep"* —
+his money — on **2 distinct attacks, honest Wilson 0.3424 against a 0.510 bar**. It does not clear.
+
+### REG-599 — the heart drew a proven lock and an unprovable one with the same padlock
+
+**v2618. HE CAUGHT THIS WITH HIS EYE, WHICH MEANS NOTHING ELSE WAS LOOKING.** Konyo, looking
+straight at the heart panel: *"i see the routes but how do know what finally proved itself? the
+lock should clear itself if working"*.
+
+⚠⚠ **AND EVERY LAYER OF LOGIC WAS ALREADY CORRECT — that is the whole lesson.** `/api/heart` served
+five locks at state OPEN (`printer.stream` 83/83, `miniauto.run` 55/55, `prune.arm` 48/48,
+`vault.apply` 24/24, `vault.sweep_start` 16/16) and the renderer emitted **U+1F513, the OPEN
+padlock**, for exactly those five. The defect is that at font-size 11, as a monochrome SVG glyph,
+**U+1F513 and U+1F512 differ by the tilt of a shackle about two pixels wide** — so a lock proven 83
+times wore visually the same badge as `vault.forget`, which can never be proven at all.
+**A state that is correct in the data and illegible on the glass has not been reported.**
+
+⚠ **NO EXISTING GATE COULD SEE IT.** Unit tests read values, not pixels. The render gate measures
+CLIPPING and nothing was clipped. The overlap ratchet compares text to text and nothing here
+overlaps text. He was the only detector, which is the thing that must not keep happening.
+
+**HIS FIX, and it is better than the one proposed to him:** *"make the UNLOCKED so the locker valve
+is opposite meaning its all the way opened 180 degrees that would be distinguishable enough"* —
+keep the padlock, swing the shackle right round. An emoji cannot be rotated, so the badge is two
+SVG paths now and the shackle is a `<g>` rotated 180° about its own hinge.
+
+⚠⚠ **AND IT WAS NOT ONE SITE.** The same emoji pair renders the `lockchip` on **four more of his
+surfaces** where the mark carries the whole meaning with no word beside it — the Vault tab, the
+VAULT ACCUMULATOR header, the Mini·Auto button and the prune header. Fixing only the panel he
+happened to be looking at would have left the identical defect on all four. One drawn mark
+(`window._lockMark`), one source. [[sweep-dont-ask]] [[copy-drift]]
+
+**Guard:** `TestV2618TheHeartsLockBadgeMustBeLEGIBLE` — 5 cases, RED-proven by restoring the emoji
+pair (2 failures naming the defect). It pins LEGIBILITY, not the markup: the two states may not
+render the same glyph, the pair may never return, and colour alone does not count — a colour-only
+difference dies in greyscale, in the gate's own PNGs, and for a cross-family eye reading an image.
+⚠ Its first cut read a 6,000-char window that **stopped 8,627 chars short of the badge**, so two
+cases passed against an empty region; the window now asserts it reached the code it grades.
+
+### REG-598 — a Wilson score could be bought by repeating one sabotage
+
+**v2618.** His question: *"just check and make sure its really unlocked and not fabricated"*, then
+*"83 only? why not 300+ for each wilson?"* — and the answer is that more trials of the same idea is
+exactly what must NOT raise a score.
+
+**MEASURED:** `printer.stream` banks **n=83, k=83 → wilson 0.9558**, the highest of the five, on ONE
+ledger line at ONE timestamp. Re-running the harness: `ownerraises` **40** and `reachraises` **40**
+are each ONE attack applied to all forty of his reels; `ownerempty`, `namelessrows` and
+`strangerreel` are 1 each. **Five distinct attacks.** On five, the identical evidence scores
+**0.5655** — barely over its 0.510 bar.
+
+**Nothing was faked.** Every refusal is real, the harness patches live functions, and it has been
+seen RED — its own docstring records 0 of 40 refused, dragging it to 43/83. What was wrong was the
+READING: Wilson tightens with n and **cannot tell 83 independent looks from one attack applied 83
+times**. It is the *"one proof wearing four hats"* objection already standing against `prune.arm`,
+at forty hats.
+
+**FIX:** `bank()` takes `attacks=`, and `score()` publishes `attacks`, `wilsonByAttack` and
+`repetition` alongside the existing figures. ⚠ An undeclared attack count stays **None** — not 1
+and not n, because both would be verdicts nobody measured. `printer_wilson` now declares its own.
+
+⚠⚠ **AND IT IS EVERY LOCK, NOT ONE — AUDITED BY A FLEET, EACH FINDING RE-MEASURED BY AN
+ADVERSARIAL REVIEWER TOLD TO REFUTE IT. All five stood; one reviewer found MORE inflation than was
+claimed.** Counted by distinct attacks rather than repeated trials:
+
+| lock | banked | distinct attacks | repetition | honest Wilson | its bar | clears? |
+|---|---|---|---|---|---|---|
+| `printer.stream` | 83/83 | 5 | 16.6x | 0.5655 | 0.510 | barely |
+| `miniauto.run` | 55/55 | 4 probes | 24x | 0.7008 | 0.510 | yes |
+| `prune.arm` | 48/48 | 5 | 9.6x | 0.5655 | **0.839** | **NO** |
+| `vault.apply` | 24/24 | 3 | 8x | 0.4385 | **0.722** | **NO** |
+| `vault.sweep_start` | 16/16 | 2 | 8x | 0.3424 | **0.510** | **NO** |
+| the nine routes | 4-7 each | 3 | — | 0.4385 | 0.510 | **NO** |
+
+⚠⚠ **THE WORST ONE GUARDS THE DELETER.** `prune_wilson._with_drift` loops `for _ in range(n)` at
+`:145` **with the loop variable DISCARDED** — eight byte-identical calls against a deterministic
+pure decision function, twice over (`worldunknown`, `worldraises`). Sixteen of `prune.arm`'s
+forty-eight attempts vary **nothing at all**; `printer.stream` at least looped over 40 different
+reels. A branch census of all 48 attempts lands on **four return statements**.
+
+⚠ Two more the fleet surfaced: `miniauto.run`'s `anchor` probe contributes **0 attempts** — it
+self-refuses because no tooltip-to-cell offset has been calibrated — so a whole axis of its
+confluence is empty while the lock reads OPEN. And `vault.apply`'s **`live` kind, the second
+evidence type that lifts its confluence to 1.7, was NOT RUN** during the audit because port 17772
+is his live console; it was derived by reading.
+
+⚠ **NO BAR WAS CHANGED AND NO LOCK WAS CLOSED.** The bars are his and the locks are badges. What
+changed is that both numbers are now published, so a score resting on repetition says so.
+Every harness declares its own count: one banked row is one attack function (`attacks=1`) for the
+per-claim harnesses, and `route_wilson` counts DISTINCT sabotage names among attempted lanes —
+which correctly collapses its resolver and generator lanes, whose attack string is byte-identical.
+
+**Guard:** `TestV2618AScoreMayNotBeBoughtByRepetition` — 5 cases, including that the by-attack score
+must be LOWER than the by-trial one, that an undeclared count reports None, and that the live
+harness actually declares (pinning the JOIN, so a sixth attack does not break it).
+
+### REG-597 — nothing recorded whether a background lane was ALIVE
+
+**v2618.** His A1 ruling cancelled a heartbeat once, correctly: the vault in/out lanes each leave a
+DATED ROW, so a second record bought nothing. **This is a different fact.** Those rows record WORK
+DONE; nothing recorded THREAD ALIVE, and the two come apart the moment a lane has nothing to do.
+
+**MEASURED:** `retro_triage_tick()` has **six early returns before it writes anything** — the lane
+is off, he is playing, load is too high, a capture is live, a paid sweep owns the CPU, or there is
+nothing to triage. So the age of `retro_triage.json` cannot separate *ran and correctly declined*
+from *died three days ago*. On his machine: `disk_history.jsonl` 0.1h and `shadow_watch.json` 0.0h
+prove some lanes tick, while `retro_triage.json` 75.7h, `vault_swept.json` 77.9h and
+`chron_autoread.json` 86.8h had written nothing for three to four days **with the console up
+throughout** — and which of those were healthy was not answerable by anyone.
+
+⚠ **NOT HYPOTHETICAL:** `_console_rescue_loop` is one of the six SUPERVISORS nothing supervises
+(REG-589), and two real defects were found in it the same day (REG-594, REG-596). Had it DIED
+rather than misjudged, nothing would have noticed.
+
+⚠⚠ **EVERY LANE DECLARES ITS OWN PERIOD, and a global threshold would have been the whole bug** —
+`_mini_watchdog` sleeps **0.5s**, `_retention_loop` **900s**, a spread of **1,800×**. A lane with no
+fixed period is `UNTIMED`, which is a third answer and not a soft version of either other one.
+`tv/lane_liveness.py` owns the arithmetic; 14 loops stamp; the heart reads it as its OWN axis
+(`live`), deliberately NOT folded into `state` — FLOWING there means *sabotage-proven*, and putting
+a second meaning under an existing word is how a right number ends up under a label that stopped
+being true.
+
 ### REG-595 — REG-594's fix asked each window on its own, so two of them hid his console between them
 
 **v2616.** `covered_by()` compared every covering window against `COVERED_PCT` **separately**. One

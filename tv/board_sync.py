@@ -100,6 +100,29 @@ def _git_ships():
     return ships, ""
 
 
+#: A heading that says, in his own words, that the rows under it are FINISHED. Deliberately not a
+#: list of task ids — see the note at the call site.
+_LANDED_HEAD = re.compile(r"landed\s+in\s+v\d|verified\s+by\s+measurement|"
+                          r"quietly\s+landed|already\s+(?:shipped|done)", re.I)
+
+
+def _landed_heading(text, pos):
+    """Does the nearest `###` heading above `pos` declare its rows finished? -> bool
+
+    ⚠ `###` ONLY, and never `##`. A stage heading like *"READY TO APPLY — one, and four that
+    quietly landed"* describes a MIXED table: one row still owed and four finished, so honouring
+    it would mark the one genuinely-pending row done. The sub-heading *"### Landed in v2400"* sits
+    directly above only the finished four. Reading the wrong level here would turn an
+    under-reporting bug into an over-reporting one, which is strictly worse — it would hide work.
+    """
+    head = None
+    for h in re.finditer(r"^(#{2,4})\s*(.+?)\s*$", text[:pos], re.M):
+        head = h
+    if not head or len(head.group(1)) < 3:
+        return False
+    return bool(_LANDED_HEAD.search(head.group(2)))
+
+
 def _classify(status_text, progress=None):
     """Where a task sits in the story. -> str
 
@@ -277,7 +300,25 @@ def parse_tasks(text):
         ident, what, status = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
         if re.match(r"^v2\d{3}", ident):
             continue                      # ships are handled from git, not from prose
-        rows.append({"id": ident, "what": what[:400], "state": _classify(status),
+        # ⚠⚠ v2618 — THE HEADING A ROW SITS UNDER IS PART OF ITS STATE, AND IGNORING IT KEPT
+        # FIVE FINISHED ITEMS ON HIS PENDING LIST. `_classify` reads the row's own last cell,
+        # which for these tables is a FINGERPRINT or a file path and never a status. So the four
+        # rows under *"### Landed in v2400, verified by measurement 2026-09-02"* — 143, 153, 159,
+        # 164 — kept reporting PENDING under a heading that says in plain words that they landed,
+        # and #135 joined them once it was measured done on 2026-09-04.
+        #
+        # He saw the consequence directly: *"list me the exact 24 pending"* — a third of which
+        # were finished. TASKS.md's own preamble already warned about this shape: *"A list that
+        # names finished work as READY costs someone the work twice"*, which is why
+        # `tasks_freshness` exists. This closes the other half of it.
+        #
+        # ⚠ IT READS HIS DOCUMENT, NEVER A HARDCODED LIST OF IDS. Rename the heading and the board
+        # follows; a list of numbers here would go stale exactly the way the rows did.
+        # [[label-outlived-referent]] [[copy-drift]]
+        _st = _classify(status)
+        if _st == "pending" and _landed_heading(text, m.start()):
+            _st = "done"
+        rows.append({"id": ident, "what": what[:400], "state": _st,
                      "src": "TASKS.md table", "topic": _topic_at(topics, m.start()),
                      "status": re.sub(r"\*+", "", status)[:120]})
 

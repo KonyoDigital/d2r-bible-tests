@@ -112,6 +112,10 @@ def bank_into_proof_queue(rows):
             continue
         try:
             _sa.bank("vault.sweep_start", "sabotage", "sweep_wilson", n=n, k=k,
+                     attacks=1,   # ⚠ ONE ROW = ONE ATTACK FUNCTION; `n` is how many times it was
+                     # applied. Summing these across rows gives the DISTINCT attack count,
+                     # which is what stops a Wilson score being bought by looping one idea
+                     # over many inputs. See self_arming.bank() and REG-598.
                      ref=str(r.get("claim")), note=str(r.get("what") or "")[:200])
             banked.append("%s %d/%d" % (r.get("claim"), k, n))
         except ValueError as e:

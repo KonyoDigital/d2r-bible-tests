@@ -593,7 +593,39 @@ he said "maybe not just yet". Build the proving and the flagging; leave the self
 > The hardening report is honest too, which is why no work was invented: every lock names
 > `kindsWouldClose: ["cross-family", "live"]` and separates the two halves in its own sentence, so
 > `moreRefusalsNeeded: 30` cannot be misread as *"30 sabotages and it hardens"* — it closes only
-> the wilson half. What remains is a SECOND KIND of evidence for 12 locks, and that is the
+> the wilson half.
+>
+> ⚠⚠ **AND HIS QUESTION RE-OPENED SOMETHING BIGGER, 2026-09-04** — *"just check and make sure its
+> really unlocked and not fabricated… its logical there are some routes that were working correctly
+> before the HEART"*. He was right to ask. A fleet audited all five harnesses and an adversarial
+> reviewer re-measured each; **all five findings stood and one found MORE inflation.** Nothing is
+> fabricated — every refusal is real — but **four of the six locks would not clear their own bar if
+> the repeated trials were counted once**, and the worst offender guards the deleter. Full table and
+> evidence in `BUGS.md` **REG-598** (one source, not copied here). No bar was changed and no lock
+> was closed: the bars are his, the locks are badges, and what changed is that both numbers are now
+> published so a score resting on repetition says so.
+>
+> ⚠⚠ **AND THE FLEET FOUND A WORSE DEFECT THAN INFLATION — `BUGS.md` REG-600, LOGGED NOT FIXED.**
+> **48 of `miniauto.run`'s 55 "sabotages" are AGREEMENTS.** `probe_coordinate` displaces a cell
+> centre by one full cell and requires `cell_of()` to return a different cell — but `cell_of` is a
+> pure coordinate converter with no guard behaviour there, the displaced point is a perfectly VALID
+> point in the neighbouring cell, and returning it is its **ordinary correct answer**. A
+> floor-division unit assertion counted as 48 sabotage refusals. `probe_anchor` is an agreement
+> counter **by construction** and banks 0 only by accident — calibrate its offset and it silently
+> starts banking agreements as refusals. ✅ **His read stands: MINI AUTO was working before the
+> heart and still is** — it clears on every honest count. What was wrong is the number claiming more
+> evidence than existed.
+>
+> ⚠ **FIRST TO LOOK AT IS NOT THAT ONE.** `vault.sweep_start` guards *"starts a paid sweep"* — his
+> money — on **2 distinct attacks, honest Wilson 0.3424 against a 0.510 bar.** It does not clear.
+>
+> **WHAT EACH LOCK GUARDS, in the code's own words** — he asked, so it is written down here rather
+> than re-derived: `prune.arm` *"deletes footage — there is no undo"* · `miniauto.run` *"moves the
+> pointer over his stash and films the tooltips"* · `printer.stream` *"walks every reel from the
+> door to the far end"* · `vault.apply` *"mules items between characters"* · `vault.sweep_start`
+> *"starts a paid sweep"*. **The nine routes are not engines — they are his three numbers (99 / 135
+> / 403) on three screens**, CHRONICLE / FLEET / ROSTER, and the sabotage deletes the evidence a
+> lane claims to have found to see whether the lane notices. What remains is a SECOND KIND of evidence for 12 locks, and that is the
 > independence question already held as **his call**, not something to build unasked.
 >
 > **CF-13 re-measured the same day and is also done.** `undeclared_reach_abilities` was correct and
@@ -1014,7 +1046,7 @@ never on a grep count.
 
 | # | What | Where | Fingerprint |
 |---|---|---|---|
-| **135** | Daily-pick dead branch. 3 edits + 1 spec test. ⚠ Three namespaces use `'grail'`; **only the chron-entry key may change.** | `bible.html` | ⚪ **none** — the undone-ness has no single string, so `tasks_freshness` reports it UNKNOWN every run rather than passing it silently. |
+| **135** | Daily-pick dead branch. 3 edits + 1 spec test. ⚠ Three namespaces use `'grail'`; **only the chron-entry key may change.** | ✅ SHIPPED v2474 · measured 2026-09-04 · `bible.html` | ⚪ **none** — the undone-ness has no single string, so `tasks_freshness` reports it UNKNOWN every run rather than passing it silently. |
 
 ⚠ **#135 MEASURED DONE 2026-09-04 — this row is stale and had started to cost the work twice, which is the exact defect the note above it describes.** The third arm is IN the page: `bible.html` `dailyCreateAi` carries `else if (_rot && _rot.incomplete && _rot.incomplete.length)` under a comment naming #135, and it is JOINED — `window._chronRotation()` returns `{all, incomplete, target, sealed}`, so `.incomplete` is really published rather than read off a shape nobody sets. The spec is `tests/v2474_daily_pick_exhausted.spec.ts`, four cases, including *"the wipe arm fires ONLY when there is genuinely nothing to name"*. ⚠ Closed on what the page ASSERTS today, never on a grep count — and `tests/v135_rich_hover_tooltips.spec.ts` is a DIFFERENT thing (v135 the version, not task #135), which is exactly the kind of near-miss that would have closed this wrongly.
 
@@ -1037,7 +1069,7 @@ never on a grep count.
 | **133** | No per-entry evidence in `d2r_owned`. | Answered by **166**'s ledger ruling — do 166 first. |
 | **146** | 4.34 GB / 4,128 frames releasable, keeping all 894 that carry. | **The apply is his.** He ruled "yes" on the principle: a frame the printer examined and found empty may be deleted. |
 | **155** | Would spend paid reads. | His money. |
-| **154** | Blocked by 155. ⚠ **My own framing was RETRACTED:** `pruned_mb=0` and `hist_bytes=None` are HARDCODED at the only call site, so `prunedMb: 0` across 7,009 rows is a fact about the CALLER. "The prune has never freed a byte" is **not supported**. The real defect is that the field can never report anything. | `tv/control_app.py:14920` (writer at `:11954`) |
+| **154** | ⚠ **HALF LANDED (fleet-measured 2026-09-04)** — `pruned_mb=None` now passes at `control_app.py:16151`, `prunedMbInWindow` returns None rather than 0 at `:12732`, guarded by `Test154PrunedMbUnknownIsNotZero`. His live `disk_history.jsonl` shows the change taking effect: rows 0-8269 carry `prunedMb: 0` (last 2026-09-02), rows 8270+ do not. The remainder is still open. Blocked by 155. ⚠ **My own framing was RETRACTED:** `pruned_mb=0` and `hist_bytes=None` are HARDCODED at the only call site, so `prunedMb: 0` across 7,009 rows is a fact about the CALLER. "The prune has never freed a byte" is **not supported**. The real defect is that the field can never report anything. | `tv/control_app.py:14920` (writer at `:11954`) |
 | **136** | Blocked by vault names. | |
 | **148** | Blocked by vault names. | |
 

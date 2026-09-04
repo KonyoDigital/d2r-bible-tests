@@ -158,6 +158,10 @@ def bank_into_proof_queue(rows):
             continue
         try:
             _sa.bank("vault.apply", "sabotage", "vault_wilson", n=n, k=k,
+                     attacks=1,   # ⚠ ONE ROW = ONE ATTACK FUNCTION; `n` is how many times it was
+                     # applied. Summing these across rows gives the DISTINCT attack count,
+                     # which is what stops a Wilson score being bought by looping one idea
+                     # over many inputs. See self_arming.bank() and REG-598.
                      ref=str(r.get("claim")), note=str(r.get("what") or "")[:200])
             banked.append("%s %d/%d" % (r.get("claim"), k, n))
         except ValueError as e:
@@ -178,6 +182,10 @@ def main(argv=None):
         try:
             import self_arming as _sa
             _sa.bank("vault.apply", "live", "vault_live", n=live["attempts"], k=live["caught"],
+                     attacks=1,   # ⚠ ONE ROW = ONE ATTACK FUNCTION; `n` is how many times it was
+                     # applied. Summing these across rows gives the DISTINCT attack count,
+                     # which is what stops a Wilson score being bought by looping one idea
+                     # over many inputs. See self_arming.bank() and REG-598.
                      ref=live["claim"], note=live["what"][:200])
             live_note = ("banked LIVE -> vault.apply: %s %d/%d"
                          % (live["claim"], live["caught"], live["attempts"]))

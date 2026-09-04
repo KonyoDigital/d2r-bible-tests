@@ -243,7 +243,12 @@ def bank_into_proof_queue(rep):
     lock's score for ever. Banking is an explicit `--bank`.
     """
     import self_arming as SA
+    # ⚠ THE ATTACK COUNT TRAVELS WITH THE EVIDENCE. n is 83 because two of these five functions
+    # each run against all 40 of his reels; that is 83 TRIALS of FIVE IDEAS, and a Wilson bound
+    # computed on 83 reads as far stronger than the evidence is. Telling the ledger how many
+    # distinct sabotages produced the number is what stops the score being bought by looping.
     return SA.bank("printer.stream", "sabotage", "printer_wilson",
+                   attacks=len(rep.get("rows") or []),
                    n=rep["n"], k=rep["k"],
                    note="the printer must refuse to invent an answer: %s" % rep["why"])
 

@@ -41552,5 +41552,187 @@ class TestV2616TwoWindowsTilingHisConsole(unittest.TestCase):
         self.assertTrue(wv.contradicts_a_hidden_beat(pid=7, quartz=q)[0])
 
 
+class TestV2617SilenceBehindACoveredWindow(unittest.TestCase):
+    """★ REG-596 — THE OCCLUSION CHECK WAS GATED BEHIND `hidden`, AND THE SILENCE PATH IS NOT.
+
+    REG-594/595 taught `contradicts_a_hidden_beat()` about covered windows, and `ui_rescue_due`
+    consults it in two places — both inside `if _UI_BEAT.get("hidden")`. **The last branch, which
+    rescues on SILENCE alone, never asks.**
+
+    That branch is reached exactly when the window went quiet, and `hidden` can only be SET by a
+    beat — the very thing WebKit suspends in an occluded window. So a console covered BETWEEN two
+    beats keeps `hidden: False` from its last visible beat, stops beating because it is occluded,
+    ages past the silence bound, and is reloaded. Same fault as REG-594, through the one door the
+    fix did not cover.
+
+    Reproduced before this was written: last beat `hidden: False`, age 400s, window 100% covered
+    -> `ui_rescue_due` returned **True**, *"the page has been silent for 400s"*.
+
+    ⚠ THE ASYMMETRY IS DELIBERATE AND IS THE RISK OF THIS FIX. Only a POSITIVELY OBSERVED covering
+    refuses. If occlusion cannot be asked the rescue proceeds exactly as before — the opposite
+    choice would disable the silence rescue outright on any machine without Quartz, which is an
+    over-correction strictly worse than the fault. That is what the third case pins.
+    """
+
+    def setUp(self):
+        import control_app as ca
+        self._ca = ca
+        self._beat = dict(ca._UI_BEAT)
+        self._resc = dict(ca._UI_RESCUE)
+        import window_visibility as wv
+        self._wv = wv
+        self._cov, self._on = wv.covered_by, wv.on_screen
+
+    def tearDown(self):
+        self._ca._UI_BEAT.clear(); self._ca._UI_BEAT.update(self._beat)
+        self._ca._UI_RESCUE.clear(); self._ca._UI_RESCUE.update(self._resc)
+        self._wv.covered_by, self._wv.on_screen = self._cov, self._on
+
+    def _silent_visible_beat(self, age=400.0):
+        """The state that reaches the last branch: beating stopped, last beat said NOT hidden."""
+        ca = self._ca
+        ca._UI_BEAT.update({"n": 42, "mono": time.monotonic() - age, "t": time.time() - age,
+                            "hidden": False, "els": 11806, "elsNow": 11806,
+                            "blankStrikes": 0, "frozenBeats": 0})
+        ca._UI_RESCUE["last"] = 0.0
+        ca._UI_RESCUE["futile"] = 0
+
+    def _world(self, covered=None):
+        """covered=list -> covered; covered=[] -> visible; covered=None -> unaskable."""
+        self._wv.on_screen = lambda pid=None, quartz=None: (True, "listed on screen")
+        if covered is None:
+            self._wv.covered_by = lambda pid=None, quartz=None: (None, "Quartz is not importable")
+        else:
+            self._wv.covered_by = lambda pid=None, quartz=None: (
+                list(covered), (", ".join(covered) + " is on top of it") if covered else "")
+
+    def test_a_COVERED_window_that_went_silent_is_NOT_rescued(self):
+        self._silent_visible_beat()
+        self._world(["Citrix Viewer (100.0%)"])
+        due, why = self._ca.ui_rescue_due(now=time.time())
+        self.assertFalse(due, "a console he cannot see was reloaded under him: %s" % why)
+        self.assertIn("Citrix", why, "the refusal does not name what is covering it: %s" % why)
+
+    def test_a_VISIBLE_window_that_went_silent_IS_still_rescued(self):
+        """⚠⚠ THE BASELINE. Widen this too far and the silence rescue never fires again — the
+        fault it exists for is a genuinely wedged renderer on a window he is looking at."""
+        self._silent_visible_beat()
+        self._world([])
+        due, why = self._ca.ui_rescue_due(now=time.time())
+        self.assertTrue(due, "a visible, silent console stopped being rescued: %s" % why)
+        self.assertIn("silent", why)
+
+    def test_UNASKABLE_occlusion_leaves_the_rescue_EXACTLY_as_it_was(self):
+        """⚠ Unknown must not become a refusal HERE. In the hidden branch the default is already
+        refuse, so unknown safely keeps it. On this path the default is RESCUE, so treating
+        unknown as covered would switch the watchdog off wherever Quartz is missing."""
+        self._silent_visible_beat()
+        self._world(None)
+        due, why = self._ca.ui_rescue_due(now=time.time())
+        self.assertTrue(due, "unasked occlusion disabled the silence rescue: %s" % why)
+
+    def test_a_window_covered_only_PARTLY_is_still_rescued(self):
+        """covered_by already applies the 95% bar, so an empty list means he can see enough of it.
+        This pins that this branch trusts that answer rather than inventing a second threshold."""
+        self._silent_visible_beat()
+        self._world([])
+        self.assertTrue(self._ca.ui_rescue_due(now=time.time())[0])
+
+    def test_the_beat_is_not_yet_old_enough_still_short_circuits_first(self):
+        """The occlusion question costs a window-server call; it must not be asked on every tick
+        of a healthy console."""
+        self._silent_visible_beat(age=1.0)
+        asked = []
+        self._wv.on_screen = lambda pid=None, quartz=None: (True, "listed")
+        self._wv.covered_by = lambda pid=None, quartz=None: (asked.append(1), ([], ""))[1]
+        due, why = self._ca.ui_rescue_due(now=time.time())
+        self.assertFalse(due, why)
+        self.assertEqual(asked, [], "the window server was asked about a console beating normally")
+
+
+class TestV2618TheHeartsLockBadgeMustBeLEGIBLE(unittest.TestCase):
+    """★ HE CAUGHT THIS WITH HIS EYE, WHICH MEANS NOTHING ELSE WAS LOOKING.
+
+    Konyo, 2026-09-04, staring at the heart panel: *"i see the routes but how do know what finally
+    proved itself? the lock should clear itself if working"*.
+
+    ⚠⚠ AND THE LOGIC WAS ALREADY RIGHT — THAT IS THE WHOLE LESSON. `/api/heart` served five locks
+    at state OPEN (printer.stream 83/83, miniauto.run 55/55, prune.arm 48/48, vault.apply 24/24,
+    vault.sweep_start 16/16) and the renderer emitted U+1F513, the OPEN padlock emoji, for exactly
+    those five. Every layer was correct. The failure was that **at font-size 11 a monochrome
+    U+1F513 and U+1F512 differ by the tilt of a shackle about two pixels wide**, so a lock that had
+    proven itself 83 times wore visually the same badge as `vault.forget`, which can never prove
+    anything at all.
+
+    **A state that is correct in the data and illegible on the glass has not been reported.** No
+    unit test could see it, the render gate measures CLIPPING and saw nothing clipped, and the
+    overlap ratchet compares text to text and nothing here overlaps. He was the only detector.
+    [[visual-regression-detector]] [[feedback-verify-not-proxy]]
+
+    His fix, and it is better than the one I proposed: *"make the UNLOCKED so the locker valve is
+    opposite meaning its all the way opened 180 degrees"* — keep the padlock, swing the shackle
+    right round. An emoji cannot be rotated, so the badge is drawn as SVG paths now.
+
+    ⚠ THIS GUARD PINS LEGIBILITY, NOT MY MARKUP. It asserts the two states cannot render the same
+    glyph and that the specific near-identical emoji pair never comes back — not that the shackle
+    is any particular number of degrees.
+    """
+
+    def _renderer(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = io.open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        # ⚠⚠ ANCHORED AT BOTH ENDS, NEVER A BYTE COUNT — and this file's own ratchet caught me
+        # taking the shortcut. My first cut read `ui[i:i+6000]`, which stopped 8,627 chars short
+        # of the badge code, so two of these cases asserted about an EMPTY REGION and passed. That
+        # is precisely the failure `_between` exists to refuse: it fails on a missing anchor and on
+        # a truncated slice, where `assertNotIn` on an empty string quietly succeeds. Widening the
+        # count to 12,000 would have worked today and rotted the moment the renderer moved.
+        # [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+        return _between(self, ui, "THE GATED ROUTES", "CENTRED UNDER THE NODE",
+                        min_len=2000, what="the heart's gated-routes renderer")
+
+    def test_the_two_NEAR_IDENTICAL_padlock_emoji_are_never_used_again(self):
+        """★ THE EXACT DEFECT HE SAW. U+1F512 and U+1F513 as a matched pair is the thing that was
+        unreadable; forbidding the pair is what stops a later edit quietly restoring it."""
+        block = self._renderer()
+        self.assertFalse(
+            ("\\u{1F513}" in block) and ("\\u{1F512}" in block),
+            "the open/shut badge is back to the two padlock emoji, which differ by about two "
+            "pixels at font-size 11 - that is the exact state he had to catch by eye")
+
+    def test_the_open_and_shut_badges_cannot_render_IDENTICALLY(self):
+        """The rule, stated without naming my implementation: whatever the badge is, the two
+        states must produce different markup."""
+        block = self._renderer()
+        self.assertIn("open ?", block,
+                      "the lock badge no longer varies on `open` at all, so a proven route and a "
+                      "shut one draw the same mark")
+
+    def test_the_OPEN_state_is_marked_by_more_than_a_COLOUR(self):
+        """⚠ A colour-only difference is not legibility. It dies on a greyscale screenshot, in the
+        render gate's own PNGs, and for anyone who does not see red and green apart - and the
+        cross-family eye reads these panels as images."""
+        block = self._renderer()
+        self.assertTrue(
+            ("rotate(" in block) or ("\u2713" in block) or ("d=\"M" in block),
+            "the only thing separating an open lock from a shut one is its colour")
+
+    def test_HARDENED_still_counts_as_open(self):
+        """⚠ BASELINE, and v2569 already had to fix this once: testing only for 'OPEN' drew a
+        CLOSED padlock on the one state that most deserves an open one."""
+        block = self._renderer()
+        self.assertIn("HARDENED", block,
+                      "the badge tests only for OPEN, so a HARDENED lock would draw as shut")
+
+    def test_vault_forget_is_not_shown_as_merely_WAITING(self):
+        """It can never be proven, by design. Drawing it identically to a lock that simply has not
+        been attacked yet sends him to look for a harness that cannot exist."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = io.open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("by design", ui,
+                      "the panel never says a lock is unprovable BY DESIGN, so UNPROVEN reads as "
+                      "work owed for a door with no refusal path")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
