@@ -41921,6 +41921,45 @@ class TestV2627ThePixelsAreAskedAndOnlyReported(unittest.TestCase):
         self.assertIn("_UI_BLANK_TICK", src, "the rescue loop never asks the pixels at all")
         self.assertIn("% 6", src, "the pixels are captured on every tick")
 
+    def test_the_pixels_are_asked_BEFORE_the_window_handle_gate(self):
+        """★★ MEASURED ON HIS LIVE CONSOLE AND IT HAD NEVER RUN. v2627 put this check after
+        `if win is None: continue`, and `uiBeat.pixelBlank` stayed ABSENT across more than a full
+        6-tick cycle while the loop stamped every 10s (tick age 2.2s). **The detection built for
+        his blank window had never executed on the one machine that has the fault.**
+
+        The gate is right for the RESCUE — you cannot reload a window you do not hold — and wrong
+        for the WITNESS: `paint_witness` reads the window server by PID and never touches
+        `_MAIN_WIN`. Gating a reader behind a handle it does not use is the same unjoined end this
+        check exists to close, one layer up. [[the-unjoined-end]]
+
+        ⚠ ASSERTED BY AST, NOT BY STRING INDEX. The first cut compared `src.index(...)` positions
+        and got the WRONG ANSWER, because `if win is None` also appears in the comment explaining
+        this fix — a check satisfied by its own documentation, for the fifth time in one session.
+        [[source-reading-guard]]"""
+        import ast
+        import inspect
+        import textwrap
+        fn = ast.parse(textwrap.dedent(
+            inspect.getsource(self._ca._console_rescue_loop))).body[0]
+        loops = [n for n in fn.body if isinstance(n, ast.While)]
+        self.assertTrue(loops, "the rescue loop is no longer a bare `while`")
+        body = loops[0].body
+        if body and isinstance(body[0], ast.Try):
+            body = body[0].body
+        order = []
+        for st in body:
+            d = ast.dump(st)
+            if "_pixel_blank_report" in d:
+                order.append("PIXEL")
+            if "_MAIN_WIN" in d:
+                order.append("GATE")
+        self.assertIn("PIXEL", order, "the pixel witness is not called in the loop body at all")
+        self.assertIn("GATE", order)
+        self.assertLess(order.index("PIXEL"), order.index("GATE"),
+                        "the pixel witness sits behind the window-handle gate, so on any console "
+                        "where _MAIN_WIN is None it never runs — which is exactly what happened "
+                        "on his machine")
+
 
 
 

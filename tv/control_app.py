@@ -12280,6 +12280,21 @@ def _console_rescue_loop():
         try:
             time.sleep(10.0)
             _lane_tick('_console_rescue_loop', 10.0)
+            # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
+            # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
+            # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
+            # while `uiBeat.pixelBlank` stayed ABSENT across more than a full 6-tick cycle. The
+            # detection I built for his blank window had never executed on the one machine that
+            # has the fault.
+            #
+            # The gate is correct for the RESCUE — you cannot reload a window you do not hold —
+            # and wrong for the WITNESS: `paint_witness` reads the window server by PID and never
+            # touches `_MAIN_WIN`. Gating a reader behind a handle it does not use is the same
+            # unjoined-end this check was written to close, one layer up.
+            # [[the-unjoined-end]] [[plumbing-with-no-tap]]
+            _UI_BLANK_TICK[0] = int(_UI_BLANK_TICK[0]) + 1
+            if _UI_BLANK_TICK[0] % 6 == 0:
+                _pixel_blank_report()
             win = globals().get("_MAIN_WIN")
             if win is None:
                 continue
@@ -12306,9 +12321,6 @@ def _console_rescue_loop():
                 #
                 # ⚠ Every 6th tick, not every tick: this costs a window-server capture, and the
                 # loop runs every 10s.
-                _UI_BLANK_TICK[0] = int(_UI_BLANK_TICK[0]) + 1
-                if _UI_BLANK_TICK[0] % 6 == 0:
-                    _pixel_blank_report()
                 continue
             url = "http://127.0.0.1:%d/" % CONTROL_PORT
             # If it wandered off the console entirely (an image opened in place, a dead
@@ -22807,7 +22819,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2631",
+        "ver": "v2632",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

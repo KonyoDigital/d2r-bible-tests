@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2631",
+  "ver": "v2632",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2631: REG-612 - my own coverage guard exempted _orphan_watch as not-in-this-module, which was technically true and materially wrong - it is nested, it is a supervisor, and it calls os._exit(0). The sweep walks the AST now.",
+  "note": "v2632: REG-613 - the pixel blank detector sat behind if win is None continue and had never run on his console. Measured live - loop stamping 2.2s ago, pixelBlank absent after 75s. The witness reads by pid and never needed the handle.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

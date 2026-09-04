@@ -7,6 +7,41 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-613 — the blank-window detector was gated behind a handle it does not use, and had never once run
+
+**v2632, found by checking my own work on his LIVE console rather than on my machine.**
+
+v2627 added the pixel-blank report to `_console_rescue_loop` — and put it **after**
+`if win is None: continue`. Measured on his console at v2631:
+
+    _console_rescue_loop   FLOWING, tick age 2.2s     (the loop is running)
+    uiBeat.pixelBlank      ABSENT after 75s           (more than a full 6-tick cycle)
+
+**The detection built for his blank window had never executed on the one machine that has the
+fault.**
+
+The gate is CORRECT for the rescue — you cannot reload a window you do not hold — and **wrong for
+the witness**: `paint_witness` reads the window server by **PID** and never touches `_MAIN_WIN`.
+Gating a reader behind a handle it does not use is the same unjoined end v2627 was written to
+close, one layer up. Moved ahead of the gate.
+
+⚠⚠ **AND MY VERIFICATION OF THE FIX WAS ITSELF WRONG — the FIFTH time today.** I compared
+`src.index('_pixel_blank_report()')` against `src.index('if win is None')` and got **False**,
+because `if win is None` also appears in the **comment explaining the fix**. A check satisfied by
+its own documentation. The guard asserts by walking the loop body's **AST** in statement order, so
+prose cannot answer it. [[source-reading-guard]] [[feedback-comments-vs-code]]
+
+⚠ **What this does NOT prove.** His console shows `rescues: 0` on a process restarted since the
+occlusion fixes, while the eagle's 24h tally reads **84** `console-rescued-by-server` — those
+belong to earlier processes. **The prediction made to the eye in GB-L-12 is not yet testable**; 0
+so far is consistent with it and is not evidence for it.
+
+✅ **Verified live and working on his console meanwhile:** the lane liveness from v2621/v2630/v2631
+publishes **15 lanes — 12 FLOWING, 3 UNTIMED, 0 LATE, 0 UNKNOWN** — with `_console_rescue_loop`
+stamping 4s ago. That join is real.
+
+**Guard:** RED-proven by moving the witness back behind the gate.
+
 ### REG-612 — an exemption that was technically true hid a thread that can kill the process
 
 **v2631, and this one is mine from one version earlier.** REG-611's coverage guard exempted
