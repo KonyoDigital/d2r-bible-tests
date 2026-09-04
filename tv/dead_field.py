@@ -123,6 +123,29 @@ def _rows_of(src, key):
     return [r for r in rows if isinstance(r, dict)], ""
 
 
+def _is_filled(v):
+    """Did this cell record something? -> bool
+
+    ⚠⚠ REG-544 — THE FIRST CUT ASKED `v is not None and v != "" and v != []`, AND THAT WAS FOUR
+    LITERALS PRETENDING TO BE A RULE. Measured across 40-row stores: `""` and `[]` read as nothing
+    recorded, while `{}` and `()` — the same idea — read as a VALUE. Which answer you got depended
+    on which literal happened to be in the condition.
+
+    The rule, stated once: a cell is filled unless it is None, or it is a CONTAINER holding
+    nothing. `0`, `0.0` and `False` are measured VALUES and stay filled — a cold review claimed the
+    opposite about them and was refuted by measurement (they count 40 of 40, because `0 != ""` is
+    True); calling a measured zero dead is the exact collapse this module exists to prevent.
+    """
+    if v is None:
+        return False
+    if isinstance(v, (bool, int, float)):
+        return True                      # a number is a value, including 0 / 0.0 / False
+    try:
+        return len(v) > 0                # str, list, dict, tuple, set — empty means nothing recorded
+    except TypeError:
+        return True                      # anything with no length is an object, and objects are values
+
+
 def dead_fields(rows, min_rows=MIN_ROWS):
     """Which fields are present on every row and filled on none? -> dict
 
@@ -130,15 +153,28 @@ def dead_fields(rows, min_rows=MIN_ROWS):
     carries a value. A field that is merely sometimes-null is a field with sometimes nothing to
     say, which is a different fact and is not reported.
     """
+    # ⚠ REG-544 — EVERY RETURN CARRIES THE SAME KEYS. The early returns used to omit `judged` and
+    # `skipped` while the later ones carried them, so a consumer reading `r["judged"]` raised
+    # KeyError on exactly the paths that mean "nothing was established" — the reading breaks in the
+    # state it exists to report. A shape that changes with the verdict is not a shape.
+    def _unknown(why, checked=0, skipped=0, judged=0):
+        return {"state": "UNKNOWN", "dead": [], "checked": checked, "skipped": skipped,
+                "judged": judged, "fields": [], "filled": {}, "why": why}
+
     if rows is None:
-        return {"state": "UNKNOWN", "dead": [], "checked": 0,
-                "why": "the store could not be read, so no field was judged"}
+        return _unknown("the store could not be read, so no field was judged")
+    # ⚠ A generator reached `len()` and raised TypeError — a detector must not crash on the shape
+    # of its input. Materialise it, so an iterator is judged like a list.
+    if not isinstance(rows, (list, tuple)):
+        try:
+            rows = list(rows)
+        except Exception as e:
+            return _unknown("the rows could not be read as a sequence (%s)" % str(e)[:70])
     n = len(rows)
     if n < min_rows:
-        return {"state": "UNKNOWN", "dead": [], "checked": n,
-                "why": ("%d row(s) is under the %d-row floor — a column of nulls here is a young "
-                        "store, and a zero over rows that cannot disagree measures the sample"
-                        % (n, min_rows))}
+        return _unknown(("%d row(s) is under the %d-row floor — a column of nulls here is a young "
+                         "store, and a zero over rows that cannot disagree measures the sample"
+                         % (n, min_rows)), checked=n, judged=n)
     # ⚠ A ROW THAT IS NOT A DICT CRASHED THIS. Found by the cold cross-family look at v2539:
     # `dead_fields([{...}, None, {...}])` raised AttributeError on `r.keys()`. `state()` filters
     # before calling, so the live path was safe — but this function is PUBLIC, the guard calls it
@@ -153,7 +189,7 @@ def dead_fields(rows, min_rows=MIN_ROWS):
         keys = set(r.keys())
         on_every = keys if on_every is None else (on_every & keys)
         for k, v in r.items():
-            if v is not None and v != "" and v != []:
+            if _is_filled(v):
                 filled[k] = filled.get(k, 0) + 1
     # ⚠⚠ REG-541 — THE FLOOR MUST COUNT ROWS THAT COULD BE JUDGED, NOT ROWS THAT EXISTED, and the
     # first cut of the skip counted them the wrong way. Measured on the version that shipped:
@@ -171,11 +207,10 @@ def dead_fields(rows, min_rows=MIN_ROWS):
     _skip_note = ((" \u26a0 %d of %d row(s) were not objects and could not be judged."
                    % (skipped, n)) if skipped else "")
     if judged < min_rows:
-        return {"state": "UNKNOWN", "dead": [], "checked": n, "skipped": skipped,
-                "judged": judged, "fields": [], "filled": {},
-                "why": ("only %d of %d row(s) could be judged, under the %d-row floor — a verdict "
-                        "here would be about the rows that happened to parse, not about the "
-                        "store.%s" % (judged, n, min_rows, _skip_note))}
+        return _unknown(("only %d of %d row(s) could be judged, under the %d-row floor — a verdict "
+                         "here would be about the rows that happened to parse, not about the "
+                         "store.%s" % (judged, n, min_rows, _skip_note)),
+                        checked=n, skipped=skipped, judged=judged)
     dead = sorted(k for k in (on_every or ()) if not filled.get(k))
     return {
         "state": "DEAD_FIELDS" if dead else "OK",

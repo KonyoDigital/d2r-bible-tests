@@ -231,6 +231,42 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
         self.assertTrue(got and got.endswith("reel_tombstones.json"),
                         "a plain relative literal no longer resolves: %r / %r" % (got, why))
 
+    def test_EVERY_return_carries_the_same_shape(self):
+        """⚠⚠ REG-544, from the cold look at v2543. The early returns omitted `judged` and
+        `skipped` while the later ones carried them, so a consumer reading `r["judged"]` raised
+        KeyError on exactly the paths that mean *nothing was established* — **the reading breaks in
+        the state it exists to report.** A shape that changes with the verdict is not a shape."""
+        for arg in (None, [{"a": 1}] * 3, self._rows(40, z=None), []):
+            r = DF.dead_fields(arg)
+            for k in ("state", "dead", "checked", "skipped", "judged", "fields", "filled", "why"):
+                self.assertIn(k, r, "a %r reading is missing %r — a caller cannot read it "
+                                    "uniformly: %s" % (r.get("state"), k, sorted(r)))
+
+    def test_EMPTY_containers_are_judged_uniformly(self):
+        """⚠⚠ REG-544. The old test was `v is not None and v != "" and v != []` — four literals
+        pretending to be a rule. Measured: `""` and `[]` read as nothing recorded while `{}` and
+        `()` read as a VALUE, so the answer depended on which literal happened to be written."""
+        for empty in ({}, [], (), "", set()):
+            r = DF.dead_fields([{"a": 1, "f": empty} for _ in range(40)])
+            self.assertEqual(r["dead"], ["f"],
+                             "%r was treated as a recorded value; it is an empty container, and "
+                             "the other empties are not" % (empty,))
+
+    def test_NUMBERS_stay_values_including_zero(self):
+        """⚠ The other half of the same rule, and the one a cold review got backwards: `0`, `0.0`
+        and `False` are MEASURED values. Calling a measured zero dead is the exact collapse this
+        module exists to prevent."""
+        for val in (0, 0.0, False, 1, -1):
+            r = DF.dead_fields([{"a": 1, "f": val} for _ in range(40)])
+            self.assertEqual(r["dead"], [], "%r was reported dead; it is a measured value" % (val,))
+
+    def test_a_GENERATOR_is_judged_not_crashed_on(self):
+        """⚠ `len()` raised TypeError on an iterator. A detector must not crash on the shape of
+        its input — that is going silent exactly when something is unusual."""
+        r = DF.dead_fields(iter([{"a": 1, "z": None} for _ in range(40)]))
+        self.assertEqual(r["state"], "DEAD_FIELDS", r["why"])
+        self.assertEqual(r["judged"], 40, r)
+
     def test_it_reports_and_refuses_nothing(self):
         """Nothing here fails a build or blocks a button — it is EVIDENCE, like CF-13's reach."""
         r = DF.state()

@@ -18009,3 +18009,25 @@ while a lone state with a number beside it reads as a count of something else. I
 owner's answer and require the printer's row to move with it — a token check would have passed on a
 printer keeping its own copy.
 
+**REG-544 — the cold look at v2543: three taken, one correctly declined (v2544).**
+
+⚠ **TAKEN — the shape changed with the verdict.** The early returns omitted `judged` and `skipped`
+while the later ones carried them, so a consumer reading `r["judged"]` raised KeyError **on exactly
+the paths that mean nothing was established** — the reading breaks in the state it exists to report.
+Every return carries the same keys now.
+
+⚠ **TAKEN — four literals pretending to be a rule.** `v is not None and v != "" and v != []`
+measured, across 40-row stores: `""` and `[]` read as nothing recorded, `{}` and `()` read as a
+VALUE. **Which answer you got depended on which literal happened to be in the condition.**
+`_is_filled()` states it once: None or an empty CONTAINER is unfilled; a number is a value. `0`,
+`0.0` and `False` stay filled — the half an earlier cold review got backwards.
+
+⚠ **TAKEN — a generator crashed it.** `len()` raised TypeError on an iterator. A detector must not
+crash on the shape of its input; that is going silent exactly when something is unusual.
+
+⚠ **NOT TAKEN.** A key counted in `filled` but absent from `on_every` never reaches the output —
+the reviewer identified it as harmless itself, and it is.
+
+**3 sabotages, 3 RED:** restoring the four literals → `[] != ['f']`; judging numbers by truthiness →
+`['f'] != []`; removing the sequence coercion → the generator test errors.
+
