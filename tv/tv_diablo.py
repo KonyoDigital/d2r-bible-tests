@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2633"   # the freed bytes number earns its unlock
+VERSION = "v2639"   # the recorder may not eat evidence
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -2634,6 +2634,90 @@ def _readable_frame(ap, out_jpg=None):
 _JFID_STATE = {"path": None, "ids": None}   # v877 — cold parse keyed on the journal PATH
 # The v849 mtime-key cache defeated itself: every append changed the live journal's mtime,
 # so the "cache" re-parsed ~24MB of JSONL on nearly every read, forever.
+#: ⚠⚠ SESSIONS THE VAULT STILL CITES AS EVIDENCE. Measured 2026-09-05: `vault_accum.json` names 4
+#: sessions in its `witnesses` lists and TWO OF THEM ARE ALREADY GONE — including "Chaotic Grand
+#: Charm", whose frame `f_1787520901207.jpg` the ledger still points at and which no longer exists.
+#: His ruling on those: *"its fine just make sure going forward it will be.. whats in the past is
+#: the past."* So nothing is back-filled; this only stops it happening again.
+_WACC_STATE = {"sess": None, "mtime": None}
+
+
+def _witness_protected_sessions():
+    """Sessions a vault witness still references. -> set | None (None = COULD NOT ASK)
+
+    ⚠ None IS NOT AN EMPTY SET, and the caller must treat it as "refuse to reap". An unreadable
+    ledger means we do not know what is cited, and deleting footage on the strength of a question
+    we could not ask is the whole failure this guards. [[unknown-stays-unknown]]
+    """
+    # ⚠ DERIVED FROM HIST_DIR, NOT FROM HERE. HIST_DIR is TV_HIST-overridable, and a fixture run
+    # pointed at a scratch shelf must read that shelf's ledger — not his. Anchoring on HERE would
+    # make every fixture consult his live vault_accum.json, which is the crossing this repo has
+    # been bitten by repeatedly. [[feedback-fixtures-never-touch-live-data]]
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(HIST_DIR))),
+                        "vault_accum.json")
+    try:
+        mt = os.path.getmtime(path)
+    except OSError:
+        return set()          # no ledger at all = nothing is cited. A real, measured answer.
+    if _WACC_STATE["sess"] is not None and _WACC_STATE["mtime"] == mt:
+        return _WACC_STATE["sess"]
+    try:
+        with open(path, encoding="utf-8") as _fh:
+            blob = json.load(_fh)
+    except Exception:
+        return None           # ⚠ COULD NOT ASK. Never an empty set.
+    out = set()
+    try:
+        for row in (blob.get("owned") or []):
+            for w in (row.get("witnesses") or []):
+                sid = (w or {}).get("session")
+                if sid:
+                    out.add(str(sid))
+    except Exception:
+        return None
+    _WACC_STATE["sess"] = out
+    _WACC_STATE["mtime"] = mt
+    return out
+
+
+def _dbg(msg):
+    """Say it. ⚠ The reaper used to fail inside `except: pass`, which made "it broke" and "it had
+    nothing to do" the same event. Anything this path does or refuses to do gets said out loud."""
+    try:
+        print("[reap] %s" % msg, flush=True)
+    except Exception:
+        pass
+
+
+def _reap_record(reel, frames, removed, shelf):
+    """A durable line for every emergency reel deletion. -> None
+
+    ⚠⚠ THIS IS NOT THE TOMBSTONE STORE, ON PURPOSE. `reel_retention._tombstone` is the ONE writer
+    of `reel_tombstones.json`; a second writer would put two authorities on one store, which is
+    the defect this repo keeps paying for. This is a separate, clearly-named record of what the
+    RECORDER took under disk pressure, so an emergency deletion can never again leave no trace.
+    Joining it into the tombstone proper is the retention lane's job, not the recorder's.
+    ⚠ `frames=-1` means the count could not be taken — never a confident 0.
+    """
+    try:
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(HIST_DIR))),
+                            "reel_reaps.jsonl")
+        row = {"ts": int(time.time() * 1000), "reel": str(reel), "frames": int(frames),
+               "removed": bool(removed), "shelfBefore": int(shelf), "by": "recorder-disk-floor",
+               "agentVer": VERSION, "minFreeGB": MIN_FREE_GB}
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def _reel_capture_ms(name):
+    """The reel's own capture clock from its id. -> int (0 when absent, which sorts FIRST)"""
+    import re as _re
+    m = _re.search(r"(\d{13})", str(name or ""))
+    return int(m.group(1)) if m else 0
+
+
 def _journal_frame_ids():
     """v840 — every frameId still referenced by the session journal is UN-PRUNABLE.
     v877 — incremental: one cold parse per process; appends feed the set directly."""
@@ -2803,13 +2887,73 @@ def archive_read_frame(src_path, n, ts_ms=None):
                 # v883 — REELS DIE WHOLE, LAST: if loose shedding still can't breathe, retire
                 # the OLDEST sealed reels in one piece (a run keeps its full video or is gone —
                 # never a half-eaten reel).
+                # ⚠⚠ v2639 — THIS BLOCK DELETED A WHOLE REEL WITH NOTHING ASKED AND NOTHING SAID.
+                # Measured 2026-09-05. The comment above promises "the OLDEST *sealed* reels", and
+                # the word "sealed" appeared ONLY in that comment — there was no seal check, no
+                # witness check, no retention call and no tombstone. `TV_AUTO_PRUNE` occurs ZERO
+                # times in this file, so "the prune stays OFF" never reached here: this path is
+                # armed and needs no switch. `ignore_errors=True` inside `except: pass` made a
+                # partial or failed delete silent, and `sorted()` is LEXICOGRAPHIC, so "oldest"
+                # held only while every name kept the same shape.
+                #
+                # AND IT WAS ABOUT TO TAKE EVIDENCE. `vault_accum.json` cites 4 sessions as
+                # witnesses; 2 are already gone (his ruling: *"whats in the past is the past"*),
+                # and of the 2 still on disk one is `reel_s_1784984019250_95276` — the OLDEST reel
+                # on the shelf, i.e. exactly `reels[0]`. The next time free space crossed the
+                # floor, the first reel deleted would have been the one the vault still cites for
+                # "Chaotic Grand Charm". [[the-unjoined-end]] [[unknown-stays-unknown]]
+                #
+                # THE EMERGENCY IS KEPT. A full disk stops recording entirely, which is worse than
+                # losing a reel — so this still reaps, it simply refuses to reap EVIDENCE, and it
+                # says what it did either way.
                 try:
-                    reels = sorted(d2 for d2 in os.listdir(HIST_DIR) if d2.startswith("reel_"))
-                    if len(reels) > 2 and not foot_files:   # loose pool empty → oldest whole reel goes
-                        import shutil as _shr
-                        _shr.rmtree(os.path.join(HIST_DIR, reels[0]), ignore_errors=True)
-                except Exception:
-                    pass
+                    _cited = _witness_protected_sessions()
+                    _all = [d2 for d2 in os.listdir(HIST_DIR) if d2.startswith("reel_")]
+                    # ⚠⚠ THE REEL'S OWN CLOCK, and an UNREADABLE clock sorts LAST, not first.
+                    # `_reel_capture_ms` answers 0 when a name carries no 13-digit stamp, and a
+                    # bare `key=_reel_capture_ms` would put every un-datable reel at the FRONT —
+                    # making the reel we know least about the preferred victim. Caught by this
+                    # fix's own test. Same rule as the router's FIFO queue, pointing the other
+                    # way: unknown never jumps the queue, in either direction.
+                    _all.sort(key=lambda _r: (_reel_capture_ms(_r) == 0, _reel_capture_ms(_r)))
+                    if len(_all) > 2 and not foot_files:   # loose pool empty → a whole reel may go
+                        if _cited is None:
+                            # ⚠ COULD NOT ASK is not "nothing is cited". Refuse and be loud.
+                            _dbg("reel-reap REFUSED: the vault ledger would not read, so whether "
+                                 "any reel is still cited as evidence is UNKNOWN")
+                        else:
+                            _victim = None
+                            for _cand in _all[:-2]:      # never the two newest
+                                _sid = _cand[5:] if _cand.startswith("reel_") else _cand
+                                if _sid in _cited:
+                                    continue             # a vault witness still points into it
+                                _victim = _cand
+                                break
+                            if _victim is None:
+                                _dbg("reel-reap found NOTHING it may take: %d reel(s), every "
+                                     "candidate is cited by a vault witness or is one of the two "
+                                     "newest. Disk stays tight; no evidence was destroyed."
+                                     % len(_all))
+                            else:
+                                import shutil as _shr
+                                _vp = os.path.join(HIST_DIR, _victim)
+                                _n = 0
+                                try:
+                                    _n = len([f for f in os.listdir(_vp) if f.endswith(".jpg")])
+                                except OSError:
+                                    _n = -1              # -1 = unmeasured, never a confident 0
+                                _shr.rmtree(_vp, ignore_errors=True)
+                                _gone = not os.path.exists(_vp)
+                                _reap_record(_victim, _n, _gone, len(_all))
+                                _dbg("reel-reap took %s (%s frame(s)) under the disk floor; "
+                                     "removed=%s" % (_victim, _n, _gone))
+                except Exception as _e:
+                    # ⚠ NOT `pass`. A reaper that fails silently is indistinguishable from one
+                    # that had nothing to do, and that ambiguity is how this went unseen.
+                    try:
+                        _dbg("reel-reap raised and did nothing: %s" % str(_e)[:160])
+                    except Exception:
+                        pass
                 # v873 (THE 4GB NIGHT) — YOUTH SHIELD: an emergency may NEVER eat the session
                 # being recorded. Frames younger than 15min survive every shed; old sessions
                 # die first. If everything is young, we shed nothing and the DISK FULL fault

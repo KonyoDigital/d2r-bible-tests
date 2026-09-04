@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2633",
+  "ver": "v2639",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2633: 154 - the disk row now has to prove it refuses to claim space it did not free. New lock prune.reports, 24 of 24 refused, RED-proven against the original defect. It never prunes. Also annotates 136 and 148 as unactionable and records his money ruling.",
+  "note": "v2639: The disk-floor reel reaper deleted a whole reel with no seal check, no witness check, no prune gate, no tombstone and no sound. Measured: its first victim would have been reel_s_1784984019250_95276, which the vault still cites for Chaotic Grand Charm. It now refuses cited reels, sorts by the capture clock, records every reap, and never swallows a failure.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

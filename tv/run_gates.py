@@ -931,6 +931,50 @@ GATES = [
              "reload, delete or kill anything: it is a witness, not a trigger. ⚠ NAMED "
              "test_pixel_witness because test_paint_witness.py was already taken by v2457's "
              "beat-side suite, which I overwrote once and had to restore from git."),
+    Gate("test_code_staleness",
+         [sys.executable, os.path.join(HERE, "test_code_staleness.py")], 60,
+         why="THE STALE-IMAGE WATCHDOG. His console booted 2026-09-04 08:43 and served that image "
+             "for SIXTEEN HOURS across v2621->v2633. `reel_router_wilson` was declared in PROVES "
+             "on disk and its rows appended to the ledger; the running console judged them "
+             "against the registry it loaded at boot and published \".self_arming.jsonl has a row "
+             "that could not have been banked\" — a definite accusation of forgery against a row "
+             "that was banked correctly (read on disk: reel.route OPEN, 56/56). ⚠ The defect is "
+             "NOT the staleness — processes go stale. It is that an UNRECOGNISED source and a "
+             "FORBIDDEN source produced the same sentence. His ask, three times: *\"a "
+             "stale-in-memory registry safeguard watchdog for it too?\"* ⚠⚠ THE SOFTENING IS "
+             "NARROW AND THE BASELINE PROVES IT: a FRESH process still refuses an undeclared "
+             "source, and a declared source proving a lock outside its declaration is still "
+             "refused whatever the reader's age. It reports and never reloads, restarts or execs."),
+    Gate("test_reel_router",
+         [sys.executable, os.path.join(HERE, "test_reel_router.py")], 90,
+         why="A7·ROUTE — one station per reel, decided by the reel's OWN evidence and never by "
+             "the keep-reason. MEASURED on his shelf 2026-09-05: 40 reels, 29 never read, the "
+             "oldest ten (back to 07-25) all unread, and `vault-owes` matching 0 of 40 because it "
+             "is the LAST first-match-wins rule — so the reel reader picked nothing, forever, "
+             "while publishing `owed: 0` like a healthy idle lane. Root cause: "
+             "`reel_story._stage_of(tag)` derives a reel's STAGE from the RETENTION TAG, so all "
+             "40 sat at two of six stages with four permanently empty. ⚠ It arms NOTHING — it "
+             "publishes a queue nobody consumes; wiring a paid reader to it is a separate "
+             "decision and his. The prune stays OFF."),
+    Gate("reel_router_wilson",
+         [sys.executable, os.path.join(HERE, "reel_router_wilson.py")], 90,
+         why="A7·ROUTE's seven refusals — the ways the keep-reason could creep back into the "
+             "read-fate, or an unmeasured reel be dressed as a measured one. RED-proven on the "
+             "real module: restoring the coupling (`_station_of` reading `tag`) takes the guard "
+             "from independent=YES to NO naming the field. ⚠ Both halves are walked by AST — the "
+             "decider AND the evidence builder — because a guard aimed only at the decider leaves "
+             "the smuggling path open one function upstream."),
+    Gate("verdict_provenance",
+         [sys.executable, os.path.join(HERE, "verdict_provenance.py")], 90,
+         why="Can each stored verdict say WHAT produced it? His catch, 2026-09-05, after the "
+             "router's EMPTY turned out to rest on `retro_triage.json` rows carrying no "
+             "classifier version: *\"make sure to look out for other coding things like this "
+             "that might be gapped just like this was.\"* Swept: 41 stores, ANSWERS 4, PARTIAL 3, "
+             "SILENT 21, REFERENCE 12, UNKNOWN 1. A SILENT verdict cannot be invalidated when its "
+             "producer improves, so a stale NO outlives every later pass looking exactly like a "
+             "fresh one — and here a stale NO means footage is never read again. ⚠ It REPORTS and "
+             "never repairs: back-filling a producer onto 437 existing rows would invent "
+             "provenance for verdicts nobody can now attribute."),
     Gate("disk_report_wilson",
          [sys.executable, os.path.join(HERE, "disk_report_wilson.py")], 120,
          why="154 — can the disk row REFUSE to claim space it did not free? `prunedMb` was "

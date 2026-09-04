@@ -47,6 +47,10 @@ STORES = {
         "owner": "retro_triage",
         "holds": "per-reel structural verdict: frames, panels, kinds",
         "readers": {
+            "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
+            "verdict_provenance": "reads ONE row to ask whether it can name what produced it.\n                              41 stores swept, 21 SILENT. It writes nothing, back-fills\n                              nothing and never repairs — naming the gap is the product",
+            "run_gates":      "NOT a toucher — a gate DESCRIPTION names this file while\n                              explaining what the gate is for. Prose in a `why` string",
+
             "write_census":      "NOT a writer of THIS file — it calls retro_triage.remember() with a "
                                  "SCRATCH root and watches which module the write is attributed to. It is "
                                  "the A7 measurement-by-observation, and the only one of the five stores "
@@ -61,12 +65,18 @@ STORES = {
                              "It quotes retro_triage.STORE rather than naming the file (REG-534)",
             "write_witness": "NOT a reader — it patches open/io.open/os.replace process-wide to "
                              "ATTRIBUTE writes, so it names this path only to report who wrote it",
+            "reel_router":   "A7·ROUTE — the survey's verdict IS a station on the river, so the "
+                             "router reads `panels` (via worth_reading, through printer.stream) "
+                             "and `ts` to say WHEN a reel was surveyed. ⚠ It reads through "
+                             "retro_triage's own load(), never the file, and writes nothing",
         },
     },
     "reel_tombstones.json": {
         "owner": "reel_retention",
         "holds": "reels that were pruned, and when — the record that a reel existed",
         "readers": {
+            "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
+
             "write_census":      "NOT a writer and never can be — it names this store to record that only "
                                  "an actual DELETION writes a tombstone, and the prune stays OFF by his "
                                  "standing ruling, so its exercise is declared None WITH that reason. "
@@ -106,6 +116,9 @@ STORES = {
         "owner": "frame_authority",
         "holds": "the seal store — which sessions the vault sweep has sealed, and what it extracted",
         "readers": {
+            "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
+            "verdict_provenance": "reads ONE row to ask whether it can name what produced it.\n                              41 stores swept, 21 SILENT. It writes nothing, back-fills\n                              nothing and never repairs — naming the gap is the product",
+
             "write_census":      "NOT a writer — same as vault_accum: the vault lane writes this as a paid "
                                  "sweep completes, so the exercise is declared None rather than run. "
                                  "UNEXERCISED and NO-WRITERS are different facts",

@@ -6899,9 +6899,20 @@ body[data-origin="shadow"] #stage::after {
           </div>
           <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
           <div class="util-strip">
-            <button class="util-btn" id="btn-off" type="button" title="force dark — no farewell (rare)">⏻ dark</button>
-            <button class="util-btn" id="btn-stop" type="button" title="force full seal now (rare)">■ seal</button>
-            <button class="util-btn" id="btn-restart" type="button" title="cycle the bridge (hiccups)">↻ bridge</button>
+            <!-- v2638 — HIS CALL, 2026-09-05: "DARK SEAL BRIDGE all dont need to be buttons
+                 that are clickable surgically remove them please..(hidethem)" + "gate also".
+                 ⚠⚠ HIDDEN, NEVER DELETED, AND THAT IS NOT TIMIDITY. Every one of these ids is
+                 wired by getElementById(...).addEventListener in the second script block;
+                 deleting the element makes that call throw ON PARSE, and a throw there kills
+                 the whole render — the black window he reported twice tonight. Four separate
+                 dead renders in this file have come from a call that could not find its
+                 target. The handlers keep their targets; only the pixels go.
+                 ⚠ RELAUNCH CAME BACK BY HIS CALL, minutes later: "have the relaunch buton
+                 back.. just so sometimes i can relaunch just by click relaucnh where it was
+                 located before". It stays where it was. Four hidden, five shown. -->
+            <button class="util-btn" id="btn-off" type="button" hidden style="display:none" title="force dark — no farewell (rare)">⏻ dark</button>
+            <button class="util-btn" id="btn-stop" type="button" hidden style="display:none" title="force full seal now (rare)">■ seal</button>
+            <button class="util-btn" id="btn-restart" type="button" hidden style="display:none" title="cycle the bridge (hiccups)">↻ bridge</button>
             <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
             <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">🦅 eagle</button>
             <!-- v2338 — MINI(AUTOMATIC): asks whether the pointer can be driven right now, and
@@ -6914,7 +6925,7 @@ body[data-origin="shadow"] #stage::after {
                  differing only in CASE, side by side in the same strip, one of which drives his
                  pointer. Renamed the lamp to "ready?" - it asks a question, and this one does a
                  thing. -->
-            <button class="util-btn" id="btn-farmgate" type="button" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
+            <button class="util-btn" id="btn-farmgate" type="button" hidden style="display:none" title="FARM DAY preflight — versions · claude auth · disk · game · bridge → one verdict">🛡 gate</button>
             <button class="util-btn" id="btn-repair" type="button" title="LEDGER REPAIR — restore find dates from the in-game Chronicle, or correct one mis-registered item. Both press the BOARD's own doors; the console never writes the ledger itself.">🩹 repair</button>
             <button class="util-btn" id="btn-ledger" type="button" title="THE LEDGER — what the AI has SEEN, read for free. Every grounded row and every sighting still waiting on a second witness, each with when it was read and which frames it came from. Reads two files; spends nothing; writes nothing.">📒 ledger</button>
           </div>

@@ -73,6 +73,18 @@ sys.path.insert(0, HERE)
 
 from confidence import wilson_lower, confluence   # noqa: E402  — one home for the maths
 
+# ⚠⚠ SNAPSHOT THIS MODULE'S IDENTITY AT IMPORT, and it must happen HERE rather than lazily.
+# `registry_may_be_incomplete()` answers True for UNKNOWN as well as STALE — deliberately, since
+# "I never checked whether my registry is current" is not grounds for confidence. But that makes
+# an un-snapshotted process permanently forgiving: every unrecognised src would read as "UNKNOWN,
+# relaunch to judge", and a genuinely forged row would be excused forever. The snapshot is what
+# makes the softening narrow instead of universal. [[feedback-blind-fixture-green-gate]]
+try:
+    import code_staleness as _code_staleness   # noqa: E402
+    _code_staleness.snapshot("self_arming")
+except Exception:
+    pass
+
 #: runtime record of DECISIONS, like .console_scars.json and .second_eye.jsonl — untracked.
 #: THE DEFAULT ONLY. Deliberately NOT `os.environ.get(...) or ...` at module level.
 LEDGER = os.path.join(HERE, ".self_arming.jsonl")
@@ -157,6 +169,18 @@ LOCKS = {
     #: before its unlocked."* So the reporter earns its unlock like every other surface.
     #: ⚠ IT GUARDS THE REPORT, NOT THE DELETER. `prune.arm` already guards whether the prune may
     #: act; this guards whether the row may CLAIM. They fail differently and must not share a lock.
+    #: A7·ROUTE — WHERE A REEL IS IN THE RIVER, decided by the reel's own evidence and never by
+    #: why we are keeping its bytes. Measured on his shelf 2026-09-05: 40 reels, 29 never read,
+    #: `vault-owes` matching 0 of 40 because it is the LAST first-match-wins rule, and all 40
+    #: sitting at two of `reel_story`'s six stages because `_stage_of(tag)` reads the RETENTION
+    #: TAG. ⚠ IT GUARDS THE ROUTING, NOT THE READING: nothing here arms a paid sweep, and the
+    #: queue this publishes is consumed by nobody. `prune.arm` guards whether the prune may act;
+    #: this guards whether the keep-reason may decide a reel's read-fate. Different failures.
+    "reel.route": {
+        "surface": "THE RIVER",
+        "acts": "decides where each reel is, and therefore what it is owed",
+        "bar": 0.510, "kinds_bar": 1.0, "after": [],
+    },
     "prune.reports": {
         "surface": "THE RIVER",
         "acts": "tells him how much space was freed",
@@ -330,6 +354,10 @@ PROVES = {
     #: 154 — the disk row's own refusals. It NEVER prunes: every attempt is a state in which the
     #: row must decline to name a freed figure, and nothing here deletes a byte.
     "disk_report_wilson": ("prune.reports",),
+    #: A7·ROUTE — seven refusals the router must make, each a way the keep-reason could creep back
+    #: into the read-fate or an unmeasured reel could be dressed as a measured one. It reads no
+    #: footage, arms no sweep and deletes nothing.
+    "reel_router_wilson": ("reel.route",),
     # vault_wilson attempts proposals the WRITE door must reject — v1595's re-gate, which
     # returns before the board is ever asked. It never applies anything: every row it hands
     # in carries an empty evidence list, so it fails the witness gate by construction.
@@ -505,6 +533,27 @@ def _row_fault(r):
         src = str(r.get("src") or "")
         allowed = PROVES.get(src)
         if allowed is None:
+            # ⚠⚠ AN UNRECOGNISED SOURCE IS NOT A FORGED ROW WHEN THIS PROCESS'S REGISTRY IS OLD.
+            # MEASURED 2026-09-05: his console booted at 08:43 and ran that image for sixteen
+            # hours. `reel_router_wilson` was declared in PROVES on disk and its rows appended to
+            # the ledger; the running console did not recognise the source and published
+            # ".self_arming.jsonl has a row that could not have been banked" — a definite
+            # accusation of forgery against a row that was banked correctly. Read under the code
+            # on disk the same ledger is clean (reel.route OPEN, 56/56).
+            #
+            # His ask, three times: *"stale in-memory so for this a safeguard on it? just like we
+            # have regression watchdog?"* This is it. "I do not know this source" and "this source
+            # may not exist" are different facts, and which one applies depends entirely on
+            # whether THIS process's PROVES can be trusted to be complete.
+            # [[unknown-stays-unknown]] [[stale-reading]]
+            try:
+                import code_staleness as _CS
+                if _CS.registry_may_be_incomplete("self_arming"):
+                    return ("src %r is not in THIS PROCESS's PROVES, and this process is running "
+                            "an older self_arming than the one on disk — so whether the row is "
+                            "legitimate is UNKNOWN, not refused. Relaunch to judge it." % src)
+            except Exception:
+                pass
             return "src %r is not a declared evidence source" % src
         if lock not in allowed:
             return "%r does not prove %r" % (src, lock)
