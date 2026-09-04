@@ -154,6 +154,18 @@ in those words.
   Restored byte-identical, my tests moved to `test_pixel_witness.py`, both registered and green.
   **Rule: a new file is not new until the path is checked** — one `ls` would have caught it.
 
+- ✅✅ **THE GATE SET IS GREEN EXCEPT FOR ONE, AND THAT ONE IS HIS.** Full `run_gates.py` run,
+  2026-09-04 17:5x, on `085b24f5`: **`❌ 1 gate(s) FAILED: human-eyes`** — everything else green.
+  That closes the arc that began with **eight** red gates nobody had seen, because
+  `hooks/pre-push` runs three of thirty: REG-576 (printer_wilson + test_printer, one station),
+  REG-577 (test_store_owners), REG-578 (test_import_bound_paths), REG-579 (swallow_ratchet, and
+  the four sites were FIXED rather than re-baselined), REG-580 (test_heart + test_reachability).
+  ⚠ **`human-eyes` is not a code defect** — it reports **3 briefs asked and never answered past
+  24h: GB-L-7 55.1h · GB-L-6 67.8h · GB-L-5 68.0h** (8 recorded · 2 answered with a LOOK · 3 still
+  owed). It can only ever go red on his machine, and only he can close it.
+  ⚠ The run reported **exit 0 through the harness and EXIT=1 in truth** — the wrapper's trailing
+  `echo`, the same shape as `git push | tail`. The `EXIT=` line in the log is what was read.
+
 - ✅ **A11 — THE HEART'S "8 DARK" WAS REALLY 2 (REG-589 v2610, REG-590 v2611).** Every DARK row said
   the same thing; measured, **SIX of the eight ARE the supervisors** (`_bridge_prober`,
   `_console_beacon_loop`, `_console_rescue_loop`, `_mini_watchdog`, `_orphan_exit_loop`,
