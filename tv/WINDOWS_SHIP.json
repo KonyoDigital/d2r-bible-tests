@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2585",
+  "ver": "v2586",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2585: the vocabulary check tested the opposite of its comment, and an audit of every deletion",
+  "note": "v2586: CONNECTED did not mean the dry taps were answered",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -232,12 +232,20 @@ def census(rep=None):
         "ok": True, "rows": rows, "counts": counts, "unjoined": unjoined,
         "observedOn": obs["reels"],
         "state": ("CONNECTED" if not unjoined else "PARTIAL"),
+        # ⚠ THE SUMMARY NAMES THE DRY TAPS TOO. A cold review pointed out that CONNECTED/PARTIAL
+        # keys only on UNJOINED, so a run with four engines that have NO DATA still reads
+        # CONNECTED. That is intended — a dry tap is not a wiring gap — but a reader seeing only
+        # "CONNECTED" would take it as everything being wired, which is not what it says.
         "why": ("%d engine(s) answer a question about a reel, checked against what the printer "
-                "actually printed for %d of them. %s%s"
+                "actually printed for %d of them. %s%s%s"
                 % (len(rows), obs["reels"],
                    " · ".join("%s %d" % (k, v) for k, v in sorted(counts.items())),
                    ("" if not unjoined else
-                    "  ⚠ %d answer nobody asks." % unjoined))),
+                    "  ⚠ %d answer nobody asks." % unjoined),
+                   ("" if not counts.get("NO DATA") else
+                    "  ⚠ %d more have NO DATA to give — a capture gap, not a wiring one, and "
+                    "CONNECTED does not mean those are answered."
+                    % counts.get("NO DATA")))),
     }
 
 
