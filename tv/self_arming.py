@@ -378,6 +378,37 @@ def _fold(rows):
     return out
 
 
+def _row_fault(r):
+    """Why this row could not have come from bank(). -> str ("" when it is sound)
+
+    ⚠ EVERY CHECK HERE IS ONE bank() ALREADY MAKES (self_arming.py, bank). It is not a second
+    opinion — a second copy of a safety rule is [[copy-drift]]'s worst case. It is the SAME rules
+    asked on the read side, because bank() guards its own door and nothing guarded the file.
+    """
+    src, lock, kind = str(r.get("src") or ""), str(r.get("lock") or ""), str(r.get("kind") or "")
+    allowed = PROVES.get(src)
+    if allowed is None:
+        return "src %r is not a declared evidence source" % src
+    if lock not in allowed:
+        return "%r does not prove %r" % (src, lock)
+    if kind not in KINDS:
+        return "kind %r is not a declared evidence tier" % kind
+    n, k = r.get("n"), r.get("k")
+    # ⚠ bool is a subclass of int, and `True` would otherwise pass as the count 1 — the same
+    # shape REG-573 found writing "read (1 pages)" into a tombstone.
+    for nm, v in (("n", n), ("k", k)):
+        if isinstance(v, bool) or not isinstance(v, int):
+            return "%s=%r is not a whole number, and score() would have defaulted it" % (nm, v)
+    if not (0 <= k <= n):
+        return "k=%d of n=%d is not a possible record" % (k, n)
+    ts = r.get("ts")
+    # ⚠ _fold keeps the GREATEST ts per (lock, kind, src, ref), so a row stamped in the future is
+    # an unreplaceable pin: no honest later run could ever supersede it.
+    if isinstance(ts, (int, float)) and ts > (time.time() + 300) * 1000:
+        return "ts is in the future, which _fold could never supersede"
+    return ""
+
+
 def _rows():
     """-> (list|None, why). None means UNREADABLE, which is never 'no proofs'."""
     p = _ledger_path()
@@ -395,8 +426,28 @@ def _rows():
                 except ValueError:
                     # a line that will not parse is a hole in the evidence, not a blank one
                     return None, "%s has an unparseable row" % os.path.basename(p)
-                if isinstance(r, dict):
-                    out.append(r)
+                if not isinstance(r, dict):
+                    continue
+                # ⚠⚠ v2581 — THE VALIDATIONS LIVED ONLY IN bank(), SO THEY GUARDED THE DOOR AND
+                # NOT THE ROOM. Anything that appended a line to this file — a stray script, a
+                # hand edit, a crashed writer — bypassed every check bank() makes, and score()
+                # then read it as evidence. Worse, score() defaults a missing count:
+                # `int(r.get("n", 1) or 0)`, so a three-key row {lock, kind, refused:true} was
+                # silently worth n=1 k=1 of whatever tier it named.
+                #
+                # These are bank()'s OWN rules re-applied on the way IN. Measured against his 51
+                # real rows before it shipped: ZERO would fail, so this costs nothing that is
+                # honest and closes the gap for everything that is not.
+                #
+                # ⚠ A BAD ROW FAILS THE WHOLE READ, exactly as an unparseable line does. Skipping
+                # it would let a forged row be quietly dropped while the rest scored on — and the
+                # lock would open on a ledger nobody could see had been edited. UNKNOWN is
+                # LOCKED here (may() returns False), so this fails closed. [[unknown-stays-unknown]]
+                _bad = _row_fault(r)
+                if _bad:
+                    return None, ("%s has a row that could not have been banked: %s"
+                                  % (os.path.basename(p), _bad))
+                out.append(r)
     except Exception as e:
         return None, "%s could not be read: %s" % (os.path.basename(p), e)
     return out, ""

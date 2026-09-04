@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2580",
+  "ver": "v2581",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2580: a demonstration on his own reels, and two gaps that are capture not wiring",
+  "note": "v2581: bank guarded the door and not the room",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

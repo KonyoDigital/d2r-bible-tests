@@ -11,6 +11,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -434,6 +435,93 @@ class AnUnprovableLockSaysSoAndTheClaimIsCHECKED(unittest.TestCase):
             if r.get("n"):
                 self.assertNotIn("provable", [k for k in r if k == "provable" and r[k] is False],
                                  "%s has evidence and is marked unprovable" % name)
+
+
+
+class TheLedgerIsCheckedONREADNotOnlyOnWrite(unittest.TestCase):
+    """v2581 — bank()'s validations guarded the DOOR and not the ROOM.
+
+    Every check bank() makes lived only in bank(). Anything else that appended a line to the
+    ledger — a stray script, a hand edit, a half-finished writer — bypassed all of them, and
+    score() then read it as evidence. Worse, score() DEFAULTS a missing count:
+    `int(r.get("n", 1) or 0)` and `int(r.get("k", 1 if r.get("refused") else 0) or 0)`, so a
+    three-key row {lock, kind, refused: true} was silently worth n=1 k=1 of whatever tier it
+    named — and `kinds` is a SET, so one such row buys that tier's whole confluence weight.
+
+    ⚠ Measured against his 51 real rows BEFORE this shipped: zero would fail. It costs nothing
+    that is honest.
+
+    ⚠ A bad row fails the WHOLE read, as an unparseable line already does. Dropping just the bad
+    row would let a forgery be silently discarded while the rest scored on, and the lock would
+    open on a ledger nobody could see had been edited. UNKNOWN is LOCKED, so this fails closed.
+    """
+
+    def _ledger(self, *rows):
+        d = tempfile.mkdtemp(prefix="sa_read_")
+        self.addCleanup(shutil.rmtree, d, True)
+        p = os.path.join(d, "led.jsonl")
+        with io.open(p, "w", encoding="utf-8") as fh:
+            for r in rows:
+                fh.write(json.dumps(r) + "\n")
+        return p
+
+    def _good(self, **kw):
+        row = {"lock": "prune.arm", "kind": "sabotage", "src": "prune_wilson",
+               "ref": "offspelling", "n": 10, "k": 10, "refused": True,
+               "ts": int(time.time() * 1000)}
+        row.update(kw)
+        return row
+
+    def _read(self, path):
+        was = os.environ.get("TV_SELF_ARMING_LEDGER")
+        try:
+            os.environ["TV_SELF_ARMING_LEDGER"] = path
+            return SA._rows()
+        finally:
+            if was is None:
+                os.environ.pop("TV_SELF_ARMING_LEDGER", None)
+            else:
+                os.environ["TV_SELF_ARMING_LEDGER"] = was
+
+    def test_an_honest_row_still_reads(self):
+        """BASELINE — or the check bought its safety by refusing everything."""
+        rows, why = self._read(self._ledger(self._good()))
+        self.assertEqual(len(rows or []), 1, why)
+
+    def test_the_three_key_row_score_would_have_DEFAULTED_is_refused(self):
+        """The forgery that costs nothing to write: no n, no k, no src."""
+        rows, why = self._read(self._ledger(
+            self._good(), {"lock": "prune.arm", "kind": "live", "refused": True}))
+        self.assertIsNone(rows, "a row with no counts and no source was accepted as evidence")
+        self.assertIn("could not have been banked", why)
+
+    def test_every_forgery_class_is_refused(self):
+        for label, row in (
+                ("an undeclared source", self._good(src="my_own_harness")),
+                ("a source proving another lock", self._good(lock="miniauto.run")),
+                ("an unweighted kind", self._good(kind="vibes")),
+                ("k greater than n", self._good(n=5, k=9)),
+                ("a boolean count", self._good(n=True, k=True)),
+                ("a timestamp in the future",
+                 self._good(ts=int((time.time() + 86400) * 1000))),
+        ):
+            rows, why = self._read(self._ledger(self._good(), row))
+            self.assertIsNone(rows, "%s was accepted: %s" % (label, why))
+
+    def test_a_refused_read_makes_may_say_NO(self):
+        """UNKNOWN must be LOCKED — a ledger that cannot be trusted opens nothing."""
+        p = self._ledger(self._good(), self._good(kind="vibes"))
+        was = os.environ.get("TV_SELF_ARMING_LEDGER")
+        try:
+            os.environ["TV_SELF_ARMING_LEDGER"] = p
+            self.assertEqual(SA.score("prune.arm")["state"], SA.UNKNOWN)
+            ok, why = SA.may("prune.arm")
+            self.assertFalse(ok, "a forged ledger let the deleter through: %s" % why)
+        finally:
+            if was is None:
+                os.environ.pop("TV_SELF_ARMING_LEDGER", None)
+            else:
+                os.environ["TV_SELF_ARMING_LEDGER"] = was
 
 
 if __name__ == "__main__":
