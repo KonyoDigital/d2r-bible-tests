@@ -78,6 +78,36 @@ def on_screen(pid=None, quartz=None):
     return False, "the window server lists no on-screen window for pid %d" % pid
 
 
+def _union_area(rects):
+    """Area covered by a set of rectangles, counting overlap ONCE. -> float
+
+    ⚠⚠ REG-595 — SUMMING PERCENTAGES IS THE WRONG ARITHMETIC AND IT FAILS BOTH WAYS. Adding each
+    window's own share reports three windows stacked on the SAME half of his console as 96%
+    covered while he is looking at the other half; asking each one separately (what v2615 did)
+    misses two windows that tile it completely and reports "nothing is covering it". The union is
+    the only measure that answers the question actually being asked: **how much of his window can
+    he not see.**
+
+    Coordinate compression rather than a raster: the window count here is a handful, and a grid
+    would make the answer depend on a resolution nobody chose.
+    """
+    rects = [r for r in rects if r[2] > r[0] and r[3] > r[1]]
+    if not rects:
+        return 0.0
+    xs = sorted(set([r[0] for r in rects] + [r[2] for r in rects]))
+    ys = sorted(set([r[1] for r in rects] + [r[3] for r in rects]))
+    total = 0.0
+    for i in range(len(xs) - 1):
+        x0, x1 = xs[i], xs[i + 1]
+        for j in range(len(ys) - 1):
+            y0, y1 = ys[j], ys[j + 1]
+            for (a0, b0, a1, b1) in rects:
+                if a0 <= x0 and a1 >= x1 and b0 <= y0 and b1 >= y1:
+                    total += (x1 - x0) * (y1 - y0)
+                    break
+    return total
+
+
 def covered_by(pid=None, quartz=None):
     """What is sitting ON TOP of his window? -> (list-of-descriptions | None, why)
 
@@ -143,19 +173,33 @@ def covered_by(pid=None, quartz=None):
     # ⚠ COMPARED TO HIS WINDOW'S OWN LAYER, never hardcoded to 0. A layer filter has cost this repo
     # once already: his D2R game window sits on layer 26 and a `layer == 0` test dropped it
     # entirely. [[d2r-game-window-layer-26]]
-    out = []
+    #
+    # ⚠⚠ REG-595 — ASK WHAT HE CANNOT SEE, NOT WHETHER ANY SINGLE WINDOW HIDES IT. v2615 compared
+    # each covering window against the bar on its own, so Citrix on one half of the screen and a
+    # browser on the other — together hiding the console completely — came back as an EMPTY list
+    # and the reason said "nothing is covering it". He has said Citrix Viewer is work, unrelated
+    # to this console, so it lives beside other windows rather than always over everything: the
+    # tiled case is his ordinary desk, not a corner. The clipped rectangles are unioned instead.
+    clipped, parts = [], []
     for name, (x, y, w, h), layer in above:
         if mine_layer is not None and layer != mine_layer:
             continue
-        ox = min(x + w, mx + mw) - max(x, mx)
-        oy = min(y + h, my + mh) - max(y, my)
-        if ox > 0 and oy > 0:
-            pct = 100.0 * (ox * oy) / float(mw * mh or 1)
-            if pct >= COVERED_PCT:
-                out.append("%s (%.1f%%)" % (name, pct))
-    if out:
-        return out, "%s is on top of it, so he cannot see it" % ", ".join(out)
-    return [], ""
+        x0, y0 = max(x, mx), max(y, my)
+        x1, y1 = min(x + w, mx + mw), min(y + h, my + mh)
+        if x1 <= x0 or y1 <= y0:
+            continue
+        clipped.append((x0, y0, x1, y1))
+        parts.append((name, 100.0 * (x1 - x0) * (y1 - y0) / float(mw * mh or 1)))
+    if not clipped:
+        return [], ""
+    pct = 100.0 * _union_area(clipped) / float(mw * mh or 1)
+    if pct < COVERED_PCT:
+        return [], ""
+    out = ["%s (%.1f%%)" % (name, p) for name, p in parts]
+    if len(out) == 1:
+        return out, "%s is on top of it, so he cannot see it" % out[0]
+    return out, ("%s cover %.1f%% of it between them, so he cannot see it"
+                 % (", ".join(out), pct))
 
 
 def contradicts_a_hidden_beat(pid=None, quartz=None):

@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-595 — REG-594's fix asked each window on its own, so two of them hid his console between them
+
+**v2616.** `covered_by()` compared every covering window against `COVERED_PCT` **separately**. One
+app over the whole console is caught; **two apps tiled side by side, together covering all of it,
+are not** — neither clears 95% alone, so the list came back empty and `contradicts_a_hidden_beat()`
+returned True with the reason *"and nothing is covering it"*. Not merely a missed detection: an
+affirmatively false sentence, and the rescue reloads a console he cannot see.
+
+⚠ **THIS IS HIS ORDINARY DESK, NOT A CORNER.** He said on 2026-09-04 that Citrix Viewer is work,
+unrelated to the console or to Diablo — so it sits *beside* other windows rather than always
+maximised over everything. Citrix on one half and a browser on the other reloads a healthy console
+exactly as the original bug did. **REG-594 fixed the case that happened to be on screen the day it
+was found, not the class** — the same shape as fixing one instance and calling the sweep done.
+
+**MEASURED, reproduced against the shipped bytes before the fix was written:** two windows at 55%
+and 45% -> `covered_by` returned `[]` -> `contradicts_a_hidden_beat` returned **True**. And on his
+live screen after the fix, the console at pid 11243 reads *"Citrix Viewer (100.0%), Terminal
+(100.0%), Safari (100.0%) cover 100.0% of it between them"* — three windows, where v2615 would
+have named at most the geometry of one.
+
+**FIX:** the clipped rectangles are **unioned** (`_union_area`, coordinate compression) instead of
+tested one at a time. ⚠ Summing the percentages would have been wrong in the other direction —
+three windows stacked on the SAME half of the console add to 96% while he is looking at the other
+half — so there is a guard for that too. The reason now states the combined figure, because
+*"Chrome (45.0%)"* against a 95% bar tells a reader nothing about why it counted.
+
+**Guard:** `tv/test_control.py :: TestV2616TwoWindowsTilingHisConsole` — 6 cases, proven RED (2
+failures) against the shipped bytes. Three are baselines: the single-window REG-594 case unchanged,
+an **uncovered** window still contradicting a hidden beat, and system chrome (Dock layer 20 + menu
+bar layer 24, which between them span the screen) still not tiling it — the v2615 over-correction
+re-entering through the new door.
+
 ### REG-594 — "listed on screen" is not "he can see it", and a healthy console was reloaded seven times
 **2026-09-04 · v2615 · the root cause of everything chased today, and my own reports were the false alarm**
 

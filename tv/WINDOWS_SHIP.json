@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2615",
+  "ver": "v2616",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2615: REG-594. THE ROOT CAUSE OF EVERYTHING I CHASED TODAY, and my own reports were the false alarm. on_screen answers whether the window server LISTS a window, and a window covered 100 percent by another app IS listed. contradicts_a_hidden_beat treated that as proof the page was lying about hidden, so the rescue kept firing. MEASURED - Citrix Viewer 1289x752 at 108,78 covering the console 1120x660 at 175,148 by 100.0 percent and frontmost, while the console reported hidden true, painting false, frozenBeats 367, rescues 7. THE PAGE WAS RIGHT EVERY TIME. WebKit suspends painting on an occluded view by design, so hidden and not-painting are the CORRECT readings of a healthy console behind a window. v2325 rule already said a window he cannot see is not a window that is stuck, and the check written to enforce it asked the wrong question. Also fixes paint_witness, which called the same white bitmap BLANK - capturing a covered window returns a flat frame - and now reports OCCLUDED as a third state. AND THE FIRST CUT COUNTED THE DOCK, whose backing window spans the screen on layer 20 and hides nothing, which would have made the console read covered ALWAYS and DISABLED the rescue outright - an over-correction strictly worse than the false alarms. Only windows on the SAME layer count, compared against his window own layer rather than hardcoded to 0, because a layer-0 filter once dropped his D2R game window on layer 26.",
+  "note": "v2616: REG-595 - covered_by asked each window alone, so a console tiled behind two apps read as visible. The clipped rects are unioned now. 6 guards, RED-proven, 3 of them baselines.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

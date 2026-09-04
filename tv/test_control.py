@@ -41447,5 +41447,110 @@ class TheBlackWindowRescueIsReachable(unittest.TestCase):
         self.assertIn("elements against a high-water mark", why)
 
 
+class TestV2616TwoWindowsTilingHisConsole(unittest.TestCase):
+    """★ REG-595 — REG-594's FIX ASKED EACH WINDOW SEPARATELY, SO TWO OF THEM HID HIS CONSOLE
+    BETWEEN THEM AND IT STILL READ "nothing is covering it".
+
+    v2615 compared every covering window against COVERED_PCT on its own. One app over the whole
+    console is caught; **two apps tiled side by side, together covering all of it, are not** —
+    neither clears 95% alone, so the list comes back empty and `contradicts_a_hidden_beat()`
+    returns True with the reason *"and nothing is covering it"*, which is not merely a missed
+    detection but an affirmatively false sentence.
+
+    ⚠ THIS IS HIS ACTUAL DESK. He has said Citrix Viewer is work, unrelated to the console, so it
+    is open next to other windows rather than always maximised over everything. Citrix on one half
+    and a browser on the other reloads a healthy console exactly as the original bug did — REG-594
+    fixed the case that was on screen the day it was found, not the class.
+
+    Reproduced against the shipped bytes before this was written: two 55%/45% windows -> covered_by
+    [] -> contradicts True.
+    """
+
+    class _Q(object):
+        kCGWindowListOptionOnScreenOnly = 1
+        kCGWindowListExcludeDesktopElements = 2
+        kCGNullWindowID = 0
+
+        def __init__(self, rows):
+            self._rows = rows
+
+        def CGWindowListCopyWindowInfo(self, opts, wid):
+            return self._rows
+
+    def _w(self, pid, x, y, w, h, layer=0, name="app"):
+        return {"kCGWindowOwnerPID": pid, "kCGWindowOwnerName": name, "kCGWindowLayer": layer,
+                "kCGWindowBounds": {"X": x, "Y": y, "Width": w, "Height": h}}
+
+    def _console(self):
+        return self._w(7, 175, 148, 1120, 660, 0, "Python")
+
+    def test_TWO_windows_that_between_them_cover_it_are_caught(self):
+        import window_visibility as wv
+        q = self._Q([self._w(1, 0, 0, 800, 900, 0, "Citrix Viewer"),
+                     self._w(2, 800, 0, 800, 900, 0, "Chrome"),
+                     self._console()])
+        cov, why = wv.covered_by(pid=7, quartz=q)
+        self.assertTrue(cov, "two windows covering it between them read as covering nothing")
+        joined = " ".join(cov)
+        self.assertIn("Citrix Viewer", joined)
+        self.assertIn("Chrome", joined)
+        ok, why2 = wv.contradicts_a_hidden_beat(pid=7, quartz=q)
+        self.assertFalse(ok, "a console hidden behind two windows was read as visible: %s" % why2)
+        self.assertNotIn("nothing is covering it", why2)
+
+    def test_the_REASON_names_the_TOTAL_not_just_one_window(self):
+        """A reader who sees "Chrome (45.0%)" against a 95% bar cannot tell why that counted."""
+        import window_visibility as wv
+        q = self._Q([self._w(1, 0, 0, 800, 900, 0, "Citrix Viewer"),
+                     self._w(2, 800, 0, 800, 900, 0, "Chrome"),
+                     self._console()])
+        _, why = wv.covered_by(pid=7, quartz=q)
+        self.assertIn("100.0%", why,
+                      "the reason does not state the combined coverage: %r" % why)
+
+    def test_OVERLAPPING_coverers_are_not_double_counted(self):
+        """⚠ THE ARITHMETIC TRAP. Summing percentages would let two windows that sit on top of
+        EACH OTHER over one half of his console add up to 96% and report it hidden while he is
+        looking at the other half. The union is the only honest measure."""
+        import window_visibility as wv
+        half = 560
+        q = self._Q([self._w(1, 175, 148, half, 660, 0, "A"),
+                     self._w(2, 175, 148, half, 660, 0, "B"),
+                     self._w(3, 175, 148, half, 660, 0, "C"),
+                     self._console()])
+        cov, why = wv.covered_by(pid=7, quartz=q)
+        self.assertEqual(cov, [],
+                         "three windows stacked on the SAME half summed past the bar: %s" % why)
+        self.assertTrue(wv.contradicts_a_hidden_beat(pid=7, quartz=q)[0])
+
+    def test_the_ONE_window_case_is_unchanged(self):
+        """⚠ BASELINE — REG-594's own case must keep working, and its shape must not change."""
+        import window_visibility as wv
+        q = self._Q([self._w(999, 108, 78, 1289, 752, 0, "Citrix Viewer"), self._console()])
+        cov, why = wv.covered_by(pid=7, quartz=q)
+        self.assertEqual(len(cov), 1, why)
+        self.assertIn("Citrix", cov[0])
+        self.assertFalse(wv.contradicts_a_hidden_beat(pid=7, quartz=q)[0])
+
+    def test_an_UNCOVERED_window_STILL_contradicts_it(self):
+        """⚠⚠ THE BASELINE THAT MATTERS MOST, restated here because this class widens the
+        detector: widen it too far and the rescue never fires again."""
+        import window_visibility as wv
+        q = self._Q([self._console(), self._w(999, 0, 0, 200, 200, 0, "behind")])
+        ok, why = wv.contradicts_a_hidden_beat(pid=7, quartz=q)
+        self.assertTrue(ok, "a visible window stopped contradicting a hidden beat: %s" % why)
+
+    def test_system_chrome_still_does_not_TILE_it_either(self):
+        """The Dock plus the menu bar are two windows that between them span the screen. If the
+        union walked every layer they would now cover his console TOGETHER — the v2615
+        over-correction, re-entering through the new door."""
+        import window_visibility as wv
+        q = self._Q([self._w(406, 0, 0, 1470, 500, 24, "Window Server"),
+                     self._w(7083, 0, 500, 1470, 456, 20, "Dock"),
+                     self._console()])
+        self.assertEqual(wv.covered_by(pid=7, quartz=q)[0], [])
+        self.assertTrue(wv.contradicts_a_hidden_beat(pid=7, quartz=q)[0])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

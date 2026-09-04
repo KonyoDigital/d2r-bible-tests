@@ -579,6 +579,30 @@ THE HEART (eagle eye · watchdog · corroborator · doctor). ⚠ **Self-healing 
 he said "maybe not just yet". Build the proving and the flagging; leave the self-repair for later.
 
 ## A2 · WILSON EVERYWHERE — and make it actually mean something · 2026-08-30 09:25 + 09:30
+
+> ⚠ **RE-MEASURED 2026-09-04 — A2 IS DONE, AND THE BRIEF THAT KEEPS ASKING FOR IT IS STALE.** The
+> recurring instruction still says *"five self-arming locks sitting at n=0 UNPROVEN"*. Against
+> `self_arming.report()` today: **14 of 15 locks are OPEN with real evidence** — `printer.stream`
+> 83/83 w=0.956, `miniauto.run` 55/55 w=0.935, `prune.arm` 48/48 w=0.926, `vault.apply` 24/24,
+> `vault.sweep_start` 16/16, and the nine routes at 4-7 each. **Exactly ONE is at n=0**, and it is
+> `vault.forget`, which declares `unprovable:` in its own spec — *"the door has no refusal path by
+> design… gating it would be a cage"* — with `provable: False` published, a distinct `why`, and
+> three guards pinning that the report, the status trim AND the renderer all tell UNTESTED apart
+> from UNPROVABLE. **n=0 there is the correct and final state, not a harness anyone still owes.**
+>
+> The hardening report is honest too, which is why no work was invented: every lock names
+> `kindsWouldClose: ["cross-family", "live"]` and separates the two halves in its own sentence, so
+> `moreRefusalsNeeded: 30` cannot be misread as *"30 sabotages and it hardens"* — it closes only
+> the wilson half. What remains is a SECOND KIND of evidence for 12 locks, and that is the
+> independence question already held as **his call**, not something to build unasked.
+>
+> **CF-13 re-measured the same day and is also done.** `undeclared_reach_abilities` was correct and
+> uncalled — *a measurement computed correctly and read by nobody is the same as one never taken*.
+> `control_app.scope_reach_state()` now joins it as EVIDENCE, honours its author's verbatim ruling
+> (*"DO NOT PROMOTE THIS TO A FAILING GATE"*), publishes each row's reach so noise looks like noise,
+> and `narrow` is stated in its own comment to be a reading aid that decides nothing.
+> `test_heart_surface.py` guards that it still has a caller outside its own tests.
+
 **Topic:** ARCHITECTURE · **Progress:** 4/4 ✅ · **v2501 — `prune.arm` OPENED ITSELF**, the last lock with evidence still to gather: `48 of 48 refused · wilson 0.926 ≥ 0.839 · kinds ['cross-family','sabotage'] = 1.80 ≥ 1.80`. The second KIND came from handing `retention_may_act` COLD to a different model family and asking it to design attacks — three refused, and one LANDED: a zero-width space before a valid OFF value ARMED an unattended irreversible deleter, as did `offf`, `disabled` and `flase`, while the code's own comment said *"A typo is not permission"*. Fixed (REG-481/482); his default-on ruling pinned by its own test. ⚠ Nothing was armed — `may()` is never called anywhere, the locks are badges. ⚠ REMAINING for a later pass: nothing is HARDENED (needs a THIRD kind, confluence ≥ 2.50); `vault.forget` is UNPROVEN by construction and always will be. · v2444-v2472 banked the five valves (3 of 5 open, none by hand); v2487 added the 9 ROUTES on the same arithmetic, 48/48 under hard mode. Remaining: nothing is HARDENED — needs a second independent KIND, which is prune.arm's only gap
 
 > *"YES wilson score it .. thats why i keep saying put this system everywhere.. do a full audit
@@ -991,6 +1015,9 @@ never on a grep count.
 | # | What | Where | Fingerprint |
 |---|---|---|---|
 | **135** | Daily-pick dead branch. 3 edits + 1 spec test. ⚠ Three namespaces use `'grail'`; **only the chron-entry key may change.** | `bible.html` | ⚪ **none** — the undone-ness has no single string, so `tasks_freshness` reports it UNKNOWN every run rather than passing it silently. |
+
+⚠ **#135 MEASURED DONE 2026-09-04 — this row is stale and had started to cost the work twice, which is the exact defect the note above it describes.** The third arm is IN the page: `bible.html` `dailyCreateAi` carries `else if (_rot && _rot.incomplete && _rot.incomplete.length)` under a comment naming #135, and it is JOINED — `window._chronRotation()` returns `{all, incomplete, target, sealed}`, so `.incomplete` is really published rather than read off a shape nobody sets. The spec is `tests/v2474_daily_pick_exhausted.spec.ts`, four cases, including *"the wipe arm fires ONLY when there is genuinely nothing to name"*. ⚠ Closed on what the page ASSERTS today, never on a grep count — and `tests/v135_rich_hover_tooltips.spec.ts` is a DIFFERENT thing (v135 the version, not task #135), which is exactly the kind of near-miss that would have closed this wrongly.
+
 
 ### Landed in v2400, verified by measurement 2026-09-02
 
