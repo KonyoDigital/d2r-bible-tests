@@ -329,6 +329,26 @@ in those words.
     all 40 and every station answers, which is the diagnostic working — but nothing downstream of
     FUNNEL can route anything anywhere yet.
 
+- ✅ **THE PRUNE LOCK'S MISSING HALF IS CLOSED (REG-593, v2614) — AND ONE LINE OF THE ORIGINAL
+  ENTRY BELOW WAS WRONG.** The entry said the positive path was the next evidence needed. It was
+  right about the SWITCH and wrong about the SELECTION:
+  · **THE SWITCH — real gap, now closed.** Every axis asserted a refusal, and a stub hardwired to
+    `(False, …)` scored **identically: 48/48 either way**. A baseline now requires the guard to
+    PERMIT when every precondition is met; if it cannot, no claim reads PROVEN **and the run banks
+    nothing** (the first cut gated only the printed verdict — REG-593's second half).
+  · **THE SELECTION — ALREADY TESTED, and I said otherwise.** `test_reel_retention` has **44
+    tests**, including `test_it_selects_only_a_reel_BOTH_lanes_have_sealed_with_evidence`: four
+    reels, only the correct one chosen, every rejection carrying its reason (`0 pages`, `VAULT`,
+    `never chronicle-swept`). It has worked since v2575 fixed the fixture isolation (REG-570).
+    **"Zero of 48 test that when it says YES it deletes the RIGHT thing" was true of THIS harness
+    and not of the repo** — the proof lives in another suite, and I repeated the narrower claim as
+    if it were the wider one.
+  · **WHAT ACTUALLY REMAINS is HARDENED, and it is his:** `prune.arm` is OPEN at wilson 0.926,
+    confluence 1.80, kinds `['cross-family','sabotage']` — **0.70 short**, and `live` alone closes
+    it. Whether that third kind may be earned by running the existing axes against a live process
+    is the independence question his A2·HARD row already holds, and re-running one instrument in a
+    new hat would be manufactured confluence on the one door with no undo.
+
 - **⚠⚠ THE PRUNE LOCK HAS ONLY EVER PROVEN HALF ITS CONTRACT — measured 2026-09-04, and it is
   the better next step than anything the `live` question was about.** His question was exactly
   right: *"prune.armed? OPEN but its stick locked right? like has it proven itself to work already
