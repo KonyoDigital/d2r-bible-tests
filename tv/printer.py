@@ -345,6 +345,31 @@ def stream(reel=None):
 
     unknown = sum(1 for r in rows
                   if any(str(r["stations"][s].get("say")) == "UNKNOWN" for s in STATIONS))
+    # ⚠⚠ v2613 — "A STATION NOBODY ANSWERED" READ AS A PRINTER GAP, AND IT IS AN INPUT GAP.
+    # Measured on his shelf: all 14 UNKNOWN reels are UNKNOWN at exactly one station, TEMPLATE,
+    # and every one of them has **ZERO deep journal rows** while carrying 22-2,385 frames on disk
+    # and 7-40 SHALLOW rows. They were read, and never read DEEPLY. v2604 taught the station to
+    # say that; the SUMMARY still said only "14 reel(s) have a station nobody answered", which
+    # points at the printer. A reader acting on that sentence goes and investigates a river that
+    # is working perfectly. So the summary quotes the stations' own reasons instead of counting
+    # them. [[label-outlived-referent]]
+    _by_station, _reasons = {}, {}
+    for r in rows:
+        for st in STATIONS:
+            if str(r["stations"][st].get("say")) == "UNKNOWN":
+                _by_station[st] = _by_station.get(st, 0) + 1
+                w = str(r["stations"][st].get("why") or "").strip()
+                if w:
+                    _reasons.setdefault(st, {})
+                    _reasons[st][w] = _reasons[st].get(w, 0) + 1
+    _detail = ""
+    if _by_station:
+        _bits = []
+        for st in sorted(_by_station, key=lambda k: -_by_station[k]):
+            top = sorted((_reasons.get(st) or {}).items(), key=lambda kv: -kv[1])
+            _bits.append("%s on %d (%s)" % (st.upper(), _by_station[st],
+                                            (top[0][0][:120] if top else "no reason given")))
+        _detail = " The unanswered stations are: " + "; ".join(_bits) + "."
     state = "UNKNOWN" if not rows else ("FLOWING" if not unknown else "PARTIAL")
     return {
         "ok": bool(rows), "state": state, "rows": rows, "counts": counts,
@@ -357,7 +382,7 @@ def stream(reel=None):
                  "is the collapse v2312 withdrew. That choice is yours and it gates the prune."
                  % (len(rows), len(STATIONS),
                     ("Every station answered." if not unknown else
-                     "%d reel(s) have a station nobody answered." % unknown)
+                     ("%d reel(s) have a station nobody answered.%s" % (unknown, _detail)))
                     + (" \u26a0 %d row(s) named no reel and were dropped." % dropped
                        if dropped else "")))
                 if rows else "no reel reached the printer"),

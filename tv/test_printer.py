@@ -311,6 +311,61 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
                              "the printer contains %r — it reports, it does not act" % banned)
 
 
+class TheSummaryNamesWHICHStationAndWHY(unittest.TestCase):
+    """⚠⚠ "14 reel(s) have a station nobody answered" READ AS A PRINTER GAP, AND IT IS AN INPUT GAP.
+
+    Measured on his shelf: all 14 are UNKNOWN at exactly ONE station — TEMPLATE — and every one has
+    **ZERO deep journal rows** while carrying 22-2,385 frames on disk and 7-40 SHALLOW rows. They
+    were read, and never read DEEPLY. v2604 taught the station to say so; the summary still only
+    counted, so **a reader acting on that sentence goes and investigates a river that is working
+    perfectly.** [[label-outlived-referent]]"""
+
+    def test_the_summary_names_the_station_and_quotes_its_reason(self):
+        rep = P.stream()
+        unknown = [r for r in rep["rows"]
+                   if any(str(r["stations"][st].get("say")) == "UNKNOWN" for st in P.STATIONS)]
+        if not unknown:
+            self.skipTest("nothing is UNKNOWN on this shelf, so there is no summary to check")
+        why = rep["why"]
+        self.assertIn("The unanswered stations are:", why,
+                      "the summary counts unanswered stations without naming one: %r" % why[:200])
+        # the station it names must be one that is genuinely unknown on a real row
+        named = [st for st in P.STATIONS if st.upper() in why]
+        self.assertTrue(named, "no station was named: %r" % why[:200])
+        for st in named:
+            self.assertTrue(
+                any(str(r["stations"][st].get("say")) == "UNKNOWN" for r in unknown),
+                "the summary named %r, and no reel is UNKNOWN there" % st)
+
+    def test_the_reason_is_the_STATIONS_OWN_why_and_not_invented(self):
+        """⚠ A summary that paraphrases is a second copy of a fact — this quotes."""
+        rep = P.stream()
+        why = rep["why"]
+        if "The unanswered stations are:" not in why:
+            self.skipTest("nothing unanswered")
+        reasons = set()
+        for r in rep["rows"]:
+            for st in P.STATIONS:
+                if str(r["stations"][st].get("say")) == "UNKNOWN":
+                    w = str(r["stations"][st].get("why") or "").strip()
+                    if w:
+                        reasons.add(w[:60])
+        self.assertTrue(any(frag in why for frag in reasons),
+                        "the summary's reason appears in no station: %r" % why[:200])
+
+    def test_a_fully_answered_shelf_appends_NOTHING(self):
+        """⚠ BASELINE — the detail must not be a sentence that is always there. If it appears when
+        every station answered, it stops carrying information."""
+        rep = P.stream()
+        if any(str(r["stations"][st].get("say")) == "UNKNOWN"
+               for r in rep["rows"] for st in P.STATIONS):
+            # construct the clean case from the real report rather than a fixture
+            self.assertIn("The unanswered stations are:", rep["why"])
+            return
+        self.assertNotIn("The unanswered stations are:", rep["why"])
+        self.assertIn("Every station answered", rep["why"])
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

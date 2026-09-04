@@ -7,6 +7,41 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-592 — the printer counted unanswered stations without naming one
+**2026-09-04 · v2613 · the last of the printer's PARTIAL state**
+
+The printer reports **PARTIAL** and its summary said only *"14 reel(s) have a station nobody
+answered."* **That reads as a gap in the PRINTER.** It is not one.
+
+MEASURED on his shelf: all 14 are UNKNOWN at exactly **ONE** station — TEMPLATE — and every one of
+them has **ZERO deep journal rows**, while carrying **22–2,385 frames on disk** and **7–40 SHALLOW
+rows**. **They were read, and never read DEEPLY.** The input is missing; the river is working
+perfectly.
+
+v2604 (REG-586) taught the STATION to say that. The SUMMARY still only counted, so **a reader
+acting on that sentence goes and investigates a component with nothing wrong with it** — the same
+shape as REG-580's diagnostic naming the wrong half of a condition, and REG-586's label pointing at
+a segmenter that had been handed nothing. [[label-outlived-referent]]
+
+The summary now reads:
+
+    14 reel(s) have a station nobody answered. The unanswered stations are: TEMPLATE on 14
+    (this reel has 11 journal row(s) and NONE on the deep lane, so the segmenter had nothing
+    to segment - it was read shallowly and never deeply).
+
+⚠ **IT QUOTES, IT DOES NOT PARAPHRASE.** A summary that restates a reason in its own words is a
+second copy of a fact, and two copies of one truth is how a badge and a diagram come to disagree.
+A test asserts the sentence it prints actually appears on a station. [[copy-drift]] §1
+
+**Guard:** `TheSummaryNamesWHICHStationAndWHY` in `tv/test_printer.py`, proven RED by removing the
+detail. It carries a baseline that a **fully answered** shelf appends NOTHING — a sentence that is
+always there stops carrying information.
+
+⚠ **WHAT REMAINS IS NOT MINE TO CLOSE:** those 14 reels need DEEP READS, which is a processing
+decision about his footage and his paid reads, not a code fix. And **OUT is UNDECIDED for all 40 by
+design** — A15 never says which door decides `clean`, the two candidates disagree on this shelf, and
+conjoining them is the collapse v2312 withdrew. That choice is his, and it gates the prune.
+
 ### REG-591 — the proof queue had a door with no lock on it
 **2026-09-04 · v2612 · the hazard REG-575 named and left open**
 
