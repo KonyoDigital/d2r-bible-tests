@@ -154,6 +154,16 @@ in those words.
   Restored byte-identical, my tests moved to `test_pixel_witness.py`, both registered and green.
   **Rule: a new file is not new until the path is checked** — one `ls` would have caught it.
 
+- ✅ **A11 — THE HEART'S "8 DARK" WAS REALLY 2 (REG-589 v2610, REG-590 v2611).** Every DARK row said
+  the same thing; measured, **SIX of the eight ARE the supervisors** (`_bridge_prober`,
+  `_console_beacon_loop`, `_console_rescue_loop`, `_mini_watchdog`, `_orphan_exit_loop`,
+  `_orphan_watch`). Only `_engine_driver` and `_kai_closer_loop` are ordinary work nobody watches.
+  *Nothing watches the watchman* is structural and needs a different mechanism — reported as eight
+  identical gaps, six would send a reader to build the wrong thing. Then **his A1 ruling decided the
+  remaining two**: `_kai_closer_loop` leaves 3,873 dated rows, so **nothing was built**;
+  `_engine_driver` published a bare boolean that freezes True if the driver dies, so it got
+  `engineAliveAgeMs` — a stamp, not a heartbeat.
+
 - **⚠⚠ AT NARROW WIDTH THE MAIN COLUMN WAS UNREACHABLE (REG-588, fixed v2608).** At 375/640px with
   `data-state="off"`, `#home-dash` was **height 0 holding 591px** — chronicle, TZ tracker and
   missions laid out, rendered and unreachable, with `html`/`body` both `overflow:hidden` and zero
