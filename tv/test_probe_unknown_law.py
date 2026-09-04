@@ -206,6 +206,39 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
                           "%s has no own-source case and is not named in OWN_SOURCE_UNTESTED, so "
                           "nobody can tell whether this law reaches it" % name)
 
+    def test_OK_means_the_same_thing_in_every_probe(self):
+        """⚠⚠ REG-556, from the cold look at v2554. `dead_field.state()` returned `ok: True` while
+        its state was UNKNOWN; `one_start_point` and `per_reel_routes` return `ok: False` for
+        exactly that state. **A consumer branching on `ok` got opposite answers from probes meant
+        to be uniform** — the copy-drift defect applied to a MEANING rather than a filename, which
+        no filename check could ever have caught.
+
+        The rule, once: `ok` is False when nothing was established. Asked of every probe that
+        publishes one, in both directions — UNKNOWN must be `ok: False`, and a real verdict must
+        be `ok: True`, or the field would just be a second name for the state.
+        """
+        for name, ask in PROBES:
+            r = ask()
+            if "ok" not in r:
+                continue
+            st = r.get("state") or r.get("ladder")
+            if st != "UNKNOWN":
+                continue
+            self.assertIs(r["ok"], False,
+                          "%s says ok=%r while nothing was established. Its siblings say False, "
+                          "and a consumer branching on `ok` gets opposite answers from probes that "
+                          "are meant to be uniform." % (name, r["ok"]))
+        for name, ask in FULL:
+            r = ask()
+            if "ok" not in r:
+                continue
+            st = r.get("state") or r.get("ladder")
+            if st == "UNKNOWN":
+                continue
+            self.assertIs(r["ok"], True,
+                          "%s reached the verdict %r and still says ok=%r, so `ok` is not "
+                          "reporting whether anything was established" % (name, st, r["ok"]))
+
     def test_every_IN_MEMORY_exemption_is_real(self):
         """⚠ An exemption is a hole in a law, so it has to be checkable. Each name in IN_MEMORY
         must actually be in FULL (or it is a stale entry silently exempting nothing) and must NOT

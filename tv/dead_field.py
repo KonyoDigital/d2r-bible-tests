@@ -142,8 +142,12 @@ def _is_filled(v):
         return True                      # a number is a value, including 0 / 0.0 / False
     try:
         return len(v) > 0                # str, list, dict, tuple, set — empty means nothing recorded
-    except TypeError:
-        return True                      # anything with no length is an object, and objects are values
+    except Exception:
+        # ⚠ `except TypeError` was too narrow: an object whose __len__ raises anything else took
+        # the whole reading down. Not reachable from a JSON store, where every value is a JSON
+        # type — kept because this is a helper and a detector must not crash on the shape of its
+        # input, which is the class REG-544 was.
+        return True                      # anything with no usable length is an object, and objects are values
 
 
 def dead_fields(rows, min_rows=MIN_ROWS):
@@ -260,7 +264,18 @@ def state():
     if unknown and total_dead:
         why += (" \u26a0 and nothing was established for %d other store(s) (%s)"
                 % (len(unknown), ", ".join(unknown)))
-    return {"ok": True, "state": worst, "stores": stores, "dead": total_dead, "why": why}
+    # ⚠⚠ REG-556 — `ok` MEANT DIFFERENT THINGS IN SIBLING PROBES. This returned `ok: True` while
+    # its state was UNKNOWN, and `one_start_point` / `per_reel_routes` return `ok: False` for
+    # exactly that state. A consumer branching on `ok` got opposite answers from probes that are
+    # meant to be uniform — the copy-drift defect applied to a MEANING rather than a filename.
+    # Here, as there, `ok` is False when nothing was established.
+    #
+    # ⚠ AND THE UNKNOWN COUNT TRAVELS AS A NUMBER, NOT ONLY AS PROSE. With one store DEAD and one
+    # UNKNOWN, `state` is DEAD_FIELDS — deliberately, because a real finding must not be hidden
+    # behind an unreadable store — so the unknown ones were visible only in the `why`. A consumer
+    # cannot branch on a sentence.
+    return {"ok": worst != "UNKNOWN", "state": worst, "stores": stores, "dead": total_dead,
+            "unknownStores": len(unknown), "why": why}
 
 
 def main(argv):

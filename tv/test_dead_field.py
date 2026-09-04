@@ -141,8 +141,18 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
             self.assertIsNone(got, "a raising resolver still yielded a path: %r" % (got,))
             self.assertIn("boom", why, "the reason drops the error: %r" % why)
             r = DF.state()
-            self.assertTrue(r["ok"], "a raising resolver took the whole reading down: %s" % r)
+            # ⚠⚠ THIS ASSERTED `ok is True` AND THAT WAS A PROXY, NOT THE INTENT. The test's name
+            # says *not a crash*, and it used `ok` to mean "the reading survived" — but REG-556
+            # made `ok` mean *something was established*, which for a raising resolver is exactly
+            # False. The proxy and the meaning had drifted apart, and only changing `ok` revealed
+            # it. The intent is asserted directly now: a reading came back, it is a dict, and it
+            # says UNKNOWN. [[feedback-verify-not-proxy]]
+            self.assertIsInstance(r, dict,
+                                  "a raising resolver took the whole reading down: %r" % (r,))
             self.assertEqual(r["state"], "UNKNOWN", r)
+            self.assertIs(r["ok"], False,
+                          "nothing was established and `ok` still says True — its siblings say "
+                          "False for this state: %s" % r)
         finally:
             RR._tombstone_path = real
 

@@ -18392,3 +18392,38 @@ reading its broken source feeds.
 the cross-probe law); removing a name from `OWN_SOURCE_UNTESTED` without adding its case; and
 treating every rung as unreadable, which makes UNRECORDED unreachable and fires the baseline.
 
+## v2555 — `ok` meant two different things in sibling probes
+
+**REG-556 — the cold look at v2554. Three taken, one refuted.**
+
+⚠⚠ **`dead_field.state()` returned `ok: True` while its state was UNKNOWN.** Its siblings
+`one_start_point` and `per_reel_routes` return `ok: False` for exactly that state. **A consumer
+branching on `ok` got opposite answers from probes that are meant to be uniform.** This is the
+copy-drift defect applied to a **MEANING** rather than a filename — and **no filename or path check
+could ever have caught it**, because nothing was duplicated. Two modules simply decided the same
+word meant different things.
+
+The rule, once: **`ok` is False when nothing was established.** It is now a law across every probe,
+asserted in BOTH directions — UNKNOWN must be `ok: False`, and a real verdict must be `ok: True`,
+or the field is just a second name for the state.
+
+⚠ **TAKEN PARTLY:** with one store DEAD and one UNKNOWN, `worst` is DEAD_FIELDS and the UNKNOWN was
+visible only in prose. **The precedence is KEPT deliberately** — a real finding must not hide behind
+an unreadable store — but `unknownStores` travels as a number now, because *a consumer cannot branch
+on a sentence*.
+
+⚠ **TAKEN DEFENSIVELY:** `except TypeError` was too narrow. Not reachable from a JSON store, widened
+anyway, because a detector must not crash on the shape of its input.
+
+⚠⚠ **REFUTED:** it claimed `if why and rows is None` can drop a real reason. Measured across all
+five of `_rows_of`'s return paths — a non-empty `why` comes back **only** with `None` rows.
+Unreachable.
+
+⚠ **AND CHANGING `ok` EXPOSED A STALE PROXY IN MY OWN SUITE.** A test named *…is UNKNOWN, not a
+crash* asserted `ok is True` to mean *the reading survived*. Once `ok` meant *something was
+established*, the proxy and the intent had drifted apart — and **only changing `ok` revealed it.**
+The test asserts the intent directly now: a reading came back, it is a dict, it says UNKNOWN.
+[[feedback-verify-not-proxy]]
+
+**2 sabotages, 2 RED, in both directions:** `ok: True` while UNKNOWN; `ok: False` on a real verdict.
+
