@@ -10918,16 +10918,33 @@ window._lockMark = function(isOpen, px, label){
         : (L.provable === false
              ? 'by design · no refusal path to sabotage'
              : 'no sabotage attempted yet · needs ' + _bar.toFixed(3));
-      var arith2 = (n_ && n_ > 0 && _kindsShort)
-        ? ('one kind of look only · ' + _conf.toFixed(2) + ' of ' + _kbar.toFixed(2))
-        : '';
+      /* ⚠⚠ v2619 — AN INCOMPLETE LOCK MUST NOT PRINT AN OPEN LOCK'S ARITHMETIC.
+         `miniauto.run` reports INCOMPLETE because one claim its own harness declared was never
+         exercised — and this line still read "55/55 refused · 0.935 ≥ 0.510", the identical
+         sentence a proven lock shows, sitting next to a shut padlock. A right number under a
+         label that stopped being true, which is the defect he has caught more than any other.
+         The number is not wrong; it is about the OTHER claims, and it has to say so.
+         [[label-outlived-referent]] [[unknown-stays-unknown]] */
+      var _blind = (L.blindClaims && L.blindClaims.length) ? L.blindClaims : null;
+      if (_blind) {
+        arith = L.k + '/' + n_ + ' on the claims that RAN · '
+              + _blind.length + ' never ran (' + _blind.join(', ') + ')';
+      }
+      var arith2 = _blind
+        ? 'the score above cannot see that axis at all'
+        : ((n_ && n_ > 0 && _kindsShort)
+             ? ('one kind of look only · ' + _conf.toFixed(2) + ' of ' + _kbar.toFixed(2))
+             : '');
       var waiting = open ? 'OPEN — it proved itself'
+                    : (_blind
+                         ? ('INCOMPLETE — ' + _blind.length + ' claim(s) this harness declared '
+                            + 'were never exercised, so the score never saw that axis')
                     : (L.provable === false
                          ? 'LOCKED — and it can never prove itself: there is nothing to sabotage'
                     : (!n_ ? 'LOCKED — waiting for a first sabotage'
                     : (_scoreClears && _kindsShort
                          ? 'LOCKED — the score clears; it is waiting for a DIFFERENT kind of look'
-                         : 'LOCKED — waiting on its own score')));
+                         : 'LOCKED — waiting on its own score'))));
       gates += '<path d="' + gp + '" fill="none" stroke="' + lc + '" stroke-width="'
              + (open ? 2.4 : 1.8) + '" opacity="' + (open ? .95 : .8) + '"'
              + (open ? '' : ' stroke-dasharray="6 5" stroke-linecap="round"') + '/>';

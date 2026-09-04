@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2619",
+  "ver": "v2620",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2619: REG-601 - miniauto.run read OPEN over a feature that does not work, because the one probe testing it banked zero attempts and zero cannot move a Wilson bound. A declared claim that could not run now reports INCOMPLETE.",
+  "note": "v2620: REG-603 - INCOMPLETE drew a shut padlock and printed an OPEN lock arithmetic beside it, because blindClaims died in the status trim. Third time that joint has been the missing one.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

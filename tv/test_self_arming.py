@@ -429,7 +429,14 @@ class AnUnprovableLockSaysSoAndTheClaimIsCHECKED(unittest.TestCase):
             for k in d.keys:
                 if isinstance(k, ast.Constant) and isinstance(k.value, str):
                     keys.add(k.value)
-        for need in ("state", "why", "provable", "n"):
+        # ⚠⚠ `blindClaims` ADDED v2619, AND IT IS THE THIRD FIELD THIS TRIM HAS SWALLOWED.
+        # score() computed it, the state read INCOMPLETE and the badge drew shut — while the
+        # arithmetic beside it still printed "55/55 refused · 0.935 >= 0.510", an OPEN lock's
+        # sentence, because the field died in the trim exactly as `provable` had. Three times is
+        # the shape, not the instance: anything score() publishes for the panel has to be listed
+        # here or the panel renders a correct verdict under a stale number.
+        # [[the-unjoined-end]] [[label-outlived-referent]]
+        for need in ("state", "why", "provable", "n", "blindClaims"):
             self.assertIn(need, keys,
                           "the status trim drops %r, so the console cannot render it however "
                           "correct self_arming.report() is" % need)

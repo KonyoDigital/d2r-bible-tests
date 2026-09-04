@@ -15560,6 +15560,13 @@ def _self_arming_state():
                    # about the score, and it printed "0.916 < 0.839", which is false arithmetic
                    # on his screen under a correct verdict.
                    "confluence": l.get("confluence"), "kindsBar": l.get("kindsBar"),
+                   # ⚠⚠ AND WHICH CLAIMS NEVER RAN — the third time this exact trim has been the
+                   # missing joint. `score()` computed `blindClaims`, the state read INCOMPLETE,
+                   # the badge drew shut — and the arithmetic beside it still said "55/55 refused ·
+                   # 0.935 ≥ 0.510", an OPEN lock's sentence, because the field died HERE. Built on
+                   # both ends, joined on neither, exactly as `provable` was.
+                   # [[the-unjoined-end]] [[label-outlived-referent]]
+                   "blindClaims": l.get("blindClaims"),
                    "k": l.get("k"), "n": l.get("n")} for l in locks],
     }
 
@@ -22705,7 +22712,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2619",
+        "ver": "v2620",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

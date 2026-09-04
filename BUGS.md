@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-603 — INCOMPLETE drew a shut padlock and printed an OPEN lock's arithmetic beside it
+
+**v2620.** REG-601 made `miniauto.run` report INCOMPLETE and the badge drew shut — and the label
+next to it still read **`55/55 refused · 0.935 ≥ 0.510`**, the identical sentence a proven lock
+shows. A correct verdict with a stale number under it, which is the defect he has caught more often
+than any other. The number is not wrong; it is about the OTHER claims, and it had to say so.
+
+⚠⚠ **AND THE FIELD DIED IN THE STATUS TRIM — THE THIRD TIME THAT JOINT HAS BEEN THE MISSING ONE.**
+`score()` computed `blindClaims`, the state read INCOMPLETE, the badge drew shut, and the renderer's
+new branch never fired because `control_app`'s lock trim did not carry the field. Built on both
+ends, joined on neither — exactly what happened to `provable` before it. The guard that already
+asserts the trim carries `state/why/provable/n` now asserts `blindClaims` too, because three times
+is the shape and not the instance. [[the-unjoined-end]] [[label-outlived-referent]]
+
+**It now reads:** `55/55 on the claims that RAN · 1 never ran (anchor)` with a second line, *"the
+score above cannot see that axis at all"*, and the tooltip says which claims were never exercised.
+
+⚠ **FOUND BY THE SECOND EYE, INDIRECTLY, WHICH IS THE POINT OF HAVING ONE.** A cold cross-family
+look reported the ratio as *"36/55"* and a score as *"0.662 ≥ 0.722"*. Both were **its own OCR
+misreads** — the DOM carries 55/55 and 0.862, measured — but checking them is what surfaced that the
+line beside a shut padlock was still an OPEN lock's sentence. A wrong finding that leads to a real
+one still earned its place. [[feedback-contradiction-is-the-finding]]
+
 ### REG-602 — "EXTRACT is unreachable for all 40, and that is a capture change" was one label over four different blockers
 
 **Measured 2026-09-04, correcting a claim I had published on his board.** His question produced it:
