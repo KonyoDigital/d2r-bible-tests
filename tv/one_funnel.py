@@ -79,9 +79,23 @@ def _store_of(rung):
     return str(name), ""
 
 
-#: Kept as a plain name->filename view for readers and for the guard that pins it against the
-#: owning modules. Built once, from the constants, never typed out a second time.
-WAYPOINTS = {rung: _store_of(rung)[0] for rung in WAYPOINT_SOURCES}
+def waypoints():
+    """The live rung -> store-filename view. -> dict
+
+    ⚠⚠ REG-537 — THIS WAS A FROZEN DICT, AND IT RE-CREATED THE DEFECT REG-534 HAD JUST FIXED, ONE
+    LINE BELOW THE FIX. It read `WAYPOINTS = {rung: _store_of(rung)[0] for rung in ...}`, evaluated
+    ONCE at import, so the moment an owner renamed its store the snapshot disagreed with the
+    resolver three lines above it. Reproduced:
+
+        _store_of('triaged')  -> retro_triage_RENAMED.json    (follows the owner)
+        WAYPOINTS['triaged']  -> retro_triage.json            (frozen at import — STALE)
+
+    ⚠ And its own comment claimed it existed "for readers and for the guard that pins it against
+    the owning modules" — a grep found **no reader anywhere**, and the guard pins `_store_of`, not
+    this. A stale copy maintained for a consumer that does not exist. [[plumbing-with-no-tap]]
+    [[copy-drift]] §1. A function cannot go stale, so it is one.
+    """
+    return {rung: _store_of(rung)[0] for rung in WAYPOINT_SOURCES}
 
 
 def _ladder():

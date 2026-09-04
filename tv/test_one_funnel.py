@@ -122,6 +122,27 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
             "the funnel names a different seal store than frame_authority declares — same defect, "
             "other rung.")
 
+    def test_the_waypoint_VIEW_cannot_go_stale_behind_the_resolver(self):
+        """⚠⚠ REG-537. The fix for REG-534 re-created the defect ONE LINE BELOW ITSELF: a frozen
+        `WAYPOINTS = {rung: _store_of(rung)[0] ...}` evaluated once at import, so the moment an
+        owner renamed its store the snapshot disagreed with the resolver three lines above it.
+        Reproduced — `_store_of('triaged')` followed the rename, `WAYPOINTS['triaged']` did not.
+        And its own comment claimed a reader and a guard that a grep found do not exist.
+        [[plumbing-with-no-tap]] A view that is a function cannot go stale.
+        """
+        import retro_triage as RT
+        real = RT.STORE
+        try:
+            RT.STORE = "retro_triage_RENAMED.json"
+            self.assertEqual(
+                OF.waypoints()["triaged"], "retro_triage_RENAMED.json",
+                "the waypoint view did not follow the owner's rename, so it is a snapshot again "
+                "and will disagree with _store_of the moment anything moves")
+        finally:
+            RT.STORE = real
+        self.assertEqual(OF.waypoints()["triaged"], RT.STORE,
+                         "and it does not agree with the owner once restored either")
+
     def test_a_renamed_store_is_named_UNKNOWN_not_guessed(self):
         """⚠ BASELINE: the resolver must actually be able to fail, or the equality above is two
         constants agreeing with themselves."""

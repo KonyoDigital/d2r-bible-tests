@@ -436,6 +436,54 @@ TARGETS = {
     # ⚠ IT MUST BE SERVED. Under file:// the fleet is a fetch to /api/fleet that cannot resolve, so
     # the drawer renders its "unreachable" branch and a target would refuse on every run — the
     # exact mistake the note above says a `tvd` target already made and got deleted for.
+    # ══ v2539 — ♥ THE HEART, ON PIXELS. Konyo, 2026-09-04: "connect it to the heart of the
+    # console that way we would have caught it". A reading joined to the heart payload and never
+    # photographed is half a join: `deadFields` can be perfect in /api/heart and render as nothing
+    # at all, which is exactly how a section comes to exist only in the backend. This panel has had
+    # sections added to it for twenty versions with no target watching any of them.
+    #
+    # ⚠ IT MUST BE SERVED. _heartOpen() fetches /api/heart; under file:// that cannot resolve and
+    # the panel paints its unreachable branch, so a file:// target would refuse on every run — the
+    # mistake the `tvd` target already made and got deleted for, recorded above.
+    "heart": {
+        "serve": True,
+        "why": "♥ THE HEART — the panel that says which vessels are alive, which valves are open, "
+               "which promises a lane can still break, and (v2539) which recorded fields have "
+               "NEVER once been filled. Every one of those is a reading somebody acts on, and "
+               "until now not one of them was photographed",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* ⚠ CLICK THE CHIP, DO NOT CALL _heartOpen() BY NAME. It is exported on window here,
+               but the state-panel target's own note records a first cut that called closure-local
+               functions and got `undefined` while the panel was perfectly openable. Drive it the
+               way he does. */
+            var ov = document.getElementById('heart-ov');
+            if (!ov) return false;
+            /* ⚠⚠ CLICK ONLY WHILE IT IS SHUT, AND THE FIRST CUT DID NOT. The harness polls this
+               expression every 0.4s for 12s; _heartOpen() paints a "taking the census…"
+               placeholder, then fetches /api/heart (measured 4.5s) and replaces the panel. A cut
+               that clicked unconditionally re-opened it on the very next poll after it finished,
+               wiping the populated panel back to the placeholder — so the activate could NEVER
+               observe the state it was waiting for, and refused for 12s on a panel that came up
+               correctly every time. The instrument was the defect, not the surface. */
+            if (ov.hidden) {
+                var c = document.getElementById('heart-chip');
+                if (!c) return false;
+                c.click();
+                return false;                 /* let the poll come back once the fetch lands */
+            }
+            /* PROVE IT FROM THE RECT AND FROM THE CONTENT. An overlay with a frame and no
+               sections is the empty-box defect an author cannot see, and it would photograph as a
+               clean pass. */
+            var r = ov.getBoundingClientRect();
+            var secs = ov.querySelectorAll('.hrt-h').length;
+            return !!(r.width > 2 && r.height > 2 && secs >= 4
+                      && getComputedStyle(ov).display !== 'none'); })()""",
+        "sel": "#heart-ov .hrt-h, #heart-ov .hrt-row",
+        "settles": False,
+        "warmup": 10.0,     # /api/heart re-derives the census and the proof ledger on every open
+    },
+
     "advanced": {
         "serve": True,
         "why": "the ⚙ ADVANCED drawer — the EYES switch, the shadow reader and THE FLEET. It sits "

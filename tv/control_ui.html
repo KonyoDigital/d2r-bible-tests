@@ -10904,6 +10904,32 @@ body[data-origin="shadow"] #stage::after {
     return h + '</div>';
   }
 
+  /* ⚠⚠ A FIELD RECORDED ON EVERY ROW AND FILLED ON NONE. His instruction, 2026-09-04:
+     "connect it to the heart of the console that way we would have caught it".
+     `_tombstone` recorded every deleted reel's `startedTs` from two keys NO REEL INDEX HAS EVER
+     CARRIED, and wrote null 410 times out of 410 — on the ONE door with no undo — while nothing
+     anywhere said so. It was found by READING A LINE, which is a detector that fires once against
+     a field that had been dead for 410 deletions. The console asks on every heart read now.
+     Reports, refuses nothing — a field can be legitimately null for a long time. */
+  function _hrtDead(d){
+    if (!d) return '';
+    var st = (d.stores || []);
+    if (!st.length) return '';
+    var h = '<div class="hrt-sec"><div class="hrt-h">Fields recorded but never once filled · '
+          + (d.dead || 0) + ' · evidence, not a verdict</div>';
+    for (var i = 0; i < st.length; i++){
+      var s = st[i];
+      var cls = s.state === 'DEAD_FIELDS' ? 'st-DARK'
+              : (s.state === 'UNKNOWN' ? 'st-UNKNOWN' : 'st-FLOWING');
+      var lbl = s.state === 'DEAD_FIELDS' ? ((s.dead || []).join(' · ') || 'DEAD')
+              : (s.state === 'UNKNOWN' ? 'UNKNOWN' : 'all filled');
+      h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(s.store) + '</span>'
+        + '<span class="hrt-s ' + cls + '">' + _hrtEsc(lbl) + '</span>'
+        + '<span class="hrt-w">' + _hrtEsc(s.why || '') + '</span></div>';
+    }
+    return h + '</div>';
+  }
+
   /* A21c — THE CHRONICLE ROUTES, drawn as the chain a name actually travels. His ask, verbatim:
      "the chronicles routes should also be there.. the sets and the uniques espeically.. reverse
      engineered like the routes and lanes here also for accuracy going forward".
@@ -11147,6 +11173,7 @@ body[data-origin="shadow"] #stage::after {
          [[the-unjoined-end]] */
       + _hrtChron(d.rosters, 'The roster routes', ' in the chronicle')
       + _hrtReach(d.reach)
+      + _hrtDead(d.deadFields)
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
       + (d.total || lk.length) + ' open</div>' + lrows + '</div>'
       /* v2489 — THE ROUTES, DERIVED LIVE ON EVERY OPEN, LIKE EVERYTHING ELSE ON THIS PANEL.

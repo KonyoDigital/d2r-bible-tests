@@ -17719,3 +17719,75 @@ that way — `_CHRON_AUTOREAD` 44 times, `_UI_BEAT` 35, `_CHRON_JOB` 13, `_VAULT
 others. This fixes the one that was load-bearing and **does not claim the other 20 are clean** —
 they have not been audited, and saying otherwise would be the whitewash half of the same defect.
 
+## v2538 — the fix for REG-534 re-created the defect one line below itself
+
+**REG-537 — found by the review-after-ship pass on the pushed v2534–v2537 bytes.** REG-534 replaced
+two hardcoded store filenames with `_store_of()`, which asks the owning module. The very next line
+then wrote:
+
+```python
+WAYPOINTS = {rung: _store_of(rung)[0] for rung in WAYPOINT_SOURCES}
+```
+
+Evaluated **once, at import**. Reproduced:
+
+```
+_store_of('triaged')  -> retro_triage_RENAMED.json    (follows the owner)
+WAYPOINTS['triaged']  -> retro_triage.json            (frozen at import — STALE)
+```
+
+⚠ And its own comment claimed it existed *"for readers and for the guard that pins it against the
+owning modules"* — a grep found **no reader anywhere**, and the guard pins `_store_of`, not this. A
+stale copy maintained for a consumer that does not exist. [[plumbing-with-no-tap]] [[copy-drift]] §1.
+
+**Fixed:** it is a function, `waypoints()`. A function cannot go stale. **Seen RED:** restore the
+frozen snapshot and the guard fires — `'retro_triage.json' != 'retro_triage_RENAMED.json'`.
+
+## v2539 — a field dead for 410 deletions, and the console now the one that notices
+
+**His instruction, 2026-09-04:** *"connect it to the heart of the console that way we would have
+caught it"*.
+
+**REG-538 — `startedTs` was read from two keys no reel index has ever carried.**
+`reel_retention._tombstone` wrote `rec["startedTs"] = ix.get("startedTs") or ix.get("ts") or None`.
+**Measured: 0 of 40 indexes carry `startedTs`, 0 carry `ts`** — so it wrote `None` **410 times out
+of 410**, on the one door with no undo. The tombstone recorded WHAT was deleted and WHEN, and never
+**how old the footage was** — the question you would actually ask after a bad prune.
+
+**Fixed** with `_filmed_ts()`, which asks two sources that exist and both cover **40 of 40**: the
+frame names the recorder stamps as `f_<epoch-ms>.jpg` (the same pair `reconstruct_index` rebuilds a
+lost index from, so it survives a missing index), then the index's own frame rows. The EARLIEST
+stamp, because the question is when the reel began. `None` when neither answers — a guessed age on a
+deletion record is worse than an absent one.
+
+**AND THE HALF HE ASKED FOR: `tv/dead_field.py`, joined to the heart.** The rule is narrow — *a
+field present on every row and carrying a value on none of them is not a field, it is a typo with a
+comma after it*. It **catches the defect on his real store**: `reel_tombstones`, 410 rows,
+`startedTs` filled on 0. ⚠ The 30-row floor is the design: under it the answer is UNKNOWN, not
+clean, because a zero over rows that cannot disagree measures the sample. ⚠ A sometimes-null field
+is never reported (`focus` is legitimately null), and ONE filled row clears the store. It reports
+and refuses nothing, exactly like CF-13's reach rows. **4 sabotages, 4 RED.**
+
+**AND THE HEART IS ON PIXELS NOW — `render_check.py` target `heart`.** A reading joined to the
+payload and never photographed is half a join: `deadFields` can be perfect in `/api/heart` and
+render as nothing. Sections have been added to that panel for twenty versions with **no target
+watching any of them**. Green at 1440/1120/901/375/1120x628 — 59/59 painted, 0 clipped, 0 covered.
+
+⚠ **THE TARGET'S FIRST CUT WAS THE INSTRUMENT'S OWN DEFECT.** Its activate clicked the chip on
+every poll; `_heartOpen` paints a placeholder then fetches `/api/heart` (measured **4.5s**), so a
+poll landing after the fetch re-opened the panel and wiped it back to the placeholder. The activate
+could **never** observe the state it was waiting for, and refused for 12s on a panel that came up
+correctly every time. It clicks only while the overlay is shut now.
+
+**REG-539 — NAMED, NOT FIXED, AND NOT GUESSED AT.** The photograph shows a band between the panel
+header and the prose. **Measured on the PNG rather than judged by eye: y=150→270 is 120px where
+`min == max == 17`** — a perfectly flat, zero-ink region, not faint content. That is where the
+heart's legend and its perfusion diagram belong, and the prose one line below describes it (*"in the
+same proportions the counts above print"*). ⚠⚠ **A COLD CROSS-FAMILY LOOK DISAGREED** — asked to
+describe the image with no hint, it answered *"no meaningfully empty region exists… the body text
+begins immediately below it with normal spacing"*. **The contradiction is the finding, and the
+measurement settles it against the second eye.** ⚠ `_hrtSvg` returns **20,081 characters** of real
+markup when run against the live payload, so the generator works and the paint does not. The cause
+is NOT established, and it is recorded as UNMEASURED rather than diagnosed. It was invisible because
+no render target covered that panel until this version.
+

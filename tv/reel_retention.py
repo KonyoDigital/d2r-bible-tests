@@ -543,6 +543,41 @@ def _tombstone_path(hist=None):
 TOMBSTONE_PATH = _tombstone_path()   # back-compat for readers; the writers call the function
 
 
+def _filmed_ts(reel_dir, ix=None):
+    """When was this reel FILMED? -> int ms, or None if nothing can say.
+
+    Two sources, both measured at 40 of 40 on his shelf, asked cheapest-first:
+      1. the frame NAMES — the recorder stamps every frame `f_<epoch-ms>.jpg`, which is the same
+         pair `reconstruct_index` rebuilds a lost index from, so it survives a missing index;
+      2. the index's own frame rows, whose `ts` is that stamp already parsed.
+
+    ⚠ The EARLIEST stamp, not the latest: the question is when the reel began, and a reel is
+    written over minutes. And None when neither answers — a guessed age on a deletion record is
+    worse than an absent one. [[unknown-stays-unknown]]
+    """
+    best = None
+    try:
+        for f in os.listdir(reel_dir):
+            if not (f.startswith("f_") and f.endswith(".jpg")):
+                continue
+            try:
+                v = int(f[2:-4])
+            except Exception:
+                continue
+            if v > 1e12 and (best is None or v < best):
+                best = v
+    except Exception:
+        pass
+    if best is not None:
+        return best
+    for row in ((ix or {}).get("frames") or []):
+        if isinstance(row, dict) and isinstance(row.get("ts"), (int, float)) and row["ts"] > 1e12:
+            v = int(row["ts"])
+            if best is None or v < best:
+                best = v
+    return best
+
+
 def _tombstone(hist, cands):
     """Write down what a reel WAS before its frames go.
 
@@ -572,9 +607,18 @@ def _tombstone(hist, cands):
             with open(os.path.join(d, "index.json"), encoding="utf-8") as fh:
                 ix = json.load(fh) or {}
             rec["focus"] = ix.get("focus") or None
-            rec["startedTs"] = ix.get("startedTs") or ix.get("ts") or None
+            # ⚠⚠ REG-538 — THIS READ TWO KEYS NO INDEX HAS EVER CARRIED, and wrote None 410 times
+            # out of 410. Measured on his shelf: 0 of 40 indexes carry `startedTs`, 0 carry `ts`.
+            # So the one door with no undo recorded WHAT it deleted and WHEN it deleted it, and
+            # never HOW OLD THE FOOTAGE WAS — the question you would actually ask after a bad
+            # prune. Both real sources exist and both cover 40 of 40: the frame names, which the
+            # recorder stamps as f_<epoch-ms>.jpg, and the index's own frame rows. Ask them, in
+            # that order, and keep None only when neither can answer. [[unknown-stays-unknown]]
+            rec["startedTs"] = (ix.get("startedTs") or ix.get("ts")
+                                or _filmed_ts(d, ix) or None)
         except Exception:
             rec["focus"] = None
+            rec["startedTs"] = _filmed_ts(d, None) or None
         rows.append(rec)
     try:
         old = _load(_tombstone_path(hist))

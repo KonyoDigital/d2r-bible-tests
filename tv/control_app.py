@@ -15422,6 +15422,13 @@ def heart_state(force=False):
         # read by nobody; its only callers repo-wide were its own tests. It fails nothing and is
         # rendered with every reach count visible so the noise reads as noise. [[the-unjoined-end]]
         "reach": scope_reach_state(),
+        # ⚠⚠ HIS INSTRUCTION, 2026-09-04: "connect it to the heart of the console that way we would
+        # have caught it". `_tombstone` recorded every deleted reel's `startedTs` from two keys no
+        # reel index has ever carried, and wrote None 410 times out of 410 — on the ONE door with
+        # no undo — while nothing anywhere said so. It was found by READING A LINE, which is a
+        # detector that fires once against a field that had been dead for 410 deletions. The
+        # console asks now, on every heart read. Reports, refuses nothing. [[the-unjoined-end]]
+        "deadFields": dead_field_state(),
         # A21c — THE CHRONICLE ROUTES, on the same heart, in the same four words. His ask:
         # "the chronicles routes should also be there.. the sets and the uniques espeically..
         # reverse engineered like the routes and lanes here also for accuracy going forward".
@@ -15580,6 +15587,30 @@ def scope_reach_state():
                 "the readable signal." % len(rows)) if rows else
                "no lane forbids an ability its reach can perform",
     }
+
+
+def dead_field_state():
+    """A field recorded on every row of a store and filled on NONE of them. -> dict
+
+    ⚠ EVIDENCE, NOT A VERDICT, exactly like CF-13's reach rows. A field can be legitimately null
+    for a long time, so nothing here fails a build or blocks a button.
+
+    ⚠ AND THE ROW FLOOR IS THE DESIGN. Under it the answer is UNKNOWN rather than clean, because a
+    zero over rows that cannot disagree measures the sample. [[unknown-stays-unknown]]
+
+    MEASURED on his tree, 2026-09-04: `reel_tombstones` carries `startedTs` on all 410 rows and a
+    value on none — the defect this was built to catch, caught.
+    """
+    try:
+        import dead_field as _df
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "stores": [], "dead": 0,
+                "why": "the dead-field reader will not import (%s)" % str(e)[:90]}
+    try:
+        return _df.state()
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "stores": [], "dead": 0,
+                "why": "the stores could not be read (%s)" % str(e)[:90]}
 
 
 def retention_state():
@@ -22269,7 +22300,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2537",
+        "ver": "v2539",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

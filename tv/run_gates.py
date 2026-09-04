@@ -667,6 +667,20 @@ GATES = [
              "and STALE couplings both fail, the owner must actually mention its store, a reader "
              "needs a real reason, the exclusion stays narrow (widening it would make a hiding "
              "place), and nothing here fails a build. 5 sabotages, 5 RED."),
+    Gate("test_dead_field", [sys.executable, os.path.join(HERE, "test_dead_field.py")], 90,
+         why="A FIELD RECORDED ON EVERY ROW AND FILLED ON NONE. His instruction, 2026-09-04: "
+             "\"connect it to the heart of the console that way we would have caught it\". "
+             "`reel_retention._tombstone` recorded every deleted reel's `startedTs` from two keys "
+             "NO REEL INDEX HAS EVER CARRIED (0 of 40, measured) and wrote None 410 times out of "
+             "410 — on the ONE door with no undo — while nothing anywhere said so. It was found by "
+             "READING A LINE, a detector that fires once against a field dead for 410 deletions. "
+             "These pin the two ways this detector would lie: reporting a YOUNG store as clean (a "
+             "zero over rows that cannot disagree measures the SAMPLE — the mistake A15 clause 1 "
+             "exists to avoid, so under the 30-row floor the answer is UNKNOWN), and reporting a "
+             "SOMETIMES-null field as dead (`focus` is legitimately null on a reel with no "
+             "declared focus, and a row that cries wolf is a row he learns to skip). A field must "
+             "be on EVERY row to be judged, and ONE filled row clears the store. It reports and "
+             "refuses nothing. 4 sabotages, 4 RED, with a floor-crossing baseline."),
     Gate("test_per_reel_routes", [sys.executable, os.path.join(HERE, "test_per_reel_routes.py")], 90,
          why="A15 clause 3 — *the routes separate PER REEL, BY SCENARIO; each reel takes the path "
              "its own content earns*. ⚠ THE QUESTION IS NOT WHETHER REELS DIFFER — they obviously "
