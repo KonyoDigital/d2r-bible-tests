@@ -10764,7 +10764,15 @@ window._lockMark = function(isOpen, px, label){
   var _HRT_COL = { FLOWING: '#e0857c', WATCHED: '#e9b96e', DARK: '#6fa8ff', UNKNOWN: '#9aa6b2' };
   /* v2569 — HARDENED had no key, so `|| '#9aa6b2'` painted it the SAME GREY as UNPROVEN and
      UNKNOWN: the most-proven state and the never-tested state, indistinguishable on the heart. */
+  /* ⚠ INCOMPLETE IS NOT THE SAME GREY AS UNPROVEN, AND FALLING BACK WOULD HAVE MADE IT ONE.
+     UNPROVEN means nobody has attacked this surface yet — no evidence in either direction, and
+     not a failure. INCOMPLETE means the harness DECLARED an axis and then could not exercise it,
+     so the score simply never saw it: `miniauto.run` read OPEN at 55/55 while the one probe that
+     tests whether a hover lands on the right cell banked ZERO attempts. Amber, because it is a
+     warning about the EVIDENCE rather than a verdict on the surface — red would say the guard
+     failed, and it did not. It was never asked. [[unknown-stays-unknown]] */
   var _HRT_LOCKCOL = { OPEN: '#8fd0a0', HARDENED: '#b6f0c4', LOCKED: '#e0857c',
+                       INCOMPLETE: '#e8b563',
                        UNPROVEN: '#9aa6b2', UNKNOWN: '#9aa6b2' };
   var _hrtBusy = false;
 

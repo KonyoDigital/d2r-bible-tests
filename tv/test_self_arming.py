@@ -779,6 +779,89 @@ class TestV2618AScoreMayNotBeBoughtByRepetition(unittest.TestCase):
 
 
 
+
+class TestV2619AnUnexercisedAxisHoldsTheLock(unittest.TestCase):
+    """★★ HIS CATCH, 2026-09-04, AND IT IS THE SHARPEST OF THE WHOLE AUDIT.
+
+    Told that `miniauto.run` read OPEN at 55/55 he answered: *"absolutely has not been proven or
+    done yet… its not working at all what do you mean? it should be locked as hell!"*
+
+    **He was right, and the harness's own words say why.** `hover_wilson.probe_anchor` banks a
+    claim with **n = 0**, because `slot_identity.anchor_from_tooltip_rect` refuses: *"no
+    tooltip->cell OFFSET has been calibrated, so the anchor would be the tip's own corner and
+    EVERY ITEM WOULD LAND IN WHICHEVER CELL THE TEXT COVERS."* That sentence is a precise
+    description of MINI AUTO not working — and it is the ONLY probe that tests whether a hover
+    lands on the right cell.
+
+    ⚠⚠ **ZERO ATTEMPTS CANNOT MOVE A WILSON BOUND.** So the axis did not fail the score, it was
+    ABSENT from it: the lock scored 0.9347 on its other claims — 48 of which are floor-division
+    assertions (REG-600) — and reported OPEN over a feature that does not work. **A declared claim
+    that could not run is not an absent claim**, and treating the two alike is the same collapse
+    as reading `None` as `0`. [[unknown-stays-unknown]]
+
+    ⚠ IT IS A REPORT, NOT A GATE. `may()` is still never called and no button is blocked; what
+    changes is that the badge stops saying proven.
+    """
+
+    def _rows(self, blind=True):
+        rows = [{"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson",
+                 "ref": "coordinate", "n": 48, "k": 48, "ts": 1},
+                {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson",
+                 "ref": "read", "n": 5, "k": 5, "ts": 2},
+                {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson",
+                 "ref": "slot", "n": 2, "k": 2, "ts": 3}]
+        if blind:
+            rows.append({"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson",
+                         "ref": "anchor", "n": 0, "k": 0, "ts": 4})
+        return rows
+
+    def test_a_claim_banked_with_ZERO_attempts_stops_the_lock_reading_OPEN(self):
+        r = SA.score("miniauto.run", rows=self._rows(blind=True))
+        self.assertEqual(r["state"], SA.INCOMPLETE,
+                         "a lock whose own harness never exercised one of its claims still "
+                         "reported %r" % r["state"])
+        self.assertEqual(r["blindClaims"], ["anchor"])
+
+    def test_the_reason_NAMES_the_claim_that_never_ran(self):
+        """A state with no name attached sends him looking through four probes for the one that
+        did not fire."""
+        r = SA.score("miniauto.run", rows=self._rows(blind=True))
+        self.assertIn("anchor", r["why"])
+        self.assertIn("never exercised", r["why"])
+
+    def test_it_does_NOT_pretend_the_other_claims_failed(self):
+        """⚠ The axis is MISSING from the score, not failing it. Reporting 55/55 as though it had
+        been refuted would be a different lie in the other direction."""
+        r = SA.score("miniauto.run", rows=self._rows(blind=True))
+        self.assertEqual(r["n"], 55)
+        self.assertEqual(r["k"], 55)
+        self.assertGreater(r["wilson"], 0.9)
+
+    def test_WITHOUT_the_blind_claim_the_same_evidence_is_OPEN(self):
+        """⚠⚠ THE BASELINE, AND IT IS THE WHOLE RISK. If this marked every lock INCOMPLETE the
+        state would carry no information at all."""
+        r = SA.score("miniauto.run", rows=self._rows(blind=False))
+        self.assertEqual(r["state"], SA.OPEN, r.get("why"))
+        self.assertEqual(r["blindClaims"], [])
+
+    def test_it_does_not_touch_the_OTHER_locks(self):
+        """Measured on the live ledger: only miniauto.run banks a zero-attempt claim, so exactly
+        one lock may change state. A rule that quietly re-badged five surfaces would be a much
+        bigger thing than the defect it fixes."""
+        changed = [r["lock"] for r in SA.report()["locks"] if r["state"] == SA.INCOMPLETE]
+        self.assertEqual(changed, ["miniauto.run"],
+                         "INCOMPLETE spread beyond the one lock with an unexercised claim: %s"
+                         % changed)
+
+    def test_UNPROVEN_is_untouched_because_it_banked_NOTHING(self):
+        """⚠ vault.forget has no rows at all, which is a different fact from having a row that
+        could not run. Collapsing them would relabel a door that is unprovable BY DESIGN."""
+        r = SA.score("vault.forget")
+        self.assertEqual(r["state"], SA.UNPROVEN)
+        self.assertEqual(r["blindClaims"], [])
+
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

@@ -227,6 +227,22 @@ HARDENED = "HARDENED"
 OPEN = "OPEN"
 LOCKED = "LOCKED"          # proven, and it did not clear the bar
 UNPROVEN = "UNPROVEN"      # n == 0 — nobody has tested it. NOT a failure, NOT a score.
+#: ⚠⚠ A CLAIM THAT COULD NOT RUN IS NOT AN ABSENT CLAIM. A harness that banks a claim with n=0 and
+#: a stated reason has declared an axis and then failed to exercise it — and because zero attempts
+#: cannot move a Wilson bound, that failure was INVISIBLE: the lock scored on its other claims and
+#: reported OPEN.
+#:
+#: HIS CATCH, 2026-09-04, and it is the sharpest one yet: *"miniauto.run … absolutely has not been
+#: proven or done yet … its not working at all what do you mean? it should be locked as hell!"*
+#: He is right, and the harness's own words say why. `hover_wilson.probe_anchor` banks n=0 because
+#: `anchor_from_tooltip_rect` refuses: *"no tooltip->cell OFFSET has been calibrated, so the anchor
+#: would be the tip's own corner and EVERY ITEM WOULD LAND IN WHICHEVER CELL THE TEXT COVERS."*
+#: That is a precise description of MINI AUTO not working — and the lock over it read **OPEN, 55 of
+#: 55 refused**, because the one probe that tests the broken thing contributed nothing.
+#:
+#: So an unexercised axis holds the lock instead of disappearing from it. This is a REPORT, not a
+#: gate: `may()` is still never called and nothing is blocked. [[unknown-stays-unknown]]
+INCOMPLETE = "INCOMPLETE"  # a declared claim banked n == 0 — an axis nobody could exercise
 UNKNOWN = "UNKNOWN"        # the ledger could not be read. Fails closed, and says so.
 
 
@@ -589,10 +605,18 @@ def score(lock, rows=None):
     # by looping, which is the same objection already standing against prune.arm ("one proof
     # wearing four hats") at forty hats. `None` = the harness did not say how many, which is NOT
     # the same as one, and must never be read as a clean bill. [[unknown-stays-unknown]]
+    # ⚠⚠ CLAIMS THAT WERE DECLARED AND NEVER EXERCISED. A banked row with n == 0 is a harness
+    # saying "I own this axis and I could not run it". Zero attempts cannot move a Wilson bound, so
+    # without this the axis vanishes and the lock scores on its remaining claims. See INCOMPLETE.
+    blind = sorted({str(r.get("ref") or r.get("note") or "?")[:60]
+                    for r in mine if int(r.get("n", 1) or 0) == 0})
     _atk = [r.get("attacks") for r in mine if isinstance(r.get("attacks"), int)]
     attacks = sum(_atk) if _atk else None
     out = {"lock": lock, "surface": spec["surface"], "acts": spec["acts"],
            "attacks": attacks,
+           # REG-547 shape law — present on every path, so "no blind claim" and "never looked for
+           # one" cannot render identically.
+           "blindClaims": blind,
            "wilsonByAttack": (None if not attacks else round(wilson_lower(min(k, attacks), attacks), 4)),
            "repetition": (None if not attacks else round(float(n) / attacks, 1)),
            "k": k, "n": n, "kinds": kinds, "confluence": conf,
@@ -644,6 +668,19 @@ def score(lock, rows=None):
         out["state"] = HARDENED if out.get("hardened") else OPEN
         out["why"] = ("%d of %d sabotages refused · wilson %.3f >= %.3f · kinds %s = %.2f >= %.2f"
                       % (k, n, w, spec["bar"], kinds, conf, spec["kinds_bar"]))
+    # ⚠⚠ LAST, AND IT OUTRANKS OPEN. A lock cannot be called proven while one of the axes its own
+    # harness declared has never been exercised — the score simply never saw that axis. Applied
+    # after the ladder so it also refuses to let HARDENED stand on an untested claim.
+    # ⚠ IT IS A REPORT, NOT A GATE. `may()` is still never called and no button is blocked; what
+    # changes is that the badge stops saying proven. [[unknown-stays-unknown]]
+    if blind:
+        out["state"] = INCOMPLETE
+        out["why"] = ("%d of %d ATTEMPTED sabotages were refused, but %d claim(s) this harness "
+                      "declared were never exercised at all (%s). Zero attempts cannot move a "
+                      "Wilson bound, so that axis is MISSING from the score rather than failing "
+                      "it — the number below is about the other claims only. Nothing is blocked; "
+                      "the badge just stops saying proven."
+                      % (k, n, len(blind), ", ".join(blind)))
     return out
 
 

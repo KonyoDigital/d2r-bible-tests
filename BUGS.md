@@ -7,6 +7,85 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-602 — "EXTRACT is unreachable for all 40, and that is a capture change" was one label over four different blockers
+
+**Measured 2026-09-04, correcting a claim I had published on his board.** His question produced it:
+*"a paid sweep regardless needs to happen on the extraction and tallying area? does it not?? like
+all those AI readers"* — **yes, and asking it exposed that the answer on the board was too blunt.**
+
+The printer's stations are `in → funnel → template → route → extract → out`, and EXTRACT is the
+tallying stage the paid sweep feeds. The board said *"EXTRACT — UNREACHABLE for all 40"* and
+*"filling this is a CAPTURE change, not a code change"* — quoting REG-340. Walking
+`printer.stream()` over his forty reels today, the station gives **four different reasons**:
+
+| | reels | what is actually blocking |
+|---|---|---|
+| **NOTHING** | 13 | no seal and no item name ever read |
+| **CAPTURE** | 12 | sealed, but the reader never yielded a name — **REG-340 holds here** |
+| **SEAL** | 12 | **names WERE read** — the paid sweep did its job — but the session has no seal |
+| **JOIN** | **3** | **sealed AND names read.** The printer's own words: *"the names EXIST and the seal does not carry them. A join, not a capture problem."* |
+
+✅ **SO THE CAPTURE RULING IS TRUE FOR 12 OF 40, NOT 40.** Twelve more are blocked by a missing
+SEAL, and **three have their names already on disk and simply not carried into the seal** — that is
+code, and it is the cheapest work on that row. One label over four causes hid three reels' worth of
+completed reading and sent the reader at a capture change that would not help thirty of them.
+[[label-outlived-referent]] [[unknown-stays-unknown]]
+
+⚠ **THE PRINTER ALREADY KNEW.** It has said all four sentences per reel since v2604, which split
+"the segmenter returned no activity" into distinct reasons. Nothing needed building — the summary
+above it was still reciting the old single verdict, which is the same shape as the defect v2604
+fixed one level down.
+
+⚠ **AND MY FIRST READING OF IT WAS MY OWN INSTRUMENT.** Every station reported `state: None` for
+all six at once — a suspiciously uniform result. The station carries `say` / `why` / `names` /
+`sealed` and **has no `state` key at all**. The count was the tell.
+[[feedback-suspect-the-instrument]]
+
+**Also measured, answering the other half of his question:** `tv/printer.py` makes **zero** model
+calls (0 hits for lane/ask/g5/grok/api), so ON AIR → station → printer costs nothing. The paid pass
+is `chronicle_sweep_start`, which refuses without a reader lane — *"Claude is PRIMARY"* — and whose
+docstring says a second concurrent sweep *"would double the spend"*. **Same funnel to `route`; the
+money is spent at `extract`.**
+
+### REG-601 — a lock read OPEN over a feature that does not work, because the probe testing it never ran
+
+**v2619. HIS CATCH, AND IT IS THE SHARPEST OF THE WHOLE AUDIT.** Told `miniauto.run` read OPEN at
+55/55: *"absolutely has not been proven or done yet… its not working at all what do you mean? it
+should be locked as hell!"*
+
+**He is right, and the harness's own words say why.** `hover_wilson.probe_anchor` banks a claim with
+**n = 0**, because `slot_identity.anchor_from_tooltip_rect` refuses:
+
+> *"no tooltip->cell OFFSET has been calibrated, so the anchor would be the tip's own corner and
+> **EVERY ITEM WOULD LAND IN WHICHEVER CELL THE TEXT COVERS**."*
+
+That sentence is a precise description of MINI AUTO not working, and `probe_anchor` is the **only**
+probe that tests whether a hover lands on the right cell.
+
+⚠⚠ **ZERO ATTEMPTS CANNOT MOVE A WILSON BOUND.** So the axis did not FAIL the score — it was
+**absent from it**. The lock scored 0.9347 on its remaining claims (48 of which are floor-division
+assertions, REG-600) and reported **OPEN over a feature that does not work**. A declared claim that
+could not run is not an absent claim, and treating the two alike is the same collapse as reading
+`None` as `0`. [[unknown-stays-unknown]]
+
+**FIX:** `score()` collects `blindClaims` — banked rows with `n == 0` — and any lock carrying one
+reports the new state **INCOMPLETE**, applied AFTER the ladder so it also refuses to let HARDENED
+stand on an untested claim. The `why` names the claim that never ran, and says plainly that the
+number beside it is about the other claims only.
+
+⚠ **IT IS A REPORT, NOT A GATE.** `may()` is still never called and no button is blocked; what
+changes is that the badge stops saying proven. And because `INCOMPLETE` is not `OPEN`, the heart
+draws it with a **shut** padlock — which is what he was expecting to see.
+
+⚠ **MEASURED SCOPE: exactly ONE lock changes.** Only `miniauto.run` banks a zero-attempt claim; the
+other fourteen are untouched, and that is pinned by its own case. `vault.forget` stays **UNPROVEN**
+— having no rows at all is a different fact from having a row that could not run, and collapsing
+them would relabel a door that is unprovable BY DESIGN.
+
+**Guard:** `TestV2619AnUnexercisedAxisHoldsTheLock` — 6 cases. Baselines: the same evidence WITHOUT
+the blind claim is still OPEN, the other claims are not reported as having failed (n and k stay
+55/55), and INCOMPLETE does not spread.
+
 ### REG-600 — 48 of miniauto.run's 55 "sabotages" are AGREEMENTS, not refusals
 
 **Found 2026-09-04 by the lock-evidence fleet and independently re-measured. NOT YET FIXED — logged
