@@ -47,6 +47,11 @@ STORES = {
         "owner": "retro_triage",
         "holds": "per-reel structural verdict: frames, panels, kinds",
         "readers": {
+            "write_census":      "NOT a writer of THIS file — it calls retro_triage.remember() with a "
+                                 "SCRATCH root and watches which module the write is attributed to. It is "
+                                 "the A7 measurement-by-observation, and the only one of the five stores "
+                                 "that can be exercised at all. Declared so the mention is accounted for "
+                                 "rather than reading as a second writer",
             "control_app":   "serves it to the console surfaces",
             "printer_reach": "the printer-zone acceptance test reads panels to find the A4 case",
             "declared_vs_content": "A15 — asks whether a reel's route is derived from its CONTENT "
@@ -62,6 +67,10 @@ STORES = {
         "owner": "reel_retention",
         "holds": "reels that were pruned, and when — the record that a reel existed",
         "readers": {
+            "write_census":      "NOT a writer and never can be — it names this store to record that only "
+                                 "an actual DELETION writes a tombstone, and the prune stays OFF by his "
+                                 "standing ruling, so its exercise is declared None WITH that reason. "
+                                 "Naming what cannot be measured is the whole point of the census",
             "control_app":       "renders the tombstones on the shelf",
             "second_eye_ledger": "NOT a coupling — its docstring cites this file as the example of "
                                  "an untracked store living beside the reels. Declared so the "
@@ -80,6 +89,9 @@ STORES = {
         "owner": "vault_retro",
         "holds": "what the vault sweep accumulated per reel",
         "readers": {
+            "write_census":      "NOT a writer — it names this store to record that the vault lane writes "
+                                 "it during a PAID sweep, and a sweep spends money and must not be started "
+                                 "to satisfy a census. Exercise declared None, with that reason",
             "console_doctor":  "checks the vault stores are readable",
             "console_healer":  "repairs it when it will not parse",
             "control_app":     "serves the vault surfaces",
@@ -94,6 +106,9 @@ STORES = {
         "owner": "frame_authority",
         "holds": "the seal store — which sessions the vault sweep has sealed, and what it extracted",
         "readers": {
+            "write_census":      "NOT a writer — same as vault_accum: the vault lane writes this as a paid "
+                                 "sweep completes, so the exercise is declared None rather than run. "
+                                 "UNEXERCISED and NO-WRITERS are different facts",
             "console_doctor":  "checks the vault stores are readable",
             "console_healer":  "repairs it when it will not parse",
             "control_app":     "serves the seal state to the console",

@@ -7,6 +7,32 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-577 — the census that measured the stores was never declared as touching them
+**2026-09-04 · v2596 · the third of the eight red gates**
+
+`write_census` (v2589) names four stores — `retro_triage.json`, `reel_tombstones.json`,
+`vault_accum.json`, `vault_swept.json` — and `store_owners` declared it against none of them. So
+`test_store_owners`, a REGISTERED gate, went red the version write_census landed and **stayed red**,
+for the same reason the other seven did: `hooks/pre-push` runs three gates of thirty.
+
+**It is NOT a writer of any of them, and the declaration now says so precisely.** It exercises
+`retro_triage.remember()` into a **SCRATCH root** — never his store — and it names the other three
+to record that they **cannot be exercised at all**: only an actual DELETION writes a tombstone and
+the prune stays OFF by his standing ruling, and the vault lane writes the other two during a **PAID
+sweep**, which must not be started to satisfy a census. Each store's entry carries its own reason,
+in the same `NOT a reader` form the file already uses for `write_witness`.
+
+⚠ That distinction is the point rather than a technicality: **UNEXERCISED and NO-WRITERS are
+different facts**, and a census whose job is keeping them apart must not itself be filed as an
+undeclared writer. [[unknown-stays-unknown]]
+
+⚠ My first patch broke the module — it wrote newlines inside single-quoted string literals and
+`store_owners.py` stopped parsing. Caught by an `ast.parse` check before the gate ran, restored, and
+rewritten as the implicit concatenation the file already uses.
+
+**Guard:** `test_store_owners::test_every_module_touching_a_store_is_declared` — observed RED for
+exactly this reason, naming all four stores, before the fix.
+
 ### REG-576 — a harness that pinned a field name, and under it an UNKNOWN with a blank reason
 **2026-09-04 · v2595 · found by running the 30-gate set the pre-push hook does not run**
 
