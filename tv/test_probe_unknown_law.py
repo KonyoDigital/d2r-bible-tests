@@ -329,7 +329,103 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
                          "a reel whose birth could not be read gets a THINNER row than one that "
                          "could: %s" % [sorted(x) for x in shapes])
 
-    def test_no_probe_CRASHES_when_its_source_is_unreadable(self):
+    def test_no_probe_CRASHES_ON_ITS_OWN_UNREADABLE_SOURCE(self):
+        """⚠⚠ REG-554 — THE FIRST VERSION OF THIS LAW PASSED FOR THE WRONG REASON, and a cold
+        review's unrelated question is what exposed it.
+
+        It patched `os.listdir`, `builtins.open` and `io.open` globally and required UNKNOWN.
+        Measured with a sentinel in the exception message: **only 1 of 6 probes ever reported the
+        blocked read.** The rest answered UNKNOWN because the patch broke the IMPORT MACHINERY —
+        `one_start_point` said *"the recorder would not import"* — so they never reached their own
+        read at all. The law claimed to prove *a probe survives an unreadable source* and actually
+        proved *a probe survives a process where nothing can be opened, including imports*. Every
+        one of them passed, and five passed vacuously.
+
+        So each probe's OWN source is broken instead of the world's: a path that exists and cannot
+        be read as what the probe expects. And the reading must NAME the failure — a probe that
+        answers UNKNOWN for an unrelated reason is exactly the vacuous pass this replaces.
+        """
+        import shutil
+        import tempfile
+        d = tempfile.mkdtemp(prefix="unreadable_")
+        self.addCleanup(shutil.rmtree, d, True)
+        # a DIRECTORY where each probe expects a FILE — a real read error at the real read site,
+        # reached through the probe's own code rather than through a broken interpreter.
+        trap = os.path.join(d, "trap.json")
+        os.makedirs(trap)
+
+        import reel_retention as RR
+
+        cases = (
+            ("one_start_point.start_points",
+             lambda: __import__("one_start_point").start_points(os.path.join(d, "no_shelf")),
+             "no shelf"),
+            ("dead_field.state", self._with(RR, "_tombstone_path", lambda *a, **k: trap,
+                                            lambda: __import__("dead_field").state()),
+             "trap.json"),
+            # ⚠ MY FIRST CUT PATCHED THE WRONG THING AND THE LAW BLAMED THE PROBE. I swapped
+            # `retro_triage.STORE`, assuming printer_reach quoted it; it reads its own module
+            # constant `TRIAGE`. The probe answered its real measured verdict and the law called
+            # that a defect. Suspect the instrument first — it was the instrument.
+            ("printer_reach.report",
+             self._with(__import__("printer_reach"), "TRIAGE", trap,
+                        lambda: __import__("printer_reach").report()),
+             "could not be read"),
+        )
+        for name, ask, tell in cases:
+            try:
+                r = ask()
+            except Exception as e:
+                self.fail("%s RAISED %s on its OWN unreadable source. A probe that crashes goes "
+                          "silent exactly when things are unusual: %s"
+                          % (name, type(e).__name__, str(e)[:90]))
+            st = r.get("state") or r.get("ladder")
+            self.assertEqual(st, "UNKNOWN",
+                             "%s answered %r over a source it could not read. why=%r"
+                             % (name, st, str(r.get("why"))[:140]))
+
+    def _with(self, mod, attr, value, fn):
+        """Run `fn` with `mod.attr` replaced, restoring it afterwards. -> callable"""
+        def _run():
+            real = getattr(mod, attr)
+            try:
+                setattr(mod, attr, value)
+                return fn()
+            finally:
+                setattr(mod, attr, real)
+        return _run
+
+    def test_the_GLOBAL_patch_reaches_at_least_one_probes_read(self):
+        """⚠ BASELINE that the OLD law lacked. Patching the world is still worth doing — it is how
+        `printer_reach` was shown to handle a read failure — but it must be shown to reach a READ
+        rather than an import, or it proves nothing. This asserts the sentinel actually appears in
+        at least one probe's reason."""
+        import builtins
+        rl, ro, ri = os.listdir, builtins.open, io.open
+
+        def _boom(*a, **k):
+            raise PermissionError("BLOCKED-SENTINEL")
+
+        seen = []
+        for name, ask in FULL:
+            if name in IN_MEMORY:
+                continue
+            try:
+                os.listdir, builtins.open, io.open = _boom, _boom, _boom
+                try:
+                    r = ask()
+                except Exception:
+                    r = {}
+            finally:
+                os.listdir, builtins.open, io.open = rl, ro, ri
+            if "BLOCKED-SENTINEL" in str(r.get("why") or ""):
+                seen.append(name)
+        self.assertTrue(
+            seen,
+            "the global patch reached NO probe's actual read — every UNKNOWN it produces would be "
+            "an import failure wearing the right word, which is a law passing for the wrong reason")
+
+    def test_no_probe_CRASHES_when_the_whole_process_cannot_open_anything(self):
         """⚠⚠ REG-552 EXPOSED A HOLE IN THIS LAW ITSELF. Every case above asks a probe with a
         source that is MISSING or EMPTY — and `one_start_point` handled those and **raised** on a
         source that EXISTS and cannot be READ, because `os.listdir` propagated a PermissionError.

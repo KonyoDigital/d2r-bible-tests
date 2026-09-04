@@ -18326,3 +18326,40 @@ now and fails with the clean-bill sentence quoted back at it.
 **3 sabotages, 3 RED:** the headline giving a clean bill under UNKNOWN; a stale `IN_MEMORY` entry
 naming something not in `FULL`; dropping the filesystem-reading entry point from the law.
 
+## v2553 — the law that passed for the wrong reason, five times out of six
+
+**REG-554 — the cold look at v2551 asked one question and measuring it exposed something much
+larger.** It observed that a probe holding a bound reference to the real `open` could read through
+a global patch. Testing that with a **sentinel in the exception message** produced this:
+
+```
+one_start_point   UNKNOWN   sentinel in reason? NO   "the recorder would not import"
+one_funnel        UNKNOWN   NO
+per_reel_routes   UNKNOWN   NO
+printer_reach     UNKNOWN   YES  "retro_triage.json could not be read (BLOCKED-SENTINEL)"
+printer.stream    UNKNOWN   NO
+dead_field.state  UNKNOWN   NO
+```
+
+⚠⚠ **ONLY ONE OF SIX EVER REACHED ITS READ.** The other five answered UNKNOWN because patching
+`open` broke the **import machinery** — they never got as far as their own source. The law claimed
+to prove *a probe survives an unreadable source*; what it actually proved was *a probe survives a
+process where nothing can be opened, including imports*. Every one passed, and **five passed
+vacuously.** A law that is green for the wrong reason is worse than no law, because it is counted.
+
+**Fixed by breaking each probe's OWN source instead of the world** — a directory where the probe
+expects a file, so the failure happens at the real read site, reached through the probe's own code.
+And the global-patch version is kept with a **BASELINE it never had**: it must be shown to reach at
+least one probe's actual read, or it is an import failure wearing the right word.
+
+⚠ **AND MY FIRST CUT OF THE NEW CASE BLAMED THE PROBE FOR MY OWN MISTAKE.** I patched
+`retro_triage.STORE` assuming `printer_reach` quoted it; it reads its own module constant `TRIAGE`.
+The probe answered its real measured verdict and the law called that a defect. **Suspect the
+instrument first — it was the instrument.**
+
+**2 sabotages, 2 RED:** making `printer_reach` crash on its own unreadable store; making the global
+baseline reach no read at all. A third was attempted and went GREEN — removing the `isdir` guard
+still leaves `os.listdir` raising into the new handler, so the path is doubly guarded and the
+sabotage isolated nothing. **That is the sabotage's fault, not a missing guard**, and it is recorded
+rather than counted.
+
