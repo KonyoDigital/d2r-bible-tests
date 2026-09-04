@@ -176,6 +176,21 @@ def templates(reels=None):
     rows, counts = [], {}
     for name in sorted(names):
         segs, sw = _segments_for(name, by_session)
+        # ⚠⚠ v2582 — THE SUB-TEMPLATE WAS RECORDED AND THE ROUTER IGNORED IT. His list:
+        # *"stash/runes/gems each have their template.. also test those individually..
+        # runes/gems/materials... then we have stash then we have INVENTORY/STASH.. then we have
+        # CHRONICLES"*. Measured on his store: `stashTab` is on the deep rows with real counts —
+        # shared 12, personal 8, runes 8, materials 8, gems 6 — and reel_segments does not carry
+        # it into a segment, so nothing downstream could route on it. A stash reel and a RUNE
+        # stash reel were the same thing to this module.
+        #
+        # Taken from the RAW rows this function already holds, not by widening reel_segments:
+        # a segment is a span of time and a tab is a property of a read, and forcing one into
+        # the other would make the segmenter answer a question it was not asked. [[copy-drift]]
+        _sid = name[len("reel_"):] if name.startswith("reel_") else name
+        tabs = sorted({str(r.get("stashTab") or "").strip()
+                       for r in (by_session.get(_sid) or [])
+                       if r.get("lane") == "deep" and str(r.get("stashTab") or "").strip()})
         acts = sorted({str(s.get("activity") or "").lower() for s in segs
                        if str(s.get("activity") or "").strip()})
         if not acts:
@@ -215,8 +230,16 @@ def templates(reels=None):
             zwhy += ("  ⚠ the survey says this run DOES hold panels, so it is not a prune "
                      "candidate after all — the survey spares it")
 
+        # ⚠ THE TAB REFINES THE TEMPLATE, IT NEVER OVERRIDES THE ZONE. A tab is evidence about
+        # WHICH stash panel was open, not about whether the reel is a possession moment — that is
+        # still the activity's job. Naming it here lets a reader see `stash · runes` without the
+        # routing changing underneath them. An empty list means no read recorded a tab, which is
+        # NOT the same as "no tab was open". [[unknown-stays-unknown]]
         rows.append({"reel": name, "template": template, "zone": zone, "why": zwhy,
                      "activities": acts, "segments": len(segs),
+                     "tabs": tabs,
+                     "subTemplate": ((template + " · " + "/".join(tabs))
+                                     if (template and tabs) else template),
                      "worthReading": worth,
                      "pruneCandidate": candidate})
         counts[zone] = counts.get(zone, 0) + 1

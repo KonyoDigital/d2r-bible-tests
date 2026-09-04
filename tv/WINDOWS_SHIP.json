@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2581",
+  "ver": "v2582",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2581: bank guarded the door and not the room",
+  "note": "v2582: the sub-template was recorded and the router ignored it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

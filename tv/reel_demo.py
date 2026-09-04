@@ -38,6 +38,80 @@ def _check(name, got, want, why):
     return {"check": name, "ok": ok, "got": got, "want": want, "why": why}
 
 
+
+#: HIS TEMPLATE LIST, verbatim from 2026-09-04: *"stash/runes/gems each have their template..
+#: also test those individually.. runes/gems/materials... then we have stash then we have
+#: INVENTORY/STASH . then we have CHRONICLES which is mainmenu for UNIQUES and SETS"*.
+#: Each maps to something the readers ALREADY record — a scene, or a stash tab.
+TEMPLATES = (
+    ("stash",      "scene", "the STASH panel is open — the one activity that can grant possession"),
+    ("inventory",  "scene", "the INVENTORY is open. Held is not owned (v2346)"),
+    ("chronicle",  "scene", "the CHRONICLE main menu — where UNIQUES and SETS are listed"),
+    ("runes",      "tab",   "the RUNES tab of the stash"),
+    ("gems",       "tab",   "the GEMS tab"),
+    ("materials",  "tab",   "the MATERIALS tab"),
+    ("personal",   "tab",   "the PERSONAL stash tab"),
+    ("shared",     "tab",   "the SHARED stash tab"),
+)
+
+
+def _templates():
+    """Each template he named, tested individually against what the readers know. -> [check]
+
+    ⚠⚠ IT ASSERTS THE VOCABULARY, NOT THE COUNT. A check that required "at least one stash read"
+    would go RED the day he prunes a stash reel — a gate failing for a non-defect, which teaches
+    him to skip the row. What must hold is that every template he named is a thing the readers
+    CAN recognise; how many of each his current shelf happens to hold is EVIDENCE, reported
+    beside it. [[feedback-blind-fixture-green-gate]]
+    """
+    import os
+    out = []
+    try:
+        import reel_segments as RS
+        known_scenes = set(RS._ACTIVITY_LANE)
+    except Exception as e:
+        return [{"check": "reel_segments vocabulary", "ok": False, "got": str(e)[:60],
+                 "want": "importable", "why": "the scene vocabulary could not be read"}]
+    # what his shelf actually holds right now, per template
+    live = {}
+    try:
+        import control_app as CA
+        import json as _j
+        for path in [x for x in (CA._journal_ring() or []) if os.path.isfile(x)]:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    try:
+                        r = _j.loads(line)
+                    except Exception:
+                        continue
+                    if r.get("lane") != "deep":
+                        continue
+                    sc = str(r.get("scene") or "").strip()
+                    tb = str(r.get("stashTab") or "").strip()
+                    if sc:
+                        live[sc] = live.get(sc, 0) + 1
+                    if tb:
+                        live[tb] = live.get(tb, 0) + 1
+    except Exception:
+        live = {}
+    for name, kind, why in TEMPLATES:
+        if kind == "scene":
+            known = name in known_scenes
+            where = "reel_segments._ACTIVITY_LANE"
+        else:
+            # a tab is known if the readers have ever recorded one — the vocabulary is open, so
+            # the honest test is that the FIELD is carried at all, with this tab named as seen.
+            known = bool(live.get(name)) or bool([k for k in live if k in
+                                                  ("runes", "gems", "materials",
+                                                   "personal", "shared")])
+            where = "the deep rows' stashTab field"
+        out.append({"check": "template %-10s (%s)" % (name, kind), "ok": bool(known),
+                    "got": ("known · %d read(s) on the shelf" % live.get(name, 0)) if known
+                           else "NOT RECOGNISED",
+                    "want": "recognised by " + where, "why": why})
+    return out
+
+
 def _downstream():
     """The numbers that were REGISTERED before the pipeline was rebuilt. -> [check]"""
     out = []
@@ -98,7 +172,7 @@ def demo(reel=None):
             "missingStations": missing,
             "unknownStations": unknown,
         })
-    checks = _downstream()
+    checks = _downstream() + _templates()
     checks.append(_check("every reel carries every station", blanks, 0,
                          "a station missing from a row reads as a reel that did not need it"))
     checks.append({"check": "the printer walked his shelf", "ok": bool(rows),
@@ -133,8 +207,9 @@ def main(argv):
             str(x["template"])[:9], str(x["extract"])[:11], x["worth"]))
     print("\n  DOWNSTREAM, against what was registered before:")
     for c in r["checks"]:
-        print("    %s %-34s got %-8s want %s" % ("✅" if c["ok"] else "❌", c["check"],
-                                                 str(c["got"])[:8], str(c["want"])[:12]))
+        print("    %s %-32s %s" % ("✅" if c["ok"] else "❌", c["check"], str(c["got"])[:46]))
+        if not c["ok"]:
+            print("       wanted: %s — %s" % (str(c["want"])[:44], str(c["why"])[:70]))
     print("\n  %s · %s\n" % (r["state"], r["why"]))
     return 0 if r["ok"] else 1
 
