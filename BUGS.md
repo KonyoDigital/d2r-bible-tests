@@ -18068,3 +18068,44 @@ don't-touch list:
   find other unread `audit()`-style readings, explicitly not my method repeated, because two of my
   own attempts to count store writers returned zero and both were measuring the instrument.
 
+## v2546 — a shape law, and the five probes it caught on its first run
+
+**REG-546 — the cold look at v2544 found one real defect, and chasing it found five more that
+nobody had read.**
+
+⚠ **TAKEN — a station whose owner ANSWERED but carried no value printed the word "None".** Measured
+on a door row missing its `door` key: `counts["in"] = {"None": 1, …}` — a literal `None` that would
+render on the heart — and the row **escaped the unknown tally**, because `str(None) != "UNKNOWN"`.
+So the printer reported FLOWING over a station that had said nothing. It says UNKNOWN now, and
+names which owner was silent.
+
+⚠ **TAKEN — the UNKNOWN return dropped four keys.** `walked`, `unknownStations`, `stations`,
+`owners`. **This is the same defect REG-544 fixed in `dead_field`, shipped in the same batch** — a
+consumer reading them breaks on exactly the path that means nothing was established.
+
+⚠ **NOT TAKEN — substring reel matching.** It is deliberate, matches `reel_river`'s sibling
+behaviour, and a partial name is how the CLI is used.
+
+⚠⚠ **REFUTED — it claimed `_by_reel(None)` raises TypeError.** Measured: it returns `{}` safely.
+The reviewer inferred a shape from my abbreviated summary rather than the code.
+
+**THE PATTERN GOT A MACHINE.** The word-level UNKNOWN law could not see the shape defect — both
+readings said UNKNOWN correctly. So the law now also asks every probe **with nothing and with a real
+shelf, and requires the key sets to match.** On its first run it failed **five of six probes**:
+
+```
+one_start_point  drops walked
+one_funnel       drops collisions · datedRungs · occupancy · rungCount · unknownStage · walked · waypoints
+per_reel_routes  drops contentRoutes · distinctContentRoutes · minDistinct · policyRoutes · walked
+printer_reach    drops blocked
+printer          drops walked · unknownStations · stations · owners
+```
+
+**Every one of them mine, and not one had been caught by reading.** All six live readings are
+unchanged after the fixes (ONE_DOOR 38/2 · ONE_LADDER/PARTIAL · UNEXERCISED 28/12 · UNREACHABLE ·
+FLOWING 40 · DEAD_FIELDS).
+
+⚠ **AND ONE SABOTAGE WENT GREEN, WHICH IS HOW I KNOW THE FIX WAS UNTESTED.** Restoring the
+`None`-station defect passed, because I had fixed it without writing a guard. The guard exists now
+and fails as `None != 'UNKNOWN'`.
+

@@ -85,6 +85,39 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
             self.assertIn("reelDoor", out, "the reel door's answer is not even reported")
             self.assertIn("frameDoor", out, "the frame door's answer is not even reported")
 
+    def test_an_owner_that_ANSWERED_WITH_NOTHING_is_UNKNOWN_not_the_word_None(self):
+        """⚠⚠ REG-546, from the cold look at v2544, and it is a different case from the one below.
+        There the owner did not report the reel at all. HERE the owner reported it and carried no
+        value — measured on a door row missing its `door` key, the station printed the literal
+        string **"None"**, `counts["in"]` gained a `"None"` bucket that would render on the heart,
+        and the row **escaped the unknown tally** because `str(None) != "UNKNOWN"`. So the printer
+        said FLOWING over a station that had said nothing.
+
+        ⚠ This guard was MISSING when the fix shipped: the sabotage that restores the defect went
+        GREEN, which is how I know the fix was untested rather than well-tested.
+        """
+        import one_start_point as OSP
+        real = OSP.start_points
+        try:
+            OSP.start_points = lambda *a, **k: {
+                "ok": True, "state": "ONE_DOOR", "counts": {}, "walked": 1,
+                "rows": [{"reel": "reel_s_1", "why": "this row has no door key"}], "why": "x"}
+            r = P.stream("reel_s_1")
+            st = r["rows"][0]["stations"]["in"]
+            self.assertEqual(
+                st["say"], "UNKNOWN",
+                "an owner answered with no value and the station said %r — that renders as a "
+                "literal 'None' on the heart and is not counted as unknown" % (st["say"],))
+            self.assertIn("carried no", st["why"],
+                          "the reason does not say WHICH owner had nothing: %r" % st["why"])
+            self.assertGreater(r["unknownStations"], 0,
+                               "the row escaped the unknown tally, so the printer would report "
+                               "FLOWING over a station that said nothing")
+            self.assertNotIn("None", r["counts"]["in"],
+                             "a 'None' bucket reached the counts: %s" % r["counts"]["in"])
+        finally:
+            OSP.start_points = real
+
     def test_a_reel_missing_from_an_owner_is_UNKNOWN_not_dropped(self):
         """⚠ A reel silently absent from a row would shrink the shelf without saying so."""
         import per_reel_routes as PRR

@@ -121,15 +121,26 @@ def stream(reel=None):
     Each row carries one entry per station: what happened, who said so, and the question that
     owner was answering. `out` is never a verdict — see the module docstring.
     """
+    # ⚠⚠ REG-546 — EVERY RETURN CARRIES THE SAME KEYS, and the UNKNOWN return did not. It omitted
+    # `walked`, `unknownStations`, `stations` and `owners` while the normal return carried them, so
+    # a consumer reading `r["walked"]` raised KeyError on exactly the path that means NOTHING WAS
+    # ESTABLISHED — the reading breaks in the state it exists to report. This is the same defect
+    # REG-544 fixed in dead_field, in a different file, SHIPPED IN THE SAME BATCH. A shape that
+    # changes with the verdict is not a shape.
+    def _unknown(why):
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {}, "walked": 0,
+                "unknownStations": 0, "stations": list(STATIONS),
+                "owners": {k: v[0] for k, v in STATION_OWNER.items()},
+                "questions": {k: v[1] for k, v in STATION_OWNER.items()}, "why": why}
+
     src, whys = _sources()
     river = _by_reel(src.get("river"))
     doors = _by_reel(src.get("door"))
     routes = _by_reel(src.get("routes"))
     if not river and not doors:
-        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
-                "why": ("UNKNOWN, not an empty shelf — %s"
+        return _unknown("UNKNOWN, not an empty shelf — %s"
                         % ("; ".join(whys) if whys else
-                           "no owner answered and none said why"))}
+                           "no owner answered and none said why"))
 
     reach = src.get("reach") or {}
     reach_state = reach.get("state") or "UNKNOWN"
@@ -141,16 +152,30 @@ def stream(reel=None):
         rv, dr, rt = river.get(name), doors.get(name), routes.get(name)
         stations = {}
 
-        stations["in"] = ({"say": dr.get("door"), "why": dr.get("why")} if dr else
-                          {"say": "UNKNOWN", "why": "one_start_point did not report this reel"})
+        # ⚠⚠ REG-546 — AN OWNER THAT ANSWERED WITH NOTHING PRINTED THE WORD "None" AND WAS NOT
+        # COUNTED AS UNKNOWN. Measured: a door row missing its `door` key gave
+        # `counts["in"] = {"None": 1, ...}` — a literal "None" on the heart, and the row escaped
+        # the unknown tally because `str(None) != "UNKNOWN"`. A missing value is UNKNOWN, and it
+        # says WHICH owner had nothing to say. [[unknown-stays-unknown]]
+        def _station(row, field, owner, extra=None, why=None):
+            if not row:
+                return {"say": "UNKNOWN", "why": "%s did not report this reel" % owner}
+            v = row.get(field)
+            if v is None or v == "":
+                d = {"say": "UNKNOWN",
+                     "why": "%s reported this reel and carried no %r" % (owner, field)}
+            else:
+                d = {"say": v, "why": (why if why is not None else row.get("why"))}
+            for k, src_key in (extra or {}).items():
+                d[k] = row.get(src_key)
+            return d
 
-        stations["funnel"] = ({"say": rv.get("stage"), "why": rv.get("question"),
-                               "decider": rv.get("decider")} if rv else
-                              {"say": "UNKNOWN", "why": "reel_river did not report this reel"})
-
-        stations["route"] = ({"say": rt.get("decidedBy"), "why": rt.get("why"),
-                              "route": rt.get("route")} if rt else
-                             {"say": "UNKNOWN", "why": "per_reel_routes did not report this reel"})
+        stations["in"] = _station(dr, "door", "one_start_point")
+        stations["funnel"] = _station(rv, "stage", "reel_river",
+                                      extra={"decider": "decider"},
+                                      why=(rv or {}).get("question"))
+        stations["route"] = _station(rt, "decidedBy", "per_reel_routes",
+                                     extra={"route": "route"})
 
         # ⚠ THE REACH IS A SHELF-WIDE FACT, NOT A PER-REEL ONE, and saying otherwise would invent a
         # per-reel measurement nobody took. printer_reach measured that ZERO of 30 seals satisfy

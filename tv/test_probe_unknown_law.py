@@ -47,6 +47,21 @@ def _nothing_for_funnel():
 
 #: Each entry is a probe that publishes a `state`, and a callable that asks it with NOTHING TO
 #: READ. Each is here because a wrong CLEAN from it would be believed.
+def _nothing_for_printer():
+    """Empty both of the printer's spine owners and it has nothing to walk."""
+    import one_start_point as OSP
+    import printer as P
+    import reel_river as RR
+    a, b = OSP.start_points, RR.river
+    try:
+        OSP.start_points = lambda *x, **k: {"ok": False, "rows": [], "state": "UNKNOWN",
+                                            "counts": {}, "why": "x"}
+        RR.river = lambda *x, **k: {"ok": False, "rows": [], "gaps": [], "why": "x"}
+        return P.stream()
+    finally:
+        OSP.start_points, RR.river = a, b
+
+
 def _nothing_for_printer_reach():
     """⚠⚠ THIS ONE FOUND A DEFECT THE DAY IT WAS ADDED (REG-543). `printer_reach.UNREACHABLE` was
     doing two jobs: *"I measured, and the contradiction is structurally impossible on this corpus"*
@@ -84,6 +99,19 @@ PROBES = (
     ("per_reel_routes.routes", lambda: __import__("per_reel_routes").routes([])),
     ("dead_field.dead_fields", lambda: __import__("dead_field").dead_fields(None)),
     ("printer_reach.report", _nothing_for_printer_reach),
+    ("printer.stream", _nothing_for_printer),
+)
+
+#: Each probe, and how to ask it with a REAL shelf. Used only by the shape law below — a reading's
+#: key set must not depend on its verdict.
+FULL = (
+    ("one_start_point.start_points", lambda: __import__("one_start_point").start_points()),
+    ("one_funnel.funnel", lambda: __import__("one_funnel").funnel()),
+    ("per_reel_routes.routes", lambda: __import__("per_reel_routes").routes()),
+    ("dead_field.dead_fields",
+     lambda: __import__("dead_field").dead_fields([{"a": 1, "z": None} for _ in range(40)])),
+    ("printer_reach.report", lambda: __import__("printer_reach").report()),
+    ("printer.stream", lambda: __import__("printer").stream()),
 )
 
 #: ⚠ NOT ON THE LIST, WITH THE REASON — because a probe missing silently is the failure this file
@@ -157,6 +185,33 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
             live, "UNKNOWN",
             "the live tree now reports UNKNOWN too, so the split collapsed the other way and the "
             "real measured finding has been lost")
+
+    def test_a_readings_SHAPE_does_not_depend_on_its_VERDICT(self):
+        """⚠⚠ REG-546, and it is the FIFTH instance of one pattern in a day — a fix shipping the
+        class it was fixing. REG-544 caught `dead_fields` omitting `judged`/`skipped` on its
+        UNKNOWN paths; the SAME defect shipped in the SAME batch inside `printer.stream`, whose
+        UNKNOWN return dropped `walked`, `unknownStations`, `stations` and `owners`. **A consumer
+        reading those raised KeyError on exactly the path that means nothing was established — the
+        reading breaks in the state it exists to report.**
+
+        The word-level law above could not see it, because both readings said UNKNOWN correctly.
+        So the shape is checked mechanically too: ask each probe with NOTHING and with a REAL
+        shelf, and the key sets must match. This is what would have caught the fifth instance
+        without anyone remembering.
+        """
+        empty = dict(PROBES)
+        for name, ask_full in FULL:
+            ask_empty = empty.get(name)
+            self.assertTrue(ask_empty, "%s is in FULL but not in PROBES" % name)
+            a, b = ask_empty(), ask_full()
+            self.assertIsInstance(a, dict, "%s empty reading is not a dict" % name)
+            self.assertIsInstance(b, dict, "%s full reading is not a dict" % name)
+            missing = sorted(set(b) - set(a))
+            self.assertEqual(
+                missing, [],
+                "%s drops %s when it has nothing to report, so a caller reading them breaks on "
+                "exactly the path that means NOTHING WAS ESTABLISHED. A shape that changes with "
+                "the verdict is not a shape." % (name, missing))
 
     def test_BASELINE_these_probes_can_reach_a_real_verdict(self):
         """⚠⚠ Or the law above passes on four functions that answer UNKNOWN to everything, which

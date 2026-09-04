@@ -84,6 +84,14 @@ def routes(rows=None):
     exists but every content-routed reel took the same one) · POLICY_ONLY (no reel was routed by
     its content at all) · UNKNOWN (nothing to read).
     """
+    # ⚠⚠ REG-546 — EVERY RETURN CARRIES THE SAME KEYS. These dropped five, so a caller reading
+    # them broke on exactly the paths that mean NOTHING WAS ESTABLISHED. Caught by the cross-probe
+    # SHAPE law, which found the same defect in three sibling probes on its first run.
+    def _unknown(w):
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "byDecider": {},
+                "contentRoutes": {}, "policyRoutes": {}, "distinctContentRoutes": 0,
+                "minDistinct": MIN_DISTINCT, "walked": 0, "why": w}
+
     RS = None
     why = ""
     if rows is None:
@@ -92,12 +100,10 @@ def routes(rows=None):
         try:
             import reel_story as RS
         except Exception as e:
-            return {"ok": False, "state": "UNKNOWN", "rows": [],
-                    "why": "reel_story would not import (%s)" % str(e)[:80]}
+            return _unknown("reel_story would not import (%s)" % str(e)[:80])
     if not rows:
-        return {"ok": False, "state": "UNKNOWN", "rows": [], "byDecider": {},
-                "why": ("UNKNOWN, not an empty shelf — %s"
-                        % (why or "no reel reached this probe and nothing said why"))}
+        return _unknown("UNKNOWN, not an empty shelf — %s"
+                        % (why or "no reel reached this probe and nothing said why"))
 
     out, by_decider = [], {}
     content_routes, policy_routes = {}, {}

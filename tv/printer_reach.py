@@ -83,16 +83,18 @@ def _session_of(reel_key):
 def report():
     """-> dict. Never claims CLEAN on evidence it could not gather."""
     tri, why = _triage()
+    # ⚠ REG-546 — every return carries the same keys; these three dropped `blocked`, so a caller
+    # reading it broke on exactly the paths that mean NOTHING WAS ESTABLISHED.
     if tri is None:
-        return {"state": UNKNOWN, "why": why, "rows": [], "counts": {}}
+        return {"state": UNKNOWN, "why": why, "rows": [], "counts": {}, "blocked": {}}
     try:
         import frame_authority as FA
     except Exception as e:
-        return {"state": UNKNOWN, "rows": [], "counts": {},
+        return {"state": UNKNOWN, "rows": [], "counts": {}, "blocked": {},
                 "why": "frame_authority will not import (%s), so no seal can be read" % str(e)[:70]}
     seals, ok = FA.sealed_sessions()
     if not ok or not isinstance(seals, dict):
-        return {"state": UNKNOWN, "rows": [], "counts": {},
+        return {"state": UNKNOWN, "rows": [], "counts": {}, "blocked": {},
                 "why": "the seal store could not be read — that is UNKNOWN, not an unsealed corpus"}
 
     # how many seals could EVER let a reel become disposable, and why the rest cannot

@@ -119,13 +119,20 @@ def start_points(hist=None):
     States: ONE_DOOR (every reel entered through the recorder, repairs aside) ·
     MULTIPLE_DOORS (something other than the recorder minted a reel) · UNKNOWN (nothing to read).
     """
+    # ⚠⚠ REG-546 — EVERY RETURN CARRIES THE SAME KEYS, and these did not: `walked` was on the
+    # normal return and absent from both UNKNOWN returns, so a caller reading it broke on exactly
+    # the paths that mean NOTHING WAS ESTABLISHED. Caught by the cross-probe SHAPE law on its first
+    # run — the sixth instance in a day of a fix shipping the class it was fixing, and the first
+    # one found by a machine instead of by someone reading the next line.
+    def _unknown(w):
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {}, "walked": 0, "why": w}
+
     why = ""
     if hist is None:
         hist, why = _hist_dir()
     if not hist or not os.path.isdir(hist):
-        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
-                "why": ("UNKNOWN, not zero doors — %s"
-                        % (why or "no shelf was found, so nothing was asked"))}
+        return _unknown("UNKNOWN, not zero doors — %s"
+                        % (why or "no shelf was found, so nothing was asked"))
     rows = []
     for name in sorted(os.listdir(hist)):
         d = os.path.join(hist, name)
@@ -151,8 +158,7 @@ def start_points(hist=None):
     for r in rows:
         counts[r["door"]] = counts.get(r["door"], 0) + 1
     if not rows:
-        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
-                "why": "the shelf holds no reels, so the question could not be put to it"}
+        return _unknown("the shelf holds no reels, so the question could not be put to it")
     # ⚠ A REPAIR IS NOT A SECOND FRONT DOOR, and counting it as one is the cry-wolf defect A10 is
     # named for. `reel_index` never mints a reel from footage — it restores an index a reel already
     # had, and refuses outright to rewrite one that parses. A fixture reel on his LIVE shelf is a

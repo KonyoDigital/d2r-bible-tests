@@ -154,15 +154,23 @@ def funnel():
       ladder  — ONE_LADDER / SPLIT_LADDER / UNKNOWN
       passage — RECORDED / PARTIAL / UNRECORDED / UNKNOWN
     """
+    # ⚠⚠ REG-546 — EVERY RETURN CARRIES THE SAME KEYS. These two dropped SEVEN of them —
+    # collisions, datedRungs, occupancy, rungCount, unknownStage, walked, waypoints — so a caller
+    # reading any one broke on exactly the paths that mean NOTHING WAS ESTABLISHED. Caught by the
+    # cross-probe SHAPE law, which found this and one in one_start_point on its first run.
+    def _unknown(w, rungs=()):
+        return {"ok": False, "state": "UNKNOWN", "ladder": "UNKNOWN", "passage": "UNKNOWN",
+                "rungs": list(rungs), "collisions": [], "unknownStage": 0, "occupancy": {},
+                "waypoints": {}, "walked": 0, "datedRungs": [], "rungCount": len(rungs),
+                "why": w}
+
     rungs, lwhy = _ladder()
     rows, rwhy = _rows()
     if not rungs:
-        return {"ok": False, "ladder": "UNKNOWN", "passage": "UNKNOWN", "rungs": [],
-                "why": "UNKNOWN, not a split ladder — %s" % (lwhy or "no ladder was found")}
+        return _unknown("UNKNOWN, not a split ladder — %s" % (lwhy or "no ladder was found"))
     if not rows:
-        return {"ok": False, "ladder": "UNKNOWN", "passage": "UNKNOWN", "rungs": list(rungs),
-                "why": ("UNKNOWN, not an empty shelf — %s"
-                        % (rwhy or "no reel reached this probe and nothing said why"))}
+        return _unknown("UNKNOWN, not an empty shelf — %s"
+                        % (rwhy or "no reel reached this probe and nothing said why"), rungs)
 
     by_idx, by_stage, unknown, occupancy = {}, {}, 0, {}
     for r in rows:
