@@ -17679,3 +17679,43 @@ key-presence only (the shipped v2533 behaviour) → `'recorder' != 'UNKNOWN'`; a
 `n: True` passes → same; requiring a tuple so nothing can ever be attributed → the BASELINE fires,
 `'UNKNOWN' != 'recorder'`.
 
+## v2537 — one line of test pollution turned three footage guards into a coin flip
+
+**REG-536 — the pre-push gate refused v2534–v2536 with three failures, and they are ONE defect.**
+The three read like an emergency:
+
+```
+it deleted footage while a sweep was reading            (5 != 8)
+the fold MOVED his footage while a sweep was reading
+an unreadable clock (None) reported the sweep PAST its ceiling
+```
+
+**In isolation all three PASS.** So the instrument was suspect first, and the instrument was the
+problem — but not in the way the count suggested.
+
+**ROOT CAUSE, REPRODUCED FROM ONE LINE.** `tv/test_control.py:9804` calls a local helper
+`_job(startedTs=12345, phase="done")`, and that helper does `self.ca._CHRON_JOB.update(base)` on
+**the real module global**. `12345` as epoch-ms is **1970**, so from that test onward every later
+test in the process asks `sweep_past_its_ceiling(job=None)`, gets a sweep **56 years old**, and is
+told it is past the 45-minute ceiling — which is exactly what releases the in-flight refusal the
+other three guards are about.
+
+Stamping `_CHRON_JOB["startedTs"] = 12345` by hand and running only those three classes reproduces
+**the same three failures, verbatim**. Running the polluting class immediately before them
+reproduces it too, and `startedTs left behind: 12345`.
+
+⚠⚠ **THE DANGEROUS DIRECTION IS THE OTHER ONE.** These three went RED, which is loud. The same
+staleness makes an in-flight guard report *nothing is reading* when something is — **a green that
+lies**, on the one question that decides whether his footage may be deleted. Whether a verdict here
+is true depends on test ORDER, and nothing was measuring that.
+
+**Fixed:** the helper's class snapshots `_CHRON_JOB` and restores it via `addCleanup`. No product
+change — the pollution was entirely in the suite. **Seen RED for its own reason:** remove the
+`addCleanup` registration and the same three fail again with `startedTs left behind: 12345`.
+
+⚠ **SWEPT BY MEASUREMENT, NOT BY READING, and the sweep is not complete.** A scan for in-place
+mutations of `control_app` module globals across the suite finds **21 distinct globals** touched
+that way — `_CHRON_AUTOREAD` 44 times, `_UI_BEAT` 35, `_CHRON_JOB` 13, `_VAULT_JOB` 4, and 17
+others. This fixes the one that was load-bearing and **does not claim the other 20 are clean** —
+they have not been audited, and saying otherwise would be the whitewash half of the same defect.
+

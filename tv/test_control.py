@@ -9783,6 +9783,26 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         with open(res_path, "w", encoding="utf-8") as fh:
             _json.dump({"savedTs": "999", "result": {"totals": {"uniques": 1}}}, fh)
 
+        # ⚠⚠ REG-536 — THIS HELPER MUTATES THE REAL MODULE GLOBAL, AND THE LAST CALL BELOW LEAVES
+        # `startedTs` AT 12345. That is an epoch in 1970, so every LATER test in the process asks
+        # `sweep_past_its_ceiling(job=None)`, gets a sweep 56 years old, and is told it is past the
+        # 45-minute ceiling. Measured: restore that one value by hand and THREE guards in other
+        # classes go red together —
+        #   test_it_refuses_while_anything_is_reading_or_writing_footage  "it deleted footage while a sweep was reading"
+        #   test_the_fold_REALLY_refuses_while_something_is_in_flight     "the fold MOVED his footage"
+        #   test_an_UNREADABLE_clock_never_opens_the_door                 "reported the sweep PAST its ceiling"
+        # — one line of pollution, three guards whose verdict depends on test ORDER. And the
+        # dangerous direction is the other one: the same staleness can make an in-flight guard
+        # report OPEN when it should refuse, which is a green that lies. Snapshot and restore.
+        _chron_before = dict(self.ca._CHRON_JOB)
+
+        def _restore_chron_job():
+            with self.ca._CHRON_LOCK:
+                self.ca._CHRON_JOB.clear()
+                self.ca._CHRON_JOB.update(_chron_before)
+
+        self.addCleanup(_restore_chron_job)
+
         def _job(**kw):
             base = {"running": False, "startedTs": 0, "phase": "idle", "error": None, "result": None}
             base.update(kw)
