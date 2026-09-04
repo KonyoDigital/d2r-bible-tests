@@ -7,6 +7,44 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-578 — a redirect that half takes, and a registry entry nobody had checked
+**2026-09-04 · v2597 · the fourth of the eight red gates**
+
+`board_sync.py:REPO` was a module-level env-bound path constant with no entry in
+`test_import_bound_paths.REGISTRY`, so that REGISTERED gate was red. The gate's own message says
+what it wants, and it is not "register it" — it is *"Measure it — does any function re-read the
+variable at call time? — then add it to REGISTRY"*.
+
+**MEASURED by running it, not by reading it:**
+
+| question | answer |
+|---|---|
+| is the env honoured after import? | **No** — setting `D2R_REPO` afterwards is a silent no-op |
+| call-time readers of the ATTRIBUTE | **1** — `_git_ships`, which passes `cwd=REPO` |
+| does patching `REPO` isolate the module? | **NO, and this is the finding** |
+
+⚠⚠ **`TASKS` IS DERIVED AT MODULE LEVEL** as `os.path.join(REPO, "TASKS.md")`, so it is frozen
+against the original repo. Measured: after patching `REPO` to `/tmp`, `TASKS` still read
+`/Users/…/d2r_bible_tests/TASKS.md`. **A test that patches `REPO` believing it has isolated the
+module would run `git log` in a scratch directory while reading and writing HIS REAL `TASKS.md`** —
+a half-redirect that looks fully applied, which is worse than an import-bound constant that stays
+honestly put. [[feedback-fixtures-never-touch-live-data]]
+
+**And the registry entry is a CLAIM, so two guards make it falsifiable rather than asserted:** one
+runs the recommended recipe (set `D2R_REPO` BEFORE import) and proves it moves **both** paths; the
+other pins the hazard itself, and is written so that someone later making `TASKS` call-time — a
+genuine improvement — fails it and must correct the entry in the same commit. The hazard and its
+description cannot drift apart.
+
+⚠ **MY FIRST RECIPE TEST FAILED AGAINST ITS OWN INSTRUMENT.** `importlib.reload` mutates the module
+object IN PLACE and returns the same object, so returning it and then restoring the environment with
+a second reload in `finally` undid the thing under test before the assertion could read it. It
+reported the original path and looked exactly like the recipe being wrong. Snapshot the values while
+they are true. [[feedback-suspect-the-instrument]]
+
+**Guard:** `TheBoardSyncIsolationRecipeIsTRUE` — seen RED for its own reason by making `TASKS` a
+literal: *"REPO moved and TASKS did not, so the documented recipe does NOT isolate the module."*
+
 ### REG-577 — the census that measured the stores was never declared as touching them
 **2026-09-04 · v2596 · the third of the eight red gates**
 

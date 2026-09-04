@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2596",
+  "ver": "v2597",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2596: REG-577. write_census v2589 names four stores and store_owners declared none of them so test_store_owners - a registered gate - went red the version it landed and stayed red. It is NOT a writer of any of them - it exercises retro_triage into a SCRATCH root and names the other three precisely to record that they CANNOT be exercised - only a real deletion writes a tombstone and the prune stays OFF, and the vault lane writes the other two during a PAID sweep. Declared as what it is, in the same NOT-a-reader form the file already uses for write_witness, with each store carrying its own reason. Third of the eight red gates closed.",
+  "note": "v2597: REG-578. board_sync REPO was an unregistered import-bound path constant so test_import_bound_paths - a registered gate - was red. Measured by running it - the env is honoured at IMPORT ONLY, there is exactly ONE call-time reader of the attribute (_git_ships passes cwd=REPO), AND TASKS is derived at module level from REPO so patching REPO does NOT move it. Proven - after patching REPO to tmp, TASKS still read his real TASKS.md. A test patching REPO believing it isolated the module would run git in a scratch dir while reading and writing HIS REAL TASKS.md - a half redirect that looks fully applied. Registered with that measurement, plus two guards that make the recipe falsifiable rather than asserted. My first version of the recipe test failed against its own instrument - importlib.reload mutates the module IN PLACE so restoring the env in finally undid the thing under test before the assertion read it. Fourth of the eight red gates closed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

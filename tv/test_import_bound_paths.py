@@ -44,6 +44,24 @@ if HERE not in sys.path:
 #                         test genuinely works. These are the 26 false positives a static rule hit.
 # Every entry's kind was measured behaviourally; the number in each note is that measurement.
 REGISTRY = {
+    # ---- board_sync: WHICH REPO the board sync reads ships and TASKS.md from. Registered
+    # v2597 after this gate caught it unregistered — and the measurement found a HALF-redirect,
+    # which is worse than an import-bound constant that stays put.
+    "board_sync.py:REPO": (
+        "D2R_REPO", "import-bound",
+        "MEASURED v2597, all three by running it rather than reading it: (1) the env is honoured "
+        "at IMPORT ONLY — setting os.environ['D2R_REPO'] afterwards and re-reading returns the "
+        "original path, a silent no-op. (2) There is exactly ONE call-time reader of the "
+        "ATTRIBUTE, `_git_ships` (it passes cwd=REPO), so mock.patch.object(board_sync, 'REPO', "
+        "tmp) does redirect that one function. (3) ⚠⚠ AND THAT IS THE TRAP: `TASKS` is derived "
+        "at module level as os.path.join(REPO, 'TASKS.md'), so it is FROZEN against the original "
+        "REPO and patching REPO does NOT move it. Measured: after patching REPO to /tmp, TASKS "
+        "still read /Users/…/d2r_bible_tests/TASKS.md. A test that patches REPO believing it has "
+        "isolated the module would run `git log` in a scratch dir while reading and writing HIS "
+        "REAL TASKS.md — a half-redirect that looks fully applied. To isolate it properly, set "
+        "D2R_REPO BEFORE import, or patch BOTH board_sync.REPO and board_sync.TASKS. "
+        "[[feedback-fixtures-never-touch-live-data]]"),
+
     # ---- control_app: the live-state family. All six default under _fixture_root_for_state(),
     # which honours TV_HIST *at import only* — an isolated harness must set TV_HIST BEFORE import.
     # ---- live_panel_gate: WHICH CONSOLE the panel states are read from. Added v2416 after CI
@@ -384,6 +402,70 @@ class TestClassificationStillHolds(unittest.TestCase):
                                lambda: replay.JOURNAL)
         self.assertEqual(before, after,
                          "replay.JOURNAL now moves with TV_SESSIONS — reclassify it 'call-time'.")
+
+
+class TheBoardSyncIsolationRecipeIsTRUE(unittest.TestCase):
+    """⚠⚠ A REGISTRY ENTRY IS A CLAIM, AND AN UNVERIFIED RECIPE ROTS SILENTLY.
+
+    `board_sync.py:REPO`'s entry tells the next person how to isolate the module. That advice is
+    only worth having if it is checked — otherwise it is a confident sentence that stops being true
+    the moment someone re-derives `TASKS` differently, and nobody finds out until a test writes to
+    his real `TASKS.md`. So these run the recipe instead of trusting it.
+    """
+
+    def _fresh(self, repo):
+        """Import board_sync with D2R_REPO set BEFORE import. -> a SNAPSHOT of (REPO, TASKS).
+
+        ⚠ A SNAPSHOT, NOT THE MODULE, AND THAT DISTINCTION COST A RED. `importlib.reload` mutates
+        the module object IN PLACE and hands back the same object — so returning it, then restoring
+        the environment with a second reload in `finally`, undid the very thing under test before
+        the assertion could read it. The first run of this test failed against its own instrument,
+        reporting the ORIGINAL path and looking exactly like the recipe being wrong. Read the values
+        out while they are true. [[feedback-suspect-the-instrument]]
+        """
+        import importlib
+        import board_sync as BS
+        old = os.environ.get("D2R_REPO")
+        os.environ["D2R_REPO"] = repo
+        try:
+            m = importlib.reload(BS)
+            return {"REPO": m.REPO, "TASKS": m.TASKS}
+        finally:
+            if old is None:
+                os.environ.pop("D2R_REPO", None)
+            else:
+                os.environ["D2R_REPO"] = old
+            importlib.reload(BS)          # leave the module as the rest of the suite found it
+
+    def test_setting_the_env_BEFORE_import_moves_BOTH_paths(self):
+        """The recipe the registry recommends. If this fails, the entry is lying to its reader."""
+        m = self._fresh("/tmp/d2r-isolation-probe")
+        self.assertEqual(m["REPO"], "/tmp/d2r-isolation-probe",
+                         "D2R_REPO was not honoured at import")
+        self.assertTrue(m["TASKS"].startswith("/tmp/d2r-isolation-probe"),
+                        "REPO moved and TASKS did not, so the documented recipe does NOT isolate "
+                        "the module: TASKS=%r" % m["TASKS"])
+
+    def test_patching_REPO_ALONE_does_NOT_move_TASKS(self):
+        """⚠ THE HAZARD ITSELF, pinned so it cannot quietly change character.
+
+        `TASKS` is derived at module level from `REPO`, so patching `REPO` after import redirects
+        `_git_ships`' cwd and leaves `TASKS` pointing at HIS REAL FILE. Measured. If someone later
+        makes `TASKS` call-time — a genuine improvement — this test fails and the registry entry
+        must be corrected in the same commit, which is the point: the hazard and its description
+        cannot drift apart.
+        """
+        import board_sync as BS
+        before = BS.TASKS
+        old = BS.REPO
+        try:
+            BS.REPO = "/tmp/d2r-half-redirect"
+            self.assertEqual(
+                BS.TASKS, before,
+                "TASKS now follows REPO — the half-redirect this registry entry warns about is "
+                "gone, which is GOOD. Update board_sync.py:REPO's entry, it is now wrong.")
+        finally:
+            BS.REPO = old
 
 
 if __name__ == "__main__":
