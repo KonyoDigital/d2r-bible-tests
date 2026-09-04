@@ -83,15 +83,36 @@ class AZeroMustEarnTheWordClean(unittest.TestCase):
             "a joined seal that satisfies the contract, on a reel the survey says held NOTHING, is "
             "the one shape that earns CLEAN — and it reported %r instead." % r["state"])
 
-    def test_an_unreadable_store_is_UNREACHABLE_not_an_empty_corpus(self):
+    def test_an_unreadable_store_is_UNKNOWN_not_an_empty_corpus(self):
+        """⚠⚠ REG-543 — THIS TEST'S NAME WAS ALWAYS RIGHT AND ITS ASSERTION PINNED THE COLLAPSE.
+        It exists to stop *"I could not read the store"* being confused with a verdict, and it
+        asserted `UNREACHABLE` — because until now that was the only word available, and the SAME
+        word carried the real finding *"I measured, and the contradiction is structurally
+        impossible on this corpus"*. So a store that failed to open was indistinguishable from the
+        measured result to anything branching on `state`; only the `why` told them apart.
+
+        UNKNOWN is its own state now, and this asserts the rule the name always described. The
+        assertion moved; the intent did not.
+        """
         real = PR._triage
         try:
             PR._triage = lambda: (None, "the store could not be read")
             r = PR.report()
         finally:
             PR._triage = real
-        self.assertEqual(r["state"], PR.UNREACHABLE)
+        self.assertEqual(r["state"], PR.UNKNOWN,
+                         "nothing was established and it did not say UNKNOWN: %s" % r.get("why"))
+        self.assertNotEqual(r["state"], PR.UNREACHABLE,
+                            "an unreadable store still wears the word that carries the MEASURED "
+                            "finding — that is the collapse this split removed")
         self.assertIn("could not be read", r["why"])
+
+    def test_UNREACHABLE_still_means_the_MEASURED_finding(self):
+        """⚠ BASELINE for the split: if UNREACHABLE stopped being reachable, the fix would have
+        traded one collapse for a lost verdict."""
+        self.assertEqual(PR.report()["state"], PR.UNREACHABLE,
+                         "the live tree no longer reports the measured UNREACHABLE, so the real "
+                         "finding was lost when UNKNOWN was split out")
 
     def test_the_contract_is_read_from_frame_authority_not_copied(self):
         """[[copy-drift]] §1 — if this module ever hardcodes the three facts, the contract can

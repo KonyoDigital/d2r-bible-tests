@@ -49,6 +49,13 @@ STORES = {
         "readers": {
             "control_app":   "serves it to the console surfaces",
             "printer_reach": "the printer-zone acceptance test reads panels to find the A4 case",
+            "declared_vs_content": "A15 — asks whether a reel's route is derived from its CONTENT "
+                                   "or guessed from a declared stamp, so it needs what the "
+                                   "structural pass actually found",
+            "one_funnel":    "A15 clause 2 — counts how many reels this store has a DATED row for. "
+                             "It quotes retro_triage.STORE rather than naming the file (REG-534)",
+            "write_witness": "NOT a reader — it patches open/io.open/os.replace process-wide to "
+                             "ATTRIBUTE writes, so it names this path only to report who wrote it",
         },
     },
     "reel_tombstones.json": {
@@ -59,6 +66,14 @@ STORES = {
             "second_eye_ledger": "NOT a coupling — its docstring cites this file as the example of "
                                  "an untracked store living beside the reels. Declared so the "
                                  "mention is accounted for rather than looking like a second writer",
+            "dead_field":        "reads it to ask whether a field is recorded on every row and "
+                                 "filled on none — it found `startedTs` dead across 410 rows. It "
+                                 "asks the OWNER for the path (reel_retention._tombstone_path) "
+                                 "rather than resolving one itself, which is REG-540",
+            "write_witness":     "NOT a reader — it patches open/io.open/os.replace process-wide "
+                                 "to ATTRIBUTE writes, so it names this path only to report who "
+                                 "wrote it. It is an instrument pointed at the store, never a "
+                                 "second writer of it",
         },
     },
     "vault_accum.json": {
@@ -68,6 +83,8 @@ STORES = {
             "console_doctor":  "checks the vault stores are readable",
             "console_healer":  "repairs it when it will not parse",
             "control_app":     "serves the vault surfaces",
+            "write_witness":   "NOT a reader — it patches open/io.open/os.replace process-wide to "
+                               "ATTRIBUTE writes, so it names this path only to report who wrote it",
             "frame_authority": "the deletion authority reads it to protect witness frames",
             "reel_retention":  "eligibility consults what the vault took",
             "vault_doctor":    "audits the vault lane",
@@ -85,6 +102,12 @@ STORES = {
             "run_gates":       "names it in the list of stores a gate must not clobber",
             "vault_doctor":    "audits the vault lane",
             "vault_retro":     "writes what it swept, through the owner",
+            "one_funnel":      "A15 clause 2 — counts how many reels this store has a DATED row "
+                               "for, which is one of only two rungs on the six-rung ladder that "
+                               "leaves a waypoint at all. It quotes frame_authority.SEAL_STORE "
+                               "rather than naming the file, which is REG-534",
+            "write_witness":   "NOT a reader — it patches open/io.open/os.replace process-wide to "
+                               "ATTRIBUTE writes, so it names this path only to report who wrote it",
         },
     },
 }

@@ -52,6 +52,15 @@ CLEAN = "CLEAN"
 CONTRADICTION = "CONTRADICTION"
 UNREACHABLE = "UNREACHABLE"
 
+#: ⚠⚠ REG-543 — UNREACHABLE WAS DOING TWO JOBS AND THEY ARE OPPOSITE FACTS. It meant BOTH
+#: *"I measured, and the contradiction is structurally impossible on this corpus"* — a real,
+#: hard-won finding — AND *"I could not read the seal store, so nothing was established."* Only
+#: the `why` told them apart, so any consumer branching on `state` could not, and a store that
+#: failed to open would read as the measured result. Measured: stubbing `sealed_sessions` to
+#: return unreadable produced `state=UNREACHABLE`, byte-identical to the live tree's verdict.
+#: Nothing-was-established is its own state. [[unknown-stays-unknown]]
+UNKNOWN = "UNKNOWN"
+
 
 def _triage():
     """-> (rows, why). A store that will not parse is UNKNOWN, never an empty corpus."""
@@ -75,15 +84,15 @@ def report():
     """-> dict. Never claims CLEAN on evidence it could not gather."""
     tri, why = _triage()
     if tri is None:
-        return {"state": UNREACHABLE, "why": why, "rows": [], "counts": {}}
+        return {"state": UNKNOWN, "why": why, "rows": [], "counts": {}}
     try:
         import frame_authority as FA
     except Exception as e:
-        return {"state": UNREACHABLE, "rows": [], "counts": {},
+        return {"state": UNKNOWN, "rows": [], "counts": {},
                 "why": "frame_authority will not import (%s), so no seal can be read" % str(e)[:70]}
     seals, ok = FA.sealed_sessions()
     if not ok or not isinstance(seals, dict):
-        return {"state": UNREACHABLE, "rows": [], "counts": {},
+        return {"state": UNKNOWN, "rows": [], "counts": {},
                 "why": "the seal store could not be read — that is UNKNOWN, not an unsealed corpus"}
 
     # how many seals could EVER let a reel become disposable, and why the rest cannot

@@ -17967,3 +17967,45 @@ the designed degradation, and changing it would be work for a case that already 
 removing the absolute check → `'/etc/passwd' is not None`. A relative-literal baseline keeps the
 fallback branch from being refused into uselessness.
 
+## v2544 — THE 3D/4D PRINTER, on the heart and on pixels
+
+**His instruction, 2026-09-04:** *"3d 4d printer connected to the heart of the console and the reels
+like we said going in unified and getting processed and routed out clean on the other end of the
+stream"*. Built as `tv/printer.py`, joined to `/api/heart`, and photographed.
+
+⚠⚠ **IT BUILDS NOTHING NEW AND THAT IS THE POINT.** Seven modules already answered one question
+each, every one measured on his own forty reels. What did not exist is **one surface where a single
+reel is followed from the door to the far end**, so *"is the stream working"* could only be answered
+by running seven probes and holding the answers in your head. **Every station QUOTES its owner** —
+the printer derives nothing, because two derivations of one truth is how a badge and a diagram come
+to disagree on screen about the same reel. [[copy-drift]] §1 [[the-unjoined-end]]
+
+**MEASURED on his 40 reels, 2026-09-04:**
+
+```
+IN       one_start_point   recorder 38 · repair 2      which door did this reel enter by?
+FUNNEL   reel_river        releasable 12 · swept 28    how far down the one ladder, and who decided?
+ROUTE    per_reel_routes   content 28 · policy 12      what chose its route — CONTENT, or policy?
+EXTRACT  printer_reach     UNREACHABLE — all 40        may the printer act on it at all?
+OUT      reel_river        UNDECIDED — all 40          is it clean? (BOTH doors, neither chosen)
+```
+
+⚠⚠ **THE FAR END IS UNDECIDED FOR EVERY REEL, BY DESIGN.** A15 never says which door decides
+*clean*; the two candidates disagree on his shelf, and conjoining them is the collapse **v2312
+attempted and WITHDREW**. A printer that picked one would be answering his question with my
+preference and calling it a measurement. **That choice is his, and it gates the prune (task 146).**
+
+⚠ **IT PRINTS NOTHING AND DELETES NOTHING** — the prune stays OFF; this routes a reel *on paper*.
+A guard asserts the module contains no delete and no write mode at all.
+
+**ON PIXELS:** the heart target rose **59 → 65 painted** at all five widths, 0 clipped, 0 covered,
+floor blessed. **A cold cross-family read of the rendered row found a real misreading** — handed the
+stripped text with no hint of what it should say, it named *"UNREACHABLE 40"* as parseable as
+**"there are no reels"**, because every other station shows a PARTITION (recorder 38 · repair 2)
+while a lone state with a number beside it reads as a count of something else. It says
+`UNREACHABLE — all 40` now.
+
+**Guard:** `tv/test_printer.py`, registered. **4 sabotages, 4 RED**, and the quoting laws MOVE an
+owner's answer and require the printer's row to move with it — a token check would have passed on a
+printer keeping its own copy.
+

@@ -15429,6 +15429,16 @@ def heart_state(force=False):
         # detector that fires once against a field that had been dead for 410 deletions. The
         # console asks now, on every heart read. Reports, refuses nothing. [[the-unjoined-end]]
         "deadFields": dead_field_state(),
+        # ⚠⚠ THE 3D/4D PRINTER, ON THE HEART. His instruction, 2026-09-04: "3d 4d printer connected
+        # to the heart of the console and the reels like we said going in unified and getting
+        # processed and routed out clean on the other end of the stream". Seven modules already
+        # answered one question each and NOTHING put a single reel's whole journey in one place, so
+        # "is the stream working" could only be answered by running seven probes and holding the
+        # answers in your head. Every station QUOTES its owner — the printer derives nothing, or a
+        # badge and a diagram would eventually disagree about the same reel. [[the-unjoined-end]]
+        # ⚠ The far end is UNDECIDED for every reel BY DESIGN: A15 never says which door decides
+        # `clean`, and conjoining the two is the collapse v2312 withdrew. That choice is his.
+        "printer": printer_state(),
         # A21c — THE CHRONICLE ROUTES, on the same heart, in the same four words. His ask:
         # "the chronicles routes should also be there.. the sets and the uniques espeically..
         # reverse engineered like the routes and lanes here also for accuracy going forward".
@@ -15587,6 +15597,32 @@ def scope_reach_state():
                 "the readable signal." % len(rows)) if rows else
                "no lane forbids an ability its reach can perform",
     }
+
+
+def printer_state():
+    """THE PRINTER — every reel from the door to the far end, in one reading. -> dict
+
+    ⚠ It quotes seven owners and derives nothing itself. ⚠ It refuses nothing and deletes nothing:
+    the prune stays OFF, and this routes a reel ON PAPER. ⚠ The far end is UNDECIDED for every reel
+    until he says which door decides `clean` — see A15 and task 146.
+    """
+    try:
+        import printer as _p
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
+                "why": "the printer will not import (%s)" % str(e)[:90]}
+    try:
+        r = _p.stream()
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
+                "why": "the stream could not be walked (%s)" % str(e)[:90]}
+    # ⚠ THE ROWS ARE NOT SENT. Forty reels x five stations is a payload the heart re-derives on
+    # every open; the console draws the TALLY per station, and `python3 tv/printer.py <reel>`
+    # follows one fish. Sending all of it would make every heart open cost forty rows nobody reads.
+    return {"ok": bool(r.get("ok")), "state": r.get("state"), "counts": r.get("counts") or {},
+            "stations": r.get("stations") or [], "owners": r.get("owners") or {},
+            "questions": r.get("questions") or {}, "walked": r.get("walked"),
+            "unknownStations": r.get("unknownStations"), "why": r.get("why", "")}
 
 
 def dead_field_state():
@@ -22300,7 +22336,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2543",
+        "ver": "v2544",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -47,13 +47,57 @@ def _nothing_for_funnel():
 
 #: Each entry is a probe that publishes a `state`, and a callable that asks it with NOTHING TO
 #: READ. Each is here because a wrong CLEAN from it would be believed.
+def _nothing_for_printer_reach():
+    """⚠⚠ THIS ONE FOUND A DEFECT THE DAY IT WAS ADDED (REG-543). `printer_reach.UNREACHABLE` was
+    doing two jobs: *"I measured, and the contradiction is structurally impossible on this corpus"*
+    — a real finding — and *"I could not read the seal store."* Only the `why` told them apart, so
+    a store that failed to open read as the measured verdict. Splitting UNKNOWN out is what lets
+    this probe join the law at all."""
+    import frame_authority as FA
+    import printer_reach as PR
+    real = FA.sealed_sessions
+    try:
+        FA.sealed_sessions = lambda *a, **k: ({}, False)
+        return PR.report()
+    finally:
+        FA.sealed_sessions = real
+
+
+def _nothing_for_declared_vs_content():
+    """Its source is the shelf; empty it and the sample cannot answer."""
+    import declared_vs_content as DVC
+    import reel_story as RS
+    real = getattr(RS, "story", None)
+    try:
+        if real is not None:
+            RS.story = lambda *a, **k: {"reels": []}
+        return DVC.report()
+    finally:
+        if real is not None:
+            RS.story = real
+
+
 PROBES = (
     ("one_start_point.start_points",
      lambda: __import__("one_start_point").start_points(os.path.join(HERE, ".no_such_shelf_ever"))),
     ("one_funnel.funnel", _nothing_for_funnel),
     ("per_reel_routes.routes", lambda: __import__("per_reel_routes").routes([])),
     ("dead_field.dead_fields", lambda: __import__("dead_field").dead_fields(None)),
+    ("printer_reach.report", _nothing_for_printer_reach),
 )
+
+#: ⚠ NOT ON THE LIST, WITH THE REASON — because a probe missing silently is the failure this file
+#: exists to prevent, and a probe missing with a REASON is a decision anyone can re-open:
+#:
+#:   declared_vs_content.report — its no-data path could not be driven from outside in the time
+#:       this was written: emptying reel_story leaves its own reel-dir walk untouched, so the stub
+#:       does not reach it. It is UNTESTABLE-aware (that IS its live verdict), so the question it
+#:       would be asked here is one it already answers — but "already answers" is a claim I did not
+#:       prove, and an unproven claim does not earn a line above. Open.
+#:   store_owners.audit — publishes `ok`/`rows`/`why` and NO `state` at all. It is a different
+#:       shape, not a probe that forgot to say UNKNOWN, and widening the law to cover it would
+#:       change what the law means. Left out deliberately.
+NOT_COVERED = ("declared_vs_content.report", "store_owners.audit")
 
 
 class NothingInMustGiveUnknownOut(unittest.TestCase):
@@ -84,9 +128,35 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
         exactly how a law stops covering the thing it was written for, and that deletion looks
         identical to a passing run. The count is the only thing that catches it."""
         self.assertGreaterEqual(
-            len(PROBES), 4,
+            len(PROBES), 5,
             "a probe was removed from this law. Adding one is free; removing one needs a reason "
             "written down, because the run stays green either way.")
+
+    def test_every_probe_left_OUT_carries_a_reason(self):
+        """⚠⚠ A probe missing from PROBES silently is the exact failure this file exists to
+        prevent, and the count check above cannot see one that was never added. So the ones left
+        out are NAMED, and this pins that the list of exclusions is not empty — an empty
+        NOT_COVERED would mean either everything is covered (say so by adding them) or somebody
+        deleted the reasons."""
+        self.assertTrue(NOT_COVERED,
+                        "no probe is recorded as deliberately left out. If everything is covered, "
+                        "add it to PROBES; if something is not, it needs a reason here.")
+        for name in NOT_COVERED:
+            self.assertNotIn(name, [n for n, _ in PROBES],
+                             "%s is both covered and listed as not covered" % name)
+
+    def test_printer_reach_tells_UNKNOWN_apart_from_UNREACHABLE(self):
+        """⚠⚠ REG-543, and it is why this probe could join the law at all. `UNREACHABLE` meant
+        BOTH *"I measured, and the contradiction is structurally impossible"* — a real finding —
+        AND *"I could not read the seal store."* Only the `why` told them apart, so a consumer
+        branching on `state` could not, and an unopenable store read as the measured verdict."""
+        import printer_reach as PR
+        self.assertEqual(_nothing_for_printer_reach().get("state"), "UNKNOWN")
+        live = PR.report().get("state")
+        self.assertNotEqual(
+            live, "UNKNOWN",
+            "the live tree now reports UNKNOWN too, so the split collapsed the other way and the "
+            "real measured finding has been lost")
 
     def test_BASELINE_these_probes_can_reach_a_real_verdict(self):
         """⚠⚠ Or the law above passes on four functions that answer UNKNOWN to everything, which

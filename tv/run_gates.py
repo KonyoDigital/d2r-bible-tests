@@ -667,6 +667,25 @@ GATES = [
              "and STALE couplings both fail, the owner must actually mention its store, a reader "
              "needs a real reason, the exclusion stays narrow (widening it would make a hiding "
              "place), and nothing here fails a build. 5 sabotages, 5 RED."),
+    Gate("test_printer", [sys.executable, os.path.join(HERE, "test_printer.py")], 120,
+         why="THE 3D/4D PRINTER — every reel in at ONE door, down ONE stream, out the other end. "
+             "His instruction: \"3d 4d printer connected to the heart of the console and the reels "
+             "like we said going in unified and getting processed and routed out clean on the "
+             "other end of the stream\". ⚠⚠ THE PRINTER OWNS NO MEASUREMENT and that is the law "
+             "these hold: seven modules already answer one question each, every one measured on "
+             "his own forty reels, and if this file re-derived any of them a badge and a diagram "
+             "would eventually disagree on screen about the same reel. So each station QUOTES its "
+             "owner, and the guards MOVE an owner's answer and require the printer's row to move "
+             "with it — a token check would have passed on a printer keeping its own copy. ⚠⚠ AND "
+             "THE FAR END IS UNDECIDED FOR EVERY REEL, DELIBERATELY: A15 never says which door "
+             "decides `clean`, the two candidates disagree on this shelf (12 of 40 by the REEL "
+             "door, 0 of 15 asked by the FRAME contract), and conjoining them is the collapse "
+             "v2312 attempted and WITHDREW. A printer that picked one would answer his question "
+             "with my preference and call it a measurement. Also pinned: a reel missing from an "
+             "owner is UNKNOWN not dropped, the shelf-wide EXTRACT state says out loud that it is "
+             "shelf-wide rather than inventing forty per-reel measurements, and the printer "
+             "contains no delete or write at all — the prune stays OFF and this routes on paper. "
+             "4 sabotages, 4 RED."),
     Gate("test_probe_unknown_law",
          [sys.executable, os.path.join(HERE, "test_probe_unknown_law.py")], 90,
          why="EVERY PROBE MUST BE ABLE TO SAY UNKNOWN, AND MUST SAY IT WHEN HANDED NOTHING. ⚠⚠ "

@@ -10904,6 +10904,48 @@ body[data-origin="shadow"] #stage::after {
     return h + '</div>';
   }
 
+  /* ⚠⚠ THE 3D/4D PRINTER. His instruction, 2026-09-04: "3d 4d printer connected to the heart of
+     the console and the reels like we said going in unified and getting processed and routed out
+     clean on the other end of the stream". Five stations in order, each showing WHO answered it
+     and the tally across his shelf — the printer derives nothing, it quotes seven owners.
+     ⚠ The OUT station reads UNDECIDED for every reel BY DESIGN: A15 never says which door decides
+     `clean`, the two candidates disagree on this shelf, and conjoining them is the collapse v2312
+     withdrew. That choice is HIS and it gates the prune, so the row says so out loud rather than
+     printing a verdict nobody earned. */
+  function _hrtPrinter(d){
+    if (!d) return '';
+    var sts = (d.stations || []);
+    if (!sts.length) return '<div class="hrt-sec"><div class="hrt-h">The printer</div>'
+      + '<div class="hrt-row"><span class="hrt-k">the stream</span>'
+      + '<span class="hrt-s st-UNKNOWN">UNKNOWN</span>'
+      + '<span class="hrt-w">' + _hrtEsc(d.why || 'nothing was walked') + '</span></div></div>';
+    var h = '<div class="hrt-sec"><div class="hrt-h">The printer · '
+          + _hrtEsc(d.walked) + ' reel(s) · in at one door, out the other end</div>';
+    for (var i = 0; i < sts.length; i++){
+      var st = sts[i], c = (d.counts || {})[st] || {}, parts = [], keys = [];
+      for (var k in c){ if (Object.prototype.hasOwnProperty.call(c, k)) keys.push(k); }
+      keys.sort();
+      /* ⚠ "UNREACHABLE 40" READS AS "THERE ARE NO REELS". A cold cross-family read of this exact
+         rendered row, handed over with no hint of what it should say, named it as the likeliest
+         misreading here: every other station shows a PARTITION of the shelf (recorder 38 · repair
+         2), so a lone state with a number beside it parses as a count of something else rather
+         than as "all of them". When one state holds the whole shelf, say ALL. */
+      for (var q = 0; q < keys.length; q++){
+        var kk = keys[q];
+        parts.push((keys.length === 1 && c[kk] === d.walked)
+                   ? (kk + ' \u2014 all ' + c[kk]) : (kk + ' ' + c[kk]));
+      }
+      var undec = /UNDECIDED/.test(parts.join(' '));
+      var unk = /UNKNOWN/.test(parts.join(' '));
+      var cls = undec ? 'st-WATCHED' : (unk ? 'st-UNKNOWN' : 'st-FLOWING');
+      h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(st.toUpperCase()) + ' · '
+        + _hrtEsc((d.owners || {})[st] || '?') + '</span>'
+        + '<span class="hrt-s ' + cls + '">' + _hrtEsc(parts.join(' \u00b7 ')) + '</span>'
+        + '<span class="hrt-w">' + _hrtEsc((d.questions || {})[st] || '') + '</span></div>';
+    }
+    return h + '</div>';
+  }
+
   /* ⚠⚠ A FIELD RECORDED ON EVERY ROW AND FILLED ON NONE. His instruction, 2026-09-04:
      "connect it to the heart of the console that way we would have caught it".
      `_tombstone` recorded every deleted reel's `startedTs` from two keys NO REEL INDEX HAS EVER
@@ -11173,6 +11215,7 @@ body[data-origin="shadow"] #stage::after {
          [[the-unjoined-end]] */
       + _hrtChron(d.rosters, 'The roster routes', ' in the chronicle')
       + _hrtReach(d.reach)
+      + _hrtPrinter(d.printer)
       + _hrtDead(d.deadFields)
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '
       + (d.total || lk.length) + ' open</div>' + lrows + '</div>'

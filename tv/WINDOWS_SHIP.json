@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2543",
+  "ver": "v2544",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2543: ",
+  "note": "v2544: ",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
