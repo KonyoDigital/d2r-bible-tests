@@ -26,15 +26,19 @@ A darkness test would have called a healthy console blank every single time it r
 
 What separates them is UNIFORMITY, not darkness — how much of the window is one single colour:
 
-    surface                         distinct luminances     modal share
-    his console, healthy                    156 / 34            0.069 / 0.122
-    Terminal                                    102             0.662
-    Safari                                      134             0.778
-    a truly blank window                          1             1.000
-    black + ONE stray pixel                       2             1.000   <- his actual symptom
+    surface                              modal share      distinct luminances
+    his console, BLANK (caught live)        0.9963                 8-9
+    his console, healthy                0.069 / 0.122           156 / 34
+    Terminal                                0.6628                 117
+    Safari                                  0.4892                 125
+    a synthetic all-black buffer            1.0000                   1
 
-That last row is why the bar is where it is: when he showed the black console, the only thing
-drawn was the tooltip cursor. One stray element must not rescue the verdict.
+⚠⚠ AND THE FIRST ROW IS WHY `distinct` IS NOT PART OF THE VERDICT. This module shipped with a
+second bar, `distinct <= 4`, and then found his console **blank white with only the titlebar
+drawn** — and called it PAINTED, because the CHROME contributes 8-9 luminances on its own. Every
+fixture behind that bar was chrome-free and no real window ever is. **The one case it existed to
+catch is the case it would have missed.** Modal share alone has a margin of 0.9963 against 0.6628
+for the busiest ordinary window measured. [[visual-regression-detector]]
 
 ⚠ AND THE READING IS NOISY. His healthy console measured 156 distinct luminances one moment and 34
 seconds later — the content moves. The margin to the bar is enormous (0.122 vs 0.98), but a single
@@ -59,11 +63,23 @@ try:
 except Exception:                                  # pragma: no cover - measured at import
     MIN_ON_SCREEN_PX = 40 * 40
 
-#: THE BARS, and both must be cleared before a frame is called blank. Measured 2026-09-04 against
-#: his live console and three ordinary applications; see the table in the module docstring. The
-#: nearest healthy reading was modal share 0.122 — this bar sits eight times further out.
+#: THE BAR. Measured 2026-09-04 against his live console and three ordinary applications.
 BLANK_MODAL_SHARE = 0.98    #: one colour covering ~all of the window
-BLANK_MAX_DISTINCT = 4      #: and almost no distinct luminances at all
+#: ⚠⚠ REPORTED, NOT REQUIRED — AND THE REASON IS A LIVE CATCH ON HIS OWN MACHINE.
+#: This started as a second bar, `distinct <= 4`, calibrated against healthy windows and synthetic
+#: all-black buffers. Then the harness was pointed at his running console and found it **blank
+#: white, only the titlebar drawn** — the exact fault he reported — and called it **PAINTED**,
+#: because the window CHROME (traffic lights, "TV DIABLO" title, the 1px rule under it) contributes
+#: **9** distinct luminances all by itself. A real blank window is never chrome-free, and every
+#: fixture I had built was. The conjunct would have failed on the only case that matters.
+#:
+#: Modal share alone separates them with room to spare, measured the same minute:
+#:     his console, BLANK NOW      0.9963      <- caught
+#:     his console, healthy    0.069 / 0.122
+#:     Terminal                    0.6628
+#:     Safari                      0.4892
+#: 98% of a window being ONE colour is blank whether or not a titlebar is drawn on top of it.
+BLANK_MAX_DISTINCT = 4      #: kept for the report; NOT part of the verdict — see above
 
 #: how many CONSECUTIVE blank frames before this witness is willing to say so out loud. A single
 #: frame can catch a legitimate mid-repaint moment; three cannot.
@@ -179,19 +195,21 @@ def verdict(m):
     if not m or m.get("distinct") is None:
         return UNKNOWN, (m or {}).get("why") or "nothing was measured"
     d, share = m["distinct"], m["modalShare"]
-    if share >= BLANK_MODAL_SHARE and d <= BLANK_MAX_DISTINCT:
-        return BLANK, ("%.1f%% of the window is a single colour and only %d distinct luminance(s) "
-                       "were found - nothing is drawn on it" % (share * 100.0, d))
-    return PAINTED, ("%d distinct luminance(s), the commonest covering %.1f%% - this window has "
-                     "content on it (blank needs >= %.0f%% and <= %d)"
-                     % (d, share * 100.0, BLANK_MODAL_SHARE * 100.0, BLANK_MAX_DISTINCT))
+    if share >= BLANK_MODAL_SHARE:
+        return BLANK, ("%.1f%% of this window is a SINGLE colour (luminance %s) - nothing is drawn "
+                       "on it. %d distinct luminance(s) found, which on a blank window is the "
+                       "CHROME: the titlebar and its buttons draw whatever the page does not"
+                       % (share * 100.0, m.get("modalLuminance"), d))
+    return PAINTED, ("the commonest colour covers %.1f%% of this window across %d distinct "
+                     "luminance(s) - it has content on it (blank needs >= %.0f%%)"
+                     % (share * 100.0, d, BLANK_MODAL_SHARE * 100.0))
 
 
 def look(pid, quartz=None, samples=60):
     """One look at one window. -> dict, always the same shape."""
     out = {"pid": pid, "windowId": None, "state": UNKNOWN, "why": "", "measure": None,
-           "bars": {"modalShare": BLANK_MODAL_SHARE, "distinct": BLANK_MAX_DISTINCT,
-                    "strikes": BLANK_STRIKES}}
+           "bars": {"modalShare": BLANK_MODAL_SHARE, "strikes": BLANK_STRIKES,
+                    "distinctReportedOnly": BLANK_MAX_DISTINCT}}
     wid, why = window_for(pid, quartz=quartz)
     if wid is None:
         out["why"] = why
@@ -257,6 +275,38 @@ def contradicts_a_blank_beat(pid, quartz=None):
     return False, "the pixels agree that nothing is drawn on this window: %s" % r["why"]
 
 
+def rescue_worked(pid, quartz=None, sleep=None, settle=2.5):
+    """After a reload, did PAINTING actually come back? -> dict
+
+    ⚠⚠ MEASURED ON HIS MACHINE, 2026-09-04, AND THIS IS WHY THE FUNCTION EXISTS. The watchdog
+    detected the fault correctly and fired correctly — `uiBeat.rescues = 1`, reason *"the page is
+    BEATING and DRAWING NOTHING: 20 beats with no frame while the DOM stayed intact (11841
+    elements)"* — and **the window was still blank white afterwards**, with `frozenBeats` climbing
+    29 → 38 and `painting` still false. The detection works. **The CURE does not cure**, and
+    nothing anywhere checked: `rescues: 1` reads exactly like "handled".
+
+    A self-heal that is never verified is a fault that stops being reported — by the machine.
+    It goes on being reported by HIM. [[feedback-verify-not-proxy]] [[the-unjoined-end]]
+
+    ⚠ UNKNOWN STAYS UNKNOWN. If the pixels cannot be read the answer is None, never "it worked".
+    """
+    if sleep:
+        sleep(settle)
+    r = look(pid, quartz=quartz)
+    if r["state"] == UNKNOWN:
+        return {"worked": None, "state": UNKNOWN, "why": (
+            "whether the reload restored painting is UNKNOWN - the pixels could not be read (%s). "
+            "That is not success." % r["why"])}
+    if r["state"] == PAINTED:
+        return {"worked": True, "state": PAINTED, "why": (
+            "the reload restored painting: %s" % r["why"])}
+    return {"worked": False, "state": BLANK, "why": (
+        "THE RELOAD DID NOT RESTORE PAINTING - the window is still blank after it. Reloading the "
+        "document cannot fix a compositor that has stopped presenting frames for this window, and "
+        "counting this as a completed rescue is how the fault goes on being reported by him "
+        "instead of by the machine. %s" % r["why"])}
+
+
 def main(argv):
     pid = int(next((a for a in argv if a.isdigit()), os.getpid()))
     r = look(pid)
@@ -270,8 +320,9 @@ def main(argv):
     if m:
         print("  measured %d sample(s) - %s distinct luminance(s), modal share %s, mean %s"
               % (m.get("samples"), m.get("distinct"), m.get("modalShare"), m.get("meanLuminance")))
-    print("  bars     blank needs modalShare >= %.2f AND distinct <= %d, over %d consecutive looks"
-          % (BLANK_MODAL_SHARE, BLANK_MAX_DISTINCT, BLANK_STRIKES))
+    print("  bar      blank needs modalShare >= %.2f, over %d consecutive looks (distinct is "
+          "reported, not required - chrome alone draws several)"
+          % (BLANK_MODAL_SHARE, BLANK_STRIKES))
     print("\n  %s\n" % r["why"])
     return 0
 

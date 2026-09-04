@@ -7,6 +7,57 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-582 — the console went blank while reporting itself healthy, and the rescue did not cure it
+**2026-09-04 · v2601 · caught LIVE on his machine while building the witness for it**
+
+His ask: *"a picture harness pixel harness of some sort like a visual screenshot or something im
+sure we can safegaurd it by that too."* `tv/paint_witness.py` reads the **window server's own
+bitmap** of his window rather than asking the page.
+
+⚠⚠ **IT CAUGHT HIS CONSOLE BLANK WHILE I WAS WRITING IT.** The window was **blank white with only
+the titlebar drawn** — and every existing witness said healthy, because every existing witness is
+published BY the document:
+
+| the page said | the pixels said |
+|---|---|
+| beating, `n=30`, age 4.6s | 99.6% a single colour |
+| `blankStrikes: 0` | blank white, luminance 255 |
+| `elsNow/elsHigh: 11841/11841` — full DOM at peak | only the chrome drawn |
+
+**A document that keeps beating while nothing reaches the screen cannot see its own failure.**
+
+**WHY "IS IT BLACK?" WOULD HAVE BEEN WRONG.** His console is dark-themed: **72.7% of a HEALTHY
+frame sits below luminance 24.** A darkness test would flag a healthy console every run. The bar is
+UNIFORMITY — blank 0.9963 modal share, against 0.6628 for the busiest ordinary window measured.
+
+⚠⚠ **AND THE FIRST CUT OF THAT BAR FAILED ON THE ONLY CASE IT WAS BUILT FOR.** It carried a second
+conjunct, `distinct <= 4`, and called his blank console **PAINTED** — because window **CHROME**
+(traffic lights, the title, the rule beneath it) draws **8-9 distinct luminances by itself**. Every
+fixture behind that bar was chrome-free and no real window ever is. Modal share alone decides now,
+and `test_his_console_BLANK_WITH_CHROME_is_called_blank` pins the exact live reading. Proven RED by
+restoring the conjunct. [[visual-regression-detector]]
+
+⚠⚠ **THE SECOND FINDING IS BIGGER: THE RESCUE FIRED AND THE CURE DID NOT CURE.** v2587's watchdog
+worked exactly as designed — `uiBeat.rescues = 1`, reason *"the page is BEATING and DRAWING NOTHING:
+20 beats with no frame while the DOM stayed intact (11841 elements), and the window was
+independent[ly sighted]"* — **and the window was still blank afterwards**, `frozenBeats` climbing
+29 → 38, `painting` still false. **Nothing checked.** `rescues: 1` reads exactly like "handled", so
+the fault went on being reported by HIM.
+
+`rescue_worked()` now asks the pixels after a reload and records
+`console-rescue-did-not-restore-painting` instead of counting a success. **It does not retry and
+does not escalate**: a reload cannot fix a compositor that has stopped presenting frames, and
+hammering his window is worse than saying so. Reloading the document is the wrong cure for this
+fault — **recreating the window is, and that is a design decision, named rather than taken.**
+
+⚠ My own reading of the rescue state was wrong first: I read `rescues: None` from `d["uiRescue"]`,
+which does not exist — the counters live under `uiBeat`. The rescue HAD fired.
+[[feedback-suspect-the-instrument]]
+
+**Guard:** `tv/test_paint_witness.py`, registered in `run_gates`. 18 cases, all synthetic or
+recorded measurements — nothing captures a live window. Includes an AST check that the module
+cannot reload, delete or kill anything: it is a witness, not a trigger.
+
 ### REG-581 — two unrelated repos could block a D2R ship, and now cannot
 **2026-09-04 · v2600 · his ruling**
 

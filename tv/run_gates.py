@@ -893,6 +893,17 @@ GATES = [
              "number. Nothing on any screen was wrong and his ruling is untouched — the defect "
              "lived in the reasoning record, where nothing reads prose. This reads it, and fails "
              "if anyone but him moves RUNEWORD_CHRONICLE_TOTAL."),
+    Gate("test_paint_witness", [sys.executable, os.path.join(HERE, "test_paint_witness.py")], 60,
+         why="v2601 — HIS CONSOLE WENT BLANK WHILE REPORTING ITSELF HEALTHY, and every existing "
+             "witness agreed with the page. `_UI_BEAT` is published BY the document, so a window "
+             "that beats happily while the compositor presents nothing looks perfect from the "
+             "inside: measured on his machine, blankStrikes 0 and 11,841 DOM elements while the "
+             "window was blank white. tv/paint_witness.py reads the window server's own bitmap "
+             "instead. This suite guards the calibration, and it exists because the FIRST cut of "
+             "that bar failed on the only case it was built for — window CHROME draws 8-9 distinct "
+             "luminances, so a `distinct <= 4` conjunct called his blank console PAINTED. It also "
+             "pins that an unreadable capture is UNKNOWN and never a clean bill, and that the "
+             "module can never reload, delete or kill anything: it is a witness, not a trigger."),
     Gate("test_self_arming", [sys.executable, os.path.join(HERE, "test_self_arming.py")], 60,
          why="v2438 — KONYO RULED THE PRUNE MUST NOT BE ARMED BY HAND. \"a lock until it "
              "automatically unlocks with a que for wilson score. arithmetic as you see.\" This "

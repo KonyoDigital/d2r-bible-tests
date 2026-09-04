@@ -12182,6 +12182,34 @@ def _console_rescue_loop():
                 win.load_url(url)
             except Exception as _e:
                 print("\u26a0 console rescue could not reload the window: %s" % str(_e)[:140], flush=True)
+            # ⚠⚠ v2601 — DID THE CURE ACTUALLY CURE? MEASURED ON HIS MACHINE AND IT DID NOT.
+            # 2026-09-04: this loop detected the fault correctly and fired correctly — rescues=1,
+            # reason "the page is BEATING and DRAWING NOTHING: 20 beats with no frame while the DOM
+            # stayed intact (11841 elements)" — and the window was STILL BLANK WHITE afterwards,
+            # frozenBeats climbing 29 -> 38, painting still false. Nothing checked. `rescues: 1`
+            # reads exactly like "handled", and the fault went on being reported by HIM.
+            #
+            # So the pixels are asked afterwards. This does not retry and does not escalate — a
+            # reload that cannot fix a stopped compositor will not fix it the second time either,
+            # and hammering his window is worse than saying so. It RECORDS, and the record is what
+            # turns "we rescued it" into "we tried and it did not take".
+            # [[feedback-verify-not-proxy]] [[the-unjoined-end]]
+            try:
+                import paint_witness as _pw
+                _rw = _pw.rescue_worked(os.getpid(), sleep=time.sleep)
+                _UI_BEAT["rescueWorked"] = _rw.get("worked")
+                _UI_BEAT["rescueWorkedWhy"] = _rw.get("why")
+                if _rw.get("worked") is False:
+                    ui_fault_record("console-rescue-did-not-restore-painting",
+                                    why=_rw.get("why"), where="_console_rescue_loop")
+                    print("\u26a0\u26a0 console rescue DID NOT restore painting - %s"
+                          % str(_rw.get("why"))[:160], flush=True)
+            except Exception as _pe:
+                # ⚠ an absent witness must not read as a successful cure
+                _UI_BEAT["rescueWorked"] = None
+                _UI_BEAT["rescueWorkedWhy"] = ("the paint witness could not be asked (%s), so "
+                                               "whether the reload worked is UNKNOWN"
+                                               % str(_pe)[:80])
         except Exception:
             # a watchdog that can die is not a watchdog
             try:
@@ -22535,7 +22563,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2600",
+        "ver": "v2601",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
