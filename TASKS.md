@@ -160,6 +160,29 @@ in those words.
   `vault.sweep_start` 16/16, the nine routes 4/4→7/7. The 14th, `vault.forget`, is **UNPROVEN by
   construction and permanently so** — 8 lines, 0 raises, no refusal path, so no sabotage can produce
   evidence in either direction. `n=0` there is the correct final state, not an owed harness.
+- **🖨🌊 THE PRINTER AND THE RIVER, PROBED 2026-09-04 — his questions, answered with numbers.**
+  · **"did those reels get processed through the 3D/4D printer?" — NO, AND THEY COULD NOT HAVE.**
+    The printer landed **2026-09-04 05:22** (`cb6aae55` v2544, `9f506217` v2546). The 410 were
+    deleted **2026-08-24 23:49 → 2026-09-01 14:34** — three to eleven days BEFORE it existed. They
+    went through the older read+seal path (*"read and sealed by BOTH lanes"*), not the five
+    stations. 394 of 410 carried `pages == 0` and 406 of 410 had no `focus` — empty reels.
+  · **"has the printer been tested and hardened?" — NO LOCK AT ALL.** 14 locks+routes are declared
+    and **not one names the printer, the river, or reel selection**. No `*_wilson.py` sabotages it;
+    the two files that match "printer" are quoting his own instruction in prose. So it has no
+    sabotage record, cannot be HARDENED, and **is not even in the table.**
+  · **"every reel gets the same unified logic?" — NO, measured on his 40.** IN: **38 recorder /
+    2 repair** (two doors). ROUTE: **28 content / 12 policy** — 7 held as `test-fixture` (a suite
+    opened it), 5 as `recent` (age); those twelve were NOT routed by what they contain. And
+    `per_reel_routes` reports **UNEXERCISED**.
+  · **"routed to their relevant end zone?" — THE LAST TWO STATIONS REACH NOBODY.** EXTRACT is
+    **UNREACHABLE for all 40**: not one of 30 seals satisfies the extraction contract because the
+    sweep never extracted `name`, so **the printer may act on ZERO of 40 reels.** OUT is
+    **UNDECIDED for all 40** — A15 never says which door decides *clean* and the two candidates
+    disagree; that choice is his and it gates the prune.
+  · ⚠ **NET: the printer is a REPORT layer that currently cannot act on a single reel.** It walks
+    all 40 and every station answers, which is the diagnostic working — but nothing downstream of
+    FUNNEL can route anything anywhere yet.
+
 - **⚠⚠ THE PRUNE LOCK HAS ONLY EVER PROVEN HALF ITS CONTRACT — measured 2026-09-04, and it is
   the better next step than anything the `live` question was about.** His question was exactly
   right: *"prune.armed? OPEN but its stick locked right? like has it proven itself to work already
