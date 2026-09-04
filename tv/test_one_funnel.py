@@ -205,6 +205,48 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
         self.assertEqual(sorted(r["unreadableRungs"]), ["swept", "triaged"], r["unreadableRungs"])
         self.assertIn("COULD NOT BE READ", r["why"], r["why"])
 
+    def test_the_unreadable_warning_survives_BOTH_ladder_branches(self):
+        """⚠⚠ REG-558 — AN OPERATOR-PRECEDENCE BUG THAT SILENCED A REAL WARNING. The reason was
+        built as `prefix + A if cond else B`, and `+` binds tighter than the conditional, so it
+        parsed as `(prefix + A) if cond else B` — the unreadable-stores warning reached ONLY the
+        ONE_LADDER text. Measured with both stores unreadable AND a stage collision: `passage` said
+        UNKNOWN, `unreadableRungs` held two entries, **and the sentence a reader sees said nothing
+        about either.** The numbers were right and the prose was silent.
+
+        Both branches are asserted here, because a fix verified on one branch is how this happened.
+        """
+        import shutil
+        import tempfile
+        import frame_authority as FA
+        import reel_story as RS
+        import retro_triage as RT
+        d = tempfile.mkdtemp(prefix="funnel_split_")
+        self.addCleanup(shutil.rmtree, d, True)
+        trap = os.path.join(d, "trap.json")
+        os.makedirs(trap)
+        rt, fa, story = RT.STORE, FA.SEAL_STORE, RS.story
+        try:
+            RT.STORE = FA.SEAL_STORE = os.path.basename(trap)
+            # SPLIT branch: two reels claiming one rung with different stages
+            RS.story = lambda *a, **k: {"reels": [
+                {"reel": "r1", "stage": "swept", "stageIdx": 2, "stageKnown": True},
+                {"reel": "r2", "stage": "banked", "stageIdx": 2, "stageKnown": True}]}
+            split = OF.funnel()
+            # ONE_LADDER branch, same unreadable stores
+            RS.story = lambda *a, **k: {"reels": [
+                {"reel": "r1", "stage": "swept", "stageIdx": 2, "stageKnown": True}]}
+            one = OF.funnel()
+        finally:
+            RT.STORE, FA.SEAL_STORE, RS.story = rt, fa, story
+        self.assertEqual(split["ladder"], "SPLIT_LADDER", "BASELINE: the split branch was not "
+                                                          "reached, so this proves nothing: %s"
+                         % split["ladder"])
+        self.assertEqual(one["ladder"], "ONE_LADDER", one["ladder"])
+        for label, r in (("SPLIT_LADDER", split), ("ONE_LADDER", one)):
+            self.assertEqual(r["passage"], "UNKNOWN", "%s: %s" % (label, r["passage"]))
+            self.assertIn("COULD NOT BE READ", r["why"],
+                          "%s branch drops the unreadable-stores warning: %r" % (label, r["why"]))
+
     def test_BASELINE_UNRECORDED_is_still_reachable(self):
         """⚠ Or the fix traded one wrong verdict for an unreachable one: a rung with NO STORE AT
         ALL is genuinely undated, and that must still read UNRECORDED rather than UNKNOWN."""

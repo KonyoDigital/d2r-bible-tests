@@ -218,11 +218,18 @@ def funnel():
         "rungs": list(rungs), "collisions": collisions, "unknownStage": unknown,
         "occupancy": occupancy, "waypoints": cover, "walked": len(rows),
         "datedRungs": sorted(dated), "rungCount": len(rungs), "unreadableRungs": unreadable,
+        # ⚠⚠ REG-558 — THE PREFIX BOUND INSIDE THE TERNARY'S TRUE BRANCH. `+` binds tighter than
+        # the conditional expression, so `prefix + A if c else B` parses as `(prefix + A) if c else
+        # B` — and the unreadable-stores warning reached ONLY the ONE_LADDER text. Measured: with
+        # both stores unreadable AND a stage collision, `passage` said UNKNOWN and
+        # `unreadableRungs` held two entries while the prose said nothing about either. The
+        # numbers were right and the sentence a reader sees was silent. Parenthesised so the
+        # prefix applies to both branches.
         "why": (("\u26a0 %d rung(s) have a store that COULD NOT BE READ (%s), so the passage is "
                  "UNKNOWN — nothing was established, which is a different fact from no rung "
                  "leaving a waypoint. " % (len(unreadable), ", ".join(unreadable)))
                 if unreadable else "")
-               + ("ONE stage vocabulary across %d reel(s) — %d rung(s), no rung naming two stages "
+               + (("ONE stage vocabulary across %d reel(s) — %d rung(s), no rung naming two stages "
                 "and no stage at two rungs. ⚠ BUT THE PASSAGE IS %s: %d of %d rung(s) leave a "
                 "dated waypoint (%s), so for the rest the order a reel travelled in is recorded "
                 "NOWHERE. ⚠ And occupancy is not a route: `stage` is the rung a reel is stuck "
@@ -231,7 +238,7 @@ def funnel():
                    ", ".join(sorted(dated)) or "none")) if ladder == "ONE_LADDER" else
                ("SPLIT LADDER — %d collision(s) and %d reel(s) at a stage the ladder does not "
                 "know. A lane with its own rungs is a lane with its own routing system, which is "
-                "what A15 forbids." % (len(collisions), unknown)),
+                "what A15 forbids." % (len(collisions), unknown))),
     }
 
 

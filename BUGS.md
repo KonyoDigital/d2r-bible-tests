@@ -18459,3 +18459,36 @@ errored elsewhere, the other tripped the SHAPE law before reaching the floor. Bo
 each isolates its own guard. **A sabotage that fails the wrong test proves nothing about the right
 one.**
 
+## v2557 — an operator precedence bug that silenced a real warning
+
+**REG-558 — found by the review-after-ship pass on the pushed v2554–v2556 bytes, by asking whether
+the fix I had just verified on ONE branch survived the OTHER.**
+
+v2554 made `one_funnel` report the passage as UNKNOWN when a waypoint store cannot be read, and
+prefixed the reason with a warning naming the rungs. It was written as:
+
+```python
+"why": (prefix if unreadable else "") + ("ONE stage vocabulary …" if ladder == "ONE_LADDER"
+                                         else "SPLIT LADDER — …")
+```
+
+**`+` binds tighter than a conditional expression**, so Python parsed it as
+`(prefix + A) if cond else B` — **the warning reached ONLY the ONE_LADDER text.** Measured with both
+stores unreadable AND a stage collision: `passage` said UNKNOWN, `unreadableRungs` held two entries,
+**and the sentence a reader sees said nothing about either.** The numbers were right and the prose
+was silent — and the prose is what he reads.
+
+⚠ **I verified that fix on one branch and shipped it.** The guard now asserts BOTH branches, because
+a fix verified on one branch is exactly how this happened.
+
+⚠⚠ **AND THE SWEEP IS THE INTERESTING PART.** `A + B if cond else C` appears **59 times** across
+`tv/` — and it is a **normal, correct idiom** when the concatenation is meant to be conditional.
+"Fixing" 59 sites would be the cry-wolf defect at scale. My bug's actual signature is narrower: a
+**CONDITIONAL PREFIX** concatenated inside an outer ternary, `(P if c1 else "") + A if c2 else B`,
+which is a prefix that was clearly meant to apply to both. Measured across every module:
+**0 remaining occurrences.** The class is swept, and the 59 are left alone with the reason written
+down rather than counted as debt.
+
+**1 sabotage, RED:** restoring the precedence bug gives `'COULD NOT BE READ' not found in 'SPLIT
+LADDER — …'`, with a baseline first asserting the split branch was actually reached.
+
