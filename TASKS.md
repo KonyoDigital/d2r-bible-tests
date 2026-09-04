@@ -160,6 +160,25 @@ in those words.
   `vault.sweep_start` 16/16, the nine routes 4/4→7/7. The 14th, `vault.forget`, is **UNPROVEN by
   construction and permanently so** — 8 lines, 0 raises, no refusal path, so no sabotage can produce
   evidence in either direction. `n=0` there is the correct final state, not an owed harness.
+- **⚠⚠ THE PRUNE LOCK HAS ONLY EVER PROVEN HALF ITS CONTRACT — measured 2026-09-04, and it is
+  the better next step than anything the `live` question was about.** His question was exactly
+  right: *"prune.armed? OPEN but its stick locked right? like has it proven itself to work already
+  the pruning and optimizing?"*
+  · **NOT ARMED.** `may()` has ZERO production callers (only `test_self_arming.py`), and
+    `_PRUNE_SAFE_TO_RUN = False` (`control_app.py:14423`). The badge and the arming are two
+    different switches, and only the badge moved.
+  · **THE DELETING HAS GENUINELY RUN**, and leaves a complete trail: **410 reels, 5,768 MB
+    (5.63 GB), 2026-08-24 23:49 → 2026-09-01 14:34 across 5 days, 410 of 410 dated, 0 rows with
+    `mb == 0`**, 394 reading *"read (0 pages) and sealed by BOTH lanes"*.
+  · **BUT ALL 48 SABOTAGES ARE MUST-REFUSE CASES.** `_refused()` counts only the `False` arm, and
+    all four axes (offspelling, worldunknown, worldraises, worldshapeless) assert a refusal.
+    **Zero of 48 test that when it says YES it deletes the RIGHT thing.** The 0.926 means *"it
+    correctly says no under 48 kinds of pressure"* — it says nothing about the yes, and **arming is
+    exactly the act of trusting the yes.**
+  · **SO THE NEXT EVIDENCE IS THE POSITIVE PATH, not a third label.** It is a genuinely new axis
+    rather than the relabelling the `live` review refused, it is the half that arming depends on,
+    and it can be done safely by testing the DECISION and never the action.
+
 - **WHAT ACTUALLY REMAINS OF A2: nothing is HARDENED**, and one lock is close. HARDENED needs
   wilson ≥ 0.900 **and confluence ≥ 2.50** — three genuinely independent KINDS, because Wilson
   counts how many looks agreed and never whether they were the same look repeated. Measured
