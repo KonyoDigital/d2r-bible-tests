@@ -207,6 +207,30 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
         self.assertIn("could not be judged", r["why"],
                       "a clean verdict hid the skipped row: %r" % r["why"])
 
+    def test_a_DOTTED_module_reaches_the_module_it_names(self):
+        """⚠ REG-542, from the cold look at v2540. `__import__("pkg.sub")` returns the TOP-LEVEL
+        package, so the resolver was looked for in the wrong module and the reason read
+        *"os.path no longer exposes abspath()"* — blaming a module for dropping a function it
+        never had, and sending a reader to fix the wrong file. A wrong REASON is the defect."""
+        got, why = DF._path_of(("os.path", "abspath"))
+        self.assertNotIn("no longer exposes", why,
+                         "a dotted module still reports the resolver as MISSING rather than "
+                         "reaching the module that has it: %r" % why)
+
+    def test_an_ABSOLUTE_literal_is_refused_not_silently_followed(self):
+        """⚠ REG-542. `os.path.join(HERE, "/etc/passwd")` returns "/etc/passwd" — an absolute
+        literal escapes the tree silently, and the reading would then report SOME OTHER FILE'S rows
+        as the store's with nothing saying it had left."""
+        got, why = DF._path_of("/etc/passwd")
+        self.assertIsNone(got, "an absolute literal was followed out of the tree: %r" % (got,))
+        self.assertIn("absolute", why, "the refusal does not say why: %r" % why)
+
+    def test_BASELINE_a_relative_literal_still_resolves(self):
+        """⚠ Or the absolute check refused every literal and the fallback branch is dead."""
+        got, why = DF._path_of("reel_tombstones.json")
+        self.assertTrue(got and got.endswith("reel_tombstones.json"),
+                        "a plain relative literal no longer resolves: %r / %r" % (got, why))
+
     def test_it_reports_and_refuses_nothing(self):
         """Nothing here fails a build or blocks a button — it is EVIDENCE, like CF-13's reach."""
         r = DF.state()

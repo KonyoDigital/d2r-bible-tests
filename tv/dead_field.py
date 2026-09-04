@@ -72,13 +72,25 @@ def _path_of(src):
     report ITS rows as the store's. [[unknown-stays-unknown]]
     """
     if isinstance(src, str):
-        return os.path.join(HERE, src), ""       # a literal is still accepted, for a store with no owner
+        # a literal is still accepted, for a store with no owner — but only a RELATIVE one.
+        # ⚠ REG-542, from the cold look at v2540: `os.path.join(HERE, "/etc/passwd")` returns
+        # "/etc/passwd". An absolute literal escapes this tree silently and the reading would then
+        # report SOME OTHER FILE'S rows as the store's, with nothing saying it had left.
+        if os.path.isabs(src):
+            return None, ("%r is an absolute path — this resolves stores relative to the tree, and "
+                          "an absolute literal would read a file that is not the store" % src)
+        return os.path.join(HERE, src), ""
     try:
         mod, fn = src
     except Exception:
         return None, "the store has no resolver and no filename"
     try:
-        m = __import__(mod)
+        # ⚠ REG-542 — `__import__("pkg.sub")` RETURNS THE TOP-LEVEL PACKAGE, so the getattr below
+        # looked for the resolver in the wrong module and reported "no longer exposes …()" — the
+        # module blamed for dropping a function it never had. A wrong REASON is the defect here:
+        # it sends a reader to fix the wrong file. `import_module` returns the module named.
+        import importlib
+        m = importlib.import_module(mod)
     except Exception as e:
         return None, "%s would not import, so its store cannot be located (%s)" % (mod, str(e)[:50])
     f = getattr(m, fn, None)

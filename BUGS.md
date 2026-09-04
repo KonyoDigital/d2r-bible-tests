@@ -17949,3 +17949,21 @@ empty* from *the shelf could not be read*, which are opposite facts about his fo
 and the BASELINE — a probe that answers UNKNOWN to *everything* → `per_reel_routes cannot reach a
 verdict at all`, without which the law would pass on four functions that say UNKNOWN and nothing else.
 
+**REG-542 — the cold look at v2540: two taken, one correctly declined (v2543).**
+
+⚠ **TAKEN — a dotted module name reached the wrong module.** `__import__("pkg.sub")` returns the
+TOP-LEVEL package, so `getattr` looked for the resolver in the wrong place and reported
+*"os.path no longer exposes abspath()"* — **blaming a module for dropping a function it never had**,
+which sends a reader to fix the wrong file. A wrong REASON is the defect. Now `import_module`.
+
+⚠ **TAKEN — an absolute literal escaped the tree.** `os.path.join(HERE, "/etc/passwd")` returns
+`"/etc/passwd"`; the reading would then report **some other file's rows as the store's**, with
+nothing saying it had left. Refused, with the reason.
+
+⚠ **NOT TAKEN.** `src = (123, "foo")` unpacks then fails inside `__import__` and is caught. That is
+the designed degradation, and changing it would be work for a case that already answers correctly.
+
+**2 sabotages, 2 RED:** restoring `__import__` → `'no longer exposes' unexpectedly found in …`;
+removing the absolute check → `'/etc/passwd' is not None`. A relative-literal baseline keeps the
+fallback branch from being refused into uselessness.
+

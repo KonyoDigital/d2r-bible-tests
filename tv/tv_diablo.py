@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2542"   # a law for the pattern, because four notes did not stop it
+VERSION = "v2543"   # the cold look at v2540 - a dotted module blamed the wrong file, an absolute literal left the tree
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
