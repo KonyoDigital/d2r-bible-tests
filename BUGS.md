@@ -18528,3 +18528,27 @@ non-dict rows cannot raise and is subsumed by the nameless fix; untaught-stage r
 **4 sabotages, 4 RED:** the phantom sid restored; read-and-empty made invisible again; the phantom
 at the source restored (fails BOTH the river's own guard AND the river/printer agreement guard).
 
+## v2559 — the law could not see the module it was written for
+
+**REG-560 — found by the review-after-ship pass on the pushed v2557–v2558 bytes.**
+
+`reel_river` dropped `clean` and `namelessRows` on its nothing-to-report path — the same
+shape-changes-with-verdict defect as REG-544, REG-546 and REG-547, **and it has been there as long
+as those fields have.**
+
+⚠⚠ **THE REAL FINDING IS WHY NOTHING CAUGHT IT.** I built a cross-probe SHAPE LAW precisely for this
+class, ran it against every probe, and it passed — because **`reel_river` was never in it.** It
+publishes a reading, it is one of the printer's own owners, and the law that exists to catch exactly
+its defect **could not see it, because nobody had put it in front of the law.**
+
+**A law is only asked of what you put in front of it.** That is a different failure from the mesh
+being too coarse (REG-547) or the law passing for the wrong reason (REG-554) — this one had the
+right rule, the right depth and the right method, and the wrong ROSTER. Three separate ways for a
+law to mean less than its name, in one week, all mine.
+
+`reel_river` is in the law now, the floor rose to 8, and it is named in `OWN_SOURCE_UNTESTED` with
+its reason.
+
+**2 sabotages, 2 RED:** restoring the dropped keys — which the law **now catches and previously
+could not** — and removing `reel_river` from the law again, which the floor now refuses.
+

@@ -94,7 +94,15 @@ def river(reel=None):
         # a reason, that reason was returned verbatim — so "reel_story would not answer" reached
         # the reader with nothing saying whether the shelf is EMPTY or merely UNREAD. Those are
         # opposite facts about his footage. [[unknown-stays-unknown]]
-        return {"ok": False, "rows": [], "gaps": [],
+        # ⚠⚠ REG-560 — EVERY RETURN CARRIES THE SAME KEYS, and this one dropped `clean` and
+        # `namelessRows` on exactly the path that means nothing was established. The same defect as
+        # REG-544/546/547, in a module the cross-probe SHAPE LAW HAD NEVER BEEN ASKED ABOUT —
+        # `reel_river` feeds the printer and is not in PROBES, so the law that exists to catch this
+        # could not see it. A law is only asked of what you put in front of it.
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "gaps": [], "namelessRows": 0,
+                "clean": {"byReelDoor": 0, "byFrameContract": 0, "byBoth": 0, "walked": 0,
+                          "notYetAtReelDoor": 0, "byFrameRefused": 0, "byFrameUnasked": 0,
+                          "why": "nothing was walked, so neither door was asked"},
                 "why": ("UNKNOWN, not an empty shelf — %s"
                         % (why or "no reel reached this probe and nothing said why"))}
     seals, FA, seal_why = _seals()
@@ -169,7 +177,7 @@ def river(reel=None):
     _frame_unasked = sum(1 for o in out if o["frameAnswer"] is None)
     _frame_refused = sum(1 for o in out if o["frameAnswer"] is False)
     _not_yet = len(out) - _reel_door
-    return {"ok": True, "rows": out, "gaps": gaps, "namelessRows": nameless,
+    return {"ok": True, "state": "FLOWING", "rows": out, "gaps": gaps, "namelessRows": nameless,
             "clean": {"byReelDoor": _reel_door, "byFrameContract": _frame_door, "byBoth": _both,
                       "walked": len(out),
                       "notYetAtReelDoor": _not_yet,

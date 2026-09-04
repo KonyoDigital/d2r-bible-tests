@@ -60,6 +60,18 @@ def _nothing_for_dead_field_state():
         RR._tombstone_path = real
 
 
+def _nothing_for_reel_river():
+    """Empty the shelf and the river has nothing to walk."""
+    import reel_river as RR
+    import reel_story as RS
+    real = RS.story
+    try:
+        RS.story = lambda *a, **k: {"reels": []}
+        return RR.river()
+    finally:
+        RS.story = real
+
+
 def _nothing_for_printer():
     """Empty both of the printer's spine owners and it has nothing to walk."""
     import one_start_point as OSP
@@ -112,6 +124,11 @@ PROBES = (
     ("per_reel_routes.routes", lambda: __import__("per_reel_routes").routes([])),
     ("dead_field.dead_fields", lambda: __import__("dead_field").dead_fields(None)),
     ("dead_field.state", _nothing_for_dead_field_state),
+    # ⚠⚠ REG-560 — `reel_river` FEEDS THE PRINTER AND WAS NEVER IN THIS LAW. It publishes a
+    # reading, it is one of the printer's owners, and the shape law that exists to catch exactly
+    # its defect could not see it — because nobody had put it in front of the law. It dropped
+    # `clean` and `namelessRows` on its nothing-to-report path for as long as it has existed.
+    ("reel_river.river", _nothing_for_reel_river),
     ("printer_reach.report", _nothing_for_printer_reach),
     ("printer.stream", _nothing_for_printer),
 )
@@ -130,6 +147,7 @@ FULL = (
     # filesystem for it. `state()` is the entry point that actually READS, and it is the one a
     # consumer calls. Both are covered now.
     ("dead_field.state", lambda: __import__("dead_field").state()),
+    ("reel_river.river", lambda: __import__("reel_river").river()),
 )
 
 #: ⚠ Probes whose FULL entry is handed data IN MEMORY and never touches a filesystem. The
@@ -160,14 +178,14 @@ NOT_COVERED = ("declared_vs_content.report", "store_owners.audit")
 #: 6 while PROBES held 7, so removing one left the floor satisfied and the run green — exactly the
 #: silent loss this constant exists to catch. Found by a sabotage that removed a probe and PASSED.
 #: A floor below the real number is not a floor, it is a formality.
-FLOOR = 7
+FLOOR = 8
 
 #: ⚠⚠ WHICH PROBES THE PER-PROBE UNREADABLE-SOURCE LAW REACHES, AND WHICH IT DOES NOT — because
 #: its first cut covered THREE of six and nothing said so, which is how a law quietly means less
 #: than its name. `per_reel_routes` and `printer.stream` read nothing themselves: their source is
 #: other probes' modules, and breaking those is what the OWNERS' own cases already do. That is a
 #: reason, not an excuse, and it is written down so the next reader can disagree with it.
-OWN_SOURCE_UNTESTED = ("per_reel_routes.routes", "printer.stream")
+OWN_SOURCE_UNTESTED = ("per_reel_routes.routes", "printer.stream", "reel_river.river")
 
 
 class NothingInMustGiveUnknownOut(unittest.TestCase):
