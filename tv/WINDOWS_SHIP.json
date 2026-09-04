@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2582",
+  "ver": "v2583",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2582: the sub-template was recorded and the router ignored it",
+  "note": "v2583: a floor item and a tooltip in a panel cannot share a route",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

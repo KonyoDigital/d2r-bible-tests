@@ -54,6 +54,28 @@ def _session_of(reel):
     return r[len("reel_"):] if r.startswith("reel_") else r
 
 
+#: ⚠⚠ v2583 — WHERE A NAME WAS READ DECIDES WHAT CAN BE EXTRACTED FROM IT, and nothing carried
+#: that. His words: *"if its a FLOOR ITEM with no stash/inventory open then obviously it cant be
+#: in the same exact route as the tooltip image reel that is a tooltip within the stash/inventory"*.
+#:
+#: MEASURED on his store, over all 472 names the readers have actually produced:
+#:
+#:     PANEL      110   stash 71 · inventory 39   — a container was open, so a SLOT can exist
+#:     FLOOR      208   gameplay 200 · loot 6 · town 2 — on the ground; there is no cell to name
+#:     CHRONICLE  154   a checklist page, and the code already refuses it as possession
+#:
+#: So 362 of 472 arrived with NO container open. Asking slot_identity about those is asking for a
+#: coordinate that cannot exist — which is the difference between "not extracted yet" and "not
+#: extractable", and only one of those is work owed. [[unknown-stays-unknown]]
+#:
+#: ⚠ AND THE ROUTING CONFLICT I EXPECTED FROM THIS IS NOT THERE. I predicted RUN-zone reels would
+#: be full of floor names and offered to the deleter. Measured: of 12 RUN reels exactly ONE
+#: yielded names (two of them), and the survey had already spared it. Reported as a negative
+#: rather than built into a fix for a problem his shelf does not have.
+PANEL_SCENES = ("stash", "inventory")
+FLOOR_SCENES = ("gameplay", "loot", "town", "transition")
+
+
 def _named_sessions():
     """sessionId -> how many item names its DEEP reads yielded. -> (dict, why)
 
@@ -84,8 +106,18 @@ def _named_sessions():
                     if not sid:
                         continue
                     names = [x for x in (r.get("names") or []) if str(x).strip()]
-                    if names:
-                        out[sid] = out.get(sid, 0) + len(names)
+                    if not names:
+                        continue
+                    cur = out.get(sid) or {"names": 0, "panel": 0, "floor": 0, "chronicle": 0}
+                    cur["names"] += len(names)
+                    sc = str(r.get("scene") or "").strip().lower()
+                    if sc in PANEL_SCENES:
+                        cur["panel"] += len(names)
+                    elif sc == "chronicle":
+                        cur["chronicle"] += len(names)
+                    elif sc in FLOOR_SCENES:
+                        cur["floor"] += len(names)
+                    out[sid] = cur
         except Exception:
             continue
     return out, ""
@@ -120,7 +152,22 @@ def gap(reels=None):
         if names_arg and not any(x in reel for x in names_arg):
             continue
         sid = _session_of(reel)
-        n = int(named.get(sid) or 0)
+        _nm = named.get(sid) or {}
+        n = int(_nm.get("names") or 0)
+        # the SCENARIO this reel's names came from — what extraction may even ask for
+        if _nm.get("panel"):
+            scenario, s_why = "PANEL", ("%d name(s) read with a container OPEN — a slot identity "
+                                        "can exist for these" % _nm["panel"])
+        elif _nm.get("floor"):
+            scenario, s_why = "FLOOR", ("%d name(s) read with NO container open — an item on the "
+                                        "ground has no cell, so a slot cannot be asked for"
+                                        % _nm["floor"])
+        elif _nm.get("chronicle"):
+            scenario, s_why = "CHRONICLE", ("%d name(s) read on a Chronicle page — a checklist of "
+                                            "items he mostly does not own, never a holding"
+                                            % _nm["chronicle"])
+        else:
+            scenario, s_why = "UNKNOWN", "no name was read for this reel, so no scenario applies"
         has_seal = sid in seals
 
         if not seals and swhy:
@@ -144,7 +191,10 @@ def gap(reels=None):
             why = "no seal, and no item name was ever read for this session"
 
         rows.append({"reel": reel, "session": sid, "state": state, "names": n,
-                     "sealed": has_seal, "why": why})
+                     "sealed": has_seal, "why": why,
+                     "scenario": scenario, "scenarioWhy": s_why,
+                     "panelNames": int(_nm.get("panel") or 0),
+                     "floorNames": int(_nm.get("floor") or 0)})
         counts[state] = counts.get(state, 0) + 1
 
     rec = counts.get(RECOVERABLE, 0)

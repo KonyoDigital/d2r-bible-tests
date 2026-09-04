@@ -282,8 +282,14 @@ def stream(reel=None):
         #
         # So the per-reel answer leads and the shelf-wide fact rides along as context, named as
         # what it is. [[feedback-contradiction-is-the-finding]]
+        # v2583 — the SCENARIO rides with the extract answer, because it decides what may even be
+        # asked for. A name read with a container open can have a slot; one read on the ground
+        # cannot, and one read on a Chronicle page is a checklist rather than a holding. Measured
+        # over all 472 names the readers have produced: PANEL 110, FLOOR 208, CHRONICLE 154.
         stations["extract"] = _station(eg, "state", "extract_gap",
-                                       extra={"names": "names", "sealed": "sealed"})
+                                       extra={"names": "names", "sealed": "sealed",
+                                              "scenario": "scenario",
+                                              "scenarioWhy": "scenarioWhy"})
         stations["extract"]["shelfReach"] = reach_state
         stations["extract"]["shelfWhy"] = ("printer_reach, about SEALS not reels: %s"
                                            % str(reach.get("why") or "")[:140])
