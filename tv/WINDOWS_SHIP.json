@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2588",
+  "ver": "v2589",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2588: an evidence line wore a pass, and a count vanished behind a verdict",
+  "note": "v2589: the per-store writer was a measurement nobody had taken",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

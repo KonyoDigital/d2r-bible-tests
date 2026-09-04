@@ -305,6 +305,14 @@ GATES = [
              "measurements. tv/render_coverage.json is a ratchet: coverage may RISE freely,\n"
              "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
              "cannot become the new normal."),
+    # v2589 — A7's remaining half: the per-store writer was a measurement NOBODY HAD TAKEN, and
+    # three earlier attempts each returned a zero that measured the instrument.
+    Gate("write_census", [sys.executable, os.path.join(HERE, "write_census.py")], 120,
+         why="arms write_witness over a REAL write to a scratch root and reads back who did it, "
+             "so the declared owner of each reel store is confirmed by observation rather than "
+             "by coupling. A store nobody could exercise says NOT EXERCISED with the reason — "
+             "never a zero that reads like an answer — and a measured store with no declaration "
+             "is UNCHECKED, never agreement."),
     # v2580 — HIS ASK: "do tests on the reels see that they get run and proccesed through the
     # printer and everything down stream correctly as it was registered before... everytinh was
     # working before.. so it needs to be tested too". The suites assert behaviour against
