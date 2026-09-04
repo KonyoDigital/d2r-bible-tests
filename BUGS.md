@@ -18109,3 +18109,39 @@ FLOWING 40 · DEAD_FIELDS).
 `None`-station defect passed, because I had fixed it without writing a guard. The guard exists now
 and fails as `None != 'UNKNOWN'`.
 
+## v2547 — the seventh instance, written inside the fix for the sixth
+
+**REG-547 — found by the review-after-ship pass on the pushed v2546 bytes.** v2546's `_station`
+helper returned early when its owner had nothing:
+
+```python
+if not row:
+    return {"say": "UNKNOWN", "why": "%s did not report this reel" % owner}
+...
+for k, src_key in (extra or {}).items():
+    d[k] = row.get(src_key)
+```
+
+so the station **dropped its extra keys — `decider`, `route` — on exactly the path where it has
+nothing to report.** Measured: funnel carries `['decider','say','why']` normally and
+`['say','why']` when `reel_river` reports nothing.
+
+⚠⚠ **THIS IS THE SEVENTH INSTANCE OF ONE CLASS IN A DAY, AND IT WAS WRITTEN INSIDE THE FIX FOR THE
+SIXTH.** REG-546 fixed exactly this at the reading level, in the same function, minutes earlier.
+
+⚠ **AND THE LAW I BUILT FOR THE PATTERN COULD NOT SEE IT.** The cross-probe shape law compares
+TOP-LEVEL key sets; this one is nested two levels down — reading → row → stations → station. **A law
+that catches a class at one depth does not catch it at another**, and I had assumed it would. That
+assumption is the actual finding here, and it is worth more than the fix: the law is not a net, it
+is a net with a stated mesh, and nothing was stating the mesh.
+
+**Fixed:** every key is set on every path. **Guard:** `test_printer.py` now compares each STATION's
+key set between a silent owner and a live one, per station, at every reel. **Seen RED:** restoring
+the early return gives `['decider'] != []`.
+
+**The running tally, all mine, all today:** REG-534 filenames retyped → REG-537 a snapshot frozen at
+import, one line below that fix → REG-540 a path resolved two ways inside the module built to catch
+dead fields → REG-541 an unreadable store reading clean, inside the fix for REG-540 → REG-544 a
+reading's shape changing with its verdict → REG-546 the same, in a sibling, shipped in the same
+batch → REG-547 the same again, one nesting level deeper, inside the fix for REG-546.
+

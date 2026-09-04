@@ -85,6 +85,34 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
             self.assertIn("reelDoor", out, "the reel door's answer is not even reported")
             self.assertIn("frameDoor", out, "the frame door's answer is not even reported")
 
+    def test_a_STATIONS_shape_does_not_depend_on_its_verdict_either(self):
+        """⚠⚠ REG-547 — THE SEVENTH INSTANCE OF ONE CLASS IN A DAY, AND I WROTE IT INSIDE THE FIX
+        FOR THE SIXTH. `_station` returned early when the owner had nothing, so the station DROPPED
+        its extra keys — `decider`, `route` — on exactly the path where it has nothing to report.
+        Measured: funnel carried `['decider','say','why']` normally and `['say','why']` when
+        reel_river reported nothing.
+
+        ⚠ The reading-level shape law could not see this: it compares the TOP-LEVEL key sets, and
+        this one is nested two levels down. So the law is asked here, per station, at every reel.
+        """
+        import reel_river as RR
+        real = RR.river
+        try:
+            RR.river = lambda *a, **k: {"ok": True, "rows": [], "gaps": [], "why": "x", "clean": {}}
+            silent = P.stream()["rows"]
+        finally:
+            RR.river = real
+        normal = P.stream()["rows"]
+        self.assertTrue(silent and normal, "no rows to compare")
+        for st in P.STATIONS:
+            a = set(silent[0]["stations"][st])
+            b = set(normal[0]["stations"][st])
+            self.assertEqual(
+                sorted(b - a), [],
+                "the %r station drops %s when its owner has nothing to report. A shape that "
+                "changes with the verdict is not a shape — at the STATION level exactly as at the "
+                "reading level." % (st, sorted(b - a)))
+
     def test_an_owner_that_ANSWERED_WITH_NOTHING_is_UNKNOWN_not_the_word_None(self):
         """⚠⚠ REG-546, from the cold look at v2544, and it is a different case from the one below.
         There the owner did not report the reel at all. HERE the owner reported it and carried no

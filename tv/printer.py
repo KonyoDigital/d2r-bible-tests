@@ -158,16 +158,24 @@ def stream(reel=None):
         # the unknown tally because `str(None) != "UNKNOWN"`. A missing value is UNKNOWN, and it
         # says WHICH owner had nothing to say. [[unknown-stays-unknown]]
         def _station(row, field, owner, extra=None, why=None):
-            if not row:
-                return {"say": "UNKNOWN", "why": "%s did not report this reel" % owner}
-            v = row.get(field)
-            if v is None or v == "":
-                d = {"say": "UNKNOWN",
-                     "why": "%s reported this reel and carried no %r" % (owner, field)}
-            else:
-                d = {"say": v, "why": (why if why is not None else row.get("why"))}
+            """⚠⚠ REG-547 — AND THIS IS THE SEVENTH INSTANCE OF THE SAME CLASS, WRITTEN INSIDE THE
+            FIX FOR THE SIXTH. The first cut returned early when `row` was falsy, so a station
+            DROPPED its `extra` keys — `decider`, `route` — on exactly the path where it has
+            nothing to report. Measured: funnel carries ['decider','say','why'] normally and
+            ['say','why'] when reel_river reports nothing. A shape that changes with the verdict is
+            not a shape, at the STATION level exactly as at the reading level, and the reading-level
+            law could not see one nested this deep. Every key is set on every path now.
+            """
+            d = {"say": "UNKNOWN", "why": "%s did not report this reel" % owner}
+            if row:
+                v = row.get(field)
+                if v is None or v == "":
+                    d["why"] = "%s reported this reel and carried no %r" % (owner, field)
+                else:
+                    d["say"] = v
+                    d["why"] = (why if why is not None else row.get("why"))
             for k, src_key in (extra or {}).items():
-                d[k] = row.get(src_key)
+                d[k] = (row or {}).get(src_key)
             return d
 
         stations["in"] = _station(dr, "door", "one_start_point")
