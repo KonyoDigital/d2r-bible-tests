@@ -7,6 +7,48 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-593 — 48 refusals could not tell a correct deleter from one broken shut
+**2026-09-04 · v2614 · the half of the prune lock's contract that was never proven**
+
+His question was exactly right: *"prune.armed? OPEN but its stick locked right? like has it proven
+itself to work already the pruning and optimizing?"*
+
+**EVERY axis in `prune_wilson` asserts a REFUSAL** — `_refused()` counts only the `False` arm, and
+all five claims put the deleter in a state it must say no to. Measured by replacing
+`retention_may_act` with a stub hardwired to `(False, "hardwired")` and re-running the whole file:
+
+| | attempts | caught |
+|---|---|---|
+| the real guard | 48 | 48 |
+| **hardwired shut** | **48** | **48** |
+
+**Identical.** So `prune.arm`'s **0.926 means "it correctly says NO under 48 kinds of pressure" and
+says nothing whatever about the yes** — while **arming is exactly the act of trusting the yes**. An
+invariant that always agrees may be perfect or INERT, and those are indistinguishable until
+something shows the instrument can move. [[regression-guard]] §5
+
+**THE FIX IS A BASELINE, NOT A SIXTH AXIS.** It adds nothing to `attempts`/`caught` and **cannot
+raise the score — only withdraw it**: with every precondition met the guard must PERMIT *and say
+why*, and if it cannot, no claim may read PROVEN. A control that inflated the number it validates
+would be worse than none.
+
+⚠⚠ **AND MY FIRST CUT GATED ONLY THE PRINTED VERDICT.** `bank_into_proof_queue` banks on
+`attempts`/`caught` alone and never read `state` — so a run the harness had just disowned would
+**still have written 48/48 into `prune.arm`**, and the lock would go on reading OPEN at 0.926 on
+evidence its own harness withdrew. **A baseline that gates the printed verdict and not the stored
+one is a badge, not a control.** The whole run refuses to bank now. [[the-unjoined-end]]
+
+**VERIFIED, all four directions:** a hardwired-shut guard banks **nothing** and `prune.arm` stays
+48/48 · the **real** guard still banks all five claims (a control that blocks the working path
+would starve the lock silently) · the baseline **restores `TV_AUTO_PRUNE`** even when the guard
+raises · and nothing here deletes — measured that importing `control_app` starts **ZERO threads**,
+`_PRUNE_SAFE_TO_RUN` is False, and the decider contains no `os.remove`/`rmtree`/`unlink`. It
+DECIDES; it never acts.
+
+**Guard:** `FortyEightRefusalsCannotTellCorrectFromBrokenSHUT`, 5 cases, proven RED by ungating the
+banking. One case pins the DEFECT itself — that the axes alone still cannot tell the difference —
+so nobody later mistakes the baseline for decoration and deletes it.
+
 ### REG-592 — the printer counted unanswered stations without naming one
 **2026-09-04 · v2613 · the last of the printer's PARTIAL state**
 

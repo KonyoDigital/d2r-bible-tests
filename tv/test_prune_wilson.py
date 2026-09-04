@@ -364,5 +364,101 @@ class ItIsDeclaredForOneLockOnly(unittest.TestCase):
             "one kind of look could open the door with no undo." % (bar, sa.KINDS["sabotage"]))
 
 
+class FortyEightRefusalsCannotTellCorrectFromBrokenSHUT(unittest.TestCase):
+    """★ REG-593 — THE HALF OF THE PRUNE LOCK'S CONTRACT THAT WAS NEVER PROVEN, and it is the lock
+    his ruling ties ARMING to.
+
+    Every axis in this file asserts a REFUSAL: `_refused()` counts only the False arm. MEASURED by
+    replacing `retention_may_act` with a stub hardwired to `(False, "hardwired")` and re-running
+    the whole file:
+
+        real guard        attempts 48   caught 48
+        hardwired shut    attempts 48   caught 48      <- IDENTICAL
+
+    So 0.926 means *"it correctly says no under 48 kinds of pressure"* and **nothing about the
+    yes** — while arming is exactly the act of trusting the yes. An invariant that always agrees
+    may be perfect or INERT. [[regression-guard]] §5"""
+
+    def _shut(self):
+        import control_app as ca
+        return ca, ca.retention_may_act
+
+    def test_the_axes_alone_CANNOT_tell_the_difference(self):
+        """⚠ Pins the defect itself, so nobody later mistakes the baseline for decoration."""
+        import prune_wilson as PW
+        ca, real = self._shut()
+        ca.retention_may_act = lambda *a, **k: (False, "hardwired shut")
+        try:
+            rows = PW.score()
+        finally:
+            ca.retention_may_act = real
+        self.assertEqual(sum(r["attempts"] or 0 for r in rows), 48)
+        self.assertEqual(sum(r["caught"] or 0 for r in rows), 48,
+                         "the axes distinguished a broken guard, which would make the baseline "
+                         "unnecessary — re-read this test before deleting it")
+
+    def test_a_guard_that_can_never_say_yes_is_NOT_proven(self):
+        import prune_wilson as PW
+        ca, real = self._shut()
+        ca.retention_may_act = lambda *a, **k: (False, "hardwired shut")
+        try:
+            rows = PW.score()
+        finally:
+            ca.retention_may_act = real
+        self.assertNotIn("PROVEN", [r["state"] for r in rows],
+                         "a guard that can never permit still read PROVEN")
+        self.assertTrue(any("BASELINE FAILED" in n for r in rows for n in r["notes"]))
+
+    def test_a_broken_guard_BANKS_NOTHING(self):
+        """⚠⚠ THE JOINT THAT MATTERED. The baseline first gated only the printed verdict, while
+        `bank_into_proof_queue` banked on attempts/caught alone — so a disowned run would still
+        have written 48/48 into `prune.arm` and the lock would read OPEN on evidence the harness
+        had just withdrawn. [[the-unjoined-end]]"""
+        import prune_wilson as PW, self_arming as SA
+        ca, real = self._shut()
+        ca.retention_may_act = lambda *a, **k: (False, "hardwired shut")
+        calls, real_bank = [], SA.bank
+        SA.bank = lambda *a, **k: calls.append(a)
+        try:
+            res = PW.bank_into_proof_queue(PW.score())
+        finally:
+            SA.bank, ca.retention_may_act = real_bank, real
+        self.assertEqual(calls, [], "a disowned run wrote to the proof ledger")
+        self.assertEqual(res["banked"], [])
+        self.assertTrue(res["skipped"] and "BASELINE" in res["skipped"][0])
+
+    def test_the_REAL_guard_still_banks(self):
+        """⚠ BASELINE OF THE BASELINE. A control that also blocks the working path is worse than
+        no control — the lock would starve and nobody would know why."""
+        import prune_wilson as PW, self_arming as SA
+        calls, real_bank = [], SA.bank
+        SA.bank = lambda *a, **k: calls.append(a)
+        try:
+            res = PW.bank_into_proof_queue(PW.score())
+        finally:
+            SA.bank = real_bank
+        self.assertEqual(len(res["banked"]), 5, "the working path stopped banking: %r" % res)
+        self.assertEqual(len(calls), 5)
+
+    def test_the_baseline_restores_the_switch_it_sets(self):
+        """⚠⚠ THE ONE DOOR WITH NO UNDO. The baseline sets TV_AUTO_PRUNE to prove the guard CAN
+        permit. It must leave the environment exactly as it found it, whatever happens."""
+        import os
+        import prune_wilson as PW, control_app as ca
+        before = os.environ.get("TV_AUTO_PRUNE")
+        PW.baseline_can_say_yes(ca)
+        self.assertEqual(os.environ.get("TV_AUTO_PRUNE"), before,
+                         "the baseline left the auto-prune switch changed")
+        # and it must restore even when the guard raises
+        real = ca.retention_may_act
+        ca.retention_may_act = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+        try:
+            PW.baseline_can_say_yes(ca)
+        finally:
+            ca.retention_may_act = real
+        self.assertEqual(os.environ.get("TV_AUTO_PRUNE"), before,
+                         "a raising guard left the auto-prune switch changed")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

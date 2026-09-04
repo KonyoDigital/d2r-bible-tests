@@ -298,6 +298,65 @@ CLAIMS = (
 )
 
 
+def baseline_can_say_yes(ca):
+    """CAN this guard say YES at all? -> (bool|None, why)
+
+    ⚠⚠ REG-593 — 48 REFUSALS CANNOT TELL A CORRECT GUARD FROM ONE BROKEN SHUT, AND THIS IS THE
+    LOCK HIS RULING TIES ARMING TO. Every axis here asserts a REFUSAL: `_refused()` counts only
+    the False arm, and all five claims put the deleter in a state it must say no to. MEASURED by
+    replacing `retention_may_act` with a stub hardwired to `(False, "hardwired")` and re-running
+    this whole file:
+
+        real guard        attempts 48   caught 48
+        hardwired shut    attempts 48   caught 48      <- IDENTICAL
+
+    So `prune.arm`'s 0.926 says *"it correctly says no under 48 kinds of pressure"* and **nothing
+    whatever about the yes** — while arming is exactly the act of trusting the yes. An invariant
+    that always agrees may be perfect or INERT, and those are indistinguishable until something
+    proves the instrument can move. [[regression-guard]] §5
+
+    ⚠ THIS IS A BASELINE, NOT A SIXTH AXIS. It does not add to `attempts` or `caught` and cannot
+    raise the score — a control that inflated the number it validates would be worse than none.
+    What it does is make the whole verdict conditional: if the guard cannot say yes even when
+    every precondition is met, no claim here may read PROVEN.
+
+    ⚠⚠ AND IT DELETES NOTHING, WHICH WAS VERIFIED BEFORE IT WAS WRITTEN. Measured: importing
+    `control_app` starts ZERO threads, `_PRUNE_SAFE_TO_RUN` is False, and `retention_may_act`
+    contains no `os.remove`/`rmtree`/`unlink` — it DECIDES and never acts. The switch is set inside
+    a try/finally and restored, and the two collaborators are patched on the module rather than on
+    disk. There is no window in which anything could act on the yes.
+    """
+    import os
+    real_bid = getattr(ca, "board_identity_drift", None)
+    real_nif = getattr(ca, "nothing_in_flight", None)
+    if real_bid is None or real_nif is None:
+        return None, "the console does not expose the collaborators this baseline patches"
+    old = os.environ.get("TV_AUTO_PRUNE")
+    try:
+        ca.board_identity_drift = lambda *a, **k: {"state": "ok"}
+        ca.nothing_in_flight = lambda why=None: (True, "nothing in flight (baseline fixture)")
+        os.environ["TV_AUTO_PRUNE"] = "1"
+        r = ca.retention_may_act()
+    except Exception as e:
+        return None, "the baseline itself raised (%s), so nothing was established" % str(e)[:80]
+    finally:
+        ca.board_identity_drift, ca.nothing_in_flight = real_bid, real_nif
+        if old is None:
+            os.environ.pop("TV_AUTO_PRUNE", None)
+        else:
+            os.environ["TV_AUTO_PRUNE"] = old
+    if not (isinstance(r, tuple) and len(r) == 2):
+        return False, "the guard did not answer with (bool, why): %r" % (r,)
+    ok, why = r
+    if ok is not True:
+        return False, ("with EVERY precondition met the guard still refused (%s) — so it may be "
+                       "hardwired shut, and all 48 refusals prove nothing about its correctness"
+                       % str(why)[:80])
+    if not str(why or "").strip():
+        return False, "it permitted without saying why, which is the shape a stub returns"
+    return True, "it permits when every precondition is met, and says why: %s" % str(why)[:70]
+
+
 def score():
     """-> [row]. One row per claim, in hover_wilson's exact shape so the console reads them alike."""
     try:
@@ -332,6 +391,23 @@ def score():
             state, wil = "PROVEN", confidence.wilson_lower(k, n)
         rows.append({"claim": claim, "what": what, "attempts": n, "caught": k,
                      "wilson": wil, "state": state, "notes": notes})
+
+    # ⚠⚠ THE CONTROL, APPLIED LAST AND TO EVERY ROW. See baseline_can_say_yes: a guard hardwired
+    # shut scores exactly what the real one does, so PROVEN is not sayable until something shows
+    # the instrument can move. This never raises a score; it can only withdraw one.
+    can, can_why = baseline_can_say_yes(ca)
+    if can is not True:
+        for r in rows:
+            if r["state"] == "PROVEN":
+                r["state"] = "UNPROVEN" if can is False else "UNKNOWN"
+            r["notes"].append(
+                "BASELINE %s — %s. Every attempt here asserts a REFUSAL, so without this control "
+                "a guard that can never say yes scores exactly what a correct one does (measured: "
+                "48/48 either way). No claim may read PROVEN on that."
+                % ("FAILED" if can is False else "UNKNOWN", can_why))
+    else:
+        for r in rows:
+            r["notes"].append("baseline holds — %s" % can_why)
     return rows
 
 
@@ -339,6 +415,24 @@ def bank_into_proof_queue(rows):
     """Bank each claim's aggregate under prune.arm. -> {"banked", "skipped"}"""
     import self_arming as _sa
     banked, skipped = [], []
+    # ⚠⚠ REG-593, THE SECOND HALF — THE CONTROL REACHED THE REPORT AND NOT THE LEDGER. This banked
+    # on `attempts`/`caught` alone and never read `state`, so a guard hardwired shut — every row
+    # withdrawn to UNPROVEN by the baseline — would STILL have banked 48/48 into `prune.arm`, and
+    # the lock would go on reading OPEN at 0.926 on evidence the harness itself had just disowned.
+    # A baseline that gates the printed verdict and not the stored one is a badge, not a control.
+    # [[the-unjoined-end]]
+    #
+    # ⚠ IT REFUSES THE WHOLE RUN, not the individual rows. When the instrument cannot be shown to
+    # move, every number it produced is unattributable — including the LEAKS rows, whose k<n would
+    # otherwise look like honest bad news from a working probe.
+    _failed = [r for r in rows
+               if any(str(nt).startswith("BASELINE FAILED") or str(nt).startswith("BASELINE UNKNOWN")
+                      for nt in (r.get("notes") or []))]
+    if _failed:
+        why = next((str(nt) for nt in (_failed[0].get("notes") or [])
+                    if str(nt).startswith("BASELINE")), "the baseline did not hold")
+        return {"banked": [],
+                "skipped": ["ALL %d claim(s) — %s" % (len(rows), why[:200])]}
     for r in rows:
         n, k = r.get("attempts"), r.get("caught")
         if n is None or k is None:
