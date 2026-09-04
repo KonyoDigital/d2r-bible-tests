@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2630",
+  "ver": "v2631",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2630: REG-611 - three of the six supervisors stamped and three did not, so the unwired half was the one nobody would notice. All four wired. The guard asks the census for its list rather than a typed one.",
+  "note": "v2631: REG-612 - my own coverage guard exempted _orphan_watch as not-in-this-module, which was technically true and materially wrong - it is nested, it is a supervisor, and it calls os._exit(0). The sweep walks the AST now.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

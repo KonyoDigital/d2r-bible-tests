@@ -7,6 +7,33 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-612 — an exemption that was technically true hid a thread that can kill the process
+
+**v2631, and this one is mine from one version earlier.** REG-611's coverage guard exempted
+`_orphan_watch` on the stated grounds that it is *"named by the census and is NOT a function in
+control_app"*. That was **technically true and materially wrong**.
+
+`_orphan_watch` is defined **nested** inside the board-window launcher, so `getattr(module, name)`
+reports it absent — but it is a live daemon thread, `lane_census` names it a **SUPERVISOR**
+(*"which pid this console should die with"*), and it calls **`os._exit(0)`** when the control
+server has been unreachable for ~100s.
+
+**So the one supervisor that can END THE PROCESS was the one my exemption removed from the sweep**,
+and if it died nothing anywhere would notice. **An exemption that is technically true and
+materially wrong is worse than none, because it reads as considered.**
+
+**FIX:** the sweep walks the module's **AST** instead of asking for module attributes, so every
+`def` is covered wherever it sits, and `_orphan_watch` needs no exemption at all — it stamps every
+20s like the rest. The remaining two exemptions are the census entries it cannot classify
+(`serve_forever`, `wait`), and the guard now asserts of each that the census still names it AND
+that the AST really cannot find it — so an exemption cannot quietly stop being true.
+
+**Guard:** RED-proven by unwiring the nested stamp — three cases fail, naming `_orphan_watch`.
+
+⚠ **The pattern worth keeping:** REG-611 was written to stop "half a census" being missed, and its
+own exemption list immediately became the other half. **A list of things a check skips is a place
+drift hides**, and the only defence is to check the exemptions themselves are still true.
+
 ### REG-611 — half the census could not report whether it was alive
 
 **v2630, and it closes A11's remainder without the risk A11 was avoiding.**

@@ -42000,9 +42000,34 @@ class TestV2630EveryVesselTheCensusNamesCanStamp(unittest.TestCase):
     harnesses two versions ago.
     """
 
-    #: `_orphan_watch` is named by the census and is NOT a function in control_app — it is listed
-    #: here so its absence is a stated fact rather than a silent gap in the sweep.
-    NOT_IN_THIS_MODULE = {"_orphan_watch", "serve_forever", "wait"}
+    #: ⚠⚠ `_orphan_watch` WAS EXEMPTED HERE AND THAT WAS WRONG. It is not a module attribute —
+    #: technically true — because it is defined NESTED inside the board-window launcher. But it is
+    #: a live thread, `lane_census` names it a SUPERVISOR, and it calls `os._exit(0)` when the
+    #: control server has been unreachable for ~100s. **An exemption that is technically true and
+    #: materially wrong is worse than none, because it reads as considered.** The sweep walks the
+    #: module's AST now, so nested functions are covered and this needs no exemption at all.
+    #: What remains are the two the census cannot classify, which are not loops of ours.
+    NOT_IN_THIS_MODULE = {"serve_forever", "wait"}
+
+    def _body_of(self, name):
+        """The source of a function called `name` ANYWHERE in control_app, nested included.
+
+        ⚠ `getattr(module, name)` finds only module-level functions, and `_orphan_watch` — a
+        supervisor that can call `os._exit(0)` — is defined nested inside the board-window
+        launcher. Asking the module attribute reported it absent, and the exemption that followed
+        hid a live killer thread. The AST sees every `def`, wherever it sits.
+        """
+        import ast
+        import inspect
+        import textwrap
+        import control_app as ca
+        if not hasattr(self, "_ast_cache"):
+            tree = ast.parse(inspect.getsource(ca))
+            self._ast_cache = {}
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    self._ast_cache.setdefault(node.name, ast.dump(node))
+        return self._ast_cache.get(name)
 
     def _loops(self):
         """Every vessel the census names, from the census — never a list typed here."""
@@ -42017,25 +42042,36 @@ class TestV2630EveryVesselTheCensusNamesCanStamp(unittest.TestCase):
         for name in self._loops():
             if name in self.NOT_IN_THIS_MODULE:
                 continue
-            fn = getattr(ca, name, None)
-            if fn is None or not callable(fn):
-                continue                      # not this module's to answer for
-            try:
-                src = inspect.getsource(fn)
-            except Exception:
-                continue
+            src = self._body_of(name)
+            if src is None:
+                continue                      # genuinely not in this module
             if "_lane_tick" not in src:
                 missing.append(name)
         self.assertEqual(missing, [],
                          "the census names these loops and they never stamp, so nothing can tell "
                          "a live one from a dead one: %s" % ", ".join(missing))
 
+    def test_the_nested_KILLER_thread_is_covered(self):
+        """★★ THE ONE THE EXEMPTION HID. `_orphan_watch` is nested, so `getattr` says it does not
+        exist — and it calls `os._exit(0)` when the control server has been unreachable for ~100s.
+        A supervisor that can end the process, whose own death nothing could detect."""
+        src = self._body_of("_orphan_watch")
+        self.assertIsNotNone(src, "the AST sweep no longer finds _orphan_watch at all")
+        self.assertIn("_lane_tick", src,
+                      "_orphan_watch can call os._exit(0) and stamps nothing, so if it dies "
+                      "nothing anywhere notices")
+
     def test_the_exemptions_are_NAMED_and_still_true(self):
-        """⚠ An exemption nobody re-checks is where the next gap hides. `_orphan_watch` must still
-        be absent from this module; if it appears, it owes a stamp like everything else."""
-        import control_app as ca
-        self.assertIsNone(getattr(ca, "_orphan_watch", None),
-                          "_orphan_watch now exists in control_app and must stamp like the rest")
+        """⚠ An exemption nobody re-checks is where the next gap hides — this list lost an entry
+        precisely because it was checked."""
+        import heart
+        named = {str(r.get("name")) for r in (heart.vessels().get("vessels") or [])}
+        for name in self.NOT_IN_THIS_MODULE:
+            self.assertIn(name, named,
+                          "%s is exempted but the census no longer names it" % name)
+            self.assertIsNone(self._body_of(name),
+                              "%s is exempted as 'not in this module' but the AST finds it — it "
+                              "owes a stamp like everything else" % name)
 
     def test_the_six_SUPERVISORS_are_covered(self):
         """★ The ones A11 is actually about — the loops with no watcher at all, where a stamp is
@@ -42048,10 +42084,10 @@ class TestV2630EveryVesselTheCensusNamesCanStamp(unittest.TestCase):
         self.assertTrue(sups, "the census reports no supervisors at all — has it changed shape?")
         unwired = []
         for name in sups:
-            fn = getattr(ca, name, None)
-            if fn is None:
+            src = self._body_of(name)
+            if src is None:
                 continue
-            if "_lane_tick" not in inspect.getsource(fn):
+            if "_lane_tick" not in src:
                 unwired.append(name)
         self.assertEqual(unwired, [],
                          "these supervisors are watched by nothing AND stamp nothing, so their "

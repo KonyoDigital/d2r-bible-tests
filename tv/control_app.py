@@ -22807,7 +22807,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2630",
+        "ver": "v2631",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -26557,6 +26557,14 @@ def board_window():
         misses = 0
         while True:
             time.sleep(20)
+            # ⚠⚠ v2631 — THIS ONE CAN KILL THE PROCESS, AND NOTHING KNEW IF IT DIED.
+            # `lane_census` names it a SUPERVISOR ("which pid this console should die with") and it
+            # calls `os._exit(0)` when the control server has been unreachable for ~100s. It is
+            # also defined NESTED inside this launcher, so it is not a module attribute — and my
+            # own coverage guard exempted it on exactly that basis, which hid a live killer thread
+            # behind a stated exemption. An exemption that is technically true and materially
+            # wrong is worse than no exemption, because it reads as considered.
+            _lane_tick('_orphan_watch', 20)
             try:
                 with urllib.request.urlopen(f"http://127.0.0.1:{CONTROL_PORT}/api/status", timeout=5):
                     misses = 0
