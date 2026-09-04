@@ -7,6 +7,41 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-580 — a diagnostic that fabricated the code it was quoting, and two guards pinned to a phrase
+**2026-09-04 · v2599 · the sixth and seventh of the eight red gates**
+
+**`test_heart`** asserted the phrase *"work owed, not a fault"*, and the code had grown a SECOND
+branch. `vessels()` now asks `_scorable` first — *can any organ score this watcher at all?* — and
+says something different when it cannot: *"NOTHING CAN SCORE THIS WATCHER YET… that is a missing
+scorer, not work owed by anyone."* That distinction is the point (nobody-has-tested-it vs
+nothing-can-record-a-test-here, the `vault.forget` lesson again), and the fixture scores nothing, so
+it produced the SECOND message while asserting the FIRST. **The test went red for an improvement and
+stayed red.** Both branches are tested now, so the pair is a DISTINCTION rather than one message
+with a dead twin. Proven RED by collapsing the two.
+
+**`test_reachability`** reported `bible.html:16545` as guarding *"a symbol that does not exist"*. The
+symbol was **`window`** — captured from the environment probe `typeof window !== 'undefined'` — while
+the REAL guarded symbol on that line, `window._gUniqueRoster`, **is declared at `bible.html:18818`**.
+Allow-listed by NAME with its reason rather than by loosening the pattern: the pattern is right, the
+subject is not ours. ⚠ Two identical guards at 19606 and 19954 were never flagged because they carry
+only ONE `typeof`; it is the two-`typeof` compound that produced the bare capture.
+
+⚠⚠ **AND THE DIAGNOSTIC WAS LYING ABOUT THE CODE.** It hardcoded ``guards `typeof %s === 'function'``
+for EVERY hit, including ones matched by the `!== 'undefined'` patterns. So a line reading
+`typeof window !== 'undefined' && typeof window._gUniqueRoster === 'function'` was reported as
+`typeof window === 'function'` — **a guard nobody would ever write, naming the wrong half of the
+condition.** It sent me looking for the wrong symbol, which is the one thing a failure message must
+never do. It quotes the SOURCE LINE now:
+
+    bible.html:16545  if (!r && typeof window !== 'undefined' && typeof window._gUniqueRoster === 'function') {
+        — the guarded symbol 'window' is declared nowhere
+
+⚠ **MY FIRST CUT OF THAT FIX RAISED `NameError` ON THE FAILURE PATH.** It referenced `src`, which
+belongs to a DIFFERENT method on the same class; this one only calls `scan_symbols(path)`. Because
+the allow-list entry landed in the same commit, the failure branch was unreachable and the suite ran
+**green** — a message that crashes instead of reporting, strictly worse than the wrong message it
+replaced. **The sabotage is the only reason it was found.** [[feedback-blind-fixture-green-gate]]
+
 ### REG-579 — the ratchet that counted and could not name, and the four sites it was hiding
 **2026-09-04 · v2598 · the fifth of the eight red gates**
 

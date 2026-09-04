@@ -211,6 +211,18 @@ EXTERNAL_SYMBOLS = {
     # a correct allowlisting. Read the label, never assume it.
     ("tv/control_ui.html", "AbortController"): "browser API — feature-detected, not ours to declare",
     ("bible.html", "ResizeObserver"): "browser API — feature-detected, not ours to declare",
+    # v2599 — `typeof window !== 'undefined'` is an ENVIRONMENT PROBE, never a claim that this
+    # document declares `window`. bible.html:16545 reads
+    # `typeof window !== 'undefined' && typeof window._gUniqueRoster === 'function'` — the second
+    # half names the real symbol, and `window._gUniqueRoster` IS declared (bible.html:18818). The
+    # undefined-pattern captured the bare `window` from the first half and the gate asked whether
+    # this document declares it. It never will, in any file, so this is allow-listed by NAME with
+    # its reason rather than by loosening the pattern — the pattern is right, the subject is not
+    # ours. ⚠ Two identical guards at 19606 and 19954 were never flagged because they carry only
+    # ONE typeof; it is the two-typeof compound that produced the bare capture.
+    ("bible.html", "window"): "the environment probe `typeof window !== 'undefined'` — never a "
+                              "symbol this document declares",
+    ("tv/control_ui.html", "window"): "same environment probe, same reason",
     # v1695 — the third of the same kind, and it had been failing this gate as a standing red.
     # Verified at the source rather than waved through by category: bible.html:39053 guards
     # `typeof MutationObserver === 'function'` and constructs `new MutationObserver(...)` on the
@@ -248,8 +260,31 @@ class TestEveryGuardedSymbolExists(unittest.TestCase):
         dead = {g: ln for g, ln in guarded.items()
                 if g not in declared and (label, g) not in EXTERNAL_SYMBOLS}
         if dead:
-            lines = "\n".join("    %s:%d  guards `typeof %s === 'function'` — declared nowhere"
-                               % (label, ln, g) for g, ln in sorted(dead.items(), key=lambda kv: kv[1]))
+            # ⚠⚠ REG-580 — THE DIAGNOSTIC FABRICATED THE OPERATOR IT WAS REPORTING. This printed
+            # "guards `typeof X === 'function'`" for EVERY hit, including ones matched by the
+            # `typeof X !== 'undefined'` patterns. So a real line reading
+            # `typeof window !== 'undefined' && typeof window._gUniqueRoster === 'function'`
+            # was reported as `typeof window === 'function'` — a guard nobody would ever write,
+            # naming the wrong half of the condition. It sent a reader to look for the wrong
+            # symbol, which is the one thing a failure message must never do. Quote the SOURCE.
+            # ⚠ READ IT HERE. `src` belongs to a DIFFERENT method on this class (the id-orphan
+            # check); this one only ever calls scan_symbols(path). My first cut referenced it
+            # anyway and raised NameError — on the FAILURE PATH ONLY, so the allow-list entry
+            # added in the same commit made the branch unreachable and it ran green. The sabotage
+            # is what found it: a message that crashes instead of reporting is strictly worse
+            # than the wrong message it replaced. [[feedback-blind-fixture-green-gate]]
+            try:
+                _srclines = open(path, encoding="utf-8").read().split("\n")
+            except Exception:
+                _srclines = []
+            def _quote(ln):
+                try:
+                    return _srclines[ln - 1].strip()[:110]
+                except Exception:
+                    return "(source line %d could not be read back)" % ln
+            lines = "\n".join("    %s:%d  %s\n        — the guarded symbol %r is declared nowhere"
+                              % (label, ln, _quote(ln), g)
+                              for g, ln in sorted(dead.items(), key=lambda kv: kv[1]))
             self.fail(
                 "%d guard(s) in %s test a symbol that does not exist.\n%s\n\n"
                 "Every one of these is permanently false, so the branch behind it never runs. That "

@@ -63,10 +63,46 @@ class TestWatchedIsWorkOwedNotAFault(_Swap):
     vessels red would be ignored inside a week, and then the real red goes with it."""
 
     def test_a_watched_lane_with_no_score_is_WATCHED_not_DARK(self):
+        """⚠⚠ THIS PINNED THE PHRASE 'work owed, not a fault' AND THE CODE GREW A SECOND BRANCH.
+        `vessels()` now asks `_scorable` FIRST — can any organ score this watcher at all? — and
+        says something different when the answer is no: *"NOTHING CAN SCORE THIS WATCHER YET…
+        that is a missing scorer, not work owed by anyone"*. That distinction is the whole point
+        (nobody-has-tested-it vs nothing-can-record-a-test-here, the vault.forget lesson again),
+        and this fixture scores nothing, so it produced the SECOND message while asserting the
+        FIRST. The test went red for the improvement and stayed red on `main`.
+
+        It pins the RULE now: WATCHED, no score invented, and a `why` that matches which of the
+        two cases actually holds. The other branch has its own test below, so both are exercised
+        rather than one being pinned and the other unseen."""
         self.use([{"fn": "_lane", "kind": "LOOP", "lane": "tvd-lane", "supervised": True}])
         rep = H.vessels()
+        v = rep["vessels"][0]
         self.assertEqual(self.states(rep)["_lane"], H.WATCHED)
-        self.assertIn("work owed, not a fault", rep["vessels"][0]["why"])
+        self.assertIsNone(v["score"], "a score was invented for a watcher nobody has scored")
+        self.assertFalse(v.get("scorable"),
+                         "nothing scores this watcher in this fixture, so scorable must be False")
+        self.assertIn("NOTHING CAN SCORE THIS WATCHER", v["why"],
+                      "it reported work owed for a job that, if someone did it, would change "
+                      "nothing — the exact sentence this branch was added to stop: %r" % v["why"])
+
+    def test_when_a_scorer_EXISTS_the_message_says_work_is_OWED(self):
+        """⚠ THE OTHER BRANCH, so the pair is a DISTINCTION and not one message with a dead twin.
+        With an organ publishing a score under the watcher's own name, sabotage COULD move this
+        row — so 'work owed, not a fault' is true here and false in the test above."""
+        real = H._health_rows
+        H._health_rows = lambda *a, **k: ([{"id": "tvd-lane", "score": 0.0}], "")
+        try:
+            self.use([{"fn": "_lane", "kind": "LOOP", "lane": "tvd-lane", "supervised": True}])
+            rep = H.vessels()
+            v = rep["vessels"][0]
+        finally:
+            H._health_rows = real
+        self.assertEqual(v["state"], H.WATCHED,
+                         "a score of 0.0 means TESTED AND NEVER REFUSED, which is not FLOWING")
+        self.assertTrue(v.get("scorable"),
+                        "an organ publishes a score under this watcher's name, so it IS scorable")
+        self.assertIn("work owed, not a fault", v["why"],
+                      "with a scorer present the row must say the work is owed: %r" % v["why"])
 
     def test_WATCHED_carries_no_score_rather_than_a_zero(self):
         """`score: None` means nobody tested it; `0.0` would mean it was tested and never refused.
