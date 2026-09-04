@@ -18621,3 +18621,11 @@ never read) and removed them.
 
 **1 sabotage, RED** — after two that were green because the guard, not the code, was wrong.
 
+⚠ **AND THE GATE CAUGHT ME CLAIMING A VERSION THE STAMPS DID NOT CARRY.** The v2561 commit subject
+said v2561 while `WINDOWS_SHIP.json` still read **v2560** — `bump_version.py` had REFUSED the
+message (it rejects apostrophes, because the build stamp is a single-quoted literal) and **I had
+sent its output to `/dev/null` and echoed only the exit code, which the `&&` chain never checked.**
+The same shape as the PIPESTATUS slip earlier today: a command whose failure I arranged not to see.
+Re-stamped without the apostrophe. **The gate refused the push for exactly the right reason, and it
+is the only thing that caught it.**
+
