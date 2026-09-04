@@ -555,6 +555,46 @@ TARGETS = {
                 onscreen++;
             }
             return onscreen > 0; })()""",
+        # v2569 — WHICH of the three conditions refused. Same walk as `activate`, reporting
+        # instead of deciding, so the two cannot drift into disagreeing about the same DOM.
+        "activateWhy": """(function(){
+            var all = document.querySelectorAll('.lockchip');
+            if (all.length < 4) {
+                var seen = [].slice.call(all).map(function(e){ return e.id || '?'; });
+                return 'DESTROYED: the markup declares 4 lock chips and only ' + all.length
+                     + ' survive in the DOM. Survivors: ' + (seen.join(', ') || 'none')
+                     + ' — whichever declared chip is absent from that list is the one a poll ate. '
+                     + 'This is the v2443 defect: a poll rewrote a label with textContent and took '
+                     + 'the padlock inside it with it.';
+            }
+            var stateless = [], collapsed = [], onscreen = 0;
+            for (var i = 0; i < all.length; i++){
+                var e = all[i];
+                if (!(e.getAttribute('data-state') || '').trim()) { stateless.push(e.id || '?'); continue; }
+                var hidden = false;
+                for (var m = e.parentNode; m && m.nodeType === 1; m = m.parentNode){
+                    var cs = getComputedStyle(m);
+                    if (cs.display === 'none' || cs.visibility === 'hidden'){ hidden = true; break; }
+                }
+                if (hidden) continue;
+                onscreen++;
+                var r = e.getBoundingClientRect();
+                if (!(r.width > 2 && r.height > 2))
+                    collapsed.push((e.id || '?') + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+            }
+            if (stateless.length)
+                return 'STATELESS: ' + stateless.join(', ')
+                     + (stateless.length === 1 ? ' carries' : ' carry') + ' no data-state. The UI '
+                     + 'paints a missing badge as `locked`, so an absent state reads as a LOCK '
+                     + 'THAT IS OPEN.';
+            if (collapsed.length)
+                return 'COLLAPSED: ' + collapsed.join(', ') + ' are on a VISIBLE pane and still '
+                     + 'measure 0x0 — present in the DOM, invisible to him.';
+            if (!onscreen)
+                return 'NONE ON SCREEN: all 4 chips exist but every one sits on a hidden pane, so '
+                     + 'there was nothing to photograph. That is not a defect in the chips.';
+            return 'all four chips are present, stated and painted — if this refused, the '
+                 + 'instrument disagrees with itself and the instrument is the suspect.'; })()""",
         "sel": ".lockchip-onscreen",   # stamped by activate: the chips actually on screen
         "settles": False,
         "warmup": 12.0,     # long enough for the label poll that once destroyed one of them
@@ -1347,9 +1387,37 @@ def check(name, spec, shots=True):
             time.sleep(0.4)
         if not act:
             out["ok"] = False
+            # ⚠⚠ v2569 — A REFUSAL THAT COULD NOT NAME ITS OWN REASON, found reviewing the v2568
+            # bytes. Every activate failure produced this ONE fixed sentence, whatever caused it.
+            # For a target whose activate tests several distinct things that is not a detail: the
+            # `locks` activate refuses on THREE different defects — a chip destroyed by a poll, a
+            # chip carrying no state, and a visible chip collapsed to 0x0 — and all three printed
+            # the same words. Measured on myself: the first two versions of that target refused,
+            # the message could not tell me which condition had fired, and finding out took a
+            # separate hand-written CDP probe. A gate that says "something is wrong" and cannot say
+            # WHAT sends the reader hunting, which is how a red gate starts getting re-run instead
+            # of read. [[unknown-stays-unknown]]
+            #
+            # So a target MAY declare `activateWhy`: an expression evaluated only on failure, whose
+            # string is appended. It is OPTIONAL and it never decides anything — the refusal stands
+            # either way — so a target without one behaves exactly as before.
+            _why = ""
+            if spec.get("activateWhy"):
+                try:
+                    _v = tab.ev(spec["activateWhy"])
+                    # ⚠ AND A DIAGNOSTIC THAT LIES IS WORSE THAN NONE. Anything that is not a
+                    # non-empty string is reported as an absent reason rather than coerced into
+                    # one — `None` must not print as "None", and a raised exception must not be
+                    # mistaken for a diagnosis of the surface.
+                    if isinstance(_v, str) and _v.strip():
+                        _why = " — " + _v.strip()[:300]
+                    else:
+                        _why = " — (this target declares activateWhy and it returned no reason)"
+                except Exception as _e:
+                    _why = " — (activateWhy itself failed: %s)" % str(_e)[:80]
             out["refusals"].append("the panel could not be ACTIVATED — everything measured after "
                                    "this would be about a hidden pane, and a hidden pane reports "
-                                   "zero clipping")
+                                   "zero clipping" + _why)
             return out
         # v2330 — was `time.sleep(1.4)`. See _selector_ready: a fixed sleep here is the same
         # defect _settled() was written to remove, and under load it measured empty panels.
