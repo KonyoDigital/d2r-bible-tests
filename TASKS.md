@@ -140,9 +140,18 @@ in those words.
 
 - **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
   not write an anchor that matches the wrong occurrence.
-- **The render gate does not cover what I changed.** The `console` target went 3/3 → 2/2 when a
-  control was hidden and **re-baselined silently**; the new vault lock chip has no target at all.
-  Unmeasured reads identical to clean in a green run.
+- ~~**The render gate does not cover what I changed.**~~ **BOTH HALVES CLOSED.** The silent
+  re-baseline was **v2567** (REG-568): `--bless` merged with a plain `dict.update()` and would take
+  a LOWER number, so a bless after a real coverage loss adopted the loss as the new normal —
+  reproduced at floor 65 / measured 12 / **written 12**. Lowering is no longer forbidden, it is no
+  longer *silent*. The **lock chips** now have a target (`bc5fc44c`, committed, awaiting the next
+  batched push): measured cold over CDP rather than assumed — all four chips exist and carry a real
+  state, and `lock-vault` reads 0x0 only because its section is `display:none`. ⚠ **The target's
+  first two versions refused and BOTH TIMES IT WAS MY INSTRUMENT**, not his console: demanding all
+  four paint at once measured *which pane starts active*, a thing this target was never asked about.
+  The contract now splits destruction/statelessness (asked of all four, in the DOM — a destroyed
+  node has no rect to be wrong) from collapse (asked only of the chips on screen). 3 sabotages,
+  3 RED, with a baseline.
 - **A2's next step:** the sabotage harnesses already catch 3/3 and 4/4 and **throw every result
   away.** That is why every score is null — not because nothing was tested, but because nothing was
   recorded. Printer and reels first, in his order.
