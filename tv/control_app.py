@@ -15977,16 +15977,22 @@ def _retention_loop():
             if not first:
                 time.sleep(_RETENTION_EVERY_S)
             first = False
-            r = _retention_once()
-            # ⚠⚠ AND A FAILURE THAT NEVER CLEARS IS THE SAME DEFECT POINTING THE OTHER WAY. The
-            # eight success paths below all go through `_RETENTION.update(...)` and not one of
-            # them touches `error`, so without this a single bad ledger would have left the
-            # console saying "retention could not run" for ever — including after the ledger was
-            # fixed and every later pass succeeded. `error` means THE LAST ATTEMPT FAILED, so the
-            # attempt that succeeds is exactly what clears it. Cleared here rather than in eight
-            # update sites, because a rule spread over eight places is a rule that will be seven.
+            # ⚠⚠ A FAILURE THAT NEVER CLEARS IS THE SAME DEFECT POINTING THE OTHER WAY. The
+            # success paths below all go through `_RETENTION.update(...)` and none of them touches
+            # `error`, so without this a single bad ledger would have left the console saying
+            # "retention could not run" for ever — including after the ledger was fixed and every
+            # later pass succeeded. Cleared here rather than in eight update sites, because a rule
+            # spread over eight places is a rule that will be seven.
+            #
+            # ⚠ AND IT IS CLEARED BEFORE THE ATTEMPT, NOT AFTER — a cross-family review found the
+            # window. Clearing afterwards leaves an interval between _retention_once writing fresh
+            # numbers under the lock and this clear taking the lock, during which any other thread
+            # calling retention_state() reads a FRESH measurement beside a STALE error. Clearing
+            # first means the flag can never outlive the attempt it describes: in flight it reads
+            # None, and only a raise puts it back. [[stale-reading]]
             with _PRUNE_LOCK:
                 _RETENTION["error"] = None
+            r = _retention_once()
             st = retention_state()
             if r and r.get("removed"):
                 print("  \U0001f5c3 %s" % st["say"], flush=True)
