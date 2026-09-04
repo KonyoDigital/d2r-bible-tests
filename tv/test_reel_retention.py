@@ -579,6 +579,27 @@ class AFalsyLedgerEntryIsPresentNotAbsent(unittest.TestCase):
                          "the precedence moved: the prefixed form is the deleter's, and the "
                          "deleter owns this rule because its answer has no undo")
 
+    def test_an_already_prefixed_name_never_reaches_a_DOUBLE_prefixed_key(self):
+        """⚠⚠ REG-565, from a cold review of the shipped bytes. The third lookup step built
+        `"reel_" + r` from the ORIGINAL name, so asking for `reel_s_1` against a store holding only
+        `reel_reel_s_1` **returned that double-prefixed record** — a key this lookup should never
+        be able to reach, in the DELETER's own rule. The prefixed form of a name that already has
+        the prefix is itself; only a BARE name gets one added.
+        """
+        import reel_retention as RR
+        self.assertIsNone(
+            RR.lookup_either_way({"reel_reel_s_1": {"who": "double"}}, "reel_s_1"),
+            "an already-prefixed name reached a DOUBLE-prefixed key")
+
+    def test_BASELINE_all_three_real_shapes_still_resolve(self):
+        """⚠ Or the fix cut off the prefixed lookup entirely — the case that exists to find a reel
+        stored under `reel_<sid>` when asked by its bare id."""
+        import reel_retention as RR
+        self.assertEqual(RR.lookup_either_way({"reel_x": 1}, "x"), 1,
+                         "a bare name no longer finds its prefixed record")
+        self.assertEqual(RR.lookup_either_way({"reel_s_1": 9}, "reel_s_1"), 9)
+        self.assertEqual(RR.lookup_either_way({"s_1": 7}, "reel_s_1"), 7)
+
     def test_the_bare_form_is_a_PREFIX_strip_not_a_substring_replace(self):
         """⚠ `str.replace("reel_", "", 1)` strips the substring ANYWHERE — `"xreel_foo"` became
         `"xfoo"`, inventing a session id from a name that never had that prefix."""

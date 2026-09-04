@@ -18682,3 +18682,29 @@ trade a wrong answer for no answer.
 **1 sabotage, RED:** restoring the narrower private copy makes the frame door answer from a lookup
 nobody agreed to.
 
+## v2564 — a lookup that could reach a key it should never touch
+
+**REG-565 — the cold look at v2562.**
+
+⚠⚠ **THE DELETER'S LOOKUP COULD REACH A DOUBLE-PREFIXED KEY.** The third step built
+`"reel_" + r` from the ORIGINAL name rather than the bare one, so asking for `reel_s_1` against a
+store holding only `reel_reel_s_1` **returned that record**:
+
+```
+lookup_either_way({"reel_reel_s_1": {...}}, "reel_s_1")  ->  {...}     WRONG
+```
+
+A name that already carries the prefix has no *other* prefixed form — only a BARE name gets one
+added. Fixed, with a baseline pinning all three real shapes still resolve (`x` → `reel_x`,
+`reel_s_1` → `reel_s_1`, `reel_s_1` → `s_1`), so the fix did not simply cut the third step off.
+
+⚠ **Three declined, and the reviewer labelled two of them itself:** non-idempotence between the
+prefixed and bare forms when BOTH keys exist **is the precedence choice** — making it idempotent
+would mean having no precedence, and REG-563's guard already pins which one wins; `None` becoming
+the empty string is accidental but consistent and does not crash; the repeated `"reel_"` literal is
+stylistic.
+
+**2 sabotages, 2 RED, in both directions:** restoring the unconditional re-prefix, and removing the
+third step entirely — which fires the baseline, because that step exists to find a reel stored under
+`reel_<sid>` when asked by its bare id.
+

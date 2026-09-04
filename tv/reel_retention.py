@@ -126,6 +126,13 @@ def lookup_either_way(store, reel):
     b = bare_reel(r)
     if b != r and b in store:
         return store[b]
+    # ⚠⚠ REG-565 — THE THIRD STEP RE-PREFIXED AN ALREADY-PREFIXED NAME. `"reel_" + r` was built
+    # from the ORIGINAL name, so asking for `reel_s_1` against a store holding only
+    # `reel_reel_s_1` RETURNED THAT DOUBLE-PREFIXED RECORD — a key this lookup should never be
+    # able to reach. Found by a cold review of the shipped bytes. The prefixed form of a name that
+    # already has the prefix is itself; only a BARE name gets one added.
+    if r.startswith("reel_"):
+        return None
     pref = "reel_" + r
     return store[pref] if pref in store else None
 
