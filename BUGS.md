@@ -18708,3 +18708,34 @@ stylistic.
 third step entirely — which fires the baseline, because that step exists to find a reel stored under
 `reel_<sid>` when asked by its bare id.
 
+## v2565 — a docstring stating a rule the code has never followed
+
+**REG-566 — found by the review-after-ship pass on my own v2564 bytes, and it is REG-564's class one
+version later, IN THE DOCSTRING OF THE FUNCTION THAT FIX PRODUCED.**
+
+`lookup_either_way` said *"PRECEDENCE: the PREFIXED form first, then the bare one"*. Measured
+against a store holding BOTH keys:
+
+```
+asked with "reel_s_1"  ->  {"who": "prefixed"}
+asked with "s_1"       ->  {"who": "bare"}
+```
+
+**The asked form wins, both times.** The stated rule and the real rule agreed only for the caller
+the deleter happens to use — `plan()` always asks with the directory name, which is prefixed — **so
+nothing ever contradicted it.** A wrong statement that is right for the one path anybody exercises
+survives indefinitely.
+
+The docstring now says what the code does, and the guard asks **both ways**, so the two cannot drift
+apart again. The code was left alone: *"the form you asked with wins, then its alias"* is a coherent
+rule, and changing behaviour for bare-name callers on no evidence would be inventing a preference.
+
+⚠ **AND THE GUARD'S FIRST CUT WAS THE WRONG INSTRUMENT.** It asserted the old wrong rule was ABSENT
+from the docstring — but the correction QUOTES that rule while explaining it was wrong, so the guard
+fired on the very sentence recording the fix. **A negative text match on prose that deliberately
+cites what it replaced cannot work.** It checks the PRECEDENCE line now, not the whole blob.
+
+**2 sabotages, 2 RED, independently:** restoring the wrong docstring, and changing the CODE to
+prefer the prefixed form always — the same test catches both, which is the point of asking both
+ways.
+

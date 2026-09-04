@@ -591,6 +591,38 @@ class AFalsyLedgerEntryIsPresentNotAbsent(unittest.TestCase):
             RR.lookup_either_way({"reel_reel_s_1": {"who": "double"}}, "reel_s_1"),
             "an already-prefixed name reached a DOUBLE-prefixed key")
 
+    def test_the_ASKED_form_wins_and_the_docstring_says_so(self):
+        """⚠⚠ REG-566 — THE DOCSTRING STATED A RULE THE CODE HAS NEVER FOLLOWED. It said *"the
+        PREFIXED form first, then the bare one"*; measured against a store holding BOTH keys,
+        asking with `reel_s_1` returns the prefixed record and asking with `s_1` returns the bare
+        one — **the asked form, both times.**
+
+        The stated rule and the real rule agreed only for the caller the deleter happens to use
+        (`plan()` always asks with the directory name, which is prefixed), so nothing ever
+        contradicted it. This asks BOTH ways, so they cannot drift apart again.
+
+        ⚠ This is REG-564's class one version later — a comment contradicting its own code — in the
+        docstring of the function that fix produced.
+        """
+        import reel_retention as RR
+        store = {"reel_s_1": {"who": "prefixed"}, "s_1": {"who": "bare"}}
+        self.assertEqual(RR.lookup_either_way(store, "reel_s_1"), {"who": "prefixed"},
+                         "asking with the prefixed name did not return the prefixed record")
+        self.assertEqual(RR.lookup_either_way(store, "s_1"), {"who": "bare"},
+                         "asking with the bare name did not return the bare record — the asked "
+                         "form must win, which is what the code does and now what it says")
+        # ⚠ AND THE TEXT CHECK'S FIRST CUT WAS THE WRONG INSTRUMENT. It asserted the old wrong
+        # rule was ABSENT from the docstring — but the correction QUOTES that rule while explaining
+        # it was wrong, so the guard fired on the very sentence recording the fix. A negative text
+        # match on prose that deliberately cites what it replaced cannot work. Check the STATED
+        # RULE, which lives on the PRECEDENCE line, not the whole blob.
+        doc = RR.lookup_either_way.__doc__ or ""
+        rule = [l for l in doc.split("\n") if "PRECEDENCE" in l]
+        self.assertTrue(rule, "the docstring no longer states a precedence at all")
+        self.assertIn("ASKED WITH", rule[0],
+                      "the PRECEDENCE line does not state the rule the code implements: %r"
+                      % rule[0])
+
     def test_BASELINE_all_three_real_shapes_still_resolve(self):
         """⚠ Or the fix cut off the prefixed lookup entirely — the case that exists to find a reel
         stored under `reel_<sid>` when asked by its bare id."""

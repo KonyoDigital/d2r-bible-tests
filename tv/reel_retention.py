@@ -114,9 +114,20 @@ def bare_reel(reel):
 def lookup_either_way(store, reel):
     """The one rule for finding a reel's record in a store keyed BOTH ways. -> record or None
 
-    PRECEDENCE: the PREFIXED form first, then the bare one — chosen because that is what the
-    deleter has always done, and the deleter is the reader whose answer has no undo. `reel_river`
-    quotes this rather than keeping its own order.
+    PRECEDENCE: **the form you ASKED WITH wins**, then its alias. Ask with `reel_s_1` and the
+    prefixed record wins; ask with `s_1` and the bare one does. `reel_river` quotes this rather
+    than keeping its own order.
+
+    ⚠⚠ REG-566 — THIS DOCSTRING SAID "the PREFIXED form first, then the bare one" AND THE CODE HAS
+    NEVER DONE THAT. Measured against a store holding BOTH keys: asking with `reel_s_1` returned
+    the prefixed record and asking with `s_1` returned the bare one — the asked form, both times.
+    The stated rule and the real rule agreed only for the caller the deleter happens to use
+    (`plan()` always asks with the directory name, which is prefixed), so nothing ever contradicted
+    it.
+
+    ⚠ AND THIS IS REG-564's CLASS ONE VERSION LATER — a comment contradicting the code it sits on —
+    **in the docstring of the very function that fix produced.** The rule is now written as the
+    code behaves, and a guard asks it BOTH ways so the two cannot drift apart again.
 
     ⚠ Membership, not truthiness (REG-561): a present-but-empty record is FOUND, not absent.
     """
