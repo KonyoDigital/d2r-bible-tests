@@ -145,10 +145,15 @@ in those words.
   Measured 2026-09-04 by running the full 30-gate set, which the hook does not: it says so itself —
   *"run_gates.py runs 30 gates; this hook ran three."* RED: `printer_wilson`, `test_reachability`,
   `swallow_ratchet`, `test_heart`, `test_store_owners`, `test_printer`, `human-eyes`,
-  `test_import_bound_paths`. ✅ **TWO FIXED in v2595 (REG-576)** — `printer_wilson` and
-  `test_printer` were the SAME station and NEITHER was a leak: the axis pinned a field name
-  v2572 had moved, and `shelfReach` was UNKNOWN on all 40 reels the whole time. Under it sat a
-  real defect — UNKNOWN with a blank reason — now joined. **Six remain.**
+  `test_import_bound_paths`. ✅ **FIVE FIXED, NONE RE-BASELINED AWAY.** v2595 (REG-576) closed
+  TWO — `printer_wilson` and `test_printer` were the SAME station and NEITHER was a leak: the
+  axis pinned a field name v2572 had moved, and `shelfReach` was UNKNOWN on all 40 reels the
+  whole time; under it sat a real defect, UNKNOWN with a blank reason, now joined. v2596
+  (REG-577) declared `write_census` against the four stores it names. v2597 (REG-578)
+  registered `board_sync.py:REPO` and found a HALF-redirect — patching `REPO` leaves `TASKS`
+  on his real file. v2598 (REG-579) gave the swallow ratchet a per-FILE baseline, then used
+  it to name and FIX all four sites: 78 → 74, exactly the baseline. **Three remain:**
+  `test_reachability`, `test_heart`, and `human-eyes` — which is HIS, not code.
   **None is caused by v2593/v2594** — six fail identically on a clean
   `origin/main` worktree, and `printer_wilson` imports none of the nine files those commits touched.
   Named individually so none hides in the total:
