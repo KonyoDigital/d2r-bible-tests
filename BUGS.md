@@ -7,6 +7,47 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-583 — an error handler that retried the same URL, and hid itself from the check
+**2026-09-04 · v2602 · found by a cold look I disagreed with, and this time I was right**
+
+`#emblem-img` in `tv/control_ui.html` carried:
+
+    src="/art/ui_emblem.png"  onerror="this.src='/art/hd_ohm_rune.png'"
+
+The fallback to a second asset is correct. **What happens when the FALLBACK fails is not:** the
+handler re-sets `src` to the same value it already holds, and assigning `src` re-triggers the
+fetch — so a genuine 404 loops forever. Every other image in the file terminates (`this.remove()`
+×23, `display='none'` ×7, `opacity=0` ×2); **this was the only one that could not.** Fixed with
+`this.onerror=null` before the fallback.
+
+⚠⚠ **AND THE LOOP WAS HIDING ITSELF FROM THE CHECK.** While retrying, `complete` never settles
+true, so the standard broken-image test `complete && naturalWidth === 0` was **structurally blind**
+to it. Measured, before and after:
+
+| | `complete` | `naturalWidth` | a gate would count it |
+|---|---|---|---|
+| looping handler | **false** | 0 | **no** |
+| terminating handler | true | 0 | **yes** |
+
+A defect whose own behaviour prevents any check from seeing it. [[unknown-stays-unknown]]
+
+⚠ **NOT A LIVE REGRESSION, and that was checked before saying otherwise.** Both assets exist at the
+repo root — `art/ui_emblem.png` (53,890 bytes) and `art/hd_ohm_rune.png` (17,914). The render target
+loads `tv/control_ui.html` from **file://**, so a root-absolute `/art/` path resolves to
+`file:///art/` and cannot load. His served console is unaffected.
+
+**HOW IT WAS FOUND.** A cold cross-family look answered *"Missing/broken images: NONE."* The crest
+looked wrong to me, so I cropped it and enlarged it 6× — unmistakably Chrome's torn-picture
+placeholder — and then measured it over CDP rather than arguing. ⚠ Worth recording that this is the
+FIRST of three such disagreements today where I was the one who was right; on the other two
+(a "clipped" line that was occluded-and-scrollable, and a "cut" heading that merely wrapped) the
+measurement corrected ME. **The rule that worked all three times was the same: measure, do not
+re-look.** [[feedback-contradiction-is-the-finding]]
+
+⚠ **NAMED, NOT CLOSED:** the render gate reports **`imgs 0/0 broken`** on this target — it examines
+ZERO images, so it would not have caught this either way. Closing that needs the console target
+SERVED so `/art/` resolves, which would move the coverage ratchet; not done mid-batch.
+
 ### REG-582 — the console went blank while reporting itself healthy, and the rescue did not cure it
 **2026-09-04 · v2601 · caught LIVE on his machine while building the witness for it**
 
