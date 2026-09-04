@@ -5,6 +5,7 @@ reports ZERO candidates today, so without these the "safe" answer and a broken o
 output. Every case here runs against a TEMP fixture — never his frames.
 [[feedback-fixtures-never-touch-live-data]] [[feedback-blind-fixture-green-gate]]
 """
+import io
 import json
 import os
 import shutil
@@ -518,6 +519,44 @@ class AFalsyLedgerEntryIsPresentNotAbsent(unittest.TestCase):
         self.assertEqual(a, b, "the same empty entry reads differently depending on which spelling "
                                "it was stored under: %r vs %r" % (a, b))
         self.assertIsNotNone(a, "a present-but-empty entry reads as 'never swept'")
+
+    def test_an_EMPTY_ledger_row_HOLDS_exactly_as_an_absent_one_does(self):
+        """⚠⚠ REG-562 — v2560 QUIETLY MOVED THE DELETER'S SAFE DIRECTION AND I SHIPPED IT.
+
+        `_entry` was fixed to return a present-but-EMPTY record faithfully, because the REPORT was
+        lying about which reels had a ledger row. But the plan's branches ask `ce is None` /
+        `ve is None` to mean *this lane has not finished with the reel* — so after that fix an
+        empty `{}` stopped answering None, and a reel whose row exists and **says nothing** would
+        skip the HOLD branches and fall toward releasable.
+
+        Measured on his tree at the time: chronicle_swept 401 entries, vault_swept 30, **0 falsy in
+        either** — so nothing moved. **That is luck, not design, and it is the DELETER.**
+
+        Two different questions: the report asks *is there a row?*, the deleter asks *does the row
+        SAY anything?* This pins the second.
+        """
+        # ⚠⚠ AND THIS GUARD'S FIRST CUT READ A CACHE, NOT THE FILE. It used
+        # `inspect.getsource`, which goes through `linecache` — after the sabotage rewrote the
+        # module on disk, the guard was still served the ORIGINAL lines and went GREEN on a defect
+        # that was really there. A source-reading guard that reads a cache is reading its own
+        # memory. The file, by path, every time. [[source-reading-guard]]
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = io.open(os.path.join(here, "reel_retention.py"), encoding="utf-8").read()
+        i = src.index("def plan(")
+        j = src.index("\ndef ", i + 10)
+        body = src[i:j]
+        # ⚠⚠ AND THE ANCHOR'S FIRST CUT WAS SATISFIED BY THE DEFINITION. `"_told(" in body` is
+        # True because `def _told(e):` contains it — so removing the only CALL left the guard
+        # green. A guard that reads for a token is satisfied by the token, and the token was
+        # supplied by the very thing it was meant to check is USED. Anchor on the CALL SHAPE.
+        # [[source-reading-guard]]
+        self.assertIn("def _told", body, "the deleter's question is not asked at all")
+        self.assertIn("_told(_entry(chron", body,
+                      "the plan asks `_entry` directly again, so an empty ledger row no longer "
+                      "holds the way an absent one does — on the one door with no undo")
+        self.assertIn("_told(_entry(vault", body,
+                      "the vault side asks `_entry` directly again — same defect, other lane")
 
     def test_BASELINE_a_genuinely_absent_entry_is_still_None(self):
         """⚠ Or the fix turned every miss into a find, which for a DELETER is the dangerous

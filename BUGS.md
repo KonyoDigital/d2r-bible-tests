@@ -18587,3 +18587,37 @@ scale; the count is recorded instead of converted into debt.
 **4 sabotages, 4 RED**, including both directions on the deleter: restoring the falsy-defeated
 lookup, and turning every miss into a find — the dangerous direction its own docstring names.
 
+## v2561 — I moved the deleter's safe direction and did not notice
+
+**REG-562 — found by the review-after-ship pass on my own v2560 bytes, one version later.**
+
+v2560 fixed `_entry` to return a present-but-EMPTY ledger record faithfully, because the REPORT was
+lying about which reels had a row. Correct for the report — **and it silently changed the DELETER.**
+The plan's branches ask `ce is None` / `ve is None` to mean *this lane has not finished with the
+reel*, so once `{}` stopped answering `None`, **a reel whose ledger row exists and says NOTHING
+would skip the HOLD branches and fall toward releasable.**
+
+**Measured on his tree: `chronicle_swept` 401 entries, `vault_swept` 30, ZERO falsy in either.**
+Nothing moved. **That is luck, not design, and it is the one door with no undo.**
+
+Two different questions, merged by accident: the report asks *is there a row?* and the deleter asks
+*does the row SAY anything?* `_told()` asks the second, so an empty row now holds exactly as an
+absent one does.
+
+⚠⚠ **AND THE GUARD FOR IT TOOK THREE ATTEMPTS, EACH A DIFFERENT KNOWN SCAR:**
+
+1. **It read a CACHE, not the file.** `inspect.getsource` goes through `linecache`; after the
+   sabotage rewrote the module on disk the guard was still handed the ORIGINAL lines and went
+   GREEN on a defect that was really there. **A source-reading guard that reads a cache is reading
+   its own memory.**
+2. **Its anchor was satisfied by the DEFINITION.** `"_told(" in body` is True because
+   `def _told(e):` contains it — so removing the only CALL left it green. *A guard that reads for
+   a token is satisfied by the token*, and the token was supplied by the very thing it was meant to
+   prove is USED.
+3. Anchored on the call shape (`_told(_entry(chron`), it finally fails for its own reason.
+
+⚠ I also shipped two dead variables in the first cut of this fix (`ce_row`, `ve_row`, assigned and
+never read) and removed them.
+
+**1 sabotage, RED** — after two that were green because the guard, not the code, was wrong.
+

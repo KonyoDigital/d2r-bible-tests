@@ -355,7 +355,21 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     for reel in reels:
         path = os.path.join(hist, reel)
         size = _dir_mb(path)
-        ce, ve = _entry(chron, reel), _entry(vault, reel)
+        # ⚠⚠ REG-562 — TWO DIFFERENT QUESTIONS, AND v2560 QUIETLY MERGED THEM. `_entry` was fixed
+        # to return a present-but-EMPTY record faithfully (membership, not truthiness) because the
+        # REPORT was lying about which reels had a ledger row. But the branches below ask
+        # `ce is None` / `ve is None` to mean *this lane has not finished with the reel*, and after
+        # that fix an empty `{}` stopped answering None — so a reel whose ledger row exists and
+        # says NOTHING would skip the HOLD branches and fall toward releasable.
+        #
+        # Measured on his tree: chronicle_swept 401 entries, vault_swept 30, **0 falsy in either**,
+        # so nothing moved today. That is luck, not design, and it is the DELETER. The report's
+        # question is "is there a row?"; the deleter's question is "does the row SAY anything?" —
+        # `_told` asks the second one, so an empty row holds exactly as an absent one does.
+        def _told(e):
+            return e if e else None
+
+        ce, ve = _told(_entry(chron, reel)), _told(_entry(vault, reel))
         pages = int((ce or {}).get("pages") or 0)
 
         if not _have_index:
