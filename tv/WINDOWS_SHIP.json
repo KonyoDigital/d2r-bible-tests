@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2583",
+  "ver": "v2584",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2583: a floor item and a tooltip in a panel cannot share a route",
+  "note": "v2584: a swallowed exception made the walk run three times",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -15421,13 +15421,27 @@ def heart_state(force=False):
     # it needs the raw reading. Taking it once here and handing it to both is the only way they
     # can be about the same shelf. ⚠ When the census cannot see rows it returns UNKNOWN with the
     # reason rather than "nothing is joined", which is how it behaved when this was miswired.
-    _praw = None
+    _praw, _praw_why = None, ""
     try:
         import printer as _pmod
         _praw = _pmod.stream()
-    except Exception:
-        _praw = None
-    _pr = printer_state(_praw)
+    except Exception as _e:
+        # ⚠⚠ v2584 — SWALLOWING THIS MADE THE WALK RUN THREE TIMES. A cold cross-family look at
+        # the v2579 bytes found it and I reproduced it: with printer.stream() raising, `_praw`
+        # became None, printer_state(None) retried it, and census(None) retried it again — three
+        # failing walks over 40 reels for one broken read, each re-handling the same exception.
+        # The reason is kept and handed on, so a failure is REPORTED once rather than rediscovered
+        # by every consumer. [[feedback-silence-is-not-evidence]]
+        _praw, _praw_why = None, "%s: %s" % (type(_e).__name__, str(_e)[:80])
+    if _praw_why:
+        _pr = {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
+               "why": "the printer would not walk (%s)" % _praw_why}
+        _joins = {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
+                  "why": ("the printer would not walk (%s), so which engines reach a reel could "
+                          "not be observed — UNKNOWN, never 'nothing is joined'" % _praw_why)}
+    else:
+        _pr = printer_state(_praw)
+        _joins = engine_joins_state(_praw)
     out = {
         "ok": bool(rep.get("ok")),
         "why": rep.get("why", ""),
@@ -15472,7 +15486,7 @@ def heart_state(force=False):
         # there is no reason for it". The reason: the census currently reports FIVE engines whose
         # answers reach no reel, and leaving that readable only from a CLI makes it an instance of
         # the very defect it was written to catch. It REPORTS — it fails nothing.
-        "joins": engine_joins_state(_praw),
+        "joins": _joins,
         # A21c — THE CHRONICLE ROUTES, on the same heart, in the same four words. His ask:
         # "the chronicles routes should also be there.. the sets and the uniques espeically..
         # reverse engineered like the routes and lanes here also for accuracy going forward".
@@ -22446,7 +22460,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2583",
+        "ver": "v2584",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
