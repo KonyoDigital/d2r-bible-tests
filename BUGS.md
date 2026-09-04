@@ -7,6 +7,43 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-591 — the proof queue had a door with no lock on it
+**2026-09-04 · v2612 · the hazard REG-575 named and left open**
+
+`bank()` refuses any `(src, lock)` pair `PROVES` does not declare — **that is the rule stopping one
+surface's sabotage from opening a DIFFERENT surface's lock**, and it matters most for `prune.arm`,
+because footage has no undo. **`record()` took no `src` at all**, so a single call could credit ANY
+lock from anywhere and nothing downstream could say where the evidence came from.
+
+MEASURED when it was found (while fixing REG-575): `record()` had **ZERO production callers**, and
+his ledger holds **51 bank-shaped rows and 0 record-shaped**. **Never a leak — a loaded gun**, and
+closing it is cheap precisely because nobody had pulled the trigger.
+
+⚠ **THE READER IS DELIBERATELY UNCHANGED FOR src-LESS ROWS.** Historical rows and the suite's own
+`put()` helper write that shape, and rejecting them fails the WHOLE read — the exact defect REG-575
+was. The hole is closed at the door where new evidence is created, not by refusing evidence that
+already exists.
+
+⚠⚠ **AND I REINTRODUCED REG-575 TWICE ON THE WAY, BOTH CAUGHT BY HIS OWN SUITE:**
+
+1. **`_row_fault` keyed on `"src" in r`** to mean "bank-shaped" — correct only while `record()`
+   wrote no src. The moment single events grew one they were judged as aggregates, demanded the
+   `n`/`k` they never carry, and the read failed CLOSED again: **all fifteen locks UNKNOWN.**
+2. **`_fold` keyed on `src` too**, so three separate attempts folded into ONE and the count read
+   **(0, 1) instead of (2, 3)** — caught by a test whose name states the rule outright: *record()
+   rows are events and must keep adding up; only banked aggregates fold.*
+
+**Both discriminators now key on AGGREGATE vs EVENT** — counts versus one outcome — which is what
+actually separates the two writers, so a `src` can be added to either without re-breaking the
+reader. **A discriminator that happens to work is not the same as one that is right**, and this one
+happened to work for exactly as long as one writer stayed incomplete.
+
+**Verified behaviour-neutral on his real ledger:** 15 locks, 14 open, 0 hardened, and identical
+`n`/`k` for every one (55/55, 83/83, 48/48, 24/24, 0/0, 16/16).
+
+**Guard:** `RecordHonoursTheAllowListToo`, proven RED by reopening the door — three cases fail —
+plus a case pinning that events still accumulate now that they carry a source.
+
 ### REG-590 — the engine lamp had no clock, and nothing watches its driver
 **2026-09-04 · v2611 · A11's two genuinely unwatched loops**
 

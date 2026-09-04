@@ -230,14 +230,43 @@ UNPROVEN = "UNPROVEN"      # n == 0 — nobody has tested it. NOT a failure, NOT
 UNKNOWN = "UNKNOWN"        # the ledger could not be read. Fails closed, and says so.
 
 
-def record(lock, kind, refused, note=""):
+def record(lock, kind, refused, note="", src=None):
     """Append one SABOTAGE ATTEMPT and whether the guard refused. -> dict (the row written)
 
     `refused` True means the guard went RED for its own reason — that is the SUCCESS here, which
     reads backwards until you remember what is being measured: the ability to say no.
+
+    ⚠⚠ REG-591 — THIS DOOR HAD NO ALLOW-LIST, AND IT IS THE ONE RULE THAT MATTERS MOST HERE.
+    `bank()` refuses any (src, lock) pair PROVES does not declare — that is what stops one
+    surface's sabotage opening a DIFFERENT surface's lock, and it matters most for `prune.arm`,
+    because footage has no undo. `record()` took no `src` at all, so a single call could credit
+    ANY lock from anywhere, and nothing downstream could tell where the evidence came from.
+
+    MEASURED when this was found (fixing REG-575): `record()` has **ZERO production callers** and
+    his live ledger holds **51 bank-shaped rows and 0 record-shaped**. So this was never a leak —
+    it was a loaded gun, and the first caller added would have fired it. Closing the writer is
+    cheap precisely because nobody uses it yet.
+
+    ⚠ THE READER IS DELIBERATELY UNCHANGED. `_row_fault` still accepts a src-less row, because
+    historical rows and `test_self_arming`'s own `put()` helper write that shape directly, and
+    rejecting them would fail the whole read — the exact defect REG-575 was. The hole is closed at
+    the door where new evidence is created, not by refusing evidence that already exists.
+    [[unknown-stays-unknown]]
     """
+    src = str(src or "").strip()
+    if not src:
+        raise ValueError(
+            "record() needs a `src`: which harness produced this attempt. Without one the row "
+            "could credit any lock from anywhere, which is what the PROVES allow-list exists to "
+            "prevent. Use bank() if you have counts; pass src= if you have a single attempt.")
+    allowed = PROVES.get(src)
+    if allowed is None:
+        raise ValueError("src %r is not a declared evidence source (PROVES)" % src)
+    if str(lock) not in allowed:
+        raise ValueError("%r does not prove %r — PROVES declares it for %s"
+                         % (src, lock, ", ".join(allowed) or "nothing"))
     row = {
-        "lock": str(lock), "kind": str(kind), "refused": bool(refused),
+        "lock": str(lock), "kind": str(kind), "refused": bool(refused), "src": src,
         "note": str(note or "")[:400], "ts": int(time.time() * 1000),
     }
     with io.open(_ledger_path(), "a", encoding="utf-8") as fh:
@@ -355,15 +384,25 @@ def bank(lock, kind, src, n, k, note="", ref=""):
 
 
 def _fold(rows):
-    """Reduce banked aggregates to one row per (lock, kind, src), newest wins. -> list
+    """Reduce banked AGGREGATES to one row per (lock, kind, src, ref), newest wins. -> list
 
-    Single-attempt rows (no `src`) are never folded — each one is its own event and they
-    accumulate, which is what record() means.
+    Single-attempt rows are never folded — each one is its own event and they accumulate, which
+    is what record() means.
+
+    ⚠⚠ v2612 — THIS KEYED ON `src` AND THAT STOPPED BEING THE RIGHT QUESTION. `record()` took no
+    src until REG-591 closed the allow-list bypass at its door; the moment single events grew one,
+    three separate attempts folded into ONE and the count read (0, 1) instead of (2, 3). The test
+    that caught it says the rule in its own name: *record() rows are events and must keep adding
+    up; only banked aggregates fold.*
+
+    What makes a row foldable is that it is an AGGREGATE — a harness re-reporting its own running
+    total, where the newest reading replaces the older. An EVENT is not a re-report of anything.
+    Key on that and a src can be added to either writer without silently eating evidence.
     """
     out, latest = [], {}
     for r in rows:
         src = r.get("src")
-        if not src:
+        if not src or not (("n" in r) or ("k" in r)):
             out.append(r)
             continue
         # ⚠ ref IS PART OF THE KEY, and leaving it out cost three of four claims on the first
@@ -409,6 +448,18 @@ def _row_fault(r):
     land on any lock. Named in TASKS.md rather than left for someone to find. [[the-unjoined-end]]
     """
     lock, kind = str(r.get("lock") or ""), str(r.get("kind") or "")
+    # ⚠⚠ THE DISCRIMINATOR IS AGGREGATE-vs-EVENT, NOT src, AND THAT DISTINCTION COST A SECOND
+    # ROUND OF REG-575. It keyed on `"src" in r` — correct only while `record()` wrote no src.
+    # v2612 gave record() a src to close the allow-list bypass, every single-event row grew one,
+    # this branch judged them as bank() rows, demanded the `n`/`k` they never have, and the whole
+    # read failed CLOSED again — all fifteen locks UNKNOWN, exactly the defect REG-575 was.
+    # Caught by `test_single_attempts_still_ACCUMULATE_and_mix_with_aggregates`, which read
+    # (None, None) instead of (2, 3).
+    #
+    # What actually separates the two writers is what they CARRY: `bank()` writes counts, and
+    # `record()` writes one outcome. Key on that and a src can be added to either without
+    # re-breaking the reader.
+    _is_aggregate = ("n" in r) or ("k" in r)
     if "src" in r:
         src = str(r.get("src") or "")
         allowed = PROVES.get(src)
@@ -416,15 +467,15 @@ def _row_fault(r):
             return "src %r is not a declared evidence source" % src
         if lock not in allowed:
             return "%r does not prove %r" % (src, lock)
-    else:
-        # a record() row: one attempt, its outcome in `refused`. score() reads it as n=1.
+    if not _is_aggregate:
+        # a single attempt: its outcome is in `refused`. score() reads it as n=1.
         if not isinstance(r.get("refused"), bool):
             return ("refused=%r is not a boolean, and score() would have read it as an outcome "
                     "anyway" % r.get("refused"))
-        if "n" in r or "k" in r:
-            return ("a row with no src carries n/k, so it is neither shape and score() would "
-                    "count it as both")
-    if "src" in r and kind not in KINDS:
+    elif "src" not in r:
+        return ("a row carries n/k with no src, so nothing declares what it may prove and score() "
+                "would still count it")
+    if _is_aggregate and kind not in KINDS:
         # ⚠ ON BANK() ROWS ONLY, and that is not a softening. bank() validates the kind at its own
         # door, so an undeclared kind in a row claiming a src could not have come from it. A
         # record() row is different BY CONTRACT: `confluence()` weights an unlisted kind at ZERO,
@@ -433,7 +484,7 @@ def _row_fault(r):
         # counts for nothing" into "the file cannot be trusted", which are opposite facts about
         # the same row. Worth zero is a MEASUREMENT; unreadable is the absence of one.
         return "kind %r is not a declared evidence tier" % kind
-    if "src" in r:
+    if _is_aggregate:
         n, k = r.get("n"), r.get("k")
         # ⚠ bool is a subclass of int, and `True` would otherwise pass as the count 1 — the same
         # shape REG-573 found writing "read (1 pages)" into a tombstone.

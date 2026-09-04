@@ -256,7 +256,13 @@ in those words.
   Owed: fix them, or state per gate why a red is correct. **A gate set nothing runs is a gate set
   that has stopped measuring**, and this one had drifted to eight without a single push noticing.
 
-- **A `record()` row bypasses the PROVES allow-list entirely.** Found 2026-09-04 fixing REG-575.
+- ~~**A `record()` row bypasses the PROVES allow-list entirely.**~~ ✅ **CLOSED v2612 (REG-591)** —
+  `record()` now requires a declared `src` that PROVES the lock. The reader still accepts src-less
+  historical rows, because rejecting them fails the whole read (REG-575). ⚠ Fixing it reintroduced
+  REG-575 **twice** — `_row_fault` and `_fold` both keyed on `src` to mean "aggregate" — and both
+  now key on AGGREGATE vs EVENT. Verified behaviour-neutral on his ledger.
+
+- **~~ORIGINAL~~** **A `record()` row bypasses the PROVES allow-list entirely.** Found 2026-09-04 fixing REG-575.
   `bank()` refuses any (src, lock) pair the allow-list does not declare — the rule that stops one
   surface's sabotage opening another surface's lock, which matters most for `prune.arm` because
   footage has no undo. A `record()` row carries no `src` at all, so that check cannot be applied to

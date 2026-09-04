@@ -299,9 +299,13 @@ class TestBankingCannotOpenALockByBeingLookedAt(unittest.TestCase):
     def test_single_attempts_still_ACCUMULATE_and_mix_with_aggregates(self):
         """record() rows are events and must keep adding up; only banked aggregates fold. If this
         broke, every row ever written by record() would silently change meaning."""
-        SA.record("miniauto.run", "fixture", True)
-        SA.record("miniauto.run", "fixture", True)
-        SA.record("miniauto.run", "fixture", False)
+        # ⚠ v2612 — the src is REQUIRED now (REG-591): `record()` used to take none, so a single
+        # call could credit ANY lock from anywhere, bypassing the PROVES allow-list that `bank()`
+        # enforces. `hover_wilson` is the declared source for `miniauto.run`, so this exercises
+        # exactly what it exercised before — accumulation — through the door as it is now.
+        SA.record("miniauto.run", "fixture", True, src="hover_wilson")
+        SA.record("miniauto.run", "fixture", True, src="hover_wilson")
+        SA.record("miniauto.run", "fixture", False, src="hover_wilson")
         sc = SA.score("miniauto.run")
         self.assertEqual((sc["k"], sc["n"]), (2, 3))
         SA.bank("miniauto.run", "sabotage", "hover_wilson", n=4, k=4)
@@ -541,7 +545,12 @@ class TheLedgerIsCheckedONREADNotOnlyOnWrite(unittest.TestCase):
             self._good(), {"lock": "prune.arm", "kind": "sabotage", "refused": True,
                            "n": 99, "k": 99, "ts": int(time.time() * 1000)}))
         self.assertIsNone(rows, "a source-less row carrying 99 refusals was accepted as evidence")
-        self.assertIn("neither shape", why)
+        # ⚠ PINS THE RULE, NOT THE PHRASE. The wording moved in v2612 when the discriminator
+        # became aggregate-vs-event; what must hold is that a counted row with nothing declaring
+        # what it may prove is refused, and that the reason says why.
+        self.assertTrue(("neither shape" in why) or ("no src" in why),
+                        "a counted row with no declared source was refused without saying why: %r"
+                        % why)
 
     def test_a_record_row_with_a_non_boolean_outcome_is_refused(self):
         """⚠ BASELINE — accepting record()'s shape must not mean accepting anything without a
@@ -654,6 +663,51 @@ class TheHardenedTierGivesAnAccountOfItself(unittest.TestCase):
                 self.assertIn(key, r["hardeningGap"],
                               "%s's gap is missing %r — a shape that changes with the verdict is "
                               "not a shape" % (r["lock"], key))
+
+
+class RecordHonoursTheAllowListToo(_Ledger):
+    """⚠⚠ REG-591 — THE ONE RULE THAT MATTERS MOST HERE HAD A DOOR WITH NO LOCK ON IT.
+
+    `bank()` refuses any (src, lock) pair PROVES does not declare — that is what stops one
+    surface's sabotage opening a DIFFERENT surface's lock, and it matters most for `prune.arm`
+    because footage has no undo. `record()` took no `src` at all, so a single call could credit
+    ANY lock from anywhere.
+
+    MEASURED when it was found: `record()` had ZERO production callers and his ledger held 51
+    bank-shaped rows and 0 record-shaped. **Never a leak — a loaded gun**, and closing it is cheap
+    precisely because nobody had pulled the trigger."""
+
+    def test_no_src_is_refused(self):
+        with self.assertRaises(ValueError) as e:
+            SA.record("prune.arm", "sabotage", True)
+        self.assertIn("credit any lock", str(e.exception))
+
+    def test_an_UNDECLARED_src_is_refused(self):
+        with self.assertRaises(ValueError):
+            SA.record("prune.arm", "sabotage", True, src="my_own_harness")
+
+    def test_a_src_that_proves_ANOTHER_lock_is_refused(self):
+        """The actual danger: hover_wilson is real and declared — for miniauto.run. It must not be
+        able to credit the deleter."""
+        with self.assertRaises(ValueError) as e:
+            SA.record("prune.arm", "sabotage", True, src="hover_wilson")
+        self.assertIn("does not prove", str(e.exception))
+
+    def test_a_DECLARED_pair_writes_a_row_that_carries_its_source(self):
+        row = SA.record("miniauto.run", "sabotage", True, src="hover_wilson")
+        self.assertEqual(row["src"], "hover_wilson")
+        self.assertIs(row["refused"], True)
+        self.assertNotIn("n", row, "a single attempt must not carry counts — it is an EVENT")
+
+    def test_events_STILL_accumulate_now_that_they_carry_a_src(self):
+        """⚠⚠ THE REGRESSION THIS FIX CAUSED AND THEN CLOSED. `_fold` keyed on `src`, so the
+        moment single attempts grew one, three separate events folded into ONE and the count read
+        (0, 1) instead of (2, 3). Only AGGREGATES fold — an event is not a re-report of anything."""
+        for refused in (True, True, False):
+            SA.record("miniauto.run", "sabotage", refused, src="hover_wilson")
+        sc = SA.score("miniauto.run")
+        self.assertEqual((sc["k"], sc["n"]), (2, 3),
+                         "three events folded instead of accumulating: %r" % ((sc["k"], sc["n"]),))
 
 
 if __name__ == "__main__":
