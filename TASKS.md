@@ -138,6 +138,16 @@ in those words.
 
 ### ⚠ STILL OWED BY ME, named rather than buried
 
+- **📐 A BOUNDARY IS NEVER SETTLED BY LOOKING — BY EITHER OF US.** Five boundary claims from
+  pictures were checked on 2026-09-04 and **four were wrong, in both directions.** Mine: an
+  OCCLUDED line I called clipped (it was scrollable, 22px of slack), and a WRAPPED heading I called
+  cut (`WHAT WATCHES WHILE YOU PLAY`, second line below the fold). The cold reader's: the crest
+  called fine (it is Chrome's broken-image placeholder), the roman numeral `Ⅰ` called an overlap
+  (U+2160, sitting at left 12), and the FORGE QUESTS left edge called cut (measured flush —
+  textLeft 34, parentLeft 34, hiddenLeft false). **The only one that survived measurement was the
+  crest, where I was right and it was wrong.** Rects, hit-tests and computed styles settle a
+  boundary; a picture only says where to point them.
+
 - **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
   not write an anchor that matches the wrong occurrence.
 
