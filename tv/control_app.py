@@ -15270,8 +15270,11 @@ def _eagle_watch_loop():
 #   6. NEVER ON AN UNREADABLE LEDGER. v2079 makes plan() hold everything then, and this checks it
 #      again by name rather than trusting that to stay true.
 # TV_AUTO_PRUNE=0 turns the acting off and leaves the reporting.
+#: ⚠ `error` is part of the SHAPE, not a key that appears only when something breaks. A field
+#: that materialises on failure means every reader has to know it might be missing, and the ones
+#: that do not will read absence as health. None = nothing has failed. [[unknown-stays-unknown]]
 _RETENTION = {"checked": None, "freeGb": None, "freedMb": 0, "removed": [], "say": "not measured yet",
-              "lockedBehindASweep": None, "lockedMb": None}
+              "lockedBehindASweep": None, "lockedMb": None, "error": None}
 _RETENTION_EVERY_S = float(os.environ.get("TV_RETENTION_EVERY_S", "900") or 900)
 # ── v2086 — ONE FLOOR, FOUR COPIES ───────────────────────────────────────────────────────────
 # This number decides two different things: whether /api/on will RECORD, and whether the auto-prune
@@ -15975,6 +15978,15 @@ def _retention_loop():
                 time.sleep(_RETENTION_EVERY_S)
             first = False
             r = _retention_once()
+            # ⚠⚠ AND A FAILURE THAT NEVER CLEARS IS THE SAME DEFECT POINTING THE OTHER WAY. The
+            # eight success paths below all go through `_RETENTION.update(...)` and not one of
+            # them touches `error`, so without this a single bad ledger would have left the
+            # console saying "retention could not run" for ever — including after the ledger was
+            # fixed and every later pass succeeded. `error` means THE LAST ATTEMPT FAILED, so the
+            # attempt that succeeds is exactly what clears it. Cleared here rather than in eight
+            # update sites, because a rule spread over eight places is a rule that will be seven.
+            with _PRUNE_LOCK:
+                _RETENTION["error"] = None
             st = retention_state()
             if r and r.get("removed"):
                 print("  \U0001f5c3 %s" % st["say"], flush=True)
@@ -15985,8 +15997,37 @@ def _retention_loop():
             if st.get("say") != said and (st.get("freeGb") or 99) < ON_AIR_FLOOR_GB:
                 print("  \U0001f5c3 %s" % st["say"], flush=True)
                 said = st.get("say")
-        except Exception:
-            pass
+        except Exception as e:
+            # ⚠⚠ v2577 REG-573 (second half) — THIS WAS `except Exception: pass`, AND IT IS THE
+            # DELETER'S OWN LOOP. Measured at v2576: a ledger carrying `pages: "many"` let a
+            # ValueError escape plan(), which landed here and vanished. The pass then died
+            # silently and `_RETENTION` stayed frozen on its LAST GOOD SENTENCE — so the console
+            # went on displaying a healthy retention line, from a measurement that had stopped
+            # happening, with nothing anywhere saying the lane was dead.
+            #
+            # That is the worst shape this repo has a name for: not a wrong number, a STALE one
+            # that reads exactly like a fresh one. [[feedback-silence-is-not-evidence]]
+            # [[stale-reading]]
+            #
+            # ⚠ IT STILL SWALLOWS — deliberately. A retention loop that dies on one bad ledger
+            # stops checking the disk for ever, and this thread has no supervisor to restart it.
+            # The fix is not to crash, it is to STOP LOOKING HEALTHY: the failure goes into the
+            # state the console reads, with the reason and the time, so the surface says the lane
+            # is broken rather than repeating yesterday's good news.
+            try:
+                _why = "%s: %s" % (type(e).__name__, str(e)[:160])
+                with _PRUNE_LOCK:
+                    _RETENTION["say"] = ("retention could not run — %s. This lane is NOT reporting "
+                                         "free space; the numbers beside it are from the last run "
+                                         "that finished." % _why)
+                    _RETENTION["checked"] = int(time.time() * 1000)
+                    _RETENTION["error"] = _why
+                # printed once per distinct failure, for the same reason a disk warning is
+                if _why != said:
+                    print("  \U0001f5c3 retention FAILED — %s" % _why, flush=True)
+                    said = _why
+            except Exception:
+                pass          # the recorder itself must never take the loop down
 
 
 def prune_reclaimable():
@@ -22345,7 +22386,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2576",
+        "ver": "v2577",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

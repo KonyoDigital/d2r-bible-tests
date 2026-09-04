@@ -17068,7 +17068,23 @@ body[data-origin="shadow"] #stage::after {
          three different pictures, on one screen. `key` indexes CONSOLE_ART, which is the only
          place any of these is chosen. */
       var _tfChron = function(key, name, found, total, leftLabel, tab){
-        var left = Math.max(0, total - found), done = left === 0, pct = total ? Math.round(found / total * 100) : 0;
+        /* ⚠⚠ v2577 — THE GAME TRUNCATES AND THIS ROUNDED, so the two disagreed by a point.
+           His report: "the console 121/135 is reading 90% but ingame it reads 89%". Measured:
+           121/135 = 89.63%, which Math.round takes UP to 90 and the game takes DOWN to 89. The
+           arithmetic was never wrong; the RULE was, and a number he reads off two screens has to
+           agree on both. Math.floor matches what D2R shows.
+           ⚠ The bar keeps the unrounded fraction — flooring the WORD is a display rule, and
+           flooring the LENGTH too would lose up to a point of real progress off the bar.
+           ⚠⚠ AND THE FIRST VERSION OF THIS COMMENT WAS WRONG, CAUGHT BY MEASURING IT. It said
+           "134/135 floors to 99, where rounding called it 100 while a piece was still missing" —
+           134/135 is 99.26% and rounds to 99, not 100. The CLAIM is real but needs a denominator
+           big enough: measured across the three real rows, only Chronicle Uniques can do it, at
+           401/403 = 99.50%, which rounding calls 100% with TWO items still missing. Sets (135)
+           and Runewords (99) never can. Flooring closes it: 100% now means exactly complete.
+           A right rule argued from a wrong example is how the example gets quoted later. */
+        var left = Math.max(0, total - found), done = left === 0,
+            pctExact = total ? (found / total * 100) : 0,
+            pct = Math.floor(pctExact);
         var go = tab ? (' role="button" tabindex="0" title="open the ' + name + ' chronicle"'
           + ' onclick="window._hubGo(&quot;' + tab + '&quot;)"'
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
@@ -17087,7 +17103,7 @@ body[data-origin="shadow"] #stage::after {
           + '<span class="tf-t"><b>' + name + '</b>'
           + ' <span class="tf-chron-note">— ' + (done ? 'complete ✓' : (left + ' ' + leftLabel)) + '</span></span>'
           + '<span class="tf-n">' + found + '<i>/</i><u>' + total + '</u></span>'
-          + '<span class="tf-p" aria-hidden="true"><i style="width:' + pct + '%"></i></span>'
+          + '<span class="tf-p" aria-hidden="true"><i style="width:' + pctExact.toFixed(1) + '%"></i></span>'
           + '<span class="tf-tag ' + (done ? 'dim' : 'hunt') + '">' + (done ? 'DONE' : pct + '%') + '</span></div>';
       };
       if (fs && fs.chron && fs.chron.total) rows.push(_tfChron('runes', 'Runewords', fs.chron.made || 0, fs.chron.total, 'left to build', 'runes'));
