@@ -4258,7 +4258,22 @@
      hidden. auto-fit/minmax pairs cards again WHEN there is room for two real columns
      (>= ~2x360px) and gives one honest column when there is not — at 1105px the dash is 802px,
      so it now reads as one deliberate column instead of a half-empty two. ══ */
-  .home-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: var(--hd-gap); grid-area: dash;
+  /* ⚠ v2609 — `minmax(360px, 1fr)` IS A FLOOR THE BOX CANNOT ALWAYS AFFORD. At 375 CSS px the
+     dash's content box is 336px wide, so a 360px minimum column overflowed it by exactly 24px
+     (clientWidth 336, scrollWidth 360) and the panel scrolled sideways. Measured, and it is the
+     remainder a cold cross-family read caught as "live terror zones · wha" truncated mid-word —
+     ⚠ NOT text escaping the viewport, which measured ZERO elements past the right edge: it is
+     content clipped inside the dash's OWN scroller. `min(360px, 100%)` keeps the 360px floor
+     wherever there is room for it and yields to the box where there is not, so nothing above
+     ~372px changes at all.
+     ⚠⚠ AND IT DOES NOT CLOSE THE 24px — SAID PLAINLY RATHER THAN IMPLIED. Measured after: the
+     column IS 336px and fits, and scrollWidth is still 360. The residual has a different cause —
+     `.hd-h`, `#tz-body` and `.tz-down` are each 330px wide starting 15px in, so their own offset
+     plus width overruns the 336px box by 9px. That is a card's padding model, not this floor.
+     Named, not fixed: 375px is not a width he uses, the content is reachable by scrolling
+     sideways, and the serious fault at this width — the whole main column being unreachable —
+     was REG-588 and is closed. [[unknown-stays-unknown]] */
+  .home-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: var(--hd-gap); grid-area: dash;
     align-content: start; align-items: start; grid-auto-rows: max-content;   /* v906.1 — cards GROW, never overlap */
     min-height: 0; overflow-y: auto;
     /* v2103 — THE DASH MAY NOT CLAIM HEIGHT IT DOES NOT FILL. Konyo: "a dead black gap with its own
