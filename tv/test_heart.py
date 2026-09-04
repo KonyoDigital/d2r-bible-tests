@@ -226,6 +226,70 @@ class TestItDerivesAndNeverWrites(unittest.TestCase):
                          "is a map that drifts from the territory." % "; ".join(bad))
 
 
+class DarkTellsAWATCHMANFromAWORKER(_Swap):
+    """★ MEASURED ON HIS TREE: 8 DARK, and SIX of them are the supervisors themselves —
+    `_bridge_prober`, `_console_beacon_loop`, `_console_rescue_loop`, `_mini_watchdog`,
+    `_orphan_exit_loop`, `_orphan_watch`. Only TWO are ordinary work nobody watches:
+    `_engine_driver` and `_kai_closer_loop`.
+
+    "Nothing watches the watchman" is not the same fault as "nothing watches this worker". Every
+    supervision tree has an unsupervised root — structural, and answered by a DIFFERENT mechanism
+    (a peer, a heartbeat file, a second process) than the one the other DARK rows wait for.
+    Reported as eight identical gaps, six of them send a reader to build something that would not
+    help. [[unknown-stays-unknown]]"""
+
+    def use_sup(self, rows, supervisors):
+        import types
+        m = types.ModuleType("lane_census")
+        m.census = lambda src=None: rows
+        m._is_supervisor = lambda n: str(n or "") in set(supervisors)
+        sys.modules["lane_census"] = m
+        self.addCleanup(sys.modules.pop, "lane_census", None)
+
+    def _dark(self, name, supervisors):
+        self.use_sup([{"fn": name, "kind": "LOOP", "lane": None, "supervised": False}], supervisors)
+        return H.vessels()["vessels"][0]
+
+    def test_an_unwatched_SUPERVISOR_is_named_as_structural(self):
+        v = self._dark("_orphan_watch", ["_orphan_watch"])
+        self.assertEqual(v["state"], H.DARK)
+        self.assertIs(v["supervises"], True)
+        self.assertIn("SUPERVISOR", v["why"])
+        self.assertIn("structural", v["why"],
+                      "it reads as an oversight, so a reader goes and builds the wrong thing: %r"
+                      % v["why"])
+
+    def test_an_unwatched_ORDINARY_loop_keeps_the_original_warning(self):
+        """⚠ BASELINE. If the supervisor branch swallowed the ordinary case, the two genuinely
+        owed rows would stop asking for anything."""
+        v = self._dark("_engine_driver", ["_orphan_watch"])
+        self.assertEqual(v["state"], H.DARK)
+        self.assertIs(v["supervises"], False)
+        self.assertIn("NOTHING watches it", v["why"])
+        self.assertNotIn("SUPERVISOR", v["why"])
+
+    def test_the_two_messages_are_DIFFERENT(self):
+        a = self._dark("_orphan_watch", ["_orphan_watch"])["why"]
+        self.tearDown() if hasattr(self, "tearDown") else None
+        b = self._dark("_engine_driver", ["_orphan_watch"])["why"]
+        self.assertNotEqual(a, b,
+                            "both cases produce one sentence, so the distinction is decorative")
+
+    def test_if_the_supervisor_set_cannot_be_ASKED_it_says_so(self):
+        """⚠ NOT a silent False. A census without `_is_supervisor` must leave the reader knowing
+        the question went unanswered, or 'not a supervisor' is invented."""
+        import types
+        m = types.ModuleType("lane_census")
+        m.census = lambda src=None: [{"fn": "_x", "kind": "LOOP", "lane": None,
+                                      "supervised": False}]
+        sys.modules["lane_census"] = m           # no _is_supervisor at all
+        self.addCleanup(sys.modules.pop, "lane_census", None)
+        v = H.vessels()["vessels"][0]
+        self.assertIn("could not be asked", v["why"],
+                      "an unanswerable question was reported as a plain 'not a supervisor': %r"
+                      % v["why"])
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-589 — DARK said eight gaps when six of them were the watchmen themselves
+**2026-09-04 · v2610 · A11**
+
+The heart reported **8 DARK vessels**, every one with the same sentence: *"it runs and NOTHING
+watches it."* Measured on his tree:
+
+| | |
+|---|---|
+| DARK, and a SUPERVISOR | **6** — `_bridge_prober`, `_console_beacon_loop`, `_console_rescue_loop`, `_mini_watchdog`, `_orphan_exit_loop`, `_orphan_watch` |
+| DARK, and ordinary work | **2** — `_engine_driver`, `_kai_closer_loop` |
+
+**"Nothing watches the watchman" is not the same fault as "nothing watches this worker."** Every
+supervision tree has an unsupervised root — that is structural, and answering it needs a DIFFERENT
+mechanism (a peer, a heartbeat file, a second process) than the watcher the other DARK rows are
+waiting for. **Reported as eight identical gaps, six of them send a reader to build something that
+would not help.** [[unknown-stays-unknown]] [[label-outlived-referent]]
+
+⚠ **QUOTED, NOT RE-DERIVED.** `lane_census` owns `_SUPERVISORS` and carries the guard that keeps it
+honest (`supervisor_set_is_current`, v2592). A second copy in the heart would drift from it.
+[[copy-drift]] §1
+
+⚠ **AND A CENSUS THAT CANNOT BE ASKED SAYS SO.** If `_is_supervisor` is unavailable the row records
+*"whether it supervises could not be asked"* rather than defaulting to "not a supervisor" — an
+unanswerable question must not resolve to a confident negative.
+
+**Guard:** `DarkTellsAWATCHMANFromAWORKER` in `tv/test_heart.py`, proven RED by collapsing the
+distinction — three cases fail, including the baseline that the two messages must DIFFER, because a
+distinction that produces one sentence is decorative.
+
 ### REG-588 — at narrow width the console's main column was laid out, rendered, and unreachable
 **2026-09-04 · v2608 · found by chasing why the overlap gate had lied**
 

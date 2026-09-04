@@ -165,9 +165,37 @@ def vessels():
                                "harmless — it may run forever and nothing would know"})
             continue
         if not watcher:
+            # ⚠⚠ v2610 — DARK COLLAPSED TWO FACTS AND THE COUNT READ AS EIGHT GAPS. Measured on
+            # his tree: 8 DARK, and SIX of them are the supervisors themselves — _bridge_prober,
+            # _console_beacon_loop, _console_rescue_loop, _mini_watchdog, _orphan_exit_loop,
+            # _orphan_watch. Only TWO are ordinary work nobody watches: _engine_driver and
+            # _kai_closer_loop.
+            #
+            # "Nothing watches the watchman" is not the same fault as "nothing watches this
+            # worker". Every supervision tree has an unsupervised root — that is structural, and
+            # answering it means a DIFFERENT mechanism (a peer, a heartbeat file, a second
+            # process), not the one the other rows are waiting for. Reported as eight identical
+            # gaps, six of them send a reader to build something that would not help.
+            # [[unknown-stays-unknown]] [[label-outlived-referent]]
+            #
+            # ⚠ QUOTED, NOT RE-DERIVED. lane_census owns the supervisor set and has the guard that
+            # keeps it honest (supervisor_set_is_current). A second copy here would drift.
+            _sup, _sup_why = False, ""
+            try:
+                import lane_census as _lc
+                _sup = bool(_lc._is_supervisor(name))
+            except Exception as _e:
+                _sup_why = " (whether it supervises could not be asked: %s)" % str(_e)[:50]
             out.append({"name": name, "kind": kind, "state": DARK, "watcher": None,
-                        "why": "it runs and NOTHING watches it. Not broken — unseen, which reads "
-                               "as fine and is worse"})
+                        "supervises": _sup,
+                        "why": (("it is a SUPERVISOR and nothing supervises IT. Every supervision "
+                                 "tree has an unsupervised root, so this is structural rather than "
+                                 "an oversight — and answering it needs a different mechanism (a "
+                                 "peer, a heartbeat file, a second process), not the watcher the "
+                                 "other DARK rows are waiting for")
+                                if _sup else
+                                ("it runs and NOTHING watches it. Not broken — unseen, which "
+                                 "reads as fine and is worse")) + _sup_why})
             continue
         sc = scored.get(watcher)
         if isinstance(sc, (int, float)) and sc > 0:
