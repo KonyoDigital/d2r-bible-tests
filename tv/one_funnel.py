@@ -162,7 +162,7 @@ def funnel():
         return {"ok": False, "state": "UNKNOWN", "ladder": "UNKNOWN", "passage": "UNKNOWN",
                 "rungs": list(rungs), "collisions": [], "unknownStage": 0, "occupancy": {},
                 "waypoints": {}, "walked": 0, "datedRungs": [], "rungCount": len(rungs),
-                "unreadableRungs": [],
+                "unreadableRungs": [], "emptyStoreRungs": [], "namelessRows": 0,
                 "why": w}
 
     rungs, lwhy = _ladder()
@@ -189,10 +189,20 @@ def funnel():
                   + [{"stage": s, "indexes": sorted(i)} for s, i in by_stage.items() if len(i) > 1])
     ladder = "ONE_LADDER" if (not collisions and not unknown) else "SPLIT_LADDER"
 
-    sids = set()
+    # ⚠⚠ REG-559 — A PHANTOM SESSION ID. This added `""` to `sids` for any row naming no reel —
+    # a non-dict, a missing `reel` key, a bare `"reel_"` — and handed it to `_waypoint_cover`,
+    # which then asked every store whether it held a row for the empty string. The SAME class as
+    # REG-550's phantom reel in the printer, in a different module, found by a cold review of
+    # these bytes rather than by my sweep of that one. **A sweep of a class is only as wide as the
+    # modules you looked in**, and I had looked in one.
+    sids, nameless = set(), 0
     for r in rows:
-        nm = str((r or {}).get("reel") or "")
-        sids.add(nm[len("reel_"):] if nm.startswith("reel_") else nm)
+        nm = str((r or {}).get("reel") or "").strip()
+        sid = nm[len("reel_"):] if nm.startswith("reel_") else nm
+        if not sid:
+            nameless += 1
+            continue
+        sids.add(sid)
     cover = _waypoint_cover(sids)
     dated = [k for k, v in cover.items() if isinstance(v.get("covered"), int) and v["covered"] > 0]
     # ⚠⚠ REG-555 — UNRECORDED IS A CLAIM ABOUT THE PIPELINE, AND IT WAS BEING MADE OVER STORES
@@ -204,6 +214,12 @@ def funnel():
     # [[unknown-stays-unknown]]
     unreadable = sorted(k for k, v in cover.items()
                         if v.get("store") and v.get("covered") is None)
+    # ⚠⚠ REG-559 — THREE FACTS, TWO LISTS. A rung's store can be ABSENT (nothing records it),
+    # UNREADABLE (it exists and would not open), or READ AND EMPTY (it opened and holds a dated
+    # row for none of these reels). The first two had a home and the third had none: `covered == 0`
+    # fell out of `dated` AND out of `unreadable`, so a rung that WAS checked and found empty read
+    # exactly like a rung nobody records. Different facts about his pipeline.
+    empty_stores = sorted(k for k, v in cover.items() if v.get("covered") == 0)
     if unreadable:
         passage = "UNKNOWN"
     elif len(dated) >= len(rungs):
@@ -218,6 +234,7 @@ def funnel():
         "rungs": list(rungs), "collisions": collisions, "unknownStage": unknown,
         "occupancy": occupancy, "waypoints": cover, "walked": len(rows),
         "datedRungs": sorted(dated), "rungCount": len(rungs), "unreadableRungs": unreadable,
+        "emptyStoreRungs": empty_stores, "namelessRows": nameless,
         # ⚠⚠ REG-558 — THE PREFIX BOUND INSIDE THE TERNARY'S TRUE BRANCH. `+` binds tighter than
         # the conditional expression, so `prefix + A if c else B` parses as `(prefix + A) if c else
         # B` — and the unreadable-stores warning reached ONLY the ONE_LADDER text. Measured: with

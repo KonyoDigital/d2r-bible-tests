@@ -18492,3 +18492,39 @@ down rather than counted as debt.
 **1 sabotage, RED:** restoring the precedence bug gives `'COULD NOT BE READ' not found in 'SPLIT
 LADDER — …'`, with a baseline first asserting the split branch was actually reached.
 
+## v2558 — the phantom I swept in one module, living in two others
+
+**REG-559 — the cold look at v2556, and the sweep that followed it.**
+
+⚠⚠ **A PHANTOM SESSION ID.** `one_funnel` added `""` to its session set for any row naming no reel —
+a non-dict, a missing `reel` key, a bare `"reel_"` — and then asked **every store** whether it held
+a dated row for the empty string. **This is the same class as REG-550's phantom reel in the
+printer**, which I found and swept two hours earlier. **A sweep of a class is only as wide as the
+modules you looked in, and I had looked in one.**
+
+⚠⚠ **THREE FACTS, TWO LISTS.** A rung's store can be ABSENT (nothing records it), UNREADABLE (it
+exists and would not open), or **READ AND EMPTY** (it opened fine and holds a dated row for none of
+these reels). The first two had a home; the third had none — `covered == 0` fell out of `dated` AND
+out of `unreadable`, so **a rung that WAS checked and found empty read exactly like a rung nobody
+records.** Now `emptyStoreRungs`.
+
+⚠⚠ **AND THE SWEEP FOUND IT AT THE SOURCE, WHICH IS WHERE IT MATTERED.** `reel_river` emitted a row
+for anything the shelf returned, including one naming no reel. The printer had been taught to DROP
+those (REG-550/551) — so **the two disagreed on the same input**: measured, `reel_river` walked 3
+rows where the printer kept 1 and dropped 2. **Fixing a class downstream while the source keeps
+producing it is how two readings of one shelf come to differ.** Fixed at the source and counted; a
+guard now drives both over identical input and requires them to agree.
+
+⚠ **AND THE WIDER SWEEP WAS DELIBERATELY NOT ACTED ON.** `.get(<id>) or ""` appears at **54 sites**
+across the product modules, and almost all are correct — the empty string is compared, bounded, or
+the row is discarded. The defect exists only where it becomes a KEY or a SET MEMBER that is then
+looked up. Reporting 54 would be the cry-wolf defect; the three that were real are fixed and the
+count is recorded rather than converted into debt.
+
+**Two declined, and the reviewer labelled one itself:** the two loops' inconsistent handling of
+non-dict rows cannot raise and is subsumed by the nameless fix; untaught-stage rows contributing to
+`sids` is deliberate, because the reel exists and its waypoints are real whatever its stage.
+
+**4 sabotages, 4 RED:** the phantom sid restored; read-and-empty made invisible again; the phantom
+at the source restored (fails BOTH the river's own guard AND the river/printer agreement guard).
+

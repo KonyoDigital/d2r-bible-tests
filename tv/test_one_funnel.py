@@ -247,6 +247,46 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
             self.assertIn("COULD NOT BE READ", r["why"],
                           "%s branch drops the unreadable-stores warning: %r" % (label, r["why"]))
 
+    def test_a_row_that_names_NO_reel_is_not_asked_about_as_a_session(self):
+        """⚠⚠ REG-559 — A PHANTOM SESSION ID, and the SAME class as the printer's phantom reel
+        (REG-550) in a different module. Any row naming no reel added `""` to the session set, and
+        every store was then asked whether it held a dated row for the empty string.
+
+        ⚠ I swept that class when I found it in `printer.py` and this survived, because **a sweep
+        of a class is only as wide as the modules you looked in.**
+        """
+        import reel_story as RS
+        real = RS.story
+        try:
+            RS.story = lambda *a, **k: {"reels": [
+                {"reel": "reel_s_1", "stage": "swept", "stageIdx": 2, "stageKnown": True},
+                {"stage": "swept", "stageIdx": 2, "stageKnown": True},     # no `reel` key
+                None]}                                                      # not a dict at all
+            r = OF.funnel()
+        finally:
+            RS.story = real
+        self.assertEqual(r["namelessRows"], 2,
+                         "rows naming no reel were not counted: %s" % r["namelessRows"])
+
+    def test_a_store_READ_AND_EMPTY_is_not_invisible(self):
+        """⚠⚠ REG-559 — THREE FACTS, TWO LISTS. A rung's store can be ABSENT, UNREADABLE, or READ
+        AND EMPTY. `covered == 0` fell out of `dated` AND out of `unreadable`, so a rung that was
+        checked and found empty read exactly like a rung nobody records — different facts about
+        his pipeline, sharing one silence."""
+        cover = {"triaged": {"store": "x.json", "covered": 0, "why": "read, 0 dated"},
+                 "swept": {"store": None, "covered": None, "why": "no store"},
+                 "banked": {"store": "y.json", "covered": None, "why": "would not read"}}
+        real = OF._waypoint_cover
+        try:
+            OF._waypoint_cover = lambda sids: cover
+            r = OF.funnel()
+        finally:
+            OF._waypoint_cover = real
+        self.assertEqual(r["emptyStoreRungs"], ["triaged"],
+                         "a store that was READ and covered zero reels is in neither list: %s" % r)
+        self.assertEqual(r["unreadableRungs"], ["banked"], r["unreadableRungs"])
+        self.assertEqual(r["datedRungs"], [], r["datedRungs"])
+
     def test_BASELINE_UNRECORDED_is_still_reachable(self):
         """⚠ Or the fix traded one wrong verdict for an unreachable one: a rung with NO STORE AT
         ALL is genuinely undated, and that must still read UNRECORDED rather than UNKNOWN."""

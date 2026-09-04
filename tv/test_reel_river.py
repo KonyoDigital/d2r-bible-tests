@@ -152,6 +152,47 @@ class AGapIsOnlyASameQuestionDisagreement(unittest.TestCase):
                          "measuring what it names: %s" % c)
         self.assertEqual(c["byFrameRefused"], 1, "and the refusal was not counted either: %s" % c)
 
+    def test_a_row_that_names_NO_reel_is_counted_not_walked(self):
+        """⚠⚠ REG-559 — THE PHANTOM AT ITS SOURCE, and the reason fixing it downstream was not
+        enough. This emitted a row for anything the shelf returned, including one naming NO reel,
+        and every stage then reported on `''`. The printer was taught to drop those (REG-550/551),
+        which meant **the two disagreed on the same input**: measured, `reel_river` walked 3 rows
+        where the printer kept 1 and dropped 2.
+
+        **Fixing a class downstream while the source keeps producing it is how two readings of one
+        shelf come to differ.** Counted here, not silently skipped.
+        """
+        rows = [{"reel": "reel_s_1", "stage": "swept"},
+                {"stage": "swept"},              # no reel key at all
+                {"name": "", "stage": "swept"}]  # a name that is empty
+        r = self._run(rows, {})
+        self.assertEqual(len(r["rows"]), 1, "a nameless row was walked as a reel: %s"
+                         % [x["reel"] for x in r["rows"]])
+        self.assertEqual(r["namelessRows"], 2,
+                         "the nameless rows were dropped without being counted: %s" % r)
+
+    def test_the_river_and_the_printer_AGREE_on_the_same_shelf(self):
+        """⚠ The join is the point: two readings of one shelf must not differ. This drives both
+        over identical input and requires the printer to keep exactly what the river walked."""
+        import printer as P
+        import reel_story as RS
+        real = RS.story
+        try:
+            RS.story = lambda *a, **k: {"reels": [
+                {"reel": "reel_s_1", "stage": "swept"},
+                {"stage": "swept"},
+                {"name": "", "stage": "swept"}]}
+            riv = RR.river()
+            kept, dropped = P._by_reel(riv)
+        finally:
+            RS.story = real
+        self.assertEqual(
+            len(riv["rows"]), len(kept),
+            "the river walked %d row(s) and the printer kept %d — two readings of one shelf that "
+            "disagree" % (len(riv["rows"]), len(kept)))
+        self.assertEqual(dropped, 0,
+                         "the printer still had to drop %d row(s) the river emitted" % dropped)
+
     def test_a_stage_with_no_declared_decider_IS_a_gap(self):
         """⚠ BASELINE for the whole file: `gaps` must be reachable, or the assertions above are
         just describing a function that can never report anything."""

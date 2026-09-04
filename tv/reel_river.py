@@ -98,11 +98,20 @@ def river(reel=None):
                 "why": ("UNKNOWN, not an empty shelf — %s"
                         % (why or "no reel reached this probe and nothing said why"))}
     seals, FA, seal_why = _seals()
-    out, gaps = [], []
+    out, gaps, nameless = [], [], 0
     for r in rows:
         if not isinstance(r, dict):
             continue
-        name = str(r.get("reel") or r.get("name") or "")
+        # ⚠⚠ REG-559 — THE PHANTOM AT ITS SOURCE. This emitted a row for anything the shelf
+        # returned, including a row naming NO reel, and every stage then reported on ''. The
+        # printer was taught to drop those downstream (REG-550/551) — which meant the two
+        # DISAGREED on the same input: measured, reel_river walked 3 rows where the printer kept 1
+        # and dropped 2. Fixing a class downstream while the source keeps producing it is how two
+        # readings of one shelf come to differ. Counted, not silently skipped.
+        name = str(r.get("reel") or r.get("name") or "").strip()
+        if not name:
+            nameless += 1
+            continue
         if reel and reel not in name:
             continue
         stage = str(r.get("stage") or "")
@@ -160,7 +169,7 @@ def river(reel=None):
     _frame_unasked = sum(1 for o in out if o["frameAnswer"] is None)
     _frame_refused = sum(1 for o in out if o["frameAnswer"] is False)
     _not_yet = len(out) - _reel_door
-    return {"ok": True, "rows": out, "gaps": gaps,
+    return {"ok": True, "rows": out, "gaps": gaps, "namelessRows": nameless,
             "clean": {"byReelDoor": _reel_door, "byFrameContract": _frame_door, "byBoth": _both,
                       "walked": len(out),
                       "notYetAtReelDoor": _not_yet,
