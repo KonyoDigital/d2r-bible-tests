@@ -255,6 +255,13 @@ def stream(reel=None):
         stations["template"] = _station(tp, "zone", "reel_templates",
                                         extra={"template": "template",
                                                "activities": "activities",
+                                               # v2574 — `worthReading` was joined into
+                                               # reel_templates at v2573 and STOPPED THERE: it
+                                               # changed the prune decision but never reached the
+                                               # printed row, so the 80/20 answer was invisible on
+                                               # the one surface that shows the river. The join
+                                               # census caught it. Half a join is not a join.
+                                               "worthReading": "worthReading",
                                                "pruneCandidate": "pruneCandidate"})
 
         stations["route"] = _station(rt, "decidedBy", "per_reel_routes",
