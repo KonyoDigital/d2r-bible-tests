@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2627",
+  "ver": "v2628",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2627: REG-609 - blank_strikes is the only instrument that can see his blank window and it had zero callers. The rescue loop asks it now and publishes every outcome. It reports and never acts, because a reload was already measured not to cure this fault.",
+  "note": "v2628: REG-610 - SVG paint order is document order and the gate loop interleaved routes with labels, so every route painted over the label before it. A cold eye found it, my detector is blind to line-over-text. Three strings now.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

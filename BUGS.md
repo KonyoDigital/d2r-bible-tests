@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-610 — every gate route painted over the label before it
+
+**v2628.** SVG paint order is document order, and the heart's gate loop built routes and labels
+**interleaved**: gate j+1's ROUTE was emitted after gate j's LABEL, so each route painted over the
+label before it.
+
+⚠⚠ **A COLD CROSS-FAMILY EYE FOUND IT AND MY OWN DETECTOR COULD NOT.** Its words: *"the dashed
+lines cut through readable text, making parts unreadable"*, naming `miniauto.run` and
+`printer.stream`. `overlap_ratchet` measures text against **TEXT** — **line-over-text is an entire
+class it is blind to**, so no gate here would ever have caught it. [[visual-regression-detector]]
+
+⚠ **AND I VERIFIED BEFORE BELIEVING IT.** Hit-testing 80 points per text box found exactly ONE
+label carrying a path, over **1% of its box** — so the eye overstated "unreadable" and was right
+that it was there. Both halves matter: a finding taken wholesale would have chased a bigger problem
+than exists, and one dismissed for being small would have left a real z-order bug.
+
+**FIX:** three strings — `gates` (routes), `gmarks` (badges), `glabels` (text) — emitted in that
+order, so no route can paint over any label. **It removes the CLASS, not the instance.**
+
+**Measured after:** line-over-text **1 → 0**, text-on-text still **0**.
+
+⚠ **AND THE HONEST REMAINDER.** Shown the fixed panel cold, the same family still says the dashed
+line "cuts through" the label — and the DOM says the text is on top. **Both are right:** the z-order
+is correct and the line remains visible *in the gaps between glyphs*, which reads as busy. The
+proof the fix landed is that **this time it read every line back correctly**, including `5 attacks ·
+each run 16.6x -> 0.566` and both `miniauto.run` lines, where before it reported those exact
+phrases as *"partially obscured or cut off"*. Legibility restored; crowding in the lower-right
+quadrant remains and is NOT claimed fixed.
+
 ### REG-609 — the one instrument that can see his blank window had no caller
 
 **v2627.** REG-608 fixed the pixel witness so it can finally call his window blank. This is the

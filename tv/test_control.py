@@ -41924,5 +41924,64 @@ class TestV2627ThePixelsAreAskedAndOnlyReported(unittest.TestCase):
 
 
 
+class TestV2628RoutesMayNotPaintOverLabels(unittest.TestCase):
+    """★ SVG PAINT ORDER IS DOCUMENT ORDER, and the heart's gate loop built routes and labels
+    interleaved — so gate j+1's ROUTE was emitted after gate j's LABEL and painted over it.
+
+    ⚠⚠ A COLD CROSS-FAMILY EYE FOUND THIS AND MY OWN DETECTOR CANNOT. Its words: *"the dashed lines
+    cut through readable text, making parts unreadable"*. `overlap_ratchet` measures text against
+    TEXT — **line-over-text is an entire class it is blind to.** [[visual-regression-detector]]
+
+    ⚠ Verified before believing: hit-testing 80 points per text box found ONE label carrying a path
+    over 1% of its box. The eye overstated "unreadable" and was right that it was there — both
+    halves matter, and taking either wholesale would have been wrong.
+    """
+
+    def _block(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = io.open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        # ⚠ THE END ANCHOR MUST SIT AFTER THE LABELS. My first cut used "CENTRED UNDER
+        # THE NODE" — a comment that appears BEFORE them — so the slice stopped short and
+        # this case hunted for `glabels` in a window that could not contain it. `_between`
+        # failed loudly rather than passing on a truncated region, which is the whole point
+        # of it. [[source-reading-guard]]
+        return _between(self, ui, "THE GATED ROUTES", "IT BEATS WHETHER OR NOT ANYTHING IS PROVEN",
+                        min_len=2000, what="the heart's gated-routes renderer")
+
+    def test_routes_badges_and_labels_are_three_separate_strings(self):
+        b = self._block()
+        for name in ("gates +=", "gmarks +=", "glabels +="):
+            self.assertIn(name, b,
+                          "%r is gone — if labels are appended to the route string again, the next "
+                          "route paints over them" % name)
+
+    def test_the_labels_are_emitted_AFTER_every_route(self):
+        """★ The rule. Order in the concatenation IS the z-order; nothing else enforces it."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = io.open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        line = _between(self, ui, "+ veins + gates", "'<g transform=", min_len=10,
+                        what="the svg assembly")
+        i_g, i_m, i_l = line.find("gates"), line.find("gmarks"), line.find("glabels")
+        self.assertGreater(i_m, i_g, "badges are assembled before the routes they sit on")
+        self.assertGreater(i_l, i_m, "labels are assembled before the badges, so a badge can "
+                                     "paint over a label")
+
+    def test_no_label_text_is_appended_to_the_route_string(self):
+        """⚠ The specific regression: a `<text` landing in `gates` puts it back under the routes."""
+        b = self._block()
+        i = 0
+        while True:
+            i = b.find("gates +=", i)
+            if i < 0:
+                break
+            stmt = b[i:b.find(";", i) + 1]
+            self.assertNotIn("<text", stmt,
+                             "a label is being appended to the ROUTE string, which puts it back "
+                             "underneath every route emitted after it")
+            i += 1
+
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

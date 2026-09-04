@@ -10880,7 +10880,15 @@ window._lockMark = function(isOpen, px, label){
       if (ao !== bo) return ao - bo;                       // still-shut routes read first
       return String(a.surface || a.lock).localeCompare(String(b.surface || b.lock));
     });
-    var gates = '';
+    /* ⚠⚠ ROUTES, THEN BADGES, THEN LABELS — THREE STRINGS, BECAUSE SVG PAINT ORDER IS DOCUMENT
+       ORDER. Building them interleaved meant gate j+1's ROUTE was emitted after gate j's LABEL,
+       so every route painted over the label before it. A cold cross-family read caught it —
+       *"the dashed lines cut through readable text, making parts unreadable"* — and my own
+       detector could not: `overlap_ratchet` measures text against TEXT, so line-over-text is an
+       entire class it is blind to. Measured after the report: exactly one label carried a path on
+       1% of its box, so the eye overstated "unreadable" and was right that it was there.
+       Splitting the strings removes the CLASS, not the instance. [[visual-regression-detector]] */
+    var gates = '', gmarks = '', glabels = '';
     var GN = lk.length;
     for (var j = 0; j < GN; j++) {
       var L = lk[j], lst = String(L.state || 'UNKNOWN').toUpperCase();
@@ -11022,7 +11030,7 @@ window._lockMark = function(isOpen, px, label){
          any size, and it stays a padlock rather than becoming some other symbol. */
       var _lkOpenCol = '#8fe6a0';
       var _lkCol = open ? _lkOpenCol : lc;
-      gates += '<g><circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="11" fill="'
+      gmarks += '<g><circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="11" fill="'
              + (open ? '#0f2a17' : '#0d1117') + '"'
              + ' stroke="' + _lkCol + '" stroke-width="' + (open ? 1.8 : 1.4) + '"/>'
              + '<g transform="translate(' + px.toFixed(1) + ',' + py.toFixed(1) + ')">'
@@ -11060,7 +11068,7 @@ window._lockMark = function(isOpen, px, label){
          is masked by it instead of running through it. [[visual-regression-detector]] */
       var _halo = 'paint-order:stroke;stroke:var(--surface-read,#14100c);stroke-width:3.5px;'
                 + 'stroke-linejoin:round;';
-      gates += '<text x="' + gx.toFixed(1) + '" y="' + (gy + 19).toFixed(1)
+      glabels += '<text x="' + gx.toFixed(1) + '" y="' + (gy + 19).toFixed(1)
              + '" text-anchor="middle" font-size="11.5" fill="' + lc
              + '" style="' + _halo + '" font-weight="600">' + _hrtEsc(L.lock || L.surface) + '</text>'
              + '<text x="' + gx.toFixed(1) + '" y="' + (gy + 32).toFixed(1)
@@ -11115,7 +11123,7 @@ window._lockMark = function(isOpen, px, label){
       + '<clipPath id="hrtClip"><path d="' + HEART_D + '"/></clipPath>'
       + '</defs>'
       + '<circle class="hrt-glow" cx="' + cx + '" cy="' + cy + '" r="112" fill="url(#hrtGlow)"/>'
-      + veins + gates
+      + veins + gates + gmarks + glabels
       /* ⚠⚠ v2446 — TWO GROUPS, AND THE SECOND ONE IS NOT OPTIONAL. A CSS `transform` on an SVG
          element REPLACES its `transform` presentation attribute; it does not compose with it. The
          first cut put the beat animation on the same <g> that carried translate()+scale(), so the
