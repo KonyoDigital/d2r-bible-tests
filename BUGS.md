@@ -7,6 +7,62 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-585 — I wrote a "new" file over an existing suite, and shipped it
+**2026-09-04 · v2604 · mine, and it reached origin before I found it**
+
+`tv/test_paint_witness.py` **already existed.** v2457's suite — *"the beat must distinguish RUNNING
+from PAINTING"*, 110 lines, 2 classes, **6 tests** — was destroyed by a `Write` that assumed the
+path was free, and it **shipped in v2601** to `origin/main`.
+
+**Found by accident**, which is the part worth recording: `run_gates` ended up with **two gates
+named `test_paint_witness`**, and chasing that duplicate is what surfaced the overwrite. Nothing
+else noticed — the new file passed, the gate passed, and the suite it replaced simply stopped
+existing. **A green run over a deleted test is indistinguishable from a green run.**
+
+**Restored byte-identical from `39afd05a`** (`git show` → the file), my pixel tests moved to
+`tv/test_pixel_witness.py`, both suites registered in `run_gates`, both green, no orphan, no
+duplicate. Nothing of his was lost in the end — but it was on origin for one push.
+
+⚠ **THE RULE: A NEW FILE IS NOT NEW UNTIL THE PATH IS CHECKED.** `Write` refuses to overwrite a file
+that has been READ this session and silently replaces one that has not, which is exactly backwards
+for a path chosen by convention — and "test_" + the module name is the most convention-bound path in
+this repo. One `ls` would have caught it. [[copy-drift]]
+
+### REG-586 — the printer's PARTIAL state, and a label that named the wrong component
+**2026-09-04 · v2604**
+
+The printer reports **PARTIAL: 14 of 40 reels have a station nobody answered**, all at TEMPLATE. Its
+reason read *"the segmenter returned no activity"* — which points at a component that is working
+perfectly.
+
+MEASURED on his shelf:
+
+| | |
+|---|---|
+| UNKNOWN reels | **14 of 40** |
+| deep journal rows for those 14 | **0**, every one |
+| deep rows for a classified reel | 1 to 9 |
+| frames on disk for those 14 | **22 to 2,385** |
+| SHALLOW journal rows for those 14 | 7 to 40 |
+
+**Their footage is not gone and they were not un-read — they were read SHALLOWLY and never
+DEEPLY.** The segmenter had been handed nothing. Three distinct states were collapsed into one
+sentence, and only the first is anyone's fault: *nothing has read this reel* · *rows exist, none on
+the deep lane* · *deep rows exist, none carries an activity*. Each gets its own sentence now, with
+the counts. [[label-outlived-referent]]
+
+⚠ **AND `reel_templates` HAD NO SUITE AT ALL** — shipped v2571, classifies all forty of his reels,
+tested by nothing. That is the inverse of REG-079, which catches a suite no gate runs; this is a
+module nothing tests. `tv/test_reel_templates.py` now exists and is registered, proven RED four
+ways by restoring the old wording.
+
+⚠ **THREE OF MY OWN MEASUREMENTS WERE WRONG ON THE WAY HERE, EACH CAUGHT BY THE NEXT ONE:** I read
+`templates()` as reporting 0 unknown (I filtered for the string `"UNKNOWN"` where the value is
+`None`); I concluded the footage was pruned (I looked in `frames/<sid>` when reels live in
+`frames/hist/reel_<sid>`); and I called `segments()` with a reel id when it takes row dicts, getting
+an empty list that looked like a defect. **Every one of them would have shipped a false finding.**
+[[feedback-suspect-the-instrument]]
+
 ### REG-584 — a cure proven not to work kept being applied
 **2026-09-04 · v2603 · measured live, on his console, three times over**
 

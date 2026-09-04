@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2603",
+  "ver": "v2604",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2603: REG-584. Measured on his machine - the watchdog detected the blank console correctly and fired THREE times, rescues 3, and paint_witness confirmed the window was still blank after every one with frozenBeats still climbing. v2601 taught the loop to CHECK whether the reload worked; it did not teach it to STOP when the answer is no, so it went on reloading a window that reloading cannot fix. Two consecutive VERIFIED failures now put the rescue on HOLD - two not one, because a single verification can catch a capture taken mid-repaint. The hold is NOT a repair and says so - the console stays broken, what stops is the pretence that this cure will fix it. A fault handled every few minutes and never fixed is exactly the shape that made HIM the detector. It is cleared by a cure that WORKS and never by time, so a transient fault the reload does fix never accumulates toward it. Reloading the document cannot restore a compositor that has stopped presenting frames - recreating the window is the cure and that is his decision, named not taken.",
+  "note": "v2604: REG-585 - I WROTE tv/test_paint_witness.py AS A NEW FILE AND IT ALREADY EXISTED. v2457s suite - the beat must distinguish RUNNING from PAINTING, 110 lines, 2 classes, 6 tests - was destroyed by my Write and SHIPPED in v2601 to origin. Found by a duplicate gate name in run_gates. Restored byte-identical from 39afd05a and my pixel tests moved to test_pixel_witness.py; both suites registered, both green, no orphan. A new file is not new until the path is checked. REG-586 - the printers PARTIAL state is 14 reels the templater cannot classify, and its reason said the segmenter returned no activity. Measured - all 14 have ZERO deep journal rows while carrying 22 to 2385 frames on disk and 7 to 40 SHALLOW rows. They were read, never read DEEPLY, and the segmenter was working perfectly with nothing handed to it. Three states now get three sentences. reel_templates shipped at v2571 with NO SUITE AT ALL - the inverse of REG-079 - and now has one, proven RED four ways.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

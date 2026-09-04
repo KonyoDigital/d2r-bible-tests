@@ -194,8 +194,34 @@ def templates(reels=None):
         acts = sorted({str(s.get("activity") or "").lower() for s in segs
                        if str(s.get("activity") or "").strip()})
         if not acts:
-            zone, zwhy, template = "UNKNOWN", (sw or why or
-                                               "the segmenter returned no activity"), None
+            # ⚠⚠ v2604 — "THE SEGMENTER RETURNED NO ACTIVITY" NAMED THE WRONG THING. Measured on
+            # his shelf: 14 of 40 reels are UNKNOWN here, and for every one of them the journal
+            # holds **ZERO deep rows** — while every classified reel holds 1 to 9. Their footage is
+            # NOT gone: those 14 carry 22 to 2,385 frames on disk. Nothing has ever READ them.
+            #
+            # The old sentence sent a reader to the segmenter, which is working perfectly and has
+            # simply been handed nothing. Three different states were collapsed into one wording,
+            # and only the first of them is anybody's fault:
+            #     no rows at all       -> nothing has read this reel
+            #     rows but none deep   -> read shallowly, never deeply
+            #     deep rows, no acts   -> read, and the reads carry no activity
+            # A label that points at the wrong component is how a working part gets investigated
+            # and a missing input does not. [[label-outlived-referent]] [[unknown-stays-unknown]]
+            _all_rows = by_session.get(_sid) or []
+            _deep = [r for r in _all_rows if r.get("lane") == "deep"]
+            if not _all_rows:
+                _why = ("NOTHING HAS READ THIS REEL - the journal holds no row for it at all. Its "
+                        "frames are on disk; no reader has produced anything from them. This is a "
+                        "missing input, not a fault in the segmenter")
+            elif not _deep:
+                _why = ("this reel has %d journal row(s) and NONE on the deep lane, so the "
+                        "segmenter had nothing to segment - it was read shallowly and never "
+                        "deeply" % len(_all_rows))
+            else:
+                _why = ("this reel has %d deep row(s) and none of them carries an activity, so "
+                        "the reads exist and say nothing about what was open"
+                        % len(_deep))
+            zone, zwhy, template = "UNKNOWN", (sw or why or _why), None
         else:
             hit = next(((a, z, w) for a, z, w in ZONE_ORDER if a in acts), None)
             if hit:
