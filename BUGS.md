@@ -18145,3 +18145,25 @@ dead fields → REG-541 an unreadable store reading clean, inside the fix for RE
 reading's shape changing with its verdict → REG-546 the same, in a sibling, shipped in the same
 batch → REG-547 the same again, one nesting level deeper, inside the fix for REG-546.
 
+**REG-548 — the cold look at v2546: the law had two holes of its own (v2547).**
+
+⚠ **TAKEN — a probe in PROBES but NOT in FULL was silently unshaped.** The loop iterates `FULL`, so
+adding a probe to one list and forgetting the other leaves its key set unguarded **while the run
+stays green** — the failure this whole file exists to prevent, one level up from where it was
+looking. The two lists must now agree.
+
+⚠ **TAKEN — a probe whose two calls return the same thing passed VACUOUSLY.** `set(b) - set(a)` is
+empty when `a` IS `b`, so a stub that does not actually empty what the probe reads would compare a
+reading against itself and prove nothing. The two calls must now reach **different states**, or the
+FIXTURE is the defect rather than the subject. [[feedback-blind-fixture-green-gate]]
+
+⚠ **CONFIRMED, and already found by hand the same hour:** the comparison is top-level only and
+misses nested shapes. That is REG-547 exactly.
+
+⚠ **NOT TAKEN:** the one-directional set difference is deliberate — the law guards against
+shrinkage, not growth, and its own message says so.
+
+**2 sabotages, 2 RED:** dropping a probe from FULL → `['printer.stream'] != []`; swapping an empty
+stub for the real call → `'UNEXERCISED' == 'UNEXERCISED' … the stub is not emptying what this probe
+reads`.
+

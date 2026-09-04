@@ -200,10 +200,32 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
         without anyone remembering.
         """
         empty = dict(PROBES)
+        full = dict(FULL)
+        # ⚠⚠ REG-548, from the cold look at v2546 — THE LOOP ITERATES `FULL`, so a probe in PROBES
+        # and NOT in FULL is never fetched and never shaped, silently. Adding a probe to one list
+        # and forgetting the other leaves it unguarded while the run stays green, which is the
+        # failure this whole file exists to prevent, one level up.
+        self.assertEqual(
+            sorted(set(empty) - set(full)), [],
+            "these probes are asked with NOTHING but never shaped against a real dataset, so "
+            "their key sets are unguarded and the run stays green: %s"
+            % sorted(set(empty) - set(full)))
         for name, ask_full in FULL:
             ask_empty = empty.get(name)
             self.assertTrue(ask_empty, "%s is in FULL but not in PROBES" % name)
             a, b = ask_empty(), ask_full()
+            # ⚠⚠ REG-548 — AND A PROBE WHOSE TWO CALLS RETURN THE SAME THING PASSES VACUOUSLY.
+            # `set(b) - set(a)` is empty when a IS b, so a probe whose "empty" stub does not
+            # actually empty anything would be compared against itself and prove nothing. The two
+            # calls must reach DIFFERENT states, or the fixture is the defect, not the subject.
+            # [[feedback-blind-fixture-green-gate]]
+            sa = a.get("state") or a.get("ladder")
+            sb = b.get("state") or b.get("ladder")
+            self.assertNotEqual(
+                sb, sa,
+                "%s answered %r to BOTH the empty ask and the real one, so the two calls are not "
+                "distinguishing anything and its shape was compared against itself. The stub is "
+                "not emptying what this probe reads." % (name, sa))
             self.assertIsInstance(a, dict, "%s empty reading is not a dict" % name)
             self.assertIsInstance(b, dict, "%s full reading is not a dict" % name)
             missing = sorted(set(b) - set(a))
