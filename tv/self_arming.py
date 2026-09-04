@@ -112,6 +112,19 @@ KINDS = {
 #: name -> what it would do · the bar it must clear · what must be OPEN before it may open at all.
 #: THE ORDER IS HIS. Nothing here may be reordered to make something arm sooner.
 LOCKS = {
+    # ⚠⚠ v2570 — THE PRINTER HAD NO LOCK AT ALL, and it is step 1 of his own chain. Measured
+    # 2026-09-04: fourteen locks and routes were declared and NOT ONE named the printer, the river
+    # or reel selection, so the layer that walks every reel he owns was believed purely because
+    # nobody had ever attempted to break it. That is the state this module calls INERT.
+    # His words: "build the printer lock and wire the whole river".
+    #
+    # It earns trust in what it PRINTS rather than permission to act — printer.stream() writes
+    # nothing and deletes nothing — but it is declared here rather than in ROUTES because the
+    # deleter now waits on it, and `after` may only name something the chain can resolve.
+    "printer.stream": {
+        "surface": "THE RIVER", "acts": "walks every reel from the door to the far end",
+        "bar": 0.510, "kinds_bar": 1.0, "after": [],
+    },
     # step 1 — the printer and the reels
     "vault.sweep_start": {
         "surface": "VAULT", "acts": "starts a paid sweep",
@@ -161,7 +174,14 @@ LOCKS = {
     "prune.arm": {
         "surface": "THE RIVER", "acts": "deletes footage — there is no undo",
         "bar": 0.839, "kinds_bar": 1.8,
-        "after": ["vault.sweep_start", "vault.apply"],
+        # ⚠⚠ v2570 — `printer.stream` ADDED, and this is the wiring he asked for. His order is
+        # "printer + reels -> theatre + shelf -> routing -> the deleter", and this module's own
+        # docstring says a lock late in it "cannot open early no matter how good its own score is
+        # — proving the deleter in isolation proves nothing about the river feeding it." The
+        # deleter was waiting on the two VAULT locks and on nothing in the river it deletes from.
+        # This is strictly more conservative: prune.arm can now be held by a printer that is not
+        # proven, and never opened by one.
+        "after": ["printer.stream", "vault.sweep_start", "vault.apply"],
     },
 }
 
@@ -256,6 +276,11 @@ PROVES = {
     # lines, one return, always ok), so nothing can prove it by sabotage and nothing here
     # pretends to.
     "vault_wilson": ("vault.apply",),
+    # printer_wilson removes each owner's ability to answer and requires the printer to say
+    # UNKNOWN **with a reason** rather than guess, skip the station, or drop the reel. It calls
+    # exactly one function, printer.stream(), whose own docstring is "IT PRINTS NOTHING AND
+    # DELETES NOTHING ... This is a REPORT." No os.remove, no apply_plan, no TV_AUTO_PRUNE.
+    "printer_wilson": ("printer.stream",),
     # the same refusal asked of the RUNNING console over its own HTTP route — a different
     # KIND, not a second helping of the same one. vault.apply carries kinds_bar 1.3 exactly
     # so that one kind cannot open it.

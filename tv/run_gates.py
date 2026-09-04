@@ -305,6 +305,16 @@ GATES = [
              "measurements. tv/render_coverage.json is a ratchet: coverage may RISE freely,\n"
              "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
              "cannot become the new normal."),
+    # v2570 — the printer had NO lock; fourteen were declared and not one named the river.
+    Gate("test_printer_wilson", [sys.executable, os.path.join(HERE, "test_printer_wilson.py")], 90,
+         why="the printer walks every reel he owns and nothing had ever attempted to break it. "
+             "These pin that its harness cannot ACT (AST, not prose — the first cut matched the "
+             "docstring promising safety), and that prune.arm waits on printer.stream so the "
+             "deleter cannot open before the river feeding it."),
+    Gate("printer_wilson", [sys.executable, os.path.join(HERE, "printer_wilson.py")], 240,
+         why="runs the five printer sabotages themselves: an owner that raises, every owner "
+             "empty, rows naming no reel, a reel only one owner knows, and printer_reach "
+             "raising. The printer must say UNKNOWN with a reason rather than invent one."),
     Gate("test_prune_wilson", [sys.executable, os.path.join(HERE, "test_prune_wilson.py")], 120,
          why="the harness that sabotages the DELETER must be unable to delete, and must be\n"
              "able to go RED (A2 step 4). It calls exactly one console function, whose own\n"
