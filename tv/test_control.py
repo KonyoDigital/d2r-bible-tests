@@ -39875,6 +39875,70 @@ class TestV2398TheQuoteAndTheRunShareTheirTOOLTIP_WORK(unittest.TestCase):
                       "the memo writes without checking it has a real key")
 
 
+class TestV2611TheEngineLampCarriesItsOwnClock(unittest.TestCase):
+    """★ `_engine_driver` is one of the two loops NOTHING watches (the other six DARK vessels are
+    the supervisors themselves — REG-589). It is a genuine two-way probe, so the value is honest
+    WHILE THE LOOP RUNS. If the driver dies the value freezes at its last reading and reports True
+    forever, and no consumer can tell a live True from a fossil.
+
+    ⚠ NOT HYPOTHETICAL: control_app's own comment at ~15017 records it — *"mode 'off', engineAlive
+    True, ZERO frames written in the previous three minutes"* — and that was fixed at the CONSUMER
+    (the relaunch guard), so every other reader still trusted a bare boolean.
+
+    ⚠ AND THIS IS A STAMP, NOT A HEARTBEAT. His A1 ruling was explicit — *"I DO NOT want this to
+    randomly just connect wires to it if theres no need"* — and it cancelled a heartbeat once
+    because the lanes already left dated rows. `_kai_closer_loop` passes that test outright (3,873
+    rows, all dated). This one did not, so it gets the one thing it lacked: the age of the reading.
+    [[stale-reading]]"""
+
+    def setUp(self):
+        self._had = "_ENGINE_ALIVE_TS" in ca.__dict__
+        self._old = ca.__dict__.get("_ENGINE_ALIVE_TS")
+
+    def tearDown(self):
+        if self._had:
+            ca.__dict__["_ENGINE_ALIVE_TS"] = self._old
+        else:
+            ca.__dict__.pop("_ENGINE_ALIVE_TS", None)
+
+    def test_never_probed_is_NONE_and_not_a_number(self):
+        """⚠ None means nobody has looked. A 0 would read as 'probed just now' and a -1 as a
+        measurement — the console already publishes eyeAgeMs -1 and that is the shape this must
+        not copy."""
+        ca.__dict__.pop("_ENGINE_ALIVE_TS", None)
+        st = ca.status_payload()
+        self.assertIn("engineAliveAgeMs", st)
+        self.assertIsNone(st["engineAliveAgeMs"],
+                          "a never-probed lamp reported an age of %r" % st["engineAliveAgeMs"])
+
+    def test_a_recent_probe_reports_a_real_age(self):
+        ca.__dict__["_ENGINE_ALIVE_TS"] = time.time() - 3.0
+        age = ca.status_payload()["engineAliveAgeMs"]
+        self.assertIsNotNone(age)
+        self.assertGreater(age, 2000)
+        self.assertLess(age, 60000, "the age is not in milliseconds: %r" % age)
+
+    def test_a_FROZEN_lamp_is_detectable(self):
+        """The whole point. alive=True with an age of hours is a fossil, and before this there was
+        no field that could say so."""
+        ca.__dict__["_ENGINE_ALIVE_TS"] = time.time() - 7200.0
+        st = ca.status_payload()
+        self.assertGreater(st["engineAliveAgeMs"], 7000 * 1000,
+                           "a two-hour-old reading did not report as old")
+
+    def test_the_age_is_published_WHENEVER_the_lamp_is(self):
+        """REG-547 shape law — a consumer must never receive the boolean without the clock, or it
+        is back to trusting a bare True."""
+        for ts in (None, time.time()):
+            if ts is None:
+                ca.__dict__.pop("_ENGINE_ALIVE_TS", None)
+            else:
+                ca.__dict__["_ENGINE_ALIVE_TS"] = ts
+            st = ca.status_payload()
+            self.assertEqual("engineAlive" in st, "engineAliveAgeMs" in st,
+                             "the lamp and its age do not travel together")
+
+
 class TestV2603AProvenFailedCureStopsBeingApplied(unittest.TestCase):
     """★ MEASURED ON HIS MACHINE, 2026-09-04. The watchdog detected the blank console correctly and
     fired THREE times — `uiBeat.rescues: 3` — and `paint_witness` confirmed the window was still

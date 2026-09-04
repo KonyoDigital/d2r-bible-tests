@@ -7,6 +7,36 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-590 — the engine lamp had no clock, and nothing watches its driver
+**2026-09-04 · v2611 · A11's two genuinely unwatched loops**
+
+REG-589 cut the DARK count from 8 to **2 real ones**: `_engine_driver` and `_kai_closer_loop`. His
+A1 ruling gates what happens next — *"I DO NOT want this to randomly just connect wires to it if
+theres no need"* — and it cancelled a heartbeat once already because the lanes were leaving dated
+rows. So both were MEASURED before anything was built:
+
+| loop | already leaves dated evidence? | verdict |
+|---|---|---|
+| `_kai_closer_loop` | **YES** — 3,873 `lane: kai` rows, **all 3,873 dated** | **nothing built.** A heartbeat would be a second copy of a fact already on disk |
+| `_engine_driver` | **NO** — `engineAlive` is a bare boolean | needed exactly one thing |
+
+**`_ENGINE_ALIVE` is a genuine two-way probe** (set False at 3258 and 10315, `bool(alive)` at
+10336) — so it is honest **while the loop runs**. If the driver dies the value freezes at its last
+reading and reports `True` forever, and no consumer can tell a live True from a fossil.
+
+⚠ **NOT HYPOTHETICAL.** `control_app`'s own comment at ~15017 records it happening: *"mode 'off',
+engineAlive True, ZERO frames written in the previous three minutes"* — and it was fixed at the
+**consumer** (the relaunch guard), so every OTHER reader still trusted a bare boolean.
+
+**THE FIX IS A STAMP, NOT A HEARTBEAT:** `engineAliveAgeMs`, the age of the reading from the
+reading's own clock. `None` means **never probed**, which is not the same as "not alive" — nobody
+looked. [[stale-reading]] [[unknown-stays-unknown]]
+
+**Guard:** `TestV2611TheEngineLampCarriesItsOwnClock`, proven RED by publishing `-1` instead — the
+exact shape this console already has for `eyeAgeMs` and `diskEyeAgeMs`, where an unknown is rendered
+as a number. Three of four cases fail on it, including the shape-law case that the boolean and its
+clock must always travel together.
+
 ### REG-589 — DARK said eight gaps when six of them were the watchmen themselves
 **2026-09-04 · v2610 · A11**
 

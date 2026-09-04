@@ -10334,6 +10334,23 @@ def _engine_driver():
                     globals()["_ENG_ERR"] = str(_pe)
                     print(f"🔌 engine probe error: {_pe}", flush=True)
             globals()["_ENGINE_ALIVE"] = bool(alive)
+            # ⚠⚠ v2611 — THE LAMP HAD NO CLOCK, AND `_engine_driver` IS ONE OF THE TWO LOOPS
+            # NOTHING WATCHES. It is a genuine two-way probe (set False at 3258 and 10315, and to
+            # `bool(alive)` here) — but the value only moves WHILE THIS LOOP RUNS. If the driver
+            # dies, `engineAlive` freezes at its last reading and goes on reporting True forever,
+            # and no consumer can tell a live True from a fossil one. That is not hypothetical:
+            # the comment at ~15017 records it happening — *"mode 'off', engineAlive True, ZERO
+            # frames written in the previous three minutes"* — and it was fixed at the CONSUMER
+            # (the relaunch guard) rather than at the signal, so every OTHER reader still trusts a
+            # bare boolean.
+            #
+            # A stamp is not a new heartbeat. His ruling on A1 was explicit — *"I DO NOT want this
+            # to randomly just connect wires to it if theres no need"* — and it cancelled a
+            # heartbeat once already because the lanes were leaving dated rows. `_kai_closer_loop`
+            # passes that test outright: 3,873 rows, all dated. This one did not, so it gets the
+            # ONE thing it was missing: the age of the reading, from the reading's own clock.
+            # [[stale-reading]] [[unknown-stays-unknown]]
+            globals()["_ENGINE_ALIVE_TS"] = time.time()
             _engine_selfheal(bool(alive), w)   # v943.4 — engine self-healing streak/revive
             if not alive:
                 continue
@@ -22600,7 +22617,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2610",
+        "ver": "v2611",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -22634,6 +22651,11 @@ def status_payload():
         "stub": bool(os.environ.get("TV_STUB")),
         "readsAreReal": not bool(os.environ.get("TV_STUB")),
         "engineAlive": globals().get("_ENGINE_ALIVE"),   # v929.2 — driver-probed truth, not a LS stamp
+        # v2611 — HOW OLD THAT TRUTH IS. None means the driver has never completed a probe, which
+        # is NOT the same as "not alive" — nobody has looked. A number is milliseconds since the
+        # last probe, so a consumer can tell a live reading from a frozen one.
+        "engineAliveAgeMs": (None if not globals().get("_ENGINE_ALIVE_TS")
+                             else int((time.time() - globals()["_ENGINE_ALIVE_TS"]) * 1000)),
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
                    "fired": _drv.get("fired", 0), "refire": _drv.get("refire", 0),
