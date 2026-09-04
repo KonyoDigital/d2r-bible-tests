@@ -18229,3 +18229,39 @@ evidence, not a verdict, and a repeated blind spot is worth knowing when weighin
 Two further points it raised were declined and it labelled both itself: `extra` overwriting
 `say`/`why` is unreachable from the callers, and the call-site `why=` evaluation is safe.
 
+## v2550 — the ninth instance, and it was in the fix for the eighth
+
+**REG-551 — found by the review-after-ship pass on the pushed v2549 bytes.** v2549's `_by_reel`
+started dropping rows that name no reel, which was right — and **dropped them SILENTLY**, which is
+exactly what REG-541 taught me to stop doing in `dead_field` **two hours earlier**. Measured: an
+owner reporting three rows, two of them nameless, gave
+
+```
+printer walked : 41          (should be 39 + the one good row)
+anything counting the drops : NO
+`why` mentioning them       : False
+```
+
+A row that vanishes with nothing counting it shrinks the shelf and nothing says so. `_by_reel`
+returns `(rows, dropped)` now, the reading carries `droppedRows`, and the `why` says it out loud.
+
+⚠ **Three smaller things this cost, all worth recording because each is its own class:**
+
+1. **My docstring edit swallowed the line below it.** The `rows = (blob or {}).get(key) or []`
+   assignment ended up INSIDE the docstring, and the module raised `NameError: name 'rows' is not
+   defined` on first run. Caught immediately because I ran it — an anchor that spans a boundary is
+   the same shape as the A14 edit that silently never landed.
+2. **Changing `_by_reel`'s return type broke a caller in the tests**, which is the whole reason a
+   suite exists; found by running it, not by reading.
+3. ⚠⚠ **MY OWN ASSERTION DISAGREED WITH ITS OWN FIXTURE.** I asserted `dropped == 2` against a
+   fixture holding ONE nameless row. **The measurement decided against me** — and the fix was not to
+   lower the number but to make the fixture exercise all three drop paths (a non-dict, an empty
+   dict, a blank `reel`), because two of them had no coverage at all.
+
+**3 sabotages, 3 RED, one per branch:** not counting the blank-`reel` drop → `1 != 3`; not counting
+the non-dict drop → `2 != 3`; counting them but never saying so → `'named no reel' not found in …`.
+
+**The tally, all mine, all today, all one class:** REG-534 → 537 → 540 → 541 → 544 → 546 → 547 →
+549 → 551. **Nine.** The last four were caught by machines rather than by reading, and this one was
+caught by the review pass on the fix for the one before it.
+

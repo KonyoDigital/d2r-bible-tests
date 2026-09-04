@@ -119,17 +119,24 @@ def _by_reel(blob, key="rows"):
     while checking a cold review's claim about empty rows — the reviewer named the empty ROW, not
     this. A row that does not name a reel is not a reel; it is dropped, and `_by_reel` is only ever
     asked for rows that DO name one. [[unknown-stays-unknown]]
+
+    ⚠⚠ AND IT COUNTS WHAT IT DROPS — REG-551, the NINTH instance of one class today. The first
+    cut dropped nameless rows SILENTLY, which is exactly what REG-541 taught me to stop doing in
+    `dead_field` two hours earlier: a row that vanishes with nothing counting it shrinks the shelf
+    and nothing says so. Returns (rows, dropped).
     """
     rows = (blob or {}).get(key) or []
-    out = {}
+    out, dropped = {}, 0
     for r in rows:
         if not isinstance(r, dict):
+            dropped += 1
             continue
         nm = str(r.get("reel") or "").strip()
         if not nm:
+            dropped += 1
             continue
         out[nm] = r
-    return out
+    return out, dropped
 
 
 def stream(reel=None):
@@ -146,14 +153,15 @@ def stream(reel=None):
     # changes with the verdict is not a shape.
     def _unknown(why):
         return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {}, "walked": 0,
-                "unknownStations": 0, "stations": list(STATIONS),
+                "unknownStations": 0, "droppedRows": 0, "stations": list(STATIONS),
                 "owners": {k: v[0] for k, v in STATION_OWNER.items()},
                 "questions": {k: v[1] for k, v in STATION_OWNER.items()}, "why": why}
 
     src, whys = _sources()
-    river = _by_reel(src.get("river"))
-    doors = _by_reel(src.get("door"))
-    routes = _by_reel(src.get("routes"))
+    river, _d1 = _by_reel(src.get("river"))
+    doors, _d2 = _by_reel(src.get("door"))
+    routes, _d3 = _by_reel(src.get("routes"))
+    dropped = _d1 + _d2 + _d3
     if not river and not doors:
         return _unknown("UNKNOWN, not an empty shelf — %s"
                         % ("; ".join(whys) if whys else
@@ -255,7 +263,7 @@ def stream(reel=None):
     state = "UNKNOWN" if not rows else ("FLOWING" if not unknown else "PARTIAL")
     return {
         "ok": bool(rows), "state": state, "rows": rows, "counts": counts,
-        "walked": len(rows), "unknownStations": unknown,
+        "walked": len(rows), "unknownStations": unknown, "droppedRows": dropped,
         "stations": list(STATIONS), "owners": {k: v[0] for k, v in STATION_OWNER.items()},
         "questions": {k: v[1] for k, v in STATION_OWNER.items()},
         "why": (("%d reel(s) followed from the door to the far end across %d station(s). %s "
@@ -264,7 +272,9 @@ def stream(reel=None):
                  "is the collapse v2312 withdrew. That choice is yours and it gates the prune."
                  % (len(rows), len(STATIONS),
                     ("Every station answered." if not unknown else
-                     "%d reel(s) have a station nobody answered." % unknown)))
+                     "%d reel(s) have a station nobody answered." % unknown)
+                    + (" \u26a0 %d row(s) named no reel and were dropped." % dropped
+                       if dropped else "")))
                 if rows else "no reel reached the printer"),
     }
 

@@ -95,10 +95,26 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
         try:
             OSP.start_points = lambda *a, **k: {
                 "ok": True, "state": "ONE_DOOR", "counts": {}, "walked": 2,
-                "rows": [{}, {"reel": "reel_s_1", "door": "recorder", "why": "w"}], "why": "x"}
-            keys = P._by_reel(OSP.start_points())
+                # three ways a row can name no reel, so BOTH drop branches are exercised:
+                # a non-dict, an empty dict, and a dict whose `reel` is blank.
+                "rows": [None, {}, {"reel": "   "},
+                         {"reel": "reel_s_1", "door": "recorder", "why": "w"}], "why": "x"}
+            keys, dropped = P._by_reel(OSP.start_points())
             self.assertNotIn("", keys, "a row naming no reel became a reel called '': %s" % keys)
             self.assertEqual(sorted(keys), ["reel_s_1"], keys)
+            # ⚠⚠ REG-551, the NINTH instance today: the first cut dropped nameless rows SILENTLY,
+            # which is exactly what REG-541 taught me to stop doing in dead_field two hours
+            # earlier. A row that vanishes with nothing counting it shrinks the shelf and nothing
+            # says so.
+            self.assertEqual(dropped, 3,
+                             "%d of 3 nameless row(s) were counted — a non-dict, an empty dict and "
+                             "a blank `reel` must all be counted, not just the ones the fixture "
+                             "happens to hit" % dropped)
+            r = P.stream()
+            self.assertEqual(r["droppedRows"], 3, "the reading does not carry the drop count: %s"
+                             % r.get("droppedRows"))
+            self.assertIn("named no reel", r["why"],
+                          "the drop is counted but never said out loud: %r" % r["why"])
         finally:
             OSP.start_points = real
 
@@ -208,7 +224,7 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
             # a guard satisfied by its own text. The real question it meant to ask is below, and it
             # RUNS: an owner reporting nothing must not shrink the shelf.
             self.assertEqual(
-                r["walked"], len(P._by_reel(__import__("reel_river").river())),
+                r["walked"], len(P._by_reel(__import__("reel_river").river())[0]),
                 "an owner reported no reels and the printer's shelf shrank with it — the union of "
                 "the owners is the shelf, so a reel absent from ONE of them must still appear")
             says = set(row["stations"]["route"]["say"] for row in r["rows"])
