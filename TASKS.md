@@ -176,7 +176,7 @@ in those words.
   `_engine_driver` published a bare boolean that freezes True if the driver dies, so it got
   `engineAliveAgeMs` — a stamp, not a heartbeat.
 
-- **⚠⚠ AT NARROW WIDTH THE MAIN COLUMN WAS UNREACHABLE (REG-588, fixed v2608).** At 375/640px with
+- ~~**AT NARROW WIDTH THE MAIN COLUMN WAS UNREACHABLE (REG-588).**~~ ✅ **FIXED v2608, on origin.** At 375/640px with
   `data-state="off"`, `#home-dash` was **height 0 holding 591px** — chronicle, TZ tracker and
   missions laid out, rendered and unreachable, with `html`/`body` both `overflow:hidden` and zero
   document scroll. Cause: `minmax(0, 1fr)` — **`1fr` distributes FREE space and there was none**, so
@@ -221,7 +221,9 @@ in those words.
   a d2r-only wrapper. ⚠ The guard's docstring is stale either way: it says the copies were "BACKED
   OUT UNTOUCHED" and both are present and committed since 2026-09-01.
 
-- **⚠⚠ `run_gates.py` HAS EIGHT RED GATES ON `main`, AND THE PRE-PUSH HOOK CANNOT SEE SEVEN OF THEM.**
+- ~~**`run_gates.py` HAS EIGHT RED GATES ON `main`.**~~ ✅ **SEVEN CLOSED (v2595–v2599); the**
+  **eighth is `human-eyes`, which is HIS** — 3 briefs asked and never answered past 24h. Full-set
+  verdict recorded above. ORIGINAL:
   Measured 2026-09-04 by running the full 30-gate set, which the hook does not: it says so itself —
   *"run_gates.py runs 30 gates; this hook ran three."* RED: `printer_wilson`, `test_reachability`,
   `swallow_ratchet`, `test_heart`, `test_store_owners`, `test_printer`, `human-eyes`,
@@ -262,7 +264,7 @@ in those words.
   REG-575 **twice** — `_row_fault` and `_fold` both keyed on `src` to mean "aggregate" — and both
   now key on AGGREGATE vs EVENT. Verified behaviour-neutral on his ledger.
 
-- **~~ORIGINAL~~** **A `record()` row bypasses the PROVES allow-list entirely.** Found 2026-09-04 fixing REG-575.
+- **ORIGINAL, kept for the record:** A `record()` row bypasses the PROVES allow-list entirely. Found 2026-09-04 fixing REG-575.
   `bank()` refuses any (src, lock) pair the allow-list does not declare — the rule that stops one
   surface's sabotage opening another surface's lock, which matters most for `prune.arm` because
   footage has no undo. A `record()` row carries no `src` at all, so that check cannot be applied to
