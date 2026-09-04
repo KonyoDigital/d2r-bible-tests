@@ -127,11 +127,24 @@ def census():
     # ⚠ AN UNCHECKED CLAIM IS NOT A PASSED ONE. If nothing was declared, or a measured store has
     # no declaration, the agreement sentence must not be printed as though it had been tested.
     unchecked = [r for r in meas if r.get("agreesWithOwner") is None]
+    # ⚠⚠ v2592 — `ok` WAS TRUE HAVING MEASURED NOTHING, and this is a GATE. A cold review asked
+    # for every state where ok is True while nothing was established, and the answer was: all of
+    # them. NOT EXERCISED rows are skipped, WATCHED-AND-SAW-NOTHING rows are skipped, and an
+    # unchecked comparison is skipped — so with every exercise removed the census reported ok=True
+    # with measured=0 and the gate exited 0. Reproduced exactly that way before fixing it.
+    #
+    # A pass now REQUIRES at least one store measured AND compared against its declared owner.
+    # retro_triage is exercisable today, so if this ever drops to zero something real has broken —
+    # which is the only condition under which a gate should be green. [[unknown-stays-unknown]]
+    confirmed = [r for r in meas if r.get("agreesWithOwner") is True]
     return {
-        "ok": not disagree, "rows": rows,
+        "ok": bool(confirmed) and not disagree, "rows": rows,
+        "confirmed": len(confirmed),
         "measured": len(meas), "total": len(rows),
         "state": ("MEASURED" if not disagree else "DISAGREES"),
-        "why": ("%d of %d store(s) had a writer OBSERVED at runtime; the rest are NOT EXERCISED "
+        "why": (("NOTHING WAS ESTABLISHED — no store was both measured and compared to a "
+                 "declared owner, so this is UNPROVEN rather than clean. " if not confirmed else "")
+                + "%d of %d store(s) had a writer OBSERVED at runtime; the rest are NOT EXERCISED "
                 "with the reason, never reported as having no writers. %s"
                 % (len(meas), len(rows),
                    (("Every observed writer is the store's declared owner."

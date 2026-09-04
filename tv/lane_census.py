@@ -110,6 +110,28 @@ def _is_supervisor(name):
     return str(name or "") in _SUPERVISORS
 
 
+def supervisor_set_is_current(rows):
+    """Is every DECLARED supervisor still a real thread target? -> (ok, why)
+
+    ⚠⚠ v2592 — A HAND-KEPT SET ROTS, AND I WROTE THAT WARNING MYSELF ONE FILE OVER before doing
+    exactly this. `engine_joins` says "a hand-kept flag would rot into exactly the false green this
+    file exists to catch"; `_SUPERVISORS` is a hand-kept set of function names. Rename a loop, wrap
+    it in a decorator that changes `__name__`, or delete it, and its entry silently stops matching —
+    the warning disappears and the table renders as if nothing were wrong. Nothing signalled that.
+
+    This does not make the set self-deriving, which would need a reliable way to tell a supervisor
+    from a worker by reading it. It makes the set FALSIFIABLE: a name that no longer names a thread
+    target is a stale declaration and says so.
+    """
+    live = {str(r.get("fn") or "") for r in (rows or [])}
+    gone = sorted(n for n in _SUPERVISORS if n not in live)
+    if gone:
+        return False, ("%d declared supervisor(s) no longer name a thread target: %s. Renamed or "
+                       "removed — the warning for them has been silently absent since."
+                       % (len(gone), ", ".join(gone)))
+    return True, "every declared supervisor still names a live thread target"
+
+
 def classify(src, name):
     """-> 'LOOP' | 'TASK' | 'UNKNOWN'. UNKNOWN when the definition cannot be found, because
     'I could not look' and 'it runs once' are opposite facts."""
@@ -284,6 +306,9 @@ def main(argv):
         return 0
     rows = census()
     loops = [r for r in rows if r["kind"] == "LOOP"]
+    _sup_ok, _sup_why = supervisor_set_is_current(rows)
+    if not _sup_ok:
+        print("🔴 %s" % _sup_why)
     print("thread targets %d · supervised %d · unwatched loops %d"
           % (len(rows), sum(1 for r in rows if r["supervised"]),
              sum(1 for r in loops if not r["supervised"])))

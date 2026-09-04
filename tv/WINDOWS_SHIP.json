@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2591",
+  "ver": "v2592",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2591: six of the eight unwatched loops are supervisors",
+  "note": "v2592: a gate passed having measured nothing, and a hand-kept set that rots",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
