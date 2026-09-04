@@ -11823,6 +11823,12 @@ _UI_RESCUE_COOLDOWN_S = 300.0
 _UI_PAINT_FLOOR_ELS = 200      # below this nothing is painted: no baseline, no learning, no strike
 _UI_PAINT_COLLAPSE = 0.25      # under the floor AND < 25% of the RECENT high = collapsed (v2400)
 _UI_PAINT_STRIKES = 3          # consecutive collapsed beats before it counts
+#: ⚠ v2587 — beats with NO FRAME DRAWN before the rescue may even ask the window witness. Higher
+#: than the strike count on purpose: a collapsed DOM is unambiguous, a frozen paint is not — it is
+#: also exactly what a backgrounded window looks like. At a ~3s beat this is about a minute of a
+#: window that is on screen, beating, and drawing nothing, which no healthy foreground console
+#: does. Nothing here acts on it alone; it only earns the right to ASK.
+_UI_FROZEN_BEATS = 20
 _UI_PAINT_WINDOW = 60          # beats kept for the baseline — 60 x 5s = the last ~5 minutes
 
 
@@ -12223,8 +12229,28 @@ def ui_rescue_due(now=None, capture_live=False):
     # v2393 — ALIVE BUT BLANK, checked BEFORE the age test on purpose: this fault's whole
     # signature is a page that is beating happily, so an age-first check returns "healthy" and
     # never reaches here. See the constants above for why it takes three strikes.
+    # ⚠⚠ v2587 — THE RESCUE WAS WIRED TO THE WRONG SIGNAL, and his black window proved it.
+    # Measured on his live console while he was looking at a black screen:
+    #
+    #     frozenBeats 23 · painting false · DOM intact 11821 els
+    #     blankStrikes 0  · rescues 0     · lastRescueWhy null
+    #
+    # `blankStrikes` counts COLLAPSED ELEMENT COUNTS, and this fault leaves the DOM entirely
+    # intact — the page beats, the elements are all there, and not one frame is drawn. So the
+    # counter the rescue waits on is structurally incapable of firing for the one fault the
+    # rescue was written for. R-BLANK, and the console's own paintWhy already said what settles
+    # it: whether frames resume when the window is brought to the front.
+    #
+    # `frozenBeats` IS that signal and it was measured, published, and joined to nothing.
+    # [[the-unjoined-end]] [[feedback-verify-not-proxy]]
+    #
+    # ⚠ THE SAFETY IS UNCHANGED AND IT IS THE WHOLE POINT. A frozen paint count on its own means
+    # NOTHING — a backgrounded window looks identical, which is why this fault survived so long.
+    # It reaches the same independent window witness below, so a console he is not looking at is
+    # still never reloaded under him. What changes is only WHICH counter can bring it here.
     _strikes = int(_UI_BEAT.get("blankStrikes") or 0)
-    if _strikes >= _UI_PAINT_STRIKES:
+    _frozen = int(_UI_BEAT.get("frozenBeats") or 0)
+    if _strikes >= _UI_PAINT_STRIKES or _frozen >= _UI_FROZEN_BEATS:
         # v2394 — the independent look, asked ONCE, only now that the pixels have already said
         # blank three times running. A window he genuinely cannot see must never be reloaded
         # under him (v2325); a window that merely CLAIMS to be hidden must not disarm this.
@@ -12239,16 +12265,26 @@ def ui_rescue_due(now=None, capture_live=False):
             except Exception as _exc2:
                 _seenb, _seenb_why = False, "the window witness raised %s" % type(_exc2).__name__
             if not _seenb:
-                return False, ("the page looks blank but it last checked in HIDDEN, and nothing "
+                return False, ("the page looks blank (strikes %d, frozen beats %d) but it last "
+                               "checked in HIDDEN, and nothing " % (_strikes, _frozen) + (
                                "independently saw the window on screen (%s) — a console he is "
-                               "not looking at must not be reloaded under him" % _seenb_why)
+                               "not looking at must not be reloaded under him" % _seenb_why))
         _since_b = now - (_UI_RESCUE["last"] or 0.0)
         if _UI_RESCUE["last"] and _since_b < _UI_RESCUE_COOLDOWN_S:
             return False, ("the page looks blank but it was rescued %.0fs ago - cooling off so a "
                            "page that renders empty on load cannot loop" % _since_b)
-        return True, ("the page is BEATING but blank: %s elements against a high-water mark of "
-                      "%s, for %d beats running"
-                      % (_UI_BEAT.get("elsNow"), _UI_BEAT.get("elsHigh"), _strikes))
+        # ⚠ THE REASON MUST NAME THE COUNTER THAT ACTUALLY BROUGHT IT HERE. Two different faults
+        # reach this line now, and reporting the element-collapse wording for a frozen-paint
+        # rescue would be a right rescue under a wrong label — which is exactly how a reader comes
+        # to distrust the log. [[label-outlived-referent]]
+        if _strikes >= _UI_PAINT_STRIKES:
+            return True, ("the page is BEATING but blank: %s elements against a high-water mark "
+                          "of %s, for %d beats running"
+                          % (_UI_BEAT.get("elsNow"), _UI_BEAT.get("elsHigh"), _strikes))
+        return True, ("the page is BEATING and DRAWING NOTHING: %d beats with no frame while the "
+                      "DOM stayed intact (%s elements), and the window was independently seen on "
+                      "screen. That is the black-window fault, not a backgrounded tab."
+                      % (_frozen, _UI_BEAT.get("elsNow")))
     if _UI_BEAT.get("hidden"):
         # ══ v2348 — ...AND THAT FLAG LATCHES SHUT, SO IT NEEDS A WITNESS FROM OUTSIDE ═════════
         # v2325 (above) is right and stays. What it missed is that `hidden` can only ever be
@@ -22460,7 +22496,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2586",
+        "ver": "v2587",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -24447,7 +24483,57 @@ class Handler(BaseHTTPRequestHandler):
             # footage that has no un-delete. Read-only, writes nothing, costs one plan() pass.
             try:
                 import reel_story as _RS
-                self._json(200, _RS.story())
+                _story = _RS.story()
+                # ⚠⚠ v2587 — TWO SIX-STEP STORYLINES OVER THE SAME 40 REELS, NEITHER REFERENCING
+                # THE OTHER. His ask: "make this engine work as a whole. and also look like one."
+                #
+                #   this board       filmed -> triaged -> swept -> banked -> vault-done -> releasable
+                #   the printer      in -> funnel -> template -> route -> extract -> out
+                #
+                # They are complementary — HOW FAR THROUGH versus WHAT WAS DECIDED — and they
+                # rendered as two engines because nothing carried one into the other. The join
+                # happens HERE, at the seam, rather than inside reel_story: that module is the
+                # retention storyline's owner and must not grow a second opinion about the
+                # printer. [[copy-drift]] §1 — one owner each, the endpoint composes.
+                #
+                # ⚠ IT IS ADDITIVE AND IT NEVER BLOCKS THE BOARD. reel_story answers in 0.02s and
+                # the printer costs ~0.2s warm; if the printer will not answer, the stages render
+                # exactly as before with the reason attached, never a blank spine.
+                try:
+                    import printer as _PR
+                    _p = _PR.stream()
+                    _by = {}
+                    for _row in (_p.get("rows") or []):
+                        _st = _row.get("stations") or {}
+                        _by[str(_row.get("reel") or "")] = {
+                            "door": (_st.get("in") or {}).get("say"),
+                            "template": (_st.get("template") or {}).get("template"),
+                            "zone": (_st.get("template") or {}).get("say"),
+                            "worthReading": (_st.get("template") or {}).get("worthReading"),
+                            "extract": (_st.get("extract") or {}).get("say"),
+                            "scenario": (_st.get("extract") or {}).get("scenario"),
+                        }
+                    _hit = 0
+                    for _r in (_story.get("reels") or []):
+                        _k = str(_r.get("reel") or _r.get("dir") or "")
+                        _k = _k if _k.startswith("reel_") else ("reel_" + _k)
+                        _s = _by.get(_k)
+                        if _s:
+                            _r["printer"] = _s
+                            _hit += 1
+                    _story["printerStations"] = list(_p.get("stations") or ())
+                    _story["printerCounts"] = _p.get("counts") or {}
+                    _story["printerJoined"] = _hit
+                    _story["printerWhy"] = ("%d of %d reel(s) carry the printer's verdicts beside "
+                                            "their retention stage" % (_hit, len(_story.get("reels") or [])))
+                except Exception as _pe:
+                    # UNKNOWN, never a blank spine — the stages below are unaffected.
+                    _story["printerStations"] = []
+                    _story["printerCounts"] = {}
+                    _story["printerJoined"] = None
+                    _story["printerWhy"] = ("the printer could not be walked (%s), so the stages "
+                                            "below carry no station verdicts" % str(_pe)[:80])
+                self._json(200, _story)
             except Exception as e:
                 # A board that cannot be built says so. It must never answer {} — an empty shelf
                 # and an unbuildable one are opposite facts. [[unknown-stays-unknown]]

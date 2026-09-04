@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2586",
+  "ver": "v2587",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2586: CONNECTED did not mean the dry taps were answered",
+  "note": "v2587: the rescue was wired to a counter that could not fire",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

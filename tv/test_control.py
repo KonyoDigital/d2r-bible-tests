@@ -41140,5 +41140,71 @@ class TestOneCountHasOnePlace(unittest.TestCase):
                       "'need you' would just be hiding them.")
 
 
+
+class TheBlackWindowRescueIsReachable(unittest.TestCase):
+    """v2587 — the rescue was wired to a counter that could not fire for the fault it exists for.
+
+    MEASURED ON HIS LIVE CONSOLE while he was looking at a black window:
+
+        frozenBeats 23 · painting false · DOM intact 11821 els
+        blankStrikes 0 · rescues 0 · lastRescueWhy null
+
+    `blankStrikes` counts COLLAPSED ELEMENT COUNTS, and this fault leaves the DOM entirely
+    intact — the page beats, every element is present, and not one frame is drawn. So the counter
+    the rescue waited on is structurally incapable of firing for R-BLANK. `frozenBeats` is that
+    signal, and it was measured, published, and joined to nothing.
+
+    ⚠ THE SAFETY IS THE POINT. A frozen paint count alone means NOTHING: a backgrounded window
+    looks identical, which is why this fault survived so long. It reaches the same independent
+    window witness, so a console he is not looking at is still never reloaded under him.
+    """
+
+    def _beat(self, ca, strikes, frozen, hidden):
+        ca._UI_BEAT.update({"blankStrikes": strikes, "frozenBeats": frozen, "hidden": hidden,
+                            "n": 99, "mono": time.monotonic(), "t": time.time(),
+                            "elsNow": 11821, "elsHigh": 11821})
+        ca._UI_RESCUE["last"] = 0.0
+
+    def _due(self, strikes, frozen, hidden, seen):
+        import control_app as ca
+        import window_visibility as wv
+        self._beat(ca, strikes, frozen, hidden)
+        was = wv.contradicts_a_hidden_beat
+        try:
+            wv.contradicts_a_hidden_beat = lambda: (seen, "stubbed witness")
+            return ca.ui_rescue_due(now=time.time())
+        finally:
+            wv.contradicts_a_hidden_beat = was
+
+    def test_a_frozen_paint_with_an_intact_DOM_is_rescued(self):
+        """His exact fault: beating, full DOM, no frame drawn, window independently seen."""
+        due, why = self._due(0, 23, True, True)
+        self.assertTrue(due, "the black-window fault did not reach a rescue: %s" % why)
+        self.assertIn("DRAWING NOTHING", why,
+                      "the rescue fired but reported the element-collapse reason, which is a "
+                      "right rescue under a wrong label: %s" % why)
+
+    def test_a_window_nobody_saw_is_NEVER_reloaded_under_him(self):
+        """⚠ The safety. Frozen paint alone must not act — a backgrounded window looks the same."""
+        due, why = self._due(0, 40, True, False)
+        self.assertFalse(due, "a console he may not even be looking at was reloaded: %s" % why)
+
+    def test_a_healthy_console_is_left_alone(self):
+        """BASELINE — or the fix bought its rescue by restarting a working console."""
+        for hidden in (False, True):
+            due, why = self._due(0, 0, hidden, True)
+            self.assertFalse(due, "a healthy console (hidden=%s) was rescued: %s" % (hidden, why))
+
+    def test_below_the_threshold_it_waits(self):
+        due, why = self._due(0, 19, True, True)
+        self.assertFalse(due, "it acted one beat early: %s" % why)
+
+    def test_the_element_collapse_path_still_works_and_says_so(self):
+        """The older fault must keep its own reason — two faults, two labels."""
+        due, why = self._due(3, 0, True, True)
+        self.assertTrue(due, why)
+        self.assertIn("elements against a high-water mark", why)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

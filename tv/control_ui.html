@@ -1764,6 +1764,22 @@
   #th-shelfov .shs-wtag.shs-hk-none     { color: var(--mint, #8fe6a0); }
   #th-shelfov .shs-stage.shs-unknown { border-color: rgba(233,185,110,.5); opacity: 1; }
   #th-shelfov .shs-stage.shs-unknown .shs-n { color: #e9b96e; }
+  /* v2587 — the printer's stations, drawn as one spine above the retention stages */
+  #th-shelfov .shp-spine { display: grid; gap: 1px 0;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    margin: 2px 0 6px; border: 1px solid rgba(200,180,120,.20);
+    border-radius: 3px; background: rgba(255,255,255,.02); overflow: hidden; }
+  #th-shelfov .shp-st { display: flex; flex-direction: column; gap: 2px; min-width: 0;
+    padding: 7px 10px; border-left: 2px solid rgba(200,180,120,.28); }
+  #th-shelfov .shp-st:first-child { border-left-color: rgba(143,230,160,.55); }
+  #th-shelfov .shp-st b { font-size: var(--fs-2xs); letter-spacing: .08em; color: #e4d2a4;
+    font-weight: var(--fw-bold); display: flex; align-items: baseline; gap: 5px; }
+  #th-shelfov .shp-st b u { text-decoration: none; color: rgba(200,180,120,.45);
+    font-variant-numeric: tabular-nums; font-weight: var(--fw-normal); }
+  #th-shelfov .shp-st i { font-style: normal; font-size: var(--fs-2xs); color: #9aa6b2;
+    font-variant-numeric: tabular-nums; line-height: 1.35; }
+  #th-shelfov .shp-why { font-size: var(--fs-2xs); color: #7f8a95; margin: -2px 0 8px; }
+
   #th-shelfov .shs-worst { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.07);
     padding-top: 9px; }
   #th-shelfov .shs-wh { font-size: var(--fs-2xs); letter-spacing: var(--ls-label);
@@ -10298,6 +10314,36 @@ body[data-origin="shadow"] #stage::after {
       return;
     }
     var y = st['yield'], stg = st.stages || {}, reels = st.reels || [];
+    /* ⚠⚠ v2587 — ONE ENGINE, NOT TWO. His ask: "make this engine work as a whole. and also look
+       like one." There were two six-step storylines over the same 40 reels and neither referenced
+       the other: this board's retention stages (filmed → triaged → swept → banked → vault-done →
+       releasable) and the printer's stations (in → funnel → template → route → extract → out).
+       They are complementary — HOW FAR THROUGH versus WHAT WAS DECIDED — and they rendered as two
+       engines because nothing carried one into the other.
+       ⚠ The spine is ADDITIVE and never blocks: reel_story answers in 0.02s, the join costs ~0.3s,
+       and if the printer could not be walked this says so instead of drawing a blank spine. */
+    var _spine = '';
+    if (st.printerStations && st.printerStations.length){
+      var pc = st.printerCounts || {};
+      /* ⚠ NO ARROW GLYPHS BETWEEN CELLS. The first cut joined the stations with '›' and the strip
+         WRAPPED at 939px, leaving an arrow dangling at the end of each wrapped line — after
+         'swept 28' and after 'policy 12'. It read as three broken fragments instead of one river,
+         which is the opposite of what it is for. A grid cannot orphan a separator: the flow is
+         carried by an ordinal and a left rule on every cell, so it reads the same on one row or
+         three. [[visual-regression-detector]] — I looked at the pixels and this is what they
+         showed. */
+      var cells = st.printerStations.map(function(k, ix){
+        var c = pc[k] || {}, parts = [];
+        Object.keys(c).sort().forEach(function(v){ parts.push(esc(v) + ' ' + c[v]); });
+        return '<span class="shp-st"><b><u>' + (ix + 1) + '</u>' + esc(k.toUpperCase()) + '</b>'
+             + '<i>' + (parts.join(' · ') || '—') + '</i></span>';
+      });
+      _spine = '<div class="shp-spine" role="img" aria-label="the printer, station by station">'
+             + cells.join('') + '</div>'
+             + '<div class="shp-why">' + esc(st.printerWhy || '') + '</div>';
+    } else if (st.printerWhy){
+      _spine = '<div class="shs-wait shs-bad">' + esc(st.printerWhy) + '</div>';
+    }
 
     /* ── 1. the yield bar ─────────────────────────────────────────────────────────────────── */
     var yieldBlock;
@@ -10401,7 +10447,7 @@ body[data-origin="shadow"] #stage::after {
         }).join('')
       + '</div>';
 
-    el.innerHTML = '<div class="shs-head">⚙ THE PIPELINE — what the reels have given up</div>'
+    el.innerHTML = _spine + '<div class="shs-head">⚙ THE PIPELINE — what the reels have given up</div>'
                  + yieldBlock
                  + '<div class="shs-railh">where the ' + reels.length + ' reels stand \u2014 '
                  +   'each stage counts the reels that get <b>no further</b> than it</div>'
