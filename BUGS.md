@@ -17806,3 +17806,57 @@ than erroring the test out) taken **under the lock**. Re-verified: `startedTs le
 on a non-reentrant lock, and `addCleanup` still runs when the test raises and when an earlier
 cleanup raises.
 
+## v2540 — the dead-field detector was watching a file the deletions never reach
+
+**REG-540 — found by the review-after-ship pass on the pushed v2538–v2539 bytes, and it is the
+THIRD instance of one shape in a single session.** `dead_field.WATCHED` joined
+`"reel_tombstones.json"` to its own directory. The owner does not resolve it that way:
+`reel_retention._tombstone_path(hist)` picks a fixture root, a hist dir, or `HERE`.
+
+**Reproduced, not imagined** — passing a hist dir, *which is the shape the deleter actually runs
+in*:
+
+```
+RR._tombstone_path(hist) -> /…/T/tsdiv_6wy5ckzl/reel_tombstones.json
+DF reads                 -> /Users/konyo/d2r_bible_tests/tv/reel_tombstones.json
+SAME?  False
+```
+
+**The detector built to catch a dead field would have been watching a store nobody writes**,
+reporting on stale rows forever with nothing saying so. It asks the owner now. ⚠ The limit is
+stated rather than hidden: `_tombstone_path()` with no argument gives the store THE CONSOLE OWNS,
+and does not follow a per-call `hist` override — that is a caller's scope, not the console's store.
+
+⚠⚠ **AND THE FIRST GUARD PASSED ON THE DEFECT.** Restoring the hardcoded filename left the two
+paths EQUAL, because `HERE` and the owner's default resolve to the same file today — so the
+headline assertion was measuring a **coincidence, not a join**, and the sabotage was only caught by
+an unrelated test in the same file. This is the wrong-anchor scar, caught by its own sabotage run.
+The guard now MOVES the owner's resolver and requires the detector to follow; with the hardcoded
+path restored it fails as `'…/tv/reel_tombstones.json' != '/tmp/moved_by_the_owner/…'`.
+
+**Three in one session, same shape:** REG-534 (two filenames retyped), REG-537 (a snapshot frozen
+at import, one line below the fix for REG-534), REG-540 (a path resolved two ways). All three are
+[[copy-drift]] §1 — *name ONE source, everything else quotes it* — and all three were in code I
+wrote hours apart while quoting that rule in the fix for the previous one.
+
+**Guard:** three laws in `tv/test_dead_field.py`. **3 sabotages, 3 RED:** the hardcoded filename →
+`'…tv/reel_tombstones.json' != '/tmp/moved_by_the_owner/…'`; guessing `mod + ".json"` when the
+resolver is gone → `'…/tv/reel_retention.json' is not None`; letting a raising resolver take the
+whole reading down → the state-level test errors instead of reporting UNKNOWN.
+
+**REG-539 — one hypothesis tested and REFUTED, so nothing was shipped for it (v2540).** The
+`<svg class="hrt">` carries a viewBox and **no width/height attributes**, so `height: auto` has no
+intrinsic size to resolve from — a textbook cause of a collapsed SVG, and it fit the symptom. I
+stated `aspect-ratio: 960 / 780` and re-rendered.
+
+**The measurement killed it.** The band is byte-identical: `y=150→270`, `min == max == 17`, zero
+ink, and **the layout did not shift by a pixel** — so the box was never collapsing, and that 120px
+is probably not the SVG's box at all. The change was reverted; a fix that fixes nothing must not
+ship, and the plausible story would have been recorded in this log as if it were the cause.
+
+**What is now established:** `_hrtSvg` returns **20,081 chars** — 38 paths, 32 circles, 36 texts,
+`viewBox="0 0 960 780"`, and **70 of 73 coordinates inside that box**. The generator is not the
+problem. **The cause remains UNKNOWN**, and it stays UNKNOWN in this log rather than being filled
+with the best-sounding candidate. The `heart` render target now watches the panel, so it cannot go
+back to being invisible.
+

@@ -42,18 +42,63 @@ if HERE not in sys.path:
 #: have caught THAT is not worth wiring, and anything much smaller reports noise on a fresh tree.
 MIN_ROWS = 30
 
-#: The stores this watches, and WHERE THE ROWS ARE. Deliberately short: he ruled *"I DO NOT want
+#: The stores this watches, and WHO RESOLVES THE PATH. Deliberately short: he ruled *"I DO NOT want
 #: this to randomly just connect wires to it if theres no need"*, so a store earns a line here by
 #: having a record somebody acts on, not by existing. `reel_tombstones` is here because it is the
 #: permanent record of the ONE action with no undo.
+#:
+#: ⚠⚠ REG-540 — THE FIRST CUT HARDCODED "reel_tombstones.json" RELATIVE TO THIS DIRECTORY, and the
+#: owner does NOT resolve it that way. `reel_retention._tombstone_path(hist)` picks a fixture root,
+#: a hist dir, or HERE. Reproduced: passing a hist dir — the shape the deleter actually runs in —
+#: sends its tombstones to `<hist>/reel_tombstones.json` while this read `tv/reel_tombstones.json`.
+#: **The detector would have watched a file the deletions never reach**, reporting on stale rows
+#: forever with nothing saying so. That is the third time in one session the same shape has been
+#: caught (REG-534 filenames, REG-537 a frozen snapshot, this a path resolved two ways), so this
+#: one asks the owner. [[copy-drift]] §1: name ONE source, everything else quotes it.
+#:
+#: ⚠ THE LIMIT, STATED. Asking `_tombstone_path()` with no argument gives the store THE CONSOLE
+#: OWNS — the one its own deletions land in. It does not follow a per-call `hist` override, and it
+#: is not meant to: that is a caller's scope, not the console's store.
 WATCHED = (
-    ("reel_tombstones", "reel_tombstones.json", "reels"),
+    ("reel_tombstones", ("reel_retention", "_tombstone_path"), "reels"),
 )
 
 
-def _rows_of(path, key):
+def _path_of(src):
+    """Resolve a store's path by asking its owner. -> (abs path, why)
+
+    ⚠ An owner that will not import, or that stopped exposing its resolver, returns None WITH A
+    REASON — never a guessed path, because a guess would read a file that may not be the store and
+    report ITS rows as the store's. [[unknown-stays-unknown]]
+    """
+    if isinstance(src, str):
+        return os.path.join(HERE, src), ""       # a literal is still accepted, for a store with no owner
+    try:
+        mod, fn = src
+    except Exception:
+        return None, "the store has no resolver and no filename"
+    try:
+        m = __import__(mod)
+    except Exception as e:
+        return None, "%s would not import, so its store cannot be located (%s)" % (mod, str(e)[:50])
+    f = getattr(m, fn, None)
+    if not callable(f):
+        return None, "%s no longer exposes %s(), so its store cannot be located" % (mod, fn)
+    try:
+        p = f()
+    except Exception as e:
+        return None, "%s.%s() would not answer (%s)" % (mod, fn, str(e)[:50])
+    if not p:
+        return None, "%s.%s() named no path" % (mod, fn)
+    return str(p), ""
+
+
+def _rows_of(src, key):
     """-> (rows, why). A store that will not read is UNKNOWN, never an empty store."""
-    p = os.path.join(HERE, path)
+    p, why = _path_of(src)
+    if not p:
+        return None, why
+    path = os.path.basename(p)
     if not os.path.isfile(p):
         return None, "%s is not on disk, so nothing was asked of it" % path
     try:

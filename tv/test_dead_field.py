@@ -83,6 +83,69 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
         self.assertEqual(r["state"], "UNKNOWN", r["why"])
         self.assertEqual(r["checked"], 0)
 
+    def test_the_store_PATH_is_asked_of_its_owner_never_guessed(self):
+        """⚠⚠ REG-540, reproduced before it was believed. The first cut joined
+        "reel_tombstones.json" to THIS directory, and the owner does not resolve it that way —
+        `reel_retention._tombstone_path(hist)` picks a fixture root, a hist dir, or HERE. Passing a
+        hist dir, which is the shape the deleter actually runs in, sends its tombstones to
+        `<hist>/reel_tombstones.json` while this read `tv/reel_tombstones.json`. **The detector
+        would have watched a file the deletions never reach.** Third instance of this shape in one
+        session. [[copy-drift]] §1
+        """
+        import os
+        import reel_retention as RR
+        got, why = DF._path_of(DF.WATCHED[0][1])
+        self.assertTrue(got, "the store path could not be resolved at all: %r" % why)
+        self.assertEqual(
+            os.path.abspath(got), os.path.abspath(RR._tombstone_path()),
+            "the detector reads a different file than reel_retention says it writes.")
+
+        # ⚠⚠ AND THE EQUALITY ABOVE IS NOT THE GUARD — IT PASSES ON THE DEFECT. Measured: with
+        # the hardcoded "reel_tombstones.json" restored, the two still agree, because HERE and the
+        # owner's default resolve to the same file TODAY. A guard that only holds while nothing has
+        # moved is not measuring the join, it is measuring a coincidence — and this file's own
+        # sabotage run caught that: the hardcoded-path sabotage went green here and was only
+        # noticed by an unrelated test. So MOVE the owner and require the detector to follow.
+        real = RR._tombstone_path
+        try:
+            RR._tombstone_path = lambda *a, **k: "/tmp/moved_by_the_owner/reel_tombstones.json"
+            moved, _ = DF._path_of(DF.WATCHED[0][1])
+            self.assertEqual(
+                moved, "/tmp/moved_by_the_owner/reel_tombstones.json",
+                "the owner moved its store and the detector did NOT follow, so it keeps its own "
+                "copy of the path. One rename — or one hist dir, which is the shape the deleter "
+                "actually runs in — and it watches a file the deletions never reach.")
+        finally:
+            RR._tombstone_path = real
+
+    def test_a_missing_resolver_is_named_UNKNOWN_not_guessed(self):
+        """⚠ BASELINE: the resolver must be able to fail, or the equality above is two constants
+        agreeing with themselves. And a guessed path would read a file that may not be the store
+        and report ITS rows as the store's."""
+        import reel_retention as RR
+        real = RR._tombstone_path
+        try:
+            del RR._tombstone_path
+            got, why = DF._path_of(("reel_retention", "_tombstone_path"))
+            self.assertIsNone(got, "an owner with no resolver still yielded a path: %r" % (got,))
+            self.assertIn("_tombstone_path", why, "the reason does not name what went: %r" % why)
+        finally:
+            RR._tombstone_path = real
+
+    def test_a_resolver_that_RAISES_is_UNKNOWN_not_a_crash(self):
+        import reel_retention as RR
+        real = RR._tombstone_path
+        try:
+            RR._tombstone_path = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+            got, why = DF._path_of(("reel_retention", "_tombstone_path"))
+            self.assertIsNone(got, "a raising resolver still yielded a path: %r" % (got,))
+            self.assertIn("boom", why, "the reason drops the error: %r" % why)
+            r = DF.state()
+            self.assertTrue(r["ok"], "a raising resolver took the whole reading down: %s" % r)
+            self.assertEqual(r["state"], "UNKNOWN", r)
+        finally:
+            RR._tombstone_path = real
+
     def test_it_reports_and_refuses_nothing(self):
         """Nothing here fails a build or blocks a button — it is EVIDENCE, like CF-13's reach."""
         r = DF.state()
