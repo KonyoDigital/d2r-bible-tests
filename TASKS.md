@@ -141,6 +141,27 @@ in those words.
 - **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
   not write an anchor that matches the wrong occurrence.
 
+- **⚠⚠ `run_gates.py` HAS EIGHT RED GATES ON `main`, AND THE PRE-PUSH HOOK CANNOT SEE SEVEN OF THEM.**
+  Measured 2026-09-04 by running the full 30-gate set, which the hook does not: it says so itself —
+  *"run_gates.py runs 30 gates; this hook ran three."* RED: `printer_wilson`, `test_reachability`,
+  `swallow_ratchet`, `test_heart`, `test_store_owners`, `test_printer`, `human-eyes`,
+  `test_import_bound_paths`. **None is caused by v2593/v2594** — six fail identically on a clean
+  `origin/main` worktree, and `printer_wilson` imports none of the nine files those commits touched.
+  Named individually so none hides in the total:
+  · **`printer_wilson` — `reachraises 0/40 LEAKS`**, the one axis that fails: when `printer_reach`
+    raises, EXTRACT must go UNKNOWN and is instead permissive. `test_printer` fails on the SAME
+    station (`'SHELF-WIDE' not found`), so these are one defect seen twice. ⚠ It is INVISIBLE in a
+    fresh worktree: with no reels that axis gets 0 attempts and the gate reports PROVEN 5/5. A gate
+    that can only fail where his data lives will read green on every clean checkout.
+  · **`test_store_owners`** — `write_census` (v2589) touches four stores and was never declared as
+    their toucher. Small and real: the declaration owes an entry.
+  · **`human-eyes`** — NOT a code defect. It is the ledger reporting that **3 briefs have been asked
+    and never answered past 24h**: GB-L-7 51.2h, GB-L-6 63.9h, GB-L-5 64.1h. 8 recorded · 2 answered
+    with a LOOK · 3 still owed. ⚠ It SKIPS on a venue with no ledger and says *"Not a pass"* — so it
+    is structurally incapable of going red anywhere except his machine.
+  Owed: fix them, or state per gate why a red is correct. **A gate set nothing runs is a gate set
+  that has stopped measuring**, and this one had drifted to eight without a single push noticing.
+
 - **A `record()` row bypasses the PROVES allow-list entirely.** Found 2026-09-04 fixing REG-575.
   `bank()` refuses any (src, lock) pair the allow-list does not declare — the rule that stops one
   surface's sabotage opening another surface's lock, which matters most for `prune.arm` because
