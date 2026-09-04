@@ -10830,7 +10830,16 @@ window._lockMark = function(isOpen, px, label){
     for (var i = 0; i < n; i++) {
       var v = vs[i], st = v.state || 'UNKNOWN', col = _HRT_COL[st] || '#9aa6b2';
       var ang = (START + i * (SWEEP / (n - 1 || 1))) * Math.PI / 180;
-      var nx = cx + Math.cos(ang) * rx, ny = cy + Math.sin(ang) * ry;
+      /* ⚠⚠ STAGGER THE NEAR-VERTICAL LABELS, THE WAY THE GATE ROUTES BELOW ALREADY DO.
+         Every vessel sat at the same radius, so two adjacent labels at the TOP of the ring — where
+         the arc is nearly horizontal and the names are long — landed on the same line. MEASURED on
+         the rendered panel, not eyeballed: `_chron_autoread_loop` overlapped `_drift_loop` by
+         66x9px, and it is visible in the screenshot he sent. Alternate ones reach further out, so
+         neighbours no longer share a height. Only near-vertical spokes are staggered (|cos| small);
+         the sides read cleanly already and moving them would be churn for its own sake.
+         [[visual-regression-detector]] */
+      var _vr = (Math.abs(Math.cos(ang)) < 0.45 && (i % 2)) ? 1.13 : 1.0;
+      var nx = cx + Math.cos(ang) * rx * _vr, ny = cy + Math.sin(ang) * ry * _vr;
       var mx = cx + Math.cos(ang) * rx * 0.55 - Math.sin(ang) * 30;
       var my = cy + Math.sin(ang) * ry * 0.55 + Math.cos(ang) * 30;
       var pth = 'M ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' Q ' + mx.toFixed(1) + ' ' + my.toFixed(1)
@@ -10884,7 +10893,11 @@ window._lockMark = function(isOpen, px, label){
       var la = (GN === 1 ? 90 : (48 + j * (84 / (GN - 1)))) * Math.PI / 180;
       /* staggered radii AND centred labels — with five routes in one wedge, either alone still
          overlaps. Measured on the render: 0.60/0.78 with sideways labels collided four ways. */
-      var reach = (j % 2 === 0) ? 0.88 : 1.18;
+      /* ⚠ WIDENED 0.88/1.18 -> 0.82/1.26 (v2624). Measured on the rendered panel: at the old
+         spread `vault.apply`'s arithmetic still kissed `vault.sweep_start`'s name by 5px, which
+         clears the overlap ratchet's own 3px floor and so is a real text-on-text hit, not
+         antialiasing. Re-measured after: zero. [[visual-regression-detector]] */
+      var reach = (j % 2 === 0) ? 0.82 : 1.26;
       var gx = cx + Math.cos(la) * rx * reach, gy = cy + Math.sin(la) * ry * reach;
       var gmx = cx + Math.cos(la) * rx * reach * 0.5 - Math.sin(la) * 12;
       var gmy = cy + Math.sin(la) * ry * reach * 0.5 + Math.cos(la) * 12;
@@ -10930,11 +10943,34 @@ window._lockMark = function(isOpen, px, label){
         arith = L.k + '/' + n_ + ' on the claims that RAN · '
               + _blind.length + ' never ran (' + _blind.join(', ') + ')';
       }
+      /* ⚠⚠ v2624 — WHAT THE SCORE RESTS ON, NOT JUST WHAT IT IS.
+         `printer.stream` banks 83/83 for wilson 0.956, and 80 of those 83 are TWO attack
+         functions applied to 40 reels each — five distinct ideas, which score 0.5655. Wilson
+         tightens with n and cannot tell 83 independent looks from one attack applied 83 times,
+         so a lock bought by looping rendered exactly like one that earned it.
+         ⚠ `attacks == null` means the harness has NOT RE-RUN since the field existed — it does
+         NOT mean there is no repetition, and it must never read as a clean bill.
+         [[unknown-stays-unknown]] */
+      var _atk = (typeof L.attacks === 'number') ? L.attacks : null;
+      var _rep = (typeof L.repetition === 'number') ? L.repetition : null;
+      var _wba = (typeof L.wilsonByAttack === 'number') ? L.wilsonByAttack : null;
+      /* ⚠⚠ NO THIRD LINE. The comment twelve lines up says why — these labels are CENTRED on
+         their node, so every extra character reaches further in BOTH directions across the vessel
+         field, and prune.arm sits far right. I added a third row anyway and photographed the
+         result: vault.sweep_start's arithmetic ran straight through vault.apply's, and four
+         copies of a long "not yet declared" sentence collided with each other. Measured on the
+         PNG, not eyeballed. [[visual-regression-detector]]
+         So the repetition rides the SECOND line, which is empty for most locks anyway, and the
+         not-yet-declared state lives in the tooltip — present, not shouted. The diagram shows
+         what the score RESTS ON only when there is something to show. */
       var arith2 = _blind
         ? 'the score above cannot see that axis at all'
-        : ((n_ && n_ > 0 && _kindsShort)
-             ? ('one kind of look only · ' + _conf.toFixed(2) + ' of ' + _kbar.toFixed(2))
-             : '');
+        : (_atk !== null && _rep !== null && _rep > 1.5
+             ? (_atk + ' attacks \u00b7 each run ' + _rep.toFixed(1) + '\u00d7'
+                + (_wba !== null ? ' \u2192 ' + _wba.toFixed(3) : ''))
+             : ((n_ && n_ > 0 && _kindsShort)
+                  ? ('one kind of look only · ' + _conf.toFixed(2) + ' of ' + _kbar.toFixed(2))
+                  : ''));
       var waiting = open ? 'OPEN — it proved itself'
                     : (_blind
                          ? ('INCOMPLETE — ' + _blind.length + ' claim(s) this harness declared '
@@ -11000,6 +11036,11 @@ window._lockMark = function(isOpen, px, label){
              + '<circle cx="0" cy="2.6" r="1.15" fill="' + (open ? '#0f2a17' : '#0d1117') + '"/>'
              + '</g>'
              + '<title>' + _hrtEsc((L.lock || L.surface) + ' — ' + waiting + '. ' + arith
+                                   + (_atk === null && !_blind
+                                        ? '. How many DISTINCT attacks are under that n has not '
+                                          + 'been declared by this harness yet — which is not the '
+                                          + 'same as no repetition.'
+                                        : '')
                                    + '. ' + (L.why || '')) + '</title></g>'
              + '<circle cx="' + gx.toFixed(1) + '" cy="' + gy.toFixed(1) + '" r="4.6" fill="' + lc + '"/>';
       /* CENTRED UNDER THE NODE, never anchored sideways. The first cut anchored start/end by the

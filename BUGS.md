@@ -7,6 +7,46 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-606 — the repetition finding was published for six versions and the console could not see it
+
+**v2624.** His question: *"obviously the heart console is rendering this when clicked on — meaning
+it's all synced and honest and real"*. **It was not, and the honest answer was no.**
+
+`score()` has published `attacks` / `wilsonByAttack` / `repetition` since v2618 and the arithmetic is
+guarded — but `/api/heart` served `acts, bar, blindClaims, confluence, k, kindsBar, lock, n,
+provable, score, state, surface, why` and **none of the three**. The panel rendered a lock whose
+score rests on ONE attack looped 16 times exactly like one that earned it. **A number the surface
+cannot reach is the same as one nobody measured.** ⚠ That trim has now swallowed a field **four
+times** — `provable`, `confluence`, `blindClaims`, and these. [[the-unjoined-end]]
+
+Joined, and `printer_wilson --bank` re-run so the values are real rather than null: the heart now
+reads **`83/83 refused · 0.956 ≥ 0.510`** with **`5 attacks · each run 16.6× → 0.566`** beneath it.
+⚠ `attacks: null` means the harness has not re-run since the field existed and says so in the
+tooltip — it must never read as "no repetition". [[unknown-stays-unknown]]
+
+⚠⚠ **AND THE FIRST CUT BROKE THE LAYOUT, WHICH THE PANEL'S OWN COMMENT HAD WARNED ABOUT.** It said
+*"TWO SHORT LINES, NOT ONE LONG ONE — these labels are CENTRED on their node, so every extra
+character reaches further in BOTH directions across the vessel field"*. I added a third row anyway,
+photographed it, and found `vault.sweep_start`'s arithmetic running through `vault.apply`'s with
+four copies of a long "not yet declared" sentence colliding. The repetition rides the SECOND line
+now — empty for most locks anyway — and the not-yet-declared state lives in the tooltip.
+
+✅ **AND THE PHOTOGRAPH FOUND TWO OVERLAPS THAT WERE ALREADY THERE, in the screenshot he sent
+hours earlier:** `_chron_autoread_loop` over `_drift_loop` by **66x9px**, and a 5px clip of
+`vault.sweep_start`. Both fixed — near-vertical vessel labels stagger their radius the way the gate
+routes already did, and the gate spread widened 0.88/1.18 → 0.82/1.26. **Re-measured on the
+rendered panel: 0 text-on-text pairs, 0 labels outside the box.**
+
+⚠⚠ **WHY NO GATE CAUGHT THEM: `overlap_ratchet` runs with the heart CLOSED.** Its baseline is
+0/0/0/0 and it is blind to every overlay panel in the console — a clean ratchet that has never
+looked at the surface. Not fixed here; named so it is not mistaken for coverage.
+[[gate-blind-to-unexercised-input]]
+
+⚠ Cold cross-family read after the fix: *"No overlaps, cut-offs or unreadable text inside the
+panel. All labels and stats are legible. No collisions between ring labels."* It did NOT read back
+`printer.stream`'s third line, which is the one line that most matters — recorded as a weak signal,
+not waved away.
+
 ### REG-605 — the fleet's eye window was 6s and the beacon carrying it fires every 240s
 
 **v2622, task 167.** `_eye_for_wire` called the capture eye LIVE only if its last read was younger
@@ -323,6 +363,21 @@ changed is that both numbers are now published, so a score resting on repetition
 Every harness declares its own count: one banked row is one attack function (`attacks=1`) for the
 per-claim harnesses, and `route_wilson` counts DISTINCT sabotage names among attempted lanes —
 which correctly collapses its resolver and generator lanes, whose attack string is byte-identical.
+
+✅ **SWEPT COMPLETE, v2623.** All **six** evidence sources now declare — `printer_wilson`,
+`prune_wilson`, `sweep_wilson`, `vault_wilson`, `vault_live`, `route_wilson` and `hover_wilson`.
+The sixth was `hover_wilson`, which carries the WORST inflation of the set (48 of 55 trials are two
+probes applied to 24 synthetic cells each), so wiring five and stopping would have left exactly the
+one that mattered most. `TestV2623EveryHarnessDeclaresItsAttackCount` asks **every source the
+allow-list declares**, so a harness added later is covered the day it is registered rather than the
+day someone remembers. `render_check` is exempt and NAMED, and the exemption is itself checked —
+it proves no lock, and the test asserts its `PROVES` entry is still empty.
+
+⚠ **THAT GUARD'S FIRST CUT GRADED PROSE.** It counted `\.bank\(` by regex and failed on five of
+six harnesses — every "extra" match was a COMMENT: my own *"See self_arming.bank() and REG-598"*
+and route_wilson's docstring *"in the shape self_arming.bank() takes"*. The code was right and the
+check was counting sentences. It walks the AST for `Call` nodes now. Third time in one day a guard
+graded documentation instead of behaviour. [[source-reading-guard]]
 
 **Guard:** `TestV2618AScoreMayNotBeBoughtByRepetition` — 5 cases, including that the by-attack score
 must be LOWER than the by-trial one, that an undeclared count reports None, and that the live

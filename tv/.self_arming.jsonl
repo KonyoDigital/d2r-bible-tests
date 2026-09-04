@@ -67,3 +67,4 @@
 {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson", "ref": "anchor", "n": 0, "k": 0, "refused": false, "note": "the tooltip rectangle identifies the cursor it belongs to", "ts": 1788532854119}
 {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson", "ref": "read", "n": 5, "k": 5, "refused": true, "note": "two reads of one frame must agree to be written", "ts": 1788532854119}
 {"lock": "miniauto.run", "kind": "sabotage", "src": "hover_wilson", "ref": "slot", "n": 2, "k": 2, "refused": true, "note": "agreement about the cell is a witness the name cannot fake", "ts": 1788532854119}
+{"lock": "printer.stream", "kind": "sabotage", "src": "printer_wilson", "ref": "", "n": 83, "k": 83, "refused": true, "attacks": 5, "note": "the printer must refuse to invent an answer: 83 of 83 attempts refused", "ts": 1788545439174}

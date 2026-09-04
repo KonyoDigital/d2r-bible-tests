@@ -5,9 +5,11 @@ The thing being replaced is a human flipping `_PRUNE_SAFE_TO_RUN` by hand, so th
 matters is not "it refused when it should have opened" — it is "IT OPENED WITHOUT EARNING IT".
 Every test here is pointed at that direction.
 """
+import ast
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -866,6 +868,82 @@ class TestV2619AnUnexercisedAxisHoldsTheLock(unittest.TestCase):
         r = SA.score("vault.forget")
         self.assertEqual(r["state"], SA.UNPROVEN)
         self.assertEqual(r["blindClaims"], [])
+
+
+
+
+class TestV2623EveryHarnessDeclaresItsAttackCount(unittest.TestCase):
+    """★ REG-598, swept. Wiring five of six harnesses and calling it done is how the sixth becomes
+    the one nobody notices — and the sixth here was `hover_wilson`, which carries the WORST
+    inflation of all: 48 of its 55 trials are two probes applied to 24 synthetic grid cells each.
+
+    ⚠ IT ASKS EVERY SOURCE THE ALLOW-LIST DECLARES, not a list typed here. A harness added later
+    is covered the day it is registered, without anyone remembering this file exists.
+    [[sweep-dont-ask]]
+    """
+
+    #: `render_check` proves no lock — it is in PROVES with an empty list — so it banks nothing and
+    #: owes nothing. Named, not silently skipped: an exemption nobody can see is a hole.
+    BANKS_NOTHING = {"render_check"}
+
+    def _module_for(self, src):
+        """The harness module behind an evidence source name. -> module | None"""
+        import importlib
+        for guess in (src, src.replace("_live", "_wilson")):
+            try:
+                return importlib.import_module(guess)
+            except Exception:
+                continue
+        return None
+
+    def test_every_declared_evidence_source_passes_attacks(self):
+        import inspect
+        missing, checked = [], 0
+        for src in sorted(SA.PROVES):
+            if src in self.BANKS_NOTHING:
+                continue
+            mod = self._module_for(src)
+            if mod is None:
+                continue                      # its module is not importable here; not this test's claim
+            try:
+                text = inspect.getsource(mod)
+            except Exception:
+                continue
+            if ".bank(" not in text:
+                continue                      # this source does not bank at all
+            checked += 1
+            # ⚠⚠ PARSE THE CALLS, DO NOT GREP THE TEXT — and the first cut of this DID grep, for
+            # `\.bank\(`. It failed on five of six harnesses, and every "extra" match was PROSE:
+            # my own comment "See self_arming.bank() and REG-598", and route_wilson's docstring
+            # "in the shape self_arming.bank() takes". The code was right and the guard was
+            # counting sentences — the third time in one day a check graded documentation instead
+            # of behaviour. An AST walk cannot be fooled by a comment.
+            # [[source-reading-guard]] [[feedback-comments-vs-code]]
+            try:
+                tree = ast.parse(text)
+            except SyntaxError:
+                continue
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                fn = node.func
+                name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
+                if name != "bank":
+                    continue
+                if not any(kw.arg == "attacks" for kw in (node.keywords or [])):
+                    missing.append("%s: a bank() call at line %d does not declare attacks"
+                                   % (src, getattr(node, "lineno", -1)))
+        self.assertTrue(checked, "no harness was actually inspected — this test proved nothing")
+        self.assertEqual(missing, [],
+                         "a Wilson score can still be bought by repetition here: %s"
+                         % "; ".join(missing))
+
+    def test_the_exemption_is_NAMED_and_really_proves_nothing(self):
+        """⚠ An exemption list is a hole unless each entry is checked to still deserve it."""
+        for src in self.BANKS_NOTHING:
+            self.assertIn(src, SA.PROVES, "%s is exempted but is not a declared source" % src)
+            self.assertEqual(list(SA.PROVES[src]), [],
+                             "%s is exempted from declaring attacks but DOES prove a lock" % src)
 
 
 

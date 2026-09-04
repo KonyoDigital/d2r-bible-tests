@@ -301,7 +301,13 @@ def bank_into_proof_queue(rows):
             # kind is the evidence TIER confluence weighs; ref is WHICH sabotage inside this
             # harness. These four break a guard on purpose and watch it go red for its own reason,
             # which is exactly what KINDS calls `sabotage`.
-            _sa.bank("miniauto.run", "sabotage", "hover_wilson", n=n, k=k,
+            # ⚠ ONE ROW = ONE PROBE; `n` is how many times that probe was applied. Summing these
+            # across rows gives the DISTINCT attack count, which is what stops a Wilson score
+            # being bought by looping one idea over many inputs. MEASURED for this harness: 48 of
+            # its 55 trials are TWO probes applied to 24 synthetic grid cells each, so the
+            # by-trial score (0.9347) rests on far fewer ideas than the number suggests.
+            # REG-598, and see REG-600 for the sharper problem underneath it.
+            _sa.bank("miniauto.run", "sabotage", "hover_wilson", n=n, k=k, attacks=1,
                      ref=str(r.get("claim")), note=str(r.get("what") or "")[:200])
             banked.append("%s %d/%d" % (r.get("claim"), k, n))
         except ValueError as e:

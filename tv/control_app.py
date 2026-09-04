@@ -15583,6 +15583,19 @@ def _self_arming_state():
                    # both ends, joined on neither, exactly as `provable` was.
                    # [[the-unjoined-end]] [[label-outlived-referent]]
                    "blindClaims": l.get("blindClaims"),
+                   # ⚠⚠ AND HOW MANY DISTINCT ATTACKS ARE UNDER THAT n — THE FOURTH FIELD THIS
+                   # TRIM HAS SWALLOWED, after `provable`, `confluence` and `blindClaims`.
+                   # Konyo asked whether the console is "synced and honest and real" about the
+                   # repetition finding. It was not: score() has published these since v2618, the
+                   # arithmetic is guarded, and the panel could not see any of it — so a lock whose
+                   # score rests on ONE attack looped 16 times rendered exactly like one that
+                   # earned it. Publishing a number the surface cannot reach is the same as not
+                   # measuring it. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+                   # ⚠ `attacks: None` means the harness has not re-run since the field existed —
+                   # NOT that there is no repetition. The panel must say which.
+                   "attacks": l.get("attacks"),
+                   "wilsonByAttack": l.get("wilsonByAttack"),
+                   "repetition": l.get("repetition"),
                    "k": l.get("k"), "n": l.get("n")} for l in locks],
     }
 
@@ -22728,7 +22741,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2622",
+        "ver": "v2624",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
