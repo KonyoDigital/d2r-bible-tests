@@ -7,8 +7,19 @@ None of those catches two labels drawn on top of each other: both are fully on s
 clipped, and the pixels are a mess. Measured 2026-09-04 at 375x800 — a width the render gate
 already renders and reports as *"no clipping"*:
 
-    375x800    50 text leaves    24 overlapping pairs
-    1120x900   53 text leaves     2 overlapping pairs
+    375x800    36 painted text leaves    3 overlapping pairs
+    901/1120/1440                          0 overlapping pairs
+
+⚠⚠ THOSE NUMBERS ARE THE CORRECTED ONES, AND THE CORRECTION IS THE MOST IMPORTANT THING IN THIS
+FILE. The first version counted BOUNDING RECTS and reported 24 at 375 and 2-3 at every desktop
+width. It was wrong: `getBoundingClientRect()` returns geometry for content an ancestor has CLIPPED
+AWAY, and this page has one — at 375px `#home-dash` is height 0 with scrollHeight 591 and
+overflow:auto, so its entire subtree has rects while none of it is painted. **21 of the 24, and
+every single desktop "overlap", were invisible.** I had already written the desktop ones up as a
+finding — "a 246x29px collision on his widest view" — and that finding did not exist.
+
+Elements are hit-tested now: `elementFromPoint` at the centre must return the element or something
+inside it. What is not drawn cannot collide. [[feedback-verify-not-proxy]]
 
 A cold cross-family look at the same PNG found it unprompted — *"'AI READS · LIVE' overlaps the
 partial text 'appea here'… ':17772' and ':17771' colliding with 'MILLENIUM', 'heart', and
@@ -52,12 +63,26 @@ WIDTHS = ((375, 800), (901, 900), (1120, 900), (1440, 1000))
 MIN_OVERLAP_PX = 3
 
 _JS = """(() => {
+  // ⚠⚠ HIT-TESTED, NOT JUST MEASURED. getBoundingClientRect() reports geometry for content an
+  // ancestor has CLIPPED away — and this page has one: at 375px #home-dash is height 0 with
+  // scrollHeight 591 and overflow:auto, so its whole subtree has rects while none of it is
+  // painted. Counting those produced overlaps that are invisible on the pixels, which is a gate
+  // reporting damage nobody can see. elementFromPoint at the centre answers what is ACTUALLY on
+  // top there; if neither the element nor a descendant of it is, it is not drawn and cannot
+  // collide with anything. [[feedback-verify-not-proxy]]
+  const painted = (e, r) => {
+    const x = (r.left + r.right) / 2, y = (r.top + r.bottom) / 2;
+    if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return false;
+    const hit = document.elementFromPoint(x, y);
+    return !!hit && (hit === e || e.contains(hit) || hit.contains(e));
+  };
   const leaves = [...document.querySelectorAll('*')].filter(e => {
     const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
     return e.children.length === 0 && (e.textContent || '').trim()
            && r.width > 4 && r.height > 4
            && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'
-           && r.top < innerHeight && r.bottom > 0;
+           && r.top < innerHeight && r.bottom > 0
+           && painted(e, r);
   });
   const pairs = [];
   for (let i = 0; i < leaves.length; i++) {

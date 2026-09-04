@@ -8,6 +8,31 @@
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
 ### REG-587 — text sitting on text, the class the render gate cannot see
+**⚠⚠ CORRECTED 2026-09-04, v2607 — THE NUMBERS BELOW WERE WRONG AND THE DESKTOP FINDING DID NOT
+EXIST.** The first cut counted BOUNDING RECTS. `getBoundingClientRect()` returns geometry for
+content an ancestor has CLIPPED AWAY, and this page has one: at 375px `#home-dash` is **height 0
+with scrollHeight 591 and overflow:auto**, so its whole subtree has rects while none of it is
+painted. Hit-tested with `elementFromPoint`, the real counts are:
+
+| width | I published | actually painted |
+|---|---|---|
+| 375×800 | 24 | **3** |
+| 901×900 | 3 | **0** |
+| 1120×900 | 2 | **0** |
+| 1440×1000 | 3 | **0** |
+
+**21 of the 24, and every single desktop overlap, were invisible.** The one I wrote up as the
+headline — *"246 × 29 px, the EYES panel's UNKNOWN sentence sitting on the AI READS bar, on his
+widest view"* — **does not exist**; I had even cropped that band, seen it read cleanly, and gone on
+to publish the number anyway because the measurement agreed with itself across runs. **Stable is
+not correct.** The three that remain at 375 are real and are exactly what the cold read and I both
+saw. Baseline rewritten to 3 / 0 / 0 / 0. [[feedback-verify-not-proxy]]
+
+---
+
+**The original entry, kept for the record:**
+
+### REG-587 — text sitting on text, the class the render gate cannot see
 **2026-09-04 · v2605**
 
 `render_check` measures whether an element is **CLIPPED**, **OFF-SCREEN** or **COVERED**. None of
