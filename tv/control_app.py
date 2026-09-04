@@ -15316,12 +15316,21 @@ def _self_arming_state():
     _all = rep.get("locks") or []
     locks = [l for l in _all if l.get("kind") != "route"]
     routes = [l for l in _all if l.get("kind") == "route"]
-    _WORD = {"OPEN": "PROVEN", "LOCKED": "ASSERTED", "UNPROVEN": "UNPROVEN",
-             "UNKNOWN": "UNKNOWN", "INERT": "INERT"}
+    # ⚠⚠ v2569 — HARDENED WAS MISSING FROM EVERY ONE OF THESE, and self_arming has carried the
+    # tier since v2487. Measured: the string appeared in exactly ONE module under tv/ and had zero
+    # consumers, so a lock that earned three independent kinds of evidence would have been counted
+    # as NOT OPEN by the line below — while self_arming.report() counts OPEN + HARDENED together
+    # (self_arming.py:487). Two tallies of one quantity, disagreeing by construction.
+    _WORD = {"OPEN": "PROVEN", "HARDENED": "HARDENED", "LOCKED": "ASSERTED",
+             "UNPROVEN": "UNPROVEN", "UNKNOWN": "UNKNOWN", "INERT": "INERT"}
+    _OPENISH = ("OPEN", "HARDENED")
     return {
         "ok": bool(rep.get("ok")),
-        "open": sum(1 for l in locks if l.get("state") == "OPEN"), "total": len(locks),
-        "routesProven": sum(1 for r in routes if r.get("state") == "OPEN"),
+        "open": sum(1 for l in locks if l.get("state") in _OPENISH), "total": len(locks),
+        # the count he asked for by name: "the HARDENING stamp badge on it"
+        "hardened": sum(1 for l in locks if l.get("state") == "HARDENED"),
+        "routesHardened": sum(1 for r in routes if r.get("state") == "HARDENED"),
+        "routesProven": sum(1 for r in routes if r.get("state") in _OPENISH),
         "routesTotal": len(routes),
         "routes": [{"lock": r.get("lock"), "surface": r.get("surface"), "acts": r.get("acts"),
                     "state": _WORD.get(r.get("state"), r.get("state")),
@@ -22336,7 +22345,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2567",
+        "ver": "v2569",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

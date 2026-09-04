@@ -4637,6 +4637,13 @@
   .lockchip[data-state="locked"]   { color: #e0857c; }
   .lockchip[data-state="unproven"] { color: #9aa6b2; }
   .lockchip[data-state="open"]     { color: #8fd0a0; }
+  /* ⚠⚠ v2569 — HARDENED HAD NO COLOUR, SO IT PAINTED AS THE GREY THAT MEANS "NOBODY LOOKED".
+     self_arming has carried a HARDENED tier since v2487 (wilson >= 0.900 AND confluence >= 2.50,
+     i.e. three INDEPENDENT kinds) and the string existed in exactly one module: ZERO consumers on
+     any surface. Every fallback in this file landed on the dangerous side — see the rank map and
+     _paintChip below. Locks are BADGED, so the badge IS the product: a tier the badge cannot show
+     is a tier that does not exist to him. */
+  .lockchip[data-state="hardened"] { color: #8fd0a0; text-shadow: 0 0 6px rgba(143,208,160,.85); }
   .lockchip .lc-n { opacity: .7; font-weight: var(--fw-normal); letter-spacing: var(--ls-normal); }
   /* ★ v2441 — THE VAULT'S LOCK WAS NOT VISIBLE FROM THE VAULT. Clicking the Vault tab loads the
      Mule Manager, which REPLACES the home dash where #lock-vault lives — so the one surface that
@@ -9001,7 +9008,15 @@ body[data-origin="shadow"] #stage::after {
         if (!_sa || !mine.length) return null;      // null -> caller renders LOCKED, not blank
         // the WORST state wins: one unproven surface locks the group, because a group badge that
         // averaged its members would let a proven lane vouch for an untested one
-        var rank = { locked: 0, unproven: 1, open: 2 };
+        /* ⚠⚠ v2569 — HARDENED WAS ABSENT HERE AND `?? -1` SORTED IT BELOW `locked: 0`.
+           This function returns mine[0] after an ASCENDING sort and its own comment says "the
+           WORST state wins", so the single strongest proof state in the system would have
+           dominated its group as its weakest member — and _paintChip then collapses anything
+           that is not open/unproven to `locked`, painting a CLOSED PADLOCK. A lock that had
+           earned three independent kinds of evidence would have rendered exactly like one that
+           had earned none, on the console he reads to decide whether the deleter is armed.
+           `?? -1` is kept: a state this file has never heard of SHOULD sort worst. */
+        var rank = { locked: 0, unproven: 1, open: 2, hardened: 3 };
         mine.sort(function(a, b){
           return (rank[String(a.state || '').toLowerCase()] ?? -1)
                - (rank[String(b.state || '').toLowerCase()] ?? -1);
@@ -9012,7 +9027,10 @@ body[data-origin="shadow"] #stage::after {
         var el = document.getElementById(id); if (!el) return;
         var l = _lockFor(prefix);
         var state = l ? String(l.state || '').toLowerCase() : 'locked';
-        if (state !== 'open' && state !== 'unproven') state = 'locked';
+        /* v2569 — 'hardened' added. Without it the tier fell into the `= 'locked'` bucket two
+           characters later, which is the safe direction for an UNKNOWN state and the wrong one
+           for the strongest state we can prove. */
+        if (state !== 'open' && state !== 'unproven' && state !== 'hardened') state = 'locked';
         /* v2440 — no `hidden = false` here any more. The chip ships LOCKED in the
            markup, because a chip that only appears after a poll is INVISIBLE until
            one lands, and an absent badge reads as NO LOCK. The render target that
@@ -10597,7 +10615,10 @@ body[data-origin="shadow"] #stage::after {
      if this drew a warm heart anyway it would be a fabricated reassurance on the one surface whose
      whole job is telling him what nobody is watching. [[unknown-stays-unknown]] [[heart-first]] */
   var _HRT_COL = { FLOWING: '#e0857c', WATCHED: '#e9b96e', DARK: '#6fa8ff', UNKNOWN: '#9aa6b2' };
-  var _HRT_LOCKCOL = { OPEN: '#8fd0a0', LOCKED: '#e0857c', UNPROVEN: '#9aa6b2', UNKNOWN: '#9aa6b2' };
+  /* v2569 — HARDENED had no key, so `|| '#9aa6b2'` painted it the SAME GREY as UNPROVEN and
+     UNKNOWN: the most-proven state and the never-tested state, indistinguishable on the heart. */
+  var _HRT_LOCKCOL = { OPEN: '#8fd0a0', HARDENED: '#b6f0c4', LOCKED: '#e0857c',
+                       UNPROVEN: '#9aa6b2', UNKNOWN: '#9aa6b2' };
   var _hrtBusy = false;
 
   function _hrtEsc(s){
@@ -10699,7 +10720,10 @@ body[data-origin="shadow"] #stage::after {
     var GN = lk.length;
     for (var j = 0; j < GN; j++) {
       var L = lk[j], lst = String(L.state || 'UNKNOWN').toUpperCase();
-      var open = (lst === 'OPEN');
+      /* v2569 — HARDENED is strictly stronger than OPEN (self_arming.may() already treats the
+         two alike); testing only for 'OPEN' drew a CLOSED padlock on the river map for the one
+         state that most deserves an open one. */
+      var open = (lst === 'OPEN' || lst === 'HARDENED');
       var lc = _HRT_LOCKCOL[lst] || '#9aa6b2';
       /* fan across the reserved wedge: 50°..130°, straight down being 90° */
       var la = (GN === 1 ? 90 : (48 + j * (84 / (GN - 1)))) * Math.PI / 180;

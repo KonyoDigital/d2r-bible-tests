@@ -656,6 +656,124 @@ class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
         self.assertIsInstance(counts.get("FLOWING"), int)
 
 
+
+class TheConsoleCanSeeHARDENED(unittest.TestCase):
+    """v2569 — the HARDENED tier existed in ONE module and had ZERO consumers.
+
+    ⚠⚠ WHY THIS SUITE EXISTS, MEASURED. `self_arming` has carried HARDENED since v2487 (wilson
+    >= 0.900 AND confluence >= 2.50 — three genuinely INDEPENDENT kinds). Grepping tv/ for the
+    string found it in `self_arming.py` and a jsonl, and nowhere else: not one surface could
+    render it. Every fallback landed on the DANGEROUS side —
+
+        control_app  `open` counted state == "OPEN" only, while self_arming.report() counts
+                     OPEN + HARDENED — two tallies of one quantity, disagreeing by construction
+        rank map     no `hardened` key, and `?? -1` sorted it BELOW `locked: 0`; the function
+                     takes mine[0] after an ascending sort because "the WORST state wins", so
+                     the strongest proof state would have dominated its group as the weakest
+        _paintChip   anything not open/unproven collapses to `locked` -> a CLOSED PADLOCK
+        _HRT_LOCKCOL no key -> `|| '#9aa6b2'`, the SAME grey as UNPROVEN and UNKNOWN
+
+    Konyo's ruling on task 146 is *"YES ARM IT but rmember to do the Wilson score of our own
+    style the HARDENING stamp badge on it"*. Locks are BADGED, never enforced — so the badge IS
+    the product, and a tier the badge cannot show does not exist to him. Worse than absent: it
+    would have shown the most-proven lock in the system as LOCKED, on the console he reads to
+    decide whether the deleter is armed.
+
+    These assert BEHAVIOUR (the parsed maps and the tally's output), not the presence of words.
+    [[source-reading-guard]]
+    """
+
+    @staticmethod
+    def _ui():
+        with io.open(UI, encoding="utf-8") as fh:
+            return fh.read()
+
+    @staticmethod
+    def _map(src, decl):
+        """Parse one JS object literal into {key: value}. Structure, not prose."""
+        i = src.index(decl)
+        body = src[i + len(decl):]
+        body = body[body.index("{") + 1: body.index("}")]
+        out = {}
+        for part in body.split(","):
+            if ":" not in part:
+                continue
+            k, v = part.split(":", 1)
+            out[k.strip().strip("'\"")] = v.strip().strip("'\"")
+        return out
+
+    def test_hardened_outranks_open_so_it_cannot_dominate_a_group_as_its_worst(self):
+        rank = self._map(self._ui(), "var rank =")
+        for key in ("locked", "unproven", "open", "hardened"):
+            self.assertIn(key, rank,
+                          "the rank map has no %r; `?? -1` then sorts it BELOW locked:0 and the "
+                          "worst-wins pick would treat it as the weakest state in its group" % key)
+        r = {k: int(v) for k, v in rank.items()}
+        self.assertGreater(r["hardened"], r["open"],
+                           "HARDENED must outrank OPEN — it is strictly stronger evidence, and "
+                           "may() already treats the two alike")
+        self.assertGreater(r["open"], r["unproven"])
+        self.assertGreater(r["unproven"], r["locked"])
+
+    def test_the_padlock_does_not_collapse_hardened_into_locked(self):
+        ui = self._ui()
+        i = ui.index("state = 'locked';")
+        cond = ui[max(0, i - 220):i]
+        self.assertIn("'hardened'", cond,
+                      "the chip state collapse does not mention 'hardened', so the strongest "
+                      "state falls into the `= 'locked'` bucket and paints a CLOSED PADLOCK")
+
+    def test_the_heart_paints_hardened_differently_from_never_tested(self):
+        col = self._map(self._ui(), "var _HRT_LOCKCOL =")
+        self.assertIn("HARDENED", col,
+                      "_HRT_LOCKCOL has no HARDENED key, so `|| '#9aa6b2'` paints the most-proven "
+                      "state the same grey as UNPROVEN and UNKNOWN")
+        self.assertNotEqual(col["HARDENED"], col.get("UNPROVEN"),
+                            "HARDENED and UNPROVEN must not be the same colour — that is "
+                            "most-proven and never-tested rendering identically")
+
+    def test_the_river_map_gives_hardened_an_open_padlock(self):
+        ui = self._ui()
+        i = ui.index("var open = (lst ===")
+        self.assertIn("HARDENED", ui[i:i + 90],
+                      "the heart's river map tests only for 'OPEN', so a HARDENED lock draws a "
+                      "CLOSED padlock")
+
+    def test_the_server_tally_counts_hardened_as_open_and_reports_it_separately(self):
+        """BEHAVIOURAL: feed a HARDENED lock through the real function and read the numbers."""
+        import control_app as C
+        import self_arming as SA
+        rep = {"ok": True, "why": "",
+               "locks": [{"lock": "a", "state": "HARDENED", "surface": "X", "acts": "x",
+                          "why": "", "n": 9, "k": 9, "wilson": 0.95, "confluence": 2.5},
+                         {"lock": "b", "state": "OPEN", "surface": "X", "acts": "x",
+                          "why": "", "n": 9, "k": 9, "wilson": 0.90, "confluence": 1.8},
+                         {"lock": "c", "state": "UNPROVEN", "surface": "X", "acts": "x",
+                          "why": "", "n": 0, "k": 0, "wilson": 0.0, "confluence": 0.0}],
+               }
+        # ⚠ ROUTES ARE NOT A SEPARATE KEY — _self_arming_state splits ONE `locks` list on
+        # `kind == "route"` (control_app.py:15316-15318). My first fixture invented a top-level
+        # "routes" key and the test failed 0 != 2: the INSTRUMENT, not the code. Reading the
+        # function was one command. [[feedback-suspect-the-instrument]]
+        rep["locks"] += [
+            {"lock": "r1", "kind": "route", "state": "HARDENED", "surface": "X", "acts": "x",
+             "why": "", "n": 9, "k": 9, "wilson": 0.95, "confluence": 2.5},
+            {"lock": "r2", "kind": "route", "state": "OPEN", "surface": "X", "acts": "x",
+             "why": "", "n": 9, "k": 9, "wilson": 0.90, "confluence": 1.8},
+        ]
+        was = SA.report
+        try:
+            SA.report = lambda *a, **k: rep
+            got = C._self_arming_state()
+        finally:
+            SA.report = was
+        self.assertEqual(got["open"], 2,
+                         "a HARDENED lock must count as open — self_arming.report() counts "
+                         "OPEN + HARDENED, and two tallies of one quantity must not disagree")
+        self.assertEqual(got["hardened"], 1)
+        self.assertEqual(got["routesProven"], 2)
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2567",
+  "ver": "v2569",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2567: ",
+  "note": "v2569: the HARDENED tier existed in one module and had zero consumers on any surface",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
