@@ -125,9 +125,18 @@ def _sources():
         import printer_reach as PR
         out["reach"], w = _safe(PR.report)
         if w:
+            # ⚠ KEYED, NOT FISHED OUT OF THE LIST. My first attempt at REG-576 filtered `whys` for
+            # the substring "printer_reach" — and `_safe` names the FUNCTION ("report would not
+            # answer (...)"), never the module, so the filter matched nothing and fell through to a
+            # generic sentence while the real reason sat in the list beside it. That is the very
+            # defect this fix exists to close, reintroduced inside the fix. Keep the owner's reason
+            # under the owner's key so no substring has to be guessed.
+            out["reachWhy"] = w
             whys.append(w)
     except Exception as e:
-        whys.append("printer_reach would not import (%s)" % str(e)[:60])
+        _w = "printer_reach would not import (%s)" % str(e)[:60]
+        out["reachWhy"] = _w
+        whys.append(_w)
     return out, whys
 
 
@@ -192,6 +201,21 @@ def stream(reel=None):
 
     reach = src.get("reach") or {}
     reach_state = reach.get("state") or "UNKNOWN"
+    # ⚠⚠ REG-576 — UNKNOWN WITH NO REASON, IN THE STATION WHOSE JOB IS REFUSING TO INVENT ONE.
+    # `_sources()` already CATCHES an owner that raises and already WRITES DOWN why, into `whys`.
+    # Nothing ever handed that sentence to the station. So with printer_reach raising, `shelfWhy`
+    # rendered as "printer_reach, about SEALS not reels: " — a label, a colon, and nothing.
+    # Reproduced on his real shelf across all 40 reels. The reason was measured and discarded one
+    # line from where it was needed. [[the-unjoined-end]]
+    #
+    # ⚠ AND THE STATE ITSELF WAS ALREADY RIGHT — `shelfReach` correctly reads UNKNOWN when the
+    # owner will not answer, so nothing was ever permissive. This fixes what UNKNOWN *says*, not
+    # what it decides. An UNKNOWN nobody can act on is still worth naming: it is the difference
+    # between "we asked and could not tell" and a blank a reader fills in themselves.
+    reach_why = str(reach.get("why") or "") or str(src.get("reachWhy") or "")
+    if not reach_why:
+        reach_why = ("printer_reach reported no state and gave no reason, so nothing is "
+                     "established about the shelf")
     names = sorted(set(river) | set(doors) | set(routes))
     rows, counts = [], {}
     for name in names:
@@ -292,7 +316,7 @@ def stream(reel=None):
                                               "scenarioWhy": "scenarioWhy"})
         stations["extract"]["shelfReach"] = reach_state
         stations["extract"]["shelfWhy"] = ("printer_reach, about SEALS not reels: %s"
-                                           % str(reach.get("why") or "")[:140])
+                                           % reach_why[:140])
 
         # ⚠⚠ BOTH DOORS, NEITHER CHOSEN. See the module docstring.
         if rv is None:

@@ -252,10 +252,55 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
 
     def test_the_EXTRACT_station_says_it_is_a_SHELF_fact_not_a_per_reel_one(self):
         """⚠ printer_reach measured ONE answer about the whole corpus. Printing it on each row
-        without saying so would invent forty per-reel measurements nobody took."""
+        without saying so would invent forty per-reel measurements nobody took.
+
+        ⚠⚠ THIS PINNED THE WORD "SHELF-WIDE" IN `why`, AND v2572 MOVED THE FACT. The station's
+        `why`/`say` now carry `extract_gap`'s PER-REEL answer, and printer_reach's shelf-wide one
+        rides alongside in `shelfReach`/`shelfWhy` — a better design, and this assertion went red
+        for it and stayed red on `main`. **The rule survives the move; the word did not.** So it
+        pins the RULE: the shelf-wide answer must be present, must be labelled as being about
+        SEALS rather than reels, and must be in a DIFFERENT field from the per-reel answer — which
+        is the whole point, since one field holding both is how they got confused before.
+        """
         for row in P.stream()["rows"][:3]:
-            self.assertIn("SHELF-WIDE", row["stations"]["extract"]["why"],
-                          "a shelf-wide state is printed per reel with nothing saying so")
+            ex = row["stations"]["extract"]
+            self.assertIn("shelfReach", ex, "the shelf-wide answer is not carried at all")
+            self.assertIn("SEALS", ex.get("shelfWhy") or "",
+                          "the shelf-wide answer is printed per reel with nothing saying it is "
+                          "about seals rather than about this reel")
+            self.assertNotEqual(
+                ex.get("shelfWhy"), ex.get("why"),
+                "the per-reel answer and the shelf-wide answer are the same string, so a reader "
+                "cannot tell which of the two questions was answered")
+
+    def test_an_EXTRACT_station_whose_owner_will_not_ANSWER_still_gives_a_REASON(self):
+        """⚠⚠ REG-576 — UNKNOWN WITH NO REASON, in the station whose job is refusing to invent one.
+        `_sources()` already CATCHES an owner that raises and already WRITES DOWN why. Nothing
+        handed that sentence to the station, so with printer_reach raising `shelfWhy` rendered as
+        *"printer_reach, about SEALS not reels: "* — a label, a colon, and nothing. Reproduced
+        across all 40 of his reels. [[the-unjoined-end]]
+
+        ⚠ The STATE was already correct — `shelfReach` reads UNKNOWN and was never permissive — so
+        this is about what UNKNOWN SAYS, not what it decides. A blank reason is one a reader fills
+        in themselves."""
+        import printer_reach as PR
+        real = PR.report
+        PR.report = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("reach is unmeasurable"))
+        try:
+            rows = P.stream()["rows"]
+        finally:
+            PR.report = real
+        self.assertTrue(rows, "no reel was walked, so nothing was established")
+        for row in rows[:3]:
+            ex = row["stations"]["extract"]
+            self.assertEqual(ex.get("shelfReach"), "UNKNOWN",
+                             "the owner raised and the shelf answer was not UNKNOWN")
+            tail = str(ex.get("shelfWhy") or "").split(":", 1)[-1].strip()
+            self.assertTrue(tail, "UNKNOWN was reported with an EMPTY reason: %r"
+                                  % ex.get("shelfWhy"))
+            self.assertIn("unmeasurable", tail,
+                          "the reason given is not the one the owner actually gave, so a generic "
+                          "sentence stood in for the real failure: %r" % tail)
 
     def test_it_refuses_nothing_and_deletes_nothing(self):
         """⚠ The prune stays OFF. This routes a reel ON PAPER and says where it came out."""

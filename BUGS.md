@@ -7,6 +7,48 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-576 — a harness that pinned a field name, and under it an UNKNOWN with a blank reason
+**2026-09-04 · v2595 · found by running the 30-gate set the pre-push hook does not run**
+
+Two of the eight red gates were the same station: `printer_wilson`'s `reachraises` axis reporting
+**`0/40 LEAKS`**, and `test_printer` failing on `'SHELF-WIDE' not found`.
+
+**NEITHER WAS A LEAK.** `printer_wilson` asserted on `extract.say`, and **v2572 moved what that axis
+is about**: `say`/`why` now carry `extract_gap`'s PER-REEL answer, while printer_reach's shelf-wide
+one rides alongside in `shelfReach`. Reproduced with printer_reach raising: **`shelfReach` is
+UNKNOWN on all 40 reels.** Nothing was ever permissive. A correct restructuring scored zero and
+dragged `printer.stream` from **83/83 to 43/83**.
+
+⚠ **A HARNESS THAT PINS A FIELD NAME GOES RED WHEN THE MODULE IMPROVES, AND A RED NOBODY CAN
+EXPLAIN GETS EXPLAINED AWAY.** This file had already learned it once — `_stations()` QUOTES
+`printer.STATIONS` instead of copying it, with a comment saying why — and the lesson never reached
+the axis bodies. [[copy-drift]] §1
+
+⚠⚠ **AND CHASING THE FIELD WOULD HAVE MISSED THE REAL DEFECT UNDER IT.** While `shelfReach` was
+correctly UNKNOWN, `shelfWhy` rendered as **`"printer_reach, about SEALS not reels: "`** — a label,
+a colon, and nothing. `_sources()` **catches** the owner that raises and **writes down why**; nobody
+ever handed that sentence to the station. The reason was measured and discarded one line from where
+it was needed, on all 40 reels. [[the-unjoined-end]] The state was already right, so this fixes what
+UNKNOWN *says*, never what it decides — a blank reason is one the reader fills in themselves.
+
+⚠ **MY FIRST FIX REINTRODUCED THE DEFECT INSIDE THE FIX.** It filtered the flat `whys` list for the
+substring `"printer_reach"` — and `_safe` names the **function** (`"report would not answer (...)"`),
+never the module. It matched nothing, fell through to a generic sentence, and would have shipped
+looking correct. The reason is now keyed to its owner (`out["reachWhy"]`), so no substring has to be
+guessed.
+
+**Guards.** `test_printer` pinned the literal word `SHELF-WIDE`, which v2572 also moved; it now pins
+the **rule** — the shelf answer must exist, be labelled as about SEALS rather than reels, and live in
+a DIFFERENT field from the per-reel answer. A new test proves the reason arrives, **seen RED for its
+own reason**: with the join removed it fails `'unmeasurable' not found in 'printer_reach reported no
+state and gave no reason…'` — *a generic sentence stood in for the real failure.*
+
+⚠ **SAID PLAINLY: the `printer_wilson` axis check is COARSE.** It requires the state to be UNKNOWN
+and the reason non-blank, and it **cannot tell the owner's real reason from the fallback** — removing
+the join left it PROVEN 83/83, which is how I found out it was inert. The precise check lives in
+`test_printer`. Two guards, one strong and one weak, and the weak one is labelled weak rather than
+counted as a second proof.
+
 ### REG-575 — a read-side validator that rejected rows its own module writes, and a registered gate that was red on main for it
 **2026-09-04 · v2594 · found while baselining a suite I assumed I had broken**
 

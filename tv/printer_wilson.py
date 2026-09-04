@@ -162,15 +162,42 @@ def _attempt_strangerreel(P):
 
 
 def _attempt_reachraises(P):
-    """printer_reach raises. EXTRACT must be UNKNOWN — never permissive."""
+    """printer_reach raises. Its answer must be UNKNOWN **and must say why** — never permissive,
+    never blank.
+
+    ⚠⚠ THIS AXIS READ THE WRONG FIELD FOR TWENTY-TWO VERSIONS AND REPORTED A LEAK THAT WAS NOT
+    THERE. It asserted on `extract.say`, and **v2572 moved what this axis is about**: `say`/`why`
+    now carry `extract_gap`'s PER-REEL answer, and printer_reach's shelf-wide one rides alongside
+    in `shelfReach`. So a correct restructuring made this read `RECOVERABLE` and score
+    **0 of 40 refused — LEAKS**, dragging `printer.stream` from 83/83 to 43/83. Measured: with
+    printer_reach raising, `shelfReach` **is** UNKNOWN on all 40 reels. Nothing was ever permissive.
+
+    ⚠ A HARNESS THAT PINS A FIELD NAME GOES RED WHEN THE MODULE IMPROVES, and a red nobody can
+    explain gets explained away. This file already learned that once — `_stations()` QUOTES
+    `printer.STATIONS` rather than copying it, with a comment saying why — and the same lesson had
+    not reached the axis bodies. [[copy-drift]] §1
+
+    ⚠⚠ AND CHASING THE FIELD WOULD HAVE MISSED THE REAL DEFECT SITTING UNDER IT. While `shelfReach`
+    was correctly UNKNOWN, `shelfWhy` rendered as *"printer_reach, about SEALS not reels: "* —
+    label, colon, nothing. `_sources()` had CAUGHT the failure and WRITTEN DOWN why, and no one
+    handed that sentence to the station (REG-576). So this axis now demands BOTH: the state is
+    UNKNOWN, **and** it names what happened. An UNKNOWN with a blank reason is a reader filling in
+    the blank themselves.
+    """
     import printer_reach as PR
     with _Patch(PR, "report", _boom):
         r = P.stream()
     rows = r.get("rows") or []
     if not rows:
         return 1, (1 if r.get("state") == "UNKNOWN" else 0)
-    ok = [x for x in rows if str(x["stations"]["extract"].get("say")).upper()
-          in ("UNKNOWN", "UNREACHABLE")]
+    ok = []
+    for x in rows:
+        ex = x["stations"]["extract"]
+        state_ok = str(ex.get("shelfReach")).upper() in ("UNKNOWN", "UNREACHABLE")
+        # the reason is whatever follows the station's own label; blank is a refusal to explain
+        said = str(ex.get("shelfWhy") or "").split(":", 1)[-1].strip()
+        if state_ok and said:
+            ok.append(x)
     return len(rows), len(ok)
 
 

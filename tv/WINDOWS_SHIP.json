@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2594",
+  "ver": "v2595",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2594: REG-575 - v2581 wrote _row_fault against bank() shape alone. record() the single-attempt writer emits lock kind refused ts with no src and no n k so every row it ever wrote was judged unbankable and one bad row fails the whole read by design - a single record() call would have turned all fifteen locks UNKNOWN. Measured record() has ZERO production callers and his ledger holds 51 bank rows and 0 record rows so it never fired on his console BUT test_self_arming a registered gate went red at v2581 and stayed red because the pre-push hook runs three gates not thirty. It now judges a row against the shape it declares. Also corrects a test of mine that asserted the bug as the contract and one that pinned a prerequisite NAME that v2570 moved - it pins his ORDER now. Plus hardeningGap - 14 locks OPEN 0 HARDENED and not one said why.",
+  "note": "v2595: REG-576. printer_wilson reachraises read extract.say and v2572 moved that answer to shelfReach so a correct restructuring scored 0 of 40 LEAKS and dragged printer.stream from 83 of 83 to 43 of 83. Measured - shelfReach IS UNKNOWN on all 40 reels, nothing was ever permissive. Under it sat a real defect - shelfWhy rendered as label colon nothing because _sources CAUGHT the failure and WROTE DOWN why and nobody handed that sentence to the station. Joined by keying the reason to its owner. My first attempt filtered the flat whys list for the substring printer_reach and _safe names the FUNCTION not the module so it matched nothing and fell through to a generic sentence - the same defect reintroduced inside the fix. test_printer pinned the word SHELF-WIDE which v2572 also moved so it now pins the RULE. The precise guard is seen RED for its own reason - the axis check is COARSE and cannot tell the real reason from the fallback, said plainly rather than claimed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
