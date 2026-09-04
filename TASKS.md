@@ -141,6 +141,22 @@ in those words.
 - **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
   not write an anchor that matches the wrong occurrence.
 
+- ~~**THE SWALLOW CENSUS IS A VENDORED FILE.**~~ ✅ **CLOSED by his ruling, v2600** — *"remove
+  kai-achilles achilles-revival surgically… if it's not needed just don't put it in."* `COPIES = ()`,
+  neither sibling is named here, nothing inside either sibling repo was touched, and the emptiness
+  is DECLARED (a test asserts the source says `COPIES = ()`) so an accident and a decision cannot
+  look the same. The per-file map is back: a red now prints `WHERE IT ROSE` with file and delta.
+
+- **⚠⚠ THE CONSOLE WENT BLANK WHILE REPORTING ITSELF HEALTHY, AND THE RESCUE DID NOT CURE IT.**
+  Caught live 2026-09-04 by `tv/paint_witness.py` (v2601) while building it: blank white, only the
+  titlebar drawn, while the page reported `blankStrikes 0` and 11,841 DOM elements. The watchdog
+  FIRED correctly (`rescues: 1`) and the window stayed blank, `frozenBeats` climbing 29 → 38.
+  **Detection works; the cure does not.** `rescue_worked()` now records
+  `console-rescue-did-not-restore-painting` instead of counting a success — it does not retry and
+  does not escalate. **OWED, AND HIS:** reloading the document is the wrong cure for a compositor
+  that has stopped presenting frames; RECREATING the window is the right one, and that is a design
+  decision, named rather than taken.
+
 - **⚠ THE SWALLOW CENSUS IS A VENDORED FILE, AND IMPROVING IT NEEDS HIS CALL.** 2026-09-04: the
   per-file rank-1 map (REG-579) was written, proven, and then **reverted before it shipped** because
   `tv/swallow_census.py` has live byte-copies in `kai-achilles` and `achilles-revival`, each stamped
