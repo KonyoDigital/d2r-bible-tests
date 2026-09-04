@@ -7,6 +7,34 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-611 — half the census could not report whether it was alive
+
+**v2630, and it closes A11's remainder without the risk A11 was avoiding.**
+
+A11 said six SUPERVISORS are watched by nothing, and that registering them means moving thread
+starts into `start_background_watchers` — *"a bigger risk than the reading, so it is named rather
+than done."* **It never needed that.** The heart's own text about a DARK supervisor already said
+what was missing: *"answering it needs a different mechanism (a peer, a heartbeat file, a second
+process), not the watcher the other DARK rows are waiting for."* A liveness stamp read by the heart
+IS that mechanism, and it changes no thread start at all.
+
+⚠⚠ **MEASURED, AND IT WAS HALF DONE — WHICH IS THE WORSE STATE.** v2621 wired 14 loops, and three
+of the six supervisors stamped (`_console_rescue_loop`, `_mini_watchdog`, `_console_beacon_loop`)
+while three did not (`_bridge_prober`, `_orphan_exit_loop`, and the two ordinary work loops
+`_engine_driver`, `_kai_closer_loop`). **Wiring half a census is how the unwired half becomes the
+one nobody notices** — the same shape as stopping at five of six harnesses in REG-598 two versions
+earlier, and I did it again.
+
+All four are wired now. ⚠ `_engine_driver` and `_kai_closer_loop` declare **no fixed period** —
+their sleeps vary — so they report `UNTIMED`: age known, staleness not decidable. A third answer,
+not a soft version of either other one.
+
+**Guard:** `TestV2630EveryVesselTheCensusNamesCanStamp` — 3 cases, RED-proven by unwiring one
+supervisor. ⚠ **It asks the CENSUS for the list, never a list typed in the test**, so a loop added
+later is covered the day it appears rather than the day someone remembers. `_orphan_watch` is
+exempt and NAMED — the census names it but it is not a function in `control_app` — and the
+exemption is itself checked, so if it ever appears it owes a stamp like everything else.
+
 ### NOT-A-BUG — "Nagelring is partially cut off" was refuted, and my instrument was wrong twice getting there
 
 **Measured 2026-09-04, recorded because a refuted finding is worth as much as a confirmed one and

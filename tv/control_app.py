@@ -2393,6 +2393,7 @@ def _bridge_prober():
     while True:
         try:
             now = time.time()
+            _lane_tick('_bridge_prober', None)
             # v1435 — prefer single /state; fall back to ping-only keepalive
             st_new = _bridge_state()
             if st_new is not None:
@@ -4902,6 +4903,7 @@ def _orphan_exit_loop():
         return                      # nobody claimed us, or we ARE his console: never self-exit
     while True:
         time.sleep(5)
+        _lane_tick('_orphan_exit_loop', 5)
         try:
             os.kill(ppid, 0)        # signal 0 = existence check only, delivers nothing
         except ProcessLookupError:
@@ -8981,6 +8983,7 @@ def _kai_closer_loop():
     while True:
         try:
             time.sleep(30.0)
+            _lane_tick('_kai_closer_loop', None)
             if not os.path.isdir(hist):
                 continue
             # v937.3 (Grok gate #1/#2) — KAI works ONLY between sessions: closing a reel
@@ -10300,6 +10303,7 @@ def _engine_driver():
     while True:
         try:
             time.sleep(2.0)
+            _lane_tick('_engine_driver', None)
             # v1410 — window ✕: exit cleanly. Never evaluate_js a dead WKWebView (hang class).
             if not globals().get("_WINDOW_LIVE"):
                 print("🔌 engine driver stop — window gone (✕)", flush=True)
@@ -22803,7 +22807,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2629",
+        "ver": "v2630",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

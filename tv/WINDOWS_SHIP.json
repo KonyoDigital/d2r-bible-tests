@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2629",
+  "ver": "v2630",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2629: REG-470 closed as contained - one_name already joins the two route spellings and renaming would orphan banked evidence, so the guard stops a third spelling instead. Its own sabotage found an or-fallback that made every misspelling pass.",
+  "note": "v2630: REG-611 - three of the six supervisors stamped and three did not, so the unwired half was the one nobody would notice. All four wired. The guard asks the census for its list rather than a typed one.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

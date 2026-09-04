@@ -41983,5 +41983,82 @@ class TestV2628RoutesMayNotPaintOverLabels(unittest.TestCase):
 
 
 
+class TestV2630EveryVesselTheCensusNamesCanStamp(unittest.TestCase):
+    """★ A11's remainder, closed the cheap way. The task said six SUPERVISORS are watched by
+    nothing, and that registering them means moving thread starts into `start_background_watchers`
+    — *"a bigger risk than the reading, so it is named rather than done"*.
+
+    It never needed that. The heart's own words about a DARK supervisor already said what was
+    missing: *"answering it needs a different mechanism (a peer, a heartbeat file, a second
+    process), not the watcher the other DARK rows are waiting for."* **A liveness stamp read by the
+    heart IS that mechanism**, and it changes no thread start at all.
+
+    ⚠ MEASURED before this: three of the six stamped (`_console_rescue_loop`, `_mini_watchdog`,
+    `_console_beacon_loop`) and three did not (`_bridge_prober`, `_orphan_exit_loop`, plus the two
+    ordinary work loops `_engine_driver` and `_kai_closer_loop`). **Wiring half a census is how the
+    unwired half becomes the one nobody notices** — the same shape as stopping at five of six
+    harnesses two versions ago.
+    """
+
+    #: `_orphan_watch` is named by the census and is NOT a function in control_app — it is listed
+    #: here so its absence is a stated fact rather than a silent gap in the sweep.
+    NOT_IN_THIS_MODULE = {"_orphan_watch", "serve_forever", "wait"}
+
+    def _loops(self):
+        """Every vessel the census names, from the census — never a list typed here."""
+        import heart
+        rows = heart.vessels().get("vessels") or []
+        return sorted({str(r.get("name")) for r in rows if r.get("name")})
+
+    def test_every_named_loop_that_lives_here_stamps_its_own_tick(self):
+        import inspect
+        import control_app as ca
+        missing = []
+        for name in self._loops():
+            if name in self.NOT_IN_THIS_MODULE:
+                continue
+            fn = getattr(ca, name, None)
+            if fn is None or not callable(fn):
+                continue                      # not this module's to answer for
+            try:
+                src = inspect.getsource(fn)
+            except Exception:
+                continue
+            if "_lane_tick" not in src:
+                missing.append(name)
+        self.assertEqual(missing, [],
+                         "the census names these loops and they never stamp, so nothing can tell "
+                         "a live one from a dead one: %s" % ", ".join(missing))
+
+    def test_the_exemptions_are_NAMED_and_still_true(self):
+        """⚠ An exemption nobody re-checks is where the next gap hides. `_orphan_watch` must still
+        be absent from this module; if it appears, it owes a stamp like everything else."""
+        import control_app as ca
+        self.assertIsNone(getattr(ca, "_orphan_watch", None),
+                          "_orphan_watch now exists in control_app and must stamp like the rest")
+
+    def test_the_six_SUPERVISORS_are_covered(self):
+        """★ The ones A11 is actually about — the loops with no watcher at all, where a stamp is
+        the only thing that can ever answer 'is it alive'."""
+        import inspect
+        import control_app as ca
+        import heart
+        rows = heart.vessels().get("vessels") or []
+        sups = [str(r.get("name")) for r in rows if r.get("supervises")]
+        self.assertTrue(sups, "the census reports no supervisors at all — has it changed shape?")
+        unwired = []
+        for name in sups:
+            fn = getattr(ca, name, None)
+            if fn is None:
+                continue
+            if "_lane_tick" not in inspect.getsource(fn):
+                unwired.append(name)
+        self.assertEqual(unwired, [],
+                         "these supervisors are watched by nothing AND stamp nothing, so their "
+                         "death is undetectable: %s" % ", ".join(unwired))
+
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
