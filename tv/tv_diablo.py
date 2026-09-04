@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2599"   # two stale guards, and a diagnostic that fabricated the code it was quoting
+VERSION = "v2600"   # two unrelated repos could block a d2r ship, and now cannot
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

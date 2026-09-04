@@ -1,11 +1,38 @@
 {
   "_why": "RANK 1 is a ratchet: it may fall, never rise. Regenerate with swallow_census.py --write-baseline after a DELIBERATE reduction, and name the sites you fixed in the commit.",
   "counts": {
-    "handlers": 1713,
-    "ok": 233,
+    "handlers": 2116,
+    "ok": 259,
     "rank1": 74,
-    "rank2": 699,
-    "rank3": 707,
+    "rank2": 819,
+    "rank3": 964,
     "unparsed": 0
+  },
+  "rank1ByFile": {
+    "art/verify_boss_portraits.py": 1,
+    "tv/blueprint.py": 1,
+    "tv/chronicle_retro.py": 3,
+    "tv/confidence.py": 1,
+    "tv/conftest.py": 1,
+    "tv/control_app.py": 34,
+    "tv/g5_grok_eyes.py": 3,
+    "tv/main_character.py": 1,
+    "tv/orphan_fold.py": 1,
+    "tv/reel_repair.py": 1,
+    "tv/reel_segments.py": 1,
+    "tv/reel_story.py": 1,
+    "tv/retro_gate.py": 1,
+    "tv/review_lite.py": 1,
+    "tv/second_eye_ledger.py": 1,
+    "tv/ship_audit.py": 1,
+    "tv/soak_test.py": 1,
+    "tv/space_warden.py": 1,
+    "tv/test_agent.py": 1,
+    "tv/test_button_matrix.py": 1,
+    "tv/test_control.py": 1,
+    "tv/test_roundtrip_sim.py": 1,
+    "tv/tooltip_find.py": 2,
+    "tv/tv_diablo.py": 12,
+    "tv/vault_retro.py": 1
   }
 }

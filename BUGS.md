@@ -7,6 +7,37 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-581 — two unrelated repos could block a D2R ship, and now cannot
+**2026-09-04 · v2600 · his ruling**
+
+> *"remove kai-achilles achilles-revival surgically remove those completely they are not related to
+> the diablo ii repo… and if it's not needed just don't put it in."*
+
+`TestV2387TheVendoredCensusHasNotDRIFTED` held `tv/swallow_census.py` in lockstep with stamped
+byte-copies at `kai-achilles/tools/` and `achilles-revival/tools/`. On 2026-09-04 that coupling
+**blocked a D2R push**: an improvement to the census here was refused because two unrelated repos
+carried a copy of it, and the file had to be reverted to unblock the ship. **A gate in this repo
+that fails for a file in another repo is a cost this repo did not choose.**
+
+`COPIES` is now empty and this repo names neither sibling. **Nothing inside either sibling repo was
+touched** — their copies are untouched and simply no longer D2R's business.
+
+⚠ **AN EMPTY LIST MUST NOT PASS QUIETLY**, which is the failure this whole file is about. A repo
+list that silently stops matching looks exactly like one that matches and finds everything clean.
+So the emptiness is a DECLARATION, and `test_the_guard_is_honestly_empty` asserts the source really
+says `COPIES = ()` — an accident and a decision must not look the same. [[unknown-stays-unknown]]
+
+✅ **AND WITH THE COUPLING GONE, THE PER-FILE MAP IS BACK** (the REG-579 work that had to be
+reverted). A red now prints **WHERE IT ROSE** with the file and the delta. Proven by doctoring a
+baseline and watching it name the file:
+
+    🔴 2 NEW site(s) …
+       WHERE IT ROSE:
+         tv/control_app.py    32 -> 34  (+2)
+
+The baseline was rewritten WITH the map across 25 files and the count **unchanged at 74**, so
+nothing was adopted — the addresses were added, the number was not moved.
+
 ### REG-580 — a diagnostic that fabricated the code it was quoting, and two guards pinned to a phrase
 **2026-09-04 · v2599 · the sixth and seventh of the eight red gates**
 

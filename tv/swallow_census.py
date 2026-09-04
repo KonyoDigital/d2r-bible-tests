@@ -274,6 +274,28 @@ def _baseline_path(root=None):
     return os.path.join(root or REPO, BASELINE_REL)
 
 
+def _rank1_by_file(out):
+    """RANK 1 sites per file. -> {relpath: count}
+
+    ⚠⚠ REG-579 — THE RATCHET COUNTED AND COULD NOT NAME. The baseline stored ONE integer, so a
+    red said *"4 NEW site(s)"* and nothing else: no file, no direction, no way to tell a real
+    regression from a refactor that moved handlers around. The only cheap way to clear it was
+    `--write-baseline`, which **adopts the new sites as the new normal** — the identical shape
+    REG-568 found in the render coverage ratchet one file over, where a bless could write the
+    floor DOWN. A ratchet whose red is unactionable trains its reader to re-baseline.
+
+    ⚠ PER FILE, NOT PER LINE, ON PURPOSE. A line number moves whenever anything above it is
+    edited, so a line-keyed baseline would report new sites on every ordinary commit and be
+    re-baselined into meaninglessness within a week. The file is the smallest identity that
+    survives an edit, and it is enough to send a reader to the right place.
+    """
+    by = {}
+    for r in out["rows"]:
+        if r["rank"] == 1:
+            by[r["file"]] = by.get(r["file"], 0) + 1
+    return by
+
+
 def _counts(out):
     b = {0: 0, 1: 0, 2: 0, 3: 0}
     for r in out["rows"]:
@@ -284,14 +306,16 @@ def _counts(out):
 
 def write_baseline(root=None):
     import json
-    c = _counts(scan(root))
+    _scanned = scan(root)
+    c = _counts(_scanned)
     p = _baseline_path(root)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with io.open(p, "w", encoding="utf-8") as fh:
         json.dump({"_why": "RANK 1 is a ratchet: it may fall, never rise. Regenerate with "
                            "swallow_census.py --write-baseline after a DELIBERATE reduction, and "
                            "name the sites you fixed in the commit.",
-                   "counts": c}, fh, indent=2, sort_keys=True)
+                   "counts": c,
+                   "rank1ByFile": _rank1_by_file(_scanned)}, fh, indent=2, sort_keys=True)
         fh.write("\n")
     print("wrote %s" % p)
     print("  rank1=%(rank1)d rank2=%(rank2)d rank3=%(rank3)d ok=%(ok)d handlers=%(handlers)d" % c)
@@ -302,7 +326,8 @@ def check(root=None):
     """Fail ONLY when rank 1 grew. -> exit code."""
     import json
     p = _baseline_path(root)
-    now = _counts(scan(root))
+    _scan_now = scan(root)
+    now = _counts(_scan_now)
     try:
         with io.open(p, encoding="utf-8") as fh:
             was = (json.load(fh) or {}).get("counts") or {}
@@ -328,6 +353,8 @@ def check(root=None):
         return 1
 
     b_now, b_was = now["rank1"], was["rank1"]
+    _now_by = _rank1_by_file(_scan_now)
+    _was_by = (json.load(io.open(p, encoding="utf-8")) or {}).get("rank1ByFile")
     u_now, u_was = now.get("unparsed", 0), int(was.get("unparsed", 0) or 0)
     print("swallow ratchet — RANK 1 (a failed read handed back as DATA)")
     print("   baseline %d   now %d" % (b_was, b_now))
@@ -352,6 +379,33 @@ def check(root=None):
         print("   A caller cannot tell that from a real measurement. Either make the failure")
         print("   report UNKNOWN, or — if the caller genuinely treats the default as failure —")
         print("   say so in a comment AT THE SITE and lower the baseline deliberately.")
+        # ⚠⚠ REG-579 — SAY WHERE. Until now this printed a number and stopped, so the only cheap
+        # way to clear a red was to re-baseline, which adopts the new sites. Name the files.
+        if not isinstance(_was_by, dict):
+            print()
+            print("   ⚠ WHICH FILES ROSE IS UNKNOWN — this baseline predates the per-file map and")
+            print("     records only a total. That is NOT 'no file rose': nobody can tell. Run")
+            print("     --write-baseline in a commit that states what changed, and the next red")
+            print("     will name the files.")
+        else:
+            rose = sorted(((f, n, int(_was_by.get(f, 0)))
+                           for f, n in _now_by.items() if n > int(_was_by.get(f, 0))),
+                          key=lambda t: (t[2] - t[1], t[0]))
+            fell = sorted(((f, int(_was_by.get(f, 0)), _now_by.get(f, 0))
+                           for f in _was_by if _now_by.get(f, 0) < int(_was_by.get(f, 0))))
+            print()
+            if rose:
+                print("   WHERE IT ROSE:")
+                for f, n, w in rose:
+                    print("     %-44s %d -> %d  (+%d)" % (f, w, n, n - w))
+            else:
+                print("   ⚠ NO FILE ROSE, yet the total did. That means sites moved between files,")
+                print("     or a file appeared that the baseline never had — read the two lists.")
+            if fell:
+                print("   and it FELL in %d file(s), so the total understates both movements:"
+                      % len(fell))
+                for f, w, n in fell[:8]:
+                    print("     %-44s %d -> %d" % (f, w, n))
         return 1
 
     # ⚠ v2389 — A DROP FAILS TOO, AND THAT IS THE POINT. The count can fall with nobody fixing

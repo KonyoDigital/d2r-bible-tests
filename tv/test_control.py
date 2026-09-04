@@ -38044,18 +38044,27 @@ class TestV2387TheVendoredCensusHasNotDRIFTED(unittest.TestCase):
     thing that can fail. A copy is a copy and this project has been bitten by silent divergence,
     so each copy carries the upstream digest and this guard re-checks it. [[copy-drift]]
 
-    ⚠⚠ NOT YET, BY HIS DECISION. The census, the ratchet and the CI workflow WERE built and
-    proven in kai-achilles (34) and achilles-revival (149) on 2026-09-01, and then BACKED OUT
-    UNTOUCHED at his word: "dont fix the other repo though.. that for a later day in the future
-    after we perfect diablo first repos". This guard therefore reports them SKIPPED today, and
-    that is the correct answer — not a gap to close. Do not helpfully re-vendor them.
+    ⚠⚠ HIS RULING, 2026-09-04: *"remove kai-achilles achilles-revival surgically remove those
+    completely they are not related to the diablo ii repo… and if it's not needed just don't put
+    it in."* So this repo no longer names them, and `COPIES` is empty.
 
-    ⚠ A SIBLING REPO NOT PRESENT IS SKIPPED, AND THE SKIP IS SAID OUT LOUD. A guard that quietly
-    passes when it checked nothing is the failure this whole session has been about."""
+    THE HISTORY, kept because it explains an empty tuple that would otherwise look like a bug: the
+    census and ratchet were built in those two repos on 2026-09-01, and this guard held the D2R
+    source and their vendored copies in lockstep. On 2026-09-04 that coupling BLOCKED A D2R PUSH —
+    an improvement to `swallow_census.py` here was refused because two unrelated repos carried a
+    stamped byte-copy of it — and the file had to be reverted to unblock the ship. **A gate in this
+    repo that fails for a file in another repo is a cost this repo did not choose.** The copies
+    over there are untouched; they are simply no longer this repo's business.
+
+    ⚠ AND AN EMPTY LIST MUST NOT PASS QUIETLY. That is the failure this whole file is about, so
+    `test_the_guard_is_honestly_empty` below asserts the emptiness is DECLARED rather than the
+    result of a repo list that silently stopped matching anything."""
 
     UPSTREAM = "swallow_census.py"
-    COPIES = (("kai-achilles", "tools/swallow_census.py"),
-              ("achilles-revival", "tools/swallow_census.py"))
+    #: Deliberately EMPTY — his ruling above. Nothing outside this repo vendors this file as far
+    #: as D2R is concerned, so there is nothing to hold in lockstep and no other repo can block a
+    #: ship here. Adding a row is what re-couples them, and it should be a decision, not a drift.
+    COPIES = ()
 
     def _digest(self, text):
         import hashlib
@@ -38103,9 +38112,28 @@ class TestV2387TheVendoredCensusHasNotDRIFTED(unittest.TestCase):
                   "have not adopted the census yet (deferred 2026-09-01: perfect Diablo first). "
                   "UNVERIFIED, not verified-clean."
                   % (checked or "nothing", ", ".join(absent)))
-        self.assertTrue(checked or absent,
-                        "the guard checked nothing and found nothing to skip — its repo list is "
-                        "wrong, and it would pass forever")
+        # ⚠ WITH COPIES EMPTY THIS IS VACUOUSLY TRUE, AND THAT IS THE POINT OF THE TEST BELOW.
+        # An empty list is now a DECLARED state rather than a list that quietly stopped matching,
+        # so the old "it would pass forever" assertion is asserted about the declaration instead.
+        if self.COPIES:
+            self.assertTrue(checked or absent,
+                            "the guard names copies but checked none and skipped none — its repo "
+                            "list is wrong, and it would pass forever")
+
+    def test_the_guard_is_honestly_empty(self):
+        """⚠⚠ AN EMPTY GUARD MUST SAY IT IS EMPTY. A repo list that silently stops matching looks
+        exactly like a list that matches and finds everything clean — the failure this whole file
+        exists to name. So the emptiness is asserted as a DECLARATION: if someone adds a copy back,
+        this fails and they have to say so out loud, and if the list rots to nothing by accident it
+        fails too. [[unknown-stays-unknown]]"""
+        if not self.COPIES:
+            src = io.open(os.path.abspath(__file__), encoding="utf-8").read()
+            self.assertIn("COPIES = ()", src,
+                          "COPIES is empty at runtime but the source does not DECLARE it empty — "
+                          "an accident and a decision must not look the same")
+            return
+        for repo, rel in self.COPIES:
+            self.assertTrue(repo and rel, "a copy row must name a repo and a path")
 
     def test_the_ratchet_is_in_the_gate_set(self):
         """A tool nobody runs is a tool that does not exist. It belongs in the SAME gate set as
