@@ -211,6 +211,18 @@ in those words.
   gate red from birth. ⚠ The counts are **debt, not a clean bill** — nobody has read the desktop
   ones — and `overlap_ratchet`'s own unit suite is OWED.
 
+- ⚠⚠⚠ **RETRACTED (REG-594, v2615) — THE CONSOLE WAS NEVER BLANK. IT WAS BEHIND CITRIX.**
+  Measured: `Citrix Viewer` 1289×752 at (108,78), layer 0, frontmost, over the console's 1120×660
+  at (175,148) — **100.0% covered**. WebKit suspends painting on an occluded view by design, so
+  `hidden: true`, `painting: false` and the flat white capture were all CORRECT readings of a
+  healthy console. **I reported it blank repeatedly, said the cure did not cure, relaunched it, and
+  called the recreate-window cure failed too — every one of those was one instrument reading a
+  covered window.** ✅ The REAL defect it uncovered: `contradicts_a_hidden_beat()` treated "listed
+  on screen" as "he can see it", which is why a healthy console was **reloaded 7 times in one day**
+  (`rescues: 7`, `frozenBeats: 367`). Fixed, with `paint_witness` reporting OCCLUDED as a third
+  state. ⚠ **The recreate-window cure named as owed to him is WITHDRAWN — there was nothing to
+  cure.** ORIGINAL, kept:
+
 - **⚠⚠ THE CONSOLE WENT BLANK WHILE REPORTING ITSELF HEALTHY, AND THE RESCUE DID NOT CURE IT.**
   Caught live 2026-09-04 by `tv/paint_witness.py` (v2601) while building it: blank white, only the
   titlebar drawn, while the page reported `blankStrikes 0` and 11,841 DOM elements. The watchdog
