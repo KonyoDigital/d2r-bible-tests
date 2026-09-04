@@ -7,6 +7,31 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### NOT-A-BUG — "Nagelring is partially cut off" was refuted, and my instrument was wrong twice getting there
+
+**Measured 2026-09-04, recorded because a refuted finding is worth as much as a confirmed one and
+this one nearly cost a chase.** A cold cross-family look at the console home reported *"small green
+text under Venom Ward ('Nagelring ~0.5h') is low-contrast and partially cut off"* — at a width the
+render gate calls clean. Either the eye was wrong or the clipping check was, and that contradiction
+is the finding.
+
+**The eye was wrong.** The painted element measures **112×20px, `truncated: false`,
+`clippedBy: null`** — not clipped, not cut off, and the render gate calling that width clean was
+**correct**. What it was right about is contrast: `rgb(199,179,119)` at 15.84px on a dark ground —
+which is the gold accent, a design choice, not a defect.
+
+⚠⚠ **AND MY OWN QUERY WAS WRONG TWICE BEFORE IT GOT THERE, which is the part worth keeping:**
+- **First cut filtered out non-leaf elements** (`if (e.children.length) return`), so it found only a
+  hidden 0×0 copy inside the collapsed chronicle list and reported *"0×0, clipped by home-dash"* —
+  a confident answer about the wrong element.
+- **Second cut printed `out.slice(-6)`**, so the painted element was measured and then discarded
+  before it could be seen. Every row shown was an ancestor.
+
+Both readings looked like evidence of a real clipping bug. **The tell was the contradiction with
+the screenshot** — the eye and I had both plainly SEEN that text — and following the tell rather
+than the readings is what found the truncation in my own instrument.
+[[feedback-suspect-the-instrument]] [[feedback-contradiction-is-the-finding]]
+
 ### REG-470 — closed as CONTAINED, and the measurement argued against the obvious fix
 
 **v2629.** A3 logged that his three route sets disagree — `chronicle.runeword` and
