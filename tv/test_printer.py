@@ -85,6 +85,51 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
             self.assertIn("reelDoor", out, "the reel door's answer is not even reported")
             self.assertIn("frameDoor", out, "the frame door's answer is not even reported")
 
+    def test_a_row_that_names_NO_reel_does_not_become_a_phantom_reel(self):
+        """⚠⚠ REG-550. `_by_reel` keyed on `str(r.get("reel") or "")`, so a malformed row from any
+        owner joined the shelf **under the empty string** and the printer walked it as a reel —
+        every station reporting on nothing, and the shelf one longer than it should be. Found while
+        checking a cold review's claim about EMPTY ROWS; the reviewer named the row, not this."""
+        import one_start_point as OSP
+        real = OSP.start_points
+        try:
+            OSP.start_points = lambda *a, **k: {
+                "ok": True, "state": "ONE_DOOR", "counts": {}, "walked": 2,
+                "rows": [{}, {"reel": "reel_s_1", "door": "recorder", "why": "w"}], "why": "x"}
+            keys = P._by_reel(OSP.start_points())
+            self.assertNotIn("", keys, "a row naming no reel became a reel called '': %s" % keys)
+            self.assertEqual(sorted(keys), ["reel_s_1"], keys)
+        finally:
+            OSP.start_points = real
+
+    def test_a_row_that_CARRIES_NOTHING_says_so_rather_than_never_reported(self):
+        """⚠⚠ THIS TEST WAS WRONG WHEN FIRST WRITTEN AND ITS SABOTAGE CAUGHT IT. It claimed to
+        prove that an EMPTY row (`{}`) is distinguished from an absent one — and the sabotage
+        restoring `if not row:` went GREEN, because the row it builds carries a `reel` key and is
+        therefore not empty.
+
+        Measured after: an empty dict is **UNREACHABLE** from these callers, because `_by_reel`
+        drops every row that names no reel. So the branch exists and is defensive only, labelled
+        as such in the source, with no test — writing one would mean building a caller that cannot
+        exist.
+
+        What IS reachable, and what this now proves: a row that names its reel and carries no
+        VALUE for the field must say *carried no <field>*, not *did not report this reel*.
+        """
+        import reel_river as RR
+        realr = RR.river
+        try:
+            RR.river = lambda *a, **k: {"ok": True, "gaps": [], "why": "x", "clean": {},
+                                        "rows": [{"reel": "reel_s_1"}]}
+            row = P.stream("reel_s_1")["rows"][0]
+            why = row["stations"]["funnel"]["why"]
+            self.assertIn("carried no", why,
+                          "an owner that ANSWERED with a row carrying no stage was reported as "
+                          "not having reported the reel at all: %r" % why)
+            self.assertNotIn("did not report", why, why)
+        finally:
+            RR.river = realr
+
     def test_a_STATIONS_shape_does_not_depend_on_its_verdict_either(self):
         """⚠⚠ REG-547 — THE SEVENTH INSTANCE OF ONE CLASS IN A DAY, AND I WROTE IT INSIDE THE FIX
         FOR THE SIXTH. `_station` returned early when the owner had nothing, so the station DROPPED

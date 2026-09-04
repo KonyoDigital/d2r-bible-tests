@@ -18201,3 +18201,31 @@ times.
 549. Three of the last four were found by a machine rather than by reading, which is the only part
 of this that is going the right way.
 
+## v2549 — a phantom reel, and a guard of mine that could not fail
+
+**REG-550 — the cold look at v2547 pointed at an empty row and I found something worse behind it.**
+
+⚠ **TAKEN, AND IT LED SOMEWHERE THE REVIEWER DID NOT NAME.** It flagged `if row:` treating an empty
+dict as *"did not report"*. Chasing that found the real defect: `_by_reel` keyed on
+`str(r.get("reel") or "")`, so **a row naming NO reel became a phantom reel called `""`** that the
+printer walked as real — every station reporting on nothing, and the shelf one longer than it should
+be. Rows that do not name a reel are dropped now.
+
+⚠⚠ **AND MY GUARD FOR THE OTHER HALF COULD NOT FAIL.** I split *did not report* from *reported an
+empty row*, wrote a test for it, and **the sabotage went GREEN** — the row the test builds carries a
+`reel` key, so it is not empty and never reaches that branch. Measured after: with phantom reels
+dropped, an empty dict is **UNREACHABLE from these callers**. The branch is kept, correct and
+defensive, and is now LABELLED as unreachable in the source with no test, because *a guard that
+cannot fail must not be counted as one* and writing one would mean building a caller that cannot
+exist. The test was rewritten to prove what IS reachable — a row that names its reel and carries no
+value must say *carried no <field>* — and that one goes RED for its own reason.
+
+⚠⚠ **REFUTED, AND IT IS THE SECOND TIME THIS REVIEWER HAS MADE THE SAME WRONG CLAIM.** It said
+`v is None or v == ""` wrongly treats `0`, `False` and `[]` as absent. Measured: `0 == ""` is False,
+`False == ""` is False, `[] == ""` is False, `{} == ""` is False — all pass through as present. **It
+asserted the identical falsehood about Python's `==` in the v2543 review.** A second eye is
+evidence, not a verdict, and a repeated blind spot is worth knowing when weighing what it says next.
+
+Two further points it raised were declined and it labelled both itself: `extra` overwriting
+`say`/`why` is unreachable from the callers, and the call-site `why=` evaluation is safe.
+

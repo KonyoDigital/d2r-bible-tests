@@ -111,8 +111,25 @@ def _sources():
 
 
 def _by_reel(blob, key="rows"):
+    """{reel name: row}. -> dict
+
+    ⚠⚠ REG-550 — A ROW WITH NO `reel` KEY BECAME A PHANTOM REEL NAMED "". The first cut keyed on
+    `str(r.get("reel") or "")`, so a malformed row from any owner joined the shelf under the empty
+    string and the printer walked it as a reel, with every station reporting on nothing. Found
+    while checking a cold review's claim about empty rows — the reviewer named the empty ROW, not
+    this. A row that does not name a reel is not a reel; it is dropped, and `_by_reel` is only ever
+    asked for rows that DO name one. [[unknown-stays-unknown]]
+    """
     rows = (blob or {}).get(key) or []
-    return {str(r.get("reel") or ""): r for r in rows if isinstance(r, dict)}
+    out = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        nm = str(r.get("reel") or "").strip()
+        if not nm:
+            continue
+        out[nm] = r
+    return out
 
 
 def stream(reel=None):
@@ -166,7 +183,22 @@ def stream(reel=None):
             not a shape, at the STATION level exactly as at the reading level, and the reading-level
             law could not see one nested this deep. Every key is set on every path now.
             """
-            d = {"say": "UNKNOWN", "why": "%s did not report this reel" % owner}
+            # ⚠ REG-550 — "did not report" vs "reported an empty row" are different facts, and
+            # `if row:` called both the first one. An owner that answered with `{}` DID answer, and
+            # a reason that says otherwise sends a reader to the wrong side of the join.
+            #
+            # ⚠⚠ AND THE SECOND BRANCH IS DEFENSIVE ONLY — IT IS UNREACHABLE FROM THESE CALLERS,
+            # and I only found that out because the sabotage for it went GREEN. `_by_reel` now
+            # drops any row that names no reel, so every dict reaching here carries at least a
+            # non-empty `reel` key and can never be `{}`. It is kept because `_station` is a
+            # helper and the distinction is correct, and it is LABELLED because a guard that
+            # cannot fail must not be counted as one. There is no test for it, deliberately —
+            # writing one would mean building a caller that cannot exist.
+            if row is None:
+                d = {"say": "UNKNOWN", "why": "%s did not report this reel" % owner}
+            else:
+                d = {"say": "UNKNOWN",
+                     "why": "%s reported this reel and carried nothing at all" % owner}
             if row:
                 v = row.get(field)
                 if v is None or v == "":
