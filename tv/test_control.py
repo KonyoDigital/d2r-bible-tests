@@ -9794,7 +9794,22 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         # — one line of pollution, three guards whose verdict depends on test ORDER. And the
         # dangerous direction is the other one: the same staleness can make an in-flight guard
         # report OPEN when it should refuse, which is a green that lies. Snapshot and restore.
-        _chron_before = dict(self.ca._CHRON_JOB)
+        # ⚠ TWO CORRECTIONS FROM THE COLD CROSS-FAMILY LOOK AT v2537, both real:
+        #  · `dict(...)` is a SHALLOW copy, so any nested value (`result` is a dict of dicts) stays
+        #    the same object in the snapshot and in the live global — mutate it in place during the
+        #    test and the "restore" puts the mutated object back. A restore that restores the
+        #    damage is not a restore. deepcopy, with a shallow fallback so an uncopyable value
+        #    degrades to the old behaviour rather than erroring the test out.
+        #  · the snapshot was read WITHOUT `_CHRON_LOCK`, while this module's own convention is to
+        #    hold it for every read and write of this dict, and this suite arms background watchers.
+        #    An unlocked read can capture a torn half-update. Take it under the lock, like the
+        #    restore already does.
+        import copy as _copy
+        with self.ca._CHRON_LOCK:
+            try:
+                _chron_before = _copy.deepcopy(dict(self.ca._CHRON_JOB))
+            except Exception:
+                _chron_before = dict(self.ca._CHRON_JOB)
 
         def _restore_chron_job():
             with self.ca._CHRON_LOCK:

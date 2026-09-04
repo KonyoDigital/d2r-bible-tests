@@ -17791,3 +17791,18 @@ markup when run against the live payload, so the generator works and the paint d
 is NOT established, and it is recorded as UNMEASURED rather than diagnosed. It was invisible because
 no render target covered that panel until this version.
 
+**Both corrections from the cold cross-family look at v2537, taken and applied (v2539).** The
+second eye was handed the test-isolation fix with no statement of what it prevents:
+
+> *"It is a shallow copy. Any mutable value stored under a key in `_CHRON_JOB` remains the same
+> object in both the snapshot and the live dict… the snapshot is taken without `_CHRON_LOCK`."*
+
+Both are real. `result` is a dict of dicts, so an in-place mutation during the test would survive
+the "restore" — **a restore that restores the damage is not a restore**. And the snapshot was read
+unlocked while the restore holds the lock, in a suite that arms background watchers. Now a
+`deepcopy` (with a shallow fallback, so an uncopyable value degrades to the old behaviour rather
+than erroring the test out) taken **under the lock**. Re-verified: `startedTs left behind: 0`,
+34 tests, 0 failures. ⚠ Its other three answers confirmed the design — the restore cannot deadlock
+on a non-reentrant lock, and `addCleanup` still runs when the test raises and when an earlier
+cleanup raises.
+
