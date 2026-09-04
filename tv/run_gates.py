@@ -305,6 +305,17 @@ GATES = [
              "measurements. tv/render_coverage.json is a ratchet: coverage may RISE freely,\n"
              "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
              "cannot become the new normal."),
+    # v2580 — HIS ASK: "do tests on the reels see that they get run and proccesed through the
+    # printer and everything down stream correctly as it was registered before... everytinh was
+    # working before.. so it needs to be tested too". The suites assert behaviour against
+    # fixtures; nothing took HIS OWN FOOTAGE through the pipeline that has been rebuilt under it
+    # over nine versions and showed the downstream numbers are still the registered ones.
+    Gate("reel_demo", [sys.executable, os.path.join(HERE, "reel_demo.py")], 180,
+         why="walks his real reels through all six printer stations and checks the numbers that "
+             "were REGISTERED BEFORE any of this changed — runewords 99, sets 135 pieces, "
+             "uniques 403, each his own ruling — plus that all three route sets still derive and "
+             "that no reel is missing a station. It asserts against registered values, never "
+             "against the code it is testing, and it writes nothing."),
     # v2570 — the printer had NO lock; fourteen were declared and not one named the river.
     Gate("test_printer_wilson", [sys.executable, os.path.join(HERE, "test_printer_wilson.py")], 90,
          why="the printer walks every reel he owns and nothing had ever attempted to break it. "

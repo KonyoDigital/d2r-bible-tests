@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2579",
+  "ver": "v2580",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2579: the census that finds unjoined engines was itself read by nobody",
+  "note": "v2580: a demonstration on his own reels, and two gaps that are capture not wiring",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

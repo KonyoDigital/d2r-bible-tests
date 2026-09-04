@@ -63,12 +63,45 @@ ENGINES = {
     "retro_triage":        ("whether a paid reader should see it — the 80/20 question",
                             "worthReading"),
     "reel_segments":       ("the activities on its timeline", "activities"),
-    "tooltip_find":        ("where the tooltip is in a frame, so a name can be read", "tooltip"),
+    # ⚠ THE ONLY REAL WIRING GAP, and its scope is narrower than it looks. That a tooltip WAS
+    # read is already on the row — extract_gap carries `names`, and 151 of 1,065 deep rows yielded
+    # one. What tooltip_find alone can add is WHERE in the frame it sat, which needs an OCR pass
+    # per frame. So this is not "the console knows nothing about tooltips"; it is "the position is
+    # not carried", and the position is what slot identity would need.
+    "tooltip_find":        ("WHERE in the frame the tooltip sat (that one WAS read is already "
+                            "carried, by extract_gap's `names`)", "tooltip"),
     "slot_identity":       ("which cell an item sat in — the slot a name cannot fake", "slot"),
     "frame_authority":     ("whether its seal covers extraction", "sealed"),
     "declared_vs_content": ("whether its routing came from content or a stamp", "declared"),
     "main_character":      ("whose character the reel belongs to", "character"),
     "write_witness":       ("what testimony exists for what it yielded", "witness"),
+}
+
+#: ⚠⚠ v2580 — "UNJOINED" WAS ONE WORD FOR TWO DIFFERENT PROBLEMS, and only one of them is a
+#: wiring job. Measured on his store 2026-09-04, asking what data each engine could even be fed:
+#:
+#:     slot_identity        0 of 1,065 deep rows carry a cell or slot. `names_loc` looks like it
+#:                          might, and does not — it maps a NAME to a LANE ({"Wraithstep":
+#:                          "stash"}), never to a grid position.
+#:     main_character       0 of 1,065 rows carry a character. REG-340 already ruled this one: the
+#:                          game prints the name on the character panel, which he does not film,
+#:                          so it is a CAPTURE change and not a code change.
+#:     declared_vs_content  its OWN state is UNTESTABLE — "only 0 declaring reel(s) carry surveyed
+#:                          content (need 3)". There is no answer to carry.
+#:     write_witness        exposes a Witness class and `watching`, not a per-reel reading.
+#:
+#: Telling him to wire those would be telling him to wire a pipe to a dry tap. A gap whose fix is
+#: CAPTURE must not sit in the same column as a gap whose fix is an import. [[unknown-stays-unknown]]
+NO_DATA = {
+    "slot_identity": "0 of 1,065 deep rows carry a cell or slot. `names_loc` maps a NAME to a "
+                     "LANE, never to a grid position — so there is no slot answer to carry yet. "
+                     "The fix is capture, not wiring",
+    "main_character": "0 of 1,065 deep rows carry a character. REG-340: the game prints it on the "
+                      "character panel, which he does not film. Capture, not wiring",
+    "declared_vs_content": "its own state is UNTESTABLE — 0 declaring reels carry surveyed "
+                           "content where it needs 3. There is no answer to carry",
+    "write_witness": "it exposes a Witness class and `watching`, not a per-reel reading. Nothing "
+                     "of the shape the printer could quote exists yet",
 }
 
 #: deliberately outside the printer, with the reason. An entry here is a DECISION, not a gap.
@@ -183,12 +216,17 @@ def census(rep=None):
                                     % field)
         elif mod in WHY_NOT:
             state, why = "BY DESIGN", WHY_NOT[mod]
+        elif mod in NO_DATA:
+            state, why = "NO DATA", NO_DATA[mod]
         else:
             state = "UNJOINED"
             why = ("nothing the printer prints carries its answer. It can tell you '%s' and that "
                    "reaches no reel. An import is not a join." % answers)
         rows.append({"engine": mod, "answers": answers, "state": state, "why": why})
         counts[state] = counts.get(state, 0) + 1
+    # ⚠ NO DATA is NOT counted as unjoined. Rolling them together is what made this panel say
+    # "5 answer nobody asks" when four of them have no answer to give — a number that reads as
+    # five afternoons of wiring and is actually one import and a capture change.
     unjoined = counts.get("UNJOINED", 0)
     return {
         "ok": True, "rows": rows, "counts": counts, "unjoined": unjoined,
