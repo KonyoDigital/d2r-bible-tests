@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2589",
+  "ver": "v2590",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2589: the per-store writer was a measurement nobody had taken",
+  "note": "v2590: a suffix in the name is documentation, not a guard",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

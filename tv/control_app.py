@@ -15914,6 +15914,10 @@ def _retention_once():
     except Exception as e:
         with _PRUNE_LOCK:
             _RETENTION.update({"checked": int(time.time() * 1000),
+                               # ⚠ v2590 — these EARLY returns are failures and never touched
+                               # `error`, so a stale reason from an earlier pass sat beside a
+                               # DIFFERENT current failure. Each carries its own now.
+                               "error": "import: %s" % str(e)[:80],
                                "say": "reel_retention did not import (%s)" % str(e)[:90]})
         return None
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
@@ -15922,6 +15926,7 @@ def _retention_once():
     except Exception as e:
         with _PRUNE_LOCK:
             _RETENTION.update({"checked": int(time.time() * 1000),
+                               "error": "disk: %s" % str(e)[:80],
                                "say": "could not read the disk (%s)" % str(e)[:80]})
         return None
     need_mb = max(0.0, (ON_AIR_FLOOR_GB + PRUNE_HEADROOM_GB - free_gb) * 1000.0)
@@ -15940,6 +15945,7 @@ def _retention_once():
     if not p.get("ok"):
         with _PRUNE_LOCK:
             _RETENTION.update({"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
+                               "error": "plan: %s" % str(p.get("why"))[:80],
                                "say": "the retention plan could not run: %s" % str(p.get("why"))[:90]})
         return None
     # STEP 1 — what is waiting on a SWEEP. This is the honest answer to "why is nothing prunable",
@@ -22502,7 +22508,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2589",
+        "ver": "v2590",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -155,17 +155,33 @@ def gap(reels=None):
         _nm = named.get(sid) or {}
         n = int(_nm.get("names") or 0)
         # the SCENARIO this reel's names came from — what extraction may even ask for
+        # ⚠⚠ v2590 — THE REASON NAMED THE LEAD AND HID THE REST. A cold review pointed out that
+        # the scenario is the FIRST truthy count in priority order while all three counts are
+        # published beside it, so a row could read `scenario=PANEL` next to `floorNames=20` with
+        # nothing explaining the 20. Measured: 3 of his 40 reels are exactly that, the worst
+        # being panel=3 alongside floor=20 — the reason mentioned the 3 and said nothing about
+        # the 20. The lead is unchanged and still correct; the sentence now carries every
+        # non-zero count so the numbers beside it cannot look unexplained.
+        # ⚠ the "also" list EXCLUDES the bucket the sentence just named — the first cut repeated
+        # it ("2 read with a container OPEN … also holds 2 in a container"), which reads as two
+        # different measurements of the same thing.
+        _LEAD = "panel" if _nm.get("panel") else ("floor" if _nm.get("floor") else "chronicle")
+        _mix = ", ".join("%d %s" % (_nm[k], n) for k, n in
+                         (("panel", "in a container"), ("floor", "on the floor"),
+                          ("chronicle", "on a Chronicle page"))
+                         if _nm.get(k) and k != _LEAD)
+        _also = ("  (and %s — counted, not extractable the same way)" % _mix) if _mix else ""
         if _nm.get("panel"):
             scenario, s_why = "PANEL", ("%d name(s) read with a container OPEN — a slot identity "
-                                        "can exist for these" % _nm["panel"])
+                                        "can exist for these%s" % (_nm["panel"], _also))
         elif _nm.get("floor"):
             scenario, s_why = "FLOOR", ("%d name(s) read with NO container open — an item on the "
-                                        "ground has no cell, so a slot cannot be asked for"
-                                        % _nm["floor"])
+                                        "ground has no cell, so a slot cannot be asked for%s"
+                                        % (_nm["floor"], _also))
         elif _nm.get("chronicle"):
             scenario, s_why = "CHRONICLE", ("%d name(s) read on a Chronicle page — a checklist of "
-                                            "items he mostly does not own, never a holding"
-                                            % _nm["chronicle"])
+                                            "items he mostly does not own, never a holding%s"
+                                            % (_nm["chronicle"], _also))
         else:
             scenario, s_why = "UNKNOWN", "no name was read for this reel, so no scenario applies"
         has_seal = sid in seals

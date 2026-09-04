@@ -127,7 +127,13 @@ def _templates():
         _label = "template %-10s (%s)" % (name, kind)
         if kind != "scene":
             _label += " · evidence only"
-        out.append({"check": _label, "ok": bool(known),
+        # ⚠⚠ v2590 — A SUFFIX IN THE NAME IS DOCUMENTATION, NOT A GUARD. The cold review was
+        # right: `ok` was still True and anything that FILTERS OR COUNTS on `ok` — including this
+        # file's own pass/fail tally — read an evidence line as a passed check. Renaming it could
+        # not fix that. The row carries an explicit `evidence` flag now, and the verdict below
+        # excludes those rows from the tally, so "17 of 17 checks pass" counts only things that
+        # were actually asserted.
+        out.append({"check": _label, "ok": bool(known), "evidence": (kind != "scene"),
                     "got": got, "want": "recognised by " + where, "why": why})
     # THE ONE REAL VOCABULARY CHECK FOR TABS: is the field carried at all? If the readers stopped
     # recording stashTab, every per-tab line above would go quietly to zero and none of them would
@@ -207,13 +213,15 @@ def demo(reel=None):
     checks.append({"check": "the printer walked his shelf", "ok": bool(rows),
                    "got": len(rows), "want": ">0",
                    "why": "zero reels would mean the demonstration proved nothing at all"})
-    bad = [c for c in checks if not c["ok"]]
+    # ⚠ an EVIDENCE row is never counted as a passed check — it asserted nothing.
+    asserted = [c for c in checks if not c.get("evidence")]
+    bad = [c for c in asserted if not c["ok"]]
     return {
         "ok": not bad, "state": ("PASS" if not bad else "FAIL"),
         "reels": reels, "checks": checks, "walked": len(rows),
         "stations": stations,
         "why": ("%d reel(s) walked through %d station(s); %d of %d downstream check(s) pass. %s"
-                % (len(rows), len(stations), len(checks) - len(bad), len(checks),
+                % (len(rows), len(stations), len(asserted) - len(bad), len(asserted),
                    "Everything registered before still agrees." if not bad else
                    "⚠ %d check(s) DISAGREE with what was registered before." % len(bad))),
     }
