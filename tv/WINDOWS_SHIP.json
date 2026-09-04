@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2626",
+  "ver": "v2627",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2626: REG-608 - his blank window measured 0.9513 against a 0.98 bar because the title bar carried the variance, so the pixel witness could never call it blank. Chrome excluded - the same window reads 0.9966.",
+  "note": "v2627: REG-609 - blank_strikes is the only instrument that can see his blank window and it had zero callers. The rescue loop asks it now and publishes every outcome. It reports and never acts, because a reload was already measured not to cure this fault.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

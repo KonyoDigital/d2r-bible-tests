@@ -7,6 +7,41 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-609 — the one instrument that can see his blank window had no caller
+
+**v2627.** REG-608 fixed the pixel witness so it can finally call his window blank. This is the
+other half: **nothing asks it.**
+
+`paint_witness` is consulted in exactly one place — AFTER a rescue, to check whether the cure took.
+The DETECTION function, `blank_strikes`, had **zero callers outside its own tests**. Built, correct,
+and joined to nothing. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+**And the signals that ARE consulted cannot see this fault.** Measured while he was looking at a
+blank console: `painting: true` · `raf: 1224` · `frozenBeats: 0` · `blankStrikes: 0` · `elsNow:
+11859` · *"185 frame(s) painted since the last beat"*. **A window drawing 185 BLANK frames advances
+`raf` exactly like a healthy one**, and the DOM is intact, so `blankStrikes` (element collapse)
+cannot fire either. `ui_rescue_due` returns False and the loop moves on.
+
+**FIX:** the rescue loop asks the pixels on every 6th tick (≈60s; a window-server capture is not
+free) and **publishes every outcome** on `_UI_BEAT["pixelBlank"]`, which already rides
+`/api/status`.
+
+⚠⚠ **IT REPORTS AND NEVER ACTS, AND THAT IS THE DESIGN, NOT TIMIDITY.** This module already
+measured that a reload does NOT cure this fault — three rescues, still blank after every one, which
+is why `_UI_RESCUE["futile"]` exists. Detecting it and reloading anyway would add futile reloads to
+a window he cannot see, and his standing rule is that nothing auto-heals until it has proven
+itself. **What changes is that he stops being the sole detector.**
+
+⚠ Only a BLANK reading writes a fault row. OCCLUDED and UNKNOWN are published on the beat but never
+logged — a fault log that fills with rows nobody can act on stops being read, which is the failure
+this whole thread exists to avoid. And a quiet field means ASKED AND FINE, never "never asked".
+
+**Guard:** `TestV2627ThePixelsAreAskedAndOnlyReported` — 6 cases, RED-proven by two sabotages at
+once (unjoining it from the loop, and writing a fault row for every state). Its load-bearing case
+asserts the reporter cannot `load_url`, `evaluate_js`, touch `_UI_RESCUE`, relaunch or destroy —
+**a detector that quietly gained the power to reload his window would be a much bigger change than
+the one described.**
+
 ### REG-608 — the pixel witness could never call his window blank, because the title bar diluted the measurement
 
 **v2626. HIS "USUAL SUSPECT BUG", MEASURED AT LAST.** His report, 2026-09-04 21:36, with a

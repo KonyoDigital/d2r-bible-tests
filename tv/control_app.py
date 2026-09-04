@@ -12230,6 +12230,44 @@ def ui_pre_rescue_snapshot(beat=None):
     }
 
 
+#: how many rescue-loop ticks since the pixels were last asked. A list so the loop can bump it
+#: without a global statement.
+_UI_BLANK_TICK = [0]
+
+
+def _pixel_blank_report():
+    """Ask the window's own bitmap whether it is blank, and RECORD it. Never acts. -> dict
+
+    ⚠ EVERY OUTCOME IS PUBLISHED, INCLUDING THE ONES THAT ARE NOT A FAULT. A covered window is
+    OCCLUDED and an unaskable one is UNKNOWN; both are written down so a quiet field means "asked
+    and fine" rather than "never asked". [[unknown-stays-unknown]]
+    """
+    out = {"state": None, "why": "not asked", "ts": int(time.time() * 1000)}
+    try:
+        import paint_witness as _pw
+        r = _pw.blank_strikes(os.getpid(), sleep=time.sleep)
+        out["state"] = r.get("state")
+        out["why"] = r.get("why")
+        out["strikes"] = r.get("strikes")
+        out["measure"] = r.get("measure")
+    except Exception as exc:
+        out["state"] = "UNKNOWN"
+        out["why"] = "the pixel witness would not answer (%s)" % type(exc).__name__
+    _UI_BEAT["pixelBlank"] = out
+    # ⚠ A FAULT ROW ONLY WHEN THE PIXELS SAY BLANK. An OCCLUDED or UNKNOWN reading is recorded on
+    # the beat above and must not become an entry in his fault log — that is how a log fills with
+    # rows nobody can act on and stops being read.
+    if out.get("state") == "BLANK":
+        try:
+            ui_fault_record("console-pixels-blank-nothing-else-saw-it",
+                            why=str(out.get("why"))[:300], where="_pixel_blank_report")
+        except Exception:
+            pass
+        print("\u26a0\u26a0 the console's PIXELS are blank and every beat counter reads healthy - %s"
+              % str(out.get("why"))[:160], flush=True)
+    return out
+
+
 def _console_rescue_loop():
     """The generator itself. Sleeps, asks, and acts — and writes down every time it acts,
     because a self-heal nobody records is a fault that keeps being reported by HIM instead of
@@ -12243,6 +12281,30 @@ def _console_rescue_loop():
                 continue
             due, why = ui_rescue_due(capture_live=_capture_is_live())
             if not due:
+                # ⚠⚠ v2627 — ASK THE PIXELS WHEN NOTHING ELSE WILL, AND ONLY REPORT.
+                # His fault, measured 2026-09-04: a window drawing 185 BLANK frames reports
+                # `painting: true`, `raf` advancing, `frozenBeats: 0`, `blankStrikes: 0`, DOM
+                # intact at 11,859 elements. Every counter the rescue reasons from says healthy
+                # while he is looking at an empty window — so `ui_rescue_due` returns False and
+                # nothing else here ever looks.
+                #
+                # `paint_witness.blank_strikes` is the one instrument that CAN see it, and it had
+                # ZERO callers outside its own tests: built, correct, and joined to nothing.
+                # Measured after REG-608 fixed its bar, his window reads modalShare 0.9836 —
+                # blank. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+                #
+                # ⚠⚠ IT REPORTS AND NEVER ACTS, DELIBERATELY. This module already measured that a
+                # reload does NOT cure this fault — three rescues, still blank after every one
+                # (REG-585's futile counter). Detecting it and reloading anyway would just add
+                # futile reloads to a window he cannot see, and his standing rule is that nothing
+                # auto-heals until it has proven itself. What changes is that HE stops being the
+                # only detector. [[visual-regression-detector]]
+                #
+                # ⚠ Every 6th tick, not every tick: this costs a window-server capture, and the
+                # loop runs every 10s.
+                _UI_BLANK_TICK[0] = int(_UI_BLANK_TICK[0]) + 1
+                if _UI_BLANK_TICK[0] % 6 == 0:
+                    _pixel_blank_report()
                 continue
             url = "http://127.0.0.1:%d/" % CONTROL_PORT
             # If it wandered off the console entirely (an image opened in place, a dead
@@ -22741,7 +22803,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2626",
+        "ver": "v2627",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

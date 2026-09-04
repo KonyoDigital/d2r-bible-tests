@@ -41831,5 +41831,98 @@ class TestV2622TheFleetEyeWindowIsWiderThanItsBeacon(unittest.TestCase):
 
 
 
+class TestV2627ThePixelsAreAskedAndOnlyReported(unittest.TestCase):
+    """★ HIS FAULT, FINALLY REACHABLE BY SOMETHING OTHER THAN HIM.
+
+    Measured 2026-09-04 while he was looking at a blank console: `painting: true`, `raf: 1224`,
+    `frozenBeats: 0`, `blankStrikes: 0`, `elsNow: 11859`, *"185 frame(s) painted since the last
+    beat"*. **Every counter `ui_rescue_due` reasons from says healthy**, because a window drawing
+    185 BLANK frames advances `raf` exactly like a healthy one. So it returns False and nothing
+    else in that loop ever looked.
+
+    `paint_witness.blank_strikes` is the only instrument that can see it — and it had **ZERO
+    callers outside its own tests**. Built, correct, joined to nothing.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠⚠ IT REPORTS AND NEVER ACTS, AND THAT IS THE DESIGN. This module already measured that a
+    reload does NOT cure this fault — three rescues, still blank after every one. Detecting it and
+    reloading anyway adds futile reloads to a window he cannot see. His standing rule is that
+    nothing auto-heals until it has proven itself; what changes here is only that **he stops being
+    the sole detector.**
+    """
+
+    def setUp(self):
+        import control_app as ca
+        self._ca = ca
+        self._beat = dict(ca._UI_BEAT)
+        self._tick = list(ca._UI_BLANK_TICK)
+
+    def tearDown(self):
+        self._ca._UI_BEAT.clear(); self._ca._UI_BEAT.update(self._beat)
+        self._ca._UI_BLANK_TICK[:] = self._tick
+
+    def _witness(self, state, why="because"):
+        import paint_witness as pw
+        real = pw.blank_strikes
+        pw.blank_strikes = lambda *a, **k: {"state": state, "why": why, "strikes": 3}
+        self.addCleanup(setattr, pw, "blank_strikes", real)
+
+    def test_a_BLANK_reading_is_published_on_the_beat(self):
+        self._witness("BLANK", "the window is uniform across 3 looks")
+        out = self._ca._pixel_blank_report()
+        self.assertEqual(out["state"], "BLANK")
+        self.assertEqual(self._ca._UI_BEAT["pixelBlank"]["state"], "BLANK",
+                         "the reading never reached the beat, so no surface can show it")
+
+    def test_an_OCCLUDED_or_UNKNOWN_reading_is_STILL_published(self):
+        """⚠ A quiet field must mean ASKED AND FINE, not never asked. [[unknown-stays-unknown]]"""
+        for state in ("OCCLUDED", "UNKNOWN"):
+            self._witness(state)
+            self._ca._pixel_blank_report()
+            self.assertEqual(self._ca._UI_BEAT["pixelBlank"]["state"], state)
+
+    def test_only_BLANK_writes_a_FAULT_row(self):
+        """⚠ An occluded window is not a fault. A log that fills with rows nobody can act on stops
+        being read, which is the failure mode this whole thread exists to avoid."""
+        seen = []
+        real = self._ca.ui_fault_record
+        self._ca.ui_fault_record = lambda kind, **kw: seen.append(kind)
+        self.addCleanup(setattr, self._ca, "ui_fault_record", real)
+        for state in ("OCCLUDED", "UNKNOWN", "PAINTED"):
+            self._witness(state); self._ca._pixel_blank_report()
+        self.assertEqual(seen, [], "a non-blank reading wrote a fault row: %s" % seen)
+        self._witness("BLANK"); self._ca._pixel_blank_report()
+        self.assertEqual(len(seen), 1, "a BLANK reading wrote no fault row at all")
+        self.assertIn("pixels-blank", seen[0])
+
+    def test_it_NEVER_reloads_or_rescues(self):
+        """★★ THE LOAD-BEARING CASE. A detector that quietly gained the power to reload his window
+        would be a much bigger change than the one described, and it is the one thing his standing
+        rule forbids outright."""
+        import inspect
+        src = inspect.getsource(self._ca._pixel_blank_report)
+        for banned in ("load_url", "evaluate_js", "_UI_RESCUE[", "relaunch", "destroy"):
+            self.assertNotIn(banned, src,
+                             "the pixel reporter can %r — it is supposed to REPORT only" % banned)
+
+    def test_the_witness_refusing_is_UNKNOWN_and_never_a_clean_bill(self):
+        import paint_witness as pw
+        real = pw.blank_strikes
+        pw.blank_strikes = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+        self.addCleanup(setattr, pw, "blank_strikes", real)
+        out = self._ca._pixel_blank_report()
+        self.assertEqual(out["state"], "UNKNOWN")
+        self.assertIn("would not answer", out["why"])
+
+    def test_it_is_asked_on_a_SUBSET_of_ticks_not_every_one(self):
+        """A window-server capture on every 10s tick is a cost with no extra information."""
+        import inspect
+        src = inspect.getsource(self._ca._console_rescue_loop)
+        self.assertIn("_UI_BLANK_TICK", src, "the rescue loop never asks the pixels at all")
+        self.assertIn("% 6", src, "the pixels are captured on every tick")
+
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
