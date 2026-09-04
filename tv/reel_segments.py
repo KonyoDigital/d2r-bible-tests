@@ -250,6 +250,98 @@ _PIX_NO_GRID = ("gameplay",)
 _NO_GRID_ACTIVITIES = ("gameplay", "town", "transition")
 
 
+#: how an answer about WHERE a name was seen was arrived at, strongest first. The grade travels
+#: WITH the lane so a door can decide what it will accept; collapsing them into one word is
+#: exactly how provenance becomes a guess nobody can see. [[unknown-stays-unknown]]
+CONTAINED = "contained"      # a read covers this exact moment — the only kind v2343 ever trusted
+RULED_OUT = "ruled-out"      # the reel NEVER opened a container, so no moment in it can be one
+INHERITED = "inherited"      # the reel DID open one and this moment sits inside its span
+UNSETTLED = "unsettled"      # nobody can say, and that stays an answer
+
+
+def lane_at_graded(segs, sid, ts, pad_ms=0):
+    """WHERE was this seen, and HOW WELL DO WE KNOW. -> (lane, why, grade)
+
+    ⚠⚠ v2578 — A5, and it is HIS RULING: *"the templates should sort of decide for it... if no
+    inventory is there or a stash template open.. then it can classify it accordingly"*, then
+    *"BOTH logics intertwined... not just one rules out"*.
+
+    `lane_at` asks only whether a read CONTAINS the moment, and segments are the instants of
+    reads rather than the intervals between them. Measured store-wide: reads cover 54.8% of
+    session time, and of 2,771 sessions **2,424 have no segments at all**. So containment alone
+    leaves most moments unanswerable, and the earlier proposal — inherit the NEAREST read's lane —
+    was refused because proximity is not evidence about content.
+
+    The template IS evidence about content, and the two compose:
+
+      CONTAINED   a read covers the moment. Unchanged, and still the only grade that should open
+                  a door on its own.
+      RULED_OUT   the reel never opened a stash or an inventory ANYWHERE. Then no moment in it
+                  can be a possession — a sound NEGATIVE, not a guess, and it settles 325 of his
+                  2,771 sessions on its own.
+      INHERITED   the reel did open a container and this moment falls inside that container's
+                  span. Real evidence and WEAKER evidence, so it is graded rather than dressed up
+                  as containment.
+      UNSETTLED   no segments at all, so the template cannot speak either. 2,424 sessions.
+
+    ⚠ `lane_at` is deliberately NOT changed. Every existing caller — including the vault door that
+    refuses claims — keeps the strict containment answer it was written against. A grade nobody
+    asked for must not silently widen a door that was closed. [[the-unjoined-end]]
+    """
+    # ⚠⚠ ASK activity_at, NOT `lane is None`. lane_at returns None for TWO different reasons —
+    # "no read covers this moment" and "a read covers it and that activity is not possession"
+    # (a Chronicle page, or an inventory, which is holding rather than owning). The first cut
+    # branched on the lane being falsy and so re-graded the SECOND kind as INHERITED, throwing
+    # away the considered answer lane_at had already given. Caught because the guard for
+    # INHERITED went GREEN under sabotage: the branch was never reached the way I thought, and
+    # where it WAS reached it was overriding a correct refusal. [[feedback-suspect-the-instrument]]
+    act, _seg = activity_at(segs, sid, ts, pad_ms=pad_ms)
+    lane, why = lane_at(segs, sid, ts, pad_ms=pad_ms)
+    if act is not None:
+        # a read covers this moment — whatever lane_at concluded is the CONTAINED answer, including
+        # a deliberate None with its reason.
+        return lane, why, CONTAINED
+    # the moment is not covered by any read. Ask what the reel IS.
+    mine = [s for s in (segs or []) if str(s.get("sid") or "") == str(sid or "")] or list(segs or [])
+    if not mine:
+        return None, "no read of this reel exists at all, so nothing can be established", UNSETTLED
+    acts = {str(s.get("activity") or "").lower() for s in mine}
+    holders = [a for a in acts if _ACTIVITY_LANE.get(a) or a == "inventory"]
+    if not holders:
+        return None, ("this reel NEVER had a stash or an inventory open — %s only — so no moment "
+                      "in it can be a possession. Ruled out by what the reel IS, not by where "
+                      "this frame fell." % ", ".join(sorted(acts) or ["nothing"])), RULED_OUT
+    # It did open one. The honest INHERITED case is a moment BETWEEN TWO CONSECUTIVE READS OF THE
+    # SAME CONTAINER — he was in the stash at t1 and still in the stash at t2, so the moment
+    # between them was very probably the stash too.
+    #
+    # ⚠⚠ THE FIRST CUT ASKED "inside a single segment's span" AND THAT IS THE CONTAINED CASE
+    # WEARING A SECOND NAME — a segment IS a read, so anything inside one is already covered. The
+    # gap between reads is the only interval containment cannot speak for, and it is exactly the
+    # interval A5 is about.
+    #
+    # ⚠ AND THE WINDOW IS NOT A NUMBER I CHOSE. Two stash reads an hour apart say nothing about
+    # the middle. SEG_GAP_MS is this module's OWN definition of how long a pause can be and still
+    # be one visit — the constant `segments()` already uses to decide where one visit ends. Making
+    # up a second threshold here would be two answers to one question. [[copy-drift]] §1
+    for act in sorted(holders):
+        runs = sorted([(int(s["start"]), int(s["end"])) for s in mine
+                       if str(s.get("activity") or "").lower() == act
+                       and s.get("start") is not None and s.get("end") is not None])
+        for (lo1, hi1), (lo2, hi2) in zip(runs, runs[1:]):
+            if hi1 <= int(ts) <= lo2 and (lo2 - hi1) <= SEG_GAP_MS:
+                return (_ACTIVITY_LANE.get(act),
+                        "between two reads of the %s %d ms apart, which is inside this module's "
+                        "own one-visit window (%d ms) — so the %s was very probably still open. "
+                        "Real evidence, and WEAKER than a read that covers the moment."
+                        % (act, lo2 - hi1, SEG_GAP_MS, act), INHERITED)
+    # ⚠ the parens here grouped the string WITH the grade on the first cut, so this branch
+    # returned a 2-tuple where every sibling returns 3 — a shape that changes with the verdict,
+    # which is REG-547's exact lesson one module over. The unpack raised on the first real call.
+    return (None, "this reel opened a %s, but this moment falls outside its span and no read "
+                  "covers it" % "/".join(sorted(holders)), UNSETTLED)
+
+
 def corroborates_chrome(activity, stash_tab, chrome_readable=True):
     """The scene read against the STASH TAB CHROME. -> (verdict, why)
 

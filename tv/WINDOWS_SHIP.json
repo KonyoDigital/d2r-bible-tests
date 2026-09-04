@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2577",
+  "ver": "v2578",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2577: the game truncates and the console rounded",
+  "note": "v2578: both logics intertwined, and a number I reported was my own bug",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
