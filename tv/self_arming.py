@@ -149,6 +149,19 @@ LOCKS = {
     # nobody-looked versus there-is-nothing-to-look-at — and collapsing them is the seventh shape
     # of an unmeasured number. `unprovable` says which one this is, in the panel, out loud.
     # [[unknown-stays-unknown]]
+    #: 154 — THE NUMBER HE MAKES STORAGE DECISIONS ON. `prunedMb` was HARDCODED to 0 at the only
+    #: call site, so "the prune has never freed a byte" was a fact about the CALLER; that framing
+    #: was retracted. The call site passes None now — measured on his store, 8,270 rows carrying 0
+    #: against 280 carrying None — and the remainder is that nothing has ever passed a REAL figure.
+    #: His ruling: *"fix it to the hardening and wilsons and to the heart so it proves itself
+    #: before its unlocked."* So the reporter earns its unlock like every other surface.
+    #: ⚠ IT GUARDS THE REPORT, NOT THE DELETER. `prune.arm` already guards whether the prune may
+    #: act; this guards whether the row may CLAIM. They fail differently and must not share a lock.
+    "prune.reports": {
+        "surface": "THE RIVER",
+        "acts": "tells him how much space was freed",
+        "bar": 0.510, "kinds_bar": 1.0, "after": [],
+    },
     "vault.forget": {
         "surface": "VAULT", "acts": "drops the ledger",
         "bar": 0.722, "kinds_bar": 1.3, "after": ["vault.sweep_start"],
@@ -314,6 +327,9 @@ PROVES = {
     # sweep: there is no attempt in it whose success path runs, because the door it guards spends
     # money.
     "sweep_wilson": ("vault.sweep_start",),
+    #: 154 — the disk row's own refusals. It NEVER prunes: every attempt is a state in which the
+    #: row must decline to name a freed figure, and nothing here deletes a byte.
+    "disk_report_wilson": ("prune.reports",),
     # vault_wilson attempts proposals the WRITE door must reject — v1595's re-gate, which
     # returns before the board is ever asked. It never applies anything: every row it hands
     # in carries an empty evidence list, so it fails the witness gate by construction.

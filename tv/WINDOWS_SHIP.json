@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2632",
+  "ver": "v2633",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2632: REG-613 - the pixel blank detector sat behind if win is None continue and had never run on his console. Measured live - loop stamping 2.2s ago, pixelBlank absent after 75s. The witness reads by pid and never needed the handle.",
+  "note": "v2633: 154 - the disk row now has to prove it refuses to claim space it did not free. New lock prune.reports, 24 of 24 refused, RED-proven against the original defect. It never prunes. Also annotates 136 and 148 as unactionable and records his money ruling.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

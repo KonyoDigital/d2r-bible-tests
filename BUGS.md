@@ -7,6 +7,51 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### 154 — the freed-bytes number now has to EARN its unlock
+
+**v2633, on his ruling: *"fix it to the hardening and wilsons and to the heart so it proves itself
+before its unlocked."***
+
+154's original framing was that `prunedMb: 0` across 7,009 rows meant the prune had never freed a
+byte. **That was RETRACTED**: `pruned_mb=0` was HARDCODED at the only call site, so the zero was a
+fact about the CALLER. Half was then fixed — the call site passes `None`. **Measured on his live
+store, the cut-over is visible: 8,270 rows carrying `0` against 280 carrying `None`.**
+
+The remainder was that nothing had ever passed a REAL figure, and the row sat blocked behind 155,
+which is his money. It is not blocked any more, because the REPORTER can be proven without paying
+for anything.
+
+**`tv/disk_report_wilson.py` attempts three states in which the row MUST decline to name a freed
+figure:** nothing pruned (it must not answer `0` — that is a measurement nobody took), the corpus
+size unreadable (a figure derived from it cannot exist), and free space FELL between samples (a
+negative delta must never become a positive claim). **24 of 24 refused → new lock `prune.reports`,
+OPEN at wilson 0.862.**
+
+⚠⚠ **IT NEVER PRUNES AND CANNOT.** `prune_once` is never called, `TV_AUTO_PRUNE` is never touched,
+no file is deleted, and it writes only to a throwaway temp path so it cannot put its own fixtures
+into the series he makes storage decisions from. **The prune stays OFF.**
+
+⚠ **IT GUARDS THE REPORT, NOT THE DELETER.** `prune.arm` already guards whether the prune may ACT;
+this guards whether the row may CLAIM. They fail differently and must not share a lock.
+
+⚠ **"Refuse" means `prunedMb: None`.** `0` is a measurement — *"we freed nothing"* — and `None` is
+*"nobody measured"*. A reporter answering 0 when it did not look is the exact fabrication 154 was
+mis-framed as. [[unknown-stays-unknown]]
+
+**RED-proven against the ORIGINAL defect:** restoring "unmeasured becomes 0" takes it from 24/24
+refused to **0/24, all three claims LEAKING**.
+
+### 136 and 148 — the task itself is lost, and that is now provable
+
+Both rows have read only *"Blocked by vault names."* since the **earliest tracked version** of
+TASKS.md (`a8016ea6`, the commit that made the file tracked at all). There has never been a
+description. Their content lived in the session that created them — exactly the loss the file's own
+preamble records: *"the memory queue recorded the NUMBERS and not what they meant."*
+
+**Nobody can act on them, including him.** Kept and never deleted, but annotated so they stop
+sitting on his pending list looking like work. One sentence from him turns either back into a real
+row.
+
 ### REG-613 — the blank-window detector was gated behind a handle it does not use, and had never once run
 
 **v2632, found by checking my own work on his LIVE console rather than on my machine.**

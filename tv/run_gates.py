@@ -931,6 +931,22 @@ GATES = [
              "reload, delete or kill anything: it is a witness, not a trigger. ⚠ NAMED "
              "test_pixel_witness because test_paint_witness.py was already taken by v2457's "
              "beat-side suite, which I overwrote once and had to restore from git."),
+    Gate("disk_report_wilson",
+         [sys.executable, os.path.join(HERE, "disk_report_wilson.py")], 120,
+         why="154 — can the disk row REFUSE to claim space it did not free? `prunedMb` was "
+             "HARDCODED to 0 at the only call site, so 'the prune has never freed a byte' was a "
+             "fact about the CALLER and that framing was retracted. The call site passes None now "
+             "— his live store shows the cut-over exactly, 8,270 rows carrying 0 against 280 "
+             "carrying None — and the remainder was that nothing had ever passed a REAL figure. "
+             "His ruling: 'fix it to the hardening and wilsons and to the heart so it proves "
+             "itself before its unlocked.' ⚠⚠ IT NEVER PRUNES AND CANNOT: every attempt is a "
+             "state in which the row must decline to name a freed figure, prune_once is never "
+             "called, TV_AUTO_PRUNE is never touched, and it writes only to a throwaway temp path "
+             "so it cannot inject fixtures into the series he makes storage decisions from. "
+             "RED-proven against the ORIGINAL defect — restoring 'unmeasured becomes 0' takes it "
+             "from 24/24 refused to 0/24 with all three claims LEAKING. ⚠ It guards the REPORT, "
+             "not the deleter: prune.arm already guards whether the prune may ACT, this guards "
+             "whether the row may CLAIM, and they fail differently."),
     Gate("test_hover_calibration",
          [sys.executable, os.path.join(HERE, "test_hover_calibration.py")], 60,
          why="v2621 — the root of a chain six stations long. His question was why no reel can reach "

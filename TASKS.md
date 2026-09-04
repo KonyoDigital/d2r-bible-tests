@@ -1048,6 +1048,38 @@ entering at the station inherits those readers by construction.
 the ROUTE (**28 by content / 12 by POLICY**). Those are doors and routing policy, not readers — A4
 already records them and they do not violate this constraint.
 
+## 💵 HIS MONEY RULING, 2026-09-04 — spending is authorised BEHIND the proof, not instead of it
+
+> *"whatever needs to use my money is fine as long as its working properly and coded and not looped
+> and debugged obviously.. but money needs to be spent.. its doing AI reads just needs to be
+> optimized and more focused reads where needed thats why we built this and still building the
+> corrected architecture for it"*
+
+**This unblocks 155, and therefore 154's remainder and 146 — but it is CONDITIONAL, and the
+condition is the whole sentence.** Four words carry it: *working · coded · not looped · debugged*.
+So a paid pass may run **after** the path that consumes it is proven, never as the thing that
+proves it. That is the same sequencing he set for `gh #210`: *"when it does finally enter from a
+session everything is clean going in and then out."*
+
+⚠ **"NOT LOOPED" IS THE EXPENSIVE ONE AND IT HAS A SCAR.** [[paid-work-with-no-memory]] records
+**3,434 paid reads for 2 sightings**, looking like healthy activity the whole time. A re-read that
+cannot tell it already read something is the exact shape this ruling forbids, and it is what
+`extracted: []` sealing exists to stop — a frame examined and found empty is RECORDED as examined,
+so it is never paid for twice.
+
+⚠⚠ **"FOCUSED READS WHERE NEEDED" IS A MEASUREMENT, NOT A PREFERENCE — and it is already taken:**
+
+| | reels | what a paid pass would buy |
+|---|---|---|
+| never read at all | **29 of 40** | genuinely new evidence |
+| sealed, nothing readable ever | 12 | **nothing** — REG-340: the name is only in a hover tooltip, so a grid-only reel can never satisfy it. A capture change, not a paid one |
+| names read, no seal | 12 | **nothing new** — the reading is done; the seal is missing |
+| **JOIN — sealed AND names read** | **3** | **nothing — it is FREE.** The names are on disk and the seal does not carry them |
+
+**So the cheapest work is the 3 JOIN reels, and it costs zero.** A broad sweep across all 40 would
+re-spend on 24 reels that have already given a complete answer. **Spend on the 29 that were never
+read, not on the shelf.**
+
 ## 🔥 THE URGENT THREE — "task these in first urgently before the other tasks"
 
 | # | What | State |
@@ -1098,8 +1130,8 @@ never on a grep count.
 | **146** | 4.34 GB / 4,128 frames releasable, keeping all 894 that carry. | **The apply is his.** He ruled "yes" on the principle: a frame the printer examined and found empty may be deleted. |
 | **155** | Would spend paid reads. | His money. |
 | **154** | ⚠ **HALF LANDED (fleet-measured 2026-09-04)** — `pruned_mb=None` now passes at `control_app.py:16151`, `prunedMbInWindow` returns None rather than 0 at `:12732`, guarded by `Test154PrunedMbUnknownIsNotZero`. His live `disk_history.jsonl` shows the change taking effect: rows 0-8269 carry `prunedMb: 0` (last 2026-09-02), rows 8270+ do not. The remainder is still open. Blocked by 155. ⚠ **My own framing was RETRACTED:** `pruned_mb=0` and `hist_bytes=None` are HARDCODED at the only call site, so `prunedMb: 0` across 7,009 rows is a fact about the CALLER. "The prune has never freed a byte" is **not supported**. The real defect is that the field can never report anything. | `tv/control_app.py:14920` (writer at `:11954`) |
-| **136** | Blocked by vault names. | |
-| **148** | Blocked by vault names. | |
+| **136** | ⚠⚠ **UNACTIONABLE — THE TASK ITSELF IS LOST, and that is now provable.** This row has read only *"Blocked by vault names."* since the EARLIEST tracked version of this file (`a8016ea6`, the commit that made TASKS.md tracked at all) — there has never been a description. Its content lived in the session that created it, which is exactly the loss this file's own preamble records: *"the memory queue recorded the NUMBERS and not what they meant."* **Nobody can act on it, including him.** Kept, never deleted — but it must not sit here looking like work. If he remembers what 136 was, it becomes a real row again in one sentence. | ⚠ CONTENT LOST |
+| **148** | ⚠⚠ **UNACTIONABLE — THE TASK ITSELF IS LOST, and that is now provable.** This row has read only *"Blocked by vault names."* since the EARLIEST tracked version of this file (`a8016ea6`, the commit that made TASKS.md tracked at all) — there has never been a description. Its content lived in the session that created it, which is exactly the loss this file's own preamble records: *"the memory queue recorded the NUMBERS and not what they meant."* **Nobody can act on it, including him.** Kept, never deleted — but it must not sit here looking like work. If he remembers what 148 was, it becomes a real row again in one sentence. | ⚠ CONTENT LOST |
 
 ---
 

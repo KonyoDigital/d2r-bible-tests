@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2632"   # a reader behind a handle it never used
+VERSION = "v2633"   # the freed bytes number earns its unlock
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
