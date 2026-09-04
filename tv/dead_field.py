@@ -127,8 +127,17 @@ def dead_fields(rows, min_rows=MIN_ROWS):
                 "why": ("%d row(s) is under the %d-row floor — a column of nulls here is a young "
                         "store, and a zero over rows that cannot disagree measures the sample"
                         % (n, min_rows))}
-    on_every, filled = None, {}
+    # ⚠ A ROW THAT IS NOT A DICT CRASHED THIS. Found by the cold cross-family look at v2539:
+    # `dead_fields([{...}, None, {...}])` raised AttributeError on `r.keys()`. `state()` filters
+    # before calling, so the live path was safe — but this function is PUBLIC, the guard calls it
+    # directly, and a detector that crashes on malformed data goes silent exactly when the data is
+    # bad. Skipped and COUNTED, because dropping rows silently would shrink the denominator the
+    # floor is measured against. [[unknown-stays-unknown]]
+    on_every, filled, skipped = None, {}, 0
     for r in rows:
+        if not isinstance(r, dict):
+            skipped += 1
+            continue
         keys = set(r.keys())
         on_every = keys if on_every is None else (on_every & keys)
         for k, v in r.items():
@@ -137,11 +146,13 @@ def dead_fields(rows, min_rows=MIN_ROWS):
     dead = sorted(k for k in (on_every or ()) if not filled.get(k))
     return {
         "state": "DEAD_FIELDS" if dead else "OK",
-        "dead": dead, "checked": n, "fields": sorted(on_every or ()),
+        "dead": dead, "checked": n, "skipped": skipped, "fields": sorted(on_every or ()),
         "filled": {k: filled.get(k, 0) for k in sorted(on_every or ())},
         "why": (("%d field(s) present on all %d row(s) and filled on NONE: %s. A field that never "
-                 "once carried a value is not a field, it is a typo with a comma after it."
-                 % (len(dead), n, ", ".join(dead))) if dead else
+                 "once carried a value is not a field, it is a typo with a comma after it.%s"
+                 % (len(dead), n, ", ".join(dead),
+                    (" \u26a0 %d row(s) were not objects and could not be judged." % skipped)
+                    if skipped else "")) if dead else
                 "every field present on all %d row(s) carries a value somewhere" % n),
     }
 

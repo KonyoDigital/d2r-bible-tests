@@ -17860,3 +17860,22 @@ problem. **The cause remains UNKNOWN**, and it stays UNKNOWN in this log rather 
 with the best-sounding candidate. The `heart` render target now watches the panel, so it cannot go
 back to being invisible.
 
+**The cold cross-family look at v2539 — one finding TAKEN, one REFUTED BY MEASUREMENT (v2540).**
+
+⚠ **TAKEN.** `dead_fields()` raised `AttributeError` on a non-dict row. `state()` filters before
+calling, so the live path was safe — but the function is **public**, the guard calls it directly,
+and **a detector that crashes on malformed data goes silent exactly when the data is bad**. Rows
+that are not objects are now skipped **and counted**, with the count in the report: dropping them
+silently would shrink the denominator the row floor is measured against.
+
+⚠⚠ **REFUTED, AND NOT TAKEN.** It claimed `0`, `0.0` and `False` are treated as not-filled, so a
+field whose only value is `0` would be reported dead. **Measured — all three count as filled 40 of
+40**, because `0 != ""` and `0 != []` are both True in Python. The reviewer reasoned about mixed-type
+`!=` and got it backwards. It is now pinned by its own test, because a future reader meeting that
+claim in this log would otherwise "fix" it into the reviewer's version — and calling a measured `0`
+dead is the exact zero-vs-None collapse this whole file exists to prevent.
+
+**Guard:** two more laws in `tv/test_dead_field.py`. **3 sabotages, 3 RED:** restoring the crash →
+the test errors; adopting the reviewer's claim as `if v:` → `['z'] != []`; dropping unjudgeable rows
+silently instead of counting them → `0 != 1`.
+

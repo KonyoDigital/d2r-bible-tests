@@ -146,6 +146,35 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
         finally:
             RR._tombstone_path = real
 
+    def test_a_row_that_is_not_an_object_is_SKIPPED_and_COUNTED_not_a_crash(self):
+        """⚠ Found by the cold cross-family look at v2539: this raised AttributeError on a non-dict
+        row. `state()` filters before calling, so the live path was safe — but this function is
+        PUBLIC and the guard calls it directly, and **a detector that crashes on malformed data
+        goes silent exactly when the data is bad**. Counted, not silently dropped: dropping rows
+        would shrink the denominator the floor is measured against."""
+        rows = self._rows(39, startedTs=None) + [None]
+        r = DF.dead_fields(rows)
+        self.assertEqual(r["state"], "DEAD_FIELDS", r)
+        self.assertEqual(r["skipped"], 1, "the unjudgeable row was not counted: %s" % r)
+        self.assertIn("could not be judged", r["why"],
+                      "the report does not say a row was skipped, so the reader takes the "
+                      "denominator at face value: %r" % r["why"])
+
+    def test_ZERO_and_FALSE_are_FILLED_not_dead(self):
+        """⚠⚠ A COLD REVIEW CLAIMED THE OPPOSITE AND WAS WRONG — it said `0`, `0.0` and `False` are
+        treated as not-filled. Measured: all three count as filled 40 of 40, because `0 != ""` and
+        `0 != []` are both True in Python. The finding was NOT taken. This pins the real behaviour
+        so a future reader does not 'fix' it back to the reviewer's version — `0` is a MEASURED
+        value and calling it dead would be the exact zero-vs-None collapse this file is about."""
+        for val in (0, 0.0, False):
+            r = DF.dead_fields(self._rows(40, z=val))
+            self.assertEqual(r["dead"], [],
+                             "%r was reported as a dead field. It is a measured value." % (val,))
+            self.assertEqual(r["filled"].get("z"), 40, "%r was not counted as filled" % (val,))
+        for val in (None, "", []):
+            r = DF.dead_fields(self._rows(40, z=val))
+            self.assertEqual(r["dead"], ["z"], "%r should read as nothing recorded" % (val,))
+
     def test_it_reports_and_refuses_nothing(self):
         """Nothing here fails a build or blocks a button — it is EVIDENCE, like CF-13's reach."""
         r = DF.state()
