@@ -52,6 +52,25 @@ That is precisely the shape REG-568 found in the render coverage ratchet one fil
 bless could write the floor DOWN. **A ratchet whose red is unactionable trains its reader to
 re-baseline.**
 
+⚠⚠ **CORRECTION, SAME DAY: THE PER-FILE MAP WAS REVERTED BEFORE IT SHIPPED, AND THE REASON MATTERS
+MORE THAN THE FEATURE.** The pre-push gate refused the push: `tv/swallow_census.py` is a **VENDORED**
+file with live byte-copies in `kai-achilles` and `achilles-revival`, each stamped with the upstream
+digest, and `TestV2387TheVendoredCensusHasNotDRIFTED` caught that I had moved the one source away
+from both copies. That guard's own docstring carries **his ruling**: *"dont fix the other repo
+though.. that for a later day in the future after we perfect diablo first repos"* — and, in as many
+words, **"Do not helpfully re-vendor them."** There is no vendoring script; re-vendoring means
+hand-editing two other repos. So the shared file was reverted to `origin/main` (digest back to
+`c7b02c7f2f118b56`, matching both stamps) and **the four site fixes — which live in other files —
+were kept**. The ratchet holds at 74. ⚠ The docstring is also STALE and that is worth knowing: it
+says the sibling copies were "BACKED OUT UNTOUCHED", and both are present and committed
+(2026-09-01, *"ci: harden the swallow ratchet"*). **Whether to re-vendor is his call, not mine.**
+
+⚠ **AND REVERTING IT EXPOSED A SWALLOW SITE I HAD JUST ADDED.** With the original census restored the
+count read **75, not 74** — `test_reachability.py:278`, the `except Exception: _srclines = []` in the
+REG-580 message fix, written one commit earlier. An empty list says "the file has no lines"; a failed
+read says "nobody could read it". It is `None` now and `_quote` says which. **The ratchet caught my
+own new site inside the very commit whose subject is a diagnostic that lied about the code.**
+
 **THE FIX, in two halves.** The baseline now records rank-1 **per FILE** — per file, not per line,
 because a line number moves whenever anything above it is edited, so a line-keyed baseline would
 report new sites on every ordinary commit and be re-baselined into meaninglessness within a week.

@@ -273,11 +273,17 @@ class TestEveryGuardedSymbolExists(unittest.TestCase):
             # added in the same commit made the branch unreachable and it ran green. The sabotage
             # is what found it: a message that crashes instead of reporting is strictly worse
             # than the wrong message it replaced. [[feedback-blind-fixture-green-gate]]
+            # ⚠ None, NOT []. An empty list here says "the file has no lines", and a failed read
+            # says "nobody could read it" — `_quote` below can tell them apart and say so. The
+            # swallow ratchet caught the `[]` version one commit after I wrote it, in the very
+            # commit whose subject is a diagnostic that lied about the code. [[unknown-stays-unknown]]
             try:
                 _srclines = open(path, encoding="utf-8").read().split("\n")
             except Exception:
-                _srclines = []
+                _srclines = None
             def _quote(ln):
+                if _srclines is None:
+                    return "(%s could not be re-read to quote line %d)" % (label, ln)
                 try:
                     return _srclines[ln - 1].strip()[:110]
                 except Exception:

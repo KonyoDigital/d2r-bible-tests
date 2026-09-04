@@ -141,6 +141,16 @@ in those words.
 - **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
   not write an anchor that matches the wrong occurrence.
 
+- **⚠ THE SWALLOW CENSUS IS A VENDORED FILE, AND IMPROVING IT NEEDS HIS CALL.** 2026-09-04: the
+  per-file rank-1 map (REG-579) was written, proven, and then **reverted before it shipped** because
+  `tv/swallow_census.py` has live byte-copies in `kai-achilles` and `achilles-revival`, each stamped
+  with the upstream digest and guarded by `TestV2387TheVendoredCensusHasNotDRIFTED`. That guard's
+  docstring carries his ruling — *"dont fix the other repo though"* and *"Do not helpfully re-vendor
+  them"* — and there is no vendoring script, so syncing means hand-editing two other repos. **Owed,
+  and his to decide:** re-vendor all three, or keep the census frozen and put future improvements in
+  a d2r-only wrapper. ⚠ The guard's docstring is stale either way: it says the copies were "BACKED
+  OUT UNTOUCHED" and both are present and committed since 2026-09-01.
+
 - **⚠⚠ `run_gates.py` HAS EIGHT RED GATES ON `main`, AND THE PRE-PUSH HOOK CANNOT SEE SEVEN OF THEM.**
   Measured 2026-09-04 by running the full 30-gate set, which the hook does not: it says so itself —
   *"run_gates.py runs 30 gates; this hook ran three."* RED: `printer_wilson`, `test_reachability`,
