@@ -893,6 +893,18 @@ GATES = [
              "number. Nothing on any screen was wrong and his ruling is untouched — the defect "
              "lived in the reasoning record, where nothing reads prose. This reads it, and fails "
              "if anyone but him moves RUNEWORD_CHRONICLE_TOTAL."),
+    Gate("test_overlap_ratchet", [sys.executable, os.path.join(HERE, "test_overlap_ratchet.py")],
+         60,
+         why="v2606 — the overlap ratchet's own arithmetic, and a debt paid one version after it "
+             "was named. overlap_ratchet shipped at v2605 with no unit suite and its gate `why` "
+             "said so; one version before that I had been bitten by exactly the same shape "
+             "(reel_templates, REG-586, classifying all forty reels since v2571 with nothing "
+             "testing it). This grades the RATCHET without a browser: a rise fails and NAMES the "
+             "width, a FALL fails too so a win is recorded rather than absorbed as slack, an "
+             "unmeasurable run is UNKNOWN and never a pass, an absent baseline is UNCONFIGURED "
+             "rather than clean, and a malformed count is not read as zero. It also pins that the "
+             "3px threshold is not zero — a 1px box kiss is antialiasing, and a gate that cries "
+             "wolf is one he learns to skip."),
     Gate("overlap_ratchet", [sys.executable, os.path.join(HERE, "overlap_ratchet.py"), "--check"],
          300,
          why="v2605 — THE CLASS THE RENDER GATE CANNOT SEE. render_check measures CLIPPED, "
