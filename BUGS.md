@@ -7,6 +7,46 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-587 — text sitting on text, the class the render gate cannot see
+**2026-09-04 · v2605**
+
+`render_check` measures whether an element is **CLIPPED**, **OFF-SCREEN** or **COVERED**. None of
+those catches two labels drawn on top of each other: both are fully on screen, neither is clipped,
+and the pixels are a mess. Measured at widths the gate already renders and reports green:
+
+| width | text leaves | overlapping pairs |
+|---|---|---|
+| **375×800** | 50 | **24** |
+| 901×900 | 53 | 3 |
+| 1120×900 | 53 | 2 |
+| 1440×1000 | 56 | 3 |
+
+⚠ **IT IS NOT ONLY A NARROW-WIDTH PROBLEM.** One of the three at **1440×1000** is **246 × 29 px** —
+the EYES panel's `UNKNOWN — the console did not answer…` sentence sitting on the AI READS bar's
+`— agent thoughts appear here when live —`. That is his widest view.
+
+**HOW IT WAS FOUND.** A cold cross-family look at the 375px PNG — the same image `render_check` had
+just passed as *"no clipping"* — reported it unprompted: *"'AI READS · LIVE' overlaps the partial
+text 'appea here'… ':17772' and ':17771' colliding with 'MILLENIUM', 'heart', and 'AGENT'."* We
+agreed for once, and then it was measured over CDP rather than argued.
+[[visual-regression-detector]]
+
+**IT IS A RATCHET, DELIBERATELY.** 24 overlaps today would make a pass/fail gate red from birth, and
+a gate that is red on arrival gets re-baselined instead of read — exactly how the swallow ratchet
+one file over came to be cleared by `--write-baseline` instead of by fixing anything. A **rise**
+fails; a **fall** fails too, so a win is recorded rather than absorbed as slack.
+
+⚠ **THE RECORDED COUNTS ARE DEBT, NOT A CLEAN BILL.** Nobody has read the 2-3 at desktop widths.
+Calling them harmless would be a verdict nobody earned; the baseline says so in its own `_why`.
+[[unknown-stays-unknown]]
+
+⚠ **ITS OWN UNIT SUITE IS OWED.** The gate exercises the real measurement against real pixels every
+run, which is stronger than a fixture — but that is not the same as having one, and I have just
+been bitten by a module shipping without one (REG-586).
+
+**Guard:** registered as `overlap_ratchet` in `run_gates`, proven RED by doctoring one width's
+baseline and watching it name the colliding pairs.
+
 ### REG-585 — I wrote a "new" file over an existing suite, and shipped it
 **2026-09-04 · v2604 · mine, and it reached origin before I found it**
 

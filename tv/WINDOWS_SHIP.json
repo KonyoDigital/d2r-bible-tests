@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2604",
+  "ver": "v2605",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2604: REG-585 - I WROTE tv/test_paint_witness.py AS A NEW FILE AND IT ALREADY EXISTED. v2457s suite - the beat must distinguish RUNNING from PAINTING, 110 lines, 2 classes, 6 tests - was destroyed by my Write and SHIPPED in v2601 to origin. Found by a duplicate gate name in run_gates. Restored byte-identical from 39afd05a and my pixel tests moved to test_pixel_witness.py; both suites registered, both green, no orphan. A new file is not new until the path is checked. REG-586 - the printers PARTIAL state is 14 reels the templater cannot classify, and its reason said the segmenter returned no activity. Measured - all 14 have ZERO deep journal rows while carrying 22 to 2385 frames on disk and 7 to 40 SHALLOW rows. They were read, never read DEEPLY, and the segmenter was working perfectly with nothing handed to it. Three states now get three sentences. reel_templates shipped at v2571 with NO SUITE AT ALL - the inverse of REG-079 - and now has one, proven RED four ways.",
+  "note": "v2605: REG-587. render_check measures CLIPPED OFF-SCREEN and COVERED and none of those catches two labels drawn on top of each other - both fully on screen, neither clipped, and the pixels a mess. Measured at a width render_check already renders and calls clean - 375x800 has 24 overlapping text pairs across 50 text leaves, and even 1440x1000 has 3, one of them 246 by 29 px where the EYES panel UNKNOWN sentence sits on the AI READS bar. Found because a cold cross-family look on the same PNG the gate had just passed said AI READS LIVE overlaps the partial text appea here and 17772 and 17771 colliding with MILLENIUM heart and AGENT - and this time we agreed. It is a RATCHET because 24 today would make a pass-fail gate red from birth and a gate red on arrival gets re-baselined instead of read. A rise fails and a FALL fails too so a win is recorded rather than absorbed as slack. The 2 to 3 overlaps at desktop widths are recorded as DEBT not as a clean bill - nobody has read them. Proven RED by doctoring one width and watching it name the colliding pairs.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

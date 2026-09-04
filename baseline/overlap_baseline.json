@@ -1,0 +1,9 @@
+{
+  "_why": "TEXT-ON-TEXT overlaps per width. A rise FAILS; a fall also fails until it is blessed here deliberately, so there is no slack for a new overlap to hide in. These are DEBT, not a clean bill: nobody has read them.",
+  "counts": {
+    "1120x900": 2,
+    "1440x1000": 3,
+    "375x800": 24,
+    "901x900": 3
+  }
+}

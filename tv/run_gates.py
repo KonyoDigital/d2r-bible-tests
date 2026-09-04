@@ -893,6 +893,20 @@ GATES = [
              "number. Nothing on any screen was wrong and his ruling is untouched — the defect "
              "lived in the reasoning record, where nothing reads prose. This reads it, and fails "
              "if anyone but him moves RUNEWORD_CHRONICLE_TOTAL."),
+    Gate("overlap_ratchet", [sys.executable, os.path.join(HERE, "overlap_ratchet.py"), "--check"],
+         300,
+         why="v2605 — THE CLASS THE RENDER GATE CANNOT SEE. render_check measures CLIPPED, "
+             "OFF-SCREEN and COVERED; none of those catches two labels drawn on top of each "
+             "other, where both are fully on screen, neither is clipped, and the pixels are a "
+             "mess. Measured at a width render_check already renders and calls clean: 375x800 has "
+             "24 overlapping text pairs, and even 1440x1000 has 3 — one of them 246x29 px, the "
+             "EYES panel's UNKNOWN sentence sitting on the AI READS bar. A cold cross-family look "
+             "found it unprompted on the same PNG the gate had just passed. It is a RATCHET "
+             "because 24 today would make a pass/fail gate red from birth, and a gate that is red "
+             "on arrival gets re-baselined instead of read. A rise fails; a FALL fails too, so a "
+             "win is recorded rather than absorbed as slack. ⚠ Its own unit suite is OWED — the "
+             "gate exercises the real measurement against real pixels every run, which is stronger "
+             "than a fixture, but that is not the same as having one."),
     Gate("test_pixel_witness", [sys.executable, os.path.join(HERE, "test_pixel_witness.py")], 60,
          why="v2601 — the beat is published BY the document, so a window that beats happily while "
              "the compositor presents nothing looks perfect from the inside. Measured on his "
