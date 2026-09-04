@@ -53,11 +53,18 @@ if HERE not in sys.path:
 #: The stream, in order, and WHO ANSWERS EACH STATION. The module named owns that question; this
 #: file owns none of them. A station whose owner will not answer is UNKNOWN, never skipped — a
 #: station missing from a reel's row would read as a reel that did not need it.
-STATIONS = ("in", "funnel", "route", "extract", "out")
+# ⚠ v2571 — `template` ADDED between the ladder and the routing: the station his architecture
+# was missing. *"the printer should be architected via templates and techniques... the diffrence
+# is the reel itself and the image relating it should get routed accordingly to its individual
+# logic."* Before it, ROUTE could say WHY a reel was routed (its content, or policy) but never
+# WHAT THE REEL IS. reel_segments had classified reels since v2343 with four production consumers
+# and not one of them was the printer. [[the-unjoined-end]]
+STATIONS = ("in", "funnel", "template", "route", "extract", "out")
 
 STATION_OWNER = {
     "in":      ("one_start_point",  "which door did this reel enter by?"),
     "funnel":  ("reel_river",       "how far down the one ladder has it come, and who decided?"),
+    "template": ("reel_templates",  "what IS this reel, and which extraction zone follows?"),
     "route":   ("per_reel_routes",  "what chose its route — its CONTENT, or policy?"),
     "extract": ("printer_reach",    "may the printer act on it at all?"),
     "out":     ("reel_river",       "is it clean at the far end? (BOTH doors, neither chosen)"),
@@ -93,6 +100,13 @@ def _sources():
             whys.append(w)
     except Exception as e:
         whys.append("reel_river would not import (%s)" % str(e)[:60])
+    try:
+        import reel_templates as RTPL
+        out["templates"], w = _safe(RTPL.templates)
+        if w:
+            whys.append(w)
+    except Exception as e:
+        whys.append("reel_templates would not import (%s)" % str(e)[:60])
     try:
         import per_reel_routes as PRR
         out["routes"], w = _safe(PRR.routes)
@@ -161,6 +175,7 @@ def stream(reel=None):
     river, _d1 = _by_reel(src.get("river"))
     doors, _d2 = _by_reel(src.get("door"))
     routes, _d3 = _by_reel(src.get("routes"))
+    tmpl, _d4 = _by_reel(src.get("templates"))
     dropped = _d1 + _d2 + _d3
     if not river and not doors:
         return _unknown("UNKNOWN, not an empty shelf — %s"
@@ -175,6 +190,7 @@ def stream(reel=None):
         if reel and reel not in name:
             continue
         rv, dr, rt = river.get(name), doors.get(name), routes.get(name)
+        tp = tmpl.get(name)
         stations = {}
 
         # ⚠⚠ REG-546 — AN OWNER THAT ANSWERED WITH NOTHING PRINTED THE WORD "None" AND WAS NOT
@@ -222,6 +238,16 @@ def stream(reel=None):
         stations["funnel"] = _station(rv, "stage", "reel_river",
                                       extra={"decider": "decider"},
                                       why=(rv or {}).get("question"))
+        # ⚠⚠ A ZONE IS NOT A VERDICT ON THE FOOTAGE. `pruneCandidate` is carried verbatim from
+        # reel_templates and means PROVEN to be a run; a reel the segmenter could not classify is
+        # UNKNOWN and is never a candidate, because not-read and not-relevant are opposite facts.
+        # Passed through `_station` like every other station so its SHAPE cannot depend on the
+        # verdict — REG-547, which was written inside the fix for REG-546. [[unknown-stays-unknown]]
+        stations["template"] = _station(tp, "zone", "reel_templates",
+                                        extra={"template": "template",
+                                               "activities": "activities",
+                                               "pruneCandidate": "pruneCandidate"})
+
         stations["route"] = _station(rt, "decidedBy", "per_reel_routes",
                                      extra={"route": "route"})
 

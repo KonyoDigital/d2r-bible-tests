@@ -48,7 +48,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-STATIONS = ("in", "funnel", "route", "extract", "out")
+# ⚠ QUOTED, NOT COPIED. This was a second hand-written tuple of the same five names, and when
+# `template` was added to the printer at v2571 this copy would have gone on asserting the old
+# shape — a harness silently checking a contract the module no longer has. [[copy-drift]] §1
+def _stations():
+    import printer as P
+    return tuple(P.STATIONS)
 
 
 def _refused(r):
@@ -149,7 +154,7 @@ def _attempt_strangerreel(P):
         return 1, 0
     st = hit[0]["stations"]
     # every station present, and the ones nobody answered say UNKNOWN with a reason
-    if set(st) != set(STATIONS):
+    if set(st) != set(_stations()):
         return 1, 0
     unanswered = [s for s in ("funnel", "route") if str(st[s].get("say")) == "UNKNOWN"]
     good = bool(unanswered) and all(_refused(st[s]) for s in unanswered)

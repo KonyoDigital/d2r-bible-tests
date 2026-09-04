@@ -76,8 +76,42 @@ def _segments_for(reel, rows_by_session):
         return [], "reel_segments would not answer (%s)" % str(e)[:80]
 
 
+#: (key -> (rows_by_session, why)). ONE entry; the journal is the only input.
+_CACHE = {"key": None, "val": None}
+
+
+def _ring_key(paths):
+    """A cache key over the ring. -> tuple
+
+    ⚠⚠ EVERY PATH, ITS mtime AND ITS SIZE — never a fold. v2484 shipped a key that ran every
+    mtime through `max()`, so touching one file left the key byte-identical in three modules and
+    the cache answered with stale content. A key that loses which file changed is not a key.
+    ⚠ AND THE COMMENT HERE WAS WRONG BEFORE IT SHIPPED. The first cut said size is carried
+    "because a same-second rewrite of equal length is exactly the edit an mtime-only key cannot
+    see" — but this reads `st_mtime_ns`, at NANOSECOND resolution, which catches a same-second
+    rewrite perfectly well. That sentence was true of a second-resolution mtime and false of the
+    code beneath it, which is v2565's scar exactly. The honest reason to carry size: some
+    filesystems (notably network mounts) report a coarse or lazily-updated mtime, and size is a
+    second, independent signal that costs nothing in the same stat call.
+    """
+    out = []
+    for path in paths:
+        try:
+            st = os.stat(path)
+            out.append((path, st.st_mtime_ns, st.st_size))
+        except Exception:
+            out.append((path, None, None))
+    return tuple(out)
+
+
 def _journal_rows():
     """Every journal row, grouped by sessionId. -> (dict, why)
+
+    ⚠ CACHED ON THE RING'S OWN mtimes. Measured 2026-09-04: this walk takes 2.51s against
+    printer.stream()'s 0.04s, and the printer runs on every heart open. A 2.5s answer on a hot
+    path is the shape of [[poll-slower-than-its-interval]], which once saturated his Mac with a
+    172s job answered every 12s. The cache is invalidated by the journal changing and by nothing
+    else, so a new recording is picked up and a re-read costs nothing.
 
     ⚠ THE RING, NOT THE LIVE FILE. control_app._journal_ring() is asked for the paths because it
     owns them; re-deriving `HERE/sessions.jsonl` here would be the eleventh hardcoded site its own
@@ -90,6 +124,9 @@ def _journal_rows():
         return {}, "the journal ring could not be resolved (%s)" % str(e)[:80]
     if not paths:
         return {}, "the journal ring resolved to no existing file"
+    key = _ring_key(paths)
+    if _CACHE["key"] == key and _CACHE["val"] is not None:
+        return _CACHE["val"]
     out = {}
     for path in paths:
         try:
@@ -107,6 +144,7 @@ def _journal_rows():
                         out.setdefault(sid, []).append(r)
         except Exception:
             continue
+    _CACHE["key"], _CACHE["val"] = key, (out, "")
     return out, ""
 
 
