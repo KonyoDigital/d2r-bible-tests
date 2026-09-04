@@ -308,6 +308,28 @@ in those words.
   `vault.sweep_start` 16/16, the nine routes 4/4→7/7. The 14th, `vault.forget`, is **UNPROVEN by
   construction and permanently so** — 8 lines, 0 raises, no refusal path, so no sabotage can produce
   evidence in either direction. `n=0` there is the correct final state, not an owed harness.
+- **🖨🌊 THE PRINTER AND THE RIVER — RE-MEASURED 2026-09-04 EVENING. TWO OF THE FIVE ANSWERS BELOW
+  HAVE SINCE BECOME FALSE, and they are struck in place rather than quietly edited.**
+  · ~~*"has the printer been tested and hardened?" — NO LOCK AT ALL… not one names the printer.*~~
+    ✅ **NO LONGER TRUE.** v2570 added `printer.stream` to the table and `tv/printer_wilson.py`
+    sabotages it along five axes. Measured now: **OPEN, 83 of 83 refused, wilson 0.956.** It is in
+    the table, it has a sabotage record, and it opened itself. (Still not HARDENED — one kind.)
+  · ~~*"routed to their relevant end zone?" — EXTRACT is UNREACHABLE for all 40… the printer may
+    act on ZERO of 40 reels.*~~ ✅ **NO LONGER TRUE.** v2572 gave EXTRACT a per-reel owner
+    (`extract_gap`) instead of one shelf-wide word. Measured now: **RECOVERABLE 3 · NO_NAMES 12 ·
+    UNSEALED 25.** Three reels are recoverable, not zero. ⚠ **OUT is still UNDECIDED for all 40**,
+    and that half of the bullet stands — A15 never says which door decides *clean*, and it gates
+    the prune.
+  · ⚠ **STILL TRUE, re-measured:** `per_reel_routes` reports **UNEXERCISED** — content routing
+    exists and nothing has put it to a case. That is the live remainder of the "unified logic"
+    question.
+  · ⚠ **AND THE ORIGINAL ANSWER TO THE FIRST QUESTION STANDS AND IS WORTH KEEPING:** the 410
+    deleted reels went through the older read+seal path because **the printer did not exist yet**
+    — it landed 2026-09-04 05:22 and they were deleted 2026-08-24 → 2026-09-01. Nothing about
+    those deletions can be attributed to it.
+
+  **ORIGINAL, kept in full:**
+
 - **🖨🌊 THE PRINTER AND THE RIVER, PROBED 2026-09-04 — his questions, answered with numbers.**
   · **"did those reels get processed through the 3D/4D printer?" — NO, AND THEY COULD NOT HAVE.**
     The printer landed **2026-09-04 05:22** (`cb6aae55` v2544, `9f506217` v2546). The 410 were
