@@ -388,7 +388,27 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         _have_index = bool(_fa_idx.witness_index(HERE).get("haveIndex", True))
     except Exception:
         _have_index = False
-    recent = set(reels[-keep_recent:]) if keep_recent else set()
+    # ⚠⚠ v2576 REG-571 — JUNK DIRECTORIES ATE THE RECENT SHIELD. `_reel_ts` returns
+    # float("inf") for a name it cannot parse, deliberately, "so it is the last thing anyone
+    # deletes" — true of the junk dir itself, and it says nothing about that junk DISPLACING real
+    # reels out of the shield. Measured: five `reel_backup_*` siblings alongside five real reels
+    # with keep_recent=3 took all three slots, and eligible went 2 -> 5. Three reels lost their
+    # protection and the coverage line still read `recent: 3`, so the instrument certified a rule
+    # that had stopped protecting anything.
+    #
+    # The shield is the newest PARSEABLE reels now. An unparseable dir keeps its inf sort key and
+    # is still last to be deleted; it simply cannot stand in for a real reel.
+    #
+    # ⚠ REG-572, same line — a NEGATIVE keep_recent silently removed the shield entirely.
+    # `--keep-recent` is bare `type=int`, `if keep_recent` is truthy for -6, and `reels[-(-6):]`
+    # is a SUFFIX FROM THE FRONT, which for 5 reels is empty. Measured: eligible 2 -> 5. A
+    # negative shield is not a smaller shield, it is no shield, and it arrived through an
+    # argument nobody validated. Non-negative is enforced here rather than at one call site.
+    if keep_recent is not None and keep_recent < 0:
+        raise ValueError("keep_recent must be >= 0, got %r — a negative window silently drops "
+                         "the recent shield entirely rather than shrinking it" % (keep_recent,))
+    _parseable = [r for r in reels if _reel_ts(r) != float("inf")]
+    recent = set(_parseable[-keep_recent:]) if keep_recent else set()
     try:
         import frame_authority as _fa
         _fixtures = _fa.test_referenced_reels()
@@ -452,7 +472,24 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
             return e if e else None
 
         ce, ve = _told(_entry(chron, reel)), _told(_entry(vault, reel))
-        pages = int((ce or {}).get("pages") or 0)
+        # ⚠⚠ v2576 REG-573 — A NON-INTEGER PAGE COUNT REACHED THE TOMBSTONE. `int()` accepts
+        # True (bool is a subclass of int) and raises on "many" or [1,2,3]. Measured: `pages:
+        # true` made all five reels ELIGIBLE and stamped the permanent record of an irreversible
+        # act with *"read (1 pages) and sealed by BOTH lanes"* — a boolean rendered as a page
+        # count. And `pages: "many"` let a ValueError escape plan() entirely, which
+        # _retention_loop swallows in `except Exception: pass`, so the pass dies silently with
+        # the console's last sentence frozen on screen.
+        #
+        # A page count that is not a whole number is not a small count, it is an UNREADABLE
+        # ledger — which is a state this module already has, and which HOLDS. [[unknown-stays-unknown]]
+        _pv = (ce or {}).get("pages")
+        if _pv is None or _pv == "":
+            pages = 0
+        elif isinstance(_pv, bool) or not isinstance(_pv, int):
+            unreadable.append("%s: pages=%r is not a whole number" % (reel, _pv))
+            pages = 0
+        else:
+            pages = _pv
 
         if not _have_index:
             why = _rule("no-witness-index",

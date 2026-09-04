@@ -754,5 +754,86 @@ class AFixtureCanActuallyRedirectTheLedgers(unittest.TestCase):
                          % (3 - (cov.get("never-chronicle-swept") or 0), cov))
 
 
+
+class TheShieldAndThePageCountHoldUnderHostileLedgers(unittest.TestCase):
+    """v2576 — REG-571/572/573, four defects in the chooser, all four reproduced.
+
+    ⚠ THEY COULD NOT BE REPRODUCED AT ALL UNTIL v2575. `_pick` read Konyo's live ledgers whatever
+    the fixture said, so every earlier attempt measured his data and reported "not reproduced".
+    Isolation came first; the verdicts came second. An unreproducible claim is UNVERIFIED, which
+    is a different fact from refuted.
+    """
+
+    def _fx(self, n=5, pages=3, extra=()):
+        d = tempfile.mkdtemp(prefix="fx_")
+        self.addCleanup(shutil.rmtree, d, True)
+        sids = ["s_178000000000%d_%d" % (i, i) for i in range(n)]
+        for sid in sids:
+            r = os.path.join(d, "reel_" + sid)
+            os.makedirs(r)
+            with io.open(os.path.join(r, "f_1780000000000.jpg"), "w") as fh:
+                fh.write("x")
+        for name in extra:
+            r = os.path.join(d, name)
+            os.makedirs(r)
+            with io.open(os.path.join(r, "f_1780000000000.jpg"), "w") as fh:
+                fh.write("x")
+        for fn in ("chronicle_swept.json", "vault_swept.json"):
+            with io.open(os.path.join(d, fn), "w", encoding="utf-8") as fh:
+                json.dump({x: {"pages": pages, "rows": 2, "banked": True} for x in sids}, fh)
+        return d, sids
+
+    def _plan(self, d, sids, **kw):
+        import frame_authority as _fa
+        wi, ds = _fa.witness_index, rr._durable_sessions
+        try:
+            _fa.witness_index = lambda *a, **k: {"haveIndex": True, "ok": True,
+                                                 "sessions": {}, "frames": {}, "perStore": {}}
+            rr._durable_sessions = lambda *a, **k: (set(sids), True, "")
+            r = rr.plan(hist_dir=d, **kw)
+        finally:
+            _fa.witness_index, rr._durable_sessions = wi, ds
+        return {k: v for k, v in (r.get("coverage") or {}).items() if v}
+
+    def test_unparseable_dirs_do_not_take_the_recent_shields_slots(self):
+        """REG-571 — measured: 5 junk siblings took all 3 slots, eligible went 2 -> 5."""
+        d, s = self._fx()
+        clean = self._plan(d, s, keep_recent=3)
+        d2, s2 = self._fx(extra=["reel_backup_" + c for c in "abcde"])
+        junked = self._plan(d2, s2, keep_recent=3)
+        self.assertEqual(junked.get("eligible"), clean.get("eligible"),
+                         "unparseable sibling directories displaced real reels out of the recent "
+                         "shield: eligible %s -> %s while coverage still reported recent=%s"
+                         % (clean.get("eligible"), junked.get("eligible"), junked.get("recent")))
+
+    def test_a_negative_keep_recent_is_refused_not_silently_ignored(self):
+        """REG-572 — `reels[-(-6):]` is a suffix from the front: empty, so the shield vanished."""
+        d, s = self._fx()
+        with self.assertRaises(ValueError):
+            self._plan(d, s, keep_recent=-6)
+
+    def test_a_boolean_page_count_does_not_read_as_one_page(self):
+        """REG-573 — bool is a subclass of int, so `pages: true` stamped a TOMBSTONE with
+        "read (1 pages) and sealed by BOTH lanes" — the permanent record of an act with no undo."""
+        d, s = self._fx(pages=True)
+        cov = self._plan(d, s, keep_recent=0)
+        self.assertFalse(cov.get("eligible"),
+                         "pages=True released %s reel(s); a boolean is not a page count" % cov)
+        self.assertTrue(cov.get("ledger-unreadable"), cov)
+
+    def test_an_unparseable_page_count_holds_instead_of_escaping(self):
+        """REG-573 — `pages: "many"` raised out of plan(), and _retention_loop swallows it."""
+        d, s = self._fx(pages="many")
+        cov = self._plan(d, s, keep_recent=0)          # must not raise
+        self.assertTrue(cov.get("ledger-unreadable"), cov)
+
+    def test_an_HONEST_ledger_still_releases(self):
+        """BASELINE — or these fixes bought safety by holding everything for ever."""
+        d, s = self._fx(pages=3)
+        cov = self._plan(d, s, keep_recent=0)
+        self.assertTrue(cov.get("eligible"),
+                        "a clean ledger released nothing at all: %s" % cov)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

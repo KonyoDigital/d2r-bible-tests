@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2575",
+  "ver": "v2576",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2575: a fixture could not redirect the deleters ledgers",
+  "note": "v2576: four defects in the deleters chooser, all four reproduced",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
