@@ -484,6 +484,82 @@ TARGETS = {
         "warmup": 10.0,     # /api/heart re-derives the census and the proof ledger on every open
     },
 
+    # ══ v2568 — THE LOCK CHIPS, ON PIXELS. The last item on TASKS.md's "STILL OWED BY ME" list:
+    # *"the new vault lock chip has no target at all. Unmeasured reads identical to clean in a
+    # green run."* His ask was explicit — *"i want a visual lock on whats locked in the console
+    # resembling the BACKEND coding lock for wilson score"* — and the markup declares FOUR chips:
+    # lock-vault-tab, lock-vault, lock-miniauto, lock-prune.
+    #
+    # ⚠⚠ AND THIS SURFACE HAS ALREADY LOST ONE, SILENTLY. v2443 moved the mini-auto padlock inside
+    # `<b id="miniauto-lbl">`, which `_miniLbl` rewrites with `textContent` on EVERY POLL — so the
+    # stamp existed for a fraction of a second at load and was then destroyed for ever. On his
+    # console it was simply ABSENT, on the one surface whose whole purpose is making the lock
+    # known. A probe had counted THREE where the markup declares four and that was read past; a
+    # cold cross-family look at real pixels is what named it.
+    #
+    # ⚠ IT MUST BE SERVED, and that is the entire point: under file:// the chips sit in the static
+    # markup and all four are trivially present. The defect only exists once the polls run.
+    "locks": {
+        "serve": True,
+        "why": "the FOUR lock chips — vault tab, vault accumulator, mini-auto and the prune. A "
+               "chip with NO state renders as `locked`, never as absent, because a missing badge "
+               "reads as an OPEN lock and that is the one direction this must never fail in. This "
+               "target exists because one of them was destroyed on every poll and nothing saw it",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* ⚠⚠ THE FIRST TWO VERSIONS OF THIS TARGET REFUSED, AND BOTH TIMES IT WAS THIS
+               INSTRUMENT AND NOT HIS CONSOLE. Measured cold over CDP on a served console:
+
+                   lock-vault-tab  19x14  state=unproven  blockers=NONE
+                   lock-vault       0x0   state=unproven  blockers=hd-vault[display:none]
+                   lock-miniauto   21x16  state=open      blockers=NONE
+                   lock-prune      19x14  state=open      blockers=NONE
+
+               All FOUR chips exist and all four carry a real state. `lock-vault` measures 0x0
+               because its SECTION is display:none — a badge on a pane that is not the open one,
+               which is the disclosure working. Demanding that all four paint at once measured
+               WHICH PANE STARTS ACTIVE, a thing this target was never asked about and one that
+               would refuse the moment a default changed. [[feedback-suspect-the-instrument]]
+
+               So the contract is split, because two different questions were wearing one rect:
+
+                 · DESTRUCTION and STATELESSNESS are asked of ALL FOUR here, in the DOM. That is
+                   the v2443 defect — the mini-auto padlock was moved inside a <b> that _miniLbl
+                   rewrites with textContent every poll, so it existed for a fraction of a second
+                   at load and was then destroyed for ever. A count catches that; a rect cannot,
+                   because a destroyed node has no rect to be wrong.
+                 · COLLAPSE is asked only of the chips actually on screen, marked below so `sel`
+                   names them without hard-coding an id that rots when the panes are rearranged.
+
+               A chip with NO state is the dangerous direction and is refused here: the UI paints
+               a missing badge as `locked`, so an absent state reads as a LOCK THAT IS OPEN.
+               [[unknown-stays-unknown]] */
+            var all = document.querySelectorAll('.lockchip');
+            if (all.length < 4) return false;          /* one was destroyed by a poll */
+            var onscreen = 0;
+            for (var i = 0; i < all.length; i++){
+                var e = all[i];
+                if (!(e.getAttribute('data-state') || '').trim()) return false;
+                for (var n = e.parentNode; n && n.nodeType === 1; n = n.parentNode){
+                    if (n.tagName === 'DETAILS' && !n.open) n.open = true;
+                }
+                var hidden = false;
+                for (var m = e.parentNode; m && m.nodeType === 1; m = m.parentNode){
+                    var cs = getComputedStyle(m);
+                    if (cs.display === 'none' || cs.visibility === 'hidden'){ hidden = true; break; }
+                }
+                if (hidden) continue;
+                var r = e.getBoundingClientRect();
+                if (!(r.width > 2 && r.height > 2)) return false;   /* visible AND collapsed */
+                e.classList.add('lockchip-onscreen');
+                onscreen++;
+            }
+            return onscreen > 0; })()""",
+        "sel": ".lockchip-onscreen",   # stamped by activate: the chips actually on screen
+        "settles": False,
+        "warmup": 12.0,     # long enough for the label poll that once destroyed one of them
+    },
+
     "advanced": {
         "serve": True,
         "why": "the ⚙ ADVANCED drawer — the EYES switch, the shadow reader and THE FLEET. It sits "
