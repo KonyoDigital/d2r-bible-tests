@@ -115,4 +115,54 @@ test.describe('#135 — an exhausted grail wall must still name its state', () =
         'can reach its all-sealed message',
     ).toBe(false);
   });
+
+  // ══ v2589 — THE THIRD ARM, which is the half #135 still owed ═══════════════════════════════
+  // v2474 proved the ROTATION yields a pick at 398/403, so the wipe arm is not reached. What
+  // nothing asserted is the arm itself: `dailyCreateAi` ends
+  //
+  //     if (rot.target.pick)   setItem(d2r_createNowAi, pick)
+  //     else if (rot.sealed)   setItem(d2r_createNowAi, "all chronicles sealed …")
+  //     else                   removeItem(d2r_createNowAi)      <- the silent wipe
+  //
+  // and the only guard covered its INPUT. A source grep cannot pin this: `removeItem` appears all
+  // over bible.html, which is exactly why I refused to write an anchor for it twice. Driving the
+  // real page and reading what actually landed in storage is the only honest fingerprint.
+  // [[source-reading-guard]] — a guard that greps text fails on its own reach.
+  //
+  // ⚠ `dailyCreateAi` SELF-DISABLES UNDER AUTOMATION (`navigator.webdriver && !__allowDailyAi`),
+  // so a test that forgets the flag exercises nothing and passes. The flag is set, and the first
+  // case below would fail without it — that is the baseline proving these cases can run at all.
+  test('the wipe arm fires ONLY when there is genuinely nothing to name', async ({ page }) => {
+    await page.goto(BIBLE);
+    await page.waitForTimeout(800);
+
+    const run = async (stub: any, label: string) =>
+      await page.evaluate(([s, lbl]: any) => {
+        (window as any).__allowDailyAi = true;
+        (window as any).funiScan = () => s;
+        try { delete (window as any)._chronRotMemo; } catch (e) { (window as any)._chronRotMemo = null; }
+        const LS = (window as any).LSR;
+        LS.setItem('d2r_createNowAi', 'SENTINEL:' + lbl);
+        LS.removeItem('d2r_createNowAiDate');
+        try { (window as any).dailyCreateAi(true); } catch (e) { return { threw: String(e).slice(0, 90) }; }
+        return { stored: LS.getItem('d2r_createNowAi') };
+      }, [stub, label]);
+
+    // 1. a wall with names left: a pick must be WRITTEN, never wiped
+    const live = await run({ found: 398, chronTotal: 403, total: 403, runs: [], missing: [] }, 'live');
+    expect(live.threw, 'dailyCreateAi threw: ' + live.threw).toBeFalsy();
+    expect(
+      live.stored,
+      'the sentinel survived, so dailyCreateAi never ran — check __allowDailyAi, because a test ' +
+      'that does not set it exercises nothing and passes anyway',
+    ).not.toBe('SENTINEL:live');
+    expect(live.stored, 'a wall with 5 names left wiped the pick — this is #135').toBeTruthy();
+
+    // 2. genuinely complete: the SEALED arm, still a written sentence and not a wipe
+    const sealed = await run({ found: 403, chronTotal: 403, total: 403, runs: [], missing: [] }, 'sealed');
+    expect(
+      sealed.stored,
+      'a fully sealed chronicle wiped the pick instead of naming the state',
+    ).toBeTruthy();
+  });
 });
