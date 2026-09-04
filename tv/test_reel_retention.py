@@ -662,5 +662,97 @@ class AFalsyLedgerEntryIsPresentNotAbsent(unittest.TestCase):
         self.assertIsNone(RR._entry({"reel_other": {"pages": 1}}, "reel_s_1"))
 
 
+
+class AFixtureCanActuallyRedirectTheLedgers(unittest.TestCase):
+    """v2575 REG-570 — it could not, and eleven call sites believed it could.
+
+    `_pick` searched HERE before the caller's `hist`, unconditionally, and took the first
+    NON-EMPTY copy. So `plan(hist_dir=<scratch>)` read Konyo's live chronicle_swept (401 entries)
+    and vault_swept (30) instead of the fixture's, and setting TV_HIST did not help either.
+
+    Proven before the fix: a scratch ledger declaring pages=99 for three fixture reels still
+    produced `never-chronicle-swept: 3` — his store answered and the fixture's was ignored.
+
+    The consequence is not a wrong number in a report. Every sabotage ever aimed at this chooser
+    was graded against live data it could not control, which is exactly why four separately
+    claimed defects in it could not be reproduced. [[feedback-fixtures-never-touch-live-data]]
+    """
+
+    def _scratch(self):
+        d = tempfile.mkdtemp(prefix="rr_redirect_")
+        self.addCleanup(shutil.rmtree, d, True)
+        sids = ["s_fixture_%d" % i for i in range(3)]
+        for sid in sids:
+            r = os.path.join(d, "reel_" + sid)
+            os.makedirs(r)
+            with io.open(os.path.join(r, "f_1780000000000.jpg"), "w") as fh:
+                fh.write("x")
+        for fn in ("chronicle_swept.json", "vault_swept.json"):
+            with io.open(os.path.join(d, fn), "w", encoding="utf-8") as fh:
+                json.dump({s: {"pages": 99, "rows": 99, "banked": True} for s in sids}, fh)
+        return d
+
+    def test_the_callers_hist_dir_is_the_one_that_answers(self):
+        d = self._scratch()
+        cov = rr.plan(hist_dir=d, keep_recent=0).get("coverage") or {}
+        self.assertFalse(cov.get("never-chronicle-swept"),
+                         "the fixture's ledger declared pages=99 for every reel and the plan "
+                         "still reported never-chronicle-swept=%s — it read the LIVE store, so "
+                         "this fixture is grading against Konyo's real data"
+                         % cov.get("never-chronicle-swept"))
+
+    def test_the_real_path_is_untouched_by_the_redirect(self):
+        """BASELINE — or the fix bought isolation by changing what the deleter really does."""
+        cov = rr.plan().get("coverage") or {}
+        self.assertTrue(sum(cov.values()) > 0,
+                        "the real path stopped reporting anything at all")
+        self.assertFalse(cov.get("ledger-unreadable"),
+                         "the real path now cannot read its own ledgers: %s" % cov)
+
+    def test_a_readable_EMPTY_store_is_not_overruled_by_a_stale_one(self):
+        """The docstring always said 'first readable copy wins'; the code said 'first non-empty'.
+
+        They differ on the one case that matters: a readable {} is a MEASUREMENT — nothing swept —
+        and under the old rule a stale non-empty sibling overruled it, so more reels looked swept
+        and MORE FOOTAGE became eligible.
+
+        ⚠ THE FIRST VERSION OF THIS TEST WAS INERT AND THE SABOTAGE SAID SO. It put a readable
+        `{}` in the scratch dir and asserted the reels stayed unswept — but under the OLD rule the
+        empty store is merely skipped and the fallback is Konyo's real store, which contains no
+        `s_fixture_*` session, so the count came out identical either way. The distinguishing case
+        needs the STALE copy to name the SAME sessions, which means owning both ends: `HERE` is
+        pointed at a second scratch dir carrying a non-empty ledger for exactly those reels.
+        """
+        d = self._scratch()
+        for fn in ("chronicle_swept.json", "vault_swept.json"):
+            with io.open(os.path.join(d, fn), "w", encoding="utf-8") as fh:
+                json.dump({}, fh)              # readable, and deliberately empty
+        stale = tempfile.mkdtemp(prefix="rr_stale_")
+        self.addCleanup(shutil.rmtree, stale, True)
+        sids = ["s_fixture_%d" % i for i in range(3)]
+        for fn in ("chronicle_swept.json", "vault_swept.json"):
+            with io.open(os.path.join(stale, fn), "w", encoding="utf-8") as fh:
+                json.dump({s: {"pages": 99, "rows": 99, "banked": True} for s in sids}, fh)
+        # ⚠ AND REPOINTING HERE MOVED A SECOND DEPENDENCY WITH IT — `_have_index` asks
+        # frame_authority.witness_index(HERE), which found no index under the stale dir, so
+        # `no-witness-index` held all three reels BEFORE the rule under test could be reached.
+        # The branch order is correct; the fixture had silently disabled the thing it wanted to
+        # observe. Both are pinned so the test sees the branch it is about.
+        import frame_authority as _fa
+        was, was_wi = rr.HERE, _fa.witness_index
+        try:
+            rr.HERE = stale
+            _fa.witness_index = lambda *a, **k: {"haveIndex": True, "ok": True,
+                                                 "sessions": {}, "frames": {}, "perStore": {}}
+            cov = rr.plan(hist_dir=d, keep_recent=0).get("coverage") or {}
+        finally:
+            rr.HERE, _fa.witness_index = was, was_wi
+        self.assertEqual(cov.get("never-chronicle-swept"), 3,
+                         "the caller's ledger is readable and EMPTY — nothing was swept — and a "
+                         "stale non-empty copy overruled it, so %s reel(s) looked swept and "
+                         "became releasable. coverage=%s"
+                         % (3 - (cov.get("never-chronicle-swept") or 0), cov))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

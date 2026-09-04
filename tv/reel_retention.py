@@ -323,13 +323,39 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         """First readable copy wins, and every UNREADABLE copy is named. A store that exists and
         will not parse is recorded even when a sibling copy answers, because the reason a caller
         wants to know is 'is my picture of the ledgers complete', not 'did I get a dict'."""
-        blob = {}
-        for cand in (os.path.join(HERE, fn), os.path.join(hist, fn)):
+        # ⚠⚠ v2575 REG-570 — A FIXTURE COULD NOT REDIRECT THE DELETER'S LEDGERS, AND ELEVEN TEST
+        # CALL SITES BELIEVED IT COULD. This searched HERE before `hist` unconditionally, so
+        # `plan(hist_dir=<scratch>)` read Konyo's LIVE chronicle_swept (401 entries) and
+        # vault_swept (30) instead of the caller's. Proven: a scratch ledger declaring pages=99
+        # for three fixture reels produced `never-chronicle-swept: 3` — his store answered, the
+        # fixture's was ignored. Setting TV_HIST did not help either; the read was anchored to
+        # HERE and nothing else.
+        #
+        # The consequence is not a wrong number in a report — it is that every sabotage ever
+        # aimed at this chooser was graded against live data it could not control, which is
+        # exactly why four claimed defects in it could not be reproduced. [[feedback-fixtures-
+        # never-touch-live-data]] guards the FIXTURE, not the call site — so the redirect happens
+        # HERE, once, rather than in eleven tests remembering to.
+        #
+        # ⚠ THE DEFAULT PATH IS UNCHANGED. With no redirect the order is still HERE then hist.
+        # Only a caller that explicitly repointed gets its own directory consulted first.
+        _redirected = bool(hist_dir) or bool(os.environ.get("TV_HIST"))
+        _order = ((os.path.join(hist, fn), os.path.join(HERE, fn)) if _redirected
+                  else (os.path.join(HERE, fn), os.path.join(hist, fn)))
+        # ⚠⚠ AND "FIRST READABLE WINS" IS WHAT THIS DOCSTRING ALWAYS SAID, while the code said
+        # "first NON-EMPTY wins" (`if b and not blob`). They differ on the one case that matters:
+        # a readable `{}` is a MEASUREMENT — nothing has been swept — and under the old rule a
+        # stale non-empty sibling overruled it, so more reels looked swept and MORE FOOTAGE
+        # became eligible. The docstring's rule holds footage; the code's rule released it.
+        # [[unknown-stays-unknown]] [[feedback-comments-vs-code]]
+        blob, picked = {}, False
+        for cand in _order:
             b, st = _load_state(cand)
             if st == "unreadable":
                 unreadable.append(os.path.relpath(cand, HERE))
-            if b and not blob:
-                blob = b
+                continue
+            if st == "ok" and not picked:
+                blob, picked = b, True
         return blob
 
     chron = _pick("chronicle_swept.json")
