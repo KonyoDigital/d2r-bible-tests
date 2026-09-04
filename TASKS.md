@@ -162,8 +162,13 @@ in those words.
   (REG-577) declared `write_census` against the four stores it names. v2597 (REG-578)
   registered `board_sync.py:REPO` and found a HALF-redirect — patching `REPO` leaves `TASKS`
   on his real file. v2598 (REG-579) gave the swallow ratchet a per-FILE baseline, then used
-  it to name and FIX all four sites: 78 → 74, exactly the baseline. **Three remain:**
-  `test_reachability`, `test_heart`, and `human-eyes` — which is HIS, not code.
+  it to name and FIX all four sites: 78 → 74, exactly the baseline. v2599 (REG-580) closed the
+  last TWO code gates: `test_heart` pinned a phrase while the code grew a second branch, and
+  `test_reachability` flagged `window` — captured from the environment probe — while the real
+  symbol `window._gUniqueRoster` IS declared; its diagnostic was also fabricating the operator
+  and now quotes the source line. ✅ **SEVEN OF EIGHT CLOSED, all verified green on the pushed
+  bytes (39afd05a).** The eighth is `human-eyes` — **HIS, not code**: 3 briefs asked and never
+  answered past 24h (GB-L-7 51.2h · GB-L-6 63.9h · GB-L-5 64.1h).
   **None is caused by v2593/v2594** — six fail identically on a clean
   `origin/main` worktree, and `printer_wilson` imports none of the nine files those commits touched.
   Named individually so none hides in the total:
