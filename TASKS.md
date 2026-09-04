@@ -320,9 +320,17 @@ in those words.
     UNSEALED 25.** Three reels are recoverable, not zero. ⚠ **OUT is still UNDECIDED for all 40**,
     and that half of the bullet stands — A15 never says which door decides *clean*, and it gates
     the prune.
-  · ⚠ **STILL TRUE, re-measured:** `per_reel_routes` reports **UNEXERCISED** — content routing
-    exists and nothing has put it to a case. That is the live remainder of the "unified logic"
-    question.
+  · ⚠ **STILL TRUE, re-measured — AND IT IS NOT OWED WORK, which is how I first framed it.**
+    `per_reel_routes` reports **UNEXERCISED**: all 28 content-routed reels on his shelf carry the
+    SAME tag, `zero-pages`, and one route is a queue rather than a divergence. I went to build the
+    control that would tell "working but unexercised" from "hardwired to one branch" — **and it
+    already exists**. `test_per_reel_routes` has 7 cases including
+    `test_TWO_distinct_content_routes_reach_EARNED`, whose docstring states the reasoning outright:
+    *"⚠ BASELINE: if nothing could ever reach EARNED, UNEXERCISED is not a measurement."* It feeds
+    two reels with two tags and asserts EARNED with 2 distinct routes. **The mechanism is proven
+    both ways.** Measured alongside it: **5 content-capable tags exist** (`eligible`,
+    `never-chronicle-swept`, `rows-not-banked`, `vault-owes`, `zero-pages`) against `MIN_DISTINCT
+    = 2`, so divergence is reachable and this is an honest fact about HIS DATA, not a gap.
   · ⚠ **AND THE ORIGINAL ANSWER TO THE FIRST QUESTION STANDS AND IS WORTH KEEPING:** the 410
     deleted reels went through the older read+seal path because **the printer did not exist yet**
     — it landed 2026-09-04 05:22 and they were deleted 2026-08-24 → 2026-09-01. Nothing about
