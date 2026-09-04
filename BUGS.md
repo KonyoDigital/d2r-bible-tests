@@ -18265,3 +18265,32 @@ the non-dict drop → `2 != 3`; counting them but never saying so → `'named no
 549 → 551. **Nine.** The last four were caught by machines rather than by reading, and this one was
 caught by the review pass on the fix for the one before it.
 
+## v2551 — the probe that crashed instead of answering, and the hole it found in my own law
+
+**REG-552 — the cold look at v2549. Two taken, two correctly declined.**
+
+⚠⚠ **TAKEN — `os.listdir` can raise and `start_points` PROPAGATED it.** Measured with a
+`PermissionError`: the probe **RAISED instead of answering**, so it went silent exactly when the
+filesystem was unusual — which is when you need it. Same class as the generator that crashed
+`dead_fields`. Now UNKNOWN, with the reason.
+
+⚠⚠ **AND IT EXPOSED A HOLE IN THE CROSS-PROBE LAW ITSELF.** Every case that law asks uses a source
+that is MISSING or EMPTY — and `one_start_point` handled both and crashed on a source that EXISTS
+and cannot be READ. **Missing and unreadable are different failures and only one was being asked.**
+The law now breaks `os.listdir`, `open` and `io.open` under every probe and requires an ANSWER
+rather than an exception. This is the second time in two versions that the mesh, not the rule, was
+the gap.
+
+⚠ **TAKEN, PARTLY — silently skipped entries.** Counting them all would report **601 drops on a
+healthy shelf** (601 of his 641 hist entries are loose frames and dotfiles), which is exactly the
+cry-wolf defect `per_reel_routes` was written to avoid. Only the ANOMALOUS kind is counted: an entry
+**NAMED like a reel that is not a directory** — something wearing a reel's name that nothing can
+walk. Today there are 0, and a baseline test pins that ordinary skips stay uncounted.
+
+⚠ **NOT TAKEN, and it labelled both itself:** `_row` closing over `name` is correct (defined and
+called in the same iteration), and the shadowed `why` parameter has no observable effect.
+
+**3 sabotages, 3 RED:** letting `listdir` propagate → fails in BOTH the probe's own suite and the
+cross-probe law; not counting the reel-named non-directory → `0 != 1`; counting ordinary skips →
+the cry-wolf baseline fires.
+

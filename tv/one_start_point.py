@@ -125,7 +125,8 @@ def start_points(hist=None):
     # run — the sixth instance in a day of a fix shipping the class it was fixing, and the first
     # one found by a machine instead of by someone reading the next line.
     def _unknown(w):
-        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {}, "walked": 0, "why": w}
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {}, "walked": 0,
+                "notADirectory": 0, "why": w}
 
     why = ""
     if hist is None:
@@ -133,10 +134,29 @@ def start_points(hist=None):
     if not hist or not os.path.isdir(hist):
         return _unknown("UNKNOWN, not zero doors — %s"
                         % (why or "no shelf was found, so nothing was asked"))
+    # ⚠⚠ REG-552 — `os.listdir` CAN RAISE AND THIS PROPAGATED IT. Measured: with listdir raising
+    # PermissionError the probe RAISED instead of answering, so it went silent exactly when the
+    # filesystem was unusual — the same class as the generator that crashed dead_field. And the
+    # cross-probe law could not catch it, because the law asks with a MISSING shelf (handled) and
+    # never with an UNREADABLE one. Found by a cold review of the shipped bytes.
+    try:
+        entries = sorted(os.listdir(hist))
+    except Exception as e:
+        return _unknown("the shelf could not be listed (%s) — that is UNKNOWN, not zero doors"
+                        % str(e)[:70])
     rows = []
-    for name in sorted(os.listdir(hist)):
+    # ⚠ SKIPS ARE COUNTED ONLY WHERE THEY ARE ANOMALOUS. His hist dir holds 641 entries of which
+    # 601 are loose frames and dotfiles — skipping those is the whole point, and reporting 601
+    # drops on a healthy shelf is the cry-wolf defect per_reel_routes was written to avoid. But an
+    # entry NAMED `reel_*` that is not a directory is a different thing: it is something wearing a
+    # reel's name that this probe cannot walk, and that is worth saying. Today there are 0.
+    odd = 0
+    for name in entries:
         d = os.path.join(hist, name)
-        if not (name.startswith("reel_") and os.path.isdir(d)):
+        if not name.startswith("reel_"):
+            continue
+        if not os.path.isdir(d):
+            odd += 1
             continue
         # ⚠⚠ REG-549 — EVERY ROW CARRIES THE SAME KEYS, AND THESE DID NOT. The two refusal rows
         # dropped `frames` and `blankFlagged` while the normal row carried them, so a consumer
@@ -177,7 +197,7 @@ def start_points(hist=None):
     state = "ONE_DOOR" if not foreign else "MULTIPLE_DOORS"
     return {
         "ok": True, "state": state, "rows": rows, "counts": counts,
-        "walked": len(rows),
+        "walked": len(rows), "notADirectory": odd,
         "why": ("%d reel(s) on the shelf: %d minted by the recorder, %d restored by the repair "
                 "door, %d foreign. %s"
                 % (len(rows), counts.get("recorder", 0), counts.get("repair", 0), foreign,
@@ -186,7 +206,9 @@ def start_points(hist=None):
                     "and refuses to rewrite one that parses."
                     % " · ".join(CORE)) if not foreign else
                    ("MORE THAN ONE DOOR — %d reel(s) on his live shelf were not minted by the "
-                    "recorder. A15 says no lane has its own front door." % foreign))),
+                    "recorder. A15 says no lane has its own front door." % foreign))
+                + ((" \u26a0 %d entr(y/ies) are NAMED like a reel and are not directories, so "
+                    "nothing could walk them." % odd) if odd else "")),
     }
 
 

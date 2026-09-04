@@ -20,6 +20,7 @@ pinning today's module list to a number, so adding a probe cannot make it stale 
 ENTRY that stops existing is a refusal, because a probe silently dropped from this list is exactly
 how the law stops covering the thing it was written for. [[unknown-stays-unknown]]
 """
+import io
 import os
 import sys
 import unittest
@@ -290,6 +291,36 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
         self.assertEqual(len(shapes), 1,
                          "a reel whose birth could not be read gets a THINNER row than one that "
                          "could: %s" % [sorted(x) for x in shapes])
+
+    def test_no_probe_CRASHES_when_its_source_is_unreadable(self):
+        """⚠⚠ REG-552 EXPOSED A HOLE IN THIS LAW ITSELF. Every case above asks a probe with a
+        source that is MISSING or EMPTY — and `one_start_point` handled those and **raised** on a
+        source that EXISTS and cannot be READ, because `os.listdir` propagated a PermissionError.
+        A probe that crashes goes silent exactly when the filesystem is unusual, which is when you
+        need it most.
+
+        Missing and unreadable are different failures and only one of them was being asked. This
+        breaks `os.listdir` and `io.open` under every probe and requires an ANSWER — any answer,
+        UNKNOWN or otherwise — rather than an exception.
+        """
+        import builtins
+        real_listdir, real_open, real_io = os.listdir, builtins.open, io.open
+
+        def _boom(*a, **k):
+            raise PermissionError("denied")
+
+        for name, ask in FULL:
+            try:
+                os.listdir, builtins.open, io.open = _boom, _boom, _boom
+                try:
+                    r = ask()
+                except Exception as e:
+                    self.fail("%s RAISED %s when its source could not be read. A probe that "
+                              "crashes goes silent exactly when things are unusual: %s"
+                              % (name, type(e).__name__, str(e)[:80]))
+            finally:
+                os.listdir, builtins.open, io.open = real_listdir, real_open, real_io
+            self.assertIsInstance(r, dict, "%s did not return a reading" % name)
 
     def test_BASELINE_these_probes_can_reach_a_real_verdict(self):
         """⚠⚠ Or the law above passes on four functions that answer UNKNOWN to everything, which

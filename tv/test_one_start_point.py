@@ -150,6 +150,50 @@ class OneStartPointIsAskedOfTheShelf(unittest.TestCase):
         self.assertFalse(r["ok"], "an empty shelf answered ok=True, so nothing-to-read reads as "
                                   "a passing measurement: %s" % r["why"])
 
+    def test_an_UNREADABLE_shelf_is_UNKNOWN_not_a_CRASH(self):
+        """⚠⚠ REG-552, from the cold look at v2549. `os.listdir` can raise and this PROPAGATED it,
+        so the probe went **silent exactly when the filesystem was unusual** — the same class as the
+        generator that crashed `dead_fields`.
+
+        ⚠ And the cross-probe UNKNOWN law could not catch it: that law asks with a MISSING shelf,
+        which was handled, and never with an UNREADABLE one. A law is a net with a mesh, and this
+        slipped through a hole in mine.
+        """
+        real = os.listdir
+        try:
+            os.listdir = lambda p: (_ for _ in ()).throw(PermissionError("denied"))
+            r = OSP.start_points(self._shelf({"reel_s_1": self._rec()}))
+        finally:
+            os.listdir = real
+        self.assertEqual(r["state"], "UNKNOWN",
+                         "a shelf that could not be listed did not answer UNKNOWN: %s" % r)
+        self.assertIn("could not be listed", r["why"], r["why"])
+
+    def test_something_WEARING_a_reels_name_that_is_not_a_directory_is_counted(self):
+        """⚠ Skips are counted only where they are ANOMALOUS. His hist dir holds 641 entries of
+        which 601 are loose frames and dotfiles — reporting those as drops is the cry-wolf defect
+        `per_reel_routes` was written to avoid. But an entry NAMED `reel_*` that is not a directory
+        is something wearing a reel's name that nothing can walk, and that is worth saying."""
+        d = self._shelf({"reel_s_1": self._rec()})
+        with open(os.path.join(d, "reel_s_NOT_A_DIR"), "w") as fh:
+            fh.write("x")
+        r = OSP.start_points(d)
+        self.assertEqual(r["notADirectory"], 1,
+                         "a file wearing a reel's name was skipped without being counted: %s" % r)
+        self.assertIn("not directories", r["why"],
+                      "it is counted but never said out loud: %r" % r["why"])
+        self.assertEqual(r["walked"], 1, "the real reel was lost: %s" % r)
+
+    def test_ORDINARY_skips_are_NOT_counted_as_anomalies(self):
+        """⚠ BASELINE for the rule above — loose frames and dotfiles are the normal contents of
+        that directory, and counting them would report 601 anomalies on a healthy shelf."""
+        d = self._shelf({"reel_s_1": self._rec()})
+        for junk in (".DS_Store", "10_1788187308519.jpg", "cache160"):
+            open(os.path.join(d, junk), "w").write("x")
+        r = OSP.start_points(d)
+        self.assertEqual(r["notADirectory"], 0,
+                         "ordinary non-reel entries were reported as anomalies: %s" % r)
+
     def test_a_MISSING_shelf_says_UNKNOWN_not_zero_doors(self):
         r = OSP.start_points(os.path.join(tempfile.gettempdir(), "osp_no_such_dir_ever"))
         self.assertEqual(r["state"], "UNKNOWN", r["why"])
