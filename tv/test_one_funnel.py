@@ -173,6 +173,52 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
         finally:
             RT.STORE = real
 
+    def test_an_UNREADABLE_store_makes_the_passage_UNKNOWN_not_UNRECORDED(self):
+        """⚠⚠ REG-555. `UNRECORDED` says *no rung leaves a dated waypoint* — a finding about his
+        PIPELINE. Measured with both waypoint stores pointed at a directory: `dated` came back
+        empty and the passage reported UNRECORDED, **asserting that finding over evidence that was
+        never gathered**. *No store records this rung* and *the store could not be read* are
+        opposite facts and both produced an empty `dated`.
+
+        ⚠ Found by asking what the three probes the per-probe law did NOT cover do with a real
+        broken source — the law covered 3 of 6 and nothing said so.
+        """
+        import os
+        import shutil
+        import tempfile
+        import frame_authority as FA
+        import retro_triage as RT
+        d = tempfile.mkdtemp(prefix="funnel_trap_")
+        self.addCleanup(shutil.rmtree, d, True)
+        trap = os.path.join(d, "trap.json")
+        os.makedirs(trap)                      # a DIRECTORY where a file is expected
+        rt, fa = RT.STORE, FA.SEAL_STORE
+        try:
+            RT.STORE = FA.SEAL_STORE = os.path.basename(trap)
+            r = OF.funnel()
+        finally:
+            RT.STORE, FA.SEAL_STORE = rt, fa
+        self.assertEqual(
+            r["passage"], "UNKNOWN",
+            "both waypoint stores were unreadable and the passage still reported %r — a claim "
+            "about the pipeline made over evidence nobody gathered" % r["passage"])
+        self.assertEqual(sorted(r["unreadableRungs"]), ["swept", "triaged"], r["unreadableRungs"])
+        self.assertIn("COULD NOT BE READ", r["why"], r["why"])
+
+    def test_BASELINE_UNRECORDED_is_still_reachable(self):
+        """⚠ Or the fix traded one wrong verdict for an unreachable one: a rung with NO STORE AT
+        ALL is genuinely undated, and that must still read UNRECORDED rather than UNKNOWN."""
+        real = OF.WAYPOINT_SOURCES
+        try:
+            OF.WAYPOINT_SOURCES = {k: None for k in real}
+            r = OF.funnel()
+        finally:
+            OF.WAYPOINT_SOURCES = real
+        self.assertEqual(r["passage"], "UNRECORDED",
+                         "with no rung having a store at all the passage is genuinely UNRECORDED, "
+                         "and it said %r" % r["passage"])
+        self.assertEqual(r["unreadableRungs"], [], r["unreadableRungs"])
+
     def test_an_EMPTY_shelf_is_UNKNOWN_on_both_readings(self):
         r = self._run([])
         self.assertEqual((r["ladder"], r["passage"]), ("UNKNOWN", "UNKNOWN"), r["why"])

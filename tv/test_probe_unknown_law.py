@@ -152,6 +152,13 @@ IN_MEMORY = ("dead_field.dead_fields",)
 #:       change what the law means. Left out deliberately.
 NOT_COVERED = ("declared_vs_content.report", "store_owners.audit")
 
+#: ⚠⚠ WHICH PROBES THE PER-PROBE UNREADABLE-SOURCE LAW REACHES, AND WHICH IT DOES NOT — because
+#: its first cut covered THREE of six and nothing said so, which is how a law quietly means less
+#: than its name. `per_reel_routes` and `printer.stream` read nothing themselves: their source is
+#: other probes' modules, and breaking those is what the OWNERS' own cases already do. That is a
+#: reason, not an excuse, and it is written down so the next reader can disagree with it.
+OWN_SOURCE_UNTESTED = ("per_reel_routes.routes", "printer.stream")
+
 
 class NothingInMustGiveUnknownOut(unittest.TestCase):
 
@@ -184,6 +191,20 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
             len(PROBES), 5,
             "a probe was removed from this law. Adding one is free; removing one needs a reason "
             "written down, because the run stays green either way.")
+
+    def test_the_per_probe_law_says_which_probes_it_does_NOT_reach(self):
+        """⚠⚠ Its first cut reached THREE of six and nothing said so. A law that covers half its
+        subjects while carrying a name that implies all of them is the same defect as a probe that
+        rounds UNKNOWN up — it claims more than it measured. Every probe in FULL must either have
+        an own-source case or be named, with a reason, in OWN_SOURCE_UNTESTED."""
+        import inspect
+        src = inspect.getsource(type(self).test_no_probe_CRASHES_ON_ITS_OWN_UNREADABLE_SOURCE)
+        for name, _ in FULL:
+            if name in IN_MEMORY or name in OWN_SOURCE_UNTESTED:
+                continue
+            self.assertIn('"%s"' % name, src,
+                          "%s has no own-source case and is not named in OWN_SOURCE_UNTESTED, so "
+                          "nobody can tell whether this law reaches it" % name)
 
     def test_every_IN_MEMORY_exemption_is_real(self):
         """⚠ An exemption is a hole in a law, so it has to be checkable. Each name in IN_MEMORY
@@ -359,10 +380,10 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
         cases = (
             ("one_start_point.start_points",
              lambda: __import__("one_start_point").start_points(os.path.join(d, "no_shelf")),
-             "no shelf"),
+             "state"),
             ("dead_field.state", self._with(RR, "_tombstone_path", lambda *a, **k: trap,
                                             lambda: __import__("dead_field").state()),
-             "trap.json"),
+             "state"),
             # ⚠ MY FIRST CUT PATCHED THE WRONG THING AND THE LAW BLAMED THE PROBE. I swapped
             # `retro_triage.STORE`, assuming printer_reach quoted it; it reads its own module
             # constant `TRIAGE`. The probe answered its real measured verdict and the law called
@@ -370,19 +391,43 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
             ("printer_reach.report",
              self._with(__import__("printer_reach"), "TRIAGE", trap,
                         lambda: __import__("printer_reach").report()),
-             "could not be read"),
+             "state"),
+            # ⚠ REG-555 — one_funnel was NOT in this law's first cut, and asking it found a real
+            # defect: with both waypoint stores unreadable it reported the passage UNRECORDED, a
+            # claim about his pipeline made over evidence nobody gathered.
+            # ⚠⚠ AND THIS ONE PUBLISHES TWO READINGS. `one_funnel` answers a LADDER and a
+            # PASSAGE; breaking its waypoint stores blinds the passage and leaves the ladder
+            # legitimately readable, because the ladder comes from reel_story. The law's first cut
+            # demanded UNKNOWN of the whole reading and FAILED a probe that was answering
+            # correctly — the same coarse-mesh mistake in a new place. A case names WHICH reading
+            # its broken source feeds.
+            ("one_funnel.funnel", self._two_stores_unreadable(trap), "passage"),
         )
-        for name, ask, tell in cases:
+        for name, ask, key in cases:
             try:
                 r = ask()
             except Exception as e:
                 self.fail("%s RAISED %s on its OWN unreadable source. A probe that crashes goes "
                           "silent exactly when things are unusual: %s"
                           % (name, type(e).__name__, str(e)[:90]))
-            st = r.get("state") or r.get("ladder")
+            st = r.get(key) if key in r else (r.get("state") or r.get("ladder"))
             self.assertEqual(st, "UNKNOWN",
-                             "%s answered %r over a source it could not read. why=%r"
-                             % (name, st, str(r.get("why"))[:140]))
+                             "%s answered %r for %r over a source it could not read. why=%r"
+                             % (name, st, key, str(r.get("why"))[:140]))
+
+    def _two_stores_unreadable(self, trap):
+        """one_funnel reads through TWO owners, so both have to break for its passage to be blind."""
+        def _run():
+            import frame_authority as FA
+            import one_funnel as OF
+            import retro_triage as RT
+            rt, fa = RT.STORE, FA.SEAL_STORE
+            try:
+                RT.STORE = FA.SEAL_STORE = os.path.basename(trap)
+                return OF.funnel()
+            finally:
+                RT.STORE, FA.SEAL_STORE = rt, fa
+        return _run
 
     def _with(self, mod, attr, value, fn):
         """Run `fn` with `mod.attr` replaced, restoring it afterwards. -> callable"""

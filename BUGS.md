@@ -18363,3 +18363,32 @@ still leaves `os.listdir` raising into the new handler, so the path is doubly gu
 sabotage isolated nothing. **That is the sabotage's fault, not a missing guard**, and it is recorded
 rather than counted.
 
+## v2554 — a verdict about his pipeline, asserted over stores nobody could read
+
+**REG-555 — found by the review-after-ship pass on v2552–v2553, by asking the three probes the new
+per-probe law did NOT cover what they do with a real broken source.**
+
+⚠⚠ **`one_funnel` reported the passage as `UNRECORDED` when both waypoint stores were unreadable.**
+UNRECORDED means *no rung leaves a dated waypoint* — **a finding about his pipeline** — and it was
+being asserted over evidence nobody gathered. *"No store records this rung"* and *"the store could
+not be read"* are opposite facts, and both produced an empty `dated`. A rung whose store is
+unreadable makes the passage **UNKNOWN**, and the reason names which rungs. A baseline keeps
+UNRECORDED reachable, so the fix did not trade a wrong verdict for an unreachable one.
+
+⚠⚠ **AND THE LAW COVERED THREE OF SIX WHILE CARRYING A NAME THAT IMPLIED ALL OF THEM.** That is the
+same defect as a probe rounding UNKNOWN up: **it claimed more than it measured.** Every probe must
+now either have an own-source case or be named in `OWN_SOURCE_UNTESTED` with a reason —
+`per_reel_routes` and `printer.stream` read nothing themselves, their source is other probes'
+modules, and breaking those is what the owners' own cases already do. **A reason, not an excuse,
+written where the next reader can disagree with it.**
+
+⚠ **AND ADDING `one_funnel` TO THE LAW FAILED A PROBE THAT WAS ANSWERING CORRECTLY.** It publishes
+TWO readings — a LADDER and a PASSAGE — and breaking its waypoint stores blinds the passage while
+the ladder legitimately still reads, because the ladder comes from `reel_story`. The law demanded
+UNKNOWN of the whole reading. **The coarse mesh again, in a new place:** a case now names WHICH
+reading its broken source feeds.
+
+**3 sabotages, 3 RED:** unreadable stores reading as UNRECORDED (fails in both the probe's suite AND
+the cross-probe law); removing a name from `OWN_SOURCE_UNTESTED` without adding its case; and
+treating every rung as unreadable, which makes UNRECORDED unreachable and fires the baseline.
+

@@ -162,6 +162,7 @@ def funnel():
         return {"ok": False, "state": "UNKNOWN", "ladder": "UNKNOWN", "passage": "UNKNOWN",
                 "rungs": list(rungs), "collisions": [], "unknownStage": 0, "occupancy": {},
                 "waypoints": {}, "walked": 0, "datedRungs": [], "rungCount": len(rungs),
+                "unreadableRungs": [],
                 "why": w}
 
     rungs, lwhy = _ladder()
@@ -194,7 +195,18 @@ def funnel():
         sids.add(nm[len("reel_"):] if nm.startswith("reel_") else nm)
     cover = _waypoint_cover(sids)
     dated = [k for k, v in cover.items() if isinstance(v.get("covered"), int) and v["covered"] > 0]
-    if len(dated) >= len(rungs):
+    # ⚠⚠ REG-555 — UNRECORDED IS A CLAIM ABOUT THE PIPELINE, AND IT WAS BEING MADE OVER STORES
+    # NOBODY COULD READ. Measured with both waypoint stores pointed at a directory: `dated` came
+    # back empty and the passage read UNRECORDED — *"no rung leaves a dated waypoint"* — which is a
+    # finding about his pipeline, asserted over evidence that was never gathered. "No store records
+    # this rung" and "the store could not be read" are opposite facts and both produced an empty
+    # `dated`. A rung whose store is UNREADABLE makes the passage UNKNOWN, not UNRECORDED.
+    # [[unknown-stays-unknown]]
+    unreadable = sorted(k for k, v in cover.items()
+                        if v.get("store") and v.get("covered") is None)
+    if unreadable:
+        passage = "UNKNOWN"
+    elif len(dated) >= len(rungs):
         passage = "RECORDED"
     elif dated:
         passage = "PARTIAL"
@@ -205,8 +217,12 @@ def funnel():
         "ok": True, "ladder": ladder, "passage": passage,
         "rungs": list(rungs), "collisions": collisions, "unknownStage": unknown,
         "occupancy": occupancy, "waypoints": cover, "walked": len(rows),
-        "datedRungs": sorted(dated), "rungCount": len(rungs),
-        "why": ("ONE stage vocabulary across %d reel(s) — %d rung(s), no rung naming two stages "
+        "datedRungs": sorted(dated), "rungCount": len(rungs), "unreadableRungs": unreadable,
+        "why": (("\u26a0 %d rung(s) have a store that COULD NOT BE READ (%s), so the passage is "
+                 "UNKNOWN — nothing was established, which is a different fact from no rung "
+                 "leaving a waypoint. " % (len(unreadable), ", ".join(unreadable)))
+                if unreadable else "")
+               + ("ONE stage vocabulary across %d reel(s) — %d rung(s), no rung naming two stages "
                 "and no stage at two rungs. ⚠ BUT THE PASSAGE IS %s: %d of %d rung(s) leave a "
                 "dated waypoint (%s), so for the rest the order a reel travelled in is recorded "
                 "NOWHERE. ⚠ And occupancy is not a route: `stage` is the rung a reel is stuck "
