@@ -7,6 +7,42 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-574 — the sighting walk skipped 3,689 rows by SHAPE, and a skipped branch reads like an absent measurement
+**2026-09-04 · v2593 · found by measuring my own reach, not by a failure**
+
+`_stamp_sighting_locs` in `tv/control_app.py` walked `lane -> name -> [sightings]`. Any value that
+was not a list hit a bare `continue`. On his real `tv/chron_evidence.json` that is not a rare edge:
+**`notFoundSeen` nests THREE deep** — `notFoundSeen -> "sets"/"uniques" -> name -> [sightings]` —
+so an entire lane was invisible to the stamper.
+
+MEASURED on the live store, before and after:
+
+| | sightings |
+|---|---|
+| reached by the old two-deep walk | 10,809 |
+| reached after widening | 13,790 |
+| **never walked at all** | **3,689** — every one carrying both `reel` and `frame` |
+| of those, carrying a persisted `loc` | **0**, and none ever could |
+
+⚠⚠ **THE HEADLINE NUMBER IS NOT A WIN, AND WRITING IT AS ONE WOULD HAVE BEEN THE REAL DEFECT.** The
+widened walk derives **zero** new locs on his store, because ~92% of the reels are pruned and a loc
+needs the reel's segments (`_sighting_loc` returns `None` — NOT ESTABLISHED — without them). So this
+changes what is REACHABLE, not what is recovered: it stops future loss on the deep lanes exactly as
+the shallow lanes already had. Reporting "2,981 rows gained a location" would have been a number
+measuring my own reach rather than his data. [[plumbing-with-no-tap]] [[unknown-stays-unknown]]
+
+⚠ **THE DEPTH IS BOUNDED AT EXACTLY ONE MORE LEVEL, ON PURPOSE.** Open recursion would also descend
+`contestedResolved -> kind -> name`, whose leaves are VERDICT records (`foundMs`/`notFoundMs`/
+`verdict`) — a resolution, not a sighting, with no frame to derive a location from. Stamping one
+would invent a provenance nobody observed. The walk excludes them **by shape** (the leaf is a dict,
+not a list) rather than by lane name, so a renamed or newly-added lane cannot slip past. A rule
+about shape survives a rename; a rule listing names does not.
+
+**Guard:** `tv/test_sighting_loc_persist.py::TheWalkReachesEverySightingHoweverItNESTS` — seen RED
+for its own reason (restoring the bare `continue` failed exactly the deep-reach test, `0 != 1`)
+while all three baselines stayed green: the verdict record is still refused, the ordinary two-deep
+shape still works, and an existing `loc` is still never overwritten.
+
 ### REG-443 — the board hides its own tab row on a URL flag, and never checks the flag is true
 **2026-09-03 · v2471 · reported by Konyo with a screenshot: "i cant see any tabs... something is bugged"**
 

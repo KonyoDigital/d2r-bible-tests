@@ -134,6 +134,65 @@ class TheAnswerIsKeptWhileTheReelIsStillHere(unittest.TestCase):
             "the stamp runs AFTER the save, so what gets persisted is the unstamped view")
 
 
+class TheWalkReachesEverySightingHoweverItNESTS(unittest.TestCase):
+    """⚠⚠ REG-574 — 3,689 SIGHTINGS WERE NEVER WALKED, AND NOTHING SAID SO.
+
+    `_stamp_sighting_locs` walked `lane -> name -> [sightings]`, and any value that was not a list
+    hit a bare `continue`. Measured on his real `chron_evidence.json`: `notFoundSeen` nests THREE
+    deep — `notFoundSeen -> "sets"/"uniques" -> name -> [sightings]` — so **3,689 sightings, every
+    one carrying both `reel` and `frame`, were structurally unreachable**. Reach measured 10,809
+    before and 13,790 after.
+
+    ⚠ AND THE HEADLINE NUMBER IS NOT A WIN, WHICH IS WHY IT IS WRITTEN DOWN HERE. On his store the
+    widened walk derives **zero** new locs, because 92% of the reels are pruned and a loc needs the
+    reel's segments (see this module's header). The fix changes what is REACHABLE, not what is
+    recovered — it stops future loss on the deep lanes exactly as the shallow ones already had.
+    Claiming 2,981 rows "gained" a loc would have been a number measuring my own reach.
+    [[plumbing-with-no-tap]] [[unknown-stays-unknown]]
+
+    These tests stub `_sighting_loc`, because the WALK is what changed; loc-derivation did not.
+    """
+
+    def _run(self, merged):
+        import control_app as C
+        real = C._sighting_loc
+        C._sighting_loc = lambda sg, _segments=None: "stash" if sg.get("frame") else None
+        try:
+            return C._stamp_sighting_locs(merged)
+        finally:
+            C._sighting_loc = real
+
+    def test_a_sighting_nested_three_deep_is_reached(self):
+        m = {"notFoundSeen": {"sets": {"Tal Rasha's Guardianship":
+                                       [{"reel": "r1", "frame": "f_1.jpg", "lane": "claude"}]}}}
+        n = self._run(m)
+        self.assertEqual(n, 1, "the three-deep sighting was not reached at all — this is the "
+                               "shape 3,689 of his rows are in")
+        self.assertEqual(m["notFoundSeen"]["sets"]["Tal Rasha's Guardianship"][0].get("loc"),
+                         "stash", "reached but not stamped")
+
+    def test_a_VERDICT_record_at_the_same_depth_is_NOT_stamped(self):
+        """⚠ BASELINE — `contestedResolved` nests identically and its leaves are resolutions, not
+        sightings. Stamping one would invent a provenance nobody observed. Excluded BY SHAPE (the
+        leaf is a dict, not a list), so a renamed or newly-added lane cannot slip past."""
+        m = {"contestedResolved": {"uniques": {"Atma's Wail":
+                                               {"foundMs": 1, "notFoundMs": 2, "verdict": "found"}}}}
+        n = self._run(m)
+        self.assertEqual(n, 0, "a verdict record was stamped with a location it never carried")
+        self.assertNotIn("loc", m["contestedResolved"]["uniques"]["Atma's Wail"])
+
+    def test_the_ordinary_two_deep_shape_still_works(self):
+        """⚠ BASELINE — or the widening could pass by having broken the path that already worked."""
+        m = {"claude": {"Shako": [{"reel": "r1", "frame": "f_2.jpg"}]}}
+        self.assertEqual(self._run(m), 1, "the shallow walk regressed")
+
+    def test_a_sighting_that_already_has_a_loc_is_left_alone_at_depth(self):
+        m = {"notFoundSeen": {"uniques": {"Shako": [{"reel": "r1", "frame": "f_3.jpg",
+                                                     "loc": "inventory"}]}}}
+        self.assertEqual(self._run(m), 0, "an existing loc was recomputed and overwritten")
+        self.assertEqual(m["notFoundSeen"]["uniques"]["Shako"][0]["loc"], "inventory")
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

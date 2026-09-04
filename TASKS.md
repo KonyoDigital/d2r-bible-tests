@@ -140,6 +140,15 @@ in those words.
 
 - **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
   not write an anchor that matches the wrong occurrence.
+
+- **REG-569…573 are cited in shipped code and have NO entry in `BUGS.md`.** Found 2026-09-04 while
+  logging REG-574: `tv/reel_retention.py`, `tv/test_reel_retention.py`, `tv/control_app.py` and
+  `tv/self_arming.py` all cite REG-570/571/572/573, the log's highest entry is REG-568, and REG-569
+  was never allocated at all. The convention is that `BUGS.md` is the record; a number that lives
+  only in a comment is a citation pointing at nothing, which is exactly the failure the duplicate-
+  number warning at the top of that file exists to prevent. **Drift I introduced this session** —
+  the fixes are real and guarded, the log entries were skipped. Owed: write the four entries from
+  the guards that already exist, or renumber if any turns out to be one defect counted twice.
 - ~~**The render gate does not cover what I changed.**~~ **BOTH HALVES CLOSED.** The silent
   re-baseline was **v2567** (REG-568): `--bless` merged with a plain `dict.update()` and would take
   a LOWER number, so a bless after a real coverage loss adopted the loss as the new normal —

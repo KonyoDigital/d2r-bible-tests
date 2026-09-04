@@ -19963,23 +19963,50 @@ def _stamp_sighting_locs(merged):
     [[unknown-stays-unknown]]
     """
     stamped = 0
+
+    def _stamp_leaf(sightings):
+        """Stamp every sighting in ONE leaf list. -> how many were stamped."""
+        n = 0
+        for sg in sightings:
+            if not isinstance(sg, dict) or sg.get("loc"):
+                continue
+            try:
+                loc = _sighting_loc(sg)
+            except Exception:
+                loc = None
+            if loc:
+                sg["loc"] = loc
+                n += 1
+        return n
+
     try:
         for _lg, names in (merged or {}).items():
             if not isinstance(names, dict):
                 continue
             for _n, sightings in names.items():
-                if not isinstance(sightings, list):
+                if isinstance(sightings, list):
+                    stamped += _stamp_leaf(sightings)
                     continue
-                for sg in sightings:
-                    if not isinstance(sg, dict) or sg.get("loc"):
-                        continue
-                    try:
-                        loc = _sighting_loc(sg)
-                    except Exception:
-                        loc = None
-                    if loc:
-                        sg["loc"] = loc
-                        stamped += 1
+                # ⚠⚠ REG-574 — 3,689 SIGHTINGS SAT ONE LEVEL DEEPER AND WERE NEVER WALKED.
+                # This walk was `lane -> name -> [sightings]`, and a value that was not a list hit
+                # a bare `continue`. Measured on his real `chron_evidence.json`: `notFoundSeen`
+                # nests THREE deep — `notFoundSeen -> "sets"/"uniques" -> name -> [sightings]` —
+                # so 3,689 sightings, **every one of them carrying both `reel` and `frame`**, were
+                # structurally unreachable. Not one had a `loc`, and none ever could have: the
+                # stamper's own reach, not the data, was the reason. A skipped branch and an
+                # absent measurement look identical downstream. [[unknown-stays-unknown]]
+                #
+                # ⚠ AND THE DEPTH IS BOUNDED AT EXACTLY ONE MORE LEVEL, ON PURPOSE. Open recursion
+                # would also descend `contestedResolved -> kind -> name`, whose leaves are VERDICT
+                # records (`foundMs`/`notFoundMs`/`verdict`) — a resolution, not a sighting, with
+                # no frame to derive a loc from. The `isinstance(deeper, list)` test below excludes
+                # those BY SHAPE rather than by name, so a verdict record cannot be stamped even if
+                # a future lane is added or one is renamed. A rule about shape survives a rename;
+                # a rule listing lane names does not.
+                if isinstance(sightings, dict):
+                    for _n2, deeper in sightings.items():
+                        if isinstance(deeper, list):
+                            stamped += _stamp_leaf(deeper)
     except Exception:
         return stamped
     return stamped
@@ -22508,7 +22535,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2592",
+        "ver": "v2593",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
