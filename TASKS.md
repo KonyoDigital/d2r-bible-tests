@@ -152,9 +152,27 @@ in those words.
   The contract now splits destruction/statelessness (asked of all four, in the DOM — a destroyed
   node has no rect to be wrong) from collapse (asked only of the chips on screen). 3 sabotages,
   3 RED, with a baseline.
-- **A2's next step:** the sabotage harnesses already catch 3/3 and 4/4 and **throw every result
-  away.** That is why every score is null — not because nothing was tested, but because nothing was
-  recorded. Printer and reels first, in his order.
+- ~~**A2's next step:** the sabotage harnesses throw every result away, so every score is null.~~
+  **THIS PREMISE IS REFUTED — measured 2026-09-04.** The banking join was built across v2444-v2501
+  and v2487; `self_arming.bank()` has five callers today (`prune_wilson`, `hover_wilson`,
+  `sweep_wilson`, `route_wilson`, `run_gates`). The report reads **13 of 14 locks OPEN**, every one
+  on a real ledger: `miniauto.run` 55/55, `prune.arm` 48/48, `vault.apply` 24/24,
+  `vault.sweep_start` 16/16, the nine routes 4/4→7/7. The 14th, `vault.forget`, is **UNPROVEN by
+  construction and permanently so** — 8 lines, 0 raises, no refusal path, so no sabotage can produce
+  evidence in either direction. `n=0` there is the correct final state, not an owed harness.
+- **WHAT ACTUALLY REMAINS OF A2: nothing is HARDENED**, and one lock is close. HARDENED needs
+  wilson ≥ 0.900 **and confluence ≥ 2.50** — three genuinely independent KINDS, because Wilson
+  counts how many looks agreed and never whether they were the same look repeated. Measured
+  distance for every lock:
+  · **`prune.arm` — wilson 0.926 (clears 0.900), confluence 1.80, ONE kind short.** `live` (+0.70)
+    would land it on exactly 2.50 and make it the first HARDENED lock in the system.
+  · `vault.apply` — needs `cross-family` **and** wilson +0.038 (more n).
+  · every other lock needs TWO more kinds, and most need substantial n as well.
+  ⚠ **`prune.arm` guards the deleter — the one door with no undo — so the question is not whether a
+  `live` kind can be banked but whether it would be an INDEPENDENT LOOK.** Re-running the same four
+  axes against a live process is "one proof wearing four hats" in `self_arming`'s own words, and
+  banking it would harden the deleter on fabricated confluence. That judgment is under adversarial
+  review before any harness is written; the honest outcomes include DO-NOT-BUILD.
 
 ---
 
