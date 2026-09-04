@@ -7,6 +7,64 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-575 — a read-side validator that rejected rows its own module writes, and a registered gate that was red on main for it
+**2026-09-04 · v2594 · found while baselining a suite I assumed I had broken**
+
+v2581 added `_row_fault` to `tv/self_arming.py` so the proof ledger is checked ON READ, not only
+at `bank()`'s door. It was written against **one** of this module's two writers.
+
+`record()` — the single-attempt writer, described in `score()` as *"everything record() has ever
+written"* — emits `{lock, kind, refused, ts}`: **no `src`, no `n`/`k`**. `_row_fault` demanded all
+three, so every row `record()` has ever produced was judged *"src '' is not a declared evidence
+source"*. One bad row fails the entire read **by design** (that is the point of failing closed), so
+**a single `record()` call would have turned all fifteen locks UNKNOWN at once.**
+
+MEASURED before fixing anything:
+
+| | |
+|---|---|
+| `record()` callers in production | **0** — `hover_wilson`'s own docstring says so |
+| rows in his live ledger | **51 bank-shaped, 0 record-shaped** |
+| so, did it fire on his console? | **No.** Latent, not active |
+| `test_self_arming` (a REGISTERED gate) | **RED from v2581 onward** |
+
+⚠⚠ **AND THE GATE COULD NOT STOP IT.** `hooks/pre-push` says it in as many words — *"run_gates.py
+runs 30 gates; this hook ran three"* — so `test_self_arming` is outside the pre-push path and runs
+only locally and in CI. A registered gate went red and pushes kept landing. **The suite was the one
+thing that caught this, and it caught it immediately; nothing was listening.**
+
+**The fix: a row is judged against the shape it DECLARES.** Carrying `src` makes it a `bank()` row
+and it gets every `bank()` rule. Carrying none makes it a `record()` row and it gets the rules that
+apply — `refused` must really be a boolean, and it must not also carry `n`/`k` (that row is
+*neither* shape, and accepting it would let counts in through the one door with no source to check
+them against). The `kind not in KINDS` check moved to bank() rows only: `confluence()` weights an
+unlisted kind at **zero**, and a surface carrying one is LOCKED — a real, useful state. Failing the
+read instead turned *"this evidence counts for nothing"* into *"the file cannot be trusted"*, which
+are opposite facts about the same row.
+
+⚠ **TWO OF MY OWN TESTS WERE VOUCHING FOR IT.** `test_the_three_key_row_score_would_have_DEFAULTED_
+is_refused` called `{lock, kind, refused}` *"the forgery that costs nothing to write"* — that is
+`record()`'s exact output, so the test pinned the defect as the contract. Corrected, and the
+forgery it was reaching for (source-less but carrying `n`/`k`) is now covered for real. Separately
+`test_the_deleter_cannot_open_before_its_prerequisites` pinned the NAME `vault.sweep_start`, and
+v2570 inserted `printer.stream` ahead of it; it now pins **his order** — the refusal must name the
+FIRST genuinely-unproven prerequisite — with a baseline proving that satisfying step 1 advances the
+blocker to step 2 rather than opening the deleter.
+
+⚠ **NAMED, NOT FIXED:** a `record()` row carries no `src`, so the PROVES allow-list — the rule
+stopping one surface's proof from opening another's lock — cannot apply to it. True before this
+function existed and not made worse by it; safe only because `record()` has no callers. In TASKS.md.
+
+**Also in v2594 — `hardeningGap`.** Measured across the table: **14 of 15 locks OPEN, 0 HARDENED**,
+and every `why` recited only the bar already cleared. A surface could sit one evidence-kind short of
+his HARDENING stamp forever and the report would read exactly as it would if the tier did not exist.
+Each row now states its shortfall and the cheapest honest combination of kinds that would close it —
+`prune.arm` is **0.70 short, needing only `live`**. It lowers nothing, and it never proposes a kind
+already banked, because that would be advice to relabel.
+
+**Guard:** `tv/test_self_arming.py` — proven RED by restoring the bank-only branch, which reproduced
+the exact failure set that was live on `main` plus the new tests, each for its own reason.
+
 ### REG-574 — the sighting walk skipped 3,689 rows by SHAPE, and a skipped branch reads like an absent measurement
 **2026-09-04 · v2593 · found by measuring my own reach, not by a failure**
 

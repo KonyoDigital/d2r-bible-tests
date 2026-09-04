@@ -122,9 +122,36 @@ class TestHisOrderIsEnforced(_Ledger):
         ok, why = SA.may("prune.arm")
         self.assertFalse(ok, "the deleter armed itself with no proof of the lanes that feed it")
         self.assertIn("blocked upstream", why)
+        # ⚠⚠ REG-575 — THIS PINNED A NAME AND v2570 MOVED IT. It required the refusal to say
+        # "vault.sweep_start"; then `printer.stream` was added ahead of it as step 1 of his river
+        # ("printer+reels -> theatre+shelf -> routing") and the refusal correctly began naming
+        # THAT instead. The invariant never broke — the assertion had pinned one name out of an
+        # ORDERED list. So it now pins the property that is actually his ruling: the refusal names
+        # a REAL, DECLARED, GENUINELY-UNPROVEN prerequisite, and it names them IN HIS ORDER.
+        # A rule about the order survives an insertion; a rule naming one lock does not.
+        named = [lk for lk in SA.LOCKS["prune.arm"]["after"] if lk in why]
+        self.assertTrue(named, "the refusal named no prerequisite at all, so a high score reads "
+                               "as 'nearly there' when the real blocker is elsewhere: %s" % why)
+        for lk in named:
+            self.assertNotEqual(SA.score(lk)["state"], SA.OPEN,
+                                "%s was named as the blocker and is already OPEN" % lk)
+        first_unproven = next(lk for lk in SA.LOCKS["prune.arm"]["after"]
+                              if SA.score(lk)["state"] != SA.OPEN)
+        self.assertIn(first_unproven, why,
+                      "it skipped past the FIRST unmet prerequisite in his order and reported a "
+                      "later one, which reads as further along the river than it is")
+
+    def test_proving_the_FIRST_prerequisite_moves_the_refusal_to_the_NEXT(self):
+        """⚠ BASELINE — or the test above passes on a chain that never advances. Satisfying step 1
+        must move the blocker to step 2, not open the deleter and not keep naming step 1."""
+        self.put("prune.arm", "sabotage", True, n=60)
+        self.put("printer.stream", "sabotage", True, n=60)
+        ok, why = SA.may("prune.arm")
+        self.assertFalse(ok, "proving ONE upstream lane armed the deleter")
+        self.assertNotIn("printer.stream is UNPROVEN", why,
+                         "step 1 was proven and is still being named as the blocker")
         self.assertIn("vault.sweep_start", why,
-                      "the refusal must NAME the unmet prerequisite, or a high score reads as "
-                      "'nearly there' when the real blocker is somewhere else entirely")
+                      "the refusal did not advance to the next unmet step in his order")
 
 
 class TestItFailsCLOSED(_Ledger):
@@ -488,12 +515,41 @@ class TheLedgerIsCheckedONREADNotOnlyOnWrite(unittest.TestCase):
         rows, why = self._read(self._ledger(self._good()))
         self.assertEqual(len(rows or []), 1, why)
 
-    def test_the_three_key_row_score_would_have_DEFAULTED_is_refused(self):
-        """The forgery that costs nothing to write: no n, no k, no src."""
+    def test_a_RECORD_shaped_row_is_ACCEPTED_because_record_writes_it(self):
+        """⚠⚠ REG-575 — THIS TEST USED TO ASSERT THE OPPOSITE, AND IT WAS WRONG. It was called
+        `test_the_three_key_row_score_would_have_DEFAULTED_is_refused` and described
+        `{lock, kind, refused}` as *"the forgery that costs nothing to write"*. That row is not a
+        forgery: it is EXACTLY what `self_arming.record()` writes, and `score()` documents reading
+        it as a single attempt worth 1. So the test pinned my own v2581 defect as the contract —
+        one bad row fails the whole read, which means a single `record()` call would have turned
+        all fifteen locks UNKNOWN. Two things vouching for a bug is how it becomes invisible, and
+        a test whose NAME describes inverted behaviour has to be corrected, not worked around.
+
+        What was genuinely missing is below: a row that is NEITHER shape."""
         rows, why = self._read(self._ledger(
-            self._good(), {"lock": "prune.arm", "kind": "live", "refused": True}))
-        self.assertIsNone(rows, "a row with no counts and no source was accepted as evidence")
-        self.assertIn("could not have been banked", why)
+            self._good(), {"lock": "prune.arm", "kind": "live", "refused": True,
+                           "ts": int(time.time() * 1000)}))
+        self.assertIsNotNone(rows, "a row in record()'s own shape was rejected as unbankable, so "
+                                   "one record() call blanks the whole table: %s" % why)
+
+    def test_a_row_that_is_NEITHER_shape_is_still_refused(self):
+        """⚠ The real forgery the old test was reaching for: no `src`, so the PROVES allow-list
+        cannot apply, but carrying `n`/`k` so score() counts it as an aggregate anyway. It is not
+        a bank() row and not a record() row, and accepting it would let counts in by the one door
+        that has no source to check them against."""
+        rows, why = self._read(self._ledger(
+            self._good(), {"lock": "prune.arm", "kind": "sabotage", "refused": True,
+                           "n": 99, "k": 99, "ts": int(time.time() * 1000)}))
+        self.assertIsNone(rows, "a source-less row carrying 99 refusals was accepted as evidence")
+        self.assertIn("neither shape", why)
+
+    def test_a_record_row_with_a_non_boolean_outcome_is_refused(self):
+        """⚠ BASELINE — accepting record()'s shape must not mean accepting anything without a
+        src. The one field it carries still has to be the field it claims."""
+        rows, why = self._read(self._ledger(
+            self._good(), {"lock": "prune.arm", "kind": "live", "refused": "yes",
+                           "ts": int(time.time() * 1000)}))
+        self.assertIsNone(rows, "refused='yes' was read as an outcome")
 
     def test_every_forgery_class_is_refused(self):
         for label, row in (
@@ -522,6 +578,82 @@ class TheLedgerIsCheckedONREADNotOnlyOnWrite(unittest.TestCase):
                 os.environ.pop("TV_SELF_ARMING_LEDGER", None)
             else:
                 os.environ["TV_SELF_ARMING_LEDGER"] = was
+
+
+class TheHardenedTierGivesAnAccountOfItself(unittest.TestCase):
+    """⚠⚠ 14 LOCKS OPEN, 0 HARDENED, AND NOT ONE SAID WHY. Measured 2026-09-04: every `why` on an
+    OPEN row recited the bar it had already cleared and never mentioned the tier above it, so a
+    surface could sit ONE evidence-kind short of his HARDENING stamp indefinitely with the report
+    reading exactly as it would if the tier did not exist. An unreachable tier that gives no
+    account of itself is indistinguishable from a broken one. [[unknown-stays-unknown]]
+
+    `_hardening_gap` names the shortfall and the cheapest combination of kinds that would close
+    it. It LOWERS NOTHING — the bars are his — and the kinds it names are earned by doing that
+    work, never by relabelling evidence already banked.
+    """
+
+    def test_the_refusal_COUNT_is_real_arithmetic_and_falsifiable(self):
+        """⚠ THE SHARP ONE. `moreRefusalsNeeded` is a promise about the future: run this many more
+        refused sabotages and HARD_BAR clears. So apply it and check — and check that ONE FEWER
+        does NOT clear, or the number would be merely sufficient rather than the answer."""
+        import self_arming as SA
+        for n in (5, 24, 48, 83):
+            g = SA._hardening_gap(SA.wilson_lower(n, n), 1.0, ["sabotage"], n, n)
+            need = g["moreRefusalsNeeded"]
+            if SA.wilson_lower(n, n) >= SA.HARD_BAR:
+                continue
+            self.assertIsNotNone(need, "n=%d is below HARD_BAR and no count was offered" % n)
+            self.assertGreaterEqual(
+                SA.wilson_lower(n + need, n + need), SA.HARD_BAR,
+                "n=%d: it promised %d more refusals would clear %.3f and they do not"
+                % (n, need, SA.HARD_BAR))
+            self.assertLess(
+                SA.wilson_lower(n + need - 1, n + need - 1), SA.HARD_BAR,
+                "n=%d: %d was not the ANSWER, merely a number large enough — one fewer already "
+                "clears the bar" % (n, need))
+
+    def test_it_never_proposes_a_kind_the_surface_ALREADY_has(self):
+        """Proposing `sabotage` to a surface whose only evidence is sabotage would be advice to
+        relabel — the one move the confluence bar exists to refuse."""
+        import self_arming as SA
+        g = SA._hardening_gap(0.95, 1.0, ["sabotage"], 90, 90)
+        self.assertNotIn("sabotage", g["kindsWouldClose"],
+                         "it proposed a kind already banked, which closes the gap on paper only")
+        self.assertTrue(g["kindsWouldClose"], "it proposed nothing at all")
+        got = 1.0 + sum(SA.KINDS[k] for k in g["kindsWouldClose"])
+        self.assertGreaterEqual(round(got, 4), SA.HARD_KINDS_BAR,
+                                "the proposed kinds do not actually reach the bar: %.2f" % got)
+
+    def test_an_ALREADY_hardened_surface_reports_no_gap(self):
+        import self_arming as SA
+        g = SA._hardening_gap(0.99, 3.4, sorted(SA.KINDS), 500, 500)
+        self.assertTrue(g["hardened"])
+        self.assertEqual(g["why"], "already HARDENED")
+        self.assertIsNone(g["wilsonShort"])
+        self.assertIsNone(g["kindsShort"])
+
+    def test_an_UNMEASURED_surface_is_not_reported_as_a_SHORT_one(self):
+        """⚠ n=0 has no distance to the bar. Rendering it as "short by 0.900" would turn nobody
+        having looked into a near miss."""
+        import self_arming as SA
+        g = SA._hardening_gap(None, 0.0, [], 0, 0)
+        self.assertIsNone(g["wilsonShort"])
+        self.assertIsNone(g["moreRefusalsNeeded"])
+        self.assertIn("unmeasured", g["why"])
+
+    def test_every_scored_row_carries_the_key_on_EVERY_path(self):
+        """⚠ REG-547 SHAPE LAW — including the n=0 rows, or "no gap" and "never computed" render
+        the same and a consumer cannot tell which it has."""
+        import self_arming as SA
+        rows = SA.report()["locks"]
+        self.assertTrue(rows, "no locks to check")
+        for r in rows:
+            self.assertIn("hardeningGap", r, "%s carries no gap" % r["lock"])
+            for key in ("hardened", "wilsonShort", "kindsShort", "moreRefusalsNeeded",
+                        "kindsWouldClose", "why"):
+                self.assertIn(key, r["hardeningGap"],
+                              "%s's gap is missing %r — a shape that changes with the verdict is "
+                              "not a shape" % (r["lock"], key))
 
 
 if __name__ == "__main__":

@@ -141,6 +141,15 @@ in those words.
 - **#135** — the daily-pick fingerprint. Its row says the undone-ness has no single string; I will
   not write an anchor that matches the wrong occurrence.
 
+- **A `record()` row bypasses the PROVES allow-list entirely.** Found 2026-09-04 fixing REG-575.
+  `bank()` refuses any (src, lock) pair the allow-list does not declare — the rule that stops one
+  surface's sabotage opening another surface's lock, which matters most for `prune.arm` because
+  footage has no undo. A `record()` row carries no `src` at all, so that check cannot be applied to
+  it. Safe **today** only because `record()` has zero production callers; the first caller added
+  makes it possible to credit any lock from anywhere. Owed: either give `record()` a declared `src`
+  (a signature change, and `test_self_arming`'s `put()` helper writes that shape too), or state in
+  the module that `record()` is not an evidence writer and route every harness through `bank()`.
+
 - **REG-569…573 are cited in shipped code and have NO entry in `BUGS.md`.** Found 2026-09-04 while
   logging REG-574: `tv/reel_retention.py`, `tv/test_reel_retention.py`, `tv/control_app.py` and
   `tv/self_arming.py` all cite REG-570/571/572/573, the log's highest entry is REG-568, and REG-569

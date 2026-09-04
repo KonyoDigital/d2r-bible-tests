@@ -379,28 +379,69 @@ def _fold(rows):
 
 
 def _row_fault(r):
-    """Why this row could not have come from bank(). -> str ("" when it is sound)
+    """Why this row could not have come from ANY writer in this module. -> str ("" when sound)
 
     ⚠ EVERY CHECK HERE IS ONE bank() ALREADY MAKES (self_arming.py, bank). It is not a second
     opinion — a second copy of a safety rule is [[copy-drift]]'s worst case. It is the SAME rules
     asked on the read side, because bank() guards its own door and nothing guarded the file.
+
+    ⚠⚠ REG-575 — IT ONLY KNEW ONE OF THIS MODULE'S TWO WRITERS, AND FAILED THE WHOLE FILE ON THE
+    OTHER. v2581 wrote this against bank()'s shape alone. `record()` — the single-attempt writer,
+    documented in score() as *"everything record() has ever written"* — emits
+    `{lock, kind, refused, ts}` with **no `src` and no `n`/`k`**, so every row it has ever produced
+    was judged "src '' is not a declared evidence source". One bad row fails the entire read by
+    design, so a single `record()` call would have turned all fifteen locks UNKNOWN at once.
+
+    MEASURED 2026-09-04: `record()` has ZERO production callers and his live ledger holds 51
+    bank() rows and 0 record() rows, so it never fired on his console — but `test_self_arming`
+    (a REGISTERED gate) went red the version this shipped and stayed red. **A validator that
+    rejects rows its own module writes is not strict, it is wrong**, and the gate said so.
+
+    ⚠ SO IT JUDGES A ROW AGAINST THE SHAPE IT DECLARES. A row carrying `src` is a bank() row and
+    gets every bank() rule. A row without one is a record() row and gets the rules that APPLY to
+    it — never the three that cannot. Silently passing a record() row through the bank() checks
+    would be the same defect wearing the opposite coat.
+
+    ⚠ AND THE ASYMMETRY IS REAL, NOT RESOLVED HERE: a record() row carries no `src`, so the PROVES
+    allow-list — the rule stopping one surface's proof from opening another's lock — cannot be
+    applied to it at all. That was true before this function existed and is not made worse by it.
+    It is safe TODAY only because record() has no callers; the moment one is added, a proof could
+    land on any lock. Named in TASKS.md rather than left for someone to find. [[the-unjoined-end]]
     """
-    src, lock, kind = str(r.get("src") or ""), str(r.get("lock") or ""), str(r.get("kind") or "")
-    allowed = PROVES.get(src)
-    if allowed is None:
-        return "src %r is not a declared evidence source" % src
-    if lock not in allowed:
-        return "%r does not prove %r" % (src, lock)
-    if kind not in KINDS:
+    lock, kind = str(r.get("lock") or ""), str(r.get("kind") or "")
+    if "src" in r:
+        src = str(r.get("src") or "")
+        allowed = PROVES.get(src)
+        if allowed is None:
+            return "src %r is not a declared evidence source" % src
+        if lock not in allowed:
+            return "%r does not prove %r" % (src, lock)
+    else:
+        # a record() row: one attempt, its outcome in `refused`. score() reads it as n=1.
+        if not isinstance(r.get("refused"), bool):
+            return ("refused=%r is not a boolean, and score() would have read it as an outcome "
+                    "anyway" % r.get("refused"))
+        if "n" in r or "k" in r:
+            return ("a row with no src carries n/k, so it is neither shape and score() would "
+                    "count it as both")
+    if "src" in r and kind not in KINDS:
+        # ⚠ ON BANK() ROWS ONLY, and that is not a softening. bank() validates the kind at its own
+        # door, so an undeclared kind in a row claiming a src could not have come from it. A
+        # record() row is different BY CONTRACT: `confluence()` weights an unlisted kind at ZERO,
+        # and `test_an_UNWEIGHTED_kind_is_worth_zero_not_a_default` pins that a surface carrying
+        # one stays LOCKED — a real, useful state. Failing the read instead turned "this evidence
+        # counts for nothing" into "the file cannot be trusted", which are opposite facts about
+        # the same row. Worth zero is a MEASUREMENT; unreadable is the absence of one.
         return "kind %r is not a declared evidence tier" % kind
-    n, k = r.get("n"), r.get("k")
-    # ⚠ bool is a subclass of int, and `True` would otherwise pass as the count 1 — the same
-    # shape REG-573 found writing "read (1 pages)" into a tombstone.
-    for nm, v in (("n", n), ("k", k)):
-        if isinstance(v, bool) or not isinstance(v, int):
-            return "%s=%r is not a whole number, and score() would have defaulted it" % (nm, v)
-    if not (0 <= k <= n):
-        return "k=%d of n=%d is not a possible record" % (k, n)
+    if "src" in r:
+        n, k = r.get("n"), r.get("k")
+        # ⚠ bool is a subclass of int, and `True` would otherwise pass as the count 1 — the same
+        # shape REG-573 found writing "read (1 pages)" into a tombstone.
+        for nm, v in (("n", n), ("k", k)):
+            if isinstance(v, bool) or not isinstance(v, int):
+                return "%s=%r is not a whole number, and score() would have defaulted it" % (nm, v)
+        if not (0 <= k <= n):
+            return "k=%d of n=%d is not a possible record" % (k, n)
     ts = r.get("ts")
     # ⚠ _fold keeps the GREATEST ts per (lock, kind, src, ref), so a row stamped in the future is
     # an unreplaceable pin: no honest later run could ever supersede it.
@@ -497,6 +538,10 @@ def score(lock, rows=None):
             out["provable"] = True
             out["why"] = ("no sabotage has been attempted against this surface's guards, so there "
                           "is no evidence in either direction. That is not a failure.")
+        # ⚠ REG-547 SHAPE LAW — the key exists on EVERY path, including this one. A row that
+        # carries `hardeningGap` only when there is a gap makes "no gap" and "never computed"
+        # render identically, and a consumer would have to know which it was looking at.
+        out["hardeningGap"] = _hardening_gap(None, conf, kinds, n, k)
         return out
     w = wilson_lower(k, n)
     out["wilson"] = round(w, 4)
@@ -504,6 +549,11 @@ def score(lock, rows=None):
     out["hardBar"] = HARD_BAR
     out["hardKindsBar"] = HARD_KINDS_BAR
     out["hardened"] = bool(w >= HARD_BAR and conf >= HARD_KINDS_BAR)
+    # what this surface still owes the tier above it, named on every scored row — see
+    # _hardening_gap. Computed here so LOCKED rows carry it too: a lock below its own bar is
+    # also below HARDENED, and hiding that until it opens would make the ladder look shorter
+    # than it is.
+    out["hardeningGap"] = _hardening_gap(w, conf, kinds, n, k)
     if w < spec["bar"]:
         out["state"] = LOCKED
         out["why"] = ("%d of %d sabotages were refused; the Wilson lower bound is %.3f against a "
@@ -521,6 +571,79 @@ def score(lock, rows=None):
         out["state"] = HARDENED if out.get("hardened") else OPEN
         out["why"] = ("%d of %d sabotages refused · wilson %.3f >= %.3f · kinds %s = %.2f >= %.2f"
                       % (k, n, w, spec["bar"], kinds, conf, spec["kinds_bar"]))
+    return out
+
+
+def _hardening_gap(w, conf, kinds, n, k):
+    """What does this surface still OWE the HARDENED tier? -> dict, always the same shape.
+
+    ⚠⚠ HARDENED WAS A TIER NOTHING COULD REACH AND NOTHING EXPLAINED. Measured 2026-09-04 across
+    the whole table: **14 of 15 locks OPEN, 0 HARDENED**, and every `why` on those rows recited
+    only the bar it had already cleared. A surface could sit one evidence-kind short of his own
+    HARDENING stamp forever and the report would never say the word. An unreachable tier that
+    gives no account of itself is indistinguishable from a broken one. [[unknown-stays-unknown]]
+
+    ⚠ IT NAMES WHAT IS MISSING; IT NEVER LOWERS ANYTHING. The bars are his. This computes the
+    shortfall and the CHEAPEST HONEST combination of kinds that would close it — and a kind is
+    earned by doing that work, never by relabelling evidence already banked. Calling a fixture
+    `live`, or an agreement a `sabotage`, would clear this gap on paper and prove nothing, which
+    is the exact failure the confluence bar exists to stop.
+
+    ⚠ THE SABOTAGE COUNT IS REAL ARITHMETIC, NOT AN ESTIMATE. `wilson_lower` rises with n at a
+    fixed k/n, so "how many more consecutive refusals clear HARD_BAR" has one answer and it is
+    computed here by asking, never by a rule of thumb.
+    """
+    out = {"hardened": bool(w is not None and w >= HARD_BAR and conf >= HARD_KINDS_BAR),
+           "wilsonShort": None, "kindsShort": None, "moreRefusalsNeeded": None,
+           "kindsWouldClose": [], "why": ""}
+    if w is None:
+        out["why"] = ("nothing has been attempted, so there is no gap to measure — an unmeasured "
+                      "distance is not a short one")
+        return out
+    if out["hardened"]:
+        out["why"] = "already HARDENED"
+        return out
+
+    if w < HARD_BAR:
+        out["wilsonShort"] = round(HARD_BAR - w, 4)
+        # how many MORE refused sabotages would clear it, asked rather than guessed
+        if k == n:
+            nn = n
+            while nn < n + 500:
+                nn += 1
+                if wilson_lower(nn, nn) >= HARD_BAR:
+                    out["moreRefusalsNeeded"] = nn - n
+                    break
+    if conf < HARD_KINDS_BAR:
+        out["kindsShort"] = round(HARD_KINDS_BAR - conf, 4)
+        have = set(kinds or ())
+        missing = sorted((kd for kd in KINDS if kd not in have),
+                         key=lambda kd: -KINDS[kd])
+        # the smallest set of ABSENT kinds that closes the confluence gap, largest weight first
+        run, chosen = conf, []
+        for kd in missing:
+            if run >= HARD_KINDS_BAR:
+                break
+            chosen.append(kd)
+            run += KINDS[kd]
+        out["kindsWouldClose"] = chosen if run >= HARD_KINDS_BAR else []
+
+    bits = []
+    if out["wilsonShort"] is not None:
+        bits.append("wilson %.3f is %.3f short of %.3f%s"
+                    % (w, out["wilsonShort"], HARD_BAR,
+                       ("" if out["moreRefusalsNeeded"] is None else
+                        " (%d more refused sabotage(s) would clear it)"
+                        % out["moreRefusalsNeeded"])))
+    if out["kindsShort"] is not None:
+        bits.append("kinds %.2f is %.2f short of %.2f%s"
+                    % (conf, out["kindsShort"], HARD_KINDS_BAR,
+                       (" — adding %s would close it"
+                        % " + ".join("%s (%.1f)" % (kd, KINDS[kd])
+                                     for kd in out["kindsWouldClose"])
+                        if out["kindsWouldClose"] else
+                        " — NO combination of the remaining kinds can close it")))
+    out["why"] = ("owes HARDENED: " + "; ".join(bits)) if bits else ""
     return out
 
 
