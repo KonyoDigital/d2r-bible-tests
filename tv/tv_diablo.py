@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2597"   # a redirect that half takes, and a registry entry nobody had checked
+VERSION = "v2598"   # the ratchet that counted and could not name, and the four sites it was hiding
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -73,7 +73,7 @@ def _templates():
         return [{"check": "reel_segments vocabulary", "ok": False, "got": str(e)[:60],
                  "want": "importable", "why": "the scene vocabulary could not be read"}]
     # what his shelf actually holds right now, per template
-    live = {}
+    live, live_why = {}, ""
     try:
         import control_app as CA
         import json as _j
@@ -92,13 +92,24 @@ def _templates():
                         live[sc] = live.get(sc, 0) + 1
                     if tb:
                         live[tb] = live.get(tb, 0) + 1
-    except Exception:
-        live = {}
+    except Exception as _e:
+        # ⚠⚠ REG-579 — THIS WAS `live = {}`, AND IT WAS MINE (v2580). An empty dict here says
+        # "the shelf holds no sighting of this template", and a failed read says "nobody could
+        # look". Downstream they are read identically — `live.get(name, 0)` returns 0 for both,
+        # and every template would report `known · 0 read(s) on the shelf` as though that were a
+        # measurement. Counted by the swallow census as RANK 1, *a failed read handed back as
+        # DATA*, and it is exactly the class this repo has a skill about. [[unknown-stays-unknown]]
+        #
+        # `None` is the honest value: `live_unreadable` carries the reason, and the callers below
+        # ask before they count.
+        live, live_why = None, "the reel shelf could not be read (%s)" % str(_e)[:80]
     for name, kind, why in TEMPLATES:
         if kind == "scene":
             known = name in known_scenes
             where = "reel_segments._ACTIVITY_LANE"
-            got = ("known · %d read(s) on the shelf" % live.get(name, 0)) if known \
+            got = ("known · %s on the shelf"
+                   % ("UNKNOWN — %s" % live_why if live is None
+                      else "%d read(s)" % live.get(name, 0))) if known \
                   else "NOT RECOGNISED"
         else:
             # ⚠⚠ v2585 — THIS ASSERTED THE OPPOSITE OF WHAT ITS COMMENT CLAIMED, found by a cold
@@ -115,7 +126,7 @@ def _templates():
             # shelf is EVIDENCE, reported and never asserted — which is what the intent said.
             known = True
             where = "the deep rows' stashTab field (checked once, below)"
-            seen = live.get(name, 0)
+            seen = None if live is None else live.get(name, 0)
             got = ("%d read(s) on the shelf" % seen) if seen else \
                   "0 on this shelf — evidence, not a failure"
         # ⚠⚠ v2588 — AN EVIDENCE LINE MUST NOT WEAR A PASS. A cold review pointed out that every
@@ -138,7 +149,8 @@ def _templates():
     # THE ONE REAL VOCABULARY CHECK FOR TABS: is the field carried at all? If the readers stopped
     # recording stashTab, every per-tab line above would go quietly to zero and none of them would
     # fail — which is exactly the silent-zero shape this repo keeps paying for.
-    tabs_seen = [k for k in live if k in ("runes", "gems", "materials", "personal", "shared")]
+    tabs_seen = (None if live is None else
+                 [k for k in live if k in ("runes", "gems", "materials", "personal", "shared")])
     out.append({"check": "the readers RECORD a stash tab at all", "ok": bool(tabs_seen),
                 "got": ("carried · tabs seen: %s" % ", ".join(sorted(tabs_seen))) if tabs_seen
                        else "NO TAB HAS EVER BEEN RECORDED",

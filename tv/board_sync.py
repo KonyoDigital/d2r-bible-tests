@@ -80,8 +80,14 @@ def _git_ships():
         out = subprocess.check_output(
             ["git", "log", "--format=%h|%ad|%s", "--date=format:%Y-%m-%d %H:%M", "origin/main"],
             cwd=REPO, text=True, timeout=120)
-    except Exception:
-        return {}
+    except Exception as _e:
+        # ⚠⚠ REG-579 — THIS RETURNED `{}`, AND AN EMPTY DICT HERE MEANS "GIT KNOWS OF NO SHIP".
+        # The only consumer asks `ships.get(ident)` and, when it finds one, raises a note that git
+        # has a commit TASKS.md does not call shipped. So a failed `git log` did not write a wrong
+        # number — it silently switched that cross-check OFF for every row, and the report looked
+        # exactly like a run where TASKS.md and git agreed perfectly. A check that disappears
+        # without saying so is worse than one that fails. [[unknown-stays-unknown]]
+        return None, "git would not answer (%s)" % str(_e)[:80]
     ships = {}
     for line in out.split("\n"):
         parts = line.split("|", 2)
@@ -91,7 +97,7 @@ def _git_ships():
         # a commit may carry two stamps: "v2464+v2465 — ..."
         for m in re.finditer(r"\bv(2\d{3})\b", subject.split("—")[0]):
             ships.setdefault("v" + m.group(1), (sha, when, subject))
-    return ships
+    return ships, ""
 
 
 def _classify(status_text, progress=None):
@@ -298,9 +304,14 @@ def coverage(text, rows):
 def build():
     """-> (rows_for_board, notes). Every timestamp measured, never typed."""
     text = io.open(TASKS, encoding="utf-8").read()
-    ships = _git_ships()
+    ships, ships_why = _git_ships()
     rows = parse_tasks(text)
     notes = []
+    if ships is None:
+        # say the check did not run, rather than letting its silence read as agreement
+        notes.append("⚠ the git cross-check did NOT run (%s), so no row was compared against a "
+                     "real commit. This is not 'TASKS.md agrees with git' — nobody asked git."
+                     % ships_why)
     missing, total_heads = coverage(text, rows)
     if missing:
         notes.append("⚠ %d of %d A-headers produced NO ROW and would be invisible: %s"
@@ -316,7 +327,7 @@ def build():
         state = r["state"]
         title, sec_order, st = _SEC[state]
         topic = r.get("topic") or "Unfiled"
-        got = ships.get(ident)
+        got = None if ships is None else ships.get(ident)
         if got and state != "done":
             # a ship exists for something TASKS.md does not call shipped — say so, do not decide
             notes.append("%s: git has a commit (%s) but TASKS.md says %r" % (ident, got[0], state))

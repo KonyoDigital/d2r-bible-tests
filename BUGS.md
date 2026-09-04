@@ -7,6 +7,46 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-579 — the ratchet that counted and could not name, and the four sites it was hiding
+**2026-09-04 · v2598 · the fifth of the eight red gates**
+
+`swallow_ratchet` was red at **78 against a baseline of 74**, and all it could say was *"4 NEW
+site(s)"*. The baseline stored **one integer**. No file, no direction, nothing to act on — so the
+only cheap way to clear it was `--write-baseline`, which **adopts the new sites as the new normal**.
+That is precisely the shape REG-568 found in the render coverage ratchet one file over, where a
+bless could write the floor DOWN. **A ratchet whose red is unactionable trains its reader to
+re-baseline.**
+
+**THE FIX, in two halves.** The baseline now records rank-1 **per FILE** — per file, not per line,
+because a line number moves whenever anything above it is edited, so a line-keyed baseline would
+report new sites on every ordinary commit and be re-baselined into meaninglessness within a week.
+A red now prints **where it rose and where it fell**. And a baseline predating the map reports
+*"WHICH FILES ROSE IS UNKNOWN"* rather than "no file rose" — nobody can tell, and the gate says so.
+[[unknown-stays-unknown]]
+
+**Then I used it.** Diffing the tree against the commit that wrote the baseline (`6a850d16`, v2387)
+named all four:
+
+| file | was → now | what it was |
+|---|---|---|
+| `tv/reel_demo.py` | 0 → 1 | **mine (v2580)** — `except: live = {}`, so "the shelf holds no sighting" and "nobody could look" both read as `0 read(s) on the shelf` |
+| `tv/ledger_highwater.py` | 0 → 1 | **the worst of the four** — see below |
+| `tv/board_sync.py` | 0 → 1 | a failed `git log` returned `{}`, silently switching a cross-check OFF for every row while looking exactly like a run where TASKS.md and git agreed |
+| `tv/control_app.py` (`do_GET`) | 34 → 35 | **mine (v2574)** — one handler speaking two vocabularies: `printerJoined = None` beside `printerStations = []` |
+
+⚠⚠ **`ledger_highwater` COULD HAVE DESTROYED THE RECORD IT EXISTS TO KEEP.** `_peaks()` returned
+`{}` on any failure, and `--seed` does `peaks = _peaks()` and then **writes the file back**. So an
+unreadable peaks file became an EMPTY one and every peak reset to today's value — defeating this
+module's own rule three lines below it: *"SEEDING MAY ONLY RAISE… that would turn the one mechanism
+that remembers into one that forgets on request."* Now: absent → `{}` (asked with `os.path.exists`,
+not caught, so the handler has ONE meaning), unreadable → `None`, and **seeding REFUSES** on None.
+Verified: the unreadable file was left byte-identical.
+
+**All four fixed rather than re-baselined: 78 → 74, exactly the baseline, nothing adopted.** Two of
+them were mine. The `control_app` change was checked against its only consumer first —
+`control_ui.html` tests `st.printerStations && st.printerStations.length` and falls through to
+`else if (st.printerWhy)`, so `None` renders identically to `[]` and the reason still paints.
+
 ### REG-578 — a redirect that half takes, and a registry entry nobody had checked
 **2026-09-04 · v2597 · the fourth of the eight red gates**
 

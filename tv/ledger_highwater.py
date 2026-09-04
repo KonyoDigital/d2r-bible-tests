@@ -90,11 +90,35 @@ def latest():
 
 
 def _peaks():
+    """The recorded peaks. -> dict when readable, {} when there are none, **None when UNREADABLE**.
+
+    ⚠⚠ REG-579 — THIS RETURNED `{}` FOR BOTH, AND THE TWO CALLERS FAIL DIFFERENTLY ON IT.
+    `report()` maps an empty dict to UNKNOWN — correct — but with the reason *"no peak has ever
+    been recorded"*, which is a different claim from "the file would not parse". And `--seed` is
+    worse than a wrong sentence: it does `peaks = _peaks()` and then **writes the file back**, so
+    an unreadable peaks file became an EMPTY one and every peak reset to today's value. That
+    defeats this module's own rule three lines below it — *"SEEDING MAY ONLY RAISE… that would
+    turn the one mechanism that remembers into one that forgets on request"* — by way of a read
+    failure nobody was told about. [[unknown-stays-unknown]]
+
+    ⚠ ABSENT IS NOT UNREADABLE. No file yet is a real, correct `{}`: there are genuinely no peaks
+    and seeding from that state is exactly right. Only a file that exists and will not be read is
+    None, because that is the case where writing would destroy something.
+    """
+    # ⚠ THE ABSENT CASE IS ASKED, NOT CAUGHT. "No peaks file yet" is an expected state, not an
+    # error, and routing it through `except FileNotFoundError: return {}` made the census read
+    # this handler as *a failed load handed back as DATA* — correctly, because a file-local pass
+    # cannot tell which of the two `{}`s it is looking at. Asking first leaves the handler with
+    # ONE meaning: something went wrong, and the answer is UNKNOWN.
+    if not os.path.exists(PEAKS):
+        return {}
     try:
         blob = json.load(io.open(PEAKS, encoding="utf-8"))
         return blob if isinstance(blob, dict) else {}
     except Exception:
-        return {}
+        # ⚠ INCLUDING the race where the file vanishes between the check and the open. None is
+        # right there too: it existed a moment ago, so seeding must not overwrite what may return.
+        return None
 
 
 def _write_peaks(blob):
@@ -110,6 +134,11 @@ def report():
     if cur is None:
         return {"state": UNKNOWN, "rows": [], "why": why, "snapshot": None}
     peaks = _peaks()
+    if peaks is None:
+        return {"state": UNKNOWN, "rows": [], "snapshot": name,
+                "why": ("the peaks file exists and could not be read, so whether anything is "
+                        "below its peak is UNKNOWN. That is NOT 'no peak has ever been recorded' "
+                        "— the record may be intact and merely unreadable from here.")}
     if not peaks:
         return {"state": UNKNOWN, "rows": [], "snapshot": name,
                 "why": ("no peak has ever been recorded, so nothing can be below one. Run "
@@ -174,6 +203,13 @@ def seed():
     if not cur:
         return {"ok": False, "why": "no snapshot could be read, so there is no history to seed from"}
     peaks = _peaks()
+    # ⚠⚠ REFUSING TO SEED IS THE WHOLE POINT. Seeding writes this file back, so proceeding on an
+    # unreadable read would replace an intact record with today's numbers and call it a peak.
+    if peaks is None:
+        return {"ok": False,
+                "why": ("the peaks file exists and could not be read, and seeding WRITES it back "
+                        "— proceeding would overwrite an intact record with today's values and "
+                        "call them the highest ever. Refusing. Fix or move the file, then re-run.")}
     now = time.strftime("%Y-%m-%d %H:%M")
     for k, v in cur.items():
         rec = peaks.get(k)

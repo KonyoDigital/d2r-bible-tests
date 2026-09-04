@@ -22535,7 +22535,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2597",
+        "ver": "v2598",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -24567,8 +24567,16 @@ class Handler(BaseHTTPRequestHandler):
                                             "their retention stage" % (_hit, len(_story.get("reels") or [])))
                 except Exception as _pe:
                     # UNKNOWN, never a blank spine — the stages below are unaffected.
-                    _story["printerStations"] = []
-                    _story["printerCounts"] = {}
+                    # ⚠⚠ REG-579 — ONE HANDLER SPOKE TWO VOCABULARIES. `printerJoined` said None
+                    # (nobody could ask) while `printerStations` said [] and `printerCounts` said
+                    # {} — which read as "the printer HAS no stations", a measurement nobody took.
+                    # The swallow census counts exactly that as RANK 1. Verified against the only
+                    # consumer before changing it: control_ui.html tests
+                    # `st.printerStations && st.printerStations.length` and falls through to
+                    # `else if (st.printerWhy)`, so None renders identically to [] — the reason
+                    # still paints, and the server now says unknown ONE way. [[unknown-stays-unknown]]
+                    _story["printerStations"] = None
+                    _story["printerCounts"] = None
                     _story["printerJoined"] = None
                     _story["printerWhy"] = ("the printer could not be walked (%s), so the stages "
                                             "below carry no station verdicts" % str(_pe)[:80])

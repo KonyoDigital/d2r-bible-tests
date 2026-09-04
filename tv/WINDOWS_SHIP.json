@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2597",
+  "ver": "v2598",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2597: REG-578. board_sync REPO was an unregistered import-bound path constant so test_import_bound_paths - a registered gate - was red. Measured by running it - the env is honoured at IMPORT ONLY, there is exactly ONE call-time reader of the attribute (_git_ships passes cwd=REPO), AND TASKS is derived at module level from REPO so patching REPO does NOT move it. Proven - after patching REPO to tmp, TASKS still read his real TASKS.md. A test patching REPO believing it isolated the module would run git in a scratch dir while reading and writing HIS REAL TASKS.md - a half redirect that looks fully applied. Registered with that measurement, plus two guards that make the recipe falsifiable rather than asserted. My first version of the recipe test failed against its own instrument - importlib.reload mutates the module IN PLACE so restoring the env in finally undid the thing under test before the assertion read it. Fourth of the eight red gates closed.",
+  "note": "v2598: REG-579. swallow_ratchet was red at 78 vs baseline 74 and could say only 4 NEW site(s) - the baseline stored ONE integer, so a red carried no file, no direction, nothing to act on. The cheap way to clear it was --write-baseline, which ADOPTS the new sites - the same shape REG-568 found in the render ratchet one file over. The baseline now records rank1 per FILE (per file not per line, because a line moves on every ordinary edit), a red NAMES where it rose and where it fell, and a baseline predating the map reports WHICH FILES IS UNKNOWN rather than no file rose. Then I used it - diffed against the commit that wrote the baseline and named all four - board_sync ledger_highwater reel_demo and control_app do_GET. Fixed all four rather than re-baselining - 78 to 74, exactly the baseline, nothing adopted. reel_demo and the control_app one were MINE. ledger_highwater was the worst - seed WRITES the peaks file back so an unreadable read became an EMPTY one and every peak reset to today, defeating this modules own SEEDING MAY ONLY RAISE rule.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
