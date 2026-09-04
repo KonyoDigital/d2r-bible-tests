@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2625",
+  "ver": "v2626",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2625: REG-607 - the overlap ratchet never opened a panel and loaded file where the console cannot fetch, so its 0000 was a clean bill over surfaces it had never seen. Serving it revealed 17 real overlaps. Panels graded, page level reported.",
+  "note": "v2626: REG-608 - his blank window measured 0.9513 against a 0.98 bar because the title bar carried the variance, so the pixel witness could never call it blank. Chrome excluded - the same window reads 0.9966.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

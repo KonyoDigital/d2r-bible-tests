@@ -224,6 +224,96 @@ class ItNeverACTS(unittest.TestCase):
                              "paint_witness references %r — it is a witness and must not act" % bad)
 
 
+
+class TestV2626TheTitleBarHidBlankness(unittest.TestCase):
+    """★★ HIS "USUAL SUSPECT BUG", MEASURED AT LAST — and the reason it was never caught is that
+    the blank test was diluted by the OS title bar.
+
+    Captured his actual window while he was reporting it black (`CGWindowListCreateImage`, window
+    15475, 1120x660). It is a title bar reading "TV DIABLO" over a completely empty body:
+
+        whole window            modalShare 0.9513  -> PAINTED   (wrong)
+        excluding the top 30px  modalShare 0.9966  -> BLANK     (correct)
+
+    A blank body plus three traffic lights and a title is ~5% of the pixels and NEVER uniform, so
+    the chrome alone held a genuinely blank window three points under a 0.98 bar. ⚠ The module
+    already knew chrome was the problem — its own note says *"window CHROME draws 8-9 distinct
+    luminances"* — and answered it by dropping the DISTINCT conjunct, which left the modal-share
+    bar just as diluted. **The chrome is not evidence about whether the page drew anything; the
+    window server draws it either way.** [[feedback-threshold-above-the-ceiling]]
+
+    ⚠ NOTHING HERE SHIPS A PICTURE OF HIS SCREEN. The windows are synthesised in memory — the repo
+    is public, and a capture of his desktop is not a test fixture.
+    """
+
+    BODY = 30           # the uniform body luminance of a blank console
+    CHROME = (200, 90, 160, 70, 210, 120)   # traffic lights + title text: never uniform
+
+    def _shot(self, w=1120, h=660, body=None, chrome=True, content=False):
+        """A window bitmap in the shape `measure()` reads: BGRA rows."""
+        body = self.BODY if body is None else body
+        bpp, bpr = 4, w * 4
+        buf = bytearray(bpr * h)
+        for y in range(h):
+            for x in range(w):
+                o = y * bpr + x * bpp
+                if chrome and y < 28:
+                    v = self.CHROME[(x // 7 + y) % len(self.CHROME)]
+                elif content and (y % 11 == 0):
+                    v = 120 + (x % 90)      # text-ish rows, genuinely varied
+                else:
+                    v = body
+                buf[o] = buf[o + 1] = buf[o + 2] = v
+                buf[o + 3] = 255
+        return {"w": w, "h": h, "buf": bytes(buf), "bpr": bpr, "bpp": bpp}
+
+    def test_a_blank_body_under_a_title_bar_reads_BLANK(self):
+        """★ HIS WINDOW. Before this it read PAINTED, because the chrome carried the variance."""
+        m = PW.measure(self._shot(chrome=True, content=False))
+        self.assertGreaterEqual(
+            m["modalShare"], PW.BLANK_MODAL_SHARE,
+            "a blank body under a title bar still reads as painted (%.4f < %.2f) — the chrome is "
+            "diluting the measurement, which is exactly the bug"
+            % (m["modalShare"], PW.BLANK_MODAL_SHARE))
+
+    def test_the_SAME_window_read_WITH_the_chrome_would_have_passed(self):
+        """⚠ THE CONTROL, and it is what makes this case mean anything: it shows the old behaviour
+        on the same bitmap. Without it, a bar that happens to pass proves nothing about the fix."""
+        shot = self._shot(chrome=True, content=False)
+        real = PW.CHROME_TOP_PX
+        try:
+            PW.CHROME_TOP_PX = 0
+            with_chrome = PW.measure(shot)
+        finally:
+            PW.CHROME_TOP_PX = real
+        without = PW.measure(shot)
+        self.assertLess(with_chrome["modalShare"], PW.BLANK_MODAL_SHARE,
+                        "the control does not reproduce the old behaviour, so this suite is not "
+                        "grading the fix")
+        self.assertGreater(without["modalShare"], with_chrome["modalShare"])
+
+    def test_a_window_WITH_CONTENT_is_still_PAINTED(self):
+        """⚠⚠ THE BASELINE THAT MATTERS. Cropping the chrome must not make every window look blank
+        — a bar nothing can fail is not a bar."""
+        m = PW.measure(self._shot(chrome=True, content=True))
+        self.assertLess(m["modalShare"], PW.BLANK_MODAL_SHARE,
+                        "a window with real content read as blank (%.4f)" % m["modalShare"])
+
+    def test_a_SMALL_window_is_not_measured_down_to_nothing(self):
+        """A helper window shorter than a few title bars must not have most of itself cropped."""
+        m = PW.measure(self._shot(w=120, h=90, chrome=True, content=False))
+        self.assertIsNotNone(m["modalShare"])
+        self.assertGreater(m["samples"], 0)
+
+    def test_the_crop_is_a_FLOOR_not_a_guess(self):
+        """⚠ Measured on his 1120x660: 24px already clears (0.9872), 30px gives 0.9966. The value
+        must stay at least the height of a real title bar or it stops removing the chrome."""
+        self.assertGreaterEqual(PW.CHROME_TOP_PX, 24)
+        self.assertLessEqual(PW.CHROME_TOP_PX, 44,
+                             "cropping this much starts eating page content, not chrome")
+
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

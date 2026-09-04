@@ -7,6 +7,56 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-608 — the pixel witness could never call his window blank, because the title bar diluted the measurement
+
+**v2626. HIS "USUAL SUSPECT BUG", MEASURED AT LAST.** His report, 2026-09-04 21:36, with a
+screenshot of TV DIABLO frontmost and black: *"the console is not rendering again — only tooltips
+image cursor floating images when mouse is on — the usual suspect bug."*
+
+**I captured his actual window** (`CGWindowListCreateImage`, window 15475, 1120x660) and looked at
+it: a title bar reading "TV DIABLO" over a **completely empty body**. Then measured it:
+
+| region | modalShare | verdict |
+|---|---|---|
+| whole window | **0.9513** | ❌ PAINTED |
+| excluding the top 30px | **0.9966** | ✅ BLANK |
+
+**A blank body plus three traffic lights and a title is ~5% of the pixels and never uniform, so the
+chrome alone held a genuinely blank window three points under the 0.98 bar.** Every run of the
+pixel witness on every black window he has ever reported would have said PAINTED.
+
+⚠⚠ **AND THE MODULE ALREADY KNEW CHROME WAS THE PROBLEM.** Its own note records that a
+`distinct <= 4` conjunct called a blank console PAINTED *"because window CHROME draws 8-9 distinct
+luminances"* — and the answer taken then was to drop the DISTINCT test, which left the modal-share
+bar **just as diluted**. The right answer was never a different bar; it was to stop measuring the
+chrome. The window server draws it whether the page painted or not, so it is not evidence about the
+page. [[feedback-threshold-above-the-ceiling]]
+
+**FIX:** `CHROME_TOP_PX = 30`, skipped only on windows tall enough for it to be chrome rather than
+the whole thing. Measured on his window: 24px already clears (0.9872), 30px gives 0.9966, 36px
+0.9998. His window re-read live through the fixed witness: **modalShare 0.9836, above the bar** —
+reported OCCLUDED rather than BLANK only because Terminal was covering it at that moment, which is
+REG-594 working correctly.
+
+⚠ **WHAT THIS DOES NOT CLAIM.** The beat is still no use for this fault and that is unchanged:
+`painting: true`, `raf: 1224`, `frozenBeats: 0`, `blankStrikes: 0`, `paintWhy: "185 frame(s)
+painted since the last beat"` — **a window drawing 185 BLANK frames advances `raf` exactly like a
+healthy one.** The pixel witness is the only instrument that can see this, which is why it having
+been blind matters so much.
+
+⚠ **TWO INSTRUMENT ERRORS OF MINE ON THE WAY, both caught by measuring.** `lsof -ti :17772`
+returned **9665 first — a WebKit Networking XPC helper**, not the console (11243), so `on_screen`
+correctly reported "no window" about a window plainly on screen. And I proposed **mean luminance**
+as the discriminator: **refuted** — healthy renders read 11.3/23.9/20.8 and his black window reads
+12.2, dead centre. The theme is dark; brightness cannot separate. [[feedback-suspect-the-instrument]]
+
+**Guard:** `TestV2626TheTitleBarHidBlankness` — 5 cases, RED-proven by restoring `CHROME_TOP_PX =
+0`. ⚠ The windows are **synthesised in memory, not a capture of his screen** — the repo is public.
+The fixture is honest: sabotaged, it reads **0.9500** against his real window's **0.9513**. It
+carries a CONTROL that reproduces the old behaviour on the same bitmap (a bar that happens to pass
+proves nothing), a baseline that a window WITH content is still PAINTED, and a floor on the crop so
+it cannot grow until it eats page content.
+
 ### REG-607 — the overlap gate's 0/0/0/0 was a clean bill over a console that never loaded
 
 **v2625.** Two defects in one gate, and the second was hiding behind the first.

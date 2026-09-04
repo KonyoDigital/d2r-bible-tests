@@ -179,6 +179,15 @@ def _grab(window_id, quartz=None):
         return None, "the image would not yield its pixels (%s)" % type(e).__name__
 
 
+#: how much of the top of a window is the OS title bar rather than anything the page drew.
+#: Measured on his 1120x660 console: cropping 24px already clears the 0.98 bar (0.9872), 30px gives
+#: 0.9966 and 36px 0.9998. 30 is taken because it clears with margin without eating page content —
+#: and it is a floor, not a guess: the bar itself is ~28px at his scale.
+#: ⚠ Skipped only on windows tall enough for it to be chrome rather than the whole thing, so a
+#: small helper window is never measured down to nothing.
+CHROME_TOP_PX = 30
+
+
 def measure(shot, samples=60):
     """How uniform is this bitmap? -> dict
 
@@ -188,8 +197,21 @@ def measure(shot, samples=60):
     """
     from collections import Counter
     w, h, buf, bpr, bpp = shot["w"], shot["h"], shot["buf"], shot["bpr"], shot["bpp"]
+    # ⚠⚠ SKIP THE TITLE BAR, AND THIS IS WHY HIS BLANK WINDOW WAS NEVER ONCE CAUGHT.
+    # Measured 2026-09-04 by capturing his actual window while he was reporting it black:
+    #
+    #     whole window            modalShare 0.9513  -> PAINTED   (wrong)
+    #     excluding the top 30px  modalShare 0.9966  -> BLANK     (correct)
+    #
+    # A blank body plus a title bar reading "TV DIABLO" with three traffic lights is ~5% of the
+    # pixels and NEVER uniform, so the chrome alone held the window three points under a 0.98 bar.
+    # The module already knew chrome was the problem — its own note says "window CHROME draws 8-9
+    # distinct luminances" — and answered it by dropping the DISTINCT conjunct, which left the
+    # modal-share bar just as diluted. The chrome is not evidence about whether the page drew; it
+    # is drawn by the window server either way. [[feedback-threshold-above-the-ceiling]]
+    top = CHROME_TOP_PX if h > CHROME_TOP_PX * 4 else 0
     lums, total = Counter(), 0
-    for yy in range(0, h, max(1, h // samples)):
+    for yy in range(top, h, max(1, (h - top) // samples)):
         for xx in range(0, w, max(1, w // samples)):
             o = yy * bpr + xx * bpp
             if o + 3 > len(buf):
