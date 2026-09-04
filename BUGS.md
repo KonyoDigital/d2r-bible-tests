@@ -18739,3 +18739,36 @@ cites what it replaced cannot work.** It checks the PRECEDENCE line now, not the
 prefer the prefixed form always — the same test catches both, which is the point of asking both
 ways.
 
+## v2566 — a name that names nothing, finding a record
+
+**REG-567 — the cold look at v2564, which was asked what the tests did NOT cover.**
+
+⚠ **TAKEN — the phantom-key class one more time** (REG-550, REG-559, now here).
+`bare_reel("reel_")` is `""`, and the lookup then searched for `""` in the store:
+
+```
+lookup_either_way({"": 5}, "reel_")  ->  5
+```
+
+**A name that names nothing must not find a record.** An empty name and an empty bare form are
+simply not keys. `"reel_"`, `""`, whitespace and `None` all answer None now, and the baselines still
+resolve all three real shapes.
+
+⚠⚠ **REFUTED BY MEASUREMENT, and this one matters for how much weight the reviews get.** It sketched
+a wrong implementation and claimed **all three tests would still pass** — moving the `startswith`
+check above the bare lookup, on the reasoning that the `b != r` guard is never hit. **Run against
+the actual tests it FAILS the third baseline**: `{"s_1": 7}` asked with `"reel_s_1"` returns None
+instead of 7. The guard it said was toothless is the one that catches its own example. **Asking a
+reviewer "could a wrong version pass?" is valuable; believing the answer without running it is
+not.**
+
+**1 sabotage, RED.**
+
+⚠ **AND A NOTE ON WHERE THIS ARC IS.** v2561 → v2566 have all been one small lookup helper and its
+docstring, each version triggered by the cold look on the one before. The findings were real and
+they got smaller: *the deleter's safe direction moved* (serious, insurance-only in practice) →
+*two modules disagree on one lookup* (real) → *a comment contradicting its code* → *a docstring
+stating a rule the code never followed* → *an empty name finding a record*. That is diminishing
+returns on one function while the A-list waits, and it is worth saying out loud rather than
+continuing by momentum.
+

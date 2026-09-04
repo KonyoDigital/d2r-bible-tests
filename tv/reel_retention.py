@@ -131,11 +131,17 @@ def lookup_either_way(store, reel):
 
     ⚠ Membership, not truthiness (REG-561): a present-but-empty record is FOUND, not absent.
     """
-    r = str(reel or "")
+    # ⚠⚠ REG-567 — AN EMPTY NAME RESOLVED TO AN EMPTY-STRING KEY. `bare_reel("reel_")` is `""`,
+    # and this then looked `""` up in the store: `lookup_either_way({"": 5}, "reel_")` returned 5.
+    # The phantom-key class one more time (REG-550, REG-559) — a name that names nothing must not
+    # find a record. An empty name and an empty bare form are both simply not keys.
+    r = str(reel or "").strip()
+    if not r:
+        return None
     if r in store:
         return store[r]
     b = bare_reel(r)
-    if b != r and b in store:
+    if b and b != r and b in store:
         return store[b]
     # ⚠⚠ REG-565 — THE THIRD STEP RE-PREFIXED AN ALREADY-PREFIXED NAME. `"reel_" + r` was built
     # from the ORIGINAL name, so asking for `reel_s_1` against a store holding only

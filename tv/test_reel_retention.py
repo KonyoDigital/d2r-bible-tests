@@ -623,6 +623,19 @@ class AFalsyLedgerEntryIsPresentNotAbsent(unittest.TestCase):
                       "the PRECEDENCE line does not state the rule the code implements: %r"
                       % rule[0])
 
+    def test_a_name_that_names_NOTHING_finds_no_record(self):
+        """⚠⚠ REG-567 — the phantom-key class one more time (REG-550, REG-559). `bare_reel("reel_")`
+        is `""`, and the lookup then searched for `""` in the store: `lookup_either_way({"": 5},
+        "reel_")` returned **5**. A name that names nothing must not find a record.
+
+        ⚠ Found by a cold review asking what these tests did NOT cover — the `"reel_"` and
+        empty-string inputs had no case at all.
+        """
+        import reel_retention as RR
+        for ask in ("reel_", "", "   ", None):
+            self.assertIsNone(RR.lookup_either_way({"": 5}, ask),
+                              "%r resolved to a record under the empty-string key" % (ask,))
+
     def test_BASELINE_all_three_real_shapes_still_resolve(self):
         """⚠ Or the fix cut off the prefixed lookup entirely — the case that exists to find a reel
         stored under `reel_<sid>` when asked by its bare id."""
