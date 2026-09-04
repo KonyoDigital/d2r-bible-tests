@@ -219,6 +219,37 @@ class AGapIsOnlyASameQuestionDisagreement(unittest.TestCase):
                           "nobody gave" % (row["frameAnswer"],))
         self.assertIn("UNASKED", row["frameWhy"])
 
+    def test_an_UNAVAILABLE_lookup_rule_is_UNKNOWN_not_a_narrower_private_guess(self):
+        """⚠⚠ REG-564 — THE FALLBACK'S COMMENT SAID *"the SAME precedence"* AND IT WAS NOT. The
+        shared rule tries three keys — the name, its bare form, and the PREFIXED form — and the
+        hand-written fallback tried only the first two. Measured: asking for `s_1` against a store
+        keyed `reel_s_1`, the rule finds the record and the fallback returned None.
+
+        **A comment contradicting the code it sits on is worse than no comment**, because it stops
+        the next reader looking. And a hand-written copy is what produced REG-563 one version
+        earlier. So there is no copy: an unreachable rule means the question could not be asked the
+        agreed way, which is UNKNOWN. [[unknown-stays-unknown]]
+        """
+        import reel_retention as RR
+        real = RR.lookup_either_way
+        try:
+            del RR.lookup_either_way
+            r = self._run([{"reel": "reel_s_1", "stage": "releasable"}], {"reel_s_1": {"ts": 1}})
+        finally:
+            RR.lookup_either_way = real
+        row = r["rows"][0]
+        self.assertIsNone(row["frameAnswer"],
+                          "the rule was unreachable and the frame door still answered %r — from a "
+                          "private lookup nobody agreed to" % (row["frameAnswer"],))
+        self.assertIn("rule is unavailable", row["frameWhy"], row["frameWhy"])
+
+    def test_BASELINE_the_rule_being_present_still_answers(self):
+        """⚠ Or the fix made every seal unanswerable, which loses the frame door entirely."""
+        r = self._run([{"reel": "reel_s_1", "stage": "releasable"}], {"reel_s_1": {"ts": 1}})
+        self.assertIsNotNone(r["rows"][0]["frameAnswer"],
+                             "with the rule present the frame door still did not answer: %r"
+                             % r["rows"][0]["frameWhy"])
+
     def test_a_stage_with_no_declared_decider_IS_a_gap(self):
         """⚠ BASELINE for the whole file: `gaps` must be reachable, or the assertions above are
         just describing a function that can never report anything."""

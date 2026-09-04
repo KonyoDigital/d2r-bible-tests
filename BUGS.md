@@ -18658,3 +18658,27 @@ on an unprefixed name is wasteful, not wrong.
 **2 sabotages, 2 RED:** flipping the precedence back — which makes the deleter and the river
 disagree again — and restoring `replace` for the prefix strip.
 
+## v2563 — a comment that said "the SAME precedence" about code that was narrower
+
+**REG-564 — found by the review-after-ship pass on my own v2562 bytes, one version later.**
+
+v2562 made `reel_river` quote the deleter's lookup rule instead of keeping its own, which was
+right — and left a fallback for when the owner cannot be imported, commented *"the owner is
+unavailable, not the rule wrong — fall back to the SAME precedence"*.
+
+**It was not the same precedence.** The shared rule tries THREE keys — the name, its bare form, and
+the PREFIXED form — and the fallback tried only the first two. Measured: asking for `s_1` against a
+store keyed `reel_s_1`, the rule finds the record and **the fallback returned `None`**.
+
+⚠⚠ **A comment contradicting the code it sits on is worse than no comment**, because it stops the
+next reader looking. And a hand-written copy of a shared rule is exactly what produced REG-563 **one
+version earlier** — I fixed a duplicated lookup by writing a slightly different duplicate of it.
+
+**So there is no copy.** If the rule's owner cannot be reached, the seal question **could not be
+asked the agreed way**, and that is UNKNOWN with the reason — not a private guess that happens to be
+narrower. A baseline keeps the frame door answering when the rule IS present, so the fix did not
+trade a wrong answer for no answer.
+
+**1 sabotage, RED:** restoring the narrower private copy makes the frame door answer from a lookup
+nobody agreed to.
+

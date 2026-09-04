@@ -136,14 +136,27 @@ def river(reel=None):
         # in text — two modules simply decided one question had two answers, which is the same
         # class as REG-556's `ok`. It quotes the one rule now, and the deleter owns it because the
         # deleter is the reader whose answer has no undo. [[copy-drift]] §1
+        # ⚠⚠ REG-564 — THE FALLBACK'S COMMENT SAID "the SAME precedence" AND IT WAS NOT. The
+        # shared rule tries three keys — the name, its bare form, and the PREFIXED form — and the
+        # fallback tried only the first two. Measured: asking for `s_1` against a store keyed
+        # `reel_s_1`, the rule finds the record and the fallback returns None. A comment
+        # contradicting the code it sits on is worse than no comment, because it stops the next
+        # reader looking.
+        #
+        # And a hand-written copy is what produced REG-563 in the first place. So there is no copy:
+        # if the owner of the rule cannot be reached, the seal question CANNOT BE ANSWERED BY THE
+        # AGREED RULE, and that is UNKNOWN — not a private guess that happens to be narrower.
+        # [[unknown-stays-unknown]] [[copy-drift]] §1
+        _rule_why = ""
         try:
             import reel_retention as _rr
             row = _rr.lookup_either_way(seals, name)
-        except Exception:
-            # the owner is unavailable, not the rule wrong — fall back to the SAME precedence
-            row = seals[name] if name in seals else (
-                seals[_session_of(name)] if _session_of(name) in seals else None)
-        if FA is None or seal_why:
+        except Exception as _e:
+            row, _rule_why = None, ("the reel-lookup rule is unavailable (%s), so the seal "
+                                    "question could not be asked the agreed way" % str(_e)[:60])
+        if _rule_why:
+            frame_answer, frame_why = None, _rule_why
+        elif FA is None or seal_why:
             frame_answer, frame_why = None, (seal_why or "the seal store could not be read")
         elif row is None:
             frame_answer, frame_why = None, "no seal exists for this reel, so the frame question is UNASKED — not answered no"
