@@ -7,6 +7,51 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-594 — "listed on screen" is not "he can see it", and a healthy console was reloaded seven times
+**2026-09-04 · v2615 · the root cause of everything chased today, and my own reports were the false alarm**
+
+`on_screen()` answers whether the window server **LISTS** a window. A window covered 100% by
+another app **is** listed. `contradicts_a_hidden_beat()` treated that as proof the page was lying
+about `hidden`, so the rescue kept firing.
+
+**MEASURED 2026-09-04, and it is unambiguous:**
+
+    Citrix Viewer   1289x752 at (108, 78)   layer 0   FRONTMOST
+    the console     1120x660 at (175,148)   layer 0
+    containment: x 108..1397 ⊇ 175..1295 · y 78..830 ⊇ 148..808  →  100.0% covered
+
+…while the console reported `hidden: true`, `painting: false`, `frozenBeats: 367`, **`rescues: 7`**,
+and a fully built DOM of 11,806 elements.
+
+⚠⚠ **THE PAGE WAS RIGHT EVERY TIME.** WebKit suspends painting on an occluded view by design, so
+`hidden` and `not painting` are the **correct** readings of a healthy console sitting behind a
+window. v2325's rule already said it — *"a window he cannot see is not a window that is stuck"* —
+and the check written to enforce that rule asked the wrong question.
+
+**AND I REPORTED THE FAULT REPEATEDLY.** I told him his console was blank, that the rescue's cure
+did not cure, and — after relaunching it and watching it return "still blank" — that even
+recreating the window failed. All of that was one instrument reading a covered window. The z-order
+was available the whole time: `CGWindowListCopyWindowInfo` returns windows **front to back**.
+[[feedback-verify-not-proxy]] [[unknown-stays-unknown]]
+
+**TWO FIXES:**
+· `window_visibility.covered_by()` owns the question; `contradicts_a_hidden_beat()` now returns
+  **False** for a covered window — a covered window CONFIRMS a hidden beat rather than
+  contradicting it — and False when occlusion cannot be asked, because unknown is not permission
+  and the unknown answer is the one that caused the alarms.
+· `paint_witness` reports **OCCLUDED** as a third state instead of calling the same white bitmap
+  BLANK, and QUOTES `window_visibility` rather than keeping a second z-order walk.
+
+⚠⚠ **THE FIRST CUT COUNTED THE DOCK, AND THAT WOULD HAVE BEEN WORSE THAN THE BUG.** Its backing
+window is 1470x956 at (0,0) on **layer 20** and hides nothing; counting it made the console read
+"covered" ALWAYS, which **disables the rescue outright**. Only windows on the **same layer** count —
+compared against his window's own layer, never hardcoded to 0, because a `layer == 0` filter once
+dropped his D2R game window on layer 26.
+
+**Guard:** `TestV2615ACoveredWindowConfirmsAHiddenBeat`, 5 cases, proven RED by ignoring occlusion.
+One case is the baseline that matters most: an **uncovered** window must STILL contradict a hidden
+beat, or the rescue never fires again.
+
 ### REG-593 — 48 refusals could not tell a correct deleter from one broken shut
 **2026-09-04 · v2614 · the half of the prune lock's contract that was never proven**
 

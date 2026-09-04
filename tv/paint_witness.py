@@ -131,6 +131,24 @@ def window_for(pid, quartz=None):
     return best, ""
 
 
+OCCLUDED = "OCCLUDED"
+
+
+def occluded_by(pid, quartz=None):
+    """Is another window sitting ON TOP of his console? -> (list|None, why)
+
+    ⚠ QUOTED, NOT REIMPLEMENTED. `window_visibility` owns every "what is the window server saying"
+    question and now owns this one too (REG-594). My first cut walked the z-order here as well —
+    a second copy of a safety rule is [[copy-drift]]'s worst case, and this one decides whether a
+    healthy console gets reloaded under him.
+    """
+    try:
+        import window_visibility as _wv
+        return _wv.covered_by(pid=pid, quartz=quartz)
+    except Exception as e:
+        return None, "the window witness could not be asked (%s)" % str(e)[:70]
+
+
 def _grab(window_id, quartz=None):
     """The compositor's bitmap of ONE window. -> (dict|None, why)
 
@@ -222,6 +240,20 @@ def look(pid, quartz=None, samples=60):
     m = measure(shot, samples=samples)
     out["measure"] = {k: v for k, v in m.items() if k != "why"}
     out["state"], out["why"] = verdict(m)
+    # ⚠⚠ AND A UNIFORM FRAME IS ONLY BLANK IF NOTHING IS COVERING IT. See occluded_by: a window
+    # under another app captures as a flat frame, and calling that BLANK accuses a healthy console.
+    if out["state"] == BLANK:
+        cov, cwhy = occluded_by(pid, quartz=quartz)
+        if cov is None:
+            out["state"] = UNKNOWN
+            out["why"] = ("the frame is uniform, and whether anything is covering the window "
+                          "could not be asked (%s) — so BLANK is not sayable" % cwhy)
+        elif cov:
+            out["state"] = OCCLUDED
+            out["why"] = ("NOT blank — %s. The uniform frame is what capturing a covered window "
+                          "returns, and the page reporting hidden/not-painting is CORRECT for "
+                          "one." % cwhy)
+    out["occludedBy"] = None if out["state"] != OCCLUDED else out["why"]
     return out
 
 

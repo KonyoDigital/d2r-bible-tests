@@ -39875,6 +39875,84 @@ class TestV2398TheQuoteAndTheRunShareTheirTOOLTIP_WORK(unittest.TestCase):
                       "the memo writes without checking it has a real key")
 
 
+class TestV2615ACoveredWindowConfirmsAHiddenBeat(unittest.TestCase):
+    """★ REG-594 — "LISTED ON SCREEN" IS NOT "HE CAN SEE IT", AND THE GAP RELOADED A HEALTHY
+    CONSOLE SEVEN TIMES IN ONE DAY.
+
+    `on_screen()` answers whether the window server LISTS the window, and a window covered 100% by
+    another app IS listed. `contradicts_a_hidden_beat()` treated that as proof the page was lying
+    about `hidden`, so the rescue kept firing. MEASURED 2026-09-04: **Citrix Viewer, 1289x752 at
+    (108,78), covering the console's 1120x660 at (175,148) by 100.0%** and frontmost, while the
+    console reported `hidden: true`, `painting: false`, `frozenBeats: 367`, `rescues: 7`.
+
+    **The page was right every time.** WebKit suspends painting on an occluded view by design.
+    v2325's rule already said it — *"a window he cannot see is not a window that is stuck"* — and
+    the check written to enforce it asked the wrong question."""
+
+    class _Q(object):
+        kCGWindowListOptionOnScreenOnly = 1
+        kCGWindowListExcludeDesktopElements = 2
+        kCGNullWindowID = 0
+
+        def __init__(self, rows):
+            self._rows = rows
+
+        def CGWindowListCopyWindowInfo(self, opts, wid):
+            return self._rows
+
+    def _w(self, pid, x, y, w, h, layer=0, name="app"):
+        return {"kCGWindowOwnerPID": pid, "kCGWindowOwnerName": name, "kCGWindowLayer": layer,
+                "kCGWindowBounds": {"X": x, "Y": y, "Width": w, "Height": h}}
+
+    def test_a_window_covered_by_another_APP_confirms_the_hidden_beat(self):
+        import window_visibility as wv
+        q = self._Q([self._w(999, 108, 78, 1289, 752, 0, "Citrix Viewer"),
+                     self._w(7, 175, 148, 1120, 660, 0, "Python")])
+        cov, why = wv.covered_by(pid=7, quartz=q)
+        self.assertEqual(len(cov), 1, why)
+        self.assertIn("Citrix", cov[0])
+        ok, why2 = wv.contradicts_a_hidden_beat(pid=7, quartz=q)
+        self.assertFalse(ok, "a fully covered window was read as contradicting a hidden beat")
+        self.assertIn("CONFIRMS", why2)
+
+    def test_an_UNCOVERED_window_STILL_contradicts_it(self):
+        """⚠⚠ THE BASELINE, AND IT IS THE WHOLE RISK OF THIS FIX. If a covered-window test also
+        silenced the uncovered case, the rescue would never fire again — an over-correction
+        strictly worse than the false alarms."""
+        import window_visibility as wv
+        q = self._Q([self._w(7, 175, 148, 1120, 660, 0, "Python"),
+                     self._w(999, 0, 0, 200, 200, 0, "Something small behind")])
+        ok, why = wv.contradicts_a_hidden_beat(pid=7, quartz=q)
+        self.assertTrue(ok, "a visible window stopped contradicting a hidden beat: %s" % why)
+        self.assertIn("nothing is covering it", why)
+
+    def test_SYSTEM_CHROME_is_not_an_occluder(self):
+        """⚠⚠ The first cut counted the Dock. Its backing window is 1470x956 at (0,0) on LAYER 20
+        and hides nothing, so his console read 'covered' ALWAYS — which would have disabled the
+        rescue outright."""
+        import window_visibility as wv
+        q = self._Q([self._w(406, 0, 0, 1470, 33, 24, "Window Server"),
+                     self._w(7083, 0, 0, 1470, 956, 20, "Dock"),
+                     self._w(7, 175, 148, 1120, 660, 0, "Python")])
+        cov, why = wv.covered_by(pid=7, quartz=q)
+        self.assertEqual(cov, [], "system chrome was counted as covering his window: %s" % cov)
+        self.assertTrue(wv.contradicts_a_hidden_beat(pid=7, quartz=q)[0])
+
+    def test_a_PARTIAL_overlap_is_not_covered(self):
+        """He can still see the rest of it, so it is not the case this exists for."""
+        import window_visibility as wv
+        q = self._Q([self._w(999, 700, 148, 400, 660, 0, "Half-on-top"),
+                     self._w(7, 175, 148, 1120, 660, 0, "Python")])
+        self.assertEqual(wv.covered_by(pid=7, quartz=q)[0], [])
+
+    def test_UNASKABLE_occlusion_does_NOT_license_a_rescue(self):
+        """⚠ Unknown is not permission — and the unknown answer here is the one that caused the
+        false alarms, so it must not be the one we keep."""
+        import window_visibility as wv
+        ok, why = wv.contradicts_a_hidden_beat(pid=7, quartz=self._Q(None))
+        self.assertFalse(ok)
+
+
 class TestV2611TheEngineLampCarriesItsOwnClock(unittest.TestCase):
     """★ `_engine_driver` is one of the two loops NOTHING watches (the other six DARK vessels are
     the supervisors themselves — REG-589). It is a genuine two-way probe, so the value is honest
