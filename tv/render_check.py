@@ -1539,12 +1539,28 @@ def _coverage_bless(results, complete, say):
         say("🔴 refusing to bless: this run did not report every target, and a partial run must "
              "never write a LOWER floor. That is how one busy afternoon becomes the new normal.")
         return 2
+    # ⚠⚠ REG-568 — THE RATCHET DID NOT RATCHET. This file's own `_why` says *"It may only RISE"*
+    # and the merge was a plain `dict.update()`, which OVERWRITES with whatever the run measured —
+    # including a LOWER number. Reproduced: a floor of 65 and a run measuring 12 wrote **12**. So
+    # `--bless` after a real coverage loss silently adopted the loss as the new normal, which is
+    # precisely the sentence above it promising that cannot happen. TASKS.md has named this as
+    # still-owed since the `console` target went 3/3 -> 2/2 and was re-baselined with nobody
+    # noticing. A floor that can be lowered by the thing it is measuring is not a floor.
+    #
+    # ⚠ AND LOWERING IS SOMETIMES RIGHT — a target deliberately narrowed, a surface intentionally
+    # removed. So it is not forbidden, it is REFUSED SILENTLY NO LONGER: the floor holds, and the
+    # bless says out loud which numbers it declined to lower and what to do about it.
     now = _coverage_of(results)
     old = _coverage_floor() or {}
-    merged = {}
+    merged, held = {}, []
     for name in set(list(now) + list(old)):
         merged[name] = dict(old.get(name) or {})
-        merged[name].update(now.get(name) or {})
+        for k, v in (now.get(name) or {}).items():
+            was = merged[name].get(k)
+            if isinstance(was, int) and isinstance(v, int) and v < was:
+                held.append((name, k, was, v))
+                continue                      # the floor may only RISE
+            merged[name][k] = v
     with io.open(COVERAGE, "w", encoding="utf-8") as fh:
         fh.write(json.dumps({
             "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may "
@@ -1553,6 +1569,14 @@ def _coverage_bless(results, complete, say):
                     "python3 tv/render_check.py --bless",
             "floor": merged}, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
     say("blessed %d target(s) into %s" % (len(merged), os.path.relpath(COVERAGE, REPO)))
+    for name, k, was, v in sorted(held):
+        say("   \u26a0 HELD %s %s at %d — this run measured %d, and a floor may only RISE. If that "
+            "loss is deliberate, lower it by hand and say why in the commit; if it is not, a "
+            "surface this gate used to watch has gone." % (name, k, was, v))
+    if held:
+        say("   \u26a0\u26a0 %d floor(s) were NOT lowered. In a green run a silent drop reads "
+            "exactly like clean, which is how the `console` target went 3/3 -> 2/2 unnoticed."
+            % len(held))
     return 0
 
 

@@ -18772,3 +18772,36 @@ stating a rule the code never followed* → *an empty name finding a record*. Th
 returns on one function while the A-list waits, and it is worth saying out loud rather than
 continuing by momentum.
 
+## v2567 — the render gate's ratchet did not ratchet
+
+**REG-568 — the first of the three items TASKS.md carries under *"STILL OWED BY ME"*, and it was
+sitting in the file that promises the opposite.**
+
+`tv/render_coverage.json` opens with its own law: *"COVERAGE RATCHET — how many nodes each target
+measured on a clean run. **It may only RISE.**"* And `--bless` merged with a plain `dict.update()`,
+which overwrites with whatever the run measured — **including a lower number**. Reproduced:
+
+```
+floor 65, this run measured 12  ->  floor written: 12
+did it RISE only?  False
+```
+
+So a bless after a real coverage loss **silently adopted the loss as the new normal**, which is
+exactly what the sentence above it promises cannot happen. TASKS.md has carried this since the
+`console` target went **3/3 → 2/2** and was re-baselined with nobody noticing. **A floor that can be
+lowered by the thing it is measuring is not a floor** — the same defect as my own `FLOOR = 6` guarding
+7 probes (REG-557), in his console's own gate.
+
+⚠ **AND LOWERING IS SOMETIMES RIGHT** — a target deliberately narrowed, a surface intentionally
+removed. So it is not forbidden, it is **no longer silent**: the floor holds, and the bless names
+every number it declined to lower and what to do about it. A rise is still taken, and a brand-new
+target is still recorded.
+
+**3 sabotages, 3 RED:** restoring the plain `update`; holding the floor but saying nothing; and
+freezing the ratchet so growth could never be recorded either — the baseline that stops the fix
+trading one silence for another.
+
+⚠ **This is the still-owed list, not a new find.** Two remain on it: the vault lock chip has no
+render target at all, and #135's daily-pick fingerprint — whose own row says the undone-ness has no
+single string, so **I am not writing an anchor that matches the wrong occurrence** to close it.
+

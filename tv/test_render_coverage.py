@@ -238,5 +238,53 @@ class TheFloorInTheRepoIsReal(unittest.TestCase):
                          % zero)
 
 
+class TheFloorMayOnlyRISE(unittest.TestCase):
+    """⚠⚠ REG-568 — THE RATCHET DID NOT RATCHET. `render_coverage.json`'s own `_why` says *"It may
+    only RISE"*, and `--bless` merged with a plain `dict.update()` — which OVERWRITES with whatever
+    the run measured, including a LOWER number. Reproduced: a floor of 65 and a run measuring 12
+    wrote **12**. So a bless after a real coverage loss silently adopted the loss as the new
+    normal, which is exactly what the sentence above it promised could not happen.
+
+    TASKS.md has carried this as still-owed since the `console` target went 3/3 -> 2/2 and was
+    re-baselined with nobody noticing. **A floor that can be lowered by the thing it is measuring
+    is not a floor.**
+    """
+
+    def _bless(self, old, now):
+        import render_check as RC
+        said, real_floor, real_of = [], RC._coverage_floor, RC._coverage_of
+        bak = io.open(RC.COVERAGE, encoding="utf-8").read()
+        try:
+            RC._coverage_floor = lambda: old
+            RC._coverage_of = lambda results: now
+            RC._coverage_bless({}, True, said.append)
+            written = json.loads(io.open(RC.COVERAGE, encoding="utf-8").read())["floor"]
+        finally:
+            RC._coverage_floor, RC._coverage_of = real_floor, real_of
+            io.open(RC.COVERAGE, "w", encoding="utf-8").write(bak)
+        return written, said
+
+    def test_a_LOWER_measurement_does_not_lower_the_floor(self):
+        written, said = self._bless({"heart": {"1440x1000": 65}}, {"heart": {"1440x1000": 12}})
+        self.assertEqual(written["heart"]["1440x1000"], 65,
+                         "a run measuring 12 wrote the floor DOWN from 65 — the loss became the "
+                         "new normal, silently")
+        self.assertTrue(any("HELD" in x for x in said),
+                        "the floor held and said nothing, so a real coverage loss passes as a "
+                        "clean bless: %s" % said)
+
+    def test_a_HIGHER_measurement_still_raises_it(self):
+        """⚠ BASELINE: or the fix froze the ratchet and new coverage could never be recorded."""
+        written, _ = self._bless({"heart": {"1440x1000": 65}}, {"heart": {"1440x1000": 70}})
+        self.assertEqual(written["heart"]["1440x1000"], 70,
+                         "growth was refused too, so the floor can never rise again")
+
+    def test_a_NEW_target_is_recorded_rather_than_ignored(self):
+        written, _ = self._bless({"heart": {"1440x1000": 65}}, {"brand_new": {"1440x1000": 4}})
+        self.assertEqual(written["brand_new"]["1440x1000"], 4,
+                         "a target with no prior floor was not recorded at all")
+        self.assertEqual(written["heart"]["1440x1000"], 65, "an untouched target lost its floor")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
