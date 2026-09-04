@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2571",
+  "ver": "v2572",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2571: the printer could not see what a reel IS",
+  "note": "v2572: EXTRACT printed one shelf-wide word on every row",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

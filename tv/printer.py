@@ -66,7 +66,7 @@ STATION_OWNER = {
     "funnel":  ("reel_river",       "how far down the one ladder has it come, and who decided?"),
     "template": ("reel_templates",  "what IS this reel, and which extraction zone follows?"),
     "route":   ("per_reel_routes",  "what chose its route — its CONTENT, or policy?"),
-    "extract": ("printer_reach",    "may the printer act on it at all?"),
+    "extract": ("extract_gap",     "can THIS reel be extracted, and is the gap recoverable?"),
     "out":     ("reel_river",       "is it clean at the far end? (BOTH doors, neither chosen)"),
 }
 
@@ -114,6 +114,13 @@ def _sources():
             whys.append(w)
     except Exception as e:
         whys.append("per_reel_routes would not import (%s)" % str(e)[:60])
+    try:
+        import extract_gap as EG
+        out["gap"], w = _safe(EG.gap)
+        if w:
+            whys.append(w)
+    except Exception as e:
+        whys.append("extract_gap would not import (%s)" % str(e)[:60])
     try:
         import printer_reach as PR
         out["reach"], w = _safe(PR.report)
@@ -176,6 +183,7 @@ def stream(reel=None):
     doors, _d2 = _by_reel(src.get("door"))
     routes, _d3 = _by_reel(src.get("routes"))
     tmpl, _d4 = _by_reel(src.get("templates"))
+    egap, _d5 = _by_reel(src.get("gap"))
     dropped = _d1 + _d2 + _d3
     if not river and not doors:
         return _unknown("UNKNOWN, not an empty shelf — %s"
@@ -191,6 +199,7 @@ def stream(reel=None):
             continue
         rv, dr, rt = river.get(name), doors.get(name), routes.get(name)
         tp = tmpl.get(name)
+        eg = egap.get(name)
         stations = {}
 
         # ⚠⚠ REG-546 — AN OWNER THAT ANSWERED WITH NOTHING PRINTED THE WORD "None" AND WAS NOT
@@ -255,9 +264,22 @@ def stream(reel=None):
         # per-reel measurement nobody took. printer_reach measured that ZERO of 30 seals satisfy
         # the extraction contract, so the disposable path is structurally unreachable for every
         # reel — that is one answer about the whole shelf, printed on each row as what it is.
-        stations["extract"] = {"say": reach_state,
-                               "why": ("a SHELF-WIDE state, not a per-reel one: %s"
-                                       % str(reach.get("why") or "")[:150])}
+        # ⚠⚠ v2572 — THIS STATION USED TO PRINT ONE SHELF-WIDE WORD ON EVERY ROW. It said
+        # UNREACHABLE for all 40 reels because printer_reach measured that 0 of 30 SEALS satisfy
+        # the extraction contract — a true statement about seals, printed as if it were an answer
+        # about each reel. Measured against the journal it is contradicted: 472 item names HAVE
+        # been read, and 13 sessions store-wide hold BOTH a seal and read names, so for those the
+        # names exist and the seal does not carry them. That is a JOIN, not the capture change
+        # REG-340 ruled — REG-340 is about the CHARACTER name on the character panel, this is
+        # about ITEM names, and conflating the two left a recoverable gap looking permanent.
+        #
+        # So the per-reel answer leads and the shelf-wide fact rides along as context, named as
+        # what it is. [[feedback-contradiction-is-the-finding]]
+        stations["extract"] = _station(eg, "state", "extract_gap",
+                                       extra={"names": "names", "sealed": "sealed"})
+        stations["extract"]["shelfReach"] = reach_state
+        stations["extract"]["shelfWhy"] = ("printer_reach, about SEALS not reels: %s"
+                                           % str(reach.get("why") or "")[:140])
 
         # ⚠⚠ BOTH DOORS, NEITHER CHOSEN. See the module docstring.
         if rv is None:
