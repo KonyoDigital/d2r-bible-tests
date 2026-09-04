@@ -147,6 +147,21 @@ in those words.
   is DECLARED (a test asserts the source says `COPIES = ()`) so an accident and a decision cannot
   look the same. The per-file map is back: a red now prints `WHERE IT ROSE` with file and delta.
 
+- **⚠⚠ I OVERWROTE ONE OF HIS TEST SUITES AND SHIPPED IT (REG-585, restored v2604).**
+  `tv/test_paint_witness.py` already existed — v2457's, 110 lines, 6 tests — and a `Write` at that
+  path destroyed it in v2601, which reached origin. Found only because `run_gates` ended up with two
+  gates of the same name; **a green run over a deleted test is indistinguishable from a green run.**
+  Restored byte-identical, my tests moved to `test_pixel_witness.py`, both registered and green.
+  **Rule: a new file is not new until the path is checked** — one `ls` would have caught it.
+
+- **⚠ TEXT SITTING ON TEXT — a class `render_check` cannot see (gate built v2605, DEBT recorded).**
+  It measures CLIPPED / OFF-SCREEN / COVERED, none of which catches two labels drawn on top of each
+  other. Measured at widths it already calls green: **375×800 has 24 overlapping pairs**, and even
+  1440×1000 has 3 — one of them **246×29 px**, the EYES panel's UNKNOWN sentence on the AI READS
+  bar. Shipped as a RATCHET (a rise fails, a fall fails too) because 24 today would make a pass/fail
+  gate red from birth. ⚠ The counts are **debt, not a clean bill** — nobody has read the desktop
+  ones — and `overlap_ratchet`'s own unit suite is OWED.
+
 - **⚠⚠ THE CONSOLE WENT BLANK WHILE REPORTING ITSELF HEALTHY, AND THE RESCUE DID NOT CURE IT.**
   Caught live 2026-09-04 by `tv/paint_witness.py` (v2601) while building it: blank white, only the
   titlebar drawn, while the page reported `blankStrikes 0` and 11,841 DOM elements. The watchdog
