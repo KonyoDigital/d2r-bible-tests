@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2587",
+  "ver": "v2588",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2587: the rescue was wired to a counter that could not fire",
+  "note": "v2588: an evidence line wore a pass, and a count vanished behind a verdict",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

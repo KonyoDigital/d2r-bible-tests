@@ -193,8 +193,15 @@ def gap(reels=None):
         rows.append({"reel": reel, "session": sid, "state": state, "names": n,
                      "sealed": has_seal, "why": why,
                      "scenario": scenario, "scenarioWhy": s_why,
+                     # ⚠ v2588 — THE CHRONICLE COUNT WAS DROPPED. A cold review noticed the
+                     # scenario is an if/elif, so a reel with BOTH panel and chronicle names
+                     # reports PANEL — correct, because a slot can exist for the panel ones — and
+                     # the chronicle names then had no field at all and became invisible. The
+                     # LEAD is still panel; all three counts are carried so nothing vanishes
+                     # behind the verdict. [[unknown-stays-unknown]]
                      "panelNames": int(_nm.get("panel") or 0),
-                     "floorNames": int(_nm.get("floor") or 0)})
+                     "floorNames": int(_nm.get("floor") or 0),
+                     "chronicleNames": int(_nm.get("chronicle") or 0)})
         counts[state] = counts.get(state, 0) + 1
 
     rec = counts.get(RECOVERABLE, 0)

@@ -15982,7 +15982,13 @@ def _retention_once():
                             eligible_mb=round(p.get("freeMb") or 0, 1), pruned_mb=None)
     except Exception:
         pass
-    base = {"checked": int(time.time() * 1000), "freeGb": round(free_gb, 1),
+    # ⚠ v2588 — `error` RIDES IN THE SAME WRITE AS THE NUMBERS. A cold review noted the three
+    # fields were not atomic from a reader's view: the loop cleared `error` under the lock, then
+    # _retention_once wrote say/checked under its own, so a thread reading between them saw a
+    # cleared error beside the PREVIOUS run's numbers. Carrying it in `base` means every success
+    # path that publishes fresh numbers clears the flag in the same locked update, and the two
+    # can no longer disagree. [[stale-reading]]
+    base = {"checked": int(time.time() * 1000), "error": None, "freeGb": round(free_gb, 1),
             "floorGb": ON_AIR_FLOOR_GB,
             "lockedBehindASweep": len(waiting), "lockedMb": waiting_mb,
             "lockedChron": len(_w_chron), "lockedChronMb": _chron_mb,
@@ -22496,7 +22502,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2587",
+        "ver": "v2588",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

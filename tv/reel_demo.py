@@ -118,7 +118,16 @@ def _templates():
             seen = live.get(name, 0)
             got = ("%d read(s) on the shelf" % seen) if seen else \
                   "0 on this shelf — evidence, not a failure"
-        out.append({"check": "template %-10s (%s)" % (name, kind), "ok": bool(known),
+        # ⚠⚠ v2588 — AN EVIDENCE LINE MUST NOT WEAR A PASS. A cold review pointed out that every
+        # tab line sets ok=True unconditionally, so a reader sees "runes ✅ 0 on this shelf" and
+        # can reasonably read it as the runes template being healthy when no runes tab was ever
+        # observed. Asserting the count would be the gate-fails-on-a-non-defect trap this was
+        # written to avoid — so the line says out loud that it asserts nothing, and the one real
+        # vocabulary assertion is the appended check below. [[unknown-stays-unknown]]
+        _label = "template %-10s (%s)" % (name, kind)
+        if kind != "scene":
+            _label += " · evidence only"
+        out.append({"check": _label, "ok": bool(known),
                     "got": got, "want": "recognised by " + where, "why": why})
     # THE ONE REAL VOCABULARY CHECK FOR TABS: is the field carried at all? If the readers stopped
     # recording stashTab, every per-tab line above would go quietly to zero and none of them would
