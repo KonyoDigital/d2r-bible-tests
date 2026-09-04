@@ -41734,5 +41734,102 @@ class TestV2618TheHeartsLockBadgeMustBeLEGIBLE(unittest.TestCase):
                       "work owed for a door with no refusal path")
 
 
+class TestV2622TheFleetEyeWindowIsWiderThanItsBeacon(unittest.TestCase):
+    """★ TASK 167's REAL DEFECT — and the first thing I "found" here was my own instrument.
+
+    ⚠⚠ I REPORTED 167 AS HALF BUILT AND IT WAS NOT. I printed the `/api/fleet` rows **truncated to
+    150 characters**, saw no `eye` key, and concluded the renderer had no writer. It has one:
+    `_eye_for_wire`, docstring *"167 — counts only, for THE FLEET"*, already in the beacon body.
+    His live row carries `eye: {"live": false, "ageMs": 0}`. I then added a SECOND writer, which in
+    a Python dict literal is a duplicate key where the last one silently wins — so my own sabotage
+    came back green and that is what exposed the mistake. **The truncation was the defect.**
+    [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+
+    ⚠⚠ WHAT IS REAL: the wire called the eye live only if the last read was younger than **6s**,
+    while `_console_beacon_loop` — the thing that carries the value — fires every **240s**. A 6s
+    window sampled once every 240s catches a CONTINUOUSLY LIVE eye **2.5%** of the time, so the
+    badge could essentially only appear by coincidence and its absence meant nothing. The 6s figure
+    was borrowed from the on-screen banner, which is repainted from a status poll every few
+    seconds: the same number on two surfaces sampled 40x apart is two different measurements.
+    [[feedback-threshold-above-the-ceiling]]
+    """
+
+    def test_the_wire_window_exceeds_the_beacon_period(self):
+        """★ The rule, not the number — a later change to either may not silently re-break it."""
+        import inspect
+        import re as _re
+        import control_app as ca
+        loop = inspect.getsource(ca._console_beacon_loop)
+        m = _re.search(r"time\.sleep\((\d+(?:\.\d+)?)\)", loop)
+        self.assertTrue(m, "could not read the beacon's own period from its loop")
+        beacon_ms = float(m.group(1)) * 1000.0
+        self.assertGreater(
+            ca._EYE_WIRE_FRESH_MS, beacon_ms,
+            "the fleet's eye window (%dms) is not wider than the beacon that carries it (%dms), "
+            "so the badge reports when the heartbeat landed rather than whether the eye is reading"
+            % (ca._EYE_WIRE_FRESH_MS, beacon_ms))
+
+    def test_a_live_eye_is_reported_live_and_a_stale_one_is_not(self):
+        """⚠ BASELINE. Widening a window until nothing can fail it is the opposite mistake."""
+        import control_app as ca
+        real = ca._eyes_pulse
+        now = int(time.time() * 1000)
+        try:
+            ca._eyes_pulse = lambda *a, **k: {"liveTs": now - 5000}
+            fresh = ca._eye_for_wire()
+            ca._eyes_pulse = lambda *a, **k: {"liveTs": now - (ca._EYE_WIRE_FRESH_MS + 60000)}
+            stale = ca._eye_for_wire()
+        finally:
+            ca._eyes_pulse = real
+        self.assertIs(fresh["live"], True, fresh)
+        self.assertIs(stale["live"], False, stale)
+
+    def test_a_pulse_that_did_NOT_run_is_None_and_the_field_is_omitted(self):
+        """[[unknown-stays-unknown]] — the docstring's own rule: None means the pulse did not run,
+        which is not a dark eye. A machine nobody could ask must not carry a confident verdict."""
+        import control_app as ca
+        real = ca._eyes_pulse
+        ca._eyes_pulse = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+        self.addCleanup(setattr, ca, "_eyes_pulse", real)
+        self.assertIsNone(ca._eye_for_wire())
+
+    def test_ageMs_stays_EXACT_so_a_stricter_consumer_can_still_be_strict(self):
+        """⚠ Widening the verdict must not blur the measurement. A surface that wants the banner's
+        6s strictness applies it to `ageMs` itself."""
+        import control_app as ca
+        real = ca._eyes_pulse
+        now = int(time.time() * 1000)
+        ca._eyes_pulse = lambda *a, **k: {"liveTs": now - 30000}
+        self.addCleanup(setattr, ca, "_eyes_pulse", real)
+        got = ca._eye_for_wire()
+        self.assertAlmostEqual(got["ageMs"] / 1000.0, 30.0, delta=2.0)
+
+    def test_there_is_exactly_ONE_eye_writer_in_the_beacon(self):
+        """⚠⚠ THE MISTAKE THIS CLASS RECORDS. A duplicate key in a dict literal is silent: the last
+        wins, the other is dead code, and a guard aimed at the dead one passes forever."""
+        import ast
+        import inspect
+        import textwrap
+        import control_app as ca
+        tree = ast.parse(textwrap.dedent(inspect.getsource(ca._console_beacon)))
+        eyes = 0
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Dict):
+                eyes += sum(1 for k in node.keys
+                            if isinstance(k, ast.Constant) and k.value == "eye")
+        self.assertEqual(eyes, 1, "the beacon body declares `eye` %d times — a duplicate dict key "
+                                  "is silent and the last one wins" % eyes)
+
+    def test_the_badge_reads_no_field_nothing_writes(self):
+        """⚠ `_eye_for_wire` returns {live, ageMs} and no `why`. A renderer reading `m.eye.why`
+        would be a reader with no writer — the defect class this repo logs most."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        ui = io.open(os.path.join(here, "control_ui.html"), encoding="utf-8").read()
+        self.assertNotIn("m.eye.why", ui,
+                         "the fleet badge reads a `why` the wire never sends")
+
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

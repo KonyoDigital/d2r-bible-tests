@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2621",
+  "ver": "v2622",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2621: REG-604 - mini auto knew the true cell at the moment of hovering and dropped it, which is why the frame door has never said yes and no reel can reach the prune. Recorder built, refuses rather than defaulting.",
+  "note": "v2622: REG-605 - the fleet eye was called live only within 6s while the beacon carrying it fires every 240s, so a continuously live eye reached the fleet 2.5 percent of the time. Task 167 was already built - my truncated print said otherwise.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

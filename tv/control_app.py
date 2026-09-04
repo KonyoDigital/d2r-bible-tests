@@ -10714,6 +10714,12 @@ def _engine_driver():
 
 
 
+#: how recently the capture eye must have read for a FLEET ROW to call it live. It must exceed
+#: `_console_beacon_loop`'s own 240s period, or the badge reports when the heartbeat happened to
+#: land rather than whether the eye is reading.
+_EYE_WIRE_FRESH_MS = 300000
+
+
 def _eye_for_wire():
     """167 — counts only, for THE FLEET. {live, ageMs} or None.
 
@@ -10733,7 +10739,17 @@ def _eye_for_wire():
     age = int(time.time() * 1000) - live_ts
     if age < 0:
         return {"live": False, "ageMs": None}
-    return {"live": age < 6000, "ageMs": age}
+    # ⚠⚠ v2622 — THE WINDOW MUST BE WIDER THAN THE BEACON THAT CARRIES IT, AND IT WAS NOT.
+    # This read `age < 6000`, mirroring the stall threshold the on-screen banner uses. But that
+    # banner is repainted from a status poll every few seconds, while THIS value rides
+    # `_console_beacon`, which fires every 240s. A 6s window sampled once every 240s catches a
+    # CONTINUOUSLY LIVE eye 2.5% of the time — so the fleet badge could essentially only appear by
+    # coincidence, and its absence meant nothing. The same threshold on two surfaces with sampling
+    # rates 40x apart is two different measurements wearing one number.
+    # ⚠ `ageMs` is unchanged and still exact, so a consumer that wants the banner's own strictness
+    # can apply it. What changes is only the verdict this WIRE is entitled to reach.
+    # [[feedback-threshold-above-the-ceiling]] [[stale-reading]]
+    return {"live": age < _EYE_WIRE_FRESH_MS, "ageMs": age}
 
 
 def _eyes_pulse():
@@ -22712,7 +22728,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2621",
+        "ver": "v2622",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -7,6 +7,43 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-605 — the fleet's eye window was 6s and the beacon carrying it fires every 240s
+
+**v2622, task 167.** `_eye_for_wire` called the capture eye LIVE only if its last read was younger
+than **6,000ms**. That value rides `_console_beacon`, and `_console_beacon_loop` fires every
+**240,000ms**. A 6s window sampled once every 240s catches a **continuously live** eye **2.5% of
+the time** — so the 👁 on a fleet row could essentially only appear by coincidence, and its absence
+meant nothing at all.
+
+The 6s figure was borrowed from the on-screen banner, which is repainted from a status poll every
+few seconds. **The same number on two surfaces sampled 40x apart is two different measurements
+wearing one threshold.** Widened to 300s for the WIRE only; `ageMs` is unchanged and still exact,
+so any consumer wanting the banner's strictness applies it there.
+[[feedback-threshold-above-the-ceiling]] [[stale-reading]]
+
+⚠⚠ **AND THE FIRST THING I "FOUND" HERE WAS MY OWN INSTRUMENT — that is the more useful half.**
+I reported task 167 as HALF BUILT: renderer present, writer absent. It was **not**. I printed the
+`/api/fleet` rows **truncated to 150 characters**, saw no `eye` key, and concluded there was no
+writer. `_eye_for_wire` has existed all along — its docstring literally opens *"167 — counts only,
+for THE FLEET"* — and his live row carries `eye: {"live": false, "ageMs": 0}`.
+
+I then wrote a SECOND writer beside it. In a Python dict literal that is a **duplicate key: the
+last one silently wins and the other is dead code**, so the pre-existing writer kept working and my
+own sabotage of the "join" came back GREEN. **The green sabotage is what exposed the mistake** —
+the rule that a sabotage which will not go red is usually the sabotage's fault, pointing at my
+instrument rather than the code. Duplicate removed.
+[[feedback-suspect-the-instrument]] [[sabotage-is-usually-the-wrong-one]]
+
+⚠ A UI change that read `m.eye.why` was also reverted: `_eye_for_wire` returns `{live, ageMs}` and
+no `why`, so it would have been a reader with no writer — the exact defect class this log is
+fullest of.
+
+**Guard:** `TestV2622TheFleetEyeWindowIsWiderThanItsBeacon` — 6 cases, RED-proven by restoring the
+6s window. It pins the RULE (the window must exceed the beacon's own period, both read from source)
+rather than the number, keeps a baseline that a genuinely stale eye still reports not-live so the
+window cannot be widened until nothing fails, asserts `ageMs` stays exact, asserts an unrun pulse is
+still `None`, and — from the mistake above — asserts the beacon declares `eye` **exactly once**.
+
 ### REG-604 — the calibration mini auto needs was never missing, it was DISCARDED at the moment of hovering
 
 **v2621.** His question was *"no reel can reach the pruning zone at all"* — and the trace runs six
