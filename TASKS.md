@@ -154,7 +154,24 @@ in those words.
   Restored byte-identical, my tests moved to `test_pixel_witness.py`, both registered and green.
   **Rule: a new file is not new until the path is checked** — one `ls` would have caught it.
 
-- **⚠ TEXT SITTING ON TEXT — a class `render_check` cannot see (gate built v2605, DEBT recorded).**
+- **⚠⚠ AT NARROW WIDTH THE MAIN COLUMN WAS UNREACHABLE (REG-588, fixed v2608).** At 375/640px with
+  `data-state="off"`, `#home-dash` was **height 0 holding 591px** — chronicle, TZ tracker and
+  missions laid out, rendered and unreachable, with `html`/`body` both `overflow:hidden` and zero
+  document scroll. Cause: `minmax(0, 1fr)` — **`1fr` distributes FREE space and there was none**, so
+  a starved row looked like a deliberate flex row. Fixed with a FLOOR (`minmax(45vh, 1fr)`) plus
+  `overflow-y` on the stacked shell: dash **0 → 360**, and 901/1120/1440 unchanged. ⚠ Still owed:
+  the dash overflows **horizontally** at 375.
+
+- ~~**TEXT SITTING ON TEXT — a class `render_check` cannot see.**~~ ✅ **GATE BUILT (v2605-v2607) AND
+  THE REAL ONES ARE FIXED (v2608).** ⚠⚠ **I published wrong numbers first**: the gate counted
+  BOUNDING RECTS, and `getBoundingClientRect()` returns geometry for content an ancestor has clipped
+  away. Hit-tested, the truth was **3 at 375 and ZERO at every desktop width** — against the 24 and
+  2–3 I reported, including a "246×29px collision on his widest view" that **does not exist**. I had
+  cropped that band, seen it read cleanly, and published anyway because the measurement agreed with
+  itself across three runs. **Stable is not correct.** The class is still real and the gate stands;
+  the ratchet now reads 0 everywhere.
+
+
   It measures CLIPPED / OFF-SCREEN / COVERED, none of which catches two labels drawn on top of each
   other. Measured at widths it already calls green: **375×800 has 24 overlapping pairs**, and even
   1440×1000 has 3 — one of them **246×29 px**, the EYES panel's UNKNOWN sentence on the AI READS
