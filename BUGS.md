@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-584 — a cure proven not to work kept being applied
+**2026-09-04 · v2603 · measured live, on his console, three times over**
+
+v2601 gave the rescue a pixel witness so it could tell whether a reload actually restored painting.
+It did. The answer was **no**, three times:
+
+    uiBeat.rescues: 3   ·   pixels after every one: BLANK   ·   frozenBeats: still climbing
+
+**The loop learned to CHECK the cure and not to STOP when the cure fails.** So it went on reloading
+a window that reloading cannot fix, every few minutes, on the machine he is sitting at.
+
+**Two consecutive VERIFIED failures now put the rescue on HOLD.** Two rather than one, because a
+single verification can catch a capture taken mid-repaint; two in a row cannot.
+
+⚠⚠ **THE HOLD IS NOT A REPAIR AND THE WORDING IS THE POINT.** The console stays broken. What stops
+is the *pretence* that this cure will fix it — the refusal says *"the console is still broken and
+this is not a repair"*, and a test asserts it never says fixed, repaired or resolved. **A fault
+"handled" every few minutes and never fixed is exactly the shape that made HIM the detector.**
+
+⚠ **CLEARED BY A CURE THAT WORKS, NEVER BY TIME.** `_UI_RESCUE["futile"]` resets to 0 the moment a
+reload is verified to have restored painting, so a transient fault the reload DOES fix can never
+accumulate toward the hold. A guard pins that the reset is conditioned on `worked is True` and not
+on elapsed time. [[unknown-stays-unknown]]
+
+**THE REAL CURE IS NAMED, NOT TAKEN.** Reloading the document cannot restore a compositor that has
+stopped presenting frames for a window. **Recreating the window** is what would fix this, and that
+is a design decision about his console — his, not mine.
+
+**Guard:** `TestV2603AProvenFailedCureStopsBeingApplied`, 5 cases, proven RED by removing the hold:
+*"it kept reloading a window the pixels proved it cannot fix."* The first case is the BASELINE —
+with the tally clear a real fault must still rescue, because a hold that disarms a legitimate
+rescue is worse than the loop it replaces.
+
 ### REG-583 — an error handler that retried the same URL, and hid itself from the check
 **2026-09-04 · v2602 · found by a cold look I disagreed with, and this time I was right**
 

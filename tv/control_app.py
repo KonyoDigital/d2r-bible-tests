@@ -11767,7 +11767,17 @@ _UI_BEAT = {"t": 0.0, "mono": 0.0, "n": 0, "hidden": False, "state": {},
             # v2457 — the paint witness. None means "never asked", which is not "not painting".
             "rafNow": None, "rafPrev": None, "painting": None, "frozenBeats": 0,
             "paintWhy": "no beat has been received yet"}
-_UI_RESCUE = {"last": 0.0, "count": 0, "why": ""}
+_UI_RESCUE = {"last": 0.0, "count": 0, "why": "", "futile": 0}
+#: ⚠⚠ v2603 — HOW MANY VERIFIED-FAILED RELOADS BEFORE THIS STOPS TRYING THE SAME CURE.
+#: Measured on his machine 2026-09-04: `rescues: 3`, the window blank after every one, frozenBeats
+#: still climbing. v2601 taught the loop to CHECK whether the reload worked; it did not teach it to
+#: STOP when the answer is no, so it went on reloading a window that reloading cannot fix. This
+#: module's own paint witness says it plainly — "a reload cannot fix a compositor that has stopped
+#: presenting frames, and hammering his window is worse than saying so".
+#:
+#: ⚠ TWO, NOT ONE. A single failed verification can be a capture taken mid-repaint. Two consecutive
+#: verified failures is a cure that does not work.
+_UI_RESCUE_FUTILE_MAX = 2
 _UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
 _UI_RESCUE_COOLDOWN_S = 300.0
 
@@ -12200,10 +12210,14 @@ def _console_rescue_loop():
                 _UI_BEAT["rescueWorked"] = _rw.get("worked")
                 _UI_BEAT["rescueWorkedWhy"] = _rw.get("why")
                 if _rw.get("worked") is False:
+                    _UI_RESCUE["futile"] = int(_UI_RESCUE.get("futile") or 0) + 1
                     ui_fault_record("console-rescue-did-not-restore-painting",
                                     why=_rw.get("why"), where="_console_rescue_loop")
-                    print("\u26a0\u26a0 console rescue DID NOT restore painting - %s"
-                          % str(_rw.get("why"))[:160], flush=True)
+                    print("\u26a0\u26a0 console rescue DID NOT restore painting (%d in a row) - %s"
+                          % (_UI_RESCUE["futile"], str(_rw.get("why"))[:150]), flush=True)
+                elif _rw.get("worked") is True:
+                    # a cure that worked clears the tally; only CONSECUTIVE failures count
+                    _UI_RESCUE["futile"] = 0
             except Exception as _pe:
                 # ⚠ an absent witness must not read as a successful cure
                 _UI_BEAT["rescueWorked"] = None
@@ -12230,6 +12244,29 @@ def ui_rescue_due(now=None, capture_live=False):
         return False, "no console has ever checked in - nothing to rescue"
     if capture_live:
         return False, "a capture is running - a reload would throw away the reel"
+    # ⚠⚠ v2603 — A CURE THAT HAS BEEN PROVEN NOT TO WORK MUST STOP BEING APPLIED.
+    # Measured on his machine 2026-09-04: the watchdog detected the fault correctly and fired
+    # THREE times, and `paint_witness` confirmed the window was still blank after every one.
+    # v2601 taught this loop to CHECK the cure; it did not teach it to STOP, so it went on
+    # reloading a window that reloading cannot fix. Reloading the document cannot restore a
+    # compositor that has stopped presenting frames — the right cure is RECREATING the window,
+    # and that is a design decision, not one to take unasked.
+    #
+    # ⚠ THIS IS A HOLD, NOT A REPAIR, AND IT SAYS SO. The window stays broken; what stops is the
+    # pretence that this reload will fix it. A fault that is being "handled" every few minutes and
+    # never fixed is the shape that made him the detector in the first place.
+    #
+    # ⚠ AND IT IS CLEARED BY A CURE THAT WORKS, never by time — `_UI_RESCUE["futile"]` resets to 0
+    # the moment a reload is verified to have restored painting, so a transient fault that the
+    # reload DOES fix never accumulates toward this. [[unknown-stays-unknown]]
+    _futile = int(_UI_RESCUE.get("futile") or 0)
+    if _futile >= _UI_RESCUE_FUTILE_MAX:
+        return False, ("HOLDING: %d reload(s) in a row were verified by the pixels NOT to restore "
+                       "painting, so this cure does not work on this fault and repeating it only "
+                       "disturbs his window. The console is still broken and this is not a repair "
+                       "- reloading the document cannot fix a compositor that has stopped "
+                       "presenting frames. Recreating the window is the cure, and that is his "
+                       "call. Clears itself the moment a reload is seen to work." % _futile)
     # ══ v2325 — A WINDOW HE CANNOT SEE IS NOT A WINDOW THAT IS STUCK ═════════════════════════
     # CAUGHT BY ITS OWN RECORD, and it had already fired once: ui_faults.jsonl, 00:47:21,
     # "console-rescued-by-server - the page has been silent for 891s". The last beat was ~00:32,
@@ -22563,7 +22600,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2602",
+        "ver": "v2603",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

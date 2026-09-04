@@ -39875,6 +39875,77 @@ class TestV2398TheQuoteAndTheRunShareTheirTOOLTIP_WORK(unittest.TestCase):
                       "the memo writes without checking it has a real key")
 
 
+class TestV2603AProvenFailedCureStopsBeingApplied(unittest.TestCase):
+    """★ MEASURED ON HIS MACHINE, 2026-09-04. The watchdog detected the blank console correctly and
+    fired THREE times — `uiBeat.rescues: 3` — and `paint_witness` confirmed the window was still
+    blank after every one, with `frozenBeats` still climbing. v2601 taught the loop to CHECK
+    whether the reload worked. It did not teach it to STOP when the answer is no, so it went on
+    reloading a window that reloading cannot fix.
+
+    ⚠ THE HOLD IS NOT A REPAIR AND MUST NOT READ AS ONE. The console stays broken; what stops is
+    the pretence that this cure will fix it. A fault "handled" every few minutes and never fixed is
+    exactly the shape that made HIM the detector."""
+
+    def setUp(self):
+        self._rescue = dict(ca._UI_RESCUE)
+        self._beat = dict(ca._UI_BEAT)
+        ca._UI_BEAT["t"] = time.time()
+        ca._UI_BEAT["mono"] = time.monotonic()
+        ca._UI_BEAT["n"] = 5
+        ca._UI_BEAT["frozenBeats"] = 99      # the fault is present
+        ca._UI_BEAT["blankStrikes"] = 0
+        ca._UI_BEAT["hidden"] = False
+
+    def tearDown(self):
+        ca._UI_RESCUE.clear()
+        ca._UI_RESCUE.update(self._rescue)
+        ca._UI_BEAT.clear()
+        ca._UI_BEAT.update(self._beat)
+
+    def test_a_real_fault_STILL_rescues_while_the_cure_is_unproven(self):
+        """⚠ BASELINE FIRST. If the hold disarms a legitimate rescue, it is worse than the loop it
+        replaces — the console would break and nothing would even try."""
+        ca._UI_RESCUE["futile"] = 0
+        ok, why = ca.ui_rescue_due()
+        self.assertTrue(ok, "a real fault was not rescued with the tally clear: %s" % why)
+
+    def test_after_TWO_verified_failures_it_HOLDS(self):
+        ca._UI_RESCUE["futile"] = ca._UI_RESCUE_FUTILE_MAX
+        ok, why = ca.ui_rescue_due()
+        self.assertFalse(ok, "it kept reloading a window the pixels proved it cannot fix")
+        self.assertIn("HOLDING", why)
+        self.assertIn("pixels", why,
+                      "the refusal must say what proved the cure failed, or it reads as a "
+                      "cooldown: %s" % why)
+
+    def test_the_hold_does_NOT_claim_the_console_is_fixed(self):
+        """⚠ THE WORDING IS THE POINT. 'handled' is how a fault stops being reported by the machine
+        and goes on being reported by him."""
+        ca._UI_RESCUE["futile"] = 5
+        _, why = ca.ui_rescue_due()
+        self.assertIn("still broken", why.lower(),
+                      "the hold does not say the console is still broken: %s" % why)
+        for word in ("fixed", "repaired", "resolved"):
+            self.assertNotIn(word, why.lower(), "the hold implies a repair with %r" % word)
+
+    def test_one_failure_is_NOT_enough(self):
+        """A single verification can catch a capture taken mid-repaint. Two consecutive cannot."""
+        ca._UI_RESCUE["futile"] = 1
+        ok, _ = ca.ui_rescue_due()
+        self.assertTrue(ok, "one failed verification disarmed the rescue")
+
+    def test_the_tally_is_cleared_by_a_cure_that_WORKS_not_by_time(self):
+        """⚠ Pins the reset rule. A transient fault that the reload DOES fix must never accumulate
+        toward the hold, and nothing may clear the tally just because time passed."""
+        import inspect
+        src = inspect.getsource(ca._console_rescue_loop)
+        self.assertIn('_UI_RESCUE["futile"] = 0', src,
+                      "nothing resets the futile tally on a working cure, so a console that "
+                      "recovers would still be held after two unrelated failures")
+        self.assertIn('worked") is True', src,
+                      "the reset is not conditioned on the cure having actually worked")
+
+
 class TestV2398ThePaintWitnessIsVISIBLEFromOutside(unittest.TestCase):
     """Nothing could supervise the paint witness, because its state was never published.
 
