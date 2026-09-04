@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""WHAT A REEL *IS*, AND THEREFORE WHERE IT GOES — the printer's missing template layer.
+
+Konyo, 2026-09-04: *"the printer should be architected via templates and techniques for those same
+reels to go through the printer we constructed and gets organized and it prunes the IRRELAVANT
+reels... all unified logic for the reels.. just the diffrence is the reel itself and the image
+relating it should get routed accordingly to its individual logic meaning a item with a tooltip
+image within the stash.. gets the stash route... a farming or a run... is just a run and farming
+route.. so also to its own individual logic."*
+
+⚠⚠ WHY THIS EXISTS, MEASURED 2026-09-04. The printer's ROUTE station could not see what a reel IS.
+It reported `content` (what the reel HOLDS — zero-pages) or `policy` (age, or a suite opening it),
+and on his forty reels that split 28/12. Neither answer is a TEMPLATE. Meanwhile `reel_segments`
+has classified reels into activities since v2343 — measured on his own footage as *gameplay 212 ·
+transition 27 · stash 13 · town 13 · inventory 4 · chronicle 3* — and has four production
+consumers, **none of them the printer**. Two halves, each built and correct, never joined.
+[[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+★ IT INVENTS NO VOCABULARY. The activities are `reel_segments`'s, the lane mapping is
+`reel_segments._ACTIVITY_LANE`, and the journal ring is `control_app._journal_ring()` — whose own
+docstring records v1493, where eleven sites read one journal and ten of them hardcoded the path, so
+a harness that believed it was isolated read his real farming nights. A second copy of any of those
+is exactly [[copy-drift]] §1. This file asks the owners and arranges the answers.
+
+★ AND IT DELETES NOTHING. A reel whose template yields no extractable zone is reported as a PRUNE
+CANDIDATE — a row on paper. Nothing here removes a byte, and `prune` stays off by its own flag.
+
+⚠⚠ UNKNOWN IS NEVER A PRUNE CANDIDATE, and that is the single most important line in this file. A
+reel the segmenter cannot classify has NOT been shown to be irrelevant — it has not been read. Those
+are opposite facts and collapsing them would route unexamined footage to the deleter.
+[[unknown-stays-unknown]]
+
+    python3 tv/reel_templates.py            # every reel, its template and its zone
+    python3 tv/reel_templates.py --json
+"""
+import json
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+#: activity -> (zone, why). THE ORDER IS THE PRIORITY and it is his: *"an item with a tooltip image
+#: within the stash.. gets the stash route"*. A reel carrying several activities takes the first
+#: match reading down. Every activity name here is `reel_segments`'s, never a new spelling.
+ZONE_ORDER = (
+    ("stash", "STASH",
+     "the STASH was open — the ONLY activity reel_segments maps to a container lane "
+     "(_ACTIVITY_LANE), so this is the one zone that can grant possession"),
+    ("chronicle", "CHRONICLE",
+     "a Chronicle page was open — the chronicle routes own what is read here"),
+    ("inventory", "INVENTORY",
+     "the INVENTORY was open. ⚠ HELD IS NOT OWNED: v2346 withdrew `inventory -> inventory` "
+     "because it granted a container lane to anything merely being carried. Extractable, "
+     "but it may not grant ownership on its own"),
+)
+
+#: activities that mean the reel is a RUN — farming, walking, loading. Nothing to extract from
+#: them, and that is not a fault: it is what most of his footage IS.
+RUN_ACTIVITIES = ("gameplay", "town", "transition")
+
+
+def _segments_for(reel, rows_by_session):
+    """-> (segments, why). Asks reel_segments; never re-derives a timeline."""
+    import reel_segments as RS
+    sid = str(reel or "")
+    sid = sid[len("reel_"):] if sid.startswith("reel_") else sid
+    rows = rows_by_session.get(sid) or []
+    if not rows:
+        return [], "no journal row carries this reel's sessionId"
+    try:
+        return RS.segments(rows), ""
+    except Exception as e:
+        return [], "reel_segments would not answer (%s)" % str(e)[:80]
+
+
+def _journal_rows():
+    """Every journal row, grouped by sessionId. -> (dict, why)
+
+    ⚠ THE RING, NOT THE LIVE FILE. control_app._journal_ring() is asked for the paths because it
+    owns them; re-deriving `HERE/sessions.jsonl` here would be the eleventh hardcoded site its own
+    docstring exists to prevent.
+    """
+    try:
+        import control_app as CA
+        paths = [p for p in (CA._journal_ring() or []) if os.path.isfile(p)]
+    except Exception as e:
+        return {}, "the journal ring could not be resolved (%s)" % str(e)[:80]
+    if not paths:
+        return {}, "the journal ring resolved to no existing file"
+    out = {}
+    for path in paths:
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        r = json.loads(line)
+                    except Exception:
+                        continue
+                    sid = str((r or {}).get("sessionId") or "").strip()
+                    if sid:
+                        out.setdefault(sid, []).append(r)
+        except Exception:
+            continue
+    return out, ""
+
+
+def templates(reels=None):
+    """Every reel, what it IS, and the zone that follows. -> dict"""
+    import reel_river as RR
+    try:
+        riv = RR.river()
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
+                "why": "reel_river would not answer (%s) — UNKNOWN, not an empty shelf"
+                       % str(e)[:80]}
+    names = [str(r.get("reel") or "") for r in (riv.get("rows") or [])
+             if str(r.get("reel") or "").strip()]
+    if reels:
+        names = [n for n in names if any(x in n for x in reels)]
+    by_session, why = _journal_rows()
+
+    rows, counts = [], {}
+    for name in sorted(names):
+        segs, sw = _segments_for(name, by_session)
+        acts = sorted({str(s.get("activity") or "").lower() for s in segs
+                       if str(s.get("activity") or "").strip()})
+        if not acts:
+            zone, zwhy, template = "UNKNOWN", (sw or why or
+                                               "the segmenter returned no activity"), None
+        else:
+            hit = next(((a, z, w) for a, z, w in ZONE_ORDER if a in acts), None)
+            if hit:
+                template, zone, zwhy = hit[0], hit[1], hit[2]
+            elif all(a in RUN_ACTIVITIES for a in acts):
+                template, zone = "run", "RUN"
+                zwhy = ("only %s — a farming run. Nothing to extract, and that is what most "
+                        "footage IS, not a fault" % ", ".join(acts))
+            else:
+                template, zone = None, "UNKNOWN"
+                zwhy = ("activities %s match no declared zone — UNKNOWN rather than guessed"
+                        % ", ".join(acts))
+        # ⚠⚠ ONLY A REEL PROVEN TO BE A RUN IS A PRUNE CANDIDATE. UNKNOWN never is.
+        rows.append({"reel": name, "template": template, "zone": zone, "why": zwhy,
+                     "activities": acts, "segments": len(segs),
+                     "pruneCandidate": (zone == "RUN")})
+        counts[zone] = counts.get(zone, 0) + 1
+
+    unknown = counts.get("UNKNOWN", 0)
+    return {
+        "ok": bool(rows), "rows": rows, "counts": counts, "walked": len(rows),
+        "unknown": unknown, "pruneCandidates": sum(1 for r in rows if r["pruneCandidate"]),
+        "state": ("UNKNOWN" if not rows else ("PARTIAL" if unknown else "CLASSIFIED")),
+        "zones": [z for _a, z, _w in ZONE_ORDER] + ["RUN", "UNKNOWN"],
+        "why": (("%d reel(s) classified by TEMPLATE. %s ⚠ A reel is a PRUNE CANDIDATE only when it "
+                 "is PROVEN a run; %d are UNKNOWN and none of those is a candidate — not-read and "
+                 "not-relevant are opposite facts. Nothing here deletes anything."
+                 % (len(rows),
+                    " · ".join("%s %d" % (k, v) for k, v in sorted(counts.items())),
+                    unknown))
+                if rows else "no reel reached the template router"),
+    }
+
+
+def main(argv):
+    r = templates([a for a in argv if not a.startswith("-")] or None)
+    if "--json" in argv:
+        print(json.dumps(r, indent=2, sort_keys=True, default=str))
+        return 0
+    print("\nREEL TEMPLATES — what each reel IS, and the zone that follows\n")
+    if not r["ok"]:
+        print("  %s\n" % r["why"])
+        return 0
+    print("  %s · %d reel(s)\n" % (r["state"], r["walked"]))
+    for z in r["zones"]:
+        if r["counts"].get(z):
+            print("  %-10s %d" % (z, r["counts"][z]))
+    print()
+    for row in r["rows"][:60]:
+        print("  %-34s %-9s %-10s %s" % (row["reel"][:34], row["template"] or "-",
+                                         row["zone"], ",".join(row["activities"]) or "-"))
+    print("\n  %s\n" % r["why"])
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
+    sys.exit(main(sys.argv[1:]))
