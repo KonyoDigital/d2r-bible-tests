@@ -7,6 +7,59 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-604 — the calibration mini auto needs was never missing, it was DISCARDED at the moment of hovering
+
+**v2621.** His question was *"no reel can reach the pruning zone at all"* — and the trace runs six
+stations deep to one dropped value:
+
+```
+out decides nothing for all 40 reels
+  <- the FRAME door has never once said YES
+  <- no seal has ever carried `extracted` with the contract's facts
+     (22 of 30 vault seals carry `extracted: []`, 8 predate the field, ZERO satisfy it)
+  <- the contract is ('name','location','provenance') and `name` is documented as
+     "the item's name, WHICH ONLY EVER APPEARS IN A HOVER TOOLTIP"
+  <- MINI AUTO is the only thing that films hover tooltips
+  <- and slot_identity.anchor_from_tooltip_rect REFUSES: no tooltip->cell offset was ever
+     calibrated  (REG-601 — the lock that read OPEN over a broken feature)
+```
+
+**His padlock catch and his pruning wall are the same defect, two stations apart.**
+
+⚠⚠ **AND THE DATA WAS NOT MISSING.** That refusal asks for the offset to be *"measured once against
+a real frame whose true cell is known"*. Measured: **nothing anywhere records a known cell for a
+hovered item** — grep for trueCell/knownCell/cellTruth returns nothing, and `stash_grid_truth.json`
+is about PANEL classification. But `hover_mode._step(i, target, screen_xy)` **receives the planned
+target, which IS the true cell by construction because mini auto CHOSE it** — and updated a status
+dict and dropped it. The actuator knew the answer at the moment of hovering and nothing wrote it
+down. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+**FIX:** `tv/hover_calibration.py` records the pairing when he runs mini auto, and derives the
+offset afterwards from footage he already has. ⚠ **Nothing here drives his pointer** — it is a
+passive witness of a sweep he starts, the write happens OUTSIDE the state lock so a slow disk
+cannot become a stuck cursor, and it swallows its own failures because a calibration note that
+strands his pointer is a worse bug than the one it fixes. [[borrowed-surface]]
+
+⚠ **IT REFUSES RATHER THAN DEFAULTING**, which is the whole design: a guessed offset places every
+item in the wrong cell *with total confidence*, and a calibrator that defaults would hand
+`anchor_from_tooltip_rect` the exact guess it refuses to make for itself. Empty journal reports
+**unattempted**, not failed.
+
+⚠⚠ **AND ITS OWN SUITE CAUGHT A REAL FLAW IN IT.** The agreement rule refused only when **more than
+half** the readings disagreed — so three readings 800px from the other five still produced an
+offset. This is a layout constant: honest readings do not out-vote each other, they nearly all
+agree. Tightened to a 20% outlier ceiling.
+
+**Guard:** `test_hover_calibration` — 11 cases, registered in `run_gates`. Its most important case
+is `ItCanActuallySUCCEED`: every other case proves a refusal, and **a calibrator that can only
+refuse is indistinguishable from a broken one** — the same rule the locks live under. It ends by
+driving the real `anchor_from_tooltip_rect` with the measured offset and asserting it now answers,
+with a baseline that a zero offset is still refused.
+
+⚠ **THIS IS THE RECORDER, NOT THE MINI AUTO REBUILD.** His ruling: *"MINI-AUTO is just not complete
+yet... we will get to that after we completely finish every tasked list and grok's handoffs"*. This
+is inert until he runs it, and it is what makes the recalibration possible when he does.
+
 ### REG-603 — INCOMPLETE drew a shut padlock and printed an OPEN lock's arithmetic beside it
 
 **v2620.** REG-601 made `miniauto.run` report INCOMPLETE and the badge drew shut — and the label

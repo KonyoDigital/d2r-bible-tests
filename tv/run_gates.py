@@ -931,6 +931,21 @@ GATES = [
              "reload, delete or kill anything: it is a witness, not a trigger. ⚠ NAMED "
              "test_pixel_witness because test_paint_witness.py was already taken by v2457's "
              "beat-side suite, which I overwrote once and had to restore from git."),
+    Gate("test_hover_calibration",
+         [sys.executable, os.path.join(HERE, "test_hover_calibration.py")], 60,
+         why="v2621 — the root of a chain six stations long. His question was why no reel can reach "
+             "the pruning zone; traced: `out` decides nothing for 40 reels <- the FRAME door has "
+             "never once said YES <- no seal carries `extracted` (22 of 30 are `[]`, 8 predate the "
+             "field, ZERO satisfy the contract) <- the contract needs `name` <- `name` only ever "
+             "appears in a hover tooltip <- MINI AUTO is the only thing that films tooltips <- and "
+             "its tooltip->cell offset was never calibrated. The calibration data was not missing, "
+             "it was DISCARDED: hover_mode's step callback receives the planned target, which IS "
+             "the true cell because mini auto chose it, and dropped it. This suite guards the "
+             "recorder and the arithmetic. Its most important case is that the calibrator can "
+             "SUCCEED — every other case proves a refusal, and a calibrator that can only refuse "
+             "is indistinguishable from a broken one. It also caught a real flaw in its own "
+             "module: the outlier rule refused only when MORE THAN HALF the readings disagreed, "
+             "so three readings 800px from the other five still yielded an offset."),
     Gate("test_reel_templates", [sys.executable, os.path.join(HERE, "test_reel_templates.py")], 60,
          why="v2604 — reel_templates classifies all forty reels on his shelf and shipped at v2571 "
              "with NO SUITE AT ALL: the inverse of REG-079, which catches a suite no gate runs. "

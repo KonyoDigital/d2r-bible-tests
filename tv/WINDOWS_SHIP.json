@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2620",
+  "ver": "v2621",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2620: REG-603 - INCOMPLETE drew a shut padlock and printed an OPEN lock arithmetic beside it, because blindClaims died in the status trim. Third time that joint has been the missing one.",
+  "note": "v2621: REG-604 - mini auto knew the true cell at the moment of hovering and dropped it, which is why the frame door has never said yes and no reel can reach the prune. Recorder built, refuses rather than defaulting.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

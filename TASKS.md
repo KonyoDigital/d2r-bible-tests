@@ -1020,6 +1020,34 @@ times measured. Human side of the harness closes it. [[visual-regression-detecto
 
 ---
 
+## 🧭 HIS ORDER OF WORK, 2026-09-04 — and the one architectural constraint on everything new
+
+> *"MINI-AUTO is just not complete yet, it's not been created and recalibrated.. we will get to
+> that after we completely finish every tasked list and grok's handoffs in between too."*
+
+**So MINI AUTO's rebuild is LAST**, after the task list and the Grok handoff queues. `v2621` shipped
+only the RECORDER (REG-604) — inert until he runs mini auto, and the thing that makes the
+recalibration possible when he does. It is not the rebuild.
+
+> *"ON AIR and MINI regular WORK — they were designed and working products and working routes
+> before all of this... everything is obviously using all harnessed techniques and logic from that.
+> Any reels coming to station, the same AI and the same READERS and KAI eyes all need to be doing a
+> unified sweep and a unified pass... that way the accuracy of everything else already working
+> stays working, and everything being built new gets hooked up and connected to a working product
+> and unified logic."*
+
+⚠⚠ **THE CONSTRAINT ON EVERY NEW THING: reuse ON AIR's existing readers and sweep. Never a parallel
+path.** ✅ **MEASURED 2026-09-04 and it currently HOLDS:** exactly **two** reader definitions —
+`tv_diablo.claude_chronicle_read` and `g5_grok_eyes.g5_chronicle_read`, which is the deliberate
+two-lane cross-family design — **one** lane resolver (`control_app._chron_lanes`), **4** call
+sites, and **no second reader path anywhere**. `chronicle_sweep_now.py` says so in its own words:
+*"It reuses control_app's OWN wiring — chronicle_sweep_start / chronicle_sweep_state."* Anything
+entering at the station inherits those readers by construction.
+
+⚠ **What is NOT unified, and is a different question:** the IN door (**38 recorder / 2 repair**) and
+the ROUTE (**28 by content / 12 by POLICY**). Those are doors and routing policy, not readers — A4
+already records them and they do not violate this constraint.
+
 ## 🔥 THE URGENT THREE — "task these in first urgently before the other tasks"
 
 | # | What | State |
