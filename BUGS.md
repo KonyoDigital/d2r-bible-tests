@@ -18805,3 +18805,19 @@ trading one silence for another.
 render target at all, and #135's daily-pick fingerprint — whose own row says the undone-ness has no
 single string, so **I am not writing an anchor that matches the wrong occurrence** to close it.
 
+**The cold look at v2566 produced NO takeable finding, and that is the result.** Four points, all
+measured and all declined:
+
+- the ask is stripped while a whitespace-carrying store key is unreachable — **a store key with
+  surrounding whitespace is itself malformed**, and these stores are keyed by recorder session ids
+  which never carry any;
+- `"reel_"` returning None is **REG-567's deliberate behaviour from one version earlier** — the
+  reviewer found the intended design and read it as a gap;
+- the `b and b != r` guard skipping an empty bare form is that same deliberate behaviour;
+- a mapping whose `__contains__` and `__getitem__` disagree would make the two-step lookup unsafe —
+  measured, **all four stores are plain `dict` from `json.loads`**, so hardening it would be work
+  for a case that cannot occur.
+
+**Six versions of cold looks on this helper, and the seventh found nothing to take.** That is the
+signal the arc is finished, and it is a better reason to stop than running out of patience.
+
