@@ -632,6 +632,53 @@ the join left it PROVEN 83/83, which is how I found out it was inert. The precis
 `test_printer`. Two guards, one strong and one weak, and the weak one is labelled weak rather than
 counted as a second proof.
 
+### REG-570…573 — four defects in the deleter's chooser, cited in shipped code and never logged here
+**2026-09-04 (entries written) · shipped v2575–v2577 · a BOOKKEEPING debt of mine**
+
+⚠ **THESE FIXES SHIPPED DAYS AGO AND THIS FILE NEVER RECORDED THEM.** `tv/reel_retention.py`,
+`tv/test_reel_retention.py` and `tv/control_app.py` all cite REG-570…573 in their comments, while
+`BUGS.md` — the file that is supposed to BE the record — jumped from 568 to 574. A number that
+lives only in a comment is a citation pointing at nothing, which is exactly what the duplicate-number
+warning at the top of this file exists to prevent. Written up now from the guards that already
+exist. ⚠ **REG-569 was never allocated at all** — it appears nowhere in the repo; the gap is real
+and is left as a gap rather than reused, because renumbering would break the only link between a
+bug and the ship that fixed it.
+
+**REG-570 — a fixture could not redirect the deleter's ledgers, and eleven call sites believed it
+could.** `plan(hist_dir=<scratch>)` searched `HERE` before `hist` unconditionally, so it read
+Konyo's LIVE `chronicle_swept` (401 entries) and `vault_swept` (30) instead of the caller's.
+Proven: a scratch ledger declaring `pages=99` for three fixture reels produced
+`never-chronicle-swept: 3` — his store answered and the fixture's was ignored. `TV_HIST` did not
+help either; the read was anchored to `HERE`. ⚠⚠ **The consequence is not a wrong number in a
+report — every sabotage ever aimed at this chooser was graded against live data it could not
+control**, which is why four claimed defects in it could not be reproduced until this was fixed.
+*Unverified is not refuted.* (v2575) [[feedback-fixtures-never-touch-live-data]]
+
+**REG-571 — junk directories ate the recent shield.** `_reel_ts` returns `float("inf")` for a name
+it cannot parse, deliberately, *"so it is the last thing anyone deletes"* — true of the junk dir
+itself, and silent about that junk DISPLACING real reels out of the shield. Measured: five
+`reel_backup_*` siblings beside five real reels with `keep_recent=3` took all three slots and
+eligible went **2 → 5**. Three reels lost their protection **and the coverage line still read
+`recent: 3`** — the instrument certified a rule that had stopped protecting anything. The shield is
+the newest PARSEABLE reels now. (v2576)
+
+**REG-572 — a negative `keep_recent` silently removed the shield entirely.** `--keep-recent` is bare
+`type=int`, `if keep_recent` is truthy for `-6`, and `reels[-(-6):]` is a **suffix from the front** —
+empty for 5 reels. Measured: eligible **2 → 5**. **A negative shield is not a smaller shield, it is
+no shield**, and it arrived through an argument nobody validated. Non-negative is enforced in the
+function rather than at one call site. (v2576)
+
+**REG-573 — a non-integer page count reached the tombstone, and then the deleter's loop swallowed
+the error.** `int()` accepts `True` (bool subclasses int) and raises on `"many"`. Measured:
+`pages: true` made all five reels ELIGIBLE and stamped the permanent record of an irreversible act
+with *"read (1 pages) and sealed by BOTH lanes"* — **a boolean rendered as a page count**. And
+`pages: "many"` let a `ValueError` escape `plan()` into `_retention_loop`'s `except Exception:
+pass`, where it vanished: the pass died silently and `_RETENTION` stayed frozen on its **last good
+sentence**, so the console went on showing a healthy retention line from a measurement that had
+stopped happening. ⚠⚠ **Not a wrong number — a STALE one that reads exactly like a fresh one.**
+A page count that is not a whole number is an UNREADABLE ledger, which HOLDS. (v2576 · second half
+v2577) [[stale-reading]] [[unknown-stays-unknown]]
+
 ### REG-575 — a read-side validator that rejected rows its own module writes, and a registered gate that was red on main for it
 **2026-09-04 · v2594 · found while baselining a suite I assumed I had broken**
 

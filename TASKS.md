@@ -271,7 +271,14 @@ in those words.
   (a signature change, and `test_self_arming`'s `put()` helper writes that shape too), or state in
   the module that `record()` is not an evidence writer and route every harness through `bank()`.
 
-- **REG-569…573 are cited in shipped code and have NO entry in `BUGS.md`.** Found 2026-09-04 while
+- ~~**REG-569…573 are cited in shipped code and have NO entry in `BUGS.md`.**~~ ✅ **WRITTEN UP**
+  2026-09-04 from the guards that already existed: REG-570 (a fixture could not redirect the
+  deleter's ledgers, so every sabotage aimed at the chooser was graded against live data),
+  REG-571 (junk dirs ate the recent shield, eligible 2→5, and the coverage line still read
+  `recent: 3`), REG-572 (a negative `keep_recent` was no shield at all), REG-573 (a boolean
+  rendered as a page count on an irreversible act, then the error swallowed so the console showed
+  a healthy line from a measurement that had stopped). ⚠ **REG-569 was never allocated** — the gap
+  is left as a gap rather than reused. —— ORIGINAL: **REG-569…573 are cited in shipped code and have NO entry in `BUGS.md`.** Found 2026-09-04 while
   logging REG-574: `tv/reel_retention.py`, `tv/test_reel_retention.py`, `tv/control_app.py` and
   `tv/self_arming.py` all cite REG-570/571/572/573, the log's highest entry is REG-568, and REG-569
   was never allocated at all. The convention is that `BUGS.md` is the record; a number that lives
