@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-470 — closed as CONTAINED, and the measurement argued against the obvious fix
+
+**v2629.** A3 logged that his three route sets disagree — `chronicle.runeword` and
+`roster.runeword` are SINGULAR while `fleet.runewords`, `fleet.sets`, `fleet.uniques` are PLURAL —
+and explicitly did NOT fix it, only stopped it corrupting the matrix. The stated "real fix" was the
+`one_name` cut-over reaching `fleet_routes`.
+
+⚠⚠ **MEASURED BEFORE DOING IT, AND THE MEASUREMENT SAID DON'T:**
+- **`one_name` already resolves it.** `same_thing('fleet.runewords','chronicle.runeword')` is True,
+  and `form(n,'route')` canonicalises both spellings to the singular.
+- **Nothing mis-joins today.** `organ_matrix` publishes every form and joins on the concept.
+- **And the self-arming ledger is keyed on the RAW names.** Renaming `fleet.runewords` would
+  **orphan its banked rows and drop that lock to UNPROVEN** — a cosmetic rename that costs a
+  surface its evidence.
+
+**So the inconsistency stays, NAMED, and what ships is a guard that stops a THIRD spelling ever
+arriving.** A new route must use the canonical route form; the three legacy keys are listed with
+their reason, and the list is itself checked to still be true rather than being a place to add
+things.
+
+⚠⚠ **AND THE SABOTAGE CAUGHT A HOLE IN MY OWN GUARD.** Declaring `roster.runewordses` left the
+suite **GREEN**. Cause: `_canonical` read `ON.form(tail,"route") or tail`, and `one_name` returns
+**None** for a concept it does not recognise — so every misspelling compared equal to its own
+canonical form and passed. **The guard was measuring nothing for exactly the case it exists to
+catch.** The fallback is gone; an unknown concept is now a failure, not a default.
+[[unknown-stays-unknown]] [[sabotage-is-usually-the-wrong-one]]
+
+**Guard:** `TestV2629NoThirdSpellingForARoute` — 4 cases, RED-proven. It pins the load-bearing
+claim under the decision NOT to rename (that `one_name` really does join the two spellings, so if
+that stops being true the trade changes), and that renaming a legacy route would orphan its
+evidence — so a later reader cannot "tidy" the names and silently drop three locks to UNPROVEN.
+
 ### REG-610 — every gate route painted over the label before it
 
 **v2628.** SVG paint order is document order, and the heart's gate loop built routes and labels

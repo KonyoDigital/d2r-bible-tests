@@ -947,6 +947,102 @@ class TestV2623EveryHarnessDeclaresItsAttackCount(unittest.TestCase):
 
 
 
+
+class TestV2629NoThirdSpellingForARoute(unittest.TestCase):
+    """★ REG-470, closed the way the measurement supports — by stopping the drift, not by paying a
+    migration that buys nothing.
+
+    His three route sets do not agree: `chronicle.runeword` and `roster.runeword` are SINGULAR
+    while `fleet.runewords`, `fleet.sets`, `fleet.uniques` are PLURAL. A3 logged it and explicitly
+    did NOT fix it, only stopped it corrupting the matrix.
+
+    ⚠⚠ MEASURED BEFORE DECIDING, AND THE MEASUREMENT ARGUED AGAINST THE OBVIOUS FIX:
+      · `one_name` ALREADY resolves it — `same_thing('fleet.runewords','chronicle.runeword')` is
+        True, and `form(n,'route')` canonicalises both spellings to the singular.
+      · `organ_matrix` publishes every form, so nothing mis-joins today.
+      · and the self-arming ledger is keyed on the RAW names — renaming `fleet.runewords` would
+        **orphan its banked rows and drop that lock to UNPROVEN**. A cosmetic rename that costs a
+        surface its evidence is a bad trade.
+
+    So the inconsistency stays, NAMED, and this stops a THIRD spelling ever arriving. A new route
+    must use the canonical route form; the three legacy keys are listed with their reason, and the
+    list is checked to still be true rather than being a place to add things.
+    """
+
+    #: the three keys that predate `one_name` and keep their spelling because renaming them would
+    #: orphan banked evidence. NOT a licence to add more — the next case asserts they are still
+    #: exactly the routes that disagree.
+    LEGACY = {"fleet.runewords", "fleet.sets", "fleet.uniques"}
+
+    def _canonical(self, key):
+        """The canonical route spelling for this key, or None if one_name does not know it.
+
+        ⚠⚠ NO `or tail` FALLBACK, AND THE FIRST CUT HAD ONE. `one_name.form()` returns None for a
+        concept it does not recognise, so falling back to the input made every MISSPELLING equal
+        to its own canonical form and pass. Proven by sabotage: declaring `roster.runewordses`
+        left this suite GREEN — the guard was measuring nothing for exactly the case it exists to
+        catch. An unknown concept is now a failure, not a default.
+        [[unknown-stays-unknown]] [[sabotage-is-usually-the-wrong-one]]
+        """
+        import one_name as ON
+        tail = key.split(".", 1)[1] if "." in key else key
+        return ON.form(tail, "route")
+
+    def test_every_route_uses_the_canonical_form_or_is_named_legacy(self):
+        bad = []
+        for key in sorted(SA.ROUTES):
+            tail = key.split(".", 1)[1] if "." in key else key
+            canon = self._canonical(key)
+            if canon is None:
+                bad.append("%s names a concept one_name does not know (%r) — a route whose noun "
+                           "is unrecognised cannot be joined to anything" % (key, tail))
+                continue
+            if tail != canon and key not in self.LEGACY:
+                bad.append("%s (canonical route form is %r)" % (key, canon))
+        self.assertEqual(bad, [],
+                         "a route was declared with a spelling one_name does not consider "
+                         "canonical, and it is not on the named legacy list: %s" % "; ".join(bad))
+
+    def test_the_LEGACY_list_is_still_TRUE_and_not_a_dumping_ground(self):
+        """⚠ An exemption list nobody re-checks becomes the place drift hides. Every entry must
+        still actually disagree with the canonical form — if one gets fixed, it must leave."""
+        for key in sorted(self.LEGACY):
+            self.assertIn(key, SA.ROUTES, "%s is exempted but is no longer a declared route" % key)
+            tail = key.split(".", 1)[1]
+            self.assertIsNotNone(self._canonical(key),
+                                 "%s is on the legacy list but one_name no longer knows its "
+                                 "concept at all" % key)
+            self.assertNotEqual(
+                tail, self._canonical(key),
+                "%s now matches the canonical form, so it is not legacy any more and must come "
+                "off this list" % key)
+
+    def test_one_name_really_does_join_the_two_spellings(self):
+        """⚠ The load-bearing claim under the decision NOT to rename. If this stops being true,
+        the split IS corrupting joins and the trade changes."""
+        import one_name as ON
+        for a, b in (("fleet.runewords", "chronicle.runeword"),
+                     ("fleet.sets", "roster.set"),
+                     ("fleet.uniques", "chronicle.unique")):
+            self.assertTrue(ON.same_thing(a, b),
+                            "one_name no longer joins %r and %r — the split is now a real "
+                            "mis-join and REG-470 needs the migration after all" % (a, b))
+
+    def test_renaming_a_legacy_route_would_orphan_its_evidence(self):
+        """⚠ The cost that decided this. Pinned so a later reader does not 'tidy' the names and
+        silently drop three locks to UNPROVEN."""
+        rows, why = SA._rows()
+        if rows is None:
+            self.skipTest("the ledger could not be read here: %s" % why)
+        banked = {r.get("lock") for r in rows}
+        for key in sorted(self.LEGACY):
+            if key in banked:
+                self.assertIn(key, SA.ROUTES,
+                              "%s has banked evidence under a name the table no longer declares — "
+                              "that lock has lost its proof" % key)
+
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs
