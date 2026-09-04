@@ -95,6 +95,19 @@ def measure(page=None, widths=WIDTHS):
         try:
             tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                      deviceScaleFactor=1, mobile=False)
+            # ⚠ RELOAD AT EACH WIDTH. Measuring four widths in sequence on one tab grades 1440 on
+            # a layout that has just been squeezed to 375 and back: scroll position persists,
+            # anything that collapsed stays collapsed, and a resize reflow is not a first paint.
+            # Each width is now graded as a user opening AT that width sees it.
+            #
+            # ⚠⚠ AND THE HONEST FOOTNOTE, because the tempting version of this comment is wrong:
+            # THIS CHANGED NOTHING. Measured both ways — 2 / 3 / 24 / 3, identical, and identical
+            # across three consecutive sequenced runs before that. I added the reload suspecting
+            # the sequenced numbers were an artifact and they were not. It stays because grading a
+            # first paint is the right thing to measure, NOT because it fixed a defect, and
+            # writing it up as a fix would have put a discovery in the log that never happened.
+            # [[feedback-suspect-the-instrument]]
+            tab.send("Page.navigate", url=url)
             time.sleep(2.5)
             r = tab.send("Runtime.evaluate",
                          expression=_JS.replace("__MIN__", str(MIN_OVERLAP_PX)),

@@ -47,6 +47,14 @@ been bitten by a module shipping without one (REG-586).
 **Guard:** registered as `overlap_ratchet` in `run_gates`, proven RED by doctoring one width's
 baseline and watching it name the colliding pairs.
 
+⚠ **AND ONE CORRECTION TO MY OWN WORK, MADE BEFORE IT SHIPPED.** Checking the 246×29 pair at
+1440×1000 on a freshly loaded page, the two elements were **81px apart** — so I suspected the
+sequenced measurement (four widths resized on one tab) was an artifact and added a reload per
+width. **It changed nothing: 2 / 3 / 24 / 3 both ways, and identical across three consecutive runs
+before that.** The reload stays because grading a FIRST PAINT is the right thing to measure, not
+because it fixed anything — writing it up as a fix would have put a discovery in this log that
+never happened. [[feedback-suspect-the-instrument]]
+
 ### REG-585 — I wrote a "new" file over an existing suite, and shipped it
 **2026-09-04 · v2604 · mine, and it reached origin before I found it**
 
