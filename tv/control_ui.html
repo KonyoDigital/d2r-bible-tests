@@ -10892,6 +10892,35 @@ body[data-origin="shadow"] #stage::after {
      the noise is legible AS noise: at 24, 34 and 72 functions this is the everything-reaches-
      everything case, and only the small-reach rows carry a readable signal. Nothing here refuses
      anything. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  /* v2579 — WHICH ENGINES REACH A REEL, AND WHICH REACH NOBODY. His ask: "connect them all to
+     the JOINED census you created earlier? that way you can see whats connected and joined and
+     what is stil gapped", with the standing rule "not randomly if there is no reason for it".
+     The reason: the census reports engines whose answer arrives at no reel, and a measurement
+     read by nobody is the exact defect it was written to catch. It REPORTS — nothing here fails
+     a build, and an UNJOINED engine is a gap to close. */
+  function _hrtJoins(jc){
+    if (!jc) return '';
+    if (!jc.ok){
+      return '<div class="hrt-sec"><div class="hrt-h">Engines joined to the river · UNKNOWN</div>'
+        + '<div class="hrt-row"><span class="hrt-k">the census</span>'
+        + '<span class="hrt-s st-UNKNOWN">UNKNOWN</span>'
+        + '<span class="hrt-w">' + _hrtEsc(jc.why || 'it could not be taken') + '</span></div></div>';
+    }
+    var rows = jc.rows || [], gap = jc.unjoined || 0;
+    var h = '<div class="hrt-sec"><div class="hrt-h">Engines joined to the river · '
+          + (rows.length - gap) + ' of ' + rows.length
+          + (gap ? ' · ' + gap + ' reach no reel' : ' · all connected') + '</div>';
+    for (var i = 0; i < rows.length; i++){
+      var r = rows[i];
+      var cls = (r.state === 'JOINED') ? 'st-FLOWING'
+              : (r.state === 'BY DESIGN') ? 'st-WATCHED' : 'st-UNKNOWN';
+      h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(r.engine) + '</span>'
+        + '<span class="hrt-s ' + cls + '">' + _hrtEsc(r.state) + '</span>'
+        + '<span class="hrt-w">' + _hrtEsc(r.answers) + '</span></div>';
+    }
+    return h + '</div>';
+  }
+
   function _hrtReach(rc){
     if (!rc) return '';
     if (!rc.ok){
@@ -11239,6 +11268,7 @@ body[data-origin="shadow"] #stage::after {
          [[the-unjoined-end]] */
       + _hrtChron(d.rosters, 'The roster routes', ' in the chronicle')
       + _hrtReach(d.reach)
+      + _hrtJoins(d.joins)
       + _hrtPrinter(d.printer)
       + _hrtDead(d.deadFields)
       + '<div class="hrt-sec"><div class="hrt-h">The valves · ' + (d.open || 0) + ' of '

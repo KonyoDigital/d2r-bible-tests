@@ -21,6 +21,11 @@ own AST for what it imports — so a module that stops being consulted goes RED 
 remembering to update a list. A hand-kept flag would rot into exactly the false green this file
 exists to catch. [[the-unjoined-end]] [[source-reading-guard]]
 
+⚠ WHAT THIS CANNOT TELL YOU, and a cold review named it: it proves a FIELD ARRIVED, not that
+this engine put it there. If two modules could write the same key, a JOINED here means "the answer
+is on the row", not "this module is why". Fixing that properly needs per-field provenance the rows
+do not carry, so it is stated rather than papered over.
+
 ★ AND AN ENGINE MAY LEGITIMATELY NOT BELONG. `WHY_NOT` records the ones deliberately outside the
 printer, WITH the reason, so "unjoined" never silently means "forgotten".
 
@@ -100,7 +105,7 @@ def _imports_of(path):
     return out
 
 
-def _surfaced():
+def _surfaced(rep=None):
     """Which engines actually SURFACE in the printer's output. -> (dict, why)
 
     ⚠⚠ THIS REPLACED TWO WRONGER INSTRUMENTS, AND THE ITERATION IS THE POINT.
@@ -121,25 +126,49 @@ def _surfaced():
     arriving; anything else has to name the field it contributes and be found in the output.
     [[feedback-suspect-the-instrument]] [[feedback-verify-not-proxy]]
     """
+    # ⚠ `rep` MAY BE HANDED IN. The console already runs printer.stream() once per heart open
+    # (printer_state), and a second run here would double the cost of a panel he opens constantly
+    # — and could disagree with the rows he is looking at if the shelf moved between the two
+    # calls. One reading, two readers. [[copy-drift]] §1
     try:
         import printer as P
-        rep = P.stream()
+        if rep is None:
+            rep = P.stream()
     except Exception as e:
         return None, "the printer would not run (%s)" % str(e)[:90]
     rows = rep.get("rows") or []
     if not rows:
         return None, "the printer returned no reel, so nothing could be observed arriving"
     owners = {v[0] for v in getattr(P, "STATION_OWNER", {}).values()}
+    # ⚠⚠ v2579 — TWO DEFECTS HERE, BOTH FOUND BY A COLD CROSS-FAMILY LOOK AT THE v2574 BYTES,
+    # both measured on his real shelf before being believed.
+    #
+    # 1. IT SAMPLED FIVE ROWS AND REPORTED A VERDICT OVER FORTY. An engine that contributes only
+    #    to later reels was invisible. "A sample is not a verdict" is a rule this repo already
+    #    has; I broke it in the file whose whole job is catching that shape.
+    #
+    # 2. IT TESTED NON-EMPTINESS, NOT PRESENCE, so a legitimately EMPTY answer read as an answer
+    #    that never arrived. Measured: `activities` is `[]` on 14 of his 40 reels — an honest
+    #    measurement meaning "this reel has no classified activity" — and `[]` was filtered out.
+    #    A five-row sample landing on those would have flipped a correct JOINED to UNJOINED. It
+    #    did not today, which is luck, not design. [[unknown-stays-unknown]]
+    #
+    # A key that is PRESENT is an answer that arrived; what the answer says is a different
+    # question and not this file's.
     fields = set()
-    for row in rows[:5]:
+    for row in rows:
         for st in (row.get("stations") or {}).values():
-            fields.update(k for k, v in (st or {}).items() if v not in (None, "", [], {}))
+            fields.update((st or {}).keys())
     return {"owners": owners, "fields": fields, "reels": len(rows)}, ""
 
 
-def census():
-    """-> dict. Which engines' answers actually arrive at a reel."""
-    obs, why = _surfaced()
+def census(rep=None):
+    """-> dict. Which engines' answers actually arrive at a reel.
+
+    `rep` is an already-computed printer.stream() reading, so a caller that has one does not pay
+    for a second and cannot disagree with itself about the same shelf.
+    """
+    obs, why = _surfaced(rep)
     if obs is None:
         return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
                 "why": "%s — UNKNOWN, never 'nothing is joined'" % why}

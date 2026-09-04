@@ -15416,6 +15416,18 @@ def heart_state(force=False):
     # two derivations of one truth is how a badge and a diagram come to disagree on screen.
     # [[copy-drift]] §1: name ONE source, everything else quotes it.
     locks = _self_arming_state()
+    # ⚠ ONE printer.stream() for the whole heart. printer_state deliberately DROPS `rows`
+    # (40 reels x 6 stations on every heart open), so the census cannot be fed from its output —
+    # it needs the raw reading. Taking it once here and handing it to both is the only way they
+    # can be about the same shelf. ⚠ When the census cannot see rows it returns UNKNOWN with the
+    # reason rather than "nothing is joined", which is how it behaved when this was miswired.
+    _praw = None
+    try:
+        import printer as _pmod
+        _praw = _pmod.stream()
+    except Exception:
+        _praw = None
+    _pr = printer_state(_praw)
     out = {
         "ok": bool(rep.get("ok")),
         "why": rep.get("why", ""),
@@ -15450,7 +15462,17 @@ def heart_state(force=False):
         # badge and a diagram would eventually disagree about the same reel. [[the-unjoined-end]]
         # ⚠ The far end is UNDECIDED for every reel BY DESIGN: A15 never says which door decides
         # `clean`, and conjoining the two is the collapse v2312 withdrew. That choice is his.
-        "printer": printer_state(),
+        # ⚠ ONE printer reading, TWO readers. `_pr` is computed once and handed to both the
+        # printer panel and the join census; calling printer_state() and then census() separately
+        # would run printer.stream() twice per heart open and let the two panels disagree about
+        # the same shelf if it moved between them.
+        "printer": _pr,
+        # v2579 — HIS ASK: "connect them all to the JOINED census you created earlier? that way
+        # you can see whats connected and joined and what is stil gapped", with "not randomly if
+        # there is no reason for it". The reason: the census currently reports FIVE engines whose
+        # answers reach no reel, and leaving that readable only from a CLI makes it an instance of
+        # the very defect it was written to catch. It REPORTS — it fails nothing.
+        "joins": engine_joins_state(_praw),
         # A21c — THE CHRONICLE ROUTES, on the same heart, in the same four words. His ask:
         # "the chronicles routes should also be there.. the sets and the uniques espeically..
         # reverse engineered like the routes and lanes here also for accuracy going forward".
@@ -15611,7 +15633,37 @@ def scope_reach_state():
     }
 
 
-def printer_state():
+def engine_joins_state(rep=None):
+    """CF — which engines' answers actually REACH a reel, and which reach nobody. -> dict
+
+    ⚠⚠ WHY THIS IS ON THE HEART AND NOT JUST A CLI, because "not randomly if there is no reason
+    for it" is his standing rule and this one has a reason. `engine_joins` exists because four
+    engines were found unjoined in one afternoon, each by accident, each after the printer had
+    shipped without it. It currently reports FIVE more whose answers reach no reel. Leaving that
+    number readable only by running a command makes it an instance of the exact defect it was
+    written to catch — a measurement computed correctly and read by nobody.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠ It REPORTS. It fails nothing, refuses nothing, and an UNJOINED engine is a gap to close,
+    never a build to break.
+
+    ⚠ The printer reading is PASSED IN, never re-derived: the heart already runs printer.stream()
+    once per open, and a second run would double the cost of a panel he opens constantly and could
+    disagree with the rows beside it.
+    """
+    try:
+        import engine_joins as _ej
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
+                "why": "the join census will not import (%s)" % str(e)[:90]}
+    try:
+        return _ej.census(rep)
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
+                "why": "the join census would not answer (%s)" % str(e)[:90]}
+
+
+def printer_state(rep=None):
     """THE PRINTER — every reel from the door to the far end, in one reading. -> dict
 
     ⚠ It quotes seven owners and derives nothing itself. ⚠ It refuses nothing and deletes nothing:
@@ -15624,7 +15676,9 @@ def printer_state():
         return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
                 "why": "the printer will not import (%s)" % str(e)[:90]}
     try:
-        r = _p.stream()
+        if rep is None:
+            rep = _p.stream()
+        r = rep
     except Exception as e:
         return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
                 "why": "the stream could not be walked (%s)" % str(e)[:90]}
@@ -22392,7 +22446,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2578",
+        "ver": "v2579",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
