@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2624",
+  "ver": "v2625",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2624: REG-606 - attacks and repetition were published for six versions and the heart could not see them, the fourth field this trim has swallowed. Joined and rendered. The photograph also found two pre-existing overlaps, now zero.",
+  "note": "v2625: REG-607 - the overlap ratchet never opened a panel and loaded file where the console cannot fetch, so its 0000 was a clean bill over surfaces it had never seen. Serving it revealed 17 real overlaps. Panels graded, page level reported.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

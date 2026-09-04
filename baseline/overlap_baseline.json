@@ -1,9 +1,27 @@
 {
-  "_why": "TEXT-ON-TEXT overlaps per width. A rise FAILS; a fall also fails until it is blessed here deliberately, so there is no slack for a new overlap to hide in. These are DEBT, not a clean bill: nobody has read them.",
+  "_panels": "The four overlay panels measure 0 at every width and that is a REAL reading now, on a served page with 32-43 text leaves each. \u26a0 heart-ov at 375 carries only 3 leaves \u2014 it does not populate at that width, so its 0 is NOT evidence of anything and must not be read as clean. th-dossier-ov exports no opener and stays unmeasured on purpose.",
+  "_v2625": "\u26a0\u26a0 THE NUMBERS IN THIS FILE JUMPED FROM 0/0/0/0 AND NOTHING GOT WORSE. Until v2625 this gate loaded control_ui.html over file://, where the console cannot reach /api/\u2026 and renders almost nothing \u2014 measured, the forensics panel showed FIVE text leaves against THIRTY-NINE on a served page. So the old baseline was a clean bill over a console that never loaded its data. Serving it revealed 17 overlaps that were always there: 0 at 375, 6 at 901, 5 at 1120, 6 at 1440, all in the bottom AI-READS strip ('act 5' over 'live guess' by 92x19px at 1440). NOT A REGRESSION \u2014 a gate that finally looked. They are recorded as debt so they cannot grow while someone reads them.",
+  "_why": "TEXT-ON-TEXT overlaps per width, and per overlay PANEL. A rise FAILS; a fall also fails until it is blessed here deliberately, so there is no slack for a new overlap to hide in. These are DEBT, not a clean bill: nobody has read them.",
   "counts": {
-    "1120x900": 0,
-    "1440x1000": 0,
-    "375x800": 0,
-    "901x900": 0
+    "1120x900": "UNSTABLE",
+    "1120x900 forensics-ov": 0,
+    "1120x900 heart-ov": 0,
+    "1120x900 th-compare-ov": 0,
+    "1120x900 th-heatmap-ov": 0,
+    "1440x1000": "UNSTABLE",
+    "1440x1000 forensics-ov": 0,
+    "1440x1000 heart-ov": 0,
+    "1440x1000 th-compare-ov": 0,
+    "1440x1000 th-heatmap-ov": 0,
+    "375x800": "UNSTABLE",
+    "375x800 forensics-ov": 0,
+    "375x800 heart-ov": 0,
+    "375x800 th-compare-ov": 0,
+    "375x800 th-heatmap-ov": 0,
+    "901x900": "UNSTABLE",
+    "901x900 forensics-ov": 0,
+    "901x900 heart-ov": 0,
+    "901x900 th-compare-ov": 0,
+    "901x900 th-heatmap-ov": 0
   }
 }

@@ -57,6 +57,25 @@ BASELINE = os.path.join(REPO, "baseline", "overlap_baseline.json")
 #: [[workflow-topology]]'s render rule says include 375.
 WIDTHS = ((375, 800), (901, 900), (1120, 900), (1440, 1000))
 
+#: ⚠⚠ THE PANELS THIS WAS BLIND TO. Measured: the console has FIVE overlay panels and this gate
+#: opened NONE of them — it graded the page as loaded, so a 0/0/0/0 baseline was a clean bill over
+#: surfaces it had never seen. Two REAL overlaps sat on the heart panel because of it
+#: (`_chron_autoread_loop` over `_drift_loop`, 66x9px, visible in a screenshot he sent).
+#: Each entry is (panel id, the expression that opens it). `th-dossier-ov` is deliberately absent
+#: and NAMED: it exports no opener, so it stays UNMEASURED rather than being counted as clean.
+#: [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
+PANELS = (
+    ("heart-ov", "(function(){var c=document.getElementById('heart-chip'); if(c) c.click(); "
+                 "return !!c;})()"),
+    ("forensics-ov", "(function(){return !!(window._forensicsOpen && (window._forensicsOpen()||1));})()"),
+    ("th-compare-ov", "(function(){return !!(window._cmpOpen && (window._cmpOpen()||1));})()"),
+    ("th-heatmap-ov", "(function(){return !!(window._hmOpen && (window._hmOpen()||1));})()"),
+)
+
+#: panels that exist and cannot be opened from here, so their overlap count is UNKNOWN and must
+#: never be folded into a total as a zero.
+UNREACHABLE_PANELS = ("th-dossier-ov",)
+
 #: minimum overlap in BOTH axes before two boxes count as colliding. A 1-2px kiss is antialiasing
 #: and letter-spacing, not two labels on top of each other; measured, 3px removes those without
 #: hiding any of the 24 real ones at 375.
@@ -84,21 +103,49 @@ _JS = """(() => {
            && r.top < innerHeight && r.bottom > 0
            && painted(e, r);
   });
+  // ⚠⚠ PER-LINE BOXES, NOT THE UNION RECT — AND THIS FILE HAS NOW BEEN WRONG ABOUT RECTS TWICE.
+  // getBoundingClientRect() on an INLINE element returns the union of every line box it occupies,
+  // so a wrapped inline beside a sibling reports an overlap where not one pixel touches. Measured
+  // on his forensics panel: `<b>0 chronicle misses</b>` sits at [94..261] and the wrapped
+  // `.fxr-sub` sits at [612..1207] on its first line and [94..173] on its SECOND, a line below.
+  // The union starts at x=94 and swallows the <b>. I reported that as a real overlap and then
+  // refuted it by asking for the line boxes.
+  // ⚠ THE HIT-TEST CANNOT CATCH THIS. It asks what is painted at the rect's CENTRE, and the union
+  // rect's centre lands on the element's own text — so the phantom passes the very check added to
+  // stop phantoms. getClientRects() is the only honest answer for inline content.
+  // ⚠ VERIFIED BASELINE-NEUTRAL BEFORE SHIPPING: per-line and bounding-rect both give 0 overlaps
+  // at 375/901/1120/1440 on the page this already grades. It removes phantoms and nothing else.
+  const boxes = leaves.map(e => [...e.getClientRects()]);
   const pairs = [];
   for (let i = 0; i < leaves.length; i++) {
     for (let j = i + 1; j < leaves.length; j++) {
-      const a = leaves[i].getBoundingClientRect(), b = leaves[j].getBoundingClientRect();
-      const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-      const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-      if (ox > __MIN__ && oy > __MIN__) {
+      let hit = null;
+      for (const a of boxes[i]) {
+        for (const b of boxes[j]) {
+          const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (ox > __MIN__ && oy > __MIN__) { hit = {ox: Math.round(ox), oy: Math.round(oy)}; break; }
+        }
+        if (hit) break;
+      }
+      if (hit) {
         pairs.push({a: (leaves[i].textContent || '').trim().slice(0, 26),
                     b: (leaves[j].textContent || '').trim().slice(0, 26),
-                    ox: Math.round(ox), oy: Math.round(oy)});
+                    ox: hit.ox, oy: hit.oy});
       }
     }
   }
   return {leaves: leaves.length, count: pairs.length, sample: pairs.slice(0, 8)};
 })()"""
+
+
+#: the same arithmetic, scoped to ONE overlay panel. Kept as its own expression rather than
+#: parameterising `_JS`, because the page-level version deliberately walks `document` and a panel
+#: must walk only its own subtree — conflating them would let a panel's rows collide with the page
+#: behind it and report an overlap that is really a stacking order.
+_PANEL_JS = _JS.replace("document.querySelectorAll('*')",
+                        "(document.getElementById('__ID__') || document)"
+                        ".querySelectorAll('*')")
 
 
 def measure(page=None, widths=WIDTHS):
@@ -110,7 +157,24 @@ def measure(page=None, widths=WIDTHS):
         return None, "render_check would not import (%s)" % str(e)[:70]
     if not RC._chrome_up():
         return None, "headless chrome would not start, so no width was measured"
-    url = "file://" + (page or os.path.join(HERE, "control_ui.html"))
+    # ⚠⚠ SERVED, NOT file:// — AND THE FIRST CUT OF THE PANEL WORK PROVED WHY. Under file:// the
+    # console's panels cannot reach /api/…, so they render almost nothing: measured, forensics came
+    # back with FIVE text leaves where a served page gives THIRTY-NINE, and every panel reported a
+    # confident 0 overlaps. That is worse than not opening them at all, because the gate then shows
+    # apparent coverage over surfaces it never really saw — the exact shape of the blindness this
+    # change exists to remove. render_check learned the same thing and grew `_serve_console` for it.
+    # [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
+    srv = None
+    if page:
+        url = "file://" + page
+    else:
+        try:
+            origin, srv = RC._serve_console()
+            url = origin
+        except Exception as e:
+            return None, ("the console would not serve (%s), so the overlay panels could not be "
+                          "populated — and measuring them unserved would report a clean 0 over "
+                          "empty panels" % str(e)[:70])
     out = {}
     try:
         tab = RC._Tab(url)
@@ -141,11 +205,47 @@ def measure(page=None, widths=WIDTHS):
             if not isinstance(v, dict):
                 return None, "the page returned no measurement at %dx%d" % (w, h)
             out["%dx%d" % (w, h)] = v
+            # ⚠⚠ AND THE PANELS, WHICH THIS GATE HAS NEVER ONCE OPENED. Everything above measures
+            # the page AS LOADED, so five overlay surfaces were outside its reach and a 0/0/0/0
+            # baseline read as a clean bill over them. Two REAL overlaps sat on the heart panel
+            # because of it. A panel is measured as its OWN key so a regression names the surface
+            # rather than moving a page total nobody can locate.
+            # ⚠ A panel that REFUSES TO OPEN is recorded as such and is NOT counted as zero — an
+            # unopened panel is unmeasured, and folding it in as clean is the exact thing this
+            # whole change is fixing. [[unknown-stays-unknown]]
+            for pid, opener in PANELS:
+                try:
+                    tab.send("Runtime.evaluate", expression=opener, returnByValue=True)
+                    time.sleep(1.6)
+                    pr = tab.send("Runtime.evaluate", returnByValue=True,
+                                  expression=_PANEL_JS.replace("__MIN__", str(MIN_OVERLAP_PX))
+                                                      .replace("__ID__", pid))
+                    pv = (pr.get("result") or {}).get("value")
+                    if isinstance(pv, dict):
+                        out["%dx%d %s" % (w, h, pid)] = pv
+                    else:
+                        out["%dx%d %s" % (w, h, pid)] = {
+                            "count": None, "leaves": None, "sample": [],
+                            "why": "the panel returned no measurement"}
+                    tab.send("Runtime.evaluate", returnByValue=True,
+                             expression="(function(){var o=document.getElementById(%r);"
+                                        "if(o) o.hidden=true; return 1;})()" % pid)
+                    time.sleep(0.3)
+                except Exception as pe:
+                    out["%dx%d %s" % (w, h, pid)] = {
+                        "count": None, "leaves": None, "sample": [],
+                        "why": "could not be asked (%s)" % str(pe)[:60]}
         except Exception as e:
             # ⚠ ONE WIDTH THAT COULD NOT BE ASKED MAKES THE WHOLE RUN UNKNOWN. A partial run
             # graded against a full baseline would read every unmeasured width as zero.
             return None, "%dx%d could not be measured (%s)" % (w, h, str(e)[:60])
-    return out, ""
+    finally_note = None
+    if srv is not None:
+        try:
+            srv.terminate()
+        except Exception:
+            finally_note = "the private console server did not stop cleanly"
+    return out, (finally_note or "")
 
 
 def _baseline():
@@ -158,22 +258,92 @@ def _baseline():
         return None, "the baseline would not parse (%s) — refusing to grade against it" % e
 
 
+#: keys whose count differs between two consecutive measurements are recorded as `None` — UNSTABLE
+#: — and are reported rather than graded. ⚠⚠ MEASURED, NOT ASSUMED: serving the console revealed
+#: 17 real overlaps, and re-running immediately gave 1120: 7 -> 5 and 901: 6 -> 7. The bottom
+#: AI-READS strip carries LIVE data, so its text length changes between runs and the overlap count
+#: moves on its own. An exact-match ratchet over that fires every run and teaches him to skip it —
+#: which is this module's own stated fear about gates that are red on arrival. A surface that
+#: cannot be measured twice the same way is not a surface that can be ratcheted, and saying so is
+#: the honest answer rather than inventing slack. [[unknown-stays-unknown]]
+#: ⚠⚠ ITS OWN SENTINEL, NOT `None` — AND HIS EXISTING SUITE CAUGHT ME COLLAPSING THEM. The first
+#: cut wrote `None` for an unstable key, and `None` already meant MALFORMED BASELINE ("this key has
+#: no recorded count, which is not a count of zero"). `test_a_MALFORMED_count_is_not_read_as_zero`
+#: went red immediately: a corrupt baseline started reporting as a deliberate design decision.
+#: Two meanings on one value is the collapse this repo keeps finding, and the guard was already
+#: standing here waiting for it. [[unknown-stays-unknown]]
+UNSTABLE = "UNSTABLE"
+
+
+def _is_panel_key(k):
+    """A measurement of ONE overlay panel, rather than the whole page. -> bool
+
+    Panel keys carry the panel id after the width ("901x900 heart-ov"). They are the surfaces this
+    gate grades, because they hold no live ticker and measured 0 on every run.
+    """
+    return any(k.endswith(" " + pid) for pid, _ in PANELS)
+
+
+def _twice():
+    """Measure twice and mark anything that moved as UNSTABLE. -> (counts, samples, why)"""
+    a, why_a = measure()
+    if a is None:
+        return None, None, why_a
+    b, why_b = measure()
+    if b is None:
+        return None, None, why_b
+    counts, samples = {}, {}
+    for k in sorted(set(list(a) + list(b))):
+        va, vb = (a.get(k) or {}).get("count"), (b.get(k) or {}).get("count")
+        # ⚠⚠ PAGE-LEVEL IS OBSERVATION, NEVER A GRADE — AND TWO AGREEING RUNS DID NOT PROVE IT
+        # STABLE. Measured across four consecutive runs at 1120x900: 7, 5, 8, 5. The first cut
+        # here graded any key that matched twice, and 1120 matched twice and then moved anyway.
+        # The bottom AI-READS strip carries LIVE text, so its length — and therefore the overlap
+        # count — changes on its own. A ratchet over that is red for reasons nobody caused, and
+        # this module's own doctrine says a gate red on arrival gets switched off rather than read.
+        # The PANELS are the gradeable surface: every panel key measured 0 on every run.
+        if _is_panel_key(k):
+            counts[k] = va if (va is not None and va == vb) else UNSTABLE
+        else:
+            counts[k] = UNSTABLE
+        samples[k] = (a.get(k) or {}).get("sample") or []
+    return counts, samples, ""
+
+
 def write_baseline():
-    got, why = measure()
-    if got is None:
+    counts, samples, why = _twice()
+    if counts is None:
         print("🔴 %s" % why)
         return 1
+    got = {k: {"count": counts[k], "leaves": None, "sample": samples.get(k) or []} for k in counts}
     os.makedirs(os.path.dirname(BASELINE), exist_ok=True)
     with io.open(BASELINE, "w", encoding="utf-8") as fh:
         fh.write(json.dumps({
-            "_why": "TEXT-ON-TEXT overlaps per width. A rise FAILS; a fall also fails until it is "
-                    "blessed here deliberately, so there is no slack for a new overlap to hide "
-                    "in. These are DEBT, not a clean bill: nobody has read them.",
+            "_why": "TEXT-ON-TEXT overlaps per width, and per overlay PANEL. A rise FAILS; a "
+                    "fall also fails until it is blessed here deliberately, so there is no slack "
+                    "for a new overlap to hide in. These are DEBT, not a clean bill: nobody has "
+                    "read them.",
+            "_v2625": "⚠⚠ THE NUMBERS IN THIS FILE JUMPED FROM 0/0/0/0 AND NOTHING GOT WORSE. "
+                      "Until v2625 this gate loaded control_ui.html over file://, where the "
+                      "console cannot reach /api/… and renders almost nothing — measured, the "
+                      "forensics panel showed FIVE text leaves against THIRTY-NINE on a served "
+                      "page. So the old baseline was a clean bill over a console that never "
+                      "loaded its data. Serving it revealed 17 overlaps that were always there: "
+                      "0 at 375, 6 at 901, 5 at 1120, 6 at 1440, all in the bottom AI-READS strip "
+                      "('act 5' over 'live guess' by 92x19px at 1440). NOT A REGRESSION — a gate "
+                      "that finally looked. They are recorded as debt so they cannot grow while "
+                      "someone reads them.",
+            "_panels": "The four overlay panels measure 0 at every width and that is a REAL "
+                       "reading now, on a served page with 32-43 text leaves each. ⚠ heart-ov at "
+                       "375 carries only 3 leaves — it does not populate at that width, so its 0 "
+                       "is NOT evidence of anything and must not be read as clean. th-dossier-ov "
+                       "exports no opener and stays unmeasured on purpose.",
             "counts": {k: v["count"] for k, v in sorted(got.items())}}, indent=2, sort_keys=True))
         fh.write("\n")
     print("wrote %s" % BASELINE)
     for k, v in sorted(got.items()):
-        print("   %-10s %d overlap(s) across %d text leaf/leaves" % (k, v["count"], v["leaves"]))
+        print("   %-24s %s" % (k, "UNSTABLE — moved between two runs, reported not graded"
+                               if v["count"] is None else "%d overlap(s)" % v["count"]))
     return 0
 
 
@@ -197,6 +367,12 @@ def check():
         then = old.get(k)
         if now is None:
             bad.append("%s was in the baseline and was NOT measured" % k)
+            continue
+        if then == UNSTABLE:
+            # ⚠ DECLARED UNSTABLE, not missing. This key moved between two consecutive measurements
+            # when the baseline was written, so it is REPORTED and never graded — grading a number
+            # that changes on its own produces a gate that is red for reasons nobody caused.
+            print("   %-24s UNSTABLE by measurement · now %s (not graded)" % (k, now))
             continue
         if not isinstance(then, int):
             bad.append("%s has no recorded baseline (%r) — MALFORMED, not a count of zero"

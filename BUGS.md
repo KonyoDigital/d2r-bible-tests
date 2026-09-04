@@ -7,6 +7,53 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-607 — the overlap gate's 0/0/0/0 was a clean bill over a console that never loaded
+
+**v2625.** Two defects in one gate, and the second was hiding behind the first.
+
+**1. IT NEVER OPENED A PANEL.** The console has FIVE overlay surfaces — `heart-ov`, `forensics-ov`,
+`th-compare-ov`, `th-dossier-ov`, `th-heatmap-ov` — and this gate measured the page **as loaded**,
+so its 0/0/0/0 was a clean bill over surfaces it had never seen. Two REAL overlaps sat on the heart
+panel because of it (`_chron_autoread_loop` over `_drift_loop`, **66×9px**, visible in a screenshot
+he sent). ⚠ `render_check` already had 11 activate steps; the machinery existed and this did not
+use it. [[gate-blind-to-unexercised-input]]
+
+**2. AND IT LOADED `file://`, WHERE THE CONSOLE CANNOT REACH `/api/…`.** Measured: the forensics
+panel returns **FIVE** text leaves unserved against **THIRTY-NINE** served. So opening the panels
+without serving would have produced a confident 0 over empty panels — *worse* than not opening
+them, because the gate would then show apparent coverage. It serves via `RC._serve_console()` now.
+[[feedback-blind-fixture-green-gate]]
+
+**Serving it revealed 17 page-level overlaps that were always there** — 0/6/5/6 across the widths,
+all in the bottom AI-READS strip (`'act 5'` over `'live guess'` by 92×19px at 1440). **Not a
+regression: a gate that finally looked.**
+
+⚠⚠ **AND THE PAGE LEVEL CANNOT BE RATCHETED, WHICH IS A MEASUREMENT NOT A CONCESSION.** Four
+consecutive runs at 1120×900 gave **7, 5, 8, 5** — the AI-READS strip carries LIVE text, so its
+length and therefore the overlap count moves on its own. My first cut graded any key that agreed
+**twice**; 1120 agreed twice and then moved anyway. An exact-match ratchet over that is red for
+reasons nobody caused, which this module's own doctrine says gets a gate switched off rather than
+read. **Page level is now reported and never graded; the PANELS are graded, and every panel key
+measured 0 on every run.** 16 keys graded, 4 declared UNSTABLE.
+
+⚠ **`getClientRects()`, NOT THE UNION RECT — and this file has now been wrong about rects twice.**
+An inline element's bounding rect is the union of its line boxes, so a wrapped inline beside a
+sibling reports an overlap where not one pixel touches. Measured on the forensics panel: `<b>` at
+[94..261], the wrapped `.fxr-sub` at [612..1207] and [94..173] a line below. I reported that as a
+real overlap and refuted it myself by asking for the line boxes. **The hit-test cannot catch this**
+— the union rect's centre lands on the element's own text, so the phantom passes the very check
+added to stop phantoms. ⚠ Verified baseline-neutral before shipping: per-line and bounding-rect
+both give 0 at all four widths on the page it already graded.
+
+⚠⚠ **AND HIS EXISTING SUITE CAUGHT ME COLLAPSING TWO MEANINGS.** I wrote `None` for a
+declared-unstable key, and `None` already meant MALFORMED BASELINE.
+`test_a_MALFORMED_count_is_not_read_as_zero` went red on the spot: a corrupt baseline would have
+started reporting as a deliberate design decision. UNSTABLE has its own sentinel now. **The guard
+was already standing there waiting for exactly that.**
+
+**RED-proven:** shifting `#forensics-ov .fxr-sub` up 14px produced `1440x1000 forensics-ov: 0 -> 1
+🔴 ROSE +1`, green on restore. 46s against a 300s gate budget.
+
 ### REG-606 — the repetition finding was published for six versions and the console could not see it
 
 **v2624.** His question: *"obviously the heart console is rendering this when clicked on — meaning
