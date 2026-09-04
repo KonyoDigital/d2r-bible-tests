@@ -18427,3 +18427,35 @@ The test asserts the intent directly now: a reading came back, it is a dict, it 
 
 **2 sabotages, 2 RED, in both directions:** `ok: True` while UNKNOWN; `ok: False` on a real verdict.
 
+## v2556 — a floor set below the number it was guarding
+
+**REG-557 — the cold look at v2553, plus one defect its sabotage found that the reviewer did not.**
+
+⚠ **TAKEN — a name that outlived its referent.** The test was called
+`test_the_law_still_covers_four_probes`, asserted `>= 5`, and `PROBES` held **7**. A right number
+under a word that stopped being true. The floor is a named constant now and **no test name carries
+a count at all**, so the two cannot drift apart again. [[label-outlived-referent]]
+
+⚠ **TAKEN — the reason check tested LENGTH ONLY**, so `"x" * 25` passed it. A reason exists so a
+reader can tell *the shelf is empty* from *the shelf could not be read*; it has to NAME something.
+Proven RED with a 27-character reason of x's.
+
+⚠⚠ **AND THE SABOTAGE FOUND WHAT THE REVIEW DID NOT: THE FLOOR WAS SET BELOW THE COUNT IT GUARDS.**
+I wrote `FLOOR = 6` while `PROBES` held **7**, so removing a probe left the floor satisfied and the
+run **green** — exactly the silent loss the constant exists to catch. It was invisible until a
+sabotage removed a probe and PASSED. **A floor below the real number is not a floor, it is a
+formality.** Raised to 7 and re-proven RED at `6 not greater than or equal to 7`.
+
+⚠ **REFUTED, and the defect was MINE:** it reported `NOT_COVERED` as defined but never referenced.
+It is referenced — by a test that **was not in the code I pasted**. I gave it an excerpt and it
+reasoned correctly about the excerpt. **A cold review is only as good as what it is shown, and
+choosing what to show is my job.**
+
+⚠ **NOT TAKEN:** `state or ladder` picking the wrong field needs an empty-string state, which no
+probe here produces.
+
+⚠ **AND TWO SABOTAGES WENT RED FOR THE WRONG REASON FIRST** — one was syntactically broken and
+errored elsewhere, the other tripped the SHAPE law before reaching the floor. Both were redone so
+each isolates its own guard. **A sabotage that fails the wrong test proves nothing about the right
+one.**
+

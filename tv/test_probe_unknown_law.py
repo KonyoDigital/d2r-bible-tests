@@ -152,6 +152,16 @@ IN_MEMORY = ("dead_field.dead_fields",)
 #:       change what the law means. Left out deliberately.
 NOT_COVERED = ("declared_vs_content.report", "store_owners.audit")
 
+#: The number of probes this law covered when it was last deliberately changed. It may only RISE:
+#: adding a probe is free, removing one needs a reason written down, because the run stays green
+#: either way. Kept as a constant so no test NAME has to restate it. [[label-outlived-referent]]
+#:
+#: ⚠⚠ AND IT WAS SET BELOW THE ACTUAL COUNT, WHICH IS A RATCHET THAT PERMITS A SILENT DROP. I wrote
+#: 6 while PROBES held 7, so removing one left the floor satisfied and the run green — exactly the
+#: silent loss this constant exists to catch. Found by a sabotage that removed a probe and PASSED.
+#: A floor below the real number is not a floor, it is a formality.
+FLOOR = 7
+
 #: ⚠⚠ WHICH PROBES THE PER-PROBE UNREADABLE-SOURCE LAW REACHES, AND WHICH IT DOES NOT — because
 #: its first cut covered THREE of six and nothing said so, which is how a law quietly means less
 #: than its name. `per_reel_routes` and `printer.stream` read nothing themselves: their source is
@@ -180,15 +190,35 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
         for name, ask in PROBES:
             why = str((ask() or {}).get("why") or "").strip()
             self.assertTrue(why, "%s said UNKNOWN and gave no reason at all" % name)
+            # ⚠ REG-557 — LENGTH ALONE IS AN ARBITRARY BAR AND `"x" * 25` PASSED IT. A reason
+            # exists so a reader can tell *the shelf is empty* from *the shelf could not be read*,
+            # which means it has to NAME something: the thing that was missing, the module that
+            # would not answer, or the store that would not read. Two words of the probe's own
+            # subject, or it is a shrug of the right length.
             self.assertGreater(len(why), 20,
                                "%s's reason is too short to distinguish anything: %r" % (name, why))
+            subject = name.split(".")[0].replace("_", " ")
+            named = (any(w in why.lower() for w in subject.split())
+                     or any(w in why.lower() for w in
+                            ("read", "import", "answer", "empty", "shelf", "store", "floor",
+                             "reel", "found", "judged", "established")))
+            self.assertTrue(
+                named,
+                "%s's reason is %d characters and names nothing a reader could act on: %r. It has "
+                "to say WHAT was missing — the shelf, the store, the module that would not answer "
+                "— or it is a shrug of the right length." % (name, len(why), why))
 
-    def test_the_law_still_covers_four_probes(self):
+    def test_the_law_still_covers_every_probe_it_did(self):
         """⚠ It asserts BEHAVIOUR, not a roster — but a probe silently dropped from PROBES is
         exactly how a law stops covering the thing it was written for, and that deletion looks
         identical to a passing run. The count is the only thing that catches it."""
+        # ⚠⚠ REG-557 — THE NAME SAID "four probes" WHILE THE ASSERTION SAID 5, AND THERE ARE NOW
+        # SIX. A right number under a word that stopped being true, caught by a cold review of the
+        # shipped bytes. The floor is a NAMED CONSTANT now and the test's name no longer carries a
+        # count at all, so the two cannot drift apart again — a label that restates a number is a
+        # label that will outlive it. [[label-outlived-referent]]
         self.assertGreaterEqual(
-            len(PROBES), 5,
+            len(PROBES), FLOOR,
             "a probe was removed from this law. Adding one is free; removing one needs a reason "
             "written down, because the run stays green either way.")
 
