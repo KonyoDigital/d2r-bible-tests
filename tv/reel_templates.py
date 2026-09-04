@@ -162,6 +162,16 @@ def templates(reels=None):
     if reels:
         names = [n for n in names if any(x in n for x in reels)]
     by_session, why = _journal_rows()
+    # ⚠⚠ v2573 — THE MODULE THAT OWNS THE 80/20 QUESTION WAS NEVER ASKED. retro_triage exists
+    # because of his words — *"the filter and templates built should be disposing the 70%
+    # unrelevant reels"* — and `worth_reading()` answers it per reel in three states, where None
+    # means NOT SURVEYED and explicitly never False ("a reel nobody has looked at must not be
+    # skipped as if it had been looked at and found empty; that is how footage gets abandoned").
+    # The printer classified templates without ever consulting it. [[the-unjoined-end]]
+    try:
+        import retro_triage as _RTG
+    except Exception:
+        _RTG = None
 
     rows, counts = [], {}
     for name in sorted(names):
@@ -184,9 +194,31 @@ def templates(reels=None):
                 zwhy = ("activities %s match no declared zone — UNKNOWN rather than guessed"
                         % ", ".join(acts))
         # ⚠⚠ ONLY A REEL PROVEN TO BE A RUN IS A PRUNE CANDIDATE. UNKNOWN never is.
+        # ⚠ THREE STATES, AND None IS NOT False. A reel the survey never reached is UNSURVEYED,
+        # which is a different fact from surveyed-and-empty and must never be treated as one.
+        worth = None
+        if _RTG is not None:
+            try:
+                worth = _RTG.worth_reading(name)
+            except Exception:
+                worth = None
+
+        # ⚠⚠ AND THE SURVEY CAN ONLY EVER *SPARE* A REEL HERE, NEVER CONDEMN ONE. A reel proven
+        # to be a run is a candidate; if the survey says it nonetheless holds panels, that is
+        # evidence it is worth keeping and the candidacy is withdrawn. The reverse is deliberately
+        # NOT done: "surveyed, nothing in it" does not make a STASH reel disposable, because the
+        # template already said there is something here to extract. Two readers disagreeing must
+        # resolve toward keeping footage. [[unknown-stays-unknown]]
+        candidate = (zone == "RUN")
+        if candidate and worth is True:
+            candidate = False
+            zwhy += ("  ⚠ the survey says this run DOES hold panels, so it is not a prune "
+                     "candidate after all — the survey spares it")
+
         rows.append({"reel": name, "template": template, "zone": zone, "why": zwhy,
                      "activities": acts, "segments": len(segs),
-                     "pruneCandidate": (zone == "RUN")})
+                     "worthReading": worth,
+                     "pruneCandidate": candidate})
         counts[zone] = counts.get(zone, 0) + 1
 
     unknown = counts.get("UNKNOWN", 0)
