@@ -931,6 +931,20 @@ GATES = [
              "reload, delete or kill anything: it is a witness, not a trigger. ⚠ NAMED "
              "test_pixel_witness because test_paint_witness.py was already taken by v2457's "
              "beat-side suite, which I overwrote once and had to restore from git."),
+    Gate("test_reel_reaper",
+         [sys.executable, os.path.join(HERE, "test_reel_reaper.py")], 60,
+         why="THE RECORDER MAY NOT EAT EVIDENCE. `tv_diablo`'s disk-floor branch deleted a WHOLE "
+             "REEL with no seal check, no witness check, no tombstone and no log line. Its own "
+             "comment promised \"the OLDEST *sealed* reels\" and the word `sealed` appeared ONLY "
+             "in that comment; `TV_AUTO_PRUNE` occurs ZERO times in that file, so 'the prune "
+             "stays OFF' never reached it — armed, needing no switch. MEASURED: its first victim "
+             "would have been reel_s_1784984019250_95276, the oldest reel on the shelf and the "
+             "one the vault still cites as witness for \"Chaotic Grand Charm\". ⚠ THE EMERGENCY "
+             "IS KEPT — a full disk stops recording entirely, which is worse than losing a reel — "
+             "so these grade that it still reaps while refusing to reap EVIDENCE, refuses "
+             "outright when the ledger cannot be read (None is never an empty set), sorts by the "
+             "reel's own capture clock with un-datable reels LAST, and leaves a record. ⚠ It is "
+             "NOT a second writer of reel_tombstones.json; reel_retention stays the one writer."),
     Gate("test_code_staleness",
          [sys.executable, os.path.join(HERE, "test_code_staleness.py")], 60,
          why="THE STALE-IMAGE WATCHDOG. His console booted 2026-09-04 08:43 and served that image "
