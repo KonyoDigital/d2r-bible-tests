@@ -7,6 +7,50 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-588 — at narrow width the console's main column was laid out, rendered, and unreachable
+**2026-09-04 · v2608 · found by chasing why the overlap gate had lied**
+
+At **375 and 640 CSS px** with `data-state="off"`, `#home-dash` resolved to **height 0 while holding
+591px of content**. The chronicle, the TZ tracker and the missions were laid out and rendered — and
+there was **no way to reach them**: `html` and `body` are both `overflow: hidden` and
+`documentElement.scrollHeight - innerHeight` was **0**. No scrollbar anywhere in the ancestry.
+
+**THE CAUSE, after two wrong guesses I measured my way out of.** The row is `minmax(0, 1fr)`, and
+**`1fr` distributes FREE space — of which there was none**: the auto rows come to head 150 + rail
+521 + tick 38 + foot 32, which with the gaps fills an 800px shell exactly. The `1fr` made a
+**starved** row look like a deliberate flex row.
+
+⚠ **MY FIRST TWO FIXES LANDED ON RULES THAT NEVER APPLIED.** I set the row at line 1451, then tried
+`minmax(min-content, auto)` there — both overridden by `body[data-state="off"] .shell` further down,
+which is later AND higher-specificity. And `min-content` would not have worked anyway: the automatic
+minimum size of an `overflow: auto` box is **zero**, so the row can never take its floor from the
+item. Reading the COMPUTED `grid-template-rows` is what settled it, not reading the CSS.
+
+**THE FIX:** a FLOOR rather than a fraction — `minmax(45vh, 1fr)` on the rule that actually applies —
+plus `overflow-y: auto` on the ≤900 shell so a row that does not fit can still be reached.
+
+| width | dash height before | after |
+|---|---|---|
+| 375×800 | **0** | **360** |
+| 640×800 | **0** | **360** |
+| 901×900 | 505 | 505 |
+| 1120×900 | 468 | 468 |
+| 1440×1000 | 494 | 494 |
+
+Media-scoped: every width above 900 is unchanged.
+
+✅ **AND IT CLOSED REG-587's REMAINDER.** The three real text overlaps at 375 are gone — the ratchet
+now reads **0 at every width**, re-baselined deliberately because a fall fails too. ⚠⚠ It is also why
+that gate lied in the first place: the starved subtree still had bounding rects, so a rect-based
+check counted **21 collisions among content nobody could see**.
+
+**Verified on pixels and by a cold cross-family read**, which answered the question that matters:
+*"A visible scrollbar is present on the right side of the central panel, so content is scrollable."*
+
+⚠ **STILL OWED, NAMED NOT FIXED:** the dash overflows **horizontally** at 375 — the same read caught
+*"live terror zones · wha"* and *"appea here"* truncated at the right edge. Reachable by scrolling
+sideways, so a lesser fault, and a different one.
+
 ### REG-587 — text sitting on text, the class the render gate cannot see
 **⚠⚠ CORRECTED 2026-09-04, v2607 — THE NUMBERS BELOW WERE WRONG AND THE DESKTOP FINDING DID NOT
 EXIST.** The first cut counted BOUNDING RECTS. `getBoundingClientRect()` returns geometry for

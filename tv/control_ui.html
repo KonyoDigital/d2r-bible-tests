@@ -1450,6 +1450,23 @@
          10.8px → 822px. Media-scoped, so it cannot affect ≥900px. */
       grid-template-rows: auto minmax(220px, 1fr) auto auto auto auto;
       grid-template-areas: "head" "stage" "dash" "rail" "tick" "foot";
+      /* ⚠⚠ v2608 — THE DASH COLLAPSED TO ZERO HERE AND TOOK THE WHOLE MAIN COLUMN WITH IT.
+         v1464 (above) declared the `dash` AREA and fixed a horizontal escape. The row it lands in
+         is `auto`, and `.home-dash` is `overflow: auto` — and a box whose overflow is not
+         `visible` has an automatic minimum size of ZERO. So the row sized to nothing. Measured at
+         375x800 and 640x800: dash height **0** holding **591px** of content, with `html` and
+         `body` both `overflow: hidden` and `documentElement.scrollHeight - innerHeight === 0`.
+         **No scrollbar, no way to reach it** — the chronicle, the TZ tracker and the missions were
+         rendered, laid out, and unreachable. At 901 and 1120 the same dash gets 635px and 618px,
+         so this was ≤900 only.
+         ⚠ AND IT IS WHY THE OVERLAP GATE LIED. That clipped subtree still has bounding rects, so
+         a rect-based overlap check counted 21 collisions among content nobody could see (v2607).
+         The stacked shell scrolls now, which is what a stacked layout should do, and the rows size
+         to their content instead of to zero. Media-scoped: ≥901px cannot be reached by this. */
+      /* ⚠ v2608 — the stacked shell must be able to SCROLL, or a row that does not fit is a row
+         nobody can reach. `html` and `body` are both `overflow: hidden` (this is a console, not a
+         page), so without this there is no scroller anywhere in the ancestry. */
+      overflow-y: auto;
     }
     .primary { flex-direction: row; flex-wrap: wrap; }
     button.act { flex: 1 1 30%; min-height: 64px; }
@@ -4571,7 +4588,19 @@
     body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
   }
   @media (max-width: 900px) {
-    body[data-state="off"] .shell { grid-template-rows: auto auto minmax(0, 1fr) auto auto auto; }
+    /* ⚠⚠ v2608 — `minmax(0, 1fr)` GAVE THE DASH NOTHING, BECAUSE `1fr` DISTRIBUTES *FREE* SPACE
+       AND THERE WAS NONE. Measured at 375x800 and 640x800 with data-state="off": the auto rows
+       come to head 150 + rail 521 + tick 38 + foot 32, which with the gaps fills the 800px shell
+       exactly — so the dash resolved to **0px while holding 591px of content**. `html` and `body`
+       are both `overflow: hidden`, and `documentElement.scrollHeight - innerHeight` was **0**:
+       no scrollbar, no way down. The chronicle, the TZ tracker and the missions were laid out,
+       rendered, and UNREACHABLE. At 901 and 1120 the same dash gets 635px and 618px, so this was
+       <=900 only — and the `1fr` made it look like a deliberate flex row rather than a starved one.
+       ⚠ AND IT IS WHY THE OVERLAP GATE LIED: that starved subtree still has bounding rects, so a
+       rect-based check counted 21 collisions among content nobody could see (v2607).
+       A FLOOR, not a fraction: the dash gets 45vh at minimum and the shell scrolls (see the
+       `overflow-y` added to the <=900 `.shell` above) instead of silently dropping a row. */
+    body[data-state="off"] .shell { grid-template-rows: auto auto minmax(45vh, 1fr) auto auto auto; }
     /* ⚠⚠ v2453 — THE STAGE HAD ZERO HEIGHT AT <=900px, AND HE FOUND THE CAUSE HIMSELF:
        "maybe it because i wasnt full screen." Two black-panel screenshots came from this.
 
