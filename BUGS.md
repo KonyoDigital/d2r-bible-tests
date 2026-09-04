@@ -18031,3 +18031,40 @@ the reviewer identified it as harmless itself, and it is.
 **3 sabotages, 3 RED:** restoring the four literals → `[] != ['f']`; judging numbers by truthiness →
 `['f'] != []`; removing the sequence coercion → the generator test errors.
 
+## v2545 — a line that looked like an assertion and could not fail
+
+**REG-545 — found by the review-after-ship pass on my own v2544 bytes.** `tv/test_printer.py`
+shipped this:
+
+```python
+self.assertEqual(r["walked"], 40 if r["walked"] else 0,
+                 "reels vanished when one owner reported none") if False else None
+```
+
+The trailing `if False else None` makes the whole statement a **no-op**. It never ran, and it read
+exactly like a check — the same shape as the `test_dom_probe` tautology: **a guard satisfied by its
+own text.** Replaced with the question it meant to ask, which now RUNS: the union of the owners is
+the shelf, so a reel absent from ONE owner must still appear. **Seen RED:** intersecting the owners
+instead of uniting them gives `0 != 40`.
+
+⚠ **And one concern of my own, refuted by measurement.** The printer joins `/api/heart`, and I
+expected it to cost the panel real time — the render target polls 12s and warms 10s, and a heart
+slower than that would start refusing. Measured cold, one call per process: **4.57s with the
+printer, 4.54s with it stubbed** — a marginal cost of about **0.03s**, because its seven owners were
+already being called by the heart's other readings. An earlier 2.20s reading was warm-cache and
+would have been an unsound comparison; it is not published as one.
+
+**HANDOFF QUEUE WORKED (his queued item, 2026-09-04).** Two briefs posted, each carrying a refutable
+claim, observation kept separate from conclusion, UNKNOWN as a first-class answer, and a
+don't-touch list:
+
+- **eyes (`#180`) — GB-L-11:** REG-539, the heart panel's 120px zero-ink band. It gets the pixel
+  statistics, the 20,081-character generator output, and the hypothesis I tested and **refuted**,
+  with no second guess offered. What it asks for is three rects only a real window can give.
+- **backend (`#179`):** its GB-B-56 claim about v2543 **verified at the SHA** rather than the
+  working tree and confirmed on its own terms; then the handoff — **`store_owners.audit()` had been
+  failing since v2527 with nothing reading it**, and the finding is not the five undeclared modules
+  but that a working guard sat red for seventeen versions. It is asked for an INDEPENDENT method to
+  find other unread `audit()`-style readings, explicitly not my method repeated, because two of my
+  own attempts to count store writers returned zero and both were measuring the instrument.
+

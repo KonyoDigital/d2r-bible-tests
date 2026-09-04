@@ -94,8 +94,17 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
                                           "byDecider": {}, "contentRoutes": {}, "policyRoutes": {},
                                           "distinctContentRoutes": 0, "walked": 0, "why": "x"}
             r = P.stream()
-            self.assertEqual(r["walked"], 40 if r["walked"] else 0,
-                             "reels vanished when one owner reported none") if False else None
+            # ⚠⚠ A LINE THAT LOOKED LIKE AN ASSERTION AND COULD NOT FAIL SHIPPED HERE, caught by
+            # the review-after-ship pass on my own v2544 bytes. It read
+            #     self.assertEqual(...) if False else None
+            # — the `if False` makes the whole expression a no-op, so it never ran while reading
+            # exactly like a check. That is the same shape as the tautology REG in test_dom_probe:
+            # a guard satisfied by its own text. The real question it meant to ask is below, and it
+            # RUNS: an owner reporting nothing must not shrink the shelf.
+            self.assertEqual(
+                r["walked"], len(P._by_reel(__import__("reel_river").river())),
+                "an owner reported no reels and the printer's shelf shrank with it — the union of "
+                "the owners is the shelf, so a reel absent from ONE of them must still appear")
             says = set(row["stations"]["route"]["say"] for row in r["rows"])
             self.assertEqual(says, {"UNKNOWN"},
                              "an owner reported nothing and the printer invented a route: %s" % says)
