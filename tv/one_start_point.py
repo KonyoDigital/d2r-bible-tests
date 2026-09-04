@@ -138,22 +138,32 @@ def start_points(hist=None):
         d = os.path.join(hist, name)
         if not (name.startswith("reel_") and os.path.isdir(d)):
             continue
+        # ⚠⚠ REG-549 — EVERY ROW CARRIES THE SAME KEYS, AND THESE DID NOT. The two refusal rows
+        # dropped `frames` and `blankFlagged` while the normal row carried them, so a consumer
+        # walking the rows broke on exactly the reels whose birth could not be read.
+        #
+        # ⚠⚠ AND IT WAS LATENT: his shelf has no reel with a missing or unparseable index, so every
+        # LIVE reading showed one uniform shape and nothing would ever have revealed it. It took a
+        # CONSTRUCTED tree to see. A gate is blind to what his data never exercises, and "all rows
+        # agree today" is a fact about his corpus, not about this function.
+        def _row(door, why, fr=()):
+            return {"reel": name, "door": door, "why": why, "frames": len(fr),
+                    "blankFlagged": sum(1 for r in fr
+                                        if isinstance(r, dict) and r.get("blank"))}
+
         p = os.path.join(d, "index.json")
         if not os.path.isfile(p):
-            rows.append({"reel": name, "door": "UNKNOWN",
-                         "why": "no index.json — the reel exists and nothing records its birth"})
+            rows.append(_row("UNKNOWN",
+                             "no index.json — the reel exists and nothing records its birth"))
             continue
         try:
             idx = json.loads(io.open(p, encoding="utf-8").read())
         except Exception as e:
-            rows.append({"reel": name, "door": "UNREADABLE",
-                         "why": "the index would not parse (%s)" % str(e)[:70]})
+            rows.append(_row("UNREADABLE", "the index would not parse (%s)" % str(e)[:70]))
             continue
         door, dwhy = _door_of(idx)
         fr = idx.get("frames") if isinstance(idx.get("frames"), list) else []
-        rows.append({"reel": name, "door": door, "why": dwhy, "frames": len(fr),
-                     "blankFlagged": sum(1 for r in fr
-                                         if isinstance(r, dict) and r.get("blank"))})
+        rows.append(_row(door, dwhy, fr))
     counts = {}
     for r in rows:
         counts[r["door"]] = counts.get(r["door"], 0) + 1

@@ -18167,3 +18167,37 @@ shrinkage, not growth, and its own message says so.
 stub for the real call → `'UNEXERCISED' == 'UNEXERCISED' … the stub is not emptying what this probe
 reads`.
 
+## v2548 — the eighth instance, and this one his data could never have shown
+
+**REG-549 — found by generalising the fix for REG-547 instead of leaving it in one file.**
+
+REG-547 was a shape defect nested below the reading level, and I fixed it **by hand, in
+`printer.py` only** — which leaves every other nested reading unguarded. So the law was extended to
+ask it generically: **within one reading, every row must carry the same keys.** A row that drops a
+key on its refusal path breaks a consumer walking the list on **exactly the rows that went wrong**.
+
+The first thing it found was in `one_start_point`:
+
+```
+recorder            keys = blankFlagged · door · frames · reel · why
+UNKNOWN, UNREADABLE keys = door · reel · why
+missing from some rows: frames, blankFlagged
+```
+
+⚠⚠ **AND IT WAS LATENT — his shelf could never have revealed it.** He has no reel with a missing or
+unparseable `index.json`, so every LIVE reading shows one uniform shape and the generic law passes
+on his corpus. **It took a CONSTRUCTED tree to see.** *"All rows agree today"* is a fact about his
+footage, not about the function, so the law is driven by BOTH: the live shelf for regression, and a
+built tree with all three refusal paths for the branches his data never exercises.
+[[gate-blind-to-unexercised-input]]
+
+**2 sabotages, 2 RED:** restoring the thin refusal row → `2 != 1 … a reel whose birth could not be
+read gets a THINNER row`; making one probe drop a key on its policy rows → `per_reel_routes.rows has
+2 different row shapes; ['route'] are missing from some rows`. The constructed case also carries a
+BASELINE asserting all three doors are actually reached, or it would be checking one path three
+times.
+
+**The tally, all mine, all today, all one class:** REG-534 → 537 → 540 → 541 → 544 → 546 → 547 →
+549. Three of the last four were found by a machine rather than by reading, which is the only part
+of this that is going the right way.
+

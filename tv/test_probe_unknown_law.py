@@ -235,6 +235,62 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
                 "exactly the path that means NOTHING WAS ESTABLISHED. A shape that changes with "
                 "the verdict is not a shape." % (name, missing))
 
+    def test_every_ROW_in_a_reading_agrees_with_its_siblings_on_shape(self):
+        """⚠⚠ REG-549, and it closes the mesh one level down from REG-547.
+
+        The reading-level law compares TOP-LEVEL key sets. REG-547 was a shape defect nested two
+        levels below that, and I fixed it by hand in one file — which leaves every OTHER nested
+        reading unguarded. This asks it generically: within one reading, every row must carry the
+        same keys, because a row that drops a key on its refusal path breaks a consumer walking
+        the list on exactly the rows that went wrong.
+
+        ⚠⚠ AND THE FIRST DEFECT IT FOUND WAS LATENT. `one_start_point` dropped `frames` and
+        `blankFlagged` on its two refusal rows — and **his shelf has no reel with a missing or
+        unparseable index**, so every LIVE reading showed one uniform shape and nothing would ever
+        have revealed it. It took a CONSTRUCTED tree. *All rows agree today* is a fact about his
+        corpus, not about the function, so this law is driven by BOTH.
+        """
+        for name, ask in FULL:
+            r = ask()
+            for key in ("rows", "stores"):
+                rows = [x for x in (r.get(key) or []) if isinstance(x, dict)]
+                if len(rows) < 2:
+                    continue
+                shapes = set(frozenset(x) for x in rows)
+                if len(shapes) > 1:
+                    u = set().union(*[set(x) for x in shapes])
+                    i = set.intersection(*[set(x) for x in shapes])
+                    self.fail("%s.%s has %d different row shapes; %s are missing from some rows. "
+                              "A consumer walking the list breaks on exactly the rows that went "
+                              "wrong." % (name, key, len(shapes), sorted(u - i)))
+
+    def test_a_CONSTRUCTED_refusal_row_keeps_the_full_shape(self):
+        """⚠ The law above runs on HIS shelf, which exercises only the happy path — so the refusal
+        rows are built here on purpose. This is the case that found REG-549."""
+        import json
+        import shutil
+        import tempfile
+        import one_start_point as OSP
+        d = tempfile.mkdtemp(prefix="probe_shape_")
+        self.addCleanup(shutil.rmtree, d, True)
+        for nm, idx in (("reel_s_1", {"sessionId": "s_1", "n": 1,
+                                      "frames": [{"f": "a.jpg", "ts": 1}]}),
+                        ("reel_s_2", None),
+                        ("reel_s_3", "{ not json")):
+            os.makedirs(os.path.join(d, nm))
+            if idx is not None:
+                with open(os.path.join(d, nm, "index.json"), "w") as fh:
+                    fh.write(idx if isinstance(idx, str) else json.dumps(idx))
+        rows = OSP.start_points(d)["rows"]
+        self.assertEqual(len(rows), 3, "the constructed tree was not walked: %s" % rows)
+        doors = sorted(r["door"] for r in rows)
+        self.assertEqual(doors, ["UNKNOWN", "UNREADABLE", "recorder"],
+                         "BASELINE: the three refusal paths were not all reached: %s" % doors)
+        shapes = set(frozenset(r) for r in rows)
+        self.assertEqual(len(shapes), 1,
+                         "a reel whose birth could not be read gets a THINNER row than one that "
+                         "could: %s" % [sorted(x) for x in shapes])
+
     def test_BASELINE_these_probes_can_reach_a_real_verdict(self):
         """⚠⚠ Or the law above passes on four functions that answer UNKNOWN to everything, which
         would be a guard proving the opposite of what it claims. Each is handed real input and must
