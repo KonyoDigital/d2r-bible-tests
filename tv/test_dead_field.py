@@ -267,6 +267,37 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
         self.assertEqual(r["state"], "DEAD_FIELDS", r["why"])
         self.assertEqual(r["judged"], 40, r)
 
+    def test_the_HEADLINE_agrees_with_the_STATE(self):
+        """⚠⚠ REG-553. With the filesystem broken, `state()` returned `state: UNKNOWN`, the store's
+        own `why` said *"would not read"* — and the TOP-LEVEL `why` announced *"1 store(s) checked,
+        no field is recorded-but-never-filled"*. **A clean bill for a check that never happened.**
+        A reader sees the headline. Two sentences on one reading disagreeing is the same defect as
+        a badge and a diagram disagreeing on screen, one object smaller.
+
+        ⚠ This guard did not exist when the fix shipped — the sabotage restoring the defect went
+        GREEN, because the cross-probe law checks `state` and never reads the prose. Third time
+        today a sabotage has shown me a fix with no test behind it.
+        """
+        import builtins
+        import io as _io
+        import os as _os
+        rl, ro, ri = _os.listdir, builtins.open, _io.open
+
+        def _boom(*a, **k):
+            raise PermissionError("denied")
+
+        try:
+            _os.listdir, builtins.open, _io.open = _boom, _boom, _boom
+            r = DF.state()
+        finally:
+            _os.listdir, builtins.open, _io.open = rl, ro, ri
+        self.assertEqual(r["state"], "UNKNOWN", r)
+        self.assertNotIn(
+            "no field is recorded-but-never-filled", r["why"],
+            "the headline gives a clean bill while the state says UNKNOWN: %r" % r["why"])
+        self.assertIn("not a clean bill", r["why"],
+                      "the headline does not say that nothing was established: %r" % r["why"])
+
     def test_it_reports_and_refuses_nothing(self):
         """Nothing here fails a build or blocks a button — it is EVIDENCE, like CF-13's reach."""
         r = DF.state()

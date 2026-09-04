@@ -241,12 +241,26 @@ def state():
         worst = "DEAD_FIELDS"
     elif all(s["state"] == "UNKNOWN" for s in stores) and stores:
         worst = "UNKNOWN"
-    return {
-        "ok": True, "state": worst, "stores": stores, "dead": total_dead,
-        "why": (("%d field(s) across %d store(s) are recorded on every row and filled on none"
-                 % (total_dead, len(stores))) if total_dead else
-                ("%d store(s) checked, no field is recorded-but-never-filled" % len(stores))),
-    }
+    # ⚠⚠ REG-553 — THE HEADLINE SAID CLEAN WHILE THE STATE SAID UNKNOWN. Measured with the
+    # filesystem broken: `state` came back UNKNOWN, the store's own `why` said "would not read",
+    # and the top-level `why` announced *"1 store(s) checked, no field is
+    # recorded-but-never-filled"* — a clean bill for a check that never happened. A reader sees the
+    # headline. Two sentences on one reading disagreeing is the same defect as a badge and a
+    # diagram disagreeing on screen, one object smaller. The headline now reports the UNKNOWN
+    # stores first, because that is the fact that changes what the rest of it is worth.
+    unknown = [x["store"] for x in stores if x["state"] == "UNKNOWN"]
+    if total_dead:
+        why = ("%d field(s) across %d store(s) are recorded on every row and filled on none"
+               % (total_dead, len(stores)))
+    elif unknown:
+        why = ("nothing was established for %d of %d store(s) (%s) — that is UNKNOWN, not a clean "
+               "bill" % (len(unknown), len(stores), ", ".join(unknown)))
+    else:
+        why = "%d store(s) checked, no field is recorded-but-never-filled" % len(stores)
+    if unknown and total_dead:
+        why += (" \u26a0 and nothing was established for %d other store(s) (%s)"
+                % (len(unknown), ", ".join(unknown)))
+    return {"ok": True, "state": worst, "stores": stores, "dead": total_dead, "why": why}
 
 
 def main(argv):

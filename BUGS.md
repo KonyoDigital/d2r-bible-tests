@@ -18294,3 +18294,35 @@ called in the same iteration), and the shadowed `why` parameter has no observabl
 cross-probe law; not counting the reel-named non-directory → `0 != 1`; counting ordinary skips →
 the cry-wolf baseline fires.
 
+## v2552 — the headline that gave a clean bill for a check that never happened
+
+**REG-553 — found by the review-after-ship pass on the pushed v2550–v2551 bytes, by measuring what
+the probes actually SAY under a broken filesystem instead of assuming the new law covered it.**
+
+⚠⚠ **THE HEADLINE DISAGREED WITH ITS OWN STATE.** With `open`/`listdir` raising, `dead_field.state()`
+returned `state: UNKNOWN`, the store's own `why` correctly said *"reel_tombstones.json would not
+read (denied)"* — and the **top-level `why` announced *"1 store(s) checked, no field is
+recorded-but-never-filled"***. A clean bill for a check that never happened. **A reader sees the
+headline.** Two sentences on one reading disagreeing is the same defect as a badge and a diagram
+disagreeing on screen, one object smaller. The headline reports the UNKNOWN stores first now.
+
+⚠⚠ **AND THE UNREADABLE-SOURCE LAW WAS TOO WEAK TO CATCH IT.** It required an ANSWER — any dict —
+so **a probe that swallowed everything and answered `OK` on an unreadable filesystem would have
+PASSED**. That is the unmeasured-reads-as-clean defect, *inside the law written to prevent it*. It
+requires UNKNOWN now.
+
+⚠ **Which immediately produced a FALSE POSITIVE, and the fix was to scope the claim rather than
+weaken it.** `dead_field.dead_fields` is handed rows IN MEMORY and never touches a filesystem, so
+`DEAD_FIELDS` is the correct answer for its input; breaking `open` changes nothing for it. It is
+named in `IN_MEMORY` with the reason, and a guard checks the exemption is real — that the name is
+actually in `FULL`, and that its filesystem-reading sibling `dead_field.state` IS covered. **An
+exemption nobody can see is how a law quietly stops covering things.** `dead_field.state()` was not
+in the law at all until this version.
+
+⚠ **THIRD TIME TODAY A SABOTAGE HAS SHOWN ME A FIX WITH NO TEST BEHIND IT.** Restoring the headline
+defect went GREEN, because the cross-probe law reads `state` and never the prose. The guard exists
+now and fails with the clean-bill sentence quoted back at it.
+
+**3 sabotages, 3 RED:** the headline giving a clean bill under UNKNOWN; a stale `IN_MEMORY` entry
+naming something not in `FULL`; dropping the filesystem-reading entry point from the law.
+

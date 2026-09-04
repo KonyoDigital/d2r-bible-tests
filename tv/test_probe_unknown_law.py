@@ -48,6 +48,18 @@ def _nothing_for_funnel():
 
 #: Each entry is a probe that publishes a `state`, and a callable that asks it with NOTHING TO
 #: READ. Each is here because a wrong CLEAN from it would be believed.
+def _nothing_for_dead_field_state():
+    """Point the store resolver at nothing and `state()` has no store to read."""
+    import dead_field as DF
+    import reel_retention as RR
+    real = RR._tombstone_path
+    try:
+        RR._tombstone_path = lambda *a, **k: os.path.join(HERE, ".no_such_store_ever.json")
+        return DF.state()
+    finally:
+        RR._tombstone_path = real
+
+
 def _nothing_for_printer():
     """Empty both of the printer's spine owners and it has nothing to walk."""
     import one_start_point as OSP
@@ -99,6 +111,7 @@ PROBES = (
     ("one_funnel.funnel", _nothing_for_funnel),
     ("per_reel_routes.routes", lambda: __import__("per_reel_routes").routes([])),
     ("dead_field.dead_fields", lambda: __import__("dead_field").dead_fields(None)),
+    ("dead_field.state", _nothing_for_dead_field_state),
     ("printer_reach.report", _nothing_for_printer_reach),
     ("printer.stream", _nothing_for_printer),
 )
@@ -113,7 +126,18 @@ FULL = (
      lambda: __import__("dead_field").dead_fields([{"a": 1, "z": None} for _ in range(40)])),
     ("printer_reach.report", lambda: __import__("printer_reach").report()),
     ("printer.stream", lambda: __import__("printer").stream()),
+    # ⚠ REG-553 — `dead_fields` takes rows in memory, so the unreadable-source law never touched a
+    # filesystem for it. `state()` is the entry point that actually READS, and it is the one a
+    # consumer calls. Both are covered now.
+    ("dead_field.state", lambda: __import__("dead_field").state()),
 )
+
+#: ⚠ Probes whose FULL entry is handed data IN MEMORY and never touches a filesystem. The
+#: unreadable-source law cannot ask them anything — breaking `open` changes nothing about a list
+#: that is already in hand — so requiring UNKNOWN of them would be requiring a wrong answer. Named
+#: with the reason rather than silently skipped, because an exemption nobody can see is how a law
+#: quietly stops covering things. `dead_field.state` IS covered: it is the entry point that reads.
+IN_MEMORY = ("dead_field.dead_fields",)
 
 #: ⚠ NOT ON THE LIST, WITH THE REASON — because a probe missing silently is the failure this file
 #: exists to prevent, and a probe missing with a REASON is a decision anyone can re-open:
@@ -160,6 +184,19 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
             len(PROBES), 5,
             "a probe was removed from this law. Adding one is free; removing one needs a reason "
             "written down, because the run stays green either way.")
+
+    def test_every_IN_MEMORY_exemption_is_real(self):
+        """⚠ An exemption is a hole in a law, so it has to be checkable. Each name in IN_MEMORY
+        must actually be in FULL (or it is a stale entry silently exempting nothing) and must NOT
+        be the filesystem-reading sibling — `dead_field.state` reads and is covered; only
+        `dead_field.dead_fields`, handed rows in memory, is exempt."""
+        names = [n for n, _ in FULL]
+        for n in IN_MEMORY:
+            self.assertIn(n, names, "%s is exempted but is not in FULL — a stale exemption "
+                                    "silently covers nothing" % n)
+        self.assertIn("dead_field.state", names,
+                      "the filesystem-reading entry point is not in the law, so the exemption for "
+                      "its in-memory sibling leaves that module unasked entirely")
 
     def test_every_probe_left_OUT_carries_a_reason(self):
         """⚠⚠ A probe missing from PROBES silently is the exact failure this file exists to
@@ -321,6 +358,19 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
             finally:
                 os.listdir, builtins.open, io.open = real_listdir, real_open, real_io
             self.assertIsInstance(r, dict, "%s did not return a reading" % name)
+            # ⚠⚠ REG-553 — REQUIRING A DICT WAS NOT ENOUGH. A probe that swallows everything and
+            # answers OK on an unreadable filesystem would have PASSED this law — the
+            # unmeasured-reads-as-clean defect, inside the law written to prevent it. Found by
+            # measuring what the probes actually SAY under a broken filesystem rather than
+            # assuming the law covered it.
+            if name in IN_MEMORY:
+                continue          # nothing on disk to break; see IN_MEMORY
+            st = r.get("state") or r.get("ladder")
+            self.assertEqual(
+                st, "UNKNOWN",
+                "%s answered %r when NOTHING on the filesystem could be read. Nothing established "
+                "is UNKNOWN; any other word is a verdict over evidence that was never gathered. "
+                "why=%r" % (name, st, str(r.get("why"))[:140]))
 
     def test_BASELINE_these_probes_can_reach_a_real_verdict(self):
         """⚠⚠ Or the law above passes on four functions that answer UNKNOWN to everything, which
