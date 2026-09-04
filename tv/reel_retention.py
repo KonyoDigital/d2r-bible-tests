@@ -84,8 +84,18 @@ def _load_state(path):
 def _entry(ledger, reel):
     """Reels are keyed BOTH ways in these files — `reel_<sid>` and bare `<sid>`. Checking one form
     only means a naming mismatch reads as 'never swept', which for a DELETER is the safe direction
-    but for the report is a lie."""
-    return ledger.get(reel) or ledger.get(reel.replace("reel_", "", 1))
+    but for the report is a lie.
+
+    ⚠⚠ REG-561 — AND `a or b` DEFEATED THAT FIX FOR A FALSY ENTRY. `ledger.get(x) or ledger.get(y)`
+    treats a present-but-empty record as absent, and it does so ASYMMETRICALLY: measured, `{}`
+    stored under `reel_s_1` returned None ("never swept") while the SAME `{}` stored under `s_1`
+    returned it. **The same data under two spellings gave two different answers**, which is exactly
+    the naming mismatch this function exists to remove. Membership, not truthiness.
+    """
+    if reel in ledger:
+        return ledger[reel]
+    bare = reel.replace("reel_", "", 1)
+    return ledger[bare] if bare in ledger else None
 
 
 def _dir_mb(path):

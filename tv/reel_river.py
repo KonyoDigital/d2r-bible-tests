@@ -123,7 +123,15 @@ def river(reel=None):
         if reel and reel not in name:
             continue
         stage = str(r.get("stage") or "")
-        row = seals.get(_session_of(name)) or seals.get(name)
+        # ⚠⚠ REG-561 — `a or b` TREATS AN EXISTING-BUT-FALSY SEAL AS ABSENT. A stored seal of `{}`
+        # made this fall through to the second lookup, miss too, and report *"no seal exists for
+        # this reel, so the frame question is UNASKED"* — which is affirmatively WRONG: a seal
+        # exists and the door should have been asked. Measured: with `seals = {"s_1": {}}` the row
+        # came back frameAnswer=None on that exact message. His store holds no falsy seal today, so
+        # this is insurance — but the message is a claim about his footage and it would have been
+        # false. Membership, not truthiness. [[unknown-stays-unknown]]
+        _sid = _session_of(name)
+        row = seals[_sid] if _sid in seals else (seals[name] if name in seals else None)
         if FA is None or seal_why:
             frame_answer, frame_why = None, (seal_why or "the seal store could not be read")
         elif row is None:

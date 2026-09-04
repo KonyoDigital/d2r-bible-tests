@@ -503,5 +503,29 @@ class TestV2272ExtractedFirstThenPruned(unittest.TestCase):
             self.assertFalse(ok, "a %r seal was accepted" % (junk,))
 
 
+class AFalsyLedgerEntryIsPresentNotAbsent(unittest.TestCase):
+    """⚠⚠ REG-561 — `ledger.get(x) or ledger.get(y)` TREATED A PRESENT-BUT-EMPTY RECORD AS ABSENT,
+    and did it ASYMMETRICALLY. Measured: `{}` stored under `reel_s_1` returned None — *never
+    swept* — while the SAME `{}` stored under `s_1` returned it. **The same data under two
+    spellings gave two different answers**, which is exactly the naming mismatch `_entry` exists to
+    remove, and this is the DELETER's ledger.
+    """
+
+    def test_a_falsy_entry_reads_the_same_under_BOTH_spellings(self):
+        import reel_retention as RR
+        a = RR._entry({"reel_s_1": {}}, "reel_s_1")
+        b = RR._entry({"s_1": {}}, "reel_s_1")
+        self.assertEqual(a, b, "the same empty entry reads differently depending on which spelling "
+                               "it was stored under: %r vs %r" % (a, b))
+        self.assertIsNotNone(a, "a present-but-empty entry reads as 'never swept'")
+
+    def test_BASELINE_a_genuinely_absent_entry_is_still_None(self):
+        """⚠ Or the fix turned every miss into a find, which for a DELETER is the dangerous
+        direction — its own docstring says 'never swept' is the safe answer."""
+        import reel_retention as RR
+        self.assertIsNone(RR._entry({}, "reel_s_1"))
+        self.assertIsNone(RR._entry({"reel_other": {"pages": 1}}, "reel_s_1"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -18552,3 +18552,38 @@ its reason.
 **2 sabotages, 2 RED:** restoring the dropped keys — which the law **now catches and previously
 could not** — and removing `reel_river` from the law again, which the floor now refuses.
 
+## v2560 — a seal that exists, reported as one that does not
+
+**REG-561 — the cold look at v2558, and the sweep it triggered reached the deleter.**
+
+⚠⚠ **`seals.get(a) or seals.get(b)` TREATS AN EXISTING-BUT-FALSY SEAL AS ABSENT.** A stored `{}`
+fell through both lookups and the row reported *"no seal exists for this reel, so the frame question
+is UNASKED"* — **affirmatively wrong**, because a seal exists and the frame door should have been
+asked. His store holds no falsy seal today, so this is insurance — **but the message is a claim
+about his footage and it would have been false.**
+
+⚠⚠ **AND SWEEPING THE CLASS REACHED THE DELETER.** `reel_retention._entry` — the lookup the prune
+uses to ask whether a reel was swept — had the same shape, and there it was **ASYMMETRIC**:
+
+```
+{} stored under "reel_s_1"  ->  None   ("never swept")
+{} stored under "s_1"       ->  {}     (found)
+```
+
+**The same data under two spellings gave two different answers** — which is precisely the naming
+mismatch that function exists to remove, and its own docstring says *"checking one form only means a
+naming mismatch reads as 'never swept'… for the report is a lie."* The `or` defeated the fix the
+author had already written. Membership, not truthiness, in both places.
+
+⚠ **REFUTED:** it claimed `bool(covers)` collapses a `None` from `seal_covers_extraction`. Measured
+across every return path — it returns only `True` or `False`.
+
+⚠ **AND THE WIDER SWEEP WAS DELIBERATELY NOT ACTED ON.** `X.get(a) or X.get(b)` appears at **130
+sites**, and nearly all are legitimate alias-fallbacks on SCALARS (`captureTs` or `ts`), where a
+falsy value genuinely means *use the other*. The dangerous sub-shape is a **RECORD** looked up under
+two names and then tested for presence — two sites, both fixed. Reporting 130 would be cry-wolf at
+scale; the count is recorded instead of converted into debt.
+
+**4 sabotages, 4 RED**, including both directions on the deleter: restoring the falsy-defeated
+lookup, and turning every miss into a find — the dangerous direction its own docstring names.
+

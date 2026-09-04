@@ -193,6 +193,32 @@ class AGapIsOnlyASameQuestionDisagreement(unittest.TestCase):
         self.assertEqual(dropped, 0,
                          "the printer still had to drop %d row(s) the river emitted" % dropped)
 
+    def test_a_seal_that_EXISTS_but_is_falsy_is_ASKED_not_reported_absent(self):
+        """⚠⚠ REG-561, from a cold review of the shipped bytes. `seals.get(a) or seals.get(b)`
+        treats an existing-but-falsy seal as absent: a stored `{}` fell through both lookups and
+        the row reported *"no seal exists for this reel, so the frame question is UNASKED"* —
+        **affirmatively wrong**, because a seal exists and the frame door should have been asked.
+
+        ⚠ His store holds NO falsy seal today, so this is insurance rather than a live correction —
+        but the message is a claim about his footage, and it would have been false.
+        """
+        r = self._run([{"reel": "reel_s_1", "stage": "releasable"}], {"s_1": {}})
+        row = r["rows"][0]
+        self.assertIsNot(row["frameAnswer"], None,
+                         "a seal that EXISTS was reported as absent, so the frame door was never "
+                         "asked: %r" % row["frameWhy"])
+        self.assertNotIn("no seal exists", row["frameWhy"], row["frameWhy"])
+
+    def test_BASELINE_a_genuinely_absent_seal_still_reads_UNASKED(self):
+        """⚠ Or the fix turned every missing seal into a refusal, which is the opposite error and
+        the one that matters more — 25 of his 40 reels have no seal at all."""
+        r = self._run([{"reel": "reel_s_ZZZ", "stage": "releasable"}], {"s_other": {"ts": 1}})
+        row = r["rows"][0]
+        self.assertIsNone(row["frameAnswer"],
+                          "a reel with genuinely no seal now reports %r — inventing an answer "
+                          "nobody gave" % (row["frameAnswer"],))
+        self.assertIn("UNASKED", row["frameWhy"])
+
     def test_a_stage_with_no_declared_decider_IS_a_gap(self):
         """⚠ BASELINE for the whole file: `gaps` must be reachable, or the assertions above are
         just describing a function that can never report anything."""
