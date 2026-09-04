@@ -143,17 +143,38 @@ def dead_fields(rows, min_rows=MIN_ROWS):
         for k, v in r.items():
             if v is not None and v != "" and v != []:
                 filled[k] = filled.get(k, 0) + 1
+    # ⚠⚠ REG-541 — THE FLOOR MUST COUNT ROWS THAT COULD BE JUDGED, NOT ROWS THAT EXISTED, and the
+    # first cut of the skip counted them the wrong way. Measured on the version that shipped:
+    #
+    #     40 rows, ALL of them non-objects  ->  state OK, why "every field present on all 40
+    #                                           row(s) carries a value somewhere"
+    #
+    # A wholly unreadable store reported CLEAN, with a sentence that is flatly false, from the one
+    # module whose entire job is refusing to call the unmeasured clean. `n` was the row COUNT and
+    # the judging used `on_every`, which stays None when nothing was a dict — so `dead` came back
+    # empty and empty read as OK. The denominator is now what was actually judged, the floor is
+    # applied to THAT, and the skip is named in EVERY branch rather than only when something was
+    # already wrong. [[unknown-stays-unknown]]
+    judged = n - skipped
+    _skip_note = ((" \u26a0 %d of %d row(s) were not objects and could not be judged."
+                   % (skipped, n)) if skipped else "")
+    if judged < min_rows:
+        return {"state": "UNKNOWN", "dead": [], "checked": n, "skipped": skipped,
+                "judged": judged, "fields": [], "filled": {},
+                "why": ("only %d of %d row(s) could be judged, under the %d-row floor — a verdict "
+                        "here would be about the rows that happened to parse, not about the "
+                        "store.%s" % (judged, n, min_rows, _skip_note))}
     dead = sorted(k for k in (on_every or ()) if not filled.get(k))
     return {
         "state": "DEAD_FIELDS" if dead else "OK",
-        "dead": dead, "checked": n, "skipped": skipped, "fields": sorted(on_every or ()),
+        "dead": dead, "checked": n, "skipped": skipped, "judged": judged,
+        "fields": sorted(on_every or ()),
         "filled": {k: filled.get(k, 0) for k in sorted(on_every or ())},
-        "why": (("%d field(s) present on all %d row(s) and filled on NONE: %s. A field that never "
-                 "once carried a value is not a field, it is a typo with a comma after it.%s"
-                 % (len(dead), n, ", ".join(dead),
-                    (" \u26a0 %d row(s) were not objects and could not be judged." % skipped)
-                    if skipped else "")) if dead else
-                "every field present on all %d row(s) carries a value somewhere" % n),
+        "why": (("%d field(s) present on all %d judged row(s) and filled on NONE: %s. A field that "
+                 "never once carried a value is not a field, it is a typo with a comma after it.%s"
+                 % (len(dead), judged, ", ".join(dead), _skip_note)) if dead else
+                ("every field present on all %d judged row(s) carries a value somewhere.%s"
+                 % (judged, _skip_note))),
     }
 
 

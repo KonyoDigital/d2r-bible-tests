@@ -17879,3 +17879,38 @@ dead is the exact zero-vs-None collapse this whole file exists to prevent.
 the test errors; adopting the reviewer's claim as `if v:` → `['z'] != []`; dropping unjudgeable rows
 silently instead of counting them → `0 != 1`.
 
+## v2541 — the unreadable store that reported itself clean
+
+**REG-541 — found by the review-after-ship pass on the pushed v2540 bytes, and I shipped it IN THE
+FIX FOR THE PREVIOUS INSTANCE OF THE SAME CLASS.** v2540 taught `dead_fields()` to skip rows that
+are not objects. It counted them, and then judged against the wrong denominator. Measured on the
+version that went out:
+
+```
+40 rows, ALL of them non-objects  ->  state OK
+                                      "every field present on all 40 row(s) carries a value somewhere"
+39 garbage rows + 1 good row      ->  state OK, skipped 39, no mention of the 39
+```
+
+**A wholly unreadable store reported CLEAN**, with a sentence that is flatly false, from the one
+module whose entire job is refusing to call the unmeasured clean. The mechanism: `n` was the row
+COUNT while the judging used `on_every`, which stays `None` when nothing was a dict — so `dead`
+came back empty, and **empty read as OK**.
+
+⚠ And the skip note was appended only to the DEAD_FIELDS message, so a clean verdict over a
+partly-unreadable store said nothing at all about the rows it could not read.
+
+**Fixed:** the denominator is `judged = n - skipped`, the floor is applied to THAT, and the skip is
+named in **every** branch. 40 unreadable rows now read `UNKNOWN · only 0 of 40 row(s) could be
+judged`. His live store is unaffected — 410 judged, `startedTs` still the one dead field.
+
+**Guard:** three laws in `tv/test_dead_field.py`. **2 sabotages, 2 RED:** putting the floor back on
+the row count → `'OK' != 'UNKNOWN'`; dropping the skip note from the clean branch → `'could not be
+judged' not found in 'every field present on all 39 judged row(s) carries a value somewhere'`.
+
+⚠⚠ **THIS IS THE FOURTH INSTANCE TODAY OF FIXING ONE THING AND SHIPPING THE SAME CLASS BESIDE IT** —
+REG-537 was a stale copy written one line below the fix for REG-534; this is an unmeasured-reads-as-
+clean written inside the fix for a crash. The pattern is not carelessness about the rule, it is that
+**the new code is not re-asked the question the rule exists to ask.** Recorded here rather than
+resolved, because the fix for that is a habit and not a patch.
+

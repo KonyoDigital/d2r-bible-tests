@@ -175,6 +175,38 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
             r = DF.dead_fields(self._rows(40, z=val))
             self.assertEqual(r["dead"], ["z"], "%r should read as nothing recorded" % (val,))
 
+    def test_a_WHOLLY_unreadable_store_is_UNKNOWN_not_OK(self):
+        """⚠⚠ REG-541, and I shipped it in the fix for the previous instance of this same class.
+        Measured on the version that went out: 40 rows, ALL of them non-objects, reported
+
+            state OK · "every field present on all 40 row(s) carries a value somewhere"
+
+        a sentence that is flatly false, from the one module whose whole job is refusing to call
+        the unmeasured clean. `n` was the row COUNT while the judging used `on_every`, which stays
+        None when nothing was a dict — so `dead` came back empty and empty read as OK.
+        """
+        r = DF.dead_fields([None] * 40)
+        self.assertEqual(r["state"], "UNKNOWN",
+                         "a store where not one row could be read reported %r: %s"
+                         % (r["state"], r["why"]))
+        self.assertEqual(r["judged"], 0, r)
+        self.assertNotIn("carries a value somewhere", r["why"],
+                         "it still claims every field carries a value, over rows it never read")
+
+    def test_the_FLOOR_counts_rows_that_could_be_JUDGED_not_rows_that_existed(self):
+        """⚠ 39 garbage rows and one good one is a 1-row sample wearing a 40-row denominator."""
+        r = DF.dead_fields([None] * 39 + [{"a": 1, "b": 2}])
+        self.assertEqual(r["state"], "UNKNOWN", r["why"])
+        self.assertEqual((r["judged"], r["checked"], r["skipped"]), (1, 40, 39), r)
+
+    def test_the_SKIP_is_named_in_every_branch_not_only_when_something_is_wrong(self):
+        """⚠ The first cut appended the skip note only to the DEAD_FIELDS message, so a clean
+        verdict over a partly-unreadable store said nothing about the rows it could not read."""
+        r = DF.dead_fields(self._rows(39) + [None])          # every field filled -> OK branch
+        self.assertEqual(r["state"], "OK", r["why"])
+        self.assertIn("could not be judged", r["why"],
+                      "a clean verdict hid the skipped row: %r" % r["why"])
+
     def test_it_reports_and_refuses_nothing(self):
         """Nothing here fails a build or blocks a button — it is EVIDENCE, like CF-13's reach."""
         r = DF.state()
