@@ -18629,3 +18629,32 @@ The same shape as the PIPESTATUS slip earlier today: a command whose failure I a
 Re-stamped without the apostrophe. **The gate refused the push for exactly the right reason, and it
 is the only thing that caught it.**
 
+## v2562 — one lookup, two modules, opposite precedence
+
+**REG-563 — the cold look at v2560.**
+
+⚠⚠ **THE DELETER AND THE RIVER PICKED DIFFERENT RECORDS FOR THE SAME REEL.** Reel stores are keyed
+both ways (`reel_<sid>` and bare `<sid>`), and the two readers disagreed on which to prefer:
+
+```
+store = {"reel_s_1": {"who": "prefixed"}, "s_1": {"who": "bare"}}
+reel_retention._entry(store, "reel_s_1")  ->  {"who": "prefixed"}
+reel_river's seal lookup                  ->  {"who": "bare"}
+```
+
+**Nothing was duplicated in text**, so no filename or path check could ever have seen it — the same
+copy-drift-of-a-MEANING class as REG-556's `ok`. Two modules simply decided one question had two
+answers. There is one helper now, `lookup_either_way`, and **the deleter owns it because the
+deleter is the reader whose answer has no undo.**
+
+⚠ **AND `str.replace("reel_", "", 1)` WAS THE WRONG TOOL.** It strips the substring ANYWHERE:
+`"xreel_foo"` became `"xfoo"`, **inventing a session id from a name that never had that prefix.**
+A prefix strip now, with its own guard.
+
+⚠ **Two declined,** one of which the reviewer labelled itself: `None` being indistinguishable from
+a stored `None` is real but no store here holds a null record; and the redundant second key check
+on an unprefixed name is wasteful, not wrong.
+
+**2 sabotages, 2 RED:** flipping the precedence back — which makes the deleter and the river
+disagree again — and restoring `replace` for the prefix strip.
+

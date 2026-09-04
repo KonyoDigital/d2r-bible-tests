@@ -91,11 +91,43 @@ def _entry(ledger, reel):
     stored under `reel_s_1` returned None ("never swept") while the SAME `{}` stored under `s_1`
     returned it. **The same data under two spellings gave two different answers**, which is exactly
     the naming mismatch this function exists to remove. Membership, not truthiness.
+
+    ⚠⚠ REG-563 — AND TWO PLACES IMPLEMENTED THIS ONE LOOKUP WITH OPPOSITE PRECEDENCE. This tried
+    `reel` then the bare form; `reel_river`'s seal lookup tried the bare form then `reel`. Measured
+    with BOTH keys present, the two returned DIFFERENT RECORDS for the same reel — the same
+    copy-drift-of-a-meaning defect as REG-556's `ok`, where nothing was duplicated in text and two
+    modules simply decided one question had two answers. One helper, one precedence, quoted by
+    both. [[copy-drift]] §1
+
+    ⚠ `str.replace("reel_", "", 1)` was also the wrong tool: it strips the substring ANYWHERE, so
+    `"xreel_foo"` became `"xfoo"`. A prefix strip, not a replace.
     """
-    if reel in ledger:
-        return ledger[reel]
-    bare = reel.replace("reel_", "", 1)
-    return ledger[bare] if bare in ledger else None
+    return lookup_either_way(ledger, reel)
+
+
+def bare_reel(reel):
+    """`reel_<sid>` -> `<sid>`. A PREFIX strip, never a substring replace."""
+    r = str(reel or "")
+    return r[len("reel_"):] if r.startswith("reel_") else r
+
+
+def lookup_either_way(store, reel):
+    """The one rule for finding a reel's record in a store keyed BOTH ways. -> record or None
+
+    PRECEDENCE: the PREFIXED form first, then the bare one — chosen because that is what the
+    deleter has always done, and the deleter is the reader whose answer has no undo. `reel_river`
+    quotes this rather than keeping its own order.
+
+    ⚠ Membership, not truthiness (REG-561): a present-but-empty record is FOUND, not absent.
+    """
+    r = str(reel or "")
+    if r in store:
+        return store[r]
+    b = bare_reel(r)
+    if b != r and b in store:
+        return store[b]
+    pref = "reel_" + r
+    return store[pref] if pref in store else None
 
 
 def _dir_mb(path):

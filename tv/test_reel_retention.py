@@ -558,6 +558,36 @@ class AFalsyLedgerEntryIsPresentNotAbsent(unittest.TestCase):
         self.assertIn("_told(_entry(vault", body,
                       "the vault side asks `_entry` directly again — same defect, other lane")
 
+    def test_ONE_precedence_for_the_reel_lookup_across_BOTH_modules(self):
+        """⚠⚠ REG-563 — TWO MODULES IMPLEMENTED ONE LOOKUP WITH OPPOSITE PRECEDENCE. `_entry`
+        tried the PREFIXED key first; `reel_river`'s seal lookup tried the BARE one first. Measured
+        with both keys present, they returned **different records for the same reel**.
+
+        Nothing was duplicated in text, so no filename or path check could see it — two modules
+        simply decided one question had two answers, the same class as REG-556's `ok`. This drives
+        both over one store holding BOTH spellings and requires the same record out.
+        """
+        import reel_retention as RR
+        import reel_river as RiR
+        led = {"reel_s_1": {"who": "prefixed"}, "s_1": {"who": "bare"}}
+        a = RR._entry(led, "reel_s_1")
+        b = RiR._seal_row(led, "reel_s_1") if hasattr(RiR, "_seal_row") else \
+            RR.lookup_either_way(led, "reel_s_1")
+        self.assertEqual(a, b, "the deleter and the river pick DIFFERENT records for one reel: "
+                               "%r vs %r" % (a, b))
+        self.assertEqual(a, {"who": "prefixed"},
+                         "the precedence moved: the prefixed form is the deleter's, and the "
+                         "deleter owns this rule because its answer has no undo")
+
+    def test_the_bare_form_is_a_PREFIX_strip_not_a_substring_replace(self):
+        """⚠ `str.replace("reel_", "", 1)` strips the substring ANYWHERE — `"xreel_foo"` became
+        `"xfoo"`, inventing a session id from a name that never had that prefix."""
+        import reel_retention as RR
+        self.assertEqual(RR.bare_reel("reel_s_1"), "s_1")
+        self.assertEqual(RR.bare_reel("xreel_foo"), "xreel_foo",
+                         "a name merely CONTAINING reel_ was stripped as though it began with it")
+        self.assertEqual(RR.bare_reel("my_reel_thing"), "my_reel_thing")
+
     def test_BASELINE_a_genuinely_absent_entry_is_still_None(self):
         """⚠ Or the fix turned every miss into a find, which for a DELETER is the dangerous
         direction — its own docstring says 'never swept' is the safe answer."""

@@ -130,8 +130,19 @@ def river(reel=None):
         # came back frameAnswer=None on that exact message. His store holds no falsy seal today, so
         # this is insurance — but the message is a claim about his footage and it would have been
         # false. Membership, not truthiness. [[unknown-stays-unknown]]
-        _sid = _session_of(name)
-        row = seals[_sid] if _sid in seals else (seals[name] if name in seals else None)
+        # ⚠⚠ REG-563 — THIS KEPT ITS OWN PRECEDENCE AND IT WAS THE OPPOSITE ONE. It tried the bare
+        # session id first, `reel_retention._entry` tried the prefixed form first, and with BOTH
+        # keys present the two returned DIFFERENT RECORDS for the same reel. Nothing was duplicated
+        # in text — two modules simply decided one question had two answers, which is the same
+        # class as REG-556's `ok`. It quotes the one rule now, and the deleter owns it because the
+        # deleter is the reader whose answer has no undo. [[copy-drift]] §1
+        try:
+            import reel_retention as _rr
+            row = _rr.lookup_either_way(seals, name)
+        except Exception:
+            # the owner is unavailable, not the rule wrong — fall back to the SAME precedence
+            row = seals[name] if name in seals else (
+                seals[_session_of(name)] if _session_of(name) in seals else None)
         if FA is None or seal_why:
             frame_answer, frame_why = None, (seal_why or "the seal store could not be read")
         elif row is None:
