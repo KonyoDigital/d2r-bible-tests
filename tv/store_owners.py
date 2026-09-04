@@ -75,6 +75,9 @@ STORES = {
         "owner": "reel_retention",
         "holds": "reels that were pruned, and when — the record that a reel existed",
         "readers": {
+            "tv_diablo":     "NOT a toucher — a v2639 comment explains that the recorder's\n                              emergency reaper is deliberately NOT a second writer of this\n                              store; reel_retention._tombstone stays the one writer, and the\n                              recorder records to its own reel_reaps.jsonl instead. Prose",
+            "run_gates":     "NOT a toucher — a gate DESCRIPTION names this file while saying\n                              the reaper is not a second writer of it. Prose in a `why` string",
+
             "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
 
             "write_census":      "NOT a writer and never can be — it names this store to record that only "
@@ -99,6 +102,8 @@ STORES = {
         "owner": "vault_retro",
         "holds": "what the vault sweep accumulated per reel",
         "readers": {
+            "tv_diablo":     "v2639 — the disk-floor reel reaper READS the witness sessions so it\n                              can refuse to delete a reel the vault still cites as evidence.\n                              Read only, through a cached mtime check, and it writes nothing here.\n                              Its first victim would otherwise have been the reel behind\n                              'Chaotic Grand Charm'",
+
             "write_census":      "NOT a writer — it names this store to record that the vault lane writes "
                                  "it during a PAID sweep, and a sweep spends money and must not be started "
                                  "to satisfy a census. Exercise declared None, with that reason",

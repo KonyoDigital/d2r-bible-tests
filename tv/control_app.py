@@ -19020,11 +19020,32 @@ def vault_apply(proposal=None):
     if caller_supplied and isinstance(prop, dict):
         try:
             _vr = _vault_retro()
+            # ⚠⚠ v2641 — `unsure` IS RE-GATED TOO, AND IT WAS NOT. Found 2026-09-05 by handing this
+            # function COLD to a different model family and asking it to design attacks. It
+            # returned three; two landed on the same hole:
+            #     {"owned": [], "unsure": [<row with no evidence>], "throwOut": [...]}
+            #     {"owned": None, ...}                      <- same hole, different shape
+            # The loop iterated `owned` ONLY, so both reached the window check without the gate
+            # ever being consulted. MEASURED: gate refused an uncorroborated `owned` row and did
+            # NOT refuse the identical row under `unsure`.
+            #
+            # ⚠ NOTHING WAS EXPOSED, and saying so precisely matters: the BOARD registers only
+            # `owned` (control_ui.html — "ONLY `owned` can be registered"), so an uncorroborated
+            # `unsure` row was stopped one station later. This is defence-in-depth having held,
+            # not a breach.
+            #
+            # It is fixed anyway, because this function's OWN v1595 note says why: *"a rule
+            # enforced in one place is a rule with a door beside it"*. Leaving it to the board
+            # makes the gate depend on a filter in another file that nothing here checks — and
+            # "latent" is exactly what `vault-owes` was called while it starved 29 reels.
+            # ⚠ The third attack (evidence as a string instead of a list) was REFUTED: the gate
+            # already refuses it. Recorded so nobody re-derives it. [[sweep-dont-ask]]
             _kept, _dropped = [], []
-            for _r in (prop.get("owned") or []):
-                _ev = _r.get("evidence") or _r.get("witnesses") or []
-                _v = _vr.gate(_ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
-                (_kept if _v.get("pass") else _dropped).append(_r)
+            for _which in ("owned", "unsure"):
+                for _r in (prop.get(_which) or []):
+                    _ev = _r.get("evidence") or _r.get("witnesses") or []
+                    _v = _vr.gate(_ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
+                    (_kept if _v.get("pass") else _dropped).append(_r)
             if _dropped:
                 return {"ok": False,
                         "why": "%d row(s) in that proposal do not clear the gate (%s conf, %s "
@@ -22819,7 +22840,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2639",
+        "ver": "v2641",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

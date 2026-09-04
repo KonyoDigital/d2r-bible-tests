@@ -338,7 +338,19 @@ def _inv_the_deleter_is_never_looser_than_the_planner():
         except Exception:
             return None
         if isinstance(plan, dict):
-            return len(plan.get("free") or plan.get("freeable") or [])
+            # ⚠⚠ THE KEY IS `prunable`, AND ASKING FOR THE WRONG ONE MADE THIS INVARIANT INERT.
+            # It asked for "free" or "freeable"; `frame_authority.plan_frames` returns neither —
+            # its keys are bytes/haveIndex/heldBy/kept/prunable/say/scanned/sealOk/sealedSessions/
+            # witnessFrames/witnessOk. So `.get()` fell through to `[]` and this side answered 0
+            # FOREVER, on every tree, whatever the deleter did. An invariant whose left side is a
+            # constant zero cannot be violated, so it has never once been able to fire — and it
+            # guards the DIRECTION WITH NO UNDO. A guard that cannot go red is measuring nothing.
+            # ⚠ It REFUSES rather than defaulting when the key is absent: a missing `prunable` is
+            # an unreadable plan, not an empty one, and answering 0 there is how this hid.
+            # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+            if "prunable" not in plan:
+                return None
+            return len(plan.get("prunable") or [])
         if isinstance(plan, (list, tuple)):
             return len(plan)
         return None
@@ -386,7 +398,11 @@ def _inv_the_two_deleters_stay_at_their_own_granularity():
         except Exception:
             return None
         if isinstance(plan, dict):
-            return len(plan.get("free") or plan.get("freeable") or [])
+            # ⚠ SAME DEFECT, SECOND SITE — see the note above. Both invariants asked for a key
+            # `plan_frames` has never returned, so both left sides were a constant 0.
+            if "prunable" not in plan:
+                return None
+            return len(plan.get("prunable") or [])
         return len(plan) if isinstance(plan, (list, tuple)) else None
 
     def right():

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2639",
+  "ver": "v2641",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2639: The disk-floor reel reaper deleted a whole reel with no seal check, no witness check, no prune gate, no tombstone and no sound. Measured: its first victim would have been reel_s_1784984019250_95276, which the vault still cites for Chaotic Grand Charm. It now refuses cited reels, sorts by the capture clock, records every reap, and never swallows a failure.",
+  "note": "v2641: vault.apply HARDENED at confluence 2.50 with cross-family, live and sabotage. A different model family attacked the write door cold and found the re-gate iterated owned only, so an uncorroborated row under unsure reached the write path ungated. Nothing exposed - the board registers only owned - fixed anyway.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

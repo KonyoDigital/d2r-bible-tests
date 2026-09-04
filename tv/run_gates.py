@@ -193,6 +193,40 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("vault_apply_crossfamily",
+         [sys.executable, os.path.join(HERE, "vault_apply_crossfamily.py")], 90,
+         why="A2·HARD — THE FIRST HARDENED LOCK, and the third kind is genuinely independent. "
+             "`vault.apply` guards the door that WRITES HIS LEDGER and carried only sabotage+live "
+             "(confluence 1.70 against a 2.50 bar). `vault_apply` was handed COLD to a different "
+             "model family, which returned three attacks; TWO LANDED on a real hole — the re-gate "
+             "loop iterated `owned` ONLY, so an uncorroborated row under `unsure` reached the write "
+             "path without the gate ever being asked (`owned: None` was the same hole in another "
+             "shape). MEASURED: the gate refused an uncorroborated `owned` row and did NOT refuse "
+             "the identical row under `unsure`. ⚠ NOTHING WAS EXPOSED — the board registers only "
+             "`owned`, so it was stopped one station later; fixed anyway because this function's "
+             "own v1595 note says 'a rule enforced in one place is a rule with a door beside it'. "
+             "⚠⚠ TWO ANTI-REG-600 SAFEGUARDS: `_refused()` counts ONLY the gate's own sentence, "
+             "never 'the board window is not open' (banking that would record the absence of a "
+             "window as evidence about the gate); and it REFUSES TO BANK unless the baseline holds "
+             "— 4/4 corroborated rows must still be ACCEPTED, or the refusals prove a jammed door "
+             "rather than a working one. Safe by construction: every attempt carries evidence that "
+             "cannot clear the gate, so the only outcome the door can produce is a refusal."),
+    Gate("test_corroborate_operands",
+         [sys.executable, os.path.join(HERE, "test_corroborate_operands.py")], 60,
+         why="TWO CROSS-ENGINE INVARIANTS WERE READING A KEY NOBODY RETURNS. Both took their left "
+             "operand as `len(plan.get('free') or plan.get('freeable') or [])`, and "
+             "`frame_authority.plan_frames()` returns NEITHER — its keys are bytes/haveIndex/"
+             "heldBy/kept/prunable/say/scanned/sealOk/sealedSessions/witnessFrames/witnessOk. So "
+             "the left side answered 0 forever, on every tree, whatever the deleter did. An "
+             "invariant whose operand is a constant cannot be violated, and BOTH of these guard "
+             "the direction with no undo: 'the one thing that can delete never frees more than "
+             "the planner offers'. ⚠ corroborate.py's own v2393 note already listed both by name "
+             "under 'agreeing at ZERO vs ZERO (cannot tell healthy from inert)' — the suspicion "
+             "was right and the cause was a key name. ⚠⚠ THIS DOES NOT MAKE THEM INFORMATIVE: "
+             "`prunable` is genuinely empty on his shelf, so they still read 0 vs 0. It makes "
+             "them CAPABLE — structurally-inert became quiet-but-live. RED-proven: restoring the "
+             "old expression fails 4 of 9, including 'deleter frees 9 while the planner offers 2 "
+             "still reads as agreement'."),
     Gate("test_store_isolation", [sys.executable, os.path.join(HERE, "test_store_isolation.py")], 60,
          why="v1965 — a non-owner browser gets its own world (I·<id8>· keys) so a guest's grail "
              "never lands in his. That set was right for every store that existed when it was "

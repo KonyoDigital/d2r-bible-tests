@@ -358,6 +358,13 @@ PROVES = {
     #: into the read-fate or an unmeasured reel could be dressed as a measured one. It reads no
     #: footage, arms no sweep and deletes nothing.
     "reel_router_wilson": ("reel.route",),
+    #: A2·HARD — attacks on the vault WRITE door designed by a DIFFERENT model family, which is
+    #: the third evidence KIND `vault.apply` needed and the only one available without spending
+    #: his money. Two of the three found a real hole (an uncorroborated row under `unsure` reached
+    #: the write path without the gate being asked); the third was refuted and is banked anyway so
+    #: the tried-and-failed axis is on the record. Safe by construction: every attempt carries
+    #: evidence that cannot clear the gate, so the only outcome the door can produce is a refusal.
+    "vault_apply_crossfamily": ("vault.apply",),
     # vault_wilson attempts proposals the WRITE door must reject — v1595's re-gate, which
     # returns before the board is ever asked. It never applies anything: every row it hands
     # in carries an empty evidence list, so it fails the witness gate by construction.
