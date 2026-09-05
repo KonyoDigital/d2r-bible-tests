@@ -92,12 +92,33 @@ test.describe('REG-443 — the page may not hide its nav for a rail that is not 
     }, BIBLE + '?app=1&engine=1');
     const frame = page.frameLocator('#f');
     await frame.locator('body').waitFor({ state: 'attached', timeout: 30000 });
-    await page.waitForTimeout(2500);
 
     const inner = page.frames().find((f) => f.url().includes('bible.html'));
     expect(inner, 'the board never loaded inside the iframe').toBeTruthy();
 
-    const cls = await inner!.evaluate(() => document.body.className);
+    /* ⚠⚠ v2692 — WAIT FOR THE CONDITION, NOT FOR A GUESSED DURATION. This used a flat 2500ms, and
+       that timing had NEVER been exercised: until the parent was given a file:// origin the frame
+       did not load at all, so the test failed earlier and this line was never reached. The first
+       run that got this far reported body.className === "" — not even `app-ctx` — which is not a
+       missing rule but an init that had not run yet, against a 6MB page on a shared CI runner.
+       bible.html:48885-48886 add `app-ctx` then `engine-driven` (engineDriven() = engine=1 AND
+       framed(), per v2471's ruling that "engine=1 IS A CLAIM ABOUT CONTEXT"). So poll for the class
+       the assertion is about.
+       ⚠ Raising the sleep to some larger number would only move the flake: a fixed wait encodes a
+       guess about a machine, and the next slower runner reopens it. A poll fails ONLY if the class
+       genuinely never arrives, which is the thing this spec exists to catch.
+       ⚠ AND IT MUST NOT SWALLOW THE FAILURE. On timeout it falls through with whatever className
+       is actually there, so the expect below reports the real value rather than a timeout message
+       that hides it. */
+    const cls = await inner!.evaluate(async () => {
+      const deadline = Date.now() + 20000;
+      while (Date.now() < deadline) {
+        const c = document.body.className || '';
+        if (/\bengine-driven\b/.test(c) || /\bapp-ctx\b/.test(c)) return c;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      return document.body.className || '';
+    });
     expect(
       cls,
       'a framed board must carry engine-driven — inside the shell its own tab row is a duplicate ' +
