@@ -12840,9 +12840,18 @@ def credible_pruned_mb(pruned_mb, hist_bytes=None):
         # corpus it correctly admits nothing but zero.
         corpus_mb = float(hist_bytes) / (1024.0 * 1024.0)
         if v > corpus_mb * 1.01:
-            return None, ("prunedMb %.1f exceeds the whole measured corpus (%.1f MB) — a figure "
-                          "larger than the thing it was freed from is not a measurement"
-                          % (v, corpus_mb))
+            # ⚠⚠ THE SENTENCE MUST NOT STATE A FALSE COMPARISON, AND `%.1f` MADE IT DO EXACTLY
+            # THAT. Found by a review of the shipped bytes, 2026-09-05:
+            #     credible_pruned_mb(1e-9, 0)      -> "prunedMb 0.0 exceeds ... corpus (0.0 MB)"
+            #     credible_pruned_mb(1.0101, 1MiB) -> "prunedMb 1.0 exceeds ... corpus (1.0 MB)"
+            # Rounding BOTH sides to one decimal collapses them, so the refusal reads "X exceeds
+            # X" — and that string IS `prunedWhy`, the field whose entire purpose is to be readable
+            # evidence of a refusal. A reason nobody can believe is worse than no reason, because
+            # it teaches him the field is noise. `%r` keeps the figures distinguishable at any
+            # magnitude, and the BYTE count is named too so the comparison can be re-derived.
+            return None, ("prunedMb %r exceeds the whole measured corpus (%r MB, %r bytes) — a "
+                          "figure larger than the thing it was freed from is not a measurement"
+                          % (pruned_mb, corpus_mb, hist_bytes))
     return pruned_mb, None
 
 
@@ -15807,6 +15816,17 @@ def _self_arming_state():
                    # both ends, joined on neither, exactly as `provable` was.
                    # [[the-unjoined-end]] [[label-outlived-referent]]
                    "blindClaims": l.get("blindClaims"),
+                   # ⚠⚠⚠ AND WHICH CLAIMS WERE RETIRED — THE FIFTH FIELD THIS TRIM WOULD HAVE
+                   # SWALLOWED, after `provable`, `confluence`, `blindClaims` and `attacks`. It is
+                   # the same joint failing a fifth time, and this one is a REGRESSION I SHIPPED:
+                   # before v2647 `prune.reports`'s three inert axes rendered as "3 never ran
+                   # (noprune, shrank, unreadable)" — the wrong label, but ON HIS SCREEN. v2647
+                   # retired them properly, moved them out of `blindClaims`, and the row went back
+                   # to a bare "56/64 refused" with the three retractions nowhere. The ledger kept
+                   # them; the surface he reads did not. `withdraw()`'s own docstring calls that
+                   # "a deletion with a nicer name" — and I did it one layer out from where the
+                   # docstring was looking. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+                   "withdrawnClaims": l.get("withdrawnClaims"),
                    # ⚠⚠ AND HOW MANY DISTINCT ATTACKS ARE UNDER THAT n — THE FOURTH FIELD THIS
                    # TRIM HAS SWALLOWED, after `provable`, `confluence` and `blindClaims`.
                    # Konyo asked whether the console is "synced and honest and real" about the
@@ -23044,7 +23064,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2649",
+        "ver": "v2651",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

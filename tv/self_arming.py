@@ -405,7 +405,7 @@ PROVES = {
 }
 
 
-def withdraw(lock, kind, src, ref, why):
+def withdraw(lock, kind, src, ref, why, prove_absent=False):
     """Retire one banked AXIS whose evidence was never about the lock. -> dict (the row written)
 
     ⚠⚠ WHY THIS HAD TO EXIST, MEASURED 2026-09-05. `_fold` keys on (lock, kind, src, ref) and keeps
@@ -432,8 +432,41 @@ def withdraw(lock, kind, src, ref, why):
     if not str(ref or "").strip():
         raise ValueError("a withdrawal needs the REF of the axis it retires — that is the fold key,"
                          " and without it this appends a new empty axis instead of superseding one")
-    return bank(lock, kind, src, n=0, k=0, ref=ref, attacks=0, withdrawn=True,
-                note="WITHDRAWN — %s" % str(why)[:360])
+    # ⚠⚠ IT MUST ACTUALLY RETIRE SOMETHING, AND v2647's CUT DID NOT CHECK. `_fold` keys on
+    # (lock, kind, src, ref), so a withdrawal filed under the wrong KIND or a mistyped REF matches
+    # no row, supersedes nothing, and still lands in `withdrawnClaims` — the report then NAMES a
+    # retraction that did nothing. Measured 2026-09-05 by a review of the shipped bytes: filing
+    # `noprune` under kind='cross-family' left the axis at 24/24 and still printed it as withdrawn.
+    # This function's own ValueError above describes that outcome and did not prevent it.
+    # ⚠ `_rows()` returns (list|None, why) — None means UNREADABLE, which is never "no proofs".
+    # An unreadable ledger must REFUSE the withdrawal rather than read as "nothing to retire",
+    # because that would let a corrupt file license a retraction of something still standing.
+    _all, _rwhy = _rows()
+    if _all is None:
+        raise ValueError("the proof ledger could not be read (%s), so whether this axis exists is "
+                         "UNKNOWN — and unknown is not permission to retire it" % (_rwhy or "?"))
+    _prior = [r for r in _fold(_all)
+              if r.get("lock") == str(lock) and r.get("kind") == str(kind)
+              and r.get("src") == str(src) and (r.get("ref") or "") == str(ref)
+              and not r.get("withdrawn")]
+    if not prove_absent and not _prior:
+        raise ValueError(
+            "no banked axis matches (lock=%r kind=%r src=%r ref=%r), so this withdrawal would "
+            "supersede NOTHING while still being reported as a retraction. Check the KIND — a "
+            "sabotage axis filed under cross-family is the shape that bit here. Pass "
+            "prove_absent=True only when retiring an axis you have separately established is gone."
+            % (lock, kind, src, ref))
+    # ⚠⚠ AND IT MUST SAY WHAT IT REMOVED, because a withdrawal CAN RAISE THE SCORE and nothing
+    # said so. Measured on the shipped bytes: retiring a failing axis (2 of 8 refused) took
+    # `prune.reports` from wilson 0.7093 to 0.8928 — **+0.18 by deleting six failures from the
+    # arithmetic**. That is legitimate when the axis was invalid, and indistinguishable from
+    # laundering when nothing records what left. `withdrewN`/`withdrewK` are the record.
+    _n = sum(int(r.get("n") or 0) for r in _prior)
+    _k = sum(int(r.get("k") or 0) for r in _prior)
+    row = bank(lock, kind, src, n=0, k=0, ref=ref, attacks=0, withdrawn=True,
+               note="WITHDRAWN (removed %d/%d) — %s" % (_k, _n, str(why)[:320]))
+    row["withdrewN"], row["withdrewK"] = _n, _k
+    return row
 
 
 def bank(lock, kind, src, n, k, note="", ref="", attacks=None, withdrawn=False):

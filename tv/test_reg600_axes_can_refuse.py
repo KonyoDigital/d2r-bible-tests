@@ -377,11 +377,68 @@ class AWithdrawalIsNotADeletionAndNotAnUnrunAxis(unittest.TestCase):
         with self.assertRaises(ValueError):
             SA.withdraw("prune.reports", "sabotage", "disk_report_wilson", "", "because")
 
-    def test_it_cannot_RAISE_a_score(self):
-        """⚠ A retirement that could add evidence would be a way to launder a weak lock upward."""
+    def test_a_withdrawal_RECORDS_WHAT_IT_REMOVED_because_it_CAN_raise_a_score(self):
+        """⚠⚠⚠ MY FIRST CUT OF THIS CASE WAS WRONG TWICE, AND A REVIEW OF THE SHIPPED BYTES FOUND
+        BOTH. It read `assertIn("n=0, k=0", inspect.getsource(SA.withdraw))` —
+
+          · **DEFEATED BY THE DOCSTRING.** `getsource` includes it, and the docstring contains the
+            literal phrase *"supersedes the axis with `n=0, k=0`"*. Measured: 2 occurrences, one
+            prose and one code. Mutating the CALL to `n=99, k=99` left the assertion PASSING.
+            Eighth guard in this repo satisfied by its own explanation, and it sat in the same file
+            as `test_may_is_still_never_called`, whose docstring documents that exact failure.
+          · **AND THE PROPERTY IT NAMED WAS FALSE.** A withdrawal absolutely CAN raise a score:
+            retiring an axis that was FAILING removes its failures from the arithmetic. Measured on
+            the shipped bytes — an axis at 2/8 retired out of a 34/40 lock took wilson from
+            **0.7093 to 0.8928, +0.18**.
+
+        That is legitimate when the axis was genuinely invalid, and indistinguishable from
+        laundering unless something records what left. So the law is not "it cannot raise" — it is
+        **"it must say what it removed"**, and this drives the function rather than reading it.
+        """
+        import shutil
+        import tempfile
+        d = tempfile.mkdtemp(prefix="wdraw_")
+        self.addCleanup(shutil.rmtree, d, True)
+        saved = SA.LEDGER_PATH if hasattr(SA, "LEDGER_PATH") else None
+        led = os.path.join(d, "led.jsonl")
+        try:
+            if saved is not None:
+                SA.LEDGER_PATH = led
+            else:
+                os.environ["TV_SELF_ARMING_LEDGER"] = led
+            SA.bank("prune.reports", "sabotage", "disk_report_wilson", n=8, k=2,
+                    ref="failing", attacks=1, note="an axis that found real leaks")
+            row = SA.withdraw("prune.reports", "sabotage", "disk_report_wilson", "failing",
+                              "retired for the purposes of this guard")
+        finally:
+            if saved is not None:
+                SA.LEDGER_PATH = saved
+            else:
+                os.environ.pop("TV_SELF_ARMING_LEDGER", None)
+        self.assertEqual(row["n"], 0, "the withdrawal banked a non-empty axis")
+        self.assertEqual(row["k"], 0)
+        self.assertEqual(row.get("withdrewN"), 8,
+                         "the withdrawal does not record how many attempts it removed, so a score "
+                         "that rose by retiring failures is indistinguishable from one that earned "
+                         "it")
+        self.assertEqual(row.get("withdrewK"), 2)
+        self.assertIn("removed 2/8", row.get("note") or "",
+                      "the durable note does not carry what was removed")
+
+    def test_a_withdrawal_that_retires_NOTHING_is_REFUSED(self):
+        """★ A withdrawal filed under the wrong KIND, or with a mistyped REF, matches no row —
+        supersedes nothing, and was still reported as a retraction. `_fold` keys on
+        (lock, kind, src, ref), and v2647 checked none of them."""
+        for kind, ref in (("cross-family", "noprune"), ("sabotage", "no-such-ref-at-all")):
+            with self.assertRaises(ValueError):
+                SA.withdraw("prune.reports", kind, "disk_report_wilson", ref, "because")
+
+    def test_an_UNREADABLE_ledger_refuses_the_withdrawal(self):
+        """[[unknown-stays-unknown]] — a corrupt file must not read as 'there is nothing to
+        retire', which would license retiring something still standing."""
         import inspect
         src = inspect.getsource(SA.withdraw)
-        self.assertIn("n=0, k=0", src, "withdraw banks something other than an empty axis")
+        self.assertIn("could not be read", src)
 
     def test_the_allow_list_still_binds_a_withdrawal(self):
         """It goes through `bank`, so an undeclared source cannot retire somebody else's axis."""
@@ -439,6 +496,66 @@ class AWithdrawalIsNotADeletionAndNotAnUnrunAxis(unittest.TestCase):
         new = [r for r in rows if r.get("ref") == "noprune" and r.get("withdrawn")]
         self.assertTrue(old, "the original banked axis was removed rather than superseded")
         self.assertTrue(new, "no withdrawal row was written for it")
+
+
+class ARetiredAxisREACHESHISSCREEN(unittest.TestCase):
+    """★★ v2650, AND IT IS A REGRESSION I SHIPPED IN v2647.
+
+    Before v2647 `prune.reports` carried three axes that could not fail, and the console rendered
+    them as *"3 never ran (noprune, shrank, unreadable)"* — the wrong LABEL, but ON HIS SCREEN.
+    v2647 retired them properly and moved them out of `blindClaims`; `withdrawnClaims` had no
+    renderer and was not on the wire, so the branch stopped firing and the row went back to a bare
+    "56/64 refused". **Three retractions vanished from the surface he reads while staying in the
+    ledger** — which is `withdraw()`'s own rule ("a withdrawal you cannot read is a deletion with a
+    nicer name") failing one layer further out. Found by a review of the shipped bytes.
+
+    ⚠⚠ AND IT TOOK TWO GOES BECAUSE THE RENDERER EXISTS TWICE. My first cut added the clause to the
+    valve-diagram builder near `var arith`, confirmed the field was on the wire AND that the line
+    was present in the loaded page — and the row still printed without it. The list is drawn by a
+    SECOND builder (`var ar`), and a law that lands in one copy is not a law.
+    [[copy-drift]] §7 · [[console-ui-two-script-blocks]] · [[the-unjoined-end]]
+    """
+
+    def test_the_payload_carries_it(self):
+        """⚠ THE FIFTH FIELD THIS TRIM HAS SWALLOWED, after `provable`, `confluence`,
+        `blindClaims` and `attacks`."""
+        # ⚠ THE TRIM IS IN `_self_arming_state`, NOT `heart_state` — my first cut of this case read
+        # the wrong function and went red on a true payload. Ask the PAYLOAD, not a function I
+        # guessed at: drive it and look for the key on the real row.
+        rows = [r for r in (CA._self_arming_state().get("locks") or [])
+                if r.get("lock") == "prune.reports"]
+        if not rows:
+            self.skipTest("prune.reports absent from the payload on this tree — not a pass")
+        self.assertIn("withdrawnClaims", rows[0],
+                      "the lock payload drops withdrawnClaims — computed on one end, read on "
+                      "neither, exactly as `attacks` was (the FIFTH field this trim has swallowed)")
+
+    def test_the_LIST_renderer_reads_it_not_only_the_diagram(self):
+        """★ RED PROOF for the two-builder miss. The list is the one he reads."""
+        import io as _io
+        html = _io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        i = html.index("' refused \u00b7 Wilson '") if "' refused \u00b7 Wilson '" in html             else html.index("refused · Wilson ")
+        window = html[i:i + 2000]
+        self.assertIn("withdrawnClaims", window,
+                      "the lock LIST builder does not read withdrawnClaims — the clause was added "
+                      "to the other renderer again")
+
+    def test_it_is_said_DIFFERENTLY_from_never_ran(self):
+        """⚠ never-ran is an axis nobody could exercise; retired is one that WAS exercised and
+        found to prove nothing. Collapsing them is the conflation v2647 fixed one layer down."""
+        import io as _io
+        html = _io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("retired as proving nothing", html)
+        self.assertIn("never ran", html,
+                      "the never-ran wording was replaced rather than joined — an axis nobody "
+                      "could run still needs its own sentence")
+
+    def test_the_live_report_actually_has_something_to_render(self):
+        rows = [r for r in (SA.report().get("locks") or []) if r.get("lock") == "prune.reports"]
+        if not rows:
+            self.skipTest("prune.reports absent on this tree — not a pass")
+        self.assertTrue(rows[0].get("withdrawnClaims"),
+                        "nothing is retired, so this guard is measuring an empty case")
 
 
 class NothingHereArmsAnything(unittest.TestCase):

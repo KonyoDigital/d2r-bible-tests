@@ -364,6 +364,115 @@ TARGETS = {
     # This target asserts the CONTROLS HE REACHES FOR ARE ON SCREEN AND NOT BURIED. It is not a
     # prettiness check: `sel` names the action row, so a control that gets moved back inside a
     # collapsed <details> stops being painted here and the gate says so.
+    # ⚠⚠⚠ THE PAGE ITSELF, AND IT IS HERE BECAUSE EVERY OTHER TARGET IS A NAMED SUBTREE.
+    # Measured 2026-09-05: all eleven selectors below name specific nodes — `console` is
+    # `#btn-mini, #btn-miniauto`, so its `painted 1/1 · clipped 0 · off 0 · covered 0` was a
+    # statement about ONE BUTTON and was never a claim about the page. A cold second-eye read of
+    # the 375px screenshot found `ON AIR`/`MINI` stacked with text cut off, the AI reads bar
+    # rendering "appea / here", and "Failed to fetch" sliced mid-word — every one confirmed by
+    # eye, and every one OUTSIDE all eleven selectors and therefore structurally invisible to this
+    # harness. A gate reporting clean on a page with visible clipping is [[regression-guard]]'s
+    # SAMPLE ≠ VERDICT landing on the visual gate itself. [[visual-regression-detector]]
+    #
+    # ⚠ `body > *`, NOT `body *`. The probe expands each matched node to `[e] + e.querySelectorAll('*')`,
+    # so matching every element would walk every subtree once per ancestor — O(n²) on an 11,806-node
+    # document. Matching the top-level containers covers exactly the same nodes ONCE.
+    #
+    # ⚠⚠ AND IT REUSES `_PROBE` RATHER THAN ASKING ITS OWN QUESTION, which is the whole reason to
+    # trust the number. A hand-rolled page sweep written for this finding counted 14 cut elements
+    # at every width and was NOT published, because it honoured none of the recovery paths this
+    # probe already knows: the scroller exclusion (v2381 — ink one flick away is not destroyed),
+    # `title` recovery (v2432 — the full string is reachable), `inert()` (opacity-0 controls),
+    # and the fixed-position escape with its transform/filter/contain re-anchoring (v2381 — 31
+    # false reds from one missing rule). A second implementation of a measurement is a second
+    # thing to be wrong. [[copy-drift]] [[feedback-suspect-the-instrument]]
+    "page": {
+        # ⚠⚠ SERVED, NOT `file://`, AND MY FIRST CUT COPIED `console`'S ORIGIN TOO. Over file://
+        # every root-absolute `/art/...` src resolves to `file:///art/...`, cannot load, and each
+        # tag runs its own onerror — several of which REMOVE the element. Measured: the harness
+        # reported `imgs 12/12 broken` at every width, which is a fact about the ORIGIN and not
+        # about his console; served, the same page carries 2,399 images of which 4 are broken.
+        # `broken` is a REFUSAL field, so the file:// origin alone would have turned this target
+        # permanently red on twelve images that are fine. Six other console targets already serve
+        # for exactly this reason. [[borrowed-surface]] [[feedback-suspect-the-instrument]]
+        "serve": True,
+        "why": "THE WHOLE CONSOLE PAGE — every other target is a named subtree, so nothing here "
+               "has ever measured the parts between them",
+        "seed": """(function(){ return 1; })()""",
+        # ⚠⚠ THE PAGE IS ARRIVED, NOT ACTIVATED — AND ARRIVAL IS PROVEN FROM A RECT. My first cut
+        # returned `body.children.length > 2`, and `test_control`'s
+        # `test_activation_is_proven_from_the_RECT_not_from_the_call_returning` took it RED for
+        # exactly the right reason: *"target 'page' calls a painter and trusts it. A painter that
+        # runs and paints nothing must not read the same as an open panel."* A document can have
+        # eight children and lay out none of them — measured on this very page, 5 of its 8
+        # top-level children are zero-size (five closed modals) — so a COUNT cannot tell a
+        # rendered console from a collapsed one, which is the false green a whole-page target
+        # would multiply across the document.
+        # So: the body must have real area, and at least two top-level children must have real
+        # rects of their own. Two, not one, because a single painted node is also what a page that
+        # rendered only its shell looks like.
+        "activate": """(function(){
+            var b = document.body; if (!b) return false;
+            var br = b.getBoundingClientRect();
+            if (br.width < 2 || br.height < 2) return false;
+            var painted = 0;
+            var kids = [].slice.call(b.children);
+            for (var i = 0; i < kids.length; i++){
+                var r = kids[i].getBoundingClientRect();
+                if (r.width > 2 && r.height > 2) painted++;
+            }
+            return painted >= 2; })()""",
+        # ⚠ TAGS THAT NEVER RENDER ARE EXCLUDED, HIDDEN OVERLAYS ARE NOT. `script` and `style` are
+        # zero-size by definition and counting them as a collapse is noise; the five `display:none`
+        # modals (`#th-dossier-ov`, `#th-compare-ov`, `#th-heatmap-ov`, `#forensics-ov`,
+        # `#ch-modal`) are LEFT IN on purpose, because "this overlay is closed" and "this overlay
+        # collapsed" are the same measurement from outside and the probe should say so rather than
+        # have me decide for it. Measured at 1440: 11 children -> 3 painted, 2 script, 1 style,
+        # 5 hidden modals.
+        "sel": "body > *:not(script):not(style):not(template):not(noscript)",
+        # ⚠⚠ IT MUST SETTLE, AND MY FIRST CUT SET THIS TO False BY COPYING `console`. That target
+        # skips the settle because its two named buttons re-time their own labels. The PAGE target
+        # measures the whole document, and `_settle`'s own docstring says exactly why skipping it
+        # is fatal here: *"a partial page reports zero clipping, zero overflow and zero covers,
+        # which is the exact false green this file exists to refuse."*
+        # MEASURED, and the gap is not small. Unsettled, the run reported `clipped 3` at 375 and
+        # `imgs 12/12 broken`. Driving the SAME probe against a loaded page: `clipped 54` at 375,
+        # `clipped 5` at 901, and `imgs 2399` of which only **4** are broken. So the unsettled run
+        # under-counted the clipping seventeen-fold AND turned "the images have not loaded yet"
+        # into "every image is broken". Copying a flag without asking whether its reason applies
+        # is how a new instrument inherits an old one's exemption. [[feedback-suspect-the-instrument]]
+        # ⚠⚠⚠ THE BACKLOG THIS TARGET FOUND ON ITS FIRST RUN, DECLARED SO IT CANNOT HIDE AND
+        # CANNOT BLOCK. Measured 2026-09-05 on the SERVED console, all five widths:
+        #
+        #     1440x1000   clipped  1     |  broken: NOT RATCHETED, see below
+        #     1120x900    clipped  1     |
+        #     1120x628    clipped  1     |
+        #      901x900    clipped  5     |
+        #      375x800    clipped 54     |
+        #
+        # Every one is PRE-EXISTING and none was visible to any target before this one, because
+        # all eleven others measure named subtrees. A cold second-eye read of the 375 screenshot
+        # named several of them independently ("appea / here", "Failed to fetch" sliced mid-word,
+        # ON AIR and MINI stacked with text cut off) and I confirmed those by looking.
+        # ⚠ THIS IS A FLOOR, NOT AN EXEMPTION. Every count above is printed in full on every run;
+        # the target refuses the moment one RISES, and reports loudly when one FALLS so the floor
+        # gets lowered rather than quietly excusing work someone already did. Fixing the 54 is its
+        # own task with its own pixels and its own second eye — it is not something to be smuggled
+        # into whatever else is shipping. [[regression-guard]] [[unknown-stays-unknown]]
+        "known": {
+            "1440x1000": {"clipped": 1, "broken": None, "zero": 5},
+            "1120x900":  {"clipped": 1, "broken": None, "zero": 5},
+            "1120x628":  {"clipped": 1, "broken": None, "zero": 5},
+            "901x900":   {"clipped": 5, "broken": None, "zero": 5},
+            "375x800":   {"clipped": 54, "broken": None, "zero": 5},
+        },
+        "settles": True,
+        # ⚠ THE SHAPE PREDICATE, not the byte-length one. This page carries a live clock and
+        # re-timed "last seen" strings, so `innerHTML.length` never repeats and the target sat
+        # UNKNOWN for the whole 25s budget on every run. Layout depends on how many elements exist
+        # and whether images have resolved; it does not depend on what second it is.
+        "settle_shape": True,
+    },
     "console": {
         "page": os.path.join("tv", "control_ui.html"),
         "why": "the CONSOLE's own action row — the buttons he actually reaches for",
@@ -1136,7 +1245,7 @@ def _looks_black(png_bytes, w=None, h=None):
         return n < max(1200, area // 240)
 
 
-def _settled(tab, budget=25.0):
+def _settled(tab, budget=25.0, shape=False):
     """Wait until the document is COMPLETE and its size has stopped moving. Returns why, or None.
 
     ⚠ A FIXED SLEEP IS NOT A LOAD WAIT, and under load it silently measures a half-built page.
@@ -1153,13 +1262,38 @@ def _settled(tab, budget=25.0):
     UNKNOWN rather than measuring — because a partial page reports zero clipping, zero overflow and
     zero covers, which is the exact false green this file exists to refuse.
     """
+    # ⚠⚠ WHAT "STILL" MEANS DEPENDS ON WHAT IS BEING MEASURED, and one predicate for both was
+    # wrong. `innerHTML.length` is right for a target whose content is being assembled, and it can
+    # NEVER go still on a page carrying a live clock and re-timed "last seen" strings — measured
+    # 2026-09-05: the whole-page target sat UNKNOWN for the full 25s budget every run. A target
+    # that is permanently UNKNOWN is furniture in exactly the way a permanently-red one is.
+    # A LAYOUT probe depends on the element count and on images having resolved, not on whether a
+    # clock ticked. `shape=True` asks that question instead. Both still require readyState
+    # complete and a rendered tab row, so neither can pass on a half-built document.
+    _expr = ("(function(){return document.readyState+'|'"
+             "+document.body.innerHTML.length+'|'"
+             "+document.querySelectorAll('.tab[data-tab]').length;})()") if not shape else (
+             "(function(){var i=document.images,d=0;"
+             "for(var k=0;k<i.length;k++){if(i[k].complete)d++;}"
+             "return document.readyState+'|'"
+             "+document.querySelectorAll('*').length+'/'+i.length+'/'+d+'|'"
+             "+document.querySelectorAll('.tab[data-tab]').length;})()")
     t0, last = time.time(), None
     while time.time() - t0 < budget:
-        raw = tab.ev("(function(){return document.readyState+'|'"
-                     "+document.body.innerHTML.length+'|'"
-                     "+document.querySelectorAll('.tab[data-tab]').length;})()") or ""
+        raw = tab.ev(_expr) or ""
         parts = raw.split("|")
-        if len(parts) == 3 and parts[0] == "complete" and int(parts[2] or 0) > 0:
+        # ⚠⚠ THE THIRD CONDITION IS A PAGE-SPECIFIC LIVENESS PROXY, NOT A GENERAL ONE. A rendered
+        # `.tab[data-tab]` row proves `bible.html` has painted — and `control_ui.html` has no tab
+        # row at all, so it is ZERO there for ever and the whole-page target could never settle no
+        # matter how still it went. Measured 2026-09-05: its shape reached `11814/2399/46` at t=4s
+        # and repeated unchanged for the remaining 20s of the budget, while the settle kept
+        # answering "never settled" on a count that page does not have.
+        # The shape branch drops it: a target that measures a document rather than a widget states
+        # its own arrival test in `activate`, which runs separately and CAN fail. Requiring a proxy
+        # a page cannot satisfy is not strictness, it is a permanent UNKNOWN — furniture in exactly
+        # the way a permanently-red gate is. [[feedback-suspect-the-instrument]]
+        _arrived = parts[0] == "complete" and (shape or int(parts[2] or 0) > 0)
+        if len(parts) == 3 and _arrived:
             if last == parts[1]:
                 return None
             last = parts[1]
@@ -1169,7 +1303,7 @@ def _settled(tab, budget=25.0):
             "everything" % budget)
 
 
-def verdict(key, m, sel):
+def verdict(key, m, sel, known=None):
     """Turn ONE width's measurements into refusals. Pure — no browser, no files, no clock.
 
     This is a separate function ONLY so the suite can prove the refusals BEHAVIOURALLY instead of
@@ -1193,10 +1327,27 @@ def verdict(key, m, sel):
     # was asked. The whole-collapse case keeps its own sentence above because it is the one that
     # also invalidates every number below it.
     _zero = int(m.get("zero") or 0)
-    if _zero:
-        return ["%s: %d of %d node(s) are ZERO-SIZE while %d painted. A partial collapse reports "
+    # ⚠⚠ A DECLARED ZERO FLOOR, for the one target where zero-size is DESIGN rather than collapse.
+    # The `page` target selects `body > *`, and five of the console's eight top-level children are
+    # CLOSED MODALS carrying `display:none` — measured: #th-dossier-ov, #th-compare-ov,
+    # #th-heatmap-ov, #forensics-ov, #ch-modal. They are deliberately left IN the selector, because
+    # "this overlay is closed" and "this overlay collapsed" are the same measurement from outside
+    # and the probe should say so rather than have me decide for it. But refusing on them makes the
+    # target permanently red, and the refusal above is right for every OTHER target — 17 of 18
+    # lockers collapsing is exactly the defect it was written for.
+    # So the count is declared per width, printed in full, and refuses when a SIXTH node collapses.
+    # ⚠ It never excuses a WHOLE collapse: that branch is above this one and returns first.
+    _zfloor = int(((known or {}).get("zero") or 0))
+    if _zero > _zfloor:
+        return ["%s: %d of %d node(s) are ZERO-SIZE while %d painted%s. A partial collapse reports "
                 "zero clipping for the missing ones, so the clean numbers beside it are about the "
-                "survivors only." % (key, _zero, m.get("found", 0), m.get("painted", 0))]
+                "survivors only." % (key, _zero, m.get("found", 0), m.get("painted", 0),
+                                     (" — DECLARED FLOOR IS %d, this is %d MORE"
+                                      % (_zfloor, _zero - _zfloor)) if _zfloor else "")]
+    if _zfloor and _zero < _zfloor:
+        return ["%s: ⓘ %d of %d node(s) are zero-size against a declared floor of %d, so %d now "
+                "paint that did not. Lower the floor so it cannot excuse a real collapse later."
+                % (key, _zero, m.get("found", 0), _zfloor, _zfloor - _zero)]
     out = []
     if not m.get("textLen"):
         out.append("%s: the panel painted but carries NO TEXT — that is an empty box, not a "
@@ -1216,8 +1367,48 @@ def verdict(key, m, sel):
                        ("broken", "are images that failed to load")):
         if m.get(field):
             what = m.get(field + "What") or []
-            out.append("%s: %d element(s) %s%s"
-                       % (key, m[field], msg, (" — " + "; ".join(what)) if what else ""))
+            # ⚠⚠ A DECLARED FLOOR, AND IT EXISTS BECAUSE A NEW INSTRUMENT FOUND OLD DEFECTS.
+            # The `page` target measures the whole document for the first time and immediately
+            # reports 54 clipped elements at 375px — real, pre-existing, and nothing to do with
+            # whatever is being pushed. `render_check` is wired into hooks/pre-push and a red
+            # target sets `_px_fail=1` and `exit 1`, so with no floor this would BLOCK EVERY
+            # VISUAL PUSH on a backlog it did not create. That is how a gate becomes the thing
+            # people switch off — this file's own words: "a gate that cries wolf is how a real one
+            # stops being read".
+            # So the count is DECLARED, printed in full every run, and refuses only when it RISES.
+            # It is the same instrument as `render_coverage.json` (a floor that may improve and
+            # may not silently worsen) and the same shape as `KNOWN_MISSES`: pin the LAW, not the
+            # number. ⚠ A DROP is reported too — a stale floor is a label that outlived its
+            # referent, and it must not quietly excuse more than it was written for.
+            # ⚠⚠ A FIELD DECLARED `None` IS REPORTED AND NEVER JUDGED, and `broken` on a
+            # whole-page target is the case that forced it. Measured across two runs of the SAME
+            # tree minutes apart: 11 broken, then 4. The settle stills when the document's shape
+            # stops moving, and at that moment only 46 of 2,399 images are `complete` — the rest
+            # are lazy or offscreen and never start. `broken` counts `complete && naturalWidth==0`,
+            # so it only ever sees whichever subset happened to load, and WHICH subset varies run
+            # to run. Ratcheting that would pin NOISE and hand a red gate a random trigger; and a
+            # floor set high enough to absorb the swing would be an exemption wearing a number.
+            # So it is printed every run and decides nothing, with the reason on the line.
+            # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+            _declared = (known or {}).get(field, 0)
+            if field in (known or {}) and _declared is None:
+                out.append("%s: ⓘ %d element(s) %s — REPORTED, NOT JUDGED: this count moves "
+                           "between runs of the same tree because only a fraction of images are "
+                           "`complete` when the document's shape stills, so it measures the load "
+                           "race and not the page.%s"
+                           % (key, m[field], msg, (" — " + "; ".join(what)) if what else ""))
+                continue
+            _floor = int(_declared or 0)
+            if m[field] > _floor:
+                out.append("%s: %d element(s) %s%s%s"
+                           % (key, m[field], msg,
+                              (" — DECLARED FLOOR IS %d, this is %d MORE"
+                               % (_floor, m[field] - _floor)) if _floor else "",
+                              (" — " + "; ".join(what)) if what else ""))
+            elif m[field] < _floor:
+                out.append("%s: ⓘ %d element(s) %s — the declared floor is %d, so %d were FIXED. "
+                           "Lower the floor in TARGETS so it cannot excuse them again."
+                           % (key, m[field], msg, _floor, _floor - m[field]))
     return out
 
 
@@ -1361,7 +1552,7 @@ def check(name, spec, shots=True):
             time.sleep(float(spec.get("warmup") or 1.6))
             why = None
         else:
-            why = _settled(tab)
+            why = _settled(tab, shape=bool(spec.get("settle_shape")))
         if why:
             out["ok"] = False
             out["refusals"].append(why)
@@ -1466,10 +1657,19 @@ def check(name, spec, shots=True):
             key = "%dx%d" % (w, h)
             out["widths"][key] = m
 
-            hurt = verdict(key, m, spec["sel"])
+            # ⚠⚠ A REPORT IS NOT A REFUSAL, and conflating them is how a declared floor turns
+            # into a permanently-red gate anyway. `verdict` returns two kinds of line now: real
+            # refusals, and ⓘ lines that state something the reader must SEE but that decides
+            # nothing — a count within its declared floor, a count that has IMPROVED and wants the
+            # floor lowered, and a count that moves between runs and therefore cannot be judged.
+            # Both go into `refusals` so nothing is hidden from the printout; only the first kind
+            # sets ok:False. ⚠ The marker is the leading ⓘ, which `verdict` alone writes.
+            _lines = verdict(key, m, spec["sel"], (spec.get("known") or {}).get(key))
+            hurt = [x for x in _lines if "ⓘ" not in x.split(":", 1)[-1][:4]]
+            if _lines:
+                out["refusals"].extend(_lines)
             if hurt:
                 out["ok"] = False
-                out["refusals"].extend(hurt)
             # the first three refusals mean every later number is meaningless — do not shoot it
             if not m.get("found") or not m.get("painted"):
                 continue

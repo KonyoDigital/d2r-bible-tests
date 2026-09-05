@@ -10979,6 +10979,23 @@ window._lockMark = function(isOpen, px, label){
         arith = L.k + '/' + n_ + ' on the claims that RAN · '
               + _blind.length + ' never ran (' + _blind.join(', ') + ')';
       }
+      /* ⚠⚠ v2650 — A RETIRED AXIS VANISHED FROM THIS ROW WITH NOTHING IN ITS PLACE, AND THAT WAS
+         A REGRESSION I SHIPPED. Before v2647 `prune.reports` carried three axes that could not
+         fail, and they rendered here as "3 never ran (noprune, shrank, unreadable)" — the wrong
+         LABEL, but visible. v2647 retired them properly and moved them out of `blindClaims` into
+         `withdrawnClaims`, which HAS NO RENDERER: measured 2026-09-05, `withdrawnClaims` occurs
+         zero times in this file while `blindClaims` occurs once. So the branch above stopped
+         firing and the row went back to a bare "56/64 refused". Three retractions disappeared off
+         the surface he reads while staying in the ledger — which is the exact shape `withdraw()`'s
+         own docstring forbids ("a withdrawal you cannot read is a deletion with a nicer name"),
+         one layer further out. Found by a review of the shipped bytes, not by me.
+         ⚠ They are said DIFFERENTLY from `never ran`, because that conflation is what v2647 fixed
+         one layer down: never-ran is an axis nobody could exercise; withdrawn is one that WAS
+         exercised, found to prove nothing, and retired on the record. */
+      var _wd = (L.withdrawnClaims && L.withdrawnClaims.length) ? L.withdrawnClaims : null;
+      if (_wd) {
+        arith += ' · ' + _wd.length + ' retired as proving nothing (' + _wd.join(', ') + ')';
+      }
       /* ⚠⚠ v2624 — WHAT THE SCORE RESTS ON, NOT JUST WHAT IT IS.
          `printer.stream` banks 83/83 for wilson 0.956, and 80 of those 83 are TWO attack
          functions applied to 40 reels each — five distinct ideas, which score 0.5655. Wilson
@@ -11486,6 +11503,24 @@ window._lockMark = function(isOpen, px, label){
         ? (L.k + '/' + L.n + ' refused · Wilson ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
            + ' · needs ' + L.bar)
         : 'n=0 · needs ' + L.bar;
+      /* ⚠⚠ v2650 — RETIRED AXES MUST BE SAID HERE, AND THIS IS THE SECOND COPY OF THIS RENDERER.
+         My first cut added the clause to the OTHER lock renderer above (the valve diagram, near
+         `var arith`), confirmed `withdrawnClaims` was on the wire AND that the line was in the
+         loaded page — and the row still printed a bare "56/64 refused". Two builders, one law,
+         and it landed in the copy that does not draw this list. [[copy-drift]] §7,
+         [[console-ui-two-script-blocks]].
+         WHY IT MATTERS: before v2647 `prune.reports` carried three axes that could not fail and
+         they showed as "3 never ran (…)" — the wrong LABEL, but on screen. v2647 retired them
+         properly, moved them out of `blindClaims`, and they vanished with nothing in their place.
+         The ledger kept them; the surface he reads did not. A withdrawal you cannot read is a
+         deletion with a nicer name — which is `withdraw()`'s own rule, one layer further out.
+         ⚠ Said DIFFERENTLY from "never ran": never-ran is an axis nobody could exercise; retired
+         is one that WAS exercised, found to prove nothing, and struck on the record. Collapsing
+         them is the conflation v2647 fixed one layer down. */
+      var _lwd = (L.withdrawnClaims && L.withdrawnClaims.length) ? L.withdrawnClaims : null;
+      if (_lwd) {
+        ar += ' · ' + _lwd.length + ' retired as proving nothing (' + _lwd.join(', ') + ')';
+      }
       /* ⚠ v2450 — THREE ROWS ALL SAID "VAULT". A cold cross-family read of this very panel:
          "several rows are identical (three VAULT entries) with no visible differentiation."
          It is right, and it is the defect Konyo already named once: "i want to know which

@@ -193,6 +193,20 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_render_gate_sees_the_page",
+         [sys.executable, os.path.join(HERE, "test_render_gate_sees_the_page.py")], 120,
+         why="GATE-EYE — THE RENDER GATE REPORTED CLEAN ON A PAGE WITH VISIBLE CLIPPING. All "
+             "eleven render targets were NAMED SUBTREES: `console` is `#btn-mini, #btn-miniauto`, "
+             "so its `painted 1/1 - clipped 0` measured ONE BUTTON and was never a claim about "
+             "the page. A cold second-eye read of the 375px shot found panels stacked with text "
+             "cut off, a bar rendering 'appea / here' and 'Failed to fetch' sliced mid-word — all "
+             "confirmed by eye, all outside every selector, all invisible by construction. A "
+             "`page` target now measures the document, REUSING _PROBE so the scroller exclusion, "
+             "title recovery, inert check and fixed-position escape all still apply. This guard "
+             "holds the capability and the two settle faults found building it: copying "
+             "`settles:False` from `console` measured a half-built page, and the settle then "
+             "could never succeed because it demanded a `.tab[data-tab]` row that "
+             "control_ui.html does not have."),
     Gate("test_scope_reach_signal",
          [sys.executable, os.path.join(HERE, "test_scope_reach_signal.py")], 180,
          why="CF-13's READING AID IS DYING AND `actionable: 0` WOULD NEVER HAVE SAID SO. A row is "

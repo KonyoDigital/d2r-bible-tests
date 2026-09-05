@@ -167,10 +167,25 @@ CLAIMS = (
     ("unbounded", _attempt_an_unbounded_magnitude_with_NO_corpus,
      "an absurd magnitude with NO corpus reading is published — a STATED, UNCLOSED limit, run "
      "so the miss is counted rather than hidden"),
-    ("subnormal", _attempt_a_SUBNORMAL_figure,
-     "a subnormal but real figure must be KEPT — refuted by the family that proposed it, banked "
-     "so the tried-and-failed axis is on the record"),
 )
+
+#: ⚠⚠⚠ `subnormal` USED TO BE THE FIFTH CLAIM ABOVE, AND IT WAS REG-600 — IN THE VERSION WHOSE
+#: WHOLE SUBJECT WAS REG-600. It hands `1e-200`, a LEGAL figure, and counts a catch when the row
+#: keeps it. Measured with the REG-593 control across every axis:
+#:
+#:     REAL validator          negzero 8/8  emptycorpus 8/8  tinycorpus 8/8  subnormal 8/8
+#:     STUB accept-everything  negzero 0/8  emptycorpus 0/8  tinycorpus 0/8  subnormal 8/8   <--
+#:
+#: It scores full marks against a validator that validates NOTHING, because keeping a legal value
+#: is what a passthrough does. That is REG-600's definition verbatim, and it contributed 8 of
+#: `prune.reports`'s 64 k and 8 of its 72 n — inflating wilson from 0.7723 to 0.7958 and the attack
+#: count from 8 to 9. Found by a review of the shipped bytes, not by me.
+#:
+#: It is not deleted, because the refutation is worth keeping: the family that proposed the attack
+#: withdrew it itself ("still a measurement, just a very precise one"). It moves to where a case
+#: that must be KEPT belongs — the BASELINE, which by construction can only withdraw the claim,
+#: never raise it. This file's own docstring already said the baseline "cannot raise the score";
+#: an axis testing the same property sat in CLAIMS doing exactly that.
 
 
 #: ⚠⚠ THE AXES THAT ARE EXPECTED TO MISS, AND WHY THAT IS DECLARED RATHER THAN SILENT.
@@ -190,8 +205,12 @@ def _baseline_legitimate_figures_are_RECORDED():
     REG-593: a validator hardwired shut scores exactly like a perfect one. `0` most of all must be
     kept, because refusing it would be the same fabrication pointing the other way.
     """
+    # ⚠ `1e-200` IS HERE AND NOT IN CLAIMS. A subnormal but real figure must be KEPT — the cold
+    # family proposed it as an attack and then refuted its own proposal. Testing that a legal value
+    # survives is a BASELINE, and putting it in CLAIMS made it score 8/8 against a validator that
+    # validates nothing (REG-600). Here it can only withdraw the whole run, never inflate it.
     for v, h in ((0, CORPUS), (0.0, CORPUS), (12.5, CORPUS), (1000.0, CORPUS),
-                 (1.0, 1024 * 1024), (100, 200 * 1024 * 1024)):
+                 (1e-200, CORPUS), (1.0, 1024 * 1024), (100, 200 * 1024 * 1024)):
         r = _row(v, hist_bytes=h)
         if not isinstance(r, dict):
             return False, "the writer returned nothing for a legitimate figure %r" % (v,)
@@ -199,7 +218,8 @@ def _baseline_legitimate_figures_are_RECORDED():
             return False, ("a LEGITIMATE figure %r against a %r-byte corpus was thrown out "
                            "(prunedMb=%r why=%r) — the refusals above prove a jammed door, not a "
                            "working one" % (v, h, r.get("prunedMb"), r.get("prunedWhy")))
-    return True, "0, 0.0, 12.5, 1000.0, 1.0/1MiB and 100/200MiB were all recorded"
+    return True, ("0, 0.0, 12.5, 1000.0, the subnormal 1e-200, 1.0/1MiB and 100/200MiB "
+                  "were all recorded")
 
 
 def prove():

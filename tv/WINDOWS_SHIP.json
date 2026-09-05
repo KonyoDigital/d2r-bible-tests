@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2649",
+  "ver": "v2651",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2649: the reach threshold is absolute and reach only ever rises, so actionable 0 was about to change meaning in silence",
+  "note": "v2651: 54 clipped elements at 375px would have blocked every visual push, so the floor is declared and printed rather than hidden",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
