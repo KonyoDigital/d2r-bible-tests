@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2657",
+  "ver": "v2658",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2657: the intersection rule could not see a store that gains fields, and a verdict was drawn from a minority of the file",
+  "note": "v2658: CI had been red for 149 of 150 runs across three days and nothing gated on it: Publish depends only on its own jobs, so the site published throughout. Two REAL regressions fixed and proven, four stale assertions, one missing CI dep, six host-fixture gates, and one gate that printed UNKNOWN while exiting FAIL.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

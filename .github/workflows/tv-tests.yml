@@ -12,8 +12,32 @@ jobs:
       # Pillow FIRST: without it the chronicle RED/GREEN class skips, and a guard that skips
       # reports OK while measuring nothing. The reel fixture is generated, so none of his footage
       # is ever committed.
-      - name: Install Pillow (so the chronicle RED/GREEN actually runs instead of skipping)
-        run: python3 -m pip install --quiet pillow
+      #
+      # ⚠⚠ websocket-client IS NOT OPTIONAL, AND ITS ABSENCE FAILED A GATE THAT LOOKS UNRELATED TO
+      # SOCKETS. tv/render_check.py:1955-1965 guards main() with `import websocket` and returns 2
+      # on ImportError. test_render_coverage's TheRatchetIsActuallyJOINEDToTheVerdict stubs
+      # _chrome_up/_chrome_down/COVERAGE/check but NOT that import, so on the runner main() bailed
+      # at line 1965 before any coverage logic ran and
+      # `test_a_coverage_refusal_is_not_counted_as_a_render_failure` never saw the string it
+      # asserts on. Its sibling test only asserts rc != 0, and rc=2 satisfies that — which is why
+      # exactly 1 of the 2 failed and the cause read as a coverage bug rather than a missing
+      # package. REPRODUCED locally by putting a `websocket.py` that raises on PYTHONPATH: with it
+      # the file goes FAILED (failures=2) matching CI byte for byte, without it failures=1.
+      # The message it printed on the runner was never visible in the log: run_gates.py:2096 is
+      # `print("   " + ln[:200])` and the assertion line is 301 chars, so the tail carrying
+      # "the websocket client is not installed" was truncated away. FOUR SHIPS red.
+      # ⚠ WHAT ELSE THIS TOUCHES, stated rather than assumed. render_check.py is NOT a registered
+      # gate in run_gates.py, so nothing new drives Chrome from there — main() simply reaches its
+      # own logic instead of the import guard. The one other reader is test_control.py:131, where
+      # the same import is deliberately optional and its absence returns None. That helper is a
+      # LAST-RESORT fallback: it runs only if `loopback_path() == "cdp"` or after BOTH --headless
+      # --dump-dom modes failed to answer (test_control.py:242-275). On a runner --dump-dom answers,
+      # so the usual path is unchanged; if it ever does not, a case that used to SKIP now gets a
+      # real reading, which is the direction this repo wants. Its three callers still guard on
+      # find_browser() and browser_can_load_localhost(), so no browser is assumed into existence.
+      # Same interpreter as the gate set (`python3 -m pip`), so there is no env split.
+      - name: Install Pillow + websocket-client (a missing import is a skip wearing a failure)
+        run: python3 -m pip install --quiet pillow websocket-client
       # ONE GATE SET, ONE VERDICT.
       #
       # This step used to hand-list SEVEN suites while tv/run_gates.py knew about TWENTY-SIX, so

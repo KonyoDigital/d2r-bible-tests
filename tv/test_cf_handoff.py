@@ -621,13 +621,22 @@ class Test167EyeShowsInTheFleetWhenLive(unittest.TestCase):
             ca._eyes_pulse = real
 
     def test_a_stalled_read_is_not_live(self):
+        # ⚠ v2622 — THIS STUB WAS PINNED TO A WINDOW THE PRODUCT NO LONGER HAS. It aged the pulse
+        # a hardcoded 20s against a hardcoded `age < 6000`, but 5f1122d8 deliberately widened the
+        # WIRE's window to `_EYE_WIRE_FRESH_MS = 300000` because the value rides
+        # `_console_beacon_loop`'s 240s period. 20_000 < 300_000, so the eye was correctly live and
+        # CI read "AssertionError: True is not false" — a stale assertion, not a defect. The
+        # replacement guards went into test_control.py and this duplicate was left behind.
+        # Stub and assert RELATIVE TO THE CONSTANT, so moving the window can never again strand
+        # this copy on a retired number. `ageMs` stays exact, so it is still a real bound.
         import control_app as ca
         real = ca._eyes_pulse
-        ca._eyes_pulse = lambda: {"liveTs": int(time.time() * 1000) - 20_000}
+        stale_ms = ca._EYE_WIRE_FRESH_MS + 60_000
+        ca._eyes_pulse = lambda: {"liveTs": int(time.time() * 1000) - stale_ms}
         try:
             e = ca._eye_for_wire()
             self.assertFalse(e["live"])
-            self.assertGreaterEqual(e["ageMs"], 6000)
+            self.assertGreaterEqual(e["ageMs"], ca._EYE_WIRE_FRESH_MS)
         finally:
             ca._eyes_pulse = real
 

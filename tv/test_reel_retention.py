@@ -702,12 +702,71 @@ class AFixtureCanActuallyRedirectTheLedgers(unittest.TestCase):
                          % cov.get("never-chronicle-swept"))
 
     def test_the_real_path_is_untouched_by_the_redirect(self):
-        """BASELINE — or the fix bought isolation by changing what the deleter really does."""
-        cov = rr.plan().get("coverage") or {}
+        """BASELINE — or the fix bought isolation by changing what the deleter really does.
+
+        ⚠⚠ THIS CASE READ KONYO'S FOOTAGE AND WAS RED ON EVERY CI RUN. It was a bare `rr.plan()`
+        — the only one of 15 `rr.plan(` call sites in this file that passed no scratch dir — so it
+        resolved reel_retention.py:319 `hist_dir or os.path.join(HERE, "frames", "hist")` onto
+        tv/frames/hist. That directory is gitignored (.gitignore "tv/frames/", `git ls-files
+        tv/frames` -> 0 tracked bytes) and no CI step creates it, so on a fresh clone plan()
+        returns the :366-368 OSError payload, which carries NO `coverage` key at all — `.get(
+        "coverage") or {}` is `{}` and `sum({}.values()) > 0` is unsatisfiable. Measured in CI
+        af8beac9 2026-09-05: "AssertionError: False is not true : the real path stopped reporting
+        anything at all". An empty-but-present frames/hist fails identically, via the all-zero
+        counter at :444 — there is no input on a runner that could have made it pass.
+
+        The file's own header already said what should have happened here: "Every case here runs
+        against a TEMP fixture — never his frames." A skipUnless would have bought green by giving
+        the baseline up on the venue that actually runs it — that is the trade that turned eight of
+        seventeen named reels into permanent skips (see the v2069 note in reel_retention.py). So
+        HERE is pointed at a scratch tree with the real SHAPE (frames/hist/reel_*) and plan() is
+        still called with NO hist_dir and no TV_HIST, which is the thing this case is about: the
+        UN-REDIRECTED order is still HERE-then-hist (reel_retention.py:343-344) and still reports.
+
+        The order is now OBSERVABLE rather than assumed: the HERE copy of the ledger seals every
+        reel, the hist copy is a readable `{}`, and "first readable wins" means whichever copy is
+        consulted first is the one that answers. Un-redirected -> never-chronicle-swept 0.
+        Measured with the redirect forced on (TV_HIST=1, same tree) -> never-chronicle-swept 2.
+        [[feedback-fixtures-never-touch-live-data]] [[feedback-blind-fixture-green-gate]]
+        """
+        root = tempfile.mkdtemp(prefix="rr_realpath_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "frames", "hist")
+        os.makedirs(hist)
+        # SEVEN, because KEEP_RECENT is 5 and a shielded reel never reaches the ledger branches —
+        # with five or fewer the ledger copy that answered would make no difference to coverage.
+        sids = ["s_17300000000%02d_%d" % (i, i) for i in range(7)]
+        for i, sid in enumerate(sids):
+            d = os.path.join(hist, "reel_" + sid)
+            os.makedirs(d)
+            with io.open(os.path.join(d, "f_17300000000%02d.jpg" % i), "w") as fh:
+                fh.write("x")
+        # a durable store, or `_durable_sessions` reports ok=False and EVERY reel is held by
+        # `no-witness-index` before any ledger is consulted — the fixture would have disabled the
+        # branch it exists to watch, exactly as the stale-store case below records.
+        with io.open(os.path.join(root, "vault_accum.json"), "w", encoding="utf-8") as fh:
+            json.dump({}, fh)
+        sealed = {("reel_" + s): {"pages": 99, "rows": 99, "banked": True} for s in sids}
+        for fn in ("chronicle_swept.json", "vault_swept.json"):
+            with io.open(os.path.join(root, fn), "w", encoding="utf-8") as fh:
+                json.dump(sealed, fh)                       # the HERE copy — consulted FIRST
+            with io.open(os.path.join(hist, fn), "w", encoding="utf-8") as fh:
+                json.dump({}, fh)                           # readable, empty — the hist copy
+        was = rr.HERE
+        rr.HERE = root
+        try:
+            cov = rr.plan().get("coverage") or {}
+        finally:
+            rr.HERE = was
         self.assertTrue(sum(cov.values()) > 0,
                         "the real path stopped reporting anything at all")
         self.assertFalse(cov.get("ledger-unreadable"),
                          "the real path now cannot read its own ledgers: %s" % cov)
+        self.assertFalse(cov.get("never-chronicle-swept"),
+                         "with no hist_dir and no TV_HIST the order must still be HERE then hist "
+                         "— the hist copy of the ledger (a readable {}) answered instead, so %s "
+                         "reel(s) came back never-chronicle-swept. coverage=%s"
+                         % (cov.get("never-chronicle-swept"), cov))
 
     def test_a_readable_EMPTY_store_is_not_overruled_by_a_stale_one(self):
         """The docstring always said 'first readable copy wins'; the code said 'first non-empty'.

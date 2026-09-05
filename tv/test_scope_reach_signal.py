@@ -34,6 +34,8 @@ rather than lying: a guard that simply had not been caught out yet. It asks the 
 ⚠ NOTHING IS GATED AND NO NUMBER MOVES. This reports; `may()` is still never called and the reach
 rows are still not a gate — which is itself checked, in `test_heart_surface`.
 """
+import ast
+import io
 import os
 import sys
 import unittest
@@ -44,6 +46,87 @@ if HERE not in sys.path:
 
 import auto_scope as AS  # noqa: E402
 import control_app as CA  # noqa: E402
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# THE AUTHOR'S RULING, MADE CHECKABLE — one routine, two callers.
+#
+# `test_heart_surface` enforces the same ruling and IMPORTS this rather than re-implementing it.
+# Two copies of one safety routine is `copy-drift` §7, and the dangerous case is exactly this:
+# a law that lands in one copy and not the other is not a law.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+THIS_FILE = os.path.join(HERE, "test_scope_reach_signal.py")
+
+
+def _is_signal_key(sub):
+    """Is this subscript `something["signal"]`? -> bool
+
+    ⚠ THE PYTHON VERSION MOVED THIS NODE AND MY FIRST CUT READ THE OLD SHAPE. Up to 3.8 a
+    Subscript's `.slice` was an `ast.Index` WRAPPING the constant; from 3.9 the slice IS the
+    constant. So `getattr(slice, "value", slice)` returned the *string* `"signal"` on 3.9+, the
+    `isinstance(..., ast.Constant)` test could never be true, and the detector answered `[]` for
+    every input — a guard that had stopped measuring anything while looking correct.
+    Its own anti-vacuity baseline is what caught it, on the first run.
+    ⚠ Both shapes are handled because this repo runs 3.9 on his Mac and 3.12+ on CI, and a check
+    that silently degrades on one venue is the venue-blindness scar all over again.
+    """
+    k = sub.slice
+    if k.__class__.__name__ == "Index":          # py <= 3.8, deprecated in 3.9
+        k = getattr(k, "value", k)
+    return isinstance(k, ast.Constant) and k.value == "signal"
+
+
+def _live_signal_assertions_in(src, filename="<memory>"):
+    """Test functions asserting an exact value of the UNFIXTURED reading. -> [names]
+
+    A case is an offender when BOTH hold: it never calls `_with_reach` (so it is reading the live
+    tree), and it asserts on a `["signal"]` subscript. Fixture-driven cases are deliberately not
+    offenders — they are the real coverage and must keep their hard assertions.
+
+    ⚠ AST, never source text. The substring form of this check is what produced the collision it
+    replaces, and a text form would match this very docstring.
+    """
+    try:
+        tree = ast.parse(src, filename)
+    except SyntaxError:
+        raise
+    bad = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if not node.name.startswith("test"):
+            continue
+        fixtured, asserts_signal = False, False
+        for sub in ast.walk(node):
+            # ⚠ FIXTURED MEANS "THIS CASE CONTROLS THE READING", NOT "IT CALLED ONE HELPER".
+            # The first cut recognised only `_with_reach` and accused
+            # `test_an_UNCOUNTABLE_reach_is_UNKNOWN_and_not_a_dead_aid`, which patches
+            # `AS.undeclared_reach_abilities` by hand — the same substitution `_with_reach` makes
+            # internally, and every bit as deterministic. A guard that reds on a correct case is
+            # a guard someone deletes, so the predicate asks what the case DOES to the source.
+            if isinstance(sub, ast.Assign):
+                for t in sub.targets:
+                    if getattr(t, "attr", None) == "undeclared_reach_abilities":
+                        fixtured = True
+            if isinstance(sub, ast.Call):
+                f = sub.func
+                nm = getattr(f, "id", None) or getattr(f, "attr", None)
+                if nm == "_with_reach":
+                    fixtured = True
+                if nm in ("assertEqual", "assertIs", "assertNotEqual"):
+                    for a in sub.args:
+                        for s in ast.walk(a):
+                            if isinstance(s, ast.Subscript) and _is_signal_key(s):
+                                asserts_signal = True
+        if asserts_signal and not fixtured:
+            bad.append(node.name)
+    return sorted(bad)
+
+
+def live_signal_assertions(path=None):
+    """The offenders in the real reach suite. -> [names]"""
+    p = path or THIS_FILE
+    return _live_signal_assertions_in(io.open(p, encoding="utf-8").read(), p)
 
 
 def _with_reach(delta):
@@ -91,12 +174,36 @@ class TheAidSaysWhetherItCanStillSeparateAnything(unittest.TestCase):
         for k in ("signal", "narrowHeadroom", "narrowMax", "total", "actionable"):
             self.assertIn(k, live, "the success path does not publish %r" % k)
 
-    def test_it_is_LIVE_while_some_row_is_still_narrow(self):
+    def test_the_LIVE_reading_is_REPORTED_and_never_ASSERTED(self):
+        """★★ THIS CASE USED TO BE THE ONE THING THAT COULD FAIL A PUSH ON NOTHING.
+
+        It was `assertEqual(r["signal"], "LIVE")` against the LIVE tree, guarded only by
+        `if not r.get("ok"): skipTest`. But `ok` and `signal` are INDEPENDENT — the fixture at
+        :195 asserts `ok is True` on the very reading :105 calls DEAD — so the skip could never
+        fire in the case it was written for. `reach` is a three-deep walk over `control_app`'s own
+        call graph, so it tracks THIS MODULE'S GROWTH, not the lanes: the only ever-narrow row has
+        **three functions of headroom**. On the day someone adds a fourth, this line would have
+        started failing every push for a reason nobody caused, and the author's ruling — *this may
+        inform, never fail a build* — would have been broken by the very suite enforcing it.
+
+        So the live signal is REPORTED, never asserted. What is still asserted is the part that is
+        a real contract and cannot drift with growth: the reading is well-formed, and it does not
+        REFUSE. The DEAD and UNKNOWN behaviours keep their hard assertions, driven by `_with_reach`
+        fixtures, which are deterministic on any tree and any venue.
+        [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
+        """
         r = CA.scope_reach_state()
         if not r.get("ok"):
             self.skipTest("the auditor could not be asked on this tree — not a pass")
-        self.assertEqual(r["signal"], "LIVE")
+        self.assertIn(r["signal"], ("LIVE", "DEAD"),
+                      "the live reading is neither of the two states this aid can be in")
         self.assertIsInstance(r["narrowHeadroom"], int)
+        # The observation, printed rather than enforced. A DEAD reading here is INFORMATION —
+        # it means the aid has stopped being readable and wants rebuilding — not a build failure.
+        if r["signal"] != "LIVE":
+            print("\n  ⚪ scope-reach aid reads %s on this tree (headroom %s) — informational, "
+                  "not a failure. The aid needs rebuilding, the build does not need stopping."
+                  % (r["signal"], r.get("narrowHeadroom")))
 
     def test_it_goes_DEAD_when_NOTHING_can_be_narrow_any_more(self):
         """★★ RED PROOF, and it is not hypothetical — this is what a few more days of growth in
@@ -194,13 +301,54 @@ class TheRulingIsStillHonoured(unittest.TestCase):
         r = _with_reach(+5)
         self.assertTrue(r["ok"], "a dead reading aid turned the report into a refusal")
 
-    def test_the_reach_rows_are_not_registered_as_a_gate(self):
-        """Asked of the REGISTRY, never of run_gates.py's source text — the source-text form of
-        this check would have gone red on a prose blurb naming the thing it forbids."""
-        import run_gates as RG
-        names = [str(getattr(g, "name", "")) for g in getattr(RG, "GATES", [])]
-        self.assertTrue(names, "no gates declared — this is measuring nothing")
-        self.assertEqual([n for n in names if "scope_reach" in n], [])
+    def test_this_suite_cannot_refuse_because_the_module_grew(self):
+        """★★ THE REPLACEMENT FOR `test_the_reach_rows_are_not_registered_as_a_gate`, AND THE
+        OLD FORM WAS UNSATISFIABLE — the contradiction is the finding.
+
+        The old check asserted that no gate named `*scope_reach*` is registered. But
+        `test_control.TestNoOrphanSuite` / `test_every_suite_is_in_the_gate_set` REQUIRES every
+        `tv/test_*.py` to be registered. So the moment this file existed, one rule compelled the
+        registration the other forbade, and **the suite forbade its own existence.** No edit to
+        either side could satisfy both; v2649 shipped straight into it and CI went red.
+
+        Registration was only ever a PROXY for the author's actual ruling — *this may inform,
+        never fail a build.* The proxy became unsatisfiable, so it is replaced by the property it
+        stood for, which is checkable directly: **no test here may assert an exact value of the
+        LIVE reading.** Fixture-driven cases (`_with_reach`) are deterministic on every tree and
+        every venue and keep their hard assertions; only an unfixtured reading can drift with
+        `control_app.py`'s growth, and that is the one thing that could fail a push on nothing.
+
+        Asked of the AST, never of the source text — the substring form of this check is what
+        caused the collision, and a prose form would go red on this very docstring.
+        """
+        offenders = live_signal_assertions()
+        self.assertEqual(
+            offenders, [],
+            "%s assert an exact value of the LIVE scope-reach reading. `reach` is a walk over "
+            "control_app's own call graph, so it tracks THIS MODULE'S GROWTH: the only ever-narrow "
+            "row has three functions of headroom, and on the day someone adds a fourth these would "
+            "fail every push for a reason nobody caused. Report the live signal; assert only "
+            "against a `_with_reach` fixture." % (offenders,))
+
+    def test_BASELINE_the_offender_detector_can_actually_find_one(self):
+        """★ ANTI-VACUITY. A guard that returns [] because it can never find anything is the
+        defect this repo calls 'the green that lies'. Hand it a planted offender and require it."""
+        planted = _live_signal_assertions_in(
+            "import x\n"
+            "class T:\n"
+            "    def test_planted(self):\n"
+            "        r = CA.scope_reach_state()\n"
+            "        self.assertEqual(r['signal'], 'LIVE')\n")
+        self.assertEqual(planted, ["test_planted"],
+                         "the detector cannot see a live-signal assertion even when handed one, "
+                         "so its empty answer above measured nothing")
+        # and it must NOT accuse a fixture-driven case, or it would forbid the real coverage
+        clean = _live_signal_assertions_in(
+            "class T:\n"
+            "    def test_fixture(self):\n"
+            "        r = _with_reach(+5)\n"
+            "        self.assertEqual(r['signal'], 'DEAD')\n")
+        self.assertEqual(clean, [], "it accused a fixture-driven case, which must stay asserted")
 
 
 if __name__ == "__main__":

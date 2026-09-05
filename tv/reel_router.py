@@ -243,15 +243,25 @@ def _evidence(hist=None):
     # the verdict of ONE survey at ONE time, and `retro_triage.json` records no classifier
     # version — so without this the report cannot distinguish "nothing is there" from "nothing
     # was found by whatever the classifier was that day". [[stale-reading]]
-    seen_at = {}
+    # ⚠ `seen_at is None` means THE SURVEY TIMES COULD NOT BE READ — it is not an empty survey.
+    # This handler used to hand back `{}` on both the exception and the not-ok path, so every reel
+    # then reported `surveyedAt: None` as though the store had been read and held nothing for it.
+    # That collapses precisely the distinction the comment above says this exists to preserve.
+    seen_at, seen_why = {}, ""
     try:
         import retro_triage as _rt
         blob, ok = _rt.load()
         if ok:
             for k, v in (blob or {}).items():
                 seen_at[str(k)] = (v or {}).get("ts")
-    except Exception:
-        seen_at = {}
+        else:
+            seen_at = None
+            seen_why = ("retro_triage.load() reported not-ok, so no survey time could be read for "
+                        "any reel — surveyedAt is UNKNOWN, not absent")
+    except Exception as exc:
+        seen_at = None
+        seen_why = ("the retro_triage store would not load (%s) — surveyedAt is UNKNOWN, not "
+                    "absent" % type(exc).__name__)
     out = {}
     for row in (rep.get("rows") or []):
         st = row.get("stations") or {}
@@ -265,9 +275,11 @@ def _evidence(hist=None):
             # a reel the template station could not classify was never surveyed. `say` absent is
             # UNKNOWN-shaped and is passed through as None rather than turned into False.
             "surveyed": None if tp.get("say") is None else True,
-            "surveyedAt": seen_at.get(str(row.get("reel") or "")),
+            # None here has TWO causes and the report's `why` is what separates them: the store was
+            # read and holds no time for this reel, or the store could not be read at all.
+            "surveyedAt": None if seen_at is None else seen_at.get(str(row.get("reel") or "")),
         }
-    return out, ""
+    return out, seen_why
 
 
 def route(hist=None):

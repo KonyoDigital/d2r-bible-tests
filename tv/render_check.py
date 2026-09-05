@@ -329,7 +329,13 @@ TARGETS = {
             W.forEach(function(n){
               try{ window.tvVaultRegister(n); window.vaultAssign(n,'uni-weap'); }catch(e){} });
             return 1; })()""",
-        "activate": """(function(){
+        # RAW on purpose: this block holds JS regexes (`/FULL|needs \d+ mules/` below). Unraw, `\d`
+        # is an invalid Python escape — silent on 3.9 here, a VISIBLE SyntaxWarning on CI's 3.12.
+        # That warning went to stderr, and run_gates derived a gate's skip reason from
+        # stdout+stderr, so the warning's source echo DISPLACED crest_loudness's declared
+        # "no Chrome" line and turned a declared skip into an undeclared one. Cost: test_control
+        # red on CI, green here, for four ships.
+        "activate": r"""(function(){
             var t=[].slice.call(document.querySelectorAll('.tab[data-tab]')).filter(function(x){
               return /vault/i.test(x.getAttribute('data-tab')||'');})[0];
             if(t) t.click();

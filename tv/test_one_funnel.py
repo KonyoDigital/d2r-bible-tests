@@ -194,8 +194,21 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
         os.makedirs(trap)                      # a DIRECTORY where a file is expected
         rt, fa = RT.STORE, FA.SEAL_STORE
         try:
-            RT.STORE = FA.SEAL_STORE = os.path.basename(trap)
-            r = OF.funnel()
+            # ⚠ THE ABSOLUTE PATH, NOT ITS BASENAME. `_waypoint_cover` resolves a store as
+            # os.path.join(HERE, store), so "trap.json" pointed at tv/trap.json — a file that has
+            # never existed — and the directory built two lines up was never opened. MEASURED: the
+            # reason came back "No such file or directory", never "Is a directory", so the REG-555
+            # scenario this test NAMES was passing on a different failure. os.path.join keeps an
+            # absolute second argument, so this one actually reaches the trap.
+            RT.STORE = FA.SEAL_STORE = trap
+            # ⚠⚠ AND THE SHELF IS PLANTED, NOT BORROWED. This called OF.funnel() bare, which walks
+            # the REAL tv/frames/hist — 639 reels on his Mac, ABSENT on a runner (gitignored, 0
+            # tracked bytes). one_funnel.py:172 then takes its `if not rows` exit into _unknown(),
+            # which hardcodes unreadableRungs=[], and CI read "[] != ['swept', 'triaged']" for four
+            # pushes. The law was never measured there. `_run` plants the shelf the class already
+            # owns, so the reading is about the STORES, which is what this test is for.
+            r = self._run([{"reel": "reel_s_1", "stage": "swept", "stageIdx": 2,
+                            "stageKnown": True}])
         finally:
             RT.STORE, FA.SEAL_STORE = rt, fa
         self.assertEqual(
@@ -226,7 +239,10 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
         os.makedirs(trap)
         rt, fa, story = RT.STORE, FA.SEAL_STORE, RS.story
         try:
-            RT.STORE = FA.SEAL_STORE = os.path.basename(trap)
+            # ⚠ ABSOLUTE, not a basename: `_waypoint_cover` joins the store onto HERE, so
+            # "trap.json" resolved to tv/trap.json and the directory above was never opened —
+            # the rungs read unreadable on a FileNotFoundError instead. Same fix as REG-555's test.
+            RT.STORE = FA.SEAL_STORE = trap
             # SPLIT branch: two reels claiming one rung with different stages
             RS.story = lambda *a, **k: {"reels": [
                 {"reel": "r1", "stage": "swept", "stageIdx": 2, "stageKnown": True},
@@ -276,12 +292,13 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
         cover = {"triaged": {"store": "x.json", "covered": 0, "why": "read, 0 dated"},
                  "swept": {"store": None, "covered": None, "why": "no store"},
                  "banked": {"store": "y.json", "covered": None, "why": "would not read"}}
-        real = OF._waypoint_cover
-        try:
-            OF._waypoint_cover = lambda sids: cover
-            r = OF.funnel()
-        finally:
-            OF._waypoint_cover = real
+        # ⚠⚠ `_run` PLANTS BOTH HALVES — this cover AND a reel on the shelf. Patching the cover
+        # alone and calling OF.funnel() bare walked the real tv/frames/hist, which is gitignored
+        # and absent on a runner, so one_funnel.py:172 returned _unknown() with emptyStoreRungs=[]
+        # hardcoded and CI failed "[] != ['triaged']" — the cover was never consulted at all. A
+        # fixture that only exists on his Mac is not a fixture. [[regression-guard]]
+        r = self._run([{"reel": "reel_s_1", "stage": "swept", "stageIdx": 2, "stageKnown": True}],
+                      cover=cover)
         self.assertEqual(r["emptyStoreRungs"], ["triaged"],
                          "a store that was READ and covered zero reels is in neither list: %s" % r)
         self.assertEqual(r["unreadableRungs"], ["banked"], r["unreadableRungs"])
@@ -293,7 +310,12 @@ class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
         real = OF.WAYPOINT_SOURCES
         try:
             OF.WAYPOINT_SOURCES = {k: None for k in real}
-            r = OF.funnel()
+            # ⚠ Same absent-shelf trap as the two above: a bare OF.funnel() read the real
+            # tv/frames/hist, so on a runner this got UNKNOWN out of the empty-shelf exit and
+            # NEVER out of the no-store-at-all path the baseline exists to reach — the reachability
+            # it claims to prove was the one thing it stopped proving. `_run` plants the shelf.
+            r = self._run([{"reel": "reel_s_1", "stage": "swept", "stageIdx": 2,
+                            "stageKnown": True}])
         finally:
             OF.WAYPOINT_SOURCES = real
         self.assertEqual(r["passage"], "UNRECORDED",

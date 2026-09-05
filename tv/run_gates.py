@@ -1130,7 +1130,15 @@ GATES = [
              "on arrival gets re-baselined instead of read. A rise fails; a FALL fails too, so a "
              "win is recorded rather than absorbed as slack. ⚠ Its own unit suite is OWED — the "
              "gate exercises the real measurement against real pixels every run, which is stronger "
-             "than a fixture, but that is not the same as having one."),
+             "than a fixture, but that is not the same as having one.",
+         # v2658 — DECLARED, and narrowly. The module printed "⚪ UNKNOWN — headless chrome would
+         # not start" and exited 1, so on a runner with no browser installed this counted as a
+         # RED GATE while nine siblings printing ⚪ SKIPPED did not, purely because they exit 77.
+         # It now exits 77 for THAT reason only; every other unmeasurable run still fails.
+         # ⚠ This declares a venue fact, it does not fix one: `tv-tests.yml` installs no browser,
+         # so the gate SKIPS on CI and measures only on his Mac. That is a named coverage gap —
+         # publish.yml:97-117 already has the chromium install and cache this workflow needs.
+         skip_ok=(r"headless chrome would not start",)),
     Gate("test_pixel_witness", [sys.executable, os.path.join(HERE, "test_pixel_witness.py")], 60,
          why="v2601 — the beat is published BY the document, so a window that beats happily while "
              "the compositor presents nothing looks perfect from the inside. Measured on his "
@@ -1650,8 +1658,21 @@ def run(only=None, live_watch=True, live_writer=None):
             p = subprocess.run(g.argv, cwd=g.cwd, capture_output=True, text=True,
                                encoding="utf-8", errors="replace", timeout=g.timeout)
             dt = time.time() - t0
+            # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
+            # stderr — a SyntaxWarning, an atexit flush, a traceback tail — become the gate's
+            # "reason" and displace the declared line, converting a DECLARED skip into an
+            # UNDECLARED one, which :2025 counts as a build failure. That is exactly the camouflage
+            # v2430 shipped to remove, arriving through the back door.
+            # Measured on CI at af8beac: `render_check.py:332` emitted an invalid-escape warning
+            # whose source echo `  "activate": """(function(){` became crest_loudness's reason
+            # instead of its own `⚪ SKIPPED — no Chrome on :9224`. Invisible on Konyo's python3.9
+            # (hidden DeprecationWarning), fatal on CI's 3.12 (visible SyntaxWarning).
+            # stderr is still the fallback, because a gate that dies without printing anything to
+            # stdout has its only explanation there — silence must not become an empty reason.
+            _out = [ln for ln in (p.stdout or "").strip().split("\n") if ln.strip()]
+            _err = [ln for ln in (p.stderr or "").strip().split("\n") if ln.strip()]
+            tail = (_out or _err)[-1:] or [""]
             blob = (p.stdout or "") + (p.stderr or "")
-            tail = [ln for ln in blob.strip().split("\n") if ln.strip()][-1:] or [""]
             # v1601 — exit 77 means "I could not run", not "I passed". Without this a gate that
             # self-skipped printed its own ⚠ SKIPPED line and still got counted green, which is the
             # lie this file's docstring opens by forbidding. js-syntax skips on every local run on

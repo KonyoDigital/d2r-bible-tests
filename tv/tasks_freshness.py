@@ -44,8 +44,29 @@ ROOT = os.path.dirname(HERE)
 TASKS = os.path.join(ROOT, "TASKS.md")
 
 #: the tables whose rows are CLAIMS ABOUT UNDONE WORK. A row here that is actually finished is the
-#: defect; rows in the shipped/blocked tables are history and are not graded.
-GRADED_HEADINGS = ("READY TO APPLY",)
+#: defect; rows in the shipped tables are history and are not graded.
+#:
+#: ⚠⚠ v2658 — THIS TUPLE WAS `("READY TO APPLY",)` AND IT GRADED **ONE ROW, ALREADY SHIPPED.**
+#: Measured 2026-09-05: the "READY TO APPLY" table had drifted down to a single entry (#135),
+#: whose own cell reads `✅ SHIPPED v2474`. So the gate written to stop stale rows was watching a
+#: table of finished work and reporting UNKNOWN on it, every run, for ever — while the URGENT
+#: THREE, BLOCKED/HIS CALL and OPEN BRIEFS tables drifted unwatched and accumulated ELEVEN rows
+#: claiming states that were no longer true, six of them contradicted by rulings recorded in the
+#: SAME FILE, one of them 116 lines above its own row.
+#:
+#: That is [[the-unjoined-end]] pointed at the freshness gate itself: it ran, it returned, and it
+#: could not reach the thing it judges. A gate whose subject has moved out from under it is the
+#: same defect as a gate that never runs — see `regression-guard`'s GATE_MOVES_WITH_PRODUCT.
+#:
+#: ⚠ BLOCKED rows ARE graded on purpose. "Blocked" is itself a claim about undone work, and the
+#: measured failure mode here is precisely a row still labelled blocked by a decision he has
+#: already made — 155 sat "BLOCKED — his money" 73 lines below the ruling that unblocked it.
+GRADED_HEADINGS = (
+    "READY TO APPLY",
+    "URGENT THREE",
+    "BLOCKED / HIS CALL",
+    "OPEN BRIEFS",
+)
 
 FP = re.compile(r"<!--\s*fp:\s*([^:]+?)\s*::\s*(.+?)\s*-->")
 

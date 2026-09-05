@@ -14,6 +14,38 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 
 ---
 
+## ⚠⚠ DRIFT AUDIT — 2026-09-05, and the file's own failure recurred
+
+He asked for the list *"optimised to perfection so theres nothing there"*. A read-only pass over all
+1,215 lines, cross-checked against 400 commits, measured this:
+
+| fact | measurement |
+|---|---|
+| newest LANDED row in this file | **v2648** |
+| HEAD | **v2657** — so **9 ships are absent from the file** |
+| "the 30-gate set" (§8 and elsewhere) | `grep -c '^    Gate(' tv/run_gates.py` = **142**. The number 30 is **~4.7× stale** |
+| rows claiming a state that is no longer true | **11** |
+| ids carrying work that is really ONE item | **8 clusters** — the largest is **7 ids for one decision** |
+| rows shown as owed by him that he has ALREADY ruled on | **6** |
+
+⚠⚠ **AND THE GATE BUILT TO PREVENT EXACTLY THIS WAS WATCHING ONE ROW.**
+`tv/tasks_freshness.py` graded only the heading `"READY TO APPLY"` — a table that had drifted down
+to a **single entry (#135) whose own cell reads `✅ SHIPPED v2474`.** So the freshness gate was
+grading one finished row and reporting UNKNOWN on it, every run, for ever, while every other table
+drifted unwatched. **A gate whose subject moved out from under it is the same defect as a gate that
+never runs.** Widened in v2658 to `READY TO APPLY · URGENT THREE · BLOCKED / HIS CALL · OPEN
+BRIEFS` — 1 graded row became **14**. [[the-unjoined-end]] [[regression-guard]]
+
+⚠ **THE SHARPEST INSTANCE, because it needs no judgement:** row **155** read *"BLOCKED — his
+money"* while the ruling unblocking it is written **73 lines above it in this same file**. And
+**CF-1** appears twice in two contradictory states, 116 lines apart. A file long enough to
+contradict itself is a file nobody can read to the end.
+
+**The deduplicated remaining set is at the bottom of this file, under
+§🎯 THE TRUE REMAINING SET.** Read that, not the historical tables above it.
+
+---
+
 # ✅ LANDED 2026-09-02 — four ships, and what each one CLOSED
 
 > Written because this file went four versions stale (last touched at v2435) while the work carried
@@ -1139,7 +1171,7 @@ never on a grep count.
 |---|---|---|
 | **133** | No per-entry evidence in `d2r_owned`. | Answered by **166**'s ledger ruling — do 166 first. |
 | **146** | 4.34 GB / 4,128 frames releasable, keeping all 894 that carry. | **The apply is his.** He ruled "yes" on the principle: a frame the printer examined and found empty may be deleted. |
-| **155** | Would spend paid reads. | His money. |
+| **155** | Would spend paid reads. | ✅ **NO LONGER BLOCKED — HE DECIDED IT 2026-09-04, and the ruling is written 73 lines ABOVE this row in this same file** (§💵 HIS MONEY RULING: *"whatever needs to use my money is fine as long as its working properly and coded and not looped and debugged"*, and the section's own sentence *"This unblocks 155"*). A row cannot be blocked by a decision this file records as taken — that is a stale label, not a blocker, and it sat here for a day. **The condition, which is the whole ruling:** a paid pass runs BEHIND the proof — after the path that consumes it is proven — never as the thing that proves it. So it is sequenced after A15's *clean* definition, not blocked by his silence. **Spend on the 29 never-read reels, never a broad sweep**: 24 of the 40 return nothing new (12 sealed-unreadable is a CAPTURE change, 12 names-read is a missing seal). [[paid-work-with-no-memory]] — 3,434 paid reads bought 2 sightings. <!--fp: TASKS.md :: His money.--> |
 | **154** | ⚠ **HALF LANDED (fleet-measured 2026-09-04)** — `pruned_mb=None` now passes at `control_app.py:16151`, `prunedMbInWindow` returns None rather than 0 at `:12732`, guarded by `Test154PrunedMbUnknownIsNotZero`. His live `disk_history.jsonl` shows the change taking effect: rows 0-8269 carry `prunedMb: 0` (last 2026-09-02), rows 8270+ do not. The remainder is still open. Blocked by 155. ⚠ **My own framing was RETRACTED:** `pruned_mb=0` and `hist_bytes=None` are HARDCODED at the only call site, so `prunedMb: 0` across 7,009 rows is a fact about the CALLER. "The prune has never freed a byte" is **not supported**. The real defect is that the field can never report anything. | `tv/control_app.py:14920` (writer at `:11954`) |
 | **136** | ⚠⚠ **UNACTIONABLE — THE TASK ITSELF IS LOST, and that is now provable.** This row has read only *"Blocked by vault names."* since the EARLIEST tracked version of this file (`a8016ea6`, the commit that made TASKS.md tracked at all) — there has never been a description. Its content lived in the session that created it, which is exactly the loss this file's own preamble records: *"the memory queue recorded the NUMBERS and not what they meant."* **Nobody can act on it, including him.** Kept, never deleted — but it must not sit here looking like work. If he remembers what 136 was, it becomes a real row again in one sentence. | ⚠ CONTENT LOST |
 | **148** | ⚠⚠ **UNACTIONABLE — THE TASK ITSELF IS LOST, and that is now provable.** This row has read only *"Blocked by vault names."* since the EARLIEST tracked version of this file (`a8016ea6`, the commit that made TASKS.md tracked at all) — there has never been a description. Its content lived in the session that created it, which is exactly the loss this file's own preamble records: *"the memory queue recorded the NUMBERS and not what they meant."* **Nobody can act on it, including him.** Kept, never deleted — but it must not sit here looking like work. If he remembers what 148 was, it becomes a real row again in one sentence. | ⚠ CONTENT LOST |
@@ -1154,7 +1186,7 @@ at five widths, **looked at**, and three shots handed to another family COLD.
 
 | # | What | State |
 |---|---|---|
-| **GATE-EYE** | At **375px** the page shows `ON AIR`/`MINI` stacked with text cut off, the AI READS bar reading **"appea / here"**, `"Failed to fetch"` sliced mid-word, and the TZ TRACKER header clipped — every item named by the cold eye and then **confirmed by looking at the PNG**. `render_check` reported **`painted 1/1 · clipped 0 · off 0 · covered 0`** at that exact width. **The structural reason:** the `console` target's selector is `sel: "#btn-mini, #btn-miniauto"`, so `painted 1/1` measured **one button** — "clipped 0" was never a claim about the page, and every defect above sits outside every target's selector. Sample ≠ verdict, on the visual gate itself. ⚠ **Seen by me, not by the eye:** the logo tile renders as a **broken-image placeholder** at every width while the harness reports `imgs 0/0` — it examined zero images. ⚠ **NOT claimed:** a page-wide probe of mine counted 14 cut / 4–9 covered per width; it does not check for a scrollable ancestor above the clipping one — the exact hole `render_check`'s own v2381 note records — so that number is **not** published as a finding. | **OPEN — the finding, not the repair** |
+| **GATE-EYE** | At **375px** the page shows `ON AIR`/`MINI` stacked with text cut off, the AI READS bar reading **"appea / here"**, `"Failed to fetch"` sliced mid-word, and the TZ TRACKER header clipped — every item named by the cold eye and then **confirmed by looking at the PNG**. `render_check` reported **`painted 1/1 · clipped 0 · off 0 · covered 0`** at that exact width. **The structural reason:** the `console` target's selector is `sel: "#btn-mini, #btn-miniauto"`, so `painted 1/1` measured **one button** — "clipped 0" was never a claim about the page, and every defect above sits outside every target's selector. Sample ≠ verdict, on the visual gate itself. ⚠ **Seen by me, not by the eye:** the logo tile renders as a **broken-image placeholder** at every width while the harness reports `imgs 0/0` — it examined zero images. ⚠ **NOT claimed:** a page-wide probe of mine counted 14 cut / 4–9 covered per width; it does not check for a scrollable ancestor above the clipping one — the exact hole `render_check`'s own v2381 note records — so that number is **not** published as a finding. | ⚠ **HALF DONE — THE INSTRUMENT IS REPAIRED, THE DEFECTS ARE NOT.** The structural cause named in this cell was fixed by **v2650-v2651 (`34532602`)**: a whole-`page` target exists at `tv/render_check.py:395`, so `painted 1/1` no longer means "one button". With the gate able to see the page, the real numbers are **54 clipped at 375px · 5 at 901 · 1 at the wide widths**, declared per width as a FLOOR and refusing only on a RISE. The `imgs 0/0` half is also superseded — images are examined now, **4 broken of 2,399**. ⚠⚠ **So this row's remaining work is the 54/5/1 BACKLOG, not the harness** — and a row that keeps describing a fixed instrument sends the next reader to repair something already repaired. Tracked below as GATE-EYE-2. |
 
 ---
 
@@ -1163,7 +1195,7 @@ at five widths, **looked at**, and three shots handed to another family COLD.
 | # | Brief | Needs | State |
 |---|---|---|---|
 | **182** | **HE-2** — what number does the VAULT pane actually display? Three sources disagree: `/api/vault_ledger` = **7**, `status.ledgerBackup.counts.owned` = **169**, what he expects = **~40-46**. | console only | **OPEN, GO given** |
-| **185** | **HE-5** — is the footer hover ONE line, with everything moved into the click window? Ships in v2397. | console only | **OPEN** |
+| **185** | **HE-5** — is the footer hover ONE line, with everything moved into the click window? Ships in v2397. | console only | ✅ **ANSWERED 2026-09-02T17:17:39 — and it sat here reading OPEN for three days.** `tv/.human_eyes.jsonl` row 13 carries the observation: *"#foot-ver reads 'Millenium v442', title 'click - the state of this console' — ONE line, 33 chars, rect 145x16, visualLines 1"*, and the click opens `#ver-xref`. The brief was answered, the answer was banked, and nothing moved the row — **the ledger and the list were never joined**. [[the-unjoined-end]] |
 | **181** | **HE-1** — does the hovered cell's tooltip name the item actually in that cell? | game + **HID** | **BLOCKED** — pointer injection is dead in this build; Accessibility is not granted. Do not fake it and do not ask him to pose a hover. |
 | **184** | **HE-4** — overnight from 03:00, autonomous: 30+ slot hover calibration, enough n for Wilson. | game + **HID** | **BLOCKED** — same. This was the run that would have turned `anchor` from UNPROVEN into scored. |
 
@@ -1212,3 +1244,77 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
   660px window. Fixed v2406 (his real 1120x628 + a pre-scroll reachability probe). ⚠ STILL OPEN:
   the fixture lays out differently from the live app (taskforce y=224/h=30 in the gate vs
   y=1050/h=502 live), so that gate cannot cover layout-in-situ and must not claim to.
+
+---
+
+# 🎯 THE TRUE REMAINING SET — deduplicated 2026-09-05
+
+> **Read this, not the historical tables above.** Everything above is kept as evidence; this is what
+> is actually left. Produced by a read-only pass over all 1,215 lines cross-checked against 400
+> commits, then re-measured by hand where a number mattered.
+
+## ⚠ FIRST — 8 CLUSTERS WHERE MANY IDS ARE ONE PIECE OF WORK
+
+The list looked far longer than it is because one decision wears seven names.
+
+| the ONE item | ids carrying it | the proof they are one thing |
+|---|---|---|
+| **Define *clean* per reel** | **A15 · A4 · A7 · A8 · A9 · 146 · A20** | A9: *"folded into the PRINTER ZONE with A4·A7·A8·A15"* (his call) · A4 REMAINING = *"A15's clean definition"* · A15: *"AND IT GATES THE PRUNE. See task 146"* · A20 prerequisite = *"the printer/river itself (A4·A15)"*. **Seven ids, one ruling from him.** |
+| **A ledger entry carrying its own proof** | **A14 req.2-4 · 166 · 133** | A14: *"the same one blocking 166"* / *"Closes the hole under tasks 133 and 166"*; 133: *"Answered by 166's ledger ruling"* |
+| **Paid reads on the 29 unread reels** | **155 · 154-remainder · 146** | §💵: *"This unblocks 155, and therefore 154's remainder and 146"* |
+| **Hover ground truth (cell → point → item)** | **181/HE-1 · 184/HE-4 · GB-L-1 · A18 · `miniauto.run`'s HARDENED gap** | GB-L-1 IS *"HE-1 look"*; A18 explicitly *replaces* the route 181/184 take |
+| **The eye reaching a gate** | **165 · gh #186 · A13 · 182/185** | gh #186 is *"The eye's half of task 165"* |
+| **Which world is his** | **CF-2 · CF-5 · CF-8** | CF-2: *"Same root as CF-8"*; CF-8: *"surface the agreement as EVIDENCE for CF-5"* |
+| **Content-lost rows** | **136 · 148** | byte-identical prose since `a8016ea6` |
+| **The heart umbrella** | **A16 ⊃ A1 · A2 · A3 · A11 · A13** | A16 declares itself the umbrella: *"all five are the heart reaching further"* |
+
+## TIER 0 — FREE. No money, no ruling, no risk.
+
+| id | what | measured state | size |
+|---|---|---|---|
+| **CF-6** | Stop recording a board route at the door | ⚠ **RE-MEASURED 2026-09-05 09:38 AND IT IS 2.7× WORSE THAN FILED.** The row says *"~150 routes, exactly 2 non-zero"*. `tv/board_tally.json` → `byRoute` holds **404** routes, **exactly 2** carry any `have>0` (`77f64154…`, `c5c2c92d…`) → **402 probe artifacts**, 304,226 bytes, oldest stamp 2026-08-28, **newest 09:38 today — it is still growing while this is written.** Same mechanism that took `~/.grok/sessions` to 11 GB. ⚠ My own first count said 13 routes: I counted TOP-LEVEL keys, not `byRoute`. Founding rule 4 — the instrument was mine and it was wrong. | **S** |
+| **CF-5** | Two worlds claim him | **CORROBORATED BY CF-6's measurement** — the 2 non-zero routes ARE the `77f64154`/`c5c2c92d` pair CF-5 names. ⚠ HIS TICKS ARE TESTIMONY: route to a GB-L brief, never resolve in code by preferring the newer | **S** |
+| **JOIN-3** | The 3 reels that are sealed AND names-read | **FREE by his own table** — names on disk, the seal does not carry them. Unblocks `ROUTED`, which is structurally unreachable for all 40 until it lands ⚠ figure carried from the 2026-09-04 measurement, not re-run | **S** |
+| **CF-3** | Name the 2 missing checks (32 rows vs 34) | *"a delta of 2 is not actionable, two names are"* | **S** |
+| **CF-7** | 1 orphan frame | `tv/orphan_fold.py` exists; the plan is written | **S** |
+| **CF-8** | Carry the last-known answer WITH ITS AGE | `stale-reading` shape. Do NOT turn UNKNOWN into a number | **S** |
+
+## TIER 1 — HIS, AND EACH ONE UNBLOCKS A CLUSTER
+
+| id | the question | why only he can answer |
+|---|---|---|
+| **A15-CLEAN** *(unblocks 7 ids)* | Which door decides *clean* per reel? | **12 of 40 finished by the REEL door, 0 by the FRAME contract, 0 by both.** Conjoining them is the collapse v2312 attempted and v2314 withdrew. It gates the prune |
+| **BARS** ⚠ **NEW — was absent from this file entirely** | Do the locks' bars read `wilson` or `wilsonByAttack`? | v2656 (`ec550e01`): `prune.arm` 0.9259 vs **byAttack 0.5655** against a 0.839 bar; `vault.sweep_start` 0.8064 vs **byAttack 0.3424** against 0.510. The guard is *"explicitly forbidden from settling it"*. **This decides the deleter and the money door** |
+| **PRUNE-LIVE** | Is re-running existing axes against a live process an INDEPENDENT look? | `prune.arm` needs a third kind; it is the one door with no undo. **DO-NOT-BUILD is an honest outcome** |
+| **136 · 148** | One sentence each, or they are permanently unactionable | Content lost since the earliest tracked version. Nobody can act, including him |
+| **GB-L-5/6/7** | Three briefs asked and never answered | Only he can look. Measured against 2026-09-05: **83.8 h · 83.6 h · 70.9 h** |
+
+## TIER 2 — REAL BUILD, NO MONEY
+
+| id | what | state |
+|---|---|---|
+| **GATE-EYE-2** | The 375px clipping backlog | **54 clipped @375 · 5 @901 · 1 @wide.** Instrument fixed v2650-51; the defects are untouched |
+| **A17** | Editorial redesign | in progress; 9 confirmed defects, no closing commit. Overlaps GATE-EYE-2 |
+| **A5** | Widen the walk to the 28% of rows that nest differently | the 72% half shipped v2578 |
+| **A13** | Live-console contradiction check reaches a blocker | half shipped (v2404/v2511); the live half filed, not faked |
+| **gh #186** | Contract for what an eye may be asked to photograph | OPEN; 165's other half |
+| **A14 req.2-4** *(= 166 = 133)* | Ledger entry carries re-verifiable proof | **blocker is real and measured**: `d2r_foundLog` is 412 rows of display strings with no reel/frame/witness, and 8 of 169 owned items have no row. Deferred by his ruling |
+
+## TIER 3 — SPENDS MONEY, BEHIND THE PROOF
+
+**155 → 154 → 146.** Paid reads on the **29 of 40 never-read reels**. ⚠ Do NOT sweep all 40: 24
+return nothing new. Sequenced AFTER A15-CLEAN, per his own condition — *working · coded · not
+looped · debugged*.
+
+## TIER 4 — LAST, BY HIS EXPLICIT ORDER
+
+**A18 / MINI AUTO** (the rebuild, not v2621's recorder) and **A20** (the river, visible). Both
+⏸ HIBERNATING and DEFERRED, not dropped: *"we will get to that after we completely finish every
+tasked list and grok's handoffs in between too."*
+
+## ⬜ WHAT COULD NOT BE SETTLED — UNKNOWN, and not carried forward as fact
+
+- **Whether `run_gates.py` is green at HEAD.** 142 gates; the last full-set verdict is 9 ships and
+  21 gates old. Only a CI run settles it — never his Mac.
+- **A11's 30/11/8 census** and **A2's per-lock wilson figures** at HEAD — both need the instruments run.
+- **The 40-reel shelf figures** (29 unread / 12 / 12 / 3 JOIN) — carried from 2026-09-04, not re-measured.

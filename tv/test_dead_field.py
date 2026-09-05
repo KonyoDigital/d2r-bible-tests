@@ -149,10 +149,25 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
             # says UNKNOWN. [[feedback-verify-not-proxy]]
             self.assertIsInstance(r, dict,
                                   "a raising resolver took the whole reading down: %r" % (r,))
-            self.assertEqual(r["state"], "UNKNOWN", r)
-            self.assertIs(r["ok"], False,
-                          "nothing was established and `ok` still says True — its siblings say "
-                          "False for this state: %s" % r)
+            # ⚠⚠ AND THE TOP-LEVEL `state`/`ok` STOPPED BEING ABLE TO SAY THIS AT v2655 — the SAME
+            # proxy again, one level up. `worst` is UNKNOWN only when EVERY store is
+            # (dead_field.py:388 `elif all(s["state"] == "UNKNOWN" …)`), so the moment
+            # `disk_history` joined WATCHED in af8beac9 the aggregate read OK here on any tree that
+            # HAS that store. Measured on af8beac9: RED on his Mac (disk_history.jsonl present,
+            # 8,599 rows, state OK → worst OK) and green on the CI runner, which has neither store.
+            # One raising resolver is a finding about ONE store and was being asserted on the whole
+            # tree, so it answered a question about his footage. Ask the store that raised.
+            # The REG-556 law itself is not lost with the two aggregate lines — it moved to
+            # `test_the_HEADLINE_agrees_with_the_STATE` below, which breaks the FILESYSTEM and so
+            # forces every store UNKNOWN on any machine. ⚠ It is deliberately NOT left to
+            # test_probe_unknown_law.py: measured, that law skips dead_field on his tree (see the
+            # note at its new home). [[verify-not-proxy]]
+            tomb = [s for s in r["stores"] if s["store"] == "reel_tombstones"]
+            self.assertEqual(len(tomb), 1,
+                             "the store whose resolver raised is not in the reading at all: %s" % r)
+            self.assertEqual(tomb[0]["state"], "UNKNOWN", tomb[0])
+            self.assertIn("boom", tomb[0]["why"],
+                          "the store's reason drops the error that caused it: %s" % tomb[0])
         finally:
             RR._tombstone_path = real
 
@@ -302,6 +317,19 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
         finally:
             _os.listdir, builtins.open, _io.open = rl, ro, ri
         self.assertEqual(r["state"], "UNKNOWN", r)
+        # ⚠⚠ AND THE REG-556 `ok` LAW LIVES HERE NOW, because this is the ONLY place in this file
+        # that forces every store UNKNOWN on ANY machine — the filesystem is broken under it, so a
+        # store is unreadable whether or not it is on disk. Its two former homes both stopped
+        # asking: the aggregate assertions in `test_a_resolver_that_RAISES…` became machine-
+        # dependent when `disk_history` joined WATCHED, and the cross-probe law in
+        # test_probe_unknown_law.py::test_OK_means_the_same_thing_in_every_probe skips any probe
+        # that does not answer UNKNOWN — measured on his tree, its `_nothing_for_dead_field_state`
+        # helper (:51) patches only `reel_retention._tombstone_path`, so `disk_history` still reads
+        # and the probe answers `state: OK, ok: True`; the law then `continue`s past dead_field
+        # entirely. A law that silently stops covering a probe looks exactly like a passing run.
+        self.assertIs(r["ok"], False,
+                      "nothing was established anywhere and `ok` still says True — its siblings "
+                      "say False for this state: %s" % r)
         self.assertNotIn(
             "no field is recorded-but-never-filled", r["why"],
             "the headline gives a clean bill while the state says UNKNOWN: %r" % r["why"])
@@ -311,8 +339,26 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
     def test_it_reports_and_refuses_nothing(self):
         """Nothing here fails a build or blocks a button — it is EVIDENCE, like CF-13's reach."""
         r = DF.state()
-        self.assertTrue(r["ok"], "the reading refused: %s" % r)
+        # ⚠⚠ THE SECOND `ok` PROXY, AND IT SURVIVED THE FIRST SWEEP. REG-556 fixed the identical
+        # one 160 lines up (see the note at `test_a_resolver_that_RAISES…`) and missed this copy —
+        # `grep 'r\["ok"\]'` returns exactly two hits in this file, and only one of them was
+        # converted. `ok` means *something was established*, so it is False on any tree where the
+        # two WATCHED stores are absent, and BOTH are deliberately gitignored (.gitignore:155
+        # `tv/reel_tombstones.json`, :169 `tv/disk_history.jsonl`, 0 tracked bytes each). A CI
+        # runner therefore has no footage and this asserted a property of HIS MACHINE, not of the
+        # code — it went red on the runner with `ok: False, state: UNKNOWN, unknownStores: 2,
+        # "…is not on disk, so nothing was asked of it"`, which is the detector answering
+        # CORRECTLY. Reproduced here by pointing both owners' resolvers at a missing dir.
+        # The name says *reports and refuses nothing*: the intent is that a reading comes back at
+        # all and answers, not that it found something. That is asserted directly now, and it
+        # holds on a tree with footage and on one without. Do NOT ship the stores to CI to make
+        # `ok` true — that is his live data, and pinning a test to it is [[feedback-verify-not-proxy]].
+        self.assertIsInstance(r, dict, "the reading did not come back: %r" % (r,))
         self.assertIn("state", r)
+        # ⚠ and it must still ANSWER the ok question — a probe that drops the key, or hedges with
+        # None, is refusing. That part is machine-independent; the VALUE is not.
+        self.assertIsInstance(r.get("ok"), bool,
+                              "the reading declined to answer `ok`: %s" % r)
 
 
 if __name__ == "__main__":

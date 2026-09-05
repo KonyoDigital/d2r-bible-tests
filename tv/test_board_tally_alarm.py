@@ -165,9 +165,76 @@ class TheWarningMayNotBlindTheDetector(unittest.TestCase):
         if not hit:
             self.skipTest("no progress check in this doctor run — a skip is not a pass")
         r = hit[0]
-        self.assertIn(r.get("state"), ("ok", "OK", "MISSING", "UNKNOWN"))
+        # ⚠⚠ THE ALLOWLIST HAD NO SPELLING FOR THREE OF THE FOUR STATES IT CLAIMED TO ACCEPT.
+        # console_doctor.py:47 is `OK, MISSING, UNKNOWN, UNMEASURED = "ok", "missing", "unknown",
+        # "unmeasured"` — lowercase VALUES. The hand-typed tuple ("ok", "OK", "MISSING", "UNKNOWN")
+        # spelled three of them as the CONSTANT NAMES, so the only state it could ever accept was
+        # "ok". MEASURED 2026-09-05: on a fresh clone board_tally.json is absent (gitignored at
+        # .gitignore:104, `git ls-files tv/board_tally.json` -> 0, written only by his live
+        # console), the check correctly returns UNKNOWN (console_doctor.py:564-567), and CI went
+        # red on `'unknown' not found in ('ok', 'OK', 'MISSING', 'UNKNOWN')`.
+        # ⚠ AND IT WAS NOT ONLY A RUNNER ARTEFACT: MISSING = "missing" was unmatchable too, so the
+        # first time this watchdog ACTUALLY FIRED — a high-water drop, the whole reason it exists
+        # (console_doctor.py:634) — a true detection would have been reported as a broken test.
+        # A guard that cannot observe its own subject's verdict is not watching it.
+        # Pinned to the module's own vocabulary so a rename cannot re-open the hole.
+        self.assertIn(r.get("state"), (CD.OK, CD.MISSING, CD.UNKNOWN))
         self.assertNotIn("TWO worlds are both claiming", str(r.get("why") or ""),
                          "the contested sentence is still standing in for the real verdict")
+
+    def test_the_high_water_verdict_SURVIVES_a_contested_doc(self):
+        """★★ THE SAME PROPERTY, ON EVERY VENUE — his live store cannot exist on a runner.
+
+        board_tally.json is gitignored (.gitignore:104) and written only by his live console, so
+        on a fresh checkout the case above grades a legitimate UNKNOWN and proves NOTHING about
+        the short-circuit. A skip would have been worse still. So the doc the bug needed is built
+        here instead: `contested` set AND his progress below its own high-water mark, which is
+        exactly the state the early `return MISSING` made unreachable for 7.8 days.
+        [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+
+        RED-PROVEN 2026-09-05, both halves, sabotage anchor match count 1 each:
+          · `_contested_say = (` restored to `return MISSING, ("TWO worlds ...` -> `why` becomes
+            the contested sentence and "BELOW its own high-water mark" is absent.
+          · `recent = _mine[-1]` restored to `recent = drops[-1]` -> the reported fall becomes the
+            live store's fixture row "runewords 42 -> 0" instead of his "sets 121 -> 120".
+        """
+        import json
+        import shutil
+        import tempfile
+        fn = dict(CD.CHECKS).get("progress number")
+        self.assertIsNotNone(fn, "the progress-number check is no longer registered in CHECKS")
+        self.assertNotIn("progress number", CD.SLOW,
+                         "the check moved into SLOW — include_slow=False no longer reaches it")
+        key = "77f641…|main"
+        doc = {
+            "ownerId": OWN,
+            "contested": [{"route": key, "sets": 121, "uniques": 293},
+                          {"route": "c5c2c9…|main", "sets": 120, "uniques": 280}],
+            "byRoute": {key: {"who": {"id": OWN, "p": "main", "pfx": ""}}},
+            "sets": {"have": 120, "total": 135},
+            "uniques": {"have": 280, "total": 403},
+            "runewords": {"have": 99, "total": 99},
+            "high": {key: {"sets": {"have": 121}, "uniques": {"have": 293},
+                           "runewords": {"have": 99}}},
+            # ⚠ the second row reproduces the TEST FIXTURE that really sits in his live drops list.
+            "drops": [{"route": key, "lane": "sets", "from": 121, "to": 120, "at": 1788048199995},
+                      {"route": "real-1|main", "lane": "runewords", "from": 42, "to": 0,
+                       "at": None}],
+        }
+        home = tempfile.mkdtemp(prefix="board-tally-fixture-")
+        self.addCleanup(shutil.rmtree, home, True)
+        with open(os.path.join(home, "board_tally.json"), "w", encoding="utf-8") as fh:
+            json.dump(doc, fh)
+        # ⚠ HIS tv/board_tally.json is never opened, written or moved by this case — the doctor's
+        # own HERE is redirected at the module for the duration and restored by cleanup.
+        self.addCleanup(setattr, CD, "HERE", CD.HERE)
+        CD.HERE = home
+        state, why = fn()
+        self.assertEqual(state, CD.MISSING, "a drop below the high-water mark was not reported")
+        self.assertIn("BELOW its own high-water mark", why,
+                      "the contested warning is standing in for the detector's verdict again")
+        self.assertIn("The last recorded fall was sets 121 -> 120", why,
+                      "a foreign world's drop was reported as his")
 
 
 class ADropIsOnlyHisIfItIsHisWorld(unittest.TestCase):

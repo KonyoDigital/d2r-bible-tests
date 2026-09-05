@@ -20,6 +20,7 @@ pinning today's module list to a number, so adding a probe cannot make it stale 
 ENTRY that stops existing is a refusal, because a probe silently dropped from this list is exactly
 how the law stops covering the thing it was written for. [[unknown-stays-unknown]]
 """
+import contextlib
 import io
 import os
 import sys
@@ -133,21 +134,126 @@ PROBES = (
     ("printer.stream", _nothing_for_printer),
 )
 
+#: ⚠⚠ THE "REAL SHELF" USED TO BE *HIS* SHELF, AND ON A RUNNER THERE IS NO SHELF AT ALL.
+#: `tv/frames/hist` and `tv/retro_triage.json` are gitignored — `git ls-files tv/frames | wc -l`
+#: is **0** — so on a fresh checkout every ask below correctly answered UNKNOWN and THREE laws in
+#: this file inverted: the shape law compared each probe against itself and its own anti-vacuous
+#: guard fired ("answered 'UNKNOWN' to BOTH the empty ask and the real one"), and both BASELINEs
+#: read the absence of footage as a probe that cannot reach a verdict. Measured 2026-09-05 in a
+#: tracked-files-only checkout: 7 of the 8 asks below returned UNKNOWN, 3 tests failed, and the
+#: SAME 3 failed on CI byte for byte.
+#:
+#: A law that only holds where his footage lives is a law that stops running the moment it leaves
+#: his Mac — and skipping it there would have turned the whole file into a permanent skip nobody
+#: notices. So the corpus is BUILT rather than borrowed: a shelf of six recorder-shaped reels plus
+#: the three small stores these probes quote, identical on every machine. His corpus is still
+#: measured — by each probe's own gate — and the constructed-refusal case below already says why
+#: a synthetic tree reaches paths his 639 reels never do.
+#: [[feedback-fixtures-never-touch-live-data]] [[regression-guard]] — a skip is not a pass.
+_CORPUS = {}
+
+
+def _corpus_shelf():
+    """The synthetic shelf, built ONCE per process. -> path
+
+    ⚠ Built eagerly by `setUpModule` rather than on first use, because two cases below break
+    `open`/`os.listdir` process-wide before asking a probe — a corpus built lazily inside one of
+    those would be built through the very calls they have disabled.
+    """
+    if _CORPUS.get("shelf"):
+        return _CORPUS["shelf"]
+    import atexit
+    import json
+    import shutil
+    import tempfile
+    d = tempfile.mkdtemp(prefix="probe_corpus_")
+    atexit.register(shutil.rmtree, d, True)
+    triage = {}
+    for i in range(6):
+        sid = "s_17569000000%d_%d" % (i, i)
+        rd = os.path.join(d, "reel_" + sid)
+        os.makedirs(rd)
+        # the CORE shape one_start_point attributes to the recorder: sessionId, int n, list frames
+        frames = [{"f": "%s_%03d.jpg" % (sid, k), "ts": 1756900000000 + k} for k in range(3)]
+        with io.open(os.path.join(rd, "index.json"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"sessionId": sid, "n": len(frames), "frames": frames}))
+        for fr in frames:
+            with open(os.path.join(rd, fr["f"]), "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xd9")
+        triage["reel_" + sid] = {"ts": 1756900000000 + i, "hits": 2, "frames": 3, "panels": 1}
+    with io.open(os.path.join(d, "retro_triage.json"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(triage))
+    # ⚠ `dead_field.MIN_ROWS` is 30 — under the floor a store is UNKNOWN, not clean — so both
+    # watched stores get 32 rows with every column filled on at least one of them.
+    with io.open(os.path.join(d, "reel_tombstones.json"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"reels": [{"reel": "reel_gone_%d" % k, "ts": 1756900000000 + k,
+                                        "mb": 1.5, "why": "fixture"} for k in range(32)]}))
+    with io.open(os.path.join(d, "disk_history.jsonl"), "w", encoding="utf-8") as fh:
+        for k in range(32):
+            fh.write(json.dumps({"ts": 1756900000000 + k, "freeGb": 100.0, "reels": 6,
+                                 "histBytes": 4096, "eligibleMb": 1.5}) + u"\n")
+    _CORPUS["shelf"] = d
+    return d
+
+
+@contextlib.contextmanager
+def _against_the_corpus():
+    """Point every shelf-and-store resolver these probes use at `_corpus_shelf()`, then put them
+    back. The hooks are the tree's own: `TV_HIST` (which `tv_diablo._fixture_root` turns into the
+    root for `reel_tombstones.json` and `disk_history.jsonl`), `tv_diablo.HIST_DIR` (frozen at
+    import, so the env alone does not take), `reel_retention.plan`'s default shelf — which is
+    HERE-relative and honours no env at all — and `printer_reach.TRIAGE`, a module constant.
+    """
+    import printer_reach as PR
+    import reel_retention as RR
+    import tv_diablo as TD
+    shelf = _corpus_shelf()
+    env, hist, plan, triage = os.environ.get("TV_HIST"), TD.HIST_DIR, RR.plan, PR.TRIAGE
+    os.environ["TV_HIST"] = shelf
+    TD.HIST_DIR = shelf
+    RR.plan = lambda hist_dir=None, *a, **k: plan(hist_dir or shelf, *a, **k)
+    PR.TRIAGE = os.path.join(shelf, "retro_triage.json")
+    try:
+        yield shelf
+    finally:
+        RR.plan, TD.HIST_DIR, PR.TRIAGE = plan, hist, triage
+        if env is None:
+            os.environ.pop("TV_HIST", None)
+        else:
+            os.environ["TV_HIST"] = env
+
+
+def _live(fn):
+    """`fn`, asked against the corpus. -> callable"""
+    def _run():
+        with _against_the_corpus():
+            return fn()
+    return _run
+
+
+def setUpModule():
+    """⚠ The corpus is built here and nowhere else — see `_corpus_shelf`."""
+    for name in ("dead_field", "one_funnel", "one_start_point", "per_reel_routes", "printer",
+                 "printer_reach", "reel_retention", "reel_river", "reel_story", "tv_diablo"):
+        __import__(name)          # so entering the corpus never imports under a broken `open`
+    _corpus_shelf()
+
+
 #: Each probe, and how to ask it with a REAL shelf. Used only by the shape law below — a reading's
 #: key set must not depend on its verdict.
 FULL = (
-    ("one_start_point.start_points", lambda: __import__("one_start_point").start_points()),
-    ("one_funnel.funnel", lambda: __import__("one_funnel").funnel()),
-    ("per_reel_routes.routes", lambda: __import__("per_reel_routes").routes()),
+    ("one_start_point.start_points", _live(lambda: __import__("one_start_point").start_points())),
+    ("one_funnel.funnel", _live(lambda: __import__("one_funnel").funnel())),
+    ("per_reel_routes.routes", _live(lambda: __import__("per_reel_routes").routes())),
     ("dead_field.dead_fields",
      lambda: __import__("dead_field").dead_fields([{"a": 1, "z": None} for _ in range(40)])),
-    ("printer_reach.report", lambda: __import__("printer_reach").report()),
-    ("printer.stream", lambda: __import__("printer").stream()),
+    ("printer_reach.report", _live(lambda: __import__("printer_reach").report())),
+    ("printer.stream", _live(lambda: __import__("printer").stream())),
     # ⚠ REG-553 — `dead_fields` takes rows in memory, so the unreadable-source law never touched a
     # filesystem for it. `state()` is the entry point that actually READS, and it is the one a
     # consumer calls. Both are covered now.
-    ("dead_field.state", lambda: __import__("dead_field").state()),
-    ("reel_river.river", lambda: __import__("reel_river").river()),
+    ("dead_field.state", _live(lambda: __import__("dead_field").state())),
+    ("reel_river.river", _live(lambda: __import__("reel_river").river())),
 )
 
 #: ⚠ Probes whose FULL entry is handed data IN MEMORY and never touches a filesystem. The
@@ -320,7 +426,12 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
         branching on `state` could not, and an unopenable store read as the measured verdict."""
         import printer_reach as PR
         self.assertEqual(_nothing_for_printer_reach().get("state"), "UNKNOWN")
-        live = PR.report().get("state")
+        # ⚠ ASKED OF THE CORPUS, NOT OF HIS TREE. `printer_reach.TRIAGE` is `tv/retro_triage.json`,
+        # which is gitignored, so on a runner the readable side answered UNKNOWN too and this
+        # assertion inverted — the split reading as collapsed when the only thing missing was the
+        # store. The two sides now differ by ONE variable, which is what the split claims.
+        with _against_the_corpus():
+            live = PR.report().get("state")
         self.assertNotEqual(
             live, "UNKNOWN",
             "the live tree now reports UNKNOWN too, so the split collapsed the other way and the "
@@ -607,7 +718,12 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
         self.assertNotEqual(
             PRR.routes([{"reel": "reel_a", "tag": "zero-pages", "stage": "swept"}]).get("state"),
             "UNKNOWN", "per_reel_routes cannot reach a verdict at all")
-        got = OF.funnel()          # against the live tree, which has reels
+        # ⚠ `funnel()` takes no argument, so the only way to hand it reels is to point the shelf
+        # it reads at one. It used to read the live tree — and a runner's tree has no reels, so
+        # this BASELINE read "no footage on this machine" as "this probe can never reach a
+        # verdict", which is the opposite of what it asserts.
+        with _against_the_corpus():
+            got = OF.funnel()
         self.assertNotEqual(got.get("ladder"), "UNKNOWN",
                             "one_funnel cannot reach a verdict at all: %s" % got.get("why"))
 

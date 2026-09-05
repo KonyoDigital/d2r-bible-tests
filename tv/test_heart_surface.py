@@ -503,19 +503,33 @@ class TestAMeasurementNobodyReadsIsNoMeasurement(unittest.TestCase):
         # Today `scope_reach` occurs ZERO times in run_gates.py, so this was latent rather than
         # lying — a guard that has not been caught out yet. Ask the LIST OF GATES.
         # [[source-reading-guard]]
+        # ⚠⚠⚠ AND THE REGISTRY FORM WAS UNSATISFIABLE — v2658. It asserted that no gate named
+        # `*scope_reach*` is registered, while `test_control.TestNoOrphanSuite` REQUIRES every
+        # `tv/test_*.py` to be registered. The moment `tv/test_scope_reach_signal.py` existed
+        # (v2649) one rule compelled what the other forbade; CI went red and no edit to either
+        # side could satisfy both. THE CONTRADICTION WAS THE FINDING.
+        #
+        # Registration was only ever a PROXY for the author's ruling — *this may inform, never
+        # fail a build.* The proxy became unsatisfiable, so this asks the property it stood for:
+        # no case in that suite may assert an exact value of the LIVE reading, because `reach`
+        # walks control_app's own call graph and therefore tracks THIS MODULE'S GROWTH. Fixtured
+        # cases keep their hard assertions — they are deterministic on every venue.
+        #
+        # ⚠ ONE ROUTINE, TWO CALLERS. The check is IMPORTED from the suite it is about rather
+        # than re-implemented here. A safety routine that exists twice is [[copy-drift]] §7, and
+        # a law that lands in one copy is not a law — which is exactly how the old form drifted
+        # into forbidding its own file's existence.
         import run_gates as _rg
         names = [str(getattr(g, "name", "")) for g in getattr(_rg, "GATES", [])]
-        cmds = [" ".join(str(x) for x in (getattr(g, "cmd", None) or []))
-                for g in getattr(_rg, "GATES", [])]
         self.assertTrue(names, "run_gates declares no gates at all — this guard is measuring "
                                "nothing, which is not the same as measuring a clean registry")
-        for haystack, what in ((names, "a gate name"), (cmds, "a gate command")):
-            hit = [h for h in haystack if "scope_reach" in h]
-            self.assertEqual(hit, [],
-                             "the scope reach rows are registered as a GATE (%s: %s). Its author "
-                             "forbade exactly this: three rows of reach-noise would start failing "
-                             "pushes and he would learn to skip the row, which is the outcome the "
-                             "ruling exists to prevent" % (what, hit))
+        import test_scope_reach_signal as _srs
+        offenders = _srs.live_signal_assertions()
+        self.assertEqual(
+            offenders, [],
+            "%s assert an exact value of the LIVE scope-reach reading, so a push would start "
+            "failing the day `control_app.py` grows past the last narrow row (headroom: 3). The "
+            "author's ruling is that this aid may inform and never refuse." % (offenders,))
         for row in (rep.get("rows") or []):
             self.assertIn("reach", row,
                           "a row without its reach count hides the noise that makes it unreadable "

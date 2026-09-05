@@ -106,7 +106,16 @@ def steps(path=None):
 
 
 def _frames_by_ts(reel_dir):
-    """The reel's frames as (epoch_ms, path), oldest first. Frame names carry their own clock."""
+    """The reel's frames as (epoch_ms, path), oldest first. -> (list, why).
+
+    why non-empty means NOTHING WAS READ — exactly the shape `steps()` above returns, and for the
+    same reason. It used to `return []` when the listing raised, and the caller turned that into
+    the confident sentence "no timestamped frames under X", which is a statement about the
+    directory's CONTENTS derived from a failure to look at it. A read that could not happen and a
+    directory that is genuinely empty are different facts and must stay different.
+    [[unknown-stays-unknown]] — and this module's own docstring already warns that "a calibrator
+    that defaults would hand it the guess it is refusing to make for itself".
+    """
     out = []
     try:
         for nm in os.listdir(reel_dir):
@@ -120,10 +129,10 @@ def _frames_by_ts(reel_dir):
                 out.append((int(digits[-13:]), os.path.join(reel_dir, nm)))
             except ValueError:
                 continue
-    except Exception:
-        return []
+    except Exception as exc:
+        return [], "the reel directory would not list (%s)" % type(exc).__name__
     out.sort()
-    return out
+    return out, ""
 
 
 def _offset_for(step, frames, corner):
@@ -166,7 +175,14 @@ def calibrate(reel_dir, corner="topleft", path=None):
     if not rows:
         rep["why"] = why
         return None, rep
-    frames = _frames_by_ts(reel_dir)
+    frames, frames_why = _frames_by_ts(reel_dir)
+    if frames_why:
+        # THE READ FAILED. Saying "no timestamped frames under X" here would assert a fact about
+        # the directory that nobody established — the listing never completed.
+        rep["why"] = ("could not establish what is under %s: %s. This is NOT 'the reel has no "
+                      "frames' — nothing was read, so nothing is known"
+                      % (os.path.basename(reel_dir), frames_why))
+        return None, rep
     if not frames:
         rep["why"] = ("no timestamped frames under %s, so no hover can be paired with the picture "
                       "it produced" % os.path.basename(reel_dir))

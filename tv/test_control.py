@@ -41083,9 +41083,14 @@ class TestADeclaredSkipCanActuallyFire(unittest.TestCase):
                          "with no browser the checker exited %d, not SKIP_EXIT. run_gates maps only "
                          "%d to SKIP; anything else non-zero is a build failure."
                          % (p.returncode, rg.SKIP_EXIT))
-        blob = (p.stdout or "") + (p.stderr or "")
-        # exactly how run_gates derives the reason it matches against skip_ok
-        tail = [ln for ln in blob.strip().split("\n") if ln.strip()][-1:] or [""]
+        # exactly how run_gates derives the reason it matches against skip_ok — MIRROR IT, do not
+        # re-derive it. This block and run_gates.py:1652 are one routine in two files, and the
+        # whole value of this case is that it fails when the REAL derivation would.
+        # v2658: stdout first, stderr only as a fallback. Reading both concatenated let a
+        # SyntaxWarning from an unrelated module become the gate's declared reason.
+        _out = [ln for ln in (p.stdout or "").strip().split("\n") if ln.strip()]
+        _err = [ln for ln in (p.stderr or "").strip().split("\n") if ln.strip()]
+        tail = (_out or _err)[-1:] or [""]
         reason = tail[0][:150]
         g = next(x for x in rg.GATES if x.name == "crest_loudness")
         self.assertIsNotNone(

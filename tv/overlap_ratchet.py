@@ -72,6 +72,31 @@ PANELS = (
     ("th-heatmap-ov", "(function(){return !!(window._hmOpen && (window._hmOpen()||1));})()"),
 )
 
+#: THE VENUE HAS NO BROWSER — the one reason a run could not START, as opposed to a run that
+#: started and then could not answer. Compared by IDENTITY (`is`) at the exit-code decision, never
+#: by substring: a reason string matched with `in` is the [[source-reading-guard]] defect, and this
+#: one decides whether a build fails.
+#:
+#: ⚠⚠ v2658 — THIS MODULE PRINTED "⚪ UNKNOWN" AND EXITED 1, AND THOSE TWO DISAGREED FOR ITS WHOLE
+#: LIFE. `run_gates` maps exit 77 to SKIP and EVERY other non-zero to FAIL, so on a GitHub runner —
+#: where `tv-tests.yml` installs no browser at all — this gate reported `❌ overlap_ratchet` with
+#: the words *"Nothing was established, which is not the same as no overlaps"* sitting in its own
+#: status column. It was counted among the 16 red gates while NINE sibling gates that print
+#: `⚪ SKIPPED` were not counted, purely because they exit 77 and this one did not.
+#: The contradiction was the finding: the module's message was right and its exit code was wrong.
+#:
+#: ⚠ THIS DOES NOT MAKE THE GATE PASS. A venue with no browser now reports a DECLARED SKIP, which
+#: `run_gates` prints loudly and counts in its "did not run" line — never a tick. And a declared
+#: skip that never becomes a real run is [[d2r-bible]] §8's "a gate that always skips is the same
+#: defect as one that never runs", so the coverage gap is NAMED rather than closed: `tv-tests.yml`
+#: needs the chromium install + `~/.cache/ms-playwright` cache that `publish.yml:97-117` already
+#: has. Until then this gate measures on his Mac only, and says so on CI.
+NO_BROWSER = "headless chrome would not start, so no width was measured"
+
+#: v1601's contract, shared with tv/js_syntax_gate.py and run_gates.SKIP_EXIT: "I could not run",
+#: which is not "I passed" and not "I failed".
+SKIP_EXIT = 77
+
 #: panels that exist and cannot be opened from here, so their overlap count is UNKNOWN and must
 #: never be folded into a total as a zero.
 UNREACHABLE_PANELS = ("th-dossier-ov",)
@@ -156,7 +181,7 @@ def measure(page=None, widths=WIDTHS):
     except Exception as e:
         return None, "render_check would not import (%s)" % str(e)[:70]
     if not RC._chrome_up():
-        return None, "headless chrome would not start, so no width was measured"
+        return None, NO_BROWSER
     # ⚠⚠ SERVED, NOT file:// — AND THE FIRST CUT OF THE PANEL WORK PROVED WHY. Under file:// the
     # console's panels cannot reach /api/…, so they render almost nothing: measured, forensics came
     # back with FIVE text leaves where a served page gives THIRTY-NINE, and every panel reported a
@@ -358,7 +383,12 @@ def check():
         # ⚠ UNKNOWN IS NOT A PASS. Nothing was measured, so nothing may be reported clean.
         print("⚪ UNKNOWN — %s. Nothing was established, which is not the same as no overlaps."
               % mwhy)
-        return 1
+        # ⚠ …AND UNKNOWN IS NOT A DEFECT EITHER. Which of the two this is depends entirely on
+        # WHY nothing was measured, and only one of the reasons is about the page:
+        #   · the venue has no browser  -> the gate COULD NOT RUN -> 77, a declared skip
+        #   · anything else             -> the browser answered and the run still failed -> 1
+        # Identity, not substring — see NO_BROWSER.
+        return SKIP_EXIT if mwhy is NO_BROWSER else 1
     old = was.get("counts") or {}
     print("text-on-text overlap ratchet")
     bad = []

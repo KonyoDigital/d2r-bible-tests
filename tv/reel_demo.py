@@ -38,6 +38,44 @@ def _check(name, got, want, why):
     return {"check": name, "ok": ok, "got": got, "want": want, "why": why}
 
 
+def _shelf():
+    """Is there a reel shelf on THIS host at all? -> (state, why). present | absent | broken.
+
+    ⚠⚠ v2658 — A FALSE RED IS AS DISHONEST AS A FALSE GREEN, AND THIS GATE SHIPPED FOUR OF THEM.
+    `tv/frames/` is gitignored (.gitignore:21) and `git ls-files tv/frames` measures 0, so a fresh
+    actions/checkout has no footage at all. The two rows that need it — "the printer walked his
+    shelf" and "the readers RECORD a stash tab at all" — therefore went RED on every CI push for a
+    reason that has nothing whatever to do with the pipeline they exist to watch. Measured in the
+    run at af8beac9: "0 reel(s) walked through 6 station(s); 10 of 12 downstream check(s) pass."
+    Nor could it skip out of it: run_gates registers this gate with no `skip_ok=`, and an
+    undeclared skip is counted a failure. UNKNOWN is the third state both rows were missing.
+    [[unknown-stays-unknown]]
+
+    ⚠⚠ AND IT ASKS ABOUT THE SHELF *PATH*, NOT THE PRINTER'S VERDICT. Keying this off
+    `printer.stream()` coming back UNKNOWN would ALSO swallow the real defect — a shelf that EXISTS
+    and walked nothing — which is the only thing "the printer walked his shelf" is for. The two
+    states are indistinguishable downstream (printer.py returns rows=[] for both) and must be told
+    apart HERE, at the one place that can still see the difference.
+
+    ⚠ A recorder that will not IMPORT, or that names no shelf, is not an absent shelf; it is a
+    broken one, and it stays a hard FAIL on every host.
+    """
+    try:
+        import tv_diablo as TD
+    except Exception as e:
+        return "broken", "the recorder would not import (%s)" % str(e)[:70]
+    # TD.HIST_DIR is the ONE hist root (tv_diablo.py:2299, TV_HIST-overridable). Read from the
+    # owner rather than re-derived here, so the demo and the printer cannot disagree about where
+    # the shelf is. [[copy-drift]]
+    p = getattr(TD, "HIST_DIR", "")
+    if not p:
+        return "broken", "the recorder does not name a shelf at all"
+    if not os.path.isdir(p):
+        return "absent", ("no reel shelf exists on this host — the recorder names %r and it is "
+                          "not a directory" % p)
+    return "present", ""
+
+
 
 #: HIS TEMPLATE LIST, verbatim from 2026-09-04: *"stash/runes/gems each have their template..
 #: also test those individually.. runes/gems/materials... then we have stash then we have
@@ -77,7 +115,18 @@ def _templates():
     try:
         import control_app as CA
         import json as _j
-        for path in [x for x in (CA._journal_ring() or []) if os.path.isfile(x)]:
+        ring = [x for x in (CA._journal_ring() or []) if os.path.isfile(x)]
+        # ⚠⚠ v2658 — REG-579's SIBLING, AND REG-579's COMMENT BELOW CLOSED ONLY THE *EXCEPTION*
+        # BRANCH. An ABSENT journal does not raise: the `isfile` filter simply yields an empty
+        # list, the loop body never runs, and `live` stays `{}` — the very failed-read-handed-back-
+        # as-DATA shape the comment below was written about, surviving one line outside it. On a CI
+        # runner it is the NORMAL state (tv/sessions.jsonl at .gitignore:24, tv/sessions.*.jsonl at
+        # :31, both zero-tracked), so every push printed "NO TAB HAS EVER BEEN RECORDED" as though
+        # somebody had looked at his nights and found none. Nobody could look.
+        # [[unknown-stays-unknown]]
+        if not ring:
+            live, live_why = None, "no journal generation exists on this host"
+        for path in ring:
             with open(path, encoding="utf-8", errors="replace") as fh:
                 for line in fh:
                     try:
@@ -127,7 +176,10 @@ def _templates():
             known = True
             where = "the deep rows' stashTab field (checked once, below)"
             seen = None if live is None else live.get(name, 0)
-            got = ("%d read(s) on the shelf" % seen) if seen else \
+            # ⚠ v2658 — `if seen else` read None and 0 identically, so an UNREADABLE shelf printed
+            # "0 on this shelf" as a measurement. Evidence lines lie as easily as asserted ones.
+            got = ("UNKNOWN — %s" % live_why) if seen is None else \
+                  ("%d read(s) on the shelf" % seen) if seen else \
                   "0 on this shelf — evidence, not a failure"
         # ⚠⚠ v2588 — AN EVIDENCE LINE MUST NOT WEAR A PASS. A cold review pointed out that every
         # tab line sets ok=True unconditionally, so a reader sees "runes ✅ 0 on this shelf" and
@@ -151,11 +203,23 @@ def _templates():
     # fail — which is exactly the silent-zero shape this repo keeps paying for.
     tabs_seen = (None if live is None else
                  [k for k in live if k in ("runes", "gems", "materials", "personal", "shared")])
-    out.append({"check": "the readers RECORD a stash tab at all", "ok": bool(tabs_seen),
-                "got": ("carried · tabs seen: %s" % ", ".join(sorted(tabs_seen))) if tabs_seen
-                       else "NO TAB HAS EVER BEEN RECORDED",
-                "want": "at least one stashTab value in the journal",
-                "why": "without this every per-tab line above reads 0 and none of them fails"})
+    if tabs_seen is None:
+        # ⚠⚠ v2658 — AND HANDING THIS ROW A `None` IS NOT ENOUGH ON ITS OWN, which is where the
+        # first prescription for this bug stopped: `bool(None)` is still False and `got` still fell
+        # through to the literal "NO TAB HAS EVER BEEN RECORDED", so the false zero and the red
+        # check both survived. The row needs the explicit third state the SCENE rows above already
+        # have. Not asserted, because a journal nobody can read says nothing either way — and a
+        # gate that goes red for an absent host file teaches him to skip the row.
+        out.append({"check": "the readers RECORD a stash tab at all", "ok": False, "unknown": True,
+                    "got": "UNKNOWN — %s" % live_why,
+                    "want": "at least one stashTab value in the journal",
+                    "why": "nobody could look, so this is not a measurement of the readers"})
+    else:
+        out.append({"check": "the readers RECORD a stash tab at all", "ok": bool(tabs_seen),
+                    "got": ("carried · tabs seen: %s" % ", ".join(sorted(tabs_seen))) if tabs_seen
+                           else "NO TAB HAS EVER BEEN RECORDED",
+                    "want": "at least one stashTab value in the journal",
+                    "why": "without this every per-tab line above reads 0 and none of them fails"})
     return out
 
 
@@ -219,22 +283,51 @@ def demo(reel=None):
             "missingStations": missing,
             "unknownStations": unknown,
         })
+    shelf, shelf_why = _shelf()
     checks = _downstream() + _templates()
-    checks.append(_check("every reel carries every station", blanks, 0,
-                         "a station missing from a row reads as a reel that did not need it"))
-    checks.append({"check": "the printer walked his shelf", "ok": bool(rows),
-                   "got": len(rows), "want": ">0",
-                   "why": "zero reels would mean the demonstration proved nothing at all"})
-    # ⚠ an EVIDENCE row is never counted as a passed check — it asserted nothing.
-    asserted = [c for c in checks if not c.get("evidence")]
+    if rows:
+        checks.append(_check("every reel carries every station", blanks, 0,
+                             "a station missing from a row reads as a reel that did not need it"))
+    else:
+        # ⚠ v2658 — WITH ZERO REELS THIS PASSED 0 == 0, examining nothing. A vacuous pass inflates
+        # the tally line he reads and is the sample-mistaken-for-a-verdict shape. [[regression-guard]]
+        checks.append({"check": "every reel carries every station", "ok": False, "unknown": True,
+                       "got": "UNKNOWN — no reel walked, so no row could be inspected",
+                       "want": 0, "why": "0 blanks out of 0 rows asserts nothing"})
+    if not rows and shelf == "absent":
+        # ⚠ NOT a FAIL and NOT a PASS — see _shelf(). On a host that HAS a shelf, or one whose
+        # recorder is broken, this stays the hard assertion it has always been.
+        #
+        # ⚠⚠ AND IT NEEDS *BOTH* CONDITIONS. Measured 2026-09-05 while proving this fix: with
+        # TV_HIST pointed at an empty scratch tree the printer STILL walked his 40 real reels,
+        # because reel_retention.plan() defaults to a hardcoded `HERE/frames/hist` (:319) and does
+        # not follow TV_HIST the way one_start_point does. So `_shelf()` can say "absent" on a run
+        # that walked a shelf anyway. Rows on the table outrank the path probe: if reels walked,
+        # the row is asserted, whatever the probe thinks.
+        checks.append({"check": "the printer walked his shelf", "ok": False, "unknown": True,
+                       "got": "UNKNOWN — %s" % shelf_why, "want": ">0",
+                       "why": "there is no footage on this host, so nothing about the walk is "
+                              "established either way"})
+    else:
+        checks.append({"check": "the printer walked his shelf", "ok": bool(rows),
+                       "got": len(rows), "want": ">0",
+                       "why": "zero reels would mean the demonstration proved nothing at all"})
+    # ⚠ an EVIDENCE row is never counted as a passed check — it asserted nothing. Nor is an
+    # UNKNOWN one: v2658 — a row nobody could look at must not be counted PASSED (it would be the
+    # green that lies) and must not be counted FAILED (it would be the false red that made this
+    # gate ship four consecutive CI reds). It is counted SEPARATELY, and said out loud below.
+    asserted = [c for c in checks if not c.get("evidence") and not c.get("unknown")]
+    unk = [c for c in checks if c.get("unknown")]
     bad = [c for c in asserted if not c["ok"]]
     return {
         "ok": not bad, "state": ("PASS" if not bad else "FAIL"),
         "reels": reels, "checks": checks, "walked": len(rows),
-        "stations": stations,
-        "why": ("%d reel(s) walked through %d station(s); %d of %d downstream check(s) pass. %s"
+        "stations": stations, "unknown": len(unk), "shelf": shelf,
+        "why": ("%d reel(s) walked through %d station(s); %d of %d downstream check(s) pass%s. %s"
                 % (len(rows), len(stations), len(asserted) - len(bad), len(asserted),
-                   "Everything registered before still agrees." if not bad else
+                   ("; %d UNKNOWN — nobody could look" % len(unk)) if unk else "",
+                   ("Everything that could be checked still agrees."
+                    if unk else "Everything registered before still agrees.") if not bad else
                    "⚠ %d check(s) DISAGREE with what was registered before." % len(bad))),
     }
 
@@ -256,8 +349,13 @@ def main(argv):
             str(x["template"])[:9], str(x["extract"])[:11], x["worth"]))
     print("\n  DOWNSTREAM, against what was registered before:")
     for c in r["checks"]:
-        print("    %s %-32s %s" % ("✅" if c["ok"] else "❌", c["check"], str(c["got"])[:46]))
-        if not c["ok"]:
+        # ⚠ v2658 — ⚪ is a THIRD GLYPH, not a dressed-up ❌. A row nobody could look at printed a
+        # red cross for four CI runs, which is how an absent host file reads as a broken pipeline.
+        glyph = "⚪" if c.get("unknown") else ("✅" if c["ok"] else "❌")
+        print("    %s %-32s %s" % (glyph, c["check"], str(c["got"])[:46]))
+        if c.get("unknown"):
+            print("       could not establish: %s — %s" % (str(c["want"])[:40], str(c["why"])[:70]))
+        elif not c["ok"]:
             print("       wanted: %s — %s" % (str(c["want"])[:44], str(c["why"])[:70]))
     print("\n  %s · %s\n" % (r["state"], r["why"]))
     return 0 if r["ok"] else 1

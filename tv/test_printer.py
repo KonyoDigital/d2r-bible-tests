@@ -17,6 +17,7 @@ conjoining them is exactly the collapse v2312 attempted and WITHDREW (v2314: the
 questions at different granularities). A printer that picked one would be answering his question
 with my preference and calling it a measurement. It reports BOTH and chooses neither.
 """
+import contextlib
 import os
 import sys
 import unittest
@@ -27,13 +28,84 @@ if HERE not in sys.path:
 
 import printer as P   # noqa: E402
 
+#: ⚠⚠ SIX OF THESE MEASURED WHETHER THE MACHINE WAS HIS, NOT WHETHER THE PRINTER WORKS. They called
+#: `P.stream()` against the REAL shelf, and the shelf is gitignored — `.gitignore:21` excludes
+#: `tv/frames/`, `git ls-files tv/frames` returns **0**, and nothing in `.github/workflows/` sets
+#: `TV_HIST`. So on a fresh clone BOTH shelf owners answer with zero rows — `one_start_point` via
+#: `tv_diablo.HIST_DIR` (one_start_point.py:134 `if not hist or not os.path.isdir(hist)`), and
+#: `reel_river` → `reel_story.story()` → `reel_retention.plan(hist_dir=None)`, which falls back to
+#: the hardcoded `HERE/frames/hist` (reel_retention.py:319) and is NOT TV_HIST-overridable — and
+#: `printer.py:197` short-circuits to "UNKNOWN, not an empty shelf". MEASURED, not assumed: a copy
+#: of `git ls-files tv/` with no `frames/` ran this file to `failures=6, skipped=2` — the same line
+#: CI printed, the same six names, the same six messages.
+#:
+#: ⚠ SO THEY PLANT THEIR OWN SHELF, which is what the eight cases that already passed on CI do
+#: (:50, :96, :138, :191, :244). Skipping instead would have turned the gate green while retiring
+#: the law — and this repo has lost eight of seventeen named reels to exactly that [[regression-
+#: guard]]. A planted shelf keeps every assertion RUNNING, and makes the gate say the same thing on
+#: his Mac and on a runner instead of one thing on each.
+FIXTURE_REELS = ("reel_s_1_1", "reel_s_1_2")
+
+
+def _planted_door(reels=FIXTURE_REELS):
+    """`one_start_point`'s reading, in its shape, for a shelf that need not exist on disk."""
+    return {"ok": True, "state": "ONE_DOOR", "walked": len(reels), "notADirectory": 0,
+            "counts": {"recorder": len(reels)},
+            "rows": [{"reel": r, "door": "recorder", "why": "planted shelf"} for r in reels],
+            "why": "planted shelf"}
+
+
+def _planted_river(reels=FIXTURE_REELS):
+    """`reel_river`'s reading. Carries `stage`+`decider` (the funnel station's field and its extra)
+    and `reelAnswer`/`frameAnswer` (the out station's two doors), so no station reads a key the
+    fixture forgot and calls the printer wrong for it."""
+    return {"ok": True, "state": "WALKED", "gaps": [], "namelessRows": 0, "clean": {},
+            "rows": [{"reel": r, "stage": "banked", "decider": "reel_retention",
+                      "question": "how far down the river has this reel come?",
+                      "reelAnswer": True, "frameAnswer": None} for r in reels],
+            "why": "planted shelf"}
+
+
+def _empty_river():
+    """An owner that ANSWERED and had nothing — not one that was never asked. Every key the real
+    empty return carries (reel_river.py:105-113), because a shape that changes with the verdict is
+    the very thing REG-547/REG-560 exist to catch."""
+    return {"ok": True, "state": "WALKED", "rows": [], "gaps": [], "namelessRows": 0,
+            "clean": {}, "why": "planted empty"}
+
+
+@contextlib.contextmanager
+def _planted_shelf(river=True, reels=FIXTURE_REELS):
+    """Plant the two SHELF owners — the only two `printer.py:197` unions into a shelf — and put the
+    real ones back. Every other owner stays REAL, so what these cases measure is still the printer
+    quoting owners it did not plant."""
+    import one_start_point as OSP
+    import reel_river as RR
+    real_door, real_river = OSP.start_points, RR.river
+    try:
+        OSP.start_points = lambda *a, **k: _planted_door(reels)
+        RR.river = (lambda *a, **k: _planted_river(reels)) if river \
+            else (lambda *a, **k: _empty_river())
+        yield
+    finally:
+        OSP.start_points, RR.river = real_door, real_river
+
 
 class EveryStationQuotesItsOwner(unittest.TestCase):
 
     def test_every_reel_gets_every_station(self):
         """A station missing from a row would read as a reel that did not need it."""
-        r = P.stream()
+        with _planted_shelf():
+            r = P.stream()
         self.assertTrue(r["ok"], r["why"])
+        # ⚠ A vacuous walk would pass every assertion below without asking one of them. Stated as
+        # CONTAINMENT, not a count: the shelf is a UNION, so on his Mac per_reel_routes adds his
+        # 40 real reels to the 2 planted ones and a pinned number would be about his footage
+        # rather than about the law. [[regression-guard]]
+        walked = set(row["reel"] for row in r["rows"])
+        self.assertTrue(set(FIXTURE_REELS) <= walked,
+                        "the planted shelf never reached the printer, so the loop below asks "
+                        "nothing: %s" % sorted(walked)[:4])
         for row in r["rows"]:
             for st in P.STATIONS:
                 self.assertIn(st, row["stations"],
@@ -59,15 +131,20 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
             OSP.start_points = real
 
     def test_the_ROUTE_station_moves_when_per_reel_routes_moves(self):
+        """⚠ Same law as the IN station above. It needs a SHELF as well as a planted owner, because
+        `route`'s owner is not one of the two `printer.py:197` unions into one — so with no footage
+        the printer never reached the station at all and this read `'sentinel' not found in []`."""
         import per_reel_routes as PRR
         real = PRR.routes
         try:
             PRR.routes = lambda *a, **k: {
                 "ok": True, "state": "EARNED", "byDecider": {}, "contentRoutes": {},
                 "policyRoutes": {}, "distinctContentRoutes": 0, "minDistinct": 2, "walked": 1,
-                "rows": [{"reel": "reel_s_1", "tag": "t", "stage": "s",
+                "rows": [{"reel": FIXTURE_REELS[0], "tag": "t", "stage": "s",
                           "decidedBy": "sentinel", "why": "planted", "route": "t@s"}], "why": "x"}
-            says = [row["stations"]["route"]["say"] for row in P.stream("reel_s_1")["rows"]]
+            with _planted_shelf():
+                says = [row["stations"]["route"]["say"]
+                        for row in P.stream(FIXTURE_REELS[0])["rows"]]
             self.assertIn("sentinel", says,
                           "the printer did not follow per_reel_routes: %s" % says)
         finally:
@@ -156,18 +233,31 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
         ⚠ The reading-level shape law could not see this: it compares the TOP-LEVEL key sets, and
         this one is nested two levels down. So the law is asked here, per station, at every reel.
         """
-        import reel_river as RR
-        real = RR.river
-        try:
-            RR.river = lambda *a, **k: {"ok": True, "rows": [], "gaps": [], "why": "x", "clean": {}}
-            silent = P.stream()["rows"]
-        finally:
-            RR.river = real
-        normal = P.stream()["rows"]
+        # ⚠ BOTH SIDES NEED A SHELF. The comparison used the real one for `normal`, so with no
+        # footage both sides were [] and it failed on "no rows to compare" — it was measuring the
+        # machine. Planted, the two sides differ in exactly the one variable the law is about:
+        # whether reel_river had anything to say about the reel it is asked about.
+        with _planted_shelf(river=False):
+            silent = dict((r["reel"], r["stations"]) for r in P.stream()["rows"])
+        with _planted_shelf(river=True):
+            normal = dict((r["reel"], r["stations"]) for r in P.stream()["rows"])
         self.assertTrue(silent and normal, "no rows to compare")
+        # ⚠⚠ ADDRESSED BY NAME, NOT BY `rows[0]`, AND THE TWO GUARDS BELOW ARE WHY I KNOW. The
+        # shelf is a UNION, so on his Mac per_reel_routes contributes 40 real reels that sort
+        # ahead of the fixture — `rows[0]` was one of HIS, which the planted river says nothing
+        # about, so its funnel was UNKNOWN on BOTH sides and the loop compared a shape with
+        # itself. A comparison whose two sides do not differ cannot go red. [[regression-guard]]
+        subject = FIXTURE_REELS[0]
+        self.assertIn(subject, silent, "the planted shelf never reached the printer")
+        self.assertIn(subject, normal, "the planted shelf never reached the printer")
+        self.assertEqual(silent[subject]["funnel"]["say"], "UNKNOWN",
+                         "the SILENT side's funnel owner answered, so the two sides do not "
+                         "differ and the comparison below is between a shape and itself")
+        self.assertNotEqual(normal[subject]["funnel"]["say"], "UNKNOWN",
+                            "the NORMAL side's funnel owner said nothing either, so likewise")
         for st in P.STATIONS:
-            a = set(silent[0]["stations"][st])
-            b = set(normal[0]["stations"][st])
+            a = set(silent[subject][st])
+            b = set(normal[subject][st])
             self.assertEqual(
                 sorted(b - a), [],
                 "the %r station drops %s when its owner has nothing to report. A shape that "
@@ -215,7 +305,11 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
             PRR.routes = lambda *a, **k: {"ok": True, "state": "EARNED", "rows": [],
                                           "byDecider": {}, "contentRoutes": {}, "policyRoutes": {},
                                           "distinctContentRoutes": 0, "walked": 0, "why": "x"}
-            r = P.stream()
+            # ⚠ The shelf is planted so the union below has something to be a union OF — with no
+            # footage `says` came back as the empty set and this passed judgement on nothing.
+            with _planted_shelf():
+                r = P.stream()
+                river_reels = P._by_reel(__import__("reel_river").river())[0]
             # ⚠⚠ A LINE THAT LOOKED LIKE AN ASSERTION AND COULD NOT FAIL SHIPPED HERE, caught by
             # the review-after-ship pass on my own v2544 bytes. It read
             #     self.assertEqual(...) if False else None
@@ -224,9 +318,10 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
             # a guard satisfied by its own text. The real question it meant to ask is below, and it
             # RUNS: an owner reporting nothing must not shrink the shelf.
             self.assertEqual(
-                r["walked"], len(P._by_reel(__import__("reel_river").river())[0]),
+                r["walked"], len(river_reels),
                 "an owner reported no reels and the printer's shelf shrank with it — the union of "
                 "the owners is the shelf, so a reel absent from ONE of them must still appear")
+            self.assertTrue(river_reels, "no shelf, so shrinking it would not have shown")
             says = set(row["stations"]["route"]["say"] for row in r["rows"])
             self.assertEqual(says, {"UNKNOWN"},
                              "an owner reported nothing and the printer invented a route: %s" % says)
@@ -287,7 +382,10 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
         real = PR.report
         PR.report = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("reach is unmeasurable"))
         try:
-            rows = P.stream()["rows"]
+            # ⚠ A shelf, so there is a ROW for the raised reason to be missing from. With no
+            # footage the printer returned before building one and this proved nothing.
+            with _planted_shelf():
+                rows = P.stream()["rows"]
         finally:
             PR.report = real
         self.assertTrue(rows, "no reel was walked, so nothing was established")
@@ -355,8 +453,15 @@ class TheSummaryNamesWHICHStationAndWHY(unittest.TestCase):
 
     def test_a_fully_answered_shelf_appends_NOTHING(self):
         """⚠ BASELINE — the detail must not be a sentence that is always there. If it appears when
-        every station answered, it stops carrying information."""
-        rep = P.stream()
+        every station answered, it stops carrying information.
+
+        ⚠ IT READ THE REAL SHELF AND SO IT DECIDED NOTHING ON A RUNNER: with no footage `rep["why"]`
+        was "UNKNOWN, not an empty shelf …" and it failed on the second branch. Planted, it lands
+        on the SAME branch on every machine — the shelf has stations nobody answered, because only
+        the two shelf owners are planted. ⚠ The other branch stays unexercised, exactly as it is on
+        his Mac (14 of his 40 reels are UNKNOWN at TEMPLATE), and this fix does not change that."""
+        with _planted_shelf():
+            rep = P.stream()
         if any(str(r["stations"][st].get("say")) == "UNKNOWN"
                for r in rep["rows"] for st in P.STATIONS):
             # construct the clean case from the real report rather than a fixture
