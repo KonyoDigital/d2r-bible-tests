@@ -1306,6 +1306,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2671** | `(this commit)` | v2671 — eleven spec clicks aimed at a button hidden on purpose |
 | **v2670** | `afc93f2d` | v2670 — six ships were invisible to every audit that reads commit messages |
 | **v2669** | `e3e5d6fd` | v2669 — the census counted the dark cases without ever asking why |
 | **v2668** | `af1b7a62` | v2668 — a gate passed while covering nothing, and the census had no denominator |

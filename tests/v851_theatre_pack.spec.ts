@@ -12,6 +12,32 @@ async function controlUp(): Promise<boolean> {
   } catch { return false; }
 }
 
+// v2671 — #btn-sim IS HIDDEN BY DESIGN, so page.click() can never reach it.
+//
+// v2438 made THE SHELF the single door and hid Theatre's button with the `hidden`
+// attribute, keeping "its id, its class, its title and its handler ... so every existing
+// binding and spec still finds it". That promise holds for querySelector and NOT for a
+// click: Playwright waits for the element to be visible, and the console's own CSS says
+// `button.act[hidden] { display: none !important; }`. Measured on CI run 33968788226 —
+//
+//     Error: page.click: Test timeout of 120000ms exceeded.
+//       - locator resolved to <button hidden="" id="btn-sim" ...>
+//       - element is not visible
+//
+// — so each of these burned the full 120 s before failing. That is the whole cost of this
+// suite's red.
+//
+// These tests are about SIM/Theatre BEHAVIOUR (toggling, keyboard, scrubbing), not about
+// how the door is painted, so they invoke the button's OWN handler — the one v2438 says it
+// kept. `window._dossierToTheatre()` is the Shelf's route and only OPENS; these assertions
+// need click-to-open AND click-to-close, so the element's click() is the faithful call.
+//
+// ⚠ WHAT THIS DELIBERATELY DOES NOT COVER: the real user path (Shelf -> "▶ Open in
+// Theatre"). Nothing here would notice if that door broke. It wants its own spec.
+async function simToggle(page: any) {
+  await page.$eval('#btn-sim', (el: any) => el.click());
+}
+
 test.describe('v851 theatre pack (live control app)', () => {
   test.beforeEach(async () => {
     test.skip(!(await controlUp()), 'control app not running — Mac-gate-only spec');
@@ -35,7 +61,7 @@ test.describe('v851 theatre pack (live control app)', () => {
   test('AI read line renders CAPTURE/AI READ/IT SAW and degrades honestly', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1600);
     const cap = await gotoReadBeat(page);
     expect(cap).toContain('CAPTURE');
@@ -47,7 +73,7 @@ test.describe('v851 theatre pack (live control app)', () => {
   test('READ CARD drawer opens with I, follows the playhead, closes with ✕', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1400);
     await gotoReadBeat(page);   // v918.4 — 'identity' lives on READ cards; intake beats show the tally table
     const drawer = page.locator('#th-drawer');
@@ -65,7 +91,7 @@ test.describe('v851 theatre pack (live control app)', () => {
   test('transport: arrows step beats, End+play rewinds and rolls', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1400);
     // v859.1 — footage-heavy reels have beats with no 'read #'; track the beat index instead
     const beatNo = async () => Number((((await page.locator('#th-sess').textContent()) ?? '').match(/beat (\d+)\//) || [])[1] || 0);
@@ -82,7 +108,7 @@ test.describe('v851 theatre pack (live control app)', () => {
   test('mode button cycles CUT → FULL → REAL and the axis rebuilds', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1400);
     // v918.4 — default-agnostic: v896 made ⏱ REAL the debugger default, so blind clicks land
     // wherever the cycle starts. Assert the CYCLE (3 distinct labels, wraps to start) and the
@@ -111,7 +137,7 @@ test.describe('v851 theatre pack (live control app)', () => {
   test('📚 shelf lists sessions and loads one on click', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1400);
     await page.click('#th-shelf');
     await page.waitForTimeout(400);
@@ -134,7 +160,7 @@ test.describe('v851 theatre pack (live control app)', () => {
   test('cinema ⛶ fills the window and Esc exits', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1200);
     await page.click('#th-fs');
     await page.waitForTimeout(400);

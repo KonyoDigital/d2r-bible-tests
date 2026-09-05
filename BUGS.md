@@ -20999,6 +20999,46 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-630 — eleven spec clicks aimed at a button hidden on purpose, each burning 120s (v2671)
+
+`v2438` made **the Shelf the single door** and hid Theatre's button with the `hidden` attribute. Its
+comment promised the move was additive — *"it keeps its id, its class, its title and its handler …
+so every existing binding and spec still finds it"*. **That promise holds for `querySelector` and
+fails for a click**, because Playwright waits for an element to be visible and the console's own CSS
+says `button.act[hidden] { display: none !important; }`.
+
+Measured on CI run `33968788226` (v2665), verbatim:
+
+```
+Error: page.click: Test timeout of 120000ms exceeded.
+  - waiting for locator('#btn-sim')
+    - locator resolved to <button hidden="" id="btn-sim" type="button" class="act b-sim" ...>
+    - element is not visible
+    221 × waiting for element to be visible, enabled and stable
+```
+
+**Eleven click sites** — `v877_rinse` (5) and `v851_theatre_pack` (6) — each waiting the full **120
+seconds** before failing. That is the whole reason those shards are slow as well as red.
+
+The specs are about SIM/Theatre **behaviour** (toggle, keyboard, scrub), not about how the door is
+painted, so they now invoke the button's OWN handler — the one v2438 says it kept.
+`window._dossierToTheatre()` is the Shelf's route and only OPENS; these assertions need
+click-to-open **and** click-to-close, so `el.click()` is the faithful call.
+
+⚠ **WHAT THIS DELIBERATELY DOES NOT COVER, said out loud rather than left implied:** the real user
+path — Shelf → *"▶ Open in Theatre"*. Nothing in these specs would notice if that door broke. It
+wants its own spec, and not writing one here is a declared gap, not an oversight.
+[[the-unjoined-end]]
+
+⚠ Verified by compile, not by running: `playwright test --list` parses both files and reports
+**12 tests in 2 files**. Browser suites run on GitHub CI, never on his Mac.
+
+⚠ **THE COUNT WAS NEARLY WRONG THE SAME WAY IT WAS ONCE BEFORE.** Grepping the log for spec
+FILENAMES gave 16 hits for `v877_rinse`; the real figure is **4 failing tests**, because a filename
+appears about four times per failure. Counted by unique `spec.ts:LINE:COL` instead: **39 distinct
+failing tests** on v2665, not the 80 a filename count suggests.
+[[feedback-suspect-the-instrument]]
+
 ## REG-629 — six ships were invisible to every audit that reads commit messages (v2670)
 
 TASKS.md opens with a drift audit reading *"newest LANDED row in this file: v2648 · HEAD: v2657 —

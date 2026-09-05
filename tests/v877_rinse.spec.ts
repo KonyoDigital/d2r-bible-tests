@@ -68,6 +68,32 @@ function fixtureRun(): { journal: string; hist: string } {
   return { journal: p, hist };
 }
 
+// v2671 — #btn-sim IS HIDDEN BY DESIGN, so page.click() can never reach it.
+//
+// v2438 made THE SHELF the single door and hid Theatre's button with the `hidden`
+// attribute, keeping "its id, its class, its title and its handler ... so every existing
+// binding and spec still finds it". That promise holds for querySelector and NOT for a
+// click: Playwright waits for the element to be visible, and the console's own CSS says
+// `button.act[hidden] { display: none !important; }`. Measured on CI run 33968788226 —
+//
+//     Error: page.click: Test timeout of 120000ms exceeded.
+//       - locator resolved to <button hidden="" id="btn-sim" ...>
+//       - element is not visible
+//
+// — so each of these burned the full 120 s before failing. That is the whole cost of this
+// suite's red.
+//
+// These tests are about SIM/Theatre BEHAVIOUR (toggling, keyboard, scrubbing), not about
+// how the door is painted, so they invoke the button's OWN handler — the one v2438 says it
+// kept. `window._dossierToTheatre()` is the Shelf's route and only OPENS; these assertions
+// need click-to-open AND click-to-close, so the element's click() is the faithful call.
+//
+// ⚠ WHAT THIS DELIBERATELY DOES NOT COVER: the real user path (Shelf -> "▶ Open in
+// Theatre"). Nothing here would notice if that door broke. It wants its own spec.
+async function simToggle(page: any) {
+  await page.$eval('#btn-sim', (el: any) => el.click());
+}
+
 test.describe('v877 RINSE (self-hosted console)', () => {
   test.beforeAll(async () => {
     // v1379 — MUST pass --no-open. Without it control_app opens a pywebview window
@@ -111,10 +137,10 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
     for (let i = 0; i < 3; i++) {
-      await page.click('#btn-sim');
+      await simToggle(page);
       await page.waitForTimeout(700);
       expect((await state(page)).theatre, `open round ${i}`).toBe(true);
-      await page.click('#btn-sim');
+      await simToggle(page);
       await page.waitForTimeout(500);
       expect((await state(page)).theatre, `close round ${i}`).toBe(false);
     }
@@ -123,7 +149,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
   test('Space plays/pauses the reel and NEVER touches the agent', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1000);
     // v1459 — assert the PREMISE first with a number. When the fixture shipped no film, TH.beats was
     // 0 and this spec failed on the play-button label, which reads like a keyboard bug and is not one.
@@ -140,7 +166,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
   test('arrows single-step, Home/End clamp, ✕ closes the drawer', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1000);
     const readNo = async () =>
       ((await page.locator('#th-caption').textContent().catch(() => '')) || '').match(/read #(\d+)/)?.[1] || null;
@@ -167,7 +193,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
   test('cinema ⛶ in, Esc out — never a black screen', async ({ page }) => {
     await page.goto(CTRL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.click('#btn-sim');
+    await simToggle(page);
     await page.waitForTimeout(1000);
     await page.click('#th-fs');   // v913 chrome: the ⛶ cinema button is #th-fs now
     await page.waitForTimeout(400);

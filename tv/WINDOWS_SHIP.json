@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2670",
+  "ver": "v2671",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2670: TASKS.md rebuilt from WINDOWS_SHIP ver rather than commit subjects, plus a gate that fails when a recent ship is missing",
+  "note": "v2671: 11 spec clicks aimed at a deliberately hidden button, each burning a 120s timeout; they now call the handler v2438 promised it kept",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
