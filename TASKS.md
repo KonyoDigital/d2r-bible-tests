@@ -1680,3 +1680,45 @@ hold a paragraph of proof. The artifact was trying to be both, and it is the one
 ⚠ **This does not delete the artifact** — it is a real record of a real day and its rows carry
 reasoning worth reading. It simply stops being a thing anyone has to keep in step, which is the
 only honest way to have three copies of anything.
+
+---
+
+## ⚠ RETRACTION — I closed "CI has a browser now" and the fix was INERT
+
+**Both surfaces said this was done. It was not, and the CI run said so in its own output.**
+
+`e14c0fb5` was the first run with Chromium installed and cached — cache ✅, install ✅, deps ✅ —
+and the gate still printed:
+
+```
+⚠ overlap_ratchet   0.1s   ⚪ UNKNOWN — headless chrome would not start, so no width was measured
+```
+
+**The 0.1s was the tell.** A real launch attempt cannot fail that fast.
+`render_check.CHROME` was the literal string `/Applications/Google Chrome.app/…`, and
+`_chrome_up()` asks `os.path.exists` of it — a path that **cannot exist on a Linux runner**. The
+install was dead weight: CI minutes spent fetching a browser no reader could see.
+[[the-unjoined-end]] — built at both ends, never joined — **in my own fix, one commit after
+shipping it, and I had already marked the row closed.**
+
+`CHROME` is resolved now, in the order `grok-second-eye` §2 already records for a second-eye
+binary — env override, then KNOWN INSTALL LOCATIONS, never one hardcoded guess:
+
+| | |
+|---|---|
+| 1 | `TV_CHROME` — an explicit override always wins |
+| 2 | his Mac's Google Chrome |
+| 3 | Playwright's cached chromium (`~/.cache/ms-playwright/chromium*/chrome-linux/chrome`) — CI's |
+| 4 | `google-chrome` / `chromium-browser` / `chromium` / `chrome` on PATH |
+
+⚠ **AND THE ROW STAYS OPEN, because finding a browser is not measuring.** The venue guard shipped
+one commit earlier will now correctly refuse to grade Linux counts against a macOS baseline, as a
+DECLARED skip. Turning that into a real measurement needs a **CI-blessed baseline**, which is its
+own job and is not claimed here.
+
+### The rule this adds to the day's list
+
+**A fix is not verified by the steps that ran, but by the thing they were supposed to change.**
+Three green install steps proved a browser was downloaded. They proved nothing about whether
+anything could find it — and the gate's own one-line output said so, in a run I had already
+declared a success.
