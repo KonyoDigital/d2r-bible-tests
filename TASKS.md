@@ -1722,3 +1722,38 @@ own job and is not claimed here.
 Three green install steps proved a browser was downloaded. They proved nothing about whether
 anything could find it — and the gate's own one-line output said so, in a run I had already
 declared a success.
+
+## 🎛 THE 7 CONSOLE TABS ARE UNREACHABLE BY THE RENDER LANE — BY CONSTRUCTION
+
+`tv/control_ui.html` carries **8 real tab elements** (`<button class="ht" data-tab=…>`): `crafts
+forge fsets funi session tools tvd vault`. Exactly **one** of `render_check.TARGETS`' 12 entries
+loads the console, and it never navigates — its `activate` is a *readiness predicate* asserting
+`#btn-miniauto` is visible and not inside a collapsed `<details>`. Only the `vault` target
+navigates at all, and it clicks the **board's** vault tab, not the console's.
+
+**Why adding seven targets there would be decoration.** The console's tabs are a **shell router**,
+not panels. `_shellLight()` stamps `body.dataset.shellTab`; `_shellRoute()` calls `switchTab()` on
+a board **iframe** whose src is an absolute server path — `/board?app=1&engine=1&v=boot#session`
+(`control_ui.html:18507`). `render_check` loads the console **from the filesystem**, so that iframe
+resolves to `file:///board`, never loads, and `_shellRoute` returns false at
+`if (!w || !w.document) return false;`. Seven targets added to that lane would refuse on every
+single run — the same always-refusing shape that made the `cichrome` fix inert, one week apart.
+
+**Where it does belong.** A lane that SERVES the console over http. Both halves already exist and
+have never been joined:
+
+| half | where it lives | what it lacks |
+|---|---|---|
+| a served console on a private port | `test_button_matrix.py` — boots its own `control_app` via `TV_CONTROL_PORT`, `--no-open`, stops it after | **no browser** — it is HTTP-only, it cannot click or see paint |
+| a browser driving real pixels | `render_check.py` — CDP on :9224 | **no server** — it loads `file://`, so the board iframe is dead |
+
+⚠ **It must never bind or kill `:17772` — that is his live console.**
+
+**The class worth catching is v2125's, and the file records it in its own words:** a tab *lit* while
+its destination stayed `display:none` at `height=0` — *"it scrolled to a hidden element and nothing
+moved."* So the check must prove **the destination painted**, never that the button highlighted.
+`_shellRoute` already models this correctly at v2120/#110: *"SUCCESS IS THE BOARD MOVING, NOT THE
+FUNCTION EXISTING."*
+
+**Status: open, and mine.** The finding is measured; the build is a new joined lane, not seven
+lines in an existing one.

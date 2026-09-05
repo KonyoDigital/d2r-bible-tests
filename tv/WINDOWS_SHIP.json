@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2658",
+  "ver": "v2660",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2658: CI had been red for 149 of 150 runs across three days and nothing gated on it: Publish depends only on its own jobs, so the site published throughout. Two REAL regressions fixed and proven, four stale assertions, one missing CI dep, six host-fixture gates, and one gate that printed UNKNOWN while exiting FAIL.",
+  "note": "v2660: REG-614: the decision was honest and every number on screen was the inflated one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

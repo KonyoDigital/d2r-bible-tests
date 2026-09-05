@@ -20496,3 +20496,65 @@ measured and all declined:
 **Six versions of cold looks on this helper, and the seventh found nothing to take.** That is the
 signal the arc is finished, and it is a better reason to stop than running out of patience.
 
+
+## REG-614 — the decision was honest and every number on screen was the inflated one (v2660)
+
+`ddd55279` enforced his 2026-09-04 ruling — *"Beware n inflated by repetition… Five distinct
+attacks scores 0.5655, not 0.9558"* — by switching `state` to decide on `wilsonByAttack`. It did
+not switch anything that PRINTS. The result was a report where the glance value and the deciding
+value disagreed, on every scored row:
+
+```
+OPEN  reel.route  wilson 0.936/0.510          <- header: raw, repetition-inflated
+      56 of 56 sabotages refused · wilson 0.646   <- and 56/56 is 0.936, not 0.646
+```
+
+Two separate defects wearing one symptom:
+
+1. **The header printed `l["wilson"]`** — the raw score — beside a state derived from
+   `wilsonByAttack`. Worst row: 0.936 shown, 0.646 decided.
+2. **The sentence paired RAW counts with the BY-ATTACK figure.** "56 of 56 sabotages refused ·
+   wilson 0.646" cannot be checked by anyone: feed 56/56 back through `wilson_lower` and you get
+   0.936. The number was right and the words beside it named another quantity —
+   `[[label-outlived-referent]]`, the defect this console keeps re-growing.
+
+⚠ **`may()` has zero production callers, so no door was ever opened by the wrong figure.** What was
+wrong is what the board CLAIMED. That is still the whole point of the ruling: the claim was
+outrunning its evidence, and half-enforcing it left the claim intact on screen.
+
+**Fixed:** the header prints the deciding figure and appends `(per attack; raw N)` so nothing is
+hidden; every sentence prints the pair that matches the figure beside it, with the attempt pair
+kept in parentheses so the repetition stays visible.
+
+```
+OPEN  printer.stream  wilson 0.566/0.510 (per attack; raw 0.956)
+      5 of 5 DISTINCT ATTACKS refused (83 of 83 attempts) · wilson 0.566 >= 0.510
+```
+
+That 0.566 against 83/83 is his own worked example, now printed by the console instead of argued
+in a ruling.
+
+**Guarded by a LAW, not a number** — `TheCountsNameTheSameQuantityAsTheFigure` in
+`test_self_arming.py`: whatever pair a scored row prints, feeding it back through the module's own
+`wilson_lower` must reproduce the figure beside it. It carries an anti-vacuity case (at least one
+row must actually decide per attack, or the law never fires) and a red-proof.
+
+⚠⚠ **THE GUARD IMMEDIATELY CAUGHT A CASE THE FIX HAD MISSED.** The `INCOMPLETE`/blind branch still
+printed `55 of 55` beside wilson 0.510 — which is `wilson_lower(4, 4)`. Written first, it failed on
+arrival for a real reason and then passed. That is the only kind of green worth having here.
+
+## REG-615 — the heart's lock wedge has 7 text-on-text overlaps at two widths (OPEN)
+
+`overlap_ratchet` measures `1120x900 heart-ov` and `1440x1000 heart-ov` at **7** where the baseline
+recorded **0**. Seen, not merely counted — `tv/.render_shots/heart_locks_zoom.png` shows the
+radial lock labels colliding with their own arithmetic sublines in the lower wedge, e.g.
+`vault.sweep_start` running into `4/24 refused · 0.862 ≥ 0.722`.
+
+⚠ **The baseline's 0 cannot be read as "50 leaves, none overlapping".** It stores a scalar, so an
+empty panel and a clean panel are the same recorded value; whether this is a RISE or a first real
+measurement is UNKNOWN. Either way 7 collisions exist now. `[[unknown-stays-unknown]]`
+
+⚠ **Do not clear this with `--write-baseline`.** The baseline currently carries no `_venue` stamp,
+so the gate refuses to grade anywhere until it is re-blessed — and re-blessing while these 7 stand
+would bake them in as debt. Fix the layout first, then bless, then the venue stamp lands with a
+clean number.

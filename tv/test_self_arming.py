@@ -1043,6 +1043,56 @@ class TestV2629NoThirdSpellingForARoute(unittest.TestCase):
 
 
 
+
+
+class TheCountsNameTheSameQuantityAsTheFigure(unittest.TestCase):
+    """⚠ ddd55279 made the DECISION honest and left every sentence printing the raw counts.
+
+    A row read `56 of 56 sabotages refused * wilson 0.646`, and 56/56 is 0.936 — the number was
+    right and the words beside it named another quantity. Nobody can check arithmetic that does
+    not reconcile, so a reader either trusts it blindly or stops reading it.
+
+    THE LAW, not the number: whatever pair a scored row prints, feeding that pair back through
+    the module's OWN wilson_lower must reproduce the figure printed beside it.
+    """
+
+    def _scored(self):
+        rep = SA.report()
+        return [l for l in (rep.get("locks") or []) if l.get("wilson") is not None]
+
+    def test_the_printed_pair_reproduces_the_printed_figure(self):
+        seen = 0
+        for l in self._scored():
+            why = l.get("why") or ""
+            m = re.match(r"\s*(\d+) of (\d+) ", why)
+            if not m:
+                continue                      # INCOMPLETE/blind rows word it differently, by design
+            k, n = int(m.group(1)), int(m.group(2))
+            shown = l.get(l.get("deciding") or "wilson")
+            if shown is None:
+                continue
+            seen += 1
+            self.assertAlmostEqual(
+                SA.wilson_lower(k, n), shown, places=3,
+                msg=("%s prints '%d of %d' beside wilson %.3f, but wilson_lower(%d, %d) is %.3f. "
+                     "The pair and the figure name different quantities."
+                     % (l.get("lock"), k, n, shown, k, n, SA.wilson_lower(k, n))))
+        self.assertGreater(seen, 0, "no scored row carried a readable pair — this proved nothing")
+
+    def test_at_least_one_row_is_actually_decided_per_attack(self):
+        """Anti-vacuity: if nothing decides on wilsonByAttack, the law above never fires."""
+        by = [l for l in self._scored() if l.get("deciding") == "wilsonByAttack"]
+        self.assertTrue(by, "no lock decided per attack, so the reconciliation law was untested")
+        for l in by:
+            self.assertIn("DISTINCT ATTACKS", l.get("why") or "",
+                          "%s decides per attack but its sentence does not say so" % l.get("lock"))
+
+    def test_a_mismatched_pair_is_caught(self):
+        """RED-PROOF: the assertion must fail on a row whose pair does not match its figure."""
+        bad = {"lock": "fake", "deciding": "wilson", "wilson": 0.646, "why": "56 of 56 refused"}
+        self.assertNotAlmostEqual(SA.wilson_lower(56, 56), bad["wilson"], places=3)
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

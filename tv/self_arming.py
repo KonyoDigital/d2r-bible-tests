@@ -833,6 +833,18 @@ def score(lock, rows=None):
         out["decidingWhy"] = ("scored per DISTINCT ATTACK (%d) rather than per attempt (%d): "
                               "looping one attack over more inputs buys a bigger number and proves "
                               "nothing new" % (attacks, n))
+    # ⚠⚠ THE COUNTS MUST NAME THE SAME QUANTITY AS THE FIGURE BESIDE THEM. ddd55279 switched the
+    # DECISION to the per-attack score and left every sentence printing the raw attempt counts, so
+    # a row read "56 of 56 sabotages refused · wilson 0.646" — and 56/56 is 0.936, not 0.646. The
+    # number was right and the words beside it named another quantity, which is the one defect this
+    # console keeps re-growing. [[label-outlived-referent]] [[the-unjoined-end]]
+    # BOTH are printed: the attack pair decides, the attempt pair is kept in parentheses so nothing
+    # is hidden and the repetition stays visible.
+    if out["deciding"] == "wilsonByAttack":
+        _wk, _wn = min(k, attacks), attacks
+        _wunit, _walso = "DISTINCT ATTACKS", " (%d of %d attempts)" % (k, n)
+    else:
+        _wk, _wn, _wunit, _walso = k, n, "sabotages", ""
     # the tier above the bar — reported on every row so a surface can show how far past it is
     out["hardBar"] = HARD_BAR
     out["hardKindsBar"] = HARD_KINDS_BAR
@@ -844,8 +856,8 @@ def score(lock, rows=None):
     out["hardeningGap"] = _hardening_gap(w, conf, kinds, n, k)
     if w < spec["bar"]:
         out["state"] = LOCKED
-        out["why"] = ("%d of %d sabotages were refused; the Wilson lower bound is %.3f against a "
-                      "bar of %.3f" % (k, n, w, spec["bar"]))
+        out["why"] = ("%d of %d %s were refused%s; the Wilson lower bound is %.3f against a "
+                      "bar of %.3f" % (_wk, _wn, _wunit, _walso, w, spec["bar"]))
     elif conf < spec["kinds_bar"]:
         out["state"] = LOCKED
         out["why"] = ("the score clears (%.3f) but the evidence is too alike: kinds %s score %.2f "
@@ -857,8 +869,9 @@ def score(lock, rows=None):
         # every surface can reach, not a flag riding alongside OPEN. Clearing the bar is the floor;
         # HARDENED says a surface kept going and did it with independent kinds.
         out["state"] = HARDENED if out.get("hardened") else OPEN
-        out["why"] = ("%d of %d sabotages refused · wilson %.3f >= %.3f · kinds %s = %.2f >= %.2f"
-                      % (k, n, w, spec["bar"], kinds, conf, spec["kinds_bar"]))
+        out["why"] = ("%d of %d %s refused%s · wilson %.3f >= %.3f · kinds %s = %.2f >= %.2f"
+                      % (_wk, _wn, _wunit, _walso, w, spec["bar"], kinds, conf,
+                         spec["kinds_bar"]))
     # ⚠⚠ LAST, AND IT OUTRANKS OPEN. A lock cannot be called proven while one of the axes its own
     # harness declared has never been exercised — the score simply never saw that axis. Applied
     # after the ladder so it also refuses to let HARDENED stand on an untested claim.
@@ -866,12 +879,16 @@ def score(lock, rows=None):
     # changes is that the badge stops saying proven. [[unknown-stays-unknown]]
     if blind:
         out["state"] = INCOMPLETE
-        out["why"] = ("%d of %d ATTEMPTED sabotages were refused, but %d claim(s) this harness "
+        # ⚠ SAME PAIR AS THE FIGURE. This sentence used to print the raw attempt counts beside a
+        # per-attack score — `55 of 55` next to wilson 0.510, which is wilson_lower(4, 4), not
+        # wilson_lower(55, 55) = 0.935. "ATTEMPTED" still earns its place: it separates what was
+        # RUN from what this harness only DECLARED.
+        out["why"] = ("%d of %d %s ATTEMPTED were refused%s — but %d claim(s) this harness "
                       "declared were never exercised at all (%s). Zero attempts cannot move a "
                       "Wilson bound, so that axis is MISSING from the score rather than failing "
-                      "it — the number below is about the other claims only. Nothing is blocked; "
-                      "the badge just stops saying proven."
-                      % (k, n, len(blind), ", ".join(blind)))
+                      "it — the number beside it is about the other claims only. Nothing is "
+                      "blocked; the badge just stops saying proven."
+                      % (_wk, _wn, _wunit, _walso, len(blind), ", ".join(blind)))
     return out
 
 
@@ -994,10 +1011,17 @@ def main(argv):
     print("SELF-ARMING LOCKS — %s" % ("%d of %d open" % (rep.get("open", 0), rep.get("total", 0))
                                       if rep.get("ok") else "UNREADABLE: " + rep.get("why", "")))
     for l in rep["locks"]:
-        w = l.get("wilson")
+        # ⚠ THE HEADER MUST PRINT THE FIGURE THAT DECIDED. It read `l["wilson"]` — the raw,
+        # repetition-inflated score — beside a state derived from `wilsonByAttack`, so the glance
+        # value and the deciding value disagreed by as much as 0.936 vs 0.646 on one row.
+        w = l.get(l.get("deciding") or "wilson")
+        if w is None:
+            w = l.get("wilson")
         print("  %-9s %-20s %s" % (l.get("state"), l.get("lock"),
-                                   ("wilson %.3f/%.3f" % (w, l["bar"])) if w is not None
-                                   else "no sabotage attempted"))
+                                   ("wilson %.3f/%.3f%s" % (w, l["bar"],
+                                    "" if l.get("deciding") != "wilsonByAttack"
+                                    else " (per attack; raw %.3f)" % l["wilson"]))
+                                   if w is not None else "no sabotage attempted"))
         print("            %s" % (l.get("why") or ""))
     # a report is not a verdict: exit 0 always, because "nothing is open yet" is the CORRECT
     # state on a fresh tree and must not read as a broken build.
