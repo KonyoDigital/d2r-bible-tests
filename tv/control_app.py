@@ -16050,6 +16050,17 @@ def roster_route_state():
             "flags": d.get("flags") or [], "lanes": list(getattr(_rr, "LINKS", ()))}
 
 
+#: CF-13's reading aid: a row whose reach is at or under this is NARROW ENOUGH TO READ. It is a
+#: reading aid and refuses nothing — a row above it is not "safe", it is "too broad for this
+#: instrument to say anything about".
+#: ⚠⚠ IT IS DELIBERATELY NOT TUNED, AND MUST NOT BE. Reach is a walk over THIS MODULE's call
+#: graph, so it tracks control_app.py's growth and rises for ever. Raising this number to keep a
+#: row underneath is the "parameter tweak" auto_scope's author refused in favour of real narrowing
+#: work, and it would make the aid look alive while measuring less. When nothing is narrow any
+#: more, `scope_reach_state` reports signal=DEAD instead. [[feedback-threshold-above-the-ceiling]]
+_SCOPE_NARROW_MAX = 10
+
+
 def scope_reach_state():
     """CF-13 — what each lane PROMISED NOT TO DO, and can still reach. -> dict
 
@@ -16068,11 +16079,31 @@ def scope_reach_state():
     reach count so the noise is visible as noise, and `actionable` is the small-reach subset the
     author identified by READING it rather than by a gate failing. Nothing here fails a build.
 
-    MEASURED on this tree, 2026-09-02:
-        tvd-ledger-backup   delete   reach= 6   permitted=True   (rotates its own backups)
-        tvd-shadow-watch    delete   reach=24   permitted=False
-        tvd-stash-watch     delete   reach=34   permitted=False
-        tvd-version-drift   delete   reach=72   permitted=False
+    ⚠⚠⚠ THE READING AID IS DYING, AND NOTHING SAID SO — measured 2026-09-05, and this is the
+    reason `narrowHeadroom` exists. `narrow` is `reach <= 10`, an ABSOLUTE count. But reach is a
+    walk over THIS MODULE's call graph, so it tracks `control_app.py`'s own growth and not the
+    lanes at all. Three dated snapshots of the same four lanes:
+
+        2026-09-01   6 / 23 / 34 / 71      (auto_scope's own docstring)
+        2026-09-02   6 / 24 / 34 / 72      (the paragraph that used to stand here)
+        2026-09-05   7 / 25 / 35 / 74      (live, today)
+
+    Every number rose and none can fall while the module grows. **`tvd-ledger-backup` is the ONLY
+    row that has ever been narrow, and it went 6 -> 7 in four days against a threshold of 10.**
+    When it crosses, `narrow` is False for every row for ever, `actionable` stays 0 — and `0` would
+    go on reading as *"nothing needs you"* when it actually means *"this instrument can no longer
+    distinguish anything"*. Two different facts under one number. [[unknown-stays-unknown]]
+    [[label-outlived-referent]]
+
+    ⚠ SO THE THRESHOLD IS NOT TOUCHED. Raising it to keep a row underneath is exactly the
+    "parameter tweak" the author refused in favour of real narrowing work, and it would make the
+    aid look alive while measuring less. Instead the DEATH is published: `signal` says whether the
+    discriminator can still separate anything, and `narrowHeadroom` says how close the nearest row
+    is to falling out. Nothing fails, nothing is gated, and no number moves.
+
+    ⚠ AND THE FIGURES ABOVE ARE STAMPED AS SNAPSHOTS, not stated as current. Three copies of them
+    are pinned in prose across two files and ALL THREE were stale within days; a pinned reach count
+    is a label that outlives its referent by construction.
     """
     try:
         import auto_scope as _as
@@ -16092,17 +16123,44 @@ def scope_reach_state():
             # ⚠ THE THRESHOLD IS A READING AID, NOT A RULE. It exists so the noise looks like
             # noise at a glance; it decides nothing and refuses nothing. A row above it is not
             # "safe" — it is "too broad for this instrument to say anything about".
-            "narrow": (reach is not None and reach <= 10),
+            "narrow": (reach is not None and reach <= _SCOPE_NARROW_MAX),
         })
     actionable = [r for r in rows if r["narrow"] and not r["permitted"]]
+    # ⚠⚠ CAN THE READING AID STILL SEPARATE ANYTHING? `actionable: 0` means two different things —
+    # "measured, and nothing needs you" while some row is still narrow, versus "no row can be
+    # narrow any more, so this number stopped being about your lanes". Publishing one integer for
+    # both is the collapse this console keeps paying for. [[unknown-stays-unknown]]
+    _reaches = [r["reach"] for r in rows if isinstance(r["reach"], int)]
+    if not rows:
+        signal, headroom = "UNKNOWN", None
+    elif not _reaches:
+        # rows exist but not one carries a countable reach — that is an instrument failure, and it
+        # must not read as a live discriminator with nothing to say.
+        signal, headroom = "UNKNOWN", None
+    else:
+        _narrow_now = [r for r in rows if r["narrow"]]
+        # distance from the threshold for the nearest row: positive = still under, 0 = at it.
+        headroom = _SCOPE_NARROW_MAX - min(_reaches)
+        signal = "LIVE" if _narrow_now else "DEAD"
+    why = ("%d lane(s) forbid an ability their reach can still perform. This REPORTS and does not "
+           "refuse: at reach %s it is the everything-reaches-everything case, and a gate failing "
+           "on all of them would teach you to skip the row. The narrow ones are the readable "
+           "signal." % (len(rows), ("%d-%d" % (min(_reaches), max(_reaches))) if _reaches
+                        else "unknown")) if rows else \
+          "no lane forbids an ability its reach can perform"
+    if signal == "DEAD":
+        why += (" ⚠ THE READING AID IS DEAD: no row is under the reach-%d threshold any more, so "
+                "`actionable 0` no longer means 'nothing needs you' — it means this instrument can "
+                "no longer tell the rows apart. Reach tracks THIS MODULE's growth, not the lanes, "
+                "so it only ever rises. Narrowing it honestly is real work, not a threshold tweak."
+                % _SCOPE_NARROW_MAX)
     return {
         "ok": True, "rows": rows, "total": len(rows),
         "actionable": len(actionable),
-        "why": ("%d lane(s) forbid an ability their reach can still perform. This REPORTS and does "
-                "not refuse: at reach 24-72 it is the everything-reaches-everything case, and a "
-                "gate failing on all of them would teach you to skip the row. The narrow ones are "
-                "the readable signal." % len(rows)) if rows else
-               "no lane forbids an ability its reach can perform",
+        # REG-546 shape law: present on every path, so "the aid is alive" and "nobody asked"
+        # cannot render identically.
+        "signal": signal, "narrowHeadroom": headroom, "narrowMax": _SCOPE_NARROW_MAX,
+        "why": why,
     }
 
 
@@ -22986,7 +23044,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2648",
+        "ver": "v2649",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

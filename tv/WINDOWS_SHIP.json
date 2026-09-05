@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2648",
+  "ver": "v2649",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2648: negative zero past a less-than-zero check, and a flat tolerance largest where the corpus is smallest",
+  "note": "v2649: the reach threshold is absolute and reach only ever rises, so actionable 0 was about to change meaning in silence",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

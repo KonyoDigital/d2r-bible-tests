@@ -494,12 +494,28 @@ class TestAMeasurementNobodyReadsIsNoMeasurement(unittest.TestCase):
         # is the same mistake as grepping source and hitting your own comment. The behaviour is
         # what matters: it must not be registered as a GATE, because a gate is the one thing that
         # can turn this into a refusal. [[source-reading-guard]] [[feedback-comments-vs-code]]
-        gates = io.open(os.path.join(HERE, "run_gates.py"), encoding="utf-8").read()
-        self.assertNotIn("scope_reach", gates,
-                         "the scope reach rows are registered as a GATE. Its author forbade "
-                         "exactly this: three rows of reach-noise would start failing pushes and "
-                         "he would learn to skip the row, which is the outcome the ruling exists "
-                         "to prevent")
+        # ⚠⚠ THE REGISTRY, NOT THE SOURCE TEXT — and the previous cut of this line was one prose
+        # blurb away from lying. It ran `assertNotIn("scope_reach", <run_gates.py source>)`, so
+        # writing the words "scope reach" into any `why=` explanation in that file would have
+        # turned this guard red while nothing was registered, and deleting the check would have
+        # been the obvious fix. It is the same defect the comment above already names one level
+        # up, and it survived because the comment describes it instead of the code avoiding it.
+        # Today `scope_reach` occurs ZERO times in run_gates.py, so this was latent rather than
+        # lying — a guard that has not been caught out yet. Ask the LIST OF GATES.
+        # [[source-reading-guard]]
+        import run_gates as _rg
+        names = [str(getattr(g, "name", "")) for g in getattr(_rg, "GATES", [])]
+        cmds = [" ".join(str(x) for x in (getattr(g, "cmd", None) or []))
+                for g in getattr(_rg, "GATES", [])]
+        self.assertTrue(names, "run_gates declares no gates at all — this guard is measuring "
+                               "nothing, which is not the same as measuring a clean registry")
+        for haystack, what in ((names, "a gate name"), (cmds, "a gate command")):
+            hit = [h for h in haystack if "scope_reach" in h]
+            self.assertEqual(hit, [],
+                             "the scope reach rows are registered as a GATE (%s: %s). Its author "
+                             "forbade exactly this: three rows of reach-noise would start failing "
+                             "pushes and he would learn to skip the row, which is the outcome the "
+                             "ruling exists to prevent" % (what, hit))
         for row in (rep.get("rows") or []):
             self.assertIn("reach", row,
                           "a row without its reach count hides the noise that makes it unreadable "

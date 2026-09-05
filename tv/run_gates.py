@@ -193,6 +193,19 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_scope_reach_signal",
+         [sys.executable, os.path.join(HERE, "test_scope_reach_signal.py")], 180,
+         why="CF-13's READING AID IS DYING AND `actionable: 0` WOULD NEVER HAVE SAID SO. A row is "
+             "`narrow` when its reach is <= 10, and the narrow-and-unpermitted rows are called "
+             "the readable signal. But reach is a three-deep walk over control_app's OWN call "
+             "graph, so it tracks this module's growth, not the lanes: the same four lanes "
+             "measured 6/23/34/71 on 2026-09-01, 6/24/34/72 on 2026-09-02 and 7/25/35/74 today. "
+             "`tvd-ledger-backup` is the only row that has ever been narrow and it went 6 to 7 in "
+             "four days, three short of the threshold. When it crosses, `actionable` stays 0 "
+             "while its meaning silently changes from 'nothing needs you' to 'this instrument can "
+             "no longer tell the rows apart'. The threshold is NOT tuned — that is the parameter "
+             "tweak auto_scope's author refused; the DEATH is published instead as "
+             "signal LIVE/DEAD/UNKNOWN with the headroom to the nearest row."),
     Gate("test_reg600_axes_can_refuse",
          [sys.executable, os.path.join(HERE, "test_reg600_axes_can_refuse.py")], 180,
          why="REG-600 — TWO SABOTAGES THAT AIMED AT SOMETHING THAT COULD NOT REFUSE. "
