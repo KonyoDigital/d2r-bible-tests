@@ -193,6 +193,53 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_board_tally_alarm",
+         [sys.executable, os.path.join(HERE, "test_board_tally_alarm.py")], 90,
+         why="CF-5 — A FALSE ALARM THAT BLINDED A REAL WATCHDOG FOR 7.8 DAYS. MEASURED on his live "
+             "board_tally.json: ownerId 77f641… , and `contested` carried 77f641…|main 293/121 "
+             "FRESH against c5c2c9…|main 280/120 SEVEN POINT EIGHT DAYS stale. 293>280 AND 121>120 "
+             "— strictly greater in BOTH lanes, which is what ONE monotonic adds-only counter "
+             "sampled twice must look like: the same board across an install-id re-mint, not two "
+             "worlds. The predicate never consulted `doc['ownerId']` (resolved 34 lines upstream) "
+             "and had no staleness term. ⚠⚠ THE COST WAS NOT THE WRONG SENTENCE — console_doctor "
+             "did `if doc.get('contested'): return MISSING` BEFORE its high-water/drop check, so "
+             "the detector for 'his published progress is BELOW its own high-water mark' was "
+             "UNREACHABLE. A warning that returns before a detector switches that detector off. "
+             "⚠⚠⚠ UN-BLINDING IT MADE A LATENT DEFECT REACHABLE THE SAME DAY: `recent = drops[-1]` "
+             "took the last row in the file, which is a TEST FIXTURE in his live store "
+             "(route real-1|main, runewords 42->0, at:null) — 1 of his 4 drop rows is actually "
+             "his. Fixing a blindness obliges you to check what the newly-sighted code says. "
+             "⚠ NOTHING IS PRUNED: the fixture row stays, it is simply no longer read as his. "
+             "RED-proven: restoring the two doctor defects fails 3 of 11."),
+    Gate("test_paint_ink",
+         [sys.executable, os.path.join(HERE, "test_paint_ink.py")], 60,
+         why="THE BLANK TEST THAT COULD NEVER FIRE ON HIS CONSOLE. `verdict()` declared BLANK only "
+             "when one colour covered >= 98%% of the window. MEASURED through that same instrument "
+             "on his window in BOTH states plus a known-painted reference: blank modalShare 0.124 / "
+             "p99 33 / bright 0.41%%; healthy 0.069 / 177 / 3.94%%; Terminal 0.628 / 254 / 5.81%%. "
+             "⚠ READ THE MODAL COLUMN — the PAINTED window scores 0.628 and his blank one 0.124, so "
+             "his blank window is FURTHER from the bar than a healthy one. A text window has a "
+             "dominant background; this console's is a dark GRADIENT that never collapses to one "
+             "colour. The 0.98 rule was not a high bar here, it was STRUCTURALLY UNREACHABLE. "
+             "p99 and brightShare separate the states with no overlap and BOTH must agree before "
+             "BLANK fires, with the bars in the empty middle of a 5x gap. ⚠ Rejected alternatives, "
+             "each refuted by measurement: `distinct <= 4` (a healthy console swings 156->34) and "
+             "mean luminance (healthy 11.3/23.9/20.8 vs a black window at 12.2 — overlapping)."),
+    Gate("test_freed_is_measured",
+         [sys.executable, os.path.join(HERE, "test_freed_is_measured.py")], 60,
+         why="154's REAL SUBJECT, and it was worse than the row said. (1) "
+             "`reel_retention.apply_plan` returned `freedMb: p.get('freeMb', 0)` — the PLAN'S HOPE "
+             "— in the same dict literal as its own `removed` and `failed` lists, never consulting "
+             "either. REPRODUCED against a plan whose candidate did not exist so every rmtree "
+             "raised: ok=False removed=[] failed=1 freedMb=512.0, and control_app.py:16348 (which "
+             "copies it with NO read of r['ok']) would have printed 'freed 512 MB by removing 0 "
+             "reel(s)' — megabytes from the plan, count from the measurement. (2) A BOOLEAN "
+             "counted as MEGABYTES: bool subclasses int, so isinstance(True,(int,float)) passes "
+             "and sum([True,True]) is 2 — two flags produced '2 MB of that was our pruning'. "
+             "⚠ math.isfinite does NOT cover it (isfinite(True) is True). RED-proven: restoring "
+             "both originals fails 8 of 11. ⚠ Fixtures assert the tombstone path resolves INSIDE "
+             "the fixture before calling, because _tombstone_path falls back to his live store and "
+             "the tombstone is written BEFORE the first removal."),
     Gate("vault_apply_crossfamily",
          [sys.executable, os.path.join(HERE, "vault_apply_crossfamily.py")], 90,
          why="A2·HARD — THE FIRST HARDENED LOCK, and the third kind is genuinely independent. "

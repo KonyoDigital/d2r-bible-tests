@@ -798,8 +798,29 @@ def apply_plan(p, yes=False):
             removed.append(c["reel"])
         except Exception as e:
             failed.append({"reel": c["reel"], "why": str(e)[:120]})
+    # ⚠⚠ v2642 — `freedMb` WAS THE PLAN'S HOPE, NOT A MEASUREMENT, AND IT REACHED HIS SCREEN.
+    # It read `p.get("freeMb", 0)` — the figure the PLAN offered — in this same dict literal as
+    # its own `removed` and `failed` lists, without ever consulting them. REPRODUCED 2026-09-05
+    # against a plan whose candidate did not exist, so every rmtree raised:
+    #     ok=False  removed=[]  failed=1  freedMb=512.0
+    # and the sentence at control_app.py:16348 (which copies this with NO read of r["ok"]) would
+    # have printed: "freed 512 MB by removing 0 reel(s)". The megabytes came from the plan and the
+    # reel count from the measurement — two sources, one of them fiction.
+    #
+    # This is task 154's actual subject, one module upstream of the history row. 154 said the
+    # prune field "can never report anything"; the truth was worse — it could report, and what it
+    # reported was a hope.
+    #
+    # Now it sums the `mb` of the reels ACTUALLY in `removed`. A candidate carrying no `mb` adds
+    # nothing rather than defaulting, and an empty `removed` yields 0 — which is honest HERE, and
+    # only here, because unlike the history row the outcome is known: the loop finished and took
+    # nothing. [[unknown-stays-unknown]]
+    _removed_set = set(removed)
     return {"ok": not failed, "removed": removed, "failed": failed,
-            "freedMb": p.get("freeMb", 0),
+            "freedMb": sum(float(c.get("mb") or 0)
+                           for c in (p.get("candidates") or [])
+                           if c.get("reel") in _removed_set),
+            "freedMbPlanned": p.get("freeMb", 0),
             "tombstoned": (len(tomb) if tomb is not None else None),
             "tombstonePath": _tombstone_path(p.get("hist")),
             "tombstoneWhy": tomb_why}

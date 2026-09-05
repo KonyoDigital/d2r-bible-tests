@@ -579,19 +579,39 @@ def _check_his_progress_number_has_not_been_overwritten():
         say = " vs ".join("%s sets=%s uniques=%s"
                           % (str(r.get("route") or "?").split("|")[0][:8],
                              r.get("sets"), r.get("uniques")) for r in rows[:3])
-        return MISSING, ("TWO worlds are both claiming to be him and they disagree: %s. The newest "
-                         "is published, which may be the wrong one — open the board and check the "
-                         "number before trusting anything downstream (the fleet roster and his "
-                         "cousin's cross-reference both read this file)" % say)
+        # ⚠⚠ v2643 — THIS `return` USED TO SIT HERE AND IT BLINDED EVERYTHING BELOW IT.
+        # The high-water/drop check further down — "his published progress is BELOW its own
+        # high-water mark", the one that catches a ledger entry vanishing — was UNREACHABLE for
+        # 7.8 days behind a contested alarm that was itself false (a week-stale row from a world
+        # `ownerId` had already excluded). A warning is not a verdict, and a warning that returns
+        # before a detector has silently switched that detector off.
+        # It is carried in `notes` and reported WITH whatever the real check concludes.
+        _contested_say = ("⚠ two worlds are both claiming to be him and they disagree: %s. The "
+                          "newest is published, which may be the wrong one — open the board and "
+                          "check the number before trusting anything downstream" % say)
+    else:
+        _contested_say = ""
 
     high = doc.get("high") if isinstance(doc.get("high"), dict) else {}
     drops = doc.get("drops") if isinstance(doc.get("drops"), list) else []
+    # ⚠⚠ v2643 — PICK HIS WORLD BY `ownerId`, NOT BY DICT ORDER. This took the FIRST row whose
+    # `who.pfx` is "" and stopped. Measured 2026-09-05: it happens to land on 77f641… , which IS
+    # `ownerId` — but by luck of iteration order across 404 routes, not by a decision. `ownerId` is
+    # resolved authoritatively upstream and sits right here in the doc; using anything else to
+    # answer "whose high-water mark" is a guess wearing a measurement's clothes.
+    _own = str(doc.get("ownerId") or "")
     key = ""
     for k, row in (doc.get("byRoute") or {}).items():
         w = row.get("who") or row.get("route") or {}
-        if isinstance(w, dict) and w.get("pfx") == "":
+        if isinstance(w, dict) and _own and str(w.get("id") or "") == _own:
             key = k
             break
+    if not key:
+        for k, row in (doc.get("byRoute") or {}).items():
+            w = row.get("who") or row.get("route") or {}
+            if isinstance(w, dict) and w.get("pfx") == "":
+                key = k
+                break
     below = []
     for lane in ("sets", "uniques", "runewords"):
         now = (doc.get(lane) or {}).get("have")
@@ -599,14 +619,26 @@ def _check_his_progress_number_has_not_been_overwritten():
         if isinstance(now, int) and isinstance(top, int) and now < top:
             below.append("%s %d (best %d)" % (lane, now, top))
     if below:
-        recent = drops[-1] if drops else {}
+        # ⚠⚠ v2643 — THE LAST DROP OF *HIS* WORLD, NOT THE LAST ROW IN THE FILE.
+        # `drops[-1]` was literally a test fixture on his live store:
+        #     {"route": "real-1|main", "lane": "runewords", "from": 42, "to": 0, "at": null}
+        # so the first time his progress ever fell, this sentence would have reported a FIXTURE'S
+        # fall as his — "the last recorded fall was runewords 42 -> 0", dated 1970 because `at` is
+        # null. ⚠ THAT PATH WAS UNREACHABLE UNTIL THIS SAME VERSION UN-BLINDED IT: the contested
+        # early-return above meant this branch never ran. Un-blinding a check makes everything it
+        # says reachable, so what it says has to be true on the same day. [[sweep-dont-ask]]
+        # ⚠ The fixture row is NOT removed — it is his file and nothing here prunes it; it is
+        # simply no longer read as his.
+        _mine = [d for d in drops if isinstance(d, dict) and (not key or d.get("route") == key)]
+        recent = _mine[-1] if _mine else {}
         return MISSING, ("his published progress is BELOW its own high-water mark: %s. The last "
                          "recorded fall was %s %s -> %s. Nothing has been auto-restored, because "
                          "putting the number back would hide whatever took it away."
                          % ("; ".join(below), recent.get("lane") or "?",
                             recent.get("from"), recent.get("to")))
     if not high:
-        return UNKNOWN, "no high-water mark banked yet — it fills on the next tally the board posts"
+        return UNKNOWN, ("no high-water mark banked yet — it fills on the next tally the board "
+                         "posts" + ((" · " + _contested_say) if _contested_say else ""))
     parts = []
     for lane in ("sets", "uniques", "runewords"):
         top = ((high.get(key) or {}).get(lane) or {}).get("have")

@@ -83,6 +83,13 @@ BLANK_MAX_DISTINCT = 4      #: kept for the report; NOT part of the verdict — 
 
 #: how many CONSECUTIVE blank frames before this witness is willing to say so out loud. A single
 #: frame can catch a legitimate mid-repaint moment; three cannot.
+#: ⚠ THE INK BARS, calibrated on his console in BOTH states through this instrument (see verdict).
+#: They sit in the empty middle of a 5x gap — blank p99 33 / healthy 177, blank 0.41% / healthy
+#: 3.94% — so neither is a hair-trigger, and BOTH must agree before BLANK is declared.
+INK_LUM = 90          #: a pixel at or above this counts as ink
+INK_P99_MAX = 80      #: brightest 1% starting below this = no meaningful ink anywhere
+INK_SHARE_MAX = 0.015 #: under 1.5% bright = nothing is drawn
+
 BLANK_STRIKES = 3
 
 BLANK = "BLANK"
@@ -223,10 +230,24 @@ def measure(shot, samples=60):
         return {"samples": 0, "distinct": None, "modalShare": None, "meanLuminance": None,
                 "why": "no pixel could be sampled, so nothing was measured"}
     modal, modal_n = lums.most_common(1)[0]
+    # ⚠⚠ INK — THE ONLY STATISTIC THAT SEPARATES HIS ACTUAL BLANK WINDOW FROM A HEALTHY ONE.
+    # `p99` is the luminance the brightest 1% of pixels start at, and `brightShare` is the
+    # fraction at or above INK_LUM. Text on this console is bright gold/white on near-black, so a
+    # window with anything drawn on it has a bright tail and a blank one does not.
+    _ordered = sorted(lums.items())
+    _cut, _seen, _p99 = int(total * 0.99), 0, _ordered[-1][0] if _ordered else 0
+    for _l, _n in _ordered:
+        _seen += _n
+        if _seen >= _cut:
+            _p99 = _l
+            break
+    _bright = sum(v for k, v in lums.items() if k >= INK_LUM)
     return {"samples": total, "distinct": len(lums),
             "modalShare": round(modal_n / float(total), 4),
             "modalLuminance": modal,
             "meanLuminance": round(sum(k * v for k, v in lums.items()) / float(total), 1),
+            "p99Luminance": _p99,
+            "brightShare": round(_bright / float(total), 4),
             "why": ""}
 
 
@@ -235,11 +256,47 @@ def verdict(m):
     if not m or m.get("distinct") is None:
         return UNKNOWN, (m or {}).get("why") or "nothing was measured"
     d, share = m["distinct"], m["modalShare"]
+    # ⚠ ORDER MATTERS AND MY OWN GUARD CAUGHT IT. The single-colour test runs FIRST because it is
+    # the more specific case and it owns its own sentence. With the ink test first, a genuinely
+    # flat window (modal 99.5%, no ink) was caught by ink and told "the single-colour test cannot
+    # see this fault" — false for that window, since 99.5% is exactly what that test is for. A
+    # right verdict under a wrong reason is how the last three attempts at this bug went.
     if share >= BLANK_MODAL_SHARE:
         return BLANK, ("%.1f%% of this window is a SINGLE colour (luminance %s) - nothing is drawn "
                        "on it. %d distinct luminance(s) found, which on a blank window is the "
                        "CHROME: the titlebar and its buttons draw whatever the page does not"
                        % (share * 100.0, m.get("modalLuminance"), d))
+    # ⚠⚠ THE INK TEST, AND IT EXISTS BECAUSE THE MODAL TEST BELOW COULD NEVER FIRE ON HIS CONSOLE.
+    # MEASURED 2026-09-05 through this same instrument, on his window in BOTH states plus a
+    # known-painted window for a same-instrument reference:
+    #
+    #     window                     modalShare   p99   brightShare
+    #     his console, BLANK to him      0.124     33      0.0041
+    #     his console, HEALTHY           0.069    177      0.0394
+    #     Terminal, full of text         0.628    254      0.0581
+    #
+    # ⚠ READ THE MODAL COLUMN. The PAINTED window scores 0.628 and the blank one 0.124 — the
+    # blank window is FURTHER from the `>= 0.98` bar than a healthy one, because a text window has
+    # a dominant background colour and this console's background is a dark GRADIENT that never
+    # collapses to one colour. So `share >= 0.98` is not merely a high bar here; it is structurally
+    # unreachable, and the check below has never once been able to report his actual fault.
+    #
+    # p99 and brightShare separate the two states with no overlap (33 vs 177, 0.41% vs 3.94%), and
+    # the healthy console sits beside Terminal rather than beside its own blank state — so this is
+    # not the dark theme being mistaken for emptiness.
+    #
+    # ⚠ BOTH must agree before this fires, and the bars sit in the empty middle of a 5x gap. A
+    # window is BLANK-BY-INK only when its brightest 1% is dark AND almost nothing is bright.
+    # ⚠ It reports a DISTINCT reason, never "one colour covers the window", because that sentence
+    # would be false here and a wrong reason is how the last three attempts at this bug went.
+    if (m.get("p99Luminance") is not None and m.get("brightShare") is not None
+            and m["p99Luminance"] < INK_P99_MAX and m["brightShare"] < INK_SHARE_MAX):
+        return BLANK, ("nothing is DRAWN on this window: its brightest 1%% of pixels start at "
+                       "luminance %s (a painted console reads ~177) and only %.2f%% of it is "
+                       "bright (~3.9%% when healthy). The commonest colour covers just %.1f%%, so "
+                       "the single-colour test cannot see this fault at all — this console's "
+                       "background is a gradient, not one flat colour"
+                       % (m["p99Luminance"], m["brightShare"] * 100.0, share * 100.0))
     return PAINTED, ("the commonest colour covers %.1f%% of this window across %d distinct "
                      "luminance(s) - it has content on it (blank needs >= %.0f%%)"
                      % (share * 100.0, d, BLANK_MODAL_SHARE * 100.0))

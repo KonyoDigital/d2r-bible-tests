@@ -1589,11 +1589,65 @@ def board_tally_merge(t):
     def _figs(r):
         return tuple((r.get(k) or {}).get("have") for k in ("sets", "uniques", "runewords"))
 
-    if len(owners) > 1 and len({_figs(r) for _, r in owners}) > 1:
+    # ⚠⚠ v2643 — THIS ALARM WAS FALSE FOR 7.8 DAYS AND IT BLINDED A REAL WATCHDOG.
+    # MEASURED 2026-09-05 on his live board_tally.json:
+    #     ownerId   77f641…                         <- resolved 34 lines above, at doc["ownerId"]
+    #     contested 77f641…|main  293/121  fresh, advancing every 60s
+    #               c5c2c9…|main  280/120  SEVEN POINT EIGHT DAYS old and frozen
+    # 293 > 280 and 121 > 120 — strictly greater in BOTH lanes, which is exactly what one
+    # monotonic adds-only counter sampled twice must look like. It is the same board across an
+    # install-id re-mint (the v2220 note records both worlds reading 120/280 at that moment, and
+    # the frozen row is still exactly 120/280), not two worlds disagreeing.
+    #
+    # Two things were missing and each alone was enough to make it lie:
+    #   · it never consulted `doc["ownerId"]`, so it named as a co-claimant the world this very
+    #     function had just proved is NOT his
+    #   · it had no staleness term, so a week-old reading counted as a live claim
+    #
+    # ⚠⚠ AND THE COST WAS NOT THE WRONG SENTENCE. `console_doctor` does
+    # `if doc.get("contested"): return MISSING` BEFORE its high-water/drop check, so the detector
+    # for "his published progress is BELOW its own high-water mark" — the one that catches a
+    # ledger entry vanishing — was unreachable the whole time. A warning that blinds a later check
+    # is worse than no warning. [[gate-blind-to-unexercised-input]] [[stale-reading]]
+    # ⚠⚠ STALENESS IS MEASURED AGAINST THE NEWEST READING, NOT THE WALL CLOCK, AND NOT BY OWNER.
+    # MEASURED 2026-09-05 on his live board_tally.json: ownerId 77f641… , and `contested` held
+    # 77f641…|main 293/121 fresh against c5c2c9…|main 280/120 SEVEN POINT EIGHT DAYS frozen.
+    # 293>280 AND 121>120 — strictly greater in BOTH lanes, which is what ONE monotonic adds-only
+    # counter sampled twice must look like: the same board across an install-id re-mint.
+    #
+    # ⚠ MY FIRST CUT FILTERED BY `ownerId` AND v2214's OWN GUARD REFUSED IT, CORRECTLY. That test
+    # says in as many words: *"'Empty prefix means owner' is a coincidence, not a decision
+    # procedure"* — when two worlds both claim him and their FIGURES DIFFER, this must REPORT, not
+    # RESOLVE, because silently preferring one is the defect it was written for. Filtering by
+    # ownerId is resolving. Withdrawn.
+    #
+    # ⚠ AND WALL-CLOCK FRESHNESS WAS WRONG TOO, for a second reason: v2214's fixture posts at
+    # at=1000/2000 (1970), so "within 3 days of now" discards BOTH rows and the alarm can never
+    # fire in a test. A fixture that cannot reach the state is not evidence about the state.
+    #
+    # What actually distinguishes the two situations is whether the readings are CONTEMPORARY.
+    # Two worlds sampled seconds apart that disagree are a real conflict at any date; a row left
+    # a week behind the newest is not a claimant, it is a memory. So the window is relative to the
+    # newest reading, which is true for his live file (7.8 days behind) and for the fixture
+    # (1 second apart) alike. [[stale-reading]] [[feedback-contradiction-is-the-finding]]
+    _CONTEST_WINDOW_MS = 3 * 24 * 3600 * 1000
+    _ats = [r.get("at") for _, r in owners
+            if isinstance(r.get("at"), (int, float)) and not isinstance(r.get("at"), bool)]
+    _newest = max(_ats) if _ats else None
+    _live = [(k, r) for k, r in owners
+             if _newest is None
+             or (isinstance(r.get("at"), (int, float)) and not isinstance(r.get("at"), bool)
+                 and (_newest - r["at"]) <= _CONTEST_WINDOW_MS)]
+    if len(_live) < len(owners):
+        # ⚠ NOT SILENTLY DROPPED. "another world has spoken and it is far behind" is worth knowing;
+        # it simply is not an interruption. [[unknown-stays-unknown]]
+        _keys = {k for k, _ in _live}
+        doc["ownerWorldsStale"] = [k for k, _ in owners if k not in _keys]
+    if len(_live) > 1 and len({_figs(r) for _, r in _live}) > 1:
         doc["contested"] = [{"route": k,
                              "sets": (r.get("sets") or {}).get("have"),
                              "uniques": (r.get("uniques") or {}).get("have"),
-                             "at": r.get("at")} for k, r in owners]
+                             "at": r.get("at")} for k, r in _live]
     else:
         doc.pop("contested", None)
         # still worth knowing that more than one world has spoken, without calling it a conflict
@@ -12822,7 +12876,19 @@ def disk_delta(hours=24, path=None):
     out["then"] = then.get("freeGb")
     out["deltaGb"] = round((out["now"] or 0) - (out["then"] or 0), 2)
     inwin = [r for r in rows if (r.get("at") or 0) > cut]
-    pruned = [r.get("prunedMb") for r in inwin if isinstance(r.get("prunedMb"), (int, float))]
+    # ⚠⚠ v2642 — A BOOLEAN IS NOT A QUANTITY, AND PYTHON DISAGREES. `bool` subclasses `int`, so
+    # `isinstance(True, (int, float))` is True and `sum([True, True])` is 2. MEASURED 2026-09-05:
+    # a history whose two in-window rows carried `prunedMb: true` produced
+    # `prunedMbInWindow = 2` and the sentence "— 2 MB of that was our pruning". A caller one
+    # refactor from `pruned_mb=bool(freed)` turns "yes, we pruned" into megabytes nobody measured
+    # — worse than a wrong number, because it is a number with no author.
+    # ⚠ `math.isfinite` does NOT cover this: isfinite(True) is True. The bool must be excluded by
+    # type, and a NaN/inf row is a separate refusal. [[unknown-stays-unknown]]
+    pruned = [r.get("prunedMb") for r in inwin
+              if isinstance(r.get("prunedMb"), (int, float))
+              and not isinstance(r.get("prunedMb"), bool)
+              and r.get("prunedMb") == r.get("prunedMb")          # NaN is never equal to itself
+              and abs(r.get("prunedMb")) != float("inf")]
     # 154 — no numeric sample is UNKNOWN, never 0. 0 means we measured and freed nothing.
     out["prunedMbInWindow"] = round(sum(pruned), 1) if pruned else None
     return out
@@ -22840,7 +22906,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2641",
+        "ver": "v2643",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

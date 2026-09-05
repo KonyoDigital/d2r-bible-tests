@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2641",
+  "ver": "v2643",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2641: vault.apply HARDENED at confluence 2.50 with cross-family, live and sabotage. A different model family attacked the write door cold and found the re-gate iterated owned only, so an uncorroborated row under unsure reached the write path ungated. Nothing exposed - the board registers only owned - fixed anyway.",
+  "note": "v2643: CF-5 settled: not two worlds, one board sampled twice across an install-id re-mint, one row 7.8 days frozen. The contested predicate ignored ownerId and had no staleness term, and console_doctor returned MISSING before its high-water check - so the drop detector was unreachable for 7.8 days. Un-blinding it exposed drops[-1] reading a test fixture as his fall.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
