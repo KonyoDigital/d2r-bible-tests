@@ -123,11 +123,16 @@ def _named_sessions():
     return out, ""
 
 
-def gap(reels=None):
-    """Per reel: can it be extracted, and if not, is the gap RECOVERABLE? -> dict"""
+def gap(reels=None, river=None):
+    """Per reel: can it be extracted, and if not, is the gap RECOVERABLE? -> dict
+
+    ⚠ v2692 — `river` is the same injection reel_templates.templates() takes, for the same reason:
+    printer.stream() caused three independent reel_river.river() walks per call. See that
+    docstring for the measurement. Default preserves standalone behaviour.
+    """
     try:
         import reel_river as RR
-        riv = RR.river()
+        riv = river if river is not None else RR.river()
     except Exception as e:
         return {"ok": False, "state": UNKNOWN, "rows": [], "counts": {},
                 "why": "reel_river would not answer (%s) — UNKNOWN, not an empty shelf"

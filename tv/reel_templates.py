@@ -148,11 +148,21 @@ def _journal_rows():
     return out, ""
 
 
-def templates(reels=None):
-    """Every reel, what it IS, and the zone that follows. -> dict"""
+def templates(reels=None, river=None):
+    """Every reel, what it IS, and the zone that follows. -> dict
+
+    ⚠ v2692 — `river` IS AN INJECTION, NOT A CACHE. reel_river.river() walks reel_retention.plan()
+    over every reel directory, and printer.stream() used to cause THREE independent walks per call
+    (its own, this one, and extract_gap's). Measured: /api/heart cold took 19.54s, against a render
+    gate that allows 10s warmup + a 12s activate poll — so the heart panel could not populate in
+    time and the push was BLOCKED with "the panel could not be ACTIVATED". Passing one snapshot in
+    is the fix; the default keeps every standalone caller working exactly as before.
+    ⚠ It must stay a PARAMETER rather than a module-level memo: a stale river held across calls is
+    how a station starts reporting a reel that is no longer on disk. [[stale-reading]]
+    """
     import reel_river as RR
     try:
-        riv = RR.river()
+        riv = river if river is not None else RR.river()
     except Exception as e:
         return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {},
                 "why": "reel_river would not answer (%s) — UNKNOWN, not an empty shelf"

@@ -102,7 +102,9 @@ def _sources():
         whys.append("reel_river would not import (%s)" % str(e)[:60])
     try:
         import reel_templates as RTPL
-        out["templates"], w = _safe(RTPL.templates)
+        # v2692 — ONE river walk for the whole snapshot. This is the "one funnel" half of his
+        # ask, and it is what makes the heart panel openable again inside the gate's window.
+        out["templates"], w = _safe(RTPL.templates, river=out.get("river"))
         if w:
             whys.append(w)
     except Exception as e:
@@ -116,7 +118,7 @@ def _sources():
         whys.append("per_reel_routes would not import (%s)" % str(e)[:60])
     try:
         import extract_gap as EG
-        out["gap"], w = _safe(EG.gap)
+        out["gap"], w = _safe(EG.gap, river=out.get("river"))
         if w:
             whys.append(w)
     except Exception as e:
