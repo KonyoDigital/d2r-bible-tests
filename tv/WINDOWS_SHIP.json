@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2693",
+  "ver": "v2694",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2693: completedTs meant two things and nothing on the row said which",
+  "note": "v2694: the test suite IS the owner world and my ledger heuristic could not see it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

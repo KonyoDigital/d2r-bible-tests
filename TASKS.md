@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2694** | `(this commit)` | v2694 — the automated world names itself the seed ledger; and the two ledger parses fail independently again |
 | **v2693** | `(this commit)` | v2693 — a retro-sweep row says so; `completedTs` meant two things and nothing on the row said which |
 | **v2692** | `(this commit)` | v2692 — the chronicle seed now names the LEDGER it belongs to; a claimed browser no longer inherits Konyo's 245 finds |
 | **v2691** | `(this commit)` | v2691 — his sunder ruling, done on the TALLY not the roster: 12 chronicle rows → 6, found unchanged at 248 |
