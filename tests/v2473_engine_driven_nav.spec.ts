@@ -72,10 +72,21 @@ test.describe('REG-443 — the page may not hide its nav for a rail that is not 
     // The other direction, and the reason the fix is a frame check rather than a deletion of the
     // rule. Inside the shell the console header owns the rail; two rails is the defect that rule
     // was written for. A spec that only checked the case above would pass on a deleted rule.
-    await page.setContent(
-      '<!doctype html><meta charset=utf8><body style="margin:0">' +
-        '<iframe id="f" style="width:1200px;height:900px;border:0"></iframe>',
-    );
+    /* ⚠⚠ v2689 — THE PARENT MUST BE file:// TOO, OR THE FRAME NEVER LOADS. This used
+       page.setContent(), which leaves the page's own URL at about:blank, and Chromium does not let
+       a non-file document frame a file:// URL. The child silently never loaded, page.frames() never
+       contained bible.html, and the test failed with 'the board never loaded inside the iframe' —
+       an assertion that never RAN, wearing a failure's clothes. The evidence was inside this same
+       file: the sibling test above does page.goto(BIBLE + ...) and passes.
+       So navigate to the board first (same scheme, same directory), then replace the document with
+       the iframe host in-page. The rule under test — a FRAMED board carries `engine-driven` so the
+       shell does not show two nav rails — is unchanged; only the venue is made able to host it. */
+    await page.goto(BIBLE);
+    await page.evaluate(() => {
+      document.body.style.margin = '0';
+      document.body.innerHTML =
+        '<iframe id="f" style="width:1200px;height:900px;border:0"></iframe>';
+    });
     await page.evaluate((src) => {
       (document.getElementById('f') as HTMLIFrameElement).src = src;
     }, BIBLE + '?app=1&engine=1');

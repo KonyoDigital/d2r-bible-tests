@@ -276,7 +276,20 @@ test('a no-op registration does not rewrite the store', async ({ page }) => {
      names. That is the same rebuild v1991 fought, and it silently destroyed this test's premise:
      the name was not in the vault when the assertion ran, so the door was correctly called and I
      was measuring my own fixture. Use a name the rebuild KEEPS. [[feedback-suspect-the-instrument]] */
-  await boot(page, { d2r_foundLog: { Fleshrender: '2026-08-01' }, d2r_muleAssign: {} });
+  /* ⚠⚠ v2689 — SEED THE STORE THE PRUNE ACTUALLY CONSULTS. The comment above chose a name the
+     rebuild keeps; the real problem is which STORE vouches for it. bible.html's load-time prune
+     drops any name that came ONLY from the found ledger — `if (fromLedger[c]) { dropped.push(n) }`
+     — because d2r_owned is the PHYSICAL vault and d2r_foundLog is found-truth; a v677 tick writes
+     the ledger only. So a foundLog-only seed is deliberately pruned and this test then measured an
+     empty world, exactly the trap its own comment warns about one paragraph up.
+     The prune KEEPS a name that is `_mine`, read straight from d2r_muleAssign (bible.html:39427).
+     Filing Fleshrender to a mule is also what "the already-vaulted path" MEANS, so the fixture now
+     matches the sentence in this test's own name instead of contradicting it. */
+  await boot(page, {
+    d2r_owned: ['Fleshrender'],
+    d2r_foundLog: { Fleshrender: '2026-08-01' },
+    d2r_muleAssign: { Fleshrender: 'M1' },
+  });
   const seeded = await page.evaluate(() => {
     const g = (k: string) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
     return (g('d2r_owned') || []).indexOf('Fleshrender') >= 0;
