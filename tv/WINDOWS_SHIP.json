@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2651",
+  "ver": "v2652",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2651: 54 clipped elements at 375px would have blocked every visual push, so the floor is declared and printed rather than hidden",
+  "note": "v2652: the refusal set is structural now, not a marker hidden inside the message",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

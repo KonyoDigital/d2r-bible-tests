@@ -1303,6 +1303,15 @@ def _settled(tab, budget=25.0, shape=False):
             "everything" % budget)
 
 
+class _Verdict(list):
+    """The refusals, with the report riding alongside on `.notes`.
+
+    ⚠ A plain list keeps every caller and every assertion working; the attribute is what stops the
+    block-or-allow decision being a string sniff.
+    """
+    notes = ()
+
+
 def verdict(key, m, sel, known=None):
     """Turn ONE width's measurements into refusals. Pure — no browser, no files, no clock.
 
@@ -1314,13 +1323,28 @@ def verdict(key, m, sel, known=None):
     Returns [] when the width is clean. Order matters: the first three RETURN, because a surface
     that is absent, zero-size or empty makes every later number meaningless — and a meaningless
     number that reads as 0 is the false green this whole file exists to refuse.
+
+    ⚠⚠ THE LIST HOLDS REFUSALS ONLY; ANYTHING THAT MUST BE SEEN BUT DECIDES NOTHING RIDES ON
+    `.notes`. My first cut of the declared-floor work put both kinds in one list and had the CALLER
+    sniff for a `ⓘ` inside the message to tell them apart — so a gate's block-or-allow decision
+    depended on detecting a character in prose, which is the same class of fragility as a guard
+    that greps its own comments. Found reviewing my own pushed bytes. The split is structural now:
+    a caller that treats the return as "the refusals" is simply right, and `.notes` is there for
+    printing. It is a `list` subclass, so every existing caller and every existing assertion —
+    `== []`, `len(...)`, iteration — keeps working unchanged. [[source-reading-guard]]
     """
+    _notes = []
+
+    def _tag(refusals, notes=()):
+        v = _Verdict(refusals)
+        v.notes = list(notes)
+        return v
     if not m.get("found"):
-        return ["%s: selector %r matched NOTHING" % (key, sel)]
+        return _tag(["%s: selector %r matched NOTHING" % (key, sel)])
     if not m.get("painted"):
-        return ["%s: every one of %d node(s) is ZERO-SIZE. A zero-size element cannot be "
-                "clipped or covered, so any 'nothing wrong' below it is a false green."
-                % (key, m.get("zero") or 0)]
+        return _tag(["%s: every one of %d node(s) is ZERO-SIZE. A zero-size element cannot be "
+                     "clipped or covered, so any 'nothing wrong' below it is a false green."
+                     % (key, m.get("zero") or 0)])
     # ⚠ v2225 — AND A PARTIAL COLLAPSE IS THE SAME DEFECT, SMALLER. This refused only when EVERY
     # node measured 0x0, so 17 of 18 lockers collapsing returned [] and the gate exited 0 green on
     # a shelf that had lost almost everything. "Some of it painted" is not the question the gate
@@ -1339,15 +1363,16 @@ def verdict(key, m, sel, known=None):
     # ⚠ It never excuses a WHOLE collapse: that branch is above this one and returns first.
     _zfloor = int(((known or {}).get("zero") or 0))
     if _zero > _zfloor:
-        return ["%s: %d of %d node(s) are ZERO-SIZE while %d painted%s. A partial collapse reports "
+        return _tag(["%s: %d of %d node(s) are ZERO-SIZE while %d painted%s. A partial collapse reports "
                 "zero clipping for the missing ones, so the clean numbers beside it are about the "
                 "survivors only." % (key, _zero, m.get("found", 0), m.get("painted", 0),
                                      (" — DECLARED FLOOR IS %d, this is %d MORE"
-                                      % (_zfloor, _zero - _zfloor)) if _zfloor else "")]
+                                      % (_zfloor, _zero - _zfloor)) if _zfloor else "")])
     if _zfloor and _zero < _zfloor:
-        return ["%s: ⓘ %d of %d node(s) are zero-size against a declared floor of %d, so %d now "
-                "paint that did not. Lower the floor so it cannot excuse a real collapse later."
-                % (key, _zero, m.get("found", 0), _zfloor, _zfloor - _zero)]
+        return _tag([], ["%s: ⓘ %d of %d node(s) are zero-size against a declared floor of %d, so "
+                         "%d now paint that did not. Lower the floor so it cannot excuse a real "
+                         "collapse later."
+                         % (key, _zero, m.get("found", 0), _zfloor, _zfloor - _zero)])
     out = []
     if not m.get("textLen"):
         out.append("%s: the panel painted but carries NO TEXT — that is an empty box, not a "
@@ -1392,7 +1417,7 @@ def verdict(key, m, sel, known=None):
             # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
             _declared = (known or {}).get(field, 0)
             if field in (known or {}) and _declared is None:
-                out.append("%s: ⓘ %d element(s) %s — REPORTED, NOT JUDGED: this count moves "
+                _notes.append("%s: ⓘ %d element(s) %s — REPORTED, NOT JUDGED: this count moves "
                            "between runs of the same tree because only a fraction of images are "
                            "`complete` when the document's shape stills, so it measures the load "
                            "race and not the page.%s"
@@ -1406,10 +1431,10 @@ def verdict(key, m, sel, known=None):
                                % (_floor, m[field] - _floor)) if _floor else "",
                               (" — " + "; ".join(what)) if what else ""))
             elif m[field] < _floor:
-                out.append("%s: ⓘ %d element(s) %s — the declared floor is %d, so %d were FIXED. "
+                _notes.append("%s: ⓘ %d element(s) %s — the declared floor is %d, so %d were FIXED. "
                            "Lower the floor in TARGETS so it cannot excuse them again."
                            % (key, m[field], msg, _floor, _floor - m[field]))
-    return out
+    return _tag(out, _notes)
 
 
 def _selector_ready(tab, sel, budget=20.0):
@@ -1664,10 +1689,12 @@ def check(name, spec, shots=True):
             # floor lowered, and a count that moves between runs and therefore cannot be judged.
             # Both go into `refusals` so nothing is hidden from the printout; only the first kind
             # sets ok:False. ⚠ The marker is the leading ⓘ, which `verdict` alone writes.
-            _lines = verdict(key, m, spec["sel"], (spec.get("known") or {}).get(key))
-            hurt = [x for x in _lines if "ⓘ" not in x.split(":", 1)[-1][:4]]
-            if _lines:
-                out["refusals"].extend(_lines)
+            # ⚠ THE LIST IS THE REFUSALS; `.notes` is what must be SEEN but decides nothing.
+            # My first cut had this line sniff for a `ⓘ` inside the message to tell them apart —
+            # a gate's block-or-allow decision resting on detecting a character in prose. Found
+            # reviewing my own pushed bytes; the split is structural now. [[source-reading-guard]]
+            hurt = verdict(key, m, spec["sel"], (spec.get("known") or {}).get(key))
+            out["refusals"].extend(list(hurt) + list(getattr(hurt, "notes", ())))
             if hurt:
                 out["ok"] = False
             # the first three refusals mean every later number is meaningless — do not shoot it

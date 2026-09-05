@@ -164,12 +164,19 @@ class ADeclaredFloorReportsAndDoesNotBLOCK(unittest.TestCase):
             "broken": 4, "off": 0, "covered": 0, "unreachable": 0, "clippedWhat": []}
 
     def _split(self, **over):
+        """-> (every line, the refusals only)
+
+        ⚠⚠ IT ASKS THE STRUCTURE, NOT THE PROSE. My first cut of this helper — and of the caller
+        it was guarding — separated the two kinds by looking for a `ⓘ` inside the message, so a
+        gate's block-or-allow decision rested on detecting a character in a sentence. Found while
+        reviewing my own pushed bytes. `verdict` returns the refusals AS the list and hangs the
+        report on `.notes`, so a caller that treats the return as "the refusals" is simply right.
+        [[source-reading-guard]]
+        """
         m = dict(self.BASE)
         m.update(over)
-        lines = RC.verdict("375x800", m, "body > *", self.KNOWN)
-        hurt = [x for x in lines if "\u24d8" not in x.split(":", 1)[-1][:4]
-                and "ⓘ" not in x.split(":", 1)[-1][:4]]
-        return lines, hurt
+        v = RC.verdict("375x800", m, "body > *", self.KNOWN)
+        return list(v) + list(v.notes), list(v)
 
     def test_at_the_floor_it_REPORTS_and_does_not_refuse(self):
         lines, hurt = self._split()
@@ -218,6 +225,48 @@ class ADeclaredFloorReportsAndDoesNotBLOCK(unittest.TestCase):
         self.assertEqual(hurt, [], "a count that moves between runs is failing the gate")
         self.assertTrue(any("NOT JUDGED" in x for x in lines),
                         "the moving count is silent, so a reader cannot tell it was not judged")
+
+    def test_the_refusals_are_the_LIST_and_the_report_rides_on_notes(self):
+        """★ THE STRUCTURAL SPLIT ITSELF. A caller that does `if verdict(...)` must block on real
+        refusals only, with no string inspection anywhere in the decision."""
+        m = dict(self.BASE)
+        v = RC.verdict("375x800", m, "body > *", self.KNOWN)
+        self.assertEqual(list(v), [], "a width at its declared floor is being treated as failing")
+        self.assertTrue(v.notes, "the declared backlog is not reported at all")
+        m2 = dict(self.BASE, clipped=55)
+        v2 = RC.verdict("375x800", m2, "body > *", self.KNOWN)
+        self.assertTrue(list(v2), "a rise above the floor did not land in the refusal list")
+
+    def test_it_stays_a_LIST_so_every_existing_caller_still_works(self):
+        """⚠ `test_control` asserts `== []`, `len(...)` and iterates. A bespoke return type would
+        have broken eight guards that were already correct."""
+        v = RC.verdict("1440x1000", {"found": 3, "painted": 3, "textLen": 42, "off": 0,
+                                     "clipped": 0, "covered": 0, "broken": 0}, "#s")
+        self.assertIsInstance(v, list)
+        self.assertEqual(v, [])
+        self.assertEqual(len(v), 0)
+
+    def test_EVERY_return_path_carries_the_structure(self):
+        """★★ RED PROOF for the one that bit me: a single untagged `return [...]` gives back a
+        plain list, and `.notes` raises AttributeError at the call site. Walked by AST, because a
+        path I did not think to drive is exactly the one that would be bare."""
+        import ast
+        import inspect
+        import textwrap
+        tree = ast.parse(textwrap.dedent(inspect.getsource(RC.verdict)))
+        fn = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "verdict"][0]
+        bare = []
+        for r in ast.walk(fn):
+            if not isinstance(r, ast.Return) or r.value is None:
+                continue
+            if isinstance(r.value, ast.Name):          # `return v` inside the _tag helper
+                continue
+            if not (isinstance(r.value, ast.Call)
+                    and getattr(r.value.func, "id", "") == "_tag"):
+                bare.append(r.lineno)
+        self.assertEqual(bare, [],
+                         "return path(s) at %s hand back a plain list, so `.notes` raises at the "
+                         "call site and the report is lost" % bare)
 
     def test_the_declared_floor_is_ON_the_target_and_covers_every_width(self):
         known = RC.TARGETS["page"].get("known") or {}
