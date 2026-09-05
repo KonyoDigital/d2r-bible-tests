@@ -21050,6 +21050,21 @@ the earlier fix had covered everything. [[feedback-blind-fixture-green-gate]] [[
 `vaulted`. Adding `loc` there would be editing working tests to match a pattern rather than a
 defect. A sweep is for siblings of the FAULT, not for every occurrence of the shape.
 
+⚠⚠ **AND THIS CONTRADICTS WHAT I WROTE IN v2667's OWN COMMIT MESSAGE, WHICH WAS WRONG.** That
+message said *"a sibling spec (v2083) passes plain strings on purpose and its missing `loc` IS the
+law it tests, so copying the fix across would have broken a correct test."* **It is not the law it
+tests.** All three of that file's tests call the same `applyBases`, and the first asserts
+`vaulted.length === 4` — the file's whole premise is that bases DO get vaulted, and its header
+records the measurement: *"apply Shako · Phase Blade · Monarch · Archon Plate → res.vaulted all
+four, d2r_owned 4 ✓"*. So plain strings vaulted **when the spec was written**, and v2388's
+`_mayVault` gate changed that afterwards. I had conflated v2120's note (this fixture deliberately
+does not call `vaultAutoAssign` itself) with a deliberate omission of `loc`.
+
+The gate is right and the fixture had to move: a base applied **from a reel** — which is this
+spec's own scenario — carries a stash location, so a fixture with no `loc` was modelling something
+that cannot happen. Two of my own statements disagreed, and the disagreement was the finding.
+[[feedback-contradiction-is-the-finding]] [[inherited-claim-is-not-evidence]]
+
 ## REG-631 — four stale assertions, and one of them was the CODE being right (v2672)
 
 Routine I's failing set on v2665, counted by unique `spec.ts:LINE:COL` (**39** distinct failing
