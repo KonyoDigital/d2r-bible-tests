@@ -20999,6 +20999,44 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-653 — Routine I has a STABLE CORE and a FLAPPING FRINGE, and only one of them is work
+
+Four complete runs compared spec by spec, rather than reading any single run's list as a verdict:
+
+| | v2665 | v2667 | v2674 | v2677 |
+|---|---|---|---|---|
+| specs failing | 25 | 25 | **18** | **13** |
+| distinct tests failing | — | 35 | 19 | 13 |
+
+**Every spec fixed in this arc is gone and stayed gone** — `v1517`, `v1520`, `v159`, `v1628`,
+`v1756`, `v1789`, `v45`, `v51`, `v686`, `v877_rinse`, then `v153`, `v1740`, `v1753`, `v659`, `v559`.
+
+⚠ **AND A WRITTEN PREDICTION CAME BACK RIGHT, WHICH IS THE ONLY REASON IT IS WORTH ANYTHING.**
+`v69_boss_drop_routing` and `v1814_vault_routes_by_base_data` appeared on `0c5e65ea` having failed
+in neither prior run, and I recorded — *before* the next run — that they were **order-dependent
+rather than mine**, with the falsifier stated: *"if they persist, I caused them and will say so."*
+**Both vanished without being touched.** Two fresh ones (`v618_hero_create_first_forge`,
+`v1694_visits_identity`) arrived the same way in the same run.
+
+**STABLE CORE — failing in all four runs, and the only real backlog (10 specs):**
+`v1554_hero_typography` · `v1603_mini_focus` · `v1625_board_quality_surfaces` · `v1794_inbox_engine`
+· `v1991_vault_mules_stick` · `v2083_vaulted_base_survives` ·
+`v2193_a_found_item_can_also_be_a_vaulted_one` · `v2203_the_vault_undo` ·
+`v2267_routing_ledger_names_are_readable` · `v2473_engine_driven_nav`
+
+**FLAPPING FRINGE — appear and disappear untouched:** `v1812` · `v1814` · `v1996` · `v559` · `v69` ·
+`v618` · `v1694`. **Chasing a fringe spec is chasing the shard order**, and a count that mixes the
+two cannot tell progress from noise — which is exactly why "35 → 19 → 13" is reported beside the
+spec-level 25 → 18 → 13 rather than instead of it. [[feedback-suspect-the-instrument]]
+
+⚠ **`v2083` STILL FAILS AND THE FIX STILL LANDED** — the failure MOVED from `:78` *"no base was
+vaulted"* to `:103` *"nothing was filed, so vaultAutoAssign had nothing to work on"*. The
+store-assertion passes now; what remains is the FILING half, which is the second joint `v1987`
+named and deferred in its own words: *"nothing reaches ownedPool() and nothing can be filed. That
+needs its own pass with the scope established first, not a guess at the end of an arc."* **Not
+guessed at here.** A spec that fails at a later line than it used to is progress, and only a
+line-level read shows it. [[the-unjoined-end]]
+
 ## REG-652 — the ships gate covered NOTHING on the only venue that runs it (v2679)
 
 My own v2668 detector caught this, on the first CI run where it worked:
