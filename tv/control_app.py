@@ -12771,6 +12771,56 @@ _DISK_HISTORY_KEEP = 40000         # a hard ceiling so a runaway cadence cannot 
                                    # at the measured 37s cadence 14 days needs ~32,700 rows
 
 
+def credible_pruned_mb(pruned_mb, hist_bytes=None):
+    """Is this a figure the disk row may PUBLISH as space we freed? -> (value|None, why|None)
+
+    ⚠⚠ WHY THIS EXISTS AT ALL, AND WHY IT IS AT THE WRITE END. `disk_history_append` was a pure
+    passthrough: whatever it was handed became `prunedMb` on disk, and the screening lived in
+    `disk_delta` at READ time (bool / NaN / inf, added v2643 after a history whose rows carried
+    `prunedMb: true` produced *"2 MB of that was our pruning"*). So an impossible claim was written
+    into his durable series and filtered afterwards, by one reader — and any second reader, or any
+    later export of that file, still sees `true`. [[unknown-stays-unknown]] §4 says it in one line:
+    **refuse at WRITE time, not at read time.**
+
+    ⚠⚠ AND IT IS WHY `prune.reports` HAD NOTHING TO PROVE. Its harness handed the writer
+    `pruned_mb=None` three ways and asserted the row came back `None` — 24 of 24 "refusals" that
+    were IDENTITY ASSERTIONS against a function with no refusal path anywhere in it. REG-600:
+    correct behaviour on valid input, recorded as a guard refusing. The score was real arithmetic
+    over an event that could not fail.
+
+    FOUR THINGS ARE REFUSED, and each is a claim that cannot be a measurement:
+      · a non-number, or a bool — `True` is not one megabyte
+      · NaN or infinity — arithmetic that already lost its meaning
+      · a negative figure — pruning does not consume space
+      · more than the corpus we measured — HIS OWN QUESTION from v2229, where a claimed 15 GB gain
+        stood against an 8.9 GB reel store. A freed figure larger than the thing it was freed from
+        is impossible whatever the disk says.
+
+    ⚠ `0` PASSES, and must. "We measured and freed nothing" is a real answer; `None` is "nobody
+    looked". Collapsing them is the fabrication this whole lock exists to refuse.
+
+    ⚠ AN UNREADABLE `hist_bytes` DOES NOT REFUSE A FIGURE. Refusing a real measurement because a
+    DIFFERENT field was not sampled would trade a fabrication for a blindness — the bound simply
+    cannot be applied, and that is said rather than acted on.
+    """
+    if pruned_mb is None:
+        return None, None
+    if isinstance(pruned_mb, bool) or not isinstance(pruned_mb, (int, float)):
+        return None, "prunedMb was %r, which is not a measured number" % (type(pruned_mb).__name__,)
+    v = float(pruned_mb)
+    if v != v or abs(v) == float("inf"):
+        return None, "prunedMb was not finite, so it is arithmetic that already lost its meaning"
+    if v < 0:
+        return None, "prunedMb was negative (%r) — pruning does not consume space" % (pruned_mb,)
+    if isinstance(hist_bytes, (int, float)) and not isinstance(hist_bytes, bool) \
+            and hist_bytes == hist_bytes and abs(float(hist_bytes)) != float("inf") \
+            and hist_bytes >= 0 and v > (float(hist_bytes) / (1024.0 * 1024.0)) + 1.0:
+        return None, ("prunedMb %.1f exceeds the whole measured corpus (%.1f MB) — a figure larger "
+                      "than the thing it was freed from is not a measurement"
+                      % (v, float(hist_bytes) / (1024.0 * 1024.0)))
+    return pruned_mb, None
+
+
 def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible_mb=None,
                         pruned_mb=None, path=None):
     """Append one free-space reading. Append-only, capped, never raises.
@@ -12790,9 +12840,14 @@ def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible
     the entire reel corpus was 8.9 GB against a claimed 15 GB gain.
     """
     p = path or _disk_history_path()
+    # ⚠ THE REFUSAL IS HERE, NOT IN THE READER. An impossible claim never reaches his durable
+    # series, and `prunedWhy` keeps THREE states apart where the field used to carry two:
+    # None/None = nobody measured · a number = a measurement · None/"…" = a claim we REFUSED.
+    # A row that silently became None would be indistinguishable from one nobody looked at.
+    _pruned, _pruned_why = credible_pruned_mb(pruned_mb, hist_bytes)
     row = {"at": int(time.time() * 1000), "freeGb": round(float(free_gb), 2),
            "floorGb": floor_gb, "histBytes": hist_bytes, "reels": reels,
-           "eligibleMb": eligible_mb, "prunedMb": pruned_mb}
+           "eligibleMb": eligible_mb, "prunedMb": _pruned, "prunedWhy": _pruned_why}
     try:
         with open(p, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row) + "\n")
@@ -22906,7 +22961,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2646",
+        "ver": "v2647",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

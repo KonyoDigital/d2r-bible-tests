@@ -68,17 +68,33 @@ def _attempt_evidence_smuggles_the_tag(n=8):
 
 def _attempt_a_blind_walk_passes(n=8):
     """⚠ A guard that inspects nothing reports clean forever, which is indistinguishable from a
-    guard that works. Seeing ZERO field reads must be an instrument failure, never a pass."""
+    guard that works. Seeing ZERO field reads must be an instrument failure, never a pass.
+
+    ⚠⚠ THIS AXIS USED TO PROVE NOTHING — REG-600, corrected in v2647. It called
+    `_string_keys_read_by` on a decider that reads no fields and counted `== set()` as a catch.
+    That is an OBSERVATION being graded, not a refusal: it recorded that a helper correctly saw an
+    empty set, and never once asked `assert_independent_of_retention` whether it would REFUSE that
+    reading. The comment beside it even said *"the caller must refuse it"* — and the caller was
+    never called.
+
+    It now BLINDS THE REAL WALKER and requires the real assertion to fail, naming the instrument.
+    """
     import reel_router as RR
     caught = 0
-    for i in range(n):
-        def _blind(ev, _i=i):
-            return "STATION", "no field reads at all"
-        try:
-            if RR._string_keys_read_by(_blind) == set():
-                caught += 1          # correctly observed as empty -> the caller must refuse it
-        except Exception:
-            pass
+    _real = RR._string_keys_read_by
+    try:
+        for i in range(n):
+            # blind the walker itself, so the assertion is looking through a dead instrument
+            RR._string_keys_read_by = lambda fn, _i=i: set()
+            try:
+                ok, findings = RR.assert_independent_of_retention()
+            except Exception:
+                continue
+            # a refusal, and it must name the instrument rather than report a clean tree
+            if (not ok) and any("instrument failure" in str(f) for f in findings):
+                caught += 1
+    finally:
+        RR._string_keys_read_by = _real
     return n, caught
 
 
@@ -99,12 +115,49 @@ def _attempt_a_clockless_reel_jumps_the_queue(n=8):
 
 def _attempt_unknown_is_folded_into_a_total(n=8):
     """A total that already contains the unmeasured reels lets a caller print one number and never
-    say how many it could not place. [[unknown-stays-unknown]]"""
+    say how many it could not place. [[unknown-stays-unknown]]
+
+    ⚠⚠ THIS AXIS USED TO PROVE NOTHING EITHER — REG-600, corrected in v2647. It read
+    `if RR.UNKNOWN not in RR.STATIONS: caught += 1`, which compares two MODULE CONSTANTS and can
+    never vary: eight identical evaluations of one static fact, banked as eight refusals. Wilson
+    counted them and had no way to know.
+
+    It now feeds `route()` a shelf where HALF the reels are unmeasurable and requires the real
+    report to keep them OUT of `counts` — the total must not reconcile until UNKNOWN is added back,
+    which is what forces a caller to say how many it could not place.
+    """
     import reel_router as RR
     caught = 0
-    for _ in range(n):
-        if RR.UNKNOWN not in RR.STATIONS:
-            caught += 1
+    _real = RR._evidence
+    try:
+        for i in range(n):
+            placed = {"reel_s_%d_a" % i: {"sealed": True, "names": 3, "surveyed": True,
+                                          "worthReading": True},
+                      "reel_s_%d_b" % i: {"sealed": False, "names": 0, "surveyed": True,
+                                          "worthReading": False}}
+            # ⚠ `sealed=None` is the real UNKNOWN shape — a printer that did not answer. NOT a
+            # made-up station string, which would test my fixture instead of the router.
+            blind = {"reel_s_%d_c" % i: {"sealed": None, "names": None, "surveyed": True},
+                     "reel_s_%d_d" % i: None}
+            merged = dict(placed)
+            merged.update(blind)
+            RR._evidence = lambda h=None, _m=merged: (_m, "")
+            try:
+                rep = RR.route()
+            except Exception:
+                continue
+            if not rep.get("ok"):
+                continue
+            counts_total = sum((rep.get("counts") or {}).values())
+            # THE REFUSAL: the placed total excludes the unmeasured, the unmeasured are counted
+            # and named, and the shelf only reconciles once they are added back.
+            if (rep.get("unknown") == 2
+                    and counts_total == 2
+                    and counts_total != rep.get("shelf")
+                    and rep.get("reconciles") is True):
+                caught += 1
+    finally:
+        RR._evidence = _real
     return n, caught
 
 

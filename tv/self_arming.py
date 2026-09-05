@@ -400,7 +400,38 @@ PROVES = {
 }
 
 
-def bank(lock, kind, src, n, k, note="", ref="", attacks=None):
+def withdraw(lock, kind, src, ref, why):
+    """Retire one banked AXIS whose evidence was never about the lock. -> dict (the row written)
+
+    ⚠⚠ WHY THIS HAD TO EXIST, MEASURED 2026-09-05. `_fold` keys on (lock, kind, src, ref) and keeps
+    the NEWEST row per key. So rewriting a harness's attacks retires an axis only when the new axis
+    reuses the old REF NAME. `disk_report_wilson`'s four corrected attacks are named
+    notanumber/notfinite/negative/overcorpus; the three REG-600 axes they replaced were named
+    noprune/unreadable/shrank. Nothing superseded those, so **`prune.reports` read n=56 — 32 real
+    refusals PLUS the 24 identity assertions the rewrite existed to remove.**
+
+    That is worse than not having fixed it: the lock LOOKS repaired while three-eighths of its
+    evidence is still an event that could not fail, and the mixture is invisible in the total.
+
+    ⚠ NOTHING IS DELETED. The ledger stays append-only — this appends a row that supersedes the
+    axis with `n=0, k=0`, so it contributes nothing to any score while the original row and this
+    retraction both remain on the record. A withdrawal you cannot read is a deletion with a nicer
+    name. [[unknown-stays-unknown]]
+
+    ⚠ A REASON IS REQUIRED. An axis retired with no stated reason is indistinguishable from one
+    quietly dropped because it was inconvenient.
+    """
+    if not str(why or "").strip():
+        raise ValueError("a withdrawal needs a REASON. An axis retired without one cannot be told "
+                         "apart from evidence quietly dropped because it was inconvenient.")
+    if not str(ref or "").strip():
+        raise ValueError("a withdrawal needs the REF of the axis it retires — that is the fold key,"
+                         " and without it this appends a new empty axis instead of superseding one")
+    return bank(lock, kind, src, n=0, k=0, ref=ref, attacks=0, withdrawn=True,
+                note="WITHDRAWN — %s" % str(why)[:360])
+
+
+def bank(lock, kind, src, n, k, note="", ref="", attacks=None, withdrawn=False):
     """Bank a harness's OWN aggregate for one lock. -> dict (the row written)
 
     Idempotent by construction: the row carries `src`, and _fold keeps only the newest row per
@@ -452,6 +483,12 @@ def bank(lock, kind, src, n, k, note="", ref="", attacks=None):
         # — barely over its 0.510 bar. Nothing was faked and every refusal was real; the SCORE was
         # inflated by looping. `None` means the harness did not say, which is not the same as one.
         "attacks": (None if attacks is None else int(attacks)),
+        # ⚠⚠ A RETIRED AXIS IS NOT AN UNRUNNABLE ONE, and the report read them identically until
+        # v2647. Both bank n == 0; only this field separates "I own this axis and could not run
+        # it" from "this axis was exercised, found to prove nothing, and withdrawn". Reporting a
+        # withdrawal as INCOMPLETE puts a true sentence under the wrong word.
+        # [[label-outlived-referent]] [[unknown-stays-unknown]]
+        "withdrawn": bool(withdrawn),
         "note": str(note or "")[:400], "ts": int(time.time() * 1000),
     }
     with io.open(_ledger_path(), "a", encoding="utf-8") as fh:
@@ -680,8 +717,14 @@ def score(lock, rows=None):
     # ⚠⚠ CLAIMS THAT WERE DECLARED AND NEVER EXERCISED. A banked row with n == 0 is a harness
     # saying "I own this axis and I could not run it". Zero attempts cannot move a Wilson bound, so
     # without this the axis vanishes and the lock scores on its remaining claims. See INCOMPLETE.
+    # ⚠ WITHDRAWN AXES ARE EXCLUDED FROM `blind` AND REPORTED SEPARATELY. Both bank n == 0, and
+    # folding them together told a reader "3 claims were never exercised at all" about three axes
+    # that WERE exercised, found to be identity assertions, and deliberately retired (REG-600).
     blind = sorted({str(r.get("ref") or r.get("note") or "?")[:60]
-                    for r in mine if int(r.get("n", 1) or 0) == 0})
+                    for r in mine
+                    if int(r.get("n", 1) or 0) == 0 and not r.get("withdrawn")})
+    withdrawn = sorted({str(r.get("ref") or "?")[:60]
+                        for r in mine if r.get("withdrawn")})
     _atk = [r.get("attacks") for r in mine if isinstance(r.get("attacks"), int)]
     attacks = sum(_atk) if _atk else None
     out = {"lock": lock, "surface": spec["surface"], "acts": spec["acts"],
@@ -689,6 +732,9 @@ def score(lock, rows=None):
            # REG-547 shape law — present on every path, so "no blind claim" and "never looked for
            # one" cannot render identically.
            "blindClaims": blind,
+           # REG-547 shape law again: present on every path, so "nothing was retired" and "nobody
+           # asked" cannot render identically.
+           "withdrawnClaims": withdrawn,
            "wilsonByAttack": (None if not attacks else round(wilson_lower(min(k, attacks), attacks), 4)),
            "repetition": (None if not attacks else round(float(n) / attacks, 1)),
            "k": k, "n": n, "kinds": kinds, "confluence": conf,

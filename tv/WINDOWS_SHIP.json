@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2646",
+  "ver": "v2647",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2646: B-84 surviving half closed. fleet_mask.encode has zero production callers - an inline JS snippet inside board_mask produces every mask on the wire, and nothing compared them. The shipped snippet is now lifted by AST and compared byte-for-byte against Python. RED-proven by flipping the JS to MSB-first.",
+  "note": "v2647: two Wilson axes attacked code with no refusal path, and the retired evidence was still being counted",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

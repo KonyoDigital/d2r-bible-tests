@@ -286,6 +286,15 @@ def route(hist=None):
     for reel, e in ev.items():
         station, swhy = _station_of(e)
         ms, src = _captured_ms(reel, hist)
+        # ⚠⚠ `e` MAY BE None, AND THIS LINE USED TO CRASH ON IT — found 2026-09-05 by the very
+        # sabotage that replaced `reel.route`'s REG-600 axis, on its first real run. `_station_of`
+        # opens with `if ev is None: return UNKNOWN, "the printer did not answer for this reel"` —
+        # a branch written on purpose, documented, and UNREACHABLE THROUGH ITS ONLY CALLER, which
+        # went straight on to `e.get("sealed")` and raised AttributeError. So the module's whole
+        # UNKNOWN story ended in a traceback the moment a reel actually went unanswered.
+        # The old axis compared two module constants and could never have found it.
+        # [[the-unjoined-end]] [[unknown-stays-unknown]]
+        _e = e if isinstance(e, dict) else {}
         rows.append({
             "reel": reel,
             "station": station,
@@ -293,10 +302,10 @@ def route(hist=None):
             "owes": OWES.get(station),
             "capturedMs": ms,
             "clockFrom": src,
-            "sealed": e.get("sealed"),
-            "names": e.get("names"),
-            "worthReading": e.get("worthReading"),
-            "surveyedAt": e.get("surveyedAt"),
+            "sealed": _e.get("sealed"),
+            "names": _e.get("names"),
+            "worthReading": _e.get("worthReading"),
+            "surveyedAt": _e.get("surveyedAt"),
         })
     # FIFO: oldest capture first. ⚠ A reel with NO readable clock sorts LAST, never first — None
     # must not be coerced to 0, because 0 is 1970 and would put every unmeasured reel at the head

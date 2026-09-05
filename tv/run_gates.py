@@ -193,6 +193,20 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_reg600_axes_can_refuse",
+         [sys.executable, os.path.join(HERE, "test_reg600_axes_can_refuse.py")], 180,
+         why="REG-600 — TWO SABOTAGES THAT AIMED AT SOMETHING THAT COULD NOT REFUSE. "
+             "`prune.reports` banked 24/24 by handing `disk_history_append(pruned_mb=None)` and "
+             "asserting the row came back None, against a writer that was a PURE PASSTHROUGH with "
+             "no validation anywhere in it — correct behaviour on a legal input, recorded as a "
+             "guard refusing. `reel.route` had two such axes of seven: one compared two module "
+             "constants eight times, one graded an observation and never called the caller its "
+             "own comment said must refuse. This drives the real refusal path at the WRITE end "
+             "(`credible_pruned_mb`), and runs the REG-593 control in BOTH directions — a "
+             "validator hardwired open must collapse the axes to 0, one hardwired shut must fail "
+             "the baseline and bank nothing. It also holds the route fix the replacement axis "
+             "found on its first run: `_station_of(None)` returns UNKNOWN by design and its only "
+             "caller crashed before it could."),
     Gate("test_mask_encoders_agree",
          [sys.executable, os.path.join(HERE, "test_mask_encoders_agree.py")], 120,
          why="B-84's surviving half — THE TESTED ENCODER IS NOT THE USED ENCODER. Two "
