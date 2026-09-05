@@ -84,19 +84,29 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
 
     def setUp(self):
         self.assertTrue(os.path.isfile(TASKS), "TASKS.md is the list; without it there is no list")
-        if self._is_shallow():
-            self.skipTest("UNKNOWN, not a pass: this is a SHALLOW checkout, so git cannot see the "
-                          "ship history this test reads. Run it on a full clone (locally, or with "
-                          "actions/checkout fetch-depth: 0).")
         with open(TASKS, encoding="utf-8") as fh:
             self.text = fh.read()
         self.ships = _shipped()
-        # DENOMINATOR FIRST. If git returned nothing, every "0 missing" below would be a lie that
-        # reads exactly like success. [[zero-needs-a-denominator]]
-        self.assertGreaterEqual(len(self.ships), RECENT,
-                                "git named %d shipped versions in the last 200 commits; with fewer "
-                                "than %d this test measures nothing and must not report a pass"
-                                % (len(self.ships), RECENT))
+        # ⚠ DENOMINATOR FIRST, AND IT SPLITS TWO CASES THAT LOOK IDENTICAL.
+        #
+        # v2677 skipped whenever the clone was shallow. That was right for depth=1 and WRONG the
+        # moment the workflow set `fetch-depth: 200`: a depth-limited clone is STILL shallow by
+        # `git rev-parse --is-shallow-repository`, so the gate would have gone on declaring itself
+        # dark on the very venue the fetch-depth was added to light up. **Shallowness is not the
+        # question — SUFFICIENCY is.**
+        #
+        #   · enough ships visible          -> run, whatever the clone depth
+        #   · too few AND the clone is cut  -> UNKNOWN, declared, never a pass
+        #   · too few on a FULL clone       -> a real failure; something is wrong with the reader
+        if len(self.ships) < RECENT:
+            if self._is_shallow():
+                self.skipTest("UNKNOWN, not a pass: this checkout carries only %d shipped "
+                              "version(s) and %d are needed. The clone is shallow — deepen it "
+                              "(actions/checkout `fetch-depth`) to light this gate up."
+                              % (len(self.ships), RECENT))
+            self.fail("git named %d shipped versions on a FULL clone; %d are needed. This is not a "
+                      "venue problem — the stamp reader is not finding ships that exist."
+                      % (len(self.ships), RECENT))
 
     def test_the_newest_ships_appear_in_TASKS_md(self):
         recent = self.ships[:RECENT]

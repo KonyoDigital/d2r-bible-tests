@@ -16,6 +16,25 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          # v2679 — DEEP ENOUGH FOR THE SHIP-HISTORY GATE, AND NO DEEPER.
+          #
+          # `actions/checkout` clones with depth=1. `tv/test_tasks_ships_are_recorded.py` reads
+          # `git log -200` to check that recent ships are recorded in TASKS.md, so on a shallow
+          # checkout it correctly DECLARES A SKIP rather than reporting a false pass — and my own
+          # census then flagged it, verbatim:
+          #
+          #   ⛔ 2 GATE(S) PASSED WHILE COVERING NOTHING ON THIS VENUE:
+          #      test_chronicle_template (12 of 12), test_tasks_ships_are_recorded
+          #
+          # That was right, and it made the gate almost worthless: `run_gates.py` is NOT in the
+          # pre-push blocking set either (hooks/pre-push:353), so the only place it ran for real
+          # was a by-hand full clone. A guard that covers nothing on every venue that matters is
+          # the same defect as one that never runs.
+          #
+          # 200 is the gate's own window, not a round number — deeper costs clone time on every
+          # run for history nothing reads. If that window ever widens, this must widen with it.
+          fetch-depth: 200
       # Pillow FIRST: without it the chronicle RED/GREEN class skips, and a guard that skips
       # reports OK while measuring nothing. The reel fixture is generated, so none of his footage
       # is ever committed.

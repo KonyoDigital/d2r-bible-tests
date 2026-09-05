@@ -20999,6 +20999,40 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-652 — the ships gate covered NOTHING on the only venue that runs it (v2679)
+
+My own v2668 detector caught this, on the first CI run where it worked:
+
+```
+⛔ 2 GATE(S) PASSED WHILE COVERING NOTHING ON THIS VENUE:
+   test_chronicle_template (12 of 12 cases skipped), test_tasks_ships_are_recorded
+```
+
+Both correct. `test_tasks_ships_are_recorded` reads `git log -200`, `actions/checkout@v4` clones
+with `depth=1`, so it declared a skip — the right answer, and it left the gate **dark**. And
+`run_gates.py` is not in the pre-push blocking set (`hooks/pre-push:353`) either, so the only place
+it ran for real was a by-hand full clone. **A guard that covers nothing on every venue that matters
+is the same defect as one that never runs.** [[the-unjoined-end]]
+
+Fixed at both ends:
+
+1. `tv-tests.yml` now checks out with `fetch-depth: 200` — the gate's own window, not a round
+   number. Deeper costs clone time on every run for history nothing reads.
+2. ⚠ **AND THE GUARD ITSELF WOULD HAVE DEFEATED THAT.** v2677 skipped whenever the clone was
+   *shallow*, and **a depth-limited clone is still shallow** by `git rev-parse
+   --is-shallow-repository` — so with `fetch-depth: 200` the gate would have gone on declaring
+   itself dark on the very venue the setting was added to light up. **Shallowness was never the
+   question; SUFFICIENCY is.** The guard now splits three cases that look identical from the
+   outside:
+
+   | ships visible | clone | verdict |
+   |---|---|---|
+   | enough | any depth | **runs** |
+   | too few | cut | **UNKNOWN, declared** — deepen the clone |
+   | too few | full | **FAILURE** — the reader is not finding ships that exist |
+
+   Proven all three by forcing each: runs clean / skips with its reason / fails with its own.
+
 ## REG-651 — the absolute 280 was never reachable, so the law became a comparison (v2678)
 
 `v2203:85` has failed through two of my fixes, and each one improved the number without fixing the
