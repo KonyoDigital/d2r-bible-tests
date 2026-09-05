@@ -256,6 +256,35 @@ def _corpus_shelf():
     with io.open(os.path.join(d, "vault_swept.json"), "w", encoding="utf-8") as fh:
         fh.write(json.dumps({sid: {"ts": 1756900000000, "rows": 2, "promptVer": "vpFixture"}
                              for sid in (k[len("reel_"):] for k in triage)}))
+    # ⚠⚠ THE DURABLE-STORE ROOT, AND THE ORDER MATTERS: PLANT FIRST, REDIRECT SECOND.
+    # `witness_index` is what decides `haveIndex`, and `haveIndex` is the input deciding whether
+    # `reel_retention` HOLDS EVERY REEL. Redirecting the root at an empty corpus would flip it to
+    # False and silently change a verdict — which is exactly why the earlier attempt was reverted
+    # rather than kept with a comment claiming a containment it did not deliver.
+    # MEASURED against his real tv/ before this existed: perStore = {vault_accum.json: 16,
+    # vault_seen.json: 5} -> 9 sessions, 21 frames, haveIndex True. Only those TWO of the four
+    # durable stores feed the index, so only those two need planting.
+    # The contract is `frame_authority.witness_index`'s own loop: for each row, for each entry in
+    # `witnesses`, take `w["session"]` and `basename(w["frame"])`. The rows below carry exactly
+    # that and nothing invented — the session ids are the CORPUS's own, so the index it builds
+    # describes this corpus rather than resembling his.
+    # ⚠ THE SHAPE IS THE CONTRACT, AND MY FIRST CUT GOT IT WRONG. `_rows_of` reads
+    # `blob["owned"]` or `blob["rows"]` and returns [] for anything else, so a bare dict keyed by
+    # item name planted SIX rows that the index counted as ZERO — files present, perStore 0, and a
+    # corpus that looks contained while measuring nothing. Read off his real stores rather than
+    # guessed: vault_accum is {"owned": [...]}, vault_seen is {"rows": [...]}, and a witness is
+    # {session, frame, lane, conf}.
+    _sids = [k[len("reel_"):] for k in triage]
+    _rows = [{"name": "fixture item %d" % _i, "lane": "stash", "kind": "unique",
+              "count": 1, "conf": 0.9, "lastSeenTs": 1756900000000 + _i,
+              "witnesses": [{"session": _sid, "frame": "%s_%03d.jpg" % (_sid, 0),
+                             "lane": "stash", "conf": 0.85}]}
+             for _i, _sid in enumerate(_sids)]
+    with io.open(os.path.join(d, "vault_accum.json"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"owned": _rows, "added": [], "raised": [], "held": [], "byKey": {}}))
+    with io.open(os.path.join(d, "vault_seen.json"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"rows": [{k: v for k, v in r.items() if k != "count"} for r in _rows],
+                             "ts": 1756900000000}))
     # ⚠ `dead_field.MIN_ROWS` is 30 — under the floor a store is UNKNOWN, not clean — so both
     # watched stores get 32 rows with every column filled on at least one of them.
     with io.open(os.path.join(d, "reel_tombstones.json"), "w", encoding="utf-8") as fh:
@@ -328,6 +357,13 @@ def _against_the_corpus():
     shelf = _corpus_shelf()
     env, hist, plan, triage = os.environ.get("TV_HIST"), TD.HIST_DIR, RR.plan, PR.TRIAGE
     seals, funnel_here = FA.sealed_sessions, OF.HERE
+    # ⚠⚠ THE HALF-REDIRECT THAT LEAKED FOUR ASKS. `RR.plan` below redirects the SHELF; it does not
+    # touch the DURABLE-STORE ROOT. `reel_retention.plan:371` calls `_durable_sessions(HERE)` and
+    # passes `reel_retention.HERE` EXPLICITLY into `witness_index`, so `witness_index`'s own
+    # `root or HERE` fallback never fires and patching `frame_authority.HERE` does nothing — tried,
+    # measured, still 4 of 8. The root that has to move is THIS one.
+    rr_here = RR.HERE
+    RR.HERE = shelf
     os.environ["TV_HIST"] = shelf
     TD.HIST_DIR = shelf
     RR.plan = lambda hist_dir=None, *a, **k: plan(hist_dir or shelf, *a, **k)
@@ -339,6 +375,7 @@ def _against_the_corpus():
     finally:
         RR.plan, TD.HIST_DIR, PR.TRIAGE = plan, hist, triage
         FA.sealed_sessions, OF.HERE = seals, funnel_here
+        RR.HERE = rr_here
         if env is None:
             os.environ.pop("TV_HIST", None)
         else:
