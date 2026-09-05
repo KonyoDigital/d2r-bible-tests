@@ -21017,8 +21017,18 @@ Error: page.click: Test timeout of 120000ms exceeded.
     221 × waiting for element to be visible, enabled and stable
 ```
 
-**Eleven click sites** — `v877_rinse` (5) and `v851_theatre_pack` (6) — each waiting the full **120
-seconds** before failing. That is the whole reason those shards are slow as well as red.
+**Eleven click sites — but they do not all cost the same, and the difference was nearly missed.**
+`v877_rinse` (5 sites) runs on CI and produced **4 failing tests there**, each waiting the full
+**120 seconds** — which is why those shards are slow as well as red (shard 6 ran 28+ minutes).
+`v851_theatre_pack` (6 sites) **auto-skips on CI**: line 43 is
+`test.skip(!(await controlUp()), 'control app not running — Mac-gate-only spec')`, and it points at
+`127.0.0.1:17772` — HIS live console. So those six are fixed but are exercised only on his Mac gate,
+never on a runner.
+
+⚠ **I NOTICED THIS ONLY BY CHECKING WHY v851 WAS ABSENT FROM THE FAILING LIST.** It clicks the same
+hidden button, so by my own model it should have failed; it did not, and the model — not the log —
+was incomplete. Had I not asked, this entry would have claimed eleven CI failures where CI can see
+four. [[feedback-contradiction-is-the-finding]] [[zero-needs-a-denominator]]
 
 The specs are about SIM/Theatre **behaviour** (toggle, keyboard, scrub), not about how the door is
 painted, so they now invoke the button's OWN handler — the one v2438 says it kept.
