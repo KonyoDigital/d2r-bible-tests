@@ -20999,6 +20999,37 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-642 — clearing the STORE does not clear the PAGE, and it made my probe lie twice
+
+Investigating `v1991` (a swept item that should reach a mule, `applied.grail` came back `[]` on CI),
+I probed the live path through CDP. **Two of three runs produced a WRONG answer, both times because
+of state I introduced myself.**
+
+| run | what it reported | why it was wrong |
+|---|---|---|
+| 1 | `chronicleApply` accepts `loc`, refuses `lane` | `vaultAccumApply` ran FIRST in the same page and had already ticked the name, so the `lane` arm was a no-op on its leftovers |
+| 2 | the exact OPPOSITE — accepts `lane`, refuses `loc` | same defect from the other side: both arms used the SAME item name, and `localStorage.clear()` does **not** clear the page's in-memory found-map, so the second arm was a no-op |
+| 3 | **both work** — `loc` → `uniques:['Harlequin Crest']`, `lane` → `uniques:['Vampire Gaze']`, each writing `d2r_foundLog` | different name per arm, so no carry-over |
+
+⚠ **RUN 1 AND RUN 2 CONTRADICTED EACH OTHER, AND THAT CONTRADICTION WAS THE ONLY REASON I LOOKED
+AGAIN.** Either one alone was plausible and would have been published.
+[[feedback-contradiction-is-the-finding]]
+
+⚠ **AND THE FALSE FINDING WAS ABOUT MY OWN SHIPPED FIX.** Run 2 said `loc` makes `chronicleApply`
+refuse — which would have meant REG-632 (adding `loc:'stash'` to `v2083`'s fixture) was actively
+harmful. It is not: `loc` and `lane` both tick the chronicle, and `loc` is what `_mayVault` reads,
+which is the half `v2083` actually asserts.
+
+**THE RULE:** *a fixture that resets `localStorage` has reset the STORE, not the PAGE.* An in-memory
+map outlives the clear, so a second arm using the same key measures the first arm's leftovers.
+**Use a different subject per arm, or reload between them.** [[feedback-fixtures-never-touch-live-data]]
+[[feedback-suspect-the-instrument]]
+
+⚠ **`v1991` ITSELF DOES NOT REPRODUCE HERE.** With the spec's exact payload, `vaultAccumApply`
+returns `grail: ["Harlequin Crest", "Laying of Hands (bramble mitts)"]` — what the spec demands. So
+the product path works on this machine and the CI failure is venue- or timing-specific. **Not
+"fixed" blind**; named and left red until a CI log says which. [[unknown-stays-unknown]]
+
 ## REG-640 — a Chronicle screenshot proves he FOUND it, never WHERE it is (v2675)
 
 `v659:90` asserted `vaultNames.length > 0` — *"the seed vaulted NOTHING … zero here means that lane
