@@ -1155,7 +1155,12 @@ GATES = [
          # ⚠ This declares a venue fact, it does not fix one: `tv-tests.yml` installs no browser,
          # so the gate SKIPS on CI and measures only on his Mac. That is a named coverage gap —
          # publish.yml:97-117 already has the chromium install and cache this workflow needs.
-         skip_ok=(r"headless chrome would not start",)),
+         # ⚠ TWO declared reasons, and they are different facts. The first is a venue with no
+         # browser. The second is a venue whose FONT METRICS are not the ones the baseline was
+         # measured on — overlap counts follow text advance widths, so comparing macOS numbers to
+         # a Linux runner's is not a strict verdict or a lenient one, it is not a verdict at all.
+         # Both are declared SKIPS, printed loudly and counted in "did not run"; neither is a tick.
+         skip_ok=(r"headless chrome would not start", r"baseline venue mismatch")),
     Gate("test_pixel_witness", [sys.executable, os.path.join(HERE, "test_pixel_witness.py")], 60,
          why="v2601 — the beat is published BY the document, so a window that beats happily while "
              "the compositor presents nothing looks perfect from the inside. Measured on his "

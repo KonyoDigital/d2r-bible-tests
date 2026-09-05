@@ -288,6 +288,18 @@ def measure(page=None, widths=WIDTHS):
     return out, (finally_note or "")
 
 
+def _venue():
+    """WHERE a set of counts was measured. -> str
+
+    Font rasterisation is the whole reason this exists. The same page measures differently on
+    macOS and on a Linux runner — this repo has the number: a tab strip that is 1223px on his
+    machine measures 750px under Playwright's metrics. Overlap counts are a DIRECT function of
+    text advance widths, so a baseline from one venue cannot grade the other.
+    """
+    import platform
+    return platform.system() or "unknown"
+
+
 def _baseline():
     try:
         with io.open(BASELINE, encoding="utf-8") as fh:
@@ -296,6 +308,39 @@ def _baseline():
         return None, "no baseline at %s — this gate is UNCONFIGURED, not clean" % BASELINE
     except Exception as e:
         return None, "the baseline would not parse (%s) — refusing to grade against it" % e
+
+
+def _venue_matches(was):
+    """(ok, why) — may this baseline grade a run taken HERE?
+
+    ⚠⚠ v2659 — WRITTEN BEFORE THE FALSE RED, NOT AFTER IT. The same ship that gave CI a browser
+    made this gate able to RUN there for the first time, against a baseline measured entirely on
+    his Mac. `check()` fails on ANY difference — `if now != then`, a fall as loudly as a rise — so
+    the first green CI run with Chromium would have compared Linux font metrics against macOS ones
+    and called the difference a defect.
+    That is the false red this module's own docstring fears most: it says an exact-match ratchet
+    that fires every run "teaches him to skip it", which is the same defect as a gate that is red
+    on arrival. A red pointing at nothing trains everyone to ignore the next real one.
+
+    ⚠ SO IT REFUSES RATHER THAN GRADES. A cross-venue comparison is not a lenient verdict or a
+    strict one; it is NOT A VERDICT, and UNKNOWN is the honest answer. [[unknown-stays-unknown]]
+    ⚠ A baseline with NO venue stamp is every baseline written before today. That is UNKNOWN too —
+    it must not be assumed to have come from here, because assuming is exactly how a cross-venue
+    comparison would sneak back in wearing a clean face.
+    """
+    if not isinstance(was, dict):
+        return False, "the baseline is not a record"
+    stamped = was.get("_venue")
+    here = _venue()
+    if not stamped:
+        return False, ("this baseline carries no venue stamp, so nobody can say which platform's "
+                       "font metrics produced it — and overlap counts are a direct function of "
+                       "text advance widths. Re-bless it here with --write-baseline")
+    if stamped != here:
+        return False, ("the baseline was measured on %s and this run is on %s. Overlap counts "
+                       "follow font rasterisation, so comparing them is not a strict verdict or a "
+                       "lenient one — it is not a verdict at all" % (stamped, here))
+    return True, ""
 
 
 #: keys whose count differs between two consecutive measurements are recorded as `None` — UNSTABLE
@@ -359,6 +404,10 @@ def write_baseline():
     os.makedirs(os.path.dirname(BASELINE), exist_ok=True)
     with io.open(BASELINE, "w", encoding="utf-8") as fh:
         fh.write(json.dumps({
+            # ⚠ THE VENUE, FIRST. Overlap counts follow font rasterisation, so a baseline that
+            # does not say which platform produced it cannot honestly grade any run — see
+            # _venue_matches. Written on every bless so the refusal above has something to read.
+            "_venue": _venue(),
             "_why": "TEXT-ON-TEXT overlaps per width, and per overlay PANEL. A rise FAILS; a "
                     "fall also fails until it is blessed here deliberately, so there is no slack "
                     "for a new overlap to hide in. These are DEBT, not a clean bill: nobody has "
@@ -393,6 +442,20 @@ def check():
         print("🔴 %s" % why)
         print("   run:  python3 tv/overlap_ratchet.py --write-baseline")
         return 1
+    # ⚠ BEFORE MEASURING ANYTHING — a cross-venue comparison is not a verdict, so there is no
+    # point spending a browser launch to produce one. Declared as a SKIP (77) so run_gates counts
+    # it in "did not run" and never as a tick; the reason names both venues so the fix is obvious.
+    _vok, _vwhy = _venue_matches(was)
+    if not _vok:
+        # ⚠ ONE LINE, AND IT CARRIES THE DECLARED PHRASE. `run_gates` reads a gate's skip reason
+        # as the LAST NON-BLANK LINE it printed, so splitting this across two prints would leave
+        # the matched phrase on the first and hand the gate a reason its `skip_ok` does not cover
+        # — an UNDECLARED skip, which :2025 counts as a build FAILURE. I wrote it as two prints
+        # first and caught it before shipping; it is the same unjoined end this gate already
+        # carries a scar for. [[the-unjoined-end]]
+        print("⚪ UNKNOWN — baseline venue mismatch: %s. Nothing was established, which is not the "
+              "same as no overlaps." % _vwhy)
+        return SKIP_EXIT
     got, mwhy = measure()
     if got is None:
         # ⚠ UNKNOWN IS NOT A PASS. Nothing was measured, so nothing may be reported clean.
