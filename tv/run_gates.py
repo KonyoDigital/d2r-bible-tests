@@ -483,6 +483,13 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_tasks_ships_are_recorded.py")], 120,
          why="a version that moved the four stamps but appears nowhere in TASKS.md — the list "
              "silently ceasing to describe what the repo did"),
+    Gate("test_cold_caches_invalidate",
+         [sys.executable, os.path.join(HERE, "test_cold_caches_invalidate.py")], 300,
+         why="two disk caches now answer for a FRESH process (/api/heart cold 19.5s -> 5.5s), and a "
+             "cache that answers from a key it did not verify is stale-reading with a speedup "
+             "attached. Both decide deletion-adjacent facts: which reels the TEST SUITE names (a "
+             "fixture reel is HELD from pruning) and which chronicle routes exist. Asserts a wrong "
+             "key is refused, a corrupt cache fails OPEN, and nothing is written without a key"),
     Gate("test_tombstone_station",
          [sys.executable, os.path.join(HERE, "test_tombstone_station.py")], 180,
          why="the printer's last station and the sealed/certified split are REPORTS, and a report "
