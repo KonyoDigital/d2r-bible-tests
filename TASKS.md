@@ -1630,3 +1630,30 @@ loud that the badge rests on a figure whose repetition nobody measured.
 **"His call" must mean NO MEASUREMENT CAN SETTLE IT.** Using it for anything else is the escalation
 scar wearing a politeness costume: *never escalate a question you have not first tried to measure* —
 otherwise you make him answer the same thing twice.
+
+---
+
+## ✅ SHIPPED — `cd5be969 → be704dc7`, six fixes, 2026-09-05
+
+Confirmed three ways because a piped `git push | tail` reports tail's status: `GIT_EXIT=0` · the
+ref line `cd5be969..be704dc7  main -> main` · `git rev-parse origin/main`, 0 ahead.
+Gate: **tv suites green**, and it DECLARED its two skips rather than hiding them — console demos
+(control_ui.html unchanged for 15 commits) and smoke (no bible.html/spec changes).
+
+| fix | what it was |
+|---|---|
+| **orphan guard** | a guard that had **never run** — a pytest `autouse` fixture in a repo with no pytest config, while CI runs `run_gates.py`. `_descendants`/`leaked`/`reaped` occurred **zero** times there. ⚠ And my FIRST CUT was blind by construction: it walked the process TREE, but `subprocess.run` waits for each gate, so a leaked child re-parents to launchd before the check looks. Now caught by IDENTITY. Proven both ways — names a real re-parented leak, silent on a clean run |
+| **live-file net** | four files missed by NAME SHAPE, not importance: a dotfile `*.json` cannot match, and three `.healer_bak` — **the healer's only copies of the vault stores.** A backup a suite silently overwrites is worse than a live file, because the backup is what the repair reads |
+| **the honest lock figure** | HIS 2026-09-04 ruling, enforced instead of reported. `prune.arm` (the deleter), `vault.apply` and `vault.sweep_start` (his money) were OPEN/HARDENED on raw `n` and would not open on `wilsonByAttack`. 14 of 17 locks unchanged |
+| **cache shape** | `len(hit) == 3` refused the five-element superset — a defect that got **worse** the more the v2288 fix succeeded |
+| **classifier version** | the FREE gate that decides whether a reel is EVER READ had no version, so a `panels: 0` verdict was **un-invalidatable**. 0 of his 437 rows back-filled |
+| **the record** | of SEVEN rows marked HIS CALL, only ONE was |
+
+### ⚠ AND THE INSTRUMENT FAULTS, because six in one session is the finding
+
+Every one was mine, and every one was caught by re-checking rather than by the check itself:
+a sample reported as a verdict (149/150, not "four pushes") · counting top-level keys instead of
+`byRoute` (13, not 404) · reading a file's mtime as growth · grading uncommitted bytes with
+`git archive HEAD` · `pgrep -f "time.sleep(300)"` searching for `time.sleep300` because parens are
+a regex group · and reading `TARGETS` by AST, which skipped `os.path.join(...)` as a Call and
+reported all twelve rendering the wrong file. **In every case the COUNT was the tell.**
