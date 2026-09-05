@@ -19,10 +19,30 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 He asked for the list *"optimised to perfection so theres nothing there"*. A read-only pass over all
 1,215 lines, cross-checked against 400 commits, measured this:
 
-| fact | measurement |
+> ⚠⚠ **RE-AUDITED 2026-09-05 BY A READ-ONLY FLEET, AND THIS AUDIT BLOCK HAD BECOME THE MOST STALE
+> TEXT IN THE FILE IT AUDITS.** Every headline figure below was wrong when re-derived. That is not
+> irony for its own sake — **a drift audit that itself drifts is worse than none**, because it is
+> the section everyone reads first and trusts most. Measured, and each one is a one-line command:
+>
+> | it said | re-derived 2026-09-05 | how |
+> |---|---|---|
+> | 1,215 lines | **1,986** | `wc -l TASKS.md` |
+> | HEAD v2657, 9 ships absent | **v2681** | `tv/WINDOWS_SHIP.json` |
+> | 142 gates | **143** | `grep -c '^    Gate(' tv/run_gates.py` |
+> | CF-1 twins "116 lines apart" | **1,095** (L128 vs L1223) | both lines still live |
+> | §8's "30-gate set" | **143** — the number is ~4.8× stale | same grep |
+>
+> ⚠ **AND THE A2 LOCK PROSE BELOW IS FALSE AGAINST THE LIVE MODULE.** `python3 tv/self_arming.py`
+> returns **12 of 17 OPEN, 0 HARDENED**, with `prune.arm`, `vault.apply` and `vault.sweep_start`
+> all **LOCKED**. So the LOCKED *table* in this file is right and the OPEN *prose* (L105, L443,
+> L626-628, L681 — "prune.arm opened itself", "14 of 15 locks are OPEN", "A2 IS DONE / 4-of-4") is
+> stale. Where a table and a paragraph disagree here, **run the module**; do not average them.
+> [[unknown-stays-unknown]] [[inherited-claim-is-not-evidence]]
+
+| fact | measurement (⚠ as first written — see the re-audit above) |
 |---|---|
-| newest LANDED row in this file | **v2648** |
-| HEAD | **v2657** — so **9 ships are absent from the file** |
+| newest LANDED row in this file | ~~v2648~~ → **v2681**, recorded in the LANDED table below |
+| HEAD | ~~v2657~~ → **v2681** (`ef9e4dea`) |
 | "the 30-gate set" (§8 and elsewhere) | `grep -c '^    Gate(' tv/run_gates.py` = **142**. The number 30 is **~4.7× stale** |
 | rows claiming a state that is no longer true | **11** |
 | ids carrying work that is really ONE item | **8 clusters** — the largest is **7 ids for one decision** |
@@ -38,8 +58,10 @@ BRIEFS` — 1 graded row became **14**. [[the-unjoined-end]] [[regression-guard]
 
 ⚠ **THE SHARPEST INSTANCE, because it needs no judgement:** row **155** read *"BLOCKED — his
 money"* while the ruling unblocking it is written **73 lines above it in this same file**. And
-**CF-1** appears twice in two contradictory states, 116 lines apart. A file long enough to
-contradict itself is a file nobody can read to the end.
+**CF-1** appears twice in two contradictory states — ~~116~~ **1,095 lines apart** (L128 says
+*"CLOSED, and the premise was FALSE"*; L1223 still reads as live work). Even the distance in this
+sentence had drifted, by a factor of nine. A file long enough to contradict itself is a file nobody
+can read to the end.
 
 **The deduplicated remaining set is at the bottom of this file, under
 §🎯 THE TRUE REMAINING SET.** Read that, not the historical tables above it.
