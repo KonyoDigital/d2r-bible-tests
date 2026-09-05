@@ -21,7 +21,19 @@ the other shoe — so both halves are asserted, plus the JOIN between their two 
 import ast
 import io
 import os
+import sys
 import unittest
+
+# ⚠ THIS FILE PRINTS NON-ASCII (⚠, ✕, ×) IN ITS ASSERTION MESSAGES, so stdout has to be made
+# encoding-safe or it crashes while REPORTING on a non-UTF-8 console — his Windows box is cp1255,
+# where a clean tree would exit non-zero for the sake of one glyph. Caught by test_control's own
+# guard on the first push that carried this file. [[windows-powershell-gotchas]]
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from console_safe import enable
+    enable()
+except Exception:
+    pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 

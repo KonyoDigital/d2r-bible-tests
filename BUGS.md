@@ -20902,7 +20902,7 @@ breakpoint in this file, 4 uses), matching v2267's own allowance of 25% at 375 a
    checks disagreed and the fixture was the liar.** With mules seeded the probe reproduces CI to
    within a point: 13% vs 14%.
 
-## REG-621 — at 375px every remove button is clipped out of its card (OPEN, pre-existing)
+## REG-621 — at 375px every remove button is clipped out of its card (FIXED v2688)
 
 Found while grading REG-620, and **proven pre-existing by A/B**: with the ORIGINAL CSS restored,
 375x800 reports `xLost 7/7` — every `.vrg-x` sits outside `.vrg-det`, which clips it. Identical
@@ -20912,6 +20912,36 @@ with and without the REG-620 fix, so it is not a regression from it.
 on a phone-width board it cannot be reached. ⚠ And no text-clipping probe would ever find it —
 `v2267` measures name cut and reports 375 as within its 25% allowance while every button on the
 screen is unreachable.
+
+### ✅ RESOLVED v2688 — and the cause was one level above the row
+
+`.vrg-cols` used `grid-template-columns:repeat(auto-fill,minmax(330px,1fr))`. The 330px is a
+FLOOR, so on a container narrower than 330 the track keeps its 330 and the column spills.
+Measured 375x800, served: `.vrg-cols` 276 wide holding a `.vrg-col` 330 wide — 54px of blowout —
+and every descendant rode along, putting `.vrg-x` at right 349 against a clipping ancestor at
+333. `.vrg-det` carries `overflow:hidden` AND `scrollWidth 300 === clientWidth 300`, so the
+clipped controls could not be scrolled to. Unreachable, not merely ugly.
+
+TWO EARLIER FIXES WENT AT IT FROM THE WRONG END and both were necessary-and-not-sufficient:
+v2665 made the name shrinkable (`flex:1 1 auto`), v2688 first lowered its floor 88->56. Neither
+could work, because the overflow was one level ABOVE the row everyone was measuring. The tell
+was in the data the whole time: the button sat at right 349 whether the name was 88 or 125 wide
+— a constant that no change to the name could move. [[feedback-suspect-the-instrument]]
+
+FIX: `minmax(min(330px,100%),1fr)` lets the track collapse where there is no room and changes
+nothing at 901/1440. Then, with the track at 276, the row still could not seat a readable name:
+34px was bought back from gaps/margins/padding (which carry no information), and the name WRAPS
+on a phone instead of truncating, with `overflow-wrap:anywhere` for single long tokens.
+Truncating and hiding a chip lose the same information; wrapping loses none and spends row
+height, which a phone has.
+
+MEASURED AFTER, served, 13 rows, three widths: outside 0/0/0 · worstCut 0%/0%/0% · rows
+overflowing 0/0/0. Before: 13 of 13 outside at 375.
+
+⚠ FILED UNDER THE EXISTING NUMBER ON PURPOSE. I first wrote this as a second `## REG-621`
+heading and the duplicate-REG guard caught it — correctly: two entries under one number make
+every citation of it ambiguous. It is the SAME defect this entry opened, so it belongs here
+as a resolution rather than as a new number that would fragment the record.
 
 ## REG-622 — the shelf door reported success on the one failure he could see (v2666)
 
@@ -21957,28 +21987,3 @@ unreachable buttons are fine, which is a verdict nobody earned.
   only in `bible.html`, a SEPARATE document, and custom properties do not cross the iframe. So the
   fallback was the only value that ever painted. `--rar-set` IS defined there and is the same
   `#00fc00`: byte-identical output, rejoined to the token system.
-
-## REG-621 — the remove buttons were unreachable at 375px (FIXED v2688)
-
-`.vrg-cols` used `grid-template-columns:repeat(auto-fill,minmax(330px,1fr))`. The 330px is a
-FLOOR, so on a container narrower than 330 the track keeps its 330 and the column spills.
-Measured 375x800, served: `.vrg-cols` 276 wide holding a `.vrg-col` 330 wide — 54px of blowout —
-and every descendant rode along, putting `.vrg-x` at right 349 against a clipping ancestor at
-333. `.vrg-det` carries `overflow:hidden` AND `scrollWidth 300 === clientWidth 300`, so the
-clipped controls could not be scrolled to. Unreachable, not merely ugly.
-
-TWO EARLIER FIXES WENT AT IT FROM THE WRONG END and both were necessary-and-not-sufficient:
-v2665 made the name shrinkable (`flex:1 1 auto`), v2688 first lowered its floor 88->56. Neither
-could work, because the overflow was one level ABOVE the row everyone was measuring. The tell
-was in the data the whole time: the button sat at right 349 whether the name was 88 or 125 wide
-— a constant that no change to the name could move. [[feedback-suspect-the-instrument]]
-
-FIX: `minmax(min(330px,100%),1fr)` lets the track collapse where there is no room and changes
-nothing at 901/1440. Then, with the track at 276, the row still could not seat a readable name:
-34px was bought back from gaps/margins/padding (which carry no information), and the name WRAPS
-on a phone instead of truncating, with `overflow-wrap:anywhere` for single long tokens.
-Truncating and hiding a chip lose the same information; wrapping loses none and spends row
-height, which a phone has.
-
-MEASURED AFTER, served, 13 rows, three widths: outside 0/0/0 · worstCut 0%/0%/0% · rows
-overflowing 0/0/0. Before: 13 of 13 outside at 375.
