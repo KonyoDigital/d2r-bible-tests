@@ -42120,6 +42120,44 @@ function renderJournal(){
     return (k.indexOf('the')===0 && k.length>3) ? k.slice(3) : k;
   }
   window._regKey=_regKey;
+  /* ⚠⚠ v2691 — HIS SUNDER RULING, ON THE TALLY AND NOT ON THE ROSTER.
+     Konyo, with a screenshot of 'Latent Bone Break' as its own chronicle row: "this is not a
+     duplicate.. yes we have latent of bone break but the chronicle itself is not latent thats just
+     the UPGRADED VERSION of it after we upgrade in hordaic cube.. so for the chronicle all sunders
+     6 of them need to be counted in the chronicle specifically as 1 tally for each.. and for the
+     vault that a different story the entire item database should be there regardless."
+
+     SETTLED FROM THE GAME FILE: uniqueitems.txt, re-extracted from the live 28 GB CASC store,
+     carries SIX sunder rows. Measured on his board before this: TWELVE — every sunder asking to be
+     found twice.
+
+     ⚠⚠ WHY THIS IS NOT A ROSTER FILTER, WHICH IS THE MISTAKE v2680 MADE AND v2685 REVERTED.
+     `_roster()` is also what makes an item findable and openable, and the Latent charms are among
+     the eleven his v1720 ruling put there ("add the 11 rotw items to the roster"). Filtering there
+     removed them from the HUNT as well as the tally: v1692 236->232, v1693 x3, v1716 — 8 failures,
+     all mine. He wants the item openable AND counted once; those are two surfaces, and this is the
+     tally one. [[the-unjoined-end]]
+
+     ⚠ THE TWO HALVES BELOW ARE ONE FIX. Dropping the rows without the alias in `_ownedHas` silently
+     subtracts his own finds (a ledger tick on "Latent Bone Break" would stop matching anything);
+     the alias without the drop changes nothing visible. Neither is separately correct. */
+  var _CHRON_SUNDER_BASES = ['Bone Break','Cold Rupture','Crack of the Heavens',
+                             'Flame Rift','Rotting Fissure','Black Cleft'];
+  var _CHRON_SUNDER_ALIASES = {};
+  _CHRON_SUNDER_BASES.forEach(function(b){
+    _CHRON_SUNDER_ALIASES[b] = ['Latent ' + b, 'Renewed ' + b];
+  });
+  /* Is this name an UPGRADED spelling of a sunder — the form the chronicle must not list twice? */
+  function _isUpgradedSunder(n){
+    var s = String(n || '');
+    for (var i = 0; i < _CHRON_SUNDER_BASES.length; i++) {
+      var b = _CHRON_SUNDER_BASES[i];
+      if (s === 'Latent ' + b || s === 'Renewed ' + b) return true;
+    }
+    return false;
+  }
+  window._isUpgradedSunder = _isUpgradedSunder;
+
   function _uniItems(){
     // v1692 — the universe used to be ITEMS filtered to three tiers (the boss-drop-table shortlist,
     // ~250 of its 322 rows) plus _UNI_EXTRA. That is why funiScan().found topped out around 32 on a
@@ -42136,6 +42174,19 @@ function renderJournal(){
     var iv=(typeof ITEM_VALUE!=='undefined')?ITEM_VALUE:(window.ITEM_VALUE||{});
     var xc=(window._uniExtraCache=window._uniExtraCache||{});
     var names=(typeof window._gUniqueRoster==='function')?window._gUniqueRoster():Object.keys(iv);
+    /* v2691 — the CHRONICLE universe carries one row per sunder. The roster keeps every form, so
+       the item stays openable and the VAULT still holds all three spellings, which is the other
+       half of his ruling. */
+    names = (function(_n){
+      try {
+        if (Object.prototype.toString.call(_n) === '[object Array]') {
+          return _n.filter(function(x){ return !_isUpgradedSunder(x); });
+        }
+        var _o = {};
+        Object.keys(_n).forEach(function(k){ if (!_isUpgradedSunder(_n[k])) _o[k] = _n[k]; });
+        return _o;
+      } catch(e){ return _n; }
+    })(names);
     /* v1716 — THE ROSTER AND THE DROP TABLES SPELL THE SAME ITEM DIFFERENTLY, AND AN EXACT
        KEY CANNOT SEE IT. reg[n] was an exact lookup, so "Harlequin Crest" missed the drop row
        named "Harlequin Crest (Shako)" and the app told him the most farmed unique in the game
@@ -42207,6 +42258,15 @@ function renderJournal(){
   }
   function _ownedHas(own, n){
     if (own.has(n)) return true;
+    /* v2691 — A SUNDER HE UPGRADED IS STILL A SUNDER HE FOUND. His ledger may hold "Latent Bone
+       Break" (or "Renewed …") because that is what the item became in the cube; the chronicle now
+       lists only the base row, so without this the tick would match nothing and his own find would
+       silently vanish from the tally. That subtraction is exactly what v2680 shipped and v2685
+       reverted. [[d2r-ladder-doctrine]] — a display rule must never change a count. */
+    try {
+      var _al = _CHRON_SUNDER_ALIASES[n];
+      if (_al) { for (var _i = 0; _i < _al.length; _i++) if (own.has(_al[_i])) return true; }
+    } catch(e){}
     if (typeof window.d2rResolveItem !== 'function') return false;
     try {
       var want = window.d2rResolveItem(n); if (!want || !want.canonical) return false;
@@ -48687,7 +48747,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2690', name:'v2690 - the vault door that never opened for a new find', date:'2026-09-05', note:'a var assigned in one branch and read in the other' };
+  window.D2R_BUILD = { id:'v2691', name:'v2691 - his sunder ruling, on the tally', date:'2026-09-05', note:'six chronicle rows, and his tally held at 248 because an upgraded sunder is still a sunder he found' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

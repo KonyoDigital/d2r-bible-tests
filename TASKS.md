@@ -1328,6 +1328,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2691** | `(this commit)` | v2691 — his sunder ruling, done on the TALLY not the roster: 12 chronicle rows → 6, found unchanged at 248 |
 | **v2690** | `(this commit)` | v2690 — the vault door never opened for a NEW find: `_mayVault` was assigned in one branch and read in the other |
 | **v2689** | `(this commit)` | v2689 — laneLocked could never populate; the found-bar went dark for every set piece; an open no longer restamps unmeasured facts |
 | **v2688** | `(this commit)` | v2688 — REG-621: a grid floor of 330px on a 276px container put every remove button out of reach |
