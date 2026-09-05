@@ -9854,10 +9854,97 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
          design (that default is what protects Konyo's own 356 finds).
          ⚠ ON KONYO'S OWN BOARD THIS IS SELF-HEALING and that is deliberate — he resolves to
          KonyoEndgame, so the floor restores on reload. The seed IS his truth. -->
-    <button class="reset-btn" onclick="uiConfirm('Remove the chronicle this browser INHERITED, and keep what YOU found?\n\nThis board is showing entries seeded from another person\'s chronicle. This removes ONLY those — matched exactly, by name and date — and names this browser its own ledger so nothing is seeded into it again.\n\nAnything your own console read is KEPT. Your vault, mules and settings are untouched.\n\nIf this IS Konyo\'s own board, press Cancel — those entries are his real finds.').then(function(ok){ if(!ok) return; try{ var LSx=window.LSR||window.localStorage; var G=window._GRAIL_SEED||{}, S=window._SET_SEED||{}, R=window._RWC_SEED||{}; var report=[]; function strip(key, seed, isMap){ var cur=null; try{ cur=JSON.parse(LSx.getItem(key)||'null'); }catch(e){ return; } if(!cur||typeof cur!=='object') return; var before=Object.keys(cur).length, hit=0; Object.keys(seed).forEach(function(n){ if(Object.prototype.hasOwnProperty.call(cur,n) && String(cur[n])===String(seed[n])){ delete cur[n]; hit++; } }); if(hit){ try{ LSx.setItem(key, JSON.stringify(cur)); }catch(e){} } report.push(key+': removed '+hit+' seeded, kept '+(before-hit)); } strip('d2r_foundLog', G); strip('d2r_setPieces', S); strip('d2r_rwMade', R); var nm='Ledger-'+String(window._D2R_INSTALL||Date.now()).slice(0,8); window.localStorage.setItem('d2r_ledgerName', nm); try{ console.log('[un-seed] '+nm+' | '+report.join(' | ')); }catch(e){} }catch(e){} location.reload(); })">🧭 Remove the inherited chronicle — keep what I found</button>
+    <!-- ⚠⚠ v2696 — THE HANDLER LIVES IN A FUNCTION, NOT IN THE ATTRIBUTE. The first cut inlined
+         ~4KB of logic into onclick="...", and adding a name that contains a double quote
+         ("Gloom's Trap" written as \"Gloom's Trap\") TERMINATED THE ATTRIBUTE EARLY. The button
+         still rendered, still looked right, and did NOTHING — onclick was an `object`, not a
+         function. Caught only because the verification run reported reversible:false, i.e. no
+         backup had been written. An inert control that looks live is worse than a missing one.
+         A function has no attribute-quoting hazard at all. -->
+    <button class="reset-btn" onclick="window._d2rUnseed && window._d2rUnseed()">🧭 Remove the inherited chronicle — keep what I found</button>
     </details>
 </div>
 </div>
+<script>
+/* v2696 — UN-SEED: remove what this browser INHERITED, keep what its owner found.
+   Konyo: "dont wipe what he had!! the profile ledger should be sycned to his OWN individual
+   chronicle." Every seed here is identified by its VALUE, never by name alone, because the floor
+   writes the seed's own date string (`_gfl[n] = _GRAIL_SEED[n]`) and a real find carries the
+   finder's timestamp. So a same-named genuine find survives — measured. */
+window._d2rUnseed = function(){
+  uiConfirm('Remove the chronicle this browser INHERITED, and keep what YOU found?\n\n'
+    + 'This board is showing entries seeded from another person\'s chronicle. It removes ONLY those '
+    + '— matched exactly, by name AND date — and names this browser its own ledger so nothing is '
+    + 'seeded into it again.\n\nAnything your own console read is KEPT, and a full backup is saved '
+    + 'first so this can be undone.\n\nIf this IS Konyo\'s own board, press Cancel.')
+  .then(function(ok){
+    if (!ok) return;
+    try {
+      var LSx = window.LSR || window.localStorage;
+      var G = window._GRAIL_SEED || {}, S = window._SET_SEED || {},
+          R = window._RWC_SEED || {}, RULE = window._RULING_SEED || {};
+      var report = [];
+      /* BACK UP FIRST. Konyo has ~/d2r_ledger_backups and restore_ledger.py; a cousin's machine has
+         NEITHER, so on his board this is the only undo that will exist. Written before anything is
+         removed, so a failure half-way leaves the snapshot rather than a stripped store. */
+      try {
+        var bk = { at: Date.now(), why: 'pre un-seed' };
+        ['d2r_foundLog','d2r_setPieces','d2r_rwMade','d2r_owned'].forEach(function(k){ bk[k] = LSx.getItem(k); });
+        LSx.setItem('d2r_unseedBackup', JSON.stringify(bk));
+      } catch(e){}
+      function strip(key, seed){
+        var cur = null;
+        try { cur = JSON.parse(LSx.getItem(key) || 'null'); } catch(e){ return; }
+        if (!cur || typeof cur !== 'object' || Array.isArray(cur)) return;
+        var before = Object.keys(cur).length, hit = 0;
+        Object.keys(seed).forEach(function(n){
+          if (Object.prototype.hasOwnProperty.call(cur, n) && String(cur[n]) === String(seed[n])) {
+            delete cur[n]; hit++;
+          }
+        });
+        if (hit) { try { LSx.setItem(key, JSON.stringify(cur)); } catch(e){} }
+        report.push(key + ': removed ' + hit + ' seeded, kept ' + (before - hit));
+      }
+      /* every seed, in every store it writes to — the set floor writes _SET_SEED into foundLog too */
+      strip('d2r_foundLog', G); strip('d2r_foundLog', S); strip('d2r_foundLog', RULE);
+      strip('d2r_rwMade', R);
+      /* d2r_setPieces is an ARRAY of names with no dates, so it cannot be exact-matched and a
+         name-only strip would delete pieces he owns. Its twin in foundLog HAS just been matched,
+         so a piece is inherited exactly when that twin was seeded. Decided by the store that
+         carries the evidence. */
+      try {
+        var sp = JSON.parse(LSx.getItem('d2r_setPieces') || 'null');
+        if (Array.isArray(sp)) {
+          var fl2 = {}; try { fl2 = JSON.parse(LSx.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+          var before2 = sp.length;
+          var keep = sp.filter(function(n){ return !(S[n] !== undefined && fl2[n] === undefined); });
+          if (keep.length !== before2) LSx.setItem('d2r_setPieces', JSON.stringify(keep));
+          report.push('d2r_setPieces: removed ' + (before2 - keep.length) + ' seeded, kept ' + keep.length);
+        }
+      } catch(e){}
+      /* the v1692 pass applied BARE names, so they carry the current time and cannot be
+         date-matched. Its flag is the only evidence they were injected; the backup above is what
+         makes acting on that weaker evidence acceptable. */
+      try {
+        if (LSx.getItem('d2r_v1692FleshrenderApplied')) {
+          var fl3 = {}; try { fl3 = JSON.parse(LSx.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+          var gone = [];
+          ['Fleshrender', 'Gloom\u2019s Trap', "Gloom's Trap"].forEach(function(n){
+            if (fl3[n] !== undefined) { delete fl3[n]; gone.push(n); }
+          });
+          if (gone.length) LSx.setItem('d2r_foundLog', JSON.stringify(fl3));
+          LSx.removeItem('d2r_v1692FleshrenderApplied');
+          report.push('v1692 ruling: removed ' + gone.length + ' on the flag, not on a date');
+        }
+      } catch(e){}
+      var nm = 'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8);
+      window.localStorage.setItem('d2r_ledgerName', nm);
+      try { console.log('[un-seed] ' + nm + ' | ' + report.join(' | ')); } catch(e){}
+    } catch(e){ try { console.warn('[un-seed] failed: ' + e); } catch(e2){} }
+    location.reload();
+  });
+};
+</script>
 <button id="tvd-return-pill" type="button" onclick="window.switchTab&&window.switchTab('session')">⚡ ← Sessions</button>
 <div class="shortcut-hint" id="shortcut-hint"><span class="kbd">/</span>&nbsp;search&nbsp;&nbsp;<span class="kbd">1-9·0</span>&nbsp;tabs&nbsp;&nbsp;<span class="kbd">?</span>&nbsp;help&nbsp;&nbsp;<span class="kbd">Esc</span>&nbsp;close</div>
 <button class="help-btn fab-tip" data-tip="Help &amp; guide" aria-label="help and guide" onclick="document.getElementById('help-modal').classList.add('show')" title="Help &amp; guide">?</button>
@@ -17576,7 +17663,13 @@ try { window._UNI_EXTRA = _UNI_EXTRA; } catch(e){}
 const _GRAIL_SEED = {"Wormskull":"Jun 22, 2026 · 02:00","Wraith Flight":"Jun 18, 2026 · 19:29","Witherstring":"Jul 1, 2026 · 21:09","Wizardspike":"Jun 3, 2026 · 12:45","Wizendraw":"May 20, 2026 · 21:15","Wolfhowl":"Jun 5, 2026 · 00:45","War Traveler":"Jun 4, 2026 · 01:24","Windhammer":"May 22, 2026 · 01:17","Venom Grip":"May 20, 2026 · 18:35","Venom Ward":"May 18, 2026 · 21:07","Verdungo's Hearty Cord":"Jun 22, 2026 · 02:10","Wall of the Eyeless":"May 20, 2026 · 18:26","Twitchthroe":"Jun 2, 2026 · 01:07","Ume's Lament":"May 18, 2026 · 00:25","Undead Crown":"May 17, 2026 · 01:45","Vampire Gaze":"Jul 7, 2026 · 00:44","Tomb Reaver":"Jun 18, 2026 · 02:19","Toothrow":"May 22, 2026 · 00:59","Treads of Cthon":"May 20, 2026 · 19:21","The Ward":"May 18, 2026 · 00:40","Thundergod's Vigor":"May 20, 2026 · 02:19","Tiamat's Rebuke":"May 15, 2026 · 18:24","Todesfaelle Flamme":"Jun 4, 2026 · 01:23","The Rising Sun":"Jun 3, 2026 · 00:48","The Salamander":"May 18, 2026 · 01:26","The Spirit Shroud":"Jun 6, 2026 · 20:49","The Vile Husk":"Jun 30, 2026 · 21:17","The Jade Tan Do":"May 19, 2026 · 23:44","The Minotaur":"Jul 6, 2026 · 21:10","The Patriarch":"May 15, 2026 · 01:19","The Reaper's Toll":"May 18, 2026 · 21:15","The Gavel of Pain":"Jun 10, 2026 · 01:57","The General's Tan Do Li Ga":"May 17, 2026 · 01:37","The Grandfather":"Jun 4, 2026 · 01:41","The Grim Reaper":"May 17, 2026 · 01:43","Tearhaunch":"May 15, 2026 · 18:36","The Battlebranch":"May 26, 2026 · 00:14","The Chieftain":"May 18, 2026 · 21:04","The Face of Horror":"May 20, 2026 · 02:19","Suicide Branch":"May 27, 2026 · 00:49","Swordguard":"Jun 22, 2026 · 02:57","Stoneraven":"Jun 4, 2026 · 01:22","Stormguild":"May 18, 2026 · 01:40","Stormshield":"May 27, 2026 · 19:51","Stormspike":"Jun 18, 2026 · 00:14","Stormstrike":"May 17, 2026 · 01:53","Stoutnail":"Jun 22, 2026 · 02:25","Steel Shade":"May 18, 2026 · 01:50","Steelclash":"May 21, 2026 · 11:51","Steeldriver":"May 18, 2026 · 02:03","Spire of Honor":"May 27, 2026 · 20:16","Spirit Forge":"Jun 18, 2026 · 01:03","Stealskull":"May 31, 2026 · 21:37","Snowclash":"May 19, 2026 · 16:12","Sparking Mail":"May 15, 2026 · 20:58","Spellsteel":"May 17, 2026 · 23:50","Skystrike":"May 18, 2026 · 00:38","Snakecord":"May 15, 2026 · 00:58","Skin of the Vipermagi":"May 20, 2026 · 22:27","Skullder's Ire":"May 22, 2026 · 01:21","Serpent Lord":"May 17, 2026 · 01:43","Shaftstop":"May 31, 2026 · 20:50","Sandstorm Trek":"Jun 25, 2026 · 00:56","Schaefer's Hammer":"Jun 4, 2026 · 00:26","Riphook":"May 27, 2026 · 20:59","Rockfleece":"May 18, 2026 · 23:17","Rockstopper":"May 27, 2026 · 19:44","Rogue's Bow":"May 19, 2026 · 00:25","Rattlecage":"Jun 21, 2026 · 17:52","Raven Claw":"Jun 4, 2026 · 01:32","Raven Frost":"May 25, 2026 · 21:26","Razortail":"May 21, 2026 · 01:03","Ribcracker":"May 17, 2026 · 01:32","Pierre Tombale Couant":"Jul 6, 2026 · 22:43","Plague Bearer":"May 27, 2026 · 01:29","Pluckeye":"Jul 9, 2026 · 18:51","Pompeii's Wrath":"May 27, 2026 · 00:51","Que-Hegan's Wisdom":"Jun 4, 2026 · 01:22","Peasant Crown":"May 15, 2026 · 21:22","Pelta Lunata":"Jun 29, 2026 · 01:20","Nature's Peace":"May 23, 2026 · 01:06","Nightsmoke":"May 15, 2026 · 20:17","Nightwing's Veil":"May 18, 2026 · 00:38","Nokozan Relic":"Jun 18, 2026 · 20:37","Nord's Tenderizer":"May 18, 2026 · 20:53","Nosferatu's Coil":"Jun 18, 2026 · 18:57","Messerschmidt's Reaver":"May 31, 2026 · 23:46","Moser's Blessed Circle":"Jun 10, 2026 · 21:55","Manald Heal":"May 18, 2026 · 23:53","Mang Song's Lesson":"May 31, 2026 · 21:00","Marrowwalk":"Jun 21, 2026 · 20:12","Lightsabre":"May 22, 2026 · 01:17","Maelstrom":"Jun 1, 2026 · 01:00","Magefist":"May 18, 2026 · 00:43","Magewrath":"May 26, 2026 · 01:52","Lava Gout":"May 18, 2026 · 21:11","Kuko Shakaku":"Jun 19, 2026 · 00:46","Lacerator":"Jun 4, 2026 · 01:41","Lance Guard":"May 19, 2026 · 20:29","Lance of Yaggai":"May 17, 2026 · 00:57","Kira's Guardian":"May 19, 2026 · 20:39","Iceblink":"May 15, 2026 · 20:54","Infernostride":"May 20, 2026 · 21:58","Ironstone":"May 19, 2026 · 20:30","Jalal's Mane":"Jun 10, 2026 · 12:46","Hotspur":"Jun 24, 2026 · 17:59","Howltusk":"Jun 10, 2026 · 12:28","Hellrack":"Jun 19, 2026 · 00:14","Hexfire":"May 23, 2026 · 18:25","Homunculus":"May 27, 2026 · 19:54","Hone Sundan":"May 22, 2026 · 01:11","Heart Carver":"May 26, 2026 · 00:19","Heavenly Garb":"May 25, 2026 · 21:25","Gravenspine":"May 17, 2026 · 01:51","Gravepalm":"Jun 8, 2026 · 23:44","Gore Rider":"Jun 1, 2026 · 00:08","Gorefoot":"Jun 12, 2026 · 23:47","Goldskin":"May 15, 2026 · 15:20","Goldstrike Arch":"May 18, 2026 · 00:37","Goldwrap":"Jun 22, 2026 · 02:34","Gimmershred":"May 28, 2026 · 20:14","Ginther's Rift":"May 18, 2026 · 23:32","Ethereal Edge":"May 31, 2026 · 20:47","Firelizard's Talons":"May 20, 2026 · 01:36","Flamebellow":"May 31, 2026 · 20:57","Fleshripper":"May 28, 2026 · 20:23","Ghoulhide":"May 15, 2026 · 20:23","Doomslinger":"Jun 10, 2026 · 23:51","Duriel's Shell":"Jun 1, 2026 · 00:28","Duskdeep":"Jun 22, 2026 · 02:51","Demonhorn's Edge":"May 18, 2026 · 01:05","Demon Limb":"Jun 2, 2026 · 01:09","Demon Machine":"May 25, 2026 · 21:56","Demon's Arch":"May 18, 2026 · 01:40","Death Cleaver":"May 19, 2026 · 16:05","Crow Caw":"May 20, 2026 · 01:36","Crushflange":"Jun 15, 2026 · 02:37","Coldkill":"Jun 4, 2026 · 11:27","Crainte Vomir":"Jul 6, 2026 · 21:05","Cranebeak":"Jun 1, 2026 · 00:29","Chance Guards":"Jun 8, 2026 · 23:22","Cloudcrack":"Jun 4, 2026 · 01:24","Coif of Glory":"May 15, 2026 · 20:02","Bverrit Keep":"May 18, 2026 · 00:33","Carin Shard":"Jun 10, 2026 · 22:36","Cerebus' Bite":"Jun 24, 2026 · 17:27","Boneflesh":"May 26, 2026 · 01:21","Bonehew":"Jun 18, 2026 · 02:21","Boneslayer Blade":"May 21, 2026 · 13:24","Bonesnap":"Jun 4, 2026 · 01:45","Brainhew":"Jun 4, 2026 · 01:24","Buriza-Do Kyanon":"May 31, 2026 · 20:46","Blastbark":"Jun 22, 2026 · 01:56","Bloodfist":"Jun 19, 2026 · 21:36","Bloodletter":"May 15, 2026 · 17:47","Bloodrise":"May 24, 2026 · 02:09","Blade of Ali Baba":"May 25, 2026 · 23:55","Bladebuckle":"May 27, 2026 · 20:11","Bing Sz Wang":"May 31, 2026 · 20:42","Black Hades":"Jun 22, 2026 · 02:08","Blackhorn's Face":"Jun 15, 2026 · 02:54","Blackleach Blade":"Jun 15, 2026 · 02:48","Atma's Scarab":"Jun 19, 2026 · 20:17","Bartuc's Cut-Throat":"May 20, 2026 · 02:19","Andariel's Visage":"May 25, 2026 · 21:32","Arioc's Needle":"May 21, 2026 · 12:53","Arm of King Leoric":"May 26, 2026 · 00:00","Wraithstep":"Jul 6, 2026 · 22:06","Zakarum's Hand":"May 23, 2026 · 18:22","Woestave":"May 20, 2026 · 13:50","Viperfork":"May 18, 2026 · 23:36","The Scalper":"May 20, 2026 · 02:19","The Tannr Gorerod":"Jun 1, 2026 · 02:09","The Iron Jang Bong":"May 19, 2026 · 19:54","The Mahim-Oak Curio":"May 18, 2026 · 00:15","The Fetid Sprinkler":"May 23, 2026 · 18:03","The Dragon Chang":"Jun 10, 2026 · 22:13","Sureshrill Frost":"Jul 6, 2026 · 23:59","Steelgoad":"May 20, 2026 · 22:29","Stone Crusher":"May 29, 2026 · 00:28","Spineripper":"May 18, 2026 · 01:35","Soul Harvest":"May 31, 2026 · 21:18","Soulflay":"May 25, 2026 · 19:04","Spectral Shard":"May 24, 2026 · 21:45","Skewer of Krintiz":"May 15, 2026 · 21:06","Skull Splitter":"May 20, 2026 · 01:42","Shadowfang":"May 27, 2026 · 23:48","Ripsaw":"May 15, 2026 · 20:51","Rune Master":"Jun 3, 2026 · 00:20","Rusthandle":"May 31, 2026 · 20:39","Razortine":"May 18, 2026 · 01:47","Moonfall":"May 15, 2026 · 20:12","Medusa's Gaze":"May 27, 2026 · 19:45","Latent Black Cleft":"Jun 8, 2026 · 17:26","Latent Cold Rupture":"Jun 12, 2026 · 00:40","Latent Crack of the Heavens":"Jun 25, 2026 · 00:47","Latent Rotting Fissure":"Jun 18, 2026 · 02:24","Leadcrow":"Jun 4, 2026 · 00:40","Langer Briser":"Jun 8, 2026 · 19:53","Knell Striker":"Jun 29, 2026 · 00:57","Kelpie Snare":"May 29, 2026 · 00:46","Kinemil's Awl":"Jun 10, 2026 · 16:01","Ichorsting":"May 18, 2026 · 00:17","Iron Pelt":"Jun 4, 2026 · 20:41","Horizon's Tornado":"May 31, 2026 · 21:23","Humongous":"May 18, 2026 · 01:40","Husoldal Evo":"May 19, 2026 · 20:29","Hellcast":"May 17, 2026 · 23:53","Hellplague":"May 15, 2026 · 00:04","Herald of Zakarum":"May 27, 2026 · 22:31","Griswold's Edge":"May 15, 2026 · 20:10","Grim's Burning Dead":"Jun 24, 2026 · 17:57","Goreshovel":"May 14, 2026 · 19:15","Gleamscythe":"Jun 1, 2026 · 01:58","Dreadfang":"May 25, 2026 · 21:35","Dimoak's Hew":"May 25, 2026 · 23:47","Dark Clan Crusher":"May 19, 2026 · 20:25","Darkglow":"May 19, 2026 · 11:27","Deathbit":"May 23, 2026 · 17:53","Deathspade":"May 14, 2026 · 18:57","Culwen's Point":"May 18, 2026 · 23:38","Coldsteel Eye":"Jun 19, 2026 · 20:25","Bloodpact Shard":"Jun 4, 2026 · 01:20","Bloodthief":"May 14, 2026 · 18:53","Bladebone":"May 12, 2026 · 00:43","Blacktongue":"May 20, 2026 · 18:41","Axe of Fechmar":"Jun 15, 2026 · 02:40","Baezil's Vortex":"Jun 4, 2026 · 00:50","Athena's Wrath":"May 19, 2026 · 00:19","Nagelring":"May 19, 2026 \u00b7 16:08","Blackbog's Sharp":"Jul 12, 2026 \u00b7 20:46","Djinn Slayer":"May 18, 2026 \u00b7 01:45","Endlesshail":"Jun 24, 2026 \u00b7 17:56","Hawkmail":"May 14, 2026 \u00b7 19:30","Hellslayer":"Jul 12, 2026 \u00b7 23:34","Islestrike":"Jul 12, 2026 \u00b7 19:33","Lidless Wall":"Jul 13, 2026 \u00b7 22:12","Radament's Sphere":"May 18, 2026 \u00b7 23:24","Rakescar":"May 25, 2026 \u00b7 23:49","Skull Collector":"Jul 6, 2026 \u00b7 22:59","Steel Carapace":"May 19, 2026 \u00b7 23:48","String of Ears":"Jun 3, 2026 \u00b7 00:34","Witchwild String":"Jun 2, 2026 \u00b7 01:04","Baranar's Star":"Aug 10, 2026 · 02:25","Atma's Wail":"Aug 10, 2026 · 00:52"};
 /* v2692 — THE SEED BELONGS TO A LEDGER. Without this it is simply "the default chronicle", which
    is how another person's board came up 243/403. Named here rather than inferred anywhere else. */
-const _GRAIL_SEED_LEDGER = window._SEED_LEDGER;   /* v2692 — one definition, named above */
+const _GRAIL_SEED_LEDGER = window._SEED_LEDGER;
+/* v2696 — THE RULING MIGRATIONS ARE A SEED TOO, and they carry exact dates like the others. The
+   v1692/v1693 passes apply items Konyo personally ruled he had found; a board that inherited them
+   must be able to give them back the same way it gives back _GRAIL_SEED. Derived from the very
+   literals those migrations pass to chronicleApply, so the two cannot drift apart. */
+const _RULING_SEED = {"Blackbog's Sharp":"Jul 12, 2026 · 20:46","Chance Guards":"Jun 8, 2026 · 23:22","Gravepalm":"Jun 8, 2026 · 23:44","Hellslayer":"Jul 12, 2026 · 23:34","Islestrike":"Jul 12, 2026 · 19:33","Lidless Wall":"Jul 13, 2026 · 22:12","Pluckeye":"Jul 9, 2026 · 18:51","Sureshrill Frost":"Jul 6, 2026 · 23:59","The Diggler":"?/27/2026 · ?:15 · partial","Vampire Gaze":"Jul 7, 2026 · 00:44"};
+try { window._RULING_SEED = _RULING_SEED; } catch(e){}   /* v2692 — one definition, named above */
 try { window._GRAIL_SEED = _GRAIL_SEED; window._GRAIL_SEED_LEDGER = _GRAIL_SEED_LEDGER; } catch(e){}
 // v682 — SET-PIECE FOUND-SEED: the in-game SETS Chronicle (34 photos, 2026-07-14) — 108 pieces found
 // of the 135-piece universe = the exact 80% the in-game progress bar shows. Same contract as _GRAIL_SEED:
@@ -48889,7 +48982,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2695', name:'v2695 - the heart watches the owner namespace', date:'2026-09-06', note:'a stranger posting owner numbers is now an invariant, not a thing he notices' };
+  window.D2R_BUILD = { id:'v2696', name:'v2696 - the claim button stops promising data that is not yours', date:'2026-09-06', note:'a world reporting nothing while holding a ledger is now flagged by the heart' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
