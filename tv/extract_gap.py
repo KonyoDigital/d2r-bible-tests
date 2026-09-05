@@ -190,6 +190,26 @@ def gap(reels=None, river=None):
         else:
             scenario, s_why = "UNKNOWN", "no name was read for this reel, so no scenario applies"
         has_seal = sid in seals
+        # ⚠⚠ v2692 — "HAS A SEAL" AND "THE SEAL CERTIFIES THE EXTRACTION" ARE TWO DIFFERENT FACTS,
+        # and this file reported only the first, so every reader (including me, all session) took
+        # one for the other. MEASURED on his tree: 30 seals on disk, ZERO satisfying
+        # EXTRACTION_CONTRACT ('name','location','provenance') — 22 carry an `extracted` list
+        # missing 'name', 8 predate the contract and carry none at all.
+        # Thirty reels LOOK sealed and none is certified. A SEAL-ALL surface built on `sealed`
+        # alone would print 40/40 while certifying nothing, which is the exact conflation
+        # frame_authority guards against one layer down: "an unstated fact is an unextracted one".
+        # Reported, never inferred: this asks frame_authority rather than re-deriving the rule.
+        # [[unknown-stays-unknown]] [[label-outlived-referent]]
+        _cert, _cert_why = (False, "no seal for this session")
+        if has_seal:
+            try:
+                # local import: `FA` above lives inside a try, so it is undefined on the path where
+                # frame_authority would not load — and a NameError there would read as "not
+                # certified" rather than "could not be asked".
+                import frame_authority as _FA
+                _cert, _cert_why = _FA.seal_covers_extraction(seals.get(sid) or {})
+            except Exception as _e:
+                _cert, _cert_why = (False, "the contract could not be asked (%s)" % str(_e)[:60])
 
         if not seals and swhy:
             state, why = UNKNOWN, swhy
@@ -212,7 +232,8 @@ def gap(reels=None, river=None):
             why = "no seal, and no item name was ever read for this session"
 
         rows.append({"reel": reel, "session": sid, "state": state, "names": n,
-                     "sealed": has_seal, "why": why,
+                     "sealed": has_seal, "certified": bool(_cert), "certifiedWhy": _cert_why,
+                     "why": why,
                      "scenario": scenario, "scenarioWhy": s_why,
                      # ⚠ v2588 — THE CHRONICLE COUNT WAS DROPPED. A cold review noticed the
                      # scenario is an if/elif, so a reel with BOTH panel and chronicle names
