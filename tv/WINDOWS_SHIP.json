@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2662",
+  "ver": "v2663",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2662: REG-617: _craftBuffsHtml read an identifier that was never declared",
+  "note": "v2663: REG-615 spacing fix + REG-618 write-baseline exited 1 on success",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

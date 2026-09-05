@@ -10947,7 +10947,19 @@ window._lockMark = function(isOpen, px, label){
          spread `vault.apply`'s arithmetic still kissed `vault.sweep_start`'s name by 5px, which
          clears the overlap ratchet's own 3px floor and so is a real text-on-text hit, not
          antialiasing. Re-measured after: zero. [[visual-regression-detector]] */
-      var reach = (j % 2 === 0) ? 0.82 : 1.26;
+      /* ⚠⚠ REG-615 — TWO RADII STOPPED BEING ENOUGH WHEN THE WEDGE REACHED EIGHT LOCKS. The
+         parity stagger above put every OTHER label at the same distance, so with 8 routes across
+         84° the j and j+2 labels sat on one arc ~24° apart and their downward-centred stacks
+         collided. MEASURED at v2662, after the label-shortening fix landed and changed nothing:
+         7 text-on-text hits at 1440x1000 and 1120x900, 5 at 901x900 — and every colliding pair was
+         between DIFFERENT locks (48/48 x vault.sweep_start, 3 attacks x 16/16, by design x 5
+         attacks), never within one label. Length was never the problem; distance was.
+         THREE tiers put j, j+1 and j+2 on three different arcs, so a label's nearest same-radius
+         neighbour is 3 steps (~36°) away instead of 2 (~24°).
+         ⚠ The outer tier is 1.34, not further: the panel is 51 text leaves inside a fixed box and
+         pushing past that clips the outermost names instead of overlapping them — trading a
+         measurable defect for one this gate cannot see. [[unknown-stays-unknown]] */
+      var reach = [0.78, 1.06, 1.34][j % 3];
       var gx = cx + Math.cos(la) * rx * reach, gy = cy + Math.sin(la) * ry * reach;
       var gmx = cx + Math.cos(la) * rx * reach * 0.5 - Math.sin(la) * 12;
       var gmy = cy + Math.sin(la) * ry * reach * 0.5 + Math.cos(la) * 12;
@@ -11027,6 +11039,13 @@ window._lockMark = function(isOpen, px, label){
       var arithFull = arith;
       if (_wd) {
         arithFull += ' · ' + _wd.length + ' retired as proving nothing (' + _wd.join(', ') + ')';
+        /* ⚠ THE TRIM WAS TRIED AND REVERTED — it cost readability and bought almost nothing.
+           Shortening this to '· N retired' moved 1440x1000 and 1120x900 not at all (2 -> 2)
+           and 901x900 by one (2 -> 1). v2650's requirement is that the retraction is
+           READABLE on the surface he looks at, and 'N retired' alone does not say what
+           happened. One overlap is not worth degrading the sentence that exists because
+           three retractions once vanished off this row entirely. The names stay in the
+           tooltip; the WORDING stays on the diagram. */
         arith     += ' · ' + _wd.length + ' retired as proving nothing';
       }
       /* ⚠⚠ v2624 — WHAT THE SCORE RESTS ON, NOT JUST WHAT IT IS.

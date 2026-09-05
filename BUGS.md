@@ -20668,3 +20668,108 @@ overlaps were between *different* locks' sublines — `vault.sweep_start`'s `16/
 over `vault.apply`'s `48/48 refused · 0.926`, and `vault.forget` over `printer.stream` — caused by
 angular crowding at the bottom of the wedge, which no amount of shortening one label can fix.
 A drop from 7 to a smaller number is progress, not a close.
+
+## ⚠ REG-615 CORRECTION — the fix took, and it did NOT reduce the overlap count
+
+The v2662 entry above describes the change accurately but implies it addressed the defect. It did
+not, and the re-measurement says so plainly.
+
+**The fix took.** Read off the served, opened panel (44 text leaves, using `overlap_ratchet`'s own
+`heart-chip` opener rather than a guess): the label now renders
+`56/64 refused · 0.772 ≥ 0.510 · 4 retired as proving nothing` — **without** the name list, which
+now lives in the `<title>` as designed.
+
+**The count did not move.**
+
+| key | baseline | after the fix |
+|---|---|---|
+| `1120x900 heart-ov` | 0 | **7** |
+| `1440x1000 heart-ov` | 0 | **7** |
+| `901x900 heart-ov` | 0 | **5** ← a third width, never previously measured |
+
+The colliding pairs are byte-identical to before, at identical offsets:
+`48/48 refused · 0.926` × `vault.sweep_start` (ox=32) · `48/48` × `16/16 refused · 0.806` (ox=58) ·
+`3 attacks · each run 16.0×` × `16/16` (ox=73) · `3 attacks` × `2 attacks · each run 8.0×` (ox=86) ·
+`by design · no refusal pat` × `5 attacks · each run 16.6×` (ox=39) ·
+`vault.sweep_start` × `56/64 refused · 0.772` (ox=126) ·
+`vault.sweep_start` × `8 attacks · each run 8.0×` (ox=50).
+
+**Not one of the seven involves the text that was shortened.** The risk flagged before measuring —
+that several collisions are angular crowding between *different* locks — turned out to be **all**
+of it. The real fix is spacing in the wedge, not label length. **REG-615 stays OPEN.**
+
+⚠ **Ruled out before blaming the fix**, in this order: `arithFull` is present in the working tree
+*and* on origin; `overlap_ratchet` SERVES the console via `_serve_console()`; and `control_app`
+reads `control_ui.html` **per request** (`control_app.py:23978`), not cached at import.
+
+⚠⚠ **AND MY OWN PROBE FAILED FIRST, RETURNING SOMETHING THAT LOOKED LIKE AN ANSWER.** Asking the
+page for the label text returned `[]`. That was not the fix missing — **I never called `activate`,
+so I read a CLOSED panel.** An empty list from an unopened overlay is indistinguishable from "the
+text is gone", and it pointed at exactly the wrong conclusion. The re-run used the gate's own
+opener and a guard that fails loudly on zero text leaves instead of returning a clean-looking
+empty result. *A probe that cannot tell "shut" from "clean" is not an instrument.*
+
+## REG-618 — `--write-baseline` exited 1 on a run that had SUCCEEDED (v2663)
+
+Found by reading a non-zero exit that a green `--check` immediately after it would otherwise have
+explained away.
+
+```
+wrote /Users/konyo/d2r_bible_tests/baseline/overlap_baseline.json
+Traceback (most recent call last):
+  File "tv/overlap_ratchet.py", line 435, in write_baseline
+    if v["count"] is None else "%d overlap(s)" % v["count"]
+TypeError: %d format: a number is required, not str
+```
+
+The file was already written. The crash was in the **summary print** afterwards: the branch tested
+`v["count"] is None`, but an unstable key is stored as the literal string `"UNSTABLE"` — its own
+sentinel, chosen deliberately because `None` already means MALFORMED BASELINE. So every bare-width
+key fell through to `"%d" % "UNSTABLE"` and raised.
+
+**Why it mattered rather than being cosmetic:** `--write-baseline` reported failure for a bless
+that had succeeded. A caller reading that status concludes the baseline was not written and
+re-runs it — and re-running a bless is precisely the action this module warns about, since a
+second run bakes in whatever the tree happens to measure at that moment.
+
+**Fixed:** the branch tests for a real integer, and a `bool` is explicitly excluded —
+`isinstance(True, int)` is `True` in Python, and this repo has already been bitten by that exact
+thing (REG-600's disk rows carried `prunedMb: true` and produced *"2 MB of that was freed"* out of
+two booleans). Verified across all four shapes: `7 → "7 overlap(s)"`, and `True` / `"UNSTABLE"` /
+`None` all → the sentinel line. 15 tests green.
+
+## REG-615 — CLOSED to recorded debt: the cause was DISTANCE, then length (v2663)
+
+The full arc, because the order of the two findings is the lesson:
+
+| step | 1440x1000 | 1120x900 | 901x900 |
+|---|---|---|---|
+| baseline claimed | 0 | 0 | 0 |
+| measured | **7** | **7** | **5** |
+| after shortening the label (v2662) | **7** | **7** | 5 |
+| after three-tier radial stagger | **2** | **2** | **2** |
+
+Shortening the longest label changed **nothing** — every colliding pair was between *different*
+locks, never inside one label. The cause was `control_ui.html:10951`, which staggers `reach` on
+INDEX PARITY (`0.82 / 1.26`). That was tuned at v2624 for a smaller wedge; with **eight** locks
+across 84°, every other label sits on the same arc ~24° apart and their downward-centred stacks
+collide. `reach = [0.78, 1.06, 1.34][j % 3]` puts the nearest same-radius neighbour ~36° away.
+
+⚠ The outer tier is capped at 1.34 deliberately. The panel is a fixed box with 51 text leaves;
+reaching further **clips** the outermost names instead of overlapping them — trading a defect this
+gate measures for one it cannot see.
+
+⚠ **A further trim was tried and REVERTED.** Shortening to `· N retired` moved 1440 and 1120 not at
+all and 901 by one. v2650's sentence exists because three retractions once vanished off that row
+entirely; one overlap is not worth degrading it.
+
+**Blessed deliberately, after fixing — not instead of it.** This module warns that debt gets
+*"cleared by `--write-baseline` instead of by fixing anything"*, which is how the swallow ratchet
+was once wiped. It also states that **a FALL fails too until it is blessed deliberately**. 7→2 is a
+fall, so the bless is the sanctioned step. The same write stamps `_venue: Darwin`, which ends the
+`baseline venue mismatch` skip that had left this gate refusing to grade on **every** platform.
+`--check` now returns `✅ held.`
+
+⚠ **The remaining 2 are DEBT, recorded as debt, not called fine** — the module's own standard:
+*"calling them 'fine' would be a verdict nobody earned."* Both are prune.reports' outlier-length
+first line (~60 chars against ~29) hitting `vault.forget` and `reel.route`.

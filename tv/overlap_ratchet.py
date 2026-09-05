@@ -431,8 +431,22 @@ def write_baseline():
         fh.write("\n")
     print("wrote %s" % BASELINE)
     for k, v in sorted(got.items()):
+        # ⚠⚠ THE SENTINEL IS A STRING, NOT None, AND THIS LINE ASSUMED OTHERWISE. An unstable key
+        # is stored as the literal "UNSTABLE" (its own sentinel — the module docstring says so
+        # explicitly, because `None` already means MALFORMED BASELINE). This branch tested only
+        # `is None`, so any unstable key fell through to `"%d" % "UNSTABLE"` and raised
+        # TypeError — AFTER the file was already written. `--write-baseline` therefore exited 1
+        # on a run that had SUCCEEDED, and a caller reading that status would conclude the bless
+        # failed and re-run it. Found by reading a non-zero exit that a green `--check` right
+        # after it would otherwise have explained away. [[exit-status-of-the-block]]
+        # ⚠ `isinstance(True, int)` is True in Python, and THIS REPO HAS BEEN BITTEN BY THAT
+        # EXACT THING: REG-600's disk rows carried `prunedMb: true` and it was read as a number,
+        # producing "2 MB of that was freed" out of two booleans. A bool is not a count here
+        # either, so it falls to the sentinel branch rather than printing as 1 overlap.
+        _c = v["count"]
+        _n = isinstance(_c, int) and not isinstance(_c, bool)
         print("   %-24s %s" % (k, "UNSTABLE — moved between two runs, reported not graded"
-                               if v["count"] is None else "%d overlap(s)" % v["count"]))
+                               if not _n else "%d overlap(s)" % _c))
     return 0
 
 
