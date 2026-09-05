@@ -225,7 +225,17 @@ test('the pending row is judged NOW, not when it was queued', async ({ page }) =
   // and both buttons to zero width. textContent was perfect the whole time; only pixels showed it.
   const box = await row.locator('.ibp-nm').boundingBox();
   expect(box!.width).toBeGreaterThan(40);
-  for (const label of ['tick it', 'ignore']) {
+  /* v2682 — THE THIRD SPEC OF THE SAME BUTTON RENAME, and the most expensive of them.
+     `getByRole('button', { name: 'tick it' })` has no match: the popover renders
+     `📖 Chronicle` (.ibp-ok), `🏦 Vault` (.ibp-vault), `📖🏦 Both` (.ibp-both) and `ignore`.
+     Measured on CI — `locator.boundingBox: Test timeout of 120000ms exceeded`, so this one line
+     burned two minutes of every Routine I run before failing. `ignore` still exists and is
+     untouched; only the accept door was renamed.
+     THE LAW IS GEOMETRY, and it is unchanged: this file's own scar is that `.ibp-why` is
+     `flex:0 0 100%` and squeezes the name and both buttons to ZERO width while textContent stays
+     perfect — only pixels showed it. So it still measures an accept door and a dismiss door, by
+     the names they actually carry. [[label-outlived-referent]] */
+  for (const label of ['Chronicle', 'ignore']) {
     const bb = await row.getByRole('button', { name: label }).boundingBox();
     expect(bb!.width).toBeGreaterThan(20);
   }

@@ -20999,6 +20999,32 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-657 — the third spec of one button rename, and the one that cost two minutes a run
+
+`v1794:201` waited on `getByRole('button', { name: 'tick it' })`. That button does not exist: the
+inbox popover renders `📖 Chronicle` (`.ibp-ok`), `🏦 Vault` (`.ibp-vault`), `📖🏦 Both`
+(`.ibp-both`) and `ignore`. Measured on CI:
+
+```
+Error: locator.boundingBox: Test timeout of 120000ms exceeded.
+  waiting for locator('#inbox-pop .ibp-row').first().getByRole('button', { name: 'tick it' })
+```
+
+**One line, two minutes, every Routine I run.** `ignore` still exists and was untouched — only the
+accept door was renamed.
+
+⚠ **THIRD SPEC OF THE SAME RENAME, FOUND ONE AT A TIME.** `v1789:288` and `v2193:196` were the
+first two, and after each I swept — for the string I had just fixed. `v1794` used a different
+API (`getByRole` with an accessible NAME rather than a class or a text match), so a grep for the
+earlier shapes could not see it. **A sweep is only as wide as the shape you search for**, and this
+class has now surfaced through three different spellings: a class list, a source literal, and a
+role name. The sweep after this one covered all three.
+
+The law is unchanged and is why the test exists: this file's own scar is that `.ibp-why` is
+`flex:0 0 100%` and squeezes the name and both buttons to ZERO width while `textContent` stays
+perfect — only pixels showed it. It still measures an accept door and a dismiss door, by the names
+they actually carry. [[label-outlived-referent]] [[sweep-dont-ask]]
+
 ## REG-656 — the vault could not resolve a "Renewed" sunder, and the console table could (v2681)
 
 His ruling, in his words: *"the vault and the console as a whole engine need to know there is 3 of
