@@ -193,6 +193,25 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_printer_reach_facts",
+         [sys.executable, os.path.join(HERE, "test_printer_reach_facts.py")], 60,
+         why="A 70-CHARACTER WINDOW MANUFACTURED A FINDING AND THE MODULE PUBLISHED IT. "
+             "`printer_reach` keyed its refusal tally on `str(cwhy)[:70]`. The refusal names EVERY "
+             "missing contract fact in one sentence, and 70 chars lands part-way through the FIRST "
+             "fact's explanation — so every distinct refusal collapsed into one bucket whose text "
+             "ended inside the word `name`, and the module's own docstring then stated as a "
+             "measurement: 'ALL 22 fail on the SAME single fact: name'. MEASURED UNTRUNCATED "
+             "2026-09-05: name, location AND provenance are missing on ALL 30 seals. ⚠ The "
+             "correction is not pedantry — one missing fact is a reader change, while `location` "
+             "missing is a CAPTURE question (0 of 1,065 deep rows carry a cell) and therefore HIS "
+             "ruling, so a finding naming the wrong blocker sends the next person to the wrong "
+             "file. Same shape as [[source-window-shortcut]]: a fixed slice of something whose "
+             "length you did not check does not shorten the answer, it produces a different one. "
+             "⚠⚠ THESE GUARDS GRADE BEHAVIOUR, NOT TEXT — my first cut asserted `'[:70]' not in "
+             "source` and FAILED on the comment DESCRIBING the defect; the second asserted the "
+             "false claim was ABSENT and failed because the correction QUOTES it in order to "
+             "retract it. Third prose-grading guard in two versions. RED-proven: restoring the "
+             "truncation drops the longest blocked key to 70 and the behavioural check fails."),
     Gate("test_board_tally_alarm",
          [sys.executable, os.path.join(HERE, "test_board_tally_alarm.py")], 90,
          why="CF-5 — A FALSE ALARM THAT BLINDED A REAL WATCHDOG FOR 7.8 DAYS. MEASURED on his live "

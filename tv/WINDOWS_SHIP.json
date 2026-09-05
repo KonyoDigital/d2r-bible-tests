@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2644",
+  "ver": "v2645",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2644: v2461 diagnosed .78em crossing the 13px floor and only one of the three chips it describes got the token. rcpt-sure and rcpt-held kept it for 183 versions with the diagnosis sitting between them, and the guard written for that scar matched px only while the file carries 13 em sizes. Measured at his 1120: token 13px, old 11.7px.",
+  "note": "v2645: printer_reach keyed its refusal tally on a 70-char slice, collapsing every distinct refusal into one bucket ending inside the word name - and published ALL 22 fail on the SAME single fact as a measurement. Untruncated: name, location and provenance all missing on all 30 seals. The difference decides whether the fix is a reader change or his capture ruling.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

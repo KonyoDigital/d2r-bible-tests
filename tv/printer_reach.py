@@ -11,8 +11,16 @@ A4 was born from — reels claiming "examined, nothing to take" while a survey s
 — returns ZERO on this tree. That zero is NOT a pipeline shown healthy. Measured 2026-09-03:
 
     30 seals in the store
-    22 carry an `extracted` record, and ALL 22 fail on the SAME single fact: `name`
+    22 carry an `extracted` record — and it is EMPTY on every one of them
      8 predate the extraction contract entirely
+
+⚠ THE LINE ABOVE USED TO READ "ALL 22 fail on the SAME single fact: `name`". That was FALSE and
+this module manufactured it itself: the loop keyed its tally on `str(cwhy)[:70]`, and 70 characters
+lands part-way through the FIRST missing fact's explanation, so every distinct refusal collapsed
+into one bucket that happened to end inside the word `name`. Re-measured 2026-09-05 without the
+cut: **name, location AND provenance are missing on all 30 seals.** The correction matters because
+the two readings imply different work — one missing fact is a reader change; `location` missing is
+a CAPTURE question (0 of 1,065 deep rows carry a cell), and that is his ruling to make, not mine.
     -> 0 seals satisfy EXTRACTION_CONTRACT, so no reel can become disposable,
        so the contradiction is STRUCTURALLY UNREACHABLE rather than absent.
 
@@ -86,25 +94,41 @@ def report():
     # ⚠ REG-546 — every return carries the same keys; these three dropped `blocked`, so a caller
     # reading it broke on exactly the paths that mean NOTHING WAS ESTABLISHED.
     if tri is None:
-        return {"state": UNKNOWN, "why": why, "rows": [], "counts": {}, "blocked": {}}
+        return {"state": UNKNOWN, "why": why, "rows": [], "counts": {}, "blocked": {}, "missingByFact": {}}
     try:
         import frame_authority as FA
     except Exception as e:
-        return {"state": UNKNOWN, "rows": [], "counts": {}, "blocked": {},
+        return {"state": UNKNOWN, "rows": [], "counts": {}, "blocked": {}, "missingByFact": {},
                 "why": "frame_authority will not import (%s), so no seal can be read" % str(e)[:70]}
     seals, ok = FA.sealed_sessions()
     if not ok or not isinstance(seals, dict):
-        return {"state": UNKNOWN, "rows": [], "counts": {}, "blocked": {},
+        return {"state": UNKNOWN, "rows": [], "counts": {}, "blocked": {}, "missingByFact": {},
                 "why": "the seal store could not be read — that is UNKNOWN, not an unsealed corpus"}
 
     # how many seals could EVER let a reel become disposable, and why the rest cannot
-    satisfied, blocked = [], {}
+    satisfied, blocked, missing_by_fact = [], {}, {}
     for key, row in seals.items():
         covers, cwhy = FA.seal_covers_extraction(row if isinstance(row, dict) else {})
         if covers:
             satisfied.append(key)
         else:
-            blocked[str(cwhy)[:70]] = blocked.get(str(cwhy)[:70], 0) + 1
+            # ⚠⚠ v2645 — `[:70]` MANUFACTURED A FALSE FINDING AND THIS FILE PUBLISHED IT.
+            # The refusal names every missing fact in one sentence; cutting at 70 characters lands
+            # part-way through the FIRST fact's explanation, so every row read as "fails on name".
+            # This module's own docstring then stated "ALL 22 fail on the SAME single fact: name".
+            # MEASURED 2026-09-05 untruncated: name, location AND provenance are missing on ALL 30
+            # seals — the shelf fails on THREE facts, not one, and the difference decides whether
+            # the fix is one reader change or a capture change. A window that cuts a sentence in
+            # half does not shorten the finding, it invents a different one.
+            # [[source-window-shortcut]] [[label-outlived-referent]]
+            key_why = str(cwhy)
+            blocked[key_why] = blocked.get(key_why, 0) + 1
+            # per-FACT tally, so "which fact" is answerable without reading prose
+            _ex = row.get("extracted") if isinstance(row, dict) else None
+            _have = set(_ex) if isinstance(_ex, list) else set()
+            for _f in FA.EXTRACTION_CONTRACT:
+                if _f not in _have:
+                    missing_by_fact[_f] = missing_by_fact.get(_f, 0) + 1
 
     joined, contradictions = 0, []
     for rk, t in tri.items():
@@ -122,13 +146,13 @@ def report():
               "sealsSatisfyingContract": len(satisfied)}
     if contradictions:
         return {"state": CONTRADICTION, "rows": contradictions, "counts": counts,
-                "blocked": blocked,
+                "blocked": blocked, "missingByFact": missing_by_fact,
                 "why": ("%d reel(s) carry a seal certifying full extraction while the survey says "
                         "they still held panels. This is the case A4 was born from and the printer "
                         "may not ship without handling it." % len(contradictions))}
     # ⚠ THE ZERO HAS TO EARN THE WORD "CLEAN".
     if not satisfied:
-        return {"state": UNREACHABLE, "rows": [], "counts": counts, "blocked": blocked,
+        return {"state": UNREACHABLE, "rows": [], "counts": counts, "blocked": blocked, "missingByFact": missing_by_fact,
                 "why": ("NOT ONE of the %d seals satisfies the extraction contract, so no reel can "
                         "be judged disposable and the contradiction cannot arise at all. Zero "
                         "contradictions here measures the CONTRACT REFUSING EVERY SEAL, not a "
@@ -137,11 +161,11 @@ def report():
                                                  for w, n in sorted(blocked.items(),
                                                                     key=lambda kv: -kv[1])[:2])))}
     if not joined:
-        return {"state": UNREACHABLE, "rows": [], "counts": counts, "blocked": blocked,
+        return {"state": UNREACHABLE, "rows": [], "counts": counts, "blocked": blocked, "missingByFact": missing_by_fact,
                 "why": ("no triage row joined a seal, so nothing was compared. The two stores are "
                         "keyed differently (`reel_<session>` against `<session>`) and a zero here "
                         "would be measuring the join, not the corpus.")}
-    return {"state": CLEAN, "rows": [], "counts": counts, "blocked": blocked,
+    return {"state": CLEAN, "rows": [], "counts": counts, "blocked": blocked, "missingByFact": missing_by_fact,
             "why": ("%d reel(s) joined a seal and %d seal(s) certify full extraction; none of them "
                     "sits on a reel the survey says held panels." % (joined, len(satisfied)))}
 
