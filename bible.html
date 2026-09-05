@@ -33564,7 +33564,7 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vrg-det[open] .vrg-chev{transform:rotate(180deg)}
 .vrg-body{padding:4px 12px 12px}
 /* v342.21 — side-by-side bucket columns, each with its own header + independent scrollbar */
-.vrg-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:11px}/* v2267 — 250px COULD NOT HOLD THE ROW IT WAS ASKED TO HOLD. Measured fixed costs per row:
+.vrg-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(330px,100%),1fr));gap:11px}/* ⚠⚠ v2688 — REG-621's ROOT CAUSE, AND IT WAS NEVER THE ROW. A bare minmax(330px,1fr) is a FLOOR the track cannot go below, so on a container narrower than 330 the column keeps its 330 and spills. MEASURED at 375x800: .vrg-cols 276 wide holding a .vrg-col 330 wide - the child 54px wider than the track containing it - and every descendant rode along, putting .vrg-x at right 349 against a clipping ancestor at 333. min(330px,100%) lets the track collapse to the container where there is no room and changes NOTHING at 901 or 1440, where 100% is already wider than 330. Two fixes had gone at this from the wrong end (v2665 made the name shrinkable, v2688 lowered its floor) and both were necessary-and-not-sufficient, because the overflow was one level up from where anyone was looking. *//* v2267 — 250px COULD NOT HOLD THE ROW IT WAS ASKED TO HOLD. Measured fixed costs per row:
    art 26 + value 32 + destination tag 82 + close 18 + four 8px gaps 32 + padding 14 = 204px,
    leaving 29px of a 233px row for the item NAME. Giving the name a floor alone just moved the
    squeeze onto the tag (40/40 tags then clipped) — the column was simply too narrow for its
@@ -33696,7 +33696,46 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
    25%% at 375. So the name holds its ground where the row can afford it and yields on a
    phone, which is the same trade he wrote into the test. 640px is an existing breakpoint in
    this file (4 uses), not one invented for this fix. */
-@media (max-width:640px){ .vrg-name{flex:1 1 auto} }
+/* ⚠⚠ v2688 — REG-621: THE 88px FLOOR LEFT THE ROW WITH EXACTLY ZERO SLACK, so the remove
+   button was pushed outside .vrg-det, which carries overflow:hidden. MEASURED at 375x800 on a
+   served page, one row, every child:
+       art 26 + name 88 + copies 38.1 + val 31.7 + tag 29.2 + x 18   = 231.0 content
+       + margins 20 + gaps (8px x 5) 40 + row padding 14             = 305.0 row
+       against .vrg-det clientWidth                                  = 300
+   The row is 5px wider than the box that clips it, and the name was ALREADY at its floor, so
+   nothing in the row could yield. v2665 made the name shrinkable here (flex:1 1 auto) and that
+   was necessary and not sufficient: a shrinkable box with an 88px minimum stops shrinking at 88.
+   ⚠ AND THE BUTTONS ARE UNREACHABLE, NOT MERELY UGLY: scrollWidth 300 === clientWidth 300, so
+   the column cannot scroll to what it clipped. A control you cannot reach is a functional defect
+   that a text-clipping probe reads as 0%% cut. That is why v2267 asserts containment as well.
+   ⚠ THE FLOOR IS LOWERED, NOT REMOVED, AND ONLY ON A PHONE. 56px still holds roughly seven
+   characters plus the ellipsis, and v2267 already budgets 25%% cut at 375 while demanding 0%% at
+   901 and 1440 — so this is the trade HIS OWN SPEC wrote down, applied where the row cannot
+   afford the wider one. [[REG-621]] */
+@media (max-width:640px){
+  .vrg-name{flex:1 1 auto;min-width:56px}
+  /* ⚠ v2688 — THE NAME IS BOUGHT BACK FROM SPACING, NOT FROM INFORMATION. With the track
+     collapsed to 276 the row's fixed costs left the name 57px and EVERY name ellipsised (100%%
+     cut, against the 25%% v2267 budgets at this width). The alternative was hiding .vrg-copies or
+     .vrg-tag on a phone, which deletes a fact he reads rather than shortening it. Gaps and
+     margins carry no information, so they yield first: gap 8->4 (5 gaps, 20px), the three
+     margin-lefts 6/6/8 -> 3/3/4 (10px), row padding 7->5 (4px). 34px back into the name. */
+  .vrg-row{gap:4px;padding:5px 5px;align-items:flex-start}
+  /* ⚠ v2688 — ON A PHONE THE NAME WRAPS INSTEAD OF TRUNCATING, AND THAT IS THE WHOLE POINT OF
+     v2267. Even after the track collapsed and 34px came back from spacing, the worst name was 53%%
+     cut against a 25%% budget - and the remaining ways to buy width all DELETE something he reads
+     (.vrg-copies is how many he holds, .vrg-tag is where it sits). Truncation and hiding lose the
+     same information; wrapping loses none, and costs row height, which a phone has and a row does
+     not. scrollWidth then never exceeds clientWidth, so `cut` is 0 by construction rather than by
+     a budget nobody could meet. align-items:flex-start keeps the chips on the first line beside a
+     name that now occupies two. */
+  .vrg-name{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25;overflow-wrap:anywhere}
+  /* ⚠ overflow-wrap:anywhere, because WRAPPING ALONE LEFT 27%% AND THE BUDGET IS 25%%. A
+     wrap can only break BETWEEN words, so a single long token ('Kaleidoscope') still
+     overflowed its box and one name carried the whole failure. Measured: 27 -> 0. */
+  .vrg-copies,.vrg-val{margin-left:3px}
+  .vrg-x{margin-left:4px}
+}
 /* ══ v2267 — THE ITEM NAME WAS THE ONLY THING IN THE ROW ALLOWED TO SHRINK ══════════
    Measured on the vault tab, natural state, no fixture: ALL 40 .vrg-name cells clipped,
    at 1440 AND 901 AND 375, with cuts of 73-97%%:
@@ -48558,7 +48597,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2687', name:'v2687 - the entry stamp', date:'2026-09-05', note:'the door that opened a reel now travels with it, and every door earns its denominator' };
+  window.D2R_BUILD = { id:'v2688', name:'v2688 - REG-621 closed', date:'2026-09-05', note:'the remove buttons were unreachable at 375px because a grid track could not collapse' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

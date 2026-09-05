@@ -21957,3 +21957,28 @@ unreachable buttons are fine, which is a verdict nobody earned.
   only in `bible.html`, a SEPARATE document, and custom properties do not cross the iframe. So the
   fallback was the only value that ever painted. `--rar-set` IS defined there and is the same
   `#00fc00`: byte-identical output, rejoined to the token system.
+
+## REG-621 — the remove buttons were unreachable at 375px (FIXED v2688)
+
+`.vrg-cols` used `grid-template-columns:repeat(auto-fill,minmax(330px,1fr))`. The 330px is a
+FLOOR, so on a container narrower than 330 the track keeps its 330 and the column spills.
+Measured 375x800, served: `.vrg-cols` 276 wide holding a `.vrg-col` 330 wide — 54px of blowout —
+and every descendant rode along, putting `.vrg-x` at right 349 against a clipping ancestor at
+333. `.vrg-det` carries `overflow:hidden` AND `scrollWidth 300 === clientWidth 300`, so the
+clipped controls could not be scrolled to. Unreachable, not merely ugly.
+
+TWO EARLIER FIXES WENT AT IT FROM THE WRONG END and both were necessary-and-not-sufficient:
+v2665 made the name shrinkable (`flex:1 1 auto`), v2688 first lowered its floor 88->56. Neither
+could work, because the overflow was one level ABOVE the row everyone was measuring. The tell
+was in the data the whole time: the button sat at right 349 whether the name was 88 or 125 wide
+— a constant that no change to the name could move. [[feedback-suspect-the-instrument]]
+
+FIX: `minmax(min(330px,100%),1fr)` lets the track collapse where there is no room and changes
+nothing at 901/1440. Then, with the track at 276, the row still could not seat a readable name:
+34px was bought back from gaps/margins/padding (which carry no information), and the name WRAPS
+on a phone instead of truncating, with `overflow-wrap:anywhere` for single long tokens.
+Truncating and hiding a chip lose the same information; wrapping loses none and spends row
+height, which a phone has.
+
+MEASURED AFTER, served, 13 rows, three widths: outside 0/0/0 · worstCut 0%/0%/0% · rows
+overflowing 0/0/0. Before: 13 of 13 outside at 375.

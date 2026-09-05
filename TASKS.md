@@ -1328,6 +1328,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2688** | `(this commit)` | v2688 — REG-621: a grid floor of 330px on a 276px container put every remove button out of reach |
 | **v2687** | `(this commit)` | v2687 — the entry stamp: the door travels with the reel, and onair/mini finally earn a denominator |
 | **v2686** | `(this commit)` | v2686 — his two rulings: contrast to 4.86:1, and symmetric pills |
 | **v2685** | `(this commit)` | v2685 — I broke one of his rulings implementing a later one; reverted |
