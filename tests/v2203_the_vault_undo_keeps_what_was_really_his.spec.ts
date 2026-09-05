@@ -82,21 +82,22 @@ async function ready(page: any) {
  * short of the line under test is the blind-fixture shape, and it passed for three versions while
  * the gate it was supposed to cover was inert. [[feedback-blind-fixture-green-gate]]
  */
-test('the undo REFUSES on a board carrying a retirement stamp and 280 owned names', async ({ page }) => {
-  /* v2674 — THE SEED USED 280 NAMES THAT CANNOT SURVIVE A LOAD, so this measured the SANITISER
-     and blamed the undo. `Item 0 … Item 279` are not real items, and `_v42_sanitizeWishlistOwned`
-     (bible.html:19562) REBUILDS `d2r_owned` against the roster — ITEM_VALUE ∪ _UNI_EXTRA minus set
-     pieces — so all 280 were correctly pruned to 0. The test then reported "THE UNDO RAN ON A
-     RETIREMENT STAMP AND ATE HIS VAULT — 280 owned went to 0" about an undo that never ran.
+test('the undo REFUSES on a retirement stamp — the same board, stamped, keeps what it kept', async ({ page }) => {
+  /* v2678 — THE ABSOLUTE 280 WAS NEVER REACHABLE, SO THE LAW IS NOW A COMPARISON.
+     v2674 replaced a seed of fake names ("Item 0"…) with 280 REAL ones off the page's own roster.
+     That was an improvement — 0 survivors became 118 — and still the wrong shape. Measured with a
+     fresh page per arm: seed 280 roster names, reload, and **118 survive**, all 118 in the roster.
+     The roster is not the filter: `d2r_owned` is REBUILT at load from the catalogues, so a name
+     written straight into the store is not durable by design. `v2193`'s own failure says it
+     outright — *"the names were never made REAL via _tvExtraRemember"* — and the supported door
+     (`chronicleApply` → `_tvExtraRemember`, bible.html:44263) is the only thing that makes a
+     non-catalogue name survive. **No list of names can make a raw seed durable.**
 
-     ⚠ THE NEXT TEST IN THIS FILE ALREADY WARNED OF EXACTLY THIS: "ASK THE UNDO WHAT IT DECIDED,
-     NOT WHAT THE VAULT LOOKS LIKE AFTERWARDS ... d2r_owned is edited AFTER the undo by
-     _v42_sanitizeWishlistOwned". The lesson was written down one test away and this one still
-     walked into it. [[feedback-blind-fixture-green-gate]]
-
-     Seeded from the page's OWN roster so the names are real and the count assertion means
-     something — it is kept, not dropped, because "the undo ate his vault" is exactly what it is
-     here to catch. */
+     So stop asserting a magic number and assert the actual law. THE LAW IS: *the undo must not
+     REDUCE the vault.* That is a comparison, and a comparison needs no seed to survive anything —
+     both arms are seeded identically and only the retirement stamp differs. It cannot be broken by
+     how the rebuild treats a seed, which is what made the absolute form unfixable.
+     [[feedback-verify-not-proxy]] [[zero-needs-a-denominator]] */
   await page.goto(URL);
   await ready(page);
   const real = await page.evaluate(() => {
@@ -106,29 +107,41 @@ test('the undo REFUSES on a board carrying a retirement stamp and 280 owned name
       .map((x) => (typeof x === 'string' ? x : x && (x.name || x.n)))
       .filter((n) => typeof n === 'string' && n.length > 0);
   });
-  // DENOMINATOR FIRST — a short roster would seed fewer names and the assertion below would then
-  // be measuring the seed, not the undo. [[zero-needs-a-denominator]]
-  expect(real.length, `the roster yielded ${real.length} real names; 280 are needed or this test `
-    + 'measures its own seed').toBeGreaterThanOrEqual(280);
+  expect(real.length, `the roster yielded ${real.length} names; 280 are needed to seed both arms`)
+    .toBeGreaterThanOrEqual(280);
   const SEED = real.slice(0, 280);
 
-  await page.addInitScript((names: string[]) => {
-    // exactly what every board looks like from load 2 onward: the retirement stamp, and a real vault
-    localStorage.setItem('d2r_vaultBackfill_v2200',
-      JSON.stringify({ retired: 'v2203 — sourced from found-ever, not stash evidence' }));
-    localStorage.setItem('d2r_owned', JSON.stringify(names));
-    localStorage.removeItem('d2r_vaultBackfillUndo_v2205');
-  }, SEED);
-  await page.goto(URL);
-  await page.waitForTimeout(2200);
-  const r = await page.evaluate(() => ({
-    owned: JSON.parse(localStorage.getItem('d2r_owned') || '[]').length,
-    undone: JSON.parse(localStorage.getItem('d2r_vaultBackfillUndo_v2205') || 'null'),
-  }));
+  const load = async (withStamp: boolean) => {
+    await page.addInitScript(({ names, stamp }: any) => {
+      localStorage.clear();
+      if (stamp) {
+        localStorage.setItem('d2r_vaultBackfill_v2200',
+          JSON.stringify({ retired: 'v2203 — sourced from found-ever, not stash evidence' }));
+      }
+      localStorage.setItem('d2r_owned', JSON.stringify(names));
+      localStorage.removeItem('d2r_vaultBackfillUndo_v2205');
+    }, { names: SEED, stamp: withStamp });
+    await page.goto(URL);
+    await page.waitForTimeout(2200);
+    return page.evaluate(() => ({
+      owned: JSON.parse(localStorage.getItem('d2r_owned') || '[]').length,
+      undone: JSON.parse(localStorage.getItem('d2r_vaultBackfillUndo_v2205') || 'null'),
+    }));
+  };
+
+  // CONTROL first: the same seed, the same load, WITHOUT the retirement stamp. Whatever the
+  // load-time rebuild keeps is the baseline this board can actually hold.
+  const control = await load(false);
+  // DENOMINATOR — if the control keeps nothing, the comparison below is 0 vs 0 and proves nothing.
+  expect(control.owned, `the control load kept ${control.owned} of ${SEED.length} seeded names; at 0 `
+    + 'this test compares two empty vaults and would pass for the wrong reason').toBeGreaterThan(50);
+
+  const r = await load(true);
   expect(r.owned,
-    'THE UNDO RAN ON A RETIREMENT STAMP AND ATE HIS VAULT — 280 owned went to ' + r.owned +
-    '. The flag is not the damage; only a record carrying COUNTS is evidence the backfill ran.')
-    .toBe(280);
+    'THE UNDO RAN ON A RETIREMENT STAMP AND ATE HIS VAULT — the same board without the stamp kept '
+    + control.owned + ' names, and with it kept ' + r.owned + '. The flag is not the damage; only a '
+    + 'record carrying COUNTS is evidence the backfill ran.')
+    .toBe(control.owned);
   expect(r.undone && r.undone.skipped, 'the undo should have recorded WHY it declined').toBeTruthy();
 });
 

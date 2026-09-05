@@ -20999,6 +20999,40 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-651 — the absolute 280 was never reachable, so the law became a comparison (v2678)
+
+`v2203:85` has failed through two of my fixes, and each one improved the number without fixing the
+shape:
+
+| version | seed | survived a load |
+|---|---|---|
+| before | `Item 0 … Item 279` (fake names) | **0** |
+| v2674 | 280 REAL names off `_gUniqueRoster()` | **118** |
+
+**The roster is not the filter.** Measured with a fresh page per arm: all 118 survivors are roster
+members, so 162 roster names were dropped anyway. `d2r_owned` is **REBUILT at load** from the
+catalogues, so a name written straight into the store is not durable *by design* — `v2193`'s own
+failure says it outright, *"the names were never made REAL via `_tvExtraRemember`"*, and the
+supported door is `chronicleApply` → `_tvExtraRemember` (`bible.html:44263`, whose comment names
+the very "Shako" case). **No list of names can make a raw seed durable**, so no better seed was
+ever going to close this.
+
+So the magic number is gone and the actual law is asserted instead: **the undo must not REDUCE the
+vault.** That is a comparison — both arms seeded identically, only the retirement stamp differing —
+and it cannot be broken by how the rebuild treats a seed, which is exactly what made the absolute
+form unfixable. The control arm carries its own denominator: if it keeps fewer than 50 names the
+test refuses, because 0 vs 0 would otherwise pass for the wrong reason.
+[[feedback-verify-not-proxy]] [[zero-needs-a-denominator]]
+
+⚠ The test's TITLE still said *"and 280 owned names"* after the assertion stopped checking 280.
+Renamed — a title that names a number the test no longer asserts is the same defect one level up.
+[[label-outlived-referent]]
+
+⚠ **CAUGHT BY THE COMPILE CHECK, NOT BY READING:** the first cut left the old
+`const r = await page.evaluate(...)` in place beside the new `const r = await load(true)` —
+`SyntaxError: Identifier 'r' has already been declared`. `playwright test --list` parses without
+launching a browser, which is why it is worth running on every spec edit.
+
 ## REG-650 — the whole-page gate had a NO-OP seed, so its floor measured localStorage, not the page (v2677)
 
 Chasing REG-649 to the bottom turned up a second, deeper defect **in the gate itself**. The `page`

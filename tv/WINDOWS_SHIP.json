@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2677",
+  "ver": "v2678",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2677: the whole-page gate had a no-op seed so its clip floor measured localStorage rather than the page",
+  "note": "v2678: v2203 asserted an absolute 280 that no raw seed can survive; the law is now a control-vs-stamp comparison",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
