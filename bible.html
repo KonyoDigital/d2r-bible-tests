@@ -9,7 +9,7 @@
 <meta name="d2r-build-date" content="2026-07-15">
 <meta name="d2r-build-note" content="📺 TV DIABLO v710.1 — receiver harden (read #s · Shako alias · no un-tick apply · safer chips) + agent port/offline · live scanner on YOUR Claude subscription">
 <style>
-:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#756657;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
+:root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:var(--lh-normal);margin:0}
 html{scroll-behavior:smooth}
@@ -33325,9 +33325,9 @@ body{
 .vault-btn:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 16px rgba(212,168,71,.15);transform:translateY(-1px)}
 .vault-btn-primary{border-color:rgba(102,255,136,.45);color:var(--best,#66ff88)}
 .vault-btn-danger{color:var(--hell,#ff4040)}
-.vault-status{font-size:11.5px;color:var(--text-dim,#756657);margin-left:auto}
+.vault-status{font-size:11.5px;color:var(--text-dim,#8c7a68);margin-left:auto}
 /* dock: the unsorted pile */
-.vault-chip .vc-unown{border:none;background:none;color:var(--text-dim,#756657);cursor:pointer;font-size:var(--fs-meta);padding:0 2px;margin-left:2px;line-height:var(--lh-none)}
+.vault-chip .vc-unown{border:none;background:none;color:var(--text-dim,#8c7a68);cursor:pointer;font-size:var(--fs-meta);padding:0 2px;margin-left:2px;line-height:var(--lh-none)}
 .vault-chip .vc-unown:hover{color:var(--hell,#ff4040)}
 .vault-keep{margin:0 0 14px;padding:11px 14px;border:1px solid rgba(255,120,120,.32);border-left:3px solid #ff7878;border-radius:11px;background:linear-gradient(135deg,rgba(255,120,120,.07),rgba(20,14,9,.3))}
 .vk-head{font-size:12.5px;color:var(--text);margin-bottom:9px}
@@ -33372,7 +33372,7 @@ body{
 /* the name must ellipsise rather than widen its track — one long name would otherwise set the
    width of EVERY column, and the wall returns wearing a grid. The full name stays in `title`. */
 .vault-dock > .vault-chip > span:not(.d2art-wrap){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#756657);font-size:12px;font-style:italic;margin:0 auto}
+.vault-dock:empty::after{content:"every owned item has a home — the vault is in perfect order ✦";color:var(--text-dim,#8c7a68);font-size:12px;font-style:italic;margin:0 auto}
 /* v2328 — nothing owned is not the same fact as nothing left to file; see renderVault */
 .vault-dock[data-owned="0"]:empty::after{content:"nothing is recorded yet — there is nothing to place ✦"}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
@@ -33472,18 +33472,18 @@ body{
 /* v1984 — the lane-lock panel. Deliberately quiet: it is a record of HIS decisions, not an alert. */
 .vault-lane-locks{margin:0 0 12px;padding:9px 12px;border:1px solid var(--border-light);border-radius:10px;background:rgba(255,255,255,.02)}
 .vll-h{font-weight:var(--fw-medium);font-size:var(--fs-micro);letter-spacing:.03em}
-.vll-sub{color:var(--text-dim,#756657);font-size:var(--fs-micro);margin:2px 0 8px}
+.vll-sub{color:var(--text-dim,#8c7a68);font-size:var(--fs-micro);margin:2px 0 8px}
 .vll-list{display:flex;flex-direction:column;gap:5px}
 .vll-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:var(--fs-micro)}
 .vll-nm{color:var(--q-unique);font-weight:var(--fw-medium)}
 .vll-where{color:var(--text-muted,#b5a48a)}
-.vll-mule{color:var(--text-dim,#756657)}
+.vll-mule{color:var(--text-dim,#8c7a68)}
 .vll-who{background:rgba(0,0,0,.25);border:1px solid var(--border-light);border-radius:6px;color:var(--text,#f4e8d0);font-size:var(--fs-micro);padding:2px 7px;min-width:150px}
-.vll-who::placeholder{color:var(--text-dim,#756657);font-style:italic}
-.vll-seen{color:var(--text-dim,#756657);margin-left:auto}
+.vll-who::placeholder{color:var(--text-dim,#8c7a68);font-style:italic}
+.vll-seen{color:var(--text-dim,#8c7a68);margin-left:auto}
 .vll-locked{color:#8fd98f}
 .vll-watching{color:var(--text-muted,#b5a48a)}
-.vll-x{background:none;border:1px solid var(--border-light);border-radius:999px;color:var(--text-dim,#756657);font-size:var(--fs-micro);padding:2px 9px;cursor:pointer}
+.vll-x{background:none;border:1px solid var(--border-light);border-radius:999px;color:var(--text-dim,#8c7a68);font-size:var(--fs-micro);padding:2px 9px;cursor:pointer}
 .vll-x:hover{color:var(--text,#f4e8d0);border-color:var(--text-muted,#b5a48a)}
 .to-det{border:1px solid rgba(212,168,71,.22);border-radius:12px;background:rgba(154,166,178,.05);overflow:hidden}
 /* v610 — FLAGSHIP section headers (Konyo: "i want to understand that it's a section… flagship it").
@@ -33681,8 +33681,8 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .pf-own{color:#7fd4ff}
 .pf-throw{color:#9aa6b2}
 .pf-err{color:var(--hell,#ff4040)}
-.pf-empty{color:#756657}
-.pf-dim{color:#756657}
+.pf-empty{color:#8c7a68}
+.pf-dim{color:#8c7a68}
 .vrg-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:7px}
 .vrg-row:hover{background:rgba(255,255,255,.05)}
 .vrg-name{flex:1 0 auto;min-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-body);color:var(--text)}
@@ -33828,9 +33828,9 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vg-unknown{background:repeating-linear-gradient(45deg,rgba(181,164,138,.35) 0 4px,transparent 4px 8px)!important;width:100%!important}
 .vm-tools{display:flex;gap:2px;opacity:0;transition:opacity .15s}
 .vault-mule:hover .vm-tools{opacity:1}
-.vm-tool{background:none;border:none;color:var(--text-dim,#756657);cursor:pointer;font-size:var(--fs-meta);padding:2px 4px}
+.vm-tool{background:none;border:none;color:var(--text-dim,#8c7a68);cursor:pointer;font-size:var(--fs-meta);padding:2px 4px}
 .vm-tool:hover{color:var(--gold-bright,#f0c060)}
-.vm-note{padding:6px 11px 0;font-size:10.5px;color:var(--text-dim,#756657);line-height:var(--lh-snug);font-style:italic}
+.vm-note{padding:6px 11px 0;font-size:10.5px;color:var(--text-dim,#8c7a68);line-height:var(--lh-snug);font-style:italic}
 .vm-gauge{height:4px;margin:8px 11px 0;border-radius:2px;background:rgba(0,0,0,.55);overflow:hidden}
 .vm-gauge-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#9a7426,var(--gold-bright,#f0c060));transition:width .35s var(--ease-out,ease)}
 .vm-gauge-fill.vg-hot{background:linear-gradient(90deg,#c2541f,var(--hell,#ff4040))}
@@ -33847,12 +33847,12 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vm-more-sum:hover{background:rgba(240,192,96,.1);border-color:rgba(240,192,96,.5);color:var(--gold-bright,#f0c060)}
 .vm-more[open] > .vm-more-sum .vmm-open{display:none}
 .vm-more:not([open]) > .vm-more-sum .vmm-close{display:none}
-.vm-unassign{background:none;border:none;color:var(--text-dim,#756657);cursor:pointer;font-size:var(--fs-micro);padding:0 3px}
+.vm-unassign{background:none;border:none;color:var(--text-dim,#8c7a68);cursor:pointer;font-size:var(--fs-micro);padding:0 3px}
 .vm-unassign:hover{color:var(--hell,#ff4040)}
 .vm-set-row{font-size:10.5px;color:var(--text-muted,#b5a48a);padding:2px 5px}
 .vm-set-row .vs-done{color:var(--best,#66ff88)}
 .vm-linked{padding:6px 11px 10px;font-size:var(--fs-meta);color:var(--text-muted,#b5a48a)}
-.vm-empty{font-size:var(--fs-meta);color:var(--text-dim,#756657);font-style:italic;padding:4px 5px}
+.vm-empty{font-size:var(--fs-meta);color:var(--text-dim,#8c7a68);font-style:italic;padding:4px 5px}
 /* ═══ v324 — D2 INVENTORY CELL GRID: items pack as footprint-sized tiles (1x1 … 2x4 = 8 cells) ═══
    like the in-game stash. A base cell = 30px; tile spans its {w,h}. Dense flow packs them tight. */
 .vm-grid{display:grid;grid-template-columns:repeat(auto-fill,30px);grid-auto-rows:30px;grid-auto-flow:row dense;gap:3px;margin-top:4px;justify-content:start}
@@ -33943,7 +33943,7 @@ html.vd-lock,html.vd-lock body{overflow:hidden}
 .vd-icon{font-size:22px}
 .vd-name{font-family:var(--mono,monospace);font-weight:var(--fw-bold);font-size:16px;letter-spacing:var(--ls-wide);color:var(--gold-bright,#f0c060);flex:1}
 .vd-close{background:rgba(26,20,13,.9);color:var(--gold-bright,#f0c060);border:1px solid rgba(212,168,71,.45);border-radius:999px;padding:4px 12px;font-size:var(--fs-meta);cursor:pointer}
-.vd-sub{font-size:var(--fs-meta);color:var(--text-dim,#756657);margin-bottom:10px}
+.vd-sub{font-size:var(--fs-meta);color:var(--text-dim,#8c7a68);margin-bottom:10px}
 .vd-zones{display:flex;flex-wrap:wrap;gap:14px 44px;align-items:stretch;justify-content:center}
 .vd-zone{min-width:0}
 .vd-zone-inv{display:flex;flex-direction:column;justify-content:flex-end}
@@ -33993,7 +33993,7 @@ html.vd-lock #arttip.tip-art .d2art-img,html.vd-lock #arttip.tip-art img{width:a
 .ar-row{display:grid;grid-template-columns:minmax(150px,1.3fr) 18px minmax(90px,.8fr) minmax(130px,1.2fr);gap:8px;align-items:center;padding:7px 12px;font-size:12.5px;border-left:3px solid transparent;border-bottom:1px solid rgba(58,47,30,.5)}
 .ar-row:last-child{border-bottom:none}
 .ar-row.ar-win{border-left-color:var(--best,#66ff88);background:rgba(102,255,136,.05)}
-.ar-row.ar-skip{border-left-color:var(--hell,#ff4040);color:var(--text-dim,#756657)}
+.ar-row.ar-skip{border-left-color:var(--hell,#ff4040);color:var(--text-dim,#8c7a68)}
 .ar-see{color:var(--text,#f4e8d0)}
 .ar-eq{color:var(--gold-dim,#9a7426);text-align:center}
 .ar-aura{font-weight:var(--fw-semibold);color:var(--gold-bright,#f0c060)}
@@ -34022,7 +34022,7 @@ html.vd-lock #arttip.tip-art .d2art-img,html.vd-lock #arttip.tip-art img{width:a
 #gild-lightbox .glb-cap strong{ color:var(--gold-bright,#f0c060); }
 #gild-lightbox .glb-close{ position:absolute; top:18px; right:22px; background:rgba(26,20,13,.9); color:var(--gold-bright,#f0c060); border:1px solid rgba(212,168,71,.45); border-radius:999px; padding:7px 16px; font-size:var(--fs-body); cursor:pointer; letter-spacing:var(--ls-normal); }
 #gild-lightbox .glb-close:hover{ background:rgba(47,38,26,.95); box-shadow:0 0 18px rgba(212,168,71,.25); }
-#gild-lightbox .glb-hint{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); color:var(--text-dim,#756657); font-size:var(--fs-meta); letter-spacing:var(--ls-normal); }
+#gild-lightbox .glb-hint{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); color:var(--text-dim,#8c7a68); font-size:var(--fs-meta); letter-spacing:var(--ls-normal); }
 html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
 /* ── v194: calc item-tile gilt hover (the most-used surface) ── */
@@ -38993,7 +38993,7 @@ function renderJournal(){
         // user the hands-free mode exists instead of leaving it undiscoverable
         var hint=document.createElement('span');
         hint.className='vault-status';
-        hint.style.cssText='font-size:var(--fs-meta);color:var(--text-dim,#756657)';
+        hint.style.cssText='font-size:var(--fs-meta);color:var(--text-dim,#8c7a68)';
         hint.innerHTML='⚡ want it hands-free? open this site in <strong>Chrome/Edge</strong> — connect the folder ONCE and the vault auto-reads new screenshots every visit';
         sb.parentNode.insertBefore(hint, sb.nextSibling);
       }
@@ -45963,16 +45963,16 @@ body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:n
    touching his card. (Two other findings from that review were checked against the pixels and
    REJECTED: the pills are not cramped after the padding fix — the row went 459px to 534px — and
    there is no vertical misalignment. A review is evidence, not a verdict.) */
-.sc-lanes-lbl{font-size:var(--fs-micro);color:var(--text-dim,#756657);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+.sc-lanes-lbl{font-size:var(--fs-micro);color:var(--text-dim,#8c7a68);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
 #sc-strip-lanes{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
 .mini-track{position:relative;width:38px;height:18px;border-radius:999px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.25));flex:0 0 auto;transition:background .18s ease,border-color .18s ease}
 .mini-knob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:linear-gradient(180deg,#8a7c62,#5c5142);box-shadow:0 1px 3px rgba(0,0,0,.45);transition:left .18s ease,background .18s ease}
 .mini-word{font-weight:var(--fw-medium);letter-spacing:.04em;white-space:nowrap}
-.mini-what{color:var(--text-dim,#756657);white-space:nowrap}
+.mini-what{color:var(--text-dim,#8c7a68);white-space:nowrap}
 .mini-onair.mini-on .mini-track{background:linear-gradient(180deg,rgba(120,200,120,.22),rgba(40,90,40,.30));border-color:rgba(140,220,140,.45)}
 .mini-onair.mini-on .mini-knob{left:22px;background:linear-gradient(180deg,#9ee39e,#4f9a4f)}
 .mini-onair.mini-on .mini-word{color:#8fd98f}
-.mini-onair.mini-off .mini-word{color:var(--text-dim,#756657)}
+.mini-onair.mini-off .mini-word{color:var(--text-dim,#8c7a68)}
 .mini-onair:focus-visible{outline:2px solid var(--border-light);outline-offset:3px;border-radius:999px}
 .tvd-track{position:relative;width:46px;height:22px;border-radius:999px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.25));transition:border-color .25s,background .25s,box-shadow .3s}
 .tvd-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#8a7c62,#5c5142);box-shadow:0 1px 3px rgba(0,0,0,.6);transition:left .28s cubic-bezier(.4,1.6,.4,1),background .25s,box-shadow .3s}
@@ -48558,7 +48558,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2685', name:'v2685 - the wrong seam, reverted', date:'2026-09-05', note:'the chronicle-tally fix was made on the roster, which broke his v1720 ruling; reverted, vault half kept' };
+  window.D2R_BUILD = { id:'v2686', name:'v2686 - his two rulings applied', date:'2026-09-05', note:'text-dim lifted to 4.86:1 across all 23 sites, and the mini-foc pills made symmetric on his call' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

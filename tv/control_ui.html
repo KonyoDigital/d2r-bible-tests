@@ -129,7 +129,7 @@
     --surface-read: #14100c;
     --serif: "Cinzel", "Palatino Linotype", Palatino, "Times New Roman", serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --text-dim: #756657;
+  --text-dim: #8c7a68;
   --gold-bright: #f0c060;
     /* state accent — retinted by [data-state] */
     --accent: var(--gold);
@@ -3394,8 +3394,23 @@
   .hd-go:hover { border-color: rgba(240,192,96,.55); color: #f0c060; }
   .hh-go:focus-visible, .tf-go:focus-visible, .hd-go:focus-visible {
     outline: 2px solid var(--fg-accent, #f0c060); outline-offset: 2px; }
-  .mini-foc { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+  /* v2686 — SYMMETRIC, ON HIS RULING. A17 #7 held open on a conflict between its own two
+     acceptance criteria: equal pill widths vs a narrow rail. Sizing every pill to fit the longest
+     label costs vertical space, and he chose: "this is a visual thing? make it symmetric then?"
+
+     Measured labels: stash 5 · runes 5 · gems 4 · materials 9 · "chronicle · sets" 16 ·
+     "chronicle · uniques" 19 chars. Under flex-wrap they sized to their text, so the row read as
+     six different-width lozenges — nearly a 4x spread between the shortest and the longest.
+
+     A 2-column grid makes all six one width without hard-coding a number: `1fr` resolves to the
+     widest cell content, so the pills stay symmetric if a label is ever reworded, and the engine
+     may add a focus without this breaking. The cost he accepted is three rows instead of a ragged
+     two. [[label-outlived-referent]] */
+  .mini-foc { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 4px; margin: 6px 0 2px; }
   .mini-foc .mf { appearance: none; cursor: pointer; border-radius: 999px; padding: 4px 9px;
+    /* v2686 — fill the cell and centre, otherwise the grid is equal but the PILLS are not */
+    width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
     border: 1px solid rgba(198,166,100,.24); background: rgba(0,0,0,.3); color: var(--text-dim);
     font: var(--fw-medium) var(--fs-2xs)/1.35 var(--mono); letter-spacing: var(--ls-label); }
   .mini-foc .mf:hover { border-color: rgba(240,192,96,.5); color: #e8d9a8; }
