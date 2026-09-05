@@ -59,7 +59,7 @@ if HERE not in sys.path:
 # logic."* Before it, ROUTE could say WHY a reel was routed (its content, or policy) but never
 # WHAT THE REEL IS. reel_segments had classified reels since v2343 with four production consumers
 # and not one of them was the printer. [[the-unjoined-end]]
-STATIONS = ("in", "funnel", "template", "route", "extract", "out")
+STATIONS = ("in", "funnel", "template", "route", "extract", "out", "tombstone")
 
 STATION_OWNER = {
     "in":      ("one_start_point",  "which door did this reel enter by?"),
@@ -68,6 +68,13 @@ STATION_OWNER = {
     "route":   ("per_reel_routes",  "what chose its route — its CONTENT, or policy?"),
     "extract": ("extract_gap",     "can THIS reel be extracted, and is the gap recoverable?"),
     "out":     ("reel_river",       "is it clean at the far end? (BOTH doors, neither chosen)"),
+    # v2692 — Konyo's gh210 ruling names this station in his own words: "this entire processing
+    # system and pruning and everything needs to work, and STATION AND THEN TOMBSTONE at the end of
+    # it all." Until now a pruned reel simply VANISHED from every probe in this family — they all
+    # walk the live HIST_DIR/reel_* set — so the river had a mouth and no delta: nothing could say
+    # "this reel existed, was routed, was sealed, and here is what closed it out."
+    # MEASURED: reel_tombstones.json holds 410 reels and 5,768 MB reclaimed, read by nothing.
+    "tombstone": ("reel_retention", "if it is gone, what closed it out? (and this one is still here)"),
 }
 
 
@@ -100,6 +107,19 @@ def _sources():
             whys.append(w)
     except Exception as e:
         whys.append("reel_river would not import (%s)" % str(e)[:60])
+    # v2692 — the tombstone ledger, read ONCE per snapshot like every other owner. It is a single
+    # JSON read (no directory walk), so it costs nothing on the heart's hot path — deliberately
+    # unlike the river, whose 2.51s walk is why this file takes one snapshot and shares it.
+    try:
+        import reel_retention as _RRET
+        _tp = getattr(_RRET, "_tombstone_path", None)
+        _tf = _tp() if callable(_tp) else os.path.join(HERE, "reel_tombstones.json")
+        with open(_tf, "r", encoding="utf-8") as _fh:
+            out["tombstones"] = json.load(_fh) or {}
+    except Exception as e:
+        out["tombstones"] = None
+        whys.append("the tombstone ledger could not be read (%s) — UNKNOWN, not 'nothing was ever "
+                    "pruned'" % str(e)[:60])
     try:
         import reel_templates as RTPL
         # v2692 — ONE river walk for the whole snapshot. This is the "one funnel" half of his
@@ -338,6 +358,41 @@ def stream(reel=None):
                         % ("yes" if reel_door else "no",
                            {True: "yes", False: "no", None: "UNASKED"}[frame_door])),
             }
+
+        # v2692 — THE LAST STATION. Every row here is a reel that is still ON DISK, so its honest
+        # tombstone answer is "not closed out — still here". The ledger's totals ride along so the
+        # history is visible from the same surface rather than requiring 410 extra rows on a hot
+        # path: the reels it names are, by definition, absent from this row set.
+        # ⚠ A MISSING LEDGER IS UNKNOWN, NOT "NOTHING WAS EVER PRUNED". Those are opposite facts and
+        # only one of them is safe to act on. [[unknown-stays-unknown]]
+        _tomb = src.get("tombstones")
+        if _tomb is None:
+            stations["tombstone"] = {"say": "UNKNOWN", "owner": "reel_retention",
+                                     "why": "the tombstone ledger could not be read, so whether "
+                                            "anything was ever closed out is UNKNOWN"}
+        else:
+            _treels = (_tomb.get("reels") or []) if isinstance(_tomb, dict) else []
+            # the ledger keys by BOTH reel dir name and bare session id; match either, because
+            # which one a row carries has varied across the versions that wrote them.
+            _nm = str(name or "")
+            _sid = _nm[5:] if _nm.startswith("reel_") else _nm
+            _gone = None
+            for _t in _treels:
+                if str(_t.get("reel") or "") == _nm or str(_t.get("session") or "") == _sid:
+                    _gone = _t
+                    break
+            if _gone:
+                # a reel both on disk AND in the tombstone ledger is a contradiction worth saying
+                stations["tombstone"] = {
+                    "say": "CONTRADICTION", "owner": "reel_retention",
+                    "why": "this reel is on disk AND named in the tombstone ledger as closed out "
+                           "(%s) — one of the two records is wrong" % str(_gone.get("why") or "?")[:70]}
+            else:
+                stations["tombstone"] = {
+                    "say": "ON DISK", "owner": "reel_retention",
+                    "why": "not closed out — still here. The ledger records %d reel(s) that were, "
+                           "reclaiming %.1f MB; none of them is this one."
+                           % (len(_treels), sum(float(_t.get("mb") or 0) for _t in _treels))}
 
         for st in STATIONS:
             counts.setdefault(st, {})
