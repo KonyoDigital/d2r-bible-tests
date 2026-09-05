@@ -298,12 +298,52 @@ class ADeliberateNullIsNotADeadField(unittest.TestCase):
                                "unexplained exemption is how a real defect gets silenced" % field)
 
     def test_a_THREE_tuple_entry_still_works(self):
-        """⚠ Additive only. reel_tombstones has no declaration and must keep its exact meaning."""
+        """⚠ Additive only. reel_tombstones has no declaration and must keep its exact meaning.
+
+        ⚠⚠ v2658 — THIS READ HIS LIVE STORE AND WAS RED ON EVERY CI RUN. It called `DF.state()`
+        against the real tree and asserted `startedTs` is reported dead for `reel_tombstones`.
+        That store is **gitignored** (`.gitignore:155`, `git ls-files` -> 0), so on a fresh
+        checkout it reads UNKNOWN with `dead: []` and the assertion fails on the ABSENCE of his
+        footage rather than on any behaviour. Reproduced in a tracked-files-only checkout:
+        `AssertionError: 'startedTs' not found in []`.
+
+        It is the exact class this same ship fixed in `test_printer`, `test_one_funnel` and
+        `test_reel_retention` — and it shipped in the commit whose subject was "the last red gate".
+        [[regression-guard]] §3 · [[feedback-fixtures-never-touch-live-data]]
+
+        THE QUESTION IS UNCHANGED AND IS NOW ASKED OF A FIXTURE: a 3-tuple entry (no declared-null
+        map) must still be read, still reach the reading, and still report its own dead column.
+        Nothing is skipped — a skip here would be a permanent hole on the venue that runs it.
+        """
+        import io
+        import json
+        import shutil
+        import tempfile
+        import reel_retention as RR
+
         entry = [w for w in DF.WATCHED if w[0] == "reel_tombstones"][0]
-        self.assertEqual(len(entry), 3)
-        r = DF.state()
+        self.assertEqual(len(entry), 3, "the entry stopped being a 3-tuple, so this asks nothing")
+
+        d = tempfile.mkdtemp(prefix="tomb_")
+        self.addCleanup(shutil.rmtree, d, True)
+        store = os.path.join(d, "reel_tombstones.json")
+        # `startedTs` present on EVERY row and filled on NONE — the shape `dead_fields` names dead.
+        io.open(store, "w", encoding="utf-8").write(json.dumps(
+            {"reels": [{"reel": "reel_s_%d" % i, "at": i, "startedTs": None, "frames": 12}
+                       for i in range(60)]}))
+
+        real = RR._tombstone_path
+        try:
+            RR._tombstone_path = lambda *a, **k: store
+            r = DF.state()
+        finally:
+            RR._tombstone_path = real
+
         got = [s for s in (r.get("stores") or []) if s.get("store") == "reel_tombstones"]
         self.assertTrue(got, "the undeclared store vanished from the reading")
+        self.assertNotEqual(got[0].get("state"), "UNKNOWN",
+                            "the fixture was not read at all, so this test measured nothing: %s"
+                            % got[0])
         self.assertIn("startedTs", got[0].get("dead") or [],
                       "the store this module was built for stopped reporting its own dead field")
 

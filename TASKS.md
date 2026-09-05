@@ -1224,8 +1224,21 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
   is a lane WORKING; the job is to report `owed` beside `lastWorkTs`, not to restart anything.
 - ◻ **CF-2 BOARD JOIN** — registering targets the CONSOLE window (`path=/`, no `chronicleApply`),
   not the board. Same root as CF-8.
-- ◻ **CF-3 ENGINES CORROBORATE** — `eagle-ran-every-check` 32 rows vs 34 roster checks. ⚠ name the
-  two missing checks; a delta of 2 is not actionable, two names are. Suspect the instrument first.
+- ✅ **CF-3 ENGINES CORROBORATE — CLOSED 2026-09-05, AND IT IS NOT A DEFECT.** The row asked for
+  two names instead of a delta, and here they are: **`sweep would find`** and
+  **`the other doctors`**. They are `console_doctor.SLOW`, and **34 vs 32 is the designed SPLIT,
+  not a loss** — a cheap pass (`include_slow=False`) correctly omits them, so 32 is the whole
+  roster it runs. Both ARE on the 34-roster; nothing is missing. `corroborate.py:723` already
+  grades this per pass — cheap expects 32, full expects 34, and an **UNLABELLED** pass is UNKNOWN
+  rather than assuming the full roster, which is what made it permanently red before. "Suspect the
+  instrument first" was the right instruction and the instrument was already fixed.
+- ✅ **CF-12 TWO CHECKS THAT REACH NO DURABLE SURFACE — REFUTED 2026-09-05 by measurement.** The
+  premise is false. `console_doctor._slow_path()` **exists**, was **0.2 h old** when read, holds
+  **both** rows — `sweep would find` state=ok (*"25 of 40 reel(s) show a stash panel"*) and
+  `the other doctors` state=ok (*"vault 6 green / 0 needs-you · chronicle 10 green / 0
+  needs-you"*) — and `slow_surface()` **is consumed**, at `control_app.py:15563` as `slowRows`.
+  ⚠ Both read `unmeasured` in `report()` and that is CORRECT, not the defect: `report()` is the
+  cheap roster view and the SLOW states live in the sidecar. Two surfaces, two questions.
 - ◻ **CF-4 CONSOLE UI FAULTS** — 3 self-heals in 24h; page beating while blank (11,817 elements vs
   a high-water 84,541). ⚠ the self-heal converts a reproducible bug into an intermittent one —
   capture the pre-rescue state BEFORE healing.
@@ -1367,9 +1380,40 @@ information.
 |---|---|---|
 | **Routine M — swallowed-exception ratchet** | failure | **success** |
 | Routine G · H · J · K · L | success | success |
-| 📺 TV DIABLO — agent tests | failure (149/150) | *pending at the time of writing* |
-| Routine I — Playwright suite | failure (7 days) | *pending at the time of writing* |
+| 📺 TV DIABLO — agent tests | failure, **16 gates** | failure, **3 gates** |
+| Routine I — Playwright suite | failure (7 days) | *still running at the time of writing* |
 
 ⚠ **Routine M green is the first EXTERNAL confirmation** — the swallow ratchet is back at its 74
-baseline on a machine that is not his. The other two are UNKNOWN until they settle, and UNKNOWN is
-not a pass.
+baseline on a machine that is not his.
+
+### 🎯 THE MEASUREMENT: 16 RED GATES → 3
+
+```
+BEFORE af8beac9 (16): test_control · test_scope_reach_signal · test_board_tally_alarm ·
+                      test_render_coverage · reel_demo · test_reel_retention · swallow_ratchet ·
+                      test_printer · test_probe_unknown_law · test_dead_field · test_one_funnel ·
+                      test_printer_reach · test_board_story · overlap_ratchet ·
+                      test_heart_surface · test_cf_handoff
+AFTER  a50c925c (3):  test_dead_field_reads_jsonl · test_printer_reach · test_board_story
+```
+
+⚠⚠ **AND I UNDER-BRIEFED THE FLEET, WHICH IS WHY TWO OF THE THREE ARE STILL RED.** The brief said
+"16 gates"; the job list held **9**, and I took 5 myself. **`test_printer_reach` and
+`test_board_story` were never assigned to anyone** — they are red because nobody looked at them,
+not because they resisted a fix. Naming that here because a count that does not match its own list
+is exactly the shape this file exists to catch.
+
+### ⚠⚠ A REVIEW OF THE PUSHED BYTES FOUND FOUR DEFECTS IN THE SHIP ITSELF
+
+| what | why it matters |
+|---|---|
+| `test_dead_field_reads_jsonl` read the **gitignored** live tombstone store | a **NEW red gate**, introduced by the commit whose subject was *"the last red gate"*. Fixture-fed now; verified OK in a reproduced CI venue |
+| `reel_router` blanked its own `seen_why` **one line after writing it** | `rep.update(..., "why": "")` re-collapsed *"survey unreadable"* into *"no survey time"* — the exact thing the change was written to prevent. [[the-unjoined-end]] |
+| `reel_demo` exited **0 / PASS** having walked **nothing** | a false red traded for a **false green**, which is the worse half: a red gets investigated, a green ships. Now exit 77 with a **narrow** declared skip — a shelf that EXISTS and walks nothing still fails |
+| `run_gates` stdout-first hid `FAILED (failures=N)` | unittest writes its verdict to **stderr**. **Grok and the code review reached this independently**, from different directions — that agreement is why it was taken rather than argued. stdout only for SKIP; both streams for FAIL |
+
+⚠ **AND MY OWN VERIFICATION WAS WRONG ONCE.** I reproduced the CI venue with `git archive HEAD` —
+which exports the last **COMMIT**, while the fixes were uncommitted. I graded the old bytes. Redone
+with the working tree overlaid, `reel_demo` immediately exposed a **second** defect: an earlier
+`return 1` made the new `return 77` unreachable, so it printed *"declared SKIP"* and exited 1
+anyway. **Two return paths, one patched.** Founding rule 4, on my own instrument.

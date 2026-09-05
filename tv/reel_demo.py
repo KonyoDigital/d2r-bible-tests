@@ -319,6 +319,26 @@ def demo(reel=None):
     asserted = [c for c in checks if not c.get("evidence") and not c.get("unknown")]
     unk = [c for c in checks if c.get("unknown")]
     bad = [c for c in asserted if not c["ok"]]
+    # ⚠⚠ A RUN THAT WALKED NOTHING IS NOT A PASS — and the first cut of this fix made it one.
+    # Separating UNKNOWN from FAILED was right and stopped four false REDS. But `ok = not bad`
+    # then made a shelf-less venue return 0, so `run_gates` recorded a ✅ for a run whose own
+    # output says `0 reel(s) walked through 6 station(s) … 3 UNKNOWN`. A false red got traded for
+    # a false GREEN, which is the worse of the two: a red gets investigated, a green ships.
+    # Caught by a same-family review of the pushed bytes, which named the inconsistency exactly —
+    # `overlap_ratchet` in this SAME ship exits 77 for its unmeasurable venue, and this did not.
+    # THE THIRD STATE, matching that one: the shelf is absent and nothing walked, so the gate
+    # COULD NOT RUN. That is 77 — a declared skip, printed loudly, counted in "did not run",
+    # never a tick. [[unknown-stays-unknown]] [[regression-guard]]
+    _no_venue = (shelf == "absent") and not rows
+    if _no_venue:
+        return {
+            "ok": False, "state": "SKIPPED", "venue": "no-shelf",
+            "reels": reels, "checks": checks, "walked": 0,
+            "stations": stations, "unknown": len(unk), "shelf": shelf,
+            "why": ("his reel shelf is absent on this venue, so nothing was walked and no "
+                    "downstream number was established — %d check(s) UNKNOWN. This is a declared "
+                    "SKIP, not a pass and not a defect." % len(unk)),
+        }
     return {
         "ok": not bad, "state": ("PASS" if not bad else "FAIL"),
         "reels": reels, "checks": checks, "walked": len(rows),
@@ -341,7 +361,13 @@ def main(argv):
     print("\nREEL DEMONSTRATION — his own footage, through the whole pipeline\n")
     if not r.get("reels") and not r["ok"]:
         print("  %s\n" % r["why"])
-        return 1
+        # ⚠⚠ THE VENUE CHECK HAS TO BE HERE TOO, AND MY FIRST CUT PUT IT ONLY AT THE BOTTOM.
+        # The no-shelf state has `reels: []` and `ok: False`, so it hits THIS early return and the
+        # `return 77` at the end of this function was unreachable — the fix printed its new
+        # "declared SKIP" sentence and still exited 1. Two return paths, one of them patched.
+        # Caught by running it in a tracked-files-only export of the CI venue rather than by
+        # reading the diff. [[the-unjoined-end]]
+        return 77 if r.get("venue") == "no-shelf" else 1
     print("  %-30s %-9s %-11s %-9s %-11s %s" % ("reel", "door", "stage", "template", "extract", "worth"))
     for x in r["reels"][:60]:
         print("  %-30s %-9s %-11s %-9s %-11s %s" % (
@@ -358,6 +384,10 @@ def main(argv):
         elif not c["ok"]:
             print("       wanted: %s — %s" % (str(c["want"])[:44], str(c["why"])[:70]))
     print("\n  %s · %s\n" % (r["state"], r["why"]))
+    # 77 = SKIP_EXIT, the same contract js_syntax_gate and overlap_ratchet use: "I could not
+    # run", which run_gates counts in its did-not-run line and never as a tick.
+    if r.get("venue") == "no-shelf":
+        return 77
     return 0 if r["ok"] else 1
 
 

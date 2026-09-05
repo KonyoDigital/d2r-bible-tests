@@ -330,8 +330,22 @@ def route(hist=None):
             unknown += 1
         else:
             counts[r["station"]] += 1
+    # ⚠⚠ `why` IS NOT BLANKED ON SUCCESS — v2658's `seen_why` DIED HERE, one line after it was
+    # written. `_evidence()` was taught to return a reason when the retro_triage store could not
+    # be read, and its own comment says *"None here has TWO causes and the report's `why` is what
+    # separates them."* Then this line overwrote it with "". Measured with
+    # `retro_triage.load -> ({}, False)`: `ok=True shelf=40 why='' surveyedAt=[None, None, None]`
+    # — an unreadable survey store indistinguishable from "read, and holds no time for this reel",
+    # which is the exact collapse the change was written to prevent.
+    # Caught by a same-family review of the PUSHED bytes; the fix and its defeat shipped together.
+    # [[the-unjoined-end]] — two halves each written correctly, never joined.
+    #
+    # A successful walk with an unreadable survey is a REAL partial: the stations are known, the
+    # survey times are not. So `why` carries that, and `surveyedAtWhy` names it as a field a
+    # consumer can branch on rather than a sentence it must parse. [[unknown-stays-unknown]]
     rep.update({"ok": True, "reels": rows, "counts": counts, "unknown": unknown,
-                "shelf": len(rows), "why": ""})
+                "shelf": len(rows), "why": why or ""})
+    rep["surveyedAtWhy"] = why or ""
     # ⚠ THE GAP CHECK, and it is the reason this returns a report rather than a list. `counts`
     # excludes UNKNOWN on purpose, so the sum only reconciles when UNKNOWN is added back — which
     # forces any caller printing a total to say how many it could not place.

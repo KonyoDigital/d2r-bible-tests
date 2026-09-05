@@ -535,7 +535,17 @@ GATES = [
              "were REGISTERED BEFORE any of this changed — runewords 99, sets 135 pieces, "
              "uniques 403, each his own ruling — plus that all three route sets still derive and "
              "that no reel is missing a station. It asserts against registered values, never "
-             "against the code it is testing, and it writes nothing."),
+             "against the code it is testing, and it writes nothing.",
+         # v2658 — DECLARED, because the alternative was a FALSE GREEN. `tv/frames/` is gitignored
+         # and zero-tracked, so a fresh checkout has no shelf and this gate can walk nothing. Its
+         # first repair separated UNKNOWN from FAILED (right, and it stopped four false REDS) but
+         # left `ok = not bad`, so a venue with nothing to walk returned 0 and run_gates recorded
+         # a ✅ over the gate's own words `0 reel(s) walked … 3 UNKNOWN`. A false red traded for a
+         # false green is the worse half of the trade: a red gets investigated, a green ships.
+         # It exits 77 in that state now, and this is what makes that skip DECLARED rather than a
+         # failure. ⚠ NARROW ON PURPOSE — only the absent-shelf sentence. A shelf that EXISTS and
+         # walks nothing is the real defect this gate is for, and still fails.
+         skip_ok=(r"reel shelf is absent on this venue",)),
     # v2570 — the printer had NO lock; fourteen were declared and not one named the river.
     Gate("test_printer_wilson", [sys.executable, os.path.join(HERE, "test_printer_wilson.py")], 90,
          why="the printer walks every reel he owns and nothing had ever attempted to break it. "
@@ -1671,7 +1681,6 @@ def run(only=None, live_watch=True, live_writer=None):
             # stdout has its only explanation there — silence must not become an empty reason.
             _out = [ln for ln in (p.stdout or "").strip().split("\n") if ln.strip()]
             _err = [ln for ln in (p.stderr or "").strip().split("\n") if ln.strip()]
-            tail = (_out or _err)[-1:] or [""]
             blob = (p.stdout or "") + (p.stderr or "")
             # v1601 — exit 77 means "I could not run", not "I passed". Without this a gate that
             # self-skipped printed its own ⚠ SKIPPED line and still got counted green, which is the
@@ -1681,6 +1690,27 @@ def run(only=None, live_watch=True, live_writer=None):
                 status = "SKIP"
             else:
                 status = "PASS" if p.returncode == 0 else "FAIL"
+            # ⚠⚠ THE STDOUT PREFERENCE IS FOR THE **SKIP** CASE ONLY — and the first cut applied it
+            # to every status, which traded one hidden reason for another. TWO INDEPENDENT
+            # REVIEWERS REACHED THIS FROM DIFFERENT DIRECTIONS, which is why it is taken rather
+            # than argued: a cross-family read called it "displacement of stderr from tail", and a
+            # same-family review named the consequence exactly — **unittest writes
+            # `FAILED (failures=N)` to STDERR**, so any suite that also prints to stdout would show
+            # an incidental print as its failure reason in the summary table. Measured stdout
+            # printers among the gates: test_button_matrix (27 prints), test_routes (5),
+            # test_control (2), and test_scope_reach_signal's own new informational line.
+            #
+            # So the rule splits by what the line is FOR:
+            #   · SKIP — the gate DECLARED a reason on stdout, and stderr noise must not displace
+            #     it. That is the crest_loudness defect this whole ship exists to fix.
+            #   · FAIL/PASS — the diagnosis is whatever the run said LAST, on either stream,
+            #     because unittest's verdict lives on stderr.
+            # [[feedback-contradiction-is-the-finding]] — two checks disagreeing WAS the finding.
+            if status == "SKIP":
+                tail = (_out or _err)[-1:] or [""]
+            else:
+                _both = [ln for ln in blob.strip().split("\n") if ln.strip()]
+                tail = _both[-1:] or [""]
             # v1925 — the blob is kept for a SKIP too. An undeclared skip is now a failure, and a
             # failure has to be diagnosable from the log alone: the reason column is only the LAST
             # line the gate printed, which for a suite that skipped in setUp is rarely the sentence
