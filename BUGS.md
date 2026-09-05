@@ -20848,3 +20848,58 @@ nothing moved"* — and it is now measurable.
 
 ⚠ **ONE target, not eight, and that is a cost decision.** `_serve_console()` is not memoised: every
 `"serve": True` target boots its own `control_app` and waits for `/api/status`. Seven already do.
+
+## REG-620 — the vault ledger clipped item names, and a floor is not a priority (v2665)
+
+Surfaced by my own seed fix: once `v2267` could render rows on CI it stopped refusing and started
+MEASURING — `an item name is 14% cut with no way to read the rest: {"t":"Mara's Kaleidoscope",
+"s":133,"c":114}` at 901px, against a bar of 0.
+
+v2267 had already fixed the severe form (**73–97% cut, "Boneslayer Blade 106/3px, 97% gone"**) by
+giving the name `min-width:88px` and teaching the tag to truncate. **But a floor is not a
+priority.** Both children sat at `flex-shrink:1`, and flex shrinkage is **proportional to basis** —
+so the LONGER element loses more: `133/(133+82)` = **61.9%** of every deficit landed on the name.
+
+⚠ **THE ARITHMETIC RULED OUT MY OWN CANDIDATE FIX BEFORE ANY CSS WAS TOUCHED.** Raising the *tag's*
+shrink only approaches zero asymptotically — `2 → 10%`, `4 → 7%`, `8 → 4%`, `20 → 2%`. I had
+proposed `flex-shrink: 4` and would have shipped a **7% cut believing it satisfied a 0%
+requirement**. Only `flex-shrink:0` on the NAME reaches 0, and that is exactly his rule: *"Nothing
+ellipsised. If it does not fit, the card is wrong — not the sentence."*
+
+⚠⚠ **AND IT IS BOUNDED, BECAUSE UNBOUNDED IT BREAKS A BUTTON.** `.vrg-det` carries
+`overflow:hidden`, so a name that refuses to shrink pushes the row's TAIL past a clipping edge —
+and the tail is `.vrg-x`, the **remove button**. Measured with the name unshrinkable at every width:
+375px lost **all seven** buttons (`right 360` against a container right of `333`). Zero cut with an
+unreachable button is a WORSE console, and **a text-clipping probe cannot see it** — which is why
+the acceptance test asserts containment as well as cut. Bounded at `max-width:640px` (an existing
+breakpoint in this file, 4 uses), matching v2267's own allowance of 25% at 375 and 0% above.
+
+**GRADED ON A FIXTURE THAT REPRODUCES CI, AND THE FIRST TWO FIXTURES DID NOT:**
+
+| | original CSS | with the fix |
+|---|---|---|
+| 1440x1000 | clipped 0 · xLost 0 | clipped 0 · xLost 0 |
+| **901x900** | **clipped 1 — 13%** | **clipped 0** · xLost 0 |
+| 375x800 | clipped 5 (32%) · xLost 7 | clipped 5 (32%) · xLost 7 — identical |
+
+⚠⚠ **THE FIXTURE WAS WRONG TWICE AND BOTH TIMES IT LOOKED LIKE A PASS.**
+1. **Wrong namespace.** A CDP probe is a GUEST — `navigator.webdriver` is false, so the page
+   resolves an install namespace and `d2r_owned` becomes `I·<id8>·d2r_owned`. It also mints a FRESH
+   id per session (`I·0f94e458·`, `I·78c678e7·`, `I·87a104f7·`), so a hardcoded key would work once
+   and silently measure an empty ledger afterwards. The probe asks the page for `_D2R_PFX`.
+2. **Half the data.** Seeding `d2r_owned` without `d2r_muleAssign` renders every row LOOSE with the
+   short `in dock` tag (44px) instead of the muled `→ UNI-WEAPONS` (82px). The tag is what squeezes
+   the name, so my probe reported the UNFIXED console clean at 901 while CI measured 14%. **Two
+   checks disagreed and the fixture was the liar.** With mules seeded the probe reproduces CI to
+   within a point: 13% vs 14%.
+
+## REG-621 — at 375px every remove button is clipped out of its card (OPEN, pre-existing)
+
+Found while grading REG-620, and **proven pre-existing by A/B**: with the ORIGINAL CSS restored,
+375x800 reports `xLost 7/7` — every `.vrg-x` sits outside `.vrg-det`, which clips it. Identical
+with and without the REG-620 fix, so it is not a regression from it.
+
+⚠ This is a FUNCTIONAL defect, not a cosmetic one: the button removes an item from the vault, and
+on a phone-width board it cannot be reached. ⚠ And no text-clipping probe would ever find it —
+`v2267` measures name cut and reports 375 as within its 25% allowance while every button on the
+screen is unreachable.

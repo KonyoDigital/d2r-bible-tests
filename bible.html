@@ -33602,7 +33602,18 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .pf-dim{color:#756657}
 .vrg-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:7px}
 .vrg-row:hover{background:rgba(255,255,255,.05)}
-.vrg-name{flex:1 1 auto;min-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-body);color:var(--text)}
+.vrg-name{flex:1 0 auto;min-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-body);color:var(--text)}
+/* ⚠⚠ v2665 — flex-shrink:0 IS RIGHT ONLY WHERE THERE IS ROOM FOR IT. Measured after making
+   the name unshrinkable: cut went to 0 at 1440 AND 901 (the 14%% on Mara's Kaleidoscope is
+   gone) — and at 375 ALL SEVEN .vrg-x remove buttons were pushed OUTSIDE .vrg-det, whose
+   overflow:hidden then clipped them: right 360 against a container right of 333. Zero cut
+   with an unreachable button is a WORSE console, not a fixed one, and a text-clipping probe
+   cannot see it — which is why the acceptance test asserts the button's containment too.
+   ⚠ HIS OWN SPEC ALREADY DRAWS THIS LINE: v2267 asserts 0%% cut at 1440 and 901 and allows
+   25%% at 375. So the name holds its ground where the row can afford it and yields on a
+   phone, which is the same trade he wrote into the test. 640px is an existing breakpoint in
+   this file (4 uses), not one invented for this fix. */
+@media (max-width:640px){ .vrg-name{flex:1 1 auto} }
 /* ══ v2267 — THE ITEM NAME WAS THE ONLY THING IN THE ROW ALLOWED TO SHRINK ══════════
    Measured on the vault tab, natural state, no fixture: ALL 40 .vrg-name cells clipped,
    at 1440 AND 901 AND 375, with cuts of 73-97%%:
@@ -33620,7 +33631,23 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
    pixels for which item it is.
 
    So invert the priority, which is the whole fix: give the name a floor, and let the tag
-   be the thing that truncates. '-> UNI-WEAP...' still reads; 'Bon' does not.
+   be the thing that truncates.
+
+   ⚠⚠ v2665 — A FLOOR IS NOT A PRIORITY, AND THE ARITHMETIC SAYS SO. min-width:88px capped
+   how bad the cut got; it did not stop the name being the primary victim, because BOTH
+   children sat at flex-shrink:1 and flex shrinkage is PROPORTIONAL TO BASIS. The name's
+   basis is the larger, so the LONGER element loses more: 133/(133+82) = 61.9% of every
+   deficit landed on the name. Measured on CI once the ledger could render rows at all:
+       Mara's Kaleidoscope   133 content / 114 given   = 14%% cut, at 901px
+   Raising the TAG's shrink cannot fix it — it only approaches zero asymptotically:
+       tag shrink 2 -> 10%%   ·   4 -> 7%%   ·   8 -> 4%%   ·   20 -> 2%%
+   Only flex-shrink:0 on the NAME reaches 0, and that is exactly his rule: 'Nothing
+   ellipsised. If it does not fit, the card is wrong - not the sentence.' The tag absorbs
+   the whole deficit (82px of content, min-width:0, ellipsis) and 30.6px fits inside that.
+   ⚠ THE RISK THIS CREATES IS A CLIPPED BUTTON, NOT A CLIPPED WORD. .vrg-det carries
+   overflow:hidden, so a name that refuses to shrink pushes the row's TAIL past a clipping
+   edge - and the tail is .vrg-x, the remove button. A text-clipping probe cannot see that.
+   So the acceptance test asserts BOTH: zero cut AND .vrg-x still inside .vrg-det. '-> UNI-WEAP...' still reads; 'Bon' does not.
    Found by the cross-family eye on a screenshot (it reported vrg-name 119/60), and I
    nearly dismissed it - my first check measured the TOOLS tab, where this table does not
    render, and reported 0 clipped. [[feedback-suspect-the-instrument]]
@@ -48448,7 +48475,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2664', name:'v2664 - the-seven-tabs-nobody-rendered', date:'2026-09-05', note:'REG-619: 7 of 8 console tabs rendered at no width' };
+  window.D2R_BUILD = { id:'v2665', name:'v2665 - a-floor-is-not-a-priority', date:'2026-09-05', note:'REG-620: the name absorbed 62% of every deficit; REG-621 filed' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

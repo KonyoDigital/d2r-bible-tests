@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2664",
+  "ver": "v2665",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2664: REG-619: 7 of 8 console tabs rendered at no width",
+  "note": "v2665: REG-620: the name absorbed 62% of every deficit; REG-621 filed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
