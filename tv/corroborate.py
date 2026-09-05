@@ -999,7 +999,76 @@ def _inv_only_a_declared_owner_world_posts_owner_numbers():
             "<=")
 
 
-BUILDERS = (_inv_only_a_declared_owner_world_posts_owner_numbers,
+def _inv_a_world_reporting_nothing_holds_nothing():
+    """v2696 — WOULD HAVE CAUGHT DEAN'S BOARD, WHICH THE PREVIOUS INVARIANT COULD NOT.
+
+    Konyo: "via the roster via the fleet maybe? like we have trackers within the console maybe?" —
+    yes, and the two witnesses were already on disk, in the same snapshot.
+
+    THE SYMPTOM HE REPORTED: his cousin's world showed 0/403 in the console FLEET while the same
+    board's Uniques chronicle tab read 243/403. Both surfaces count with the same funiScan(), so
+    they cannot differ by logic — only by TIME, and a fleet row is a snapshot read off disk.
+    The honest, unambiguous half of that disagreement is this: a world that REPORTS zero finds while
+    its own ledger HOLDS entries is contradicting itself, whatever the reason.
+
+    THE TWO WITNESSES, and they are independent readings of one image:
+      LEFT   d2r_tally.uniques.have — what the BOARD said about itself
+      RIGHT  d2r_foundLog           — the ledger it said it from
+    control_app._store_read_all() takes both keys in ONE snapshot, and its own docstring is why
+    that matters: "a route can never be paired with another snapshot's values". Reading them
+    separately would let a stale tally meet a fresh ledger and invent a disagreement.
+
+    ⚠ ZERO-AND-EMPTY IS NOT A VIOLATION, and that distinction is the whole invariant. A fresh guest
+    world reports 0 and holds nothing — correct, and the commonest state on his tree (401 guest
+    routes, every one 0). Only 0-while-holding is a contradiction. [[zero-needs-a-denominator]]
+    ⚠ IT DOES NOT COMPARE MAGNITUDES. foundLog holds uniques AND set pieces (measured on his own
+    world: tally 292 uniques, foundLog 419 keys), so "292 != 419" is not a defect and asserting it
+    would be a gate red from birth. Only the zero case is unambiguous.
+
+    MEASURED when written: 1 board world readable on this machine — owner, tally 292, foundLog 419.
+    Holds at 0.
+    """
+    def _worlds():
+        try:
+            import control_app as ca
+        except Exception:
+            return None
+        out = []
+        try:
+            for db in ca._webkit_localstorage_dbs():
+                got = ca._store_read_all(db, ("d2r_tally", "d2r_foundLog"))
+                if not got or not got.get("isBoard"):
+                    continue
+                v = got.get("vals") or {}
+                t = v.get("d2r_tally")
+                fl = v.get("d2r_foundLog")
+                if not isinstance(t, dict) or not isinstance(fl, dict):
+                    continue
+                have = ((t.get("uniques") or {}) if isinstance(t.get("uniques"), dict) else {}).get("have")
+                out.append((have, len(fl)))
+        except Exception:
+            return None
+        return out
+
+    def left():
+        w = _worlds()
+        if w is None:
+            return None
+        return sum(1 for have, held in w if have == 0 and held > 0)
+
+    def right():
+        return None if _worlds() is None else 0
+
+    return ("a-world-reporting-nothing-holds-nothing",
+            "no board world reports zero uniques while its own ledger holds entries",
+            "seed a world's foundLog and leave its tally at 0 — the fleet then shows 0/403 for a "
+            "board that holds a chronicle, which is what he saw and what nothing flagged",
+            "worlds reporting 0 while holding a ledger", left, "the allowed number of them", right,
+            "<=")
+
+
+BUILDERS = (_inv_a_world_reporting_nothing_holds_nothing,
+            _inv_only_a_declared_owner_world_posts_owner_numbers,
             _inv_every_door_counts_the_reels_it_opened,
             _inv_the_tooltip_finder_refuses_more_than_it_finds,
             _inv_the_console_and_the_law_agree_about_furniture,
