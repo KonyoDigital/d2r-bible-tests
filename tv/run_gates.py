@@ -193,6 +193,24 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_mask_encoders_agree",
+         [sys.executable, os.path.join(HERE, "test_mask_encoders_agree.py")], 120,
+         why="B-84's surviving half — THE TESTED ENCODER IS NOT THE USED ENCODER. Two "
+             "implementations turn 'which of this roster do I own' into a base64url bit mask: "
+             "`fleet_mask.encode` (round-trip tested against `fleet_mask.decode`, and AST-measured "
+             "with ZERO production callers) and an INLINE JS SNIPPET built as a string inside "
+             "`control_app.board_mask` and run via `_ejs` — the one that produces every mask that "
+             "has ever gone on the wire. The suite proved a pair that never runs together in "
+             "production while the code that does run had no test at all. This runs the SHIPPED "
+             "snippet (lifted by AST from board_mask, never re-typed) against a synthetic store "
+             "and compares byte-for-byte. RED-proven: flipping the js to MSB-first bit packing "
+             "reports 'THE TWO ENCODERS DISAGREE'. ⚠ Three instrument faults were caught building "
+             "it, each of which would have made it lie: a regex over source returned raw escapes "
+             "('g is not defined'); `about:blank` is an opaque origin with no localStorage; and a "
+             "shared storage key let one case read the PREVIOUS case's write and report it as a "
+             "real disagreement — decoding both masks is what exposed that, the bare inequality "
+             "looked like a defect. ⚠ It touches nothing of his: a throwaway server on a scratch "
+             "port, never :17772, never his board's storage."),
     Gate("test_printer_reach_facts",
          [sys.executable, os.path.join(HERE, "test_printer_reach_facts.py")], 60,
          why="A 70-CHARACTER WINDOW MANUFACTURED A FINDING AND THE MODULE PUBLISHED IT. "

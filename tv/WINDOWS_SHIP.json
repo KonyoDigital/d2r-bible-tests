@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2645",
+  "ver": "v2646",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2645: printer_reach keyed its refusal tally on a 70-char slice, collapsing every distinct refusal into one bucket ending inside the word name - and published ALL 22 fail on the SAME single fact as a measurement. Untruncated: name, location and provenance all missing on all 30 seals. The difference decides whether the fix is a reader change or his capture ruling.",
+  "note": "v2646: B-84 surviving half closed. fleet_mask.encode has zero production callers - an inline JS snippet inside board_mask produces every mask on the wire, and nothing compared them. The shipped snippet is now lifted by AST and compared byte-for-byte against Python. RED-proven by flipping the JS to MSB-first.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
