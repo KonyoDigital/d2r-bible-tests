@@ -483,6 +483,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_tasks_ships_are_recorded.py")], 120,
          why="a version that moved the four stamps but appears nowhere in TASKS.md — the list "
              "silently ceasing to describe what the repo did"),
+    Gate("test_tombstone_station",
+         [sys.executable, os.path.join(HERE, "test_tombstone_station.py")], 180,
+         why="the printer's last station and the sealed/certified split are REPORTS, and a report "
+             "is the easiest thing here to break silently — it keeps returning a shape while the "
+             "word stops being true. Two named rots: a tombstone verdict of ON DISK because the "
+             "LEDGER failed to load rather than because nothing was pruned (opposite facts), and "
+             "`certified` decaying into an alias for `sealed` when 30 seals exist and ZERO satisfy "
+             "the extraction contract"),
     Gate("test_entry_door_stamp",
          [sys.executable, os.path.join(HERE, "test_entry_door_stamp.py")], 120,
          why="the door that opened a reel never reached the reel: 0 of 10,121 journal rows carried "
