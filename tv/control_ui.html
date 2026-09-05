@@ -1114,19 +1114,36 @@
   /* v1506 — the provenance tags. Deliberately quiet: they must be readable without competing with
      the read itself. Certified borrows the GOOD state, an unchecked guess borrows nothing at all —
      it is dimmed and italic, so certainty is something a row has to EARN chrome for. */
-  .rcpt-sure { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: .78em;
+  .rcpt-sure { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: var(--fs-2xs);
     font-weight: var(--fw-semibold); letter-spacing: var(--ls-label); color: var(--st-good);
     border: 1px solid rgba(143,230,160,.34); background: rgba(143,230,160,.08); }
   /* ⚠ v2461 — `.78em` PUT THIS UNDER THE TYPE FLOOR. Measured at his real 1120x628 it lands
      at 11.7px against a floor of 13px (--fs-2xs = clamp(13px, 1.0vw, 15px) is the smallest
      token this console has), and 16 nodes on that screen were below it. A relative size is
      how a floor gets crossed without anyone typing a number below it: .78 of a parent that
-     itself shrinks at narrow widths. The token clamps, so it cannot. */
+     itself shrinks at narrow widths. The token clamps, so it cannot.
+
+     ⚠⚠ v2644 — AND THIS FIX WAS ONLY ONE-THIRD APPLIED FOR 183 VERSIONS. The comment above
+     describes THREE chips and only `.rcpt-guess`, the one it happens to sit above, got the
+     token. `.rcpt-sure` (above) and `.rcpt-held` (below) kept `.78em` — including the ⚠ HELD
+     chip. The diagnosis was exact, the arithmetic was written down, and the sibling two lines
+     away was never touched. [[sweep-dont-ask]]
+
+     ⚠ AND THE GUARD WRITTEN FOR THIS SCAR COULD NOT SEE IT. test_control's floor check matched
+     ABSOLUTE pixel declarations only, while this file carries 13 live RELATIVE sizes. A guard
+     blind to the exact form of the scar it was written for is how a documented fix stays
+     two-thirds undone. Widened in the same version with a ratchet on relative sizes.
+
+     ⚠⚠ AND WRITING THAT SENTENCE BROKE A DIFFERENT GATE. The first draft quoted the old check's
+     pattern literally, and `visual-lock` — which scans THIS FILE for absolute sizes — matched the
+     example inside the comment and failed. A description of a declaration is not a declaration,
+     but a scanner cannot tell them apart. Say what a rule does; never paste a matchable specimen
+     of it into the file that rule polices. [[source-reading-guard]] */
   .rcpt-guess { flex: none; margin-left: 6px; font-size: var(--fs-2xs); font-style: italic;
     font-weight: var(--fw-medium); letter-spacing: var(--ls-snug); color: var(--st-idle); opacity: .85; }
   .rcpt.rc-empty { opacity: .55; }
   .rcpt.rc-empty .rcpt-t { font-style: italic; }
-  .rcpt-held { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: .78em;
+  .rcpt-held { flex: none; margin-left: 6px; padding: 0 4px; border-radius: 4px; font-size: var(--fs-2xs);
     font-weight: var(--fw-semibold); letter-spacing: var(--ls-label); color: #ffb27a;
     border: 1px solid rgba(255,157,92,.42); background: rgba(255,157,92,.1); }
   .rc-live     { border-left-color: #e05545; }

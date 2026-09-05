@@ -8184,6 +8184,67 @@ class TestV1504TypeFloor(unittest.TestCase):
                          "these raw px sizes render below the 13px fullscreen floor: %s — use a "
                          "--fs-* token instead, which clamps and scales" % under)
 
+    def test_no_em_size_can_drop_a_child_under_the_floor(self):
+        """⚠⚠ v2644 — THE PX-ONLY GUARD ABOVE WAS BLIND TO THE EXACT FORM OF ITS OWN SCAR.
+
+        v2461 recorded, in this file's own words, that `.78em` *"PUT THIS UNDER THE TYPE FLOOR …
+        11.7px against a floor of 13px … A relative size is how a floor gets crossed without
+        anyone typing a number below it."* The guard written beside that scar matches
+        `font-size: <n>px` — **px only** — and `control_ui.html` carries THIRTEEN live `em` sizes.
+
+        So the scar was correct, the guard was real, and the guard could not see the thing the
+        scar described. `.rcpt-sure` and `.rcpt-held` kept `.78em` for 183 versions with the
+        diagnosis sitting between them. [[source-reading-guard]] [[sweep-dont-ask]]
+
+        ⚠⚠ THIS IS A RATCHET, NOT A VERDICT, AND THE DISTINCTION IS THE HONEST PART. Whether a
+        given `em` actually breaches depends on the size its ancestor chain resolves to, and that
+        cannot be established from this file by pattern-matching — a regex sees the child's own
+        rule, never its parent's. Six sub-1.0 sizes remain and I have NOT measured their parents,
+        so calling them defects would be exactly the confident verdict on an unmeasured thing that
+        this repo keeps paying for. [[unknown-stays-unknown]]
+
+        What IS provable is that the SET must not grow. Every new relative size is a new chance to
+        cross the floor without anyone typing a number below it — which is precisely how v2461
+        happened. So the known six are recorded as WATCHED, and a seventh fails.
+        ⚠ The list is also a ceiling: if one is removed, this test fails too and the baseline must
+        come down. A ratchet that only ever loosens is not a ratchet.
+        """
+        ui = self._ui()
+        #: sub-1.0 `em` sizes present when this ratchet was set, 2026-09-05. Parents UNMEASURED —
+        #: these are watched, not accused. Shrinking this list is progress and must be recorded.
+        KNOWN = {".rcpt-ic": 0.9, ".rc-watchdog": 0.82, ".find-card .fc-mark": 0.95,
+                 ".dfp-note": 0.92, ".cw-note": 0.86, ".hh-chev": 0.8}
+        found = []
+        for m in re.finditer(r"font-size:\s*(\d*\.?\d+)em", ui):
+            if float(m.group(1)) >= 1.0:
+                continue
+            start = ui.rfind("\n  .", 0, m.start())
+            sel = ui[start + 1:ui.index("{", start)].strip()
+            found.append((sel, float(m.group(1)), ui.count("\n", 0, m.start()) + 1))
+        names = {sel for sel, _, _ in found}
+        added = sorted(n for n in names if n not in KNOWN)
+        gone = sorted(n for n in KNOWN if n not in names)
+        self.assertEqual(added, [],
+                         "NEW relative font sizes appeared: %s — a sub-1.0 `em` can cross the "
+                         "13px floor whenever its parent shrinks, which is exactly how v2461's "
+                         ".78em breach happened. Use a --fs-* token, which clamps." % (added,))
+        self.assertEqual(gone, [],
+                         "these relative sizes were removed: %s — good, and the KNOWN set in this "
+                         "test must come down to match, or the ratchet silently re-admits them"
+                         % (gone,))
+
+    def test_that_em_guard_can_actually_SEE_an_em(self):
+        """⚠ THE BASELINE, and the reason the old guard's silence proved nothing. A regex that
+        matches nothing is indistinguishable from a file with nothing to match."""
+        probe = "  .x { font-size: .78em; }\n  .y { font-size: 1.05em; }"
+        found = [m.group(1) for m in re.finditer(r"font-size:\s*(\d*\.?\d+)em", probe)]
+        self.assertEqual(found, [".78", "1.05"],
+                         "the em pattern does not match real declarations from this file")
+        ui = self._ui()
+        self.assertGreater(len(re.findall(r"font-size:\s*\d*\.?\d+em", ui)), 0,
+                           "no em sizes found at all — if they were all removed this guard has "
+                           "nothing to protect and should be retired, not left reporting clean")
+
     def test_the_floor_token_still_exists_to_use(self):
         ui = self._ui()
         self.assertRegex(ui, r"--fs-2xs:\s*clamp\(13px",

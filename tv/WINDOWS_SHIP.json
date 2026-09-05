@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2643",
+  "ver": "v2644",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2643: CF-5 settled: not two worlds, one board sampled twice across an install-id re-mint, one row 7.8 days frozen. The contested predicate ignored ownerId and had no staleness term, and console_doctor returned MISSING before its high-water check - so the drop detector was unreachable for 7.8 days. Un-blinding it exposed drops[-1] reading a test fixture as his fall.",
+  "note": "v2644: v2461 diagnosed .78em crossing the 13px floor and only one of the three chips it describes got the token. rcpt-sure and rcpt-held kept it for 183 versions with the diagnosis sitting between them, and the guard written for that scar matched px only while the file carries 13 em sizes. Measured at his 1120: token 13px, old 11.7px.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
