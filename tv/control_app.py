@@ -4533,14 +4533,25 @@ def _capture_door_note(door, pre, opened=False):
         return
     d = _capture_door_load()
     row = d.get(door) or {}
-    row["lastAt"] = int(time.time() * 1000)
-    row["lastWhy"] = str((pre or {}).get("why") or "")
+    # ⚠⚠ v2689 — AN OPEN WITH NO PREFLIGHT MAY NOT RESTAMP THE FACTS IT DID NOT MEASURE. v2687
+    # started crediting opens here with pre=None, and this function then moved `lastAt` to now and
+    # blanked `lastWhy` while the `last_*` facts kept their values from an OLDER preflight.
+    # Reproduced: preflight records why="disk too full", screenRecOk=False, freeGb=3.1; a later
+    # open with pre=None leaves those three untouched, clears the why, and stamps lastAt=now — so
+    # the row reads "as of a second ago, Screen Recording was denied and the disk had 3.1GB", which
+    # was never measured at that moment, and the sentence explaining it is gone.
+    # An open and a look are different events. The open has its own timestamp (`openedAt`), so it
+    # records itself and leaves the observation fields to the observer.
+    # [[stale-reading]] [[label-outlived-referent]]
+    if pre is not None:
+        row["lastAt"] = int(time.time() * 1000)
+        row["lastWhy"] = str(pre.get("why") or "")
     for k in ("screenRecOk", "diskOk", "windowSeen", "freeGb"):
         if (pre or {}).get(k) is not None:
             row["last_" + k] = (pre or {})[k]
     if opened:
         row["opened"] = int(row.get("opened") or 0) + 1
-        row["openedAt"] = row["lastAt"]
+        row["openedAt"] = int(time.time() * 1000)
         # who opened the reel that is now rolling — read back at seal time to credit the right
         # door. Without this the credit would go to whichever door happened to act last.
         d["_lastDoor"] = door
@@ -23200,7 +23211,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2688",
+        "ver": "v2689",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

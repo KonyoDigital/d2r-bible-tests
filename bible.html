@@ -41881,7 +41881,37 @@ function renderJournal(){
          A name the classifier has no opinion about is claimed by NEITHER bar, which is what the
          promise actually said. An undo that cannot undo is worse than no button.
          [[feedback-comments-vs-code]] [[the-unjoined-end]] */
-      var isS = (rar==='set');
+      /* ⚠⚠ v2689 — SETS NEEDED THE SAME LIST FALLBACK UNIQUES ALREADY HAD, and the asymmetry
+         is why the "last found" bar went silent for every set piece.
+         A unique survives an unclassified `rar` through `listU` (ITEMS / _UNI_EXTRA). A set had
+         NOTHING equivalent — and v1625's own comment ten lines up states the problem exactly:
+         "_artRarity does not classify SET PIECES (it answers for the item's ART, and a set piece
+         resolves to its base)". So `rar` is '' for a set piece, `isS` was false, and v2449 then
+         legislated — correctly — that a name the classifier has no opinion about is claimed by
+         NEITHER bar, to kill undo buttons that cannot undo.
+         Both rulings were right and together they silenced the bar. The join is to make the set
+         side RECOGNISE the name the way the unique side does, through the app's own exported
+         list, so v2449's rule is satisfied on its own terms: the name IS recognised — by a list
+         rather than by art — and an unrecognisable name is still claimed by neither bar.
+         findSetPiece() is bible.html:15120, tolerates the slot-suffixed form ("Tal Rasha's
+         Adjudication (amulet)"), and is already window-exported.
+
+         ⚠⚠ PROVEN BY A/B, AND THE PROOF CORRECTED MY EXPLANATION. Measured on a served page,
+         seeding "Aldur's Deception" into d2r_foundLog + d2r_setPieces:
+             fallback DISABLED -> 0 visible .gf-undo-bar
+             fallback ENABLED  -> 1, naming "Aldur's Deception"
+         So the fallback is load-bearing. But querying window._artRarity("Aldur's Deception")
+         DIRECTLY returns 'set' — so the reason cannot be the one I first wrote down ("the
+         classifier has no opinion about set pieces"). Whatever the cause, at the MOMENT THIS
+         FILTER RUNS `rar` is not 'set'; the most likely reason is that _artRarity is not yet
+         defined then, and the try/catch above leaves `rar` empty rather than throwing.
+         The fix stands because it was measured. The mechanism is stated as unresolved rather
+         than guessed, because a confident wrong cause is how the next person fixes the wrong
+         thing. [[unknown-stays-unknown]] [[feedback-comments-vs-code]]
+         [[two-fixes-broke-each-other]] [[the-unjoined-end]] */
+      var listS = false;
+      try { listS = !!(window.findSetPiece && window.findSetPiece(n)); } catch(e){ listS = false; }
+      var isS = (rar==='set') || (rar!=='unique' && listS);
       return kind==='uni' ? isU : (isS && !isU);
     });
     if(!mine.length) return '';
@@ -47481,6 +47511,40 @@ window._renderStashFresh = function(){
                                              muleName: rg.muleName || '', mode: rg.mode || '' });
           } catch(e){}
         });
+        /* ⚠⚠ v2689 — REPORTING AND FILING ARE DIFFERENT QUESTIONS AND MAY NOT SHARE ONE LIST.
+           `out.laneLocked` could never populate, for ANY input, and the reason is structural:
+             _LOCKED_LANES is { equipment, inventory }               (bible.html:36938)
+             _names comes only from out.vaulted — the CONTAINER-SEEN subset (v2388, correct)
+           An equipment or inventory item is BY DEFINITION not in a container, so the two sets are
+           disjoint and the loop above could never meet a locked name. v2388 was right to narrow
+           what gets FILED; narrowing the input silently took the REPORT with it, and no gate
+           noticed because the guard still ran — just never on anything. A guard that runs on an
+           empty list reports clean for ever. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+
+           ⚠ THE PROTECTION WAS NEVER BROKEN — only the VISIBILITY. Equipment never reaches the
+           registrar at all, so it was never filed to a mule; his ruling held. What was missing is
+           v1984's whole point: *"this SHOWS and never acts... so a skipped item is a visible
+           decision rather than an absence."* Konyo: *"should render it based on the character/mule
+           that its currently on... its our decision and if its there there a reason for it."*
+           An absence and a decision must never read alike.
+
+           So the report is built from the ITEMS THE SWEEP JUST APPLIED, which is the population the
+           question is actually about, while the stocking loop keeps v2388's narrowing untouched.
+           `_laneLockNote` has already recorded each of these at :47196, so the lock is asked the
+           same question here that it will answer anywhere else. */
+        try {
+          var _seenLock = {};
+          _lockedOut.forEach(function(r){ if (r && r.name) _seenLock[r.name] = 1; });
+          ((payload && payload.items) || []).forEach(function(it){
+            var nm2 = (it && it.name) ? String(it.name).trim() : '';
+            if (!nm2 || _seenLock[nm2]) return;
+            var lk2 = '';
+            try { lk2 = (window._laneLocked && window._laneLocked(nm2)) || ''; } catch(e){}
+            if (!lk2) return;
+            _seenLock[nm2] = 1;
+            _lockedOut.push({ name: nm2, lane: lk2 });
+          });
+        } catch(e){ out.skipped.push('lane-lock report failed: ' + (e && e.message || e)); }
       } catch(e){ out.skipped.push('stocking failed: ' + (e && e.message || e)); }
       out.stocked = _stocked;
       if (_lockedOut.length) out.laneLocked = _lockedOut;
@@ -48597,7 +48661,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2688', name:'v2688 - REG-621 closed', date:'2026-09-05', note:'the remove buttons were unreachable at 375px because a grid track could not collapse' };
+  window.D2R_BUILD = { id:'v2689', name:'v2689 - two silent console defects', date:'2026-09-05', note:'a lock report that could never populate, and a found-bar that went dark for every set piece' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

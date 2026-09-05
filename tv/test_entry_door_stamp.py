@@ -219,5 +219,72 @@ class EveryDoorEarnsItsDenominator(unittest.TestCase):
                          "an unlabelled caller is a hand click — the v2362 default")
 
 
+class AnOpenDoesNotRestampWhatItDidNotMeasure(unittest.TestCase):
+    """v2689 — found by reviewing v2687's own shipped bytes, not by a gate.
+
+    v2687 began crediting opens with `_capture_door_note(door, None, opened=True)`. This function
+    then moved `lastAt` to now and blanked `lastWhy`, while every `last_*` fact kept its value from
+    an OLDER preflight — because the fact-copy loop is guarded on `pre` and pre was None.
+
+    Reproduced before the fix: a preflight recording why='disk too full', screenRecOk=False,
+    freeGb=3.1, followed by an open, left the row reading "as of one second ago, Screen Recording
+    was denied and the disk had 3.1GB" — a moment at which nothing was measured — with the
+    sentence that explained it deleted. An open and a look are different events.
+    [[stale-reading]] [[label-outlived-referent]]"""
+
+    def _isolated(self):
+        import importlib
+        import json as _j
+        import sys as _s
+        _s.path.insert(0, HERE)
+        CA = importlib.import_module("control_app")
+        store = {}
+        CA._capture_door_load = lambda: _j.loads(_j.dumps(store))
+
+        def _save(x):
+            store.clear()
+            store.update(_j.loads(_j.dumps(x)))
+
+        CA._capture_door_save = _save
+        return CA, store
+
+    def test_an_open_preserves_the_last_looks_facts_and_reason(self):
+        import time as _t
+        CA, store = self._isolated()
+        CA._capture_door_note("mini", {"why": "disk too full", "screenRecOk": False,
+                                       "freeGb": 3.1, "diskOk": False})
+        was = dict(store["mini"])
+        _t.sleep(0.02)
+        CA._capture_door_note("mini", None, opened=True)
+        row = store["mini"]
+        self.assertEqual(row["lastAt"], was["lastAt"],
+                         "an open with no preflight moved lastAt, so stale facts now sit under a "
+                         "fresh timestamp")
+        self.assertEqual(row["lastWhy"], "disk too full",
+                         "an open erased the reason the last LOOK recorded")
+        self.assertEqual(row["last_freeGb"], 3.1)
+        self.assertIs(row["last_screenRecOk"], False)
+
+    def test_the_open_is_still_recorded_with_its_own_stamp(self):
+        """The fix must not achieve tidiness by dropping the credit — that would restore the empty
+        denominator v2687 existed to fill."""
+        CA, store = self._isolated()
+        CA._capture_door_note("mini", {"why": "", "screenRecOk": True, "freeGb": 55.0})
+        CA._capture_door_note("mini", None, opened=True)
+        row = store["mini"]
+        self.assertEqual(row.get("opened"), 1, "the open was not counted")
+        self.assertTrue(row.get("openedAt"), "the open carries no timestamp of its own")
+
+    def test_a_real_preflight_still_updates_everything(self):
+        """The guard must not freeze the row: a genuine look still refreshes facts AND reason."""
+        CA, store = self._isolated()
+        CA._capture_door_note("mini", {"why": "disk too full", "screenRecOk": False, "freeGb": 3.1})
+        CA._capture_door_note("mini", {"why": "", "screenRecOk": True, "freeGb": 55.0})
+        row = store["mini"]
+        self.assertIs(row["last_screenRecOk"], True)
+        self.assertEqual(row["last_freeGb"], 55.0)
+        self.assertEqual(row["lastWhy"], "", "a clean look must clear the previous refusal reason")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
