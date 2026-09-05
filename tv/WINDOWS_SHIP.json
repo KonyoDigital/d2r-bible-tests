@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2667",
+  "ver": "v2668",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2667: REG-624/625/626 + two unowned one-liners",
+  "note": "v2668: a gate passed while 12 of its 12 cases skipped; run_gates now carries skipped/ran and names any suite covering nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

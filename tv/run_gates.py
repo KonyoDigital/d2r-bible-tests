@@ -1768,7 +1768,21 @@ def run(only=None, live_watch=True, live_writer=None):
             # failure has to be diagnosable from the log alone: the reason column is only the LAST
             # line the gate printed, which for a suite that skipped in setUp is rarely the sentence
             # that says why.
-            results.append((g, status, dt, tail[0][:150], blob if status in ("FAIL", "SKIP") else ""))
+            # v2668 — CARRY THE DENOMINATOR WHILE THE BLOB IS STILL IN HAND. The blob is
+            # dropped for a PASS (right above), so by the time the case-census runs, the only
+            # surviving text is this 150-char tail. unittest's own summary says "OK (skipped=26)"
+            # and never how many ran, so the census could report a suite and a count and NOTHING
+            # to divide it by — "test_chronicle_template=12" reads like a detail when it is in
+            # fact 12 of 12, a gate that passed while covering NOTHING on this venue.
+            # [[zero-needs-a-denominator]] [[regression-guard]]
+            _detail = tail[0][:150]
+            if "skipped=" in _detail and " of " not in _detail:
+                _ran = re.search(r"Ran (\d+) test", blob or "")
+                if _ran:
+                    _detail = re.sub(r"skipped=(\d+)",
+                                     lambda m: "skipped=%s of %s" % (m.group(1), _ran.group(1)),
+                                     _detail)[:170]
+            results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP") else ""))
         except subprocess.TimeoutExpired:
             results.append((g, "FAIL", time.time() - t0,
                             "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
@@ -2260,13 +2274,17 @@ def main(argv):
     # which is the same decay in the other direction. Naming the number is what was missing.
     _cases = 0
     _where = []
+    _dark = []
     for _g, _st, _dt, _d, _ in results:
-        _m = re.search(r"skipped=(\d+)", str(_d or ""))
+        _m = re.search(r"skipped=(\d+)(?: of (\d+))?", str(_d or ""))
         if _m and _st != "SKIP":
             _n = int(_m.group(1))
+            _ran = int(_m.group(2)) if _m.group(2) else None
             if _n:
                 _cases += _n
-                _where.append("%s=%d" % (_g.name, _n))
+                _where.append("%s=%d%s" % (_g.name, _n, ("/%d" % _ran) if _ran else ""))
+                if _ran and _n >= _ran:
+                    _dark.append((_g.name, _n, _ran))
     print("\u2705 %d gate(s) passed%s."
           % (len(results) - len(skipped),
              (", %d skipped for a DECLARED reason" % len(skipped)) if skipped else ""))
@@ -2275,6 +2293,14 @@ def main(argv):
               % (_cases, ", ".join(sorted(_where))))
         print("   A gate that passes while its cases skip is not covering them. If a skip here is "
               "because a fixture is absent on this venue, that check has never run at all.")
+    if _dark:
+        # A suite whose skips equal its whole roster is not "mostly covered" — it is a PASS with
+        # nothing behind it. Named separately because a bare count hides it: 12 looks small next
+        # to 2,783 right up until you learn the suite only ever had 12.
+        print("\u26d4 %d GATE(S) PASSED WHILE COVERING NOTHING ON THIS VENUE: %s"
+              % (len(_dark), ", ".join("%s (%d of %d cases skipped)" % r for r in sorted(_dark))))
+        print("   This is a PASS with an empty denominator. Treat it as UNKNOWN for this venue, "
+              "never as evidence the suite's subject is healthy.")
     return 0
 
 

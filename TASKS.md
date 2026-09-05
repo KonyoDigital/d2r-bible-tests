@@ -1305,13 +1305,15 @@ The list looked far longer than it is because one decision wears seven names.
 
 ## TIER 0 — FREE. No money, no ruling, no risk.
 
+> ⚠ **THIS TABLE DRIFTED FROM THE PROSE ABOVE IT AND WAS WRONG ON 3 OF ITS 6 ROWS (2026-09-05).** CF-3 and CF-7 were already CLOSED in the prose while listed here as open, and CF-6's cell claimed *"still growing"* while its own prose row 62 lines up recorded the opposite, correction included. **The section advertised as the truth was the stale half** — which is the same defect the drift audit at the top of this file names for CF-1. When a row moves, move it in BOTH places.
+
 | id | what | measured state | size |
 |---|---|---|---|
-| **CF-6** | Stop recording a board route at the door | ⚠ **RE-MEASURED 2026-09-05 09:38 AND IT IS 2.7× WORSE THAN FILED.** The row says *"~150 routes, exactly 2 non-zero"*. `tv/board_tally.json` → `byRoute` holds **404** routes, **exactly 2** carry any `have>0` (`77f64154…`, `c5c2c92d…`) → **402 probe artifacts**, 304,226 bytes, oldest stamp 2026-08-28, **newest 09:38 today — it is still growing while this is written.** Same mechanism that took `~/.grok/sessions` to 11 GB. ⚠ My own first count said 13 routes: I counted TOP-LEVEL keys, not `byRoute`. Founding rule 4 — the instrument was mine and it was wrong. | **S** |
+| **CF-6** | Stop recording a board route at the door | ✅ **THE DOOR IS SHUT AND NOW PROVEN BOTH WAYS — 2026-09-05 17:28.** This cell used to read *"2.7× worse than filed … still growing while this is written"*, and **that was wrong**, contradicting CF-6's own prose row 62 lines above it. Re-measured: `byRoute` 404 (2 real / 402 zero-but-readable / **0 unreadable**), and the file is **byte-identical (304,226) between the 09:38 filing and 17:28 — eight hours, zero growth**. The only route stamped today is `77f64154` `pfx=''` with **[122,293,99]**: the OWNER world posting real counts. **A fresh `at` on an existing row is not a new row** — that misread is what "still growing" was. Newest GUEST (`I·`) route: **2026-09-03 05:23, 60.1 h ago; 0 in 48 h.** The guard landed **2026-09-02 23:47 (`4a367577`, v2454)**; 398 of 401 guests predate it and the 3 that followed all fall within 3.5 h, consistent with his console running the old code until its next restart. ⚠ **"0 new rows" reads identically to a guard nobody exercised**, so it was exercised against a TEMP file (his `board_tally.json` never opened for write): **RED** fresh guest posting zeros → `False`, 1→1 routes, nothing minted · **GREEN** fresh real world → `True`, admitted · **GREEN** already-banked world dropping to zero → `True`, no duplicate row, **and the drop written to `drops`**. That third case is the one that matters: it proves the guard is not simply refusing all zeros, so a real collapse is still recorded rather than silently healed. ⚠ The proof's FIRST run failed on **my own anchor** — I seeded the literal key `ownerkey` while `_route_key()` computes `owner|main` [[sabotage-is-usually-the-wrong-one]]. **REMAINING = HIS:** the 402 historical rows are his board data; removing them is the prune, and the prune is his call. | **S → done (his half open)** |
 | **CF-5** | Two worlds claim him | **CORROBORATED BY CF-6's measurement** — the 2 non-zero routes ARE the `77f64154`/`c5c2c92d` pair CF-5 names. ⚠ HIS TICKS ARE TESTIMONY: route to a GB-L brief, never resolve in code by preferring the newer | **S** |
 | **JOIN-3** | The 3 reels that are sealed AND names-read | **FREE by his own table** — names on disk, the seal does not carry them. Unblocks `ROUTED`, which is structurally unreachable for all 40 until it lands ⚠ figure carried from the 2026-09-04 measurement, not re-run | **S** |
-| **CF-3** | Name the 2 missing checks (32 rows vs 34) | *"a delta of 2 is not actionable, two names are"* | **S** |
-| **CF-7** | 1 orphan frame | `tv/orphan_fold.py` exists; the plan is written | **S** |
+| **CF-3** | Name the 2 missing checks (32 rows vs 34) | ✅ **ALREADY CLOSED — see the prose row ~86 lines above.** The two names are **`sweep would find`** and **`the other doctors`** (`console_doctor.SLOW`), and **34 vs 32 is the designed SPLIT, not a loss**: a cheap pass (`include_slow=False`) correctly omits them. Nothing is missing. Listed as open here only because this table drifted from the prose. | **closed** |
+| **CF-7** | 1 orphan frame | ✅ **ALREADY CLOSED as a duplicate of B-82 — see the prose row above.** `orphan_fold.plan()` → *1 cluster · 1 frame · **0 foldable, 1 REFUSED*** for overlapping an existing reel, and **the refusal is the correct behaviour, not outstanding work** (folding it would mint a second session id for one recording). Never a task; B-82 wearing a CF number. | **closed** |
 | **CF-8** | Carry the last-known answer WITH ITS AGE | `stale-reading` shape. Do NOT turn UNKNOWN into a number | **S** |
 
 ## TIER 1 — HIS, AND EACH ONE UNBLOCKS A CLUSTER
@@ -1349,8 +1351,24 @@ tasked list and grok's handoffs in between too."*
 
 ## ⬜ WHAT COULD NOT BE SETTLED — UNKNOWN, and not carried forward as fact
 
-- **Whether `run_gates.py` is green at HEAD.** 142 gates; the last full-set verdict is 9 ships and
-  21 gates old. Only a CI run settles it — never his Mac.
+- ✅ **SETTLED 2026-09-05 — `run_gates.py` IS green at HEAD, on CI, and the honest verdict is not
+  the word "green".** Run `33970973928` on `96a4eafb` (v2666), workflow *📺 TV DIABLO — agent tests*,
+  step **`THE GATE SET (tv/run_gates.py)` = success**. Its own closing lines, quoted:
+  **`✅ 138 gate(s) passed, 4 skipped for a DECLARED reason.`** and
+  **`⚠ 78 CASE(S) DID NOT RUN inside those gates`** — `test_control=26`, `test_chronicle_template=12`,
+  `test_inventory_lattice=11`, `test_stash_eye_aspect=8`, `test_chronicle_calibrate=4`, +11 more.
+  The 4 skips are the HOST_FIXTURE shape and each declares itself: `reel_demo` (his shelf absent →
+  *3 check(s) UNKNOWN*), `overlap_ratchet` (**baseline measured on Darwin, run on Linux** — font
+  rasterisation, so the comparison is void, not passing), `human-eyes` (*"not a pass"*), `live-panel`
+  (nothing listening on `127.0.0.1:17772`). **SKIP ≠ PASS, and the gate set says so itself.**
+  ⚠ **AND THE 78 IS NOT ACTIONABLE, WHICH IS CF-3'S OWN PRINCIPLE LEFT UNAPPLIED ONE LEVEL DOWN.**
+  `run_gates.py:2264` parses `skipped=(\d+)` out of each gate's detail and reports **suite + count,
+  never the case names or the reasons** — exactly the *"a delta of 2 is not actionable, two names
+  are"* complaint, one layer lower. Denominator: those 16 suites hold **2,783 tests**, so 78 is 2.8%.
+  Of the reasons written at the 165 `skipTest(` call sites, several **cannot be true on a runner** —
+  *"bible.html is not on this machine"* (28 sites) and *"node is not installed"* (7) are both false
+  on CI, where bible.html is tracked and node runs the intake smoke in the very next step. So the
+  78 is **not yet explained**, only counted. NEXT: make the counter carry aggregated reasons.
 - **A11's 30/11/8 census** and **A2's per-lock wilson figures** at HEAD — both need the instruments run.
 - **The 40-reel shelf figures** (29 unread / 12 / 12 / 3 JOIN) — carried from 2026-09-04, not re-measured.
 

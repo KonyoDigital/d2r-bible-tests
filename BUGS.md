@@ -20999,6 +20999,50 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-627 — a gate passed while covering NOTHING, and the census had no denominator (v2668)
+
+`run_gates.py` has printed `⚠ N CASE(S) DID NOT RUN inside those gates` since v2049, and that line
+was built for exactly this. It reports a **suite and a count, with nothing to divide them by.**
+
+Measured on CI run `33970973928` (`96a4eafb`, v2666), where the verdict read
+`✅ 138 gate(s) passed, 4 skipped for a DECLARED reason` and
+`⚠ 78 CASE(S) DID NOT RUN … test_chronicle_template=12, test_inventory_lattice=11, test_control=26`:
+
+| suite | skipped | it has | dark |
+|---|---|---|---|
+| `test_chronicle_template` | 12 | **12** | **100% — the gate passed covering NOTHING** |
+| `test_inventory_lattice` | 11 | 19 | 58% |
+| `test_chronicle_calibrate` | 4 | 10 | 40% |
+| `test_control` | 26 | 2,233 | 1.2% |
+
+**`12` reads as a footnote next to 2,783 tests right up until you learn the suite HAS twelve.**
+Locally that suite runs all 12 and passes; on a runner its fixtures are absent, every case skips,
+and the gate still counts toward `138 gate(s) passed`. A green with an empty denominator.
+`[[zero-needs-a-denominator]]` `[[regression-guard]]`
+
+**Why the census could not see it:** `unittest`'s own summary is `OK (skipped=26)` and never says
+how many ran, and `run_gates` keeps the full output blob **only for a FAIL or a SKIP** — so by the
+time the census runs, a passing gate has nothing left but a 150-char tail. The fix carries the
+denominator at the one point the blob is still in hand, then names any suite whose skips equal its
+whole roster:
+
+```
+✅ fake_census   0.0s  OK (skipped=7 of 7)
+⚠ 7 CASE(S) DID NOT RUN inside those gates: fake_census=7/7
+⛔ 1 GATE(S) PASSED WHILE COVERING NOTHING ON THIS VENUE: fake_census (7 of 7 cases skipped)
+```
+
+⚠ **PROVEN RED BEFORE IT WAS TRUSTED.** `tv/test_gate_banks.py` drives the real `main()` over a
+synthetic gate — a source scan would have been satisfied by the comment explaining the fix
+`[[source-reading-guard]]`. Against HEAD without the patch: **FAILED (failures=3)**, printing the
+old `OK (skipped=1)` / `fake_census=1`. And a **partial** skip (1 of 19) must NOT trigger the loud
+line — that case is asserted too, because a warning that fires for everything stops being read.
+
+⚠ **THIS NAMES THE HOLE; IT DOES NOT CLOSE IT.** 78 cases are still dark on CI and the *reasons*
+are still not carried — several written at the 165 `skipTest(` call sites (*"bible.html is not on
+this machine"*, *"node is not installed"*) **cannot be true on a runner**, where bible.html is
+tracked and node runs the very next step. So the 78 is counted, not explained.
+
 ## REG-626 — the containment guard BUGS.md already claimed, built for real (v2667)
 
 REG-620's entry states *"the acceptance test asserts BOTH: zero cut AND `.vrg-x` still inside

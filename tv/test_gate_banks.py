@@ -103,6 +103,67 @@ class BankingIsIdempotent(unittest.TestCase):
             self.sa.bank("miniauto.run", "sabotage", "some_other_harness", n=9, k=9, ref="x")
 
 
+
+class TheCaseCensusCarriesItsDenominator(unittest.TestCase):
+    """v2668 — a gate that PASSES while every one of its cases skipped must be named as such.
+
+    ⚠ THE DEFECT, measured on CI run 33970973928 (v2666): the verdict read
+    `✅ 138 gate(s) passed` and `⚠ 78 CASE(S) DID NOT RUN … test_chronicle_template=12`.
+    Twelve looks like a footnote beside 2,783 tests — until you learn that suite HAS twelve
+    tests, so it covered NOTHING on that venue and still counted as a passing gate.
+
+    unittest's own summary line is `OK (skipped=26)` and never says how many ran, and
+    run_gates drops the full blob for a PASS, so the census had a numerator and no
+    denominator. [[zero-needs-a-denominator]] [[regression-guard]]
+
+    This drives the REAL main() over a SYNTHETIC gate rather than reading the source around
+    it — a scan for the ⛔ string would be satisfied by the comment that explains it.
+    [[source-reading-guard]]
+    """
+
+    def _run(self, ran, skipped):
+        import subprocess, sys as _s, tempfile, os as _o
+        d = tempfile.mkdtemp(prefix="census_")
+        fake = _o.path.join(d, "fake_suite.py")
+        with open(fake, "w") as fh:
+            fh.write("import sys\n"
+                     "sys.stderr.write('\\nRan %d tests in 0.001s\\n\\nOK (skipped=%d)\\n')\n"
+                     "sys.exit(0)\n" % (ran, skipped))
+        drv = _o.path.join(d, "drive.py")
+        with open(drv, "w") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.path.insert(0, %r)\n"
+                "import run_gates as rg\n"
+                "g = rg.Gate('fake_census', [sys.executable, %r], 60, why='synthetic')\n"
+                "rg.GATES = [g]\n"
+                "rg.main(['run_gates.py', '--only', 'fake_census'])\n"
+                % (HERE, fake))
+        out = subprocess.run([_s.executable, drv], capture_output=True, text=True, timeout=180)
+        return out.stdout + out.stderr
+
+    def test_a_fully_dark_gate_is_named_not_merely_counted(self):
+        txt = self._run(ran=7, skipped=7)
+        self.assertIn("skipped=7 of 7", txt,
+                      "the per-gate line must carry the denominator; without it 7 is unreadable")
+        self.assertIn("COVERING NOTHING", txt,
+                      "a gate that passed with 7 of 7 cases skipped is a PASS with an empty "
+                      "denominator and must be named, not folded into a total")
+
+    def test_RED_PROOF_a_partly_skipped_gate_is_NOT_called_dark(self):
+        """If this fired for a partial skip the loud line would mean nothing."""
+        txt = self._run(ran=19, skipped=1)
+        self.assertIn("skipped=1 of 19", txt)
+        self.assertNotIn("COVERING NOTHING", txt,
+                         "1 of 19 is partial coverage, not zero - crying dark here would "
+                         "make the verdict noise and it would stop being read")
+
+    def test_the_census_line_itself_carries_the_ratio(self):
+        txt = self._run(ran=19, skipped=1)
+        self.assertRegex(txt, r"CASE\(S\) DID NOT RUN.*fake_census=1/19",
+                         "the census must print skipped/ran, not a bare count")
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable
