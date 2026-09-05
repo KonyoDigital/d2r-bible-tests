@@ -9417,6 +9417,22 @@ def _kai_closer_loop():
             for m in missed[:20]:
                 _fts = int(m.get("ts") or _sess_last)
                 rows.append({"ts": _fts, "captureTs": _fts,
+                             # ⚠⚠ v2693 — SAY THAT THIS ROW IS A RETRO SWEEP, because `completedTs`
+                             # means two different things depending on who wrote it and NOTHING on
+                             # the row said which. A live read completes seconds after its capture;
+                             # THIS writer stamps captureTs at the frame's true moment and
+                             # completedTs at the moment a later sweep found it, so the difference
+                             # is the AGE OF THE FOOTAGE, not a delay.
+                             # MEASURED COST OF THAT SILENCE, on me: I subtracted the two across
+                             # 5,381 rows, read p50 111 min / max 1,795 min as a READ LAG, reported
+                             # a queue/throttle defect that does not exist, and he began designing
+                             # around it. The deep lane — which reads in real time — sits at p50
+                             # 0.1 min, which is the tell I should have started from.
+                             # Konyo's answer to the wrong finding was the right architecture
+                             # anyway: "it should be like a system stamping process going through
+                             # the river". This is that, at the one place the ambiguity is created.
+                             # [[label-outlived-referent]] [[unknown-stays-unknown]]
+                             "retro": True, "retroWhy": "found by a later sweep over stored frames",
                              "completedTs": now_ms, "lane": "kai", "mode": "kai",
                              "scene": "kai", "names": [], "sessionId": sid,
                              "frameId": "reel_" + sid + "/" + str(m.get("f") or "").replace(".jpg", ""),
@@ -9429,6 +9445,9 @@ def _kai_closer_loop():
                 _gts = int(g.get("ts") or _sess_last)
                 _gn = list(g.get("names") or [])
                 rows.append({"ts": _gts, "captureTs": _gts, "completedTs": now_ms,
+                             # v2693 — same writer, same marker: completedTs here is when the sweep
+                             # ran, not when a reader was waiting.
+                             "retro": True, "retroWhy": "grounded from stored OCR by a later sweep",
                              "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
                              "sessionId": sid,
                              "frameId": "reel_" + sid + "/" + str(g.get("f") or "").replace(".jpg", ""),
@@ -9447,6 +9466,10 @@ def _kai_closer_loop():
             # never drift apart again unnoticed.
             _missed_ids = [str(m.get("f") or "") for m in missed if m.get("f")]
             rows.append({"ts": _sess_last + 1, "captureTs": _sess_last + 1, "completedTs": now_ms,
+                         # v2693 — the SUMMARY row of the same retro sweep. Its ts is synthesised
+                         # (seal+1ms) and its completedTs is when the sweep ran, so the gap is age,
+                         # not delay — same as the per-frame rows above.
+                         "retro": True, "retroWhy": "summary written by a later sweep",
                          "lane": "kai", "mode": "kai", "scene": "kai", "names": [],
                          "sessionId": sid, "frameId": "",
                          "kai": {**{k: report[k] for k in ("scanned", "textFrames", "missedFrames")},
@@ -10300,6 +10323,10 @@ def _watchdog_check(sid, sess_rows):
     for i, v in enumerate(violations):
         _ts = _sess_last + 2 + i
         out_rows.append({"ts": _ts, "captureTs": _ts, "completedTs": now_ms,
+                         # v2693 — watchdog violations are found AFTER the fact over a finished
+                         # session, so completedTs is when the check ran. Marked for the same
+                         # reason: a reader subtracting the two must know which clock it has.
+                         "retro": True, "retroWhy": "violation found after the session, by a check",
                          "lane": "watchdog", "mode": "watchdog", "scene": "watchdog",
                          "names": [], "sessionId": sid, "frameId": "",
                          "watchdog": {"rule": v["rule"], "tab": v["tab"]},
@@ -23211,7 +23238,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2692",
+        "ver": "v2693",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -24719,6 +24746,13 @@ class Handler(BaseHTTPRequestHandler):
                 done_ts = r.get("completedTs") or r.get("ts") or cap_ts
                 # v894 — lean beat only (forensics via /api/beat). Smaller JSON = faster open.
                 beats.append({
+                    # ⚠ v2693 — CARRIED THROUGH, NOT DECIDED HERE. This is a TRANSFORMER: cap_ts and
+                    # done_ts are copied off an existing journal row, so the honest answer about
+                    # which clock they came from is the SOURCE row's answer. Inventing one here
+                    # would let a beat claim a read was live because the transformer had no opinion.
+                    # Absent stays absent — a row written before v2693 says nothing, and nothing is
+                    # what a reader should get. [[unknown-stays-unknown]]
+                    "retro": r.get("retro"),
                     "ts": cap_ts,
                     "captureTs": cap_ts,
                     "completedTs": done_ts,

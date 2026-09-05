@@ -286,5 +286,54 @@ class AnOpenDoesNotRestampWhatItDidNotMeasure(unittest.TestCase):
         self.assertEqual(row["lastWhy"], "", "a clean look must clear the previous refusal reason")
 
 
+class ARetroSweepSaysSo(unittest.TestCase):
+    """v2693 — `completedTs` means two different things depending on which writer produced the row,
+    and until now nothing on the row said which.
+
+    A LIVE read completes seconds after its capture. The retro sweep stamps `captureTs` at the
+    frame's true moment and `completedTs` at the moment a LATER sweep found it — so the difference
+    there is the AGE OF THE FOOTAGE, not a delay.
+
+    MEASURED COST OF THAT SILENCE: I subtracted the two across 5,381 rows, read p50 111 min /
+    max 1,795 min as a READ LAG, and reported a queue-or-throttle defect that does not exist. The
+    tell I should have started from is in the same data — the `deep` lane, which reads in real
+    time, sits at p50 0.1 min and max 3.0 min. A number is not a measurement until you know which
+    clock it came from. [[label-outlived-referent]]"""
+
+    def _retro_calls(self):
+        """Parse the rows.append() calls that carry completedTs=now_ms — a grep would count the
+        word inside the comment that explains it."""
+        tree = ast.parse(_src("control_app.py"))
+        out = []
+        for n in ast.walk(tree):
+            if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                    and n.func.attr == "append"):
+                continue
+            for a in n.args:
+                if not isinstance(a, ast.Dict):
+                    continue
+                keys = {k.value for k in a.keys if isinstance(k, ast.Constant)}
+                if {"captureTs", "completedTs"} <= keys:
+                    out.append((n.lineno, keys))
+        return out
+
+    def test_every_row_carrying_both_clocks_declares_which_kind_it_is(self):
+        rows = self._retro_calls()
+        self.assertTrue(rows, "no journal row literal carries both clocks — the probe failed, "
+                              "not the code")
+        naked = [(ln, sorted(k)) for ln, k in rows if "retro" not in k]
+        self.assertEqual(
+            naked, [],
+            "these rows carry captureTs AND completedTs without saying whether the gap is a read "
+            "delay or the age of the footage, which is the ambiguity that produced a reported "
+            "defect that did not exist: %s" % naked[:3])
+
+    def test_the_marker_carries_its_reason(self):
+        s = _src("control_app.py")
+        self.assertIn('"retroWhy"', s,
+                      "the retro marker was added without a reason field — a flag nobody can read "
+                      "back is the same silence one level along")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

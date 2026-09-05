@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2692",
+  "ver": "v2693",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2692: a cousin board read 243 of 403 from a hardcoded seed with no owner; the seed now names its ledger",
+  "note": "v2693: completedTs meant two things and nothing on the row said which",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
