@@ -1577,3 +1577,56 @@ harness that spawned them is one bad ppid away from taking his console. **Naming
 missing**; killing belongs to `claude-owns sweep -f` and `reap -f`, which already refuse his ports
 by name. ⚠ And an unreadable process table prints **UNKNOWN**, never a clean sweep — silence is not
 evidence.
+
+---
+
+## ✅ BARS — CLOSED, AND IT WAS NEVER HIS CALL
+
+**He asked the question that produced this:** *"what do you mean by me? should be done by the
+locks?"* — and he was right on both halves.
+
+**His ruling already existed**, 2026-09-04, in his own carved words:
+
+> *"Beware n inflated by repetition. `printer.stream` banked 83/83 — but 80 of those were TWO
+> attacks applied to 40 reels each. Five distinct attacks scores 0.5655, not 0.9558. Looping one
+> attack over more inputs buys a bigger number and proves nothing new; **more KINDS is what earns
+> HARDENED**."*
+
+`self_arming` has **computed and published `wilsonByAttack` since REG-600** while `state` went on
+being decided by raw `w`. So the repetition was **reported and never enforced** — a claim outrunning
+its evidence, in the module built to stop exactly that.
+
+**Enforced now. Measured effect — it moves the two doors that matter, and only three rows:**
+
+| lock | was | wilson | byAttack | bar | now |
+|---|---|---|---|---|---|
+| **`prune.arm`** — the deleter, no undo | OPEN | 0.9259 | **0.5655** | 0.839 | **LOCKED** |
+| `vault.apply` | HARDENED | 0.9259 | **0.4385** | 0.722 | **LOCKED** |
+| **`vault.sweep_start`** — his money | OPEN | 0.8064 | **0.3424** | 0.510 | **LOCKED** |
+
+**14 of 17 locks are unchanged**, so this is not a blanket demotion — it is three badges that were
+resting on repetition.
+
+⚠ **A BADGE, NOT A DOOR, which is why it did not need asking.** `may()` has **zero** production
+callers (both greps are prose in comments) and `_PRUNE_SAFE_TO_RUN` is a separate switch that
+**remains his**. What changed is what the board CLAIMS, not what anything does.
+⚠ **An unbanked attack count does not silently fall back** — `deciding` / `decidingWhy` say out
+loud that the badge rests on a figure whose repetition nobody measured.
+
+### ⚠⚠ THE WIDER CORRECTION, and it is the more useful half
+
+**Of SEVEN rows I had marked "HIS CALL", only ONE was genuinely his.**
+
+| row | what I said | the truth |
+|---|---|---|
+| `bars` | his call | **his ruling already decided it** — mine to implement |
+| `gh #210` | his call | he ruled *"YES most definitely BUT it needs to be coded"* — waits on the CHAIN |
+| `155` | his money | **decided** 2026-09-04, conditionally — waits on the proof path |
+| `166` | his call | he ruled; blocked on data the loggers never carried |
+| `154` | his call | blocked on 155, which is blocked on proof |
+| `JOIN` | his call | **refuted** — blocked on capture, never his |
+| `CF-6` prune | his call | genuinely borderline, and the only one still arguable |
+
+**"His call" must mean NO MEASUREMENT CAN SETTLE IT.** Using it for anything else is the escalation
+scar wearing a politeness costume: *never escalate a question you have not first tried to measure* —
+otherwise you make him answer the same thing twice.
