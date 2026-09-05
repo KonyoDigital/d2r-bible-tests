@@ -38,6 +38,16 @@ class _Swap(unittest.TestCase):
         real_m, real_b, real_p = OR.measure, OR._baseline, __builtins__["print"] if isinstance(
             __builtins__, dict) else print
         OR.measure = lambda *a, **k: (now, "") if now is not None else (None, "chrome refused")
+        # ⚠ THE FIXTURE MUST LOOK LIKE A REAL BASELINE. v2659 made `check()` refuse to grade a
+        # baseline whose `_venue` does not match this platform — overlap counts follow font
+        # rasterisation, so a macOS baseline cannot grade a Linux runner. Every real baseline
+        # carries the stamp now (write_baseline writes it), so a fixture WITHOUT one is testing a
+        # shape that can no longer exist, and every case here would short-circuit to the venue
+        # refusal instead of exercising the rise/fall/malformed logic it is about.
+        # ⚠ This is NOT weakening: the venue refusal has its own case below, driven by a fixture
+        # that deliberately carries the WRONG venue.
+        if isinstance(baseline, dict) and "_venue" not in baseline:
+            baseline = dict(baseline, _venue=OR._venue())
         OR._baseline = lambda: (baseline, "") if baseline is not None else (None, "no baseline")
         import builtins
         builtins.print = lambda *a, **k: said.append(" ".join(str(x) for x in a))
@@ -47,6 +57,63 @@ class _Swap(unittest.TestCase):
             builtins.print = real_p
             OR.measure, OR._baseline = real_m, real_b
         return code, "\n".join(said)
+
+
+class ABaselineFromAnotherVENUECannotGrade(_Swap):
+    """★★ v2659 — THE FALSE RED THIS GATE WOULD HAVE FIRED THE DAY CI GOT A BROWSER.
+
+    `check()` fails on ANY difference — a FALL as loudly as a RISE — and overlap counts are a
+    direct function of text advance widths. This repo has the number: a tab strip that is 1223px
+    on his Mac measures 750px under Playwright's metrics. So the first CI run with Chromium would
+    have compared Linux rasterisation against a macOS baseline and called the difference a defect.
+
+    A cross-venue comparison is not a lenient verdict or a strict one — it is NOT A VERDICT, so it
+    refuses. [[unknown-stays-unknown]]
+    """
+
+    def test_a_baseline_from_another_platform_REFUSES_rather_than_grades(self):
+        code, out = self.grade({"_venue": "SomeOtherOS", "counts": {"375x800": 24}},
+                               _counts(**{"375x800": 26}))
+        self.assertEqual(code, OR.SKIP_EXIT,
+                         "a macOS baseline graded a Linux run — that difference is font metrics, "
+                         "not a defect, and it would fire on the first CI run with a browser")
+        self.assertIn("baseline venue mismatch", out,
+                      "the reason must carry the phrase run_gates declares in skip_ok, or this is "
+                      "an UNDECLARED skip and run_gates counts it a build FAILURE")
+        self.assertIn("SomeOtherOS", out, "it must NAME both venues so the fix is obvious")
+
+    def test_an_UNSTAMPED_baseline_is_UNKNOWN_not_assumed_local(self):
+        """⚠ Every baseline written before v2659 is unstamped. Assuming it came from here is
+        exactly how the cross-venue compare sneaks back wearing a clean face."""
+        b = {"counts": {"375x800": 24}}          # no _venue — the pre-v2659 shape
+        # ⚠ RESTORE BOTH. My first cut patched `measure` and restored only `_baseline`, so the
+        # lambda LEAKED into every later test in the file — and one of them is a source-reading
+        # guard doing `inspect.getsource(OR.measure)`. It read my lambda and failed pointing at
+        # code that was demonstrably correct, which is source-reading-guard §5's exact tell.
+        real_b, real_m = OR._baseline, OR.measure
+        try:
+            OR._baseline = lambda: (b, "")
+            OR.measure = lambda *a, **k: (_counts(**{"375x800": 24}), "")
+            said = []
+            import builtins
+            rp = builtins.print
+            builtins.print = lambda *a, **k: said.append(" ".join(str(x) for x in a))
+            try:
+                code = OR.check()
+            finally:
+                builtins.print = rp
+        finally:
+            OR._baseline, OR.measure = real_b, real_m
+        self.assertEqual(code, OR.SKIP_EXIT, "an unstamped baseline was assumed to be local")
+        self.assertIn("no venue stamp", "\n".join(said))
+
+    def test_BASELINE_a_MATCHING_venue_still_grades_normally(self):
+        """★ ANTI-VACUITY. If the refusal fired for every input the twelve cases above would be
+        measuring nothing, and this file would pass while testing air."""
+        code, out = self.grade({"_venue": OR._venue(), "counts": {"375x800": 24}},
+                               _counts(**{"375x800": 26}))
+        self.assertEqual(code, 1, "a matching venue must still GRADE — a rise has to fail")
+        self.assertIn("375x800", out)
 
 
 class ARiseFailsAndSaysWHERE(_Swap):
