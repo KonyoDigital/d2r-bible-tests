@@ -12802,6 +12802,15 @@ def credible_pruned_mb(pruned_mb, hist_bytes=None):
     ⚠ AN UNREADABLE `hist_bytes` DOES NOT REFUSE A FIGURE. Refusing a real measurement because a
     DIFFERENT field was not sampled would trade a fabrication for a blindness — the bound simply
     cannot be applied, and that is said rather than acted on.
+
+    ⚠⚠ A STATED, UNCLOSED LIMIT — and it is deliberate, not an oversight. The same cold read that
+    found the two tolerance holes also landed `credible_pruned_mb(10**30)` with no corpus: it is
+    PUBLISHED, because with no corpus reading there is nothing here to bound it against. Every
+    ceiling I could invent would be a constant of mine rather than a measurement, and `free_gb` is
+    not a sound bound either (the recorder can write more footage between the prune and the
+    reading, so freed > free is legitimately possible). **So an unbounded magnitude with no corpus
+    is UNKNOWN, and stays UNKNOWN rather than being resolved by a number I made up.**
+    [[unknown-stays-unknown]]
     """
     if pruned_mb is None:
         return None, None
@@ -12812,12 +12821,28 @@ def credible_pruned_mb(pruned_mb, hist_bytes=None):
         return None, "prunedMb was not finite, so it is arithmetic that already lost its meaning"
     if v < 0:
         return None, "prunedMb was negative (%r) — pruning does not consume space" % (pruned_mb,)
+    if v == 0:
+        # ⚠⚠ NEGATIVE ZERO SLIPS PAST THE CHECK ABOVE, because `-0.0 < 0` is False in Python.
+        # Found by a COLD read from a different model family, 2026-09-05, ranked as its strongest
+        # attack — and it was right: `credible_pruned_mb(-0.0)` published `-0.0`. It is numerically
+        # zero and must be KEPT (measured-and-zero is a real answer), but a freed figure must never
+        # reach a dashboard wearing a minus sign. Canonical zero, type preserved.
+        return (0 if isinstance(pruned_mb, int) else 0.0), None
     if isinstance(hist_bytes, (int, float)) and not isinstance(hist_bytes, bool) \
             and hist_bytes == hist_bytes and abs(float(hist_bytes)) != float("inf") \
-            and hist_bytes >= 0 and v > (float(hist_bytes) / (1024.0 * 1024.0)) + 1.0:
-        return None, ("prunedMb %.1f exceeds the whole measured corpus (%.1f MB) — a figure larger "
-                      "than the thing it was freed from is not a measurement"
-                      % (v, float(hist_bytes) / (1024.0 * 1024.0)))
+            and hist_bytes >= 0:
+        # ⚠⚠ THE TOLERANCE USED TO BE A FLAT `+ 1.0 MB` AND IT WAS MINE, AND IT WAS A HOLE.
+        # The same cold read found both halves of it: against a **0-byte** corpus it admitted
+        # 0.9 MB ("the deleter freed 0.9 MB from a 0-byte corpus"), and against a **1 MiB** corpus
+        # it admitted exactly 2.0 MB — double the whole thing. An absolute slack is largest,
+        # relatively, exactly where the corpus is smallest, which is the wrong way round.
+        # 1% is for rounding between the byte count and the megabyte figure; against an empty
+        # corpus it correctly admits nothing but zero.
+        corpus_mb = float(hist_bytes) / (1024.0 * 1024.0)
+        if v > corpus_mb * 1.01:
+            return None, ("prunedMb %.1f exceeds the whole measured corpus (%.1f MB) — a figure "
+                          "larger than the thing it was freed from is not a measurement"
+                          % (v, corpus_mb))
     return pruned_mb, None
 
 
@@ -22961,7 +22986,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2647",
+        "ver": "v2648",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

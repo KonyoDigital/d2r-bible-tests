@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2647",
+  "ver": "v2648",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2647: two Wilson axes attacked code with no refusal path, and the retired evidence was still being counted",
+  "note": "v2648: negative zero past a less-than-zero check, and a flat tolerance largest where the corpus is smallest",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

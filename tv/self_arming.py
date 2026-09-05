@@ -354,6 +354,11 @@ PROVES = {
     #: 154 — the disk row's own refusals. It NEVER prunes: every attempt is a state in which the
     #: row must decline to name a freed figure, and nothing here deletes a byte.
     "disk_report_wilson": ("prune.reports",),
+    # ⚠ THE SECOND KIND for prune.reports — attacks a different model family designed COLD, three
+    # of which LANDED and were all mine (negative zero past a `< 0` check; a flat +1 MB tolerance
+    # licensing 0.9 MB against a 0-byte corpus and 2.0 MB against a 1 MiB one). Confluence only
+    # moves on independent kinds; five more sabotages of mine would be one instrument in a new hat.
+    "disk_report_crossfamily": ("prune.reports",),
     #: A7·ROUTE — seven refusals the router must make, each a way the keep-reason could creep back
     #: into the read-fate or an unmeasured reel could be dressed as a measured one. It reads no
     #: footage, arms no sweep and deletes nothing.

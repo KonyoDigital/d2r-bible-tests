@@ -132,6 +132,128 @@ class TheDiskRowNowHasARefusalPath(unittest.TestCase):
         self.assertTrue(row.get("prunedWhy"), "the row cannot say it threw anything out")
 
 
+class TheColdSecondFamilyLandedThreeAndAllThreeWereMine(unittest.TestCase):
+    """★★ v2648. `credible_pruned_mb` was handed to a NON-ANTHROPIC model with its body, its caller
+    and the contract in the author's words — and nothing about what I thought was strong or weak in
+    it. It landed three of five, and every one was a hole I had put there myself.
+
+    ⚠ It also REFUTED two of its own proposals. A second family earns its place by attacking along
+    axes I do not, not by being right more often.
+    """
+
+    CORPUS = 8_900_000_000                     # the real 8.9 GB reel store from his v2229 question
+
+    def test_NEGATIVE_ZERO_does_not_reach_a_dashboard(self):
+        """★ Its strongest, and it was right: `-0.0 < 0` is **False** in Python, so the negative
+        check never saw it and the row published `prunedMb: -0.0`."""
+        v, why = CA.credible_pruned_mb(-0.0, self.CORPUS)
+        self.assertIsNone(why, "-0.0 is numerically zero and must be KEPT, not thrown out")
+        self.assertFalse(math.copysign(1.0, float(v)) < 0,
+                         "a freed figure reached the row wearing a minus sign (%r)" % (v,))
+        self.assertEqual(v, 0)
+
+    def test_an_EMPTY_corpus_admits_nothing_but_zero(self):
+        """0.9 MB claimed as freed from a 0-byte store, through my flat `+ 1.0 MB` tolerance."""
+        v, why = CA.credible_pruned_mb(0.9, 0)
+        self.assertIsNone(v, "0.9 MB was published as freed from a 0-byte corpus")
+        self.assertIn("corpus", why)
+        self.assertEqual(CA.credible_pruned_mb(0, 0)[0], 0, "zero must still be recorded")
+
+    def test_a_TINY_corpus_cannot_be_doubled(self):
+        """2.0 MB against a 1 MiB store — exactly double the whole thing, same slack."""
+        v, _ = CA.credible_pruned_mb(2.0, 1024 * 1024)
+        self.assertIsNone(v, "a claim of double the entire corpus was published")
+
+    def test_the_tolerance_is_PROPORTIONAL_not_absolute(self):
+        """⚠ THE SHAPE OF THE DEFECT, not just its two instances. An absolute slack is largest
+        RELATIVELY exactly where the corpus is smallest, which is the wrong way round. A 1%
+        allowance for byte↔megabyte rounding must still admit a legitimate figure at the edge."""
+        one_mib = 1024 * 1024
+        self.assertEqual(CA.credible_pruned_mb(1.0, one_mib)[0], 1.0,
+                         "a legitimate figure equal to the corpus was thrown out")
+        self.assertIsNone(CA.credible_pruned_mb(1.5, one_mib)[0],
+                          "half again the whole corpus was published")
+
+    def test_the_UNBOUNDED_gap_is_STATED_and_still_open(self):
+        """⚠⚠ THE ONE IT LANDED THAT IS NOT FIXED, ON PURPOSE, and this case pins that decision so
+        it cannot rot into an oversight. With no corpus reading there is nothing inside the
+        function to bound a magnitude against; every ceiling I could add would be a constant of
+        mine rather than a measurement, and `free_gb` is not sound either (the recorder can write
+        footage between the prune and the reading, so freed > free is legitimately possible).
+
+        If this ever starts refusing, the gap closed and the docstring must stop calling it open.
+        [[unknown-stays-unknown]] [[label-outlived-referent]]
+        """
+        v, why = CA.credible_pruned_mb(10.0 ** 30, None)
+        self.assertIsNotNone(v, "the unbounded axis now REFUSES — the declared gap has closed and "
+                                "the harness's KNOWN_MISSES and the docstring are both stale")
+        self.assertIsNone(why)
+        import inspect
+        self.assertIn("UNCLOSED", inspect.getdoc(CA.credible_pruned_mb) or "",
+                      "the function does not tell a reader the bound cannot be applied")
+
+    def test_the_two_it_REFUTED_are_still_published(self):
+        """A subnormal figure is *"still a measurement, just a very precise one"*, and 100 MB
+        against a 200 MiB corpus is simply legitimate. Both were correctly published."""
+        self.assertEqual(CA.credible_pruned_mb(1e-200, self.CORPUS)[0], 1e-200)
+        self.assertEqual(CA.credible_pruned_mb(100, 200 * 1024 * 1024)[0], 100)
+
+
+class TheCrossFamilyHarnessIsASecondKindAndNotTheatre(unittest.TestCase):
+
+    def test_it_banks_under_cross_family_not_sabotage(self):
+        """⚠ Confluence only moves on independent KINDS. Banking these as `sabotage` would make
+        five more of my own attacks look like a second opinion."""
+        import inspect
+        import disk_report_crossfamily as XF
+        self.assertIn('"cross-family"', inspect.getsource(XF.bank_into_proof_queue))
+
+    def test_the_known_miss_list_pins_the_LAW_not_the_number(self):
+        """★★ A permanently-red gate teaches a reader to skip it, which is how a REAL red goes
+        unnoticed. So the axis runs, its miss is banked, and what is asserted is that the set of
+        missing axes is EXACTLY the declared one. [[regression-guard]]"""
+        import disk_report_crossfamily as XF
+        rep = XF.prove()
+        self.assertEqual(rep["state"], "PROVEN",
+                         "cross-family is not in its declared state: %s" % (rep["why"],))
+        self.assertEqual(rep["missing"], list(XF.KNOWN_MISSES))
+        self.assertEqual(rep["unexpected"], [], "an axis is missing that was never declared")
+        self.assertEqual(rep["closedGaps"], [],
+                         "a declared known-miss has started refusing — the declaration is stale")
+
+    def test_a_NEW_miss_goes_red_immediately(self):
+        """★ RED PROOF for the law above. Widen the declaration to a claim that does refuse and the
+        harness must call it out rather than absorb it."""
+        import disk_report_crossfamily as XF
+        real = XF.KNOWN_MISSES
+        try:
+            XF.KNOWN_MISSES = ("unbounded", "negzero")
+            rep = XF.prove()
+        finally:
+            XF.KNOWN_MISSES = real
+        self.assertEqual(rep["state"], "STALE-DECLARATION")
+        self.assertIn("negzero", rep["closedGaps"])
+
+    def test_its_baseline_gates_the_STORED_verdict_too(self):
+        """REG-593's half-fix: gating only the printed verdict left `bank` reading n/k, so a run the
+        harness had disowned still fed the lock."""
+        import disk_report_crossfamily as XF
+        out = XF.bank_into_proof_queue({"baseline": False, "baselineWhy": "x", "rows": []})
+        self.assertEqual(out[0][:8], "REFUSED ")
+
+    def test_the_score_went_DOWN_and_that_is_the_point(self):
+        """⚠ The honest miss is counted, so `prune.reports` fell from an inflated 0.9358 to a
+        measured figure over nine distinct attacks. A second kind that could only raise a score
+        would not be evidence, it would be a lever."""
+        rows = [r for r in (SA.report().get("locks") or []) if r.get("lock") == "prune.reports"]
+        if not rows:
+            self.skipTest("prune.reports is not in the table on this tree — not a pass")
+        row = rows[0]
+        self.assertLess(row.get("wilson") or 1.0, 0.9358,
+                        "the score did not move down once the declared miss was banked")
+        self.assertIn("cross-family", row.get("kinds") or [])
+
+
 class TheAttacksNowAimAtSomethingThatCanRefuse(unittest.TestCase):
     """★★ THE REG-593 CONTROL, applied to both harnesses. An axis that scores the same against a
     stub hardwired OPEN is measuring nothing, and that is the only check that separates a working
@@ -280,15 +402,32 @@ class AWithdrawalIsNotADeletionAndNotAnUnrunAxis(unittest.TestCase):
                              "%r reads as never-exercised when it was withdrawn" % ref)
 
     def test_the_RETIRED_evidence_is_no_longer_counted(self):
-        """★★ THE WHOLE POINT. 24 identity assertions must not still be inside the total."""
-        rows = [r for r in (SA.report().get("locks") or [])
-                if r.get("lock") == "prune.reports"]
-        if not rows:
-            self.skipTest("prune.reports is not in the table on this tree — not a pass")
-        n = int(rows[0].get("n") or 0)
-        self.assertNotEqual(n, 56, "the lock still reads 32 real refusals PLUS the 24 identity "
-                                   "assertions the rewrite existed to remove")
-        self.assertLessEqual(n, 32, "prune.reports counts more than its four attacks can produce")
+        """★★ THE WHOLE POINT. The 24 identity assertions must not still be inside the total.
+
+        ⚠ MY FIRST CUT ASSERTED `n <= 32` AND WENT RED THE MOMENT A SECOND SOURCE BANKED — it
+        pinned the NUMBER four attacks happened to produce, so adding a legitimate cross-family
+        kind (40 more attempts) read as a regression. The LAW is that the three withdrawn refs
+        contribute nothing, whoever else banks against this lock. [[regression-guard]]
+        """
+        import io
+        import json
+        rows = [json.loads(l) for l in io.open(SA._ledger_path(), encoding="utf-8") if l.strip()]
+        folded = {}
+        for r in rows:
+            if r.get("lock") != "prune.reports" or not (("n" in r) or ("k" in r)):
+                continue
+            key = (r.get("kind"), r.get("src"), r.get("ref") or "")
+            cur = folded.get(key)
+            if cur is None or int(r.get("ts", 0) or 0) >= int(cur.get("ts", 0) or 0):
+                folded[key] = r
+        for ref in ("noprune", "unreadable", "shrank"):
+            live = [r for r in folded.values() if (r.get("ref") or "") == ref]
+            self.assertTrue(live, "%r vanished from the ledger — it must be superseded, not "
+                                  "deleted" % ref)
+            self.assertEqual(int(live[0].get("n") or 0), 0,
+                             "%r still contributes %s attempts to prune.reports — the identity "
+                             "assertions the rewrite existed to remove are back in the total"
+                             % (ref, live[0].get("n")))
 
     def test_the_ledger_is_still_APPEND_ONLY(self):
         """⚠ Nothing of his is pruned, and a withdrawal you cannot read is a deletion with a nicer
@@ -306,16 +445,27 @@ class NothingHereArmsAnything(unittest.TestCase):
     """⚠ The standing constraint, checked rather than promised."""
 
     def test_credible_pruned_mb_can_only_make_the_reporter_say_LESS(self):
-        """It returns the value or None. There is no path on which it invents a figure."""
-        import ast
-        import inspect
-        tree = ast.parse(inspect.getsource(CA.credible_pruned_mb).lstrip())
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Return) and isinstance(node.value, ast.Tuple):
-                first = node.value.elts[0]
-                ok = (isinstance(first, ast.Constant) and first.value is None) or \
-                     (isinstance(first, ast.Name) and first.id in ("pruned_mb", "v"))
-                self.assertTrue(ok, "a return path yields a figure that was not the one handed in")
+        """It returns the value it was handed, or None. There is no path on which it invents one.
+
+        ⚠ MY FIRST CUT GRADED THE AST SHAPE — it required every return to yield the literal name
+        `pruned_mb`, and went red on the -0.0 normalisation added the same version, which returns
+        a canonical `0`. That is the SAME NUMBER, so the law was never broken; my expression of it
+        was too narrow. Drive the function and compare NUMERICALLY. [[source-reading-guard]]
+        """
+        vals = [0, 0.0, -0.0, 1, 12.5, 1e-200, 1000.0, 10 ** 30, -1, -0.5,
+                True, False, None, "12", [], float("nan"), float("inf"), float("-inf")]
+        corpora = [None, 0, 1024 * 1024, 9_000_000_000, "big", float("nan"), True]
+        for v in vals:
+            for h in corpora:
+                got, _ = CA.credible_pruned_mb(v, h)
+                if got is None:
+                    continue
+                self.assertIsInstance(got, (int, float))
+                self.assertFalse(isinstance(got, bool),
+                                 "a bool was published for input %r" % (v,))
+                self.assertEqual(float(got), float(v),
+                                 "for input %r/%r it published %r — a figure that was not the one "
+                                 "handed in" % (v, h, got))
 
     def test_may_is_still_never_called(self):
         """⚠⚠ AST, NOT A REGEX — and my first cut of THIS CASE proved why, going red on
