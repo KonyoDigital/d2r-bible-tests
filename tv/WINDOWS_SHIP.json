@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2672",
+  "ver": "v2673",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2672: v1789/v1756 assertions realigned to the current vocabulary; the hold-vs-dismiss case was v2368 working as he asked",
+  "note": "v2673: the --rar-set fallback the guard actually objected to, plus an aggregate bound raised on evidence",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

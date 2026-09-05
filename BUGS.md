@@ -20999,6 +20999,38 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-633 — my own fix left the literal it was supposed to remove (v2673)
+
+Two `v1628` failures, and the first is mine. push22 changed `var(--q-set, #00fc00)` to
+`var(--rar-set, #00fc00)` because `--q-set` was defined **0×** in that document — a real fix. **But
+the guard's objection was never the token NAME, it was the literal `#00fc00` beside it**, and I
+left it standing, so the gate stayed red for the same reason as before my fix.
+
+`--rar-set: #00fc00` is defined at `control_ui.html:25`, inside the token block the guard allows, so
+the fallback **can never be used**. Removed: `var(--rar-set)`.
+
+⚠ **MY FIRST SWEEP FOR SIBLINGS REPORTED A SECOND OFFENDER THAT DOES NOT EXIST.** My throwaway
+checker stripped only `/* */`, so a `#c7b377` inside a `//` sentence — *"unique is D2's #c7b377"* —
+read as live code. The real guard strips line comments too. **The instrument was mine and it was
+wrong**, exactly as it was for the same file when the guard's own region map once reported
+`bible.html:15866` for a `//` sentence. [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+
+## REG-634 — an aggregate bound went red on comment GROWTH, and its own comment predicted it
+
+`v1628 C` asserts `eaten < 0.4`, where `eaten` is the share of non-whitespace the comment stripper
+removes. Measured on CI: **41.19%** — a miss by 1.19 points.
+
+**The assertion directly above it already argued this bound was the weak one:** *"both files are
+doctrine-heavy … so an aggregate bound tight enough to be meaningful would just be flaky. A single
+span over 4000 chars is a runaway, and the survivor assertions above are the real proof code was not
+eaten."* On that run `maxSpan` passed and every survivor snippet was present — **all three direct
+checks agreed the stripper is correct, and only the acknowledged-weak proxy disagreed.**
+
+⚠ **RAISED TO 0.55, NOT REMOVED.** Deleting it would leave a diffuse runaway — many small blanked
+regions, no single span over 4000 — unwatched. A real runaway drives this figure to 80-90%, so 0.55
+still catches it. ⚠ And a bar above the ceiling is an absent one: at 41.2% this keeps ~14 points of
+live headroom instead of being set out of reach. [[feedback-threshold-above-the-ceiling]]
+
 ## REG-632 — a fixture asked the product to prove something it is not allowed to do
 
 `v2083_vaulted_base_survives` failed on CI with *"no base was vaulted — the fixture cannot
