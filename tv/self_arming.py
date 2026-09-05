@@ -798,6 +798,41 @@ def score(lock, rows=None):
         return out
     w = wilson_lower(k, n)
     out["wilson"] = round(w, 4)
+    # ⚠⚠⚠ THE BAR IS READ AGAINST THE PER-ATTACK SCORE, NOT THE RAW n — HIS RULING, 2026-09-04,
+    # and until now the code reported it and did not enforce it.
+    #
+    # His words: *"Beware n inflated by repetition. printer.stream banked 83/83 — but 80 of those
+    # were TWO attacks applied to 40 reels each. Five distinct attacks scores 0.5655, not 0.9558.
+    # Looping one attack over more inputs buys a bigger number and proves nothing new; MORE KINDS
+    # is what earns HARDENED."*
+    #
+    # `wilsonByAttack` has been computed and published since REG-600 while `state` went on being
+    # decided by `w`, so the repetition was REPORTED AND NOT ENFORCED. Measured on his tree the day
+    # this changed, exactly two locks were OPEN on the inflated figure and would not open on the
+    # honest one — and they are the two that matter most:
+    #     prune.arm          wilson 0.9259 >= bar 0.839 > byAttack 0.5655   (THE DELETER, no undo)
+    #     vault.sweep_start  wilson 0.8064 >= bar 0.510 > byAttack 0.3424   (HIS MONEY)
+    # A third, vault.apply, held HARDENED on 0.9259 against a byAttack of 0.4385.
+    #
+    # ⚠ WHEN THE ATTACK COUNT IS UNKNOWN the honest score cannot be computed, so `w` is used and
+    # `deciding` says so out loud. That is not a silent fallback: a reader can see the badge rests
+    # on a figure whose repetition nobody measured. [[unknown-stays-unknown]]
+    # ⚠ BOTH NUMBERS STAY IN THE PAYLOAD. Nothing is lost, and `deciding` is a FIELD because a
+    # consumer cannot branch on a sentence.
+    # ⚠ IT IS STILL A BADGE. `may()` has ZERO production callers and `_PRUNE_SAFE_TO_RUN` is a
+    # separate switch that remains his — what changes is what the board CLAIMS, not what any door
+    # does. Which is the whole point: the claim was outrunning its evidence.
+    _by = out.get("wilsonByAttack")
+    if _by is None:
+        out["deciding"] = "wilson"
+        out["decidingWhy"] = ("no attack count was banked, so repetition is UNKNOWN and the honest "
+                              "per-attack score cannot be computed — this badge rests on raw n")
+    else:
+        w = _by
+        out["deciding"] = "wilsonByAttack"
+        out["decidingWhy"] = ("scored per DISTINCT ATTACK (%d) rather than per attempt (%d): "
+                              "looping one attack over more inputs buys a bigger number and proves "
+                              "nothing new" % (attacks, n))
     # the tier above the bar — reported on every row so a surface can show how far past it is
     out["hardBar"] = HARD_BAR
     out["hardKindsBar"] = HARD_KINDS_BAR

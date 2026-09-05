@@ -110,13 +110,30 @@ class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
     def test_an_unproven_printer_actually_holds_the_deleter(self):
         """BEHAVIOURAL, and it is the point: the chain must BITE, not merely be declared."""
         import self_arming as SA
-        rows = [r for r in (SA._rows()[0] or []) if r.get("lock") != "printer.stream"]
+        all_rows = SA._rows()[0] or []
+        rows = [r for r in all_rows if r.get("lock") != "printer.stream"]
         self.assertEqual(SA.score("printer.stream", rows)["state"], SA.UNPROVEN)
-        # may() re-reads the ledger for prerequisites, so assert the rule score() applies
-        s = SA.score("prune.arm", rows)
-        self.assertIn(s["state"], (SA.OPEN, SA.HARDENED),
-                      "prune.arm's OWN score is unaffected by the printer — the hold comes from "
-                      "the chain, and conflating the two would hide which one is failing")
+        # ⚠⚠ THE LAW IS "UNAFFECTED", AND THIS USED TO PIN "OPEN" — a DATUM, not a rule.
+        # It asserted `prune.arm` is OPEN/HARDENED after the printer's rows are removed, as a way
+        # of showing the hold comes from the CHAIN and not from the lock's own score. That worked
+        # only while prune.arm happened to be open, and it went red the moment the deciding figure
+        # became `wilsonByAttack` (his ruling: n inflated by repetition is fake confluence) and
+        # prune.arm correctly dropped to LOCKED on 0.5655 against its 0.839 bar — a change with
+        # nothing whatever to do with the printer.
+        # A bar moved and a test pinned to today's reading went red for a reason it was not about.
+        # [[regression-guard]] §4 — PIN THE LAW, NOT THE NUMBER.
+        #
+        # The law, stated so it survives any future state: removing printer.stream's evidence must
+        # not move prune.arm's OWN score, whatever that score happens to be.
+        before = SA.score("prune.arm", all_rows)
+        after = SA.score("prune.arm", rows)
+        self.assertEqual(after["state"], before["state"],
+                         "prune.arm's OWN score changed when printer.stream's evidence was removed "
+                         "(%s -> %s). The hold must come from the CHAIN; conflating the two hides "
+                         "which one is failing." % (before["state"], after["state"]))
+        self.assertEqual(after.get("wilson"), before.get("wilson"),
+                         "the printer's rows moved prune.arm's Wilson bound — evidence about one "
+                         "surface is being counted as evidence about another")
 
     def test_printer_wilson_proves_only_the_printer(self):
         import self_arming as SA
