@@ -21008,6 +21008,23 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-660 — the law was "name a cause"; the test enumerated only ONE VENUE's causes
+
+`v1603:221` required the empty-mini toast to match `/D2R|Doctor/`. On CI there is no console at
+all, so the toast correctly reads *"⏱ mini could not start — the console is not reachable"* —
+which **is** pointing at the likely cause, just a different one than his Mac can produce. Measured
+on CI with that exact string: a CORRECT message was being reported as a failure.
+
+The law is *"it should point at the likely cause rather than just stating failure"*, and that is
+kept. What was wrong was the enumeration: it listed the causes one venue has, on a suite that runs
+on two. Widened to the causes that actually exist — the game, the doctor, or the console being
+unreachable.
+
+⚠ **AND IT STILL REFUSES THE THING IT EXISTS TO CATCH**, which is the only reason widening is safe.
+Proved on four strings: the CI toast, a D2R toast and a Doctor toast all pass; a bare
+*"⏱ mini could not start"* with no reason is **REFUSED**. A widened bar that accepted everything
+would be an absent one. [[feedback-threshold-above-the-ceiling]] [[regression-guard]]
+
 ## REG-659 — I went looking for one duplicate REG number and found twenty-seven
 
 Chasing a lead on `aireads`, `REG-363` turned out to head **two unrelated entries** ~3,700 lines

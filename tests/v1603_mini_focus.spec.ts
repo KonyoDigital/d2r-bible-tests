@@ -218,8 +218,16 @@ test.describe('v1605 — an empty mini must not look like a good one', () => {
     const out = await afterSeal(page, { sealedTs: 1785700000000, sealedFrames: 0 });
     expect(out.sub, 'the label must carry it — a toast can be missed').toMatch(/0 frames|nothing/i);
     expect(out.empty, 'and the button must show it, not sit there looking normal').toBe(true);
+    /* v2684 — THE LAW IS "NAME A CAUSE", AND THIS ENUMERATED ONLY THE CAUSES ONE VENUE CAN HAVE.
+       It required /D2R|Doctor/. On CI there is no console at all, so the toast correctly reads
+       "⏱ mini could not start — the console is not reachable" — which IS pointing at the likely
+       cause, just a different one than his Mac would give. Measured on CI, this failed with that
+       exact string, so a CORRECT message was being called a failure.
+       The law kept, the enumeration widened to the causes that actually exist: the game, the
+       doctor, or the console being unreachable. What it still refuses is a toast that only states
+       failure — "could not start" with no reason would match none of these. */
     expect(out.toast, 'and it should point at the likely cause rather than just stating failure')
-      .toMatch(/D2R|Doctor/i);
+      .toMatch(/D2R|Doctor|console|reachable/i);
   });
 
   test('★ UNKNOWN (null) is NOT reported as zero — never accuse the capture on missing evidence',
