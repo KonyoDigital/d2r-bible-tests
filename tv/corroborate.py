@@ -860,7 +860,70 @@ RETIRED = {
         "BUILDERS and delete this entry -- do not leave it in both.",
 }
 
-BUILDERS = (_inv_the_tooltip_finder_refuses_more_than_it_finds,
+def _inv_every_door_counts_the_reels_it_opened():
+    """v2687 — THE PARENT'S COUNTER vs THE CHILD'S STAMP. Two witnesses to one event.
+
+    The defect this is written from: v2316 gave each capture door a Wilson score, and only
+    `shadow` ever passed opened=True. Measured on his live ledger 2026-09-05 —
+
+        shadow  opened=609  filmed=181        onair  opened=0        mini  opened=0
+
+    — while ON AIR and MINI had been filming reels the whole time. Nothing reported it, and the
+    report itself was HONEST: `wilson: null`, "no sealed reel from this door yet — nothing has been
+    proved either way". Every word true. A broken counter and a door nobody pressed are the same
+    sentence, and only a SECOND witness can tell them apart. [[zero-needs-a-denominator]]
+
+    The second witness is the journal. Since v2687 the agent stamps `door` onto every row it
+    writes, so the reels are counted twice by parties that do not talk to each other: the parent
+    increments a counter at spawn, the child writes a name into its own file.
+
+    NOT equality — CONTAINMENT, and the direction is the point. A reel can open and write nothing
+    (a near-black shadow reel does exactly that, 263 of them), so the journal can only ever hold a
+    SUBSET of what the doors opened. If the journal ever shows MORE door-stamped sessions than the
+    doors admit opening, a counter is not being incremented — which is the original bug, and it is
+    the only direction that can catch it.
+
+    ⚠ PRE-v2687 REELS CARRY NO STAMP AND MUST NOT BE COUNTED. They are not evidence of a missing
+    increment; they are evidence of nothing, and forging a door for them is the exact lie the
+    stamp's own guard refuses. An unstamped reel is UNKNOWN. [[unknown-stays-unknown]]
+    """
+    import control_app as ca
+
+    def left():
+        """Distinct sessions the AGENT stamped with a door — the child's testimony."""
+        try:
+            import reel_templates as rt
+            by, why = rt._journal_rows()
+            if why:
+                return None
+            return len({sid for sid, rows in (by or {}).items()
+                        if any(str((r or {}).get("door") or "").strip() for r in (rows or []))})
+        except Exception:
+            return None
+
+    def right():
+        """Opens claimed by the doors — the parent's testimony."""
+        try:
+            rep = ca.capture_door_report() or {}
+            tot = 0
+            for _d, row in rep.items():
+                n = (row or {}).get("opened")
+                if not isinstance(n, int):
+                    return None
+                tot += n
+            return tot
+        except Exception:
+            return None
+
+    return ("door-opens-are-counted",
+            "no more door-stamped sessions in the journal than the doors admit opening",
+            "stop passing opened=True in start_agent and film a reel: the journal gains a stamped "
+            "session while the ledger's total stands still, and these part",
+            "journal sessions carrying a door", left, "ledger opened (all doors)", right, "<=")
+
+
+BUILDERS = (_inv_every_door_counts_the_reels_it_opened,
+            _inv_the_tooltip_finder_refuses_more_than_it_finds,
             _inv_the_console_and_the_law_agree_about_furniture,
             _inv_every_declared_tooltip_surface_is_served,
             _inv_vault_worklist,
