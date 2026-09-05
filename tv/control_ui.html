@@ -9254,8 +9254,22 @@ window._lockMark = function(isOpen, px, label){
             /* ATTRIBUTED, always: this can never imply our pruning freed space it did not. The
                honest answer the day he asked was that the pruner had deleted NOTHING, ever, and
                could not have — his whole reel corpus was 8.9 GB against a claimed 15 GB gain. */
-            + (_dt.prunedMbInWindow ? ' (' + Math.round(_dt.prunedMbInWindow) + 'MB ours)'
-                                    : ' (none of it us)');
+            /* ⚠⚠ THREE STATES, NOT TWO — AND `0` IS FALSY IN JAVASCRIPT, WHICH IS THE WHOLE BUG.
+               This read `_dt.prunedMbInWindow ? ... : ' (none of it us)'`, so **null and zero
+               rendered the same affirmative sentence**. `null` means nobody measured; `0` means we
+               measured and freed nothing. Collapsing them is the fabrication this figure exists to
+               refuse, and it was LIVE: every row of his disk history since 2026-09-02 carries
+               `prunedMb: null`, so `prunedMbInWindow` is null for every 24h window on his machine
+               — the footer he actually reads has been asserting "none of it us" about a quantity
+               nobody measured, for three days.
+               ⚠ `disk_delta_say` on the server has had the three branches all along. This is the
+               same rule implemented twice and the law landing in one copy — so the two are joined
+               by `test_disk_attribution_twins.py`, which drives BOTH across all three states and
+               requires them to agree in KIND. [[copy-drift]] §7 [[unknown-stays-unknown]] */
+            + (_dt.prunedMbInWindow == null ? ' (how much was us: UNKNOWN)'
+               : (_dt.prunedMbInWindow > 0
+                    ? ' (' + Math.round(_dt.prunedMbInWindow) + 'MB ours)'
+                    : ' (none of it us)'));
     }
     /* v2124 (#147) — AND A STALE FIGURE MUST SAY SO WHERE HE ACTUALLY READS IT. v2123 stamped the
        age onto the hover title, and the hover is not what he looks at when he is deciding whether

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2652",
+  "ver": "v2653",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2652: the refusal set is structural now, not a marker hidden inside the message",
+  "note": "v2653: zero is falsy in javascript, so unmeasured and measured-zero rendered the same affirmative sentence",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

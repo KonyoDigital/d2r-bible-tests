@@ -193,6 +193,18 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_disk_attribution_twins",
+         [sys.executable, os.path.join(HERE, "test_disk_attribution_twins.py")], 120,
+         why="ONE RULE IMPLEMENTED TWICE, AND THE LAW LANDED IN ONE COPY. The footer he reads "
+             "attributed the 24h disk change with `_dt.prunedMbInWindow ? ...MB ours : none of "
+             "it us` — and `0` is FALSY in JavaScript, so null (nobody measured) and 0 (measured, "
+             "freed nothing) rendered the same affirmative sentence. LIVE: every row of his disk "
+             "history since 2026-09-02 carries prunedMb null, so the footer has been asserting "
+             "'none of it us' about an unmeasured quantity for three days. `disk_delta_say` on "
+             "the server has had all three branches all along. The two are joined here: both are "
+             "driven across null / 0 / negative / positive and must agree in KIND, and the js is "
+             "LIFTED from control_ui.html rather than re-typed, because a copy would pass while "
+             "the shipped renderer drifted."),
     Gate("test_render_gate_sees_the_page",
          [sys.executable, os.path.join(HERE, "test_render_gate_sees_the_page.py")], 120,
          why="GATE-EYE — THE RENDER GATE REPORTED CLEAN ON A PAGE WITH VISIBLE CLIPPING. All "
