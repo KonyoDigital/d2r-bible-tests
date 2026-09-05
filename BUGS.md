@@ -20999,6 +20999,42 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-629 — six ships were invisible to every audit that reads commit messages (v2670)
+
+TASKS.md opens with a drift audit reading *"newest LANDED row in this file: v2648 · HEAD: v2657 —
+so **9 ships are absent from the file**"*. That audit was written by hand, and **noticing the drift
+did not stop it**. Re-measured 2026-09-05: **81** shipped versions appear nowhere in the file.
+
+⚠ **AND MY FIRST FIX WAS BLIND TO EXACTLY THE SHIPS THAT MATTER.** I rebuilt the list from commit
+SUBJECTS, because the repo's rule is *"a vNNNN label means the four stamps MOVED"* — which makes
+subject-reading look equivalent. It is not, in two measured ways:
+
+| shape | example | what the subject reader sees |
+|---|---|---|
+| stamp moved under a `fix:` subject | `96a4eafb` carries `"ver": "v2666"`, subject *"fix: the shelf door reported success…"* | **nothing** — `git log --grep v2666` returns 0 |
+| range ship | `v2650-v2651 — a retraction that vanished` | only `v2650` |
+
+The subject pass missed **v2667, v2665, v2664, v2663, v2661, v2660** — every one a `fix:`-subject
+ship, including `v2667`, which had landed an hour earlier. Rebuilt by reading `WINDOWS_SHIP.json`'s
+`ver` through `git log -p`: that file is one of the four stamps `bump_version.py` writes, so a
+change to it **is** the ship by the repo's own definition. [[feedback-verify-not-proxy]]
+
+`tv/test_tasks_ships_are_recorded.py` (gate #143) fails when one of the newest 12 is missing.
+Proven red: removing `v2669` from TASKS.md fails it naming `v2669 e3e5d6fd`; the file was restored
+byte-identical and it passes again.
+
+⚠ **A SECOND TEST WAS WRITTEN AND THEN DELETED, BECAUSE ITS LAW WAS FALSE.** It asserted the mirror
+defect — every version TASKS.md names must have moved the stamp — and fired on 7. **The premise was
+wrong, not the file**: a range ship bumps the stamp ONCE, to the range's LAST version, so `v2642`
+and `v2496` are real ships that correctly own no stamp. Shipping it would have meant a gate
+permanently red for legitimate history, and **a gate that is always red carries exactly as much
+information as one that is always green** — this repo has already paid that bill once, with TV
+DIABLO 149-red and gating nothing. `v2470` and `v2532` remain UNKNOWN rather than declared
+fictional. [[regression-guard]] [[unknown-stays-unknown]]
+
+⚠ `tasks_freshness.py` did not catch any of this: it grades named HEADINGS, and a ship missing from
+every heading is invisible to it. [[the-unjoined-end]]
+
 ## REG-628 — the census counted the dark cases without ever asking WHY (v2669)
 
 REG-627 gave the census a denominator: `test_chronicle_template=12/12` instead of a bare `12`. It

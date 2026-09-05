@@ -479,6 +479,10 @@ GATES = [
              "counts whether it refused. ⚠ It never STARTS a sweep: there is no attempt in it "
              "whose success path runs. Proven RED: removing the busy guard takes that claim to "
              "8/0 LEAKS while the lane claim stays PROVEN."),
+    Gate("test_tasks_ships_are_recorded",
+         [sys.executable, os.path.join(HERE, "test_tasks_ships_are_recorded.py")], 120,
+         why="a version that moved the four stamps but appears nowhere in TASKS.md — the list "
+             "silently ceasing to describe what the repo did"),
     Gate("test_gate_banks", [sys.executable, os.path.join(HERE, "test_gate_banks.py")], 120,
          why="the board said since v2444 that the sabotages BANK and the first lock opened itself; "
              "the live console said open 0 of 5, every lock n=0, and the ledger file did not "

@@ -1282,6 +1282,58 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 ---
 
+# ✅ LANDED — the recent ships, read off the STAMP rather than the commit message
+
+
+> ⚠ **THE FIRST VERSION OF THIS SECTION WAS BUILT FROM COMMIT SUBJECTS AND WAS BLIND TO THE
+> SHIPS THAT MATTER MOST.** The repo's rule is *"a vNNNN label means the four stamps MOVED"*, so
+> reading subjects looks equivalent. It is not: **a stamp can move under a `fix:` subject, and
+> several did.** `96a4eafb` carries `"ver": "v2666"` while its subject reads *"fix: the shelf
+> door reported success…"* — CI called that run v2666 and `git log --grep` cannot find it at all.
+> A range subject (`v2650-v2651 — …`) hides its second version the same way.
+>
+> Rebuilt by reading `tv/WINDOWS_SHIP.json`'s `ver` field through `git log -p` — one of the four
+> stamps `bump_version.py` writes, so a change to it **is** the ship by the repo's own definition.
+> The subject-based pass missed **v2667, v2665, v2664, v2663, v2661 and v2660**, every one of
+> them a `fix:`-subject ship. [[feedback-verify-not-proxy]] [[feedback-suspect-the-instrument]]
+>
+> `tv/test_tasks_ships_are_recorded.py` goes RED when one of the newest 12 is missing here, and
+> also when this file names a version no stamp ever reached. The drift was caught by hand three
+> times before it was given a gate.
+>
+> **THE WORKFLOW IT ENFORCES: bump → record the row here → commit.** The gate fails on its own
+> ship if that middle step is skipped — it did, on v2670, which is how this line came to exist.
+
+| version | commit | commit subject |
+|---|---|---|
+| **v2670** | `8a429291` | v2670 — six ships were invisible to every audit that reads commit messages |
+| **v2669** | `e3e5d6fd` | v2669 — the census counted the dark cases without ever asking why |
+| **v2668** | `af1b7a62` | v2668 — a gate passed while covering nothing, and the census had no denominator |
+| **v2667** | `a7b87cf0` | fix: I fixed one call site and called the class done — plus the guard BUGS.md already cl ⚠ `fix:` subject |
+| **v2666** | `96a4eafb` | fix: the shelf door reported success on the one failure he could see — and the coverage  ⚠ `fix:` subject |
+| **v2665** | `1bbbc2fd` | fix: a floor is not a priority — the vault name absorbed 62% of every deficit ⚠ `fix:` subject |
+| **v2664** | `c30a8ed0` | fix: seven of eight console tabs rendered at no width — a gate, green, and proven red ⚠ `fix:` subject |
+| **v2663** | `e829ed7f` | fix: the wedge collisions were DISTANCE, not length — and --write-baseline lied about fa ⚠ `fix:` subject |
+| **v2662** | `d5545649` | fix: a craft tooltip read an identifier that was never declared, and Routine I has been  ⚠ `fix:` subject |
+| **v2661** | `57ae547f` | fix: the hardening advice counted attempts while the bar counted attacks ⚠ `fix:` subject |
+| **v2660** | `f6a5260e` | fix: the ruling was enforced in the decision and contradicted by every number on screen ⚠ `fix:` subject |
+| **v2658** | `3db06205` | v2658 — the red that gated nothing, and a gate whose message and exit code disagreed |
+| **v2657** | `e9a56fef` | v2657 — one row missing a key hid a dead column for ever |
+| **v2656** | `ec550e01` | v2656 — a review of my own ship found the claim was larger than the evidence |
+| **v2655** | `af8beac9` | v2655 — the detector could not read the file it was about to watch |
+| **v2654** | `552d3c1d` | v2654 — a dead field that was the denominator of his own question |
+| **v2653** | `e68d927d` | v2653 — a footer that said "none of it us" about a number nobody measured |
+| **v2652** | `eee4a6d5` | v2652 — a gate that decided by sniffing a character |
+| **v2651** | `34532602` | v2650-v2651 — a retraction that vanished, and a new instrument that found an old backlog |
+| **v2649** | `e904f8da` | v2649 — a reading aid three functions from dying |
+| **v2648** | `aa57fa55` | v2648 — three holes a cold eye found, and all three were mine |
+| **v2647** | `32274b28` | v2647 — the sabotage that could not fail |
+| **v2646** | `33c69a1f` | v2646 — the tested encoder is not the used encoder |
+| **v2645** | `c62fb53a` | v2645 — a seventy-character window that invented a finding |
+| **v2644** | `e315cd3d` | v2644 — a fix that was one third applied, and the guard that could not see its own scar |
+| **v2643** | `7894af0a` | v2642-v2643 — freed megabytes nobody freed, and the alarm that blinded the watchdog |
+
+---
 # 🎯 THE TRUE REMAINING SET — deduplicated 2026-09-05
 
 > **Read this, not the historical tables above.** Everything above is kept as evidence; this is what

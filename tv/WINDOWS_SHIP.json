@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2669",
+  "ver": "v2670",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2669: run_gates appends -v to unittest suites and prints a histogram of the reasons cases gave for skipping",
+  "note": "v2670: TASKS.md rebuilt from WINDOWS_SHIP ver rather than commit subjects, plus a gate that fails when a recent ship is missing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
