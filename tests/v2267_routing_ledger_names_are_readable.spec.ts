@@ -33,7 +33,21 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  * VENUE: a browser spec. Runs on GitHub CI, never on his Mac. [[test-venue]]
  */
 test.describe('v2267 — the routing ledger says WHICH item, not just where it went', () => {
-  for (const [w, h, maxCutPct] of [[1440, 1000, 0], [901, 900, 0], [375, 800, 25]] as const) {
+  /* ⚠⚠ v2667 — THE CONTAINMENT HALF WAS DESCRIBED IN BUGS.md AND NEVER EXISTED HERE. REG-620's
+     entry says "the acceptance test asserts BOTH: zero cut AND .vrg-x still inside .vrg-det" —
+     but that assertion lived in a scratchpad probe, not in this spec. A guard documented and not
+     built is worse than one that is missing, because the write-up reads as covered.
+     ⚠ AND IT IS THE HALF A TEXT PROBE CANNOT SEE: .vrg-det carries overflow:hidden, so a name
+     that refuses to shrink pushes the row's TAIL — .vrg-x, the REMOVE button — past a clipping
+     edge. Zero cut with an unreachable control is a WORSE console, and `cut%` would still read 0.
+     ⚠ maxLostButtons IS 0 AT EVERY WIDTH, INCLUDING 375, AND THAT WILL BE RED THERE ON ARRIVAL.
+     MEASURED at 375x800: all seven .vrg-x sit outside .vrg-det (right 360 against a container
+     right of 333) and the column CANNOT scroll to them (scrollWidth 328 === clientWidth 328). It
+     is PRE-EXISTING — identical with the original CSS — and it is filed as REG-621. Budgeting it
+     to 7 here would make the gate agree that seven unreachable buttons are fine, which is not a
+     verdict anyone earned. A red that names a real defect is the point of the gate. */
+  for (const [w, h, maxCutPct, maxLostButtons] of
+       [[1440, 1000, 0, 0], [901, 900, 0, 0], [375, 800, 25, 0]] as const) {
     test(`item names are readable at ${w}px`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: h });
       // ⚠⚠ SEEDED, AND THE DOCSTRING'S "no fixture, no seeding" WAS ABOUT DISCOVERY, NOT GRADING.
@@ -66,6 +80,23 @@ test.describe('v2267 — the routing ledger says WHICH item, not just where it w
       await page.waitForTimeout(2200);
       await page.evaluate(() => (window as any).switchTab('vault'));
       await page.waitForTimeout(1200);
+
+      const lost = await page.evaluate(() => {
+        const xs = [...document.querySelectorAll('.vrg-x')] as HTMLElement[];
+        let out = 0;
+        for (const x of xs) {
+          const det = x.closest('.vrg-det'); if (!det) continue;
+          const xr = x.getBoundingClientRect(), dr = det.getBoundingClientRect();
+          if (xr.width < 1 || xr.height < 1) { out++; continue; }
+          if (xr.right > dr.right + 0.5 || xr.left < dr.left - 0.5) out++;
+        }
+        return { total: xs.length, out };
+      });
+      /* the DENOMINATOR is asserted first: `out === 0` over zero buttons is not a pass */
+      expect(lost.total, 'no .vrg-x rendered — the containment law measured NOTHING').toBeGreaterThan(0);
+      expect(lost.out, `${lost.out} of ${lost.total} remove buttons are outside .vrg-det at ${w}px `
+        + `— a clipped control is a functional defect a text-clipping probe cannot see (REG-621)`)
+        .toBeLessThanOrEqual(maxLostButtons);
 
       const r = await page.evaluate(() => {
         const names = [...document.querySelectorAll('.vrg-name')] as HTMLElement[];

@@ -20960,3 +20960,68 @@ carrying the measured box size. That message is the evidence the diagnosis needs
 
 **Guarded by 4 tests** in `test_control.py`, including a red-proof asserting the old flag-only
 guard cannot satisfy the law — otherwise the law is empty.
+
+## REG-624 — I fixed one call site and called the class done (v2667)
+
+The v2666 fix added `loc: 'stash'` to ONE `chronicleApply` call in
+`v2193_a_found_item_can_also_be_a_vaulted_one.spec.ts`. That file has **five**. The other four sat
+in the SAME FILE — not another module, the next function down — which is the sweep rule failing at
+the smallest possible radius.
+
+⚠ **They were checked one at a time, not blanket-fixed**, because a sibling spec (`v2083`) passes
+plain strings ON PURPOSE and its missing `loc` **is** the law it tests. Copying the fix across
+would have broken a correct test. Classified by what each ASSERTS:
+
+| line | asserts | needs `loc` |
+|---|---|---|
+| :125 | `ownedOfOurs` + `muledOfOurs` — the vault gained | yes |
+| :217 | a failed registration is carried out, not swallowed | yes — no door, no failure to carry |
+| :230 | `skipped` **and** `vaulted.length === 1` | yes |
+| :257 | the door was **NOT** called for an already-vaulted name | yes — see below |
+
+⚠⚠ **`:257` WAS PASSING VACUOUSLY AND IS THE WORST OF THE FOUR.** With no `loc`, `_mayVault` is
+false and the vault door is never called **for any reason** — so an assertion that it was not
+called *redundantly* passed for the exact opposite of the reason it claims. Green, and proving
+nothing.
+
+⚠ **The gate is v2388, not v2343.** Verified: `git log -S 'var _mayVault' -- bible.html` returns
+`9b2b06e9 — v2388 "a chronicle sighting proves he FOUND it, never that he HOLDS it"`. The REG-620
+write-up states v2343 in both the board and BUGS.md — wrong by 45 versions, stated as a dated fact.
+
+## REG-625 — the v2203 reset was aimed one version behind the thing under test
+
+`v2203_the_vault_undo_keeps_what_was_really_his.spec.ts:51` cleared
+`d2r_vaultBackfillUndo_v2203` while every assertion in the file reads `..._v2205`
+(spec:84, 90, 116, 122, 192). So a previous run's undo record survived the "clean" seed and the
+test measured it.
+
+⚠ **BOTH keys are real product keys** — `bible.html:39113` stamps `_v2203`, `bible.html:3912`
+stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
+wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
+
+## REG-626 — the containment guard BUGS.md already claimed, built for real (v2667)
+
+REG-620's entry states *"the acceptance test asserts BOTH: zero cut AND `.vrg-x` still inside
+`.vrg-det`"*. It did not. That assertion lived in a scratchpad probe; `v2267` carried **zero**
+`vrg-x` assertions. **A guard documented and not built is worse than one that is missing**, because
+the write-up reads as covered. `[[the-unjoined-end]]`
+
+Now measured at every width, with the DENOMINATOR asserted first — `out === 0` over zero buttons is
+not a pass.
+
+⚠ **`maxLostButtons` is 0 at 375 and that is RED ON ARRIVAL, deliberately.** Measured there: all
+seven `.vrg-x` sit outside `.vrg-det` (right 360 against a container right of 333) and the column
+CANNOT scroll to them (`scrollWidth 328 === clientWidth 328`). Pre-existing — identical with the
+original CSS — and filed as REG-621. Budgeting it to 7 would make the gate agree that seven
+unreachable buttons are fine, which is a verdict nobody earned.
+
+## Two one-line defects nobody owned (v2667)
+
+- **The `grail` → `chronicle` rename was incomplete.** `bible.html` said *"already in your grail"*
+  once against four siblings saying *"chronicle"* — on a surface he reads. He asked for that rename
+  by name (v2270: *"change the grail to chronicle… all round"*).
+- **`control_ui.html:3760` painted from a literal no token backed.** It used
+  `var(--q-set, #00fc00)`, and `--q-set` is defined **zero** times in that document — it exists
+  only in `bible.html`, a SEPARATE document, and custom properties do not cross the iframe. So the
+  fallback was the only value that ever painted. `--rar-set` IS defined there and is the same
+  `#00fc00`: byte-identical output, rejoined to the token system.

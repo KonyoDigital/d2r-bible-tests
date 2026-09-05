@@ -35,6 +35,23 @@ import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 /** A board that already knows these names as FOUND — the case that used to skip the vault. */
+/* ⚠⚠ v2667 — I FIXED ONE CALL SITE AND CALLED THE CLASS DONE. This file has FIVE bare
+   chronicleApply calls; the v2666 fix added `loc` to exactly one of them. The other four sat in
+   THIS FILE — not another module, the next function down — which is the sweep rule failing at the
+   smallest possible radius.
+   ⚠ THEY WERE CHECKED ONE BY ONE, NOT BLANKET-FIXED, because a sibling spec (v2083) passes plain
+   strings ON PURPOSE and its missing `loc` IS the law it tests. Copying this fix across would
+   have broken a correct test. Classified by what each ASSERTS:
+     :125  ownedOfOurs + muledOfOurs — the vault gained            -> needs loc
+     :217  a failed registration is carried out, not swallowed     -> needs loc (no door, no failure)
+     :230  skipped AND vaulted.length === 1                        -> needs loc
+     :257  the door was NOT called for an already-vaulted name     -> needs loc, see below
+   ⚠⚠ :257 WAS PASSING VACUOUSLY AND IS THE WORST OF THE FOUR. With no `loc`, _mayVault is false
+   and the vault door is never called FOR ANY REASON — so an assertion that it was not called
+   REDUNDANTLY passed for the exact opposite of the reason it claims. It was green and proving
+   nothing. [[feedback-blind-fixture-green-gate]]
+   ⚠ The gate is v2388 (9b2b06e9 "a chronicle sighting proves he FOUND it, never that he HOLDS
+   it"), not v2343 as the earlier write-up said — verified with git log -S 'var _mayVault'. */
 const ALREADY_FOUND = ['Andariel’s Visage', 'Arm of King Leoric', 'Raven Frost',
                        'Nagelring', 'Waterwalk'];
 
@@ -122,7 +139,7 @@ test('the vault survives a reload, which is where v1991 lost it', async ({ page 
   ALREADY_FOUND.forEach((n) => { found[n] = '2026-08-01'; });
   await boot(page, { d2r_foundLog: found, d2r_owned: [], d2r_muleAssign: {} });
   await page.evaluate((names: string[]) => {
-    (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n })), sets: [] } });
+    (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n, loc: 'stash' })), sets: [] } });
     try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
   }, ALREADY_FOUND);
 
@@ -214,7 +231,7 @@ test('a failed registration mid-sweep is CARRIED OUT, not swallowed', async ({ p
   await boot(page, { d2r_foundLog: { 'Raven Frost': '2026-08-01' }, d2r_owned: [], d2r_muleAssign: {} });
   const res = await page.evaluate(() => {
     (window as any).tvVaultRegister = () => ({ ok: false, why: 'quota exceeded' });
-    return (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Raven Frost' }], sets: [] } });
+    return (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Raven Frost', loc: 'stash' }], sets: [] } });
   });
   expect(res.vaultFailed && res.vaultFailed.length, 'a registration failure vanished — the sweep '
     + 'reports a clean run over a vault that did not take the item').toBeGreaterThan(0);
@@ -227,7 +244,7 @@ test('the receipt names the overlap instead of leaving two ledgers to be subtrac
      reader infer it from counters that measure different ledgers. */
   await boot(page, { d2r_foundLog: { 'Raven Frost': '2026-08-01' }, d2r_owned: [], d2r_muleAssign: {} });
   const res = await page.evaluate(() =>
-    (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Raven Frost' }], sets: [] } }));
+    (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Raven Frost', loc: 'stash' }], sets: [] } }));
   expect(res.skipped.length, 'the grail was re-ticked for a name it already had').toBe(1);
   expect((res.vaulted || []).length, 'the vault did not gain the item').toBe(1);
   expect(res.skippedButVaulted, 'the receipt does not name the overlap, so "skipped 279" reads as '
@@ -254,7 +271,7 @@ test('a no-op registration does not rewrite the store', async ({ page }) => {
     let n = 0;
     const real = (window as any).tvVaultRegister;
     (window as any).tvVaultRegister = function (x: any) { n++; return real.apply(this, arguments); };
-    (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Fleshrender' }], sets: [] } });
+    (window as any).chronicleApply({ wouldAdd: { uniques: [{ name: 'Fleshrender', loc: 'stash' }], sets: [] } });
     return n;
   });
   expect(calls, 'the vault door was called for a name already in the vault — hundreds of no-op '

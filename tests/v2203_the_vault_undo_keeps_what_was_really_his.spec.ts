@@ -48,7 +48,15 @@ const SEED = `(function(){
   window.LSR.setItem('d2r_owned', JSON.stringify(owned));
   window.LSR.setItem('d2r_tvExtraItems', JSON.stringify(tvx));
   window.LSR.setItem('d2r_vaultBackfill_v2200', '{"fresh":423}');
+  /* ⚠ v2667 — THE RESET DID NOT RESET WHAT THE TEST READS. This cleared _v2203 while every
+     assertion below reads _v2205 (spec:84, 90, 116, 122, 192), so a previous run's undo record
+     survived the "clean" seed and the test measured it. BOTH keys are real product keys —
+     bible.html:39113 stamps _v2203 and bible.html:3912 stamps _v2205 — so this is not a typo for
+     a key that does not exist; it is a reset aimed one version behind the thing under test.
+     Clearing BOTH is the conservative fix: it removes the stale state the assertions read without
+     dropping a clear that some other path may still rely on. [[feedback-blind-fixture-green-gate]] */
   window.LSR.removeItem('d2r_vaultBackfillUndo_v2203');
+  window.LSR.removeItem('d2r_vaultBackfillUndo_v2205');
   return owned.length;
 })()`;
 
