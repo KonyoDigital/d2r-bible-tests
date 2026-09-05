@@ -137,6 +137,91 @@ class TheDiskStoreIsWATCHED(unittest.TestCase):
         self.assertEqual(entry[2], "reels")
 
 
+class ADeliberateNullIsNotADeadField(unittest.TestCase):
+    """★★ A DATED FALSE RED, DEFUSED BEFORE THE DATE ARRIVED.
+
+    `disk_history.prunedMb` is null ON PURPOSE — the prune is OFF, so nobody measured a freed
+    figure, and `0` would claim a measurement nobody took. Today its column is filled by 8,270 rows
+    written before 2026-09-02, so it reads fine. **The store's own 14-day trim removes the last of
+    those on 2026-09-16**, after which the column is filled on NO row and this detector reads
+    DEAD_FIELDS — on a healthy tree, on a gate in the PRE-PUSH set, where a push publishes the live
+    site. Found by an adversarial review of the shipped bytes, 11.6 days before it would have fired.
+
+    **"Deliberately not measured" and "a typo with a comma after it" are different facts**, and a
+    detector that cannot tell them apart is one somebody eventually switches off.
+
+    ⚠ A DECLARATION IS NOT AN EXEMPTION. It must carry a reason, it does not cover any other field,
+    and it is checked in BOTH directions — a field declared null that has started carrying a value
+    is reported STALE rather than silently honoured.
+    """
+
+    DN = {"prunedMb": "the prune is OFF, so nobody measured a freed figure",
+          "prunedWhy": "only written when a claim is REFUSED"}
+
+    def _rows(self, n=200, **over):
+        base = {"at": 0, "freeGb": 40.0, "reels": 40, "histBytes": 5728790118,
+                "prunedMb": None, "prunedWhy": None}
+        return [dict(base, at=i, **over) for i in range(n)]
+
+    def test_WITHOUT_a_declaration_it_reads_DEAD(self):
+        """★ The fuse, lit. This is the state his store enters on 2026-09-16."""
+        r = DF.dead_fields(self._rows())
+        self.assertEqual(r["state"], "DEAD_FIELDS")
+        self.assertIn("prunedMb", r["dead"])
+
+    def test_WITH_the_declaration_it_reads_OK_and_says_so(self):
+        r = DF.dead_fields(self._rows(), declared_null=self.DN)
+        self.assertEqual(r["state"], "OK", "a deliberately-null field still reads as a defect")
+        self.assertEqual(r["dead"], [])
+        self.assertIn("prunedMb", r["declaredNull"],
+                      "it is excused silently rather than reported — a silent exemption is how a "
+                      "real defect later hides behind a declaration")
+        self.assertIn("declared null on purpose", r["why"])
+
+    def test_a_declaration_does_NOT_cover_any_other_field(self):
+        """⚠⚠ THE BASELINE. If declaring one field quieted the rest, this would be an off switch."""
+        r = DF.dead_fields(self._rows(somethingElse=None), declared_null=self.DN)
+        self.assertEqual(r["state"], "DEAD_FIELDS")
+        self.assertIn("somethingElse", r["dead"])
+
+    def test_a_STALE_declaration_is_reported(self):
+        """A field declared null that HAS started carrying a value — the declaration outlived its
+        referent and must say so rather than become a permanent exemption."""
+        rows = self._rows()[:-40] + self._rows(n=40, prunedMb=12.5)
+        r = DF.dead_fields(rows, declared_null=self.DN)
+        self.assertIn("prunedMb", r["staleDeclarations"])
+        self.assertIn("STALE", r["why"])
+
+    def test_staleness_asks_about_the_WRITER_not_the_ARCHIVE(self):
+        """⚠⚠ MY FIRST CUT ASKED IT OF EVERY ROW AND GOT THE WRONG ANSWER on his real store: 8,270
+        rows written before 2026-09-02 carry a hardcoded `0` that v2154's retraction established
+        was 'a fact about the CALLER', never a measurement. Judging the declaration against those
+        made it read STALE for a writer that had not filled the field in three days. The
+        declaration describes CURRENT behaviour. [[stale-reading]]"""
+        rows = self._rows(n=40, prunedMb=0) + self._rows(n=200)
+        r = DF.dead_fields(rows, declared_null=self.DN)
+        self.assertEqual(r["staleDeclarations"], [],
+                         "an old archive of values makes a current declaration read stale")
+
+    def test_the_registry_entry_carries_the_declaration_and_a_REASON(self):
+        entry = [w for w in DF.WATCHED if w[0] == "disk_history"][0]
+        self.assertGreater(len(entry), 3, "the disk store declares nothing, so it re-arms the fuse")
+        for field, why in entry[3].items():
+            self.assertGreater(len(why or ""), 25,
+                               "%s is declared null with no reason worth the name — an "
+                               "unexplained exemption is how a real defect gets silenced" % field)
+
+    def test_a_THREE_tuple_entry_still_works(self):
+        """⚠ Additive only. reel_tombstones has no declaration and must keep its exact meaning."""
+        entry = [w for w in DF.WATCHED if w[0] == "reel_tombstones"][0]
+        self.assertEqual(len(entry), 3)
+        r = DF.state()
+        got = [s for s in (r.get("stores") or []) if s.get("store") == "reel_tombstones"]
+        self.assertTrue(got, "the undeclared store vanished from the reading")
+        self.assertIn("startedTs", got[0].get("dead") or [],
+                      "the store this module was built for stopped reporting its own dead field")
+
+
 class ItWouldHaveCaughtItAndItSelfClears(unittest.TestCase):
     """★★ The claim this whole change rests on, driven rather than asserted."""
 

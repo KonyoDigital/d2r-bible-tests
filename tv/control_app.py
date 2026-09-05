@@ -16498,9 +16498,21 @@ def _retention_once():
     # (freed 6 GB, 4 GB remains) by its own bound.
     # ⚠ `pruned_mb` STAYS None, and that is correct rather than unfinished: the prune is OFF, so
     # nothing measured a freed figure. `None` means nobody looked; `0` would claim a measurement.
-    _corpus_mb = sum((k.get("mb") or 0) for k in (p.get("kept") or [])) \
-        + sum((c.get("mb") or 0) for c in cands)
-    _hist_bytes = int(_corpus_mb * 1024 * 1024) if _corpus_mb > 0 else None
+    # ⚠⚠ AN EMPTY SHELF IS A MEASUREMENT, NOT AN ABSENCE — and `> 0` switched the bound OFF in
+    # exactly the state where it bites hardest. Found by an adversarial review of the v2654 bytes:
+    # right after a large successful prune, and on a fresh install, `_corpus_mb` is 0, so
+    # `hist_bytes` went None and ANY freed figure was published unbounded. Measured: a 9,999 MB
+    # claim against a 0 MB shelf was PUBLISHED, and against a 5,463 MB shelf was refused.
+    # `credible_pruned_mb` already handles a zero corpus correctly — it admits nothing but zero —
+    # so the honest value is the zero itself. `None` is reserved for the one case that really is
+    # unknown: the plan could not be read at all. [[unknown-stays-unknown]]
+    _kept, _cands = p.get("kept"), cands
+    if not isinstance(_kept, list) or not isinstance(_cands, list):
+        _hist_bytes = None                     # the plan could not be read — nobody measured
+    else:
+        _corpus_mb = sum((k.get("mb") or 0) for k in _kept) \
+            + sum((c.get("mb") or 0) for c in _cands)
+        _hist_bytes = int(max(0.0, _corpus_mb) * 1024 * 1024)
     try:
         disk_history_append(free_gb, ON_AIR_FLOOR_GB,
                             hist_bytes=_hist_bytes,
@@ -23083,7 +23095,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2655",
+        "ver": "v2656",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

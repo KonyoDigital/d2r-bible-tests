@@ -193,6 +193,17 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_every_lock_declares_its_attacks",
+         [sys.executable, os.path.join(HERE, "test_every_lock_declares_its_attacks.py")], 120,
+         why="TWELVE OF SIXTEEN LOCKS COULD NOT SAY HOW MANY DISTINCT ATTACKS BACKED THEM — "
+             "including prune.arm, the one door with no undo, and vault.sweep_start, which spends "
+             "his money. REG-598: Wilson cannot tell 83 independent looks from ONE attack applied "
+             "83 times, and `attacks` is the field that stops it. It was NOT a wiring gap — every "
+             "harness already passes attacks=; the stored rows predated the re-run. Re-running "
+             "them made the real picture visible: prune.arm 0.9259 raw but 0.5655 by attack "
+             "against a 0.839 bar; vault.apply 0.9259 vs 0.4385; vault.sweep_start 0.8064 vs "
+             "0.3424. ⚠ Which figure the bars read is HIS open ruling and this guard must never "
+             "settle it — it only makes both numbers available on every lock."),
     Gate("test_dead_field_reads_jsonl",
          [sys.executable, os.path.join(HERE, "test_dead_field_reads_jsonl.py")], 120,
          why="THE DETECTOR BUILT FOR THIS CLASS NEVER LOOKED HERE, AND COULD NOT HAVE READ IT IF "
@@ -214,7 +225,13 @@ GATES = [
              "the whole cold-read hardening of v2648 sat behind a None the only caller passed as "
              "a literal. The value was in the same dict all along — the call site already derives "
              "`reels` and `eligibleMb` from the retention plan, whose per-reel mb sum to 5,463 MB "
-             "on his shelf. Now passed, and his exact v2229 case (15 GB claimed) is refused. "
+             "on his shelf, and the field is filled from the first row after the fix. "
+             "\u26a0\u26a0 BUT THE BOUND IS STILL UNREACHABLE IN PRODUCTION, and an earlier "
+             "version of this sentence overstated that: `credible_pruned_mb` RETURNS AT ITS "
+             "FIRST BRANCH for every production call, because `pruned_mb is None` is checked "
+             "before `hist_bytes` is ever read, and the only call site passes a literal None. "
+             "So this fixed a dead FIELD; it did not make the corpus bound run. It becomes "
+             "reachable the day a real freed figure exists, and not before. "
              "⚠ `pruned_mb` stays a deliberate None: the prune is OFF, nobody measured a freed "
              "figure, and 0 would claim a measurement nobody took."),
     Gate("test_disk_attribution_twins",

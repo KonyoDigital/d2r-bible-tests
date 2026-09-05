@@ -74,7 +74,14 @@ WATCHED = (
     # ⚠ I FIRST CLAIMED ADDING IT WOULD REPORT THE 8,588 OLD NULLS AS A LIVE DEFECT FOR EVER. That
     # was a misread of the rule: `dead_fields` asks whether a column is filled on NO row, not
     # whether it has nulls. Measured before believing my own objection.
-    ("disk_history", ("control_app", "_disk_history_path"), None),
+    # ⚠ THE 4th ELEMENT: fields this store NEVER fills, on purpose, with the reason. Without it
+    # `prunedMb` reads DEAD on 2026-09-16, when the store's own 14-day trim removes the last of the
+    # 8,270 rows written before 2026-09-02 that still carry a 0. A false red on a healthy tree, on
+    # a detector in the PRE-PUSH set — where a push publishes the live site.
+    ("disk_history", ("control_app", "_disk_history_path"), None,
+     {"prunedMb": "the prune is OFF, so nobody measured a freed figure; 0 would claim a "
+                  "measurement nobody took",
+      "prunedWhy": "only written when a claim is REFUSED, and none has been offered"}),
 )
 
 
@@ -193,20 +200,36 @@ def _is_filled(v):
         return True                      # anything with no usable length is an object, and objects are values
 
 
-def dead_fields(rows, min_rows=MIN_ROWS):
+def dead_fields(rows, min_rows=MIN_ROWS, declared_null=None):
     """Which fields are present on every row and filled on none? -> dict
 
     A field is DEAD only when it appears on EVERY row (so it is meant to be there) and no row
     carries a value. A field that is merely sometimes-null is a field with sometimes nothing to
     say, which is a different fact and is not reported.
+
+    ⚠⚠ `declared_null` — FIELDS A STORE DELIBERATELY NEVER FILLS, WITH THE REASON. Found by an
+    adversarial review of the v2655 bytes before it could bite: `disk_history.prunedMb` is null on
+    purpose (the prune is OFF, so nobody measured a freed figure — `0` would claim a measurement
+    nobody took). Today its column is filled by 8,270 rows written before 2026-09-02, but the
+    store's own 14-day trim removes the last of those on **2026-09-16**, after which the column is
+    filled on NO row and this reads DEAD_FIELDS. That is a false red on a healthy tree — and this
+    detector is in the PRE-PUSH set, where a push is what publishes the live site.
+    **"Deliberately not measured" and "a typo with a comma after it" are different facts**, and a
+    detector that cannot tell them apart eventually gets switched off. Declared fields are reported
+    under `declaredNull` with their reason and never counted as dead.
+    ⚠ A DECLARATION IS NOT AN EXEMPTION: it must state WHY, and if the field ever DOES carry a
+    value the declaration is reported as stale rather than quietly honoured.
+    [[unknown-stays-unknown]] [[label-outlived-referent]]
     """
+    declared_null = dict(declared_null or {})
     # ⚠ REG-544 — EVERY RETURN CARRIES THE SAME KEYS. The early returns used to omit `judged` and
     # `skipped` while the later ones carried them, so a consumer reading `r["judged"]` raised
     # KeyError on exactly the paths that mean "nothing was established" — the reading breaks in the
     # state it exists to report. A shape that changes with the verdict is not a shape.
     def _unknown(why, checked=0, skipped=0, judged=0):
         return {"state": "UNKNOWN", "dead": [], "checked": checked, "skipped": skipped,
-                "judged": judged, "fields": [], "filled": {}, "why": why}
+                "judged": judged, "fields": [], "filled": {}, "declaredNull": [],
+                "staleDeclarations": [], "why": why}
 
     if rows is None:
         return _unknown("the store could not be read, so no field was judged")
@@ -258,26 +281,59 @@ def dead_fields(rows, min_rows=MIN_ROWS):
                          "here would be about the rows that happened to parse, not about the "
                          "store.%s" % (judged, n, min_rows, _skip_note)),
                         checked=n, skipped=skipped, judged=judged)
-    dead = sorted(k for k in (on_every or ()) if not filled.get(k))
+    _unfilled = sorted(k for k in (on_every or ()) if not filled.get(k))
+    # ⚠ A DECLARED-NULL FIELD IS REPORTED, NEVER COUNTED AS DEAD. And the declaration is checked
+    # in BOTH directions: a field declared null that HAS started carrying a value is a stale
+    # declaration, said out loud rather than silently honoured — otherwise the declaration becomes
+    # a permanent exemption for whatever the field later turns into. [[label-outlived-referent]]
+    dead = [k for k in _unfilled if k not in declared_null]
+    dn = sorted(k for k in _unfilled if k in declared_null)
+    # ⚠⚠ STALENESS IS A QUESTION ABOUT THE WRITER NOW, NOT ABOUT HISTORY, and asking it of every
+    # row gave the wrong answer on the first run. `disk_history.prunedMb` is declared null because
+    # the prune is OFF — and 8,270 rows written before 2026-09-02 still carry a hardcoded `0` that
+    # v2154's retraction established was "a fact about the CALLER", never a measurement. Judging
+    # the declaration against those made it read STALE for a writer that has not filled the field
+    # in three days. The declaration describes CURRENT behaviour, so it is judged against the most
+    # recent rows. [[stale-reading]] — the age of the THING, not of the fetch.
+    _recent = [r for r in rows if isinstance(r, dict)][-min_rows:]
+    _recent_filled = set()
+    for r in _recent:
+        for k, v in r.items():
+            if _is_filled(v):
+                _recent_filled.add(k)
+    stale = sorted(k for k in declared_null if k in _recent_filled)
+    _dn_note = ("" if not dn else
+                (" \u26a0 %d field(s) are declared null on purpose and NOT counted as dead: %s."
+                 % (len(dn), "; ".join("%s (%s)" % (k, declared_null[k]) for k in dn))))
+    _stale_note = ("" if not stale else
+                   (" \u26a0\u26a0 %d declaration(s) are STALE — declared null but now carrying a "
+                    "value in the most recent %d row(s): %s. Re-read the declaration rather than "
+                    "trusting it." % (len(stale), min_rows, ", ".join(stale))))
     return {
         "state": "DEAD_FIELDS" if dead else "OK",
         "dead": dead, "checked": n, "skipped": skipped, "judged": judged,
         "fields": sorted(on_every or ()),
         "filled": {k: filled.get(k, 0) for k in sorted(on_every or ())},
+        "declaredNull": dn, "staleDeclarations": stale,
         "why": (("%d field(s) present on all %d judged row(s) and filled on NONE: %s. A field that "
-                 "never once carried a value is not a field, it is a typo with a comma after it.%s"
-                 % (len(dead), judged, ", ".join(dead), _skip_note)) if dead else
-                ("every field present on all %d judged row(s) carries a value somewhere.%s"
-                 % (judged, _skip_note))),
+                 "never once carried a value is not a field, it is a typo with a comma after it.%s%s%s"
+                 % (len(dead), judged, ", ".join(dead), _skip_note, _dn_note, _stale_note))
+                if dead else
+                ("every field present on all %d judged row(s) carries a value somewhere.%s%s%s"
+                 % (judged, _skip_note, _dn_note, _stale_note))),
     }
 
 
 def state():
     """The heart's reading. -> {"ok", "state", "stores", "dead", "why"}"""
     stores, total_dead = [], 0
-    for name, path, key in WATCHED:
+    for _entry in WATCHED:
+        # ⚠ 3-tuples still work: the declared-null map is optional, so the reel_tombstones entry
+        # is untouched and every existing caller keeps its meaning.
+        name, path, key = _entry[0], _entry[1], _entry[2]
+        _dn = _entry[3] if len(_entry) > 3 else None
         rows, why = _rows_of(path, key)
-        r = dead_fields(rows)
+        r = dead_fields(rows, declared_null=_dn)
         if why and rows is None:
             r["why"] = why
         r["store"] = name

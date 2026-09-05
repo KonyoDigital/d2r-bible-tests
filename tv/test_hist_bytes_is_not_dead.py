@@ -22,8 +22,21 @@ hardening of v2648 sat behind a `None` that the only caller passed as a literal.
 
 **THE VALUE WAS IN THE SAME DICT THE WHOLE TIME.** The call site already computes `reels` and
 `eligibleMb` from the retention plan; the per-reel `mb` figures are right beside them. Measured on
-his shelf: 40 reels, **5,463.4 MB**. Now passed, and the bound refuses his exact v2229 case —
-15,000 MB against a 5,463 MB corpus.
+his shelf: 40 reels, **5,463.4 MB**. Now passed, and the field is filled from the first row after
+the fix — confirmed on his live series, four seconds after the old writer's last row.
+
+⚠⚠⚠ AND AN EARLIER VERSION OF THIS PARAGRAPH OVERSTATED WHAT THAT ACHIEVED. It said "the bound
+refuses his exact v2229 case", which is true of the FUNCTION and **not of production**. Two
+independent lenses of an adversarial review of the shipped bytes caught it, and it reproduces in
+one line: `credible_pruned_mb` opens with `if pruned_mb is None: return None, None`, so it
+**returns before it ever reads `hist_bytes`** — and the only production call site passes
+`pruned_mb=None` as a literal, deliberately, because the prune is OFF and nobody measured a freed
+figure.
+
+**So v2654 fixed a dead FIELD. It did not make the corpus bound run.** The bound becomes reachable
+the day a real freed figure exists and not before, and saying otherwise was a claim larger than its
+evidence. The dead-field fix stands on its own: the denominator is now recorded, so when a figure
+does arrive it can be judged. [[the-unjoined-end]]
 
 ⚠ THE PRE-PRUNE SIDE, DELIBERATELY. The write banks before anything branches, so the corpus is
 what existed BEFORE any deletion — the right denominator, since a figure freed cannot exceed what
@@ -159,15 +172,32 @@ class TheHistoricalShapeIsWHYThisExists(unittest.TestCase):
                         pass
         if len(rows) < 100:
             self.skipTest("only %d rows — too young to call a column dead" % len(rows))
+        # ⚠⚠ THIS ASSERTION USED TO BE `len(old) > 1000` AND IT WAS A DATED FALSE RED. The store
+        # trims at 14 days, so the ~8,588 historic null rows age out around 2026-09-16 and this
+        # would have turned a PRE-PUSH gate red on a healthy tree — a push here publishes the live
+        # site. Caught by an adversarial review of the shipped bytes before the date arrived.
+        # A guard whose truth depends on the calendar is not a guard, it is a fuse.
+        # What is actually being asserted is the file's PREMISE: that the writer used to leave the
+        # column null and now fills it. Both halves are checked, and either being absent is a
+        # reason to re-read this file rather than a defect in the tree.
         old = [r for r in rows if r.get("histBytes") is None]
-        self.assertGreater(len(old), 1000,
-                           "the historical dead column is gone, so this file's premise no longer "
-                           "matches the store — re-read it rather than trusting the number")
+        new = [r for r in rows if r.get("histBytes") is not None]
+        if not old:
+            self.skipTest("no pre-fix rows survive the 14-day trim any more — this file's "
+                          "historical premise has aged out, which is not a defect")
+        self.assertTrue(new,
+                        "no row carries a corpus, so the v2654 fix is not reaching this store — "
+                        "that IS the defect, whatever the history looks like")
         # every sibling on the same rows WAS populated: that is what makes it dead, not young
         live_siblings = [r for r in rows if r.get("reels") is not None]
         self.assertGreater(len(live_siblings), len(rows) // 2,
                            "the sibling fields are null too, so the store was simply not being "
                            "written — a different defect from a dead column")
+        # ⚠ AND THE FIX IS THE NEWEST BEHAVIOUR, not merely present somewhere in the archive.
+        newest = rows[-1] if rows else {}
+        self.assertIsNotNone(newest.get("histBytes"),
+                             "the MOST RECENT row carries no corpus — the writer has stopped "
+                             "filling it again, which no count over the whole archive would show")
 
 
 if __name__ == "__main__":
