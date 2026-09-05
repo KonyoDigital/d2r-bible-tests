@@ -34,12 +34,20 @@ test.describe('v1517 — his game speaks first', () => {
 
   test('★ the two ledgers are named APART, and the unknown one claims neither', async () => {
     const d = dict();
-    /* v2674 — THE UNIQUES LEDGER IS NO LONGER CALLED "grail". Measured in the console's own
-       _DIABLO_SCENES: chronicle-uniques full='the Chronicle ledger', chronicle-sets
-       full='the Set-piece ledger', chronicle full='reading the chronicle'.
-       THE LAW OF THIS TEST IS UNCHANGED and is what is asserted below: the two ledgers must be
-       named APART, and the tab-less entry must claim NEITHER. */
-    expect(d['chronicle-uniques'].full).toMatch(/chronicle/i);
+    /* v2676 — ONE NAMING RULE FOR BOTH LEDGERS, so the pair cannot drift apart again.
+       The grail->chronicle rename left the uniques ledger called "the Chronicle ledger" while the
+       tab-less entry is "reading the chronicle" — one word doing two jobs, which is how a reader
+       stops being able to tell a LEDGER from the ACT of reading one. Konyo: "make it synced and a
+       unified logic no reason they disagree".
+       THE RULE, asserted rather than described: a LEDGER is named for WHAT IT HOLDS, the tab-less
+       entry is named for the ACT, and it claims neither ledger. Measured after the fix:
+         chronicle          📜 'reading the chronicle'
+         chronicle-uniques  🏆 'the Unique ledger'
+         chronicle-sets     🧩 'the Set-piece ledger'                     */
+    expect(d['chronicle-uniques'].full).toMatch(/unique/i);
+    expect(d['chronicle-uniques'].full, 'both ledgers must be named the same WAY, or one reads as a '
+      + 'different kind of thing from the other').toMatch(/ledger$/i);
+    expect(d['chronicle-sets'].full).toMatch(/ledger$/i);
     expect(d['chronicle-uniques'].full).not.toBe(d['chronicle-sets'].full);
     expect(d['chronicle-sets'].full).toMatch(/set/i);
     expect(d['chronicle-uniques'].ic).not.toBe(d['chronicle-sets'].ic);
@@ -50,7 +58,8 @@ test.describe('v1517 — his game speaks first', () => {
        any more — a bar that can no longer be crossed is an absent one. The word that now separates
        a ledger from the tab-less entry is "ledger" itself.
        [[feedback-threshold-above-the-ceiling]] [[label-outlived-referent]] */
-    expect(d['chronicle'].full).not.toMatch(/ledger|set-piece/i);
+    expect(d['chronicle'].full, 'the tab-less entry must claim NEITHER ledger — it is what a reader '
+      + 'shows when it could not tell which tab it was looking at').not.toMatch(/ledger|unique|set-piece/i);
   });
 
   test('the receipts row leads with the Diablo label, not the scene string', async () => {

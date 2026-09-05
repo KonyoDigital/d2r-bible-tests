@@ -18043,6 +18043,19 @@ const runsFor = (chance, conf) => !chance || chance <= EVENT_PCT_MAX ? null : Ma
 /* hours for X% confidence given chance + RUNS per hour.
    `kpr` is how many monsters one run kills; the per-run probability is 1-(1-p)^kpr, NOT p*kpr —
    the linear form drifts as p*kpr approaches 1 and would understate a dense zone. */
+/* v2676 — THE ONE CONVERSION BOTH SURFACES NOW SHARE.
+   `control_app.py:8116` states the bridge contract in its own words: each row is
+   `{name, dropChance (PER-RUN prob), killsPerHr, source?}`. The bridge wrote `1 / chance`, which is
+   the PER-KILL probability — so producer and consumer disagreed about what the field MEANS, not
+   about arithmetic. They agree for every source that kills one monster per run (where the two are
+   identical), and diverge for the rest: measured, exactly 2 of 377 grail rows.
+   Stated once, here, so no caller re-derives it. [[copy-drift]] [[the-unjoined-end]] */
+const perRunChance = (chance, bossId) => {
+  const c = Number(chance);
+  if (!(c > 0)) return null;
+  const n = Math.max(1, killsPerRun(bossId));
+  return n === 1 ? 1 / c : 1 - Math.pow(1 - 1 / c, n);
+};
 const hoursFor = (chance, conf, kph, kpr) => {
   if (!chance || chance <= EVENT_PCT_MAX || !kph) return null;
   const n = Math.max(1, +kpr || 1);
@@ -18203,10 +18216,10 @@ function _writeGrailFarm(){
       if (best && best.chance > 0) {
         var _bArt = best.bossId ? _srcArt(best.bossId) : null;
         var _hArt = (bestHell && bestHell.bossId) ? _srcArt(bestHell.bossId) : null;
-        out.push({ name: item.n, source: best.boss, sourceBossId: best.bossId || null, dropChance: 1 / best.chance, killsPerHr: best.kph,
+        out.push({ name: item.n, source: best.boss, sourceBossId: best.bossId || null, dropChance: perRunChance(best.chance, best.bossId), killsPerHr: best.kph, killsPerRun: killsPerRun(best.bossId),
                    hellSource: bestHell ? bestHell.boss : null,
                    hellSourceBossId: bestHell ? (bestHell.bossId || null) : null,
-                   hellDropChance: bestHell ? 1 / bestHell.chance : null,
+                   hellDropChance: bestHell ? perRunChance(bestHell.chance, bestHell.bossId) : null,
                    hellKillsPerHr: bestHell ? bestHell.kph : null,
                    /* v1616 — THE ITEM IS THE POINT, SO SHIP THE ITEM'S FACE. The console is a
                       separate document around an iframe and cannot read D2IO_ART, so the art
@@ -18319,10 +18332,10 @@ function _writeSetFarm(){
       var _sHellArt = null;
       try { _sHellArt = (bestHell && bestHell.bossId && typeof window._runBossArt === 'function') ? (window._runBossArt(bestHell.bossId) || null) : null; } catch(e){}
       out.push({ name: miss[0].name, set: st.name, left: st.left,
-                 source: src.boss, sourceBossId: src.bossId || null, dropChance: 1 / adj, killsPerHr: src.kph || 100,
+                 source: src.boss, sourceBossId: src.bossId || null, dropChance: perRunChance(adj, src.bossId), killsPerHr: src.kph || 100, killsPerRun: killsPerRun(src.bossId),
                  hellSource: bestHell ? bestHell.boss : null,
                  hellSourceBossId: bestHell ? (bestHell.bossId || null) : null,
-                 hellDropChance: bestHell ? 1 / bestHell.chance : null,
+                 hellDropChance: bestHell ? perRunChance(bestHell.chance, bestHell.bossId) : null,
                  hellKillsPerHr: bestHell ? bestHell.kph : null,
                  sourceArt: (_sSrcArt && _sSrcArt.url) ? _sSrcArt.url : null,
                  hellSourceArt: (_sHellArt && _sHellArt.url) ? _sHellArt.url : null,
@@ -48475,7 +48488,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2675', name:'v2675 - found is not where', date:'2026-09-05', note:'the grail seed carries no location so it cannot vault - his v2346 ruling; plus a non-vacuity gate whose subject v2438 removed' };
+  window.D2R_BUILD = { id:'v2676', name:'v2676 - synced and unified', date:'2026-09-05', note:'the bridge writes the per-run probability its consumer documents, and the two ledgers name themselves by what they hold' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

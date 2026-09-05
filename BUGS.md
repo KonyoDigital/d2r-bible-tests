@@ -20999,6 +20999,85 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-645 — the hunt bridge and the console disagreed about what `dropChance` MEANS (v2676)
+
+His ruling: *"fix it make it synced and a unified logic no reason they disagree"*. Done, and the
+disagreement was never arithmetic — it was a **contract**.
+
+`control_app.py:8116` states the bridge's shape in its own words:
+`each {name, dropChance (PER-RUN prob), killsPerHr, source?}`. The bridge wrote
+`dropChance: 1 / best.chance` — the **per-kill** probability. For any source that kills one monster
+per run the two are identical, which is why **375 of 377 rows already agreed**; the rest diverged.
+Measured before: The Scourge **36.47 h vs 4.65 h**, Polaris Spear **32.62 h vs 4.16 h** — a 7.8×
+disagreement on time-to-find, the number he plans farming around.
+
+The conversion is now stated **once**, as `perRunChance(chance, bossId)`, and both bridge writers
+use it — the grail bridge, the sets bridge, and both of their `hell` halves. Each row also carries
+`killsPerRun`, so the third input is no longer lost. The spec's board-side call now passes
+`killsPerRun` too, because **every** product call site does (`18188`, `18300`, `20303`, `20342`,
+`20480`) and omitting it made that side compute hours no surface actually shows.
+
+**MEASURED AFTER, on his real bridge: 389 items compared, `badN: 0`.** Down from 2, with the
+denominator larger than before. [[copy-drift]] [[the-unjoined-end]]
+
+⚠ An earlier hypothesis — *"the spec just omits the 4th argument"* — was **refuted by measurement**
+before this: adding it alone widened the gap to 0.33 h and flipped the chosen source. Fixing only
+the consumer would have made his numbers worse.
+
+## REG-646 — one word doing two jobs, so the ledgers now name themselves by what they hold (v2676)
+
+After the grail→chronicle rename the uniques ledger read **"the Chronicle ledger"** while the
+tab-less entry reads **"reading the chronicle"** — the same word naming both a LEDGER and the ACT of
+reading one. Nothing was wrong on screen and the icons differ, but a reader cannot tell them apart
+at a glance, and before the rename the pair was distinct by construction (grail / set-piece).
+
+**ONE RULE FOR BOTH, so they cannot drift apart again:** a ledger is named for WHAT IT HOLDS, the
+tab-less entry for the ACT, and it claims neither.
+
+| key | icon | full |
+|---|---|---|
+| `chronicle` | 📜 | reading the chronicle |
+| `chronicle-uniques` | 🏆 | **the Unique ledger** |
+| `chronicle-sets` | 🧩 | the Set-piece ledger |
+
+`v1517` now asserts the rule rather than the words: each ledger matches its own contents, **both**
+end in `ledger` (so one cannot become a different kind of thing from the other), they differ, and
+the tab-less entry matches none of `ledger|unique|set-piece`. [[label-outlived-referent]]
+
+## REG-647 — the rename's long tail: a sweep that stopped at the first hit IN A FILE (v2676)
+
+`v153` failed again **after** I fixed it. I changed `Grail Progress` → `Chronicle Progress` at line
+45 and shipped without line 48, `Today's Best Grail Picks`, in the same file. Measured:
+`Today's Best Grail Picks` **0×** in bible.html, `Today's Best Chronicle Picks` **1×**.
+**A sweep that stops at the first hit in a file is the same defect as one that stops at the first
+file**, and this is the third form of it in this arc. [[sweep-dont-ask]]
+
+`v559` joined the same class a run later — `/Grail imported/` against a toast reading *"📸 Chronicle
+imported! +2 uniques"* — because that toast only appears when the bulk-import path actually runs.
+**A stale assertion is invisible until its code path executes**, so "the class is closed" can only
+ever mean "closed for the paths that ran". Tenth spec of the rename.
+
+## REG-648 — the spec verified the REPORT while the store was working (v2676)
+
+`v2083` still failed after REG-632 added `loc:'stash'`, and the `loc` fix was right. Measured on a
+**fresh page load** with the fixture's exact four bases:
+
+```
+d2r_owned  0 -> 4          res.vaulted  (field absent)
+```
+
+The vault really gains them; `res.vaulted` is a report field this path does not populate, so the
+spec was checking a proxy while the thing itself worked. It now asserts the **store**, and checks
+the report only for agreement when it is present. Two joints, one symptom: without `loc` the store
+stays empty, with it the store gains but the unset report still failed.
+[[feedback-verify-not-proxy]]
+
+⚠ **REG-642 BIT A THIRD TIME GETTING HERE.** `localStorage.clear()` left the page's in-memory state
+intact, so an arm reusing a name measured the previous arm's leftovers — twice giving opposite wrong
+answers, one of which said my own shipped fix was harmful. **A new page per arm** is the only clean
+form. And the store is written under the GUEST prefix `I·<id8>·d2r_owned`, so reading the bare key
+reports 0 for a vault that gained four. [[cdp-probe-reads-a-guest-world]]
+
 ## REG-644 — my two new gates were green on my Mac and RED on the only venue that counts
 
 TV DIABLO went red on `0c5e65ea` and **both failures were mine**, in gates I had added hours

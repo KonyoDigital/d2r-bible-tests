@@ -45,7 +45,11 @@ test.describe('v153 main tab section headers match the Tools first-glance', () =
     // v2674 — renamed: bible.html renders "Chronicle Progress" (3x); "Grail Progress" survives
     // only inside a comment describing the old wrap, and 0 times in rendered text.
     expect(r.titles).toContain('Chronicle Progress');
-    expect(r.titles).toContain('Today\'s Best Grail Picks');
+    /* v2676 — THE SECOND HALF OF THE SAME RENAME IN THE SAME FILE, and I fixed the first and
+       shipped without it. Measured: "Today's Best Grail Picks" appears 0 times in bible.html,
+       "Today's Best Chronicle Picks" once. A sweep that stops at the first hit in a file is the
+       same defect as one that stops at the first file. [[sweep-dont-ask]] */
+    expect(r.titles).toContain('Today\'s Best Chronicle Picks');
     expect(r.titles).toContain('Guaranteed Drops');
   });
 

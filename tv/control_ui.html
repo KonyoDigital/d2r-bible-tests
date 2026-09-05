@@ -9628,7 +9628,15 @@ window._lockMark = function(isOpen, px, label){
     // Three entries and not one, because the two ledgers are two different things to be looking at
     // and a reader that could not tell which must not be shown claiming either.
     chronicle:  { ic: '📜', key: 'CHRONICLE', full: 'reading the chronicle' },
-    'chronicle-uniques': { ic: '🏆', key: 'CHRONICLE', full: 'the Chronicle ledger' },
+    /* v2676 — NAMED BY WHAT IT HOLDS, so the two ledgers are symmetric and neither collides
+       with the tab-less entry. Before the grail->chronicle rename the pair was distinct by
+       construction (grail / set-piece); after it, the uniques ledger was 'the Chronicle
+       ledger' while the unknown entry is 'reading the chronicle' — one word doing two jobs.
+       Konyo: "make it synced and a unified logic no reason they disagree".
+       The rule now holds for both: a LEDGER is named for its contents (Unique / Set-piece),
+       the tab-less entry is named for the ACT (reading the chronicle), and it claims
+       neither. [[label-outlived-referent]] */
+    'chronicle-uniques': { ic: '🏆', key: 'CHRONICLE', full: 'the Unique ledger' },
     'chronicle-sets':    { ic: '🧩', key: 'CHRONICLE', full: 'the Set-piece ledger' }
   };
   var _DIABLO_TABS = { personal: 'Personal', shared: 'Shared', gems: 'Gems', materials: 'Materials', runes: 'Runes' };

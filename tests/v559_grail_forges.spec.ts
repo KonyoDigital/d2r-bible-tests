@@ -210,7 +210,11 @@ test('v561 — grail bulk-import: AI-read FOUND names batch-tick into the LEDGER
   expect(r.wf).toBe(true);
   expect(r.cow).toBe(true);            // clean name mapped back to the full "(war bonnet)" piece
   expect(r.fakeNotOwned).toBe(true);   // junk never enters the stores
-  expect(r.toast).toMatch(/Grail imported/);
+  /* v2676 — THE TENTH SPEC OF THE grail->chronicle RENAME CLASS, and it surfaced a run later than
+     the other nine because this toast only appears when the bulk-import path actually runs.
+     Measured at HEAD: "Grail imported" appears 0 times in bible.html, "Chronicle imported" once
+     (:45509) — the toast reads "📸 Chronicle imported! +2 uniques · +0 set pieces". */
+  expect(r.toast).toMatch(/Chronicle imported/);
   expect(r.toast).toMatch(/\+2 uniques/);
   expect(r.foundNow).toBeGreaterThanOrEqual(2);   // the Uniques Forge sees them immediately post-reload
 });

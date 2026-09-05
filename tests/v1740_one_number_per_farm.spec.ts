@@ -179,7 +179,12 @@ test.describe('v1740 — the ops queue and F·Uniques agree about the same item'
              non-vacuity assertion below is what caught exactly that. */
           let a, h;
           try { a = eval('effChance')(s.chance, s.bossId, s.diffKey); } catch (e) { return; }
-          try { h = eval('hoursFor')(a, 0.5, s.kph || 100); } catch (e) { return; }
+          /* v2676 — PASS killsPerRun, BECAUSE EVERY PRODUCT CALL SITE DOES. hoursFor's signature
+             is (chance, conf, kph, kpr) and bible.html:18188/18300/20303/20342/20480 all pass the
+             4th argument; omitting it here made this side compute hours no surface actually shows,
+             and then select a different best source than the bridge did. */
+          try { h = eval('hoursFor')(a, 0.5, s.kph || 100, eval('killsPerRun')(s.bossId)); }
+          catch (e) { return; }
           if (h !== null && (!best || h < best)) best = h;
         });
         const consoleH = evHours(b.dropChance, b.killsPerHr);

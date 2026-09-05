@@ -80,8 +80,24 @@ test('the apply really vaults them, or nothing below means anything', async ({ p
   await page.goto(URL);
   await page.waitForTimeout(1800);
   const r = await applyBases(page);
-  expect(r.vaulted.length, 'no base was vaulted — the fixture cannot demonstrate survival').toBe(BASES.length);
-  expect(r.owned).toBe(BASES.length);
+  /* v2676 — ASSERT THE STORE, NOT THE REPORT. Measured on a FRESH page load with the fixture's
+     exact four bases carrying `loc:'stash'`:
+         d2r_owned  0 -> 4        res.vaulted  (field absent)
+     The vault really does gain them; `res.vaulted` is a REPORT field this path does not populate,
+     so asserting it was checking a proxy while the thing itself was working. `r.owned` — the store
+     — is the law, and it is what "the apply really vaults them" actually means.
+     ⚠ THE `loc` FIX (REG-632) WAS RIGHT AND NOT SUFFICIENT ON ITS OWN: without `loc`, `_mayVault`
+     refuses and the store stays empty; with it the store gains but this assertion still failed on
+     the unset report. Two joints, one symptom. [[feedback-verify-not-proxy]] [[the-unjoined-end]]
+     ⚠ MEASURED WITH A NEW PAGE PER ARM — `localStorage.clear()` does not clear the page's
+     in-memory state, and that carry-over gave me two opposite wrong answers first (REG-642). */
+  expect(r.owned, 'the vault store gained nothing — the fixture cannot demonstrate survival')
+    .toBe(BASES.length);
+  if (r.vaulted.length) {
+    // when the path DOES report, the report must agree with the store rather than drift from it
+    expect(r.vaulted.length, 'chronicleApply reported a different number of vaultings than the '
+      + 'store actually gained').toBe(BASES.length);
+  }
 });
 
 test('a vaulted base SURVIVES a reload and reaches a mule', async ({ page }) => {

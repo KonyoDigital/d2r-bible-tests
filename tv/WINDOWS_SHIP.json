@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2675",
+  "ver": "v2676",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2675: the grail seed carries no location so it cannot vault - his v2346 ruling; plus a non-vacuity gate whose subject v2438 removed",
+  "note": "v2676: the bridge writes the per-run probability its consumer documents, and the two ledgers name themselves by what they hold",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
