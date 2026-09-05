@@ -18811,13 +18811,27 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
        looking completely correct. Measured: roster stayed 398 with all six Latent names still in
        it. Mapping the display names through `_norm` cannot drift the day either function changes.
        [[source-reading-guard]] [[feedback-suspect-the-instrument]] */
-    var _LATENT_SUNDERS = ['Latent Bone Break','Latent Cold Rupture','Latent Crack of the Heavens',
-                           'Latent Flame Rift','Latent Rotting Fissure','Latent Black Cleft']
-                          .map(function(n){ return _normKey(n); });
+
+    /* ⚠⚠ v2685 — THE SUNDER EXCLUSION IS REVERTED HERE, AND IT WAS MY REGRESSION.
+       v2680 filtered the six `Latent <sunder>` names out of THIS roster to honour his ruling that
+       "the chronicle is 1 only for each". It shipped, and CI went 13 -> 21 failing tests. The
+       cause is that THIS roster is not the chronicle's tally — it is the resolution table for the
+       whole board, and removing a name from it removes the item's card, its farm route and its
+       art. `v1716` says so in his own earlier words:
+
+           v1720 — KONYO'S RULING: "add the 11 rotw items to the roster" ... a roster entry that
+           cannot be opened or hunted is the defect this arc removed, not a new one to add.
+
+       The Latent charms are among those eleven. **So I broke an explicit ruling of his while
+       implementing a later one**, and the two are not actually in conflict: he wants the item
+       findable and openable (roster) AND counted once (chronicle tally). Those are two different
+       surfaces and the fix belongs on the tally, not here. Measured damage: `v1692` 236 -> 232 and
+       248 -> 244, `v1693` three assertions on 248, `v1716` naming the charms as
+       "not in the roster" — 8 failures, all mine.
+       [[the-unjoined-end]] [[feedback-verify-not-proxy]] */
     var out = {}; // norm -> canonical name
-    function _chronicleSkip(k){ return pc[k] || _LATENT_SUNDERS.indexOf(k) >= 0; }
-    Object.keys(iv).forEach(function(n){ var k = _normKey(n); if (_chronicleSkip(k)) return; out[k] = n; });
-    Object.keys(ue).forEach(function(n){ var k = _normKey(n); if (_chronicleSkip(k) || out[k]) return; out[k] = n; });
+    Object.keys(iv).forEach(function(n){ var k = _normKey(n); if (pc[k]) return; out[k] = n; });
+    Object.keys(ue).forEach(function(n){ var k = _normKey(n); if (pc[k] || out[k]) return; out[k] = n; });
     _rosterCache = out;
     return out;
   }
@@ -48544,7 +48558,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2681', name:'v2681 - three forms, one tally', date:'2026-09-05', note:'the vault now resolves all three sunder forms (18) while the chronicle keeps one row each (6)' };
+  window.D2R_BUILD = { id:'v2685', name:'v2685 - the wrong seam, reverted', date:'2026-09-05', note:'the chronicle-tally fix was made on the roster, which broke his v1720 ruling; reverted, vault half kept' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

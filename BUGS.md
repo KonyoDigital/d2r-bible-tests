@@ -21008,6 +21008,39 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-661 — I broke one of his rulings while implementing a later one, and shipped it (v2685)
+
+**This is my regression and it reached `main`.** Routine I went **13 → 21** on `c6faea8c`.
+
+v2680 implemented his ruling — *"for the chronicle all sunders 6 of them need to be counted…1 tally
+for each"* — by filtering the six `Latent <sunder>` names out of `_roster()`. **That is the wrong
+seam.** `_roster()` is not the chronicle's tally; it is the resolution table the whole board reads,
+so a name removed from it loses its **card, its farm route and its art**. `v1716` states his EARLIER
+ruling in his own words:
+
+> **v1720 — KONYO'S RULING: "add the 11 rotw items to the roster"** … a roster entry that cannot be
+> opened or hunted is the defect this arc removed, not a new one to add.
+
+**The Latent charms are among those eleven.** Measured damage, all mine: `v1692` 236→232 and
+248→244, `v1693` three assertions on 248, `v1716` naming the charms *"not in the roster"*, plus
+`v563`/`v1716` fallout — **eight failures**.
+
+**REVERTED.** The roster is back to 398 and every name resolves again. What is KEPT is v2681, which
+was the sound half: the vault now knows all three forms (18 of 18), because that was additive.
+
+⚠ **THE TWO RULINGS ARE NOT IN CONFLICT, AND "PICK ONE" WOULD BE THE WRONG READING.** He wants the
+item **openable and huntable** (roster) AND **counted once** (chronicle tally). Those are two
+surfaces; the tally is the one to change, and it needs a seam of its own. The v2680 spec's chronicle
+half is **withdrawn with its reason recorded**, not deleted — and the file's title was rewritten so
+it does not outlive its law. [[the-unjoined-end]] [[label-outlived-referent]]
+
+⚠ **AND MY PROBE PROFILE POISONED MY OWN DIAGNOSIS — REG-649, A THIRD TIME.** After the revert the
+probe reported `_gUniqueRoster` **undefined** and a null roster, which reads exactly like "I just
+broke the file". It was leftover `localStorage` from my own h4/h5 probes in that Chrome profile:
+killing it **by port** and relaunching with a fresh `--user-data-dir` returned `function` and
+**398**. I had already carved this rule and still reused a profile across arms that write storage.
+**The rule is a fresh profile per probe RUN, not per session.**
+
 ## REG-660 — the law was "name a cause"; the test enumerated only ONE VENUE's causes
 
 `v1603:221` required the empty-mini toast to match `/D2R|Doctor/`. On CI there is no console at

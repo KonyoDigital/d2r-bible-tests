@@ -1328,6 +1328,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2685** | `(this commit)` | v2685 — I broke one of his rulings implementing a later one; reverted |
 | **v2681** | `(this commit)` | v2681 — the vault knows all three sunder forms; the chronicle keeps one row each |
 | **v2680** | `(this commit)` | v2680 — six sunders one row each, settled from the game file; and one `_norm` |
 | **v2679** | `(this commit)` | v2679 — the ships gate covered nothing on the only venue that runs it |

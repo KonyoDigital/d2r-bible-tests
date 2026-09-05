@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2681",
+  "ver": "v2685",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2681: the vault now resolves all three sunder forms (18) while the chronicle keeps one row each (6)",
+  "note": "v2685: the chronicle-tally fix was made on the roster, which broke his v1720 ruling; reverted, vault half kept",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
