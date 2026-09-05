@@ -20999,6 +20999,43 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-628 — the census counted the dark cases without ever asking WHY (v2669)
+
+REG-627 gave the census a denominator: `test_chronicle_template=12/12` instead of a bare `12`. It
+still could not say **what stopped running** — which is CF-3's own complaint one level down, *"a
+delta of 2 is not actionable, two names are"*. 78 is not actionable either.
+
+`unittest` emits a skip reason **only at verbosity=2**, and all 16 suites hardcode
+`unittest.main(verbosity=1)`. **argv wins over the kwarg**, so `-v` is enough and no suite had to
+change. run_gates now appends it to unittest suites only — **116 of 142 gates match, and 0 suites
+are missed by the filter** — parses the reasons out of the captured blob, and prints a histogram:
+
+```
+⚠ 4 CASE(S) DID NOT RUN inside those gates: test_chronicle_calibrate=3/10, test_inventory_lattice=1/19
+   WHY THEY SKIPPED — the reason each case gave, most common first:
+       3 x  his reels are not on this machine   [test_chronicle_calibrate]
+       1 x  frame missing   [test_inventory_lattice]
+```
+
+⚠ **IT DOES NOT BLOAT THE LOG, and that was the reason to check rather than assume.** `capture_output`
+means nothing streams, and the blob is **dropped for a pass** — a passing gate keeps a 150-char
+tail. The log grows by a few histogram lines, not by test_control's 2,233 verbose ones.
+
+⚠ **`-v` CHANGES 116 GATES, so it was measured, not reasoned about.** Ten suites run plain and with
+`-v`: **exit code identical in all ten**.
+
+⚠ **THE FIRST RUN OF THE NEW TEST FAILED FOR A VENUE REASON, NOT A LOGIC ONE**, and it is worth
+recording because it is this repo's oldest shape: driving `main()` in-process tripped
+`live-state-untouched`, which reported *"THE SUITE WROTE THE LIVE CONSOLE STATE"* — but the writer
+was **HIS console on :17772**, running throughout. The same check had correctly SKIPPED with *"the
+console is running, so a change here is not the suite"* minutes earlier, so its attribution is not
+reliable while he is live. Neutralised inside the synthetic harness only; the real gate is untouched.
+[[feedback-blind-fixture-green-gate]] [[borrowed-surface]]
+
+Proven red: without the patch the reason test fails and the output reads `fake_reason=2/3` with no
+reasons at all. A suite with nothing skipped must print **no** histogram — asserted, because a line
+that always prints stops being read.
+
 ## REG-627 — a gate passed while covering NOTHING, and the census had no denominator (v2668)
 
 `run_gates.py` has printed `⚠ N CASE(S) DID NOT RUN inside those gates` since v2049, and that line

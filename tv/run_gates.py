@@ -1627,7 +1627,11 @@ def _app_up(port=17772, timeout=1.5):
         return False
 
 
+_skip_reasons = []          # (gate, reason) for every case unittest reported as skipped
+
+
 def run(only=None, live_watch=True, live_writer=None):
+    del _skip_reasons[:]
     """`live_watch` fingerprints the live-state files BETWEEN gates, so a leak is attributed.
 
     ⚠ v2419 — THE WATCHLIST COULD SAY WHAT MOVED AND NEVER WHICH GATE MOVED IT. main() fingerprints
@@ -1718,7 +1722,25 @@ def run(only=None, live_watch=True, live_writer=None):
             # (the durability harness, the button matrix, the capped-vault-read test) and the
             # live-state watchlist below is what catches the next one — it caught all three within
             # an hour of learning to watch the journal. [[feedback-blind-fixture-green-gate]]
-            p = subprocess.run(g.argv, cwd=g.cwd, capture_output=True, text=True,
+            # v2669 — ASK THE SUITE TO SAY WHY IT SKIPPED. v2668 gave the census a
+            # denominator (12 of 12, not a bare 12) but still could not say WHAT stopped
+            # running, which is CF-3's own complaint one level down: "a delta of 2 is not
+            # actionable, two names are". unittest prints a skip REASON only at verbosity=2,
+            # and every suite here hardcodes `unittest.main(verbosity=1)` — but argv wins, so
+            # `-v` is enough and no suite has to change.
+            #
+            # ⚠ THIS DOES NOT BLOAT THE CI LOG. capture_output means nothing streams; the blob
+            # is parsed and then DROPPED for a pass (a passing gate keeps only a 150-char
+            # tail). The reasons are aggregated and printed as a short histogram, so the log
+            # grows by a few lines, not by test_control's 2,233.
+            #
+            # Only unittest suites get -v. A non-suite gate (js_syntax_gate, render_check)
+            # would either ignore it or, worse, read it as its own flag.
+            _argv = list(g.argv)
+            if len(_argv) > 1 and os.path.basename(str(_argv[-1])).startswith("test_") \
+               and str(_argv[-1]).endswith(".py"):
+                _argv.append("-v")
+            p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
                                encoding="utf-8", errors="replace", timeout=g.timeout)
             dt = time.time() - t0
             # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
@@ -1775,6 +1797,8 @@ def run(only=None, live_watch=True, live_writer=None):
             # to divide it by — "test_chronicle_template=12" reads like a detail when it is in
             # fact 12 of 12, a gate that passed while covering NOTHING on this venue.
             # [[zero-needs-a-denominator]] [[regression-guard]]
+            for _sk in re.findall(r"\bskipped ['\"](.{3,120}?)['\"]", blob or ""):
+                _skip_reasons.append((g.name, _sk.strip()))
             _detail = tail[0][:150]
             if "skipped=" in _detail and " of " not in _detail:
                 _ran = re.search(r"Ran (\d+) test", blob or "")
@@ -2301,6 +2325,17 @@ def main(argv):
               % (len(_dark), ", ".join("%s (%d of %d cases skipped)" % r for r in sorted(_dark))))
         print("   This is a PASS with an empty denominator. Treat it as UNKNOWN for this venue, "
               "never as evidence the suite's subject is healthy.")
+    if _skip_reasons:
+        _hist = {}
+        for _gn, _r in _skip_reasons:
+            _hist.setdefault(_r, []).append(_gn)
+        print("   WHY THEY SKIPPED — the reason each case gave, most common first:")
+        for _r, _gs in sorted(_hist.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:12]:
+            _u = sorted(set(_gs))
+            print("     %3d x  %s   [%s]"
+                  % (len(_gs), _r[:96], ", ".join(_u[:3]) + (", +%d" % (len(_u) - 3) if len(_u) > 3 else "")))
+        if len(_hist) > 12:
+            print("     (+%d more distinct reason(s) not listed)" % (len(_hist) - 12))
     return 0
 
 

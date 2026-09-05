@@ -135,6 +135,12 @@ class TheCaseCensusCarriesItsDenominator(unittest.TestCase):
                 "import sys\n"
                 "sys.path.insert(0, %r)\n"
                 "import run_gates as rg\n"
+                     "# the live-state watch is unrelated to what this asserts, and its\n"
+                     "# attribution is unreliable while HIS console writes tv/ during the\n"
+                     "# run - it blamed the synthetic suite for a console write. Neutralised\n"
+                     "# so the test measures the CENSUS and nothing else.\n"
+                     "rg._LIVE_STATE = []\n"
+                     "rg._NAMED_STATE_FILES = []\n"
                 "g = rg.Gate('fake_census', [sys.executable, %r], 60, why='synthetic')\n"
                 "rg.GATES = [g]\n"
                 "rg.main(['run_gates.py', '--only', 'fake_census'])\n"
@@ -162,6 +168,102 @@ class TheCaseCensusCarriesItsDenominator(unittest.TestCase):
         txt = self._run(ran=19, skipped=1)
         self.assertRegex(txt, r"CASE\(S\) DID NOT RUN.*fake_census=1/19",
                          "the census must print skipped/ran, not a bare count")
+
+
+
+class TheCensusSaysWhyNotOnlyHowMany(unittest.TestCase):
+    """v2669 — the skipped cases must name their REASON, not only their count.
+
+    v2668 gave the census a denominator (12 of 12). It still could not say WHAT stopped
+    running, which is CF-3's own complaint one level down: *"a delta of 2 is not actionable,
+    two names are"*. `unittest` emits a skip reason only at verbosity=2 and every suite here
+    hardcodes `unittest.main(verbosity=1)` — argv wins, so run_gates appends `-v` to unittest
+    suites only, parses the reasons out of the captured blob, and prints a short histogram.
+
+    ⚠ The blob is CAPTURED, never streamed, and is dropped for a pass — so the CI log grows by
+    a few histogram lines, not by test_control's 2,233 verbose ones.
+
+    This drives the real `main()` with a real skipping suite. [[source-reading-guard]]
+    """
+
+    def _run_with_skip(self, reason):
+        import subprocess, sys as _s, tempfile, os as _o
+        d = tempfile.mkdtemp(prefix="reason_")
+        fake = _o.path.join(d, "test_fake_reason.py")
+        with open(fake, "w") as fh:
+            fh.write("import unittest\n"
+                     "class T(unittest.TestCase):\n"
+                     "    def test_one(self):\n"
+                     "        self.skipTest(%r)\n"
+                     "    def test_two(self):\n"
+                     "        self.skipTest(%r)\n"
+                     "    def test_real(self):\n"
+                     "        self.assertTrue(True)\n"
+                     "if __name__ == '__main__':\n"
+                     "    unittest.main(verbosity=1)\n" % (reason, reason))
+        drv = _o.path.join(d, "drive.py")
+        with open(drv, "w") as fh:
+            fh.write("import sys\n"
+                     "sys.path.insert(0, %r)\n"
+                     "import run_gates as rg\n"
+                     "# the live-state watch is unrelated to what this asserts, and its\n"
+                     "# attribution is unreliable while HIS console writes tv/ during the\n"
+                     "# run - it blamed the synthetic suite for a console write. Neutralised\n"
+                     "# so the test measures the CENSUS and nothing else.\n"
+                     "rg._LIVE_STATE = []\n"
+                     "rg._NAMED_STATE_FILES = []\n"
+                     "g = rg.Gate('fake_reason', [sys.executable, %r], 60, why='synthetic')\n"
+                     "rg.GATES = [g]\n"
+                     "rg.main(['run_gates.py', '--only', 'fake_reason'])\n" % (HERE, fake))
+        out = subprocess.run([_s.executable, drv], capture_output=True, text=True, timeout=180)
+        return out.stdout + out.stderr
+
+    def test_the_reason_reaches_the_verdict(self):
+        why = "his reels are not on this machine"
+        txt = self._run_with_skip(why)
+        self.assertIn("WHY THEY SKIPPED", txt,
+                      "the census must carry reasons; a count alone is not actionable")
+        self.assertIn(why, txt,
+                      "the reason the case ITSELF gave must be printed verbatim - a paraphrase "
+                      "would be my words standing in for the suite's")
+        self.assertIn("2 x", txt, "identical reasons must aggregate, not repeat")
+
+    def test_the_denominator_survives_the_v_flag(self):
+        """-v changes unittest's output shape; the skipped=N of M line must still parse."""
+        txt = self._run_with_skip("frame missing")
+        self.assertIn("skipped=2 of 3", txt,
+                      "adding -v must not break the v2668 denominator")
+
+    def test_RED_PROOF_a_suite_with_no_skips_prints_no_histogram(self):
+        import subprocess, sys as _s, tempfile, os as _o
+        d = tempfile.mkdtemp(prefix="noskip_")
+        fake = _o.path.join(d, "test_fake_clean.py")
+        with open(fake, "w") as fh:
+            fh.write("import unittest\n"
+                     "class T(unittest.TestCase):\n"
+                     "    def test_real(self):\n"
+                     "        self.assertTrue(True)\n"
+                     "if __name__ == '__main__':\n"
+                     "    unittest.main(verbosity=1)\n")
+        drv = _o.path.join(d, "drive.py")
+        with open(drv, "w") as fh:
+            fh.write("import sys\n"
+                     "sys.path.insert(0, %r)\n"
+                     "import run_gates as rg\n"
+                     "# the live-state watch is unrelated to what this asserts, and its\n"
+                     "# attribution is unreliable while HIS console writes tv/ during the\n"
+                     "# run - it blamed the synthetic suite for a console write. Neutralised\n"
+                     "# so the test measures the CENSUS and nothing else.\n"
+                     "rg._LIVE_STATE = []\n"
+                     "rg._NAMED_STATE_FILES = []\n"
+                     "g = rg.Gate('fake_clean', [sys.executable, %r], 60, why='synthetic')\n"
+                     "rg.GATES = [g]\n"
+                     "rg.main(['run_gates.py', '--only', 'fake_clean'])\n" % (HERE, fake))
+        out = subprocess.run([_s.executable, drv], capture_output=True, text=True, timeout=180)
+        txt = out.stdout + out.stderr
+        self.assertNotIn("WHY THEY SKIPPED", txt,
+                         "a histogram printed for a suite with nothing skipped would be noise, "
+                         "and a line that always prints stops being read")
 
 
 if __name__ == "__main__":
