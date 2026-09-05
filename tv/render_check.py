@@ -839,6 +839,80 @@ TARGETS = {
         # is keeping correctly. On Sessions the sticky IS the inbox.
         "sel": "#inbox-sticky .ibp-row, #inbox-sticky .ibp-h",
     },
+    # ══ v2664 — THE SEVEN CONSOLE TABS NOBODY EVER RENDERED ═══════════════════════════════════
+    # MEASURED before this existed: control_ui.html carries EIGHT header tabs and exactly ONE
+    # target loaded the console — `console` — whose activate is a READINESS PREDICATE about
+    # #btn-miniauto, not a navigation. Seven of eight rendered at no width, so a layout regression
+    # behind any of them shipped unseen. [[visual-regression-detector]]
+    #
+    # ⚠ ONE TARGET, NOT EIGHT, AND THAT IS A COST DECISION. `_serve_console()` is NOT memoised:
+    # every "serve": True target boots its own control_app and waits for /api/status. Seven already
+    # do. One target walking all eight tabs costs one boot and catches the same class.
+    #
+    # ⚠⚠ PROVEN FROM THE DESTINATION, NEVER THE BUTTON — that is v2125's scar, recorded in
+    # control_ui.html itself: the banner lit its tab and scrolled to an element that was
+    # display:none at height 0, "it scrolled to a hidden element and nothing moved".
+    # `_shellLight()` stamps body.dataset.shellTab whether or not the board moved, so the STAMP
+    # alone is not evidence. This reads the board's OWN `.tab.active` through the iframe and
+    # requires the two to agree.
+    #
+    # ⚠ tvd IS ASSERTED TO DO THE OPPOSITE, and that is the design rather than an exemption —
+    # control_ui.html:16139: `if (b.dataset.tab === 'tvd'){ …; shellHome(); return; }  // TV·D =
+    # the cockpit home`. It stamps the route and deliberately leaves the board alone. I reproduced
+    # that three times with settle time and was one commit from filing it as the v2125 defect.
+    # So tvd must stamp itself AND leave the board where it was; a tvd that started routing fails.
+    #
+    # ⚠ THE SELECTOR IS THE LABEL SPAN, AND MY FIRST TWO CHOICES WERE BOTH WRONG. `#head-tabs .ht`
+    # measures the buttons, whose verdict is dominated by their <img class="ht-i"> icons — that run
+    # came back "imgs 5/8 broken" and RED while the pixels showed all eight icons rendering and
+    # every file served 200. `#tvd-eng` is an <iframe>, whose text lives in another document, so it
+    # reported "painted but carries NO TEXT". `.ht-lbl` was added for this: text-bearing, image
+    # free, and one per tab.
+    #
+    # ⚠ FILE:// CANNOT DO THIS, WHICH IS WHY "serve" IS SET. The board arrives in an <iframe
+    # id="tvd-eng" src="/board?app=1&engine=1&v=boot#session"> — an absolute server path. From the
+    # filesystem it resolves to file:///board, never loads, and _shellRoute() returns false at
+    # `if (!w || !w.document)`. Served, the iframe is same-origin and readable.
+    "console-tabs": {
+        "serve": True,
+        "path": "",
+        "warmup": 12.0,
+        "settles": False,
+        "why": ("Every tab in the console header ROUTES THE BOARD, proven from the board's own "
+                "active tab rather than from the header lighting up. Seven must move it; TV·D must "
+                "not, because TV·D is the cockpit home."),
+        "seed": """(function(){ return 1; })()""",
+        "sel": "#head-tabs .ht-lbl",
+        "activate": r"""(function(){
+            var ROUTING = ["session","forge","crafts","funi","fsets","tools","vault"];
+            var f = document.getElementById('tvd-eng');
+            if (!f) return false;
+            var d; try { d = f.contentWindow && f.contentWindow.document; } catch (e) { return false; }
+            if (!d) return false;
+            function active(){
+                try { var a = d.querySelector('.tab.active');
+                      return a ? a.getAttribute('data-tab') : null; } catch (e) { return null; }
+            }
+            /* the board must have BOOTED, or every comparison below runs against null and passes
+               by accident on an empty iframe. UNKNOWN is not a pass. */
+            if (!active()) return false;
+            for (var i = 0; i < ROUTING.length; i++){
+                var t = ROUTING[i];
+                var b = document.querySelector('#head-tabs .ht[data-tab="' + t + '"]');
+                if (!b) return false;
+                b.click();
+                if (document.body.dataset.shellTab !== t) return false;   /* the stamp */
+                if (active() !== t) return false;                          /* AND the destination */
+            }
+            /* TV·D: stamps itself, leaves the board alone. Both halves asserted. */
+            var was = active();
+            var tv = document.querySelector('#head-tabs .ht[data-tab="tvd"]');
+            if (!tv) return false;
+            tv.click();
+            if (document.body.dataset.shellTab !== "tvd") return false;
+            if (active() !== was) return false;
+            return true; })""" + """()""",
+    },
 }
 
 

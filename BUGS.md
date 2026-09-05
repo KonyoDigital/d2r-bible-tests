@@ -20773,3 +20773,50 @@ fall, so the bless is the sanctioned step. The same write stamps `_venue: Darwin
 ⚠ **The remaining 2 are DEBT, recorded as debt, not called fine** — the module's own standard:
 *"calling them 'fine' would be a verdict nobody earned."* Both are prune.reports' outlier-length
 first line (~60 chars against ~29) hitting `vault.forget` and `reel.route`.
+
+## REG-619 — the seven console tabs nobody ever rendered (v2664)
+
+`tv/control_ui.html` carries **eight** header tabs. Exactly **one** render target loaded the
+console — `console` — and its `activate` is a readiness predicate about `#btn-miniauto`, not a
+navigation. So seven of eight console tabs rendered at **no width**, and a layout regression behind
+any of them shipped unseen.
+
+**Measured before building anything**, served at 1440x1000, clicking each
+`#head-tabs .ht[data-tab]` and reading the board's own `.tab.active` through the iframe: **7 of 8
+route** (`session forge crafts funi fsets tools vault`), each with `body.dataset.shellTab`
+agreeing. `tvd` stamps and deliberately does not route — `control_ui.html:16139`,
+*"TV·D = the cockpit home"*. I reproduced that non-routing three times with settle time and was one
+commit from filing it as the v2125 defect.
+
+⚠ **Two earlier retractions are folded in here, because both were mine.**
+1. I wrote that seven targets "would refuse on every single run" because the board iframe's src is
+   an absolute server path. True from `file://` — and wrong as a conclusion: `render_check`
+   **already has a serve mode** and 7 of its 12 targets use it. I read one target and generalised.
+2. The first build of this gate was **backed out**, because `sel: "#head-tabs .ht"` measured the
+   buttons and their icons reported `imgs 5/8 broken` — contradicted by the pixels (all eight icons
+   render, all seven files serve **200** with real bytes). `#tvd-eng` then reported "painted but
+   carries NO TEXT" because an iframe's text is a separate document. **A gate whose red I cannot
+   explain trains everyone to ignore the next real one**, so it did not ship until the selector was
+   right.
+
+**`.ht-lbl` is the fix**: text-bearing, image-free, one per tab. Wrapping the labels was verified
+safe first — nothing reads `.ht`'s `textContent`, no spec asserts on it, and `demo_console.mjs`
+only clicks and measures rects. ⚠ The wrap patch asserted **exactly 8** and matched **7**, so it
+refused rather than half-patching: `vault`'s label is followed by a `lockchip` badge instead of
+`</button>`. Rewritten to match the text node up to whatever tag follows, all 8 wrapped and the
+badge stayed outside the span.
+
+**GREEN, then PROVEN RED FOR ITS OWN REASON.**
+
+```
+🟢 console-tabs  painted 8/8 · clipped 0 · off 0 · covered 0 · imgs 0/0 broken   (all 5 widths)
+🔴 with `tvd` added to ROUTING:  "the panel could not be ACTIVATED"   CT_RC=1
+```
+
+The red-proof is the same test as the purpose: TV·D must NOT move the board, so a gate that reads
+the **destination** refuses when told to expect routing, while a gate that only checked the header
+stamp would sail through. That is exactly the v2125 defect — *"it scrolled to a hidden element and
+nothing moved"* — and it is now measurable.
+
+⚠ **ONE target, not eight, and that is a cost decision.** `_serve_console()` is not memoised: every
+`"serve": True` target boots its own `control_app` and waits for `/api/status`. Seven already do.

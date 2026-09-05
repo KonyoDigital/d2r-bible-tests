@@ -1821,3 +1821,85 @@ not a `render_check` one.
 ⚠ **Cost note for whoever picks this up:** `_serve_console()` is NOT memoised — every
 `"serve": True` target boots its own private `control_app`. Seven already do. Add ONE target that
 walks all eight tabs, never eight targets.
+
+## 🔴→ ROUTINE I: THREE CAUSES FOUND BY READING THE LOG, NOT BY RE-RUNNING ANYTHING
+
+Routine I had been red for seven days with "no single cause". There were several, and each was
+found by reading the CI log — never by running a browser suite on his Mac.
+
+| # | cause | class | where | shipped |
+|---|---|---|---|---|
+| 1 | `_craftBuffsHtml` read `chronicle`, a variable that was never declared — the name is `grail` | **REAL REGRESSION** | `bible.html:27110` | v2662 |
+| 2 | `v2267` renders zero rows on a runner because it deliberately never seeds | **HOST_FIXTURE** | `tests/v2267_…` | `36acf8e2` |
+| 3 | `v2193`'s rows carry no `loc`, and the vault door has been gated on it since v2343 | **STALE_ASSERTION** | `tests/v2193_…` | `32275348` |
+
+**Cause 1, confirmed by CI and the zero is measured, not empty:**
+
+```
+log size          476,221 bytes   <- an empty log would make any zero meaningless
+ReferenceError    10 -> 0
+total Error lines 96 -> 71        (-26%)
+shard 1/6         failure -> success ; slow 1/2 and slow 2/2 both success
+```
+
+⚠ **`js-syntax` is not at fault for missing cause 1, and that matters.** `+chronicle+` is
+*syntactically perfect* JavaScript. The gate parses every surface in a real JS engine and passed
+this file the whole time — correctly, because **parsing is not executing**. An undeclared
+identifier is a runtime fault, and the only lane that executes those paths is Routine I: the lane
+that was red. The green was honest; it was answering a different question.
+
+**Cause 3 is the one worth remembering.** Expected 5, received **0** — not 4, not 1. *All* of them,
+which was the tell: the gate is per-row and every row was missing the same field.
+`_vaultMayClaim(loc)` returns `_VAULT_LANES.indexOf(t) >= 0`, and with no `loc` the lane is `''`,
+so `indexOf` returns `-1` for every row. The spec predates that gate by ~150 versions.
+
+⚠ **The code had NOT regressed and I checked before blaming it** — both of v2193's original fixes
+are still in place, comments past-tense. ⚠ **And sweeping stopped a wrong fix:** a dozen specs call
+`chronicleApply` without `loc` and do *not* fail, because `loc` only matters where a spec asserts
+the vault GAINED something. `"the row does not say WHERE it landed"` attributes to
+`v1756_inbox_ledger`, which never calls `chronicleApply` — a different fact, left alone.
+
+**Named before the run, not after:** v2193's fixture spells `Andariel’s Visage` with a curly
+apostrophe where `bible.html` uses a straight one. Its own `norm()` folds `[’']` and the
+`foundOfOurs === 5` guard passes, so it is not the zeroing cause — but if CI returns **4 of 5**
+instead of 5, that is the next thread.
+
+## B-90 · A17 RE-PROVED ON ONE QUIET SHA (`32275348`)
+
+Served, 129 text leaves measured — so these counts are readings, not empty-page zeros.
+Only the **objectively checkable** defects were re-measured. The rest are design judgements and
+are named as such rather than given a manufactured number.
+
+| # | A17 said | measured now | verdict |
+|---|---|---|---|
+| 1 | "five cards, four of them cut" | **1** at 1440x1000, **2** at 1120x628 | largely fixed; residue named |
+| 5 | four dim funnel zeros, "empty and broken look identical" | `filmed`/`banked`/`vault-done`/`releasable` have **no store at all** | **confirmed, now with a mechanism** |
+| 7 | "buttons three different widths" | 4 uneven rows; `mini-foc` **83→243px** | **confirmed — and unresolvable as stated, see below** |
+| 9 | heading clipped by the scroll container | **0** at both widths | not reproducible |
+
+**#5 gained the thing that was missing.** `one_funnel` says only `triaged` (40/40) and `swept`
+(15/40) are dated; the other four rungs record nothing. So those zeros are **never-recorded**, not
+measured-and-empty — exactly the distinction he demanded: *"a zero must say WHICH zero it is."*
+
+**#7 exposes a conflict in his own acceptance criteria, and that is the finding.** `.mini-foc`'s
+labels run `stash · runes · gems · materials · chronicle · uniques · chronicle · sets` — 4
+characters to 19.
+
+- *"Buttons in a row share a width"* → every button as wide as `chronicle · uniques` (243px). Six
+  of those is ~1,460px, in a narrow rail.
+- *"Nothing ellipsised — if it does not fit, the card is wrong, not the sentence"* → so trimming
+  the labels is excluded too.
+
+The only shape satisfying both is a 2-column grid sized to the longest label, costing vertical
+space in that rail. ⚠ And shortening the labels is not available: **v1750** records why they are
+words and not emoji (*"NO emoji survives in the tab strip or the focus row"*, v1614). **HIS call.**
+
+⚠ `head-tabs` (8 buttons, 89→137px) is **not** counted as a fair hit — those are text buttons with
+different labels, where unequal widths are natural.
+
+⚠ **Instrument reach, stated:** the truncation probe requires `textOverflow: ellipsis` **and**
+`scrollWidth > clientWidth` — both, because the property alone proves nothing. Text truncated in JS
+with a literal `…` would not be counted.
+
+**Not re-proved, not mine:** #2 fleet rows · #3 label/value type scale · #4 raw machine output ·
+#6 editorial titles · #8 focal path. *"Nothing is first"* is not a thing a probe can answer.

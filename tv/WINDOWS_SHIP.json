@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2663",
+  "ver": "v2664",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2663: REG-615 spacing fix + REG-618 write-baseline exited 1 on success",
+  "note": "v2664: REG-619: 7 of 8 console tabs rendered at no width",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
