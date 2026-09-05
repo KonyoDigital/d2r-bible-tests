@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2689",
+  "ver": "v2690",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2689: a lock report that could never populate, and a found-bar that went dark for every set piece",
+  "note": "v2690: a var assigned in one branch and read in the other",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

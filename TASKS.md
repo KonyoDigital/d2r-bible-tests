@@ -1328,6 +1328,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2690** | `(this commit)` | v2690 — the vault door never opened for a NEW find: `_mayVault` was assigned in one branch and read in the other |
 | **v2689** | `(this commit)` | v2689 — laneLocked could never populate; the found-bar went dark for every set piece; an open no longer restamps unmeasured facts |
 | **v2688** | `(this commit)` | v2688 — REG-621: a grid floor of 330px on a 276px container put every remove button out of reach |
 | **v2687** | `(this commit)` | v2687 — the entry stamp: the door travels with the reel, and onair/mini finally earn a denominator |

@@ -21987,3 +21987,35 @@ unreachable buttons are fine, which is a verdict nobody earned.
   only in `bible.html`, a SEPARATE document, and custom properties do not cross the iframe. So the
   fallback was the only value that ever painted. `--rar-set` IS defined there and is the same
   `#00fc00`: byte-identical output, rejoined to the token system.
+
+## REG-662 — the vault door never opened for a NEW find (FIXED v2690)
+
+`chronicleApply` computed `var _mayVault` INSIDE `if (_chronAlreadyUni(n)) {` (bible.html
+44214-44289, verified by brace counting rather than indentation) and read it again at :44354,
+OUTSIDE that branch. `var` hoists the DECLARATION to the forEach's function scope, so the read
+compiled and ran against `undefined` for every name that was not already grail-ticked — the
+entire NEW-FIND path.
+
+MEASURED BEFORE, served page, cleared world, one real unique with loc:'stash':
+    _vaultMayClaim called ... 0     tvVaultRegister called ... 0
+    res.vaulted ............ KEY ABSENT (not empty - absent)
+    res.uniques ............ ['Harlequin Crest']   <- the row WAS processed
+while independently _vaultMayClaim('stash') -> true and tvVaultRegister on the same name ->
+{ok:true, mode:'new', mule:'bases'}, writing d2r_muleAssign by itself. Every part worked; only
+the branch that decides to call them was skipped.
+
+AFTER, same probe: registerCalls 1 · mayClaim ['stash->true'] · vaulted ['Harlequin Crest'] ·
+assigned 1. NEGATIVE CONTROL, same run: the same call with loc:'' gives registerCalls 0,
+mayClaim ['->false'], vaulted null — v2388's law (a row with no loc contributes nothing to the
+vault) still holds, so the fix did not simply prop the door open.
+
+TWO THINGS HID IT:
+  * The comment at :44352 said '`_mayVault` is computed once for this row' — true of the
+    declaration, false of the assignment, and the comment is the half people read.
+  * It failed SILENTLY IN BOTH DIRECTIONS: res.vaulted absent rather than empty (because
+    _vaultReport early-returns before the line that creates the key) and res.skipped == [], so
+    no surface could tell 'refused' from 'never asked'.
+
+FOUND BY: v2083_vaulted_base_survives, which v2120 built for exactly this — 'chronicleApply
+files its own batch now; if that call is ever removed this goes red, which is the whole point of
+having it.' It went red and was read as a fixture problem for days.

@@ -41909,9 +41909,14 @@ function renderJournal(){
          than guessed, because a confident wrong cause is how the next person fixes the wrong
          thing. [[unknown-stays-unknown]] [[feedback-comments-vs-code]]
          [[two-fixes-broke-each-other]] [[the-unjoined-end]] */
-      var listS = false;
-      try { listS = !!(window.findSetPiece && window.findSetPiece(n)); } catch(e){ listS = false; }
-      var isS = (rar==='set') || (rar!=='unique' && listS);
+      /* ⚠ ASKED ONLY WHEN ART HAS NO USABLE ANSWER. findSetPiece walks every set x every piece,
+         and this filter runs per name on every render of the bar, so calling it for a name already
+         classified 'set' or 'unique' is work whose answer is known. Not measured as a bottleneck —
+         stated as avoidable rather than as a fix for a problem anyone saw. */
+      var isS = (rar==='set');
+      if (!isS && rar!=='unique') {
+        try { isS = !!(window.findSetPiece && window.findSetPiece(n)); } catch(e){ isS = false; }
+      }
       return kind==='uni' ? isU : (isS && !isU);
     });
     if(!mine.length) return '';
@@ -44211,6 +44216,28 @@ function renderJournal(){
     } catch(e){ res.queuedError = String(e && e.message || e); }
     (add.uniques || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
+      /* ⚠⚠ v2690 — COMPUTED ONCE PER ROW, WHICH IS WHAT :44352's COMMENT ALREADY CLAIMED.
+         It used to be assigned INSIDE the `if (_chronAlreadyUni(n))` branch below (which spans
+         44214-44289, verified by brace counting, not by indentation) while the SECOND vault door
+         outside that branch read it. `var` hoists the DECLARATION to this function scope, so that
+         read compiled and ran against `undefined` for every name that was NOT already grail-ticked
+         — which is the entire NEW-FIND path, the common case.
+         MEASURED on a served page, cleared world, one real unique with loc:'stash':
+             _vaultMayClaim called .... 0 times   (the assignment line never ran)
+             tvVaultRegister called ... 0 times
+             res.vaulted .............. KEY ABSENT (not empty - absent)
+             res.uniques .............. ['Harlequin Crest']   <- the row WAS processed
+         while independently _vaultMayClaim('stash') -> true and tvVaultRegister on the same name
+         -> {ok:true, mode:'new', mule:'bases'}, writing d2r_muleAssign by itself. Every part
+         worked; only the branch that decides to call them was skipped.
+         ⚠ IT FAILED SILENTLY IN BOTH DIRECTIONS: res.vaulted is ABSENT rather than empty (because
+         _vaultReport early-returns before the line that creates the key) and res.skipped is [],
+         so nothing downstream could tell "refused" from "never asked".
+         ⚠ AND THE COMMENT WAS THE HALF PEOPLE READ: ":44352 — `_mayVault` is computed once for
+         this row" was true of the declaration and false of the assignment.
+         [[feedback-comments-vs-code]] [[the-unjoined-end]] [[unknown-stays-unknown]] */
+      var _mayVault = (typeof window._vaultMayClaim === 'function')
+        && window._vaultMayClaim((row && row.loc) || '');
       if (_chronAlreadyUni(n)) {
         /* ⚠ v2193 — "ALREADY IN THE GRAIL" IS NOT A REASON TO NOT KNOW WHERE IT PHYSICALLY IS.
            This returned early, so an item he had already ticked never reached the vault door at
@@ -44260,8 +44287,7 @@ function renderJournal(){
            Mirrors that door exactly rather than inventing a second rule, and fails CLOSED if the
            predicate is missing — it lives in another script block, and this repo has shipped a
            cross-block call three times. [[copy-drift]] [[unknown-stays-unknown]] */
-        var _mayVault = (typeof window._vaultMayClaim === 'function')
-          && window._vaultMayClaim((row && row.loc) || '');
+        /* v2690 — `_mayVault` now computed once per row, above the branch. */
         try {
           if (_mayVault && typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n)) {
             var _vs = window.tvVaultRegister(n);
@@ -48661,7 +48687,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2689', name:'v2689 - two silent console defects', date:'2026-09-05', note:'a lock report that could never populate, and a found-bar that went dark for every set piece' };
+  window.D2R_BUILD = { id:'v2690', name:'v2690 - the vault door that never opened for a new find', date:'2026-09-05', note:'a var assigned in one branch and read in the other' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
