@@ -42319,5 +42319,73 @@ class OneNormalizerOneName(unittest.TestCase):
                       "name that cannot be confused with _norm")
 
 
+
+class EveryRegNumberIsUsedOnce(unittest.TestCase):
+    """v2683 — a REG number used twice makes every citation of it ambiguous.
+
+    Found 2026-09-05: `REG-363` headed TWO unrelated entries ~3,700 lines apart — the v2003 sweep
+    defect at :13022 and the v2461 AI-READS-strip defect at :16770. REG-NNN is this repo's citation
+    system: it is quoted from code comments, commit messages and task rows, so "see REG-363" pointed
+    at two different things depending on which one the reader found first.
+
+    ⚠ THE SAME SHAPE AS THE VERSION-STAMP COLLISION the repo already carries a guard for — two ships
+    wore v128 because `bump_version.py` read only its own worktree's VERSION. A number that is
+    supposed to identify one thing, identifying two, is not a bookkeeping nit: it is a broken
+    reference. [[label-outlived-referent]]
+    """
+
+    HERE = os.path.dirname(os.path.abspath(__file__))
+    BUGS = os.path.join(os.path.dirname(HERE), "BUGS.md")
+
+    def test_no_reg_number_heads_two_entries(self):
+        with open(self.BUGS, encoding="utf-8") as fh:
+            src = fh.read()
+        # Only HEADINGS declare a REG; a mention in prose is a citation, not a second definition.
+        heads = re.findall(r"^##\s+(REG-\d+)\b", src, re.M)
+        # DENOMINATOR — if the heading pattern ever stops matching, "0 duplicates" would be a lie
+        # that reads exactly like success. [[zero-needs-a-denominator]]
+        self.assertGreater(len(heads), 200,
+                           "found only %d REG headings; the pattern is not matching this file any "
+                           "more, so this test is measuring nothing" % len(heads))
+        seen, dupes = set(), []
+        for h in heads:
+            if h in seen:
+                dupes.append(h)
+            seen.add(h)
+        found = sorted(set(dupes))
+
+        # ⚠⚠ A DECLARED FLOOR, AND IT EXISTS BECAUSE THIS GUARD FOUND A BACKLOG ON ITS FIRST RUN.
+        # I wrote it for ONE duplicate (REG-363) and it returned TWENTY-SEVEN. Failing outright
+        # would ship a gate that is red from birth on defects nobody is fixing today, and a gate
+        # that is always red carries exactly as much information as one that is always green —
+        # this repo has already paid that bill with 149-red TV DIABLO gating nothing.
+        #
+        # ⚠ AND THE FLOOR IS NOT AN EXEMPTION. Every number is listed, so nothing hides behind a
+        # count; the moment a 28th appears this fails and names it. Renumbering the backlog is its
+        # own task: 27 entries, each needing an inbound-citation sweep before it moves.
+        # [[regression-guard]] [[unknown-stays-unknown]]
+        KNOWN = [
+            "REG-002", "REG-083", "REG-084", "REG-085", "REG-086", "REG-087", "REG-127",
+            "REG-180", "REG-203", "REG-204", "REG-205", "REG-349", "REG-352", "REG-353",
+            "REG-354", "REG-355", "REG-356", "REG-357", "REG-358", "REG-359", "REG-360",
+            "REG-361", "REG-362", "REG-364", "REG-365", "REG-366", "REG-615",
+        ]
+        fresh = [h for h in found if h not in KNOWN]
+        self.assertEqual(
+            fresh, [],
+            "these REG numbers head more than one entry, so every citation of them is ambiguous: "
+            "%s. Renumber the LATER entry to a free number — the earlier one has held its number "
+            "longest, so existing citations keep landing where they did." % fresh)
+
+        # AND THE FLOOR MUST ONLY EVER FALL. A number that got fixed has to leave the list, or the
+        # list becomes a place duplicates go to be forgotten.
+        healed = [k for k in KNOWN if k not in found]
+        self.assertEqual(
+            healed, [],
+            "these are on the known-duplicates floor but are no longer duplicated: %s. Remove them "
+            "from KNOWN — a floor that keeps names it no longer needs stops being a measurement."
+            % healed)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

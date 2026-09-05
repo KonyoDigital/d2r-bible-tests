@@ -16767,7 +16767,16 @@ that, which is the gate doing its job on a joint built at one end.
 roster. **Seen RED twice:** restoring `['sets']` reddens the parity test; removing the list
 entirely reddens the "there must be a list to compare" test.
 
-## REG-363 — the AI READS strip always showed a half row, and said nothing about it (v2461)
+## REG-658 — the AI READS strip always showed a half row, and said nothing about it (v2461)
+
+> ⚠ **RENUMBERED FROM REG-363 ON 2026-09-05 — that number was already taken.** `REG-363` at
+> `:13022` is *"the sweep paid to re-read the same nameless grids forever (v2003)"*, an
+> unrelated defect ~3,700 lines up. Two entries under one number make every *"see REG-363"*
+> ambiguous, and REG-NNN is this repo's citation system — it is quoted from code comments and
+> commit messages. **The LATER entry was renumbered**, deliberately: the earlier one has had
+> its number longest, so any citation that exists in the wild still lands where it did.
+> Checked before renaming — `grep -rn 'REG-363'` outside BUGS.md returned **nothing**, so no
+> inbound reference was broken. Guarded by `tv/test_control.py::EveryRegNumberIsUsedOnce`.
 
 A cold cross-family eye called it a rendering bug **twice**, unprompted and at both widths:
 *"the final visible line is clipped mid-sentence"*, *"abruptly truncated at the container edge"*.
@@ -20998,6 +21007,34 @@ test measured it.
 ⚠ **BOTH keys are real product keys** — `bible.html:39113` stamps `_v2203`, `bible.html:3912`
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
+
+## REG-659 — I went looking for one duplicate REG number and found twenty-seven
+
+Chasing a lead on `aireads`, `REG-363` turned out to head **two unrelated entries** ~3,700 lines
+apart: *"the sweep paid to re-read the same nameless grids forever (v2003)"* at `:13022` and *"the
+AI READS strip always showed a half row (v2461)"* at `:16770`. **REG-NNN is this repo's citation
+system** — quoted from code comments, commit messages and task rows — so *"see REG-363"* pointed at
+two different defects depending on which the reader found first.
+
+Renumbered the LATER one to **REG-658**, deliberately: the earlier entry has held the number
+longest, so any citation in the wild still lands where it did. Checked before renaming —
+`grep -rn 'REG-363'` outside BUGS.md returned **nothing**.
+
+⚠ **THEN THE GUARD I WROTE FOR THAT ONE DUPLICATE RETURNED TWENTY-SEVEN.** 514 REG headings, 485
+distinct: `REG-002 · 083 · 084 · 085 · 086 · 087 · 127 · 180 · 203 · 204 · 205 · 349 · 352-362 ·
+364 · 365 · 366 · 615`. I had assumed one; the file had a backlog.
+
+**Shipped as a DECLARED FLOOR, not a failure.** Failing outright would put a gate in the set that is
+red from birth over defects nobody is fixing today — and a gate that is always red carries exactly
+as much information as one that is always green. This repo has already paid that bill with TV
+DIABLO 149-red and gating nothing.
+
+⚠ **THE FLOOR IS NOT AN EXEMPTION, AND IT MAY ONLY FALL.** All 27 are listed by name so nothing
+hides behind a count; a 28th fails the gate and is named. And a second assertion fails if a number
+on the floor is no longer duplicated — **a floor that keeps names it no longer needs stops being a
+measurement.** Red-proved both ways: a fresh duplicate is caught, and a healed one left on the list
+is caught. Renumbering the 27 is its own task, each needing an inbound-citation sweep first.
+[[regression-guard]] [[label-outlived-referent]]
 
 ## REG-657 — the third spec of one button rename, and the one that cost two minutes a run
 
