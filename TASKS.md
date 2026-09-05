@@ -1657,3 +1657,26 @@ a sample reported as a verdict (149/150, not "four pushes") · counting top-leve
 `git archive HEAD` · `pgrep -f "time.sleep(300)"` searching for `time.sleep300` because parens are
 a regex group · and reading `TARGETS` by AST, which skipped `os.path.join(...)` as a Call and
 reported all twelve rendering the wrong file. **In every case the COUNT was the tell.**
+
+---
+
+## ✅ BOARDSYNC — CLOSED by naming ONE source, which is the only thing that ever closes it
+
+Three surfaces describe the same work, and that is one too many. `copy-drift`'s first rule is not
+"keep them in step" — it is **name one source; everything else is a build output.** If you cannot
+say which in one sentence, that is the bug.
+
+| surface | what it is now |
+|---|---|
+| **`~/.claude/tasks/session-bf4f066b/` — 51 rows** | **THE SOURCE.** His ruling, 2026-09-05: *"make it a defaulted way from now. i want this the way you update and progress and complete the tasks."* It is what he opens, on :17955, and it carries dependency edges (`blocks`/`blockedBy`) the other two cannot express |
+| **`TASKS.md` — 1,659 lines** | **THE DURABLE ARCHIVE, and it keeps that job.** It exists because a list that lives in a session does not survive a restart — 993 turns once had to be recovered from a 688 MB transcript. It holds the EVIDENCE a board row cannot: the measurement, the refutation, the commit |
+| **the D2R Console Manifest artifact** | **RETIRED as a work surface.** 225 row documents against its own `board/mirror` flag saying `count: 113` — it has already drifted, and nothing reconciles it |
+
+**So the rule from today: the store is where a row's STATE lives; `TASKS.md` is where its EVIDENCE
+lives; the artifact is not updated as work moves.** Two surfaces with different jobs is not
+duplication — `TASKS.md` was never trying to be a live board, and the store was never trying to
+hold a paragraph of proof. The artifact was trying to be both, and it is the one that drifted.
+
+⚠ **This does not delete the artifact** — it is a real record of a real day and its rows carry
+reasoning worth reading. It simply stops being a thing anyone has to keep in step, which is the
+only honest way to have three copies of anything.
