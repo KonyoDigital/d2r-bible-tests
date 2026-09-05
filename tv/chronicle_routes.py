@@ -445,6 +445,31 @@ def routes():
     _k = _source_key()
     if _k is not None and _MEMO["key"] == _k and _MEMO["val"] is not None:
         return _MEMO["val"]
+    # ⚠⚠ v2692 — AND THE SAME ANSWER ON DISK, BECAUSE _MEMO CANNOT HELP A COLD START.
+    # PROFILED: heart_state() cold was 20.9s, of which chronicle_route_state -> routes() -> _callers
+    # was 16.1s — 265 builtins.compile calls and ~1.8M ast walk steps, re-derived on EVERY fresh
+    # process. The memo above makes the second call free and does nothing for the first, and
+    # /api/heart on a freshly served console is always a first call. That cold cost is what refused
+    # a push with "the panel could not be ACTIVATED": the render gate allows 10s warmup + a 12s
+    # activate poll, and the fetch only STARTS after the click.
+    # Keyed on _source_key() — the SAME newest-mtime + file-count key the memo already trusts — so
+    # touching any source re-derives on the next call, exactly as before. Reusing the key is the
+    # point: one rule for freshness, not two. [[stale-reading]]
+    # ⚠ FAILS OPEN: any read/write problem falls through to the full derivation. A cache that can
+    # change the answer is worse than no cache.
+    _cpath = os.path.join(HERE, ".chronicle_routes_cache.json")
+    _ckey = None
+    if _k is not None:
+        try:
+            import hashlib as _hl
+            _ckey = _hl.sha1(repr(_k).encode("utf-8", "replace")).hexdigest()
+            with open(_cpath, "r", encoding="utf-8") as _fh:
+                _blob = json.load(_fh) or {}
+            if _blob.get("key") == _ckey and isinstance(_blob.get("val"), dict):
+                _MEMO["key"], _MEMO["val"] = _k, _blob["val"]
+                return _blob["val"]
+        except Exception:
+            pass
 
     files = _py_files()
     comps = _comparators()
@@ -531,6 +556,14 @@ def routes():
     _out = {"ok": True, "why": "", "routes": out, "counts": counts, "flags": flags}
     if _k is not None:
         _MEMO["key"], _MEMO["val"] = _k, _out
+        if _ckey:
+            try:
+                _tmp = _cpath + ".tmp"
+                with open(_tmp, "w", encoding="utf-8") as _fh:
+                    json.dump({"key": _ckey, "val": _out}, _fh)
+                os.replace(_tmp, _cpath)   # atomic: a half-written cache must never be readable
+            except Exception:
+                pass
     return _out
 
 

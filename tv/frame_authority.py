@@ -461,6 +461,33 @@ def test_referenced_reels(repo=None):
     cached = globals().get("_FIXTURE_CACHE")
     if stamp is not None and cached and cached[0] == stamp:
         return set(cached[1])
+    # ⚠⚠ v2692 — AND THE SAME ANSWER ON DISK, BECAUSE THE IN-MEMORY CACHE CANNOT HELP A COLD START.
+    # PROFILED: heart.vessels() -> _health_rows -> check_lanes -> owed_counts -> _vault_owed_reels
+    # -> reel_retention.plan() -> HERE, and this call alone was 22.4s of a 24.3s vessels() — 1,196
+    # _executable_only() calls driving 1,140,383 tokenize() calls. The memo above makes the SECOND
+    # call free and does nothing for the first, and /api/heart on a freshly served console is
+    # always a first call: measured 19.5s cold vs 0.05s warm, against a render gate that allows
+    # 10s warmup + a 12s activate poll. That is what refused a push with "the panel could not be
+    # ACTIVATED".
+    # Keyed on the IDENTICAL (path, size, mtime) stamp the memo uses, so an edited test invalidates
+    # it exactly as before — a cache that outlives its evidence is the defect this repo calls
+    # [[stale-reading]], and the point of reusing the key is that there is only one rule.
+    # ⚠ FAILS OPEN, ALWAYS: any read or write problem falls through to the full parse. A cache that
+    # can break the answer is worse than no cache.
+    _cpath = os.path.join(HERE, ".fixture_reels_cache.json")
+    _ckey = None
+    if stamp is not None:
+        try:
+            import hashlib as _hl
+            _ckey = _hl.sha1(repr(stamp).encode("utf-8", "replace")).hexdigest()
+            with open(_cpath, "r", encoding="utf-8") as _fh:
+                _blob = json.load(_fh) or {}
+            if _blob.get("key") == _ckey and isinstance(_blob.get("reels"), list):
+                _hit = set(_blob["reels"])
+                globals()["_FIXTURE_CACHE"] = (stamp, frozenset(_hit))
+                return _hit
+        except Exception:
+            pass
     out = set()
     for pat in _FIXTURE_GLOBS:
         for f in glob.glob(os.path.join(root, pat)):
@@ -472,6 +499,14 @@ def test_referenced_reels(repo=None):
             out.update(re.findall(r"reel_s_\d{10,16}_\d+", _executable_only(src, f)))
     if stamp is not None:
         globals()["_FIXTURE_CACHE"] = (stamp, frozenset(out))
+        if _ckey:
+            try:
+                _tmp = _cpath + ".tmp"
+                with open(_tmp, "w", encoding="utf-8") as _fh:
+                    json.dump({"key": _ckey, "reels": sorted(out)}, _fh)
+                os.replace(_tmp, _cpath)   # atomic: a half-written cache must never be readable
+            except Exception:
+                pass
     return out
 
 

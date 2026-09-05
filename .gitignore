@@ -215,3 +215,10 @@ tv/.human_eyes.jsonl
 tv/he2_*.png
 tv/he_*.png
 tv/ledger_peaks.json
+# v2692 — a derived cache of which reels the TEST SUITE names, keyed on the suite files'
+# (path,size,mtime). Runtime artifact like .second_eye.jsonl / .console_scars.json: it is
+# rebuilt from the tree in 18s and must never be a tracked input to anything.
+tv/.fixture_reels_cache.json
+# v2692 — derived route analysis, keyed on the sources' newest mtime + file count (the SAME key
+# chronicle_routes._MEMO already trusts). Runtime artifact; rebuilt from the tree in ~10s.
+tv/.chronicle_routes_cache.json
