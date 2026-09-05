@@ -181,7 +181,22 @@ def measure(page=None, widths=WIDTHS):
     except Exception as e:
         return None, "render_check would not import (%s)" % str(e)[:70]
     if not RC._chrome_up():
-        return None, NO_BROWSER
+        # ⚠⚠ TWO DIFFERENT FACTS, AND v2658 COLLAPSED THEM INTO ONE — caught by a cross-family
+        # review of the pushed bytes, reproduced here before being believed.
+        # `_chrome_up()` answers False for BOTH "this machine has no Chrome" (a venue fact, and
+        # the only thing a declared skip may forgive) and "Chrome is installed and would not
+        # start" (a real fault on a venue that is supposed to measure). Returning NO_BROWSER for
+        # both meant a launch FLAKE ON HIS MAC — where Chrome demonstrably exists — became a
+        # declared skip instead of a red, on the one venue this gate actually measures.
+        # That is the same "two facts under one word" defect the module's own UNKNOWN handling
+        # exists to prevent, reintroduced one level up. [[unknown-stays-unknown]]
+        # It also narrows what `skip_ok` can forgive: run_gates matches the reason as a SUBSTRING,
+        # so the message that reaches it must be true of the absent case ONLY.
+        if not os.path.exists(RC.CHROME):
+            return None, NO_BROWSER
+        return None, ("chrome is INSTALLED at %s and would not start — that is a fault on a venue "
+                      "that is supposed to measure, not a venue without a browser"
+                      % os.path.basename(RC.CHROME))
     # ⚠⚠ SERVED, NOT file:// — AND THE FIRST CUT OF THE PANEL WORK PROVED WHY. Under file:// the
     # console's panels cannot reach /api/…, so they render almost nothing: measured, forensics came
     # back with FIVE text leaves where a served page gives THIRTY-NINE, and every panel reported a

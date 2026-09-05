@@ -1232,9 +1232,24 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 - ◻ **CF-5 PROGRESS NUMBER** — two worlds claim him: `77f64154` 290 uniques vs `c5c2c92d` 280,
   4.6 days apart, both sets=120. ⚠ HIS TICKS ARE TESTIMONY — do not resolve in code by preferring
   the newer; that is already the behaviour being warned about. Route to truth is a GB-L brief.
-- ◻ **CF-6 GUEST-WORLD GROWTH** — `board_tally.json` holds ~150 routes and **exactly 2 have
-  non-zero counts**; ~148 are probe artifacts, one per CDP look, unbounded and unpruned. Same
-  mechanism that took `~/.grok/sessions` to 11 GB. Stop recording at the door, don't prune later.
+- ◻ **CF-6 GUEST-WORLD GROWTH** — ⚠⚠ **RE-MEASURED 2026-09-05, AND THE DOOR IS ALREADY SHUT.**
+  This row said *"~150 routes, ~148 probe artifacts, unbounded and unpruned"* and prescribed
+  *"stop recording at the door"*. **That guard already exists** — `control_app.py:1506`,
+  `if _haves and max(_haves) == 0 and not _seen: return False` — and it works. All-zero route
+  writes per day: **08-29:69 · 08-30:34 · 08-31:11 · 09-01:38 · 09-02:243 · 09-03:3 · 09-04:0 ·
+  09-05:0**. The newest all-zero write is **2026-09-03 05:23, 52.5 hours ago.** The pile stopped.
+  ⚠ **I FIRST REPORTED IT "STILL GROWING THIS MORNING" AND THAT WAS WRONG TWICE OVER.** I read the
+  FILE's mtime as growth — it moves on every write, including the two REAL worlds updating their
+  own counts, and the only route written today is `77f64154` with 121/293/99, which is his actual
+  board. Then my first count said **13 routes**: I had counted TOP-LEVEL keys instead of
+  `byRoute`. Founding rule 4 — the instrument was mine, twice.
+  **SO THE REMAINING WORK IS NOT THE DOOR. It is a one-time prune of 402 historical rows**
+  (304 KB), and the code argues against doing that blind in its own words: *"a brand-new real board
+  also posts zeros before the first tick, and that is indistinguishable from a probe once the row
+  exists."* AGE does separate them — all-zero AND untouched 52 h+ AND predating the guard — but
+  this is HIS board data, so it is measured and proposed, **not executed**. ⚠ One row carries a
+  `01-01` stamp, which is not a real date; an age-keyed prune must handle it rather than treat it
+  as ancient.
 - ◻ **CF-7 FOOTAGE HAS A REEL** — 1 frame outside every reel. Small in bytes; the point is that a
   frame CAN exist outside the structure that governs frames. `tv/orphan_fold.py` has the plan.
 - ◻ **CF-8 BOARD IS CLAIMED = UNKNOWN** — correct as written, do NOT turn it into a number. Worth
@@ -1318,3 +1333,43 @@ tasked list and grok's handoffs in between too."*
   21 gates old. Only a CI run settles it — never his Mac.
 - **A11's 30/11/8 census** and **A2's per-lock wilson figures** at HEAD — both need the instruments run.
 - **The 40-reel shelf figures** (29 unread / 12 / 12 / 3 JOIN) — carried from 2026-09-04, not re-measured.
+
+---
+
+## ✅ SHIPPED 2026-09-05 — v2656 · v2657 · v2658 · fix: (`origin/main` af8beac9 → a50c925c)
+
+**Confirmed three ways, not one**, because `git push | tail` reports tail's status and that is how
+a refused push once read as a success: `GIT_EXIT=0` · the ref line `af8beac9..a50c925c main -> main`
+· `git rev-parse origin/main` = `a50c925c`, 0 ahead.
+
+**The gate's own verdict, quoted:** second eye ✅ · visual-lock ✅ · boss portraits ✅ ·
+**tv suites green** ✅ · *"the page was rendered and looked at"* ✅ · **Playwright smoke GREEN** ✅ ·
+deployable change, CI publishes. ⚠ Console demos **SKIPPED** — `control_ui.html` unchanged for 6
+commits. That is a declared skip and is recorded as one, never as a pass.
+
+### THE CI PICTURE THAT MADE THIS URGENT — and my first statement about it was a sample, not a verdict
+
+I reported *"CI red for four consecutive pushes."* That was the last four runs I happened to list.
+**Measured over 150 runs: TV DIABLO is 149 RED of 150, across three days** (one green,
+`f215cf5b`). **Routine I has not been green since 2026-08-29** — 344 non-green, 141 of them
+*cancelled*, and a workflow routinely cancelled is a workflow nobody waits for.
+`test_control`'s failing case was **born red** in v2431 and never passed once.
+
+⚠⚠ **AND NOTHING GATED ON ANY OF IT.** At every one of those SHAs *"Publish — gates, review, then
+deploy"* is **success**, because `publish.yml` needs only its own in-workflow jobs — not
+`tv-tests`, not `routine-i`, not `routine-m`. **The site published throughout.** A gate that is
+always red and one that is always green are the same defect; these had stopped carrying
+information.
+
+### CI DELTA ON THE SHIPPED SHA — read against the 149-red baseline, never against state
+
+| workflow | before | on `a50c925c` |
+|---|---|---|
+| **Routine M — swallowed-exception ratchet** | failure | **success** |
+| Routine G · H · J · K · L | success | success |
+| 📺 TV DIABLO — agent tests | failure (149/150) | *pending at the time of writing* |
+| Routine I — Playwright suite | failure (7 days) | *pending at the time of writing* |
+
+⚠ **Routine M green is the first EXTERNAL confirmation** — the swallow ratchet is back at its 74
+baseline on a machine that is not his. The other two are UNKNOWN until they settle, and UNKNOWN is
+not a pass.
