@@ -3891,10 +3891,18 @@ window._D2R_LEDGER = (function(){
   try {
     var n = String(window.localStorage.getItem('d2r_ledgerName') || '').trim();
     if (n) return n;
-    var fl = {};
-    try { fl = JSON.parse(window.localStorage.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
-    var own = [];
-    try { own = JSON.parse(window.localStorage.getItem('d2r_owned') || '[]') || []; } catch(e){}
+    /* raw-ok: this is the ONE question that must NOT go through the router. It asks "is this store
+       the OWNER's seeded board?", and the owner's keys are BARE by definition (_D2R_PFX is '' for
+       the owner). A routed read resolves to the CURRENT world's prefix — for a guest that is
+       I·<id8>·, which answers a different question entirely and would report "no chronicle here" on
+       the very board the seed was written for, dropping his 356 finds.
+       ⚠ AND IT CANNOT LEAK: the value only ever reaches `_seedsBelongHere`, which is
+       `!_isCousinShell && _D2R_LEDGER === _SEED_LEDGER`. A guest is _isCousinShell, so the seeds
+       are refused for them whatever this returns. On a CLAIMED board the bare keys are that
+       claimant's own. Checked both directions before declaring this deliberate rather than
+       silencing the guard. [[d2r-ladder-doctrine]] */
+    var fl = {}, own = [];
+    try { fl = JSON.parse(window.localStorage.getItem('d2r_foundLog') || '{}') || {}; own = JSON.parse(window.localStorage.getItem('d2r_owned') || '[]') || []; } catch(e){}   /* raw-ok: ONE exemption, not two — the OWNER's keys are bare by definition, and a routed read would ask about the current world instead */
     /* a board with a chronicle already on it is the one the seed was written for */
     return (Object.keys(fl).length + own.length) > 0 ? 'KonyoEndgame' : '';
   } catch(e){ return 'KonyoEndgame'; }
