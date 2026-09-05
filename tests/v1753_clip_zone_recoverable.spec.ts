@@ -71,10 +71,25 @@ test.describe('v1753 — clipped console labels stay recoverable', () => {
         });
         return { clippedSeen, bad };
       });
-      // NON-VACUITY: if nothing is clipped at this width the rule proves nothing, and that is a
-      // real possibility worth failing on — it would mean this gate stopped watching anything.
-      expect(r.clippedSeen, 'no console label is clipped at ' + width + 'px, so this gate checked nothing')
-        .toBeGreaterThan(0);
+      /* NON-VACUITY: if nothing is clipped at this width the rule proves nothing.
+         ⚠ v2675 — AND THAT IS NOW THE NORMAL STATE, BECAUSE THE SUBJECT WAS REMOVED ON PURPOSE.
+         This file's own header says it measured "#btn-sim's sub-label, which is the console's only
+         clipped .lab". v2438 made THE SHELF the single door and hid #btn-sim with the `hidden`
+         attribute, so at 901px there is nothing clipped left to check — the gate did not stop
+         watching, its subject stopped existing.
+
+         Failing here would be a permanent red for a correct console, and a gate that is always red
+         carries exactly as much information as one that is always green. Passing silently would be
+         worse: it would report a law as upheld that was never exercised.
+
+         So it DECLARES the skip and carries the measured count — the same idiom run_gates uses
+         ("⚠ SKIPPED … 3 check(s) UNKNOWN. This is a declared SKIP"). A skip is not a pass, and it
+         says so out loud. If a clipped label ever reappears, the law below runs again on its own.
+         [[regression-guard]] [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+      test.skip(r.clippedSeen === 0,
+        'UNKNOWN, not a pass: 0 console labels are clipped at ' + width + 'px, so the '
+        + 'recoverable-title law was NOT exercised. v2438 hid #btn-sim, which was this gate\'s only '
+        + 'clipped label.');
       expect(r.bad, 'clipped labels whose text cannot be recovered: ' + JSON.stringify(r.bad)).toEqual([]);
     });
   }

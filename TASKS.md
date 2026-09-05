@@ -1306,6 +1306,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2675** | `(this commit)` | v2675 — a Chronicle screenshot proves he FOUND it, never WHERE it is |
 | **v2674** | `(this commit)` | v2674 — one rename broke nine specs, and two "regressions" were the product improving |
 | **v2673** | `(this commit)` | v2673 — my own fix left the literal it was supposed to remove |
 | **v2672** | `(this commit)` | v2672 — four stale assertions, and one of them was the code being right |

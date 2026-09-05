@@ -20999,6 +20999,43 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-640 — a Chronicle screenshot proves he FOUND it, never WHERE it is (v2675)
+
+`v659:90` asserted `vaultNames.length > 0` — *"the seed vaulted NOTHING … zero here means that lane
+silently reverted"*. **Zero is now correct, and it is his own ruling.**
+
+`_GRAIL_SEED` is `{ name: date }` — a name and a FIRST-FOUND stamp, **with no location anywhere in
+it** — and `_vaultMayClaim` admits only physical lanes:
+`['equipped','stash','cube','belt','mule','locker','tomb','tombs']`. That list's own comment rules
+the seed's source out by name: *"`chronicle` is a menu listing items he does not own"*. Konyo,
+v2346: *"not until physically it is registered in the vault and has its slot identity pinpointed"*.
+So the seed floors `d2r_foundLog` and correctly vaults nothing.
+
+⚠ **THIS FILE HAD ALREADY LEARNED THIS ONCE AND THE LINE SURVIVED.** v2263 removed a sibling count
+here for the same reason — *"stop counting and hold the fear the count was standing in for"* — and
+this assertion sat two lines below that comment, still counting.
+
+⚠ **THE GHOST CHECK BESIDE IT WAS GOING VACUOUS.** `vaultGhosts` (a name in the vault that never
+reached the ledger) is the fear worth holding, but `0 ghosts` over `0 vaulted names` is unmeasured,
+not clean — and reads exactly like success. It now prints the denominator it was checked against.
+**Nothing replaces the deleted assertion**, deliberately: the found ledger is already asserted
+exactly (`flN` toBe(356)), and restating it loosely as `> 200` would add a weaker duplicate of a
+stronger check and make the file look better covered than it is. [[zero-needs-a-denominator]]
+
+## REG-641 — the gate did not stop watching; its subject stopped existing (v2675)
+
+`v1753:76` requires at least one clipped label or it fails with *"no console label is clipped at
+901px, so this gate checked nothing"*. That non-vacuity guard is **correct and worth keeping** — but
+the thing it watched was removed on purpose. The file's own header says it measured *"#btn-sim's
+sub-label, which is the console's only clipped `.lab`"*, and **v2438 hid `#btn-sim`** to make the
+Shelf the single door.
+
+Failing forever would be a permanent red for a correct console, and a gate that is always red
+carries as much information as one always green. Passing silently would be worse — a law reported as
+upheld that was never exercised. It now **declares the skip and carries the measured 0**, the same
+idiom `run_gates` uses (*"⚠ SKIPPED … 3 check(s) UNKNOWN. This is a declared SKIP"*). If a clipped
+label ever reappears the law runs again on its own. [[unknown-stays-unknown]] [[regression-guard]]
+
 ## REG-635 — one rename broke nine specs, and two "regressions" were the product improving (v2674)
 
 Reading the whole a7b87cf0 failing set instead of the top of it, the **single largest cause in

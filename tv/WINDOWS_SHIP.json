@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2674",
+  "ver": "v2675",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2674: the grail-to-chronicle rename realigned across seven more specs, plus a rotted selector, an unsurvivable seed and a label-pinned law",
+  "note": "v2675: the grail seed carries no location so it cannot vault - his v2346 ruling; plus a non-vacuity gate whose subject v2438 removed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

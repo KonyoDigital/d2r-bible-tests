@@ -85,10 +85,33 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
   expect(r.hoz).toBe(true);
   expect(r.hozStamp).toBeTruthy();
   expect(r.calcClean).toBe(0);          // extras stay OUT of ITEMS — the calculator/boss tables are untouched
-  expect(r.vaultGhosts, `vaulted but never registered in the ledger: ${JSON.stringify(r.vaultGhosts)}`)
+  /* v2675 — THE GHOST CHECK GOES VACUOUS WHEN THE VAULT IS EMPTY, so it must carry its own
+     denominator. `0 ghosts` over `0 vaulted names` is not a clean result, it is an unmeasured one,
+     and it would read exactly like success. [[zero-needs-a-denominator]] */
+  expect(r.vaultGhosts, `vaulted but never registered in the ledger: ${JSON.stringify(r.vaultGhosts)}`
+    + ` — checked against ${r.vaultNames.length} vaulted name(s); at 0 this proves nothing`)
     .toEqual([]);                       // v677's real law, restated so v1980 cannot hide a ghost
-  expect(r.vaultNames.length, 'the seed vaulted NOTHING — v1980/v1991 mule what they register, so '
-    + 'zero here means that lane silently reverted').toBeGreaterThan(0);
+
+  /* v2675 — THE SEED MUST NOT VAULT, AND THAT IS HIS RULING, NOT A REVERTED LANE.
+     This asserted `vaultNames.length > 0` because v1980 made the sweep mule what it registers. But
+     `_GRAIL_SEED` is `{ name: date }` — a name and a FIRST-FOUND STAMP, with NO LOCATION anywhere in
+     it — and `_vaultMayClaim` admits only physical lanes:
+         ['equipped','stash','cube','belt','mule','locker','tomb','tombs']
+     Its own comment rules `chronicle` out by name: "a menu listing items he does not own". Konyo,
+     v2346: "not until physically it is registered in the vault and has its slot identity
+     pinpointed". A Chronicle screenshot proves he FOUND it, never WHERE it is — so the seed floors
+     `d2r_foundLog` and correctly vaults nothing.
+
+     ⚠ THIS FILE ALREADY LEARNED THIS ONCE. v2263 removed a sibling count here for the same reason —
+     "stop counting and hold the fear the count was standing in for" — and this line survived that
+     lesson. The fear worth holding is the GHOST, asserted above.
+
+     So the law is inverted and stated positively: the FOUND ledger is what the seed fills, and it is
+     asserted with a real denominator; the vault is only reachable through a physical lane. */
+  /* ⚠ AND NOTHING REPLACES IT HERE, DELIBERATELY. The half of this law a chronicle-sourced seed
+     genuinely owns is the FOUND ledger, and that is already asserted exactly — `r.flN` toBe(356),
+     forty lines up — so restating it loosely as "> 200" would add a weaker duplicate of a stronger
+     check and make the file look better covered than it is. [[regression-guard]] */
 });
 
 test('an explicit un-tick SURVIVES the floor (d2r_grailUnfound = user truth); re-tick clears it', async ({ page }) => {
