@@ -6,7 +6,14 @@ on:
 jobs:
   agent-suite:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # ⚠ 25, NOT 20 — RAISED WITH THE CHROMIUM STEPS BELOW, because the pair of them is what
+    # reproduces v1810 otherwise. MEASURED: the agent-suite job runs 7m18s (08:53:32 -> 09:00:50 on
+    # be704dc7). The two new steps are bounded at 6 + 5 = 11, so a double stall would reach ~18.3
+    # against a 20-minute cap — under it, with no margin for the gate set growing by one suite.
+    # And the failure mode is the one that hides: hitting the JOB cap surfaces in `gh run list` as
+    # **cancelled**, which reads as "a person cancelled this" rather than "something stalled".
+    # 25 matches publish.yml, which learned this the same way.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       # Pillow FIRST: without it the chronicle RED/GREEN class skips, and a guard that skips
@@ -38,6 +45,44 @@ jobs:
       # Same interpreter as the gate set (`python3 -m pip`), so there is no env split.
       - name: Install Pillow + websocket-client (a missing import is a skip wearing a failure)
         run: python3 -m pip install --quiet pillow websocket-client
+      # ⚠⚠ THIS WORKFLOW HAD NO BROWSER AT ALL, AND ONE GATE MEASURES PIXELS.
+      # `overlap_ratchet` catches the class `render_check` cannot see — two labels drawn on top of
+      # each other, both fully on screen, neither clipped. With no Chromium here it could only ever
+      # answer "headless chrome would not start", so v2658 taught it to exit 77 and DECLARE that as
+      # a venue skip rather than fail the build. That was honest and it was not a fix: d2r-bible §8
+      # is explicit that a gate which always skips is the same defect as one that never runs, and
+      # this one then measured on his Mac ONLY — the machine we are forbidden to run suites on.
+      #
+      # ⚠ IT MUST LAND WITH THE CACHE, NOT WITHOUT IT. v1810's publish sat in `playwright install`
+      # for 25 MINUTES, hit the job's timeout cap, and surfaced in `gh run list` as **cancelled** —
+      # which reads as "a person cancelled this", not "a download stalled", and the site silently
+      # stayed a version behind. Same pattern as publish.yml:97-117, and the same reasoning: the
+      # cache means the usual run downloads nothing, and the step's OWN timeout (well under the
+      # job's 20) makes a stall fail THE STEP with its name on it.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: pw-${{ runner.os }}-
+      # SPLIT from the deps below, because the two halves fail for different reasons and only one
+      # matters. On publish.yml the 8-minute bound proved it was never the browser download — it
+      # was `--with-deps` running apt against a mirror that answered `Ign` for eight straight
+      # minutes. Bundling them lets a broken Ubuntu mirror block a gate that has nothing to do
+      # with apt.
+      - name: Install Chromium
+        timeout-minutes: 6
+        run: npx playwright install chromium
+      # Best effort: ubuntu-latest already carries the shared libs Chromium needs, so this is a
+      # top-up and not a prerequisite. If it stalls we continue — and if the libs really are
+      # missing, `overlap_ratchet` fails on a browser launch, which names the problem far better
+      # than an apt timeout does. ⚠ And it still cannot go silently green: the gate exits 77 with
+      # a DECLARED reason when Chrome will not start, so an absent browser reads as a loud skip
+      # rather than a pass.
+      - name: OS deps for Chromium (best effort)
+        timeout-minutes: 5
+        continue-on-error: true
+        run: npx playwright install-deps chromium
       # ONE GATE SET, ONE VERDICT.
       #
       # This step used to hand-list SEVEN suites while tv/run_gates.py knew about TWENTY-SIX, so

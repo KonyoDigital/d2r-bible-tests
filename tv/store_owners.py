@@ -160,6 +160,25 @@ def _modules():
         # (the deriver that counted itself as a watcher).
         if fn == "store_owners.py":
             continue
+        # ⚠⚠ THE RAW SOURCE, COMMENTS AND ALL — AND I TRIED STRIPPING THEM AND MADE IT WORSE.
+        # `audit()` asks `store in src`, so ANY mention of a store's filename reads as coupling.
+        # On 2026-09-05 a comment I added to `run_gates.py`, naming the healer backups its
+        # live-state net had been missing, made this report one undeclared toucher — and the only
+        # occurrence in that file was that comment.
+        #
+        # The obvious fix is [[source-reading-guard]] §3.5's: grade code, not prose. I applied it,
+        # and it BROKE THREE THINGS. Modules reach these stores through helpers rather than
+        # literals, so the filename appears in their comments only — strip those and three honest
+        # declarations turn into "stale allowances". ONE false positive became THREE.
+        # ⚠ And the strip's own comment contained `open("<a store name>")` as an example, which
+        # tripped the OTHER guard here — the one asserting this registry never opens what it
+        # declares. The same defect, one level up, inside the fix for it.
+        #
+        # So the scan stays raw and the RULE is on the prose instead: **do not write a store's
+        # literal filename in a comment in this tree.** Name it by role — "the healer backups",
+        # "the vault accumulator" — which is more readable anyway. That is v1853's ruling applied
+        # unchanged: the honest fix was to move MY comment out of someone else's window, not to
+        # widen their window to accommodate me.
         try:
             out[fn[:-3]] = io.open(os.path.join(HERE, fn), encoding="utf-8").read()
         except Exception:

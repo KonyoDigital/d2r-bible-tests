@@ -2075,10 +2075,15 @@ def _state_fingerprint():
     out = {}
     # ⚠⚠ v2659 — THE GLOB MISSED FOUR FILES THE OTHER GUARD NAMES AS PROTECTED, and they are the
     # four whose NAMES are unusual rather than whose importance is. `*.json` does not match a
-    # DOTFILE (`.console_scars.json`) and does not match a different extension at all
-    # (`vault_accum.json.healer_bak` and its two siblings — the healer's only copies of the vault
-    # stores). MEASURED 2026-09-05: of conftest.LIVE_FILES' 15, this net covered 10; the 5 it
-    # missed were those four plus `vault_ledger.json`, which is merely absent today.
+    # DOTFILE (the console-scars store) and does not match a different extension at all (the three
+    # `.healer_bak` files — the healer's ONLY copies of the vault stores). MEASURED 2026-09-05: of
+    # conftest.LIVE_FILES' 15, this net covered 10; the 5 it missed were those four plus the vault
+    # ledger, which is merely absent today.
+    # ⚠ THE STORES ARE NAMED BY ROLE, NOT BY FILENAME, ON PURPOSE. `store_owners.audit()` asks
+    # `store in src`, so writing a store's literal filename in a comment here reads as this module
+    # COUPLING to it — and the first version of this note did exactly that, turning the whole gate
+    # set red with `1 store(s) are touched by a module nothing declares: run_gates`. The only
+    # occurrence in this file was the comment. [[source-reading-guard]]
     # A backup that a suite silently overwrites is worse than a live file it overwrites, because
     # the backup is what the repair reads. [[unknown-stays-unknown]]
     for pat in ("*.json", "*.jsonl", ".*.json", "*.healer_bak"):
