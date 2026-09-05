@@ -1648,6 +1648,47 @@ def run(only=None, live_watch=True, live_writer=None):
     app_up = _app_up()
     _lw_prev = _state_fingerprint() if live_watch else None
     _lw_blame = []
+    # ⚠⚠ v2659 — THE ORPHAN GUARD EXISTED AND HAD NEVER RUN ONCE ON THE GATED PATH.
+    # `conftest.no_orphaned_children` is a `@pytest.fixture(scope="session", autouse=True)`, and
+    # MEASURED 2026-09-05: there is NO pytest config anywhere in this repo (no pytest.ini,
+    # setup.cfg, pyproject.toml or tox.ini), CI runs `python3 tv/run_gates.py`, and run_gates'
+    # only mention of pytest is `.pytest_cache` in a directory skip-list. So the fixture is
+    # structurally inert on every path that gates anything — `_descendants`, `leaked` and `reaped`
+    # each occur ZERO times in this file. [[the-unjoined-end]]
+    #
+    # It is written for exactly the failure it never guarded: a suite spawned `tv/tv_diablo.py`
+    # and never reaped it; it ran 22 MINUTES after the tests finished, writing stub reads into the
+    # live `tv/state.json` and spending 39 of a 240-a-day read cap. And on 2026-09-05 Konyo said
+    # *"my pc is super hot you left background processes running"* — the FOURTH such correction.
+    # A guard that only runs under a runner nobody uses is the same defect as one that never runs.
+    #
+    # ⚠ THIS ONLY REPORTS. It names what leaked and never signals anything: `pkill -f` is banned
+    # here, and killing by descendant-walk from inside the harness that spawned them is one bad
+    # ppid away from taking his console. Naming is what was missing; killing is `claude-owns` and
+    # `reap`, which is where the port and registration refusals already live.
+    # ⚠⚠⚠ AND MY FIRST CUT OF THIS WAS ITSELF INERT — WRITTEN, PROVEN BLIND, REWRITTEN, SAME HOUR.
+    # It used `conftest._descendants(table, os.getpid())`, i.e. it walked the process TREE down
+    # from run_gates. That cannot work here and the reason is structural: `subprocess.run` WAITS
+    # for each gate, so a child the gate leaked is re-parented to launchd the INSTANT the gate
+    # exits — before this code ever looks. MEASURED: leaked pid found, ppid now 1, and
+    # `_descendants(me)` returned []. The fixture it was lifted from is right to walk the tree —
+    # pytest holds its children open — but run_gates does not, and copying the mechanism instead
+    # of the QUESTION is [[copy-drift]] on a safety routine.
+    #
+    # So orphans are caught by IDENTITY, not parentage: any process that did not exist before the
+    # run, exists after it, and names THIS TREE on its command line. That survives re-parenting,
+    # which is the whole realistic case.
+    # ⚠ The tree-path discriminator is what keeps it honest — without it every unrelated process
+    # the machine happened to start during a 400-second run reads as a leak, and a guard that cries
+    # wolf is one he learns to skip.
+    _orphan_before, _orphan_ok = None, False
+    try:
+        import conftest as _cf                       # IMPORT the reader, never re-implement it
+        _tbl, _ = _cf._live_processes()
+        if _tbl:
+            _orphan_before, _orphan_ok = set(_tbl), True
+    except Exception:
+        pass                                        # no ps, no claim — UNKNOWN, never "clean"
     for g in GATES:
         if only and g.name not in only:
             continue
@@ -1759,6 +1800,46 @@ def run(only=None, live_watch=True, live_writer=None):
             print("   ⚠ %s was running throughout, so these are SUSPECTS, not verdicts. The clean"
                   % ", ".join(live_writer))
             print("     read is a CI run, where nothing else touches the tree.")
+
+    # ── v2659 — WHAT THE RUN SPAWNED AND NEVER REAPED ───────────────────────────────────────
+    # The other half of the guard above. Every gate is its own subprocess, so anything a gate
+    # leaves behind is a descendant of THIS process — which makes here the only place it can be
+    # seen at all, and the reason the pytest fixture could never have covered a run_gates run.
+    if _orphan_ok:
+        try:
+            import conftest as _cf
+            _tbl2, _ps_pid = _cf._live_processes()
+            if _tbl2 is None:
+                # ⚠ ps ANSWERED ONCE AND NOT TWICE. That is UNKNOWN, and it must not read as a
+                # clean sweep — the whole point of this block is that silence is not evidence.
+                print("\n⚠ ORPHAN CHECK UNKNOWN — the process table could not be read a second "
+                      "time, so nothing was established about what this run left behind.")
+            else:
+                # NEW since the run started, AND naming this tree. Both halves are load-bearing:
+                # "new" alone catches every unrelated thing the machine started in 400 seconds;
+                # "names this tree" alone catches his own console, which was running before us.
+                _me = {os.getpid(), _ps_pid}
+                _leaked = sorted(
+                    p for p, (_pp, _cmd) in _tbl2.items()
+                    if p not in (_orphan_before or set())
+                    and p not in _me
+                    and HERE in str(_cmd or ""))
+                if _leaked:
+                    print("\n❌ THIS RUN LEFT %d PROCESS(ES) RUNNING:" % len(_leaked))
+                    for _p in _leaked:
+                        _cmd = (_tbl2.get(_p) or (None, ""))[1]
+                        print("     pid %-7s %s" % (_p, str(_cmd)[:100]))
+                    print("   A gate that spawns and does not reap keeps writing after the verdict")
+                    print("   is printed — one such leak ran 22 minutes past the suite and spent 39")
+                    print("   of a 240-a-day read cap into his live state.")
+                    print("   ⚠ NOT KILLED FROM HERE. `pkill -f` is banned and a descendant-walk is")
+                    print("   one bad ppid from his console. Kill by PID, or use `claude-owns")
+                    print("   sweep -f` / `reap -f`, which refuse his ports by name.")
+        except Exception as _oe:
+            print("\n⚠ ORPHAN CHECK UNKNOWN — %s" % str(_oe)[:80])
+    else:
+        print("\n⚠ ORPHAN CHECK NOT TAKEN — the process table was unreadable at the start of the "
+              "run, so there is no baseline to compare against. UNKNOWN, not clean.")
     return results
 
 
@@ -1992,7 +2073,15 @@ def _state_fingerprint():
     import glob as _g
     import hashlib
     out = {}
-    for pat in ("*.json", "*.jsonl"):
+    # ⚠⚠ v2659 — THE GLOB MISSED FOUR FILES THE OTHER GUARD NAMES AS PROTECTED, and they are the
+    # four whose NAMES are unusual rather than whose importance is. `*.json` does not match a
+    # DOTFILE (`.console_scars.json`) and does not match a different extension at all
+    # (`vault_accum.json.healer_bak` and its two siblings — the healer's only copies of the vault
+    # stores). MEASURED 2026-09-05: of conftest.LIVE_FILES' 15, this net covered 10; the 5 it
+    # missed were those four plus `vault_ledger.json`, which is merely absent today.
+    # A backup that a suite silently overwrites is worse than a live file it overwrites, because
+    # the backup is what the repair reads. [[unknown-stays-unknown]]
+    for pat in ("*.json", "*.jsonl", ".*.json", "*.healer_bak"):
         for p in _g.glob(os.path.join(HERE, pat)):
             n = os.path.basename(p)
             try:

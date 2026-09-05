@@ -1475,3 +1475,105 @@ population of one, and it is handled at the test level now.
 2026-08-29, 344 non-green runs, 141 of them *cancelled* — whose failures cluster **by shard, not by
 cause**, and whose shard-5 count is unmeasurable because the 700 KB log truncates before its
 summary. It is last by its own breadth, and nothing here claims to have touched it.
+
+---
+
+## ⛔ JOIN — REFUTED 2026-09-05. It is not free work, and it is not his call either.
+
+This file (and my own board row) carried it as **"the cheapest work on the shelf, and it costs
+zero — the names are on disk and the seal does not carry them."** He asked the right question:
+*"whats wrong with that? writes to my real store in what way in what meaning context"* — and the
+honest answer was a measurement, not a hedge. I had said *"your call"*, which was lazy: it was
+answerable, and the answer is that **nobody should do it.**
+
+**WHAT THE WRITE IS.** Adding `extracted: [name, location, provenance]` to 4 seals — four tiny
+edits in a 9,713-byte file.
+
+**WHAT IT DOES.** That field is read by `frame_authority.seal_covers_extraction`, which is called
+inside **`frame_verdict` — *"MAY this one frame be deleted?"*** Simulated in memory, nothing
+written: all four flip `False → True`, moving **345 FRAMES from HELD to DELETABLE.**
+
+| reel | frames |
+|---|---|
+| `reel_s_1784984019250_95276` | 154 |
+| `reel_s_1785078127173_28278` | 115 |
+| `reel_s_1787242455315_9654` | 8 |
+| `reel_s_1787512325134_62795` | 68 |
+
+**WHY IT IS WRONG, NOT MERELY RISKY** — the contract's three facts against his real banked rows:
+
+| fact | the contract's own words | his data |
+|---|---|---|
+| `name` | *the item's name, which only ever appears in a hover tooltip* | ✅ `"Chaotic Grand Charm"` |
+| `location` | *WHERE it was — the container **AND THE CELL BOX INSIDE IT** (his slot identity)* | ⚠ container `lane: "stash"` present; **CELL BOX ABSENT** |
+| `provenance` | *where it was SEEN — which reel and which frame* | ✅ `witnesses: [{session, frame, conf}]` |
+
+Measured: every banked row in `vault_accum.json` carries **exactly** `conf · count · kind · lane ·
+lastSeenTs · name · witnesses`. **Nothing cell-, slot- or box-shaped exists anywhere in it.**
+
+Two of three facts are genuinely on disk. `location` is not, because the old sweep recorded the
+**container** and never the **slot**. Writing the full contract asserts a fact nobody measured and
+makes 345 frames disposable on an invented claim — precisely what the contract's own comment
+forbids: *"an unstated fact is an unextracted one; 'the sweep probably got it' is not a record."*
+
+⚠⚠ **SO THIS IS THE SAME WALL AS A5 AND REG-340 — slot identity was never captured. It is a
+CAPTURE change, not a code change, and re-sealing cannot close it.**
+
+⚠ The only version that could ever ship is a PARTIAL backfill — `extracted: ["name",
+"provenance"]` — which is honest, still fails the contract, and therefore still **holds** all 345
+frames. That is the correct outcome, not a workaround.
+
+**⚠ AND TWO OF MY OWN CLAIMS ARE RETRACTED HERE:** *"4 reels, and it costs zero"* (it is neither
+free nor a missing label) and *"it writes to his seal store, so it is his call"* (it was mine to
+measure, and the measurement removes the decision).
+
+---
+
+## ✅ LIVE-FILE GUARD — closed 2026-09-05, and the row was wrong in BOTH directions
+
+The row read: *"conftest's `live_data_is_not_collateral` and `no_orphaned_children` are
+`@pytest.fixture(autouse=True)` but there is NO pytest config anywhere and CI runs unittest +
+run_gates.py. **NINE files** are guarded only by them."*
+
+**Measured, and it is FIVE, not nine — and only FOUR are on disk.** `run_gates` already covered ten
+of the fifteen `LIVE_FILES`, and covered them *better*, because it fingerprints **between gates** and
+so can name WHICH gate wrote a file; a session-scoped fixture only ever sees the whole run.
+
+**The four that really fell through were the ones with unusual NAMES, not unusual importance:**
+
+| file | why the net missed it |
+|---|---|
+| `.console_scars.json` | `*.json` does not match a **dotfile** |
+| `vault_accum.json.healer_bak` | a different **extension** entirely |
+| `vault_seen.json.healer_bak` | ″ |
+| `vault_swept.json.healer_bak` | ″ |
+
+⚠ **Three of the four are the healer's only copies of the vault stores.** A backup a suite silently
+overwrites is worse than a live file it overwrites, **because the backup is what the repair reads.**
+Net widened to `*.json · *.jsonl · .*.json · *.healer_bak`: **14 of 15 covered**, the last being
+`vault_ledger.json`, which is simply absent — and a CREATION is still caught, because the diff
+unions both key sets rather than iterating the `before` snapshot.
+
+### ⚠⚠ AND THE HALF THAT MATTERED HAD **ZERO** COVERAGE
+
+`no_orphaned_children` is a `@pytest.fixture(scope="session", autouse=True)`. Measured: **no
+`pytest.ini`, `setup.cfg`, `pyproject.toml` or `tox.ini` anywhere**; CI runs `python3
+tv/run_gates.py`; and run_gates' only occurrence of the word `pytest` is `.pytest_cache` inside a
+directory skip-list. `_descendants`, `leaked` and `reaped` each occurred **ZERO** times in it.
+
+**So the guard written for *"a suite spawned something and never reaped it"* had never run once on
+a gated path** — including on 2026-09-05, when that is exactly what happened: *"my pc is super hot
+you left background processes running"*, the **fourth** such correction. The fixture's own docstring
+records the original cost: a suite spawned `tv/tv_diablo.py`, it ran **22 minutes** past the suite,
+writing stub reads into live `state.json` and spending **39 of a 240-a-day read cap**.
+
+**Wired into `run_gates` now**, which is the only place it can work: every gate is its own
+subprocess, so anything left behind is a descendant of the harness. It **IMPORTS** conftest's
+walker rather than re-implementing it — two copies of a process rule, with a kill on the end, is
+[[copy-drift]] at its most dangerous.
+
+⚠ **IT REPORTS AND NEVER KILLS.** `pkill -f` is banned here and a descendant-walk from inside the
+harness that spawned them is one bad ppid away from taking his console. **Naming is what was
+missing**; killing belongs to `claude-owns sweep -f` and `reap -f`, which already refuse his ports
+by name. ⚠ And an unreadable process table prints **UNKNOWN**, never a clean sweep — silence is not
+evidence.
