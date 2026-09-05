@@ -192,7 +192,47 @@ def _transport_exclusions():
 
 _TRANSPORT_EXCLUDE = _transport_exclusions()
 
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+def _find_chrome():
+    """The browser binary ON THIS MACHINE. -> path (may not exist; callers check)
+
+    ⚠⚠ v2659 — THIS WAS A HARDCODED macOS PATH, AND IT MADE A CI CHANGE COMPLETELY INERT.
+    `CHROME` was `/Applications/Google Chrome.app/...`, so `_chrome_up()` asks `os.path.exists` of
+    a path that CANNOT exist on a Linux runner. The same day, `tv-tests.yml` gained a Chromium
+    install and cache specifically so `overlap_ratchet` could stop skipping on CI — and the very
+    first run with a browser still printed `⚪ UNKNOWN — headless chrome would not start` in
+    **0.1s**, because nothing ever looked where Playwright had put it. CI minutes spent installing
+    a browser no reader could see. [[the-unjoined-end]] — built at both ends, never joined, and I
+    closed the task claiming it was fixed.
+    ⚠ THE 0.1s WAS THE TELL. A real launch attempt cannot fail that fast.
+
+    Resolution order, per the same rule `grok-second-eye` §2 records for a second-eye binary —
+    env override, then the known install locations, never one hardcoded guess:
+      1. `TV_CHROME`      — an explicit override always wins
+      2. his Mac's Google Chrome
+      3. Playwright's cached chromium (`~/.cache/ms-playwright/chromium-*/…`), which is what CI has
+      4. the usual Linux names on PATH
+    """
+    import glob as _g
+    import shutil as _sh
+    env = os.environ.get("TV_CHROME")
+    if env:
+        return env
+    mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if os.path.exists(mac):
+        return mac
+    # Playwright keeps a versioned directory; take the newest so a cache carrying two does not
+    # pin the older one for ever.
+    roots = sorted(_g.glob(os.path.expanduser("~/.cache/ms-playwright/chromium*/chrome-linux/chrome")))
+    if roots:
+        return roots[-1]
+    for name in ("google-chrome", "chromium-browser", "chromium", "chrome"):
+        p = _sh.which(name)
+        if p:
+            return p
+    return mac          # unchanged behaviour when nothing is found: a path that will not exist
+
+
+CHROME = _find_chrome()
 
 # A target says: how to set the board up, what to click, and what element IS the thing.
 def _adv_activate(el_id, require_filled=False):
