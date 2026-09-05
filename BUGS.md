@@ -20999,6 +20999,43 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-656 — the vault could not resolve a "Renewed" sunder, and the console table could (v2681)
+
+His ruling, in his words: *"the vault and the console as a whole engine need to know there is 3 of
+them distinct"* · *"thats fine that there is 3 different wording for sunders"* · *"but the chronicle
+is 1 only"* · *"for each"*.
+
+**The game backs the three forms exactly.** Extracted from his own store
+(`data:data/local/lng/strings/item-names.json`, 1,660 rows):
+
+| internal index | displays as |
+|---|---|
+| `Cold Rupture` | Cold Rupture |
+| `PreCrafted Cold Rupture` | **Latent** Cold Rupture |
+| `Crafted Cold Rupture` | **Renewed** Cold Rupture |
+
+So 6 sunders × 3 forms = **18 items**, and the Chronicle row is the `PreCrafted` one → **6 tallies**.
+
+**MEASURED BEFORE THE FIX: the vault resolved 12 of 18.** Every `Renewed …` form was missing from
+the item database, so a reel that read one would have come back unknown. A dedicated sunder table
+(`bible.html:26932`) knew all three forms with `kind:"renewed"` and their stat lines — but the
+vault's own lookup (`_UNI_EXTRA`/`EXTRA_ITEMS`/`ITEM_VALUE`) did not. **Two halves, each built
+right, never joined.** [[the-unjoined-end]]
+
+After: **vault 18 of 18, chronicle 6** — both halves of his ruling asserted in
+`tests/v2680_sunders_are_one_chronicle_row_each.spec.ts`.
+
+⚠ **AND THE SET-PIECE GUARD WENT RED ON CORRECT CODE, WHICH IS ITS OWN LESSON.**
+`test_set_pieces_are_still_excluded` asserted the literal `if (pc[k]) return;`. v2680 folded two
+exclusions into one predicate, so the line became `if (_chronicleSkip(k)) return;` with
+`_chronicleSkip` defined as `pc[k] || …`. **Set pieces were never admitted for an instant** — the
+guard simply could not see the new spelling. It now asserts the LAW in a shape that survives a
+refactor: `pc` must decide, and BOTH roster loops must consult the same decision. Red-proved two
+ways (drop `pc[k]` → red; bypass one loop → red). ⚠ My first rewrite of it used a greedy multi-line
+regex that swallowed both loops as one match and reported "found 1" — the test caught my own
+instrument, which is what it is for. [[source-reading-guard]]
+[[feedback-suspect-the-instrument]]
+
 ## REG-654 — every sunder asked him to find it TWICE, and the game file settled it (v2680)
 
 **HIS REPORT, with a screenshot:** searching *Bone* in the Uniques chronicle showed **Latent Bone

@@ -51,6 +51,50 @@ test('the chronicle counts each sunder ONCE — six tallies, no Latent twin', as
   expect(r.anyLatent, 'no Latent name belongs in the chronicle roster').toEqual([]);
 });
 
+test('the VAULT knows all THREE forms of every sunder — 18 distinct, the chronicle still 6', async ({ page }) => {
+  /* v2681 — his ruling, in his words: "the vault and the console as a whole engine need to know
+     there is 3 of them distinct" · "thats fine that there is 3 different wording for sunders" ·
+     "but the chronicle is 1 only" · "for each".
+
+     The game backs the three forms exactly — from its own string table
+     (data:data/local/lng/strings/item-names.json, extracted from his 28 GB store):
+         index 'Cold Rupture'            -> 'Cold Rupture'
+         index 'PreCrafted Cold Rupture' -> 'Latent Cold Rupture'
+         index 'Crafted Cold Rupture'    -> 'Renewed Cold Rupture'
+     6 sunders x 3 forms = 18 items; the CHRONICLE row is the PreCrafted one, so 6 tallies.
+
+     ⚠ MEASURED BEFORE THIS SHIPPED: the vault resolved 12 of 18 — every 'Renewed …' form was
+     missing from the item database, so a reel reading one would not have resolved it. A dedicated
+     sunder table knew all three, but the vault's lookup did not. Two halves, never joined.
+     [[the-unjoined-end]] */
+  await page.goto(URL);
+  await page.waitForFunction(() => !!(window as any)._UNI_EXTRA && typeof (window as any)._gUniqueRoster === 'function',
+                             null, { timeout: 60000 });
+  const r = await page.evaluate((sun: string[]) => {
+    const w: any = window;
+    const ue = w._UNI_EXTRA || {}, ex = w.EXTRA_ITEMS || {}, iv = w.ITEM_VALUE || {};
+    const roster: string[] = (w._gUniqueRoster() || [])
+      .map((x: any) => (typeof x === 'string' ? x : x && (x.name || x.n))).filter(Boolean);
+    const names: string[] = [];
+    sun.forEach((s2) => ['', 'Latent ', 'Renewed '].forEach((p) => names.push(p + s2)));
+    return {
+      total: names.length,
+      vault: names.filter((n) => !!(ue[n] || ex[n] || iv[n])),
+      missingFromVault: names.filter((n) => !(ue[n] || ex[n] || iv[n])),
+      chronicle: names.filter((n) => roster.indexOf(n) >= 0),
+    };
+  }, SUNDERS);
+
+  expect(r.total, 'six sunders in three forms is eighteen names').toBe(18);
+  expect(r.missingFromVault,
+    'the vault must resolve all three forms — a reel that reads one of these would otherwise come '
+    + 'back unknown').toEqual([]);
+  expect(r.vault.length, 'the vault knows every form').toBe(18);
+  expect(r.chronicle.length,
+    'the chronicle is ONE row per sunder — six. Any more and he is asked to find one charm twice')
+    .toBe(6);
+});
+
 test('the VAULT still knows every Latent charm — that database is a different story', async ({ page }) => {
   // His words. The chronicle filter must never reach the item database: a Latent charm READ from a
   // reel still has to resolve to a real item, or the vault would call his own drop unknown.

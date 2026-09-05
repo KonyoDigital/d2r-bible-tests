@@ -22981,8 +22981,33 @@ class TestV2082SixteenUniquesTheVaultRefusedToHold(unittest.TestCase):
         blk = _between(self, self.s, "function _roster()", "function _pieces()",
                        what="the roster builder")
         self.assertIn("var pc = _pieces();", blk)
-        self.assertIn("if (pc[k]) return;", blk,
-                      "the roster stopped excluding set pieces, so the vault would now admit them")
+        # ⚠ v2680 — THIS ASSERTED A LITERAL AND THE LITERAL MOVED, WHILE THE LAW HELD.
+        # It required `if (pc[k]) return;`. v2680 added a second chronicle exclusion (the six
+        # Latent sunder twins) and folded both into one predicate, so the line became
+        # `if (_chronicleSkip(k)) return;` with `_chronicleSkip` defined as `pc[k] || …`. Set
+        # pieces were never admitted for an instant — but the guard went red, correctly, because
+        # it could only see the old spelling. A guard that greps source text fails on a refactor
+        # of correct code, which is this repo's own carved lesson.
+        #
+        # So it now asserts the LAW in the shape that survives a refactor: `pc` decides, and BOTH
+        # loops consult the same decision. Still source-reading — but reading for the rule rather
+        # than for one arrangement of characters. [[source-reading-guard]]
+        self.assertRegex(
+            blk, r"pc\[k\]",
+            "the roster no longer consults _pieces() at all, so the vault would admit 127 set pieces")
+        # ⚠ LINE-WISE, NOT A MULTI-LINE REGEX. My first cut used `[^\n]*\n?[^\n]*`, which is greedy
+        # enough to swallow BOTH loops as a single match and then reported "found 1". The test
+        # caught my own instrument, which is what it is for. [[feedback-suspect-the-instrument]]
+        skips = [ln for ln in blk.split("\n")
+                 if "Object.keys(iv).forEach" in ln or "Object.keys(ue).forEach" in ln]
+        self.assertEqual(len(skips), 2,
+                         "expected exactly two roster loops (ITEM_VALUE and _UNI_EXTRA); found %d"
+                         % len(skips))
+        for loop in skips:
+            self.assertTrue(
+                ("pc[k]" in loop) or ("_chronicleSkip(k)" in loop),
+                "a roster loop admits names without consulting the set-piece exclusion: %s"
+                % loop.strip()[:120])
 
 
 class TestV2082SightingsSurviveAStrayByte(unittest.TestCase):
