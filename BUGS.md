@@ -20607,3 +20607,64 @@ would prove nothing.
 **Consequence for A2·HARD, stated plainly:** "nothing is HARDENED" is not a defect, it is the bar
 working. Reaching HARDENED needs ~35 genuinely distinct attack designs per lock plus a third
 evidence kind. `prune.reports` is closest — a `live` kind alone closes its confluence half.
+
+## REG-617 — `_craftBuffsHtml` referenced a variable that was never declared (v2662)
+
+**Routine I has been red for seven days and this is one real cause of it**, found by reading the
+CI log rather than by re-running anything locally.
+
+`bible.html:27110`, inside `_craftBuffsHtml`:
+
+```js
+var bis  = ck.bis ? '<div class="att-bis" …>' : '';
+var grail= '<div class="att-grailroll" …>⭐ 100% god-roll = grail-tier · best-of-the-best</div>';
+return  … +'<div class="att-result-h">🎁 result — buffs …</div>'+g+chase+bis+chronicle+'</div>';
+                                                                             ^^^^^^^^^
+```
+
+The variable is `grail`. The concatenation says `chronicle`. A rename that updated the declaration
+and not the use, so `grail` was built and thrown away while `chronicle` was read and had never
+existed. MEASURED inside the function body (which starts at 27084): `g`, `chase`, `bis` and `grail`
+are all declared; **`chronicle` is declared zero times.**
+
+Every craft tooltip that reached this function threw
+`ReferenceError: chronicle is not defined` and rendered nothing.
+
+**Swept for siblings before shipping** — across the whole failing run there is exactly **one**
+ReferenceError class and exactly **one** implicated line: all 10 occurrences are
+`at ../bible.html:27110`. No other identifier in the file fails this way.
+
+⚠⚠ **WHY THE GATE SET COULD NOT SEE THIS, AND IT IS NOT A FAILURE OF `js-syntax`.**
+`+chronicle+` is *syntactically perfect* JavaScript. `js-syntax` parses every surface in a real JS
+engine and passed this file the whole time — correctly, because parsing is not executing. An
+undeclared identifier is a RUNTIME fault, and the only lane that executes these paths is Routine I,
+which is the lane that was red. A syntax gate cannot answer "does this identifier exist", and it
+should not be asked to. **The green was honest; it was answering a different question.**
+
+⚠ **Sizing it honestly rather than claiming the lane:** the failing run carries **96** error lines
+across **30** distinct messages. This fixes the 10 that are ReferenceErrors. Some of the
+`page.click` timeouts and `toContain` failures may be downstream of a tooltip that never rendered —
+that is a HYPOTHESIS, and the next Routine I run decides it, not me. 5 of 6 shards were failing;
+`v877_rinse.spec.ts` alone carries 11 click timeouts and is a separate lead.
+
+## REG-615 — applied: the names come off the diagram, the count stays (v2662)
+
+The lock wedge's collisions traced to v2650, which was RIGHT: before it, retired axes vanished from
+the row entirely because `withdrawnClaims` had no renderer, and *"a withdrawal you cannot read is a
+deletion with a nicer name."* But it appended `· N retired as proving nothing (a, b, c, d)` to a
+**centred** label, and the guard twelve lines below says why that hurts: *"every extra character
+reaches further in BOTH directions across the vessel field."* That guard was written against a
+third LINE; v2650 lengthened the FIRST one, so the collision returned through the door nobody was
+watching.
+
+Now `arithFull` carries the names into the SVG `<title>` and the diagram paints the count alone —
+the file's own pattern for this pressure (*"lives in the tooltip — present, not shouted"*). The lock
+**list** renderer is deliberately untouched: its labels are not centred on a node, and
+`test_reg600_axes_can_refuse` carries a case whose failure message is *"the clause was added to the
+other renderer again."* 42 tests green; `js-syntax` OK in 195.9s.
+
+⚠ **Expected to be PARTIAL, said before measuring.** This shortens one label. Several of the seven
+overlaps were between *different* locks' sublines — `vault.sweep_start`'s `16/16 refused · 0.806`
+over `vault.apply`'s `48/48 refused · 0.926`, and `vault.forget` over `printer.stream` — caused by
+angular crowding at the bottom of the wedge, which no amount of shortening one label can fix.
+A drop from 7 to a smaller number is progress, not a close.

@@ -11007,8 +11007,27 @@ window._lockMark = function(isOpen, px, label){
          one layer down: never-ran is an axis nobody could exercise; withdrawn is one that WAS
          exercised, found to prove nothing, and retired on the record. */
       var _wd = (L.withdrawnClaims && L.withdrawnClaims.length) ? L.withdrawnClaims : null;
+      /* ⚠⚠ REG-615 — THE NAMES COME OFF THE DIAGRAM AND STAY IN THE TOOLTIP, AND v2650 IS NOT
+         BEING UNDONE. v2650 was right: before it, three retired axes vanished from this row with
+         nothing in their place, which withdraw()'s own docstring forbids — "a withdrawal you
+         cannot read is a deletion with a nicer name". The COUNT is the fact and it stays on the
+         surface. The NAME LIST is detail, and on a CENTRED label it is what did the damage.
+         ⚠ The guard twelve lines down says "NO THIRD LINE" because every extra character reaches
+         further in BOTH directions across the vessel field. v2650 did not add a third line — it
+         lengthened the FIRST one, so the same collision came back through the door nobody was
+         watching. MEASURED at v2661, served, 1440x3600: printer.stream's "5 attacks · each run
+         16.6× → 0.566" was overprinted by vault.forget's "by design · no refusal path to
+         sabotage", interleaving into an unreadable "→0.566ign" — read independently, cold, by a
+         different model family that was not told what to look for.
+         ⚠ This is the file's OWN pattern for this exact pressure, stated twelve lines down: "the
+         not-yet-declared state lives in the tooltip — present, not shouted."
+         ⚠ ONLY THE RADIAL RENDERER. The lock LIST builder below keeps the full names: it is a
+         list, its labels are not centred on a node, and it does not collide.
+         `arithFull` feeds the <title>; `arith` is what the diagram paints. */
+      var arithFull = arith;
       if (_wd) {
-        arith += ' · ' + _wd.length + ' retired as proving nothing (' + _wd.join(', ') + ')';
+        arithFull += ' · ' + _wd.length + ' retired as proving nothing (' + _wd.join(', ') + ')';
+        arith     += ' · ' + _wd.length + ' retired as proving nothing';
       }
       /* ⚠⚠ v2624 — WHAT THE SCORE RESTS ON, NOT JUST WHAT IT IS.
          `printer.stream` banks 83/83 for wilson 0.956, and 80 of those 83 are TWO attack
@@ -11102,7 +11121,7 @@ window._lockMark = function(isOpen, px, label){
              + '" opacity="' + (open ? '.95' : '.85') + '"/>'
              + '<circle cx="0" cy="2.6" r="1.15" fill="' + (open ? '#0f2a17' : '#0d1117') + '"/>'
              + '</g>'
-             + '<title>' + _hrtEsc((L.lock || L.surface) + ' — ' + waiting + '. ' + arith
+             + '<title>' + _hrtEsc((L.lock || L.surface) + ' — ' + waiting + '. ' + arithFull
                                    + (_atk === null && !_blind
                                         ? '. How many DISTINCT attacks are under that n has not '
                                           + 'been declared by this harness yet — which is not the '

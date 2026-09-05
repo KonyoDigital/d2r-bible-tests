@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2661",
+  "ver": "v2662",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2661: REG-616: the hardening advice counted attempts while the bar counted attacks",
+  "note": "v2662: REG-617: _craftBuffsHtml read an identifier that was never declared",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
