@@ -20999,6 +20999,31 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-644 — my two new gates were green on my Mac and RED on the only venue that counts
+
+TV DIABLO went red on `0c5e65ea` and **both failures were mine**, in gates I had added hours
+earlier and proved red/green — locally. Neither defect can occur on this machine, which is the
+whole reason browser and gate venues are not interchangeable. [[test-venue]]
+[[feedback-blind-fixture-green-gate]]
+
+**1. `test_tasks_ships_are_recorded` — CI CHECKS OUT SHALLOW.** `actions/checkout@v4` clones with
+`depth=1`, so `git log -200` returned **1** shipped version against a required 12. ⚠ **The
+denominator guard I wrote for exactly this caught it and refused to call it a pass** — *"git named 1
+shipped versions … with fewer than 12 this test measures nothing and must not report a pass"* —
+which is the guard working. But a test that cannot see history must SAY SO, not fail a correct tree
+for ever. It now detects `git rev-parse --is-shallow-repository` and declares a SKIP naming the
+cause. Proven both ways: full clone runs, forced-shallow skips with its reason.
+
+**2. `test_gate_banks` — MY SYNTHETIC HARNESS FOUGHT THE OUTER RUN FOR THE TREE LOCK.** The census
+tests drive the real `main()`, and `main()` calls `_claim_the_tree()`. On CI they run **inside**
+`run_gates`, which already holds it, so every assertion read
+`⛔ REFUSED — another gate run already holds this tree (pid 3000, …)` instead of a verdict. The lock
+is correct and stays; the synthetic harness simply is not a second claimant, so it neutralises the
+claim for itself only — the same treatment `_LIVE_STATE` already needed there.
+
+⚠ **BOTH WERE INVISIBLE LOCALLY BY CONSTRUCTION:** my clone is full, and nothing else held the lock
+when I ran them by hand. **A gate proved red/green on one venue is proved on one venue.**
+
 ## REG-643 — the hunt bridge stores two of the three inputs, so his hours cannot be re-derived
 
 ⚠ **NAMED, NOT FIXED, AND IT IS A NUMBER HE PLANS AROUND.** `v1740` ("one number per farm") fails

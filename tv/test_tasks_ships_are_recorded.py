@@ -65,8 +65,29 @@ def _shipped(limit=200):
 
 class RecentShipsAreRecordedInTheList(unittest.TestCase):
 
+    @staticmethod
+    def _is_shallow():
+        """⚠ CI CHECKS OUT SHALLOW, AND THIS TEST READS HISTORY.
+
+        Measured on run 33975750007: `git log -200` returned **1** shipped version, because
+        `actions/checkout@v4` clones with depth=1 by default. The denominator guard below caught it
+        and refused to call that a pass — which is the guard doing its job — but a test that cannot
+        see history must SAY SO rather than fail a correct tree for ever. A gate that is always red
+        carries as much information as one always green. [[regression-guard]]
+        """
+        try:
+            out = subprocess.run(["git", "rev-parse", "--is-shallow-repository"],
+                                 cwd=REPO, capture_output=True, text=True, timeout=30).stdout
+            return out.strip() == "true"
+        except Exception:
+            return False
+
     def setUp(self):
         self.assertTrue(os.path.isfile(TASKS), "TASKS.md is the list; without it there is no list")
+        if self._is_shallow():
+            self.skipTest("UNKNOWN, not a pass: this is a SHALLOW checkout, so git cannot see the "
+                          "ship history this test reads. Run it on a full clone (locally, or with "
+                          "actions/checkout fetch-depth: 0).")
         with open(TASKS, encoding="utf-8") as fh:
             self.text = fh.read()
         self.ships = _shipped()
