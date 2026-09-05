@@ -9825,18 +9825,24 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   </div>
     <details class="danger-zone"><summary>⚠ danger zone</summary><!-- v694 🏓R6: a destructive control must never be the only bright thing in a void -->
     <button class="reset-btn" onclick="if(!window._D2R_OWNER){uiConfirm('This browser has its own EMPTY world — there is nothing here to erase, and your real data (if this is your machine) is safe behind the claim button at the top of the page. Claim the browser first.');return;} uiConfirm('Erase ALL saved progress on the '+(window.D2R_PROFILE==='ladder'?'🪜 LADDER':'⚔ MAIN')+' account? This permanently clears ITS wishlist, owned/grail checkmarks, statue tracker and settings — the other account is untouched. Cannot be undone.').then(function(ok){if(ok){window.LSR.wipeProfile();location.reload();}})">🗑️ Erase all saved progress (this account only)</button>
-    <!-- ⚠⚠ v2692 — START MY OWN LEDGER. Konyo, from his cousin Dean's board: "the uniques for his
-         uniques tab is rendering 243/403 which is wrong its my old seeded chronicle that he
-         harnessed as a default... he doent have a way to reset his uniques from 243/403 to 0/403 so
-         he can finally sync his chronicle via MINI focused/ON AIR."
-         The gate added in this version stops a NEW browser inheriting the seed. It cannot help a
-         browser already carrying it — that store looks exactly like the board the seed was written
-         for, and guessing otherwise would erase a real chronicle. Only the person at the keyboard
-         knows which board this is, so this asks them.
-         ⚠ It sets d2r_rwProfile='fresh' as well as naming the ledger: the fresh flag is the ONE
-         switch every floor in this file already honours ("only an explicit fresh-profile reset
-         skips it"), so the chronicle cannot creep back on the next load. -->
-    <button class="reset-btn" onclick="uiConfirm('Start YOUR OWN chronicle on this browser?\n\nThis board is currently showing a chronicle it inherited as a default — items you have not found. This clears it to 0/403 and names this browser its own ledger, so nothing is ever seeded into it again.\n\nYour vault, mules and settings are untouched. Then sync your real finds with MINI focused / ON AIR.\n\nIf this IS Konyo\'s own board, press Cancel — this would clear a real chronicle.').then(function(ok){ if(!ok) return; try{ var LSx=window.LSR||window.localStorage; var nm='Ledger-'+String(window._D2R_INSTALL||Date.now()).slice(0,8); window.localStorage.setItem('d2r_ledgerName', nm); LSx.setItem('d2r_rwProfile','fresh'); ['d2r_foundLog','d2r_setPieces','d2r_chronApplied','d2r_grailUnfound','d2r_rwMade'].forEach(function(k){ try{ LSx.setItem(k, k==='d2r_foundLog'||k==='d2r_setPieces'||k==='d2r_chronApplied'||k==='d2r_grailUnfound'||k==='d2r_rwMade' ? '{}' : '[]'); }catch(e){} }); }catch(e){} location.reload(); })">🧭 Start MY OWN chronicle (0/403) — this board is not Konyo\'s</button>
+    <!-- ⚠⚠ v2695 — UN-SEED, AND IT DOES NOT WIPE. Konyo, about his cousin Dean's board:
+         "dont wipe what he had!! the profile ledger should be sycned to his OWN individual
+         chronicle and for uniques it is 0 should be for him from what his console only renders..
+         or data he extracted from his own individual console."
+         The v2692 gate stops a NEW browser inheriting the seed. It cannot help a board that ALREADY
+         carries it — Dean's store looks exactly like the board the seed was written for. The first
+         version of this control cleared the ledgers wholesale, which would have destroyed the finds
+         his own console extracted. That was wrong and he caught it.
+         ⚠ THE SEED IS IDENTIFIABLE EXACTLY, so nothing has to be guessed. The floor writes
+         `_gfl[n] = _GRAIL_SEED[n]` — the seed's OWN date string, and only when the key is absent.
+         So an entry whose value EQUALS the seed's value is a seeded one; anything his console
+         extracted carries his own timestamp. Remove by exact name+date match, keep everything else.
+         ⚠ AND IT MUST NAME THE LEDGER IN THE SAME BREATH, or the floor simply re-adds the seed on
+         the next load: an unnamed board that already holds a chronicle resolves to KonyoEndgame by
+         design (that default is what protects Konyo's own 356 finds).
+         ⚠ ON KONYO'S OWN BOARD THIS IS SELF-HEALING and that is deliberate — he resolves to
+         KonyoEndgame, so the floor restores on reload. The seed IS his truth. -->
+    <button class="reset-btn" onclick="uiConfirm('Remove the chronicle this browser INHERITED, and keep what YOU found?\n\nThis board is showing entries seeded from another person\'s chronicle. This removes ONLY those — matched exactly, by name and date — and names this browser its own ledger so nothing is seeded into it again.\n\nAnything your own console read is KEPT. Your vault, mules and settings are untouched.\n\nIf this IS Konyo\'s own board, press Cancel — those entries are his real finds.').then(function(ok){ if(!ok) return; try{ var LSx=window.LSR||window.localStorage; var G=window._GRAIL_SEED||{}, S=window._SET_SEED||{}, R=window._RWC_SEED||{}; var report=[]; function strip(key, seed, isMap){ var cur=null; try{ cur=JSON.parse(LSx.getItem(key)||'null'); }catch(e){ return; } if(!cur||typeof cur!=='object') return; var before=Object.keys(cur).length, hit=0; Object.keys(seed).forEach(function(n){ if(Object.prototype.hasOwnProperty.call(cur,n) && String(cur[n])===String(seed[n])){ delete cur[n]; hit++; } }); if(hit){ try{ LSx.setItem(key, JSON.stringify(cur)); }catch(e){} } report.push(key+': removed '+hit+' seeded, kept '+(before-hit)); } strip('d2r_foundLog', G); strip('d2r_setPieces', S); strip('d2r_rwMade', R); var nm='Ledger-'+String(window._D2R_INSTALL||Date.now()).slice(0,8); window.localStorage.setItem('d2r_ledgerName', nm); try{ console.log('[un-seed] '+nm+' | '+report.join(' | ')); }catch(e){} }catch(e){} location.reload(); })">🧭 Remove the inherited chronicle — keep what I found</button>
     </details>
 </div>
 </div>
@@ -48871,7 +48877,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2694', name:'v2694 - the automated world names itself', date:'2026-09-06', note:'the test suite IS the owner world and my ledger heuristic could not see it' };
+  window.D2R_BUILD = { id:'v2695', name:'v2695 - the heart watches the owner namespace', date:'2026-09-06', note:'a stranger posting owner numbers is now an invariant, not a thing he notices' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

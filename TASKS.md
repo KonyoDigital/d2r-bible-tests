@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2695** | `(this commit)` | v2695 — the heart now flags a stranger posting owner-namespace numbers; and the un-seed removes the inherited chronicle without wiping his own finds |
 | **v2694** | `(this commit)` | v2694 — the automated world names itself the seed ledger; and the two ledger parses fail independently again |
 | **v2693** | `(this commit)` | v2693 — a retro-sweep row says so; `completedTs` meant two things and nothing on the row said which |
 | **v2692** | `(this commit)` | v2692 — the chronicle seed now names the LEDGER it belongs to; a claimed browser no longer inherits Konyo's 245 finds |

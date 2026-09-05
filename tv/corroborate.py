@@ -922,7 +922,85 @@ def _inv_every_door_counts_the_reels_it_opened():
             "journal sessions carrying a door", left, "ledger opened (all doors)", right, "<=")
 
 
-BUILDERS = (_inv_every_door_counts_the_reels_it_opened,
+def _inv_only_a_declared_owner_world_posts_owner_numbers():
+    """v2695 — WOULD HAVE FLAGGED HIS COUSIN'S BOARD THE DAY IT HAPPENED.
+
+    Konyo: "this should be or have been connected to the heart of the console so regression for
+    this.. or it suddenly not cross referencing should and could have been flagged?" He is right,
+    and the two witnesses were already on disk.
+
+    THE DEFECT IT WATCHES. bible.html carries `_GRAIL_SEED` (245 of HIS dated finds) and applies it
+    to any board that resolves as OWNER. `_isCousinShell` is only `!_D2R_OWNER`, so pressing "claim
+    this browser" flipped a stranger into the owner world and handed him another man's chronicle —
+    his cousin Dean's Uniques tab read 243/403 of items he has never held. Fixed in v2692 by giving
+    the seeds a named ledger; this is the alarm that says if it ever comes back.
+
+    THE TWO WITNESSES, and they do not talk to each other:
+      LEFT   `byRoute` — every route that actually POSTED a tally, each stamped with its install id
+             and its namespace prefix. An owner-namespace post carries pfx ''.
+      RIGHT  `ownerWorlds` — the worlds the console DECLARES are his.
+    An install that posts owner numbers while not being a declared owner world is a stranger inside
+    the owner namespace. That is the leak, stated as arithmetic.
+
+    MEASURED on his tree when this was written: 404 routes — 401 guests, every one reading
+    uniques.have 0 (the per-install ledger works and has never leaked to a guest), and 3 owner-pfx
+    routes: 77f64154 (292/123/99), c5c2c92d (280/120/99) and one null-id bootstrap row. Both real
+    ids are in ownerWorlds, so this holds at 0 today.
+
+    ⚠ CONTAINMENT, NOT EQUALITY, and the direction is the point: undeclared-owner-posts <= 0. A
+    world can be declared and never post (he has two and one is stale); the reverse — posting
+    owner numbers without being declared — is the only direction that can be a leak.
+    ⚠ THE NULL-ID ROW IS NOT A VIOLATION. It carries no install id at all, so it names nobody and
+    cannot be a stranger; counting it would make this red forever over a bootstrap artifact.
+    [[unknown-stays-unknown]]
+    """
+    import json as _json
+    import os as _os
+
+    def _tally():
+        try:
+            with open(_os.path.join(HERE, "board_tally.json"), encoding="utf-8") as fh:
+                return _json.load(fh) or {}
+        except Exception:
+            return None
+
+    def left():
+        """Install ids that POSTED owner-namespace numbers and are NOT declared owner worlds."""
+        d = _tally()
+        if d is None:
+            return None
+        declared = set()
+        for w in (d.get("ownerWorlds") or []):
+            declared.add(str(w).split("|")[0])
+        oid = d.get("ownerId")
+        if oid:
+            declared.add(str(oid))
+        bad = set()
+        for v in (d.get("byRoute") or {}).values():
+            r = (v or {}).get("route") or {}
+            if r.get("pfx"):
+                continue                      # a guest route — its own namespace, not the owner's
+            rid = r.get("id")
+            if not rid:
+                continue                      # no id names nobody; see the note above
+            if str(rid) not in declared:
+                bad.add(str(rid))
+        return len(bad)
+
+    def right():
+        d = _tally()
+        return None if d is None else 0
+
+    return ("owner-namespace-is-declared",
+            "no install posts owner-namespace numbers without being a declared owner world",
+            "claim a fresh browser, let it post a tally, and its id appears with pfx '' while "
+            "ownerWorlds still lists only his — these part",
+            "undeclared installs posting owner numbers", left, "the allowed number of them", right,
+            "<=")
+
+
+BUILDERS = (_inv_only_a_declared_owner_world_posts_owner_numbers,
+            _inv_every_door_counts_the_reels_it_opened,
             _inv_the_tooltip_finder_refuses_more_than_it_finds,
             _inv_the_console_and_the_law_agree_about_furniture,
             _inv_every_declared_tooltip_surface_is_served,
