@@ -19984,7 +19984,17 @@ def stash_screen_open_cached(frame_path):
         return stash_screen_open(frame_path)
     c = _gate_cache()
     hit = c.get(key)
-    if isinstance(hit, list) and len(hit) == 3 and hit[0] == sig[0] and hit[1] == sig[1]:
+    # ⚠ `>= 3`, NOT `== 3` — a FIVE-element row is a SUPERSET, not a different thing.
+    # v2288 started writing [size, mtime, verdict, blind, ROW_V]; this reader only ever wants the
+    # first three, and they sit at the same indices in both shapes. Written as `== 3` it MISSED
+    # every richer row and re-OCR'd it at ~0.118s a call, for no reason at all.
+    # MEASURED on his cache 2026-09-05: 3,618 rows — 3,612 three-element, 6 five-element. So this
+    # was missing 6 today and would have missed EVERY row as the store refills with the new shape,
+    # i.e. it was a defect that gets worse the more the fix above succeeds.
+    # ⚠ NOT the same as `_stash_gate_read`'s `len >= 5 and hit[4] == _GATE_ROW_V`, which misses the
+    # 3,612 old rows ON PURPOSE: those predate the receipt failing closed and are untrusted, so
+    # re-reading them is the point (v2193). One refusal is a schema guard; this one was a typo.
+    if isinstance(hit, list) and len(hit) >= 3 and hit[0] == sig[0] and hit[1] == sig[1]:
         return hit[2]
     val = stash_screen_open(frame_path)
     # v2288 — RECORD WHAT THE READER ALWAYS ASKED FOR. known_good_frame has wanted
