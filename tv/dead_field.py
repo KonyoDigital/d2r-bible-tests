@@ -226,10 +226,22 @@ def dead_fields(rows, min_rows=MIN_ROWS, declared_null=None):
     # `skipped` while the later ones carried them, so a consumer reading `r["judged"]` raised
     # KeyError on exactly the paths that mean "nothing was established" — the reading breaks in the
     # state it exists to report. A shape that changes with the verdict is not a shape.
+    # ⚠⚠ v2658 — AND IT HAPPENED AGAIN, IN THE FUNCTION WHOSE OWN COMMENT FORBIDS IT.
+    # `unfilledWherePresent` was added later at the happy-path return (:360) and never here, so the
+    # two returns carried 11 keys and 10. REG-544 is the same defect with `judged`/`skipped`, and
+    # the comment recording it sits directly above — a rule stated in prose that the code beneath
+    # stopped following. Measured: `test_probe_unknown_law` reports
+    # `Lists differ: ['unfilledWherePresent'] != []`, RED in BOTH venues, and it was pre-existing
+    # rather than introduced by this ship. [[the-unjoined-end]] [[feedback-comments-vs-code]]
+    #
+    # ⚠ `[]` and not a sentinel, deliberately: in THIS dict `state` is the field that carries
+    # unknown-ness, and every other collection here is already empty for the same reason
+    # (`dead: []`, `fields: []`, `filled: {}`). Giving one key a different shape for "nobody
+    # looked" would make the reading inconsistent with itself, which is the defect one level up.
     def _unknown(why, checked=0, skipped=0, judged=0):
         return {"state": "UNKNOWN", "dead": [], "checked": checked, "skipped": skipped,
                 "judged": judged, "fields": [], "filled": {}, "declaredNull": [],
-                "staleDeclarations": [], "why": why}
+                "staleDeclarations": [], "unfilledWherePresent": [], "why": why}
 
     if rows is None:
         return _unknown("the store could not be read, so no field was judged")

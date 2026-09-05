@@ -50,15 +50,62 @@ def _nothing_for_funnel():
 #: Each entry is a probe that publishes a `state`, and a callable that asks it with NOTHING TO
 #: READ. Each is here because a wrong CLEAN from it would be believed.
 def _nothing_for_dead_field_state():
-    """Point the store resolver at nothing and `state()` has no store to read."""
+    """Point EVERY store resolver at nothing, so `state()` really has nothing to read.
+
+    ⚠⚠ v2658 — THIS EMPTIED ONE OF TWO STORES AND THE LAW SILENTLY STOPPED COVERING THIS PROBE.
+    It patched only `reel_retention._tombstone_path` and left `disk_history` readable. `state()`
+    answers UNKNOWN only when EVERY store is UNKNOWN (`dead_field.py:400`), so with one store
+    still readable and clean it answered **OK** — and all three laws here then compared OK against
+    OK, or asserted UNKNOWN and got OK.
+
+    ⚠ AND IT WAS INVISIBLE ON THE VENUE THAT RUNS IT. Both stores are gitignored
+    (`.gitignore` tv/reel_tombstones.json, tv/disk_history.jsonl; `git ls-files` -> 0), so on a
+    GitHub runner BOTH are absent, every store is UNKNOWN, and the stub's incompleteness cannot
+    show. On his Mac `disk_history.jsonl` exists — 8,599 rows — so the probe is handed something
+    and the law goes red. **Green on CI, red on the machine whose pre-push hook grades the tree.**
+    That is `regression-guard` §3 inverted: not a test that needs his machine, but a stub whose
+    hole only his machine can reveal.
+
+    ⚠ THE PRODUCT IS NOT THE DEFECT HERE, and it was checked before this was changed. `state()`'s
+    `why` said the honest thing all along — *"nothing was established for 1 of 2 store(s)
+    (reel_tombstones) — that is UNKNOWN, not a clean bill"* — while the stub's premise, that the
+    probe had been handed NOTHING, was simply false. Fixing the reading to match a broken stub
+    would have been the wrong half. [[feedback-suspect-the-instrument]]
+    """
+    gone = os.path.join(HERE, ".no_such_store_ever.json")
+    return _dead_field_state_over(gone)
+
+
+def _dead_field_state_over(path):
+    """`dead_field.state()` with EVERY store it reads pointed at `path`. -> reading
+
+    ⚠ ONE ROUTINE, TWO CALLERS, ON PURPOSE. This same patching is needed by
+    `_nothing_for_dead_field_state` above and by the `dead_field.state` case in
+    `test_no_probe_CRASHES_ON_ITS_OWN_UNREADABLE_SOURCE` below, and BOTH copies had the identical
+    hole — only `_tombstone_path` was patched, `disk_history` stayed readable, and `state()`
+    answered OK. A stub that exists twice drifts, and here it did not even need to drift: the
+    defect was written into both copies at once. [[copy-drift]] §7 — put the routine on the path
+    every entry passes through, and make the other site CALL it.
+
+    ⚠⚠ EXHAUSTIVE BY CONSTRUCTION, NOT BY A HAND-TYPED LIST. It reads `dead_field.WATCHED` and
+    patches the resolver each entry NAMES, so a third store added tomorrow is emptied the day it
+    appears. A hardcoded pair would patch two of three and the law would go vacuous silently —
+    and only on a venue where that third store happens to exist, which is how this hole survived
+    in the first place. `test_BASELINE_the_store_stub_really_empties_every_store` asserts it.
+    """
+    import importlib
     import dead_field as DF
-    import reel_retention as RR
-    real = RR._tombstone_path
+    saved = []
     try:
-        RR._tombstone_path = lambda *a, **k: os.path.join(HERE, ".no_such_store_ever.json")
+        for entry in DF.WATCHED:
+            mod_name, attr = entry[1]
+            mod = importlib.import_module(mod_name)
+            saved.append((mod, attr, getattr(mod, attr)))
+            setattr(mod, attr, lambda *a, **k: path)
         return DF.state()
     finally:
-        RR._tombstone_path = real
+        for mod, attr, real in saved:
+            setattr(mod, attr, real)
 
 
 def _nothing_for_reel_river():
@@ -542,6 +589,36 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
                          "a reel whose birth could not be read gets a THINNER row than one that "
                          "could: %s" % [sorted(x) for x in shapes])
 
+    def test_BASELINE_the_store_stub_really_empties_every_store(self):
+        """★ ANTI-VACUITY for the stub itself, and it is the guard this file most needed.
+
+        Three laws below ask `dead_field.state` what it says when handed NOTHING. All three were
+        passing OK-against-OK on his Mac because the stub emptied ONE of two stores — it never
+        handed the probe nothing at all, so the laws compared a reading against itself and could
+        not have failed for their own reason.
+
+        A stub is an instrument. This asserts the instrument WORKED before any verdict built on it
+        is believed: every store `dead_field.WATCHED` declares must come back UNKNOWN, and the
+        count must equal the number declared — so adding a store the stub cannot reach fails HERE,
+        loudly, instead of quietly making three laws vacuous somewhere else.
+        [[feedback-suspect-the-instrument]] [[feedback-blind-fixture-green-gate]]
+        """
+        import dead_field as DF
+        r = _nothing_for_dead_field_state()
+        self.assertEqual(len(r["stores"]), len(DF.WATCHED),
+                         "the stub reached %d store(s) but dead_field declares %d — a store it "
+                         "cannot empty makes every law over this probe vacuous: %s"
+                         % (len(r["stores"]), len(DF.WATCHED), r))
+        not_unknown = [s["store"] for s in r["stores"] if s["state"] != "UNKNOWN"]
+        self.assertEqual(not_unknown, [],
+                         "%s stayed READABLE while the stub claimed to hand this probe nothing, "
+                         "so the laws below compared a real reading against itself. This is the "
+                         "exact hole that made them pass on CI (where every store is gitignored "
+                         "and therefore absent) and fail on his Mac (where disk_history.jsonl "
+                         "has 8,599 rows). Reading: %s" % (not_unknown, r))
+        self.assertEqual(r["state"], "UNKNOWN",
+                         "every store is UNKNOWN and the headline still is not: %s" % r)
+
     def test_no_probe_CRASHES_ON_ITS_OWN_UNREADABLE_SOURCE(self):
         """⚠⚠ REG-554 — THE FIRST VERSION OF THIS LAW PASSED FOR THE WRONG REASON, and a cold
         review's unrelated question is what exposed it.
@@ -573,9 +650,10 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
             ("one_start_point.start_points",
              lambda: __import__("one_start_point").start_points(os.path.join(d, "no_shelf")),
              "state"),
-            ("dead_field.state", self._with(RR, "_tombstone_path", lambda *a, **k: trap,
-                                            lambda: __import__("dead_field").state()),
-             "state"),
+            # ⚠ v2658 — this patched ONLY `_tombstone_path`, so `disk_history` stayed readable and
+            # `state()` answered OK over a source it could not read. Same hole as
+            # `_nothing_for_dead_field_state`, written twice; both now call the one routine.
+            ("dead_field.state", lambda: _dead_field_state_over(trap), "state"),
             # ⚠ MY FIRST CUT PATCHED THE WRONG THING AND THE LAW BLAMED THE PROBE. I swapped
             # `retro_triage.STORE`, assuming printer_reach quoted it; it reads its own module
             # constant `TRIAGE`. The probe answered its real measured verdict and the law called
