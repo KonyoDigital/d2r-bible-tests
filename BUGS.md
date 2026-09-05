@@ -20999,6 +20999,36 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-643 — the hunt bridge stores two of the three inputs, so his hours cannot be re-derived
+
+⚠ **NAMED, NOT FIXED, AND IT IS A NUMBER HE PLANS AROUND.** `v1740` ("one number per farm") fails
+on exactly **2 of 377** bridge items — measured locally with a real denominator, not read off CI:
+
+| item | console says | board says | bridge stored |
+|---|---|---|---|
+| The Scourge | **36.47 h** | **4.65 h** | `dropChance 0.000422`, `killsPerHr 45` |
+| Polaris Spear | **32.62 h** | **4.16 h** | `dropChance 0.000472`, `killsPerHr 45` |
+
+**A 7.8× disagreement on time-to-find**, on the two surfaces this file exists to keep in step.
+
+**What is measured:** the bridge writer (`bible.html:18188`) selects its best source with
+`hoursFor(adj, 0.5, s.kph || 100, killsPerRun(s.bossId))` — **four** arguments — then stores only
+`dropChance: 1/best.chance` and `killsPerHr: best.kph`. **The kills-per-run factor is not stored**,
+so the pair it saves cannot reproduce the hours it selected with. Every other product call site
+(`18300`, `20303`, `20342`, `20480`) passes the 4th argument too.
+
+⚠ **MY FIRST HYPOTHESIS WAS THAT THE SPEC SIMPLY OMITS THAT ARGUMENT, AND MEASUREMENT REFUTED IT.**
+Passing `killsPerRun` into the spec's board-side call does not reconcile the two — it **widens** the
+gap (board 4.65 h → **0.33 h**) and flips the chosen source from `pindle/hellTz kph 300` to
+`pit/hellTz kph 45`. So the missing argument is real but is **not** the whole cause, and "add the
+4th arg" would have been a plausible fix that made his numbers worse.
+[[feedback-suspect-the-instrument]]
+
+**Why it is not fixed here:** the question is *which* number is the true one for these two items —
+the source the bridge picked, or the fastest the board can find — and that decides what his ops row
+tells him to farm. Choosing it in code would be picking a farming answer on his behalf.
+**HIS CALL**, with the measurement above in hand. [[unknown-stays-unknown]]
+
 ## REG-642 — clearing the STORE does not clear the PAGE, and it made my probe lie twice
 
 Investigating `v1991` (a swept item that should reach a mule, `applied.grail` came back `[]` on CI),
