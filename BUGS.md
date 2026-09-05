@@ -20558,3 +20558,52 @@ measurement is UNKNOWN. Either way 7 collisions exist now. `[[unknown-stays-unkn
 so the gate refuses to grade anywhere until it is re-blessed — and re-blessing while these 7 stand
 would bake them in as debt. Fix the layout first, then bless, then the venue stamp lands with a
 clean number.
+
+## REG-616 — the hardening advice counted attempts while the bar counted attacks (v2661)
+
+Sibling of REG-614, found by sweeping for the same defect rather than by being told about it.
+`_hardening_gap` computed `moreRefusalsNeeded` by walking the RAW attempt count:
+
+```python
+if k == n:
+    nn = n
+    while nn < n + 500:
+        nn += 1
+        if wilson_lower(nn, nn) >= HARD_BAR:
+            out["moreRefusalsNeeded"] = nn - n
+```
+
+Since `ddd55279` the DECIDING figure is the per-attack score, so this answered a question nobody
+is graded on. Measured on `reel.route`: 56 attempts, **7 distinct attacks**, deciding wilson 0.646.
+The report said *"1 more refused sabotage(s) would clear it"* — from `n=56 → wilson_lower(57,57)`.
+A 57th attempt leaves the 7 distinct attacks untouched and the figure unmoved at 0.646.
+`wilson_lower(x, x)` first clears `HARD_BAR = 0.900` at **x = 35**, so the honest answer was
+**+28 DISTINCT ATTACKS** — wrong by 28x.
+
+⚠ **And wrong in the worst available direction.** It recommended looping one attack over more
+inputs — the precise thing his 2026-09-04 ruling refuses to reward — in the same report whose
+`state` had just stopped rewarding it. A ladder that misprices its own next rung is worse than one
+that gives no advice.
+
+**Fixed:** the gap is fed the pair that matches the figure it grades, and names the unit it is
+counting. Now:
+
+```
+reel.route     owes HARDENED: wilson 0.646 is 0.254 short of 0.900 (28 more refused distinct attacks…)
+prune.reports  … 0.224 short … (27 more refused distinct attacks would clear it)
+vault.apply    … 0.462 short … (32 more refused distinct attacks would clear it)
+```
+
+All three reconcile against a common target of 35 distinct all-refusing attacks (35−7, 35−8, 35−3).
+
+**Guarded by a law with a red-proof on the real historical value.**
+`test_the_advice_counts_what_the_bar_counts` requires that adding `moreRefusalsNeeded` to the
+DECIDING denominator actually clears `HARD_BAR`, **and that one fewer does not** — so the number
+must be the smallest sufficient one, not merely a sufficient one.
+`test_the_old_raw_denominator_advice_would_FAIL_this_law` pins the pre-fix value: +1 on a
+denominator of 7 gives `wilson_lower(8, 8)` = 0.676, which the law rejects. Had it passed, the law
+would prove nothing.
+
+**Consequence for A2·HARD, stated plainly:** "nothing is HARDENED" is not a defect, it is the bar
+working. Reaching HARDENED needs ~35 genuinely distinct attack designs per lock plus a third
+evidence kind. `prune.reports` is closest — a `live` kind alone closes its confluence half.

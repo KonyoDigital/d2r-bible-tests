@@ -1757,3 +1757,67 @@ FUNCTION EXISTING."*
 
 **Status: open, and mine.** The finding is measured; the build is a new joined lane, not seven
 lines in an existing one.
+
+### ⚠ RETRACTION — I said those seven targets "would refuse on every single run". They do not.
+
+I wrote above that adding console-tab targets to `render_check` would be decoration, because the
+board iframe's src is the absolute path `/board?…` and the lane loads from the filesystem. The
+first half is true. **The conclusion was wrong, and testing it took one script.**
+
+`render_check` **already has a serve mode**, and most of its lane uses it: `page`, `state-panel`,
+`heart`, `locks`, `advanced`, `advanced-shadow` and `advanced-fleet` all carry `"serve": True`,
+which boots a private `control_app` on an ephemeral port (and refuses `:17772` **by name** — his
+live console) and loads the target over http. The `console` target is simply one of the five that
+does not. I read the one target I cared about and generalised from it.
+
+**Measured, served, at 1440x1000** — clicking each `#head-tabs .ht[data-tab]` and reading the
+board's own `.tab.active` through the iframe:
+
+| tab | `body.dataset.shellTab` | board `.tab.active` | routed |
+|---|---|---|---|
+| session · forge · crafts · funi · fsets · tools · vault | matches | matches | ✅ 7 of 8 |
+| tvd | `tvd` | unchanged | **correct — see below** |
+
+`tvd` stamps the route and deliberately leaves the board alone. `control_ui.html:16139`:
+`if (b.dataset.tab === 'tvd'){ document.body.removeAttribute('data-view'); shellHome(); return; }`
+— *"TV·D = the cockpit home"*. I reproduced the non-routing three times with settle time and was
+about to file it as the v2125 defect. It is the design, and the line says so in its own trailing
+comment. **Read the comment before judging a measurement; ignore it when judging the code.**
+
+**So the work is a flag, not a new lane.** Console-tab targets with `serve: True`, asserting
+`shellTab == board .tab.active` for the seven routing tabs and cockpit-home behaviour for `tvd`.
+The class worth catching is still v2125's — prove the DESTINATION moved, never that the button lit.
+
+### `targets` — routing PROVEN, the gate NOT shipped, and why I backed it out
+
+The console-tab render target was written, run at all five widths, and then **reverted**. What it
+established stands; what it could not do cleanly was not shipped.
+
+**Established (reproducible, served, 1440x1000):** clicking each `#head-tabs .ht[data-tab]` and
+reading the board's own `.tab.active` through the iframe — **7 of 8 tabs route the board**
+(`session forge crafts funi fsets tools vault`), each with `body.dataset.shellTab` agreeing.
+`tvd` stamps and deliberately does not route: *"TV·D = the cockpit home"*
+(`control_ui.html:16139`). Reproduced 3/3 with settle time.
+
+**Why it is not in `TARGETS` yet.** The target needs a selector, and neither candidate gives an
+honest verdict:
+
+| `sel` | verdict | why it is wrong |
+|---|---|---|
+| `#head-tabs .ht` | 🔴 `imgs 5/8 broken` | contradicted by the pixels — the strip renders all 8 icons cleanly, and all 7 files exist on disk and serve **200 with real bytes** from the private console |
+| `#tvd-eng` | 🔴 `painted but carries NO TEXT` | it is an `<iframe>`; its text is a separate document the parent-side probe cannot read |
+
+⚠ **I do not understand the `5/8 broken` count, and that is the reason not to ship it.** The check
+is `complete && naturalWidth === 0`, which should mean genuinely failed — yet the icons are
+visibly present and individually fetchable. A gate whose red I cannot explain trains everyone to
+ignore the next real one, which is this module's own stated fear.
+
+**Remaining work, small and specified:** a selector in the PARENT document that bears text, carries
+no `<img>`, and moves with the route. The labels are bare text nodes inside the buttons
+(`<button class="ht"><img class="ht-i"> Runewords</button>`), so there is nothing to select today —
+wrapping them in a `<span class="ht-lbl">` would create one, and that is a `control_ui.html` change,
+not a `render_check` one.
+
+⚠ **Cost note for whoever picks this up:** `_serve_console()` is NOT memoised — every
+`"serve": True` target boots its own private `control_app`. Seven already do. Add ONE target that
+walks all eight tabs, never eight targets.

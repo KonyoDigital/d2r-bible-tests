@@ -1087,6 +1087,49 @@ class TheCountsNameTheSameQuantityAsTheFigure(unittest.TestCase):
             self.assertIn("DISTINCT ATTACKS", l.get("why") or "",
                           "%s decides per attack but its sentence does not say so" % l.get("lock"))
 
+    def test_the_advice_counts_what_the_bar_counts(self):
+        """REG-616: `moreRefusalsNeeded` must be expressed in the unit that DECIDES.
+
+        It was computed from the raw attempt count while the bar reads the per-attack score, so it
+        told reel.route "1 more refused sabotage would clear it" when a 57th attempt leaves the 7
+        distinct attacks — and the figure — untouched. Advice that recommends repetition is worse
+        than no advice here: repetition is the exact thing the ruling refuses to reward.
+
+        THE LAW: adding that many to the DECIDING denominator must actually clear HARD_BAR, and
+        one fewer must not (it is the smallest such number, not merely a sufficient one).
+        """
+        checked = 0
+        for l in self._scored():
+            g = l.get("hardeningGap") or {}
+            m = g.get("moreRefusalsNeeded")
+            if m is None:
+                continue
+            pair = re.match(r"\s*(\d+) of (\d+) ", l.get("why") or "")
+            if not pair:
+                continue
+            d = int(pair.group(2))                      # the deciding denominator
+            checked += 1
+            self.assertGreaterEqual(
+                SA.wilson_lower(d + m, d + m), SA.HARD_BAR,
+                "%s: +%d on a denominator of %d does not reach HARD_BAR" % (l.get("lock"), m, d))
+            self.assertLess(
+                SA.wilson_lower(d + m - 1, d + m - 1), SA.HARD_BAR,
+                "%s: +%d is not minimal — one fewer already clears" % (l.get("lock"), m))
+        self.assertGreater(checked, 0, "no row carried advice — this proved nothing")
+
+    def test_the_old_raw_denominator_advice_would_FAIL_this_law(self):
+        """RED-PROOF, on the real historical value rather than an invented one.
+
+        Before REG-616 the report told reel.route "1 more refused sabotage would clear it", derived
+        from the raw pair n=56 -> wilson_lower(57, 57) >= 0.900. reel.route's DECIDING denominator
+        is 7 distinct attacks, so the law above must reject +1 on 7.
+        """
+        d, old_m = 7, 1
+        self.assertLess(SA.wilson_lower(d + old_m, d + old_m), SA.HARD_BAR,
+                        "the old advice would have satisfied the law, so the law proves nothing")
+        self.assertGreaterEqual(SA.wilson_lower(d + 28, d + 28), SA.HARD_BAR,
+                                "+28 on 7 distinct attacks should be the honest answer")
+
     def test_a_mismatched_pair_is_caught(self):
         """RED-PROOF: the assertion must fail on a row whose pair does not match its figure."""
         bad = {"lock": "fake", "deciding": "wilson", "wilson": 0.646, "why": "56 of 56 refused"}

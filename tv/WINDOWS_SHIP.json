@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2660",
+  "ver": "v2661",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2660: REG-614: the decision was honest and every number on screen was the inflated one",
+  "note": "v2661: REG-616: the hardening advice counted attempts while the bar counted attacks",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

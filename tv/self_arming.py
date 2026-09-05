@@ -853,7 +853,14 @@ def score(lock, rows=None):
     # _hardening_gap. Computed here so LOCKED rows carry it too: a lock below its own bar is
     # also below HARDENED, and hiding that until it opens would make the ladder look shorter
     # than it is.
-    out["hardeningGap"] = _hardening_gap(w, conf, kinds, n, k)
+    # ⚠⚠ REG-616 — THE ADVICE MUST COUNT WHAT THE BAR COUNTS. This passed the RAW attempt pair
+    # while `w` is the per-attack score, so it answered a question nobody is graded on: it told
+    # reel.route "1 more refused sabotage would clear it" (n=56 -> 57) when a 57th ATTEMPT leaves
+    # the 7 distinct attacks untouched and the figure unmoved at 0.646. wilson_lower(x, x) first
+    # clears HARD_BAR at x=35, so the honest answer was +28 DISTINCT ATTACKS — wrong by 28x, and
+    # wrong in the direction that recommends the exact repetition his 2026-09-04 ruling refuses to
+    # reward. Sibling of REG-614, found by sweeping for it rather than by being told.
+    out["hardeningGap"] = _hardening_gap(w, conf, kinds, _wn, _wk, unit=_wunit.lower())
     if w < spec["bar"]:
         out["state"] = LOCKED
         out["why"] = ("%d of %d %s were refused%s; the Wilson lower bound is %.3f against a "
@@ -892,7 +899,7 @@ def score(lock, rows=None):
     return out
 
 
-def _hardening_gap(w, conf, kinds, n, k):
+def _hardening_gap(w, conf, kinds, n, k, unit="sabotage(s)"):
     """What does this surface still OWE the HARDENED tier? -> dict, always the same shape.
 
     ⚠⚠ HARDENED WAS A TIER NOTHING COULD REACH AND NOTHING EXPLAINED. Measured 2026-09-04 across
@@ -951,8 +958,8 @@ def _hardening_gap(w, conf, kinds, n, k):
         bits.append("wilson %.3f is %.3f short of %.3f%s"
                     % (w, out["wilsonShort"], HARD_BAR,
                        ("" if out["moreRefusalsNeeded"] is None else
-                        " (%d more refused sabotage(s) would clear it)"
-                        % out["moreRefusalsNeeded"])))
+                        " (%d more refused %s would clear it)"
+                        % (out["moreRefusalsNeeded"], unit))))
     if out["kindsShort"] is not None:
         bits.append("kinds %.2f is %.2f short of %.2f%s"
                     % (conf, out["kindsShort"], HARD_KINDS_BAR,
