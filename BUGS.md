@@ -20806,12 +20806,40 @@ refused rather than half-patching: `vault`'s label is followed by a `lockchip` b
 `</button>`. Rewritten to match the text node up to whatever tag follows, all 8 wrapped and the
 badge stayed outside the span.
 
-**GREEN, then PROVEN RED FOR ITS OWN REASON.**
+**GREEN, then PROVEN RED ON BOTH AXES.**
 
 ```
 🟢 console-tabs  painted 8/8 · clipped 0 · off 0 · covered 0 · imgs 0/0 broken   (all 5 widths)
-🔴 with `tvd` added to ROUTING:  "the panel could not be ACTIVATED"   CT_RC=1
+🔴 `tvd` added to ROUTING          -> refuses   CT_RC=1   (a non-router told to route)
+🔴 `forge` added to CONSOLE_NATIVE -> refuses   CT_RC=1   (a router told not to)
 ```
+
+⚠⚠ **THE FIRST RED-PROOF WAS NOT ENOUGH, AND THAT IS THE LESSON.** Adding `tvd` to `ROUTING` only
+varied ONE axis — *which tab*. It sailed past a missing rect check, past a wrong premise about
+`session`, and past an inverted assertion about what console views do. **A red-proof is evidence
+about the axis you vary, not a certificate.**
+
+⚠⚠ **THREE CLAUSES OF THIS GATE WERE WRONG AND MEASUREMENT CORRECTED EACH ONE.**
+1. **No rect proof.** The pre-push law `test_activation_is_proven_from_the_RECT_not_from_the_call_returning`
+   blocked the push: reading `.tab.active` proves the board ROUTED, not that the destination
+   PAINTED — and v2125's defect was a tab lighting up over a pane at `display:none, height 0`. I
+   had written a gate against v2125 that v2125 could walk past.
+2. **`session` was in the wrong group.** `control_ui.html:16178` —
+   `if (b.dataset.tab === 'session'){ showSessions(); return; }  // v1376 — Sessions = console-native
+   flagship hunt hub`. TWO tabs are console-native, not one. Clicked first, `session` reported
+   `active=session` with a `0x3755` pane — only because the board BOOTS on session, so the click
+   changed nothing. Clicked later it reported `display:none` with `active` on the PREVIOUS tab. I
+   read the first as "zero-width pane" and the second as "the header cannot reach Sessions". Both
+   were the design.
+3. **The console-native clause was inverted.** I required the room they leave to STAY painted.
+   Measured: clicking `session` took `tab-vault` from `1384x122` to `0x122` — because
+   `showSessions()` calls `_shellDemotePane()`. Collapsing the board pane IS what returning to a
+   console view means. I asserted a cockpit view must not blank the board, when blanking the board
+   is its whole job.
+
+The law is now a before/after so it cannot pass on an already-flat pane: promote a known board
+room, prove it painted, then prove the console-native tab stamps itself, leaves `active` alone, and
+DEMOTES that pane.
 
 The red-proof is the same test as the purpose: TV·D must NOT move the board, so a gate that reads
 the **destination** refuses when told to expect routing, while a gate that only checked the header

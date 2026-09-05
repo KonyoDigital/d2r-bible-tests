@@ -878,13 +878,30 @@ TARGETS = {
         "path": "",
         "warmup": 12.0,
         "settles": False,
-        "why": ("Every tab in the console header ROUTES THE BOARD, proven from the board's own "
-                "active tab rather than from the header lighting up. Seven must move it; TV·D must "
-                "not, because TV·D is the cockpit home."),
+        "why": ("Six tabs in the console header ROUTE THE BOARD and must PAINT what they route "
+                "to, proven from the board's own active tab and the destination pane's rect "
+                "rather than from the header lighting up. TWO are console-native and must do "
+                "the opposite: session (the flagship hunt hub) and TV·D (the cockpit home) "
+                "stamp themselves, leave the board where it was, and leave that room painted."),
         "seed": """(function(){ return 1; })()""",
         "sel": "#head-tabs .ht-lbl",
         "activate": r"""(function(){
-            var ROUTING = ["session","forge","crafts","funi","fsets","tools","vault"];
+            /* ⚠⚠ SIX ROUTE, TWO ARE CONSOLE-NATIVE — and I had session in the wrong group,
+               which the rect check exposed. control_ui.html dispatches TWO tabs to console views
+               that deliberately leave the board alone:
+                   :16178  if (b.dataset.tab === 'session'){ showSessions(); return; }
+                           // v1376 — Sessions = console-native flagship hunt hub
+                   :16139  if (b.dataset.tab === 'tvd'){ …; shellHome(); return; }
+                           // TV·D = the cockpit home
+               showSessions() calls _shellDemotePane() and _shellRestoreConsole() and sets
+               data-view="sessions" — it is a CONSOLE surface, not a board room.
+               ⚠ MEASURED, because the first run looked like a defect twice over. Clicked FIRST,
+               session reported active=session with a 0x3755 pane — only because the board BOOTS on
+               session (src=…#session), so the click changed nothing. Clicked 4th and 8th it
+               reported display:none with active still on the PREVIOUS tab. Both readings were the
+               design, not a bug: the board never leaves the room it was in. */
+            var ROUTING = ["forge","crafts","funi","fsets","tools","vault"];
+            var CONSOLE_NATIVE = ["session","tvd"];
             var f = document.getElementById('tvd-eng');
             if (!f) return false;
             var d; try { d = f.contentWindow && f.contentWindow.document; } catch (e) { return false; }
@@ -896,21 +913,53 @@ TARGETS = {
             /* the board must have BOOTED, or every comparison below runs against null and passes
                by accident on an empty iframe. UNKNOWN is not a pass. */
             if (!active()) return false;
+            /* ⚠⚠ PROVE IT FROM THE RECT — the repo's law, and my first cut broke it.
+               test_activation_is_proven_from_the_RECT_not_from_the_call_returning requires every
+               activate to measure a real box, and it caught this one: reading `.tab.active` proves
+               the board ROUTED and NOT that the destination PAINTED. v2125's defect was exactly a
+               tab lighting up while its destination sat at display:none, height 0 — so
+               `.tab.active === t` over a hidden pane would have passed. The pane is `#tab-<name>`
+               (bible.html:27990: `_tabEl = $("tab-"+name)`), read inside the board's own document. */
+            function paneRect(t){
+                try { var el = d.getElementById('tab-' + t); if (!el) return null;
+                      return el.getBoundingClientRect(); } catch (e) { return null; }
+            }
             for (var i = 0; i < ROUTING.length; i++){
                 var t = ROUTING[i];
                 var b = document.querySelector('#head-tabs .ht[data-tab="' + t + '"]');
                 if (!b) return false;
                 b.click();
                 if (document.body.dataset.shellTab !== t) return false;   /* the stamp */
-                if (active() !== t) return false;                          /* AND the destination */
+                if (active() !== t) return false;                          /* the destination moved */
+                var pr = paneRect(t);                                      /* AND it is really there */
+                if (!pr || pr.width <= 2 || pr.height <= 2) return false;
             }
-            /* TV·D: stamps itself, leaves the board alone. Both halves asserted. */
-            var was = active();
-            var tv = document.querySelector('#head-tabs .ht[data-tab="tvd"]');
-            if (!tv) return false;
-            tv.click();
-            if (document.body.dataset.shellTab !== "tvd") return false;
-            if (active() !== was) return false;
+            /* ⚠⚠ THE CONSOLE-NATIVE PAIR DEMOTES THE BOARD — and my first cut asserted the
+               OPPOSITE, requiring the room they left to stay painted. Measured: clicking session
+               with the board on vault took tab-vault from 1384x122 to 0x122. That is not a bug, it
+               is `showSessions()` calling _shellDemotePane() and _shellRestoreConsole() — collapsing
+               the board pane IS what returning to a console view means. I asserted that a cockpit
+               view must not blank the board, when blanking the board is its whole job.
+               THE REAL LAW IS A BEFORE/AFTER, so it cannot pass on a pane that was already flat:
+               promote a real board room first, prove it is painted, THEN prove the console-native
+               tab stamps itself, leaves `active` alone, and DEMOTES that pane. */
+            for (var j = 0; j < CONSOLE_NATIVE.length; j++){
+                var ct = CONSOLE_NATIVE[j];
+                /* re-promote a known board room, so the demotion below is a measured CHANGE */
+                var anchor = document.querySelector('#head-tabs .ht[data-tab="vault"]');
+                if (!anchor) return false;
+                anchor.click();
+                if (active() !== "vault") return false;
+                var before = paneRect("vault");
+                if (!before || before.width <= 2 || before.height <= 2) return false;
+                var cb = document.querySelector('#head-tabs .ht[data-tab="' + ct + '"]');
+                if (!cb) return false;
+                cb.click();
+                if (document.body.dataset.shellTab !== ct) return false;   /* it stamps itself */
+                if (active() !== "vault") return false;                    /* board did NOT move */
+                var after = paneRect("vault");
+                if (!after || after.width > 2) return false;               /* and it DEMOTED the pane */
+            }
             return true; })""" + """()""",
     },
 }
