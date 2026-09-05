@@ -67,7 +67,36 @@ class ARulingSurvivesTheDeriver(unittest.TestCase):
 class TheStoryCannotSilentlyMisFile(unittest.TestCase):
 
     def test_no_stage_can_renumber_a_topic_into_the_next_stage(self):
-        rows = B.build()[0]
+        """⚠⚠ THE MODULE THIS GRADES READS A HARDCODED ABSOLUTE PATH, AND THAT IS WHY IT WAS RED.
+        `board_sync.py:40` is `REPO = os.environ.get("D2R_REPO", "/Users/konyo/d2r_bible_tests")`
+        and `TASKS` is derived from it at import, so `build()` opens HIS Mac's TASKS.md wherever it
+        runs. On the runner that directory does not exist and this raised
+        `FileNotFoundError: .../TASKS.md` — an ERROR, not a failure, so the law below was never
+        graded at all (CI run 33951643518).
+
+        ⚠ AND IT ESCAPES A SANDBOX, which nearly cost the diagnosis. Run from a `git archive HEAD`
+        export — the venue that reproduces the runner by carrying tracked files only — this test
+        PASSED, because board_sync reached back out of the export and read the live
+        /Users/konyo/d2r_bible_tests/TASKS.md. The `ResourceWarning` naming that absolute path was
+        the only tell. A reproduction that reads the very file it was built to exclude is measuring
+        the host. [[feedback-suspect-the-instrument]]
+
+        TASKS.md IS tracked, so the fixture is the repo THIS FILE lives in, found from `__file__`
+        rather than typed — same document on both venues, no coverage traded. Both attributes move
+        together: patching REPO alone leaves TASKS frozen against the original, the half-redirect
+        `test_import_bound_paths.py`'s REGISTRY pins as the trap on this exact module.
+        """
+        repo = os.path.dirname(HERE)
+        real_repo, real_tasks = B.REPO, B.TASKS
+        try:
+            B.REPO, B.TASKS = repo, os.path.join(repo, "TASKS.md")
+            self.assertTrue(
+                os.path.exists(B.TASKS),
+                "no TASKS.md above this test at %r, so the deriver has nothing to read and a pass "
+                "here would be measuring an empty file" % B.TASKS)
+            rows = B.build()[0]
+        finally:
+            B.REPO, B.TASKS = real_repo, real_tasks
         self.assertTrue(rows, "BASELINE: no rows derived, so this law is vacuous")
         bases = sorted((o, k) for k, (_t, o, _s) in B._SEC.items())
         by_stage = {}

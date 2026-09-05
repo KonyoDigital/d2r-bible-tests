@@ -14,8 +14,11 @@ kind. [[unknown-stays-unknown]]
 an example is blind the moment they do not — and "there are no contradictions" is exactly when that
 blindness arrives. [[gate-blind-to-unexercised-input]]
 """
+import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -109,10 +112,59 @@ class AZeroMustEarnTheWordClean(unittest.TestCase):
 
     def test_UNREACHABLE_still_means_the_MEASURED_finding(self):
         """⚠ BASELINE for the split: if UNREACHABLE stopped being reachable, the fix would have
-        traded one collapse for a lost verdict."""
-        self.assertEqual(PR.report()["state"], PR.UNREACHABLE,
-                         "the live tree no longer reports the measured UNREACHABLE, so the real "
-                         "finding was lost when UNKNOWN was split out")
+        traded one collapse for a lost verdict.
+
+        ⚠⚠ IT USED TO CALL `PR.report()` BARE, WHICH MADE IT A TEST ABOUT HIS FOOTAGE. Both stores
+        it reaches are gitignored — `.gitignore:147` for `tv/retro_triage.json`, and
+        `tv/vault_swept.json` is simply untracked — so `git ls-files` measures 0 tracked bytes of
+        either and the runner has neither. `_triage()` then cannot open the file and answers
+        UNKNOWN, which is the correct answer to a store that is not there. MEASURED on a
+        `git archive HEAD` export of this tree: `AssertionError: 'UNKNOWN' != 'UNREACHABLE'`,
+        byte-identical to CI run 33951643518. Nothing was lost; the runner has none of his reels.
+
+        ⚠ AND IT WAS PINNED TO A DATUM, NOT A LAW. His corpus reports UNREACHABLE only while no
+        seal names `location` — the day the sweep starts recording it, his corpus earns CLEAN and
+        this goes red with nothing broken. A baseline must assert what must always be true of
+        `report()`, not what happens to be true of one shelf.
+        [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+
+        So the corpus is CONSTRUCTED — and, unlike the two stubbed cases above, it is constructed
+        ON DISK and read by the module's OWN readers. That distinction is the whole baseline after
+        REG-543: `report()` can only reach UNKNOWN when a reader fails, and a stubbed reader can
+        never fail, so only a real read off a real file proves UNREACHABLE is still reachable end
+        to end rather than merely reachable in a harness.
+        """
+        tmp = tempfile.mkdtemp(prefix="printer-reach-fixture-")
+        real_triage_path, real_seals = PR.TRIAGE, FA.sealed_sessions
+        try:
+            # a readable reel survey, and a readable seal store whose one seal names no `extracted`
+            # — the live shape, written out rather than stubbed so `_triage` and `sealed_sessions`
+            # both do their real work. `_load` joins root with SEAL_STORE, so the fixture is a
+            # DIRECTORY and `sealed_sessions` is asked for it by its own documented `root=` seam.
+            triage = json.dumps({"reel_s_1": {"panels": 9, "frames": 100}})
+            seals = json.dumps({"s_1": {"ts": 1, "rows": 1, "promptVer": "vpX"}})
+            with open(os.path.join(tmp, "retro_triage.json"), "w", encoding="utf-8") as fh:
+                fh.write(triage)
+            with open(os.path.join(tmp, FA.SEAL_STORE), "w", encoding="utf-8") as fh:
+                fh.write(seals)
+            PR.TRIAGE = os.path.join(tmp, "retro_triage.json")
+            FA.sealed_sessions = lambda root=None: real_seals(tmp)
+            r = PR.report()
+        finally:
+            PR.TRIAGE, FA.sealed_sessions = real_triage_path, real_seals
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertNotEqual(
+            r["state"], PR.UNKNOWN,
+            "both stores were written to disk and read back, so nothing failed to open — reading "
+            "UNKNOWN here means a reader broke, not that the corpus said nothing: %s" % r.get("why"))
+        self.assertEqual(
+            r["state"], PR.UNREACHABLE,
+            "the module's own readers, on a store that IS readable and whose seals certify no "
+            "extraction, no longer report the measured UNREACHABLE (%r). That is the verdict the "
+            "UNKNOWN split existed to keep." % r["state"])
+        self.assertIn("REFUSING EVERY SEAL", r["why"],
+                      "it is the OTHER UNREACHABLE — the join, not the contract. This baseline "
+                      "must pin the measured finding, not whichever one is easiest to reach")
 
     def test_the_contract_is_read_from_frame_authority_not_copied(self):
         """[[copy-drift]] §1 — if this module ever hardcodes the three facts, the contract can
