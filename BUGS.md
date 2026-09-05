@@ -20999,6 +20999,67 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-654 — every sunder asked him to find it TWICE, and the game file settled it (v2680)
+
+**HIS REPORT, with a screenshot:** searching *Bone* in the Uniques chronicle showed **Latent Bone
+Break** as its own row. *"this is not a duplicate.. yes we have latent of bone break but the
+chronicle itself is not latent thats just the upgraded version of it after we upgrade in hordaic
+cube.. so for the chronicle all sunders 6 of them need to be counted in the chronicle specifically
+as 1 tally for each.. and for the vault that a different story the entire item database should be
+there regardless."*
+
+**CONFIRMED, then SETTLED FROM THE GAME FILE rather than from argument.** Measured on the live page:
+all six sunders were in the roster **twice** — bare *and* `Latent …` — 12 chronicle entries where he
+wants 6.
+
+⚠ **I DID NOT JUST DELETE THEM, BECAUSE `chronTotal = 403` IS GAME TRUTH** and a roster of 392 would
+sit 4 *below* the game's 396 distinct names. So the 28 GB RotW CASC store was re-opened —
+it is on disk at the CrossOver bottle; only the earlier extraction OUTPUT was lost to `/tmp`, which
+is `chronicle_total.py`'s own recorded lesson. `uniqueitems.txt` was re-extracted and
+`tv/chronicle_total.py --count` **reproduced every cached number exactly**: 439 rows · 24
+disableChronicle · 36 notSpawnable · **403 chronicle** · 396 distinct · 7 duplicate.
+
+On that file the game's Chronicle carries **exactly six** sunder rows —
+`PreCrafted Bone Break · Cold Rupture · Crack of the Heavens · Flame Rift · Rotting Fissure ·
+Black Cleft` — and **ZERO rows for any `Latent …` form.** He was right.
+
+**Roster 398 → 392, sunder tallies 12 → 6, and `_UNI_EXTRA`/`EXTRA_ITEMS` keep all six Latent
+charms** so the vault still resolves one when a reel reads it — his *"different story"*.
+
+⚠ **AND THE DARK-ROW ARITHMETIC GETS MORE HONEST, NOT BROKEN.** `398 named + 5 dark = 403` becomes
+`392 + 11`, and those 11 are not a mystery: **seven are the Rainbow Facet duplicate rows** (8 game
+rows, one name) and 4 are genuinely unknowable. The old 5 was hiding those 7 behind a smaller
+number.
+
+## REG-655 — two functions named `_norm`, and it made a correct-looking fix match nothing (v2680)
+
+**The sunder filter above did not work on its first cut, and looked perfect.** `bible.html` defined
+`_norm` at `:10072` **and a shadowing `_norm` ~8,600 lines later** inside the roster IIFE:
+
+| | `'Latent Bone Break'` becomes |
+|---|---|
+| `_norm` `:10072` | `latent bone break` — keeps spaces and apostrophes |
+| the shadow | `latentbonebreak` — strips every non-alphanumeric |
+
+I hand-spelled the filter keys in the **global** form, inside the **shadowed** scope. The roster
+stayed 398 with all six Latent names in it, and nothing warned. Konyo: *"sync them so the wording
+are unified everywhere so there is no confusions"*.
+
+Fixed twice over: the keys are now derived by mapping the display names **through whatever `_norm`
+is in scope**, so they cannot drift again; and the shadow is renamed **`_normKey`**, leaving exactly
+one `_norm` in the file.
+
+⚠ **RENAMED, NOT MERGED, AND THAT IS DELIBERATE.** The looser key earns its keep where it lives —
+it lets `Aldur's Advance (boots)` match `Aldurs Advance boots` — and unifying the BEHAVIOUR would
+change matching at **68 call sites**, which is a decision about his data, not a tidy-up. Measured
+first: 10 call sites inside the 129-line shadow scope, 58 outside. The rename is behaviour-neutral
+and was verified as such — roster still 392, tallies still 6.
+
+`tv/test_control.py::OneNormalizerOneName` now fails if a second `_norm` definition ever appears,
+and `tests/v2680_sunders_are_one_chronicle_row_each.spec.ts` asserts both halves of his ruling: six
+chronicle tallies with no Latent twin, and all six Latent charms still in the vault's database.
+[[label-outlived-referent]] [[source-reading-guard]]
+
 ## REG-653 — Routine I has a STABLE CORE and a FLAPPING FRINGE, and only one of them is work
 
 Four complete runs compared spec by spec, rather than reading any single run's list as a verdict:

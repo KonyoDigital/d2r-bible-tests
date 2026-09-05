@@ -42250,5 +42250,49 @@ class TheShelfDoorIsProvenFromTheRectNotTheFlag(unittest.TestCase):
         self.assertNotIn("getBoundingClientRect", old)
         self.assertNotIn(".sh-card", old)
 
+
+class OneNormalizerOneName(unittest.TestCase):
+    """v2680 — TWO FUNCTIONS CALLED `_norm` WITH DIFFERENT MEANINGS, AND IT COST A REAL FIX.
+
+    `bible.html` carried `_norm` at :10072 and a SHADOWING `_norm` ~8,600 lines later inside the
+    roster IIFE. They did not agree:
+
+        :10072   'Latent Bone Break' -> 'latent bone break'   (keeps spaces and apostrophes)
+        shadow   'Latent Bone Break' -> 'latentbonebreak'     (strips every non-alphanumeric)
+
+    Measured cost: the six-sunder chronicle filter was hand-spelled in the GLOBAL form, sat inside
+    the SHADOWED scope, matched nothing, and read as completely correct — the roster stayed 398
+    with all six Latent names still in it. Konyo: "sync them so the wording are unified everywhere
+    so there is no confusions".
+
+    ⚠ THE LAW IS ONE NAME, NOT ONE BEHAVIOUR. The looser key is deliberate where it lives (it lets
+    "Aldur's Advance (boots)" match "Aldurs Advance boots"), and merging the behaviour would change
+    matching at 68 call sites — a data decision, not a tidy-up. So this asserts that the NAME does
+    not collide, which is the part that fooled a reader.
+    """
+
+    HERE = os.path.dirname(os.path.abspath(__file__))
+    BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
+
+    def test_bible_defines_exactly_one_function_named_norm(self):
+        with open(self.BIBLE, encoding="utf-8") as fh:
+            src = fh.read()
+        # count DEFINITIONS, not calls: `function _norm(` in either statement or expression form.
+        defs = re.findall(r"function\s+_norm\s*\(", src)
+        self.assertEqual(
+            len(defs), 1,
+            "bible.html defines %d functions named `_norm`. Two normalisers sharing one name is "
+            "how a correct-looking filter matches nothing: a key spelled for one of them is "
+            "invisible to the other, and nothing warns. Give the second one its own name "
+            "(the roster's tight key is `_normKey`)." % len(defs))
+
+    def test_the_tight_key_normaliser_is_named_for_what_it_does(self):
+        with open(self.BIBLE, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("function _normKey(", src,
+                      "the roster's strip-everything key normaliser should still exist under a "
+                      "name that cannot be confused with _norm")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

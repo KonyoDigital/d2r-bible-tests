@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2679",
+  "ver": "v2680",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2679: fetch-depth 200 for the ship-history gate, and a guard that asks whether history is SUFFICIENT rather than whether the clone is shallow",
+  "note": "v2680: the chronicle counts each sunder once (settled from the re-extracted game file) and the file now has exactly one _norm",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

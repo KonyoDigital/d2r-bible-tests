@@ -1306,6 +1306,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2680** | `(this commit)` | v2680 — six sunders one row each, settled from the game file; and one `_norm` |
 | **v2679** | `(this commit)` | v2679 — the ships gate covered nothing on the only venue that runs it |
 | **v2678** | `(this commit)` | v2678 — the absolute 280 was never reachable, so the law became a comparison |
 | **v2677** | `(this commit)` | v2677 — a floor over an undefined world is not a floor |

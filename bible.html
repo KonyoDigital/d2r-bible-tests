@@ -18744,7 +18744,18 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
    line, for the same reason. This function decides KIND, nothing else; it never writes. */
 (function(){
   var _rosterCache = null, _pieceCache = null, _baseCache = null;
-  function _norm(s){
+  /* v2680 — RENAMED FROM `_norm`, WHICH IS A DIFFERENT FUNCTION 8,600 LINES UP.
+     Konyo: "sync them so the wording are unified everywhere so there is no confusions".
+     Two functions shared one name and did NOT share a meaning:
+         _norm  (:10072)  'Latent Bone Break' -> 'latent bone break'   (keeps spaces + apostrophes)
+         this one         'Latent Bone Break' -> 'latentbonebreak'     (strips every non-alphanumeric)
+     That cost a real fix: the sunder filter below was hand-spelled in the GLOBAL form and matched
+     nothing, while reading as completely correct. There is now exactly ONE `_norm` in this file.
+     ⚠ RENAMED, NOT MERGED. Making them behave alike would change matching at 68 call sites — the
+     looser key is deliberate here (it lets "Aldur's Advance (boots)" match "Aldurs Advance boots"),
+     and unifying the BEHAVIOUR is a data decision, not a tidy-up. The names no longer collide;
+     nothing else moved. [[label-outlived-referent]] [[copy-drift]] */
+  function _normKey(s){
     return String(s == null ? '' : s).normalize('NFKD')
       .replace(/[‘’ʼ]/g, "'").replace(/[–—]/g, '-')
       .toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -18759,9 +18770,48 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
        d2r_setPieces says he already owns (all 127 were in that grid before this filter; measured).
        __allSets() is the file's own set catalogue, so the exclusion is derived, never a hand-list. */
     var pc = _pieces();
+    /* ══ v2680 — THE SIX SUNDERS ARE ONE CHRONICLE ROW EACH, NOT TWO ══════════════════════════
+       Konyo, 2026-09-05, looking at his own panel: "yes we have latent of bone break but the
+       chronicle itself is not latent thats just the upgraded version of it after we upgrade in
+       hordaic cube.. so for the chronicle all sunders 6 of them need to be counted in the
+       chronicle specifically as 1 tally for each.. and for the vault that a different story the
+       entire item database should be there regardless."
+
+       SETTLED FROM THE GAME FILE, NOT FROM ARGUMENT. `uniqueitems.txt` was re-extracted from the
+       live 28 GB RotW CASC store (the store is on disk; only the earlier OUTPUT was lost to /tmp)
+       and `tv/chronicle_total.py --count` reproduces every cached number exactly — 439 rows, 24
+       disableChronicle, 36 notSpawnable, 403 chronicle, 396 distinct, 7 duplicate rows. On that
+       file the game's Chronicle carries EXACTLY SIX sunder rows:
+
+           PreCrafted Bone Break · PreCrafted Cold Rupture · PreCrafted Crack of the Heavens
+           PreCrafted Flame Rift · PreCrafted Rotting Fissure · PreCrafted Black Cleft
+
+       and **ZERO rows for any `Latent …` form**. Measured before the fix, the roster carried BOTH
+       spellings for all six — 12 entries where the game has 6 — so each sunder was asking him to
+       find it twice.
+
+       ⚠ THE VAULT IS DELIBERATELY UNTOUCHED. These names stay in EXTRA_ITEMS/_UNI_EXTRA, so the
+       item database still knows a Latent charm when one is read — his words, "for the vault that
+       a different story". This filter is the CHRONICLE roster only.
+
+       ⚠ AND IT MAKES THE DARK-ROW ARITHMETIC HONEST RATHER THAN BREAKING IT. 398 named + 5 dark
+       = 403 became 392 named + 11 unnamed, and those 11 are not a mystery: SEVEN are the Rainbow
+       Facet duplicate rows the game keeps (8 rows, one name), leaving 4 genuinely unknowable. The
+       old 5 was hiding those 7 behind a smaller number. [[unknown-stays-unknown]] */
+    /* ⚠ NORMALISED THROUGH `_norm` ITSELF, NEVER HAND-SPELLED. My first cut wrote these keys as
+       lowercase-with-spaces ('latent bone break') because that is what the GLOBAL `_norm` at
+       :10072 produces — but THIS scope has its own `_norm` (:18747) that strips every
+       non-alphanumeric, so the real key is 'latentbonebreak' and the filter matched nothing while
+       looking completely correct. Measured: roster stayed 398 with all six Latent names still in
+       it. Mapping the display names through `_norm` cannot drift the day either function changes.
+       [[source-reading-guard]] [[feedback-suspect-the-instrument]] */
+    var _LATENT_SUNDERS = ['Latent Bone Break','Latent Cold Rupture','Latent Crack of the Heavens',
+                           'Latent Flame Rift','Latent Rotting Fissure','Latent Black Cleft']
+                          .map(function(n){ return _normKey(n); });
     var out = {}; // norm -> canonical name
-    Object.keys(iv).forEach(function(n){ var k = _norm(n); if (pc[k]) return; out[k] = n; });
-    Object.keys(ue).forEach(function(n){ var k = _norm(n); if (pc[k] || out[k]) return; out[k] = n; });
+    function _chronicleSkip(k){ return pc[k] || _LATENT_SUNDERS.indexOf(k) >= 0; }
+    Object.keys(iv).forEach(function(n){ var k = _normKey(n); if (_chronicleSkip(k)) return; out[k] = n; });
+    Object.keys(ue).forEach(function(n){ var k = _normKey(n); if (_chronicleSkip(k) || out[k]) return; out[k] = n; });
     _rosterCache = out;
     return out;
   }
@@ -18772,7 +18822,7 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
       (window.__allSets ? window.__allSets() : []).forEach(function(st){
         (st.pieces || []).forEach(function(p){
           if (!p) return;
-          out[_norm(p)] = p;
+          out[_normKey(p)] = p;
           /* v1692 — __allSets() stores pieces SUFFIXED ("Aldur's Advance (boots)"), which is the
              LEDGER form; the in-game Chronicle row — the exact input this resolver exists to read —
              prints the BARE name. Keyed on the suffixed form alone, d2rResolveItem("Aldur's
@@ -18781,7 +18831,7 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
              Canonical stays the SUFFIXED name: that is what d2r_foundLog / d2r_setPieces store. */
           var bare = (typeof __pieceBase === 'function') ? __pieceBase(p)
                                                         : String(p).replace(/\s*\([^)]*\)\s*$/, '');
-          if (bare && !out[_norm(bare)]) out[_norm(bare)] = p;
+          if (bare && !out[_normKey(bare)]) out[_normKey(bare)] = p;
         });
       });
     } catch(e){}
@@ -18791,14 +18841,14 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
   function _bases(){
     if (_baseCache) return _baseCache;   // v1692 — 508 keys re-normalized on every unknown-name miss otherwise
     var bd = window.BASE_DB || {}, out = {};
-    Object.keys(bd).forEach(function(n){ out[_norm(n)] = n; });
+    Object.keys(bd).forEach(function(n){ out[_normKey(n)] = n; });
     _baseCache = out;
     return out;
   }
   // name -> {kind:'unique'|'base'|'set-piece'|'unknown', canonical:string|null}. Exact-first is
-  // implicit: _norm() only folds case/punctuation, so an already-exact name matches on the first pass.
+  // implicit: _normKey() only folds case/punctuation, so an already-exact name matches on the first pass.
   window.d2rResolveItem = function(name){
-    var n = _norm(name);
+    var n = _normKey(name);
     var pc = _pieces(); if (pc[n]) return { kind:'set-piece', canonical: pc[n] };
     var ro = _roster(); if (ro[n]) return { kind:'unique', canonical: ro[n] };
     var bd = _bases(); if (bd[n]) return { kind:'base', canonical: bd[n] };
@@ -48488,7 +48538,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2679', name:'v2679 - a guard dark on the venue that runs it', date:'2026-09-05', note:'fetch-depth 200 for the ship-history gate, and a guard that asks whether history is SUFFICIENT rather than whether the clone is shallow' };
+  window.D2R_BUILD = { id:'v2680', name:'v2680 - six sunders, one name', date:'2026-09-05', note:'the chronicle counts each sunder once (settled from the re-extracted game file) and the file now has exactly one _norm' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
