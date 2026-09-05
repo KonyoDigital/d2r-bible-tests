@@ -107,7 +107,9 @@ test.describe('v45 feeds-into cross-link — zones clickable + keys/shards/essen
     // CSS-uppercased → match case-insensitively)
     expect(txt).toMatch(/Token of Absolution[\s\S]*Respec/i);
     // it is explicitly a cross-link, not part of the grail count
-    expect(txt).toContain('not counted in the grail');
+    // v2674 — measured at HEAD: "not counted in the grail" appears 0x, "not counted in the
+    // chronicle" 1x.
+    expect(txt).toContain('not counted in the chronicle');
   });
 
   test('corrected key tooltips: no scrambled Hate->Nihlathak / Terror->Summoner mapping in rendered text', async ({ page }) => {

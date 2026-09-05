@@ -204,10 +204,25 @@ test.describe('v1756 — the inbox is a place, not a function', () => {
       const found = JSON.parse(w.LSR.getItem('d2r_foundLog') || '{}');
 
       w.renderInbox && w.renderInbox();
-      const left = [...document.querySelectorAll('#inbox-panel .ibx-row')]
-        .find((x) => x.querySelector('.ibx-b:not(.ibx-ok)'));
+      /* v2674 — `.ibx-b:not(.ibx-ok)` STOPPED MEANING "ignore" AND STARTED MEANING "Vault".
+         Read off bible.html:49511-49514, the redesigned row renders FOUR buttons in this order:
+             1  .ibx-b.ibx-ok      _inboxAct('chronicle')   📖 Chronicle
+             2  .ibx-b             _inboxAct('vault')       🏦 Vault
+             3  .ibx-b.ibp-both    _inboxAct('accept')      📖🏦 Both
+             4  .ibx-b             _inboxAct('dismiss')     ignore
+         querySelector returns the FIRST match, so this pressed VAULT. The intended dismissal filed
+         a vault registration instead, the grail count moved a SECOND time, and the test reported
+         245 -> 247 as though the product were double-counting. It was not: the selector rotted
+         when the row gained doors.
+         SELECT BY WHAT THE BUTTON DOES, NOT WHERE IT SITS. The labels here have already churned
+         once (v2363, v2368), so position and text are both weak; the dismiss action is the law.
+         [[label-outlived-referent]] [[feedback-suspect-the-instrument]] */
+      const ignoreOf = (row: Element) =>
+        [...row.querySelectorAll('.ibx-b')].find((b) =>
+          /_inboxAct\(\s*['"]dismiss['"]/.test(b.getAttribute('onclick') || '')) as HTMLElement | undefined;
+      const left = [...document.querySelectorAll('#inbox-panel .ibx-row')].find((x) => ignoreOf(x));
       const second = left ? nameOf(left) : null;
-      if (left) (left.querySelector('.ibx-b:not(.ibx-ok)') as HTMLElement).click();
+      if (left) ignoreOf(left)!.click();
       await new Promise((x) => setTimeout(x, 500));
 
       return {

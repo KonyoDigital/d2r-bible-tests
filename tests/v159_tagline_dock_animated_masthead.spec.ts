@@ -39,7 +39,9 @@ test.describe('v159 tagline-to-dock + animated masthead title + livelier tabs', 
     expect(r.taglineExists).toBe(true);
     expect(r.taglineInDock).toBe(true);
     expect(r.inDockTagline).toBe(true);
-    expect(r.text).toContain('grail-hunting reference');
+    // v2674 — the tagline reads "chronicle-hunting reference"; the "grail-hunting" spelling
+    // survives only in a comment about relocating the tagline at parse time.
+    expect(r.text).toContain('chronicle-hunting reference');
     expect(r.text).toContain('personal wishlist tracking');
     expect(r.mfInDock).toBe(true);
     expect(r.taglineStillInMasthead).toBe(false);

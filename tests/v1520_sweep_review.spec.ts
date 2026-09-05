@@ -93,7 +93,9 @@ test.describe('v1520 — the review he decides from', () => {
   test('the two ledgers stay apart in the review too', async ({ page }) => {
     await open(page, DONE);
     const heads = await page.$$eval('.chron-c-h', (n: any[]) => n.map((x) => x.textContent));
-    expect(heads[0]).toMatch(/Holy Grail \(2\)/);
+    // v2674 — the heading is now "🏆 WOULD ADD · Chronicle (2)". The three surviving "Holy Grail"
+    // strings in bible.html are all inside comments about the rarity tables, not rendered headings.
+    expect(heads[0]).toMatch(/Chronicle \(2\)/);
     expect(heads[1]).toMatch(/Set pieces \(1\)/);
     // and a set piece never appears under the grail column
     const grail = await page.textContent('.chron-cols .chron-c:nth-child(1)');

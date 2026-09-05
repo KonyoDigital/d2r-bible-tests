@@ -101,4 +101,13 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    # ⚠ HIS CONSOLE IS HEBREW (cp1255) AND CANNOT ENCODE THE CHARACTERS THIS FILE PRINTS. Without
+    # this, a CORRECT tree reports FAILURE because the script dies while REPORTING — which teaches
+    # people to ignore the tool, and then the next real failure is ignored too. The gate caught
+    # this file on its first push, which is the gate doing precisely its job.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     unittest.main(verbosity=1)

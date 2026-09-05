@@ -34,11 +34,23 @@ test.describe('v1517 — his game speaks first', () => {
 
   test('★ the two ledgers are named APART, and the unknown one claims neither', async () => {
     const d = dict();
-    expect(d['chronicle-uniques'].full).toMatch(/grail/i);
+    /* v2674 — THE UNIQUES LEDGER IS NO LONGER CALLED "grail". Measured in the console's own
+       _DIABLO_SCENES: chronicle-uniques full='the Chronicle ledger', chronicle-sets
+       full='the Set-piece ledger', chronicle full='reading the chronicle'.
+       THE LAW OF THIS TEST IS UNCHANGED and is what is asserted below: the two ledgers must be
+       named APART, and the tab-less entry must claim NEITHER. */
+    expect(d['chronicle-uniques'].full).toMatch(/chronicle/i);
+    expect(d['chronicle-uniques'].full).not.toBe(d['chronicle-sets'].full);
     expect(d['chronicle-sets'].full).toMatch(/set/i);
     expect(d['chronicle-uniques'].ic).not.toBe(d['chronicle-sets'].ic);
     // the tab-less entry must not imply either ledger — it is what a reader shows when it wasn't sure
-    expect(d['chronicle'].full).not.toMatch(/grail|set-piece/i);
+    /* v2674 — STRENGTHENED RATHER THAN JUST RETUNED. The old pair (grail / set-piece) named the
+       two ledgers, so excluding those words meant "claims neither". Since the rename BOTH ledgers
+       end in "ledger" and the uniques one carries the word "chronicle", so /grail/ excludes nothing
+       any more — a bar that can no longer be crossed is an absent one. The word that now separates
+       a ledger from the tab-less entry is "ledger" itself.
+       [[feedback-threshold-above-the-ceiling]] [[label-outlived-referent]] */
+    expect(d['chronicle'].full).not.toMatch(/ledger|set-piece/i);
   });
 
   test('the receipts row leads with the Diablo label, not the scene string', async () => {

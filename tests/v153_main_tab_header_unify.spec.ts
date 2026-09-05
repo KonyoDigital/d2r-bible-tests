@@ -42,7 +42,9 @@ test.describe('v153 main tab section headers match the Tools first-glance', () =
     expect(r.subCount).toBe(r.headCount);
     expect(r.artCount).toBe(r.headCount);    // left icon on each
     expect(r.allItalic).toBe(true);
-    expect(r.titles).toContain('Grail Progress');
+    // v2674 — renamed: bible.html renders "Chronicle Progress" (3x); "Grail Progress" survives
+    // only inside a comment describing the old wrap, and 0 times in rendered text.
+    expect(r.titles).toContain('Chronicle Progress');
     expect(r.titles).toContain('Today\'s Best Grail Picks');
     expect(r.titles).toContain('Guaranteed Drops');
   });

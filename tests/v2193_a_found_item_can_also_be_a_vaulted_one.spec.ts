@@ -196,10 +196,26 @@ test('tick it records BOTH ledgers and names each one', async ({ page }) => {
 test('the button says where it sends the item, before he presses it', async ({ page }) => {
   const html = require('fs').readFileSync(
     require('path').resolve(__dirname, '..', 'bible.html'), 'utf8');
-  // both inbox renderers must label it — a button that says only "tick it" is the ambiguity he hit
-  const labelled = (html.match(/tick it \\u2192 Chronicle \+ Vault/g) || []).length;
-  expect(labelled, 'an inbox row still offers a bare "tick it", which does not say whether it '
-    + 'counts in the Chronicle, files in the Vault, or both').toBeGreaterThanOrEqual(2);
+  /* v2674 — THE AMBIGUITY WAS FIXED BETTER THAN THIS TEST'S LETTER, so the letter had to move.
+     The law is "the button says WHERE it sends the item, before he presses it". The old shape met
+     it with ONE button labelled "tick it -> Chronicle + Vault"; the row now offers THREE separate
+     destinations, which states it more plainly than a combined label ever did:
+         .ibx-b.ibx-ok    _inboxAct('chronicle')   📖 Chronicle
+         .ibx-b           _inboxAct('vault')       🏦 Vault
+         .ibx-b.ibp-both  _inboxAct('accept')      📖🏦 Both
+     Measured at HEAD: `tick it \u2192 Chronicle + Vault` appears 0 times, and the remaining "tick
+     it" strings are prose and a search placeholder, not button labels — which is why the old count
+     was 0 and read as a regression.
+     ⚠ STILL BOTH RENDERERS, which is what "≥ 2" was protecting: the panel (`ibx-`) and the popover
+     (`ibp-`) must EACH offer a named destination, or one door stays ambiguous. */
+  const namedOk = (html.match(/class="ib[xp]-b [^"]*ib[xp]-ok"/g) || []).length;
+  const namedBoth = (html.match(/class="ib[xp]-b [^"]*ibp-both"/g) || []).length;
+  expect(namedOk, 'an inbox renderer offers no button that names the Chronicle as its destination')
+    .toBeGreaterThanOrEqual(2);
+  expect(namedBoth, 'an inbox renderer offers no button that names BOTH ledgers as its destination, '
+    + 'so a row there cannot say whether it counts, files, or does both').toBeGreaterThanOrEqual(2);
+  expect(html, 'a bare "tick it" button is the exact ambiguity he hit — it says nothing about where '
+    + 'the item goes').not.toMatch(/>\s*tick it\s*</);
 });
 
 

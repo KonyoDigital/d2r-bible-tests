@@ -91,7 +91,8 @@ test.describe('v51 super-uniques section + TZ cross-reference', () => {
     expect(html.open).toBe(true);
     expect(html.inner).toMatch(/super-unique detail/);
     expect(html.inner).toMatch(/Frigid Highlands/);             // live TZ cross-link (de-bundled from Crystalline Passage)
-    expect(html.inner).toMatch(/grail uniques reachable/);      // pool count from zoneGrailDrops
+    // v2674 — measured: "grail uniques reachable" 0x, "chronicle uniques reachable" 1x.
+    expect(html.inner).toMatch(/chronicle uniques reachable/);   // pool count from zoneGrailDrops
     expect(html.inner).toMatch(/Diablo Walks the Earth/);        // DClone note (Eldritch is a camp spot)
     expect(html.inner).not.toMatch(/undefined/);
   });

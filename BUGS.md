@@ -20999,6 +20999,72 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-635 — one rename broke nine specs, and two "regressions" were the product improving (v2674)
+
+Reading the whole a7b87cf0 failing set instead of the top of it, the **single largest cause in
+Routine I is one vocabulary rename**: `grail` → `chronicle`. Nine specs, not two.
+
+| spec | asserted | the app now says |
+|---|---|---|
+| `v1517:37` | `chronicle-uniques.full` matches `/grail/i` | `the Chronicle ledger` |
+| `v153:45` | `Grail Progress` | `Chronicle Progress` (3×; the old spelling survives only in a comment) |
+| `v1520:96` | `/Holy Grail \(2\)/` | `🏆 WOULD ADD · Chronicle (2)` |
+| `v159:42` | `grail-hunting reference` | `chronicle-hunting reference` |
+| `v45:110` | `not counted in the grail` (**0×** at HEAD) | `not counted in the chronicle` (1×) |
+| `v686:47` | `Grail` | `Chronicle` |
+| `v51:94` | `/grail uniques reachable/` (**0×**) | `chronicle uniques reachable` (1×) |
+| `v1789`, `v1756` | fixed in v2672 | — |
+
+⚠ **NOT A BLANKET REPLACE.** `v1560`, `v1516`, `v1599`, `v1619`, `v44`, `v559` also assert on
+"grail" and **pass** — "grail" is still a real domain word (the rarity tables, `renderGrailProgress`,
+`zoneGrailDrops`). And `v1756:114` asserts the internal reason CODE `safe-auto-grail`, which is not
+user-facing text and correctly did not move. Only the seven measured-failing sites changed.
+
+⚠ **`v1517`'s BAR HAD SILENTLY BECOME UNCROSSABLE.** Its law is *"the two ledgers are named APART,
+and the unknown one claims neither"*, enforced by `chronicle.full` not matching `/grail|set-piece/`.
+Since the rename **no `full` string contains "grail" at all**, so that half excluded nothing — a bar
+above the ceiling is an absent one. Both ledgers now end in "ledger", so the word that actually
+separates them from the tab-less entry is `ledger`, and that is what it now asserts. Verified
+against the live dictionary: uniques `the Chronicle ledger`, sets `the Set-piece ledger`, tab-less
+`reading the chronicle`. [[feedback-threshold-above-the-ceiling]]
+
+## REG-636 — the "+2 grail count" was a selector that rotted when the row gained doors (v2674)
+
+`v1756:224` reported ticking ONE row moving the grail count by **two** (245 → 247), which reads as a
+double-count in his data. It is not. Read off `bible.html:49511-49514`, the row renders **four**
+buttons in this order — `.ibx-ok` *Chronicle*, `.ibx-b` *Vault*, `.ibp-both` *Both*, `.ibx-b`
+*ignore*. The spec's second click was `querySelector('.ibx-b:not(.ibx-ok)')`, which returns the
+**first** match: **Vault**. So the intended dismissal filed a vault registration and moved the count
+again. Now selected by what the button DOES (`_inboxAct('dismiss')`) — the labels here have already
+churned twice (v2363, v2368), so position and text are both weak anchors.
+
+## REG-637 — a seed of 280 names that could not survive a load (v2674)
+
+`v2203:85` failed with *"THE UNDO RAN ON A RETIREMENT STAMP AND ATE HIS VAULT — 280 owned went to
+0"*, about an undo that never ran. It seeded `Item 0 … Item 279`, and
+`_v42_sanitizeWishlistOwned` rebuilds `d2r_owned` against the roster, so all 280 were correctly
+pruned. ⚠ **The very next test in the same file already warned of this** — *"ASK THE UNDO WHAT IT
+DECIDED, NOT WHAT THE VAULT LOOKS LIKE AFTERWARDS"* — and this one walked into it anyway. Now seeded
+from the page's own `_gUniqueRoster()`, **measured at 398 usable names**, so 280 real ones survive
+and the count assertion is kept rather than dropped: *"the undo ate his vault"* is exactly what it
+exists to catch.
+
+## REG-638 — v2193's button law pinned a label instead of the law (v2674)
+
+`v2193:196` grepped for `tick it → Chronicle + Vault` and wanted ≥2. **The ambiguity it guards was
+fixed better than its letter:** the row now offers three separately-named destinations rather than
+one combined label, so the literal appears 0× and the count read as a regression. It now asserts the
+law — both renderers (`ibx-` panel and `ibp-` popover) must each name a Chronicle destination and a
+BOTH destination, and no bare `>tick it<` button may exist. Verified: 2 and 2, and 0 bare buttons.
+
+## REG-639 — my own new gate could not print its own verdict on his console
+
+The pre-push blocked `v2674` because `tv/test_tasks_ships_are_recorded.py` prints non-ASCII without
+making stdout encoding-safe. **His console is Hebrew (cp1255)**, so on a non-UTF-8 terminal a
+CORRECT tree would report FAILURE — the file would crash while REPORTING. Fixed with
+`from console_safe import enable`. The gate caught my own file on its first push, which is the gate
+doing precisely its job.
+
 ## REG-633 — my own fix left the literal it was supposed to remove (v2673)
 
 Two `v1628` failures, and the first is mine. push22 changed `var(--q-set, #00fc00)` to

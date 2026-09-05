@@ -83,14 +83,42 @@ async function ready(page: any) {
  * the gate it was supposed to cover was inert. [[feedback-blind-fixture-green-gate]]
  */
 test('the undo REFUSES on a board carrying a retirement stamp and 280 owned names', async ({ page }) => {
-  await page.addInitScript(() => {
+  /* v2674 — THE SEED USED 280 NAMES THAT CANNOT SURVIVE A LOAD, so this measured the SANITISER
+     and blamed the undo. `Item 0 … Item 279` are not real items, and `_v42_sanitizeWishlistOwned`
+     (bible.html:19562) REBUILDS `d2r_owned` against the roster — ITEM_VALUE ∪ _UNI_EXTRA minus set
+     pieces — so all 280 were correctly pruned to 0. The test then reported "THE UNDO RAN ON A
+     RETIREMENT STAMP AND ATE HIS VAULT — 280 owned went to 0" about an undo that never ran.
+
+     ⚠ THE NEXT TEST IN THIS FILE ALREADY WARNED OF EXACTLY THIS: "ASK THE UNDO WHAT IT DECIDED,
+     NOT WHAT THE VAULT LOOKS LIKE AFTERWARDS ... d2r_owned is edited AFTER the undo by
+     _v42_sanitizeWishlistOwned". The lesson was written down one test away and this one still
+     walked into it. [[feedback-blind-fixture-green-gate]]
+
+     Seeded from the page's OWN roster so the names are real and the count assertion means
+     something — it is kept, not dropped, because "the undo ate his vault" is exactly what it is
+     here to catch. */
+  await page.goto(URL);
+  await ready(page);
+  const real = await page.evaluate(() => {
+    const w: any = window;
+    const ro = typeof w._gUniqueRoster === 'function' ? (w._gUniqueRoster() || []) : [];
+    return (ro as any[])
+      .map((x) => (typeof x === 'string' ? x : x && (x.name || x.n)))
+      .filter((n) => typeof n === 'string' && n.length > 0);
+  });
+  // DENOMINATOR FIRST — a short roster would seed fewer names and the assertion below would then
+  // be measuring the seed, not the undo. [[zero-needs-a-denominator]]
+  expect(real.length, `the roster yielded ${real.length} real names; 280 are needed or this test `
+    + 'measures its own seed').toBeGreaterThanOrEqual(280);
+  const SEED = real.slice(0, 280);
+
+  await page.addInitScript((names: string[]) => {
     // exactly what every board looks like from load 2 onward: the retirement stamp, and a real vault
     localStorage.setItem('d2r_vaultBackfill_v2200',
       JSON.stringify({ retired: 'v2203 — sourced from found-ever, not stash evidence' }));
-    const owned = Array.from({ length: 280 }, (_, i) => 'Item ' + i);
-    localStorage.setItem('d2r_owned', JSON.stringify(owned));
+    localStorage.setItem('d2r_owned', JSON.stringify(names));
     localStorage.removeItem('d2r_vaultBackfillUndo_v2205');
-  });
+  }, SEED);
   await page.goto(URL);
   await page.waitForTimeout(2200);
   const r = await page.evaluate(() => ({
