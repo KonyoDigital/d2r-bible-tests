@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2691",
+  "ver": "v2692",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2691: six chronicle rows, and his tally held at 248 because an upgraded sunder is still a sunder he found",
+  "note": "v2692: a cousin board read 243 of 403 from a hardcoded seed with no owner; the seed now names its ledger",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

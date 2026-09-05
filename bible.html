@@ -3868,6 +3868,46 @@ window._D2R_LPFX = window._D2R_OWNER ? 'L·' : ('IL·' + String(window._D2R_INST
 // Seeds are suppressed on any load that is not the owner's. This is what makes an unclaimed load
 // safe: with the seeds off, an unclaimed load writes no bare account key at all.
 window._isCousinShell = !window._D2R_OWNER;
+/* ⚠⚠ v2692 — WHICH LEDGER IS THIS? Konyo: "this is outdated.. it should be registerd accordingly
+   to ledger/profile and ledger name."
+   THE DEFECT IT FIXES, reported by him from his cousin Dean's board: the Uniques tab read
+   243 / 403 on a board that owns none of it. `_GRAIL_SEED` is 245 of KONYO's own finds, hardcoded
+   here, and the chronicle floor applied it to ANY browser that resolved as owner — so the moment
+   his cousin pressed "claim this browser" he stopped being `_isCousinShell` and inherited another
+   man's chronicle as his default. Meanwhile the fleet/roster read 0 registered uniques, because
+   THAT store is real. Two numbers for one question, and the seeded one was the lie.
+   A seed with no owner becomes everyone's default. So the seed now NAMES the ledger it belongs to
+   and applies to that ledger only.
+
+   ⚠ THE UNNAMED CASE IS DECIDED TOWARD HIS BOARD, DELIBERATELY. A store that already carries a
+   chronicle and has no name recorded IS the board this seed was written for — every install
+   predating this line. Defaulting those to "unnamed" would silently subtract his own finds, which
+   is exactly the damage v2680 did and v2685 reverted. So: named -> that name; unnamed + already
+   has a chronicle -> the seed's ledger; unnamed + empty -> a NEW ledger, which is the honest
+   answer for a browser that has never found anything. Failure resolves toward the old behaviour,
+   never toward erasing. [[d2r-ladder-doctrine]] (a display rule must never change a count) */
+window._SEED_LEDGER = 'KonyoEndgame';   /* v2692 — whose finds the hardcoded seeds actually are */
+window._D2R_LEDGER = (function(){
+  try {
+    var n = String(window.localStorage.getItem('d2r_ledgerName') || '').trim();
+    if (n) return n;
+    var fl = {};
+    try { fl = JSON.parse(window.localStorage.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+    var own = [];
+    try { own = JSON.parse(window.localStorage.getItem('d2r_owned') || '[]') || []; } catch(e){}
+    /* a board with a chronicle already on it is the one the seed was written for */
+    return (Object.keys(fl).length + own.length) > 0 ? 'KonyoEndgame' : '';
+  } catch(e){ return 'KonyoEndgame'; }
+})();
+/* ⚠⚠ v2692 — ONE PREDICATE FOR "MAY THE HARDCODED SEEDS LAND HERE", because `_isCousinShell` was
+   never it and four separate stores trusted it. It is only `!_D2R_OWNER`, so pressing "claim this
+   browser" flips it false and the board starts inheriting Konyo's data. MEASURED on a freshly
+   claimed browser after ONE find: d2r_rwMade obj 99 (his made runewords), d2r_rwVerify obj 2 (his
+   Mania/Hysteria fail verdicts), and 12 extra foundLog entries from the v1692/v1693 ruling
+   migrations — none of it his cousin's.
+   Ownership of a browser and ownership of a CHRONICLE are different questions. This answers the
+   second, once, so the four doors cannot drift apart again. [[copy-drift]] [[the-unjoined-end]] */
+window._seedsBelongHere = (!window._isCousinShell && window._D2R_LEDGER === window._SEED_LEDGER);
 // v665.1 — WINDOWS has its own Main/Ladder pair (Konyo: "the windows need to also have the toggle").
 // Each machine remembers its own active account via its own pointer key.
 window._PROFILE_PTR = (window.D2R_MACHINE==='windows') ? 'd2r_activeProfileWin' : 'd2r_activeProfile';
@@ -4414,6 +4454,23 @@ try {
         // ONE key. The whole migration is this write — nothing is copied, moved or renamed, which is
         // why there is no half-migrated state and why re-clicking is harmless.
         window.localStorage.setItem('d2r_ownerClaim', window._D2R_INSTALL || '*');
+        /* ⚠⚠ v2692 — NAME THE LEDGER AT THE MOMENT OF THE CLAIM, OR THE HEURISTIC RECAPTURES IT.
+           _D2R_LEDGER resolves an UNNAMED store by asking whether it already carries a chronicle,
+           because every install predating that line is unnamed and must keep Konyo's floor. That
+           rule is safe only while an unnamed store stays empty. A newly-claimed browser is empty
+           TODAY and stops being empty the moment its owner finds one item — and on the next load
+           it would answer "unnamed, has a chronicle", adopt 'KonyoEndgame', and be handed 245
+           finds that are not his. The migration rule would have re-created the exact defect this
+           version fixes, one find later.
+           So a claim writes a name immediately. Only when there is none: a board already claimed
+           before this shipped keeps its unnamed-with-data reading, which is what protects his own
+           chronicle. [[the-unjoined-end]] */
+        try {
+          if (!String(window.localStorage.getItem('d2r_ledgerName') || '').trim()) {
+            window.localStorage.setItem('d2r_ledgerName',
+              'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8));
+          }
+        } catch(e){}
       } catch(e){}
       btn.disabled = true;
       btn.textContent = 'claimed — reloading…';
@@ -9741,6 +9798,18 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
   </div>
     <details class="danger-zone"><summary>⚠ danger zone</summary><!-- v694 🏓R6: a destructive control must never be the only bright thing in a void -->
     <button class="reset-btn" onclick="if(!window._D2R_OWNER){uiConfirm('This browser has its own EMPTY world — there is nothing here to erase, and your real data (if this is your machine) is safe behind the claim button at the top of the page. Claim the browser first.');return;} uiConfirm('Erase ALL saved progress on the '+(window.D2R_PROFILE==='ladder'?'🪜 LADDER':'⚔ MAIN')+' account? This permanently clears ITS wishlist, owned/grail checkmarks, statue tracker and settings — the other account is untouched. Cannot be undone.').then(function(ok){if(ok){window.LSR.wipeProfile();location.reload();}})">🗑️ Erase all saved progress (this account only)</button>
+    <!-- ⚠⚠ v2692 — START MY OWN LEDGER. Konyo, from his cousin Dean's board: "the uniques for his
+         uniques tab is rendering 243/403 which is wrong its my old seeded chronicle that he
+         harnessed as a default... he doent have a way to reset his uniques from 243/403 to 0/403 so
+         he can finally sync his chronicle via MINI focused/ON AIR."
+         The gate added in this version stops a NEW browser inheriting the seed. It cannot help a
+         browser already carrying it — that store looks exactly like the board the seed was written
+         for, and guessing otherwise would erase a real chronicle. Only the person at the keyboard
+         knows which board this is, so this asks them.
+         ⚠ It sets d2r_rwProfile='fresh' as well as naming the ledger: the fresh flag is the ONE
+         switch every floor in this file already honours ("only an explicit fresh-profile reset
+         skips it"), so the chronicle cannot creep back on the next load. -->
+    <button class="reset-btn" onclick="uiConfirm('Start YOUR OWN chronicle on this browser?\n\nThis board is currently showing a chronicle it inherited as a default — items you have not found. This clears it to 0/403 and names this browser its own ledger, so nothing is ever seeded into it again.\n\nYour vault, mules and settings are untouched. Then sync your real finds with MINI focused / ON AIR.\n\nIf this IS Konyo\'s own board, press Cancel — this would clear a real chronicle.').then(function(ok){ if(!ok) return; try{ var LSx=window.LSR||window.localStorage; var nm='Ledger-'+String(window._D2R_INSTALL||Date.now()).slice(0,8); window.localStorage.setItem('d2r_ledgerName', nm); LSx.setItem('d2r_rwProfile','fresh'); ['d2r_foundLog','d2r_setPieces','d2r_chronApplied','d2r_grailUnfound','d2r_rwMade'].forEach(function(k){ try{ LSx.setItem(k, k==='d2r_foundLog'||k==='d2r_setPieces'||k==='d2r_chronApplied'||k==='d2r_grailUnfound'||k==='d2r_rwMade' ? '{}' : '[]'); }catch(e){} }); }catch(e){} location.reload(); })">🧭 Start MY OWN chronicle (0/403) — this board is not Konyo\'s</button>
     </details>
 </div>
 </div>
@@ -17460,7 +17529,10 @@ try { window._UNI_EXTRA = _UNI_EXTRA; } catch(e){}
 // 248. The remaining gap is alphabet the capture never reached — the six frames cover A, B, D, H,
 // I and J only.
 const _GRAIL_SEED = {"Wormskull":"Jun 22, 2026 · 02:00","Wraith Flight":"Jun 18, 2026 · 19:29","Witherstring":"Jul 1, 2026 · 21:09","Wizardspike":"Jun 3, 2026 · 12:45","Wizendraw":"May 20, 2026 · 21:15","Wolfhowl":"Jun 5, 2026 · 00:45","War Traveler":"Jun 4, 2026 · 01:24","Windhammer":"May 22, 2026 · 01:17","Venom Grip":"May 20, 2026 · 18:35","Venom Ward":"May 18, 2026 · 21:07","Verdungo's Hearty Cord":"Jun 22, 2026 · 02:10","Wall of the Eyeless":"May 20, 2026 · 18:26","Twitchthroe":"Jun 2, 2026 · 01:07","Ume's Lament":"May 18, 2026 · 00:25","Undead Crown":"May 17, 2026 · 01:45","Vampire Gaze":"Jul 7, 2026 · 00:44","Tomb Reaver":"Jun 18, 2026 · 02:19","Toothrow":"May 22, 2026 · 00:59","Treads of Cthon":"May 20, 2026 · 19:21","The Ward":"May 18, 2026 · 00:40","Thundergod's Vigor":"May 20, 2026 · 02:19","Tiamat's Rebuke":"May 15, 2026 · 18:24","Todesfaelle Flamme":"Jun 4, 2026 · 01:23","The Rising Sun":"Jun 3, 2026 · 00:48","The Salamander":"May 18, 2026 · 01:26","The Spirit Shroud":"Jun 6, 2026 · 20:49","The Vile Husk":"Jun 30, 2026 · 21:17","The Jade Tan Do":"May 19, 2026 · 23:44","The Minotaur":"Jul 6, 2026 · 21:10","The Patriarch":"May 15, 2026 · 01:19","The Reaper's Toll":"May 18, 2026 · 21:15","The Gavel of Pain":"Jun 10, 2026 · 01:57","The General's Tan Do Li Ga":"May 17, 2026 · 01:37","The Grandfather":"Jun 4, 2026 · 01:41","The Grim Reaper":"May 17, 2026 · 01:43","Tearhaunch":"May 15, 2026 · 18:36","The Battlebranch":"May 26, 2026 · 00:14","The Chieftain":"May 18, 2026 · 21:04","The Face of Horror":"May 20, 2026 · 02:19","Suicide Branch":"May 27, 2026 · 00:49","Swordguard":"Jun 22, 2026 · 02:57","Stoneraven":"Jun 4, 2026 · 01:22","Stormguild":"May 18, 2026 · 01:40","Stormshield":"May 27, 2026 · 19:51","Stormspike":"Jun 18, 2026 · 00:14","Stormstrike":"May 17, 2026 · 01:53","Stoutnail":"Jun 22, 2026 · 02:25","Steel Shade":"May 18, 2026 · 01:50","Steelclash":"May 21, 2026 · 11:51","Steeldriver":"May 18, 2026 · 02:03","Spire of Honor":"May 27, 2026 · 20:16","Spirit Forge":"Jun 18, 2026 · 01:03","Stealskull":"May 31, 2026 · 21:37","Snowclash":"May 19, 2026 · 16:12","Sparking Mail":"May 15, 2026 · 20:58","Spellsteel":"May 17, 2026 · 23:50","Skystrike":"May 18, 2026 · 00:38","Snakecord":"May 15, 2026 · 00:58","Skin of the Vipermagi":"May 20, 2026 · 22:27","Skullder's Ire":"May 22, 2026 · 01:21","Serpent Lord":"May 17, 2026 · 01:43","Shaftstop":"May 31, 2026 · 20:50","Sandstorm Trek":"Jun 25, 2026 · 00:56","Schaefer's Hammer":"Jun 4, 2026 · 00:26","Riphook":"May 27, 2026 · 20:59","Rockfleece":"May 18, 2026 · 23:17","Rockstopper":"May 27, 2026 · 19:44","Rogue's Bow":"May 19, 2026 · 00:25","Rattlecage":"Jun 21, 2026 · 17:52","Raven Claw":"Jun 4, 2026 · 01:32","Raven Frost":"May 25, 2026 · 21:26","Razortail":"May 21, 2026 · 01:03","Ribcracker":"May 17, 2026 · 01:32","Pierre Tombale Couant":"Jul 6, 2026 · 22:43","Plague Bearer":"May 27, 2026 · 01:29","Pluckeye":"Jul 9, 2026 · 18:51","Pompeii's Wrath":"May 27, 2026 · 00:51","Que-Hegan's Wisdom":"Jun 4, 2026 · 01:22","Peasant Crown":"May 15, 2026 · 21:22","Pelta Lunata":"Jun 29, 2026 · 01:20","Nature's Peace":"May 23, 2026 · 01:06","Nightsmoke":"May 15, 2026 · 20:17","Nightwing's Veil":"May 18, 2026 · 00:38","Nokozan Relic":"Jun 18, 2026 · 20:37","Nord's Tenderizer":"May 18, 2026 · 20:53","Nosferatu's Coil":"Jun 18, 2026 · 18:57","Messerschmidt's Reaver":"May 31, 2026 · 23:46","Moser's Blessed Circle":"Jun 10, 2026 · 21:55","Manald Heal":"May 18, 2026 · 23:53","Mang Song's Lesson":"May 31, 2026 · 21:00","Marrowwalk":"Jun 21, 2026 · 20:12","Lightsabre":"May 22, 2026 · 01:17","Maelstrom":"Jun 1, 2026 · 01:00","Magefist":"May 18, 2026 · 00:43","Magewrath":"May 26, 2026 · 01:52","Lava Gout":"May 18, 2026 · 21:11","Kuko Shakaku":"Jun 19, 2026 · 00:46","Lacerator":"Jun 4, 2026 · 01:41","Lance Guard":"May 19, 2026 · 20:29","Lance of Yaggai":"May 17, 2026 · 00:57","Kira's Guardian":"May 19, 2026 · 20:39","Iceblink":"May 15, 2026 · 20:54","Infernostride":"May 20, 2026 · 21:58","Ironstone":"May 19, 2026 · 20:30","Jalal's Mane":"Jun 10, 2026 · 12:46","Hotspur":"Jun 24, 2026 · 17:59","Howltusk":"Jun 10, 2026 · 12:28","Hellrack":"Jun 19, 2026 · 00:14","Hexfire":"May 23, 2026 · 18:25","Homunculus":"May 27, 2026 · 19:54","Hone Sundan":"May 22, 2026 · 01:11","Heart Carver":"May 26, 2026 · 00:19","Heavenly Garb":"May 25, 2026 · 21:25","Gravenspine":"May 17, 2026 · 01:51","Gravepalm":"Jun 8, 2026 · 23:44","Gore Rider":"Jun 1, 2026 · 00:08","Gorefoot":"Jun 12, 2026 · 23:47","Goldskin":"May 15, 2026 · 15:20","Goldstrike Arch":"May 18, 2026 · 00:37","Goldwrap":"Jun 22, 2026 · 02:34","Gimmershred":"May 28, 2026 · 20:14","Ginther's Rift":"May 18, 2026 · 23:32","Ethereal Edge":"May 31, 2026 · 20:47","Firelizard's Talons":"May 20, 2026 · 01:36","Flamebellow":"May 31, 2026 · 20:57","Fleshripper":"May 28, 2026 · 20:23","Ghoulhide":"May 15, 2026 · 20:23","Doomslinger":"Jun 10, 2026 · 23:51","Duriel's Shell":"Jun 1, 2026 · 00:28","Duskdeep":"Jun 22, 2026 · 02:51","Demonhorn's Edge":"May 18, 2026 · 01:05","Demon Limb":"Jun 2, 2026 · 01:09","Demon Machine":"May 25, 2026 · 21:56","Demon's Arch":"May 18, 2026 · 01:40","Death Cleaver":"May 19, 2026 · 16:05","Crow Caw":"May 20, 2026 · 01:36","Crushflange":"Jun 15, 2026 · 02:37","Coldkill":"Jun 4, 2026 · 11:27","Crainte Vomir":"Jul 6, 2026 · 21:05","Cranebeak":"Jun 1, 2026 · 00:29","Chance Guards":"Jun 8, 2026 · 23:22","Cloudcrack":"Jun 4, 2026 · 01:24","Coif of Glory":"May 15, 2026 · 20:02","Bverrit Keep":"May 18, 2026 · 00:33","Carin Shard":"Jun 10, 2026 · 22:36","Cerebus' Bite":"Jun 24, 2026 · 17:27","Boneflesh":"May 26, 2026 · 01:21","Bonehew":"Jun 18, 2026 · 02:21","Boneslayer Blade":"May 21, 2026 · 13:24","Bonesnap":"Jun 4, 2026 · 01:45","Brainhew":"Jun 4, 2026 · 01:24","Buriza-Do Kyanon":"May 31, 2026 · 20:46","Blastbark":"Jun 22, 2026 · 01:56","Bloodfist":"Jun 19, 2026 · 21:36","Bloodletter":"May 15, 2026 · 17:47","Bloodrise":"May 24, 2026 · 02:09","Blade of Ali Baba":"May 25, 2026 · 23:55","Bladebuckle":"May 27, 2026 · 20:11","Bing Sz Wang":"May 31, 2026 · 20:42","Black Hades":"Jun 22, 2026 · 02:08","Blackhorn's Face":"Jun 15, 2026 · 02:54","Blackleach Blade":"Jun 15, 2026 · 02:48","Atma's Scarab":"Jun 19, 2026 · 20:17","Bartuc's Cut-Throat":"May 20, 2026 · 02:19","Andariel's Visage":"May 25, 2026 · 21:32","Arioc's Needle":"May 21, 2026 · 12:53","Arm of King Leoric":"May 26, 2026 · 00:00","Wraithstep":"Jul 6, 2026 · 22:06","Zakarum's Hand":"May 23, 2026 · 18:22","Woestave":"May 20, 2026 · 13:50","Viperfork":"May 18, 2026 · 23:36","The Scalper":"May 20, 2026 · 02:19","The Tannr Gorerod":"Jun 1, 2026 · 02:09","The Iron Jang Bong":"May 19, 2026 · 19:54","The Mahim-Oak Curio":"May 18, 2026 · 00:15","The Fetid Sprinkler":"May 23, 2026 · 18:03","The Dragon Chang":"Jun 10, 2026 · 22:13","Sureshrill Frost":"Jul 6, 2026 · 23:59","Steelgoad":"May 20, 2026 · 22:29","Stone Crusher":"May 29, 2026 · 00:28","Spineripper":"May 18, 2026 · 01:35","Soul Harvest":"May 31, 2026 · 21:18","Soulflay":"May 25, 2026 · 19:04","Spectral Shard":"May 24, 2026 · 21:45","Skewer of Krintiz":"May 15, 2026 · 21:06","Skull Splitter":"May 20, 2026 · 01:42","Shadowfang":"May 27, 2026 · 23:48","Ripsaw":"May 15, 2026 · 20:51","Rune Master":"Jun 3, 2026 · 00:20","Rusthandle":"May 31, 2026 · 20:39","Razortine":"May 18, 2026 · 01:47","Moonfall":"May 15, 2026 · 20:12","Medusa's Gaze":"May 27, 2026 · 19:45","Latent Black Cleft":"Jun 8, 2026 · 17:26","Latent Cold Rupture":"Jun 12, 2026 · 00:40","Latent Crack of the Heavens":"Jun 25, 2026 · 00:47","Latent Rotting Fissure":"Jun 18, 2026 · 02:24","Leadcrow":"Jun 4, 2026 · 00:40","Langer Briser":"Jun 8, 2026 · 19:53","Knell Striker":"Jun 29, 2026 · 00:57","Kelpie Snare":"May 29, 2026 · 00:46","Kinemil's Awl":"Jun 10, 2026 · 16:01","Ichorsting":"May 18, 2026 · 00:17","Iron Pelt":"Jun 4, 2026 · 20:41","Horizon's Tornado":"May 31, 2026 · 21:23","Humongous":"May 18, 2026 · 01:40","Husoldal Evo":"May 19, 2026 · 20:29","Hellcast":"May 17, 2026 · 23:53","Hellplague":"May 15, 2026 · 00:04","Herald of Zakarum":"May 27, 2026 · 22:31","Griswold's Edge":"May 15, 2026 · 20:10","Grim's Burning Dead":"Jun 24, 2026 · 17:57","Goreshovel":"May 14, 2026 · 19:15","Gleamscythe":"Jun 1, 2026 · 01:58","Dreadfang":"May 25, 2026 · 21:35","Dimoak's Hew":"May 25, 2026 · 23:47","Dark Clan Crusher":"May 19, 2026 · 20:25","Darkglow":"May 19, 2026 · 11:27","Deathbit":"May 23, 2026 · 17:53","Deathspade":"May 14, 2026 · 18:57","Culwen's Point":"May 18, 2026 · 23:38","Coldsteel Eye":"Jun 19, 2026 · 20:25","Bloodpact Shard":"Jun 4, 2026 · 01:20","Bloodthief":"May 14, 2026 · 18:53","Bladebone":"May 12, 2026 · 00:43","Blacktongue":"May 20, 2026 · 18:41","Axe of Fechmar":"Jun 15, 2026 · 02:40","Baezil's Vortex":"Jun 4, 2026 · 00:50","Athena's Wrath":"May 19, 2026 · 00:19","Nagelring":"May 19, 2026 \u00b7 16:08","Blackbog's Sharp":"Jul 12, 2026 \u00b7 20:46","Djinn Slayer":"May 18, 2026 \u00b7 01:45","Endlesshail":"Jun 24, 2026 \u00b7 17:56","Hawkmail":"May 14, 2026 \u00b7 19:30","Hellslayer":"Jul 12, 2026 \u00b7 23:34","Islestrike":"Jul 12, 2026 \u00b7 19:33","Lidless Wall":"Jul 13, 2026 \u00b7 22:12","Radament's Sphere":"May 18, 2026 \u00b7 23:24","Rakescar":"May 25, 2026 \u00b7 23:49","Skull Collector":"Jul 6, 2026 \u00b7 22:59","Steel Carapace":"May 19, 2026 \u00b7 23:48","String of Ears":"Jun 3, 2026 \u00b7 00:34","Witchwild String":"Jun 2, 2026 \u00b7 01:04","Baranar's Star":"Aug 10, 2026 · 02:25","Atma's Wail":"Aug 10, 2026 · 00:52"};
-try { window._GRAIL_SEED = _GRAIL_SEED; } catch(e){}
+/* v2692 — THE SEED BELONGS TO A LEDGER. Without this it is simply "the default chronicle", which
+   is how another person's board came up 243/403. Named here rather than inferred anywhere else. */
+const _GRAIL_SEED_LEDGER = window._SEED_LEDGER;   /* v2692 — one definition, named above */
+try { window._GRAIL_SEED = _GRAIL_SEED; window._GRAIL_SEED_LEDGER = _GRAIL_SEED_LEDGER; } catch(e){}
 // v682 — SET-PIECE FOUND-SEED: the in-game SETS Chronicle (34 photos, 2026-07-14) — 108 pieces found
 // of the 135-piece universe = the exact 80% the in-game progress bar shows. Same contract as _GRAIL_SEED:
 // floors d2r_setPieces + dated d2r_foundLog on every boot (owner main, non-fresh), honors d2r_grailUnfound.
@@ -17768,7 +17840,7 @@ try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
 var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh'); } catch(e){}   // v638 — the chronicle is SHARED across accounts (one chronicle): the owner's floor applies on both; only an explicit fresh-profile reset skips it
 let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
-if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = (_rwFreshFlag || window._isCousinShell) ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }   // v663 — the cousin shell NEVER inherits the owner's seed
+if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = (_rwFreshFlag || !window._seedsBelongHere) ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }   // v663 — the cousin shell NEVER inherits the owner's seed
 // v424 — DURABLE 28-FLOOR. A one-time flag was too fragile (a cache hit / backup-restore left Konyo's
 // Chronicle stuck at the old 19). Instead the 28 created runewords are a permanent FLOOR re-applied on EVERY
 // load, EXCEPT ones the user has explicitly UN-marked (tracked in d2r_rwUnmade). So a reset/restore always
@@ -17803,7 +17875,7 @@ if (!_rwFreshFlag) (function(){ try {
     // a Chronicle⇄vault desync). A deliberate un-mark is user truth; a wipe/restore still refloors
     // because a wipe clears d2r_rwUnmade too.
     if (rwUnmade[k]) return;
-    if (window._isCousinShell) return;   // v663 — the owner's forged-fact floor never touches the cousin's chronicle
+    if (!window._seedsBelongHere) return;   // v663/v2692 — the owner's forged-fact floor never touches another ledger
     if (!rwMade[k]){ rwMade[k] = _RWC_SEED[k]; _ch = true; }  // re-assert the forged date
   });
   if (_ch){ LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); }
@@ -17921,7 +17993,7 @@ window._rwLadderBlockedForge = function(rw){
 // weapons and Hysteria on body armor, which are RotW's renamed halves of vanilla's Hustle. (v1738:
 // this said THREE and the seed has always held two; there is no third combo in RUNEWORD_TIP.)
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
-if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = (window.D2R_PROFILE==='ladder' || window._isCousinShell) ? {} : {"Mania":"fail","Hysteria":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }   // v636 — the fail verdicts are NON-LADDER truth; seeding them into the ladder account block-bannered the exact words it exists to make
+if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = (window.D2R_PROFILE==='ladder' || !window._seedsBelongHere) ? {} : {"Mania":"fail","Hysteria":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }   // v636 — the fail verdicts are NON-LADDER truth; seeding them into the ladder account block-bannered the exact words it exists to make
 // ladder mode: 'ladder' | 'nonladder' | 'unknown'. Konyo's evidence (ladder-only RWs failing) ⇒ default nonladder.
 let rwLadderMode = (function(){ if (window.D2R_PROFILE==='ladder') return 'ladder';   // v635 — the ladder ACCOUNT is implicitly ladder (all 8 words unlocked, no strip)
   var v = LS.getItem('d2r_ladderMode'); return (v==='ladder'||v==='nonladder') ? v : 'nonladder'; })();
@@ -19852,7 +19924,11 @@ window.renderHighValueFinds = renderHighValueFinds;
         try { console.warn('[ledger] STORE CAME UP EMPTY — seeding over it. ' + _ev.why); } catch(e){}
       }
     } catch(e){}
-    if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder' && !window._isCousinShell) {   // v663 — the chronicle floor is the OWNER's
+    /* v2692 — ...AND ONLY ON THE LEDGER THE SEED WAS WRITTEN FOR. `!_isCousinShell` was never
+       enough: claiming a browser makes anyone not-a-cousin, and the floor then hands them
+       Konyo's 245 finds. */
+    if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder' && !window._isCousinShell
+        && window._D2R_LEDGER === _GRAIL_SEED_LEDGER) {   // v663 — the chronicle floor is the OWNER's
       var _gUn = _safeJsonParse(LS.getItem('d2r_grailUnfound'), {}) || {};
       /* v2021 — FREE THE ENTRIES ALREADY TRAPPED. The fix above stops new ones; his board already
          held two. Deleting these is provably lossless, and the proof is the two loops directly
@@ -44666,7 +44742,14 @@ function renderJournal(){
        (or a stranger's browser) d2r_foundLog is empty, and writing two finds nobody made would be a
        number nobody measured. Empty ledger => don't fire, don't burn the flag. */
     var _flNow = {}; try { _flNow = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
-    if (Object.keys(_flNow).length && !window.LSR.getItem('d2r_v1692FleshrenderApplied') && typeof window.chronicleApply === 'function') {
+    /* ⚠⚠ v2692 — HIS RULING, ON HIS LEDGER ONLY. This applies items Konyo personally ruled he
+       had found. Its only guard was 'the foundLog is not empty', which is true of ANY board
+       the moment its owner finds one item — so his cousin's board picked up 12 of these
+       (Fleshrender, Gloom's Trap, The Diggler, Vampire Gaze, ...) one find after being
+       claimed. MEASURED: seeding a single item into a fresh claimed browser produced 13
+       foundLog keys. Same defect as the _GRAIL_SEED floor, three more doors — found by
+       sweeping for siblings after fixing the first. [[sweep-dont-ask]] */
+    if (window._D2R_LEDGER === (window._GRAIL_SEED_LEDGER || 'KonyoEndgame') && Object.keys(_flNow).length && !window.LSR.getItem('d2r_v1692FleshrenderApplied') && typeof window.chronicleApply === 'function') {
       window.chronicleApply({ wouldAdd: { uniques: ['Fleshrender', "Gloom's Trap"], sets: [] },
         lanes: ['v1692-verified-screenshot'] });
       window.LSR.setItem('d2r_v1692FleshrenderApplied', '1');
@@ -44742,7 +44825,14 @@ function renderJournal(){
      found any of them by hand. 238 → 247 (the nine) → 248 with The Diggler if it also fires below. */
   try {
     var _flNow693 = {}; try { _flNow693 = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
-    if (Object.keys(_flNow693).length && !window.LSR.getItem('d2r_v1693RulingApplied') && typeof window.chronicleApply === 'function') {
+    /* ⚠⚠ v2692 — HIS RULING, ON HIS LEDGER ONLY. This applies items Konyo personally ruled he
+       had found. Its only guard was 'the foundLog is not empty', which is true of ANY board
+       the moment its owner finds one item — so his cousin's board picked up 12 of these
+       (Fleshrender, Gloom's Trap, The Diggler, Vampire Gaze, ...) one find after being
+       claimed. MEASURED: seeding a single item into a fresh claimed browser produced 13
+       foundLog keys. Same defect as the _GRAIL_SEED floor, three more doors — found by
+       sweeping for siblings after fixing the first. [[sweep-dont-ask]] */
+    if (window._D2R_LEDGER === (window._GRAIL_SEED_LEDGER || 'KonyoEndgame') && Object.keys(_flNow693).length && !window.LSR.getItem('d2r_v1693RulingApplied') && typeof window.chronicleApply === 'function') {
       window.chronicleApply({ wouldAdd: { uniques: [
           { name: "Blackbog's Sharp", date: 'Jul 12, 2026 · 20:46' },
           { name: 'Islestrike',       date: 'Jul 12, 2026 · 19:33' },
@@ -44778,7 +44868,14 @@ function renderJournal(){
      247 (or 238 if the ruling block was skipped) → 248. */
   try {
     var _flNow693b = {}; try { _flNow693b = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
-    if (Object.keys(_flNow693b).length && !window.LSR.getItem('d2r_v1693DigglerApplied') && typeof window.chronicleApply === 'function') {
+    /* ⚠⚠ v2692 — HIS RULING, ON HIS LEDGER ONLY. This applies items Konyo personally ruled he
+       had found. Its only guard was 'the foundLog is not empty', which is true of ANY board
+       the moment its owner finds one item — so his cousin's board picked up 12 of these
+       (Fleshrender, Gloom's Trap, The Diggler, Vampire Gaze, ...) one find after being
+       claimed. MEASURED: seeding a single item into a fresh claimed browser produced 13
+       foundLog keys. Same defect as the _GRAIL_SEED floor, three more doors — found by
+       sweeping for siblings after fixing the first. [[sweep-dont-ask]] */
+    if (window._D2R_LEDGER === (window._GRAIL_SEED_LEDGER || 'KonyoEndgame') && Object.keys(_flNow693b).length && !window.LSR.getItem('d2r_v1693DigglerApplied') && typeof window.chronicleApply === 'function') {
       window.chronicleApply({ wouldAdd: { uniques: [ { name: 'The Diggler', date: '?/27/2026 · ?:15 · partial' } ], sets: [] },
         lanes: ['v1693-the-diggler-partial-date'] });
       window.LSR.setItem('d2r_v1693DigglerApplied', '1');
@@ -48747,7 +48844,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2691', name:'v2691 - his sunder ruling, on the tally', date:'2026-09-05', note:'six chronicle rows, and his tally held at 248 because an upgraded sunder is still a sunder he found' };
+  window.D2R_BUILD = { id:'v2692', name:'v2692 - the seed belongs to a ledger', date:'2026-09-06', note:'a cousin board read 243 of 403 from a hardcoded seed with no owner; the seed now names its ledger' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
