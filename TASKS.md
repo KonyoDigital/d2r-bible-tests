@@ -1385,7 +1385,7 @@ The list looked far longer than it is because one decision wears seven names.
 | **BARS** ⚠ **NEW — was absent from this file entirely** | Do the locks' bars read `wilson` or `wilsonByAttack`? | v2656 (`ec550e01`): `prune.arm` 0.9259 vs **byAttack 0.5655** against a 0.839 bar; `vault.sweep_start` 0.8064 vs **byAttack 0.3424** against 0.510. The guard is *"explicitly forbidden from settling it"*. **This decides the deleter and the money door** |
 | **PRUNE-LIVE** | Is re-running existing axes against a live process an INDEPENDENT look? | `prune.arm` needs a third kind; it is the one door with no undo. **DO-NOT-BUILD is an honest outcome** |
 | **136 · 148** | One sentence each, or they are permanently unactionable | Content lost since the earliest tracked version. Nobody can act, including him |
-| **GB-L-5/6/7** | Three briefs asked and never answered | Only he can look. Measured against 2026-09-05: **83.8 h · 83.6 h · 70.9 h** |
+| **GB-L-5/6/7** | Three briefs asked and never answered | Only he can look. ⚠ **RE-MEASURED 2026-09-05 by the `human-eyes` gate itself, not carried forward: GB-L-7 81.5 h · GB-L-6 94.3 h · GB-L-5 94.4 h** — 8 briefs recorded, 2 answered with a LOOK, **3 still owed**. The gate is RED on his Mac for exactly this, and CI can never see it, because the only automated venue is the one venue that cannot run it. *"A question nobody answered must not fade into silence."* |
 
 ## TIER 2 — REAL BUILD, NO MONEY
 
