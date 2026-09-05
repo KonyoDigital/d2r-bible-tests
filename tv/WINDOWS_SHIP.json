@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2676",
+  "ver": "v2677",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2676: the bridge writes the per-run probability its consumer documents, and the two ledgers name themselves by what they hold",
+  "note": "v2677: the whole-page gate had a no-op seed so its clip floor measured localStorage rather than the page",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

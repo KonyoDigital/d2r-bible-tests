@@ -20999,6 +20999,82 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-650 — the whole-page gate had a NO-OP seed, so its floor measured localStorage, not the page (v2677)
+
+Chasing REG-649 to the bottom turned up a second, deeper defect **in the gate itself**. The `page`
+target — the only one that measures the WHOLE console rather than a named subtree — carried:
+
+```python
+"seed": """(function(){ return 1; })()""",
+```
+
+**It establishes nothing.** Every other target that needs the owner world seeds
+`d2r_ownerClaim='*'` explicitly; this one rendered whatever the profile happened to hold. So its
+declared floor (`901x900: 5`, `375x800: 54`) was a number measured over an **undefined** world —
+and the same unchanged tree reports 5 in one world and 6 in another. That is why `push25` passed and
+`push26` blocked on identical surfaces.
+
+**A floor over an undefined world is not a floor; it is whatever was in localStorage the day it was
+written.**
+
+Fixed: the seed pins the owner world, and the result is now stable — two consecutive runs both
+report 6 / 55.
+
+⚠ **THE FLOORS ROSE, AND THIS TARGET REFUSES ON A RISE ON PURPOSE**, so the re-bless is justified
+rather than absorbed: **bisected first** — `git checkout 0c5e65ea -- bible.html tv/control_ui.html`,
+re-rendered, and the *shipped* surfaces report the same **6 / 55**. The rise is not the work shipping
+beside it. The extra elements are named so nothing hides behind the number: at 901
+`tf-t :: Chronicle Uniques — 403 left` and `tf-chron-note :: — 403 left to hunt`; at 375
+`home-dash :: 📖 full bible →`. All carry `text-overflow: ellipsis` — they are designed to cut, and
+how many render depends on world state, which is what pinning the seed fixes.
+
+⚠ **It does not excuse the backlog:** 55 elements are still cut at 375, and fixing them is still its
+own task with its own pixels and its own second eye.
+
+⚠ **AND MY OWN VERIFICATION COULD NOT HAVE FOUND THIS.** I had been checking my work with
+`render_check console inbox`, and a subset run prints *"coverage ratchet skipped — a subset cannot
+tell a deliberate filter from a surface that vanished"*. **A subset run is not a check**, and it is
+what let the polluted world go unnoticed until the pre-push gate refused.
+
+## REG-649 — my diagnostic probes and the render gate shared one browser world
+
+The push was blocked by `render FAILED`, and **the tree was innocent**. Two refusals:
+
+```
+🔴 coverage inbox 1120x628 measured 1 node(s), was 3. Something this gate used to watch is gone.
+🔴 page 901x900: 6 element(s) have text cut off — DECLARED FLOOR IS 5 … tf-t :: Chronicle Uniques — 403 left
+```
+
+The inbox rendered `1/1` — just its header, *"📥 Waiting on you"* — where a blessed run sees `3/3`
+with rows behind it. **The same tree rendered `3/3` forty minutes earlier.** Nothing in
+`bible.html` or `control_ui.html` changed in between. What changed was the WORLD:
+
+`tv/render_check.py` drives headless Chrome on `:9224`, and I had been driving **that same Chrome,
+in the same `--user-data-dir`**, to diagnose `v2203` and the vault join. Those probes ran
+`localStorage.clear()` and wrote 280 names into `d2r_owned`. `localStorage` for the `file://`
+origin is **per PROFILE, not per tab**, so every probe write was still sitting there when the gate
+looked. *"Chronicle Uniques — 403 left"* is the tell: 403 is the whole universe, i.e. an emptied
+chronicle.
+
+**PROVEN, not argued:** killed Chrome **by port** (never by name), relaunched with a fresh
+`--user-data-dir`, re-rendered the same unchanged tree → **`painted 3/3`** and the full row text
+back.
+
+⚠ **THE GATE WAS RIGHT AND ITS MESSAGE WAS RIGHT.** *"Something this gate used to watch is gone"* is
+exactly what had happened — I was the one who removed it. A coverage ratchet that had let this pass
+would have been the broken thing.
+
+⚠ **AND MY EARLIER 2-TARGET RENDER HID IT.** Running `render_check console inbox` prints
+*"coverage ratchet skipped — a subset cannot tell a deliberate filter from a surface that
+vanished"*, so my own verification step was structurally incapable of catching this. **A subset run
+is not a check.**
+
+**THE RULE:** *a probe that writes browser state must not share a profile with a gate that reads
+it.* Same shape as borrowing his console on `:17772`, one level down — the port was mine, but the
+PROFILE was shared. Use a separate `--user-data-dir` (and ideally a separate port) for diagnostics,
+or destroy the profile afterwards. [[borrowed-surface]] [[feedback-fixtures-never-touch-live-data]]
+[[cdp-probe-reads-a-guest-world]]
+
 ## REG-645 — the hunt bridge and the console disagreed about what `dropChance` MEANS (v2676)
 
 His ruling: *"fix it make it synced and a unified logic no reason they disagree"*. Done, and the

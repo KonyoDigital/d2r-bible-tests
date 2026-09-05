@@ -1306,6 +1306,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2677** | `(this commit)` | v2677 — a floor over an undefined world is not a floor |
 | **v2676** | `(this commit)` | v2676 — synced: one conversion for the hunt hours, one naming rule for the ledgers |
 | **v2675** | `(this commit)` | v2675 — a Chronicle screenshot proves he FOUND it, never WHERE it is |
 | **v2674** | `(this commit)` | v2674 — one rename broke nine specs, and two "regressions" were the product improving |

@@ -505,12 +505,34 @@ TARGETS = {
         # gets lowered rather than quietly excusing work someone already did. Fixing the 54 is its
         # own task with its own pixels and its own second eye — it is not something to be smuggled
         # into whatever else is shipping. [[regression-guard]] [[unknown-stays-unknown]]
+        # ⚠ v2677 — RE-BLESSED AGAINST A WORLD THAT IS NOW PINNED, AND THE RISE IS NAMED, NOT HIDDEN.
+        # 901x900 5 -> 6 and 375x800 54 -> 55. That is a RISE, which this target refuses on purpose,
+        # so it is justified here rather than quietly absorbed:
+        #
+        #   · The old numbers were measured with a NO-OP seed — `(function(){ return 1; })()` — so
+        #     this target rendered whatever the browser profile happened to hold. Measured: the same
+        #     unchanged tree reports 5 in one world and 6 in another. A floor over an undefined world
+        #     is not a floor; it is whatever was in localStorage the day it was written.
+        #   · The seed above now pins the owner world, and the result is STABLE: two consecutive
+        #     runs both report 6 / 55.
+        #   · BISECTED BEFORE RE-BLESSING: `git checkout 0c5e65ea -- bible.html tv/control_ui.html`
+        #     and re-rendered — the SHIPPED surfaces report the same 6 / 55. The rise is not the
+        #     work being shipped alongside it.
+        #   · The extra elements are NAMED so nothing hides behind the number: at 901
+        #     `tf-t :: Chronicle Uniques — 403 left` and `tf-chron-note :: — 403 left to hunt`, at 375
+        #     `home-dash :: 📖 full bible →`. All are `.sc-tf-t`-class rows carrying
+        #     `text-overflow: ellipsis` — they are DESIGNED to cut, and how many render depends on
+        #     world state, which is exactly what pinning the seed fixes.
+        #
+        # ⚠ This does NOT excuse the backlog. 55 elements are still cut at 375 and fixing them is
+        # still its own task with its own pixels and its own second eye.
+        # [[regression-guard]] [[feedback-blind-fixture-green-gate]] [[unknown-stays-unknown]]
         "known": {
             "1440x1000": {"clipped": 1, "broken": None, "zero": 5},
             "1120x900":  {"clipped": 1, "broken": None, "zero": 5},
             "1120x628":  {"clipped": 1, "broken": None, "zero": 5},
-            "901x900":   {"clipped": 5, "broken": None, "zero": 5},
-            "375x800":   {"clipped": 54, "broken": None, "zero": 5},
+            "901x900":   {"clipped": 6, "broken": None, "zero": 5},
+            "375x800":   {"clipped": 55, "broken": None, "zero": 5},
         },
         "settles": True,
         # ⚠ THE SHAPE PREDICATE, not the byte-length one. This page carries a live clock and
@@ -522,7 +544,15 @@ TARGETS = {
     "console": {
         "page": os.path.join("tv", "control_ui.html"),
         "why": "the CONSOLE's own action row — the buttons he actually reaches for",
-        "seed": """(function(){ return 1; })()""",
+        # ⚠ v2677 — THIS SEED WAS A NO-OP, AND THAT MADE THE FLOOR BELOW WORLD-DEPENDENT.
+        # `(function(){ return 1; })()` establishes NOTHING, so this target rendered whatever
+        # the browser profile happened to be holding. Measured: the same tree reports
+        # `clipped 5` in one world and `clipped 6` in another, so the gate passed or blocked a
+        # push according to leftover localStorage rather than the page. Every other target that
+        # needs the owner world seeds it explicitly; this one — the only one that measures the
+        # WHOLE page — did not. A floor is only a floor if the world under it is fixed.
+        # [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+        "seed": """(function(){ localStorage.setItem('d2r_ownerClaim','*'); return 1; })()""",
         "activate": """(function(){
             var b = document.getElementById('btn-miniauto');
             if (!b) return false;
