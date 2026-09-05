@@ -117,6 +117,20 @@ def remember(reel_dir, hits, frames, kinds=None, root=None, panel_frames=None):
         "kinds": dict(kinds or {}), "ts": int(time.time() * 1000),
         "full": True,
     }
+    # ⚠⚠ WHICH CLASSIFIER SAID SO. Without this a `panels: 0` verdict — "nothing to extract here"
+    # — is UN-INVALIDATABLE: improve the structural gate tomorrow and nothing distinguishes a
+    # verdict from the old one, so the reels it wrote off stay written off for ever. The two PAID
+    # readers have carried `PROMPT_VER` / `VAULT_PROMPT_VER` for exactly this reason; the FREE gate
+    # that decides whether a reel is READ AT ALL had no version anywhere.
+    # MEASURED 2026-09-05: all 437 existing rows carry panels/frames/kinds/ts/full and nothing else.
+    # ⚠ IT IS ADDITIVE AND NOTHING IS BACK-FILLED. A row without this key is UNKNOWN-classifier and
+    # must never be read as agreeing with today's gate — stamping the past would invent a
+    # provenance nobody can attribute. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    try:
+        import control_app as _ca
+        row["gateVer"] = _ca.GATE_CLASSIFIER_VER
+    except Exception:
+        pass          # the stamp is missing, which reads as UNKNOWN — never as "current"
     # ⚠ v2393 — THE PER-FRAME VERDICT, WHICH IS WHAT EVERY DOWNSTREAM STAGE ACTUALLY NEEDS.
     # Konyo: "we said after it earns a cross reference it gets deleted — we are speaking only of
     # the frames that get pruned with tooltips or slot identity, but either way those get tallied

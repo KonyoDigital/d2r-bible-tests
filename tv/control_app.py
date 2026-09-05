@@ -19905,6 +19905,25 @@ def _gate_blind(r):
 # blindness detection could produce a wrong all-clear; they are re-read rather than believed.
 _GATE_ROW_V = 3
 
+# ⚠⚠ THE FREE CLASSIFIER HAD NO VERSION, AND IT IS THE ONE THAT DECIDES WHETHER A REEL IS EVER
+# READ AT ALL. The two PAID readers are versioned and enforced — `tv_diablo.PROMPT_VER = "p1839"`
+# and `VAULT_PROMPT_VER = "vp2017"`, each with "bump whenever the prompt changes" written beside
+# it. The FREE structural gate behind `stash_screen_open`, whose `bool(panels)` sets
+# `worth_reading`, had no such constant anywhere in the tree.
+#
+# MEASURED 2026-09-05: all 437 rows in `retro_triage.json` carry exactly
+# `panels · frames · kinds · ts · full` — nothing says WHICH classifier produced them. So a survey
+# verdict of `panels: 0` ("nothing to extract here") is **un-invalidatable**: improve the gate
+# tomorrow and there is no way to tell an old verdict from a current one, and the reels it wrote
+# off stay written off. That is [[label-outlived-referent]] pointed at the cheapest and most
+# consequential reader in the pipeline — the 6 EMPTY reels on the shelf rest on exactly this.
+#
+# ⚠ BUMP THIS WHENEVER `stash_screen_open`'s STRUCTURAL RULES CHANGE — the crop, the thresholds,
+# the panel test. Not for a refactor that cannot move a verdict.
+# ⚠ A row WITHOUT this key is UNKNOWN-classifier, never "current". An absent stamp is the normal
+# state of every row written before today, and it must not read as agreement with today's gate.
+GATE_CLASSIFIER_VER = "g2659"
+
 # v2197 — how many deferred frames may sit between two liveness probes. One extra OCR read each;
 # the unproven window is bounded by this many frames rather than by the length of the pass.
 _CANARY_EVERY = int(os.environ.get("TV_CANARY_EVERY") or 25)
