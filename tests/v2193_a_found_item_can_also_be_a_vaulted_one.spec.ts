@@ -83,7 +83,23 @@ test('an item the grail already knows still reaches the vault', async ({ page })
   expect(before.ownedOfOurs, 'the fixture already has them vaulted').toBe(0);
 
   const res = await page.evaluate((names: string[]) => {
-    const r = (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n })), sets: [] } });
+    // ⚠⚠ STALE ASSERTION, NOT A CODE REGRESSION — and the code is RIGHT. These rows carried only
+    // a name. Since v2343 the vault door is gated on WHERE the item is:
+    //     window._vaultMayClaim = function(loc){
+    //       var t = String(loc == null ? '' : loc).toLowerCase().trim();
+    //       return window._VAULT_LANES.indexOf(t) >= 0; };
+    // With no `loc` the lane is '', indexOf returns -1, `_mayVault` is false for EVERY row, and
+    // nothing can vault. That is exactly the failure: expected 5, received 0 — not 4, not 1, but
+    // all of them, because the gate is per-row and every row was missing the same field.
+    // This spec was written at v2193, ~150 versions before that gate existed.
+    // ⚠ ADDING `loc` IS FAITHFUL, NOT A WORKAROUND. Real reader-produced rows carry it —
+    // bible.html:19263 banks `loc: (row && row.loc) || null` — and the vault legitimately refuses
+    // to claim an item whose location nobody recorded. 'stash' is a real lane in _VAULT_LANES
+    // ['equipped','stash','cube','belt','mule','locker','tomb','tombs'] and is the lane his own
+    // banked vault rows actually carry.
+    // ⚠ The law under test is UNCHANGED: an item the grail already knows must still reach the
+    // vault. The fixture now states where it is, which is a fact the real pipeline always has.
+    const r = (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n, loc: 'stash' })), sets: [] } });
     try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
     return { skipped: (r && r.skipped || []).length, vaulted: (r && r.vaulted || []).length };
   }, ALREADY_FOUND);
