@@ -36,6 +36,32 @@ test.describe('v2267 — the routing ledger says WHICH item, not just where it w
   for (const [w, h, maxCutPct] of [[1440, 1000, 0], [901, 900, 0], [375, 800, 25]] as const) {
     test(`item names are readable at ${w}px`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: h });
+      // ⚠⚠ SEEDED, AND THE DOCSTRING'S "no fixture, no seeding" WAS ABOUT DISCOVERY, NOT GRADING.
+      // Measuring the natural state is how the clipping was FOUND — on his Mac, where d2r_owned
+      // already holds items. On a runner localStorage is empty, the routing ledger renders zero
+      // rows, and this spec hit its own honest refusal: "no .vrg-name rendered — this test
+      // measured NOTHING, which is not a pass". That refusal is correct and it is why the suite
+      // was red: 8 of the failures in one Routine I run are this file.
+      // A geometry law needs ROWS to grade, and rows it plants are as good as rows it inherits —
+      // the law is "a name is not cut off", not "his particular names are not cut off".
+      // ⚠ BARE KEYS ARE CORRECT HERE: bible.html:3860 sets `automated = navigator.webdriver &&
+      // location.protocol === 'file:'`, which resolves this load to the OWNER namespace with an
+      // empty prefix. Its own comment: "105 spec files address the BARE keys". Same shape as
+      // v1693's seed(), including the sentinel so addInitScript cannot re-seed on a later
+      // navigation and clobber what the app just wrote.
+      // ⚠ LONG NAMES ON PURPOSE: the shortest ones would fit any column and could not fail, which
+      // would make this gate green by fixture rather than by fact. [[feedback-blind-fixture-green-gate]]
+      await page.addInitScript(() => {
+        if (!localStorage.getItem('__v2267_seeded')) {
+          localStorage.setItem('d2r_owned', JSON.stringify([
+            "Andariel's Visage", "Bartuc's Cut-Throat", "Blade of Ali Baba",
+            "Death's Web", "Gore Rider", "Harlequin Crest", "Herald of Zakarum",
+            "Reaper's Toll", "Stormshield", "Titan's Revenge", "Verdungo's Hearty Cord",
+            "Arreat's Face", "Crown of Ages", "Mara's Kaleidoscope",
+          ]));
+          localStorage.setItem('__v2267_seeded', '1');
+        }
+      });
       await page.goto(URL);
       await page.waitForTimeout(2200);
       await page.evaluate(() => (window as any).switchTab('vault'));
