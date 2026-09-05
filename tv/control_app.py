@@ -16483,9 +16483,28 @@ def _retention_once():
     # v2229 — bank this reading before anything branches on it, so the series exists whether the
     # pass acts, refuses or reports. A history with holes at exactly the interesting moments is the
     # defect one level up.
+    # ⚠⚠ `hist_bytes` WAS HARDCODED None AND THE CORPUS WAS SITTING IN `p` THE WHOLE TIME.
+    # Measured on his live series 2026-09-05: `histBytes` is null in **8,588 of 8,588 rows** — a
+    # field present on every row that has never once carried a value, while `reels`, `eligibleMb`
+    # and `freeGb` beside it are populated on all 8,588. That is REG-598's `startedTs` shape
+    # exactly: *"a field that never once carried a value is not a field, it is a typo with a comma
+    # after it."* And it is not a field nobody wanted — it is the CORPUS, the denominator of the
+    # one question he actually asked (v2229: *"how come i have 15 gigabytes more today than
+    # yesterday? is the pruning working?"*). `credible_pruned_mb` refuses a freed figure larger
+    # than the corpus, and with `hist_bytes` null that bound has never once been applicable.
+    # ⚠ THE PRE-PRUNE SIDE, deliberately. This banks before anything branches, so the corpus is
+    # what was there BEFORE any deletion — which is the right denominator: a figure freed cannot
+    # exceed what existed to free. Sampling it after a prune would refuse a large legitimate one
+    # (freed 6 GB, 4 GB remains) by its own bound.
+    # ⚠ `pruned_mb` STAYS None, and that is correct rather than unfinished: the prune is OFF, so
+    # nothing measured a freed figure. `None` means nobody looked; `0` would claim a measurement.
+    _corpus_mb = sum((k.get("mb") or 0) for k in (p.get("kept") or [])) \
+        + sum((c.get("mb") or 0) for c in cands)
+    _hist_bytes = int(_corpus_mb * 1024 * 1024) if _corpus_mb > 0 else None
     try:
         disk_history_append(free_gb, ON_AIR_FLOOR_GB,
-                            hist_bytes=None, reels=len(p.get("kept") or []) + len(cands),
+                            hist_bytes=_hist_bytes,
+                            reels=len(p.get("kept") or []) + len(cands),
                             eligible_mb=round(p.get("freeMb") or 0, 1), pruned_mb=None)
     except Exception:
         pass
@@ -23064,7 +23083,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2653",
+        "ver": "v2654",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

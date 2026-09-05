@@ -193,6 +193,19 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_hist_bytes_is_not_dead",
+         [sys.executable, os.path.join(HERE, "test_hist_bytes_is_not_dead.py")], 120,
+         why="A FIELD THAT NEVER ONCE CARRIED A VALUE, AND IT WAS THE DENOMINATOR OF HIS OWN "
+             "QUESTION. Measured on his live series: histBytes null in 8,588 of 8,588 rows while "
+             "reels, eligibleMb and freeGb beside it are populated on all 8,588 — REG-598's "
+             "startedTs shape. It is the CORPUS, and `credible_pruned_mb` refuses a freed figure "
+             "larger than it, so with hist_bytes null that bound had never once been applicable: "
+             "the whole cold-read hardening of v2648 sat behind a None the only caller passed as "
+             "a literal. The value was in the same dict all along — the call site already derives "
+             "`reels` and `eligibleMb` from the retention plan, whose per-reel mb sum to 5,463 MB "
+             "on his shelf. Now passed, and his exact v2229 case (15 GB claimed) is refused. "
+             "⚠ `pruned_mb` stays a deliberate None: the prune is OFF, nobody measured a freed "
+             "figure, and 0 would claim a measurement nobody took."),
     Gate("test_disk_attribution_twins",
          [sys.executable, os.path.join(HERE, "test_disk_attribution_twins.py")], 120,
          why="ONE RULE IMPLEMENTED TWICE, AND THE LAW LANDED IN ONE COPY. The footer he reads "
