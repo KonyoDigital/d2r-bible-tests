@@ -133,9 +133,38 @@ test.describe('v1554 — the lead outranks the room it is announced in', () => {
     await page.evaluate(() => (window as any)._hubNextGrail());
     await page.waitForTimeout(500);
     const txt = (await page.textContent('#hub-hero')) || '';
+    /* ⚠⚠ v2691 — TWO REAL RULES COLLIDE ON ONE STRING, AND THIS ASSERTION PREDATES THE SECOND.
+       `.hh-faster` did not exist when v1554/v1555 was written. v2281 added it — "THE SAME ITEM,
+       SOMEWHERE QUICKER" — on Konyo's own ask ("it should tell me... where to hunt it and it be the
+       fastest"), and it deliberately NAMES the lead item's own non-Hell source in a separate,
+       contrasted line: "⚡ faster outside Hell · Normal TZ Mephisto ≈1.5h vs ≈2.3h in Hell". It
+       only renders when that source is materially quicker (the same >=30% gate), and Frostburn's
+       fixture data (1.51h global vs 2.27h Hell = 33.5% faster) hits it ON PURPOSE — the v2281
+       comment names Frostburn/2.27h as its worked example.
+       So a blanket substring check over the whole hero cannot tell the DEFECT v1559 fixed (the
+       global source mixed INTO the primary label) from the FEATURE v2281 added (the same source
+       named in its own labelled, compared line). Measured by rendering: "Normal TZ Mephisto"
+       occurs exactly once, inside `<div class="hh-faster">`, while the lead's own "hunt at" line
+       and its data-itip tooltip both say "Hell Mephisto" — v1559's rule is intact.
+       The guard is SCOPED, not deleted: the primary presentation is read with the later feature's
+       line removed, so the original rule is still enforced on exactly what it was written about.
+       [[label-outlived-referent]] [[two-fixes-broke-each-other]] */
+    const primary = await page.evaluate(() => {
+      const host = document.getElementById('hub-hero');
+      if (!host) return '';
+      const clone = host.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('.hh-faster').forEach((n) => n.remove());
+      return clone.textContent || '';
+    });
     expect(txt, 'the LEAD must be the fastest HELL item, not the fastest overall').toContain('Frostburn');
     expect(txt, 'and it must show the HELL source, never the global one').toContain('Hell Mephisto');
-    expect(txt, 'the global source of that same item must NOT be presented').not.toContain('Normal TZ Mephisto');
+    /* A SAMPLE OF ZERO PASSES A not.toContain — assert the scoped read is real before trusting it. */
+    expect(primary.length, 'the scoped hero read came back empty, so the assertion below measures NOTHING')
+      .toBeGreaterThan(20);
+    expect(primary,
+      'the global source of that same item is being presented in its PRIMARY line — not in the '
+      + 'labelled "faster outside Hell" comparison, which is v2281 working as designed')
+      .not.toContain('Normal TZ Mephisto');
     expect(txt, 'and it says which rule it applied').toContain('fastest in hell');
     expect(txt, 'with the denominator it applied it over').toMatch(/of \d+/);
     expect(txt, 'the materially quicker option below Hell is named, not hidden').toContain('Umbral Disk');
