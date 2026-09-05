@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2665",
+  "ver": "v2666",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2665: REG-620: the name absorbed 62% of every deficit; REG-621 filed",
+  "note": "v2666: REG-622: the shelf door reported success on a blank shelf",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -42201,5 +42201,54 @@ class TestV2630EveryVesselTheCensusNamesCanStamp(unittest.TestCase):
 
 
 
+
+class TheShelfDoorIsProvenFromTheRectNotTheFlag(unittest.TestCase):
+    """Konyo, 2026-09-05: "when i click on the shelf it doesnt render anything anymore."
+
+    The door's guard tested `_ov.hidden` alone, so the ONE failure mode that leaves him staring at
+    nothing - an overlay that is open, flat, or empty - was the one that reported success. No
+    throw, so `_shelfRefused` never ran, so no toast and the Doctor was never told.
+
+    The shape was already written down twelve lines below the guard, about the refusal MESSAGE:
+    "#th-shelfov lives INSIDE #theatre, which is display:none while the theatre is shut - so the
+    message renders into a zero-height box and he sees NOTHING." That lesson was applied to the
+    error text and never to the shelf, which lives in the same box.
+
+    A SOURCE LAW, deliberately narrow: it asserts the guard READS a rect and the card/empty-state.
+    The browser assertion for this belongs in the console-demo lane. [[source-reading-guard]]
+    """
+
+    @staticmethod
+    def _handler():
+        import io as _io
+        html = _io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        i = html.index("if (_bshelf) _bshelf.onclick")
+        j = html.index("window._shelfRefused = _shelfRefused", i)
+        return html[i:j]
+
+    def test_the_guard_measures_a_rect(self):
+        self.assertIn("getBoundingClientRect", self._handler(),
+                      "the shelf door still trusts a flag; an overlay can be hidden===false and "
+                      "zero-height, which is the exact case he reported")
+
+    def test_the_guard_counts_content_not_just_visibility(self):
+        h = self._handler()
+        self.assertIn(".sh-card", h,
+                      "the guard does not count reels, so a shelf whose fill never ran reports OK")
+        self.assertIn("sh-empty-hero", h,
+                      "an EMPTY shelf is legitimate - thShelf paints the empty hero when "
+                      "TH.sessions is empty - so the guard must tell 'no runs' from 'broken'")
+
+    def test_it_still_refuses_out_loud(self):
+        self.assertIn("_shelfRefused", self._handler(),
+                      "a door that fails silently is worse than one that is missing")
+
+    def test_RED_PROOF_the_old_flag_only_guard_cannot_satisfy_this_law(self):
+        """The pre-fix guard, verbatim. If this law can be satisfied by it, the law is empty."""
+        old = ("thShelf(true); var _ov = $('th-shelfov'); "
+               "if (!_ov || _ov.hidden) throw new Error('the shelf did not open');")
+        self.assertNotIn("getBoundingClientRect", old)
+        self.assertNotIn(".sh-card", old)
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

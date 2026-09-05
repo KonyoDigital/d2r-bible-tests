@@ -15886,6 +15886,33 @@ window._lockMark = function(isOpen, px, label){
       thShelf(true);
       var _ov = $('th-shelfov');
       if (!_ov || _ov.hidden) throw new Error('the shelf did not open');
+      /* ⚠⚠ v2666 — `hidden === false` IS NOT "HE CAN SEE IT", AND THAT IS THE HOLE HE FELL IN.
+         Konyo, 2026-09-05: "when i click on the shelf it doesnt render anything anymore".
+         This guard passed every such case: the shelf HAD opened, so nothing threw, so
+         _shelfRefused never ran, so there was no toast and the Doctor was never told — the one
+         failure mode where he is left staring at nothing is the one that reported success.
+         THE SHAPE WAS ALREADY WRITTEN DOWN twelve lines below, about the refusal message itself:
+         "#th-shelfov lives INSIDE #theatre, which is display:none while the theatre is shut — so
+         the message renders into a zero-height box and he sees NOTHING. MEASURED: the overlay
+         reported height 0 with the full refusal text inside it." That lesson was applied to the
+         ERROR TEXT and never to the SHELF, which lives in the same box.
+         ⚠ So prove it from the RECT and from the CONTENT, never from the flag — the same law
+         test_activation_is_proven_from_the_RECT_not_from_the_call_returning enforces on the render
+         gate. A painter that ran is not a panel that is up.
+         ⚠ AN EMPTY SHELF IS NOT A BROKEN ONE: thShelf paints .sh-empty-hero ("No runs recorded
+         yet") when TH.sessions is empty, and that is a legitimate answer. The failure is a shelf
+         with NEITHER cards NOR that hero — content that never arrived at all. */
+      var _r = _ov.getBoundingClientRect();
+      if (!_r || _r.height < 2 || _r.width < 2) {
+        throw new Error('the shelf opened into a ' + Math.round(_r ? _r.width : 0) + 'x'
+          + Math.round(_r ? _r.height : 0) + ' box — nothing is visible');
+      }
+      var _cards = _ov.querySelectorAll('.sh-card').length;
+      var _empty = !!_ov.querySelector('.sh-empty-hero');
+      if (!_cards && !_empty) {
+        throw new Error('the shelf opened with no reels and no empty-state — ' + _ov.innerHTML.length
+          + ' chars of html, so the fill never ran');
+      }
     } catch (e) {
       _shelfRefused(e, openErr);
     }

@@ -20903,3 +20903,60 @@ with and without the REG-620 fix, so it is not a regression from it.
 on a phone-width board it cannot be reached. ⚠ And no text-clipping probe would ever find it —
 `v2267` measures name cut and reports 375 as within its 25% allowance while every button on the
 screen is unreachable.
+
+## REG-622 — the shelf door reported success on the one failure he could see (v2666)
+
+Konyo, 2026-09-05: *"when i click on the shelf it doesnt render anything anymore."*
+
+The door's guard was:
+
+```js
+thShelf(true);
+var _ov = $('th-shelfov');
+if (!_ov || _ov.hidden) throw new Error('the shelf did not open');
+```
+
+**`hidden === false` is not "he can see it."** An overlay that opens flat, or opens with the fill
+never having run, satisfies that check completely — so nothing threw, `_shelfRefused` never ran,
+no toast fired, and the Doctor was never told. **The one failure mode that leaves him staring at
+nothing was the one reporting success**, which is why he had to be the detector.
+`[[visual-regression-detector]]` says he must not be.
+
+⚠⚠ **THE SHAPE WAS ALREADY WRITTEN DOWN TWELVE LINES BELOW THE GUARD** — about the refusal MESSAGE,
+not the shelf: *"#th-shelfov lives INSIDE #theatre, which is display:none while the theatre is shut
+— so the message renders into a zero-height box and he sees NOTHING. MEASURED: the overlay reported
+height 0 with the full refusal text inside it."* That lesson produced a toast for the error text and
+was never applied to **the shelf, which lives in the same box**.
+
+**Now it proves itself from the RECT and from the CONTENT** — the same law
+`test_activation_is_proven_from_the_RECT_not_from_the_call_returning` enforces on the render gate,
+and the same one that blocked my own push earlier today. Three states, not two:
+
+| state | verdict |
+|---|---|
+| `.sh-card` present | ✅ reels are there |
+| `.sh-empty-hero` ("No runs recorded yet") | ✅ legitimate — `TH.sessions` is empty |
+| **neither, or a box under 2px** | 🔴 refuse, with the measured `WxH` and html length in the message |
+
+⚠ **AN EMPTY SHELF IS NOT A BROKEN ONE.** `thShelf` paints the empty hero when `TH.sessions` is
+empty and that is a true answer, so the guard distinguishes *"no runs"* from *"the fill never ran"*
+instead of failing both.
+
+**The heart connection already existed and had never been exercised.** `_shelfRefused` POSTs
+`{kind:'shelf-door-refused'}` to `/api/ui_fault`, and `console_doctor.py:1195` reads
+`ui_faults_recent(24)`. The wire was live; nothing was ever sent down it, because the guard never
+threw. This does not add a second watchdog — it makes the existing one able to hear.
+
+⚠⚠ **NOT REPRODUCED, AND I WILL NOT CLAIM IT WAS.** The shelf opens correctly here — 3,085 cards,
+zero exceptions. My attempt to force the failure did not take: I overrode `thOpen`, which is a
+**closure, not a global**, so the override did nothing and the shelf rendered normally. v2447's own
+comment records that same instrument error twice — *"overriding `thShelf` from outside never took,
+because thShelf is a closure binding"* — and I made it a third time. **A green sabotage is the
+sabotage's fault.** So the cause of HIS blank shelf remains unknown.
+
+**What this changes is not that the shelf cannot go blank — it is that it cannot go blank
+SILENTLY.** Next occurrence produces a toast he can read, a console error, and a Doctor row
+carrying the measured box size. That message is the evidence the diagnosis needs.
+
+**Guarded by 4 tests** in `test_control.py`, including a red-proof asserting the old flag-only
+guard cannot satisfy the law — otherwise the law is empty.

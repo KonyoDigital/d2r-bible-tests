@@ -1,6 +1,5 @@
 {
   "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may only RISE. A drop means a surface this gate used to watch has gone, which in a green run reads exactly like clean. Regenerate with: python3 tv/render_check.py --bless",
-  "_page_note": "⚠ `page` WAS DERIVED, NOT BLESSED — every other floor here came off a real run, this one did not, and it says so rather than passing as measured. v2650-v2651 (34532602) added the 12th target `page` the day AFTER the last bless (332ca73e), so set(TARGETS) - set(floor) was ['page'] and test_render_coverage's `test_it_exists_and_covers_every_target` failed on his Mac AND on CI for four ships. A bless needs headless Chrome and a SERVED console, so it cannot be run on the runner and was not run on his machine to write this. The 8 is a STRUCTURAL count, not a layout one: `found` is `document.querySelectorAll(sel).length` (render_check.py:1212) and the sel is `body > *:not(script):not(style):not(template):not(noscript)`, which names no layout condition, so it cannot vary with viewport width. Three tracked sources agree it is 8 — render_check.py's own measured note (`11 children -> 3 painted, 2 script, 1 style, 5 hidden modals`), the zero-floor comment at render_check.py:1360 (`five of the console's eight top-level children are CLOSED MODALS`), and the executable fixture `BASE = {\"found\": 8, \"painted\": 3, \"zero\": 5, ...}` at test_render_gate_sees_the_page.py:163. The target's `known` block declares `zero: 5` at all five widths from a measured run, which corroborates that body's top-level child set does not move with width. IF THIS IS WRONG IT FAILS LOUDLY, never silently: a real count of 7 prints `coverage page 375x800 measured 7 node(s), was 8` and asks to be re-blessed, while a count of 9 prints `grew 8 -> 9; --bless`. A token floor of 1 or 2 would have been the safe lie — and `test_every_floor_entry_is_a_positive_count` names exactly that shape: `the absent case wearing a number`. Run `python3 tv/render_check.py --bless` on his Mac to replace this with a measurement; that bless drops this key, which is correct, because at that moment it stops being true. [[unknown-stays-unknown]] [[regression-guard]]",
   "floor": {
     "advanced": {
       "1120x628": 1,
@@ -30,12 +29,19 @@
       "375x800": 2,
       "901x900": 2
     },
+    "console-tabs": {
+      "1120x628": 8,
+      "1120x900": 8,
+      "1440x1000": 8,
+      "375x800": 8,
+      "901x900": 8
+    },
     "heart": {
-      "1120x628": 65,
-      "1120x900": 65,
-      "1440x1000": 65,
-      "375x800": 65,
-      "901x900": 65
+      "1120x628": 85,
+      "1120x900": 85,
+      "1440x1000": 85,
+      "375x800": 85,
+      "901x900": 85
     },
     "inbox": {
       "1120x628": 3,
