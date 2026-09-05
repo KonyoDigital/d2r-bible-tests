@@ -281,13 +281,49 @@ def dead_fields(rows, min_rows=MIN_ROWS, declared_null=None):
                          "here would be about the rows that happened to parse, not about the "
                          "store.%s" % (judged, n, min_rows, _skip_note)),
                         checked=n, skipped=skipped, judged=judged)
+    # ⚠⚠⚠ `on_every` IS AN INTERSECTION, AND ONE ROW MISSING A KEY HIDES A DEAD COLUMN FOR EVER.
+    # Handed COLD to a different model family, which ranked it first: *"A field present in every
+    # row, always unfilled, is never reported as dead if it is absent from even one row."*
+    # Reproduced: 200 rows carrying `a=None` report dead=['a']; make ONE row lack the key and it
+    # reports dead=[]. **And it is live on his store** — `prunedWhy` was added in v2646, so it sits
+    # on 18 of 8,595 rows and could never be judged, which also made the declaration written for it
+    # inert. A store that GAINS fields over time is exactly the shape this rule cannot see.
+    #
+    # The original rule is kept, because its reason is sound: presence on EVERY row is the evidence
+    # that a field is meant to be there. What is added is the second class it was blind to — a
+    # field present on enough rows to judge, absent from the rest, and filled on NONE of them.
+    # It is reported SEPARATELY rather than folded into `dead`, because "this store never fills a
+    # field it always writes" and "this store never fills a field it recently started writing" are
+    # different facts and only the first is the typo-with-a-comma case.
+    _seen = {}
+    for r in rows:
+        if isinstance(r, dict):
+            for k in r:
+                _seen[k] = _seen.get(k, 0) + 1
+    # ⚠⚠ A VERDICT OVER A MINORITY OF THE FILE IS NOT A VERDICT ABOUT THE FILE. Also from the cold
+    # read: *"8500 lines that are not objects, 40 valid dict rows at the end — returns DEAD_FIELDS
+    # plus skipped: 8500. The gate will still block based on the 40 rows."* Reproduced exactly.
+    # The count was already returned, and the comment beside the JSONL reader claims that counting
+    # is what stops the denominator being silently shrunk — but nothing READ it, so the claim was
+    # larger than the code. Counting only helps if something acts on the count.
+    # ⚠ It refuses rather than guesses: when most of the file could not be judged the answer is
+    # UNKNOWN, never a confident verdict about the survivors. [[unknown-stays-unknown]]
+    if skipped > judged:
+        return _unknown(("%d of %d row(s) could not be read as objects, so the %d that could are a "
+                         "MINORITY of the file — a verdict over them would be about the survivors "
+                         "and would read as a verdict about the store"
+                         % (skipped, skipped + judged, judged)),
+                        checked=n, skipped=skipped, judged=judged)
     _unfilled = sorted(k for k in (on_every or ()) if not filled.get(k))
+    _partial = sorted(k for k, c in _seen.items()
+                      if k not in (on_every or ()) and c >= min_rows and not filled.get(k))
     # ⚠ A DECLARED-NULL FIELD IS REPORTED, NEVER COUNTED AS DEAD. And the declaration is checked
     # in BOTH directions: a field declared null that HAS started carrying a value is a stale
     # declaration, said out loud rather than silently honoured — otherwise the declaration becomes
     # a permanent exemption for whatever the field later turns into. [[label-outlived-referent]]
     dead = [k for k in _unfilled if k not in declared_null]
-    dn = sorted(k for k in _unfilled if k in declared_null)
+    dn = sorted(k for k in set(_unfilled) | set(_partial) if k in declared_null)
+    _partial = [k for k in _partial if k not in declared_null]
     # ⚠⚠ STALENESS IS A QUESTION ABOUT THE WRITER NOW, NOT ABOUT HISTORY, and asking it of every
     # row gave the wrong answer on the first run. `disk_history.prunedMb` is declared null because
     # the prune is OFF — and 8,270 rows written before 2026-09-02 still carry a hardcoded `0` that
@@ -302,6 +338,10 @@ def dead_fields(rows, min_rows=MIN_ROWS, declared_null=None):
             if _is_filled(v):
                 _recent_filled.add(k)
     stale = sorted(k for k in declared_null if k in _recent_filled)
+    _pt_note = ("" if not _partial else
+                (" \u26a0 %d field(s) are not on EVERY row, so the intersection rule cannot judge "
+                 "them, and are filled on none of the %s row(s) that do carry them: %s."
+                 % (len(_partial), "\u2265%d" % min_rows, ", ".join(_partial))))
     _dn_note = ("" if not dn else
                 (" \u26a0 %d field(s) are declared null on purpose and NOT counted as dead: %s."
                  % (len(dn), "; ".join("%s (%s)" % (k, declared_null[k]) for k in dn))))
@@ -315,12 +355,15 @@ def dead_fields(rows, min_rows=MIN_ROWS, declared_null=None):
         "fields": sorted(on_every or ()),
         "filled": {k: filled.get(k, 0) for k in sorted(on_every or ())},
         "declaredNull": dn, "staleDeclarations": stale,
+        # REG-546 shape law: present on every path. A field the intersection rule cannot see is
+        # named here rather than silently dropped.
+        "unfilledWherePresent": _partial,
         "why": (("%d field(s) present on all %d judged row(s) and filled on NONE: %s. A field that "
                  "never once carried a value is not a field, it is a typo with a comma after it.%s%s%s"
-                 % (len(dead), judged, ", ".join(dead), _skip_note, _dn_note, _stale_note))
+                 % (len(dead), judged, ", ".join(dead), _skip_note, _dn_note + _pt_note, _stale_note))
                 if dead else
                 ("every field present on all %d judged row(s) carries a value somewhere.%s%s%s"
-                 % (judged, _skip_note, _dn_note, _stale_note))),
+                 % (judged, _skip_note, _dn_note + _pt_note, _stale_note))),
     }
 
 

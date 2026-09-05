@@ -137,6 +137,92 @@ class TheDiskStoreIsWATCHED(unittest.TestCase):
         self.assertEqual(entry[2], "reels")
 
 
+class TheIntersectionRuleHadABlindSpot(unittest.TestCase):
+    """★★ RANKED FIRST BY A COLD READ OF THE SHIPPED v2655 BYTES, and reproduced before believing.
+
+    `on_every` is the INTERSECTION of keys across all rows, so **a field absent from even ONE row
+    is never considered for deadness again**. Measured: 200 rows carrying `a=None` report
+    `dead=['a']`; make one row lack the key and it reports `dead=[]`.
+
+    ⚠⚠ AND IT IS LIVE ON HIS STORE. `prunedWhy` was added in v2646, so it sits on **18 of 8,595
+    rows** and can never be judged — which also made the declared-null entry written for it inert.
+    A store that GAINS fields over time is exactly the shape the rule cannot see, and this store
+    gains fields.
+
+    ⚠ THE ORIGINAL RULE IS KEPT, because its reason is sound: presence on EVERY row is the evidence
+    that a field is meant to be there. What is added is the class it was blind to, reported
+    SEPARATELY — "never fills a field it always writes" and "never fills a field it recently
+    started writing" are different facts, and only the first is the typo-with-a-comma case.
+    """
+
+    def test_a_field_on_every_row_is_still_DEAD(self):
+        """⚠ THE BASELINE. The rule this file is about must not be weakened by the addition."""
+        r = DF.dead_fields([{"a": None, "b": 1} for _ in range(200)])
+        self.assertEqual(r["dead"], ["a"])
+
+    def test_ONE_missing_key_no_longer_hides_it(self):
+        rows = [{"a": None, "b": 1} for _ in range(200)]
+        rows[0] = {"b": 1}
+        r = DF.dead_fields(rows)
+        self.assertEqual(r["dead"], [], "the intersection rule's meaning changed")
+        self.assertIn("a", r["unfilledWherePresent"],
+                      "a column absent from one row of 200 is invisible again")
+
+    def test_it_is_reported_SEPARATELY_and_not_folded_into_dead(self):
+        """⚠ Folding them would make a young field block a push the way a dead one does."""
+        rows = [{"a": None, "b": 1} for _ in range(200)]
+        rows[0] = {"b": 1}
+        r = DF.dead_fields(rows)
+        self.assertEqual(r["state"], "OK",
+                         "a field the intersection cannot judge now blocks like a dead one")
+        self.assertIn("intersection rule cannot judge", r["why"])
+
+    def test_a_field_on_TOO_FEW_rows_is_not_judged_at_all(self):
+        """⚠ Under the floor it is a young field, and a zero over rows that cannot disagree
+        measures the sample. [[unknown-stays-unknown]]"""
+        rows = [{"b": 1} for _ in range(200)] + [{"b": 1, "c": None} for _ in range(5)]
+        r = DF.dead_fields(rows)
+        self.assertNotIn("c", r["unfilledWherePresent"])
+        self.assertNotIn("c", r["dead"])
+
+    def test_a_DECLARED_field_is_excused_in_the_new_class_too(self):
+        """⚠ Otherwise the declaration works for one rule and not the other, which is the
+        copy-drift shape inside one function."""
+        rows = [{"a": None, "b": 1} for _ in range(200)]
+        rows[0] = {"b": 1}
+        r = DF.dead_fields(rows, declared_null={"a": "deliberately never filled, for a reason"})
+        self.assertEqual(r["unfilledWherePresent"], [])
+        self.assertIn("a", r["declaredNull"])
+
+
+class AVerdictOverAMinorityIsNotAVerdict(unittest.TestCase):
+    """★★ ALSO FROM THE COLD READ: *"8500 lines that are not objects, 40 valid dict rows at the end
+    — returns DEAD_FIELDS plus skipped: 8500. The gate will still block based on the 40 rows."*
+
+    ⚠ The count was ALREADY returned, and the comment beside the JSONL reader claims that counting
+    is what stops the denominator being silently shrunk. Nothing READ the count, so the claim was
+    larger than the code. **Counting only helps if something acts on the count.**
+    """
+
+    def test_a_MINORITY_of_readable_rows_yields_UNKNOWN(self):
+        r = DF.dead_fields([{"x": 1, "dead": None} for _ in range(40)] + [None] * 8500)
+        self.assertEqual(r["state"], "UNKNOWN",
+                         "a verdict was drawn from 40 rows of an 8,540-row file")
+        self.assertIn("MINORITY", r["why"])
+
+    def test_a_FEW_bad_lines_do_NOT_silence_it(self):
+        """⚠⚠ THE BASELINE, and it is the half that matters. A rule that goes UNKNOWN on any
+        corruption is a detector that never reports anything — trading a false green for silence."""
+        r = DF.dead_fields([{"x": 1, "dead": None} for _ in range(200)] + [None] * 5)
+        self.assertEqual(r["state"], "DEAD_FIELDS")
+        self.assertEqual(r["dead"], ["dead"])
+
+    def test_the_UNKNOWN_carries_both_counts_so_it_can_be_checked(self):
+        r = DF.dead_fields([{"x": 1} for _ in range(40)] + [None] * 8500)
+        self.assertEqual(r["judged"], 40)
+        self.assertEqual(r["skipped"], 8500)
+
+
 class ADeliberateNullIsNotADeadField(unittest.TestCase):
     """★★ A DATED FALSE RED, DEFUSED BEFORE THE DATE ARRIVED.
 

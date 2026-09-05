@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2656",
+  "ver": "v2657",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2656: the corpus bound is still unreachable in production, an empty shelf switched it off, and a dead-field fuse was set to fire on 2026-09-16",
+  "note": "v2657: the intersection rule could not see a store that gains fields, and a verdict was drawn from a minority of the file",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
