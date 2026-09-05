@@ -20999,6 +20999,44 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-631 — four stale assertions, and one of them was the CODE being right (v2672)
+
+Routine I's failing set on v2665, counted by unique `spec.ts:LINE:COL` (**39** distinct failing
+tests, not the 80 a filename grep suggests). Five of them were `v1789` and `v1756`, and they were
+not one defect — they were four stale assertions plus one still-open question.
+
+| where | expected | the app actually says | verdict |
+|---|---|---|---|
+| `v1756:84` | `dest` contains `grail` | `→ chronicle` | stale — renamed |
+| `v1789:166` | `already in your grail` | `already in your chronicle` | stale — renamed |
+| `v1789:288` | buttons `tick it` / `ignore` | `📖 chronicle` / `🏦 vault` | stale — v2363/v2368 moved them |
+| `v1789:383` | `action === 'hold'` | `'dismiss'` | **the code is right, the test is stale** |
+| `v1756:224` | grail count +1 | **+2** | NOT FIXED — see below |
+
+Measured at HEAD: `bible.html` emits `already in your chronicle` **5×** and `→ chronicle` **1×**;
+the pre-rename strings appear **0×**. Pinned to the current word rather than widened to accept
+either — `toContain('grail|chronicle')` passes whichever way the app drifts and cannot detect the
+next rename. [[regression-guard]]
+
+⚠ **THE FOURTH ROW IS THE ONE WORTH READING.** *"when the game and the ledger disagree the row is
+HELD, never dismissed"* looks exactly like a safety regression — the test's own comment says
+*"dismissing it destroys the only evidence the disagreement exists"*. **It is not a regression. It
+is v2368, changed on his explicit instruction:** *"the inbox shouldnt be showing me base items at
+all it should default hide them and throw them out. it doesnt require me to do something and
+vault/chronicle it."* The engine's comment answers the test's premise in advance — the old wording
+was *"right about the DANGER and wrong about the FIX: it is the evidence that must survive, not the
+prompt."* `verdict:'base-conflict'`, `why:'game-says-unfound:<owned>'` and `owned` are all still
+returned, the scan records it in `conflicts`, and `_chSayWhy` still renders *"— those disagree"*.
+Both surviving assertions test exactly that. **A red test is not automatically a broken product.**
+
+⚠ **`v1756:224` IS NAMED AND NOT FIXED, deliberately.** Ticking one row moved the grail count by
+**2** (245 → 247 where 246 was expected). The plausible link is the same button redesign — the spec
+selects with `.ibx-b:not(.ibx-ok)`, and if the redesigned row's doors changed, the "ignore" click
+may now land on one that ticks. **That is a hypothesis, not a measurement**, and the difference
+between "a double count" and "a spec clicking the wrong button" is the difference between a data
+bug and a test bug. Guessing here would mean editing a test until it goes green, which is how a
+real defect gets papered over. [[unknown-stays-unknown]]
+
 ## REG-630 — eleven spec clicks aimed at a button hidden on purpose, each burning 120s (v2671)
 
 `v2438` made **the Shelf the single door** and hid Theatre's button with the `hidden` attribute. Its

@@ -163,7 +163,12 @@ test('a name he already has is retired — there is nothing to rule on', async (
   expect(await page.evaluate(() => !!(window as any)._gFound('Rattlecage'))).toBe(true);
   const receipt = await receiptOf(page);
   const why = new Map<string, string>(receipt.dismissed.map((d: any) => [d.name, d.why]));
-  expect(why.get('Rattlecage'), JSON.stringify(receipt)).toContain('already in your grail');
+  // v2672 — same rename as v1756: the receipt now reads "already in your chronicle" (5 sites in
+  // bible.html; "already in your grail" appears ZERO times). The prose above this line still says
+  // "grail" and is left alone deliberately — it is a HISTORY of why the keep-list exists, and
+  // rewriting history to match today's vocabulary would erase the reason. Comments are read when
+  // judging a measurement and ignored when judging code. [[measured-true-read-wrong]]
+  expect(why.get('Rattlecage'), JSON.stringify(receipt)).toContain('already in your chronicle');
 });
 
 test('a roster unique he does NOT have is never dismissed', async ({ page }) => {
@@ -280,7 +285,16 @@ test('every pending row actually SHOWS its name and both buttons', async ({ page
     expect(r.nmText, `row ${r.i} has no .ibp-nm at all — ${r.html}`).toBeTruthy();
     expect(r.nmW ?? 0, `row ${r.i} name "${r.nmText}" is squeezed to ${r.nmW}px — ${r.html}`)
       .toBeGreaterThan(40);
-    for (const label of ['tick it', 'ignore']) {
+    // v2672 — THE LABELS MOVED TWICE AND THIS LIST DID NOT FOLLOW. Measured on CI run
+    // 33968788226: the row renders `📖 chronicle` and `🏦 vault`; there is no "tick it" button and
+    // no "ignore" button, so this loop failed on row 0 with `Received: undefined`.
+    // v2363 removed four wrong buttons and v2368 stopped showing bases as questions at all, which
+    // is where the old pair went.
+    // ⚠ THE GEOMETRY LAW IS THE POINT AND IT IS KEPT INTACT — this test's own comment says it is
+    // "a GEOMETRY assertion, because no text assertion could have caught this", the bug being
+    // `.ibp-why` squeezing the buttons to ZERO width while textContent stayed perfect. Pinning the
+    // two doors that actually exist keeps that law and still fails loudly if the pair changes again.
+    for (const label of ['chronicle', 'vault']) {
       const b = r.btns.find((x) => x.text.includes(label));
       expect(b, `row ${r.i} has no "${label}" button — buttons were ${JSON.stringify(r.btns)}`)
         .toBeTruthy();
@@ -391,7 +405,19 @@ test('when the game and the ledger disagree the row is HELD, never dismissed', a
     (window as any).kaiChronicleAccept('The Atlantean');
     return (window as any).kaiChronicleTriage({ name: 'Ancient Sword' });
   });
-  expect(after.action).toBe('hold');
+  // v2672 — v2368 CHANGED THIS DELIBERATELY, ON HIS INSTRUCTION, so the spec is stale and the
+  // code is not. Konyo: "the inbox shouldnt be showing me base items at all it should default hide
+  // them and throw them out. it doesnt require me to do something and vault/chronicle it."
+  //
+  // The engine's own comment answers this test's premise directly: the old wording ended
+  // "dismissing it destroys the only evidence the disagreement exists", and it was "right about the
+  // DANGER and wrong about the FIX: it is the evidence that must survive, not the prompt."
+  //
+  // So the CONTRADICTION IS STILL THE FINDING — it just is not a question handed to him. The engine
+  // sets verdict:'base-conflict', why:'game-says-unfound:<owned>' and keeps `owned`, and the scan
+  // records it in `conflicts`. Both assertions below still hold and are what actually protect the
+  // evidence: the disagreement is NAMED, and _chSayWhy still renders it as "— those disagree".
+  expect(after.action).toBe('dismiss');
   expect(after.why).toContain('The Atlantean');
   const said = await page.evaluate((w: string) => (window as any)._chSayWhy(w), after.why);
   expect(said).toContain('disagree');

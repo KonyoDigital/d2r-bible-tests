@@ -99,7 +99,15 @@ test.describe('v1756 — the inbox is a place, not a function', () => {
     });
     expect(r.length, 'no ledger rows rendered').toBe(2);
     const star = r.find((x) => /Baranar/.test(String(x.name)))!;
-    expect(star.dest, 'the row does not say WHERE it landed').toContain('grail');
+    // v2672 — THE APP RENAMED THIS LANE AND THE ASSERTION DID NOT FOLLOW. Measured at HEAD:
+    // bible.html emits "→ chronicle" (1 occurrence) and "already in your chronicle" (5); the string
+    // "→ grail" appears ZERO times. This expected the pre-rename word and had been failing on CI
+    // since the rename, saying "the row does not say WHERE it landed" about a row that says exactly
+    // where it landed.
+    // ⚠ PINNED TO THE CURRENT WORD, not widened to accept either. `toContain('grail|chronicle')`
+    // would pass whichever way the app drifts, which is a test that cannot detect the next rename.
+    // [[regression-guard]] — pin the LAW, not the number.
+    expect(star.dest, 'the row does not say WHERE it landed').toContain('chronicle');
     // plain words on screen...
     expect(star.why, 'the reason is still internal shorthand: ' + star.why).toMatch(/matched a real unique/i);
     // ...and the exact code still reachable, because that is what you fix things with

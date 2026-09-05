@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2671",
+  "ver": "v2672",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2671: 11 spec clicks aimed at a deliberately hidden button, each burning a 120s timeout; they now call the handler v2438 promised it kept",
+  "note": "v2672: v1789/v1756 assertions realigned to the current vocabulary; the hold-vs-dismiss case was v2368 working as he asked",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
