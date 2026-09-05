@@ -1306,7 +1306,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2670** | `8a429291` | v2670 — six ships were invisible to every audit that reads commit messages |
+| **v2670** | `afc93f2d` | v2670 — six ships were invisible to every audit that reads commit messages |
 | **v2669** | `e3e5d6fd` | v2669 — the census counted the dark cases without ever asking why |
 | **v2668** | `af1b7a62` | v2668 — a gate passed while covering nothing, and the census had no denominator |
 | **v2667** | `a7b87cf0` | fix: I fixed one call site and called the class done — plus the guard BUGS.md already cl ⚠ `fix:` subject |
