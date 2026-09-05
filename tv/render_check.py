@@ -1794,7 +1794,8 @@ def check(name, spec, shots=True):
         # [[feedback-generalize-fixes]] — so this one polls the target's OWN activate expression
         # until it answers true or the budget runs out, and the refusal below then means the panel
         # really did not come up rather than that the machine was busy.
-        act, _deadline = False, time.time() + 12.0
+        act, _t0 = False, time.time()
+        _deadline = _t0 + 12.0
         while time.time() < _deadline:
             act = tab.ev(spec["activate"])
             if act:
@@ -1830,9 +1831,25 @@ def check(name, spec, shots=True):
                         _why = " — (this target declares activateWhy and it returned no reason)"
                 except Exception as _e:
                     _why = " — (activateWhy itself failed: %s)" % str(_e)[:80]
-            out["refusals"].append("the panel could not be ACTIVATED — everything measured after "
-                                   "this would be about a hidden pane, and a hidden pane reports "
-                                   "zero clipping" + _why)
+            # ⚠⚠ v2692 — SAY HOW LONG IT WAITED, AND NAME LOAD AS A CANDIDATE. This refusal used to
+            # state only that the panel did not open, while its SIBLING — _selector_ready, twenty
+            # lines down — already says the honest version: "either the surface is genuinely absent,
+            # or this machine was too loaded to build it, and the difference is exactly what this
+            # bound exists to state rather than guess". Same ambiguity, one sentence short.
+            # MEASURED COST OF THAT SILENCE, on me, 2026-09-06: the `heart` target refused, I read
+            # it as a surface defect, widened this very target's warmup 10s -> 24s on a number taken
+            # while a game held 3.4 cores, reverted that, then blamed the wrong subsystem — before a
+            # profile found the real cause (/api/heart 19.5s cold, two in-process-only caches).
+            # An elapsed number and a named alternative would have pointed at it in one line.
+            # ⚠ It still refuses. Naming load as a POSSIBILITY is not excusing it — the panel really
+            # was not measured, and unmeasured must never read as clean.
+            out["refusals"].append("the panel could not be ACTIVATED after %.1fs of polling — "
+                                   "everything measured after this would be about a hidden pane, "
+                                   "and a hidden pane reports zero clipping. Either the panel is "
+                                   "genuinely broken, or this machine was too loaded to build it "
+                                   "in that window (check the load before changing the surface, "
+                                   "and the surface before changing this bound)"
+                                   % (time.time() - _t0) + _why)
             return out
         # v2330 — was `time.sleep(1.4)`. See _selector_ready: a fixed sleep here is the same
         # defect _settled() was written to remove, and under load it measured empty panels.
