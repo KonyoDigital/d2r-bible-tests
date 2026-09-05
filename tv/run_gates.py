@@ -193,6 +193,17 @@ GATES = [
              "1263 vs 403, 157 vs 7, 36 vs 30), invisible to all 21 single-engine checks. If this "
              "self-test stops going red on demand, the corroborator would report agreement whatever "
              "the engines actually said."),
+    Gate("test_dead_field_reads_jsonl",
+         [sys.executable, os.path.join(HERE, "test_dead_field_reads_jsonl.py")], 120,
+         why="THE DETECTOR BUILT FOR THIS CLASS NEVER LOOKED HERE, AND COULD NOT HAVE READ IT IF "
+             "IT HAD. `histBytes` was null in 8,588 of 8,588 rows of his disk series while every "
+             "sibling was populated — the exact shape dead_field.py exists for — and it reported "
+             "ZERO rows, because WATCHED held one store. Adding the store alone would NOT have "
+             "worked: `_rows_of` parsed every store with json.loads over the whole file, so a "
+             "JSONL store comes back UNKNOWN — it could have sat in the registry, appeared "
+             "covered, and said nothing. Reader taught the format and store added together. "
+             "Driven on his real series it answers DEAD_FIELDS before the v2654 fix and OK after "
+             "one filled row, so it self-clears rather than nagging about history."),
     Gate("test_hist_bytes_is_not_dead",
          [sys.executable, os.path.join(HERE, "test_hist_bytes_is_not_dead.py")], 120,
          why="A FIELD THAT NEVER ONCE CARRIED A VALUE, AND IT WAS THE DENOMINATOR OF HIS OWN "

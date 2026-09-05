@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2654",
+  "ver": "v2655",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2654: histBytes was null in 8588 of 8588 rows while the corpus sat in the same dict the call site already read",
+  "note": "v2655: json.loads over a whole JSONL file returns UNKNOWN, so the store could have sat in the registry saying nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

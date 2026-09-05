@@ -61,6 +61,20 @@ MIN_ROWS = 30
 #: is not meant to: that is a caller's scope, not the console's store.
 WATCHED = (
     ("reel_tombstones", ("reel_retention", "_tombstone_path"), "reels"),
+    # ⚠⚠ ADDED 2026-09-05, AND IT EARNED THE LINE THE WAY THE NOTE ABOVE REQUIRES: he acts on the
+    # free-space figure this store feeds, and the footer he reads is derived from it.
+    # THE CASE THAT PUT IT HERE: `histBytes` was null in **8,588 of 8,588 rows** — present on every
+    # row, filled on none — while `reels`, `eligibleMb` and `freeGb` beside it were populated on
+    # all 8,588. It is the CORPUS, the denominator of his own v2229 question, and with it null the
+    # `credible_pruned_mb` corpus bound had never once been applicable. **This detector exists for
+    # exactly that shape and reported ZERO rows, because its list held one store and never looked
+    # here.** Driven on his real series it answers `DEAD_FIELDS: histBytes` before the v2654 fix
+    # and `OK` after one fixed row lands — so it would have caught it, and it self-clears rather
+    # than nagging about history.
+    # ⚠ I FIRST CLAIMED ADDING IT WOULD REPORT THE 8,588 OLD NULLS AS A LIVE DEFECT FOR EVER. That
+    # was a misread of the rule: `dead_fields` asks whether a column is filled on NO row, not
+    # whether it has nulls. Measured before believing my own objection.
+    ("disk_history", ("control_app", "_disk_history_path"), None),
 )
 
 
@@ -113,6 +127,35 @@ def _rows_of(src, key):
     path = os.path.basename(p)
     if not os.path.isfile(p):
         return None, "%s is not on disk, so nothing was asked of it" % path
+    # ⚠⚠ JSONL IS A DIFFERENT FILE FORMAT, AND `json.loads` ON THE WHOLE FILE CANNOT READ IT.
+    # Measured 2026-09-05 while adding `disk_history`: this reader would have returned
+    # "would not read" for it — UNKNOWN, not the finding — so the store could have been WATCHED
+    # and still said nothing, which is the worst of both. A detector that appears to cover a store
+    # it cannot parse is a false green wearing a registry entry. One line per object, and an
+    # unparseable line is COUNTED rather than dropped, because silently shrinking the denominator
+    # is how the row floor stops meaning anything. [[unknown-stays-unknown]]
+    if p.endswith(".jsonl"):
+        rows, bad = [], 0
+        try:
+            with io.open(p, encoding="utf-8", errors="replace") as fh:
+                for ln in fh:
+                    ln = ln.strip()
+                    if not ln:
+                        continue
+                    try:
+                        r = json.loads(ln)
+                    except Exception:
+                        bad += 1
+                        continue
+                    if isinstance(r, dict):
+                        rows.append(r)
+                    else:
+                        bad += 1
+        except Exception as e:
+            return None, "%s would not read (%s)" % (path, str(e)[-70:])
+        if not rows and bad:
+            return None, ("%s holds %d line(s) and none parsed as an object" % (path, bad))
+        return rows, (("%d unparseable line(s) skipped" % bad) if bad else "")
     try:
         blob = json.loads(io.open(p, encoding="utf-8").read())
     except Exception as e:
