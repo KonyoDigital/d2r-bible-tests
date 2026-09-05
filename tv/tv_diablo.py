@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2686"   # his two rulings applied
+VERSION = "v2687"   # the entry stamp
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -541,6 +541,19 @@ def _journal_flush(timeout=10.0):
         pass
 
 
+# v2687 — WHICH DOOR OPENED THIS REEL. control_app knows it at spawn (start_agent's `origin`,
+# v2362) and until now it stayed in the PARENT's memory: it was served to the UI and never written
+# where the reel itself could carry it. Measured 2026-09-05: 0 of 10,121 journal rows carried a
+# door, so no reel could answer "which door did I come through" and nothing downstream could route
+# by entry. Three layers each knew the answer and none of them wrote it down. [[the-unjoined-end]]
+#
+# ⚠ THE FIELD IS `door`, NOT `origin`. This module already has an `origin` on its dispatch context
+# ("settle" | "heartbeat" | "text-eye" | "farewell"), which answers a DIFFERENT question — what
+# woke this read, not what opened this reel. Reusing the word would put two quantities under one
+# label on the same row. [[label-outlived-referent]]
+_DOOR = (os.environ.get("TV_DOOR") or "").strip().lower()
+
+
 def _journal(rec):
     """v879 — enqueue when the writer runs; direct write otherwise (tests/replay).
 
@@ -566,6 +579,16 @@ def _journal(rec):
         if os.environ.get("TV_STUB") and isinstance(rec, dict) and "sim" not in rec:
             rec = dict(rec)
             rec["sim"] = True
+    except Exception:
+        pass
+    # v2687 — the entry stamp, on EVERY row, for the same reason `sim` is: a property of the whole
+    # session belongs on each row or a row read on its own cannot be placed. Absent door = absent
+    # key, never a guessed default: a reel filmed before this shipped must read as UNKNOWN, not as
+    # "onair". [[unknown-stays-unknown]]
+    try:
+        if _DOOR and isinstance(rec, dict) and "door" not in rec:
+            rec = dict(rec)
+            rec["door"] = _DOOR
     except Exception:
         pass
     if _JQ is not None:

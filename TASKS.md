@@ -1328,6 +1328,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2687** | `(this commit)` | v2687 — the entry stamp: the door travels with the reel, and onair/mini finally earn a denominator |
 | **v2686** | `(this commit)` | v2686 — his two rulings: contrast to 4.86:1, and symmetric pills |
 | **v2685** | `(this commit)` | v2685 — I broke one of his rulings implementing a later one; reverted |
 | **v2681** | `(this commit)` | v2681 — the vault knows all three sunder forms; the chronicle keeps one row each |

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2686",
+  "ver": "v2687",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2686: text-dim lifted to 4.86:1 across all 23 sites, and the mini-foc pills made symmetric on his call",
+  "note": "v2687: the door that opened a reel now travels with it, and every door earns its denominator",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

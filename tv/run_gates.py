@@ -483,6 +483,13 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_tasks_ships_are_recorded.py")], 120,
          why="a version that moved the four stamps but appears nowhere in TASKS.md — the list "
              "silently ceasing to describe what the repo did"),
+    Gate("test_entry_door_stamp",
+         [sys.executable, os.path.join(HERE, "test_entry_door_stamp.py")], 120,
+         why="the door that opened a reel never reached the reel: 0 of 10,121 journal rows carried "
+             "it, so nothing downstream could route by entry. And the half nobody saw — v2316 gave "
+             "each door a Wilson score, only `shadow` ever passed opened=True, so onair and mini "
+             "carried NO denominator while their refused counters ticked and made the ledger look "
+             "alive (shadow 609/181, the other two absent). A score nobody increments cannot fail"),
     Gate("test_gate_banks", [sys.executable, os.path.join(HERE, "test_gate_banks.py")], 120,
          why="the board said since v2444 that the sabotages BANK and the first lock opened itself; "
              "the live console said open 0 of 5, every lock n=0, and the ledger file did not "

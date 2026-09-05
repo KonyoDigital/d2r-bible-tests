@@ -1208,7 +1208,17 @@ def _agent_python():
     return exe
 
 
-def _env_clean(sim=False):
+def _door_of_origin(origin):
+    """v2687 — origin ("hand"|"shadow"|"mini") is WHO asked; the door ledger speaks
+    ("onair"|"mini"|"shadow"). Same three things, two vocabularies, joined HERE and nowhere else.
+
+    Two names for one thing, mapped at each site that needs it, is how the pair drifts until one
+    side grows a fourth value the other has never heard of. [[copy-drift]]
+    """
+    return {"hand": "onair", "mini": "mini", "shadow": "shadow"}.get(str(origin or "hand"), "onair")
+
+
+def _env_clean(sim=False, door=""):
     env = os.environ.copy()
     env.pop("ANTHROPIC_API_KEY", None)
     env.pop("ANTHROPIC_AUTH_TOKEN", None)
@@ -1252,6 +1262,14 @@ def _env_clean(sim=False):
     else:
         env.pop("TV_STUB", None)
     env["TV_PORT"] = str(AGENT_PORT)
+    # v2687 — HAND THE CHILD ITS DOOR. start_agent() has known who asked since v2362 (`origin`),
+    # but the answer lived in this process only: it reached the UI and never the reel. The agent
+    # mints the sessionId, so the door has to travel with it or the reel is born anonymous.
+    # Empty stays EMPTY — a spawn that cannot name its door must not invent one.
+    if door:
+        env["TV_DOOR"] = str(door)
+    else:
+        env.pop("TV_DOOR", None)
     # v784 — Windows capture default AUTO (pin D2R.exe); Mac agent reads TV_CAPTURE itself
     if IS_WIN and not (env.get("TV_CAPTURE") or "").strip():
         env["TV_CAPTURE"] = "auto"
@@ -3061,7 +3079,7 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
         )
         _log_fp.flush()
 
-        env = _env_clean(sim=sim)
+        env = _env_clean(sim=sim, door=_door_of_origin(origin))
         if test:
             # v786 - button-matrix / harness runs must NEVER become theatre reels
             env["TV_NO_JOURNAL"] = "1"
@@ -3179,6 +3197,24 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
         _write_pid(PID_PATH, _agent_proc.pid)
         _agent_mode = "sim" if sim else "live"
         _agent_origin = str(origin or "hand")
+        # v2687 — THE OPEN IS CREDITED HERE, FOR EVERY DOOR. v2316 built a Wilson score per door
+        # and only `shadow` ever passed opened=True, because ON AIR and MINI note their door at
+        # PREFLIGHT time — before anything has opened — and nothing noted it again once a reel was
+        # actually rolling. Measured on his live ledger 2026-09-05:
+        #       shadow  opened=609  filmed=181        onair  (no opened, no filmed)
+        #                                             mini   (no opened, no filmed)
+        # Two of three doors carried an empty denominator and read as healthy, because `refused`
+        # was ticking (onair 5, mini 197) and made the ledger look alive. It was never a
+        # regression: the three call sites read this way in c1b2865a, the commit that introduced
+        # them. A score whose denominator nobody increments cannot fail. [[zero-needs-a-denominator]]
+        #
+        # This is the ONE place a reel is confirmed rolling, which is why the credit belongs here
+        # and not at three doors that each had to remember. The preflight notes stay exactly as
+        # they are — they record what each door SAW, which is a different fact from what it DID.
+        try:
+            _capture_door_note(_door_of_origin(origin), None, opened=True)
+        except Exception:
+            pass
 
     for _ in range(50):
         if _bridge_ping() is not None:
@@ -18528,10 +18564,13 @@ def shadow_watch_tick():
         return {"ok": True, "seen": False, "why": "Diablo is not on screen", "pre": pre}
     r = start_agent(sim=False, origin="shadow")   # v2362 — say who asked
     ok = bool(isinstance(r, dict) and r.get("ok"))
+    # v2687 — shadow no longer credits its own open: start_agent() now does it for every door, and
+    # shadow reaches its reel THROUGH start_agent. Leaving the old opened=True here would count
+    # every shadow reel twice and quietly halve its Wilson score against the other two doors.
     # v2316 — the DENOMINATOR of shadow's Wilson score. Claiming a reel was opened is the door's
     # to claim; whether it held film is not, and is credited later by capture_door_credit().
     try:
-        _capture_door_note("shadow", pre, opened=ok)
+        _capture_door_note("shadow", pre)
     except Exception:
         pass
     cur = shadow_watch_state()
@@ -23161,7 +23200,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2686",
+        "ver": "v2687",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
