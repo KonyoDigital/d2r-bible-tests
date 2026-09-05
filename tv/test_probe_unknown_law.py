@@ -230,6 +230,32 @@ def _corpus_shelf():
         triage["reel_" + sid] = {"ts": 1756900000000 + i, "hits": 2, "frames": 3, "panels": 1}
     with io.open(os.path.join(d, "retro_triage.json"), "w", encoding="utf-8") as fh:
         fh.write(json.dumps(triage))
+    # ⚠⚠ AND THE SEAL STORE, WITHOUT WHICH `printer_reach` READS A CORPUS OF ZERO SEALS. Its
+    # `_load` joins the shelf with `frame_authority.SEAL_STORE`. Seals that name no `extracted`,
+    # so the contract genuinely REFUSES them and the real ask reaches a MEASURED verdict.
+    #
+    # ⚠⚠ THIS FILE WAS EDITED AND REPORTED VERIFIED EARLIER THE SAME SESSION, AND THE VERIFICATION
+    # COULD NOT HAVE SEEN THIS. Measured twice, independently, 2026-09-05 — probing from INSIDE
+    # `_against_the_corpus()`:
+    #
+    #     vault_swept.json planted in the corpus?  False
+    #     sealed_sessions() inside the corpus   ->  30 seals, ok=True
+    #     his real tv/vault_swept.json          ->  30 seals
+    #
+    # The corpus this file's own comment above calls BUILT rather than borrowed was reading his
+    # real seal store, because `sealed_sessions`' root falls back to `frame_authority.HERE` and the
+    # hook list had no entry for it. On his Mac that leak made the shelf look complete; on a runner
+    # the store is absent and the "REAL" ask was a corpus of ZERO seals — so both laws below were
+    # comparing UNKNOWN against a verdict that only looked measured, and passing for a reason that
+    # cannot hold on the venue they exist to protect. Two greens, neither earned.
+    #
+    # A verification run on the machine that owns the data cannot see a borrowed store: the borrow
+    # is what makes it look right. That is the third escape of this shape found in one day — the
+    # others were `board_sync.REPO`, a hardcoded absolute path that reached out of a `git archive`
+    # export, and this file's own printer_reach hook. [[copy-drift]] [[the-unjoined-end]]
+    with io.open(os.path.join(d, "vault_swept.json"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({sid: {"ts": 1756900000000, "rows": 2, "promptVer": "vpFixture"}
+                             for sid in (k[len("reel_"):] for k in triage)}))
     # ⚠ `dead_field.MIN_ROWS` is 30 — under the floor a store is UNKNOWN, not clean — so both
     # watched stores get 32 rows with every column filled on at least one of them.
     with io.open(os.path.join(d, "reel_tombstones.json"), "w", encoding="utf-8") as fh:
@@ -250,20 +276,69 @@ def _against_the_corpus():
     root for `reel_tombstones.json` and `disk_history.jsonl`), `tv_diablo.HIST_DIR` (frozen at
     import, so the env alone does not take), `reel_retention.plan`'s default shelf — which is
     HERE-relative and honours no env at all — and `printer_reach.TRIAGE`, a module constant.
+
+    ⚠⚠ AND `frame_authority.sealed_sessions`, THE ONE RESOLVER THIS LIST USED TO OMIT. Its root
+    defaults to `frame_authority.HERE`, so `printer_reach` read the REAL `tv/vault_swept.json`
+    from inside a corpus this file's own comment calls "identical on every machine". On his Mac
+    his 30 seals leaked in and the shelf looked complete; on a runner that store is absent, so the
+    REAL ask was a corpus of ZERO SEALS and both laws below were comparing UNKNOWN against a
+    verdict that only looked measured. MEASURED 2026-09-05 in a tracked-files-only checkout.
+    [[copy-drift]] [[feedback-fixtures-never-touch-live-data]]
+
+    ⚠ AND `one_funnel.HERE`, found by MEASURING rather than reading: with `open` instrumented,
+    every FULL ask below was asked which DATA files it actually touched. `one_funnel.funnel` was
+    opening the real `tv/retro_triage.json` and `tv/vault_swept.json` from inside the corpus —
+    `one_funnel.py:128` joins its store name onto `HERE` at call time. It reads those for rung
+    COVERAGE and not for its verdict, so nothing was ever red, which is exactly why it would have
+    kept leaking.
+
+    ⚠⚠ AND THE HOOK LIST IS STILL NOT COMPLETE — SAID HERE BECAUSE AN UNSTATED GAP BECOMES A
+    FALSE CLAIM OF CONTAINMENT. Measured on HIS MAC 2026-09-05, after the two hooks above:
+
+        one_funnel.funnel · per_reel_routes.routes · printer.stream · reel_river.river
+        still open  vault_accum.json · vault_seen.json · vault_swept.json · chronicle_swept.json
+        from the real tv/  —  4 of the 8 asks
+
+    The path, from a captured stack rather than a guess: `reel_story.story` -> the `RR.plan` hook
+    above -> `reel_retention.plan:371`, which calls `_durable_sessions(HERE)` and so passes
+    `reel_retention.HERE` EXPLICITLY into `frame_authority.witness_index`. An explicit root means
+    `witness_index`'s own `root or HERE` fallback never fires, so patching `frame_authority.HERE`
+    does NOTHING here — tried, measured, still 4 of 8, and the hook was reverted rather than kept
+    with a comment claiming a containment it did not deliver. The `RR.plan` hook redirects the
+    SHELF and not the DURABLE-STORE ROOT: a half-redirect of the same shape
+    `test_import_bound_paths.py` records for `board_sync.REPO`/`TASKS`.
+
+    NOT fixed here, deliberately: the corpus carries no `vault_accum`/`vault_seen`, so redirecting
+    that root would make `witness_index` report `haveIndex: False`, which is the input that decides
+    whether `reel_retention` holds every reel. That is a verdict change and needs its own
+    measurement, not a line added to a hook list at the end of an unrelated fix.
+
+    ⚠ THE SWEEP'S FIRST RUN NAMED TWO MORE, AND BOTH WERE THE INSTRUMENT: macOS `/var` is a symlink
+    to `/private/var`, so `abspath` on a tempdir compared unequal against itself. `realpath` on both
+    sides and they had been inside the corpus all along. The same sweep on a RUNNER reported
+    "0 of 8 contained" — also the instrument: a tree with no stores has nothing to leak, so
+    containment cannot be measured there at all. [[feedback-suspect-the-instrument]]
+    [[gate-blind-to-unexercised-input]]
     """
+    import frame_authority as FA
+    import one_funnel as OF
     import printer_reach as PR
     import reel_retention as RR
     import tv_diablo as TD
     shelf = _corpus_shelf()
     env, hist, plan, triage = os.environ.get("TV_HIST"), TD.HIST_DIR, RR.plan, PR.TRIAGE
+    seals, funnel_here = FA.sealed_sessions, OF.HERE
     os.environ["TV_HIST"] = shelf
     TD.HIST_DIR = shelf
     RR.plan = lambda hist_dir=None, *a, **k: plan(hist_dir or shelf, *a, **k)
     PR.TRIAGE = os.path.join(shelf, "retro_triage.json")
+    FA.sealed_sessions = lambda root=None: seals(root or shelf)
+    OF.HERE = shelf
     try:
         yield shelf
     finally:
         RR.plan, TD.HIST_DIR, PR.TRIAGE = plan, hist, triage
+        FA.sealed_sessions, OF.HERE = seals, funnel_here
         if env is None:
             os.environ.pop("TV_HIST", None)
         else:

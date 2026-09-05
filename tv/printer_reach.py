@@ -34,13 +34,27 @@ recorded the same thing for characters, and the vault audit ruled "film cannot n
 DESIGN, not a defect. So a grid-only reel can never satisfy the contract, can never be judged
 disposable, and is permanently outside what the printer may act on. That is the guard working.
 
-WHAT THIS REPORTS, and the three answers are deliberately different words:
+WHAT THIS REPORTS, and the four answers are deliberately different words:
 
     CLEAN         the join was made, seals were readable, and no seal certifying full extraction
                   sits on a reel the survey says held panels
     CONTRADICTION at least one does — the A4 case, and the printer must not ship without handling it
-    UNREACHABLE   nothing could be compared: no seal satisfies the contract, or nothing joined.
-                  NOT a pass. It is this module saying it could not see.
+    UNREACHABLE   a corpus was READ and nothing in it could be compared: seals exist and not one
+                  satisfies the contract, or nothing joined. NOT a pass — but a real finding, and
+                  on his shelf it is the hard-won one: 30 seals read, every one refused.
+    UNKNOWN       nothing was established at all. The store would not open, or there is no store.
+
+⚠⚠ AND 0 SEALS IS UNKNOWN, NOT UNREACHABLE — 2026-09-05, and the line between them is *was
+anything established*, never *could anything be compared* (both fail on an empty shelf).
+`frame_authority._load_state` answers an ABSENT store with `({}, "absent")` — correct and
+deliberate since v2079, because for a FRAME DELETER "there is nothing to read" and "I could not
+read it" are opposite facts. `sealed_sessions` turns that into `({}, True)`, and this module read
+it as a corpus of zero seals and announced *"NOT ONE of the 0 seals satisfies the extraction
+contract ... Zero contradictions here measures the CONTRACT REFUSING EVERY SEAL"* with the
+blocking-reasons list EMPTY. A filter that rejected NOTHING, reported as a filter that rejected
+EVERYTHING. MEASURED 2026-09-05 on a tracked-files-only checkout: state=UNREACHABLE, seals=0,
+blocked={}. Every tree that has never run a vault sweep hits it, and letting it wear UNREACHABLE
+re-merges the two facts REG-543 split apart.
 
     python3 tv/printer_reach.py            # the report
     python3 tv/printer_reach.py --json
@@ -151,6 +165,12 @@ def report():
                         "they still held panels. This is the case A4 was born from and the printer "
                         "may not ship without handling it." % len(contradictions))}
     # ⚠ THE ZERO HAS TO EARN THE WORD "CLEAN".
+    if not seals:
+        return {"state": UNKNOWN, "rows": [], "counts": counts, "blocked": blocked,
+                "missingByFact": missing_by_fact,
+                "why": ("there is no seal store to read — 0 seals, so the contract was never "
+                        "asked to admit anything and nothing about this corpus was established. "
+                        "A filter that rejected NOTHING is not a filter that rejected EVERYTHING.")}
     if not satisfied:
         return {"state": UNREACHABLE, "rows": [], "counts": counts, "blocked": blocked, "missingByFact": missing_by_fact,
                 "why": ("NOT ONE of the %d seals satisfies the extraction contract, so no reel can "

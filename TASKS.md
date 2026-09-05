@@ -1263,8 +1263,15 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
   this is HIS board data, so it is measured and proposed, **not executed**. ⚠ One row carries a
   `01-01` stamp, which is not a real date; an age-keyed prune must handle it rather than treat it
   as ancient.
-- ◻ **CF-7 FOOTAGE HAS A REEL** — 1 frame outside every reel. Small in bytes; the point is that a
-  frame CAN exist outside the structure that governs frames. `tv/orphan_fold.py` has the plan.
+- ✅ **CF-7 FOOTAGE HAS A REEL — CLOSED 2026-09-05 AS A DUPLICATE OF B-82, WHICH IS ALREADY CLOSED
+  SEVENTY LINES ABOVE IT.** Re-measured rather than assumed: `orphan_fold.plan()` answers
+  `1 cluster · 1 frame · 195,266 bytes · **0 foldable, 1 REFUSED** for overlapping an existing
+  reel`. B-82's row records the identical finding and the reason it must stay refused — *folding
+  it would mint a second session id for one recording*, forging the independence the keep-gate
+  demands. **The refusal is the correct behaviour, not the outstanding work**, so this row was
+  never a task; it was B-82 wearing a CF number. ⚠ Its one live number belongs to CF-6, not here:
+  the same report counts **591 probe artifacts** in the frame pool, which is the guest-world pile
+  under a different name.
 - ◻ **CF-8 BOARD IS CLAIMED = UNKNOWN** — correct as written, do NOT turn it into a number. Worth
   doing: surface the 110-of-110 same-world agreement as EVIDENCE for CF-5, and carry the last
   known answer WITH ITS AGE instead of a bare UNKNOWN.
@@ -1417,3 +1424,54 @@ which exports the last **COMMIT**, while the fixes were uncommitted. I graded th
 with the working tree overlaid, `reel_demo` immediately exposed a **second** defect: an earlier
 `return 1` made the new `return 77` unreachable, so it printed *"declared SKIP"* and exited 1
 anyway. **Two return paths, one patched.** Founding rule 4, on my own instrument.
+
+---
+
+# ✅✅ CI IS GREEN — `cd5be969`, 2026-09-05
+
+**📺 TV DIABLO — agent tests → SUCCESS.** Read by DELTA, never by state: it is the **only success
+in the visible window**, against a measured baseline of **149 RED OF 150 runs across three days**.
+`Routine M` ✅ and `Publish` ✅ beside it — three of three settled workflows green.
+
+```
+07:36  success  cd5be96   <- the ship
+07:06  failure  a50c925
+05:15  failure  af8beac
+04:29  failure  e68d927
+03:49  failure  3453260
+```
+
+### THE PATH: 16 RED GATES → 3 → 0
+
+| what it was | count |
+|---|---|
+| REAL regressions | **2** — `render_check.py:332`'s non-raw `\d` displacing a gate's declared skip reason on CI's 3.12 while invisible on his 3.9; and the swallow ratchet 74→76, two new files handing a failed read back as `[]` and `{}` |
+| stale assertions | 4 |
+| missing CI dependency | 1 — `websocket-client`, whose absence failed a gate that looks unrelated to sockets |
+| host-fixture gates | 6 — the runner has none of his footage |
+| message/exit-code contradiction | 1 — `overlap_ratchet` printed `⚪ UNKNOWN` and exited FAIL, so a browserless runner counted it red while nine `⚪ SKIPPED` siblings were not |
+| **structurally unsatisfiable** | 1 pair — `test_scope_reach_signal` carried a test forbidding its own registration while `TestNoOrphanSuite` REQUIRES it. No edit to either side could satisfy both |
+| **never assigned to anyone** | 2 — `test_printer_reach`, `test_board_story`. My brief said "16 gates"; the job list held nine and I took five |
+| found by reviewing the PUSHED bytes | 4 more, in the ship itself — including a **new red gate introduced by the commit titled "the last red gate"** |
+
+### ⚠ WHAT THIS COST IN SELF-INFLICTED ERROR, recorded because the count is the point
+
+**Five measurements of mine were wrong and each was caught by re-checking, not by the check:**
+"CI red for four pushes" (a sample reported as a verdict — it was 149/150) · `board_tally` at 13
+routes (I counted top-level keys, not `byRoute` — it is 404) · "the artifacts are still growing"
+(the file's mtime moves when his REAL worlds write; the pile stopped 52 h earlier) · grading
+uncommitted bytes with `git archive HEAD` · and a grep that reported a skip which did not exist,
+because a docstring **arguing against** a `skipUnless` contains the word.
+
+**And THREE sandbox escapes, every one of which made a check PASS:** my CI-venue recipe reading his
+live `TASKS.md` through `board_sync.py:40`'s literal default · that same recipe grading the previous
+commit · and a corpus whose own comment calls it *"built rather than borrowed"* silently reading his
+real **30 seals** (a runner reads 0). **A sandbox is not a sandbox until you ask it what it
+resolves to.** An AST sweep of every module-level assignment in `tv/*.py` finds exactly **one**
+string constant starting with `/Users/` — `board_sync.py:40` — so that escape class has a
+population of one, and it is handled at the test level now.
+
+⚠ **`Routine I` (Playwright) is NOT part of this.** It is a separate 7-day red — last green
+2026-08-29, 344 non-green runs, 141 of them *cancelled* — whose failures cluster **by shard, not by
+cause**, and whose shard-5 count is unmeasurable because the 700 KB log truncates before its
+summary. It is last by its own breadth, and nothing here claims to have touched it.

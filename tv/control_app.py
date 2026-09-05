@@ -11498,6 +11498,28 @@ def _board_identity_remember(payload):
     return rec
 
 
+def _fmt_age_ms(ms):
+    """A duration in ms as something a person reads. -> str
+
+    ⚠ Private and local to its one caller ON PURPOSE. `counter_ledger._age_days` already exists but
+    answers a different question (a number of days, for arithmetic), so calling it here would give
+    a rendered sentence and a computed figure one shared source and two meanings — which is the
+    label-outlived-referent shape. A second FORMATTER is not [[copy-drift]]; a second SOURCE OF THE
+    AGE would be, and there is exactly one: the record's `lastSeen`.
+    """
+    try:
+        s = max(0, int(ms)) / 1000.0
+    except Exception:
+        return "an unknown time"
+    if s < 90:
+        return "%ds" % int(s)
+    if s < 5400:
+        return "%.0fm" % (s / 60.0)
+    if s < 172800:
+        return "%.1fh" % (s / 3600.0)
+    return "%.1f days" % (s / 86400.0)
+
+
 def board_identity_drift():
     """What the eagle asks: did the board come back as a DIFFERENT world than last time?
 
@@ -11524,9 +11546,24 @@ def board_identity_drift():
         return {"state": "drift",
                 "why": "the board is in an UNCLAIMED guest world (pfx=%r) — anything applied here "
                        "is lost on the next load. Claim it." % rec.get("pfx")}
+    # CF-8 — A REMEMBERED ANSWER MUST CARRY ITS AGE, AND AS A FIELD, NOT ONLY IN PROSE.
+    # His row says of `board is claimed`: *"correct as written, do NOT turn it into a number.
+    # Worth doing: carry the last known answer WITH ITS AGE instead of a bare UNKNOWN."* So the
+    # VERDICT is untouched — this still answers ok/drift/unknown exactly as before — and what is
+    # added is the provenance a reader needs to weigh it: WHEN the world was last actually seen.
+    # Without it, "the same claimed world 3989 time(s)" reads identically whether the last sighting
+    # was ninety seconds ago or last week, and the doctor's UNKNOWN branch (which quotes this
+    # sentence when the board is shut) inherits that blindness. [[stale-reading]]
+    # ⚠ FIELDS, because a consumer cannot branch on a sentence — the same reason `unknown-stays-
+    # unknown` insists a count travels as a number rather than inside a `why`.
+    # ⚠ `ageMs: None` when the record carries no clock. An unknown age is not a fresh one.
+    _seen = rec.get("lastSeen")
+    _age = (int(time.time() * 1000) - int(_seen)) if isinstance(_seen, (int, float)) else None
     return {"state": "ok",
-            "why": "the board has come back as the same claimed world %d time(s)"
-                   % (rec.get("seenCount") or 1)}
+            "lastSeen": _seen, "ageMs": _age, "seenCount": rec.get("seenCount"),
+            "why": "the board has come back as the same claimed world %d time(s)%s"
+                   % ((rec.get("seenCount") or 1),
+                      "" if _age is None else (", last seen %s ago" % _fmt_age_ms(_age)))}
 
 
 def board_ownership(sample=0, dump_stores=False):
