@@ -30,7 +30,7 @@ He asked for the list *"optimised to perfection so theres nothing there"*. A rea
 > | HEAD v2657, 9 ships absent | **v2681** | `tv/WINDOWS_SHIP.json` |
 > | 142 gates | **143** | `grep -c '^    Gate(' tv/run_gates.py` |
 > | CF-1 twins "116 lines apart" | **1,095** (L128 vs L1223) | both lines still live |
-> | §8's "30-gate set" | **143** — the number is ~4.8× stale | same grep |
+> | §8's "30-gate set" | ~~143~~ → **146** — ~4.9x stale | same grep |
 >
 > ⚠ **AND THE A2 LOCK PROSE BELOW IS FALSE AGAINST THE LIVE MODULE.** `python3 tv/self_arming.py`
 > returns **12 of 17 OPEN, 0 HARDENED**, with `prune.arm`, `vault.apply` and `vault.sweep_start`
@@ -41,10 +41,10 @@ He asked for the list *"optimised to perfection so theres nothing there"*. A rea
 
 | fact | measurement (⚠ as first written — see the re-audit above) |
 |---|---|
-| newest LANDED row in this file | ~~v2648~~ → **v2681**, recorded in the LANDED table below |
-| HEAD | ~~v2657~~ → **v2681** (`ef9e4dea`) |
-| "the 30-gate set" (§8 and elsewhere) | `grep -c '^    Gate(' tv/run_gates.py` = **142**. The number 30 is **~4.7× stale** |
-| rows claiming a state that is no longer true | **11** |
+| newest LANDED row in this file | ~~v2648~~ → ~~v2681~~ → **v2690** (`4254d925`). ⚠ THE TABLE BELOW NOW LISTS v2691 AND v2692 TOO, AND THEY HAVE NOT LANDED — they are committed and held while he is gaming, because the pre-push gate runs Playwright and a full render sweep on his Mac. A row in a LANDED table that has not landed is the same defect this audit exists to catch, so it is said here rather than left to be discovered |
+| HEAD | ~~v2657~~ → ~~v2681~~ → **v2692** (`1d1a6385`, 12 commits unpushed while he was gaming) |
+| "the 30-gate set" (§8 and elsewhere) | `grep -c '^    Gate(' tv/run_gates.py` = ~~142~~ → **146** (2026-09-06). The number 30 is now **~4.9× stale**, and the drift outran its own audit inside six days — which is the point the audit was making |
+| rows claiming a state that is no longer true | **11** as first written · **+2 found 2026-09-06** (`sunder6` and `sunder3forms` both said "FIXED AND VERIFIED v2680" with real measurements attached; v2680 was REVERTED in v2685 and the fix rode out with it, leaving the claim standing). ⚠ A revert undoes code and cannot undo a claim written on a list, and nothing re-checks a row when the version it names is reverted |
 | ids carrying work that is really ONE item | **8 clusters** — the largest is **7 ids for one decision** |
 | rows shown as owed by him that he has ALREADY ruled on | **6** |
 
@@ -311,7 +311,8 @@ in those words.
 - ~~**`run_gates.py` HAS EIGHT RED GATES ON `main`.**~~ ✅ **SEVEN CLOSED (v2595–v2599); the**
   **eighth is `human-eyes`, which is HIS** — 3 briefs asked and never answered past 24h. Full-set
   verdict recorded above. ORIGINAL:
-  Measured 2026-09-04 by running the full 30-gate set, which the hook does not: it says so itself —
+  Measured 2026-09-04 by running the full gate set (30 THEN, 146 NOW — the phrase is kept as written
+  because re-writing a dated measurement would falsify it), which the hook does not: it says so itself —
   *"run_gates.py runs 30 gates; this hook ran three."* RED: `printer_wilson`, `test_reachability`,
   `swallow_ratchet`, `test_heart`, `test_store_owners`, `test_printer`, `human-eyes`,
   `test_import_bound_paths`. ✅ **FIVE FIXED, NONE RE-BASELINED AWAY.** v2595 (REG-576) closed
