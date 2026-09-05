@@ -20999,6 +20999,25 @@ test measured it.
 stamps `_v2205` — so this is not a typo for a key that does not exist. The audit called it "the
 wrong key"; it is a reset pointed one version behind. Clearing **both** is the conservative fix.
 
+## REG-632 — a fixture asked the product to prove something it is not allowed to do
+
+`v2083_vaulted_base_survives` failed on CI with *"no base was vaulted — the fixture cannot
+demonstrate survival"*, **expected 4, received 0** — which reads as a vaulting regression and is not
+one. The spec passed bare name strings: `chronicleApply({ wouldAdd: { uniques: ['Shako', …] } })`.
+
+`_mayVault` is `window._vaultMayClaim((row && row.loc) || '')` (`bible.html:44111`), so a bare
+string resolves `row.loc` to `undefined`, the claim is correctly refused, and `res.vaulted` comes
+back empty. **The fixture then blamed the product for its own shape.**
+
+The identical sibling was fixed in `v2193`, which passes `{ name, loc: 'stash' }` at all five of its
+call sites — this is the fifth door of that sweep, found by reading the CI log rather than assuming
+the earlier fix had covered everything. [[feedback-blind-fixture-green-gate]] [[sweep-dont-ask]]
+
+⚠ **THE SWEEP WAS DELIBERATELY NOT WIDENED.** `v1521_chronicle_apply` also passes rows with no
+`loc` — at ten call sites — and it **passes**, because it asserts on the chronicle, never on
+`vaulted`. Adding `loc` there would be editing working tests to match a pattern rather than a
+defect. A sweep is for siblings of the FAULT, not for every occurrence of the shape.
+
 ## REG-631 — four stale assertions, and one of them was the CODE being right (v2672)
 
 Routine I's failing set on v2665, counted by unique `spec.ts:LINE:COL` (**39** distinct failing

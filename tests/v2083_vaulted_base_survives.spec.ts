@@ -54,7 +54,18 @@ async function applyBases(page: any) {
        ⚠ The SECOND, identical self-join further down is deliberately left alone: it SEEDS the
        world for the every-door test rather than testing the join.
        [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] */
-    const res = w.chronicleApply({ wouldAdd: { uniques: bases, sets: [] } });
+    /* v2672 — A ROW WITH NO `loc` CAN NEVER BE VAULTED, so this fixture was asking chronicleApply
+       to prove something it is not allowed to do. `_mayVault` is
+       `window._vaultMayClaim((row && row.loc) || '')` (bible.html:44111), so a bare name string
+       resolves `row.loc` to undefined, the claim is refused, and `res.vaulted` comes back EMPTY —
+       which this spec then reports as "no base was vaulted", blaming the product for the fixture's
+       own shape. Measured on CI: expected 4, received 0.
+       The same sibling was fixed in v2193, which passes `{ name, loc: 'stash' }` at all five of its
+       call sites. This is the fifth door of that sweep, found by reading the CI log rather than by
+       assuming the earlier fix had covered everything. [[feedback-blind-fixture-green-gate]] */
+    const res = w.chronicleApply({
+      wouldAdd: { uniques: bases.map((n: string) => ({ name: n, loc: 'stash' })), sets: [] },
+    });
     const P = w._D2R_PFX || '';
     return {
       vaulted: res.vaulted || [],
