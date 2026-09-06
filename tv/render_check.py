@@ -630,6 +630,66 @@ TARGETS = {
     # ⚠ IT MUST BE SERVED. _heartOpen() fetches /api/heart; under file:// that cannot resolve and
     # the panel paints its unreachable branch, so a file:// target would refuse on every run — the
     # mistake the `tvd` target already made and got deleted for, recorded above.
+    "heart-fan": {
+        "serve": True,
+        "why": "♥ THE HEART'S LOCK FAN — the half of the panel nothing was photographing. The "
+               "`heart` target's selector is `.hrt-h, .hrt-row`, which is TWO of the panel's "
+               "fourteen text classes, so the radial lock fan was never in any shot. That is why "
+               "[[heartov2]] survived three fixes: overlap_ratchet can see the fan and is "
+               "baselined at 2 (green forever, and it cannot run on CI at all), the render gate "
+               "never photographed it, and the second eye is shown the render gate's pixels — "
+               "four instruments, not one able to raise it. Asked cold about overlaps on a heart "
+               "shot, a different model family answered that the labels are ABSENT FROM THE "
+               "FRAME. They were",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* the SAME opener overlap_ratchet drives, so the two instruments finally agree on
+               what they are looking at: PANELS uses `#heart-chip`.click(). Idempotent on purpose —
+               the harness re-runs this every 0.4s, so it must never toggle. */
+            var ov = document.getElementById('heart-ov');
+            if (!ov) return false;
+            if (ov.hidden || getComputedStyle(ov).display === 'none') {
+                var c = document.getElementById('heart-chip');
+                if (!c) return false;
+                c.click();
+                return false;
+            }
+            /* CONTENT, not just a rect: the fan is what this target exists for, so refuse until
+               the fan's own classes are actually present. An open panel with no fan would
+               photograph as a clean pass and measure nothing. */
+            var fan = ov.querySelectorAll('.hrt-k, .hrt-w, .hrt-s, .hrt-chain, .hrt-grp').length;
+            return fan >= 6; })()""",
+        # The classes the `heart` target does NOT cover. Deliberately NOT a replacement: `heart`
+        # photographs the chronicle routes, a different surface with its own value, and its text
+        # begins "The chronicle routes - 3 - source -> generator -> roster -> freshness ->".
+        "sel": "#heart-ov .hrt-k, #heart-ov .hrt-w, #heart-ov .hrt-s, #heart-ov .hrt-note, "
+               "#heart-ov .hrt-chain, #heart-ov .hrt-grp, #heart-ov .hrt-legend, "
+               "#heart-ov .hrt-sec, #heart-ov .hrt-head, #heart-ov .hrt-win",
+        "settles": False,
+        "warmup": 10.0,
+        # ⚠ DECLARED PER WIDTH, AND NAMED SO IT IS NOT A BLANK CHEQUE. Two `.hrt-w` nodes carry
+        # no text at all, so they have no box — measured identically at all five widths, which is
+        # structural rather than a race, and the probe now NAMES them ("hrt-w :: " with nothing
+        # after the separator) instead of leaving a reader to bisect the selector. They are empty
+        # CONTAINERS, not a collapse: nothing is clipped or covered (0/1613 scanned, 0/260).
+        # The floor is 2 and the gate refuses the moment a THIRD collapses — which is the case
+        # that would actually mean something.
+        "known": {
+            "1440x1000": {"zero": 2},
+            "1120x900":  {"zero": 2},
+            "1120x628":  {"zero": 2},
+            "901x900":   {"zero": 2},
+            # ⚠⚠ 375 CARRIES ONE CLIPPED ELEMENT, AND IT IS DEBT, NOT A PASS.
+            # The FIRST run of this target found it: `hrt-svgwrap :: miniauto.run — INCOMPLETE —`
+            # has text cut off inside it at 375px. Nothing was watching this surface, which is the
+            # whole reason the target exists, and it found something in its first minute.
+            # It is declared so the gate can go green on the KNOWN state and refuse a SECOND —
+            # but a declared floor is how [[heartov2]] sat on his screen through three fixes
+            # ("baseline 2 now 2, held" forever), so this one is filed as an open row rather than
+            # absorbed here. Lower it the moment the clip is fixed; never raise it.
+            "375x800":   {"zero": 2, "clipped": 1},
+        },
+    },
     "heart": {
         "serve": True,
         "why": "♥ THE HEART — the panel that says which vessels are alive, which valves are open, "
@@ -1155,11 +1215,22 @@ _PROBE = r"""(function(sel, OK_TRUNC){
   }
   var rects=[], zero=0, off=0, clipped=0, covered=0, broken=0, imgs=0;
   var clipScanned=0;
-  var okTrunc=0, clippedWhat=[], coveredWhat=[];
+  var okTrunc=0, clippedWhat=[], coveredWhat=[], zeroWhat=[];
   var unreachable=0, unreachableWhat=[];
   nodes.forEach(function(e){
     var r=e.getBoundingClientRect();
-    if (r.width<1 || r.height<1) { zero++; return; }
+    if (r.width<1 || r.height<1) {
+      /* ⚠ v2708 — NAME IT. This counted zero-size nodes and could not say WHICH, so the warning
+         read "2 of 260 node(s) are ZERO-SIZE" and the only way to find them was to bisect the
+         selector. This file already learned that lesson once, for `covered`: "IT COULD NOT NAME
+         WHAT IT FLAGGED. `e.id` is empty for most elements, so the refusal read `tab-content
+         active over ` with nothing after `over`". Same fix, same reason — a refusal that cannot
+         name its subject sends the reader hunting instead of looking. */
+      zero++;
+      if (zeroWhat.length < 5) zeroWhat.push(
+        (String(e.className||'') || e.tagName) + ' :: ' + (e.textContent||'').trim().slice(0,24));
+      return;
+    }
     rects.push({w:Math.round(r.width), h:Math.round(r.height),
                 x:Math.round(r.left), y:Math.round(r.top)});
     if (r.left < -1 || r.right > innerWidth+1) off++;
@@ -1411,7 +1482,7 @@ _PROBE = r"""(function(sel, OK_TRUNC){
   var txt = nodes.map(function(e){return (e.textContent||'');}).join(' ')
                  .replace(/\s+/g,' ').trim();
   var widths = {}; rects.forEach(function(r){ widths[r.w]=1; });
-  return JSON.stringify({found:nodes.length, painted:rects.length, zero:zero, off:off,
+  return JSON.stringify({found:nodes.length, painted:rects.length, zero:zero, zeroWhat:zeroWhat, off:off,
     clipped:clipped, clipScanned:clipScanned, clippedWhat:clippedWhat, okTrunc:okTrunc,
     covered:covered, coveredWhat:coveredWhat,
     unreachable:unreachable, unreachableWhat:unreachableWhat,
@@ -1573,9 +1644,13 @@ def verdict(key, m, sel, known=None):
     if _zero > _zfloor:
         return _tag(["%s: %d of %d node(s) are ZERO-SIZE while %d painted%s. A partial collapse reports "
                 "zero clipping for the missing ones, so the clean numbers beside it are about the "
-                "survivors only." % (key, _zero, m.get("found", 0), m.get("painted", 0),
+                "survivors only.%s" % (key, _zero, m.get("found", 0), m.get("painted", 0),
                                      (" — DECLARED FLOOR IS %d, this is %d MORE"
-                                      % (_zfloor, _zero - _zfloor)) if _zfloor else "")])
+                                      % (_zfloor, _zero - _zfloor)) if _zfloor else "",
+                                     # v2708 — say WHICH. Bisecting a selector to find two
+                                     # collapsed nodes is work the probe can simply do.
+                                     ("  ::  " + " ; ".join(m.get("zeroWhat") or []))
+                                     if m.get("zeroWhat") else "")])
     if _zfloor and _zero < _zfloor:
         return _tag([], ["%s: ⓘ %d of %d node(s) are zero-size against a declared floor of %d, so "
                          "%d now paint that did not. Lower the floor so it cannot excuse a real "

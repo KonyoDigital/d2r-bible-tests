@@ -22411,3 +22411,34 @@ heuristic is safe in.
 write the name the claim itself would have written. Proven both ways —
 `UNCLAIMED=removed` (his board still re-arms) and `CLAIMED=named` (the stranger keeps his own
 ledger). Restoring the old unconditional removal turns that law red.
+
+## REG-675 — the visual gate photographed two of the heart's fourteen text classes
+
+**Found by:** chasing a contradiction between two instruments instead of averaging it
+
+A second eye, asked cold whether any label was drawn over another and told to look carefully at
+radial diagrams, answered **no** on a 1440 heart shot — flatly contradicting `overlap_ratchet`,
+which had measured two overlaps on that panel hours earlier.
+
+Two hypotheses died on the way. **"Different panel"**: both instruments target `heart-ov` —
+`render_check` resolves it by id, `overlap_ratchet` clicks `#heart-chip` to open the same thing.
+**"Too small to see"**: a 3× magnified crop was shown back, and the answer was that the phrases are
+**absent from the frame**. Not too small — not there.
+
+The cause: `"sel": "#heart-ov .hrt-h, #heart-ov .hrt-row"` — **two of the panel's fourteen text
+classes**. The lock fan was never in any shot, so it was never in anything the second eye was shown.
+
+⚠ **That is why `heartov2` survived three fixes.** Four instruments and not one could raise it: the
+render gate never photographed the fan; the second eye is shown the render gate's pixels;
+`overlap_ratchet` *can* see it but is baselined at 2 (`baseline 2 now 2, held`) and cannot run on CI
+at all (its baseline was measured on Darwin). The fixes were not bad — **after each one, nothing was
+watching.**
+
+**Fix:** a `heart-fan` target covering the other twelve classes, opened with the *same*
+`#heart-chip` click `overlap_ratchet` uses so the two instruments finally agree on what they see.
+It measures **260 nodes against the old target's 86** — and found a real clip at 375 in its first
+run (`hrt-svgwrap :: miniauto.run — INCOMPLETE —`), filed as its own row rather than absorbed.
+
+**Also fixed:** the probe counted zero-size nodes without naming them, so `2 of 260 are ZERO-SIZE`
+meant bisecting a selector to find out which. It now says `hrt-w ::` — the same fix this file
+already made once for `covered`, whose comment reads *"IT COULD NOT NAME WHAT IT FLAGGED"*.
