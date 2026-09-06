@@ -1347,6 +1347,17 @@ COVERED_BY = {
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
     "console UI faults": "the console reports about itself; there is no second engine to agree with",
+    # v2726 — DECLARED, NOT SKIPPED. coldread now EXCUSES a missing region when its host declares
+    # itself empty, and that exemption decides whether a ship may proceed (the second-eye gate).
+    # By [[join-gate-heart]] that earns a joint — but a joint needs two INDEPENDENT readings, and
+    # there is only one instrument here: the renderer is the sole thing that photographs a version.
+    # The ledger cannot corroborate it (it records what the renderer produced), and comparing the
+    # exemption against its own declaration is a tautology. Writing one anyway would be a joint in
+    # name, which is worse than none because it would READ as covered.
+    # The gate does the load-bearing work instead: test_coldread_empty_is_not_broken pins that the
+    # excused empty branch still EXISTS in bible.html, so the exemption cannot outlive its premise.
+    "cold read exemption": "one instrument photographs a version; nothing else can independently "
+                           "say whether a region was absent because empty or because broken",
     "version drift":     "one reading of one number; a joint would need a second source of truth",
     "lane intent":       "intent vs reality is already a two-sided check inside the eagle itself",
     "disk headroom":     "the disk is the ground truth; nothing else independently measures it",

@@ -22536,6 +22536,35 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-686 — the cold reader refused a panel that was correctly empty, so no version could be read
+
+**v2726.** `coldread` photographs a shipped version so a different model family can look at the
+real pixels; the push gate will not ship version N+1 until version N has had that look. Two of its
+eight captures target `.vrg-cols`, the vault Registered ledger below the fold. Both had been
+failing with "'.vrg-cols' is not on this page" — and because ANY refusal aborts the run, **the
+renderer built to satisfy the second-eye gate could not satisfy it.** Reproduced identically on
+v2723 and v2724, so it was a regression in neither.
+
+CAUSE, and it is not a product defect. `renderVaultRegistered()` ends its empty case with
+`if(!all.length && !findNames.length && !_unkCount){ el.hidden=true; el.innerHTML=''; return; }`,
+and `render_check` launches Chrome on a FRESH PROFILE every run, deliberately, so that no run can
+pass on state left by the last one. That harness world owns nothing, so the panel hides itself
+exactly as designed and `.vrg-cols` is never built. A correct empty state was being read as a
+broken capture. [[zero-needs-a-denominator]]
+
+FIX: three outcomes instead of two — a capture, a refusal, and a STATED LIMIT carried into the
+envelope so the second eye is told what it was not shown. The decision is a pure function,
+`region_absence_verdict`, extracted so a gate can exercise it without Chrome: the branch that
+governs whether a cold read is trustworthy was previously the one thing no test could reach.
+⚠ ONLY the host's own `hidden` declaration excuses a region. A host that is VISIBLE while its
+region is missing still REFUSES — that is a panel that had something to draw and did not.
+GATE: `test_coldread_empty_is_not_broken`, 8 laws, 7 sabotages. Its load-bearing law reads
+bible.html and fails if the empty branch being blamed ever moves, so the exemption cannot outlive
+its premise.
+HEART: declared in `corroborate.NO_JOINT_YET` rather than given a fake joint — one instrument
+photographs a version, and nothing else can independently say whether a region was absent because
+empty or because broken. A joint in name only would read as covered.
+
 ## REG-684 — one_funnel told four of six rungs they left NO TRACE, and it was false
 
 **v2725.** `one_funnel` printed, for `filmed`, `banked`, `vault-done` and `releasable`:

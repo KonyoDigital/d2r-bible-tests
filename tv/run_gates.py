@@ -520,6 +520,18 @@ GATES = [
              "reported to the channel the Doctor already reads, and it still SERVES rather than "
              "refusing — a transient torn read must not become an outage."),
 
+    Gate("test_coldread_empty_is_not_broken",
+         [sys.executable, os.path.join(HERE, "test_coldread_empty_is_not_broken.py")], 120,
+         why="v2726 — coldread aborted its whole run because `.vrg-cols` was absent, and it was "
+             "absent because renderVaultRegistered() correctly HIDES the panel in a world that "
+             "owns nothing — which is every run, since render_check launches a FRESH Chrome "
+             "profile on purpose. The renderer built to satisfy the second-eye gate could not "
+             "satisfy it. The exemption that fixes this is the dangerous kind, so this pins that "
+             "only the host's own declaration excuses a region, that a VISIBLE host missing its "
+             "region still refuses, and above all that the empty branch being blamed still exists "
+             "in bible.html — an exemption whose premise nobody re-checks is a permanent blind "
+             "spot wearing a fix's clothes."),
+
     Gate("test_derived_rungs_are_not_traceless",
          [sys.executable, os.path.join(HERE, "test_derived_rungs_are_not_traceless.py")], 120,
          why="v2725 — one_funnel told four of its six rungs they left NO TRACE, while "

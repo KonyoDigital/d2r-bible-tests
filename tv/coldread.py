@@ -55,6 +55,59 @@ def _stage(ref):
     return STAGE
 
 
+#: A region that is ABSENT because its panel DECLARED ITSELF EMPTY is not a broken capture.
+#: (region selector) -> (host id, the emptiness the host announces, what that means in words)
+#:
+#: ⚠⚠ WHY THIS EXISTS. `.vrg-cols` is built by `renderVaultRegistered()`, and that function has a
+#: designed empty state one line before it would build it:
+#:     if(!all.length && !findNames.length && !_unkCount){ el.hidden=true; el.innerHTML=''; return; }
+#: `render_check` launches Chrome on a FRESH PROFILE every run, on purpose, so the harness world
+#: owns nothing, has found nothing and has read nothing. The panel therefore hides itself, exactly
+#: as designed, and `.vrg-cols` is never created. Coldread read that as a refusal and killed the
+#: whole cold read — so the second-eye gate could not be satisfied by its own renderer.
+#:
+#: ⚠ THIS IS NOT A WEAKENING, AND THE DIFFERENCE IS MEASURED RATHER THAN ASSUMED. A region whose
+#: host is PRESENT AND SAYS IT IS EMPTY is a stated limit of the read. A region whose host is
+#: MISSING, or present and NOT hidden, is still a refusal — that is a panel that should have drawn
+#: something and did not. "Nobody looked" must never read like "nothing wrong", which is why the
+#: limit is carried into the envelope rather than being silently dropped.
+REGION_EMPTY_STATE = {
+    ".vrg-cols": ("vault-registered",
+                  "the Registered panel hides itself when the world owns nothing, has found "
+                  "nothing and has no unknown reads",
+                  "this harness runs on a fresh Chrome profile by design, so it owns nothing; the "
+                  "ledger below the fold has no rows to draw and cannot be photographed here"),
+}
+
+
+def region_absence_verdict(region, host_state):
+    """Why is a region missing — an empty world, or a broken panel? -> (outcome, why)
+
+    outcome is "limit" (state it and carry on) or "refuse" (this read is not fit to hand over).
+
+    ⚠ PURE ON PURPOSE. The branch this replaces lived inside `_shoot`, which needs a live Chrome,
+    a staged document and a settled fade before it can be reached — so the one decision that
+    controls whether a cold read is trustworthy was the one thing no gate could exercise. A rule
+    nothing can test is a rule nobody has checked. [[feedback-blind-fixture-green-gate]]
+    """
+    spec = REGION_EMPTY_STATE.get(region)
+    if not spec:
+        return "refuse", ("%r is not on this page, so there is nothing to look at" % region)
+    host_id, law, means = spec
+    if host_state == "declared-empty":
+        return "limit", ("%r is absent because #%s DECLARED ITSELF EMPTY \u2014 %s. Stated as a "
+                         "LIMIT of this read, not counted as a look: %s" % (region, host_id, law, means))
+    if host_state == "present-but-not-empty":
+        return "refuse", ("%r is missing while #%s is VISIBLE. The panel had something to draw and "
+                          "did not draw this \u2014 that is a real defect, not an empty world."
+                          % (region, host_id))
+    # 'no-host', or anything this function has not been taught, REFUSES. A panel that is not in the
+    # document cannot tell us whether it is empty, and an unrecognised state is not permission.
+    # [[unknown-stays-unknown]]
+    return "refuse", ("%r is absent and #%s could not say why (host state %r), so this read cannot "
+                      "distinguish an empty world from a broken panel" % (region, host_id, host_state))
+
+
 def _shoot(tab, w, h, out_dir, tag, region=None, suffix=""):
     """Capture one tab at one width. `region` is a CSS selector to photograph on its own.
 
@@ -175,7 +228,16 @@ def _shoot(tab, w, h, out_dir, tag, region=None, suffix=""):
                     n++; }}
                 return String(n);})()""" % json.dumps(region))
             if opened == "absent":
-                return None, "%s: %r is not on this page, so there is nothing to look at" % (tab, region)
+                # ⚠ ABSENT-BECAUSE-EMPTY IS NOT ABSENT-BECAUSE-BROKEN. Ask the host.
+                spec = REGION_EMPTY_STATE.get(region)
+                st = "no-spec"
+                if spec:
+                    st = t.ev("""(function(){var e=document.getElementById(%s);
+                        if(!e) return 'no-host';
+                        return e.hidden ? 'declared-empty' : 'present-but-not-empty';})()"""
+                              % json.dumps(spec[0]))
+                outcome, why = region_absence_verdict(region, st)
+                return ("" if outcome == "limit" else None), "%s: %s" % (tab, why)
             time.sleep(1.2)
             page_h = t.ev("(function(){return String(Math.min(12000,"
                           "document.documentElement.scrollHeight))})()")
@@ -359,8 +421,15 @@ def main(argv):
                 ("vault", 1440, 1000, ".vrg-cols", "-ledger"),
                 ("vault",  901,  900, ".vrg-cols", "-ledger")):
             p, why = _shoot(tab, w, h, out_dir, tag, region, sfx)
-            print(("  ✓ " if p else "  ✗ ") + why)
-            (made if p else failed).append(p or why)
+            # ⚠ THREE OUTCOMES, NOT TWO. A path is a capture; None is a refusal; "" is a region
+            # whose panel declared itself empty — a stated LIMIT, carried into the envelope so the
+            # second eye is told what it is NOT being shown. Folding it into either of the other
+            # two would either kill an honest read or hide a gap. [[unknown-stays-unknown]]
+            print(("  \u26aa " if p == "" else ("  ✓ " if p else "  ✗ ")) + why)
+            if p == "":
+                skipped.append(why)
+            else:
+                (made if p else failed).append(p or why)
         # v2273 — AND THE CONSOLE, so the two halves of what he looks at are one unit.
         #
         # ⚠ v2281 — BUT ONLY WHEN THE CONSOLE ON DISK *IS* THE VERSION BEING READ. This function

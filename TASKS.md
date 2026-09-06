@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2726** | `(this commit)` | v2726 — coldread refused a panel that was correctly empty, so the renderer built for the second-eye gate could not satisfy it |
 | **v2725** | `(this commit)` | v2725 — one_funnel called four rungs traceless while reel_retention.plan decided every one of them; observability published beside passage, never merged into it |
 | **v2724** | `(this commit)` | v2724 — an absent deep row meant either never dispatched or dispatched and thrown away and nothing could tell them apart; the owing is stamped before the network call now |
 | **v2723** | `(this commit)` | v2723 — an empty read does not raise so a torn bible.html was served as a normal 200 and the only watchers that could notice need the page javascript a zero byte document does not have |
