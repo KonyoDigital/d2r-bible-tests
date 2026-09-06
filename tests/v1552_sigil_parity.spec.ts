@@ -106,9 +106,22 @@ test.describe('v1552 — one identity, two surfaces', () => {
     // fails, which is the difference between a two-minute fix and an afternoon
     const read = (p: string) => {
       const s = fs.readFileSync(path.resolve(__dirname, '..', p), 'utf8');
-      const i = s.indexOf('GLYPHS');
+      // ⚠⚠ ANCHOR ON THE DECLARATION, NOT THE WORD. `indexOf('GLYPHS')` matched the word inside a
+      // COMMENT in tv/control_ui.html ("NO ARROW GLYPHS BETWEEN CELLS", "HALO THE GLYPHS"), which
+      // are 5 occurrences before the real table. The window then spanned 571,509 chars instead of
+      // 877, the lazy `B = (\[...?\])` matched a stray empty array half a megabyte away, and B
+      // read as [] — reported as "the B table drifted between the two surfaces".
+      // MEASURED: both files hold the identical 16-name table. There was never any drift; the CI
+      // red was this line. A fixed-size window anchored on a word that also occurs in prose
+      // measures the guess, not the file. [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+      const i = s.search(/\bvar\s+GLYPHS\s*=\s*\[/);
       const j = s.indexOf('sigilFor', i);
+      // both ends anchored, and the span is asserted small enough to be the real block
       const seg = s.slice(Math.max(0, i - 400), j + 700);
+      if (i < 0 || j < 0 || j - i > 20000) {
+        // a window this wide is not the sigil block; refuse rather than match something far away
+        return { GLYPHS: null, HUES: null, A: null, B: null };
+      }
       const grab = (n: string) => {
         const m = new RegExp('\\b' + n + '\\s*=\\s*(\\[[\\s\\S]*?\\])').exec(seg);
         return m ? [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]) : null;

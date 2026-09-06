@@ -22591,6 +22591,11 @@ function toggleOwned(name) {
         try { var _gfU = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
               if (Object.prototype.hasOwnProperty.call(_gfU, name)){ delete _gfU[name];
                 window.LSR.setItem('d2r_gameFound', JSON.stringify(_gfU)); } } catch(e){}
+        /* v2746 — AND THE SIGHTINGS, for the reason stated directly above. This is also the door
+           _forgeUndo reaches through (grailFoundUni → toggleOwned), so the undo bar is covered by
+           this line and does not need its own. */
+        try { if (typeof window._foundEvidenceDrop === 'function')
+                window._foundEvidenceDrop(name); } catch(e){}
       }   // un-tick also clears any legacy vault entry
       else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
       window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
@@ -23761,6 +23766,10 @@ function toggleSetPiece(piece) {
       try { var _gfP = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}') || {};
             if (Object.prototype.hasOwnProperty.call(_gfP, piece)){ delete _gfP[piece];
               window.LSR.setItem('d2r_gameFound', JSON.stringify(_gfP)); } } catch(e){}
+      /* v2746 — AND THE SIGHTINGS. grailTogglePiece routes here, so the Forge's undo bar is
+         covered by this line too. */
+      try { if (typeof window._foundEvidenceDrop === 'function')
+              window._foundEvidenceDrop(piece); } catch(e){}
     } else if (!Object.prototype.hasOwnProperty.call(fl, piece) || !fl[piece]) {
       /* v2052 — MERGE-MAX THE DATE. A restore/replay that ticks a piece already dated in
          foundLog used to overwrite the farm stamp with now. Keep the existing date; only
@@ -44464,6 +44473,12 @@ function renderJournal(){
         });
         if (_gfCh) window.LSR.setItem('d2r_gameFound', JSON.stringify(_gfR));
       } catch(e){}
+      /* v2746 — AND THE SIGHTINGS, on the argument the block above makes in his own case: the
+         repair IS the game saying he does not have this, so a reel id left behind would re-attach
+         as corroboration the moment he ticks the piece by hand. Skipping it here is v1963's
+         "one door only" defect repeated verbatim. [[the-unjoined-end]] [[sweep-dont-ask]] */
+      try { if (typeof window._foundEvidenceDrop === 'function')
+              window._foundEvidenceDrop(out.removed.map(function(r){ return r.name; })); } catch(e){}
       /* stamp the reading this repair acted on, so it cannot act on it twice */
       if (readAt) window.LSR.setItem('d2r_setRepairAt', readAt);
     } catch(e){ out.ok = false; out.why = String(e && e.message || e); return out; }
@@ -44916,6 +44931,89 @@ function renderJournal(){
     } catch(e){ return null; }
   };
 
+  /* ══ v2746 — A FOUND ROW SAID *WHEN*, AND NOTHING ABOUT HOW ANYONE KNOWS ══════════════
+     t166 measured his ledger: d2r_foundLog is 419 rows of DISPLAY STRINGS — "Aug 21, 2026 · 14:03"
+     — with no reel, no frame and no witness. So a row cannot be re-verified, and t133 ("no
+     per-entry evidence") had nothing to stand on.
+
+     THE EVIDENCE WAS NEVER MISSING. `wouldAdd.uniques` AND `wouldAdd.sets` rows have carried
+     `witnesses` (the gate's verdict codes) and `seen[]` ({reel, frame, lane}) since v1864 — one
+     dict comprehension over both ledgers, tv/control_app.py:22378-22385 — and both survive into
+     this payload. The apply loop already hands the whole row to `_chRecordApplied`, which DOES
+     read `row.witnesses` and `row.seen[0]`.
+
+     ⚠ BUT THAT WRITES `d2r_chronicleInboxLog`, WHICH IS TRIMMED TO THE LAST 400 ROWS (:49816).
+     With 419 found names the oldest evidence is already being evicted, and an inbox row is not a
+     ledger row: the found ledger and its proof were never joined. [[the-unjoined-end]]
+
+     BESIDE THE LEDGER, NEVER INSIDE IT — the ruling `d2r_gameFound` is built on, six lines up:
+     "d2r_foundLog holds ONE string per name and every surface already reads it". 101 sites read
+     it. A per-name sibling store is the shape this file already uses for exactly this problem.
+
+     ⚠⚠ ABSENCE IS RECORDED, NOT COLLAPSED. A hand-clicked tick has no sightings to thread — a
+     real limit of his data, not a defect — so it gets NO ROW AT ALL and `foundEvidenceFor`
+     answers `null`: nobody looked. A swept row whose gate looked and corroborated nothing carries
+     `witnesses: []`, and that stays `[]`: measured, and measured empty. The two must never become
+     one value, in either direction. [[unknown-stays-unknown]] */
+  window._foundEvidenceSet = function(name, row){
+    try {
+      if (!name || !row || typeof row !== 'object') return false;
+      /* THE SAME READ THE HELD PATH USES (:45011), and for its reasons: the two sweeps disagree
+         about the key name (`seen` vs `sightings`) and about `reel` vs `session`, and a
+         `witnesses[0]` can be a bare STRING — which is why that line's object guard exists and
+         why `witnesses` is NOT in this sighting chain. [[copy-drift]] */
+      var src = (Array.isArray(row.seen) && row.seen)
+             || (Array.isArray(row.sightings) && row.sightings) || null;
+      var sight = null;
+      if (src){
+        sight = [];
+        for (var i = 0; i < src.length && sight.length < 3; i++){
+          var s = src[i];
+          if (!s || typeof s !== 'object') continue;
+          sight.push({ reel: s.reel || s.session || '', frame: s.frame || '',
+                       lane: s.lane || '',
+                       conf: (typeof s.conf === 'number') ? s.conf : null });
+        }
+      }
+      var wit = Array.isArray(row.witnesses) ? row.witnesses.slice(0, 8) : null;
+      /* NOTHING LOOKED → NOTHING IS WRITTEN. An empty record would be indistinguishable from a
+         hand tick that was never swept, which is the exact collapse this store exists to prevent. */
+      if (sight === null && wit === null) return false;
+      var map = {};
+      try { map = JSON.parse(window.LSR.getItem('d2r_foundEvidence') || '{}') || {}; } catch(e){}
+      var rec = { sightings: sight, witnesses: wit,
+                  source: row.source || 'chronicle-sweep', at: Date.now() };
+      if (row.why) rec.why = String(row.why).slice(0, 160);
+      map[name] = rec;
+      window.LSR.setItem('d2r_foundEvidence', JSON.stringify(map));
+      return true;
+    } catch(e){ return false; }
+  };
+  window.foundEvidenceFor = function(name){
+    try {
+      var map = JSON.parse(window.LSR.getItem('d2r_foundEvidence') || '{}') || {};
+      return Object.prototype.hasOwnProperty.call(map, name) ? map[name] : null;
+    } catch(e){ return null; }
+  };
+  /* ⚠ THE RETRACTION, BECAUSE v1963 ALREADY PAID FOR IT FOUR TIMES. d2r_gameFound's rule — "the
+     reason he un-ticks is usually that the READ WAS WRONG, so the date belongs to a different item
+     entirely" — is true of a SIGHTING word for word, and worse: a stale reel id left behind
+     re-attaches as corroboration to a name he later ticks by hand. ONE door, called from the three
+     places that already retract the game date. [[the-unjoined-end]] [[sweep-dont-ask]] */
+  window._foundEvidenceDrop = function(names){
+    try {
+      var list = Array.isArray(names) ? names : [names];
+      var map = {};
+      try { map = JSON.parse(window.LSR.getItem('d2r_foundEvidence') || '{}') || {}; } catch(e){}
+      var ch = false;
+      for (var i = 0; i < list.length; i++){
+        if (Object.prototype.hasOwnProperty.call(map, list[i])){ delete map[list[i]]; ch = true; }
+      }
+      if (ch) window.LSR.setItem('d2r_foundEvidence', JSON.stringify(map));
+      return ch;
+    } catch(e){ return false; }
+  };
+
   /* v2195 — is this name already in the vault? An in-memory lookup, so the common case in a
      hundreds-long loop costs nothing and no dictionary is rewritten for a no-op. */
   function _chAlreadyVaulted(n){
@@ -45258,6 +45356,12 @@ function renderJournal(){
         /* v1918 — WRITE THE PROVENANCE AT THE ONE POINT THAT KNOWS ALL OF IT. Here we hold the
            row the console sent (why, witnesses, seen) AND the answer to "where did it actually
            land", which is computed three lines up and was reported to nobody. */
+        /* v2746 — THE EVIDENCE, BESIDE THE DATE. Only when the GRAIL took it: `_landed` is the
+           ledger's own answer computed above, and evidence for a foundLog row that does not exist
+           would be a claim about nothing. A row carrying neither seen[] nor witnesses writes
+           NOTHING — absent means nobody looked. [[unknown-stays-unknown]] */
+        try { if (_landed && typeof window._foundEvidenceSet === 'function')
+                window._foundEvidenceSet(n, row); } catch(e){}
         try { window._chRecordApplied(row, n, _landed ? 'foundLog' : 'owned', 'uniques'); } catch(e){}
       } catch(e){} finally { window._grailStamp = _savedStamp; }
     });
@@ -45301,6 +45405,12 @@ function renderJournal(){
         if (_ds) window._grailStamp = function(){ return _ds; };
         if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(n);
         res.sets.push(n);
+        /* v2746 — SAME LAW, SAME LEDGER: toggleSetPiece writes every piece into d2r_foundLog
+           on purpose (v644), so a set piece has a found row and that row gets its proof too. The
+           payload builds uniques and sets from ONE dict comprehension, so a sets row carries the
+           same `witnesses` and `seen[]` a unique does. */
+        try { if (typeof window._foundEvidenceSet === 'function')
+                window._foundEvidenceSet(n, row); } catch(e){}
         try { window._chRecordApplied(row, n, 'setPieces', 'sets'); } catch(e){}
       } catch(e){} finally { window._grailStamp = _savedS; }
     });

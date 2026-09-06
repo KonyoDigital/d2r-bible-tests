@@ -601,6 +601,20 @@ GATES = [
              "laws proven RED by in-memory sabotage; the file on disk is never mutated because his "
              "live console execs this working tree."),
 
+    Gate("test_a_found_row_carries_its_evidence",
+         [sys.executable, os.path.join(HERE, "test_a_found_row_carries_its_evidence.py")], 180,
+         why="v2746 — t133/t166. d2r_foundLog is 419 rows of DISPLAY STRINGS, so a found row could "
+             "not be re-verified. ⚠ The evidence was never missing and the loop was never "
+             "indifferent: _chRecordApplied DOES read row.witnesses and row.seen[0] — but it writes "
+             "d2r_chronicleInboxLog, a ring TRIMMED TO 400 ROWS while his foundLog holds 419, so the "
+             "oldest proof is already being evicted and an inbox row was never joined to a ledger "
+             "row. A sibling store d2r_foundEvidence now carries the proof beside the date. ⚠⚠ The "
+             "law it exists for: null = NOBODY LOOKED, [] = looked and corroborated nothing. "
+             "Array.isArray is the whole distinction; one `||` collapses them forever. A hand tick "
+             "writes NO ROW and reads back null. Retraction at all four doors, because v1891/v1963 "
+             "already paid for that rule four times. 13 sabotages, every one MATCHES=1, 12 of 12 "
+             "laws seen RED."),
+
     Gate("test_ledger_authority",
          [sys.executable, os.path.join(HERE, "test_ledger_authority.py")], 180,
          why="v2746 — ONE authority over all four seeds (_GRAIL_SEED 245 · _SET_SEED 108 · "

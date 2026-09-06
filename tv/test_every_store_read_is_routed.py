@@ -138,8 +138,14 @@ class EveryStoreReadIsRouted(unittest.TestCase):
         actually cross a profile. A pointer being bare is by design. `d2r_foundLog`, `d2r_owned`,
         `d2r_setPieces`, `d2r_rwMade` and `d2r_grailUnfound` being bare is the Dean defect.
         """
+        # ⚠ v2746 — `d2r_foundEvidence` joins the set the day it is created, not later. A durable
+        # store that nothing routes answers for whichever world the reader happens to be in, and a
+        # CDP probe reads the GUEST world. v2731 is the precedent: a store shipped without its
+        # coverage looked wired for a day while its watcher could only read UNKNOWN.
+        # (Backup coverage needs no edit — _collectProgress enumerates the RAW store by key rather
+        # than from a list, verified at bible.html:22695, so a new d2r_* key is carried already.)
         LEDGERS = {"d2r_foundLog", "d2r_owned", "d2r_setPieces", "d2r_rwMade",
-                   "d2r_gameFound", "d2r_grailUnfound", "d2r_tally"}
+                   "d2r_gameFound", "d2r_grailUnfound", "d2r_tally", "d2r_foundEvidence"}
         _, _, _, rows = _scan()
         bad = []
         for ln, keys, txt in rows:

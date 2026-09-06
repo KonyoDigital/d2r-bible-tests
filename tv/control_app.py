@@ -25777,7 +25777,14 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 import river_stamp as _RVS
                 _walked = None
-                if (qs.get("walk") or [""])[0] in ("1", "true", "yes"):
+                # ⚠⚠ PARSED HERE, NOT INHERITED. An earlier draft read a bare `qs`, which is
+                # bound in _serve_hist() and NOT in do_GET() — so every call raised NameError,
+                # my own try/except swallowed it, and this route returned its failure payload
+                # FOREVER while looking perfectly wired. The gate's free-variable law caught it
+                # before it shipped; nothing at runtime would have. [[the-unjoined-end]]
+                from urllib.parse import parse_qs as _pq_r, urlparse as _up_r
+                _qs_r = _pq_r(_up_r(self.path).query or "")
+                if (_qs_r.get("walk") or [""])[0] in ("1", "true", "yes"):
                     _walked = _RVS.run(by="console:/api/river")
                 _cen = _RVS.census()
                 _names = list(_RVS.stations()[0])

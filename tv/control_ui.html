@@ -14094,7 +14094,7 @@ window._lockMark = function(isOpen, px, label){
            timestamps". The station order is NEVER hardcoded here: it comes from
            /api/river's own `stations`, so a station added to reel_router appears on the
            shelf without a second edit. Two lists of stations is how they drift. */
-        + '<option value="river">\U0001f30a River</option>'
+        + '<option value="river">🌊 River</option>'
         + '<option value="found">Most found</option><option value="reads">Most reads</option></select></label>'
         + '<button type="button" class="sh-cmp" id="sh-cmp" title="compare two runs side by side" onclick="window._cmpOpen()">⚖ Compare</button>'
         + '<button type="button" class="sh-cmp" id="sh-heat" title="where you farm most" onclick="window._hmOpen()">🗺 Areas</button>'
@@ -14325,7 +14325,7 @@ window._lockMark = function(isOpen, px, label){
        [[zero-needs-a-denominator]] */
     if ((SHELF_S || 'newest') === 'river'){
       if (SHELF_RIVER === false || SHELF_RIVER === null){
-        mkHead('\U0001f30a River \u2014 ' + (SHELF_RIVER === null ? 'not read yet' : esc(SHELF_RIVER_WHY)),
+        mkHead('🌊 River \u2014 ' + (SHELF_RIVER === null ? 'not read yet' : esc(SHELF_RIVER_WHY)),
                vis.length, vis[0], ' sh-rivergroup sh-riverunknown');
         return;
       }
