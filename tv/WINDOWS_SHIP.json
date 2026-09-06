@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2736",
+  "ver": "v2737",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2736: a truncated board read became a reported loss and a dead loop graded OK - both reproduced then fixed and gated",
+  "note": "v2737: it now calls the board own complete exporter instead of hand-picking a subset of it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

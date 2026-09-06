@@ -151,6 +151,59 @@ class LedgerBackupCoversEveryStore(unittest.TestCase):
                              "state, and refusing every snapshot over it converts a true reading "
                              "into a permanent backup outage." % bad)
 
+    # ── ⚠⚠ v2737 — THE COMPLETE EXPORT, AND WHERE IT IS ALLOWED TO LIVE ───────────────────────
+    def test_the_snapshot_asks_the_board_for_its_OWN_complete_export(self):
+        """CENSUS of bible.html's `setItem('d2r_*')` writers: it writes 91 stores, the manual
+        Backup & Share button exports 85, and this automatic loop copied FIVE.
+
+        Konyo: *"i want this automated not relying on the user"* — and that is exactly the line the
+        coverage fell on. The complete path needed him to click; the path needing nothing from him
+        held five ledgers. Missing included `d2r_tally` (his 292/403 counters), `d2r_grailUnfound`
+        (the un-tick decisions a reset must write) and the craft/gem/rune/material stashes.
+
+        ⚠ THE FIX CALLS THE EXPORTER THAT ALREADY EXISTS rather than widening the hand-rolled list.
+        `_collectProgress` walks the RAW store, emits only the ACTIVE account's view under bare
+        names, and refuses the six identity PTRS so a restore can neither transfer nor revoke
+        ownership. The five-store assembly was a subset of it, and that is precisely why rwMade and
+        gameFound were absent from 60 consecutive files. [[copy-drift]]
+        """
+        self.assertIn("window._collectProgress", SRC,
+                      "the snapshot no longer asks the board for its own complete export, so it is "
+                      "back to hand-picking a subset of a function that already does the job")
+        self.assertIn("fullStores:fullStores", SRC,
+                      "the export is fetched and never emitted, so the fetch is dead code")
+
+    def test_the_complete_export_lands_BESIDE_the_ledger_not_INSIDE_it(self):
+        """⚠ LOAD-BEARING, AND IT IS ABOUT KEEPING A LAW HONEST.
+
+        `led` holds exactly five named stores. The v2735 corroborator invariant
+        `backup-restore-vocabulary` fails on any store in `led` that ledger_restore does not know —
+        which is the whole point of it: a sixth store joining the backup with nobody deciding
+        whether it can be put back would otherwise be copied faithfully forever and be
+        unrestorable. Dropping the full dump INTO `led` would have tripped that law, and the
+        tempting fix would have been to widen the law to admit a key that is not a store at all.
+        Beside it, both stay true. Every existing reader and ratchet also keys off led's five.
+        """
+        blk = _between(SRC, 'json.dump({"takenAt": stamp', "ensure_ascii=False)")
+        self.assertIsNotNone(blk, "could not read the snapshot write")
+        self.assertIn('"allStores"', blk,
+                      "the complete export never reaches the file")
+        led_blk = _between(SRC, 'led = dict(got.get("sample") or {})', "_TRUNC")
+        self.assertIsNotNone(led_blk, "could not read the ledger assembly")
+        self.assertNotIn("allStores", led_blk,
+                         "the complete export was folded INTO `led`. That breaks the "
+                         "backup-restore-vocabulary invariant, whose value is exactly that it "
+                         "fails on an unknown store — and the fix would be to weaken the law.")
+
+    def test_the_complete_export_is_NOT_graded_for_truncation(self):
+        """Same reason gameFound is not: no independent count exists for these, so the only
+        available comparison is the copy against its own length — which cannot fail, and a check
+        that cannot fail is worse than none because it reads as coverage."""
+        blk = _between(SRC, "_TRUNC = (", "for k, _ck in _TRUNC:")
+        self.assertIsNotNone(blk, "the truncation table is gone")
+        self.assertNotIn("allStores", blk,
+                         "allStores joined the truncation table and could never fail there")
+
     def test_the_truncation_refusal_still_refuses(self):
         self.assertIn("a partial ledger is not a backup", SRC,
                       "the truncation refusal is gone — a short read could overwrite a good backup")

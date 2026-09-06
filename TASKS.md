@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2737** | `(this commit)` | v2737 — it now calls the board own complete exporter instead of hand-picking a subset of it |
 | **v2736** | `(this commit)` | v2736 — a truncated board read became a reported loss and a dead loop graded OK - both reproduced then fixed and gated |
 | **v2735** | `(this commit)` | v2735 — the line meant to complete his ledger backup killed it - no JS variable named dump - plus a heart check that reads the running loop and the restore wire |
 | **v2734** | `(this commit)` | v2734 — a cross-family witness banked from a shell call with no owning harness, then counted twice while fixing it because fold keys on the ref |
@@ -1511,6 +1512,76 @@ tasked list and grok's handoffs in between too."*
 - **The 40-reel shelf figures** (29 unread / 12 / 12 / 3 JOIN) — carried from 2026-09-04, not re-measured.
 
 ---
+
+## 🩸 SHIPPED 2026-09-06 — v2735 (`8a414870 → 6ce8503b`) · v2736 committed
+
+### THE DEFECT WAS MINE, IT WAS LIVE ALL DAY, AND EVERY GATE WAS GREEN THE WHOLE TIME
+
+Wiring the restore surfaced it. The newest backup file on his disk was **80 minutes old** and still
+the pre-v2731 three-store shape. His live console said why, in one field nobody read:
+
+```
+ledgerBackup.writes   0
+ledgerBackup.why      "Can't find variable: dump"
+```
+
+**v2731 — the ship written to COMPLETE his ledger backup — is what stopped it.** It added
+`rwMadeFull:(dump?rwFull:null)`. There is no JS variable named `dump`: `dump_stores` is
+interpolated as a bare `true`/`false` **literal** twelve lines above. The name resolved to nothing,
+so the **entire** board read threw and every snapshot was refused from that ship onward.
+
+⚠⚠ **AND `test_ledger_backup_covers_every_store` WAS HOLDING THE DEFECT IN PLACE.** It asserted the
+exact defective bytes — `assertIn("rwMadeFull:(dump?rwFull:null)")` — so the law pinned the bug
+rather than the property. Green, correctly, on source that could not run. [[regression-guard]]
+
+### HIS QUESTION, AND WHY THE ANSWER WAS A RED ROW RATHER THAN AN ARGUMENT
+*"and all connected to the heart of the console obviously right? is it needed? you tell me whatever
+you recommend"* — the check went RED on his live console the moment it existed, in its own words.
+
+| | |
+|---|---|
+| **gate** `test_board_read_js_has_no_free_variables` | parses the emitted JS, reports any name used but never declared. Proven red on the real defect + 4 sabotages |
+| **heart** `console_doctor` → `backup loop` | reads the **running** loop's last act. Allowlist is of what it is ALLOWED to have done — an error list would have passed this unpredicted message as healthy |
+| **heart** `corroborate` → `backup-restore-vocabulary` | a 6th store joining the backup with no restore answer is caught, not copied forever unrestorable |
+| **wire** `tv/ledger_restore.py` + `/api/ledger_restore_plan\|_apply` | newest backup FOR THIS ROUTE, applied through `chronicle_apply` (dated, merge-max, undoable), refusing without `confirm` |
+
+**VERIFIED LIVE after relaunch — the first backup in a day, and the first EVER to carry all five:**
+`foundLog 419 · owned 169 · setPieces 123 · rwMade 99 · gameFound 29 · route main`, **34,773 bytes**
+against the 27,893 that all 60 previous files carried. His 99 runewords and 29 in-game records have
+an automatic backup for the first time.
+
+### v2736 — A CROSS-FAMILY REVIEW FOUND TWO DEFECTS IN THE WATCHER I HAD JUST BUILT
+The shipped diff was handed to a different model family and told to refute it. Two of three landed,
+both reproduced before being believed:
+1. **A truncated board read became a reported loss.** `sample=N` slices each store, so a board over
+   the cap returns a PREFIX and `plan()` called the remainder missing. REPRODUCED: 6000 held against
+   a 5000 cap → **1000 names reported missing that were never gone.** Fixed against `counts`, which
+   the board reports independently of the copy.
+2. **A dead loop graded OK — inside the watcher built to catch silent failure.** `why` is sticky and
+   the loop swallows exceptions by design, so the last benign message outlives the loop.
+   REPRODUCED: gone three days, `why="wrote …"` → **OK**. That is [[stale-reading]] (the age of the
+   THING, not the fetch) committed in the check written hours earlier for exactly this class.
+   Fixed with `lastTryMs`, stamped every ITERATION, not every write.
+⚠ **The third finding was NOT taken** — a second clock aging out `why` independently of the liveness
+stamp is one fact measured twice, and only adds a way for the two to disagree.
+
+⚠ `tv/ledger_restore.py` shipped in v2735 **with no suite at all**: the orphan-suite gate catches a
+test file no gate runs, not a MODULE no test covers. `test_ledger_restore` (13 laws) closes it.
+
+### ⬜ STILL OPEN OUT OF THIS ARC, stated rather than quietly counted as done
+- **The automatic backup covers 5 of the 85 stores the manual export covers.** Census of
+  bible.html's own `setItem('d2r_*')` writers: **91 written · 85 exported by the button · 5 copied
+  automatically.** His instruction was *"i want this automated not relying on the user"*, and that
+  is the exact line coverage falls on. Missing include `d2r_tally` (his 292/403 counters),
+  `d2r_grailUnfound`, and the craft/gem/rune/material stashes. Much of the remainder IS UI state and
+  does not belong in a backup — **the defect is that nothing has ever CLASSIFIED them**, so the
+  answer to "is this store protected" is UNKNOWN for 80 of them. The fix is a JOIN, not new code:
+  `_collectProgress()` already does it properly; the loop should call it instead of hand-rolling a
+  subset of it. [[copy-drift]]
+- **Three of five backed-up stores cannot travel back** (`rwMade`, `gameFound`, `owned`). Every plan
+  says so. ⚠ `owned` looks like it belongs in `/api/vault_apply` and MUST NOT go there: that door
+  re-gates on 3 witnesses and 0.55 confidence, which a restore cannot have. Widening it would reopen
+  the hole v1595 closed.
 
 ## ✅ SHIPPED 2026-09-05 — v2656 · v2657 · v2658 · fix: (`origin/main` af8beac9 → a50c925c)
 

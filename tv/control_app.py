@@ -11785,6 +11785,22 @@ def board_ownership(sample=0, dump_stores=False):
           "var rwFull=null;"
           "try{var _rmf=raw('d2r_rwMade');if(_rmf&&typeof _rmf==='object'&&!Array.isArray(_rmf))rwFull=_rmf;}catch(_r){}"
           "var stores=null,gameFound=null;"
+          # ⚠⚠ v2737 — ASK THE BOARD FOR ITS OWN COMPLETE EXPORT INSTEAD OF HAND-PICKING FIVE.
+          # CENSUS of bible.html's own setItem('d2r_*') writers: it writes 91 stores, the
+          # manual Backup & Share button exports 85 of them, and this automatic loop copied 5.
+          # Konyo: "i want this automated not relying on the user" — and that is exactly the
+          # line the coverage fell on: the complete path needed him to click.
+          # `_collectProgress` is that exporter. It walks the RAW store, emits only the ACTIVE
+          # account's view under bare names, and refuses the six identity PTRS so a restore can
+          # neither transfer nor revoke ownership (v1499). Calling it REMOVES a second
+          # implementation rather than adding one — the five-store assembly below is a
+          # hand-rolled subset of it, and is why rwMade and gameFound were absent from 60
+          # consecutive files. [[copy-drift]] [[the-unjoined-end]]
+          # ⚠ `window` here is the IIFE parameter shadowing _ctx, so this resolves in the BOARD
+          # window rather than the console.
+          "var fullStores=null;"
+          "try{if(typeof window._collectProgress==='function')fullStores=window._collectProgress();}"
+          "catch(_cp){}"
           "try{var _gp=raw('d2r_gameFound');if(_gp&&typeof _gp==='object'&&!Array.isArray(_gp))gameFound=_gp;}catch(_g){}"
           + ("if(%s){stores={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);"
              "if(!k)continue;var v=localStorage.getItem(k);var nn=0;"
@@ -11820,7 +11836,7 @@ def board_ownership(sample=0, dump_stores=False):
           # not a running board. [[the-unjoined-end]] [[feedback-verify-not-proxy]]
           # ⚠ And the gate was never needed: rwFull is declared null and fetched unconditionally
           # eleven lines up, so it is already null when there is nothing to copy.
-          "rwMadeFull:rwFull});"
+          "rwMadeFull:rwFull,fullStores:fullStores});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})(_ctx,_ctx!==window);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
@@ -17852,7 +17868,17 @@ def _ledger_snapshot_once(force=False):
             # snapshot of one profile could be restored into another and nothing in the file would
             # contradict it. board_ownership ALREADY fetches the route; it was dropped on the floor.
             json.dump({"takenAt": stamp, "source": "board_ownership on the live window",
-                       "route": got.get("route"), "counts": counts, "ledger": led},
+                       "route": got.get("route"), "counts": counts, "ledger": led,
+                       # ⚠ v2737 — TOP LEVEL, NEVER INSIDE `led`. Every reader, ratchet and restore
+                       # path keys off led's five named stores, and the v2735 corroborator
+                       # invariant `backup-restore-vocabulary` fails on any store in `led` that
+                       # ledger_restore does not know — correctly. Putting the complete export
+                       # beside `led` keeps that law meaningful instead of widening it to admit a
+                       # key that is not a store at all.
+                       # ⚠ NOT graded for truncation: these carry no independent count, and a copy
+                       # compared against its own length cannot fail. [[unknown-stays-unknown]]
+                       "allStores": (got.get("fullStores")
+                                     if isinstance(got.get("fullStores"), dict) else None)},
                       fh, indent=1, ensure_ascii=False)
         _LEDGER_BACKUP_STATE["last"] = stamp
         _LEDGER_BACKUP_STATE["counts"] = counts
@@ -23488,7 +23514,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2736",
+        "ver": "v2737",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
