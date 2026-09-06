@@ -37559,9 +37559,31 @@ class TestV2368BumpClearsItsOwnStaleBytecode(unittest.TestCase):
                       "still uses __pycache__")
 
     def test_it_is_called_after_the_files_are_written(self):
-        """Clearing before the write would just be re-cached by the next import."""
+        """Clearing before the write would just be re-cached by the next import.
+
+        ⚠ v2712 — THIS BROKE ON A REFACTOR THAT CHANGED NOTHING IT GRADES, and that is worth
+        keeping. It pinned the literal `io.open(path, "w"`, which stopped existing when the
+        four-stamp write moved into `bump_version.atomic_write()` (the truncating call was
+        leaving his 6 MB bible.html at ZERO BYTES mid-write, REG-681). The ORDER this test
+        exists to protect was never touched — the write still precedes the clear — but the gate
+        errored on `ValueError: substring not found` and refused the push.
+
+        That refusal was CORRECT: a guard that cannot find its anchor must never pass. What was
+        wrong was the SHAPE of the failure — a bare ValueError names no law, so the message said
+        nothing about what to check. It now asserts the anchor first and says what it means.
+        [[source-reading-guard]]
+        """
         src = _code_only(io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8").read())
-        i_write = src.index("io.open(path, \"w\"")
+        WRITE = "atomic_write(path, text"
+        self.assertIn(
+            WRITE, src,
+            "the four-stamp write site %r is gone from bump_version.py, so this gate cannot find "
+            "the write it is ordering against the bytecode clear. That is a FAILURE, not a pass: "
+            "fix this test to name the new write site before trusting any verdict it prints." % WRITE
+        )
+        self.assertIn("_drop_stale_bytecode([", src,
+                      "_drop_stale_bytecode is never called, so nothing clears the stale cache")
+        i_write = src.index(WRITE)
         i_clear = src.index("_drop_stale_bytecode([")
         self.assertLess(i_write, i_clear,
                         "bytecode is cleared BEFORE the sources are written, so the stale copy "
