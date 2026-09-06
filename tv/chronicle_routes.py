@@ -396,6 +396,36 @@ def corroborate(rows):
 # thing this module exists to catch other people doing. [[stale-reading]]
 _MEMO = {"key": None, "val": None}
 
+#: where the cold-start answer lives. Named once, so the reader and the reset cannot drift apart.
+_CACHE_PATH = os.path.join(HERE, ".chronicle_routes_cache.json")
+
+
+def cache_reset():
+    """Forget BOTH cached answers — the in-process memo and the one on disk.
+
+    ⚠ v2699 — THIS EXISTS BECAUSE A TEST KNEW ABOUT ONE CACHE AND NOT THE OTHER, and the gate it
+    guards went red on a join that was working perfectly. test_route_totals moves the runeword
+    ruling in a COPY of bible.html and asserts all three route sets follow the producer. Its setUp
+    clears `_MEMO` — and its own comment records learning that lesson the hard way, "my first
+    version of this test skipped that and read a cached 99 against a producer saying 106, then
+    blamed the join". v2692 then gave this module a SECOND cache, on disk, and the test had no way
+    to know. It cleared the memo, the disk answered 99, and the test blamed the join again.
+
+    In PRODUCTION the cache was never wrong: moving a ruling means editing bible.html, which moves
+    its mtime, which is in `_source_key()`. Only a test that edits a copy can hold the key still
+    while the producer moves.
+
+    So the fix is not to teach the test about today's two caches — it is to give the module ONE
+    door, so a third cache added later is cleared by everything that already calls this.
+    [[the-unjoined-end]]
+    """
+    _MEMO["key"] = None
+    _MEMO["val"] = None
+    try:
+        os.remove(_CACHE_PATH)
+    except OSError:
+        pass    # absent is the desired state; anything else falls through to a full derivation
+
 
 def _source_key():
     try:
@@ -457,7 +487,7 @@ def routes():
     # point: one rule for freshness, not two. [[stale-reading]]
     # ⚠ FAILS OPEN: any read/write problem falls through to the full derivation. A cache that can
     # change the answer is worse than no cache.
-    _cpath = os.path.join(HERE, ".chronicle_routes_cache.json")
+    _cpath = _CACHE_PATH
     _ckey = None
     if _k is not None:
         try:

@@ -122,7 +122,20 @@ class L2_TheProducerMovesAllThree(unittest.TestCase):
         # then blamed the join. The code was right and the instrument was wrong. Clearing the memo
         # keeps this test about the LAW (do the three follow the producer) instead of about the
         # cache, which the next test checks separately. [[feedback-suspect-the-instrument]]
+        # ⚠ v2699 — AND CLEAR THE *OTHER* CACHE, WHICH THIS TEST DID NOT KNOW EXISTED.
+        # The block below learned to clear `_MEMO`. v2692 then gave chronicle_routes a SECOND
+        # cache, on disk, so a cold start would not re-derive (/api/heart 19.5s -> 5.5s). This
+        # setUp kept clearing the memo, the disk kept answering 99 against a producer saying 106,
+        # and the test blamed the join a second time — the same wrong conclusion, one layer down.
+        # In production the disk cache was never wrong: a real edit moves bible.html's mtime,
+        # which is in _source_key(). Only a test editing a COPY can hold the key still while the
+        # producer moves. Prefer the module's own reset so a THIRD cache added later is cleared
+        # here automatically, and fall back to the memo for a module that has no reset yet.
         for mod in (CR, FR, RR):
+            reset = getattr(mod, "cache_reset", None)
+            if callable(reset):
+                reset()
+                continue
             memo = getattr(mod, "_MEMO", None)
             if isinstance(memo, dict):
                 memo["key"] = None

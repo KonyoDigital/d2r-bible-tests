@@ -84,6 +84,15 @@ STORES = {
                                  "an actual DELETION writes a tombstone, and the prune stays OFF by his "
                                  "standing ruling, so its exercise is declared None WITH that reason. "
                                  "Naming what cannot be measured is the whole point of the census",
+            "printer":           "READS it, once per snapshot, for the seventh station. v2692 gave "
+                                 "the printer a `tombstone` station so the river ends where a reel "
+                                 "actually ends -- 'if it is gone, what closed it out? (and this "
+                                 "one is still here)'. It resolves the path through "
+                                 "reel_retention._tombstone_path() rather than joining its own, so "
+                                 "reel_retention stays the one authority on WHERE the store lives "
+                                 "even though the printer is now a second READER of it. A failure "
+                                 "to load leaves `tombstones` None, never {} -- nobody-looked and "
+                                 "measured-empty are different answers here",
             "control_app":       "renders the tombstones on the shelf",
             "second_eye_ledger": "NOT a coupling — its docstring cites this file as the example of "
                                  "an untracked store living beside the reels. Declared so the "
