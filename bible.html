@@ -22538,7 +22538,26 @@ function _collectProgress(){
                  'd2r_ownerClaim':1, 'd2r_installIdCache':1, 'd2r_installId':1 };
   for (let i = 0; i < RAW.length; i++){
     const rk = RAW.key(i); if (rk == null) continue;
-    const bare = rk.indexOf('WL·') === 0 ? rk.slice(3) : (rk.indexOf('L·') === 0 || rk.indexOf('W·') === 0) ? rk.slice(2) : rk;
+    // ⚠⚠ v2738 — THE GUEST PREFIXES WERE NEVER ADDED HERE, AND THE LINE BELOW'S OWN COMMENT WAS
+    // FALSE BECAUSE OF IT. v684 taught this loop the MACHINE fork (L· W· WL·); v1499 then added the
+    // INSTALL fork (I·<id8>· for a guest world, IL·<id8>· for its ladder) and this strip was not
+    // swept with it. `_D2R_PFX` is built at :3930 as 'I·' + install8 + '·', so the prefix is
+    // VARIABLE-LENGTH and no fixed slice can remove it. bible.html:4263 already handles all five
+    // — the knowledge was in the file, just not on this line. [[sweep-dont-ask]] [[feedback-comments-vs-code]]
+    //
+    // MEASURED on his real store, and it is wrong in BOTH directions:
+    //   OWNER export — carried 3 guest-world keys including another install's d2r_foundLog, so his
+    //                  snapshot held somebody else's chronicle.
+    //   GUEST export — a guest's own rows came out under `I·<id8>·d2r_foundLog` rather than the
+    //                  bare name. `_applyProgress` restores through LS.setItem, which re-applies
+    //                  the ACTIVE world's prefix, so a namespaced key can never route home: Dean
+    //                  restoring into a reinstalled browser (new install id) would get nothing
+    //                  back, and his file also carried a second guest's chronicle.
+    // Konyo: *"for dean same logic make sure his is relative individually saving his consoles data
+    // to his own ledgers ... separately and individually"* — this line is where that was decided.
+    const bare = (rk.indexOf('IL·') === 0 || rk.indexOf('I·') === 0)
+      ? (function(){ const j = rk.indexOf('·', rk.indexOf('·') + 1); return j < 0 ? rk : rk.slice(j + 1); })()
+      : rk.indexOf('WL·') === 0 ? rk.slice(3) : (rk.indexOf('L·') === 0 || rk.indexOf('W·') === 0) ? rk.slice(2) : rk;
     if (PTRS[bare]) continue;                                                        // pointers never travel — a restore must not flip account or machine
     if (window.LSR.key(bare) === rk) out[bare] = RAW.getItem(rk);                     // active account's view only; the other namespaces never leave
   }
@@ -22580,7 +22599,16 @@ async function _applyProgress(raw){
   const keys = data ? Object.keys(data).filter(k => typeof data[k] === "string") : [];
   if (!keys.length){ _backupStatus("No saved progress found in that snapshot.", "err"); return false; }
   if (!(await uiConfirm("Restore " + keys.length + " saved settings from this snapshot? This OVERWRITES the chronicle / wishlist / settings currently in this browser."))) { _backupStatus("Restore cancelled — nothing changed.", "warn"); return false; }
-  keys.forEach(k => { if (k === 'd2r_activeProfile' || k === 'd2r_activeProfileWin' || k === 'd2r_activeMachine' || k.indexOf('L·') === 0 || k.indexOf('W·') === 0) return;   // v636 — a restore must never flip the account or reach across into the other one (v684: nor flip/overwrite the other MACHINE — W· covers WL· too)
+  // ⚠⚠ v2738 — THE GUEST PREFIXES WERE MISSING HERE TOO, and this is the half that WRITES.
+  // The sibling of the _collectProgress defect: v636 refused L·, v684 added W· (covering WL·), and
+  // v1499's install fork (I·<id8>· / IL·<id8>·) was never swept into either line. Every snapshot
+  // taken before v2738 CAN carry namespaced guest keys — his real one carried two worlds' — and
+  // `LS.setItem('I·<id8>·d2r_foundLog', …)` leaves that key untouched by LSR.key (fork sets hold
+  // BARE names), so it lands as a RAW write straight into that guest's world.
+  // Restoring an old snapshot in the owner world would therefore overwrite a guest's chronicle.
+  // ⚠ The export fix alone does not close this: old files already exist on his disk.
+  // [[sweep-dont-ask]] — one place fixed, the sibling left running, three versions in a row.
+  keys.forEach(k => { if (k === 'd2r_activeProfile' || k === 'd2r_activeProfileWin' || k === 'd2r_activeMachine' || k.indexOf('L·') === 0 || k.indexOf('W·') === 0 || k.indexOf('I·') === 0 || k.indexOf('IL·') === 0) return;   // v636 — a restore must never flip the account or reach across into the other one (v684: nor flip/overwrite the other MACHINE — W· covers WL· too; v2738: nor into a guest INSTALL world — I·/IL·)
     try { LS.setItem(k, data[k]); } catch(e){} });
   _backupStatus("Restored " + keys.length + " keys — reloading…", "ok");
   setTimeout(() => location.reload(), 600);
@@ -49331,7 +49359,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2737', name:'v2737 - the automatic backup covered 5 of 85 stores', date:'2026-09-06', note:'it now calls the board own complete exporter instead of hand-picking a subset of it' };
+  window.D2R_BUILD = { id:'v2738', name:'v2738 - his export carried other peoples worlds', date:'2026-09-06', note:'the guest install prefixes were never swept into the export or the restore, so a snapshot held two other chronicles and a guest export could never route home' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

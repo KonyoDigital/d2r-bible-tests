@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2738** | `(this commit)` | v2738 — the guest install prefixes were never swept into the export or the restore, so a snapshot held two other chronicles and a guest export could never route home |
 | **v2737** | `(this commit)` | v2737 — it now calls the board own complete exporter instead of hand-picking a subset of it |
 | **v2736** | `(this commit)` | v2736 — a truncated board read became a reported loss and a dead loop graded OK - both reproduced then fixed and gated |
 | **v2735** | `(this commit)` | v2735 — the line meant to complete his ledger backup killed it - no JS variable named dump - plus a heart check that reads the running loop and the restore wire |

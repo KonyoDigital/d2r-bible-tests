@@ -532,6 +532,19 @@ GATES = [
              "IMPORT ALLOWLIST plus attribute- and bare-name call checks, after a substring "
              "version was defeated by `import json as _j` and then by `open()`."),
 
+    Gate("test_export_scopes_to_one_world",
+         [sys.executable, os.path.join(HERE, "test_export_scopes_to_one_world.py")], 180,
+         why="v2738 — his Backup & Share export carried OTHER WORLDS. _collectProgress strips the "
+             "MACHINE fork prefixes (L· W· WL·, v684) and was never swept when v1499 added the "
+             "INSTALL fork (I·<id8>· / IL·<id8>·, variable-length so no fixed slice removes it), "
+             "even though bible.html:4263 already handled all five. Measured on his real backup: "
+             "his owner snapshot held two guests' chronicles, and a GUEST's own rows exported under "
+             "namespaced names that _applyProgress can never route home — so Dean restoring into a "
+             "reinstalled browser would get nothing back. The write side had the same gap. "
+             "⚠ RUNS THE REAL JAVASCRIPT in node against a synthetic store rather than grepping "
+             "for a spelling; proven RED on the pre-fix code (3 of 6 laws failed). No node is a "
+             "declared SKIP, never a pass."),
+
     Gate("test_ledger_restore",
          [sys.executable, os.path.join(HERE, "test_ledger_restore.py")], 120,
          why="v2736 — ledger_restore joins the automatic backup to the board's apply door, and it "
