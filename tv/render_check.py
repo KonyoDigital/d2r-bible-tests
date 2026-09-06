@@ -2245,9 +2245,24 @@ def main(argv):
         _say("%s %-8s %s" % (icon, name, r["why"]))
         for key in sorted(r["widths"]):
             m = r["widths"][key]
-            _say("     %-9s painted %s/%s · clipped %s · off %s · covered %s · imgs %s/%s broken"
-                 % (key, m.get("painted", 0), m.get("found", 0), m.get("clipped", 0),
-                    m.get("off", 0), m.get("covered", 0), m.get("broken", 0), m.get("imgs", 0)))
+            # ⚠ v2697 — EVERY COUNT CARRIES ITS DENOMINATOR, because three of these used to read as
+            # statements about the PAGE when they are statements about the TRACKED SET. A second
+            # eye, cold on the pixels, said the floating ROUTINES bar was sitting on top of the
+            # GRAIL-DUPES and WIP locker text; this line said `covered 0` for the same surface at
+            # the same width. Both were right. The bar really does cover those cards, and none of
+            # the 11 elements this target tracks is one of them.
+            #
+            # `covered 0` invites exactly the wrong reading — "nothing on this page is covered" —
+            # when the honest sentence is "none of the 11 I watch". That is [[zero-needs-a-
+            # denominator]] in the instrument that is supposed to catch it: a 0 with no
+            # denominator is UNKNOWN wearing green. `painted` always had its /found and was never
+            # once misread; the other three did not, and one of them hid a real overlap.
+            _fnd = m.get("found", 0)
+            _say("     %-9s painted %s/%s · clipped %s/%s · off %s/%s · covered %s/%s · "
+                 "imgs %s/%s broken"
+                 % (key, m.get("painted", 0), _fnd, m.get("clipped", 0), _fnd,
+                    m.get("off", 0), _fnd, m.get("covered", 0), _fnd,
+                    m.get("broken", 0), m.get("imgs", 0)))
             rc = (r.get("reach") or {}).get(key)
             if rc and rc.get("state") != "ON-SCREEN":
                 # BELOW-FOLD is REPORTED, not failed — a long page he can scroll is a page working.

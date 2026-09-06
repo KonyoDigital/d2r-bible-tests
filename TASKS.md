@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2697** | `(this commit)` | v2697 — the search hint fits the phone box: a 70-char placeholder written for 1440 cut mid-word at 375; and every render count now carries its denominator, because `covered 0` hid a real overlap |
 | **v2696** | `(this commit)` | v2696 — the claim button no longer promises another man's data; the heart flags a world reporting 0 while holding a ledger |
 | **v2695** | `(this commit)` | v2695 — the heart now flags a stranger posting owner-namespace numbers; and the un-seed removes the inherited chronicle without wiping his own finds |
 | **v2694** | `(this commit)` | v2694 — the automated world names itself the seed ledger; and the two ledger parses fail independently again |

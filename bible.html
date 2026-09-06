@@ -4611,8 +4611,26 @@ try {
   </div>
   <div class="gsearch-wrap" title="Search a boss, act, zone, super-unique or item — Enter to jump">
     <span class="gsearch-ic-lead">🔍</span>
-    <input id="gsearch-input" aria-label="search the whole bible" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
+    <input id="gsearch-input" aria-label="search the whole bible" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" data-ph-full="Search a boss, act, zone, super-unique, or item — jump straight to it" data-ph-short="Search the bible…" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
     <div id="gsearch-results" class="gsearch-results" hidden></div>
+<script>
+/* v2697 — THE PLACEHOLDER WAS WRITTEN FOR A DESKTOP INPUT AND SHOWN IN A 375px ONE.
+   A 70-character sentence cannot fit; at 375 it cut mid-word ("...super-uniq") and read as
+   broken text rather than as a hint. A second eye caught it cold, unprompted, on the pixels.
+   CSS cannot reach a placeholder, so the swap is here — and it listens to `change`, because
+   the first version only ran at load and a rotate or a resize kept the wrong one. */
+(function(){
+  var el = document.getElementById('gsearch-input');
+  if (!el || !window.matchMedia) return;
+  var full  = el.getAttribute('data-ph-full')  || el.placeholder;
+  var brief = el.getAttribute('data-ph-short') || full;
+  var mq = window.matchMedia('(max-width: 640px)');
+  function apply(){ try { el.placeholder = mq.matches ? brief : full; } catch(e){} }
+  apply();
+  if (mq.addEventListener) mq.addEventListener('change', apply);
+  else if (mq.addListener)  mq.addListener(apply);
+})();
+</script>
     <div id="gsearch-scrim" hidden onclick="try{var b=document.getElementById('gsearch-results');b.hidden=true;b.innerHTML='';this.hidden=true;document.getElementById('gsearch-input').blur();}catch(e){}"></div><!-- v696 P1: search owns focus — click-away closes -->
   </div>
 </div>
@@ -48982,7 +49000,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2696', name:'v2696 - the claim button stops promising data that is not yours', date:'2026-09-06', note:'a world reporting nothing while holding a ledger is now flagged by the heart' };
+  window.D2R_BUILD = { id:'v2697', name:'v2697 - the search hint fits the phone box', date:'2026-09-06', note:'a 70-character placeholder written for a 1440px input cut mid-word at 375 and read as broken text; no geometry gate could see it because an input truncating its own placeholder is normal rendering, so the second eye found it cold on the pixels' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

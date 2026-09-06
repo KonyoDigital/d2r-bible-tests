@@ -22019,3 +22019,54 @@ TWO THINGS HID IT:
 FOUND BY: v2083_vaulted_base_survives, which v2120 built for exactly this — 'chronicleApply
 files its own batch now; if that call is ever removed this goes red, which is the whole point of
 having it.' It went red and was read as a fixture problem for days.
+
+## REG-663 — a placeholder written for a 1440px input, shown in a 375px one
+
+**Shipped:** v2697 · **Found by:** the second eye, cold, on the pixels · **Gate:** `tv/test_search_placeholder_fits.py`
+
+`#gsearch-input` carried a 70-character sentence — *"Search a boss, act, zone, super-unique, or
+item — jump straight to it"*. At 375 the field shows roughly 285px of text, so the browser cut it
+mid-word and it rendered as `...super-uniq`, which reads as broken text rather than as a hint.
+
+⚠ **NO GEOMETRY GATE COULD HAVE CAUGHT THIS, and all of them were green and correct.** An input
+truncating its own placeholder is normal rendering, not overflow — nothing is clipped, nothing
+escapes its box, `painted 11/11 · clipped 0`. It was found by asking a different model family,
+cold, "is any text cut off mid-word", and it answered with the element and the truncated string
+unprompted. The same eye, given the same surface and the *same wording* after the fix, returned
+"no text truncated" and quoted the short string back. Same eye, same question, different bytes —
+a real before/after rather than a leading question.
+
+**Fix:** `data-ph-full` / `data-ph-short` on the input plus a `matchMedia('(max-width: 640px)')`
+swap. CSS cannot reach a placeholder, so it has to be script.
+
+**The gate pins the LAW, not the string** — three ways this comes back, one test each: the short
+text drifting back toward prose (a budget *derived from the box*, so the words may be rewritten
+freely but not lengthened past what 375px shows); the swap running at load only (a rotate would
+strand the desktop sentence with no reload to fix it — so a `change` listener is required); and
+the swap sitting ABOVE the input it mutates (`getElementById` returns null during parse, the IIFE
+returns silently, and the page looks perfect at desktop width forever — this repo has shipped that
+exact shape four times). Proven RED under three sabotages, each verified to have landed first.
+
+## REG-664 — `covered 0` was a statement about the tracked set, read as a statement about the page
+
+**Shipped:** v2697 · **Found by:** two of my own checks disagreeing
+
+The second eye said the floating ROUTINES bar was sitting on top of the GRAIL-DUPES and WIP locker
+text on `vault_1440x1000`. `render_check` reported `covered 0` for the same surface, same width,
+same run. **Both were right.** The bar really does cover those cards — cropping the region and
+looking shows "empty locker" bleeding out from under its right edge — and not one of the 11
+elements that target tracks is one of the covered ones.
+
+`painted` always printed `11/11` and was never once misread. `clipped`, `off` and `covered`
+printed a bare number, and a bare `0` invites exactly the wrong reading: *nothing on this page is
+covered*, when the honest sentence is *none of the 11 I watch*. That is
+[[zero-needs-a-denominator]] inside the instrument built to catch it.
+
+**Fix:** all four counts now carry `/found` — `clipped 0/11 · off 0/11 · covered 0/11`.
+
+⚠ **The overlap itself is NOT fixed and was not mine to fix.** It is a HUD design call: the widget
+is dismissible and toggleable, so this is transient occlusion rather than unreachable content, and
+reserving bottom padding would change the resting layout of every page that shows the bar. Taking
+a reviewer's fix wholesale is how one visible defect gets swapped for another — that already
+happened here with a 72px reserve vs `max-height`. Filed as `routines_bar_covers_lockers` for
+his eyes.

@@ -490,6 +490,17 @@ GATES = [
              "attached. Both decide deletion-adjacent facts: which reels the TEST SUITE names (a "
              "fixture reel is HELD from pruning) and which chronicle routes exist. Asserts a wrong "
              "key is refused, a corrupt cache fails OPEN, and nothing is written without a key"),
+    Gate("test_search_placeholder_fits",
+         [sys.executable, os.path.join(HERE, "test_search_placeholder_fits.py")], 120,
+         why="the global search field carried a 70-character sentence written for a 1440px input; "
+             "at 375 the browser cut it mid-word and it read as broken text. NO GEOMETRY GATE "
+             "COULD SEE IT -- an input truncating its own placeholder is normal rendering, not "
+             "overflow, so every clipping check was green and correct. The second eye found it "
+             "cold on the pixels. Pins the LAW rather than the string: the narrow text must fit "
+             "the 375px box (a budget derived from the box, not from today's wording), the swap "
+             "must listen for `change` so a rotate does not strand the desktop sentence, and it "
+             "must sit BELOW the input -- getElementById during parse returns null and the "
+             "handler dies silently, which this repo has shipped four times"),
     Gate("test_tombstone_station",
          [sys.executable, os.path.join(HERE, "test_tombstone_station.py")], 180,
          why="the printer's last station and the sealed/certified split are REPORTS, and a report "
