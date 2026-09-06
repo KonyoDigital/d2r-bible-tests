@@ -188,13 +188,31 @@ test.describe('v1716 — every hunt on the board resolves to a real run', () => 
       const roster = new Set(w._gUniqueRoster());
       const fu = w.funiScan();
       const fail: string[] = [];
+      /* ⚠⚠ v2705 — A LATENT SUNDER IS IN THE VAULT AND NOT IN THE CHRONICLE, BY HIS RULING.
+         v2680, 2026-09-05: "for the chronicle all sunders 6 of them need to be counted in the
+         chronicle specifically as 1 tally for each.. and for the vault that a different story the
+         entire item database should be there regardless."
+         So the roster (the vault's database) holds all six Latent forms and funiScan (a chronicle
+         count) does not — which means `Latent Bone Break` and `Latent Flame Rift`, both in the
+         eleven he ruled in back at v1720, can never appear in fu.missing again. This loop
+         demanded exactly that and had been red since the ruling, reporting "not in the missing
+         list (is it seeded found?)" — a question with a false premise: nothing seeded them, the
+         chronicle simply does not count them any more.
+         Every one of the eleven is still held to the VAULT half (in the roster, resolves as a
+         unique, has art). Only the CHRONICLE half is scoped to the names the chronicle counts. */
+      const LATENT = (x: string) => /^Latent /.test(x);
       N.forEach((n) => {
         if (!roster.has(n)) return fail.push(n + ': not in the roster');
         if (w.d2rResolveItem(n).kind !== 'unique') return fail.push(n + ': does not resolve as a unique');
+        if (!w.artUrl(n)) return fail.push(n + ': no art');
         const it = fu.missing.find((x: any) => x.n === n);
+        if (LATENT(n)) {
+          /* the ruling, asserted from BOTH sides so a silent re-inclusion is caught too */
+          if (it) return fail.push(n + ': a Latent sunder is back in the chronicle count — v2680 says one tally per sunder');
+          return;
+        }
         if (!it) return fail.push(n + ': not in the missing list (is it seeded found?)');
         if (!w._pickSrc(it.sources, n)) return fail.push(n + ': no farm route');
-        if (!w.artUrl(n)) return fail.push(n + ': no art');
       });
       /* v2697 — REPORT THE INGREDIENTS, NOT JUST THE TOTAL. `rosterN` came back 392 against the
          398 asserted below, and from a bare total there is no way to tell WHICH side moved.

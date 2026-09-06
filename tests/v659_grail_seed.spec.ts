@@ -78,7 +78,19 @@ test('boot floors 229 found of the 364 F-Uniques universe, with exact in-game Fi
      so his ledger is untouched. If found or flN ever moves on a roster change, something wrote to
      his testimony. */
   expect(r.extraN).toBe(80);   // v1720 +11 RotW · v1703 +Polaris Spear/The Scourge · v1695 +Fleshrender · v682 +4
-  expect(r.total).toBe(398);            // v1720: 387 + the eleven he ruled in
+  /* ⚠⚠ v2705 — 392, NOT 398, AND THE CODE IS THE PART THAT IS RIGHT. His v2680 ruling,
+     2026-09-05: "for the chronicle all sunders 6 of them need to be counted in the chronicle
+     specifically as 1 tally for each.. and for the vault that a different story the entire item
+     database should be there regardless." So the F-Uniques UNIVERSE (a chronicle count) drops the
+     six Latent forms, while the ROSTER (the vault's database) keeps them. Both numbers are now
+     asserted, because asserting only one is what let them drift:
+         funiScan().total   392 = 398 - 6 Latent sunders   <- the chronicle, per his ruling
+         _gUniqueRoster()   398 including them             <- the vault, per the same ruling
+     Measured on CI at ca65bb43: roster=398, missing=144, found=248 (144+248=392), and the six
+     named outright: Latent Black Cleft, Cold Rupture, Crack of the Heavens, Rotting Fissure,
+     Bone Break, Flame Rift. This line said 398 since v1720 and had been red since the ruling —
+     a spec encoding the world as it was before he ruled. LAST DECLARATION WINS. */
+  expect(r.total).toBe(392);            // v1720: 387 + the eleven, MINUS the 6 Latent (v2680)
   expect(r.found).toBe(248);            // UNCHANGED by that addition — v1758 seeded +2 found
   expect(r.flN).toBe(356);              // UNCHANGED — 246 uniques + 108 set-piece stamps · v1758: +2 seeded finds reach the ledger
   expect(r.wormskull).toBe('Jun 22, 2026 · 02:00');
