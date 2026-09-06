@@ -541,6 +541,70 @@ def _inv_the_fleet_divides_by_the_same_number_the_board_does():
             "chronTotal pinned in bible.html (source)", right, "==")
 
 
+def _inv_the_deleter_releases_only_what_the_store_declares():
+    """v2720 — THE DECIDER MUST NEVER RELEASE MORE SEALS THAN THE STORE ACTUALLY DECLARES.
+
+    His ruling, 2026-09-06: an examined-empty reel *"can continue down the river to tombstone...
+    and delete"* — **"as long as its ledgered and extracted properly and tallied where needed"**.
+    A conditional yes. This is the invariant that keeps the condition attached to it.
+
+    ⚠⚠ WHY IT EXISTS AT ALL, MEASURED. `seal_verdict` scores a seal EMPTY when `examinedEmpty` is
+    set OR when `extractedWhy` merely contains the word "nothing". Across his 31 real seals that is
+    23 EMPTY — but only 17 declared `examinedEmpty`; the other 6 qualify on the string alone, and
+    their why is literally "nothing was taken", which is the DEFAULT branch of `_seal_extracted`
+    for any sweep that grounded no rows. Wiring `!= UNEVIDENCED` into the deleter would have
+    released six reels on a substring. The looser read is CORRECT for a report and WRONG for a
+    deletion, and nothing but this invariant keeps the two apart over time.
+
+    INDEPENDENCE, which is the whole point of living here: the LEFT side runs the predicate the
+    deleter actually calls; the RIGHT side counts declarations straight out of the seal JSON,
+    touching no frame_authority logic at all. A drift in the predicate cannot move the right side,
+    which is exactly the property the v2390 audit exists to protect.
+
+    RELATION IS `<=`, NOT `==`, AND THAT IS DELIBERATE. The deleter may be STRICTER than the store
+    (it also demands a readable seal, and `rows == 0` before it will call a thing empty). It may
+    never be LOOSER. An equality here would go red for a safe reason and teach us to ignore it.
+    [[unknown-stays-unknown]] [[join-gate-heart]]
+    """
+    def left():
+        """How many seals the DELETION-side predicate would release."""
+        try:
+            import frame_authority as FA
+            sealed, ok = FA.sealed_sessions()
+            if not ok or not isinstance(sealed, dict) or not sealed:
+                return None            # nothing examined names nothing
+            return sum(1 for r in sealed.values() if FA.seal_releases_frames(r)[0])
+        except Exception:
+            return None
+
+    def right():
+        """How many seals DECLARE a releasable state, read straight from the store."""
+        try:
+            import frame_authority as FA
+            contract = set(FA.EXTRACTION_CONTRACT)
+            sealed, ok = FA.sealed_sessions()
+            if not ok or not isinstance(sealed, dict) or not sealed:
+                return None
+            n = 0
+            for r in sealed.values():
+                if not isinstance(r, dict):
+                    continue
+                got = r.get("extracted")
+                covered = isinstance(got, (list, tuple, set)) and contract <= {str(x) for x in got}
+                if covered or r.get("examinedEmpty") is True:
+                    n += 1
+            return n
+        except Exception:
+            return None
+
+    return ("deleter-releases-only-what-is-declared",
+            "the deleter releases no more seals than the store actually declares releasable",
+            "let EMPTY-by-substring reach the deleter and this parts — 23 released against 17 "
+            "declared, six of them on the words 'nothing was taken'",
+            "seal_releases_frames over his seals", left,
+            "seals declaring the contract or examinedEmpty (raw JSON)", right, "<=")
+
+
 def _inv_the_two_owned_fields():
     """157 vs 7 — TWO PAYLOAD FIELDS BOTH CALLED `owned`, and I found this by hand and did not
     encode it. That omission is the whole argument for this file existing.
@@ -1196,6 +1260,7 @@ BUILDERS = (_inv_a_world_reporting_nothing_holds_nothing,
             _inv_every_declared_tooltip_surface_is_served,
             _inv_vault_worklist,
             _inv_the_two_owned_fields,
+            _inv_the_deleter_releases_only_what_the_store_declares,
             _inv_the_fleet_divides_by_the_same_number_the_board_does,
             _inv_the_eagle_can_still_look,
             _inv_hunt_memory_is_being_used,

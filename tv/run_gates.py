@@ -502,6 +502,15 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_examined_empty_releases",
+         [sys.executable, os.path.join(HERE, "test_examined_empty_releases.py")], 120,
+         why="HIS ruling: an examined-empty reel may continue down the river 'as long as its "
+             "ledgered and extracted properly'. seal_verdict had answered COVERED/EMPTY/UNEVIDENCED "
+             "since v2702 and was called by ONE reporter while BOTH deciders asked the old binary "
+             "question. Joined — but the obvious join was too generous: 23 of his 31 seals score "
+             "EMPTY and only 17 declared examinedEmpty, the rest on the substring 'nothing'. The "
+             "deciders now ask seal_releases_frames; reporters keep the looser verdict."),
+
     Gate("test_eyes_banner_ages_out",
          [sys.executable, os.path.join(HERE, "test_eyes_banner_ages_out.py")], 120,
          why="his EYES panel printed 'the Grok balance is exhausted' in the PRESENT TENSE beside "

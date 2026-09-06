@@ -287,6 +287,44 @@ def seal_verdict(row, contract=EXTRACTION_CONTRACT):
                          "empty examination — it is an unevidenced one" % rows)
 
 
+def seal_releases_frames(row):
+    """May this seal let its frames go? -> (bool, why). The DECIDING question, stricter than the
+    reporting one — and the difference is measured, not stylistic.
+
+    ⚠⚠ v2720 — WHY THIS IS NOT JUST `seal_verdict(row) != UNEVIDENCED`. MEASURED across his 31
+    seals the moment the deciders were joined to the three-answer vocabulary:
+
+        23 scored EMPTY
+           17 carry `examinedEmpty: True`
+            6 qualify ONLY because `extractedWhy` contains the word "nothing", and their why is
+              literally "nothing was taken"
+
+    `seal_verdict`'s `or ("nothing" in extractedWhy)` clause is right for a REPORT — it keeps a
+    measured-zero visible instead of collapsing it into nobody-looked. It is WRONG for a deletion,
+    because "nothing was taken" is the DEFAULT branch of `_seal_extracted` for any sweep that
+    grounded no rows. It says the sweep found nothing. It does NOT say anyone established there
+    was nothing to find.
+
+    Konyo's ruling was CONDITIONAL — *"as long as its ledgered and extracted properly and tallied
+    where needed"* — and only `examinedEmpty` carries that condition. It is written at exactly one
+    place (control_app.py:19303) and only when the sweep OFFERED every frame to the stash gate, was
+    refused by all of them, AND proved the lane live in the same pass. A permission read as a
+    blanket is how a conditional yes becomes a deletion nobody authorised.
+    [[unknown-stays-unknown]] [[manual-tally-is-witness]]
+    """
+    v, why = seal_verdict(row)
+    if v == COVERED:
+        return True, why
+    if v == EMPTY and isinstance(row, dict) and row.get("examinedEmpty") is True:
+        return True, why
+    if v == EMPTY:
+        return False, ("this seal reads as empty only because it says %r — that is the default for "
+                       "a sweep that grounded nothing, not a record that anyone established there "
+                       "was nothing here. It never declared `examinedEmpty`."
+                       % (str((row or {}).get("extractedWhy") or "")[:60]))
+    return False, why
+
+
 def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     """MAY this one frame be deleted? Returns (bool, why) and the why is written for him, not for a log.
 
@@ -320,8 +358,26 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     # v2272 — A FIFTH HOLD, and it is his rule: extracted FIRST, then pruned. Sealing says which
     # reader ran; it has never said what was taken. Until a seal declares the contract, these pixels
     # may still be the only record of WHERE the item was.
-    _cov, _why = seal_covers_extraction((sealed or {}).get(sess))
-    if not _cov:
+    # ⚠⚠ v2720 — HIS RULING, AND THE JOIN THAT MAKES IT MEAN ANYTHING.
+    # Konyo, 2026-09-06, answering the question `_seal_extracted` itself flagged as not-mine:
+    #   "as long as its ledgered and extracted properly and tallied where needed.. it can continue
+    #    down the river to tombstone i dont see why not..? and delete.."
+    #
+    # `seal_verdict` has answered this correctly since v2702 — COVERED / EMPTY / UNEVIDENCED,
+    # written precisely so "examined and there was genuinely nothing here" would stop being scored
+    # identically to "nobody looked". It was built, it was correct, and it was called by ONE place,
+    # for a REPORT. Every function that actually DECIDED still asked the old binary question, so
+    # the collapse it existed to end was still happening at the only sites that mattered.
+    # [[the-unjoined-end]] [[join-gate-heart]]
+    #
+    # ⚠ EMPTY IS NOT A FREE PASS — IT IS A DIFFERENT FACT, AND ONLY THAT BRANCH WRITES IT.
+    # `examinedEmpty` is set at exactly one place (control_app.py:19303) and only when the sweep
+    # OFFERED every frame to the stash gate, was refused by all of them, AND proved the lane live
+    # in the same pass. That is his condition — ledgered, examined, tallied — already enforced at
+    # the writer. A seal that merely lacks names does NOT reach here: it lands UNEVIDENCED and
+    # still holds. [[unknown-stays-unknown]]
+    _ok, _why = seal_releases_frames((sealed or {}).get(sess))
+    if not _ok:
         return False, ("recording %s is sealed, but %s — his rule is that everything detail-bearing "
                        "is extracted and tallied BEFORE anything is pruned" % (sess, _why))
     return True, "recording %s is sealed and this frame witnessed nothing" % sess

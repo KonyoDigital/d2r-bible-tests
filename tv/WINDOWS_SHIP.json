@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2719",
+  "ver": "v2720",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2719: the render gate excused a scroller in its ancestor branch and not in its self branch so a designed scroll area read as clipped; instrument fixed and the declared floor removed not raised",
+  "note": "v2720: seal_verdict existed since v2702 and was called by one reporter while both deciders asked the old binary question; joined with the strict predicate so examined empty releases and nothing was taken does not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -53,7 +53,7 @@ QUESTIONS = {
 }
 
 #: ⚠ A DIFFERENT QUESTION, DELIBERATELY, AND NOT A SECOND OPINION ON THE ONE ABOVE.
-FRAME_QUESTION = ("frame_authority.seal_covers_extraction",
+FRAME_QUESTION = ("frame_authority.seal_releases_frames",
                   "may this FRAME go? (frame granularity — it protects the witness frames behind "
                   "his vault rows, which is why it is stricter and why collapsing the two was "
                   "withdrawn in v2314)")
@@ -161,8 +161,17 @@ def river(reel=None):
         elif row is None:
             frame_answer, frame_why = None, "no seal exists for this reel, so the frame question is UNASKED — not answered no"
         else:
-            covers, cwhy = FA.seal_covers_extraction(row)
-            frame_answer, frame_why = bool(covers), str(cwhy)
+            # ⚠ v2720 — ASK THE THREE-ANSWER QUESTION. This asked seal_covers_extraction, which
+            # cannot tell "examined and genuinely empty" from "nobody looked" — the exact collapse
+            # seal_verdict was written to end at v2702, and this door was one of the two consumers
+            # that never got joined to it. His ruling 2026-09-06: an examined-empty reel "can
+            # continue down the river to tombstone". [[the-unjoined-end]] [[join-gate-heart]]
+            # ⚠ THE STRICT question, not the reporting one. seal_verdict's EMPTY also fires on a
+            # bare "nothing was taken", which is the DEFAULT for any sweep that grounded no rows —
+            # measured, 6 of his 23 EMPTY seals qualify on that string alone and never declared
+            # `examinedEmpty`. This door feeds the prune, so it asks the deciding predicate.
+            _ok, cwhy = FA.seal_releases_frames(row)
+            frame_answer, frame_why = bool(_ok), str(cwhy)
         decider, question = QUESTIONS.get(stage, ("?", "a stage this probe has not been taught"))
         out.append({
             "reel": name, "stage": stage, "decider": decider, "question": question,
