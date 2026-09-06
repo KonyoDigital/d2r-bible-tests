@@ -502,6 +502,15 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_deep_owed_is_stamped",
+         [sys.executable, os.path.join(HERE, "test_deep_owed_is_stamped.py")], 120,
+         why="14 of his 40 reels have DEEP 0, and an absent deep row meant TWO things nothing could "
+             "tell apart: never dispatched, or dispatched and thrown away by the _POOL_STOPPING "
+             "guard. The owing is now stamped BEFORE the network call, so a lost read still leaves "
+             "a trace. ⚠ It pins that every name the stamp uses is IN SCOPE — the first cut used "
+             "`fid_this`, which has zero bindings in _vision_job, and inside its own try/except "
+             "that NameError would have been swallowed and recorded nothing forever."),
+
     Gate("test_board_short_read_is_seen",
          [sys.executable, os.path.join(HERE, "test_board_short_read_is_seen.py")], 120,
          why="REG-681 fixed the torn WRITE; this closes the SERVE side. An empty read does not "

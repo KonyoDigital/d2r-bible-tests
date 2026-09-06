@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2724** | `(this commit)` | v2724 — an absent deep row meant either never dispatched or dispatched and thrown away and nothing could tell them apart; the owing is stamped before the network call now |
 | **v2723** | `(this commit)` | v2723 — an empty read does not raise so a torn bible.html was served as a normal 200 and the only watchers that could notice need the page javascript a zero byte document does not have |
 | **v2722** | `(this commit)` | v2722 — four more distinct attacks and one live check against his real 31 seals took the new lock from locked to open on evidence rather than on repetition |
 | **v2721** | `(this commit)` | v2721 — the gate between a seal and a deletion had no lock so seven real sabotages had nowhere honest to go; declared with its own bar and banked from a re-runnable harness |

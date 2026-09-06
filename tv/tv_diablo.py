@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2723"   # the serve side gets a witness
+VERSION = "v2724"   # an owed deep read leaves a trace
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -6678,6 +6678,50 @@ def main():
 
                 # ── DEEP LANE: Claude (this reader's OWN worker + private read.jpg) ──
                 _job_worker = _stall_worker() if rid_override is not None else _WORKERS[rid]
+                # ⚠⚠ v2724 — STAMP THE OWING **BEFORE** THE CALL, NOT AFTER THE ANSWER.
+                # 14 of his 40 reels resolve to zone UNKNOWN with 0 segments, and the correlation
+                # is perfect: zone UNKNOWN == segments 0 == never deep-read. Their lane mix is
+                # kai 169 · intake 43 · system 13 · ocr 8 · skip 6 · DEEP **0**.
+                #
+                # But an absent `deep` row is consistent with TWO different histories and nothing
+                # written down could tell them apart:
+                #     (a) this frame was never dispatched to the reader at all
+                #     (b) it WAS dispatched, and the answer was thrown away
+                # (b) is real and lives eleven lines below: `if _POOL_STOPPING: return` drops a
+                # completed read on shutdown — correct, because applying a stale read after close
+                # corrupts the session — but it leaves NO trace that a read was ever owed.
+                #
+                # So the owing is recorded at the moment of COMMITMENT, before the network call.
+                # A read discarded by the shutdown guard, or lost to an exception, still leaves a
+                # `deep-owed` row saying it was attempted. Then `deep-owed` beside `deep` separates
+                # "never asked" from "asked and lost", which is the whole question this row exists
+                # to answer. [[unknown-stays-unknown]] [[the-unjoined-end]]
+                #
+                # ⚠ A NEW LANE, NOT A FLAG ON THE DEEP ROW — because the deep row is exactly what
+                # does not exist in the case being measured. And `reel_segments` filters
+                # `lane == "deep"`, so this cannot be mistaken for a read: it says a read was OWED,
+                # never that one happened.
+                #
+                # ⚠ IT CANNOT BE BACKFILLED for the existing 14, and must not be: nothing recorded
+                # at the time distinguishes (a) from (b) for them, so they stay UNKNOWN. This is
+                # the same rule `door` states in its own words one file over — "absent door =
+                # absent key, never a guessed default".
+                # ⚠ THE FRAME IS NAMED FROM `snap_path`, NOT FROM A LOCAL THAT DOES NOT EXIST.
+                # My first cut used `fid_this` — which has ZERO bindings in _vision_job (verified by
+                # parsing, not by eye). Wrapped in this try/except, that NameError would have been
+                # swallowed and the stamp would have written NOTHING, FOREVER: the exact defect
+                # fixed one hour earlier in the Doctor hookup, repeated. `snap_path` is the file the
+                # reader is about to be handed, so its basename IS the frame.
+                # [[feedback-suspect-the-instrument]]
+                try:
+                    _journal({"lane": "deep-owed",
+                              "frameId": os.path.basename(str(snap_path or "")),
+                              "sessionId": SESSION_ID,
+                              "why": "committed to the deep reader; a matching lane=deep row for "
+                                     "this frame means the answer landed, and its absence means "
+                                     "the read was attempted and lost"})
+                except Exception:
+                    pass
                 rd = claude_read(snap_path, worker=_job_worker, out_jpg=read_jpg)
                 job["raw"] = (rd or {}).get("_raw_txt") or globals().get("_LAST_RAW", "") or ""   # v864 — result-carried raw wins; global only as single-reader fallback
                 if should_learn_dead(rd):

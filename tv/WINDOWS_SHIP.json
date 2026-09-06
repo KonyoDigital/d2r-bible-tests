@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2723",
+  "ver": "v2724",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2723: an empty read does not raise so a torn bible.html was served as a normal 200 and the only watchers that could notice need the page javascript a zero byte document does not have",
+  "note": "v2724: an absent deep row meant either never dispatched or dispatched and thrown away and nothing could tell them apart; the owing is stamped before the network call now",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
