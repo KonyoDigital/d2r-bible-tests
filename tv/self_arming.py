@@ -424,6 +424,7 @@ PROVES = {
     # examinedEmpty is falsy rather than declared. It deletes nothing and arms nothing — it calls
     # one pure predicate and counts refusals.
     "frame_release_wilson": ("frame.release",),
+    "frame_release_live": ("frame.release",),
     # ⚠ THE ROUTES. route_wilson removes what each lane CLAIMS TO HAVE FOUND — deletes the
     # artifact, deletes bible.html, blanks every mention of the roster stem, removes the file a
     # lane names — and counts whether the lane noticed. A lane that still says ok with its

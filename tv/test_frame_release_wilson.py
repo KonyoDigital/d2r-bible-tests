@@ -65,7 +65,11 @@ class FrameReleaseWilsonIsInert(unittest.TestCase):
         attack. This pins that no two declared attacks are the same input."""
         seen = []
         for name, row, must, why in FRW.ATTACKS:
-            key = tuple(sorted((k, str(v)) for k, v in row.items()))
+            # ⚠ a non-dict row is a legitimate attack (a corrupt store hands the gate anything),
+            # so the identity key must survive one. `row.items()` raised on the None case — the
+            # test could not describe an input the harness deliberately includes.
+            key = (tuple(sorted((k, str(v)) for k, v in row.items()))
+                   if isinstance(row, dict) else ("<non-dict>", repr(row)))
             self.assertNotIn(key, seen,
                              "attack %r is byte-identical to an earlier one — that is repetition "
                              "counted as breadth, which is the illusion wilsonByAttack exists to "

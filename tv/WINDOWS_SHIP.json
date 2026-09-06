@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2721",
+  "ver": "v2722",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2721: the gate between a seal and a deletion had no lock so seven real sabotages had nowhere honest to go; declared with its own bar and banked from a re-runnable harness",
+  "note": "v2722: four more distinct attacks and one live check against his real 31 seals took the new lock from locked to open on evidence rather than on repetition",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
