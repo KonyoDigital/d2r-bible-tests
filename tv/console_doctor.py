@@ -650,6 +650,28 @@ def _check_the_backup_loop_is_actually_WRITING():
         # freshly-restarted console always look healthy — the one moment it is least proven.
         return UNKNOWN, ("the loop has not reported a snapshot yet (%d write(s) so far) — too early "
                          "to say, and that is not the same as working" % int(writes or 0))
+    # ⚠⚠ v2736 — `why` IS STICKY, AND WITHOUT THIS THE WHOLE CHECK WAS DEFEATED BY A DEAD LOOP.
+    # REPRODUCED: a loop that wrote once and then stopped three days ago left
+    # why="wrote ledger_2026-09-03_010101.json" in place, and this row graded it **OK**. Nothing
+    # clears the string, and the loop swallows every exception by design so one bad read cannot
+    # end it — so the last benign message outlives the loop that wrote it.
+    # Found by handing the shipped diff to a different model family and asking it to refute.
+    # ⚠ THIS IS [[stale-reading]] COMMITTED INSIDE THE WATCHER BUILT TO CATCH A SILENT FAILURE:
+    # the age of the THING, not the age of the fetch. The message was fresh; the act was not.
+    try:
+        age_ms = lb.get("lastTryMs")
+        if age_ms is None:
+            return UNKNOWN, ("the loop publishes no last-attempt time, so whether it is still "
+                             "running is UNMEASURED — a sticky `why` cannot answer it")
+        age_s = max(0.0, time.time() - (float(age_ms) / 1000.0))
+    except (TypeError, ValueError):
+        return UNKNOWN, "the loop's last-attempt time is unreadable, so its liveness is UNKNOWN"
+    # three intervals: one missed tick is scheduling noise, three is a loop that is gone
+    if age_s > 3 * 600:
+        return MISSING, ("the backup loop has not RUN for %d minute(s) — it fires every 10, so it "
+                         "is not running at all. Its last message is %r, which is sticky and says "
+                         "nothing about whether the loop still exists."
+                         % (int(age_s / 60), why[:60]))
     if not why.startswith(_BACKUP_BENIGN):
         return MISSING, ("the backup loop is REFUSING every snapshot: %r. It has written %d file(s) "
                          "this run, and it retries every %d minutes, so this repeats silently. His "

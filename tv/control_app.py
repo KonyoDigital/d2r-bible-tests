@@ -17776,7 +17776,15 @@ _LEDGER_BACKUP_FIRST_S = 45.0
 # written when the COUNTS CHANGE, so 60 of them is under a megabyte and usually spans days.
 # Depth is what lets him go back past a bad day, and this is the file that made one survivable.
 _LEDGER_BACKUP_KEEP = 60
-_LEDGER_BACKUP_STATE = {"last": "", "counts": None, "writes": 0, "why": ""}
+_LEDGER_BACKUP_STATE = {"last": "", "counts": None, "writes": 0, "why": "",
+                        # ⚠⚠ v2736 — WHEN THE LOOP LAST *TRIED*, not when it last SUCCEEDED.
+                        # Without this the doctor row could only read `why`, and `why` is
+                        # sticky: a loop that wrote once and then DIED left "wrote ....json"
+                        # sitting there forever. REPRODUCED — a loop dead for three days
+                        # graded OK. That is [[stale-reading]] exactly (the age of the THING,
+                        # not of the fetch), committed inside the watcher built to catch a
+                        # silent failure. None means it has never run: UNKNOWN, never 0.
+                        "lastTryMs": None}
 
 
 def ledger_backup_state():
@@ -17870,6 +17878,9 @@ def _ledger_backup_loop():
             time.sleep(_wait)
             _wait = _LEDGER_BACKUP_EVERY_S
             _lane_tick('tvd-ledger-backup', _LEDGER_BACKUP_EVERY_S)
+            # every ITERATION, not every write — this is what separates a loop that is alive
+            # and legitimately skipping from a loop that is gone.
+            _LEDGER_BACKUP_STATE["lastTryMs"] = int(time.time() * 1000)
             path, why = _ledger_snapshot_once()
             _LEDGER_BACKUP_STATE["why"] = why if not path else _LEDGER_BACKUP_STATE["why"]
             if path:
@@ -17892,11 +17903,42 @@ def _restore_current_from_board():
         return None, None, str((got or {}).get("why") or "the board did not answer")
     sample = got.get("sample") or {}
     dates = got.get("dates")
+    counts = got.get("counts") or {}
+
+    def _whole(store, value):
+        """The store as read, or None if the read was PARTIAL. -> value or None
+
+        ⚠⚠ v2736 — A TRUNCATED READ MUST NOT BECOME A REPORTED LOSS, and it did.
+        The board slices each store to `sample` names (`fl.slice(0,n)`), so a board holding more
+        than the cap hands back a prefix. `plan()` then diffs the backup against that prefix and
+        reports everything past the cap as MISSING. REPRODUCED: board truly holding 6000, cap
+        5000 -> plan reported **1000 names missing** that were never gone.
+        Found by handing the shipped diff to a different model family and asking it to refute.
+        Not live today (his foundLog is 419 against a 5000 cap) — but the guard was absent, and
+        "not currently exceeded" is not a guard.
+        ⚠ THE FIX USES A COUNT THE BOARD REPORTS INDEPENDENTLY OF THE COPY, which is the same
+        instrument the snapshot's truncation refusal already uses. Comparing the copy against its
+        own length would be circular and could never fire.
+        A partial read is UNKNOWN, never a shortfall. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        """
+        if value is None:
+            return None
+        want = counts.get(store)
+        if want is None:
+            return value                  # the board could not say — no basis to call it partial
+        try:
+            if len(value) < int(want):
+                return None               # a prefix of his ledger is not his ledger
+        except (TypeError, ValueError):
+            return None
+        return value
+
+    _fl = dates if isinstance(dates, dict) and dates else sample.get("foundLog")
     cur = {
         # the dated dict when the board gave one, the name list otherwise — both are readable by
         # plan(), which only needs membership
-        "foundLog": dates if isinstance(dates, dict) and dates else sample.get("foundLog"),
-        "setPieces": sample.get("setPieces"),
+        "foundLog": _whole("foundLog", _fl),
+        "setPieces": _whole("setPieces", sample.get("setPieces")),
     }
     return cur, got.get("route"), ""
 
@@ -23446,7 +23488,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2735",
+        "ver": "v2736",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

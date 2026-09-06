@@ -532,6 +532,17 @@ GATES = [
              "IMPORT ALLOWLIST plus attribute- and bare-name call checks, after a substring "
              "version was defeated by `import json as _j` and then by `open()`."),
 
+    Gate("test_ledger_restore",
+         [sys.executable, os.path.join(HERE, "test_ledger_restore.py")], 120,
+         why="v2736 — ledger_restore joins the automatic backup to the board's apply door, and it "
+             "shipped in v2735 with NO suite: the orphan-suite gate catches a test file no gate "
+             "runs, not a MODULE no test covers. Pins that an UNROUTED backup is never attributed "
+             "to anyone (59 of his 60 files predate the route stamp), that `owned` stays out of "
+             "RESTORABLE because /api/vault_apply re-gates on 3 witnesses a restore cannot have, "
+             "that a restore invents no DATE, and — the finding a different model family made — "
+             "that a TRUNCATED board read is UNKNOWN rather than a reported loss. Reproduced: a "
+             "board holding 6000 against a 5000 sample cap reported 1000 names missing."),
+
     Gate("test_board_read_js_has_no_free_variables",
          [sys.executable, os.path.join(HERE, "test_board_read_js_has_no_free_variables.py")], 120,
          why="v2735 — v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. There is "
