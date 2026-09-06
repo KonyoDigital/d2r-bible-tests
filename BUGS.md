@@ -22350,3 +22350,32 @@ matched against a registered string, and auditable.
 
 Proven both ways: with reels present, 9 tests run and pass; with `printer.stream()` and
 `extract_gap.gap()` returning nothing, **2 skips with the declared reason and 0 failures**.
+
+## REG-673 — the un-seed snapshot was shared across profiles, and never spent
+
+**Shipped:** v2706 · **Found by:** `/code-review`, then measured against the real fork sets
+
+**1. The snapshot was bare while everything it restores is forked.** All five stores the un-seed
+touches — `d2r_foundLog`, `d2r_owned`, `d2r_setPieces`, `d2r_rwMade`, `d2r_rwVerify` — are in
+`_LP_FORKED` (48 ladder-forked keys + 12 Windows-only). `d2r_unseedBackup` was in neither set.
+
+Concretely: un-seed on MAIN → the snapshot holds MAIN's arrays under a key that is the same in
+every world → click the one-click LADDER pill → press Undo → the restore writes **MAIN's arrays
+into `L·d2r_owned` and `L·d2r_rwVerify`**, destroying the ladder account's vault list and runeword
+verdicts, while MAIN stays stripped. The dialog says *"put this browser back exactly as it was"*.
+
+⚠ **Forking the key alone would have done nothing** — the report was written through
+`window.localStorage` directly, and a raw write lands on the bare key whatever the fork set says.
+Both report writes now go through `LSx`.
+
+**2. A successful restore never consumed the snapshot**, and the v2699 no-overwrite guard turned
+that into a trap: un-seed → Undo → *a week of finds* → un-seed again → the guard keeps the first
+snapshot and takes none → Undo rolls the week back. The guard is correct for a second un-seed with
+no restore in between; a restore is what makes the old snapshot spent. Proven:
+`after 2nd round trip: Shaftstop, HIS FIND A, A WEEK OF WORK` — **the week survived**. Removing the
+clear turns that law red.
+
+⚠ **Still HIS call:** `d2r_ledgerName` stays bare on purpose, so naming the ledger switches seeds
+off for *both* profiles while the strip touches only the active one — an un-seed on LADDER strands
+MAIN's seeded `rwVerify` forever. Per-browser is defensible; per-profile is a design ruling and not
+mine to make.

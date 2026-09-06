@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2705",
+  "ver": "v2706",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2705: printer.stream and extract_gap walk his reel store and the runner has no reels, so a gate that was measuring nothing reported red on every CI run while green on his Mac; it now skips with a reason declared in run_gates skip_ok, where an undeclared skip still counts as a failure",
+  "note": "v2706: the snapshot was bare while all five stores it restores are forked per profile, so an Undo after switching profiles would have written one account arrays into the other; and a restore never cleared it, which made every un-seed after the first roll back to the first snapshot",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -3970,6 +3970,20 @@ window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(windo
 // built in v1633 with a union migration and REVERTED because the merge could not survive a reload
 // (the board re-derives from the ledger). Nobody try it a fourth time.
 window._LP_FORKED = new Set([
+  /* ══ v2706 — A SNAPSHOT OF PER-PROFILE DATA IS ITSELF PER-PROFILE ═══════════════════════
+     d2r_unseedBackup captures d2r_foundLog, d2r_owned, d2r_setPieces, d2r_rwMade and
+     d2r_rwVerify — and EVERY ONE of those five is in this set. The snapshot key was not, so it
+     was bare in every world: one shared photograph of whichever profile happened to run the
+     un-seed.
+     THE FAILURE THAT MAKES CONCRETE. Un-seed on MAIN (snapshot holds MAIN's arrays under the
+     bare key) -> click the one-click LADDER pill -> open the danger zone -> press Undo. The bare
+     backup is found, because it is the same key in every world, and the restore writes MAIN's
+     arrays into L·d2r_owned and L·d2r_rwVerify — destroying the ladder account's vault list and
+     runeword verdicts, while MAIN stays stripped. The dialog says "put this browser back exactly
+     as it was". Nothing checked the profile.
+     The report forks for the same reason: a record of what was taken from ONE profile must not
+     be overwritten by the next profile's run. [[d2r-ladder-doctrine]] */
+  'd2r_unseedBackup', 'd2r_unseedReport', 'd2r_unseedRestoreReport',
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -10099,8 +10113,12 @@ window._d2rUnseed = function(){
         report.push(k + ': removed ' + tally[k].removed + ' seeded, kept '
                     + (kept === null ? 'unknown (the store would not parse back)' : kept));
       });
+      /* ⚠ v2706 — THROUGH THE ROUTER, NOT PAST IT. This wrote via window.localStorage
+         directly, so adding the key to _LP_FORKED would have changed nothing: a raw write lands
+         on the bare key in every world, and one profile's report would overwrite the other's.
+         The stores this report describes are all forked; the description of them must fork too. */
       try {
-        window.localStorage.setItem('d2r_unseedReport',
+        LSx.setItem('d2r_unseedReport',
           JSON.stringify({ at: Date.now(), ledger: nm, lines: report }));
       } catch(e){}
       try { console.log('[un-seed] ' + nm + ' | ' + report.join(' | ')); } catch(e){}
@@ -10166,8 +10184,24 @@ window._d2rUnseedRestore = function(){
         if (bk.d2r_ledgerName == null) { window.localStorage.removeItem('d2r_ledgerName'); done.push('ledger name: cleared'); }
         else { window.localStorage.setItem('d2r_ledgerName', bk.d2r_ledgerName); done.push('ledger name: restored'); }
       } catch(e){}
-      try { window.localStorage.setItem('d2r_unseedRestoreReport',
+      try { LSx.setItem('d2r_unseedRestoreReport',
               JSON.stringify({ at: Date.now(), from: bk.at, lines: done })); } catch(e){}
+      /* ⚠⚠ v2706 — A SUCCESSFUL RESTORE CONSUMES THE SNAPSHOT, and not clearing it made every
+         un-seed after the first permanently un-undoable. The v2699 no-overwrite guard is right on
+         its own terms — the FIRST snapshot is the valuable one and a second click must not replace
+         it with a photograph of the damage. What it did not account for is a restore in between:
+
+             un-seed         -> snapshot A
+             Undo            -> stores restored, snapshot A LEFT IN PLACE
+             a week of finds -> real work accumulates
+             un-seed again   -> the guard sees a non-null backup, keeps A, takes NO new snapshot
+             Undo            -> restores A and silently rolls back the week
+
+         Once the store has been put back, A describes a state that already exists; keeping it only
+         blocks the next one. Clearing it here makes the guard correct rather than removing it, so
+         the protection still holds for the case it was written for — a second un-seed with no
+         restore in between. */
+      try { LSx.removeItem('d2r_unseedBackup'); done.push('snapshot cleared — the next un-seed takes a fresh one'); } catch(e){}
       try { console.log('[un-seed restore] ' + done.join(' | ')); } catch(e){}
     } catch(e){ try { console.warn('[un-seed restore] failed: ' + e); } catch(e2){} }
     location.reload();
@@ -49217,7 +49251,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2705', name:'v2705 - the tombstone gate says it cannot measure instead of failing', date:'2026-09-06', note:'printer.stream and extract_gap walk his reel store and the runner has no reels, so a gate that was measuring nothing reported red on every CI run while green on his Mac; it now skips with a reason declared in run_gates skip_ok, where an undeclared skip still counts as a failure' };
+  window.D2R_BUILD = { id:'v2706', name:'v2706 - the un-seed snapshot belongs to one profile and is spent once used', date:'2026-09-06', note:'the snapshot was bare while all five stores it restores are forked per profile, so an Undo after switching profiles would have written one account arrays into the other; and a restore never cleared it, which made every un-seed after the first roll back to the first snapshot' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

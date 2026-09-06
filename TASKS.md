@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2706** | `(this commit)` | v2706 — REG-673: the un-seed snapshot was shared across profiles and never spent, so an Undo after switching profiles would clobber the other account |
 | **v2705** | `(this commit)` | v2705 — REG-672: the tombstone gate says it cannot measure on a runner with no reels, via run_gates own skip_ok, instead of failing there forever |
 | **v2704** | `(this commit)` | v2704 — REG-671: five defects a second review found in the first review's fixes, including a skip recorded as a pass and my denominator fix having the defect it fixed |
 | **v2703** | `(this commit)` | v2703 — REG-670: three heart invariants read absent evidence as a positive claim; one passed vacuously on every machine but his |

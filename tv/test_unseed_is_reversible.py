@@ -147,6 +147,32 @@ setTimeout(()=>{
 """
 
 
+
+#: un-seed -> Undo -> work -> un-seed -> Undo. The week must survive.
+_TWICE_JS = r"""
+const vm=require('vm'); const FRAG=%s;
+const store={ d2r_foundLog: JSON.stringify({'Shaftstop':'Jan 1, 2026 - 00:00','HIS FIND A':'Jun 9, 2026 - 12:00'}),
+              d2r_owned:'[]', d2r_rwMade:'{}', d2r_setPieces:'[]', d2r_rwVerify:'{}' };
+const sb={console:{log:()=>{},warn:()=>{}},location:{reload:()=>{}},
+  uiConfirm:()=>Promise.resolve(true),setTimeout:f=>f(),Date:Date,JSON:JSON,Object:Object,String:String,Array:Array};
+sb.window={localStorage:{getItem:k=>(k in store?store[k]:null),setItem:(k,v)=>{store[k]=v;},removeItem:k=>{delete store[k];}},
+  _D2R_INSTALL:'I1',_GRAIL_SEED:{'Shaftstop':'Jan 1, 2026 - 00:00'},_SET_SEED:{},_RWC_SEED:{},_RULING_SEED:{},
+  _RWV_SEED:{"Mania":"fail","Hysteria":"fail"}};
+sb.window.LSR=sb.window.localStorage;
+vm.createContext(sb); vm.runInContext(FRAG,sb);
+sb.window._d2rUnseed();
+setTimeout(()=>{ sb.window._d2rUnseedRestore(); setTimeout(()=>{
+  console.log('snapshot after restore: ' + (store.d2r_unseedBackup ? 'STILL THERE' : 'cleared'));
+  const fl=JSON.parse(store.d2r_foundLog); fl['A WEEK OF WORK']='Jun 16, 2026 - 09:00';
+  store.d2r_foundLog=JSON.stringify(fl);
+  sb.window._d2rUnseed();
+  setTimeout(()=>{ sb.window._d2rUnseedRestore(); setTimeout(()=>{
+    const back=Object.keys(JSON.parse(store.d2r_foundLog));
+    console.log(back.indexOf('A WEEK OF WORK')>=0 ? 'THE WEEK SURVIVED' : 'THE WEEK WAS ROLLED BACK');
+  },20); },20);
+},20); },20);
+"""
+
 class UnseedIsReversible(unittest.TestCase):
 
     def setUp(self):
@@ -301,6 +327,27 @@ class UnseedIsReversible(unittest.TestCase):
                       "the un-seed/restore round trip did not come back. Output:\n%s" % out[-600:])
         self.assertNotIn("NOT SYMMETRIC", out,
                          "a store did not return to its prior value:\n%s" % out[-600:])
+
+    def test_a_second_unseed_after_a_restore_takes_its_own_snapshot(self):
+        """The stale-snapshot trap the v2699 no-overwrite guard created.
+
+        un-seed -> Undo -> a week of real finds -> un-seed again -> Undo. If the restore does not
+        CONSUME the snapshot, the second un-seed sees a non-null backup, keeps the first one, takes
+        none of its own, and the second Undo rolls the week back. The guard is right for a second
+        un-seed with no restore in between; a restore is what makes the old snapshot spent.
+        """
+        node = _node()
+        harness = _TWICE_JS % json.dumps(_script_fragment())
+        r = subprocess.run([node, "-e", harness], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise AssertionError("the twice-round-trip harness would not run: %s" % (r.stderr or "")[:300])
+        out = (r.stdout or "").strip()
+        self.assertIn("THE WEEK SURVIVED", out,
+                      "a second un-seed after a restore reused the FIRST snapshot, so the Undo "
+                      "rolled back work done in between:\n%s" % out[-500:])
+        self.assertIn("cleared", out,
+                      "the restore left the snapshot in place; the next un-seed cannot take its "
+                      "own:\n%s" % out[-500:])
 
     def test_neither_control_lives_inside_an_onclick_attribute(self):
         """v2696: an apostrophe in "Gloom's Trap" terminated onclick="…" and the button did
