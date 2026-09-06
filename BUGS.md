@@ -22535,3 +22535,32 @@ and the 40 reels on his shelf — so on his machine this code runs, answers UNKN
 which is indistinguishable from a join that does not work at all. The test supplies the input his
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
+
+## REG-679 — a change to the render gate's own definition did not re-run the render gate
+
+**Shipped:** v2710 · **Found by:** a look that needed v2708's bytes, on a target I had just changed
+
+The pre-push render gate fires on `^(bible\.html|tv/control_ui\.html)$`. That is correct for
+*"did the PAGE change"* and wrong for *"could the VERDICT change"*: `render_check.py` holds the
+targets, the selectors and the declared floors, and `render_coverage.json` holds the ratchet.
+**Widening a selector changes what is counted and which floors apply without touching one byte of
+the page.**
+
+**Measured on my own push.** Commit `2879656a` added `.hrt-svgwrap` to the heart-fan selector,
+touched no page file, and the pre-push log contains **zero mentions of "render"** — the gate never
+ran. That widened the clip scan from **1613 to 1853 nodes** and surfaced a *second* clipped label at
+375 (`hrt-svgwrap :: miniauto.run — INCOMPLETE —`, twice, each failing its own self-check) against a
+declared floor of 1. **heart-fan was RED in the working tree and the push went through clean.** The
+one change guaranteed to move the verdict was the one change that did not re-run it.
+
+⚠ **My own check missed it too, and that half is mine.** After the edit I read the `painted` counts
+and ran `test_render_coverage` — and never looked at the target's **verdict line**. Two green
+signals from adjacent checks, and the one that mattered went unread.
+[[exit-status-of-the-block]]: run the check *and read it*, in the same breath.
+
+**Fix:** the render gate now also fires on `tv/render_check.py` and `tv/render_coverage.json`, and
+the 375 floor is corrected to 2 — still debt, still filed, lower it when the label stops
+overflowing.
+
+⚠ **The same question applies to every gate whose definition lives in a file the hook does not
+watch.** Not surveyed. That survey is the real work; this instance is the symptom.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2709",
+  "ver": "v2710",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2709: a stash reel resolved to stash gems personal while a chronicle reel stopped at the bare word chronicle, and the ledger was recorded all along in the visit row v1689 writes at session close",
+  "note": "v2710: the gate fired only on page files, so widening a selector in render_check.py changed what is counted and which floors apply without re-running it, and a red target shipped clean",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
