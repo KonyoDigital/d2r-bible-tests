@@ -657,8 +657,23 @@ TARGETS = {
             /* CONTENT, not just a rect: the fan is what this target exists for, so refuse until
                the fan's own classes are actually present. An open panel with no fan would
                photograph as a clean pass and measure nothing. */
-            var fan = ov.querySelectorAll('.hrt-k, .hrt-w, .hrt-s, .hrt-chain, .hrt-grp').length;
-            return fan >= 6; })()""",
+            /* ⚠ PROVEN FROM THE RECT, NOT FROM A COUNT. A gate already in this repo caught the
+               first cut of this target for exactly that:
+               test_activation_is_proven_from_the_RECT_not_from_the_call_returning. Counting
+               elements proves they EXIST; it does not prove they were laid out, and this very
+               target measured two `.hrt-w` nodes that exist at ZERO SIZE. An activate that
+               returns true on a collapsed panel photographs a blank and reports a clean pass —
+               which is the empty-box defect the whole file is built against. So: the overlay must
+               have a box, AND enough fan nodes must have a box of their own. */
+            var r = ov.getBoundingClientRect();
+            if (!(r.width > 2 && r.height > 2)) return false;
+            var fan = [].slice.call(ov.querySelectorAll('.hrt-k, .hrt-w, .hrt-s, .hrt-chain, .hrt-grp'));
+            var laid = 0;
+            for (var i = 0; i < fan.length; i++) {
+                var fr = fan[i].getBoundingClientRect();
+                if (fr.width > 1 && fr.height > 1) laid++;
+            }
+            return laid >= 6; })()""",
         # The classes the `heart` target does NOT cover. Deliberately NOT a replacement: `heart`
         # photographs the chronicle routes, a different surface with its own value, and its text
         # begins "The chronicle routes - 3 - source -> generator -> roster -> freshness ->".
