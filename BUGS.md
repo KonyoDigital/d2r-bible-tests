@@ -22536,6 +22536,37 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-696 — a cross-family eye found the sibling my own fix had missed, one word away
+
+**v2733.** REG-689 bound the eyebrow's SEPARATOR to the word before it, so a wrapped line could not
+begin with a bare '·'. It did not bind `of` to its NUMBER — the string is built as
+`'fastest in hell\u00a0· of ' + count`, with an ordinary space between the word and the figure.
+
+Asked COLD about a console capture (no hint of what to look for, and told not to invent problems),
+a different model family reported: *"the line 'OF 34' wraps so the number '34' sits alone on its own
+line directly above the item name ISENHART'S LIGHTBRAND"*.
+
+⚠⚠ A STRANDED NUMBER IS WORSE THAN A STRANDED SEPARATOR. A lone '·' reads as broken and gets
+ignored; a lone '34' reads as A QUANTITY OF THE THING BELOW IT. This repo already carries the scar
+— a cold eye once read "1.00 of 1.80" as "1.00 of 1.00", inverting what a bar meant.
+
+⚠ AND IT IS A [[sweep-dont-ask]] MISS ON MY PART. I fixed one break opportunity in that exact string
+and did not sweep the string for its siblings. The separator and the count are the same defect one
+word apart, in the same literal, four sites.
+
+FIXED: `of\u00a0` at all four sites (both the "fastest in hell · of N" and "fastest of N" branches,
+in both the chronicle and the piece eyebrows).
+⚠ THE LIVE COUNTERFACTUAL COULD NOT REPRODUCE THIS EXACT SIGHTING, and that is stated rather than
+glossed: the eyebrow currently renders different content than the capture Grok read, so the "34
+alone" wrap cannot be staged at 901 or 375 today. The separator case still reproduces and still
+clears. The fix is correct BY CONSTRUCTION — the break opportunity between the word and the figure
+is deleted — and the gate grades the construction, not a screenshot. [[unknown-stays-unknown]]
+GATE: `test_eyebrow_never_strands_a_separator` gains a law for stranded COUNTS; 3 sabotages, each
+red (un-bind of->number, un-bind "fastest of", un-bind the separator).
+⚠ THAT NEW LAW ERRORED TWICE BEFORE IT RAN — it reached for `self.s` and then `_src()`, neither of
+which exists in that file. A guard that cannot execute is not a lenient guard, it is an absent one,
+and only running it showed that.
+
 ## REG-695 — the rebuild aimed at the wrong store, and he caught it from the numbers
 
 **v2732.** He asked for a rebuild — *"a rebuild/restore option for each chronicle that is ledger

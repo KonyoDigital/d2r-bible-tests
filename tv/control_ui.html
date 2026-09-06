@@ -18112,8 +18112,8 @@ window._lockMark = function(isOpen, px, label){
          Naming the universe costs one word and makes the number checkable. */
       + '<div class="hh-eye"><span class="hh-dot"></span>the next chronicle\u00a0· '
         + (_tierOf(top.source) === 2
-            ? 'fastest in hell\u00a0· of ' + (_hell.length || data.ranked.length)
-            : 'fastest of ' + data.ranked.length)
+            ? 'fastest in hell\u00a0· of\u00a0' + (_hell.length || data.ranked.length)
+            : 'fastest of\u00a0' + data.ranked.length)
         + '</div>'
       /* v1613 — the item name is a LINK now. It already knows which item it is; making him go
          find it in the chronicle was work the panel could do. The title carries what the hero
@@ -18287,8 +18287,8 @@ window._lockMark = function(isOpen, px, label){
     host.className = 'hub-hero hub-hero-sets';
     host.innerHTML = '<div class="hh-main">'
       + '<div class="hh-eye"><span class="hh-dot"></span>the next piece\u00a0· '
-        + (tier(top.source) === 2 ? 'fastest in hell\u00a0· of ' + (hell.length || data.ranked.length)
-                                  : 'fastest of ' + data.ranked.length) + '</div>'
+        + (tier(top.source) === 2 ? 'fastest in hell\u00a0· of\u00a0' + (hell.length || data.ranked.length)
+                                  : 'fastest of\u00a0' + data.ranked.length) + '</div>'
       /* v1617 — IT IS CLICKABLE NOW, AND v1616's REASONING WAS WRONG.
          v1616 left this inert because "the set farm ranks an AGGREGATE, so there is no single item
          card to land on". But the hero does not print the aggregate — it prints top.name, which is

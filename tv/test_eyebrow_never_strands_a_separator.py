@@ -128,6 +128,36 @@ class EyebrowNeverStrandsASeparator(unittest.TestCase):
                     % (head[-8:], block[max(0, i - 40):i + 12].replace("\n", " "))
                 )
 
+    def test_a_COUNT_is_never_stranded_from_the_word_that_names_it(self):
+        """v2733 — THE SIBLING MY OWN FIX MISSED, AND A CROSS-FAMILY EYE FOUND IT.
+
+        REG-689 bound the SEPARATOR to the word before it. It did not bind `of` to its NUMBER, and
+        the eyebrow builds `'fastest in hell\u00a0· of ' + count` — an ordinary space between the
+        word and the figure. Asked cold about a console capture, a different model family reported:
+        *"the line 'OF 34' wraps so the number '34' sits alone on its own line directly above the
+        item name"*.
+
+        ⚠⚠ A STRANDED NUMBER IS WORSE THAN A STRANDED SEPARATOR. A lone '·' reads as broken and is
+        ignored; a lone '34' reads as a QUANTITY OF THE THING BELOW IT. This repo has the scar
+        already — a cold eye once read "1.00 of 1.80" as "1.00 of 1.00" and inverted what a bar
+        meant. [[unknown-stays-unknown]] [[label-outlived-referent]]
+
+        ⚠ AND THIS IS A [[sweep-dont-ask]] MISS ON MY PART: I fixed one break opportunity in this
+        exact string and did not sweep the string for its siblings. The separator and the count are
+        the same defect one word apart.
+        """
+        src = io.open(UI, encoding="utf-8").read()
+        for m in re.finditer(r"'[^']*\bof '\s*\+", src):
+            frag = src[max(0, m.start() - 70):m.end()]
+            if "hh-eye" not in frag and "fastest" not in frag:
+                continue          # only the eyebrow strings are in scope here
+            self.fail(
+                "an eyebrow builds \"... of \" + <count> with an ordinary space, so the line can "
+                "break between the word and its number and leave the figure alone at the start of "
+                "a line, reading as a quantity of whatever follows it. Bind it: 'of\\u00a0'. "
+                "Context: ...%s..." % frag[-58:].replace("\n", " ")
+            )
+
     def test_nowrap_was_NOT_used_because_it_clips(self):
         """⚠ The rejected option must stay rejected. Clipped is destroyed; wrapped is merely ugly.
 
