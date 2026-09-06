@@ -646,6 +646,19 @@ GATES = [
              "writes: append-only, one row per station actually reached, deduped so a walk over a "
              "still river writes zero bytes."),
 
+    Gate("test_the_end_route_is_watched",
+         [sys.executable, os.path.join(HERE, "test_the_end_route_is_watched.py")], 120,
+         why="v2748 — `grep -c end_routes` was 0 in control_app.py, console_doctor.py, "
+             "corroborate.py AND control_ui.html: the derived end-route predicate was built, "
+             "correct, covered by 27 of its own tests, and read by nothing but its own gate line. "
+             "That is the SAME defect this heart caught in reel_router ONE VERSION EARLIER — the "
+             "river's unjoined end was fixed and its sibling left running. The doctor row `end "
+             "routes reachable` is RED today at 32 of 40 and NAMES WHAT THEY LACK (panels read 32, "
+             "chronicle pages 32, a vault seal 18), because a count alone is not actionable. ⚠ It "
+             "keeps DEAD-ENDED separate from FINISHED-WAITING: counting both would read 40 of 40 — "
+             "true, useless, and ignored within a week. ⛔ No wilson lock: whether a reel can reach "
+             "an end route is a reading, not a claim attacks can refute. 7 sabotages, all RED."),
+
     Gate("test_end_routes",
          [sys.executable, os.path.join(HERE, "test_end_routes.py")], 180,
          why="v2746 — gh210. His ruling settled the DESTINATION (reels should reach their end "

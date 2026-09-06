@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2747",
+  "ver": "v2748",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2747: his blank main column was invisible because the only instrument watching for a blank console asks about the whole window",
+  "note": "v2748: the derived predicate that names the 32 dead-ended reels was built correct gated and read by nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

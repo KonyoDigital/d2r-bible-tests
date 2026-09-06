@@ -690,6 +690,68 @@ _BY_DESIGN_STATIONS = {
 }
 
 
+def _check_every_reel_can_still_reach_an_end_route():
+    """v2748 — THE DERIVED END-ROUTE PREDICATE WAS READ BY NOTHING.
+
+    MEASURED before writing this: `grep -c end_routes` was **0** in control_app.py, console_doctor.py,
+    corroborate.py and control_ui.html. Built, correct, covered by 27 of its own tests, and invisible
+    to every surface and every supervision layer — the SAME defect this heart caught in reel_router
+    one version ago, in its sibling. I fixed the river's unjoined end and left its twin running.
+    [[the-unjoined-end]] [[sweep-dont-ask]]
+
+    Konyo's ruling settled the DESTINATION and named the METHOD: *"it should be also eventually
+    tombstoned though why is not also processed through the printer to get routed back at the end
+    routes they should. reverse engineeer it if needed the ones that are working"*. So the door was
+    read back off the 410 reels that already went through it, not invented — 99.27% coverage against
+    a declared floor of 95%.
+
+    ⚠⚠ THE SPLIT THIS ROW EXISTS TO KEEP VISIBLE, because collapsing it is how 40 reels became one
+    undifferentiated bucket:
+      · DEAD-ENDED     every door refused, with numbers. THIS is what his ruling forbids.
+      · FINISHED-WAITING  a door OPENED and only circumstance holds it. His ruling does not forbid
+                          this, and counting it here would make the row read 40 of 40 — true,
+                          useless, and ignored within a week.
+
+    ⚠ RED TODAY ON PURPOSE, at 32 of 40. A check that could only ever be green measures nothing. It
+    goes green when reels stop dead-ending, not when someone edits a list.
+    ⛔ NO WILSON LOCK: "these reels cannot reach an end route" is a READING, not a claim attacks can
+    refute. Manufacturing attacks to score a state is the inflation `_hardening_gap` refuses.
+    """
+    try:
+        import end_routes as _ER
+    except Exception as exc:
+        return UNKNOWN, ("end_routes would not import (%s), so whether any reel can reach an end "
+                         "route is UNKNOWN" % type(exc).__name__)
+    try:
+        r = _ER.report()
+    except Exception as exc:
+        return UNKNOWN, "the end-route report raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+    if not r or not r.get("ok"):
+        return UNKNOWN, str((r or {}).get("why") or "the end-route report could not be taken")
+    dead = r.get("deadEnded")
+    waiting = r.get("finishedWaiting")
+    walked = r.get("walked")
+    if dead is None or walked is None:
+        # a count nobody took is not zero
+        return UNKNOWN, "the report carried no dead-ended count, so nothing is known"
+    if not dead:
+        return OK, ("no reel is dead-ended: %s of %s finished and waiting only on circumstance"
+                    % (waiting, walked))
+    # name WHAT they lack — a count alone is not actionable
+    lack = {}
+    for x in (r.get("rows") or []):
+        if not x.get("deadEnded"):
+            continue
+        for g in (x.get("missing") or []):
+            w = g.get("what") if isinstance(g, dict) else str(g)
+            lack[str(w)] = lack.get(str(w), 0) + 1
+    named = ", ".join("%s %d" % (k, v) for k, v in sorted(lack.items(), key=lambda kv: -kv[1]))
+    return MISSING, ("%s of %s reel(s) are DEAD-ENDED - every end-route door refused them, with "
+                     "numbers. What they lack: %s. (%s more are finished and waiting only on "
+                     "circumstance, which his ruling does not forbid.)"
+                     % (dead, walked, named or "unrecorded", waiting))
+
+
 def _check_the_console_painted_all_of_itself():
     """v2747 — THE WITNESS COULD NOT SEE HALF A BLANK CONSOLE, AND HIS SIGHTING WAS EXACTLY THAT.
 
@@ -2024,6 +2086,7 @@ CHECKS = [
     ("ledger backup", _check_the_ledger_backup_covers_every_store),
     ("backup loop", _check_the_backup_loop_is_actually_WRITING),
     ("console painted whole", _check_the_console_painted_all_of_itself),
+    ("end routes reachable", _check_every_reel_can_still_reach_an_end_route),
     ("the river", _check_the_river_is_moving),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
