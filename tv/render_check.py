@@ -1326,8 +1326,31 @@ _PROBE = r"""(function(sel, OK_TRUNC){
         return !!(t && String(t).indexOf(full) >= 0);
       }
       /* the original question: this box hides its own overflowing content */
-      if (c.scrollWidth > c.clientWidth+1 && getComputedStyle(c).overflow!=='visible'
-          && c.clientWidth>0) {
+      /* ⚠⚠ v2719 — THIS BRANCH AND THE ANCESTOR BRANCH BELOW ANSWERED THE SAME QUESTION TWO
+         DIFFERENT WAYS, and the disagreement produced a false red that then became a declared
+         floor. The ancestor walk excludes a scrollable box on purpose, and states why:
+         "content outside a scroller is one scroll away, not destroyed". This branch excluded
+         nothing — any `overflow` that was not `visible` counted, INCLUDING `auto` and `scroll`.
+
+         MEASURED: `#heart-ov .hrt-svgwrap` is `overflow-x: auto` (control_ui.html:5306) wrapping
+         an SVG pinned at `min-width: 640px` inside a panel that is ~352px at a 375 viewport. It
+         is DESIGNED to scroll there. The gate reported it as clipped, `heart-fan` took a declared
+         floor of `{"clipped": 2}` at 375, and the row was filed as a page defect. It is not one —
+         it is this instrument disagreeing with itself.
+
+         ⚠ AND THE 2 WAS ONE CONDITION COUNTED TWICE. `.hrt-win` and `.hrt-svgwrap` are BOTH in
+         heart-fan's `sel`, and `.hrt-svgwrap` is a descendant of `.hrt-win`; the scan walks
+         `[e].concat(e.querySelectorAll('*'))` per matched `e` with no cross-`e` dedupe, so the
+         same physical node self-flagged once as itself and once inside its parent's walk.
+         [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
+
+         ⚠ HIDDEN/CLIP STILL COUNT. A box that hides its overflow destroys it — that is the real
+         defect this branch exists for and it is untouched. Only the SCROLLABLE case is excused,
+         by the same rule and the same sentence the ancestor walk already uses. */
+      var _sx = getComputedStyle(c);
+      var _scrollsSelf = (_sx.overflowX === 'auto' || _sx.overflowX === 'scroll');
+      if (c.scrollWidth > c.clientWidth+1 && _sx.overflow!=='visible'
+          && !_scrollsSelf && c.clientWidth>0) {
         if (_recoverable(c, (c.textContent||'').trim())) { okTrunc++; return; }
         flag('self'); return; }
       /* the question it was missing: this box's INK leaves an ancestor that clips */

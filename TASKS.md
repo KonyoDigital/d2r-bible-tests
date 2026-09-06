@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2719** | `(this commit)` | v2719 — the render gate excused a scroller in its ancestor branch and not in its self branch so a designed scroll area read as clipped; instrument fixed and the declared floor removed not raised |
 | **v2718** | `(this commit)` | v2718 — a seven day old grok error was printed as the present state of his second eye while fourteen reads succeeded that day; age now decides staleness and raw json never reaches the line |
 | **v2717** | `(this commit)` | v2717 — v2714 unified nine sites in bible.html and never touched control_app where the fleet number is actually built; the fleet now publishes the chronicle pair and the corroborator watches the banked denominator |
 | **v2716** | `(this commit)` | v2716 — 96 terrorized was an unnamed literal printed as if the zone produced it; it is a game constant now named once and rendered from one source |

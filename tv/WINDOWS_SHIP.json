@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2718",
+  "ver": "v2719",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2718: a seven day old grok error was printed as the present state of his second eye while fourteen reads succeeded that day; age now decides staleness and raw json never reaches the line",
+  "note": "v2719: the render gate excused a scroller in its ancestor branch and not in its self branch so a designed scroll area read as clipped; instrument fixed and the declared floor removed not raised",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
