@@ -40,8 +40,10 @@ snapshot carries is one the restore puts back. Those are exactly the four things
 and every one of them is decidable from the file. [[the-unjoined-end]]
 """
 import io
+import json
 import os
 import re
+import subprocess
 import sys
 import unittest
 
@@ -64,6 +66,85 @@ BACKED_UP = ["d2r_foundLog", "d2r_setPieces", "d2r_rwMade", "d2r_owned",
 
 def _src():
     return io.open(BIBLE, encoding="utf-8").read()
+
+
+def _node():
+    """-> a usable node binary, or FAIL. A skip here would be recorded as a PASS.
+
+    ⚠⚠ v2704 — THIS RAISED SkipTest AND THAT MADE THE GATE A LIAR. Measured: a SkipTest raised
+    from setUpClass yields "Ran 0 tests ... OK (skipped=1)" and EXIT STATUS 0, which run_gates
+    records as green. So on any machine without node on PATH, the most consequential logic in
+    bible.html was guarded by a gate that graded nothing and said OK — and the anti-vacuity
+    assertion that would catch it lives inside the skipped class, where it can never fire.
+    A SKIP IS NOT A PASS. That is carved, and this file walked into it anyway. If node is
+    missing the honest verdict is that the gate could not run, which must be RED.
+    """
+    for exe in ("node", "/usr/local/bin/node", "/opt/homebrew/bin/node"):
+        try:
+            if subprocess.run([exe, "-v"], capture_output=True).returncode == 0:
+                return exe
+        except Exception:
+            continue
+    raise AssertionError(
+        "GATE CANNOT RUN: node is not available, so nothing here was graded. This is a FAILURE, "
+        "not a skip -- a skipped gate exits 0 and is recorded as a pass, which would leave this "
+        "logic unguarded while reporting green."
+    )
+
+
+def _script_fragment():
+    """The <script> block that defines both controls, bound at both ends."""
+    s = _src()
+    i = s.find("window._d2rUnseed = function")
+    if i < 0:
+        raise AssertionError("GUARD CANNOT GRADE: the un-seed is not in bible.html")
+    st = s.rfind("<script>", 0, i) + len("<script>")
+    en = s.index("</script>", i)
+    return s[st:en]
+
+
+#: the mock store the round trip is run against: two seeded grail finds, one seeded ruling find,
+#: two of HIS OWN, a seeded name inside d2r_owned, and the seeded rwVerify verdicts.
+_ROUND_TRIP_JS = r"""
+const vm = require('vm');
+const FRAG = %s;
+const ORIGINAL = {
+  d2r_foundLog: JSON.stringify({'Shaftstop':'Jan 1, 2026 - 00:00','Wormskull':'Jan 2, 2026 - 00:00',
+                                'The Diggler':'Jan 3, 2026 - 00:00','HIS FIND A':'Jun 9, 2026 - 12:00',
+                                'HIS FIND B':'Jun 9, 2026 - 13:00'}),
+  d2r_owned:     JSON.stringify(['Shaftstop','HIS FIND A']),
+  d2r_rwMade:    JSON.stringify({}),
+  d2r_setPieces: JSON.stringify([]),
+  d2r_rwVerify:  JSON.stringify({'Mania':'fail','Hysteria':'fail'})
+};
+const store = Object.assign({}, ORIGINAL);
+const sandbox = {
+  console:{log:()=>{},warn:()=>{}}, location:{reload:()=>{}},
+  uiConfirm:()=>Promise.resolve(true), setTimeout:(f)=>f(),
+  Date:Date, JSON:JSON, Object:Object, String:String, Array:Array,
+};
+sandbox.window = {
+  localStorage:{ getItem:k=>(k in store?store[k]:null), setItem:(k,v)=>{store[k]=v;}, removeItem:k=>{delete store[k];} },
+  _D2R_INSTALL:'INST1234',
+  _GRAIL_SEED:{'Shaftstop':'Jan 1, 2026 - 00:00','Wormskull':'Jan 2, 2026 - 00:00'},
+  _SET_SEED:{}, _RWC_SEED:{}, _RULING_SEED:{'The Diggler':'Jan 3, 2026 - 00:00'},
+  _RWV_SEED:{'Mania':'fail','Hysteria':'fail'}
+};
+sandbox.window.LSR = sandbox.window.localStorage;
+vm.createContext(sandbox); vm.runInContext(FRAG, sandbox);
+sandbox.window._d2rUnseed();
+setTimeout(()=>{
+  const fl = JSON.parse(store.d2r_foundLog);
+  if (Object.keys(fl).length !== 2) { console.log('THE UN-SEED DID NOT STRIP: ' + JSON.stringify(fl)); console.log('NOT SYMMETRIC'); return; }
+  sandbox.window._d2rUnseedRestore();
+  setTimeout(()=>{
+    let bad = [];
+    Object.keys(ORIGINAL).forEach(k=>{ if (store[k] !== ORIGINAL[k]) bad.push(k); });
+    if (store.d2r_ledgerName) bad.push('d2r_ledgerName still set to ' + store.d2r_ledgerName);
+    console.log(bad.length ? ('NOT SYMMETRIC: ' + bad.join(', ')) : 'SYMMETRIC');
+  }, 20);
+}, 20);
+"""
 
 
 class UnseedIsReversible(unittest.TestCase):
@@ -193,6 +274,33 @@ class UnseedIsReversible(unittest.TestCase):
         )
 
     # ---- 5. it cannot ship inert again ----------------------------------------------------
+
+    # ---- 6. THE BEHAVIOURAL HALF: does the round trip actually come back? -------------------
+
+    def test_the_unseed_restore_round_trip_is_symmetric(self):
+        """Run the REAL functions against a mock store and compare, byte for byte.
+
+        Everything above is a source law — order, presence, wiring. None of it can answer the
+        only question that matters to the person clicking the button: if I undo this, do I get
+        my board back? This runs `window._d2rUnseed` and then `window._d2rUnseedRestore`, lifted
+        out of bible.html and executed in a vm sandbox, and asserts every store returns to its
+        exact prior value AND that the ledger name is REMOVED rather than set to ''.
+
+        The ledger half is the one that matters most and the easiest to get subtly wrong: only
+        ABSENCE re-arms the has-a-chronicle heuristic that Konyo's own board depends on, so a
+        restore that writes an empty string would return the data and leave the floors off.
+        """
+        node = _node()
+        frag = _script_fragment()
+        harness = _ROUND_TRIP_JS % json.dumps(frag)
+        r = subprocess.run([node, "-e", harness], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise AssertionError("the round-trip harness would not run: %s" % (r.stderr or "")[:300])
+        out = (r.stdout or "").strip()
+        self.assertIn("SYMMETRIC", out,
+                      "the un-seed/restore round trip did not come back. Output:\n%s" % out[-600:])
+        self.assertNotIn("NOT SYMMETRIC", out,
+                         "a store did not return to its prior value:\n%s" % out[-600:])
 
     def test_neither_control_lives_inside_an_onclick_attribute(self):
         """v2696: an apostrophe in "Gloom's Trap" terminated onclick="…" and the button did

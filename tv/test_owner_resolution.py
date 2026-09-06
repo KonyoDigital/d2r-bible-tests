@@ -120,13 +120,27 @@ console.log(JSON.stringify(out));
 
 
 def _node():
+    """-> a usable node binary, or FAIL. A skip here would be recorded as a PASS.
+
+    ⚠⚠ v2704 — THIS RAISED SkipTest AND THAT MADE THE GATE A LIAR. Measured: a SkipTest raised
+    from setUpClass yields "Ran 0 tests ... OK (skipped=1)" and EXIT STATUS 0, which run_gates
+    records as green. So on any machine without node on PATH, the most consequential logic in
+    bible.html was guarded by a gate that graded nothing and said OK — and the anti-vacuity
+    assertion that would catch it lives inside the skipped class, where it can never fire.
+    A SKIP IS NOT A PASS. That is carved, and this file walked into it anyway. If node is
+    missing the honest verdict is that the gate could not run, which must be RED.
+    """
     for exe in ("node", "/usr/local/bin/node", "/opt/homebrew/bin/node"):
         try:
             if subprocess.run([exe, "-v"], capture_output=True).returncode == 0:
                 return exe
         except Exception:
             continue
-    raise unittest.SkipTest("node is not available to execute the fragment")
+    raise AssertionError(
+        "GATE CANNOT RUN: node is not available, so nothing here was graded. This is a FAILURE, "
+        "not a skip -- a skipped gate exits 0 and is recorded as a pass, which would leave this "
+        "logic unguarded while reporting green."
+    )
 
 
 class OwnerResolution(unittest.TestCase):

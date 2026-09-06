@@ -2279,7 +2279,14 @@ def main(argv):
             # counter, one at a time, rather than applied in a sweep. [[zero-needs-a-denominator]]
             _fnd = m.get("found", 0)
             _scan = m.get("clipScanned")
-            _clip = ("%s/%s" % (m.get("clipped", 0), _scan) if _scan
+            # ⚠⚠ v2704 — `if _scan` WAS A TRUTHINESS TEST, AND clipScanned CAN LEGITIMATELY BE 0.
+            # clipScanned is incremented AFTER the `zero++; return` early-out, so a target whose
+            # matched nodes are all zero-size reports a real, measured 0 — and `if _scan` sent it
+            # down the same branch as a probe that never reported the key at all, printing
+            # "(of an unreported scan)" over a scan that WAS reported. Measured-zero collapsed
+            # into nobody-looked, in the commit whose entire subject was denominator honesty.
+            # The test is `is not None`. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+            _clip = ("%s/%s" % (m.get("clipped", 0), _scan) if _scan is not None
                      else "%s (of an unreported scan)" % m.get("clipped", 0))
             _say("     %-9s painted %s/%s · clipped %s · off %s/%s · covered %s/%s · "
                  "imgs %s/%s broken"

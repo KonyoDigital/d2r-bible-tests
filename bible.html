@@ -9935,6 +9935,7 @@ window._d2rUnseed = function(){
       var G = window._GRAIL_SEED || {}, S = window._SET_SEED || {},
           R = window._RWC_SEED || {}, RULE = window._RULING_SEED || {};
       var report = [];
+      var tally = {};   /* store -> {removed}; one report line each, emitted at the end */
       /* BACK UP FIRST. Konyo has ~/d2r_ledger_backups and restore_ledger.py; a cousin's machine has
          NEITHER, so on his board this is the only undo that will exist. Written before anything is
          removed, so a failure half-way leaves the snapshot rather than a stripped store. */
@@ -9966,7 +9967,23 @@ window._d2rUnseed = function(){
           }
         });
         if (hit) { try { LSx.setItem(key, JSON.stringify(cur)); } catch(e){} }
-        report.push(key + ': removed ' + hit + ' seeded, kept ' + (before - hit));
+        /* ⚠⚠ v2704 — ONE LINE PER STORE, NOT ONE PER PASS. `strip` is called three times for
+           d2r_foundLog (the grail seed, the set seed, the ruling seed), and each pass computed
+           `before` from the store AS IT STOOD AFTER THE PREVIOUS PASS. So one store produced
+           three lines with three different "kept" totals:
+
+               d2r_foundLog: removed 245 seeded, kept 155
+               d2r_foundLog: removed 0 seeded, kept 155
+               d2r_foundLog: removed 5 seeded, kept 150
+
+           Only the last is true; the first two describe intermediate states. A reader adding the
+           "kept" values gets 460 for a store holding 150. That got WORSE in v2699, not better,
+           because the report is now persisted to d2r_unseedReport specifically so Dean can read
+           what was taken — and three contradictory numbers is a bad thing to hand the person the
+           report was added for. Accumulate here; emit once, at the end, from the store's REAL
+           final size. [[zero-needs-a-denominator]] */
+        tally[key] = tally[key] || { removed: 0 };
+        tally[key].removed += hit;
       }
       /* every seed, in every store it writes to — the set floor writes _SET_SEED into foundLog too */
       /* ⚠⚠ v2699 — NAME THE LEDGER FIRST, BEFORE ANYTHING IS DESTROYED. This used to be the LAST
@@ -9990,7 +10007,31 @@ window._d2rUnseed = function(){
          only writes when the key is NULL, renaming the ledger could never clear it either — his
          Forge would show a red "do not cube" guard on two runewords from someone else's server,
          permanently, with nothing in the report mentioning it. */
-      strip('d2r_rwVerify', window._RWV_SEED || { Mania: 'fail', Hysteria: 'fail' });
+      /* ⚠⚠ v2704 — NOT `strip`, AND THAT IS THE POINT. strip() deletes a key when its VALUE equals
+         the seed's, and that rule is safe only because the other stores hold DATES: "a seed carries
+         the seed's own date string and a real find carries the finder's timestamp". d2r_rwVerify
+         holds a two-state ENUM -- 'ok' / 'fail'. Mania and Hysteria are exactly the two words that
+         do not form off-ladder, which is WHY the seed exists, so a cousin who tests them himself
+         records the identical {"Mania":"fail","Hysteria":"fail"} and a per-key value match would
+         delete verdicts he earned -- while the dialog promises "Anything your own console read is
+         KEPT". Remove it only when the store is EXACTLY the seed, which is the same whole-object
+         test the v650 ladder cleanup already uses. One verdict of his own and it is left alone. */
+      try {
+        var _rv = JSON.parse(LSx.getItem('d2r_rwVerify') || 'null');
+        var _seedRV = window._RWV_SEED || {};
+        var _sk = Object.keys(_seedRV);
+        if (_rv && typeof _rv === 'object' && !Array.isArray(_rv) && _sk.length) {
+          var _rk = Object.keys(_rv);
+          var _exact = _rk.length === _sk.length && _rk.every(function(k){
+            return _seedRV[k] !== undefined && String(_rv[k]) === String(_seedRV[k]); });
+          if (_exact) {
+            LSx.setItem('d2r_rwVerify', JSON.stringify({}));
+            report.push('d2r_rwVerify: removed ' + _rk.length + ' seeded, kept 0 (the store was exactly the seed)');
+          } else {
+            report.push('d2r_rwVerify: kept all ' + _rk.length + ' — not the seed, so at least one verdict is his own');
+          }
+        }
+      } catch(e){};
       /* d2r_setPieces is an ARRAY of names with no dates, so it cannot be exact-matched and a
          name-only strip would delete pieces he owns. Its twin in foundLog HAS just been matched,
          so a piece is inherited exactly when that twin was seeded. Decided by the store that
@@ -10047,6 +10088,17 @@ window._d2rUnseed = function(){
          it. Dean is not running DevTools at all. Persisting it means the number can be checked
          afterwards, which is the only thing that distinguishes "removed 245 seeded" from
          "removed 0, the seeds are keyed differently on this board". */
+      /* v2704 — emit the accumulated strips, ONE line per store, and read `kept` from the
+         store as it ACTUALLY stands now rather than from any pass's intermediate view. */
+      Object.keys(tally).forEach(function(k){
+        var kept = null;
+        try {
+          var cur = JSON.parse(LSx.getItem(k) || 'null');
+          if (cur && typeof cur === 'object') kept = Array.isArray(cur) ? cur.length : Object.keys(cur).length;
+        } catch(e){}
+        report.push(k + ': removed ' + tally[k].removed + ' seeded, kept '
+                    + (kept === null ? 'unknown (the store would not parse back)' : kept));
+      });
       try {
         window.localStorage.setItem('d2r_unseedReport',
           JSON.stringify({ at: Date.now(), ledger: nm, lines: report }));
@@ -18308,7 +18360,13 @@ window._rwLadderBlockedForge = function(rw){
 // weapons and Hysteria on body armor, which are RotW's renamed halves of vanilla's Hustle. (v1738:
 // this said THREE and the seed has always held two; there is no third combo in RUNEWORD_TIP.)
 let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
-if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = (window.D2R_PROFILE==='ladder' || !window._seedsBelongHere) ? {} : {"Mania":"fail","Hysteria":"fail"}; try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }   // v636 — the fail verdicts are NON-LADDER truth; seeding them into the ladder account block-bannered the exact words it exists to make
+/* v2704 — THE FIFTH SEED IS NOW EXPORTED LIKE THE OTHER FOUR. _GRAIL_SEED, _SET_SEED,
+   _RWC_SEED and _RULING_SEED all live on `window`; this one was an inline literal, so the v2699
+   un-seed had to carry a hand-copied second copy of it. Two copies of one constant with nothing
+   binding them: change this line and the strip silently matches nothing while reporting
+   "removed 0 seeded". The v1738 comment records this very seed being wrong once already. */
+window._RWV_SEED = {"Mania":"fail","Hysteria":"fail"};
+if (rwVerify === null || typeof rwVerify !== 'object' || Array.isArray(rwVerify)) { rwVerify = (window.D2R_PROFILE==='ladder' || !window._seedsBelongHere) ? {} : Object.assign({}, window._RWV_SEED); try { LS.setItem('d2r_rwVerify', JSON.stringify(rwVerify)); } catch(e){} }   // v636 — the fail verdicts are NON-LADDER truth; seeding them into the ladder account block-bannered the exact words it exists to make
 // ladder mode: 'ladder' | 'nonladder' | 'unknown'. Konyo's evidence (ladder-only RWs failing) ⇒ default nonladder.
 let rwLadderMode = (function(){ if (window.D2R_PROFILE==='ladder') return 'ladder';   // v635 — the ladder ACCOUNT is implicitly ladder (all 8 words unlocked, no strip)
   var v = LS.getItem('d2r_ladderMode'); return (v==='ladder'||v==='nonladder') ? v : 'nonladder'; })();
@@ -49159,7 +49217,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2703', name:'v2703 - the heart stops reading absent evidence as a clean zero', date:'2026-09-06', note:'one invariant summed an empty world list to zero and passed on every machine but his; a missing namespace prefix was read as an owner assertion while a missing id two lines below was correctly unknown; and an empty owner roster manufactured a red instead of an unknown' };
+  window.D2R_BUILD = { id:'v2704', name:'v2704 - the second review finds five defects in the fixes from the first', date:'2026-09-06', note:'a skip was exiting 0 and recording as a pass, the clipped denominator treated a measured zero as absent, the rwVerify seed was never exported so the strip held a second copy of it, that strip matched an enum by value and could delete verdicts a cousin earned himself, and one store printed three contradictory kept totals' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

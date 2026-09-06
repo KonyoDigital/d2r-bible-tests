@@ -22291,3 +22291,44 @@ number. A reader failure must never manufacture a red.
 
 ⚠ **The review called all three live; two are latent.** Saying so is the point — a finding
 reported at the wrong severity is a finding that gets acted on at the wrong priority.
+
+## REG-671 — five defects a second review found in the fixes from the first one
+
+**Shipped:** v2704 · **Found by:** `/code-review` on `cf7a1a41..ca65bb43`, each reproduced first
+
+**1. `if _scan` — my denominator fix had the defect it was fixing.** `clipScanned` is incremented
+*after* the `zero++; return` early-out, so a target whose matched nodes are all zero-size reports a
+real, measured **0** — and a truthiness test sent it down the same branch as a probe that never
+reported the key, printing *"(of an unreported scan)"* over a scan that was reported. Measured-zero
+collapsed into nobody-looked, inside the commit whose subject was denominator honesty. Now
+`is not None`.
+
+**2. A skip was being recorded as a pass.** `_node()` raised `SkipTest` from `setUpClass`.
+**Measured: that yields `Ran 0 tests … OK (skipped=1)` and exit status 0**, which `run_gates`
+records as green — so on any machine without node, the most consequential boolean in `bible.html`
+was guarded by a gate that graded nothing and said OK, with the anti-vacuity assertion sitting
+inside the skipped class where it could never fire. Now a hard failure: verified `errors: 1,
+skipped: 0, exit 1`.
+
+**3. `window._RWV_SEED` was never defined.** `grep` returns one hit — the `||` fallback that used
+it. So the v2699 strip always ran off a hand-copied second copy of the seed literal, with nothing
+binding the two; change the real seed and the strip silently matches nothing while reporting
+"removed 0 seeded". The seed is now exported at its one real site and the fallback is gone.
+
+**4. The `rwVerify` strip could delete a cousin's own verdicts.** `strip()` matches by VALUE, which
+is safe only because the other stores hold dates — *"a seed carries the seed's own date string and
+a real find carries the finder's timestamp"*. `d2r_rwVerify` holds a two-state **enum**. Mania and
+Hysteria are exactly the two words that do not form off-ladder, which is *why* the seed exists, so a
+cousin who tests them himself records the identical `{"Mania":"fail","Hysteria":"fail"}` and a
+per-key match would delete verdicts he earned — while the dialog promises *"Anything your own
+console read is KEPT"*. Now a whole-object match, the same test the v650 ladder cleanup already
+uses. Proven: exact seed → removed; one extra verdict of his own → all kept; partial → kept.
+
+**5. Three report lines for one store.** Each `strip` pass recomputed `before` from the post-previous
+store, so `d2r_foundLog` printed three different "kept" totals summing to 460 for a store holding
+150. Worse after v2699, which persists the report so Dean can read it. Now one line per store, with
+`kept` read from the store's real final size.
+
+**Also added:** a behavioural round-trip test. The un-seed and restore are executed against a mock
+store and every value compared byte for byte — **`ROUND TRIP IS SYMMETRIC`**, including the ledger
+name being *removed* rather than blanked, which is what re-arms the floors.

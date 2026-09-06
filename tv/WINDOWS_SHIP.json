@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2703",
+  "ver": "v2704",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2703: one invariant summed an empty world list to zero and passed on every machine but his; a missing namespace prefix was read as an owner assertion while a missing id two lines below was correctly unknown; and an empty owner roster manufactured a red instead of an unknown",
+  "note": "v2704: a skip was exiting 0 and recording as a pass, the clipped denominator treated a measured zero as absent, the rwVerify seed was never exported so the strip held a second copy of it, that strip matched an enum by value and could delete verdicts a cousin earned himself, and one store printed three contradictory kept totals",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
