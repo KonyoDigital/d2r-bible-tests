@@ -22536,6 +22536,50 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-690 — banking evidence widened two labels and broke the heart fan, with no code touched
+
+**v2729.** On 2026-09-06 I banked sabotage, live and cross-family evidence into `reel.route` and
+`frame.release`. That changed nothing but the NUMBERS inside two fan labels, and `overlap_ratchet`
+went **2 -> 4** at 1120x900, 1440x1000 and 901x900, and **0 -> 2** at 375x800. No source line moved.
+
+CAUSE, now traced end to end: the fan places each lock by its INDEX in a sorted list
+(`reach = [0.78, 1.06, 1.34][j % 3]`) and draws three lines `text-anchor="middle"` at the same gx.
+POSITION comes from the index, WIDTH comes from the content, and nothing ever compares them — so
+the layout is only correct for the content it happened to hold when someone last looked. Measured
+at 1440: lock NAMES are 89-104px, arithmetic lines are **264-313px**, three times wider and centred
+on the same point, spreading into BOTH neighbours at any radius. That is why v2662's shortening
+changed nothing: the label that grows into you is somebody else's.
+
+⚠ AND IT SHIPPED THROUGH v2725-v2728 UNSEEN, because overlap_ratchet needs the live console, so it
+is not in pre-push and cannot run on CI. Four instruments, none able to raise it — the exact
+blindness [[heartov2]] is about, this time demonstrated by causing it.
+
+FIXED, both bounding a width that had no bound:
+  · the blind-claims label interpolated `_blind.join(', ')` — every claim NAME — into a centred
+    label. Unbounded BY CONSTRUCTION: more claims, wider label, forever. Now a 2-name slice plus
+    "+N more", with the COUNT untouched. This took 375 back to 0.
+  · the second arithmetic line appended " -> " + wilsonByAttack, which is THE SAME NUMBER the first
+    line already prints as the deciding score (`deciding` is `wilsonByAttack` for every lock here).
+    ~40px of width for a number already on screen one line up.
+RESULT: 375 fully recovered (2->0); the three wide widths 4->3, one above baseline.
+
+⚠⚠ AND ONE FIX WAS MEASURED, FOUND WORSE, AND REVERTED — recorded because the idea will recur. I
+built the "measured dodge" this row has called for: group each lock's three lines by their shared x
+and nudge the group vertically until clear. It took 1120 and 901 from 4 to **FIVE**. The fan opens
+DOWNWARD, so pushing a group down drives it into the next one. Removed; the gate pins that it stays
+removed until a replacement is measured BEFORE it lands.
+
+🧍 THE REMAINING +1 IS NOT MINE TO ABSORB. All three surviving collisions are between real
+arithmetic and neighbouring lock names. Truncating them is refused by an existing scar — a cold eye
+once misread "1.00 of 1.80" as "1.00 of 1.00", inverting what a bar said — and shrinking to fit
+needs a font below the 7px floor. The panel is at capacity for the evidence now banked into these
+locks. `--write-baseline` would ABSORB a real regression, which is the one thing a ratchet exists to
+refuse, so it stays red pending his call.
+GATE: `test_heart_fan_labels_are_width_bounded`, 6 laws, 6 sabotages. ⚠ TWO of its laws were
+vacuous on the first sabotage pass and both were caught by it: the count-survives law was satisfied
+by `_blind.length` appearing anywhere in the branch (including inside the bound itself), and the
+can-the-guard-see-the-fan law passed while a third of the fan had been renamed away.
+
 ## REG-689 — the hunt eyebrow stranded its separator, and the fix was a fifth option nobody listed
 
 **v2728.** TWO INDEPENDENT COLD READS flagged it on different versions, neither knowing the other

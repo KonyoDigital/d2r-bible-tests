@@ -520,6 +520,17 @@ GATES = [
              "reported to the channel the Doctor already reads, and it still SERVES rather than "
              "refusing — a transient torn read must not become an outage."),
 
+    Gate("test_heart_fan_labels_are_width_bounded",
+         [sys.executable, os.path.join(HERE, "test_heart_fan_labels_are_width_bounded.py")], 120,
+         why="v2729 — the heart fan places labels by INDEX and sizes them by CONTENT, and nothing "
+             "compares the two. PROVEN by causing it: banking evidence into two locks changed only "
+             "the NUMBERS in two labels and overlap_ratchet went 2->4 at three widths, with no code "
+             "touched. This pins the WIDTH BOUNDS, which is the part checkable from source and "
+             "runnable anywhere — overlap_ratchet owns the count and can only run where the live "
+             "console is. It also pins that the reverted vertical-dodge pass stays reverted: it "
+             "was measured at 4->5, because the fan opens downward and pushing a group down drives "
+             "it into the next one."),
+
     Gate("test_eyebrow_never_strands_a_separator",
          [sys.executable, os.path.join(HERE, "test_eyebrow_never_strands_a_separator.py")], 120,
          why="v2728 — TWO independent cold reads on two different versions reported '· OF 383' "
