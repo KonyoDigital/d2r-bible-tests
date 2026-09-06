@@ -3731,6 +3731,50 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      page renders immediately in the system fallback (var(--serif-display)/var(--sans) stacks) and
      swaps to Cinzel/Playfair/Inter once they arrive (display=swap → no invisible-text flash). -->
 <script>
+  /* ══ v2714 — ONE DEFINITION OF THE CHRONICLE DENOMINATOR ═══════════════════════════════════
+   Konyo, 2026-09-06: "this needs a unified and sharing logic.. no reason for it to render
+   something in the roster or fleet different from the consoles main tabs". He was right to
+   distrust it. MEASURED on his live console, GET /api/fleet twice, six minutes apart, SAME
+   machine and SAME board:
+
+       10:33:26   uniques {have: 169, total: 398}
+       10:39:39   uniques {have: 292, total: 403}
+       Dean       uniques {have: 0,   total: 398}
+       his board's own Chronicle meter:            258 / 403
+
+   THREE numerators and TWO denominators under ONE field name, with nothing on any surface
+   saying which question had been answered.
+
+   The denominators are not three bugs. They are three different questions:
+       403  chronTotal — HIS PINNED RULING, the game's own Chronicle count
+       392  funiScan().total — the carded roster after his v2680 one-tally-per-sunder ruling
+       398  produced by neither, and NO array on the page is this size
+   `x.chronTotal || x.total` was written at ELEVEN sites. Nine ask "what fraction of the
+   Chronicle does he have" and each re-derived it, so one missing `chronTotal` silently swapped
+   the denominator and the percentage moved with nothing to show for it.
+   [[copy-drift]] [[zero-needs-a-denominator]] [[label-outlived-referent]]
+
+   TWO SITES ARE DELIBERATELY LEFT ALONE, and that is not an oversight:
+       _darkN   = chronTotal - total   the still-dark rows — needs BOTH numbers
+       _uniLeft = chronTotal - found   already uses chronTotal alone, with no fallback
+   Unifying those would destroy the distinction this function exists to protect.
+
+   THE FALLBACK IS KEPT AND MADE LOUD RATHER THAN REMOVED. Returning null would put NaN on his
+   screen and removing it silently would only move the guess. So it lives in ONE place and it
+   COUNTS ITSELF: `window.__d2rChronFallbacks` is the measurement that will finally say whether
+   the 398 branch ever fires on his machine. An unmeasured fallback is how this got here.
+   [[unknown-stays-unknown]] ══ */
+window.d2rChronTotal = function(s){
+  try { if (!s && typeof window.funiScan === 'function') s = window.funiScan(); }
+  catch(e){ s = s || null; }
+  var t = s && s.chronTotal;
+  if (typeof t === 'number' && isFinite(t) && t > 0) return t;
+  try { window.__d2rChronFallbacks = (window.__d2rChronFallbacks || 0) + 1;
+        window.__d2rChronFallbackAt = Date.now(); } catch(e){}
+  var c = s && s.total;
+  return (typeof c === 'number' && isFinite(c) && c > 0) ? c : 0;
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // v635 — LADDER PROFILE STORAGE ROUTER (Konyo: "a smooth polished toggle that ascends perfectly
 // from non-ladder to ladder — make sure nothing bleeds"). Two accounts, one engine:
@@ -20553,7 +20597,7 @@ function renderGrailProgress() {
   // This file warns twice that a count in a comment is a number nobody re-measures. It has now
   // gone stale exactly that way four times in one day (REG-321, REG-323 twice, and this).
   const _realRoster = (typeof window._gUniqueRoster === 'function') ? window._gUniqueRoster() : allGrails.map(i => i.n);
-  const total = _fu ? (_fu.chronTotal || _fu.total) : _realRoster.length;
+  const total = _fu ? window.d2rChronTotal(_fu) : _realRoster.length;
   const have = _fu ? _fu.found : _realRoster.filter(n => _gFound(n)).length;
   const pct = total ? have / total : 0;
   const pctNum = Math.round(pct * 100);
@@ -40953,7 +40997,7 @@ function renderJournal(){
             grail: (function(){ try { var fu = window.funiScan(); if (!fu) return null;
               var huntable = 0;
               try { huntable = (fu.missing || []).filter(function(x){ return !!window._pickSrc(x.sources); }).length; } catch(e2){ huntable = 0; }
-              return { found: fu.found, total: fu.chronTotal || fu.total, carded: fu.total, huntable: huntable }; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
+              return { found: fu.found, total: window.d2rChronTotal(fu), carded: fu.total, huntable: huntable }; } catch(e){ return null; } })(),   // v913-R4 — the SAME truth as the site KPI
             sets: (function(){ try { var fs9 = window.fsetsScan(); return fs9 ? { found: fs9.havePieces, total: fs9.totalPieces, done: (fs9.done || []).length } : null; } catch(e){ return null; } })(),   // v922 (Konyo: 'F-SETS is also a chronicle') — the Sets tab's own truth
             chron: (function(){ try { var rm = JSON.parse(window.LSR.getItem('d2r_rwMade') || '{}');
                 var _tip = (typeof RUNEWORD_TIP !== 'undefined') ? RUNEWORD_TIP : null;
@@ -43051,6 +43095,7 @@ function renderJournal(){
        about — 259 found is 64% either way. [[unknown-stays-unknown]] */
     return { total:items.length, found:found, missing:missing, runs:runs, low:low, sealed:sealed, lowTotal:lowTotal, chronTotal:403 };
   };
+
   var _fuF='all';
   window.funiSetFilter=function(f){ _fuF=(_fuF===f&&f!=='all')?'all':f; window.renderForgeUni();
     // v695 🏓R7 — on 🎯 Best runs the dock YIELDS (same R6 mechanism as the item card, own class):
@@ -43749,7 +43794,7 @@ function renderJournal(){
     // minus 127 set-piece names), not the 368-row boss-drop shortlist. 385 named + 18 still-dark =
     // the same 403 the game counts, so this meter and the grid below finally share one denominator.
     // The still-dark rows are unknowable until found (the game silhouettes them as bare base types).
-    H.push(_meter(s.found,s.chronTotal||s.total,''));
+    H.push(_meter(s.found,window.d2rChronTotal(s),''));
     // v663 — the IN-GAME line: the mod chronicle counts 403 entries, the game's % is found/403.
     // Keeping both numbers visible kills the '63% here, 59% in game' confusion at the source.
     // v682.1 — the headline meter above IS the in-game number now; this line explains the named-card grid
@@ -43944,7 +43989,7 @@ function renderJournal(){
        whose store IS forked can never see another profile's number as a sudden gain. */
     try {
       window.__chronPrevN = window.__chronPrevN || {};
-      var _ck = window.LSR.key('d2r_owned'), _cn = s.found, _ct = (s.chronTotal||s.total);
+      var _ck = window.LSR.key('d2r_owned'), _cn = s.found, _ct = window.d2rChronTotal(s);
       if (typeof window.__chronPrevN[_ck] === 'number' && _cn > window.__chronPrevN[_ck]) {
         _chronCelebrate({ chron:'uni', icon:'🏆', noun:'uniques', n:_cn, tot:_ct });
       }
@@ -44361,7 +44406,7 @@ function renderJournal(){
         v: 1,
         who: who,
         sets: fs ? pair(fs.havePieces, fs.totalPieces) : null,
-        uniques: fu ? pair(fu.found, fu.chronTotal || fu.total) : null,
+        uniques: fu ? pair(fu.found, window.d2rChronTotal(fu)) : null,
         /* ⚠ v2192 — HIS RULING, PINNED, BECAUSE THREE LISTS DISAGREE AND NONE OF THEM IS RIGHT.
            Konyo: "i have 99 runewords check again verify that and make sure the console is
            hardcoded with it for chronicle."
@@ -45783,7 +45828,7 @@ function renderJournal(){
     } catch(e){}
     // 2) GRAIL UNIQUES chronicle
     var fu=null; try { fu=window.funiScan(); } catch(e){}
-    if (fu) chron.push({ key:'grail', icon:'🏆', label:'Grail uniques', done:fu.found, total:(fu.chronTotal||fu.total), data:fu });
+    if (fu) chron.push({ key:'grail', icon:'🏆', label:'Grail uniques', done:fu.found, total:window.d2rChronTotal(fu), data:fu });
     // 3) SETS chronicle
     var fs=null; try { fs=window.fsetsScan(); } catch(e){}
     if (fs) chron.push({ key:'sets', icon:'🧩', label:'Sets', done:fs.havePieces, total:fs.totalPieces, data:fs });
@@ -48458,7 +48503,7 @@ window.renderSessionCockpit = function(){
       if (rwT) kh.push('<div class="sc-kpi"><b>'+_scRwMade()+'/'+rwT+'</b><span>Chronicle</span></div>');
     } catch(e){}
     var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}
-    if (_scFuni) kh.push('<div class="sc-kpi"><b>'+_scFuni.found+'/'+(_scFuni.chronTotal||_scFuni.total)+'</b><span>Chronicle</span></div>');
+    if (_scFuni) kh.push('<div class="sc-kpi"><b>'+_scFuni.found+'/'+window.d2rChronTotal(_scFuni)+'</b><span>Chronicle</span></div>');
     /* v1562 — THIS TILE HAS NEVER RENDERED, NOT ONCE.
        The guard needs `SETS`, and there is no SETS anywhere in this file — the array is ITEM_SETS.
        `typeof` on a name that was never declared does not throw, it returns 'undefined', so the
@@ -48893,7 +48938,7 @@ var sealed = typeof RUNEWORD_TIP!=='undefined' && Object.keys(JSON.parse(window.
       var lines = [];
       lines.push('<div class="sc-row"><span class="sc-tag">chr</span><div class="sc-row-txt"><b>'+_scRwMade()+'</b> runewords forged'
         +(typeof RUNEWORD_TIP!=='undefined'?' / '+Object.keys(RUNEWORD_TIP).length:'')+'</div></div>');
-      if (_scFuni) lines.push('<div class="sc-row"><span class="sc-tag">chronicle</span><div class="sc-row-txt"><b>'+_scFuni.found+'</b> / '+(_scFuni.chronTotal||_scFuni.total)+' uniques</div></div>');
+      if (_scFuni) lines.push('<div class="sc-row"><span class="sc-tag">chronicle</span><div class="sc-row-txt"><b>'+_scFuni.found+'</b> / '+window.d2rChronTotal(_scFuni)+' uniques</div></div>');
       try {
         var mfV = (typeof mf!=='undefined')?mf:(window.LSR.getItem('d2r_mf')||'?');
         var pV = (typeof players!=='undefined')?players:(window.LSR.getItem('d2r_players')||'?');
@@ -49137,7 +49182,7 @@ window._mainPeeks = function(){
   try {
     var gp = document.getElementById('grail-peek');
     if (gp && typeof window.funiScan === 'function'){
-      var fs3 = window.funiScan(); var tot = fs3.chronTotal || fs3.total || 0;
+      var fs3 = window.funiScan(); var tot = window.d2rChronTotal(fs3);
       var pct = tot ? Math.round(fs3.found / tot * 100) : 0;
       gp.innerHTML = '<b>'+fs3.found+'/'+tot+'</b><span class="pk-track"><span class="pk-fill" style="width:'+pct+'%"></span></span><span class="pk-dim">'+pct+'%</span>';
     }
@@ -49286,7 +49331,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2713', name:'v2713 - the sideways law', date:'2026-09-06', note:'no gate in this repo ever asked whether a page scrolls sideways; the probe now reports hscroll and verdict refuses on it, proven both halves' };
+  window.D2R_BUILD = { id:'v2714', name:'v2714 - one chronicle denominator', date:'2026-09-06', note:'his ruling: the fleet and the chronicle tabs must not render different numbers; nine sites now call one function and the fallback counts itself' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2713",
+  "ver": "v2714",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2713: no gate in this repo ever asked whether a page scrolls sideways; the probe now reports hscroll and verdict refuses on it, proven both halves",
+  "note": "v2714: his ruling: the fleet and the chronicle tabs must not render different numbers; nine sites now call one function and the fallback counts itself",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

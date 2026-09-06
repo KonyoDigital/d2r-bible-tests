@@ -502,6 +502,15 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_one_chronicle_denominator",
+         [sys.executable, os.path.join(HERE, "test_one_chronicle_denominator.py")], 120,
+         why="the chronicle denominator was re-derived at ELEVEN sites and they disagreed on his "
+             "own screen: /api/fleet returned uniques 169/398 and 292/403 six minutes apart on the "
+             "same board, while the board's own meter read 258/403. Nine sites now call ONE "
+             "function; two keep chronTotal and the carded total apart on purpose (_darkN, "
+             "_uniLeft) and this pins their ARITHMETIC, not their names — a sabotage that zeroed "
+             "_darkN left the first cut green."),
+
     Gate("test_version_stamps_are_written_atomically",
          [sys.executable, os.path.join(HERE, "test_version_stamps_are_written_atomically.py")], 120,
          why="the write that runs on EVERY ship left his 6 MB bible.html at ZERO BYTES. "
