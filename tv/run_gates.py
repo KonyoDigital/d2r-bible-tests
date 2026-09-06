@@ -520,6 +520,17 @@ GATES = [
              "reported to the channel the Doctor already reads, and it still SERVES rather than "
              "refusing — a transient torn read must not become an outage."),
 
+    Gate("test_ledger_backup_covers_every_store",
+         [sys.executable, os.path.join(HERE, "test_ledger_backup_covers_every_store.py")], 120,
+         why="v2731 — his automatic ledger backup ran every 10 minutes for 60 consecutive files "
+             "and never copied rwMade (99 runewords) or gameFound (29), and recorded no profile. "
+             "It also blinded ledger_highwater, which ratchets rwMade against snapshots that never "
+             "contained it — a column that can only read UNKNOWN looks exactly like one with "
+             "nothing wrong. The load-bearing law here is that gameFound is NOT graded for "
+             "truncation: the board publishes no independent count for it, so the only available "
+             "comparison is the copy against its own length, and a check that cannot fail reads as "
+             "coverage while providing none."),
+
     Gate("test_heart_fan_labels_are_width_bounded",
          [sys.executable, os.path.join(HERE, "test_heart_fan_labels_are_width_bounded.py")], 120,
          why="v2729 — the heart fan places labels by INDEX and sizes them by CONTENT, and nothing "

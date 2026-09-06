@@ -22536,6 +22536,38 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-694 — the backup copied three of his six ledgers, every ten minutes, for sixty files
+
+**v2731.** His words: *"i want it no wiped · i want that saved · and being able to be restored ·
+indefinitely."* MEASURED across all 60 real backup files: every one carried foundLog (419), owned
+(169) and setPieces (123) — and NOT `rwMade` (his 99 runewords) or `gameFound` (29). None recorded
+which PROFILE it held.
+
+⚠⚠ AND IT BLINDED A WATCHER, which is the worse half. `tv/ledger_highwater.py` ratchets
+KEYS = (foundLog, setPieces, rwMade, owned) against each key's historic maximum — and since no
+snapshot ever carried `rwMade`, that column could only read UNKNOWN. An UNKNOWN column looks exactly
+like one with nothing wrong. A loop that runs every ten minutes and writes a plausible 14 KB file is
+the most convincing kind of gap there is.
+
+⚠ THE TWO STORES LOOKED IDENTICAL AND NEEDED DIFFERENT FIXES:
+  · `gameFound` was ALREADY returned in full and simply never folded into the backed-up ledger —
+    pure plumbing.
+  · `rwMade` existed only as a COUNT (`Object.keys(m).length`), so it could be counted and never
+    copied. It needed fetching.
+⚠⚠ MY FIRST PATCH ASSUMED THEY WERE THE SAME, added fresh reads for both, and put a SECOND
+`gameFound:` key into the same JS object literal — where the later key silently wins. Caught by
+reading the literal instead of the grep, and reverted before it ran. Read the literal, then patch it.
+
+FIXED: rwMade contents fetched and emitted; both folded into the written ledger; the ROUTE
+persisted (board_ownership already fetched it and the writer dropped it).
+⚠ gameFound is deliberately NOT graded for truncation — the board publishes no independent count
+for it, so the only comparison available is the copy against its own length, which cannot fail. A
+check that cannot fail reads as coverage while providing none.
+⚠ AND THE EMPTINESS REFUSAL KEEPS ITS ORIGINAL THREE: a board can honestly hold zero runewords, and
+folding that into the total would convert a true reading into a permanent backup outage.
+GATE: `test_ledger_backup_covers_every_store`, 8 laws, 7 sabotages — including grading gameFound
+(the check that cannot fail), treating an absent count as zero, and folding rwMade into emptiness.
+
 ## REG-691 — 310 names of testimony, 7,944 sightings, and nothing in the heart watched them
 
 **v2730.** Konyo: *"the join the heart of the console connect and wire whatever is needed so its all

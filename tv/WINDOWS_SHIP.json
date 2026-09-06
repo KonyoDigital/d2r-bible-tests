@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2730",
+  "ver": "v2731",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2730: the evidence ledger had no invariant no doctor row and no census entry; and a 0 measured over three text leaves was reported as a win three times",
+  "note": "v2731: the automatic ledger backup ran every ten minutes for sixty files and never copied two of his six ledgers, and blinded the ratchet meant to watch one of them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

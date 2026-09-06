@@ -11778,6 +11778,12 @@ def board_ownership(sample=0, dump_stores=False):
           "var storeEmptied=null;"
           "try{var _se=raw('d2r_storeEmptied');"
           "if(_se&&typeof _se==='object')storeEmptied={at:_se.at||null,why:String(_se.why||'')};}catch(_se2){}"
+          # ⚠ v2731 — THE CONTENTS OF d2r_rwMade, WHICH NOTHING EVER FETCHED. `rwMade` above is a
+          # COUNT (Object.keys().length); `gameFound` below is already the whole object. So his 99
+          # runewords could be COUNTED but never COPIED, and the automatic backup carried neither
+          # them nor gameFound — measured across all 60 of his backup files.
+          "var rwFull=null;"
+          "try{var _rmf=raw('d2r_rwMade');if(_rmf&&typeof _rmf==='object'&&!Array.isArray(_rmf))rwFull=_rmf;}catch(_r){}"
           "var stores=null,gameFound=null;"
           "try{var _gp=raw('d2r_gameFound');if(_gp&&typeof _gp==='object'&&!Array.isArray(_gp))gameFound=_gp;}catch(_g){}"
           + ("if(%s){stores={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);"
@@ -11801,7 +11807,8 @@ def board_ownership(sample=0, dump_stores=False):
           "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade,"
           "chronFound:chF,chronTotal:chT},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
-          "stores:stores,dates:dates,gameFound:gameFound,storeEmptied:storeEmptied});"
+          "stores:stores,dates:dates,gameFound:gameFound,storeEmptied:storeEmptied,"
+          "rwMadeFull:(dump?rwFull:null)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})(_ctx,_ctx!==window);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
@@ -17781,17 +17788,37 @@ def _ledger_snapshot_once(force=False):
     # replay names and not stamps. The dict is the ledger.
     if isinstance(got.get("dates"), dict) and got["dates"]:
         led["foundLog"] = got["dates"]
+    # ⚠⚠ v2731 — TWO OF HIS SIX LEDGERS WERE NEVER IN THE BACKUP. Measured across all 60 files:
+    # every one carried foundLog/owned/setPieces and NOT rwMade (his 99 runewords) or gameFound
+    # (29 in-game records). `gameFound` was ALREADY being returned in full and simply never folded
+    # in here; `rwMade` had only ever been COUNTED, never copied — so it needed fetching too.
+    # ⚠ AND IT BLINDED A WATCHER: ledger_highwater ratchets rwMade against snapshots that have
+    # never contained it, so that column could only ever read UNKNOWN — which looks exactly like a
+    # column with nothing wrong. [[unknown-stays-unknown]] [[the-unjoined-end]]
+    if isinstance(got.get("gameFound"), dict) and got["gameFound"]:
+        led["gameFound"] = got["gameFound"]
+    if isinstance(got.get("rwMadeFull"), dict) and got["rwMadeFull"]:
+        led["rwMade"] = got["rwMadeFull"]
     total = sum(int(counts.get(k) or 0) for k in ("foundLog", "owned", "setPieces"))
     if total <= 0:
         return (None, "the board answered with an EMPTY ledger - refusing to file that over a "
                       "backup that has content")
     # every store must be COMPLETE or the copy is a silent truncation pretending to be a backup
-    for k in ("foundLog", "owned", "setPieces"):
+    # v2731 — rwMade is graded too, against `counts.runewordsMade`, which the board reports
+    # INDEPENDENTLY of the copy. ⚠ gameFound is deliberately NOT graded: the board publishes no
+    # separate count for it, so the only available comparison is the copy against its own length —
+    # circular, and a check that cannot fail is worse than none. [[unknown-stays-unknown]]
+    _TRUNC = (("foundLog", "foundLog"), ("owned", "owned"),
+              ("setPieces", "setPieces"), ("rwMade", "runewordsMade"))
+    for k, _ck in _TRUNC:
         chunk = led.get(k)
         n = len(chunk) if isinstance(chunk, (list, dict)) else 0
-        if n < int(counts.get(k) or 0):
+        _want = counts.get(_ck)
+        if _want is None:
+            continue                      # the board could not say — UNKNOWN, never graded as 0
+        if n < int(_want or 0):
             return (None, "%s came back truncated (%d of %s) - a partial ledger is not a backup"
-                          % (k, n, counts.get(k)))
+                          % (k, n, _want))
     if not force and _LEDGER_BACKUP_STATE.get("counts") == counts:
         return (None, "unchanged since the last snapshot (%s)" % json.dumps(counts))
     try:
@@ -17800,8 +17827,13 @@ def _ledger_snapshot_once(force=False):
         stamp = time.strftime("%Y-%m-%d_%H%M%S")
         out = os.path.join(_LEDGER_BACKUP_DIR, "ledger_%s.json" % stamp)
         with open(out, "w", encoding="utf-8") as fh:
+            # ⚠ v2731 — WHOSE LEDGERS ARE THESE? Sixty files and not one said. restore_ledger.py
+            # restores into "whatever the board is showing" and picks a file by heuristic, so a
+            # snapshot of one profile could be restored into another and nothing in the file would
+            # contradict it. board_ownership ALREADY fetches the route; it was dropped on the floor.
             json.dump({"takenAt": stamp, "source": "board_ownership on the live window",
-                       "counts": counts, "ledger": led}, fh, indent=1, ensure_ascii=False)
+                       "route": got.get("route"), "counts": counts, "ledger": led},
+                      fh, indent=1, ensure_ascii=False)
         _LEDGER_BACKUP_STATE["last"] = stamp
         _LEDGER_BACKUP_STATE["counts"] = counts
         _LEDGER_BACKUP_STATE["writes"] = int(_LEDGER_BACKUP_STATE.get("writes") or 0) + 1
@@ -23322,7 +23354,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2730",
+        "ver": "v2731",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
