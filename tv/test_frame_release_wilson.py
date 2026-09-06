@@ -52,12 +52,69 @@ class FrameReleaseWilsonIsInert(unittest.TestCase):
                 "comment." % bad)
 
     def test_it_never_writes_to_the_seal_store(self):
+        """⚠⚠ THIS LAW USED TO BAN `sealed_sessions`, WHICH IS A READER, AND IT WAS RED ON CI FOR
+        TWO SHIPS (v2723 and v2724, same failure both times).
+
+        It was CORRECT when written: the harness fed hand-built dictionaries to a pure predicate
+        and touched nothing of his. It became wrong when `live()` was added ON PURPOSE, to run the
+        gate against his real 31 seals — `frame_authority.sealed_sessions()` is
+        `def sealed_sessions(root=None)` at frame_authority.py:143, a read, and live()'s own first
+        line says "Reads; writes nothing."
+
+        That addition was not an accident to be reverted. Measured 2026-09-06: four locks sit at
+        confluence exactly 1.00, meaning every attack banked against them is the same KIND, and the
+        hard bar reads confluence. No quantity of sabotage moves a kinds gap — only live, ci or
+        cross-family evidence does. A law forbidding the harness to read his data forbids the only
+        mechanism that closes them. [[regression-guard]] GATE_MOVES_WITH_PRODUCT.
+
+        So the property is kept and stated properly: this harness must not WRITE. Reading is how it
+        witnesses; writing beside a deletion gate is what must be impossible.
+        """
         code = _code()
-        self.assertNotIn("sealed_sessions", code,
-                         "the harness reads his real seal store. It must run on rows it builds in "
-                         "memory, or it measures his data instead of the predicate")
+        #: every way this file could put a byte on disk. Named individually, because "does not
+        #: write" is a claim about primitives and not about intent.
+        WRITERS = ("json.dump", "json.dumps(", ".write(", "os.replace", "os.rename",
+                   "shutil.copy", "shutil.move", "_vault_swept_save", "vault_ledger_save",
+                   "SEAL_STORE")
+        for bad in WRITERS:
+            self.assertNotIn(
+                bad, code,
+                "frame_release_wilson references %r. It runs beside the gate that decides whether "
+                "his footage may be released, and a harness that can write is a harness that can "
+                "change the evidence it is measuring. The shape is the guarantee, not the comment."
+                % bad
+            )
         self.assertNotIn('open(', code.replace("io.open", ""),
                          "the harness opens a file; it should touch nothing on disk")
+
+    def test_its_only_reach_into_his_data_is_a_declared_READ(self):
+        """⚠ The read is allowed, so it must be a read AND THE ONLY ONE. An allowance nobody
+        bounds is how "it may read one store" becomes "it may reach anywhere"."""
+        import ast
+        code = _code()
+        tree = ast.parse(code)
+        reached = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                if node.value.id == "FA":
+                    reached.add(node.attr)
+        #: what the harness is permitted to ask frame_authority for. All readers/predicates.
+        ALLOWED = {"sealed_sessions", "seal_releases_frames", "seal_verdict",
+                   "seal_covers_extraction", "EXTRACTION_CONTRACT", "frame_verdict"}
+        stray = sorted(reached - ALLOWED)
+        self.assertEqual(
+            [], stray,
+            "the harness calls frame_authority.%s, which is not in its declared read set. Each name "
+            "here must be checked to be a READ before it is added: the live pass exists to witness "
+            "his seals, not to act on them." % stray
+        )
+        self.assertIn(
+            "sealed_sessions", reached,
+            "the harness no longer reads his seals at all, so `live()` cannot be producing "
+            "live-kind evidence. If that read was removed, the `live` bank in main() is now "
+            "banking a witness that never looked — which is worse than not banking it. "
+            "[[feedback-silence-is-not-evidence]]"
+        )
 
     def test_every_attack_is_a_DISTINCT_idea(self):
         """⚠ The A2 census counts `attacks`, and wilsonByAttack exists because 80 of

@@ -107,31 +107,107 @@ class RungAccountingHarnessIsHonest(unittest.TestCase):
                          "printer.stream's 83 were two functions applied to 40 reels each.")
         self.assertEqual(n, len(rows), "the reported attempt count does not match the rows")
 
-    def test_the_banked_attack_count_is_the_number_actually_RUN(self):
-        """⚠ `attacks=N` is self-declared and unchecked by bank(). Pin it to the real thing."""
-        code = _code()
-        m = re.search(r"\.bank\((?:[^()]|\([^()]*\))*\)", code, re.S)
-        self.assertIsNotNone(m, "no bank() call to read")
-        call = m.group(0)
-        self.assertRegex(
-            call, r"attacks\s*=\s*n\b",
-            "the banked `attacks` is not the harness's own attempt count `n` (%s...). A literal "
-            "here would keep claiming the old breadth after an attack is added or removed."
-            % call[:90].replace("\n", " ")
-        )
-        self.assertRegex(call, r"\bn\s*=\s*n\b", "n is not the measured attempt count")
-        self.assertRegex(call, r"\bk\s*=\s*ok\b", "k is not the measured correct count")
+    def _banks(self):
+        """Every bank() call in the harness, parsed. -> [{kind, attacks, n, k, src}]
 
-    def test_the_kind_is_sabotage_because_that_is_what_these_ARE(self):
+        ⚠⚠ THIS USED TO REGEX THE FIRST `.bank(` AND GRADE IT AS THOUGH IT WERE THE ONLY ONE.
+        v2727 added a second, legitimate bank — a LIVE witness beside the sabotage one — and both
+        laws below failed instantly, pointing at the new call while describing the old. The laws
+        were right about honesty and wrong about arity: there is no reason a harness may bank only
+        once, and grading "the first one found" is a rule about text order, not about evidence.
+        Parsed with AST so a call spanning lines, or a third one added later, is graded too.
+        """
+        import ast
+        tree = ast.parse(_code())
+        out = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            if not (isinstance(fn, ast.Attribute) and fn.attr == "bank"):
+                continue
+            pos = [a.value if isinstance(a, ast.Constant) else None for a in node.args]
+            kw = {k.arg: (k.value.value if isinstance(k.value, ast.Constant)
+                          else (k.value.id if isinstance(k.value, ast.Name) else None))
+                  for k in node.keywords}
+            out.append({"lock": pos[0] if len(pos) > 0 else None,
+                        "kind": pos[1] if len(pos) > 1 else kw.get("kind"),
+                        "src":  pos[2] if len(pos) > 2 else kw.get("src"),
+                        "attacks": kw.get("attacks"), "n": kw.get("n"), "k": kw.get("k")})
+        return out
+
+    def test_EVERY_bank_declares_a_breadth_that_matches_its_kind(self):
+        """⚠ `attacks=N` is self-declared and bank() never checks it is TRUE of the evidence.
+
+        The honest breadth differs BY KIND, which is the whole reason this is graded per call:
+          sabotage — N distinct ideas, so `attacks` must be the measured attempt count `n`
+          live     — one question asked of his whole shelf, so `attacks` must be the literal 1
+        Forty reels through one coherence check is ONE IDEA REPEATED FORTY TIMES. Declaring 40
+        there is the 83/83 illusion, which is the precise thing wilsonByAttack exists to refuse.
+        """
+        banks = self._banks()
+        self.assertTrue(banks, "no bank() call was found, so this harness generates no evidence")
+        for b in banks:
+            if b["kind"] == "sabotage":
+                self.assertEqual(
+                    "n", b["attacks"],
+                    "the sabotage bank declares attacks=%r instead of the measured attempt count "
+                    "`n`. A literal keeps claiming the old breadth after an attack is added or "
+                    "removed." % (b["attacks"],))
+                self.assertEqual("n", b["n"], "sabotage bank: n is not the measured attempt count")
+                self.assertEqual("ok", b["k"], "sabotage bank: k is not the measured correct count")
+            elif b["kind"] == "live":
+                self.assertEqual(
+                    1, b["attacks"],
+                    "the live bank declares attacks=%r. A live pass asks ONE question of his whole "
+                    "shelf however many reels it covers; anything above 1 counts repetition as "
+                    "breadth and inflates the lock on evidence that never diversified."
+                    % (b["attacks"],))
+                self.assertEqual("ln", b["n"], "live bank: n is not the live check count")
+                self.assertEqual("lok", b["k"], "live bank: k is not the live agreed count")
+            else:
+                self.fail("a bank declares kind=%r, which this law has not been taught to grade. "
+                          "An ungraded kind is an ungraded breadth claim." % (b["kind"],))
+
+    def test_no_two_banks_share_a_source_name(self):
+        """`_fold` keeps the newest row per (lock, kind, src). Two banks sharing a src would
+        silently overwrite each other and one witness would vanish without a word."""
+        srcs = [b["src"] for b in self._banks()]
+        self.assertEqual(len(srcs), len(set(srcs)),
+                         "two bank() calls share a src (%s); one is overwriting the other" % srcs)
+
+    def test_the_kinds_are_TRUE_of_what_the_code_ACTUALLY_DOES(self):
+        """⚠⚠ THE CHEAT THIS FILE EXISTS FOR. bank() checks only that `kind` is a legal enum
+        value, never that it is true of the evidence. `_hardening_gap` says it outright: "calling a
+        fixture `live`, or an agreement a `sabotage`, would clear this gap on paper and prove
+        nothing." So each kind is checked against the SHAPE of the function that produced it.
+        """
+        import ast
         code = _code()
-        m = re.search(r"\.bank\(\s*[\"']reel\.route[\"']\s*,\s*[\"']([^\"']+)[\"']", code)
-        self.assertIsNotNone(m, "could not read the banked kind")
-        self.assertEqual(
-            "sabotage", m.group(1),
-            "these attacks are code sabotages run in-process. Banking them as `live` or "
-            "`cross-family` would raise CONFLUENCE — the score that measures whether evidence "
-            "comes from different KINDS of witness — on evidence that is all one kind."
-        )
+        tree = ast.parse(code)
+        fns = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+
+        kinds = {b["kind"] for b in self._banks()}
+        self.assertIn("sabotage", kinds,
+                      "the in-process attacks are no longer banked as sabotage, which is what they "
+                      "are: dictionaries handed to pure functions")
+
+        if "live" in kinds:
+            self.assertIn("live", fns, "a `live` kind is banked but there is no live() to produce it")
+            src = ast.unparse(fns["live"])
+            # a live witness must actually reach his data, or the word is a label on a fixture
+            self.assertRegex(
+                src, r"reel_story|reel_retention|frame_authority|one_funnel",
+                "live() banks `live` without importing any module that reads his stores. A check "
+                "that would pass identically on an empty machine is a FIXTURE, and calling it live "
+                "raises confluence on evidence that never diversified.")
+            # and it must refuse where his data is absent, or CI banks a vacuous pass forever
+            self.assertRegex(
+                src, r"if not reels|not reels",
+                "live() does not refuse on an empty shelf. On CI there are no reels, and a live "
+                "pass that returns a clean zero there would bank a witness that never looked — "
+                "permanently, and in the direction that opens a lock. "
+                "[[zero-needs-a-denominator]]")
 
     # ── a wall would score perfectly and prove nothing ────────────────────────────────────────
     def test_at_least_one_attack_must_be_ANSWERED_not_refused(self):

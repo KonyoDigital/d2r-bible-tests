@@ -390,6 +390,9 @@ PROVES = {
     # decision; this attacks whether the accounting can admit it cannot establish a rung at all.
     # Both bear on reel.route and neither bears on anything else.
     "rung_accounting_wilson": ("reel.route",),
+    # v2727 — the LIVE half of the same subject. Three coherence checks over his real shelf; it
+    # returns UNKNOWN where there are no reels, so it cannot bank a clean zero on CI.
+    "rung_accounting_live": ("reel.route",),
     #: A2·HARD — attacks on the vault WRITE door designed by a DIFFERENT model family, which is
     #: the third evidence KIND `vault.apply` needed and the only one available without spending
     #: his money. Two of the three found a real hole (an uncorroborated row under `unsure` reached

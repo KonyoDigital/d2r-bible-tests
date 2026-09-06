@@ -156,6 +156,72 @@ def run():
     return len(rows), ok, rows
 
 
+def live():
+    """Walk HIS REAL SHELF and check the rung accounting is coherent on it. -> (n, ok, rows, why)
+
+    A different KIND of witness from `run()`: that one hands dictionaries to pure functions and
+    would pass on a machine with no reels. This one can only answer where his data is.
+
+    ⚠ NO REELS MEANS UNKNOWN, NOT A PASS. On CI there is no shelf, and returning "0 of 0 correct"
+    would bank a clean-looking result over nothing examined — the [[zero-needs-a-denominator]]
+    shape, in the one place where it would quietly move a lock toward opening.
+    """
+    try:
+        import reel_story as RS
+        st = RS.story()
+    except Exception as e:
+        return 0, 0, [], "reel_story would not answer (%s)" % str(e)[:70]
+    reels = (st.get("reels") or []) if isinstance(st, dict) else []
+    if not reels:
+        return 0, 0, [], ("no reel is on this shelf, so nothing about his routing can be "
+                          "established here — UNKNOWN, not a clean run")
+
+    rows, ok = [], 0
+
+    # 1. every reel the shelf holds gets a KNOWN rung. A reel nobody can place is a reel nothing
+    #    downstream can decide about, and reel_story refuses rather than guessing on an unknown tag.
+    unplaced = [r.get("reel") for r in reels
+                if isinstance(r, dict) and not (r.get("stageKnown") and r.get("stage"))]
+    rows.append({"check": "every reel on the shelf is placed on a rung",
+                 "measured": "%d of %d placed" % (len(reels) - len(unplaced), len(reels)),
+                 "correct": not unplaced,
+                 "why": "an unplaced reel cannot be routed, swept or released; "
+                        "%s" % ("none" if not unplaced else "unplaced: %s" % unplaced[:3])})
+    ok += 1 if not unplaced else 0
+
+    # 2. the funnel answers about that same shelf, and its two readings stay separate. `passage`
+    #    counts DATED rungs; `observability` counts ESTABLISHABLE ones. Live is where they could
+    #    silently merge, because here both have real values instead of hand-built ones.
+    try:
+        import one_funnel as OF
+        f = OF.funnel()
+        obs = f.get("observability") or {}
+        dated = set(f.get("datedRungs") or [])
+        leaked = sorted(dated & set(OF.DERIVED_SOURCES))
+        rows.append({"check": "no live decider is counted as a dated waypoint",
+                     "measured": "datedRungs=%s observability=%s" % (sorted(dated), obs.get("state")),
+                     "correct": not leaked,
+                     "why": "on real data a derived rung must still prove only the PRESENT; "
+                            "%s" % ("clean" if not leaked else "leaked: %s" % leaked)})
+        ok += 1 if not leaked else 0
+
+        # 3. the funnel walked the same shelf reel_story reported. Two readers disagreeing about
+        #    HOW MANY REELS EXIST would make every ratio above meaningless, and it is the kind of
+        #    drift that only shows on real data. [[feedback-contradiction-is-the-finding]]
+        same = (f.get("walked") == len(reels))
+        rows.append({"check": "the funnel and the shelf counted the same reels",
+                     "measured": "funnel walked %s, shelf holds %d" % (f.get("walked"), len(reels)),
+                     "correct": same,
+                     "why": "two readers of one shelf disagreeing about its size makes every "
+                            "per-rung fraction untrustworthy"})
+        ok += 1 if same else 0
+    except Exception as e:
+        rows.append({"check": "one_funnel answers on his shelf", "measured": "raised",
+                     "correct": False, "why": str(e)[:90]})
+
+    return len(rows), ok, rows, ""
+
+
 def main(argv):
     n, ok, rows = run()
     show = "-v" in argv or "--verbose" in argv
@@ -171,6 +237,20 @@ def main(argv):
                   % (n - ok))
             return 1
         import self_arming as SA
+        # ⚠ THE LIVE PASS IS BANKED SEPARATELY AND AS attacks=1. Three coherence checks over forty
+        # reels is ONE IDEA about his shelf, not forty; `wilsonByAttack` exists to refuse exactly
+        # that inflation. It is banked ONLY if it actually ran — an empty shelf returns n=0 and is
+        # skipped with its reason printed, never banked as a clean zero.
+        ln, lok, lrows, lwhy = live()
+        if ln and lok == ln:
+            SA.bank("reel.route", "live", "rung_accounting_live", n=ln, k=lok, attacks=1,
+                    note="v2727 — three coherence checks over his real shelf: every reel placed on "
+                         "a rung, no live decider counted as dated, and the funnel and the shelf "
+                         "agreeing on how many reels exist",
+                    ref="tv/rung_accounting_wilson.py")
+            print("  live: %d/%d coherence check(s) on his real shelf — banked as live" % (lok, ln))
+        else:
+            print("  live: NOT BANKED — %s" % (lwhy or "%d of %d check(s) failed" % (ln - lok, ln)))
         row = SA.bank("reel.route", "sabotage", "rung_accounting_wilson", n=n, k=ok, attacks=n,
                       note="v2725 — ten distinct attacks on whether the rung accounting can refuse "
                            "when it cannot establish where a reel is",

@@ -22536,6 +22536,55 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-687 — a gate named for WRITING asserted against READING, and was red on CI for two ships
+
+**v2727.** `test_frame_release_wilson.test_it_never_writes_to_the_seal_store` asserted
+`assertNotIn("sealed_sessions", code)`. `sealed_sessions` is a READER — `frame_authority.py:143
+def sealed_sessions(root=None)`. The law is named for writing and graded reading, and those stopped
+being the same thing the moment `frame_release_wilson.live()` was added to run the gate against his
+real 31 seals. That function's own first line says it: *"Reads; writes nothing."*
+
+CI carried the failure on BOTH 10e106c1 (v2723) and 21a7433a (v2724) — the same single red in an
+otherwise green set — and pre-push never saw it, because `run_gates.py` runs in CI ONLY (the hook
+is already at the 12-minute foreground ceiling). So a red gate can ship, and CI is the only thing
+that catches it. That is a deliberate trade, but it means CI must be read after every ship.
+
+⚠ GATE_MOVES_WITH_PRODUCT. The law was CORRECT when written, when the harness only fed hand-built
+dicts to a pure predicate. It became wrong when a live pass was added ON PURPOSE — and that addition
+is load-bearing: measured 2026-09-06, four locks sit at confluence exactly 1.00, meaning every
+attack banked against them is the same KIND, and the hard bar reads confluence. No quantity of
+sabotage moves a kinds gap; only live/ci/cross-family evidence does. A law forbidding the harness to
+read his data forbids the one mechanism that closes them.
+
+FIX: the assertion is REPLACED, not deleted — deleting it would drop a real property, since this
+harness runs beside the gate that decides whether his footage may be released. It now bans every
+WRITE primitive by name (json.dump, .write(, os.replace, os.rename, shutil.copy/move,
+_vault_swept_save, vault_ledger_save, SEAL_STORE) and keeps the existing `open(` ban untouched.
+A second law bounds the read: the harness may reach only a declared set of frame_authority names,
+and it must STILL read the seals — if that read is ever removed, the `live` bank would be banking a
+witness that never looked, which is worse than not banking it.
+GATE: 5 sabotages, each red — a write primitive added, SEAL_STORE named, an undeclared
+frame_authority name reached, and the live read removed.
+
+## REG-688 — the bank laws graded "the first bank() call", which is a rule about text order
+
+**v2727.** `test_the_banked_attack_count_is_the_number_actually_RUN` and
+`test_the_kind_is_sabotage_because_that_is_what_these_ARE` each regexed the FIRST `.bank(` in
+`rung_accounting_wilson.py` and graded it as though it were the only one. Adding a second,
+legitimate bank — the live witness beside the sabotage one — failed both instantly, each pointing
+at the new call while describing the old.
+
+The laws were right about honesty and wrong about arity. Nothing says a harness may bank once, and
+"the first one found" grades text order rather than evidence. Rewritten to parse EVERY bank with
+AST and grade each BY ITS KIND, which is strictly stronger because the honest breadth differs:
+    sabotage  attacks must be the measured attempt count `n`  (N distinct ideas)
+    live      attacks must be the literal 1                   (one question of his whole shelf)
+Forty reels through one coherence check is one idea repeated forty times; declaring 40 there is the
+83/83 illusion `wilsonByAttack` exists to refuse. Two further laws added: no two banks may share a
+`src` (they would silently overwrite via `_fold`), and each KIND is checked against the SHAPE of the
+function that produced it — a `live` bank must import a module that reads his stores AND must refuse
+on an empty shelf, or it is a fixture wearing the word.
+
 ## REG-686 — the cold reader refused a panel that was correctly empty, so no version could be read
 
 **v2726.** `coldread` photographs a shipped version so a different model family can look at the

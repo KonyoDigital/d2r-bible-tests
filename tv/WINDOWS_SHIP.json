@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2726",
+  "ver": "v2727",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2726: coldread refused a panel that was correctly empty, so the renderer built for the second-eye gate could not satisfy it",
+  "note": "v2727: a gate named for writing asserted against reading and was CI-red for two ships; plus a live witness for reel.route because sabotage cannot close a kinds gap",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
