@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2701** | `(this commit)` | v2701 — REG-668: clipped is counted over descendants, not the node list, so my v2697 sweep printed `clipped 54/8`; a wrong denominator is worse than none |
 | **v2700** | `(this commit)` | v2700 — REG-667: my v2696 copy rewrite grew the claim bar 27% and it covered the inbox popover close button at 375px; same promise, fewer characters |
 | **v2699** | `(this commit)` | v2699 — the un-seed can be undone and names the ledger BEFORE it deletes anything; REG-666, four defects a code review found in one destructive control |
 | **v2698** | `(this commit)` | v2698 — the automated world can play the stranger again: v2694 made it the owner so seed specs would pass, which made the claim bar unreachable and killed the one spec about the stranger path |

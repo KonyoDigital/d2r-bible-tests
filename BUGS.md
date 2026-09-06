@@ -22197,3 +22197,32 @@ the 283 that broke it.
 rendered height at 375px, and the instrument that measures it is `v1800` itself — a Playwright
 test, which runs on CI and never on his Mac. Two characters over a measured-safe baseline is a
 strong prior, not a verdict; CI issues the verdict.
+
+## REG-668 — I gave three counts the right denominator and one the wrong one, in the same sweep
+
+**Shipped:** v2701 · **Found by:** reading my own v2697 output during an unrelated render
+
+REG-664 added `/found` to `clipped`, `off` and `covered` because a bare `0` reads as a statement
+about the page when it is a statement about the tracked set. Three of those were right. **One was
+not**, and it printed `clipped 54/8` on the `page` target.
+
+`painted`, `off` and `covered` are all incremented inside `nodes.forEach`, so `found` genuinely is
+their population. `clipped` is incremented over `_clipNodes` — `[e].concat(e.querySelectorAll('*'))`,
+each matched element **plus every descendant**, accumulated across all of them. On the whole-console
+target that is **11,770 nodes**, not 8.
+
+⚠ **This is worse than the bare `0` it replaced.** A number with no denominator is silent about its
+population; `54/8` actively asserts a subset relationship that does not exist and invites the reader
+to compute a ratio from it. The correction to [[zero-needs-a-denominator]] is not "add
+denominators" — it is **a count and its denominator must be counted over the same set**, which has
+to be checked per counter rather than applied in a sweep. I applied it in a sweep.
+
+**Fix:** the probe now returns `clipScanned` and `clipped` is reported against it —
+`clipped 54/11770` on the page, `clipped 0/294` on the vault. `0/294` is a real measurement:
+294 nodes examined, none clipped.
+
+⚠ **Also recorded: the render gate flaked and blocked a push.** On the same bytes it reported
+`clipped 2/8` at 1440x1000 and 1120x900 against a declared floor of 1, and on the very next run
+reported `1`. The extra element was the rail (`rail :: Console ▶On A`). Nothing was edited in
+between. Not chased further here, but it is a real source of false blocks and is filed rather than
+left as folklore.

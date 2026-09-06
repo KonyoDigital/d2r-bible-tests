@@ -1154,6 +1154,7 @@ _PROBE = r"""(function(sel, OK_TRUNC){
     return false;
   }
   var rects=[], zero=0, off=0, clipped=0, covered=0, broken=0, imgs=0;
+  var clipScanned=0;
   var okTrunc=0, clippedWhat=[], coveredWhat=[];
   var unreachable=0, unreachableWhat=[];
   nodes.forEach(function(e){
@@ -1178,6 +1179,14 @@ _PROBE = r"""(function(sel, OK_TRUNC){
        one scroll away, not destroyed — which is the same distinction the reachability probe
        below already draws. [[visual-regression-detector]] [[feedback-suspect-the-instrument]] */
     var _clipNodes = [e].concat([].slice.call(e.querySelectorAll('*')));
+    /* ⚠ v2701 — COUNT WHAT THE CLIP SCAN ACTUALLY LOOKS AT. `clipped` is incremented over THIS
+       list -- the element plus every descendant -- while `found` counts the target's own matched
+       elements. v2697 gave all four counts `/found` in one sweep, which was right for painted,
+       off and covered (all three walk `nodes`) and WRONG for this one: the page target printed
+       `clipped 54/8`, asserting a subset relationship that does not exist. A denominator that is
+       merely present is not the fix; the fix is the RIGHT denominator, and a wrong one is worse
+       than none because it reads as a ratio. */
+    clipScanned += _clipNodes.length;
     _clipNodes.forEach(function(c){
       var cls = String(c.className||'');
       var allowed = OK_TRUNC.some(function(k){ return cls.indexOf(k) >= 0; });
@@ -1403,7 +1412,7 @@ _PROBE = r"""(function(sel, OK_TRUNC){
                  .replace(/\s+/g,' ').trim();
   var widths = {}; rects.forEach(function(r){ widths[r.w]=1; });
   return JSON.stringify({found:nodes.length, painted:rects.length, zero:zero, off:off,
-    clipped:clipped, clippedWhat:clippedWhat, okTrunc:okTrunc,
+    clipped:clipped, clipScanned:clipScanned, clippedWhat:clippedWhat, okTrunc:okTrunc,
     covered:covered, coveredWhat:coveredWhat,
     unreachable:unreachable, unreachableWhat:unreachableWhat,
     imgs:imgs, broken:broken,
@@ -2257,10 +2266,24 @@ def main(argv):
             # denominator]] in the instrument that is supposed to catch it: a 0 with no
             # denominator is UNKNOWN wearing green. `painted` always had its /found and was never
             # once misread; the other three did not, and one of them hid a real overlap.
+            # ⚠ v2701 — AND EACH COUNT GETS ITS **OWN** DENOMINATOR, not a shared one.
+            # v2697 gave all four `/found` in one sweep. Three of them were right: painted, off
+            # and covered are all incremented inside `nodes.forEach`, so `found` IS their
+            # population. `clipped` is not — it is incremented over `_clipNodes`, which is each
+            # matched element PLUS every descendant, so the page target printed `clipped 54/8`.
+            # That is a worse failure than the bare `0` it replaced: a bare number is silent
+            # about its population, while `54/8` actively asserts a subset relationship that
+            # does not exist, and invites the reader to compute a ratio from it.
+            # The lesson is not "add denominators", it is "a number and its denominator have to
+            # be counted over the SAME set" — which is the thing that has to be checked per
+            # counter, one at a time, rather than applied in a sweep. [[zero-needs-a-denominator]]
             _fnd = m.get("found", 0)
-            _say("     %-9s painted %s/%s · clipped %s/%s · off %s/%s · covered %s/%s · "
+            _scan = m.get("clipScanned")
+            _clip = ("%s/%s" % (m.get("clipped", 0), _scan) if _scan
+                     else "%s (of an unreported scan)" % m.get("clipped", 0))
+            _say("     %-9s painted %s/%s · clipped %s · off %s/%s · covered %s/%s · "
                  "imgs %s/%s broken"
-                 % (key, m.get("painted", 0), _fnd, m.get("clipped", 0), _fnd,
+                 % (key, m.get("painted", 0), _fnd, _clip,
                     m.get("off", 0), _fnd, m.get("covered", 0), _fnd,
                     m.get("broken", 0), m.get("imgs", 0)))
             rc = (r.get("reach") or {}).get(key)

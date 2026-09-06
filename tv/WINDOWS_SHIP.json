@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2700",
+  "ver": "v2701",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2700: the v2696 copy rewrite took the claim bar span from 222 to 283 characters, which at 375px wraps to another line and lands on the popover close button; the promise is kept in fewer words",
+  "note": "v2701: v2697 gave four counts the same denominator in one sweep; three were right because they walk the node list and clipped is not, so the page target printed 54 of 8",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
