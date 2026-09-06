@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2700** | `(this commit)` | v2700 — REG-667: my v2696 copy rewrite grew the claim bar 27% and it covered the inbox popover close button at 375px; same promise, fewer characters |
 | **v2699** | `(this commit)` | v2699 — the un-seed can be undone and names the ledger BEFORE it deletes anything; REG-666, four defects a code review found in one destructive control |
 | **v2698** | `(this commit)` | v2698 — the automated world can play the stranger again: v2694 made it the owner so seed specs would pass, which made the claim bar unreachable and killed the one spec about the stranger path |
 | **v2697** | `(this commit)` | v2697 — the search hint fits the phone box: a 70-char placeholder written for 1440 cut mid-word at 375; and every render count now carries its denominator, because `covered 0` hid a real overlap |

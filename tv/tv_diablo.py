@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2699"   # the un-seed can be undone, and it names the ledger before it deletes anything
+VERSION = "v2700"   # the claim bar stops covering the inbox popover on a phone
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

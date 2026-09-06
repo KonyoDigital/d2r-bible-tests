@@ -4480,9 +4480,16 @@ try {
          says exactly that. The button is safe to click for anyone — which is the only state in
          which it is honest to offer it to everyone. [[label-outlived-referent]] -->
     <b>This browser has its own empty world.</b>
-    <span>Nothing here is anyone else's — chronicle, vault and forge all start at zero. Claiming
-    names this browser as <i>your</i> board, so the finds <i>you</i> record stay here. It does not
-    import anyone else's chronicle.</span>
+    <!-- ⚠⚠ v2699 — AND IT MUST STAY SHORT, BECAUSE THIS BAR'S HEIGHT IS LOAD-BEARING.
+         The v2696 rewrite above took this span from 222 to 283 characters. Correct in meaning and
+         a REGRESSION on a phone: at 375px the extra 27% wraps to another line, the bar grows, and
+         it covered the inbox popover's close button — v1800 went red with "rendered, styled and
+         unclickable". A copy edit made a control unreachable, which is not a class of failure
+         anyone looks for in a sentence.
+         So the promise is kept and the words are not: claiming names this browser its own ledger
+         and imports nothing. Say it in fewer characters than the copy that was measured safe. -->
+    <span>Nothing here is anyone else's — chronicle, vault and forge all start at zero. Claim it to
+    make this browser <i>your</i> board — it imports nothing.</span>
     <button type="button" id="claim-btn">✋ This browser is mine</button>
   </div>
 </div>
@@ -49152,7 +49159,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2699', name:'v2699 - the un-seed can be undone, and it names the ledger before it deletes anything', date:'2026-09-06', note:'a code review found the promised backup was written once and read nowhere, so the undo did not exist; the ledger name was written last so any throw left a stripped store that re-seeds; and two stores were backed up but never stripped' };
+  window.D2R_BUILD = { id:'v2700', name:'v2700 - the claim bar stops covering the inbox popover on a phone', date:'2026-09-06', note:'the v2696 copy rewrite took the claim bar span from 222 to 283 characters, which at 375px wraps to another line and lands on the popover close button; the promise is kept in fewer words' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

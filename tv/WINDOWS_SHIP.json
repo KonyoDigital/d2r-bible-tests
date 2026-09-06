@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2699",
+  "ver": "v2700",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2699: a code review found the promised backup was written once and read nowhere, so the undo did not exist; the ledger name was written last so any throw left a stripped store that re-seeds; and two stores were backed up but never stripped",
+  "note": "v2700: the v2696 copy rewrite took the claim bar span from 222 to 283 characters, which at 375px wraps to another line and lands on the popover close button; the promise is kept in fewer words",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

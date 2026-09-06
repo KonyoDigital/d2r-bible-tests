@@ -22170,3 +22170,30 @@ removing the ledger name** — removal, not `''`, because only absence re-arms t
 its own assertion. The first cut of the gate resolved the restore function in `setUp`, which made
 all 8 fail on one shared error: eight red lines, one fact. Resolving it lazily is what makes the
 redness attributable.
+
+## REG-667 — a copy edit made a control unclickable on a phone
+
+**Shipped:** v2700 · **Found by:** reading CI by delta, not by state
+
+`v1800_tray_popovers_reachable` — *"inbox popover is reachable at 375x700 (claim bar up)"* — went
+red at `cf7a1a41` with **"the popover's close button is covered by claim-in — rendered, styled and
+unclickable"**. It was GREEN at `707c2e6c`, the SHA before that push, which is the only reason it
+was attributable at all: comparing the two runs' failure lists showed one name that was new.
+
+**Cause: my own v2696 copy rewrite.** The claim bar's `<span>` went from **222 to 283 characters**
+(+27%). The rewrite was correct in meaning — the old copy promised *"your data comes back"*, which
+was only ever true for one person — but at 375px the extra text wraps to another line, the bar
+grows taller, and it lands on top of the inbox popover's close button.
+
+⚠ **This is a failure class nobody looks for in a sentence.** No gate reads copy for height, no
+review reads a wording change as a layout change, and the words were an improvement. The bar's
+height is load-bearing and nothing said so; it does now, in a comment beside the span.
+
+**Fix:** keep the promise, spend fewer characters — *"Claim it to make this browser your board — it
+imports nothing."* Measured back to **224 characters against the 222 that was known safe**, versus
+the 283 that broke it.
+
+⚠ **The character count is a PROXY and is labelled as one.** The thing that actually matters is the
+rendered height at 375px, and the instrument that measures it is `v1800` itself — a Playwright
+test, which runs on CI and never on his Mac. Two characters over a measured-safe baseline is a
+strong prior, not a verdict; CI issues the verdict.
