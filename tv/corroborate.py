@@ -1468,27 +1468,63 @@ def _inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed():
     stated one, which is the whole of what this machine can reach. [[unknown-stays-unknown]]
     """
     def left():
+        """How many DISTINCT installs currently report that the owner's seed belongs to them.
+
+        ⚠⚠ v2740 — v2739 ASKED THIS AS "IS THIS BOARD SEEDED", AND THAT QUESTION HAS NO ANSWER.
+        The board's real decision is
+            _seedsBelongHere = (!_isCousinShell && _D2R_LEDGER === _SEED_LEDGER)
+        and `_isCousinShell = !_D2R_OWNER`, so it is TRUE on a CLAIMED browser whose ledger
+        resolves to the seed. That is correct and expected on KONYO'S OWN board — it is his seed —
+        and identical, from inside the board, on a stranger's claimed-and-unnamed one. A single
+        board cannot tell the two apart, so a per-board law either cries wolf on his own console or
+        says nothing at all. v2739's version did worse than both: it computed `!owner && ...`,
+        firing only on GUESTS, who are the one class the seed can never reach.
+
+        THE FLEET CAN TELL. Exactly one install may legitimately own the seed ledger. Two or more
+        is contamination by construction, and no single machine can see it. This is the shape a
+        corroborator exists for. [[feedback-contradiction-is-the-finding]]
+        """
         import control_app as ca
+        # ⚠ `fleet_pull()` IS NOT THE FLEET — it reports a git pull, and keys off it are all
+        # missing, so the first cut of this law returned None forever: permanently UNKNOWN, which
+        # is invisible rather than loud. `fleet_presence()` is the roster, split online/offline,
+        # each row carrying `install` and the `tally` the beacon reported.
+        # [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
         try:
-            got = ca.board_ownership(0)
+            fl = ca.fleet_presence() or {}
         except Exception:
             return None
-        if not isinstance(got, dict) or not got.get("ok"):
-            return None                      # the board did not answer — UNKNOWN, never 0
-        v = got.get("onOwnerSeed")
-        if v is None:
-            return None                      # the console predates the field, or a name is unknown
-        return 1 if v else 0
+        if not isinstance(fl, dict) or not fl.get("ok"):
+            return None
+        rows = list(fl.get("online") or []) + list(fl.get("offline") or [])
+        if not rows:
+            return None                      # no fleet answer — UNKNOWN, never 0
+        seen, answered = set(), 0
+        for m in rows:
+            t = (m or {}).get("tally")
+            v = (t or {}).get("onOwnerSeed") if isinstance(t, dict) else None
+            if v is None:
+                continue                     # that console predates the field; it is not a zero
+            answered += 1
+            if v:
+                # keyed on INSTALL, not machine name: two boards can share a nickname, and the
+                # question is how many distinct installs claim the ledger
+                seen.add(str((m or {}).get("install") or (m or {}).get("machine") or len(seen)))
+        if not answered:
+            return None                      # nobody could answer, so the count is UNKNOWN
+        return len(seen)
 
     def right():
-        return 0
+        # exactly one board may own the seed ledger: the one the seed was written for
+        return 1
 
     return ("owner-seed-inheritance",
             "no world reports progress it inherited from the owner's hardcoded seed",
             "point a guest world at an unnamed ledger — it resolves to the seed ledger, the boot "
             "path re-seeds 245 of the owner's finds into it, and every tally reports them as that "
             "person's own progress while staying internally consistent",
-            "worlds running on the owner seed", left, "the allowed number of them", right, "<=")
+            "installs claiming the owner seed ledger", left,
+            "the one board it was written for", right, "<=")
 
 
 BUILDERS = (_inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed,

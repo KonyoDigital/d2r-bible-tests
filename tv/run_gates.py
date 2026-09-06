@@ -532,6 +532,40 @@ GATES = [
              "IMPORT ALLOWLIST plus attribute- and bare-name call checks, after a substring "
              "version was defeated by `import json as _j` and then by `open()`."),
 
+    Gate("test_frames_respect_evidence_holds",
+         [sys.executable, os.path.join(HERE, "test_frames_respect_evidence_holds.py")], 120,
+         why="v2740 — the frame deleter offered 7 frames out of a reel held so it could be RE-READ. "
+             "All 805 offered frames sat inside reels reel_retention holds; 798 were test fixtures "
+             "(POLICY) and 7 were a zero-pages reel (EVIDENCE), held because 'the engine reopens "
+             "these when the prompt improves'. frame_authority held witness FRAMES, reel_retention "
+             "held whole REELS, and neither consulted the other. Pins that the refusal lives in "
+             "plan_frames (not frame_verdict, whose callers cannot supply the hold list), that an "
+             "unreadable hold list makes NOTHING prunable — the same answer the seal refusal gives "
+             "to the same ignorance, and the direction that cost two fixture reels at v2229 — and "
+             "that POLICY holds stay uncovered, because he asked for the evidence frames."),
+
+    Gate("test_seed_never_reaches_another_world",
+         [sys.executable, os.path.join(HERE, "test_seed_never_reaches_another_world.py")], 180,
+         why="v2740 — whose finds a console may inherit, pinned in all THREE states. The seed lands "
+             "only when `_seedsBelongHere = (!_isCousinShell && _D2R_LEDGER === _SEED_LEDGER)`, and "
+             "until this file nothing tested it: the property rested on two `window.X =` lines and "
+             "a comment. A guest is refused; a NAMED board is refused; a CLAIMED and UNNAMED board "
+             "is the only way in, and bible.html:10245 already calls it 'a claimed stranger holding "
+             "Konyo's 245 finds'. Measured: the RESET did not close it either — the surviving "
+             "set-piece row kept the heuristic answering KonyoEndgame, and the un-tick registry "
+             "cannot cover a seed name added later. Runs the REAL resolver in node; proven RED on "
+             "5 sabotages, two of which first passed because the fixtures were vacuous."),
+
+    Gate("test_every_store_read_is_routed",
+         [sys.executable, os.path.join(HERE, "test_every_store_read_is_routed.py")], 180,
+         why="v2740 — Konyo: 'to each profile its individual ledgers ... just needs a unified logic "
+             "it already is im pretty sure'. He is right: 249 accesses route through window.LSR. "
+             "What did not exist is anything keeping it that way — a new bare "
+             "localStorage.getItem('d2r_foundLog') compiles, passes every other gate, and inside a "
+             "guest world reads the OWNER's key. A RATCHET (83 unwaived bare lines today, may "
+             "shrink, never grow) plus a hard law that no LEDGER store is read bare without a "
+             "written raw-ok reason. Pointers stay bare by design — they decide the namespace."),
+
     Gate("test_uniques_reset_is_uniques_only",
          [sys.executable, os.path.join(HERE, "test_uniques_reset_is_uniques_only.py")], 180,
          why="v2739 — the reset button he asked for, and the two ways it could have been a lie. "

@@ -383,6 +383,39 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     return True, "recording %s is sealed and this frame witnessed nothing" % sess
 
 
+def evidence_held_reels(hist_dir=None):
+    """Reel dir NAMES that reel_retention holds for an EVIDENCE reason. -> (set | None, why)
+
+    None means the list could not be read, which is UNKNOWN and must never be read as "nothing is
+    held". [[unknown-stays-unknown]]
+
+    ⚠ THE IMPORT IS LAZY ON PURPOSE — `reel_retention` imports THIS module, so a module-level
+    import here would be a cycle. reel_retention already uses the same lazy shape for the same
+    reason, so this follows the file's own established idiom rather than inventing one.
+    """
+    try:
+        import reel_story as _rs
+    except Exception as e:
+        return None, "reel_story could not be imported (%s)" % str(e)[:60]
+    try:
+        st = _rs.story(hist_dir)
+    except Exception as e:
+        return None, "reel_story.story() raised (%s)" % str(e)[:60]
+    if not isinstance(st, dict) or not st.get("ok"):
+        # ⚠ `(st or {})` KEEPS A NON-EMPTY STRING and then .get() raises — caught by this module's
+        # own gate feeding it a non-dict. The isinstance check has to be repeated here, not
+        # assumed from the line above, because `or` is not a type guard.
+        return None, ((st.get("why") if isinstance(st, dict) else None)
+                      or "reel_story did not answer (%s)" % type(st).__name__)
+    rows = st.get("reels")
+    if not isinstance(rows, list):
+        return None, "reel_story returned no reel list"
+    # ⛔ EVIDENCE ONLY. A POLICY hold (recent / test-fixture / target-met) is a different argument
+    # with a different owner; widening this to cover them would answer a question nobody asked.
+    return ({r.get("reel") for r in rows
+             if r.get("held") and r.get("holdKind") == "evidence" and r.get("reel")}, "")
+
+
 def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
     """What a witness-aware prune WOULD free. Reports; deletes nothing.
 
@@ -403,12 +436,35 @@ def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
         out["say"] = ("%s could not be read, so NOTHING is prunable — a prune that cannot tell a "
                       "sealed recording from an unswept one is the prune that ate the names" % SEAL_STORE)
         return out
+    # ⚠⚠ v2740 — THE JOIN THAT WAS MISSING, AND THE 7 FRAMES IT WAS MISSING.
+    # MEASURED at origin: all 805 offered frames sat inside reels reel_retention HOLDS, and 7 of
+    # them were in `reel_s_1787243026006_12211`, held as `zero-pages` — an EVIDENCE hold, which
+    # exists because "the engine reopens these when the prompt improves". Freeing those frames
+    # destroys the one thing the hold protects: a re-read with no frames is not a re-read.
+    # This module knew about witness FRAMES and nothing about held REELS. [[the-unjoined-end]]
+    held_reels, held_why = evidence_held_reels(hist_dir)
+    out["evidenceHeldReels"] = (None if held_reels is None else sorted(held_reels))
+    if held_reels is None:
+        # the same answer the seal refusal above gives to the same shape of ignorance, and for the
+        # same reason — never "assume nothing is held", which is how v2229 lost two fixture reels
+        out["say"] = ("the reel-hold list could not be read (%s), so NOTHING is prunable — a prune "
+                      "that cannot tell a held reel from a released one is the prune that ate the "
+                      "footage" % held_why)
+        return out
     for d in sorted(glob.glob(os.path.join(hist_dir, "reel_*")), key=_reel_ts):
         if not os.path.isdir(d):
             continue
         for f in sorted(glob.glob(os.path.join(d, "*.jpg"))):
             out["scanned"] += 1
             ok, why = frame_verdict(f, sealed, wit, recent)
+            # ⚠ APPLIED HERE, NOT INSIDE frame_verdict. That function is a per-frame PREDICATE used
+            # by river.py's joint and by tests; giving it a new input would either break them or
+            # hand them a default, and the only available default — "assume nothing is held" — is
+            # the unsafe direction. The refusal belongs where the OFFER is made.
+            if ok and os.path.basename(os.path.dirname(f)) in held_reels:
+                ok, why = False, ("its reel is held as EVIDENCE by the shelf — that hold exists so "
+                                  "the reel can be re-read, and a re-read with no frames is not a "
+                                  "re-read")
             if ok:
                 try:
                     out["bytes"] += os.path.getsize(f)

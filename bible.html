@@ -19533,11 +19533,37 @@ window._uniqueResetDo = function(plan){
     LS.setItem('d2r_foundLog', JSON.stringify(fl));
     LS.setItem('d2r_owned', JSON.stringify(own2));
     LS.setItem('d2r_grailUnfound', JSON.stringify(gun));
+    /* ⚠⚠ v2740 — SHUT THE SEED DOOR, NOT JUST THIS SET OF NAMES.
+       Konyo: "as long as it doesnt seed my profile again .. it can base its own console and
+       evidence .. based on his own ledger .. but not mine".
+       MEASURED with the REAL resolver on a claimed+unnamed board, before and after a reset:
+           BEFORE  ledger='KonyoEndgame'  seedsBelongHere=true   foundLog=3  grailUnfound=0
+           AFTER   ledger='KonyoEndgame'  seedsBelongHere=true   foundLog=1  grailUnfound=2
+       The un-tick registry saves the names that exist TODAY. It cannot save a name added to
+       _GRAIL_SEED tomorrow, because a registry written now cannot contain it. The board stays in
+       the one state that lets the seed in: CLAIMED and UNNAMED, where :3990's has-a-chronicle
+       heuristic answers 'KonyoEndgame' (the surviving SET-PIECE row is enough to trigger it).
+
+       Naming the ledger is what closes it for good — the resolver's FIRST branch is `if (n) return n`,
+       so a named board can never equal _SEED_LEDGER and `_seedsBelongHere` is false forever. This is
+       the same stamp the claim button writes (:4600), reused rather than invented.
+       ⚠ ONLY WHEN THERE IS NO NAME. A board that already named itself keeps its name — renaming
+       someone out of their own chronicle is the v2680 damage that v2685 had to revert.
+       ⚠ AND ONLY ON A SEEDABLE BOARD. If _seedsBelongHere is false the door is already shut, and
+       writing an identity nobody asked for would be a change with no defect behind it. */
+    try {
+      if (window._seedsBelongHere === true
+          && !String(LS.getItem('d2r_ledgerName') || '').trim()) {
+        LS.setItem('d2r_ledgerName',
+          'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8));
+      }
+    } catch(e){}
     /* ⛔ d2r_setPieces and d2r_rwMade are NEVER touched here — his sets and runewords do not move. */
     return { ok:true, cleared:(plan.names || []).length, unticked:Object.keys(gun).length };
   } catch(e){ return { ok:false, why:'the write failed: ' + (e && e.message || e) }; }
 };
 
+function _lnNow(){ try { return String((window.LSR||window.localStorage).getItem('d2r_ledgerName') || '').trim(); } catch(e){ return ''; } }
 window._uniqueResetAsk = async function(){
   var p = window._uniqueResetPlan();
   if (!p.ok){ try { await window.uiConfirm(p.why, {icon:'⚠️', ok:'OK', cancel:''}); } catch(e){ } return; }
@@ -19557,13 +19583,30 @@ window._uniqueResetAsk = async function(){
     + (p.owned ? ('· ' + p.owned + ' of those ' + p.count + ' also lose their vault ownership row.\n') : '')
     + (p.inGame ? ('· ' + p.inGame + ' of the ' + p.count + ' can be restored from the in-game Chronicle.\n') : '')
     + (unrecoverable ? ('· ' + unrecoverable + ' of the ' + p.count + ' have NO record in the in-game Chronicle. Export a snapshot first if you want them back.\n') : '')
-    + '\nYour SETS (' + p.sets + ') and RUNEWORDS (' + p.runewords + ') are NOT touched.';
+    + '\nYour SETS (' + p.sets + ') and RUNEWORDS (' + p.runewords + ') are NOT touched.'
+    /* ⚠ v2740 — AN IDENTITY WRITE MUST NOT BE SILENT. On a board that can still receive the
+       hardcoded seed (claimed, and with no ledger name of its own), the reset also names the
+       ledger — otherwise the seed floor refills it on the next boot with any name added to
+       _GRAIL_SEED later, which the un-tick registry cannot know about in advance.
+       He presses this having read it, which is the whole point of the box. */
+    + ((window._seedsBelongHere === true && !_lnNow())
+        ? ('\n\n\u26a0 This browser has no ledger name of its own, so the built-in seed can refill '
+           + 'it. The reset will name it "Ledger-' + String(window._D2R_INSTALL || '').slice(0,8)
+           + '" so that stops for good. Your own finds are not affected.')
+        : '');
   var go = await window.uiConfirm(msg, { icon:'🗑️', ok:'RESET UNIQUES', cancel:'Keep them' });
   if (!go) return;
   var r = window._uniqueResetDo(p);
   if (r.ok){
-    try { window.dispatchEvent(new Event('d2r-ledger-changed')); } catch(e){}
-    try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
+    /* ⚠ v2740 — TWO DEAD LINES REMOVED, AND THE GATE WAS RIGHT TO REFUSE THEM.
+       `test_no_bare_window_call_lands_on_a_name_nothing_binds` flagged
+       `window.dispatchEvent(new Event('d2r-ledger-changed'))`. dispatchEvent IS a real browser
+       API, so the easy read was "false positive, allowlist it" — and the sharper question was
+       whether the line did anything. MEASURED: `d2r-ledger-changed` occurs ONCE in this file, and
+       that once was my own dispatch. NOTHING LISTENS. A `renderForge()` call sat beside it, and
+       `location.reload()` on the next line makes both of them moot regardless.
+       Plumbing with no tap, wrapped in a try so it could never complain.
+       [[plumbing-with-no-tap]] [[feedback-suspect-the-instrument]] — the instrument was fine. */
     try { location.reload(); } catch(e){}
   } else {
     try { await window.uiConfirm(r.why, {icon:'⚠️', ok:'OK'}); } catch(e){}
@@ -46439,15 +46482,22 @@ function renderJournal(){
     var setP=[]; try{ setP=JSON.parse(window.LSR.getItem('d2r_setPieces')||'[]'); }catch(e){}
     var oSet=new Set(owned), pSet=new Set(setP), addU=0, addP=0;
     var flI={}; try{ flI=JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}'); }catch(e){}
+    /* ⚠⚠ v2740 — HE ASKED WHETHER THE RESET IS AN EPOCH OR A MOMENT, and for THIS door
+       it was a moment. The un-tick registry blocks the boot re-seeder forever, and
+       grailIntake never consulted it — so a reset evaporated the next time he
+       photographed his Chronicle. Re-adding is not the defect (a fresh photo is real
+       evidence); doing it SILENTLY is. Counted here, said in the toast. */
+    var _gunI={}; try{ _gunI=JSON.parse(window.LSR.getItem('d2r_grailUnfound')||'{}')||{}; }catch(e){}
+    var backU=0;
     found.forEach(function(n){
-      if(V.uniq.has(n)){ if(!flI[n] && !oSet.has(n)){ flI[n]=(window._grailStamp?window._grailStamp():'')+' · imported'; addU++; } }   // v677 — imports land in the LEDGER, not the vault
+      if(V.uniq.has(n)){ if(!flI[n] && !oSet.has(n)){ flI[n]=(window._grailStamp?window._grailStamp():'')+' · imported'; addU++; if(_gunI[n]) backU++; } }   // v677 — imports land in the LEDGER, not the vault
       else if(V.pieceMap[n]){ if(!pSet.has(V.pieceMap[n])){ pSet.add(V.pieceMap[n]); addP++; } if(!flI[V.pieceMap[n]]){ flI[V.pieceMap[n]]=(window._grailStamp?window._grailStamp():'')+' · imported'; } }   // v684 — set pieces chronicle into the ledger like uniques (they silently skipped it)
       else unknown.add(n);
     });
     try {
       window.LSR.setItem('d2r_foundLog', JSON.stringify(flI));
       window.LSR.setItem('d2r_setPieces', JSON.stringify(Array.from(pSet)));
-      window.LSR.setItem('d2r_grailImportReport', JSON.stringify({u:addU,p:addP,unk:Array.from(unknown).slice(0,20),t:Date.now()}));
+      window.LSR.setItem('d2r_grailImportReport', JSON.stringify({u:addU,p:addP,back:backU,unk:Array.from(unknown).slice(0,20),t:Date.now()}));
     } catch(e){}
     show('✅ imported — reloading to sync every view…');
     setTimeout(function(){ location.reload(); },600);
@@ -46459,7 +46509,10 @@ function renderJournal(){
     try {
       var r=JSON.parse(raw);
       var t=document.createElement('div'); t.className='forge-toast';
-      t.innerHTML='📸 <b>Chronicle imported!</b> +'+r.u+' uniques · +'+r.p+' set pieces'+(r.unk&&r.unk.length?' <span class="ft-sub">'+r.unk.length+' unrecognized</span>':'')+' <span class="ft-sub">synced everywhere</span>';
+      /* ⚠ v2740 — a count nobody sees is not a report. If the import put back names he
+         had deliberately reset, the toast says so — that is the whole fix, because the
+         re-add itself is legitimate and only its SILENCE was the defect. */
+      t.innerHTML='📸 <b>Chronicle imported!</b> +'+r.u+' uniques · +'+r.p+' set pieces'+((r.back>0)?' <span class="ft-sub">↺ '+r.back+' of them you had reset — the photo found them again</span>':'')+(r.unk&&r.unk.length?' <span class="ft-sub">'+r.unk.length+' unrecognized</span>':'')+' <span class="ft-sub">synced everywhere</span>';
       (function(el){var st=document.getElementById('forge-toasts');if(!st){st=document.createElement('div');st.id='forge-toasts';document.body.appendChild(st);}st.appendChild(el);})(t); setTimeout(function(){ t.classList.add('out'); setTimeout(function(){ t.remove(); },450); },5200);
       var rep=document.getElementById('grail-intake-report');
       if(rep&&r.unk&&r.unk.length){ rep.style.display='block'; rep.innerHTML='📸 import note — unrecognized names (check spelling/mod items): '+r.unk.map(function(n){return '<b>'+esc(n)+'</b>';}).join(', '); }
@@ -49475,7 +49528,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2739', name:'v2739 - the uniques reset button, and Deans inherited progress made visible', date:'2026-09-06', note:'a reset is two acts because the boot path re-seeds, plus the fleet card now says when a world is running on the owner seed' };
+  window.D2R_BUILD = { id:'v2740', name:'v2740 - the seed door, the 7 evidence frames, and three defects in my own v2739', date:'2026-09-06', note:'one board may own the seed ledger and the reset now closes the door; frames inside an evidence-held reel are refused; the v2739 seed flag was inverted and its tally never carried it' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

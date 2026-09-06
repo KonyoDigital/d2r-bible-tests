@@ -1997,6 +1997,17 @@ def grail_tally():
     out["uniques"] = _pair(c.get("chronFound"), c.get("chronTotal"))
     out["vaultUniques"] = _pair(c.get("owned"), c.get("uniquesTotal"))
     out["runewords"] = _pair(c.get("runewordsMade"), c.get("runewordsTotal"))
+    # ⚠⚠ v2740 — WITHOUT THESE THREE LINES THE v2739 FLEET CARD COULD NEVER RENDER.
+    # The card reads `t.onOwnerSeed`; the board emitted it; and the tally BETWEEN them dropped it
+    # on the floor, so the field was undefined on every row and the warning was unreachable. The
+    # first attempt to add this refused on a duplicate anchor and was never re-applied — a patch
+    # that correctly declined to guess, followed by me not finishing the job.
+    # Both halves built, never joined. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    # ⚠ None passes through as None: a console predating the fields reports UNKNOWN, and the card
+    # renders nothing rather than a cheerful "not seeded". [[unknown-stays-unknown]]
+    out["ledgerName"] = own.get("ledgerName")
+    out["seedLedger"] = own.get("seedLedger")
+    out["onOwnerSeed"] = own.get("onOwnerSeed")
     out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
     if not out["ok"]:
         out["why"] = "the board answered but carried no counts"
@@ -11854,7 +11865,18 @@ def board_ownership(sample=0, dump_stores=False):
           "ledgerName:ledgerName,seedLedger:seedLedger,"
           # the contamination CONDITION, computed where every operand is in scope.
           # null when either name is unknown — never false, which would read as clean.
-          "onOwnerSeed:((ledgerName==null||seedLedger==null)?null:(!owner&&ledgerName===seedLedger))});"
+          # ⚠⚠ v2740 — v2739 SHIPPED THIS INVERTED, AND IT WOULD HAVE FIRED ON THE SAFE STATE.
+          # It computed `!owner && ledgerName === seedLedger`. The board's real decision is
+          #     _seedsBelongHere = (!_isCousinShell && _D2R_LEDGER === _SEED_LEDGER)
+          # and `_isCousinShell = !_D2R_OWNER`, so the dangerous state is a CLAIMED browser whose
+          # ledger resolves to the seed — the exact opposite of what I asked for. A GUEST is
+          # refused the seed whatever its ledger says, so the old flag went true on the one state
+          # that is never in danger and stayed false on the one that is.
+          # ⚠ SO IT NOW READS THE BOARD'S OWN VARIABLE rather than re-deriving it. A second
+          # implementation of a decision this consequential is exactly the drift that produced the
+          # inversion. [[copy-drift]] [[feedback-verify-not-proxy]]
+          "seedsBelongHere:(typeof window._seedsBelongHere==='boolean'?window._seedsBelongHere:null),"
+          "onOwnerSeed:(typeof window._seedsBelongHere==='boolean'?window._seedsBelongHere:null)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})(_ctx,_ctx!==window);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
@@ -23532,7 +23554,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2739",
+        "ver": "v2740",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

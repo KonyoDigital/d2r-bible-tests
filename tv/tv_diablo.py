@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2739"   # the uniques reset button, and Deans inherited progress made visible
+VERSION = "v2740"   # the seed door, the 7 evidence frames, and three defects in my own v2739
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
