@@ -12822,6 +12822,13 @@ def _theatre_row_fingerprint(sess, hist_dir):
 
 
 
+#: ⚠ v2723 — the size below which a served bible.html is not a board, it is a torn read.
+#: MEASURED on this tree: bible.html is ~6,300,000 bytes. 600,000 is ~10x below a healthy read, so
+#: it cannot fire on a good one; and it is far above any plausible partial that would still parse.
+#: A floor tuned close to the real size would become a tripwire on ordinary growth.
+_BOARD_SHORT_FLOOR = 600000
+
+
 def ui_fault_record(kind, why=None, where=None, path=None, before=None):
     """Append one fault the UI reported about ITSELF. Append-only, capped, never raises.
 
@@ -23267,7 +23274,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2722",
+        "ver": "v2723",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25466,6 +25473,42 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 self._json(404, {"ok": False, "msg": "bible.html missing"})
                 return
+            # ⚠⚠ v2723 — A TORN READ WAS SERVED AS A NORMAL 200, AND NOTHING COULD EVER NOTICE.
+            # REG-681 measured it: a truncating write left bible.html at ZERO BYTES for 4.8% of
+            # concurrent reads, and this console re-reads the file per request. An empty read does
+            # NOT raise, so the `except` above never fires — `body = b""` is sent with a 200 and a
+            # Content-Length of 0.
+            #
+            # ⚠ AND THE ONLY INSTRUMENT THAT COULD REPORT IT IS THE ONE THE FAULT DISABLES. Both
+            # console-Doctor checks for a blank surface (`ui_faults_recent`, `uiBeat.panels`)
+            # depend on the page's own JS running and self-reporting. A zero-byte document has no
+            # script to execute — no heartbeat, no fetch, no fault. That is why REG-681 was
+            # diagnosed from the WRITE side and never from the serve side. [[the-unjoined-end]]
+            #
+            # ⚠ NO DENOMINATOR DEBATE HERE, unlike a DOM panel. A panel can be legitimately empty
+            # ("no runs recorded yet") which is why console_doctor keeps three states. bible.html
+            # has NO legitimate near-empty case — it is a ~6.2 MB static asset. The repo already
+            # treats this exact file this way: `_KAI_NAMES_FLOOR` refuses a name harvest below a
+            # floor because "a truncated or zero-byte bible.html does not throw".
+            # [[zero-needs-a-denominator]]
+            #
+            # The floor is deliberately ~10x below a healthy read, so it cannot fire on a good one
+            # and cannot be tuned into a tripwire. It REPORTS and still serves: refusing to serve
+            # would turn a transient torn read into a hard outage, which is worse than the defect.
+            if len(body) < _BOARD_SHORT_FLOOR:
+                ui_fault_record("board-served-short",
+                                why=("served %d bytes for bible.html, which is below the %d floor "
+                                     "(a healthy read is ~6.2 MB) — almost certainly a read that "
+                                     "landed mid-write" % (len(body), _BOARD_SHORT_FLOOR)),
+                                # ⚠ NO `path=` HERE. Its `path` argument is the FILE TO WRITE TO,
+                                # not the URL being served — passing "/board" made this try to open
+                                # a file called /board, fail, and be swallowed by the recorder's
+                                # own `except Exception: return None`. The hookup would have
+                                # recorded NOTHING, forever: a Doctor row that can never fire is
+                                # worse than no check, because it reads as "no faults".
+                                # Caught by testing the JOIN instead of trusting it.
+                                # [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+                                where="/board serve path")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))

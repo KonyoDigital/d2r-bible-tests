@@ -502,6 +502,15 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_board_short_read_is_seen",
+         [sys.executable, os.path.join(HERE, "test_board_short_read_is_seen.py")], 120,
+         why="REG-681 fixed the torn WRITE; this closes the SERVE side. An empty read does not "
+             "raise, so bible.html was served as a normal 200 with Content-Length 0 — and the only "
+             "instruments that could report a blank page (ui_faults, uiBeat.panels) need the "
+             "page's own JS, which a zero-byte document does not have. Detected server-side now, "
+             "reported to the channel the Doctor already reads, and it still SERVES rather than "
+             "refusing — a transient torn read must not become an outage."),
+
     Gate("test_frame_release_wilson",
          [sys.executable, os.path.join(HERE, "test_frame_release_wilson.py")], 120,
          why="the harness that proves the DELETION GATE must itself be unable to delete — asserted "
