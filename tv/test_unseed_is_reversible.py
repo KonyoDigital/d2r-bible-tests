@@ -173,6 +173,30 @@ setTimeout(()=>{ sb.window._d2rUnseedRestore(); setTimeout(()=>{
 },20); },20);
 """
 
+
+#: both directions of the ledger-name decision, which are opposite on purpose.
+_CLAIM_AWARE_JS = r"""
+const vm=require('vm'); const FRAG=%s;
+function run(tag, claimBetween, done) {
+  const store={ d2r_foundLog: JSON.stringify({'Shaftstop':'Jan 1, 2026 - 00:00'}),
+                d2r_owned:'[]', d2r_rwMade:'{}', d2r_setPieces:'[]', d2r_rwVerify:'{}' };
+  const sb={console:{log:()=>{},warn:()=>{}},location:{reload:()=>{}},
+    uiConfirm:()=>Promise.resolve(true),setTimeout:f=>f(),Date:Date,JSON:JSON,Object:Object,String:String,Array:Array};
+  sb.window={localStorage:{getItem:k=>(k in store?store[k]:null),setItem:(k,v)=>{store[k]=v;},removeItem:k=>{delete store[k];}},
+    _D2R_INSTALL:'INST1234',_GRAIL_SEED:{'Shaftstop':'Jan 1, 2026 - 00:00'},_SET_SEED:{},_RWC_SEED:{},
+    _RULING_SEED:{},_RWV_SEED:{}};
+  sb.window.LSR=sb.window.localStorage;
+  vm.createContext(sb); vm.runInContext(FRAG, sb);
+  sb.window._d2rUnseed();
+  setTimeout(()=>{
+    if (claimBetween) store.d2r_ownerClaim = 'INST1234';
+    sb.window._d2rUnseedRestore();
+    setTimeout(()=>{ console.log(tag + '=' + (store.d2r_ledgerName ? 'named' : 'removed')); done && done(); },20);
+  },20);
+}
+run('UNCLAIMED', false, ()=>run('CLAIMED', true));
+"""
+
 class UnseedIsReversible(unittest.TestCase):
 
     def setUp(self):
@@ -348,6 +372,32 @@ class UnseedIsReversible(unittest.TestCase):
         self.assertIn("cleared", out,
                       "the restore left the snapshot in place; the next un-seed cannot take its "
                       "own:\n%s" % out[-500:])
+
+    def test_the_restore_does_not_hand_a_claimed_browser_the_seed_ledger(self):
+        """The Dean defect, reachable through the UNDO button. Both directions, because they
+        are opposite and each one protects a different person.
+
+        Removing the ledger name is RIGHT on Konyo's own board — his is unclaimed and unnamed,
+        and only absence re-arms the has-a-chronicle heuristic that restores his floors. It is
+        WRONG on a browser claimed between the un-seed and the Undo: the snapshot recorded
+        `null`, the claim handler left the un-seed's name alone (it writes one only when none is
+        set), and removing it leaves a state that never existed — unnamed AND claimed. On reload
+        the heuristic answers 'KonyoEndgame', _isCousinShell is false because the browser is
+        claimed, and _seedsBelongHere becomes TRUE: a claimed stranger holding his 245 finds.
+        """
+        node = _node()
+        harness = _CLAIM_AWARE_JS % json.dumps(_script_fragment())
+        r = subprocess.run([node, "-e", harness], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise AssertionError("the claim-aware harness would not run: %s" % (r.stderr or "")[:300])
+        out = (r.stdout or "").strip()
+        self.assertIn("UNCLAIMED=removed", out,
+                      "an UNCLAIMED board did not get its ledger name removed, so the heuristic "
+                      "never re-arms and his own floors stay off:\n%s" % out[-400:])
+        self.assertIn("CLAIMED=named", out,
+                      "a browser CLAIMED between the un-seed and the Undo had its ledger name "
+                      "removed, which hands it Konyo's identity on the next load — the Dean "
+                      "defect, reached through the undo button:\n%s" % out[-400:])
 
     def test_neither_control_lives_inside_an_onclick_attribute(self):
         """v2696: an apostrophe in "Gloom's Trap" terminated onclick="…" and the button did

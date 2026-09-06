@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2706",
+  "ver": "v2707",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2706: the snapshot was bare while all five stores it restores are forked per profile, so an Undo after switching profiles would have written one account arrays into the other; and a restore never cleared it, which made every un-seed after the first roll back to the first snapshot",
+  "note": "v2707: removing the ledger name is right on his own unclaimed board because only absence re-arms the heuristic that restores his floors, and wrong on a browser claimed between the un-seed and the undo, where it leaves a state that never existed and the heuristic answers with his identity",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

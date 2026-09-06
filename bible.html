@@ -10180,9 +10180,44 @@ window._d2rUnseedRestore = function(){
       });
       /* the ledger name is the half that re-arms the floors, so it is restored on the RAW store
          for the same reason the resolver reads it raw — the owner's keys are bare by definition. */
+      /* ⚠⚠ v2707 — REMOVING THE NAME FROM A BROWSER THAT HAS SINCE BEEN CLAIMED RE-CREATES THE
+         DEAN DEFECT, and this restore was doing exactly that. The sequence is short and entirely
+         reachable from the danger zone:
+
+             unclaimed board, seeds present, no ledger name
+             -> un-seed   the snapshot records d2r_ledgerName: null, and writes Ledger-xxxxxxxx
+             -> "This browser is mine"   the claim handler writes a name ONLY when none is set,
+                                         so it leaves the un-seed's, and _D2R_OWNER becomes true
+             -> Undo      the snapshot said null, so the key was REMOVED
+             -> reload    _D2R_LEDGER falls through to the has-a-chronicle heuristic and answers
+                          'KonyoEndgame'; the browser is CLAIMED so _isCousinShell is false;
+                          _seedsBelongHere is therefore TRUE — a claimed stranger holding Konyo's
+                          245 finds, with the floors free to re-seed him forever.
+
+         Restoring the seeded chronicle is CORRECT — that is what the board held before the
+         un-seed and an undo must put it back. What must not be restored is a combination that
+         never existed: unnamed AND claimed. Before the un-seed this browser was unnamed and
+         UNCLAIMED, which is the state the heuristic is safe in.
+
+         So: remove the name only if the browser is still unclaimed. If a claim arrived in
+         between, write the name the claim itself would have written — which is what keeps
+         Konyo's OWN board working, because his is unclaimed and unnamed and its undo still
+         re-arms the heuristic exactly as before. */
       try {
-        if (bk.d2r_ledgerName == null) { window.localStorage.removeItem('d2r_ledgerName'); done.push('ledger name: cleared'); }
-        else { window.localStorage.setItem('d2r_ledgerName', bk.d2r_ledgerName); done.push('ledger name: restored'); }
+        var _claimedNow = null;
+        try { _claimedNow = window.localStorage.getItem('d2r_ownerClaim'); } catch(e){}
+        if (bk.d2r_ledgerName != null) {
+          window.localStorage.setItem('d2r_ledgerName', bk.d2r_ledgerName);
+          done.push('ledger name: restored');
+        } else if (_claimedNow) {
+          var _nm2 = 'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8);
+          window.localStorage.setItem('d2r_ledgerName', _nm2);
+          done.push('ledger name: this browser was CLAIMED after the snapshot, so it keeps a name '
+                    + '(' + _nm2 + ') instead of being handed the seed ledger by the heuristic');
+        } else {
+          window.localStorage.removeItem('d2r_ledgerName');
+          done.push('ledger name: cleared');
+        }
       } catch(e){}
       try { LSx.setItem('d2r_unseedRestoreReport',
               JSON.stringify({ at: Date.now(), from: bk.at, lines: done })); } catch(e){}
@@ -49251,7 +49286,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2706', name:'v2706 - the un-seed snapshot belongs to one profile and is spent once used', date:'2026-09-06', note:'the snapshot was bare while all five stores it restores are forked per profile, so an Undo after switching profiles would have written one account arrays into the other; and a restore never cleared it, which made every un-seed after the first roll back to the first snapshot' };
+  window.D2R_BUILD = { id:'v2707', name:'v2707 - the undo does not hand a claimed browser the seed ledger', date:'2026-09-06', note:'removing the ledger name is right on his own unclaimed board because only absence re-arms the heuristic that restores his floors, and wrong on a browser claimed between the un-seed and the undo, where it leaves a state that never existed and the heuristic answers with his identity' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

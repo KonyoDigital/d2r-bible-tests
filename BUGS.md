@@ -22379,3 +22379,35 @@ clear turns that law red.
 off for *both* profiles while the strip touches only the active one — an un-seed on LADDER strands
 MAIN's seeded `rwVerify` forever. Per-browser is defensible; per-profile is a design ruling and not
 mine to make.
+
+## REG-674 — the UNDO button could re-create the Dean defect
+
+**Shipped:** v2707 · **Found by:** `/code-review`, reproduced before it was believed
+
+The restore removed `d2r_ledgerName` whenever the snapshot recorded it as `null`. That is **right**
+on Konyo's own board — his is unclaimed and unnamed, and only *absence* re-arms the has-a-chronicle
+heuristic that restores his floors. It is **wrong** on a browser claimed in between, and the path
+is short and entirely reachable from the danger zone:
+
+```
+unclaimed board, seeds present, no ledger name
+ → un-seed                  snapshot records ledgerName: null, writes Ledger-xxxxxxxx
+ → "This browser is mine"   the claim writes a name ONLY when none is set, so it leaves the
+                            un-seed's; _D2R_OWNER becomes true
+ → Undo                     snapshot said null → the key is REMOVED
+ → reload                   heuristic answers 'KonyoEndgame'; browser is claimed so
+                            _isCousinShell is false; _seedsBelongHere TRUE
+```
+
+**A claimed stranger holding his 245 finds, with the floors free to re-seed forever** — the exact
+defect that started this arc, arriving through the button built to undo it.
+
+⚠ **Restoring the seeded chronicle is correct**; that is what the board held before the un-seed and
+an undo must put it back. What must not be restored is a combination that never existed: *unnamed
+AND claimed*. Before the un-seed the browser was unnamed and **unclaimed**, which is the state the
+heuristic is safe in.
+
+**Fix:** remove the name only while the browser is still unclaimed; if a claim arrived in between,
+write the name the claim itself would have written. Proven both ways —
+`UNCLAIMED=removed` (his board still re-arms) and `CLAIMED=named` (the stranger keeps his own
+ledger). Restoring the old unconditional removal turns that law red.
