@@ -532,6 +532,29 @@ GATES = [
              "IMPORT ALLOWLIST plus attribute- and bare-name call checks, after a substring "
              "version was defeated by `import json as _j` and then by `open()`."),
 
+    Gate("test_board_read_js_has_no_free_variables",
+         [sys.executable, os.path.join(HERE, "test_board_read_js_has_no_free_variables.py")], 120,
+         why="v2735 — v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. There is "
+             "no JS variable named `dump`: dump_stores is interpolated as a bare true/false "
+             "LITERAL twelve lines above. The name resolved to nothing, the WHOLE read threw "
+             "'Can't find variable: dump', and his automatic ledger backup wrote ZERO files for a "
+             "day while every gate stayed green — because they grade the SOURCE, and source is not "
+             "a running board. This extracts the JS board_ownership actually emits, statically, "
+             "and reports every identifier used but never declared. Proven RED on the real defect "
+             "and four sabotages. A free variable here does not degrade one field; it kills the "
+             "entire board read."),
+
+    Gate("test_backup_loop_is_watched",
+         [sys.executable, os.path.join(HERE, "test_backup_loop_is_watched.py")], 120,
+         why="v2735 — grades the WATCHER, not the loop. console_doctor's `backup loop` row reads "
+             "the RUNNING loop's last act from /api/status.ledgerBackup, which is where the "
+             "day-long outage above was visible and where nothing was looking. The load-bearing "
+             "law is that `_BACKUP_BENIGN` is an allowlist of what the loop is ALLOWED to have "
+             "done rather than a list of known errors — had it been the latter, an unpredicted "
+             "message like \"Can't find variable: dump\" would have fallen through as healthy. "
+             "Also pins that an unanswered console and a not-yet-run loop are UNKNOWN, never OK, "
+             "and that the timeout survives a COLD /api/status (measured 11.6s)."),
+
     Gate("test_ledger_backup_covers_every_store",
          [sys.executable, os.path.join(HERE, "test_ledger_backup_covers_every_store.py")], 120,
          why="v2731 — his automatic ledger backup ran every 10 minutes for 60 consecutive files "

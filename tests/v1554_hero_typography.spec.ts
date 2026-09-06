@@ -91,7 +91,12 @@ test.describe('v1554 — the lead outranks the room it is announced in', () => {
   test('★ the label names its universe instead of overclaiming', async () => {
     // "fastest find" over a grail-tier-only ranking is a wider claim than the data supports
     expect(UI, 'the old overclaim must be gone').not.toContain('your fastest find');
-    expect(UI, 'and the universe named').toContain('fastest of ');
+    // v2735 — PIN THE LAW, NOT THE SPACE BYTE. This asserted the literal 'fastest of '
+    // and went red when REG-696 bound `of` to its number with \u00a0 so the pair could
+    // never break across a line. The nbsp is correct and stays; the assertion was the
+    // thing that was wrong, because it pinned a character rather than the claim.
+    // MEASURED: the source now holds "fastest of\\u00a0' + da". [[regression-guard]]
+    expect(UI, 'and the universe named').toMatch(/fastest of(\\u00a0|&nbsp;|\u00a0| )/);
     expect(UI).toContain('data.ranked.length');
   });
 
@@ -166,7 +171,10 @@ test.describe('v1554 — the lead outranks the room it is announced in', () => {
       + 'labelled "faster outside Hell" comparison, which is v2281 working as designed')
       .not.toContain('Normal TZ Mephisto');
     expect(txt, 'and it says which rule it applied').toContain('fastest in hell');
-    expect(txt, 'with the denominator it applied it over').toMatch(/of \d+/);
+    // v2735 — the RENDERED half of the same nbsp change: the JS escape becomes a real
+    // U+00A0 on the page, so an ASCII-space pattern can no longer match. Accepts either,
+    // because what matters is that the denominator is named, not which space binds it.
+    expect(txt, 'with the denominator it applied it over').toMatch(/of[ \u00a0]\d+/);
     expect(txt, 'the materially quicker option below Hell is named, not hidden').toContain('Umbral Disk');
     expect(txt).toContain('quicker below Hell');
   });
