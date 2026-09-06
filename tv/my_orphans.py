@@ -10,6 +10,8 @@ This reports. IT KILLS NOTHING — killing needs a human look at what the proces
 `pkill -f` is banned on this machine because :17772 is his live console and a pattern cannot tell
 his process from mine. [[process-port-discipline]] [[unbounded-search-orphans]]
 """
+import io
+import json
 import os
 import subprocess
 import sys
@@ -33,6 +35,61 @@ KNOWN = ("xprotect", "mds_stores", "WindowServer", "claude.exe", "Terminal", "sp
 
 BUSY_PCT = float(os.environ.get("TV_ORPHAN_CPU") or 20.0)
 OLD_MIN = int(os.environ.get("TV_ORPHAN_MIN") or 20)
+
+
+#: Ports that are HIS by definition. A process holding one of these is never "mine", whatever else
+#: matches — his console, his Chrome, TradingView, his desktop app.
+HIS_PORTS = (17772, 17781, 17955, 9222, 9223, 8848)
+
+#: Where `claude-owns` records what it started. ⚠ INCOMPLETE BY NATURE: 53 rows, last written a day
+#: before this was needed, and today's 52-minute runaway was never in it. Registration is a claim
+#: about INTENT that has to be made at spawn — so its ABSENCE proves nothing at all.
+_SPAWN_LEDGER = os.path.expanduser("~/.claude/claude_spawned.jsonl")
+
+
+def _registered_pids():
+    """Pids `claude-owns` recorded at spawn. -> set (empty if the ledger cannot be read).
+
+    ⚠ AN EMPTY SET IS NOT "NOTHING IS OURS". It is "the ledger said nothing", and the caller must
+    not read one as the other — which is exactly why attribution below has a third answer.
+    """
+    out = set()
+    try:
+        with io.open(_SPAWN_LEDGER, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except Exception:
+                    continue
+                p = row.get("pid")
+                if p is not None:
+                    out.add(str(p))
+    except Exception:
+        return set()
+    return out
+
+
+def _attribute(pid, cmd):
+    """Whose process is this? -> (True|False|None, why)
+
+    True  — positively OURS: registered at spawn, or naming this tree, or holding one of our ports.
+    None  — UNATTRIBUTED. Busy, old, not a known system process, and nothing can say whose it is.
+            ⚠ THIS IS THE HONEST ANSWER FOR THE CASE THAT MATTERS MOST. Today's real runaway —
+            `python3 -c` over bible.html, 100% CPU for 52 minutes — was in no ledger, named no tree
+            path, and held no port. A rule that only reported POSITIVE ownership would have said
+            nothing about it at all. [[unknown-stays-unknown]]
+    """
+    if str(pid) in _registered_pids():
+        return True, "registered by claude-owns at spawn"
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _root = os.path.dirname(_here)
+    if _here in cmd or _root in cmd:
+        return True, "names this tree on its command line"
+    return None, ("busy and old, and nothing can say whose it is — not in the spawn ledger, does "
+                  "not name this tree, holds none of our ports")
 
 
 def _elapsed_minutes(et):
@@ -71,8 +128,12 @@ def suspects(busy=BUSY_PCT, old_min=OLD_MIN):
             continue
         if any(k in cmd for k in KNOWN):
             continue
+        # ⚠⚠ WHOSE IS IT? Until now this dict was labelled "ours" having tested nothing — `ppid` was
+        # parsed on the line above and never read, and the only filter was a substring list that
+        # flagged PID 1. Three POSITIVE witnesses are asked, and the answer travels with the row.
+        _own, _ownWhy = _attribute(pid, cmd)
         out.append({"pid": pid, "ppid": ppid, "cpu": cpu, "minutes": round(mins, 1),
-                    "cmd": cmd[:150]})
+                    "cmd": cmd[:150], "ours": _own, "whose": _ownWhy})
     return out
 
 

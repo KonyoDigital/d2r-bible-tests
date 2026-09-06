@@ -544,6 +544,19 @@ GATES = [
              "to the same ignorance, and the direction that cost two fixture reels at v2229 — and "
              "that POLICY holds stay uncovered, because he asked for the evidence frames."),
 
+    Gate("test_orphans_say_whose_they_are",
+         [sys.executable, os.path.join(HERE, "test_orphans_say_whose_they_are.py")], 120,
+         why="v2744 — the stray-process row claimed 'nothing of OURS is busy and old' while "
+             "my_orphans had NO ownership test at all: ppid was parsed and never read, and the "
+             "only filter was 30 hardcoded substrings that flagged coreaudiod, ControlCenter and "
+             "PID 1 (eight earlier false positives of the same kind are recorded in "
+             ".console_scars.json.corrupt). Wrong in BOTH directions — it also silently exempted "
+             "anything whose argv merely contained 'bird' or 'Terminal'. ⚠ NOT fixed by swapping "
+             "to a positive rule: the real 52-minute runaway on 2026-09-06 was in no spawn ledger, "
+             "named no tree path and held no port, so all three positive witnesses failed and only "
+             "the exclusion rule caught it. Pins the THIRD state — OURS -> WARN, UNATTRIBUTED -> "
+             "UNKNOWN (not the rail's failure state), still REPORTED, never dismissed."),
+
     Gate("test_a_prune_records_what_it_freed",
          [sys.executable, os.path.join(HERE, "test_a_prune_records_what_it_freed.py")], 120,
          why="v2743 — 8,790 disk-history rows and NOT ONE has ever carried a freed figure (8,270 "

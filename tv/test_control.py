@@ -16688,8 +16688,19 @@ class TestV2002AVaultSealIsNotALifeSentence(unittest.TestCase):
         with open(ca.__file__, encoding="utf-8") as fh:
             src = fh.read()
         self.assertIn('"promptVer": _pv', src, "the vault seal no longer records its reader")
-        self.assertIn('"rows": int(_rows)', src,
-                      "without rows, a productive seal cannot be told from an empty one")
+        # ⚠⚠ v2743 — THIS PINNED THE DEFECTIVE BYTES, AND PINNING THEM HELD THE DEFECT IN PLACE.
+        # `"rows": int(_rows)` was the PASS-WIDE count stamped on every session in the pass. It
+        # already fired: six seals written in one second on 2026-08-24 each claim rows=7 over a
+        # pass that produced 7 rows total, and two of those sessions witnessed NOTHING. This law's
+        # own stated intent — "a productive seal cannot be told from an empty one" — is served
+        # BETTER by the per-session figure, and was being blocked by its own spelling.
+        # The property is that a seal records a rows count; which count is the fix.
+        # [[regression-guard]] — pin the LAW, not the bytes.
+        self.assertRegex(src, r'"rows":\s*(?:_srows|int\(_rows\))',
+                         "without rows, a productive seal cannot be told from an empty one")
+        self.assertIn('"passRows": int(_rows)', src,
+                      "the PASS total is no longer recorded beside the per-session figure. Both "
+                      "must travel: the 42-row phantom happened because one number did two jobs.")
         self.assertIn("_vault_still_sealed(_sealed_rec(d))", src,
                       "the skip list does not consult the predicate — seals are permanent again")
 

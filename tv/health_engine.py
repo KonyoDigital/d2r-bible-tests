@@ -397,10 +397,40 @@ def check_orphans():
         return _row("orphans", UNKNOWN, "the orphan sweep could not be loaded — %s" % e)
     rows = MO.suspects()
     if not rows:
-        return _row("orphans", OK, "nothing of ours is both busy and old")
-    ev = ["pid %s %.0f%% CPU %.0f min — %s" % (r.get("pid"), r.get("cpu", 0), r.get("minutes", 0),
-                                               str(r.get("cmd"))[:70]) for r in rows]
-    return _row("orphans", WARN, "%d process(es) busy and old" % len(rows), ev)
+        return _row("orphans", OK, "nothing busy and old that is not a known system process")
+
+    # ⚠⚠ v2744 — TWO ANSWERS, NOT ONE, AND THE OLD ONE CLAIMED SOMETHING IT NEVER TESTED.
+    # This row said "nothing of OURS is both busy and old" while `my_orphans` had no ownership test
+    # at all — `ppid` was parsed and never read, and the only filter was a substring list that
+    # flagged `coreaudiod`, `ControlCenter` and PID 1. `.console_scars.json.corrupt` records eight
+    # earlier false positives of the same kind. Worse, WARN maps to MISSING on the rail, so a
+    # system daemon rendered as the rail's FAILURE state.
+    #
+    # Now attribution travels with each row and the two are graded differently:
+    #   OURS          -> WARN. Something I started is burning a core. Actionable, and mine.
+    #   UNATTRIBUTED  -> UNKNOWN. Busy and old and nobody can say whose. That is genuinely
+    #                   unknown, and UNKNOWN is the state this repo has for exactly that.
+    # ⚠ UNATTRIBUTED IS NOT DISMISSED. Today's real runaway — 100% CPU for 52 minutes — was in no
+    # spawn ledger, named no tree path and held no port; all three positive witnesses failed on it.
+    # A rule that only reported POSITIVE ownership would have said nothing about it at all.
+    # [[unknown-stays-unknown]] [[i-own-everything-i-start]]
+    def _fmt(r):
+        return "pid %s %.0f%% CPU %.0f min — %s" % (r.get("pid"), r.get("cpu", 0),
+                                                    r.get("minutes", 0), str(r.get("cmd"))[:70])
+    mine = [r for r in rows if r.get("ours") is True]
+    unattributed = [r for r in rows if r.get("ours") is not True]
+    if mine:
+        return _row("orphans", WARN,
+                    "%d process(es) OF OURS busy and old%s"
+                    % (len(mine),
+                       ("; %d more busy and old that nobody can attribute" % len(unattributed))
+                       if unattributed else ""),
+                    [_fmt(r) for r in mine] + [_fmt(r) for r in unattributed])
+    return _row("orphans", UNKNOWN,
+                "%d process(es) busy and old, and nothing can say whose they are — not in the "
+                "spawn ledger, not naming this tree, holding none of our ports. UNATTRIBUTED is "
+                "not the same as ours, and not the same as fine." % len(unattributed),
+                [_fmt(r) for r in unattributed])
 
 
 def check_self_arming():
