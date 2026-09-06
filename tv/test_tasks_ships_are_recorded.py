@@ -116,6 +116,39 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
             "these versions MOVED THE STAMP but appear NOWHERE in TASKS.md, so the list no longer "
             "describes what the repo did:\n" + "\n".join("    %s  %s" % (v, sha) for v, sha in missing))
 
+    def test_the_bump_RECORDS_the_row_itself(self):
+        """v2715 — THE MIDDLE STEP FAILED THREE TIMES, SO IT IS NO LONGER A STEP.
+
+        This file already told anyone reading it: *"THE WORKFLOW IT ENFORCES: bump -> record the
+        row here -> commit. The gate fails on its own ship if that middle step is skipped - it did,
+        on v2670, which is how this line came to exist."*
+
+        It then happened on v2712, v2713 AND v2714, in a single session, by the same hand that had
+        just read that sentence. This gate caught it in CI, correctly, three ships late.
+
+        A step a human must remember, in the middle of a mechanical sequence a tool is already
+        performing, will be skipped again. `bump_version` already edits four files; TASKS.md is the
+        fifth surface describing the same event, and the tool that moves the stamp is the only
+        thing that reliably knows a ship happened. So it writes the row now — and this pins that it
+        still DOES, because a recorder that exists and is never called is the purest form of the
+        defect this repo keeps paying for. [[the-unjoined-end]]
+        """
+        import io as _io
+        src = _io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8").read()
+        src = re.sub(r'"""(?:.|\n)*?"""', " ", src)          # judge CODE, not the prose about it
+        src = re.sub(r"(?m)#.*$", " ", src)
+        self.assertIn(
+            "def _record_ship_in_tasks", src,
+            "bump_version has no ship recorder, so recording a ship is a step somebody has to "
+            "remember — and that has now failed on v2670, v2712, v2713 and v2714."
+        )
+        self.assertIn(
+            "_record_ship_in_tasks(", src.split("def _record_ship_in_tasks", 1)[0]
+            + src.split("def _record_ship_in_tasks", 1)[1].split("\ndef ", 1)[-1],
+            "the recorder is DEFINED but never CALLED from the bump. A tested helper nobody "
+            "invokes is exactly the shape this gate exists to prevent."
+        )
+
     # ⚠ A SECOND TEST WAS WRITTEN HERE AND THEN REMOVED, BECAUSE ITS LAW WAS FALSE.
     # It asserted the mirror defect: that any version TASKS.md names must have moved the stamp.
     # It fired on 7 versions - and the premise, not the file, was wrong. A RANGE ship

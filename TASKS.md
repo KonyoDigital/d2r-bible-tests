@@ -1329,6 +1329,10 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2715** | `(this commit)` | v2715 — recording a ship in TASKS.md was a step somebody had to remember and it failed on v2670 v2712 v2713 and v2714; the bump writes the row itself now |
+| **v2714** | `d2e8bc88` | v2714 — REG-684: HIS ruling, *"this needs a unified and sharing logic"*. The chronicle denominator was re-derived at ELEVEN sites and they disagreed on his own screen — `/api/fleet` returned 169/398 and 292/403 six minutes apart on the SAME board while the meter read 258/403. Nine sites now call one function; `_darkN`/`_uniLeft` keep both totals apart on purpose |
+| **v2713** | `e6a484a6` | v2713 — REG-682/683: nothing in the repo ever asked whether a page scrolls sideways (zero coverage, now a metric on every target, proven both halves). And the known-but-unwatched dash overrun was recorded as 9px since v2609 — re-measured at **74px**, wrong by 8x |
+| **v2712** | `daaaf719` | v2712 — REG-681: every ship left his 6 MB bible.html at ZERO BYTES for 4.8% of concurrent reads. `bump_version` wrote all four stamps with a call that truncates on open, and his console re-reads that file per request — his "panel that renders NOTHING". Now tmp + os.replace |
 | **v2711** | `(this commit)` | v2711 — REG-680: his symmetric-pills ruling shipped at v2686 with nothing pinning it; now gated on the law, not the string |
 | **v2710** | `(this commit)` | v2710 — REG-679: a change to render_check.py did not re-run the render gate, so I shipped a RED target through the hole |
 | **v2709** | `(this commit)` | v2709 — REG-678: the template station names which Chronicle page a reel showed; the ledger was in the visit row all along, and the gate is synthetic because his shelf cannot exercise it |

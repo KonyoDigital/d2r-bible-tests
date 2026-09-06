@@ -134,6 +134,8 @@ def bump(ver, name, note):
         # them. [[open-for-write-truncates-first]] [[stale-render]]
         atomic_write(path, text, nl)
 
+    _record_ship_in_tasks(ver, name, note)
+
     _drop_stale_bytecode([p for p, _t in pending])
 
     print("%s -> %s  (%s)" % (cur, ver, name))
@@ -170,6 +172,45 @@ def atomic_write(path, text, nl=""):
     with io.open(tmp, "w", encoding="utf-8", newline=nl) as fh:
         fh.write(text)
     os.replace(tmp, path)
+
+
+def _record_ship_in_tasks(ver, name, note):
+    """Write the ship's row into TASKS.md, because remembering to has failed THREE times.
+
+    TASKS.md documents the workflow in its own words: **bump -> record the row here -> commit**,
+    and adds that "the gate fails on its own ship if that middle step is skipped - it did, on
+    v2670, which is how this line came to exist."
+
+    It then happened again on v2712, v2713 AND v2714, in one session, by the same hand that had
+    just read that sentence. `test_tasks_ships_are_recorded` caught it in CI, correctly, three
+    ships late.
+
+    ⚠ THE FIX IS NOT TO REMEMBER HARDER. A step that a human (or a model) must remember, in the
+    middle of a mechanical sequence the machine is already performing, will be skipped again. The
+    bump already edits four files; the list is the fifth surface describing the same event, and
+    the tool that moves the stamp is the only thing that reliably knows a ship happened.
+    [[the-unjoined-end]] [[copy-drift]]
+
+    Never fatal: a bump that cannot write the list must still bump. A version stamp half-applied
+    because a MARKDOWN TABLE could not be edited would be a far worse failure than the one this
+    prevents.
+    """
+    try:
+        p = os.path.join(REPO, "TASKS.md")
+        s = io.open(p, encoding="utf-8").read()
+        if ver in s:
+            return                              # already recorded by hand; do not duplicate
+        # the newest row sits directly under the table header, so anchor on the header itself
+        # rather than on whatever version happens to be top today.
+        head = "| version | commit | commit subject |\n|---|---|---|\n"
+        if head not in s:
+            print("   \u26a0 TASKS.md ship table not found - record %s by hand" % ver)
+            return
+        row = "| **%s** | `(this commit)` | %s \u2014 %s |\n" % (ver, ver, (note or name or "").strip())
+        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))
+        print("   recorded %s in TASKS.md" % ver)
+    except Exception as e:
+        print("   \u26a0 could not record %s in TASKS.md (%s) - do it by hand" % (ver, str(e)[:80]))
 
 
 def _drop_stale_bytecode(paths):

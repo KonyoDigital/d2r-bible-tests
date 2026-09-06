@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2714",
+  "ver": "v2715",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2714: his ruling: the fleet and the chronicle tabs must not render different numbers; nine sites now call one function and the fallback counts itself",
+  "note": "v2715: recording a ship in TASKS.md was a step somebody had to remember and it failed on v2670 v2712 v2713 and v2714; the bump writes the row itself now",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
