@@ -1168,6 +1168,72 @@ def _inv_only_a_declared_owner_world_posts_owner_numbers():
             "<=")
 
 
+def _inv_the_evidence_ledger_survived_the_sweep_that_filled_it():
+    """v2730 — 310 NAMES OF TESTIMONY, 7,944 SIGHTINGS, AND NOTHING WAS WATCHING THEM.
+
+    Konyo: *"the join the heart of the console connect and wire whatever is needed so its all not
+    in the dark"*. `chron_evidence.json` is, in its own writer's words (control_app.py:19721),
+    "the only thing making cross-reel corroboration possible" — and grepping corroborate.py,
+    console_doctor.py, heart.py and lane_census.py for it returned ZERO hits. It was not declared
+    covered and not declared uncovered; it was simply unexplained, which is the silence
+    `coverage()` exists to shout about.
+
+    ⚠⚠ AND THE FAILURE IT WATCHES FOR HAS ALREADY HAPPENED ONCE. v1779's docstring records that
+    `_chron_evidence_load` returned {} on any exception, `_chron_evidence_merge` then merged the
+    current run into {} and saved THAT as the whole accumulated ledger — so ONE TORN READ SILENTLY
+    DELETED EVERY SIGHTING EVER COLLECTED. Nothing on any screen would have said so.
+
+    THE TWO SIDES, and why they are independent WITHOUT being computed independently:
+      LEFT   chronicle_swept.json — did the sweep ever bank a page? (any entry with pages > 0)
+      RIGHT  chron_evidence.json  — does the evidence ledger hold any name at all?
+    Both are written during the same sweep, from the same result — so this is NOT independence of
+    DERIVATION. It is independence of SURVIVAL: two files, two save functions, two failure modes.
+    The v1779 bug destroyed one and left the other untouched, which is exactly the shape a
+    corroborator can see and a single reader cannot. Measured today: chronicle_swept.json holds 401
+    entries, 24 with pages > 0; chron_evidence.json holds 310 uniques and 126 sets.
+
+    ⚠ THE RELATION IS `<=` AND THE DIRECTION IS THE POINT. "We remember sweeping pages" (1) while
+    "the ledger holds nothing" (0) is 1 <= 0 and FAILS. The reverse — evidence without a sweep
+    memory — is not a loss and is allowed: a rebuilt or hand-seeded ledger is not a defect.
+
+    ⚠ EMPTY IS UNKNOWN, NOT ZERO, ON BOTH SIDES. A tree that has never swept has nothing to say
+    about whether the ledger survived, and answering 0 there would make this hold vacuously on
+    every fresh checkout — the [[zero-needs-a-denominator]] trap that let another invariant in this
+    file pass for months while examining nothing. [[unknown-stays-unknown]]
+    """
+    def left():
+        import control_app as ca
+        try:
+            sw = ca._chron_swept_mem()
+        except Exception:
+            return None
+        if not isinstance(sw, dict) or not sw:
+            return None                      # nothing swept yet — UNKNOWN, never 0
+        return 1 if any(isinstance(v, dict) and (v.get("pages") or 0) > 0
+                        for v in sw.values()) else 0
+
+    def right():
+        import control_app as ca
+        try:
+            ev = ca._chron_evidence_load()
+        except Exception:
+            return None
+        if not isinstance(ev, dict):
+            return None
+        n = len(ev.get("uniques") or {}) + len(ev.get("sets") or {})
+        if n == 0 and not ev:
+            return None                      # an absent file is not an emptied one
+        return 1 if n > 0 else 0
+
+    return ("evidence-survived-its-sweep",
+            "if the sweep remembers banking pages, the evidence ledger still holds names",
+            "empty chron_evidence.json while chronicle_swept.json still remembers 24 reels with "
+            "pages — the exact v1779 failure, where one torn read deleted every sighting ever "
+            "collected and no screen said so",
+            "sweep memory banked pages", left,
+            "evidence ledger holds names", right, "<=")
+
+
 def _inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR():
     """v2725 — THE RUNG VOCABULARY HAS TWO OWNERS, AND ONLY ONE OF THEM KNOWS IT.
 
@@ -1303,7 +1369,8 @@ def _inv_a_world_reporting_nothing_holds_nothing():
             "<=")
 
 
-BUILDERS = (_inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR,
+BUILDERS = (_inv_the_evidence_ledger_survived_the_sweep_that_filled_it,
+            _inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR,
             _inv_a_world_reporting_nothing_holds_nothing,
             _inv_only_a_declared_owner_world_posts_owner_numbers,
             _inv_every_door_counts_the_reels_it_opened,
@@ -1343,6 +1410,8 @@ COVERED_BY = {
     "hunt economy":      ("hunt-remembers",),
     "engines corroborate": ("eagle-ran-every-check",),
     "reel rungs":        ("every-rung-is-accounted-for",),
+    # v2730 — his "so its all not in the dark". 310 names of testimony had NO joint of any kind.
+    "evidence ledger":   ("evidence-survived-its-sweep",),
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {

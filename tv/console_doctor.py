@@ -511,6 +511,89 @@ def _check_footage_belongs_to_a_reel():
     return OK, "every recording frame belongs to a reel"
 
 
+def _check_the_evidence_ledger_is_readable():
+    """v2730 — 310 NAMES OF TESTIMONY AND NOTHING WAS LOOKING AT THEM.
+
+    Konyo: *"the join the heart of the console connect and wire whatever is needed so its all not
+    in the dark"*. `chron_evidence.json` is what makes cross-reel corroboration possible — its own
+    writer says so — and no Doctor row, no invariant and no census entry mentioned it.
+
+    ⚠ AN UNREADABLE LEDGER MUST NEVER READ AS AN EMPTY ONE. v1779 recorded the real event: one
+    torn read returned {}, the merge saved {} as the whole accumulated ledger, and every sighting
+    ever collected was gone with nothing on any screen to say so.
+    ⚠ AND THE TELL IS INTERNAL: `pagesRead` counts pages the reader got through. Pages banked with
+    ZERO names left is not a quiet day — it is the signature of a ledger that was emptied after
+    the reading happened. That comparison is free and it is the one this row exists to make.
+    """
+    import json as _j
+    fp = os.path.join(HERE, "chron_evidence.json")
+    if not os.path.exists(fp):
+        return UNKNOWN, ("chron_evidence.json has never been written — there is no testimony to "
+                         "lose yet, which is different from having lost it")
+    try:
+        with open(fp, encoding="utf-8") as fh:
+            ev = _j.load(fh)
+    except Exception as e:
+        return MISSING, ("chron_evidence.json will not parse (%s) — every sighting ever banked is "
+                         "INCOMPLETE, not empty, and nothing downstream may treat it as zero"
+                         % str(e)[:60])
+    if not isinstance(ev, dict):
+        return MISSING, ("chron_evidence.json is a %s, not an object — the ledger's shape is gone"
+                         % type(ev).__name__)
+    n_u = len(ev.get("uniques") or {})
+    n_s = len(ev.get("sets") or {})
+    pages = ev.get("pagesRead")
+    if (n_u + n_s) == 0 and isinstance(pages, int) and pages > 0:
+        return MISSING, ("%d page(s) were read and banked, and the ledger now holds ZERO names — "
+                         "that is the v1779 shape: a ledger emptied after the reading happened"
+                         % pages)
+    return OK, ("%d unique(s) and %d set(s) carry testimony across %s page(s) read"
+                % (n_u, n_s, pages if pages is not None else "an unrecorded number of"))
+
+
+def _check_the_ledger_backup_covers_every_store():
+    """v2730 — THE AUTOMATIC BACKUP HAS NEVER CAPTURED TWO OF HIS SIX LEDGERS.
+
+    MEASURED on his 60 real backup files, 2026-09-06: every one carries foundLog (419), owned (169)
+    and setPieces (123) — and NOT `rwMade` (his 99 runewords) or `gameFound` (29). No file records
+    which PROFILE it came from either.
+
+    ⚠⚠ AND IT BLINDS A WATCHER. tv/ledger_highwater.py ratchets
+    KEYS = (foundLog, setPieces, rwMade, owned) against each key's historic max — but since no
+    snapshot has ever carried `rwMade`, that column can only read UNKNOWN, forever, and an UNKNOWN
+    column looks exactly like a column with nothing wrong. A backup that runs every ten minutes and
+    writes a plausible file is the most convincing kind of gap there is.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+    import json as _j, glob as _g
+    d = os.path.expanduser("~/d2r_ledger_backups")
+    if not os.path.isdir(d):
+        return UNKNOWN, "no ledger-backup directory yet — nothing has been snapshotted"
+    files = sorted(_g.glob(os.path.join(d, "ledger_*.json")), key=os.path.getmtime, reverse=True)
+    if not files:
+        return UNKNOWN, "the backup directory is empty — no snapshot has ever been written"
+    try:
+        with open(files[0], encoding="utf-8") as fh:
+            b = _j.load(fh)
+    except Exception as e:
+        return MISSING, ("the newest ledger backup will not parse (%s) — the copy of his ledgers "
+                         "cannot be trusted" % str(e)[:50])
+    led = (b.get("ledger") or {}) if isinstance(b, dict) else {}
+    WANT = ("foundLog", "owned", "setPieces", "rwMade", "gameFound")
+    missing = [k for k in WANT if k not in led]
+    routed = any(k in (b or {}) for k in ("route", "profile", "who", "machine"))
+    if missing:
+        return MISSING, ("the newest backup carries %d of %d ledgers — MISSING %s. Those stores "
+                         "have no automatic copy at all, and ledger_highwater ratchets rwMade "
+                         "against snapshots that never contain it."
+                         % (len(WANT) - len(missing), len(WANT), ", ".join(missing)))
+    if not routed:
+        return MISSING, ("the newest backup records no route/profile, so nothing says WHOSE "
+                         "ledgers it holds and a restore cannot tell one profile from another")
+    return OK, ("the newest backup carries all %d ledgers and names its profile (%d file(s) kept)"
+                % (len(WANT), len(files)))
+
+
 def _check_the_vault_stores_are_readable():
     """His ledger is the whole point of the vault manager. An unreadable store must never read as
     an empty one — that difference is what the free ledger view exists to keep."""
@@ -1545,6 +1628,10 @@ CHECKS = [
     ("art corpus", _check_the_art_corpus),
     ("footage has a reel", _check_footage_belongs_to_a_reel),
     ("vault stores", _check_the_vault_stores_are_readable),
+    # v2730 — his "so its all not in the dark": the evidence ledger and the backup that is meant
+    # to protect it both had ZERO rows in this list until now.
+    ("evidence ledger", _check_the_evidence_ledger_is_readable),
+    ("ledger backup", _check_the_ledger_backup_covers_every_store),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
     ("store emptied", _check_the_board_store_did_not_come_up_empty),

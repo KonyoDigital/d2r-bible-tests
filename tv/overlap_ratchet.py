@@ -101,6 +101,30 @@ SKIP_EXIT = 77
 #: never be folded into a total as a zero.
 UNREACHABLE_PANELS = ("th-dossier-ov",)
 
+#: (width-key, panel) pairs that are structurally UNMEASURABLE — the panel exists but does not
+#: populate at that width, so its overlap count is a reading of an empty box.
+#:
+#: ⚠⚠ v2730 — THIS FILE ALREADY SAID SO IN PROSE AND NOTHING ENFORCED IT. The baseline's own
+#: `_panels` note reads: "heart-ov at 375 carries only 3 leaves — it does not populate at that
+#: width, so its 0 is NOT evidence of anything and must not be read as clean." That warning was
+#: written into the very file whose numbers I then quoted, and I reported "375 fully recovered,
+#: 2 -> 0" three times on the strength of a 0 measured over THREE text leaves against the 32-43
+#: a populated panel carries. A note nobody can act on is a note nobody acts on.
+#: [[zero-needs-a-denominator]] [[measured-true-read-wrong]]
+UNMEASURABLE_AT = {
+    ("375x800", "heart-ov"): "the heart panel does not populate at 375 — 3 text leaves against "
+                             "the 32-43 a rendered panel carries, so any count here is a reading "
+                             "of an empty box, not a clean one",
+}
+
+
+def _unmeasurable(key):
+    """-> reason, or None. `key` is like '375x800 heart-ov'."""
+    parts = str(key).split(" ", 1)
+    if len(parts) != 2:
+        return None
+    return UNMEASURABLE_AT.get((parts[0], parts[1]))
+
 #: minimum overlap in BOTH axes before two boxes count as colliding. A 1-2px kiss is antialiasing
 #: and letter-spacing, not two labels on top of each other; measured, 3px removes those without
 #: hiding any of the 24 real ones at 375.
@@ -387,10 +411,36 @@ def _twice():
         # count — changes on its own. A ratchet over that is red for reasons nobody caused, and
         # this module's own doctrine says a gate red on arrival gets switched off rather than read.
         # The PANELS are the gradeable surface: every panel key measured 0 on every run.
+        # ⚠⚠ v2730 — TWO AGREEING COUNTS OVER TWO DIFFERENT PANELS IS NOT AGREEMENT.
+        # This compared only the overlap COUNT. Measured 2026-09-06 at 375x800, two consecutive
+        # runs seconds apart:
+        #       run 1:  0 overlap(s)  across  3 text leaves
+        #       run 2:  1 overlap(s)  across 32 text leaves
+        # Three leaves against thirty-two: the first run measured a panel that had not finished
+        # laying out. A count taken over almost nothing is not a low count, it is an UNMEASURED
+        # one — and if BOTH runs catch the panel half-rendered they both read 0, they AGREE, and
+        # this function blesses the pair as stable. I reported "375 fully recovered, 2 -> 0" three
+        # times on exactly that reading.
+        #
+        # So the DENOMINATOR has to agree too. `leaves` was already measured and already printed
+        # (`%d overlap(s) across %d text leaf/leaves`) and then discarded — the number that would
+        # have caught this was on screen the whole time.
+        # [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+        if _unmeasurable(k):
+            # structurally unmeasurable at this width — never graded, and SAID so rather than
+            # silently dropped, because an absent row reads as a clean one
+            counts[k] = UNSTABLE
+            samples[k] = (a.get(k) or {}).get("sample") or []
+            continue
+        la = (a.get(k) or {}).get("leaves")
+        lb = (b.get(k) or {}).get("leaves")
+        _same_panel = (la is not None and lb is not None and la == lb)
         if _is_panel_key(k):
-            counts[k] = va if (va is not None and va == vb) else UNSTABLE
+            counts[k] = va if (va is not None and va == vb and _same_panel) else UNSTABLE
         else:
             counts[k] = UNSTABLE
+        # keep the denominator beside the verdict so a reader can see what it was measured over
+        samples.setdefault("_leaves", {})[k] = (la, lb)
         samples[k] = (a.get(k) or {}).get("sample") or []
     return counts, samples, ""
 
@@ -487,6 +537,15 @@ def check():
     for k in sorted(set(list(old) + list(got))):
         now = (got.get(k) or {}).get("count")
         then = old.get(k)
+        # ⚠⚠ v2730 — STRUCTURALLY UNMEASURABLE IS NOT A NUMBER, AND check() GRADED IT ANYWAY.
+        # `_twice()` learned to skip these, but check() calls measure() DIRECTLY, so the guard only
+        # protected the baseline writer and never the verdict — the two halves of one rule, joined
+        # at one end. heart-ov at 375 kept being graded on a count taken over 3 text leaves.
+        # SAID, never silently dropped: a row that vanishes from the list reads as a clean one.
+        _un = _unmeasurable(k)
+        if _un:
+            print("   %-26s ⚪ NOT GRADED — %s (read %s)" % (k, _un, now))
+            continue
         if now is None:
             bad.append("%s was in the baseline and was NOT measured" % k)
             continue

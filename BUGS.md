@@ -22536,6 +22536,68 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-691 — 310 names of testimony, 7,944 sightings, and nothing in the heart watched them
+
+**v2730.** Konyo: *"the join the heart of the console connect and wire whatever is needed so its all
+not in the dark"*. `chron_evidence.json` — 310 uniques and 126 sets carrying testimony across 2,647
+pages read — had NO invariant, NO Doctor row and NO census entry. Grepping corroborate.py,
+console_doctor.py, heart.py and lane_census.py for it returned zero hits. It was not declared
+covered and not declared uncovered; it was UNEXPLAINED, which is the silence `coverage()` exists to
+shout about.
+
+⚠ THE FAILURE IT NOW WATCHES FOR HAS ALREADY HAPPENED. v1779 records it: `_chron_evidence_load`
+returned {} on any exception, `_chron_evidence_merge` merged the run into {} and saved THAT as the
+whole accumulated ledger — one torn read silently deleted every sighting ever collected, and no
+screen said so.
+
+JOINED: `_inv_the_evidence_ledger_survived_the_sweep_that_filled_it` — LEFT chronicle_swept.json
+(did the sweep ever bank a page), RIGHT chron_evidence.json (does the ledger hold any name),
+relation `<=`. NOT independence of derivation — both are written from the same sweep — but
+independence of SURVIVAL: two files, two save functions, two failure modes, and the v1779 bug
+destroyed one and left the other untouched.
+PROVEN four ways: evidence wiped while sweep memory remembers -> DISAGREE · nothing ever swept ->
+UNKNOWN · evidence unreadable -> UNKNOWN, never 0 · swept-but-banked-nothing -> 0<=0 allowed.
+DOCTOR: `evidence ledger` (an unreadable ledger may never read as an empty one; pages banked with
+zero names is the v1779 signature) and `ledger backup` (below).
+COVERED_BY names it, so it leaves `coverage()`'s unexplained bucket.
+
+## REG-692 — the automatic backup has never captured two of his six ledgers
+
+**v2730.** MEASURED on his 60 real backup files: every one carries foundLog (419), owned (169) and
+setPieces (123) — and NOT `rwMade` (his 99 runewords) or `gameFound` (29). No file records which
+PROFILE it came from either.
+⚠ AND IT BLINDS A WATCHER: `tv/ledger_highwater.py` ratchets KEYS=(foundLog, setPieces, rwMade,
+owned) against each key's historic max — but since no snapshot has ever carried `rwMade`, that
+column can only read UNKNOWN, forever, and an UNKNOWN column looks exactly like one with nothing
+wrong. A backup that runs every ten minutes and writes a plausible file is the most convincing kind
+of gap there is.
+The new `ledger backup` Doctor row went RED on its first run, naming the two missing stores. The
+capture itself is still to be widened — the row makes the gap VISIBLE, which is the half that was
+missing.
+
+## REG-693 — a 0 measured over three text leaves, reported as a win three times
+
+**v2730.** I reported "375x800 heart-ov fully recovered, 2 -> 0" three times today. MEASURED, two
+consecutive runs seconds apart:
+    run 1:  0 overlap(s)  across  3 text leaves
+    run 2:  1 overlap(s)  across 32 text leaves
+Three leaves against thirty-two — the first run measured a panel that had not finished laying out.
+⚠⚠ AND THE BASELINE FILE ITSELF ALREADY SAID SO, in its own `_panels` note: *"heart-ov at 375
+carries only 3 leaves — it does not populate at that width, so its 0 is NOT evidence of anything and
+must not be read as clean."* That warning was written into the very file whose numbers I quoted.
+A note nobody can act on is a note nobody acts on. [[measured-true-read-wrong]]
+
+FIXED IN TWO PLACES, because the rule was joined at one end:
+  · `_twice()` now requires the LEAF COUNT to agree, not just the overlap count — two runs that
+    both catch a half-rendered panel both read 0, AGREE, and were blessed as stable.
+  · `UNMEASURABLE_AT` declares (375x800, heart-ov) structurally unmeasurable WITH ITS REASON, and
+    `check()` now honours it. The first cut put the guard only in `_twice()`, which protects the
+    baseline writer and never the verdict — so the graded number stayed unguarded.
+  · It is SAID, never silently dropped: the row prints "⚪ NOT GRADED — <reason> (read N)", because
+    a row that vanishes from a list reads as a clean one.
+RESULT: the ratchet reads ✅ held, exit 0, on an honest baseline of 3 at the three widths where the
+panel actually renders.
+
 ## REG-690 — banking evidence widened two labels and broke the heart fan, with no code touched
 
 **v2729.** On 2026-09-06 I banked sabotage, live and cross-family evidence into `reel.route` and
