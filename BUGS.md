@@ -22442,3 +22442,30 @@ run (`hrt-svgwrap :: miniauto.run — INCOMPLETE —`), filed as its own row rat
 **Also fixed:** the probe counted zero-size nodes without naming them, so `2 of 260 are ZERO-SIZE`
 meant bisecting a selector to find out which. It now says `hrt-w ::` — the same fix this file
 already made once for `covered`, whose comment reads *"IT COULD NOT NAME WHAT IT FLAGGED"*.
+
+## REG-676 — a second-eye look was bound to a version NUMBER and to nothing else
+
+**Found by:** auditing the ledger that had just blocked three of my own pushes
+
+`--audit` prints `OK vNNNN looks=1`. Measured over all 343 rows: **16 looks are credited to more
+than one version** — 40 version rows resting on 16 actual looks, the widest being **one look
+credited to five** (v2205–v2209) and another to four (v2685–v2688).
+
+⚠ **That is not automatically dishonest**, and the distinction is the whole difficulty. Versions are
+batched 3–4 per push on purpose, and one look at a batch's final pixels legitimately covers every
+version *in* the batch. What the ledger could not distinguish is a **forward credit** — a look at
+bytes that did not yet contain the change being credited.
+
+**Timestamps cannot settle it, and I proved that on my own row.** Comparing each look against the
+earliest commit stamping its version flags 5 as "predating" it — including v2697, which is mine and
+entirely legitimate: I rendered the working tree, had it looked at, then committed. Clock order
+cannot tell a working-tree look from a forward credit, so reporting it that way would have
+manufactured a finding.
+
+**A hash can.** `record()` now stores `bytes: {bible: <sha1-12>, at: <mtime>}` — what the
+photographed file actually hashed to — and `audit()` reports `bound` and `unbound` separately
+instead of folding both into `looks`.
+
+⚠ **Every existing row is UNBOUND (0 bound, 335 unbound), and stays that way.** Nobody recorded it,
+which is a different fact from a hash that does not match — and backfilling a plausible hash would
+forge precisely the evidence this field exists to supply.

@@ -148,6 +148,26 @@ def _rows(path=None):
     return out
 
 
+
+def _bytes_seen(path=None):
+    """-> {'bible': '<sha1-12>', 'at': <mtime>} for the file a look was taken against, or None.
+
+    None means NOBODY RECORDED IT, which is a different fact from a hash that does not match, and
+    the audit below must keep them apart. Every row written before v2708 has None here on purpose:
+    backfilling a plausible hash would forge exactly the evidence this field exists to supply.
+    """
+    p = path or os.path.join(os.path.dirname(HERE), "bible.html")
+    try:
+        import hashlib
+        h = hashlib.sha1()
+        with io.open(p, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        return {"bible": h.hexdigest()[:12], "at": int(os.path.getmtime(p))}
+    except Exception:
+        return None
+
+
 def record(version, model, verdict, findings=None, images=None, asked=None,
            answer_head=None, reached=True, path=None):
     """Append one look. Returns the row written.
@@ -168,6 +188,23 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         "asked": (str(asked or "")[:400]) or None,
         # the head of the RAW answer, so a plausible-sounding summary cannot stand in for a look
         "answerHead": (str(answer_head or "")[:600]) or None,
+        # ⚠⚠ WHAT WAS ACTUALLY PHOTOGRAPHED. Until this existed, a look was bound to a version
+        # NUMBER and to nothing else, so "was v2694 looked at" could only ever be answered from a
+        # label somebody typed. MEASURED over all 343 rows: SIXTEEN looks are credited to more
+        # than one version — 40 version rows resting on 16 actual looks, the widest being ONE look
+        # credited to five (v2205-v2209) and another to four (v2685-v2688). `--audit` prints
+        # `OK vNNNN looks=1` for every one of them.
+        #
+        # That is not automatically dishonest: versions are batched 3-4 per push on purpose, and
+        # one look at the final pixels of a batch legitimately covers every version IN it. What it
+        # cannot distinguish is a FORWARD credit — a look at bytes that did not yet contain the
+        # change being credited. I tried to settle that from timestamps and it does not work: my
+        # own v2697 row "predates its commit" because I rendered the working tree, had it looked
+        # at, then committed. Clock order cannot tell a working-tree look from a forward credit.
+        #
+        # A hash can. Recording what the photographed file actually hashed to turns "did this look
+        # see version X" from an inference into a comparison. [[unknown-stays-unknown]]
+        "bytes": _bytes_seen(),
     }
     p = path or LEDGER_PATH
     try:
@@ -258,7 +295,8 @@ def audit(path=None):
     seen = {}
     for r in _rows(path):
         v = norm_version(r.get("version")) or (str(r.get("version") or "?").strip() or "?")
-        st = seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0, "looks": 0})
+        st = seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
+                                 "looks": 0, "bound": 0, "unbound": 0})
         st["attempts"] += 1
         fam = family_of(r.get("model"))          # re-derived, exactly as the verdict does it
         if r.get("reached") is not True:
@@ -267,6 +305,17 @@ def audit(path=None):
             st["author"] += 1
         elif fam and _has_evidence(r):
             st["looks"] += 1
+            # ⚠ v2708 — AND SAY WHETHER THE LOOK IS BOUND TO BYTES. `looks=1` was printed
+            # identically for a look taken against this version's own file and for one inherited
+            # from a batch — 16 looks carry 40 version rows between them. A count that cannot say
+            # what it counted is the shape this repo keeps paying for, so the audit now reports
+            # both numbers and never folds them. Rows written before this field existed are
+            # UNBOUND, not wrong: nobody recorded it, and backfilling a plausible hash would forge
+            # the very evidence the field exists to supply. [[unknown-stays-unknown]]
+            if isinstance(r.get("bytes"), dict) and r["bytes"].get("bible"):
+                st["bound"] += 1
+            else:
+                st["unbound"] += 1
         else:
             st["empty"] += 1                     # unidentifiable, or bound to nothing
     return sorted(seen.values(), key=lambda s: s["version"])
