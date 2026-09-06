@@ -1986,7 +1986,16 @@ def grail_tally():
         return {"have": have, "total": total if isinstance(total, int) and total > 0 else None}
 
     out["sets"] = _pair(c.get("setPieces"), c.get("setsTotal"))
-    out["uniques"] = _pair(c.get("owned"), c.get("uniquesTotal"))
+    # ⚠ v2717 — `uniques` NOW ANSWERS THE SAME QUESTION THE BOARD'S TABS DO.
+    # It was (owned, uniquesTotal) = vault-owned over the vault roster, 169/398, while the tabs
+    # showed chronicle-found over chronTotal, 258/403. Both coherent, both called "uniques", and
+    # the fleet therefore disagreed with the board on his own screen. The vault measure is not
+    # thrown away — it moves to `vaultUniques`, named for what it is.
+    # ⚠ HONEST-ABSENT IS PRESERVED: where the board cannot answer the chronicle pair, this is None
+    # and the bar renders indeterminate. It does NOT fall back to the vault pair, because a
+    # denominator that silently changes question is the whole defect. [[unknown-stays-unknown]]
+    out["uniques"] = _pair(c.get("chronFound"), c.get("chronTotal"))
+    out["vaultUniques"] = _pair(c.get("owned"), c.get("uniquesTotal"))
     out["runewords"] = _pair(c.get("runewordsMade"), c.get("runewordsTotal"))
     out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
     if not out["ok"]:
@@ -11738,6 +11747,25 @@ def board_ownership(sample=0, dump_stores=False):
           "var uniT=_n(function(){return window._gUniqueRoster&&window._gUniqueRoster();});"
           "var setT=_n(function(){return window._gSetRoster&&window._gSetRoster();});"
           "var rwT=_n(function(){return window._rwTotalN&&window._rwTotalN();});"
+          # ⚠⚠ v2717 — ASK FOR THE **CHRONICLE** PAIR TOO, BECAUSE v2714 FIXED THE WRONG FILE.
+          # Konyo: "no reason for it to render something in the roster or fleet different from the
+          # consoles main tabs". v2714 unified NINE call sites inside bible.html and shipped — and
+          # never touched this file, which is where the fleet's number is actually built. A
+          # read-only agent traced it: the beacon's uniques pair is (owned, uniT), i.e.
+          # `d2r_owned.length` over `_gUniqueRoster().length` = 169/398, and NEITHER side ever
+          # calls d2rChronTotal. So the fix I shipped this morning could not have reached it.
+          #
+          # ⚠ AND THE OLD PAIR WAS NOT WRONG — IT WAS A DIFFERENT QUESTION. vault-owned over
+          # vault-roster is internally coherent (398 keeps both spellings of all six sunders, on
+          # purpose, since v2685). The tabs show chronicle-found over chronTotal, 258/403. Two
+          # coherent measures under ONE label is what he was actually seeing.
+          # So: read the chronicle pair from the board that owns it, and let the fleet publish the
+          # same question the tabs answer. The vault pair is KEPT and RENAMED rather than deleted —
+          # it is a real measure and something may still want it. [[copy-drift]] [[label-outlived-referent]]
+          "var chF=(function(){try{var s=window.funiScan&&window.funiScan();"
+          "return (s&&typeof s.found===\'number\')?s.found:null;}catch(e){return null;}})();"
+          "var chT=(function(){try{return window.d2rChronTotal?window.d2rChronTotal():null;}"
+          "catch(e){return null;}})();"
           "var rwMade=(function(){try{var m=raw('d2r_rwMade');"
           "if(Array.isArray(m))return m.length;"
           "if(m&&typeof m==='object')return Object.keys(m).length;return null;}catch(e){return null;}})();"
@@ -11770,7 +11798,8 @@ def board_ownership(sample=0, dump_stores=False):
           # and the board cannot disagree about how many there are. null where the board cannot
           # say, never a fallback constant. [[copy-drift]] [[unknown-stays-unknown]]
           "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length,"
-          "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade},"
+          "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade,"
+          "chronFound:chF,chronTotal:chT},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
           "stores:stores,dates:dates,gameFound:gameFound,storeEmptied:storeEmptied});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})(_ctx,_ctx!==window);"
@@ -23238,7 +23267,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2716",
+        "ver": "v2717",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

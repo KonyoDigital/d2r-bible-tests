@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2716",
+  "ver": "v2717",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2716: 96 terrorized was an unnamed literal printed as if the zone produced it; it is a game constant now named once and rendered from one source",
+  "note": "v2717: v2714 unified nine sites in bible.html and never touched control_app where the fleet number is actually built; the fleet now publishes the chronicle pair and the corroborator watches the banked denominator",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

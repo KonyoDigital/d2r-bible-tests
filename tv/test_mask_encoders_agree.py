@@ -184,9 +184,34 @@ class TheTwoEncodersAgreeByteForByte(unittest.TestCase):
             # "window.LSR" at all. That wait could never succeed, and it turned a flaky gate into
             # one that skipped every case — quieter, and no more honest. The prose was describing
             # a different page. [[feedback-comments-vs-code]]
+            # ⚠⚠ v2717 — AND THE SECOND FIX WAS ALSO WRONG, FOR A DIFFERENT REASON. Waiting on
+            # `document.readyState == "complete"` never asks WHICH DOCUMENT. `_Tab.__init__`
+            # opens the tab through CDP's /json/new?url, which returns before the requested
+            # navigation has necessarily committed in the renderer — so the tab's transient
+            # about:blank placeholder, a trivially already-loaded document, can report
+            # 'complete' and this loop breaks believing the served page is ready.
+            #
+            # MEASURED: a tight-loop probe opening 8 tabs the way _Tab does saw about:blank on
+            # the FIRST sample in 1 of 8 trials (12.5%) — which is the ~1-in-8 failure rate this
+            # gate was stuck at. Two symptoms follow, and BOTH are documented in this file's own
+            # history as already-fixed:
+            #   · the setItem lands on an origin-less document -> "Access is denied for this document"
+            #   · the write lands on about:blank, navigation then commits, the read sees an
+            #     honestly-EMPTY store -> mask 'AAAAAAA', which looks exactly like the two
+            #     encoders disagreeing
+            # Measured failure rate before this change: 3/10, and 5/16 over further runs.
+            #
+            # The state that was never checked is not TIME, it is WHICH PAGE. So ask.
+            # ⚠ NOT a longer deadline and NOT a retry: this is an ORDERING bug, so more seconds
+            # only shrink the window, and a retry cannot tell "the harness raced" from "the two
+            # encoders genuinely disagree" — which is the one thing this gate exists to catch.
+            # [[feedback-suspect-the-instrument]] [[regression-guard]]
             _deadline = time.time() + 15.0
             while time.time() < _deadline:
-                if tab.ev("document.readyState") == "complete":
+                _st = tab.ev("[location.href, document.readyState]") or []
+                _href = str(_st[0]) if len(_st) > 0 else ""
+                _rs = str(_st[1]) if len(_st) > 1 else ""
+                if _href and _href != "about:blank" and _rs == "complete":
                     break
                 time.sleep(0.2)
             else:

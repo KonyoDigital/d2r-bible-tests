@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2717** | `(this commit)` | v2717 — v2714 unified nine sites in bible.html and never touched control_app where the fleet number is actually built; the fleet now publishes the chronicle pair and the corroborator watches the banked denominator |
 | **v2716** | `(this commit)` | v2716 — 96 terrorized was an unnamed literal printed as if the zone produced it; it is a game constant now named once and rendered from one source |
 | **v2715** | `(this commit)` | v2715 — recording a ship in TASKS.md was a step somebody had to remember and it failed on v2670 v2712 v2713 and v2714; the bump writes the row itself now |
 | **v2714** | `d2e8bc88` | v2714 — REG-684: HIS ruling, *"this needs a unified and sharing logic"*. The chronicle denominator was re-derived at ELEVEN sites and they disagreed on his own screen — `/api/fleet` returned 169/398 and 292/403 six minutes apart on the SAME board while the meter read 258/403. Nine sites now call one function; `_darkN`/`_uniLeft` keep both totals apart on purpose |

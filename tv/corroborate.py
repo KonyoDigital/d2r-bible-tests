@@ -459,6 +459,88 @@ def _inv_the_two_readers_measure_the_same_screen():
             "stash_eye._CROP_CAL_FILM", left, "chronicle_template._CAL_FILM", right, "==")
 
 
+def _inv_the_fleet_divides_by_the_same_number_the_board_does():
+    """v2717 — THE FLEET AND THE BOARD'S OWN TABS PUBLISHED DIFFERENT UNIQUES, AND HE SAW IT.
+
+    Konyo, 2026-09-06: *"no reason for it to render something in the roster or fleet different from
+    the consoles main tabs Uniques/Sets/runewords"*. Measured on his live console, GET /api/fleet,
+    twice six minutes apart on the SAME machine:
+
+        10:33:26   uniques {have: 169, total: 398}
+        10:39:39   uniques {have: 292, total: 403}
+        the board's own Chronicle meter:  258 / 403
+
+    ⚠ NEITHER SIDE WAS BROKEN. They were two coherent measures wearing one label: the fleet
+    published `d2r_owned.length / _gUniqueRoster().length` (vault over vault roster, 398 — which
+    keeps both spellings of all six sunders on purpose since v2685), while the tabs showed
+    `funiScan().found / chronTotal` (chronicle over the pinned game count, 403). Two questions, one
+    word. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+
+    ⚠⚠ AND v2714 DID NOT FIX IT. That ship unified NINE call sites inside bible.html and shipped
+    believing the job done; the fleet's number is built in control_app.py, which it never touched.
+    A read-only agent traced it afterwards. THIS invariant is the thing that would have said so —
+    the reason it exists is that a fix was believed rather than corroborated.
+
+    INDEPENDENCE, which is the whole point of living here: the left side is a LIVE read (the
+    console asking the running board for its counts); the right side is a SOURCE PARSE of the
+    pinned constant in bible.html. Neither can inherit the other's answer — one is a browser eval,
+    the other is a regex over a file on disk. That distinction is what [[feedback-verify-not-proxy]]
+    means, and the audit added in v2390 exists because a previous invariant quietly lost it.
+
+    HONEST-ABSENT: a console that cannot be asked, or a board that cannot say, returns None on the
+    left and the invariant reports UNMEASURED rather than a pass. A guest world, an unclaimed
+    board, a console that is down — none of those are evidence of agreement.
+    """
+    import re as _re
+
+    def left():
+        """The denominator in the BANKED tally on disk — the row the beacon actually publishes.
+
+        ⚠⚠ THIS WAS `ca.grail_tally()` AND IT WAS VACUOUS. Out of process there is no board window,
+        so `board_ownership()` fails and grail_tally falls straight through to the disk bank — the
+        very file the right side would then be compared against. MEASURED: sabotaging the live
+        eval path (putting the fleet back on the vault roster) left this invariant GREEN, because
+        `left()` never reached that code at all. The sabotage pass caught it, on the person who had
+        just written it, which is the second time this file has caught its own author.
+        [[feedback-suspect-the-instrument]]
+
+        So it reads the BANK, which is a real artifact with a real denominator, and the sabotage
+        below can move it. The live-eval path is a CODE law and lives in a unit test where it can
+        actually be graded, not here where the process cannot reach it.
+        """
+        try:
+            p = os.path.join(HERE, "board_tally.json")
+            d = json.load(io.open(p, encoding="utf-8"))
+            # ⚠ AND THE SHAPE WAS NOT WHAT I ASSUMED EITHER. board_tally.json is not a map of
+            # routes — it carries `uniques`/`sets`/`runewords` at the TOP level (the headline the
+            # beacon publishes) plus `byRoute` and `high` maps beneath. My first cut walked
+            # d.values() expecting per-route dicts, hit an int, and returned UNKNOWN on a perfectly
+            # readable file. Measured before fixing: top-level uniques = {"have":292,"total":403}.
+            u = d.get("uniques") if isinstance(d, dict) else None
+            n = (u or {}).get("total") if isinstance(u, dict) else None
+            return int(n) if isinstance(n, int) and n > 0 else None
+        except Exception:
+            return None
+
+    def right():
+        """The PINNED chronicle total, read from bible.html's source. Never from the console."""
+        try:
+            p = os.path.join(os.path.dirname(HERE), "bible.html")
+            src = io.open(p, encoding="utf-8").read()
+            hits = sorted({int(m) for m in _re.findall(r"chronTotal\s*:\s*(\d+)", src)})
+            # more than one pinned value is not a denominator, it is a disagreement
+            return hits[0] if len(hits) == 1 else None
+        except Exception:
+            return None
+
+    return ("fleet-divides-by-the-board's-number",
+            "the fleet's uniques denominator is the board's own pinned chronicle total",
+            "let the fleet publish the vault roster (398) while the tabs divide by chronTotal "
+            "(403) and this parts — which is exactly what he was looking at",
+            "the banked board_tally denominator (disk)", left,
+            "chronTotal pinned in bible.html (source)", right, "==")
+
+
 def _inv_the_two_owned_fields():
     """157 vs 7 — TWO PAYLOAD FIELDS BOTH CALLED `owned`, and I found this by hand and did not
     encode it. That omission is the whole argument for this file existing.
@@ -1114,6 +1196,7 @@ BUILDERS = (_inv_a_world_reporting_nothing_holds_nothing,
             _inv_every_declared_tooltip_surface_is_served,
             _inv_vault_worklist,
             _inv_the_two_owned_fields,
+            _inv_the_fleet_divides_by_the_same_number_the_board_does,
             _inv_the_eagle_can_still_look,
             _inv_hunt_memory_is_being_used,
             _inv_a_lane_that_is_ON_has_either_worked_or_says_why_not,

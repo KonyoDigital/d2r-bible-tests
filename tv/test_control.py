@@ -27025,13 +27025,65 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
         with mock.patch.object(ca, "board_ownership", lambda *a, **k: {
                 "ok": True, "boardLoaded": True, "owner": True,
                 "counts": {"foundLog": 390, "owned": 278, "setPieces": 120,
-                           "uniquesTotal": 403, "setsTotal": 135,
+                           "uniquesTotal": 398, "setsTotal": 135,
+                           "chronFound": 258, "chronTotal": 403,
                            "runewordsMade": 99, "runewordsTotal": 99}}):
             t = ca.grail_tally()
         self.assertTrue(t["ok"], "a readable board still reported nothing: %s" % t.get("why"))
         self.assertEqual(t["sets"], {"have": 120, "total": 135})
-        self.assertEqual(t["uniques"], {"have": 278, "total": 403})
+        # ⚠ v2717 — `uniques` IS THE CHRONICLE PAIR (what the board's own tabs show), not the
+        # vault pair. Before this the fleet published owned/vault-roster (278/398) while the
+        # tabs showed found/chronTotal (258/403) — two coherent measures under one label,
+        # which is exactly what he saw disagreeing on his own screen.
+        self.assertEqual(t["uniques"], {"have": 258, "total": 403},
+                         "the fleet must publish the SAME question the board's tabs answer")
+        self.assertEqual(t["vaultUniques"], {"have": 278, "total": 398},
+                         "the vault measure is kept, named for what it is")
         self.assertEqual(t["runewords"], {"have": 99, "total": 99})
+
+    def test_the_fleet_builds_uniques_from_the_CHRONICLE_fields(self):
+        """v2717 — THE LIVE-EVAL HALF, WHICH THE CORROBORATOR STRUCTURALLY CANNOT REACH.
+
+        `corroborate._inv_the_fleet_divides_by_the_same_number_the_board_does` watches the BANKED
+        denominator, and that is a real artifact worth watching. But it cannot grade this: out of
+        process there is no board window, so `grail_tally()` never runs the live eval at all and
+        falls straight through to the bank. MEASURED — a sabotage that put the fleet back on the
+        vault roster left that invariant GREEN, because it never reached the changed code.
+
+        So the live path is pinned HERE, where it can actually be graded: as source.
+
+        WHY IT MATTERS: the fleet published `d2r_owned.length / _gUniqueRoster().length` (169/398,
+        vault over vault-roster) while the board's own tabs showed `funiScan().found / chronTotal`
+        (258/403). Both internally coherent, both labelled "uniques" — which is what Konyo saw
+        disagreeing on his own screen. v2714 unified nine sites inside bible.html and never touched
+        this file, so the fix could not reach the number he was actually looking at.
+        [[the-unjoined-end]] [[label-outlived-referent]]
+        """
+        import re as _re
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        blk = _between(self, src, "def grail_tally(", "def _tally_cached(",
+                       what="the fleet tally builder")
+        blk = _re.sub(r"(?m)#.*$", " ", blk)          # judge the CODE, not the prose about it
+        # ⚠ NOT `_pair\(([^)]*)\)` — that stops at the FIRST close paren, which lives inside
+        # `c.get("chronFound")`, so it captured half an argument list and failed on correct code.
+        # Nested parens are exactly what a lazy character class cannot see. Anchor on the LINE.
+        m = _re.search(r'(?m)^\s*out\["uniques"\]\s*=\s*_pair\((.*)\)\s*$', blk)
+        self.assertIsNotNone(m, "grail_tally no longer assigns out['uniques'] via _pair — fix this "
+                                "test before trusting its verdict")
+        args = m.group(1)
+        self.assertIn("chronFound", args,
+                      "the fleet's uniques NUMERATOR is not the chronicle count: %r. It must answer "
+                      "the same question the board's tabs answer." % args)
+        self.assertIn("chronTotal", args,
+                      "the fleet's uniques DENOMINATOR is not the chronicle total: %r" % args)
+        self.assertNotIn("uniquesTotal", args,
+                         "the fleet is dividing by the VAULT roster again (%r) — that is 398 while "
+                         "the tabs divide by 403, and the two disagree on his screen." % args)
+        self.assertIn('out["vaultUniques"]', blk,
+                      "the vault measure was DELETED rather than renamed. It is a real measure "
+                      "(owned over the vault roster, which keeps both sunder spellings on purpose "
+                      "since v2685); losing it is not the same as unifying the label.")
 
     def test_the_board_js_PARSES(self):
         """THE GUARD THAT WOULD HAVE CAUGHT v2163, and the one I did not write.
@@ -27110,8 +27162,11 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
         # [[source-reading-guard]]
         js = _between(self, src, "def board_ownership(", "def board_tick(",
                       what="the board ownership reader")
+        # v2717 — chronFound/chronTotal join the list: `uniques` is now the CHRONICLE pair, so
+        # if board_ownership stops emitting them the real read silently goes None while a fixture
+        # injecting numbers stays green. That is the exact hole this test was written for.
         for key in ("uniquesTotal", "setsTotal", "runewordsTotal", "runewordsMade",
-                    "setPieces", "owned"):
+                    "setPieces", "owned", "chronFound", "chronTotal"):
             self.assertIn(key, js,
                           "grail_tally reads counts[%r] and board_ownership never emits it — the "
                           "real read silently gets None while the fixture injects a number" % key)
@@ -27127,8 +27182,15 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
                 "counts": {"owned": 278, "setPieces": 120}}):
             t = ca.grail_tally()
         self.assertTrue(t["ok"])
-        self.assertEqual(t["uniques"], {"have": 278, "total": None},
-                         "it invented a uniques total the board never gave")
+        # ⚠ v2717 — `uniques` IS THE CHRONICLE PAIR NOW, and this fixture states no chronicle
+        # numbers at all, so the honest answer is None — not the vault pair wearing the name.
+        # A denominator that silently changes QUESTION is the same defect as one that is invented,
+        # so the law is asserted on BOTH pairs rather than moved from one to the other.
+        self.assertIsNone(t["uniques"],
+                          "the board said nothing about the chronicle, so `uniques` must be None "
+                          "rather than falling back to the vault pair under the same label")
+        self.assertEqual(t["vaultUniques"], {"have": 278, "total": None},
+                         "it invented a vault uniques total the board never gave")
         self.assertEqual(t["sets"], {"have": 120, "total": None})
 
     def test_a_GUEST_world_is_refused_even_when_the_board_IS_loaded(self):
