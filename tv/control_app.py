@@ -16872,6 +16872,30 @@ def _retention_once():
                                              % (free_gb, len(cands), why)))
         return None
     r = _rr.apply_plan(p, yes=True)
+    # ⚠⚠ v2743 — THE JOIN t154 HAS BEEN WAITING FOR, AND ITS STATED BLOCKER WAS FALSE.
+    # MEASURED on his live tv/disk_history.jsonl: 8,790 rows — 8,270 carry exactly 0, 520 carry
+    # null, and **NOT ONE has ever carried a nonzero value**. The row blamed "nothing can pass
+    # until a prune actually runs". That is not it: `disk_history_append` fires ~85 lines ABOVE
+    # with `pruned_mb=None` HARDCODED, before any deletion, so a prune running changed nothing
+    # about what got written. `credible_pruned_mb` has simply never been handed a real figure.
+    #
+    # ⚠ THE CORPUS AND THE FREED FIGURE MUST COME FROM THE SAME MOMENT. `credible_pruned_mb`
+    # refuses a figure larger than the measured corpus, and `_hist_bytes` was computed from
+    # kept+candidates BEFORE the reels were removed. Re-measuring the corpus here — after the
+    # deletion — would make every legitimate prune look impossible and be refused. So the
+    # pre-prune `_hist_bytes` is reused deliberately, not lazily.
+    # ⚠ A SECOND ROW, not a rewrite: the log is append-only, so the "before" row stays as the
+    # honest record of what was known then.
+    try:
+        _freed = r.get("freedMb") if isinstance(r, dict) else None
+        if _freed is not None:
+            disk_history_append(free_gb, ON_AIR_FLOOR_GB,
+                                hist_bytes=_hist_bytes,
+                                reels=len(r.get("removed") or []),
+                                eligible_mb=round(p.get("freeMb") or 0, 1),
+                                pruned_mb=round(float(_freed), 1))
+    except Exception:
+        pass
     with _PRUNE_LOCK:
         _RETENTION.update(dict(base, freedMb=round(r.get("freedMb") or 0, 1),
                                removed=list(r.get("removed") or []),
@@ -18012,6 +18036,59 @@ def _restore_current_from_board():
         "setPieces": _whole("setPieces", sample.get("setPieces")),
     }
     return cur, got.get("route"), ""
+
+
+def chronicle_rebuild_plan():
+    """Derive each owned name's record from the OTHER ledgers. Reads only; writes nothing.
+
+    ⚠ THE DOOR THAT WAS MISSING. v2732 shipped the derivation and nothing could reach it: two
+    references in the whole tree, both of them its own tests. He asked for "a click of a button
+    away" and there was no button. [[plumbing-with-no-tap]]
+
+    ⛔ IT RETURNS A PROPOSAL AND STOPS. `chronicle_rebuild` is a pure derivation whose gate asserts
+    it cannot write; a door that rebuilt and applied in one press would make that assertion
+    pointless. `/api/chronicle_apply` is the apply door and is already wired.
+    """
+    try:
+        import chronicle_rebuild as _CR
+    except Exception as e:
+        return {"ok": False, "why": "chronicle_rebuild is unavailable (%s)" % str(e)[:60]}
+    try:
+        got = board_ownership(sample=5000, dump_stores=False)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused: %s" % str(e)[:90]}
+    if not isinstance(got, dict) or not got.get("ok"):
+        return {"ok": False, "why": str((got or {}).get("why") or "the board did not answer")}
+
+    sample = got.get("sample") or {}
+    owned = sample.get("owned")
+    if owned is None:
+        return {"ok": False, "why": ("the board could not report what he owns, so there is nothing "
+                                     "to rebuild FOR — that is UNKNOWN, not an empty chronicle")}
+
+    # ⚠ None, NEVER {} — the module's contract, and the whole reason it can tell "nobody could read
+    # this" from "it was read and held nothing". Collapsing them at its only call site would defeat
+    # the refusal the module was built around. [[unknown-stays-unknown]]
+    dates = got.get("dates")
+    ev = None
+    try:
+        _e = _chron_evidence_load()
+        ev = _e if isinstance(_e, dict) else None
+    except Exception:
+        ev = None
+    stores = {
+        "foundLog": dates if isinstance(dates, dict) else None,
+        "gameFound": got.get("gameFound") if isinstance(got.get("gameFound"), dict) else None,
+        "rwMade": got.get("rwMadeFull") if isinstance(got.get("rwMadeFull"), dict) else None,
+        "evidence": ev,
+    }
+    out = _CR.rebuild(owned, stores)
+    if isinstance(out, dict):
+        # which sources were readable, said out loud, because every count below is only as good as
+        # the sources it was derived from
+        out["sourcesRead"] = sorted(k for k, v in stores.items() if v is not None)
+        out["sourcesUnread"] = sorted(k for k, v in stores.items() if v is None)
+    return out
 
 
 def ledger_restore_plan():
@@ -19457,6 +19534,21 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         _seal_pending = False
         _seal_say = ""
         _rows = len((prop.get("uniques") or {})) + len((prop.get("owned") or []))
+        # ⚠⚠ v2743 — PER-SESSION ATTRIBUTION. `_rows` above is the whole PASS, and stamping it on
+        # every session sealed in that pass already happened: six seals on 2026-08-24 03:45:31 all
+        # carry rows=7 while two of those sessions witnessed nothing at all. 7 counted six times.
+        # The proposal already knows who witnessed what — `_witness_rows` puts `"session"` on every
+        # witness dict — so this is attribution that exists and was being thrown away, not a new
+        # measurement. [[zero-needs-a-denominator]]
+        _rows_by_sess = {}
+        for _prow in (list((prop.get("uniques") or {}).values())
+                      + list(prop.get("owned") or [])):
+            if not isinstance(_prow, dict):
+                continue
+            for _w in (_prow.get("witnesses") or []):
+                if isinstance(_w, dict) and _w.get("session"):
+                    _k = str(_w["session"])
+                    _rows_by_sess[_k] = _rows_by_sess.get(_k, 0) + 1
         if _rows:
             # v2002 — RECORD WHICH READER SEALED IT. {"ts": ...} alone cannot answer "is this
             # verdict still current", which is why a vault seal used to be permanent.
@@ -19468,9 +19560,18 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             except Exception:
                 pass
             for sess in (prop.get("sessionsRead") or []):
-                _ex, _exwhy = _seal_extracted(_rows)
-                swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": int(_rows),
+                # ⚠ v2743 — EACH SESSION IS SEALED FOR WHAT IT ITSELF WITNESSED. A session that
+                # contributed nothing gets rows=0, which `_seal_extracted` answers as
+                # ([], 'nothing was taken') -> scores EMPTY -> and EMPTY without `examinedEmpty` is
+                # REFUSED by seal_releases_frames. So a non-contributing session is HELD rather than
+                # released, which is the direction that keeps his footage.
+                _srows = int(_rows_by_sess.get(str(sess), 0))
+                _ex, _exwhy = _seal_extracted(_srows)
+                swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": _srows,
                                     "promptVer": _pv, "agentVer": _av,
+                                    # what the PASS produced, kept beside the per-session figure so
+                                    # a reader can see both rather than inferring one from the other
+                                    "passRows": int(_rows),
                                     "extracted": _ex, "extractedWhy": _exwhy}   # v2305
             _seal_pending = True          # v2060 — persisted only after the ledger is down
         else:
@@ -23559,7 +23660,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2742",
+        "ver": "v2743",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -26465,6 +26566,11 @@ class Handler(BaseHTTPRequestHandler):
             # HIS ruling, HIS door. The console never writes the ledger.
             self._json(200, board_tick(body.get("name"), body.get("kind"),
                                        bool(body.get("want"))))
+            return
+        if path == "/api/chronicle_rebuild":
+            # v2743 — THE DOOR v2732 SHIPPED WITHOUT. Reads only; returns a proposal and applies
+            # nothing. The apply door is /api/chronicle_apply and is already wired.
+            self._json(200, chronicle_rebuild_plan())
             return
         if path == "/api/ledger_restore_plan":
             # v2735 — THE READ HALF OF THE RESTORE. Says what the newest backup for THIS profile

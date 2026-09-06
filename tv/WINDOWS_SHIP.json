@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2742",
+  "ver": "v2743",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2742: the first lock to clear both bars, the tombstone far end is visible, and the station assigner is finally watched",
+  "note": "v2743: the rebuild finally has a door, and a prune records what it freed for the first time in 8790 rows",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

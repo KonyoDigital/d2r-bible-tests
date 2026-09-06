@@ -191,6 +191,81 @@ class ChronicleRebuildIsHonest(unittest.TestCase):
                          "two dates neither of which could be parsed were treated as agreeing. "
                          "Unparseable is UNKNOWN, and two unknowns are not equal.")
 
+    # ── ⚠⚠ THE JOIN. THE DERIVATION SHIPPED AND NOTHING COULD REACH IT ────────────────────────
+    def test_the_rebuild_HAS_A_DOOR(self):
+        """v2732 shipped this module correct, tested and gated — and referenced by exactly TWO
+        files in the whole tree: this suite and the gate registry. No route, no import in
+        control_app, no button in either UI, not in corroborate's coverage map.
+
+        He asked for it in these words: *"lets do a rebuild/restore option for each chronicle that
+        is ledger related .. make it that its a click of a button away"*, and rejected the
+        alternative: *"snap shot is not enough"*. The derivation existed; the thing he asked to
+        press did not. I reported the row as DONE. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+
+        ⚠ THIS LAW GRADES THE JOIN, NOT THE SPELLING — a module whose only callers are its own
+        tests is the exact shape that keeps recurring here, and nothing else in the repo checks for
+        it.
+        """
+        import os as _o
+        ca = io.open(_o.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        self.assertIn("import chronicle_rebuild", ca,
+                      "control_app does not import the rebuild, so no route can reach it")
+        self.assertIn('"/api/chronicle_rebuild"', ca,
+                      "there is no route for the rebuild — the derivation is unreachable again")
+        ui = io.open(_o.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("/api/chronicle_rebuild", ui,
+                      "no console surface calls the route. A route with no caller is plumbing with "
+                      "no tap, which is how this module spent 11 versions unreachable.")
+
+    def test_the_door_passes_UNREADABLE_sources_as_None_not_empty(self):
+        """⚠ THE MODULE'S CENTRAL REFUSAL, DEFENDED AT ITS ONLY CALL SITE. Its contract says a
+        source that is absent or unreadable must arrive as None, NOT {} — the two are different
+        facts. A door that passed {} would collapse them at the one place it matters, making every
+        law above about UNKNOWN-vs-empty decorative."""
+        import os as _o
+        ca = io.open(_o.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = ca.find("def chronicle_rebuild_plan(")
+        self.assertGreater(i, 0, "the door function is gone")
+        blk = ca[i:ca.find("\ndef ", i + 10)]
+        # ⚠ SCOPED TO THE `stores` LITERAL, NOT THE WHOLE FUNCTION. The first cut scanned the
+        # entire body for `or {}` and flagged `str((got or {}).get("why"))` — the REFUSAL path
+        # reading the board's own error message, which is legitimate defensive code and has
+        # nothing to do with source collapse. A guard whose REACH is wrong fails on correct code
+        # and teaches people to widen it until it means nothing. [[source-reading-guard]]
+        i2 = blk.find("stores = {")
+        self.assertGreater(i2, 0, "the stores literal is gone from the door")
+        lit = blk[i2:blk.find("}", i2) + 1]
+        self.assertIn("isinstance(dates, dict) else None", lit,
+                      "the door no longer passes None for an unreadable foundLog")
+        for bad in ("or {}", "else {}"):
+            self.assertNotIn(bad, lit,
+                             "the stores literal collapses an unreadable source to %r. The module "
+                             "refuses to treat 'nobody could read it' as 'it was read and held "
+                             "nothing', and this literal is the only place that can defeat it."
+                             % bad)
+        # ⚠ THREE, NOT FOUR — and asserting four was wrong about CORRECT code. `evidence` passes
+        # `ev`, a variable initialised to None and only assigned when the load returns a dict, so
+        # it is already None-safe without an inline ternary. A law that demands one SPELLING of a
+        # property rather than the property itself fails on code that is right.
+        self.assertEqual(3, lit.count("else None"),
+                         "the three inline sources must fall to None when unreadable; got %d"
+                         % lit.count("else None"))
+        self.assertIn("ev = None", blk,
+                      "`evidence` is passed as a bare variable, so that variable must START as "
+                      "None — otherwise an unreadable evidence ledger arrives as something else")
+
+    def test_the_door_READS_and_does_not_apply(self):
+        """The module cannot write — asserted above by import allowlist and call checks. A door
+        that rebuilt AND applied in one press would make that guarantee meaningless. Applying is
+        /api/chronicle_apply's job and it is already wired."""
+        import os as _o
+        ca = io.open(_o.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = ca.find("def chronicle_rebuild_plan(")
+        blk = ca[i:ca.find("\ndef ", i + 10)]
+        for bad in ("chronicle_apply(", "board_tick(", "LSR.setItem"):
+            self.assertNotIn(bad, blk,
+                             "the rebuild door calls %s — it must propose and stop" % bad)
+
     # ── it does not decide what a chronicle IS ────────────────────────────────────────────────
     def test_it_does_not_reimplement_the_tally(self):
         """⚠ He caught the first cut aiming at d2r_owned (169) while his screen read 292/403, and

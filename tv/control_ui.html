@@ -7002,6 +7002,7 @@ body[data-origin="shadow"] #stage::after {
                  restore could resurrect a state he meant to leave behind, and nothing downstream
                  could tell that from a repair. -->
             <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+              <button class="util-btn" id="btn-rebuild-chron" type="button" title="Derive each owned item's record from the OTHER ledgers — the in-game Chronicle, the runeword forge log and the AI evidence ledger. Reads only: it proposes, it never writes. Names anything it cannot reach rather than counting it.">rebuild a chronicle from the other ledgers</button>
               <button class="util-btn" id="btn-restore-plan" type="button" title="Read the NEWEST automatic backup taken for THIS profile and say what it would put back, per store. Reads only — nothing is written, and nothing is decided.">what would a restore put back?</button>
               <button class="util-btn" id="btn-restore-apply" type="button" disabled title="Ask the BOARD to put back the names the plan just listed. Goes through the same dated, merge-max, undoable door a hand tick uses, so it can only ADD what is missing — it cannot overwrite a newer find with an older one. Enabled only after a plan has been read.">put it back</button>
             </div>
@@ -15162,6 +15163,43 @@ window._lockMark = function(isOpen, px, label){
   };
   /* v2739 — the read half. Writes nothing, decides nothing, and prints the DENOMINATORS beside
      every count so a 0 is measured rather than empty. [[zero-needs-a-denominator]] */
+  /* ⚠⚠ v2743 — THE DOOR v2732 SHIPPED WITHOUT. `tv/chronicle_rebuild.py` was referenced by
+     exactly TWO files in the whole tree — its own test and the gate registry. No route, no import
+     in control_app, no button anywhere. He asked for it in these words: "lets do a rebuild/restore
+     option for each chronicle that is ledger related .. make it that its a click of a button
+     away", and rejected a snapshot: "snap shot is not enough". The derivation shipped, tested and
+     gated; the thing he asked to press did not exist. [[plumbing-with-no-tap]]
+     ⛔ IT PROPOSES AND STOPS. The module cannot write — its gate asserts that with an import
+     allowlist plus attribute- and bare-name call checks. Applying is /api/chronicle_apply's job. */
+  $('btn-rebuild-chron').onclick = async function(){
+    var out = $('restore-out'); this.disabled = true;
+    out.innerHTML = 'deriving from the other ledgers\u2026';
+    try {
+      var r = await fetch(API + '/api/chronicle_rebuild', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+      var j = await r.json();
+      if (!j || !j.ok) {
+        out.innerHTML = '<span style="color:#e9b96e">' + escC((j && j.why) || 'no answer') + '</span>';
+      } else {
+        var un = (j.unreachable || []);
+        var cf = (j.conflicts || []);
+        /* ⚠ THE UNREACHABLE ARE NAMED, NEVER JUST COUNTED. They are the rows he would have to
+           re-enter by hand, and they are the whole argument for a save point beside a rebuild. */
+        out.innerHTML =
+          '<div style="color:#8fd0a0">' + (j.recovered != null ? j.recovered : '?') + ' of '
+            + ((j.owned != null) ? j.owned : '?') + ' derivable from evidence that already exists</div>'
+          + '<div style="color:var(--gold-dim)">read: ' + escC((j.sourcesRead || []).join(', ') || 'none')
+            + (((j.sourcesUnread || []).length) ? ' \u00b7 UNREAD: ' + escC(j.sourcesUnread.join(', ')) : '')
+            + '</div>'
+          + (un.length ? ('<div style="margin-top:4px;color:#e9b96e">\u26a0 reachable from nothing: '
+                          + escC(un.slice(0, 8).join(', '))
+                          + (un.length > 8 ? ' +' + (un.length - 8) + ' more' : '') + '</div>') : '')
+          + (cf.length ? ('<div style="margin-top:4px;color:#e9b96e">\u26a0 ' + cf.length
+                          + ' date conflict(s) REPORTED, not resolved</div>') : '');
+      }
+    } catch(e){ out.innerHTML = '<span style="color:#e07070">' + escC(String(e)) + '</span>'; }
+    this.disabled = false;
+  };
   window.__restorePlanned = null;
   $('btn-restore-plan').onclick = async function(){
     var out = $('restore-out'); this.disabled = true;

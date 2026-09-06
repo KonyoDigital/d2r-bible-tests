@@ -544,6 +544,34 @@ GATES = [
              "to the same ignorance, and the direction that cost two fixture reels at v2229 — and "
              "that POLICY holds stay uncovered, because he asked for the evidence frames."),
 
+    Gate("test_a_prune_records_what_it_freed",
+         [sys.executable, os.path.join(HERE, "test_a_prune_records_what_it_freed.py")], 120,
+         why="v2743 — 8,790 disk-history rows and NOT ONE has ever carried a freed figure (8,270 "
+             "zeros, 520 nulls, 0 nonzero). The row blamed 'nothing passes until a prune runs'; "
+             "false — the only write fires ~85 lines ABOVE apply_plan with pruned_mb hardcoded to "
+             "None, so a prune running changed nothing. Nor was it blocked on prune.arm: that lock "
+             "governs whether a prune may ACT, not what the writer may carry. Pins that the freed "
+             "figure reaches the history, that the pre-prune row still honestly says None, and — "
+             "the non-obvious trap — that the second write REUSES the pre-prune corpus, because "
+             "credible_pruned_mb refuses a figure larger than the corpus and re-measuring after "
+             "deletion makes every legitimate prune look impossible. ⚠ Includes an AST "
+             "REACHABILITY law added after sabotage proved the text-matching ones vacuous: "
+             "`if False:` left every matched string in place and passed 7/7 over a write that "
+             "could never run."),
+
+    Gate("test_a_seal_is_per_session",
+         [sys.executable, os.path.join(HERE, "test_a_seal_is_per_session.py")], 120,
+         why="v2743 — a sweep stamped ONE pass-wide row count onto every session it read, and it "
+             "ALREADY FIRED: six seals written in the same second on 2026-08-24 each carry rows=7 "
+             "while two of those sessions witnessed NOTHING. The claimed 42 is 7 counted six "
+             "times — and that phantom figure propagated into frame_authority.py:252, "
+             "run_gates.py:789 and test_seal_verdict.py:22 as the repo's own diagnosis. Attribution "
+             "existed all along (every witness dict carries `session`) and was thrown away. Pins "
+             "that attribution comes from the WITNESSES and not an even split, that the pass total "
+             "survives under its own name, and — run against the real deciders — that a session "
+             "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
+             "releases. Proven RED on 3 sabotages."),
+
     Gate("test_the_river_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_river_is_watched.py")], 120,
          why="v2742 — MEASURED heart coverage before adding any: reel_router (the station assigner, "
