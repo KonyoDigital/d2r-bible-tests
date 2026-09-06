@@ -646,6 +646,22 @@ GATES = [
              "writes: append-only, one row per station actually reached, deduped so a walk over a "
              "still river writes zero bytes."),
 
+    Gate("test_the_never_fired_rules_can_fire",
+         [sys.executable, os.path.join(HERE, "test_the_never_fired_rules_can_fire.py")], 180,
+         why="v2750 — reel_retention.plan() reports its own blind spot: 5 rules NEVER REACHED on "
+             "his 40 reels (no-witness-index, never-chronicle-swept, rows-not-banked, vault-owes, "
+             "eligible) because `zero-pages` catches 27 of 40 and a PAID READ is what clears it. "
+             "That made a circle: his money ruling says a paid pass runs AFTER the consuming path "
+             "is proven, but the path could not be proven without pages, and pages cost money. A "
+             "fixture of five synthetic reels — one per rule — walks the REAL chooser and settles "
+             "it for nothing: 5 of 5 fire correctly, so the rules were never broken, only never "
+             "reached. ⚠ REG-570 is what makes it honest — before it, plan(hist_dir=) read his LIVE "
+             "401-entry ledger and ignored the caller's, so every sabotage aimed at this chooser "
+             "was graded against data it could not control. ⚠ keep_recent=0 is deliberate AND a "
+             "limit: `recent`/`test-fixture` sit above the subject, so this proves FIVE rules, not "
+             "eight, and a law asserts those two still report as never-fired rather than implying "
+             "the chain is wholly exercised. 5 sabotages, all RED."),
+
     Gate("test_the_printer_reach_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_printer_reach_is_watched.py")], 120,
          why="v2749 — `grep -c printer_reach` was 0 across control_app.py, console_doctor.py, "

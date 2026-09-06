@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2749",
+  "ver": "v2750",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2749: zero contradictions because the contract refuses every seal and nothing said so",
+  "note": "v2750: five retention rules had never run and a free fixture proved all five work so the paid read is no longer blocked on a circle",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
