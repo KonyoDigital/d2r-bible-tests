@@ -5156,6 +5156,12 @@
                       background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright)); }
   .ftt .ftt-bar.ftt-unk > i { opacity: .2;
                       background: repeating-linear-gradient(90deg, var(--gold-dim) 0 3px, transparent 3px 6px); }
+  /* v2739 — INHERITED, NOT EARNED. Amber rather than red: the row is not broken and the numbers
+     are not wrong, so a failure colour would overstate what this is. It reads as a caveat ON a
+     real count, which is exactly what it is. */
+  .ftt .ftt-seed { margin: 2px 0 6px; padding: 5px 7px; border-radius: 5px;
+                   font: var(--fw-regular) var(--fs-2xs)/1.4 var(--mono); color: #f0c060;
+                   background: rgba(240,192,96,.10); border: 1px solid rgba(240,192,96,.34); }
   .ftt .ftt-none { font: var(--fw-regular) var(--fs-2xs)/1.45 var(--mono); color: var(--gold-dim); }
   .ftt .ftt-age { margin-top: 6px; font: var(--fw-regular) var(--fs-2xs)/1 var(--mono);
                   color: var(--gold-dim); opacity: .7; }
@@ -6986,6 +6992,20 @@ body[data-origin="shadow"] #stage::after {
                Both press the BOARD's own toggles — the console still never writes the ledger. -->
           <div id="repair-box" style="display:none;font-family:var(--mono,monospace);font-size: var(--fs-2xs);line-height:var(--lh-normal);padding:7px 9px;border:1px solid var(--edge);border-radius:8px;margin-top:6px">
             <div style="color:#e9b96e;font-weight:var(--fw-semibold);letter-spacing:.6px">🩹 LEDGER REPAIR</div>
+            <!-- ⚠⚠ v2739 — THE TAP FOR THE RESTORE PLUMBING. v2735 shipped
+                 /api/ledger_restore_plan and /api/ledger_restore_apply with NO caller, and CI
+                 caught it in the exact words this repo uses for it: "a route with no caller is
+                 plumbing with no tap — give it one or delete it". I wrote that defect while
+                 writing about it. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+                 TWO BUTTONS ON PURPOSE: the plan reads and writes nothing, and states in counts
+                 what it would put back. The apply is a separate, deliberate press — an automatic
+                 restore could resurrect a state he meant to leave behind, and nothing downstream
+                 could tell that from a repair. -->
+            <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+              <button class="util-btn" id="btn-restore-plan" type="button" title="Read the NEWEST automatic backup taken for THIS profile and say what it would put back, per store. Reads only — nothing is written, and nothing is decided.">what would a restore put back?</button>
+              <button class="util-btn" id="btn-restore-apply" type="button" disabled title="Ask the BOARD to put back the names the plan just listed. Goes through the same dated, merge-max, undoable door a hand tick uses, so it can only ADD what is missing — it cannot overwrite a newer find with an older one. Enabled only after a plan has been read.">put it back</button>
+            </div>
+            <div id="restore-out" style="margin-top:6px;color:var(--gold-dim)"></div>
             <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
               <button class="util-btn" id="btn-repair-dates" type="button" title="Rewrite find-dates that carry a given stamp, using the in-game Chronicle (d2r_gameFound). A name the game has no date for is LEFT ALONE — unknown stays unknown.">restore dates from the game</button>
               <input id="repair-stamp" type="text" placeholder="stamp prefix, e.g. Aug 24, 2026" style="flex:1 1 150px;min-width:0;background:#11141a;color:#cfd6df;border:1px solid var(--edge);border-radius:6px;padding:3px 6px">
@@ -15140,6 +15160,63 @@ window._lockMark = function(isOpen, px, label){
     var box = $('repair-box'); if (!box) return;
     box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
   };
+  /* v2739 — the read half. Writes nothing, decides nothing, and prints the DENOMINATORS beside
+     every count so a 0 is measured rather than empty. [[zero-needs-a-denominator]] */
+  window.__restorePlanned = null;
+  $('btn-restore-plan').onclick = async function(){
+    var out = $('restore-out'); this.disabled = true;
+    out.innerHTML = 'reading the newest backup for this profile\u2026';
+    try {
+      var r = await fetch(API + '/api/ledger_restore_plan', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+      var j = await r.json();
+      if (!j || !j.ok) {
+        window.__restorePlanned = null;
+        $('btn-restore-apply').disabled = true;
+        out.innerHTML = '<span style="color:#e9b96e">' + escC((j && j.why) || 'no answer') + '</span>';
+      } else {
+        window.__restorePlanned = j;
+        var rows = [];
+        Object.keys(j.stores || {}).sort().forEach(function(k){
+          var st = j.stores[k];
+          rows.push(st.missing === null
+            ? ('<div>' + escC(k) + ' \u2014 <span style="color:#e9b96e">UNKNOWN</span> \u00b7 '
+               + escC(String(st.why || '')) + '</div>')
+            /* the count AND both denominators, always — a bare 0 says nothing about whether
+               anyone looked */
+            : ('<div>' + escC(k) + ' \u2014 <b>' + st.count + '</b> to put back '
+               + '<span style="color:var(--gold-dim)">(' + st.inBackup + ' in the backup, '
+               + st.onBoard + ' on the board)</span></div>'));
+        });
+        var nr = (j.notRestorableHere || []);
+        out.innerHTML = '<div style="color:#8fd0a0">' + escC(j.file || '') + '</div>' + rows.join('')
+          + (nr.length ? ('<div style="margin-top:4px;color:#e9b96e">\u26a0 ' + escC(nr.join(', '))
+              + ' are backed up but cannot come back through this door \u2014 they need their own path</div>') : '');
+        /* ⚠ ARMED ONLY WHEN THERE IS SOMETHING TO DO. An apply that would add nothing still
+           reports success, which reads as a restore that happened. */
+        $('btn-restore-apply').disabled = !(j.missingTotal > 0);
+      }
+    } catch(e){ out.innerHTML = '<span style="color:#e07070">' + escC(String(e)) + '</span>'; }
+    this.disabled = false;
+  };
+  /* v2739 — the write half, and it goes through the BOARD's door, never localStorage. */
+  $('btn-restore-apply').onclick = async function(){
+    var out = $('restore-out'); var p = window.__restorePlanned;
+    if (!p || !(p.missingTotal > 0)) {
+      out.innerHTML = '<span style="color:#e9b96e">read a plan first \u2014 nothing is armed</span>';
+      return;
+    }
+    this.disabled = true; out.innerHTML = 'asking the board to put them back\u2026';
+    try {
+      var r = await fetch(API + '/api/ledger_restore_apply', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ confirm: true }) });
+      var j = await r.json();
+      out.innerHTML = (j && j.ok && j.applied)
+        ? ('<span style="color:#8fd0a0">' + escC(String(j.why || 'done')) + '</span>')
+        : ('<span style="color:#e9b96e">' + escC(String((j && j.why) || 'no answer')) + '</span>');
+    } catch(e){ out.innerHTML = '<span style="color:#e07070">' + escC(String(e)) + '</span>'; }
+  };
   $('btn-repair-dates').onclick = async function(){
     var out = $('repair-out'); this.disabled = true;
     out.innerHTML = 'asking the board…';
@@ -19149,8 +19226,26 @@ function escC(s) {
         }
         var bars = _bar('sets', t.sets) + _bar('uniques', t.uniques)
                  + _bar('runewords', t.runewords);
+        /* ⚠⚠ v2739 — SAY WHEN A ROW'S PROGRESS WAS INHERITED RATHER THAN EARNED.
+           Konyo, reading Dean's card: "it should be rendering for him 0 meaning its not and has
+           not been sycned yet based on his profile and ledgers".
+           The number is HONEST — the 249 really are in Dean's own foundLog — which is exactly why
+           nothing flagged it. bible.html:3990 resolves an UNNAMED ledger to the seed ledger
+           whenever the world holds any rows, and the boot path then re-seeds 245 of the OWNER's
+           finds into it on every load. Every reader downstream reports them faithfully as his.
+           ⚠ null is not false: an older console reports no ledger name at all, and that is
+           UNKNOWN, not clean. Only an explicit true says this. */
+        var seeded = (t.onOwnerSeed === true)
+          ? '<div class="ftt-seed" title="this world has no ledger name of its own, so it resolves '
+            + 'to the owner ledger ' + escC(String(t.seedLedger || '')) + ' and the boot path '
+            + 're-seeds the owner\u2019s finds into it. The counts above are real rows in this '
+            + 'store \u2014 they were inherited, not found here. Fixed on that machine by claiming '
+            + 'the browser, which stamps a ledger name of its own.">'
+            + '\u26a0 running on the OWNER\u2019S SEED \u00b7 these finds were inherited, not synced'
+            + '</div>'
+          : '';
         return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
-          + '</div>' + (bars || '<div class="ftt-none">reported no counts</div>')
+          + '</div>' + seeded + (bars || '<div class="ftt-none">reported no counts</div>')
           + '<div class="ftt-age">as of ' + escC(_fleetSince(t.at ? new Date(t.at).toISOString() : m.t))
           + '</div></div>';
       };

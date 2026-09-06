@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2739** | `(this commit)` | v2739 — a reset is two acts because the boot path re-seeds, plus the fleet card now says when a world is running on the owner seed |
 | **v2738** | `(this commit)` | v2738 — the guest install prefixes were never swept into the export or the restore, so a snapshot held two other chronicles and a guest export could never route home |
 | **v2737** | `(this commit)` | v2737 — it now calls the board own complete exporter instead of hand-picking a subset of it |
 | **v2736** | `(this commit)` | v2736 — a truncated board read became a reported loss and a dead loop graded OK - both reproduced then fixed and gated |

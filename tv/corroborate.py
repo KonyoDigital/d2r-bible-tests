@@ -1439,7 +1439,60 @@ def _inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot():
             "the allowed number of them", right, "<=")
 
 
-BUILDERS = (_inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot,
+def _inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed():
+    """v2739 — DEAN'S CONSOLE SHOWS 249/403 UNIQUES HE NEVER FOUND, AND EVERY CHECK AGREED.
+
+    Konyo, seeing THE FLEET card on his own console: *"it should be rendering for him 0 meaning
+    its not and has not been sycned yet based on his profile and ledgers"*.
+
+    ⚠ THE FLEET IS NOT LYING, WHICH IS WHY NOTHING CAUGHT IT. The 249 really are in Dean's own
+    `d2r_foundLog`. bible.html:3990 resolves an UNNAMED ledger to 'KonyoEndgame' whenever the world
+    holds any rows at all, and :20442 then re-seeds every missing `_GRAIL_SEED` name on EVERY boot.
+    So Konyo's 245 finds are written into Dean's store, and every downstream reader reports them
+    faithfully as Dean's progress.
+
+    ⚠⚠ AND THE EXISTING GUARD CANNOT SEE IT. `_inv_only_a_declared_owner_world_posts_owner_numbers`
+    asks whether an UNDECLARED world is posting owner numbers. Dean IS declared — he is a legitimate
+    guest world with a legitimate install. Nothing guarded a declared world INHERITING the seed,
+    which is a different sentence and needed a different invariant. [[gate-blind-to-unexercised-input]]
+
+    THE TWO SIDES:
+      LEFT   worlds whose ledger resolves to the SEED ledger while not being the owner install
+      RIGHT  0
+    Independent by SOURCE: the left is computed in the BOARD window, where `_D2R_LEDGER` and
+    `_SEED_LEDGER` both live and where the resolution actually happens; the right is a constant.
+    Neither side is derived from the tally the fleet prints, which is the number that looked fine.
+
+    ⚠ IT CANNOT REPAIR ANYTHING, AND MUST NOT CLAIM TO. Stamping `d2r_ledgerName` happens on DEAN'S
+    machine — v2692's claim button does exactly that. This turns an invisible contamination into a
+    stated one, which is the whole of what this machine can reach. [[unknown-stays-unknown]]
+    """
+    def left():
+        import control_app as ca
+        try:
+            got = ca.board_ownership(0)
+        except Exception:
+            return None
+        if not isinstance(got, dict) or not got.get("ok"):
+            return None                      # the board did not answer — UNKNOWN, never 0
+        v = got.get("onOwnerSeed")
+        if v is None:
+            return None                      # the console predates the field, or a name is unknown
+        return 1 if v else 0
+
+    def right():
+        return 0
+
+    return ("owner-seed-inheritance",
+            "no world reports progress it inherited from the owner's hardcoded seed",
+            "point a guest world at an unnamed ledger — it resolves to the seed ledger, the boot "
+            "path re-seeds 245 of the owner's finds into it, and every tally reports them as that "
+            "person's own progress while staying internally consistent",
+            "worlds running on the owner seed", left, "the allowed number of them", right, "<=")
+
+
+BUILDERS = (_inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed,
+            _inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot,
             _inv_the_evidence_ledger_survived_the_sweep_that_filled_it,
             _inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR,
             _inv_a_world_reporting_nothing_holds_nothing,

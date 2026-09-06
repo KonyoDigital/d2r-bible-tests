@@ -532,6 +532,19 @@ GATES = [
              "IMPORT ALLOWLIST plus attribute- and bare-name call checks, after a substring "
              "version was defeated by `import json as _j` and then by `open()`."),
 
+    Gate("test_uniques_reset_is_uniques_only",
+         [sys.executable, os.path.join(HERE, "test_uniques_reset_is_uniques_only.py")], 180,
+         why="v2739 — the reset button he asked for, and the two ways it could have been a lie. "
+             "(1) d2r_foundLog carries SET-PIECE rows alongside uniques, so a wholesale clear "
+             "would take his set-piece dates while leaving d2r_setPieces intact — invisible in the "
+             "store anyone would check. (2) It is TWO ACTS: the boot path re-seeds every missing "
+             "_GRAIL_SEED name on EVERY load unless the name sits in d2r_grailUnfound, so clearing "
+             "rows alone reverts on the next reload while reporting success. Runs the REAL "
+             "javascript in node. Proven RED on 5 sabotages. ⚠ The first fixture was VACUOUS — "
+             "every seed name was also a cleared name, so each sweep covered for the other's "
+             "removal and two sabotages passed 9/9; the fixture now gives each sweep a victim only "
+             "it can save."),
+
     Gate("test_export_scopes_to_one_world",
          [sys.executable, os.path.join(HERE, "test_export_scopes_to_one_world.py")], 180,
          why="v2738 — his Backup & Share export carried OTHER WORLDS. _collectProgress strips the "

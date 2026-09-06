@@ -11798,6 +11798,20 @@ def board_ownership(sample=0, dump_stores=False):
           # consecutive files. [[copy-drift]] [[the-unjoined-end]]
           # ⚠ `window` here is the IIFE parameter shadowing _ctx, so this resolves in the BOARD
           # window rather than the console.
+          # ⚠⚠ v2739 — NAME THE LEDGER THIS WORLD IS RUNNING ON, AND WHETHER IT INHERITED THE SEED.
+          # Konyo saw THE FLEET report Dean at 249/403 and said it should read 0 "because he has
+          # not synced". The fleet is reporting HONESTLY — the 249 really are in Dean's own
+          # foundLog. bible.html:3990 is why: an unnamed ledger resolves to 'KonyoEndgame' when the
+          # world holds any rows, and :20442 then re-seeds every missing _GRAIL_SEED name on EVERY
+          # boot. So Konyo's 245 finds are written into Dean's store and reported as his progress.
+          # ⚠ THE REPAIR IS ON DEAN'S MACHINE (stamp d2r_ledgerName; v2692's claim button does it).
+          # Nothing here can reach his localStorage, and pretending otherwise would be inventing
+          # reach. What this CAN do is stop the contamination being invisible.
+          # `_inv_only_a_declared_owner_world_posts_owner_numbers` cannot catch it — Dean IS
+          # declared. Nothing guarded a world INHERITING the seed. [[unknown-stays-unknown]]
+          "var ledgerName=null,seedLedger=null;"
+          "try{ledgerName=(window._D2R_LEDGER==null?null:String(window._D2R_LEDGER));}catch(_ln){}"
+          "try{seedLedger=(window._SEED_LEDGER==null?null:String(window._SEED_LEDGER));}catch(_sl){}"
           "var fullStores=null;"
           "try{if(typeof window._collectProgress==='function')fullStores=window._collectProgress();}"
           "catch(_cp){}"
@@ -11836,7 +11850,11 @@ def board_ownership(sample=0, dump_stores=False):
           # not a running board. [[the-unjoined-end]] [[feedback-verify-not-proxy]]
           # ⚠ And the gate was never needed: rwFull is declared null and fetched unconditionally
           # eleven lines up, so it is already null when there is nothing to copy.
-          "rwMadeFull:rwFull,fullStores:fullStores});"
+          "rwMadeFull:rwFull,fullStores:fullStores,"
+          "ledgerName:ledgerName,seedLedger:seedLedger,"
+          # the contamination CONDITION, computed where every operand is in scope.
+          # null when either name is unknown — never false, which would read as clean.
+          "onOwnerSeed:((ledgerName==null||seedLedger==null)?null:(!owner&&ledgerName===seedLedger))});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})(_ctx,_ctx!==window);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
@@ -23514,7 +23532,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2738",
+        "ver": "v2739",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

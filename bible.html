@@ -522,6 +522,13 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 .help-btn{position:fixed;bottom:18px;right:18px;background:var(--gold);color:#1a1208;width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;font-size:18px;font-weight:var(--fw-semibold);box-shadow:0 4px 12px rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;font-family:inherit}
 .help-btn:hover{background:var(--gold-bright);transform:scale(1.05)}
 /* v341.41 — themed confirm modal (replaces the OS-native white confirm() box) */
+/* v2739 — THE UNIQUES RESET BUTTON. Dim chrome, not a feature colour: a destructive control that
+   looks like an action invites the press it exists to guard. It warms to danger only on hover, so
+   the intent is legible at the moment of pressing rather than shouting all the time.
+   The safeguard itself is the confirm, which COUNTS before it asks. */
+.f-reset-uni{font:var(--fs-meta)/1 var(--mono,ui-monospace,monospace);letter-spacing:.4px;color:#9aa4b2;background:rgba(224,121,110,.05);border:1px solid rgba(224,121,110,.22);border-radius:6px;padding:4px 9px;cursor:pointer;transition:color .15s,border-color .15s,background .15s}
+.f-reset-uni:hover{color:#e0796e;border-color:rgba(224,121,110,.45);background:rgba(224,121,110,.08)}
+.f-reset-uni:focus-visible{outline:2px solid rgba(224,121,110,.6);outline-offset:2px}
 .ui-confirm-ov{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(6,4,2,.74);backdrop-filter:blur(5px);opacity:0;transition:opacity .16s ease}
 .ui-confirm-ov.on{opacity:1}
 .ui-confirm{max-width:440px;width:100%;background:linear-gradient(180deg,#1c140a,#120d07);border:1px solid var(--gold-bright,#d4a849);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.82),0 0 32px -8px rgba(212,168,71,.45);padding:22px 24px 18px;text-align:center;transform:scale(.93) translateY(8px);transition:transform .2s cubic-bezier(.2,.85,.25,1)}
@@ -19461,6 +19468,107 @@ window.ITEM_VALUE = {"Annihilus":"high","Arachnid Mesh":"high","Bul-Kathos' Wedd
     return Object.keys(ro).map(function(k){ return ro[k]; });
   };
 })();
+
+/* ══ v2739 — RESET THE UNIQUES CHRONICLE, AND ONLY THAT ════════════════════════════════════════
+   Konyo: *"the reset button to bypass the uniques chronicle for main tab of deans console and in
+   generall the console just add tha tbutton with a safegaurd like i mentioned"* — a small button
+   under the UNIQUES tab, with a confirm that names what it is about to do.
+
+   ⚠⚠ IT IS TWO ACTS, NOT ONE, AND ONE ACT SILENTLY UNDOES ITSELF.
+   Clearing the rows is not enough: the boot path re-seeds every missing `_GRAIL_SEED` name on
+   EVERY load, and the only thing that stops it is the name being present in `d2r_grailUnfound`
+   (see the `if (_gUn[n]) return;` guard). A reset that only deleted rows would look like it worked
+   and the chronicle would refill itself the next time the page opened — the worst possible failure
+   for a button whose entire promise is a clean slate.
+
+   ⛔ UNIQUES ONLY, AND THIS IS THE LOAD-BEARING PART. `d2r_foundLog` carries set-piece rows as well
+   as uniques — measured: a rebuild that ignored `d2r_setPieces` called 132 set pieces "unreachable"
+   for exactly this reason. So the clear is restricted to names on the UNIQUE roster, folded with
+   the same `_regKey` the tally uses. `d2r_setPieces` (his 123) and `d2r_rwMade` (his 99) are never
+   read and never written here.
+
+   ⚠ THE CONFIRM COUNTS BEFORE IT ASKS. "Are you sure?" is equally answerable whether the cost is 0
+   items or 292, so it tells him nothing. On an unseeded world (Dean's) this is a routine act; on a
+   seeded one it is not, and the dialog has to say which it is looking at. [[unknown-stays-unknown]] */
+window._uniqueResetPlan = function(){
+  try {
+    var LS = window.LSR || window.localStorage;
+    var K  = (typeof window._regKey === 'function') ? window._regKey
+                                                    : function(x){ return String(x||'').toLowerCase(); };
+    var roster = (typeof window._gUniqueRoster === 'function') ? (window._gUniqueRoster() || []) : null;
+    if (!roster || !roster.length) return { ok:false, why:'the unique roster is not loaded, so which rows are uniques is UNKNOWN — refusing to guess' };
+    var uni = {}; roster.forEach(function(n){ uni[K(n)] = 1; });
+    var fl  = JSON.parse(LS.getItem('d2r_foundLog') || '{}') || {};
+    var own = JSON.parse(LS.getItem('d2r_owned') || '[]') || [];
+    var gf  = JSON.parse(LS.getItem('d2r_gameFound') || '{}') || {};
+    var names = Object.keys(fl).filter(function(n){ return uni[K(n)] === 1; });
+    var ownNames = own.filter(function(n){ return uni[K(n)] === 1; });
+    /* how many could come back from the in-game Chronicle, which is a source OUTSIDE this app */
+    var gfk = {}; Object.keys(gf).forEach(function(n){ gfk[K(n)] = 1; });
+    var inGame = names.filter(function(n){ return gfk[K(n)] === 1; }).length;
+    return { ok:true, names:names, count:names.length, owned:ownNames.length,
+             inGame:inGame, sets:(JSON.parse(LS.getItem('d2r_setPieces') || '[]')||[]).length,
+             runewords:Object.keys(JSON.parse(LS.getItem('d2r_rwMade') || '{}')||{}).length };
+  } catch(e){ return { ok:false, why:'could not read the chronicle: ' + (e && e.message || e) }; }
+};
+
+window._uniqueResetDo = function(plan){
+  try {
+    var LS = window.LSR || window.localStorage;
+    var fl  = JSON.parse(LS.getItem('d2r_foundLog') || '{}') || {};
+    var own = JSON.parse(LS.getItem('d2r_owned') || '[]') || [];
+    var gun = JSON.parse(LS.getItem('d2r_grailUnfound') || '{}') || {};
+    var K  = (typeof window._regKey === 'function') ? window._regKey
+                                                    : function(x){ return String(x||'').toLowerCase(); };
+    var uni = {}; (plan.names || []).forEach(function(n){ uni[K(n)] = 1; });
+    /* ACT 1 — the rows */
+    (plan.names || []).forEach(function(n){ delete fl[n]; });
+    var own2 = own.filter(function(n){ return uni[K(n)] !== 1; });
+    /* ACT 2 — the un-tick registry, WITHOUT WHICH ACT 1 UNDOES ITSELF ON THE NEXT BOOT.
+       Every seed name goes in, not only the ones that happened to have a row: the re-seeder walks
+       _GRAIL_SEED, so a seed name with no current row would still come back. */
+    var seed = window._GRAIL_SEED || {};
+    Object.keys(seed).forEach(function(n){ if (uni[K(n)] === 1 || fl[n] === undefined) gun[n] = 1; });
+    (plan.names || []).forEach(function(n){ gun[n] = 1; });
+    LS.setItem('d2r_foundLog', JSON.stringify(fl));
+    LS.setItem('d2r_owned', JSON.stringify(own2));
+    LS.setItem('d2r_grailUnfound', JSON.stringify(gun));
+    /* ⛔ d2r_setPieces and d2r_rwMade are NEVER touched here — his sets and runewords do not move. */
+    return { ok:true, cleared:(plan.names || []).length, unticked:Object.keys(gun).length };
+  } catch(e){ return { ok:false, why:'the write failed: ' + (e && e.message || e) }; }
+};
+
+window._uniqueResetAsk = async function(){
+  var p = window._uniqueResetPlan();
+  if (!p.ok){ try { await window.uiConfirm(p.why, {icon:'⚠️', ok:'OK', cancel:''}); } catch(e){ } return; }
+  if (!p.count){
+    try { await window.uiConfirm('The uniques chronicle is already empty — there is nothing to reset.\n\nYour sets (' + p.sets + ') and runewords (' + p.runewords + ') are untouched either way.', {icon:'✅', ok:'OK'}); } catch(e){}
+    return;
+  }
+  var unrecoverable = Math.max(0, p.count - p.inGame);
+  /* ⚠ v2739b — THE 12/28 SPLIT IS OVER THE UNIQUES, NOT OVER THE VAULT ROWS, AND THE FIRST
+     WORDING DID NOT SAY SO. A cross-family read of the rendered dialog came back with exactly one
+     ambiguity: "whether the 10 vault rows are included in the 12/28 split or are separate". They
+     are a SUBSET of the same uniques — an item he owns is also an item he ticked — so a reader
+     could reasonably add 40 + 10 and think 50 things were going. On a confirm for a destructive
+     act, a number a person can misread by 25% is the whole problem. */
+  var msg = 'ARE YOU SURE you want to reset the chronicle for UNIQUES SPECIFICALLY?\n\n'
+    + 'This clears ' + p.count + ' ticked unique' + (p.count === 1 ? '' : 's') + '.\n'
+    + (p.owned ? ('· ' + p.owned + ' of those ' + p.count + ' also lose their vault ownership row.\n') : '')
+    + (p.inGame ? ('· ' + p.inGame + ' of the ' + p.count + ' can be restored from the in-game Chronicle.\n') : '')
+    + (unrecoverable ? ('· ' + unrecoverable + ' of the ' + p.count + ' have NO record in the in-game Chronicle. Export a snapshot first if you want them back.\n') : '')
+    + '\nYour SETS (' + p.sets + ') and RUNEWORDS (' + p.runewords + ') are NOT touched.';
+  var go = await window.uiConfirm(msg, { icon:'🗑️', ok:'RESET UNIQUES', cancel:'Keep them' });
+  if (!go) return;
+  var r = window._uniqueResetDo(p);
+  if (r.ok){
+    try { window.dispatchEvent(new Event('d2r-ledger-changed')); } catch(e){}
+    try { if (typeof window.renderForge === 'function') window.renderForge(); } catch(e){}
+    try { location.reload(); } catch(e){}
+  } else {
+    try { await window.uiConfirm(r.why, {icon:'⚠️', ok:'OK'}); } catch(e){}
+  }
+};
 
 /* ══ v1794 — THE INBOX ENGINE ═══════════════════════════════════════════════════════════════════
    Konyo: "make sure the inbox is now calibrated to the new coding and architecure. so it doesnt
@@ -43828,6 +43936,14 @@ function renderJournal(){
     // v682.1 — the headline meter above IS the in-game number now; this line explains the named-card grid
     if (s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the remaining rows are still dark silhouettes in-game (bare base types), unknowable until they drop">🗂 named cards: <b>'+s.found+' / '+s.total+'</b> ticked · <b>'+Math.max(0,(s.chronTotal-s.total))+'</b> chronicle rows still dark (names reveal on find)</div>');
     H.push(_undoBar('uni'));   // v644 — mis-ticks are one ↩ away, forge-style
+    /* v2739 — THE RESET, under the UNIQUES tab exactly where he asked for it. Deliberately quiet:
+       it sits at the end of the header row in dim chrome, not as a primary action, because a
+       destructive control styled like a feature invites the press it exists to guard. The whole
+       safeguard lives in the confirm, which COUNTS before it asks. */
+    H.push('<div style="margin:-2px 0 10px;text-align:right">'
+      + '<button type="button" class="f-reset-uni" onclick="window._uniqueResetAsk&&window._uniqueResetAsk()" '
+      + 'title="Reset the UNIQUES chronicle only — clears your ticked uniques and stops the boot path re-seeding them. Your SETS and RUNEWORDS are not touched. Asks first, and tells you how many can be restored from the in-game Chronicle.">'
+      + '\u21ba reset uniques chronicle</button></div>');
     // v1692 — SURFACE, NEVER OVERRULE. d2r_grailUnfound is his own un-tick (~line 16830, USER TRUTH):
     // some of these show a "First Found:" line in his Chronicle screenshots — Blackbog's Sharp and
     // Islestrike, verified — but his un-tick stands until HE says otherwise. Tapping a name here goes
@@ -49359,7 +49475,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2738', name:'v2738 - his export carried other peoples worlds', date:'2026-09-06', note:'the guest install prefixes were never swept into the export or the restore, so a snapshot held two other chronicles and a guest export could never route home' };
+  window.D2R_BUILD = { id:'v2739', name:'v2739 - the uniques reset button, and Deans inherited progress made visible', date:'2026-09-06', note:'a reset is two acts because the boot path re-seeds, plus the fleet card now says when a world is running on the owner seed' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
