@@ -502,6 +502,14 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_frame_release_wilson",
+         [sys.executable, os.path.join(HERE, "test_frame_release_wilson.py")], 120,
+         why="the harness that proves the DELETION GATE must itself be unable to delete — asserted "
+             "from its own source, not promised in a comment. It also pins that the lock cannot "
+             "pass by refusing everything: two of the eight attacks MUST RELEASE, so a wall (which "
+             "would score a perfect Wilson) fails. And that no two attacks are the same input — "
+             "repetition counted as breadth is the illusion wilsonByAttack exists to refuse."),
+
     Gate("test_examined_empty_releases",
          [sys.executable, os.path.join(HERE, "test_examined_empty_releases.py")], 120,
          why="HIS ruling: an examined-empty reel may continue down the river 'as long as its "

@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2721** | `(this commit)` | v2721 — the gate between a seal and a deletion had no lock so seven real sabotages had nowhere honest to go; declared with its own bar and banked from a re-runnable harness |
 | **v2720** | `(this commit)` | v2720 — seal_verdict existed since v2702 and was called by one reporter while both deciders asked the old binary question; joined with the strict predicate so examined empty releases and nothing was taken does not |
 | **v2719** | `(this commit)` | v2719 — the render gate excused a scroller in its ancestor branch and not in its self branch so a designed scroll area read as clipped; instrument fixed and the declared floor removed not raised |
 | **v2718** | `(this commit)` | v2718 — a seven day old grok error was printed as the present state of his second eye while fourteen reads succeeded that day; age now decides staleness and raw json never reaches the line |
@@ -1808,7 +1809,7 @@ say which in one sentence, that is the bug.
 
 | surface | what it is now |
 |---|---|
-| **`~/.claude/tasks/session-bf4f066b/` — 51 rows** | **THE SOURCE.** His ruling, 2026-09-05: *"make it a defaulted way from now. i want this the way you update and progress and complete the tasks."* It is what he opens, on :17955, and it carries dependency edges (`blocks`/`blockedBy`) the other two cannot express |
+| **`~/.claude/tasks/session-bf4f066b/`** (the live count is in the viewer at :17955 — a number typed here is one that goes stale, and this table is the one place that must not) | **THE SOURCE.** His ruling, 2026-09-05: *"make it a defaulted way from now. i want this the way you update and progress and complete the tasks."* It is what he opens, on :17955, and it carries dependency edges (`blocks`/`blockedBy`) the other two cannot express |
 | **`TASKS.md` — 1,659 lines** | **THE DURABLE ARCHIVE, and it keeps that job.** It exists because a list that lives in a session does not survive a restart — 993 turns once had to be recovered from a 688 MB transcript. It holds the EVIDENCE a board row cannot: the measurement, the refutation, the commit |
 | **the D2R Console Manifest artifact** | **RETIRED as a work surface.** 225 row documents against its own `board/mirror` flag saying `count: 113` — it has already drifted, and nothing reconciles it |
 

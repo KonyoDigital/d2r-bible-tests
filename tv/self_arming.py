@@ -208,6 +208,27 @@ LOCKS = {
         "bar": 0.510, "kinds_bar": 1.0, "after": [],
     },
     # step 4 — the deleter. Last, and it cannot be reached early.
+    # ⚠⚠ v2721 — THE GATE BETWEEN A SEAL AND A DELETION, AND IT HAD NO LOCK.
+    # `frame_authority.seal_releases_frames` decides, per FRAME, whether pixels may go. It is not
+    # `prune.arm` ("may the prune RUN") and it is not `vault.apply` (the write door) — it is the
+    # per-frame release authority, and frame-vs-reel granularity is exactly the distinction v2314
+    # refused to collapse. Konyo's 2026-09-06 ruling made it decide real reels for the first time
+    # (examined-empty releases; a bare "nothing was taken" does not), which is when an authority
+    # earns a lock.
+    #
+    # It went unbanked because it had nowhere HONEST to go: seven genuine sabotages against it
+    # would have had to be filed under a lock whose subject they do not attack — the counter-moving
+    # `_hardening_gap` warns about in its own docstring. Declaring the lock is the honest
+    # alternative to mis-filing real evidence. [[join-gate-heart]]
+    #
+    # BAR 0.722 / KINDS 1.3 — the write-door class (vault.apply), not the deleter class. It
+    # AUTHORISES an irreversible act without performing one, and prune.arm still stands between it
+    # and any byte being removed.
+    "frame.release": {
+        "surface": "THE RIVER",
+        "acts": "decides whether a frame's pixels may be released — the last check before deletion",
+        "bar": 0.722, "kinds_bar": 1.3, "after": [],
+    },
     "prune.arm": {
         "surface": "THE RIVER", "acts": "deletes footage — there is no undo",
         "bar": 0.839, "kinds_bar": 1.8,
@@ -218,7 +239,9 @@ LOCKS = {
         # deleter was waiting on the two VAULT locks and on nothing in the river it deletes from.
         # This is strictly more conservative: prune.arm can now be held by a printer that is not
         # proven, and never opened by one.
-        "after": ["printer.stream", "vault.sweep_start", "vault.apply"],
+        # v2721 — and on the frame gate. Safe by construction: prune.arm is already
+        # LOCKED, so this can only ADD a prerequisite, never remove one.
+        "after": ["printer.stream", "vault.sweep_start", "vault.apply", "frame.release"],
     },
 }
 
@@ -396,6 +419,11 @@ PROVES = {
     # kinds_bar is 1.8 and sabotage weighs 1.0. The door with no undo does not open on one kind
     # of look, which is the point of the bar rather than a gap in this harness.
     "prune_wilson": ("prune.arm",),
+    # v2721 — frame_release_wilson attacks `frame_authority.seal_releases_frames` in states where
+    # it MUST refuse: a seal that never looked, one saying only "nothing was taken", one whose
+    # examinedEmpty is falsy rather than declared. It deletes nothing and arms nothing — it calls
+    # one pure predicate and counts refusals.
+    "frame_release_wilson": ("frame.release",),
     # ⚠ THE ROUTES. route_wilson removes what each lane CLAIMS TO HAVE FOUND — deletes the
     # artifact, deletes bible.html, blanks every mention of the roster stem, removes the file a
     # lane names — and counts whether the lane noticed. A lane that still says ok with its
