@@ -22536,6 +22536,45 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-689 — the hunt eyebrow stranded its separator, and the fix was a fifth option nobody listed
+
+**v2728.** TWO INDEPENDENT COLD READS flagged it on different versions, neither knowing the other
+had — v2719 *"'· OF 383' sits on its own line ... reads as broken"* and v2722 *"'· OF 383' on its
+own line"*. Two readers with no memory of each other reporting the same thing is the signal that
+made the terror-level defect worth chasing, and that one was real too.
+
+MEASURED on his live console at five widths: `>=1000px` box 527 vs natural 516 (fits); **901px box
+440 vs 516 WRAPS**; 375px box 302 vs 516 WRAPS. The eyebrow is uppercase mono at .28em tracking, so
+the text node wraps inside the flex item and the break lands BEFORE the '·'.
+
+⚠ THE ROW HAD BEEN FILED-NOT-FIXED BECAUSE ALL FOUR KNOWN OPTIONS COST SOMETHING — and one of them
+is now ruled out by MEASUREMENT rather than argument, which is the part nobody had done. The row's
+own text said so: *"NOT MEASURED: whether reduced tracking would actually fit the string in the 901
+rail."* It would — .14em gives 434 against a 440 box. But at 375 the box is 302 and even .06em is
+387: forty-five uppercase mono characters do not fit 302px at any legible tracking. A fix that works
+at one width and not the other is a narrower bug.
+
+THE FIFTH OPTION, never listed: the separators are plain `' · '` in a text node, so the browser has
+a break opportunity on BOTH sides of the dot and takes the left one. Binding the dot to the word
+BEFORE it with U+00A0 DELETES that opportunity. The row correctly said CSS cannot detect a line
+start — but the MARKUP can remove the place a line could start. No font, tracking, layout or width
+changes, so it cannot clip: wrapping still happens, one break opportunity later.
+
+PROVEN RED THEN GREEN IN THE SAME PAGE, by cloning the live element and replacing U+00A0 with a
+plain space in the clone — same box, same styles, same fonts, per-glyph Range rects:
+    901px  OLD 't·' STRANDS  ->  NEW 'th' clean
+    375px  OLD 'tf' clean    ->  NEW 'tf' clean
+GATE: `test_eyebrow_never_strands_a_separator`, 3 laws, 4 sabotages — including the vacuity case
+(rename the class and the guard must fail rather than find nothing and pass).
+⚠ THE GUARD'S OWN FIRST CUT WAS WRONG and the control run caught it: it read the SOURCE and demanded
+a literal U+00A0 one character back, but these are JS string literals in an HTML file, so `\u00a0`
+is a six-character ESCAPE the engine turns into one NBSP. The law rejected the working fix and
+reported the separator was preceded by `'0'` — the last digit of the escape. A guard grading source
+must know which of the two layers it is looking at.
+HEART: none, and deliberately. Nothing DECIDES on this — it is a cosmetic label, and
+[[join-gate-heart]]'s own test is consequence: "does something DECIDE on this?" A gate is the
+right and sufficient instrument.
+
 ## REG-687 — a gate named for WRITING asserted against READING, and was red on CI for two ships
 
 **v2727.** `test_frame_release_wilson.test_it_never_writes_to_the_seal_store` asserted

@@ -18060,9 +18060,9 @@ window._lockMark = function(isOpen, px, label){
       /* v1554 — "fastest FIND" overclaims. _writeGrailFarm exports GRAIL-tier items only, so this
          ranks 51 of his 125 missing uniques; Umbral Disk is ~2h and is not in the universe at all.
          Naming the universe costs one word and makes the number checkable. */
-      + '<div class="hh-eye"><span class="hh-dot"></span>the next chronicle · '
+      + '<div class="hh-eye"><span class="hh-dot"></span>the next chronicle\u00a0· '
         + (_tierOf(top.source) === 2
-            ? 'fastest in hell · of ' + (_hell.length || data.ranked.length)
+            ? 'fastest in hell\u00a0· of ' + (_hell.length || data.ranked.length)
             : 'fastest of ' + data.ranked.length)
         + '</div>'
       /* v1613 — the item name is a LINK now. It already knows which item it is; making him go
@@ -18236,8 +18236,8 @@ window._lockMark = function(isOpen, px, label){
       + _itemArtImg(meta.setArt, 'hh-alt-i', null) + esc(setName) + '</b>') : '';
     host.className = 'hub-hero hub-hero-sets';
     host.innerHTML = '<div class="hh-main">'
-      + '<div class="hh-eye"><span class="hh-dot"></span>the next piece · '
-        + (tier(top.source) === 2 ? 'fastest in hell · of ' + (hell.length || data.ranked.length)
+      + '<div class="hh-eye"><span class="hh-dot"></span>the next piece\u00a0· '
+        + (tier(top.source) === 2 ? 'fastest in hell\u00a0· of ' + (hell.length || data.ranked.length)
                                   : 'fastest of ' + data.ranked.length) + '</div>'
       /* v1617 — IT IS CLICKABLE NOW, AND v1616's REASONING WAS WRONG.
          v1616 left this inert because "the set farm ranks an AGGREGATE, so there is no single item

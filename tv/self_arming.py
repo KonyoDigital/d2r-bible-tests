@@ -393,6 +393,10 @@ PROVES = {
     # v2727 — the LIVE half of the same subject. Three coherence checks over his real shelf; it
     # returns UNKNOWN where there are no reels, so it cannot bank a clean zero on CI.
     "rung_accounting_live": ("reel.route",),
+    # v2728 — the CROSS-FAMILY half. A different model family (xai/grok) handed the real decision
+    # code and told to REFUTE six named claims. Banked as attacks=1: it reported seven probes, but
+    # an LLM's self-reported breadth is not verifiable breadth, and the value here is the KIND.
+    "rung_accounting_xfam": ("reel.route",),
     #: A2·HARD — attacks on the vault WRITE door designed by a DIFFERENT model family, which is
     #: the third evidence KIND `vault.apply` needed and the only one available without spending
     #: his money. Two of the three found a real hole (an uncorroborated row under `unsure` reached

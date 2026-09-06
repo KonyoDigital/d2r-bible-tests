@@ -520,6 +520,18 @@ GATES = [
              "reported to the channel the Doctor already reads, and it still SERVES rather than "
              "refusing — a transient torn read must not become an outage."),
 
+    Gate("test_eyebrow_never_strands_a_separator",
+         [sys.executable, os.path.join(HERE, "test_eyebrow_never_strands_a_separator.py")], 120,
+         why="v2728 — TWO independent cold reads on two different versions reported '· OF 383' "
+             "alone on a line, neither knowing the other had. The row had been filed-not-fixed "
+             "because all four options cost something; a FIFTH was never listed. The separators "
+             "are plain ' · ' in a text node, so the browser can break on either side of the dot "
+             "and takes the left one — binding the dot to the word before it with U+00A0 deletes "
+             "that break opportunity. Proven red then green in the same page by cloning the live "
+             "element and putting the plain space back: 901px went 't·' STRANDS -> 'th' clean. "
+             "This also pins that nobody reaches for white-space:nowrap, which hides the "
+             "separator by clipping the end of the sentence instead."),
+
     Gate("test_coldread_empty_is_not_broken",
          [sys.executable, os.path.join(HERE, "test_coldread_empty_is_not_broken.py")], 120,
          why="v2726 — coldread aborted its whole run because `.vrg-cols` was absent, and it was "

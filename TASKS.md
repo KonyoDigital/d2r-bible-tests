@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2728** | `(this commit)` | v2728 — two cold readers saw a separator stranded on its own line; the fix was a fifth option nobody had listed, and the tracking option is measured insufficient at 375 |
 | **v2727** | `(this commit)` | v2727 — a gate named for writing asserted against reading and was CI-red for two ships; plus a live witness for reel.route because sabotage cannot close a kinds gap |
 | **v2726** | `(this commit)` | v2726 — coldread refused a panel that was correctly empty, so the renderer built for the second-eye gate could not satisfy it |
 | **v2725** | `(this commit)` | v2725 — one_funnel called four rungs traceless while reel_retention.plan decided every one of them; observability published beside passage, never merged into it |
