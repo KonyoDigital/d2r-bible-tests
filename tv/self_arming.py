@@ -280,6 +280,23 @@ for _set, _keys in (("chronicle", ("runeword", "set", "unique")),
 #: instrument keeps agreeing with itself. The maximum confluence is 3.40 (all five kinds).
 #:
 #: It is EARNED the same way everything else here is: derived from the ledger, never assigned.
+# ⚠⚠ v2745 — WHAT THIS NUMBER ACTUALLY IS, BECAUSE IT READS AS SOMETHING ELSE AND MISLED ME.
+# A cross-family audit (t30) attacked it and was RIGHT. MEASURED in tv/.self_arming.jsonl:
+#     149 banked rows · rows where an attack FAILED (k < n): **6**
+#     and all six are prune.reports k=0/n=8, the REG-600 case
+# So for 143 of 149 rows k == n, and `wilson_lower(n, n)` reduces exactly to n / (n + z^2). The
+# score is therefore a MONOTONE FUNCTION OF n — a COUNT OF DISTINCT ATTACKS, not a success rate
+# and not a confidence. HARD_BAR = 0.900 means, in practice, "at least 35 distinct attacks, all
+# currently answered".
+#
+# ⚖ THAT IS NOT NOTHING, AND THE COUNTER-EVIDENCE MATTERS: of the 17 attacks added for reel.route,
+# NINE LANDED — they failed against the code as it stood and found real defects in one_funnel.py.
+# So the harness demonstrably CAN produce contrary examples; attacks are not written to pass. The
+# sequence is: attack fails -> THE CODE is fixed -> k = n. That is a working ratchet.
+#
+# ⇒ SAY IT THIS WAY AND IT IS TRUE: "N distinct attacks exist against this surface, every one is
+# currently answered, across K independent kinds of witness." Saying "90.4% confident" is not.
+# [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
 HARD_BAR = 0.900        #: the Wilson lower bound a HARDENED surface must clear
 HARD_KINDS_BAR = 2.50   #: needs three genuinely different kinds — e.g. sabotage+cross-family+live
 

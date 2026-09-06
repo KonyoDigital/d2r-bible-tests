@@ -11773,6 +11773,278 @@ window._lockMark = function(isOpen, px, label){
   }
 
 
+  /* ⚠⚠ WIDTH-AWARE FAN PLACEMENT — POSITION FROM MEASURED WIDTH, NOT FROM THE INDEX.
+     This is the defect [[heartov2]] carried through four attempts, and the file already stated it
+     exactly without ever acting on it:
+
+         reach = [0.78, 1.06, 1.34][j % 3]   <- POSITION comes from the INDEX
+         three <text> at the same gx          <- WIDTH comes from the CONTENT
+
+     So the fan is correct only for the content it happened to have when someone last looked, and
+     banking evidence into two locks on 2026-09-06 — which changed nothing but the NUMBERS inside
+     two strings — moved the overlap ratchet from 2 to 4 at three widths.
+
+     ⚠⚠ v2729's COMMENT DESCRIBED THIS FUNCTION AND THE FUNCTION WAS NEVER WRITTEN. It said "this
+     measures after layout and shrinks the OFFENDER until it clears, with a floor", sitting above
+     `_heartOpen`, which fetches and assigns innerHTML and measures nothing. `getComputedTextLength`
+     occurred ZERO times in the whole tv/ tree. A comment claiming a mechanism that does not exist
+     is worse than no comment: it retires the defect in the reader's mind. [[plumbing-with-no-tap]]
+
+     MEASURED 2026-09-06, served console, heart-ov, at 1440x1000 / 1120x900 / 901x900 (375 is in
+     overlap_ratchet.UNMEASURABLE_AT and was not asked): all three residual overlaps are fan label
+     on fan label, and both offenders are one shape — a 343-user-unit centred arithmetic line whose
+     neighbour's node is 113 units away, so it reaches 171 units into a stack that is 113 off.
+       · SHORTENING cannot close a 230-unit deficit, and v2650 measured that trim as costing
+         readability for one overlap.
+       · SIDEWAYS cannot either: 343 + 343 needs 686 units of clear x and the pair has 113 inside a
+         960-unit box.
+       · The pair is 3-7px from clearing VERTICALLY, and that is the whole opening.
+
+     ⚠ THE PREVIOUS ATTEMPT MOVED A GROUP DOWN AND WENT 4 -> 5, because THE FAN OPENS DOWNWARD and
+     a blind push drives one stack into the next. This never pushes blindly: every candidate is
+     scored against the WHOLE panel — vessel names included, as immovable obstacles — and the pass
+     ends by re-measuring the real pixels and REVERTING EVERYTHING if the gate's own count did not
+     fall. A placement that is not measured better does not land. [[regression-guard]]
+
+     ⚠ IT MOVES STACKS. IT NEVER TRUNCATES AND NEVER SHRINKS. "A number nobody can read is worse
+     than no number, because it is read anyway" — every one of these lines is arithmetic and a
+     clipped or sub-legible tail could hide a digit. A stack that cannot be placed KEEPS its
+     collision so the ratchet still reports it: an unfixable overlap must stay visible, not be
+     hidden. [[unknown-stays-unknown]]
+
+     ⚠ SOLVED IN USER UNITS, SO ONE ANSWER HOLDS AT EVERY WIDTH. svg.hrt is `width:100%` over a
+     fixed 960x780 viewBox — a uniform scale — so client rects divided by that scale are the same
+     geometry at any window. VERIFIED, not assumed: all 26 fan labels measure the same user width
+     at 0.8312, 1.0456 and 1.0740 (max difference under 0.5 units). Scoring in CSS px instead made
+     the solver pick dx = -24 at 1440 and dx = +74 at 901 for identical geometry, because a 3px
+     tolerance is a different amount of room at each scale — the tell that the objective, not the
+     fan, was width-dependent.
+
+     ⚠ AND THE FLOOR IS A REAL GAP, NOT THE GATE'S TOLERANCE. It solves to GAP user units of clear
+     air, which is stricter than the ratchet's 3px at every scale this panel renders at, so a
+     solution cannot be one that merely fits inside the tolerance of the width it was solved at. */
+  function _hrtFanFit(root) {
+    var svg = root && root.querySelector('svg.hrt');
+    if (!svg) return { ok: false, why: 'no fan' };
+    var sr = svg.getBoundingClientRect(), scale = sr.width / 960;
+    if (!(scale > 0.05)) return { ok: false, why: 'the fan has no layout yet' };
+
+    var MIN = 3;        // the ratchet's floor, CSS px — the same constant, for the honest verdict
+    var GAP = 1.0;      // user units of clear air the solve demands; scale-free by construction
+    var MAXDX = 74;     // how far a stack may slide before it stops reading as its node's label
+    var MAXDY = 26;     // down only — up is the vessel field and the heart itself
+    var PAD = 6;        // and it stays inside the viewBox
+
+    /* ⚠⚠ NOT COLLIDING IS NOT THE SAME AS NOT MISREADING, AND THE FIRST SOLVE PROVED IT ON THE
+       PIXELS. Clearing all three overlaps left `reel.route` and prune.reports' `8 attacks · each
+       run 8.0×` sitting on ONE baseline, in the SAME green, one word-space apart — so the panel
+       read "reel.route 8 attacks · each run 8.0×" and that 8 belongs to prune.reports. reel.route's
+       own line says 19 attacks, two rows down. The ratchet scores that arrangement 0.
+       A right number beside a name that is not its referent is the defect he has caught here more
+       than any other, and it is strictly worse than the overlap it replaced: an overprinted label
+       is obviously broken, an adjacent one is quietly wrong. Photographed at 1440 before it was
+       believed. [[label-outlived-referent]] [[visual-regression-detector]]
+       So the objective carries it: two labels from DIFFERENT locks that share a baseline must also
+       be a readable gap apart, or the placement is not finished. */
+    var ADJ = 22;       // user units — under this two labels on one baseline read as one sentence
+
+    /* THE SAME LEAF RULE THE RATCHET USES, hit-tested: getBoundingClientRect() reports geometry
+       for content an ancestor has clipped away, and counting that is a gate reporting damage
+       nobody can see. What is not painted cannot collide. [[feedback-verify-not-proxy]] */
+    function leaves() {
+      var out = [], all = root.querySelectorAll('*');
+      for (var i = 0; i < all.length; i++) {
+        var e = all[i];
+        if (e.children.length || !(e.textContent || '').trim()) continue;
+        var r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+        if (!(r.width > 4 && r.height > 4)) continue;
+        if (cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0') continue;
+        if (!(r.top < innerHeight && r.bottom > 0)) continue;
+        var mx = (r.left + r.right) / 2, my = (r.top + r.bottom) / 2;
+        if (mx < 0 || my < 0 || mx > innerWidth || my > innerHeight) continue;
+        var hit = document.elementFromPoint(mx, my);
+        if (!hit || !(hit === e || e.contains(hit) || hit.contains(e))) continue;
+        out.push(e);
+      }
+      return out;
+    }
+
+    /* the ratchet's arithmetic, on the real pixels: per-LINE boxes, both axes over the floor. A
+       bounding rect on an inline element is the union of its line boxes and reports collisions
+       where not one pixel touches — that scar is already carved into overlap_ratchet. */
+    function pxCount() {
+      var L = leaves(), B = [], n = 0, i, j, a, b;
+      for (i = 0; i < L.length; i++) B.push(L[i].getClientRects());
+      for (i = 0; i < L.length; i++) {
+        for (j = i + 1; j < L.length; j++) {
+          var hit = false;
+          for (a = 0; a < B[i].length && !hit; a++) {
+            for (b = 0; b < B[j].length; b++) {
+              var p = B[i][a], q = B[j][b];
+              if (Math.min(p.right, q.right) - Math.max(p.left, q.left) > MIN
+                  && Math.min(p.bottom, q.bottom) - Math.max(p.top, q.top) > MIN) { hit = true; break; }
+            }
+          }
+          if (hit) n++;
+        }
+      }
+      return n;
+    }
+
+    /* ONE MEASUREMENT PASS, then the solve is pure arithmetic on those numbers. Re-rendering per
+       candidate would be both slower and scale-bound; the uniform viewBox scale makes
+       (client - origin) / scale an exact map into the geometry the labels are authored in. */
+    /* the denominator: every fan label the renderer AUTHORED, painted or not */
+    var authored = svg.querySelectorAll('text.hrt-fan').length;
+    var els = leaves(), items = [], byX = {}, stacks = [];
+    for (var i = 0; i < els.length; i++) {
+      var e = els[i], rs = e.getClientRects(), boxes = [];
+      for (var k = 0; k < rs.length; k++) {
+        boxes.push({ l: (rs[k].left - sr.left) / scale, r: (rs[k].right - sr.left) / scale,
+                     t: (rs[k].top - sr.top) / scale, b: (rs[k].bottom - sr.top) / scale });
+      }
+      if (!boxes.length) continue;
+      var isFan = e.getAttribute && /(^|\s)hrt-fan(\s|$)/.test(e.getAttribute('class') || '');
+      var it = { boxes: boxes, dx: 0, dy: 0, stack: null };
+      items.push(it);
+      if (!isFan) continue;
+      var key = e.getAttribute('x');
+      if (!byX[key]) { byX[key] = { x: +key, els: [], items: [], dx: 0, dy: 0 }; stacks.push(byX[key]); }
+      byX[key].els.push(e);
+      byX[key].items.push(it);
+      it.stack = byX[key];
+      /* getComputedTextLength() IS the measured width, in the units the label is placed in — the
+         one number every previous attempt at this row never asked for. */
+      var w = e.getComputedTextLength ? e.getComputedTextLength() : (boxes[0].r - boxes[0].l);
+      if (w > (byX[key].w || 0)) byX[key].w = w;
+    }
+    /* ⚠⚠ EVERY NUMBER THIS RETURNS CARRIES HOW MANY LABELS IT WAS TAKEN OVER. svg.hrt has
+       `min-width:640px` inside an `overflow-x:auto` wrapper, so at a narrow window part of the fan
+       is scrolled out and fails the paint test — and a solve over the remainder answers a confident
+       `before: 0` that is a reading of the visible slice, not of the fan. overlap_ratchet already
+       carries this scar for this exact panel (UNMEASURABLE_AT, 375x800) and it is the same defect
+       one layer down. It is not fixed by a threshold I invented; it is fixed by never printing the
+       count without its denominator. `painted` and `authored` are the denominator.
+       [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+    var painted = 0;
+    for (var pf = 0; pf < stacks.length; pf++) painted += stacks[pf].items.length;
+    if (!stacks.length || painted < 2) {
+      return { ok: false, why: 'nothing of the fan is painted here', painted: painted,
+               authored: authored, scale: +scale.toFixed(4) };
+    }
+    stacks.sort(function (p, q) { return p.x - q.x; });
+
+    /* ONE SCALAR, so "better" is never a judgement call: a collision outweighs any number of
+       adjacencies, an adjacency outweighs a small slide, and displacement is priced so a stack
+       will not travel 74 units to tidy a reading gap. Deterministic and strictly ordered. */
+    function objective(detail) {
+      var col = 0, adj = 0, disp = 0, i, j, a, b;
+      for (i = 0; i < items.length; i++) {
+        for (j = i + 1; j < items.length; j++) {
+          if (items[i].stack && items[i].stack === items[j].stack) continue;   // own stack's lines
+          var A = items[i], B2 = items[j], hit = false, near = false;
+          for (a = 0; a < A.boxes.length && !hit; a++) {
+            for (b = 0; b < B2.boxes.length; b++) {
+              var p = A.boxes[a], q = B2.boxes[b];
+              var ox = Math.min(p.r + A.dx, q.r + B2.dx) - Math.max(p.l + A.dx, q.l + B2.dx);
+              var oy = Math.min(p.b + A.dy, q.b + B2.dy) - Math.max(p.t + A.dy, q.t + B2.dy);
+              if (ox > GAP && oy > GAP) { hit = true; break; }
+              /* SHARE A BASELINE, SEPARATED BY LESS THAN A READABLE GAP -> one sentence to the eye.
+                 Only between two FAN labels: a fan label beside a vessel name is a different kind
+                 of neighbour and never reads as its continuation. */
+              if (A.stack && B2.stack && oy > 2 && ox > -ADJ) near = true;
+            }
+          }
+          if (hit) col++; else if (near) adj++;
+        }
+      }
+      for (i = 0; i < stacks.length; i++) {
+        disp += Math.abs(stacks[i].dx) + 1.6 * Math.abs(stacks[i].dy);
+      }
+      if (detail) return { collisions: col, adjacent: adj, displacement: +disp.toFixed(1) };
+      return col * 1000 + adj * 10 + disp * 0.5;
+    }
+    function collisions() { return objective(true).collisions; }
+    function put(s, dx, dy) {
+      s.dx = dx; s.dy = dy;
+      for (var m = 0; m < s.items.length; m++) { s.items[m].dx = dx; s.items[m].dy = dy; }
+    }
+
+    /* ⚠ THE SMALLEST DISPLACEMENT THAT SCORES BEST, NOT THE FIRST ONE THAT IMPROVES. Taking the
+       first improving candidate dropped reel.route 30 units below its own node when 6 cleared the
+       same two collisions, and a label that has visibly come off its node to fix a number is
+       exactly the trade this panel must not make. dy is weighted heavier than dx because DOWN is
+       the direction that detaches a stack from the dot above it. Deterministic throughout: fixed
+       candidate ladder, fixed stack order, ties to the smaller cost then the earlier candidate. */
+    var startState = objective(true), objBefore = objective(), obj = objBefore, passes = 0;
+    var XS = [], YS = [];
+    for (var v = 2; v <= MAXDX; v += 2) { XS.push(v); XS.push(-v); }
+    for (var u = 1; u <= MAXDY; u += 1) YS.push(u);
+    while (passes < 6) {
+      passes++;
+      var improvedAny = false;
+      for (var si = 0; si < stacks.length; si++) {
+        var s = stacks[si], half = (s.w || 0) / 2;
+        var lo = PAD - (s.x - half), hi = (960 - PAD) - (s.x + half);
+        var odx = s.dx, ody = s.dy, bX = odx, bY = ody, bObj = obj, found = false;
+        for (var c = 0; c < XS.length + YS.length; c++) {
+          var cx = (c < XS.length) ? XS[c] : odx;
+          var cy = (c < XS.length) ? ody : YS[c - XS.length];
+          if (c < XS.length && (cx < lo || cx > hi)) continue;
+          put(s, cx, cy);
+          var sc = objective();
+          if (sc < bObj - 1e-9) { bObj = sc; bX = cx; bY = cy; found = true; }
+        }
+        put(s, bX, bY);
+        if (found) { obj = bObj; improvedAny = true; }
+      }
+      if (!improvedAny) break;
+    }
+    var endState = objective(true);
+
+    var pxBefore = pxCount(), applied = [];
+    for (var t = 0; t < stacks.length; t++) {
+      var st = stacks[t];
+      if (!st.dx && !st.dy) continue;
+      var tf = 'translate(' + st.dx.toFixed(1) + ',' + st.dy.toFixed(1) + ')';
+      for (var q2 = 0; q2 < st.els.length; q2++) st.els[q2].setAttribute('transform', tf);
+      applied.push({ x: st.x, dx: st.dx, dy: st.dy, w: +(st.w || 0).toFixed(1) });
+    }
+    /* ⚠⚠ THE PLACEMENT IS MEASURED BEFORE IT IS KEPT — AND THE FIRST VERSION OF THIS GUARD WAS
+       DEAD, WHICH ONLY A SABOTAGE SHOWED. It reverted on `pxAfter > pxBefore` alone. An inverted
+       objective was injected — one that SEEKS collisions — and it scattered five stacks to the
+       edges of the box, driving the geometric model from 4 collisions to 24; `pxCount()` returned
+       3 both times and the guard let it through.
+       The reason is the paint test both this and the ratchet depend on: a label shoved under
+       another label, or off the horizontal viewport, stops being PAINTED, so it leaves the leaf
+       set entirely and takes its collisions with it. Piling the fan into a heap can LOWER the
+       count. A guard whose only signal can be defeated by making things worse is not a guard.
+       [[feedback-blind-fixture-green-gate]] [[feedback-suspect-the-instrument]]
+       So it now needs all three: the geometric model must not have gained a collision, the whole
+       objective must have improved, and the ratchet's own count must not have risen. Any one of
+       them failing puts every transform back and leaves the fan exactly as it was — the debt stays
+       visible rather than being traded for damage nobody measured, which is how the previous
+       attempt went 4 -> 5. */
+    var pxAfter = applied.length ? pxCount() : pxBefore;
+    var worse = (endState.collisions > startState.collisions)
+             || (applied.length && !(objective() < objBefore))
+             || (pxAfter > pxBefore);
+    if (worse) {
+      for (var z = 0; z < stacks.length; z++) {
+        for (var y2 = 0; y2 < stacks[z].els.length; y2++) stacks[z].els[y2].removeAttribute('transform');
+      }
+      return { ok: true, reverted: true, before: pxBefore, after: pxBefore, wouldHaveBeen: pxAfter,
+               painted: painted, authored: authored,
+               solve: { from: startState, to: endState, passes: passes },
+               why: 'the placement did not measure better, so none of it landed',
+               scale: +scale.toFixed(4), moves: applied };
+    }
+    return { ok: true, reverted: false, before: pxBefore, after: pxAfter,
+             painted: painted, authored: authored,
+             solve: { from: startState, to: endState, passes: passes },
+             scale: +scale.toFixed(4), moves: applied };
+  }
+
   /* ⚠⚠ v2729 — THE MEASURED DODGE, AND IT IS THE FIX [[heartov2]] HAS NEEDED FOR THREE ATTEMPTS.
      Every previous fix changed WHERE labels sit (index parity at v2624, three tiers at v2663) or
      WHAT THEY SAY (v2662 moved a name list into the title). None of them ever COMPARED a label's
@@ -11787,14 +12059,18 @@ window._lockMark = function(isOpen, px, label){
      901, and 0 -> 2 at 375. v2662 already proved shortening one label does not help — because the
      label that grows into you is somebody else's.
 
-     This measures after layout and shrinks the OFFENDER until it clears, with a floor.
-     ⚠ IT SHRINKS, IT NEVER TRUNCATES. "A number nobody can read is worse than no number, because
-     it is read anyway" — that scar is from a cold eye misreading "1.00 of 1.80" as "1.00 of 1.00",
-     which inverted the meaning of a bar. Every one of these lines is arithmetic, so a clipped tail
-     could hide a digit. Below the floor it STOPS and leaves the collision standing, so the ratchet
-     still reports it: an unfixable overlap must stay visible, not be hidden by an ellipsis.
-     ⚠ AND IT NEVER MOVES A LABEL. Its x is what ties it to its own vein and padlock; sliding it
-     would break that correspondence to fix a width problem. */
+     ⚠⚠ AND FOR THREE OF THOSE ATTEMPTS THIS COMMENT DESCRIBED A FUNCTION THAT DID NOT EXIST.
+     It read "this measures after layout and shrinks the OFFENDER until it clears, with a floor",
+     sitting directly above `_heartOpen` — which fetches, assigns innerHTML, and measures nothing.
+     Measured 2026-09-06: `getComputedTextLength` occurred ZERO times in the whole tv/ tree. A
+     comment claiming a mechanism nobody wrote is worse than no comment, because it retires the
+     defect in the reader's mind and every later pass trusts it. [[plumbing-with-no-tap]]
+     The mechanism is now `_hrtFanFit`, directly below, and it is the OPPOSITE of what this said:
+     it MOVES stacks and never shrinks them. Shrinking cannot work here and the numbers say why —
+     the two offenders are 343 user units wide with their neighbours' nodes 113 units away, and
+     dropping 343 to 157 would take font-size 9.5 to 4.3. Every one of these lines is arithmetic;
+     a sub-legible or clipped tail hides a digit, and "a number nobody can read is worse than no
+     number, because it is read anyway". [[unknown-stays-unknown]] */
   function _heartOpen(){
     var ov = document.getElementById('heart-ov');
     if (!ov || _hrtBusy) return;
@@ -11806,6 +12082,11 @@ window._lockMark = function(isOpen, px, label){
     ov.hidden = false;
     fetch('/api/heart').then(function(r){ return r.json(); }).then(function(d){
       ov.innerHTML = _hrtBuild(d || {});
+      /* ⚠ AFTER THE HTML LANDS, NEVER INSIDE THE BUILDER. `_hrtBuild` returns a string; a label's
+         width does not exist until the browser has laid that string out, which is the reason every
+         previous attempt placed by INDEX — the index is the only thing available before layout.
+         Wrapped, because a fan that cannot be re-placed must still render. [[heartov2]] */
+      try { _hrtFanFit(ov); } catch (e) {}
       _heartChipPaint(d);
     })['catch'](function(e){
       /* a failed fetch is not an empty heart — say which it was */
@@ -11843,6 +12124,11 @@ window._lockMark = function(isOpen, px, label){
      without touching anything he owns. It renders; it does not fetch, store or decide.
      [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]] */
   window._heartRender = _hrtBuild;
+  /* ⚠ THE PLACEMENT PASS IS REACHABLE ON ITS OWN, because `_heartRender` returns HTML and a
+     width cannot be measured on a string. A probe that renders a synthetic census into a node
+     and then calls this gets the same geometry his console gets; without it the fan's only
+     coverage would be through a live /api/heart. [[feedback-fixtures-never-touch-live-data]] */
+  window._hrtFanFit = _hrtFanFit;
 
   try {
     var _hcEl = document.getElementById('heart-chip');

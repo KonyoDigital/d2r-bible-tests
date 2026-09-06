@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2745** | `(this commit)` | v2745 — overlaps 3 to 0 at three widths, and a cross-family audit proved the score is a count not a confidence |
 | **v2744** | `(this commit)` | v2744 — the row claimed nothing of ours while testing nothing, and flagged PID 1 nine times |
 | **v2743** | `(this commit)` | v2743 — the rebuild finally has a door, and a prune records what it freed for the first time in 8790 rows |
 | **v2742** | `(this commit)` | v2742 — the first lock to clear both bars, the tombstone far end is visible, and the station assigner is finally watched |
