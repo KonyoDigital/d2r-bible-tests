@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2707",
+  "ver": "v2708",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2707: removing the ledger name is right on his own unclaimed board because only absence re-arms the heuristic that restores his floors, and wrong on a browser claimed between the un-seed and the undo, where it leaves a state that never existed and the heuristic answers with his identity",
+  "note": "v2708: his console execs the working tree so the page can be bytes that were never pushed, and status reported three versions that all read that same tree while the one field that could name the shipped version was null on mac",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

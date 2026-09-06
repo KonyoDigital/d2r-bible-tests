@@ -23238,7 +23238,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2707",
+        "ver": "v2708",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -23449,8 +23449,63 @@ def status_payload():
         # v2316 — per-door Wilson: how often a reel THIS door opened actually held readable film.
         "captureDoors": capture_door_report(),
         "bibleVer": _bible_ver(),
+        # v2708 — what is LIVE, beside what this console is EXECUTING. None means nobody could
+        # ask; liveVerAge is the age of the REF, so a stale answer reads as stale.
+        "liveVer": _published_ver()[0],
+        "liveVerAge": _published_ver()[1],
         "agentVer": _agent_disk_ver(),  # v1251 — triple-lamp disk stamp
     }
+
+
+_LIVE_VER_CACHE = {"t": 0.0, "v": None, "age": None}
+
+
+def _published_ver():
+    """-> (version, ref_age_seconds) for what origin/main last known to SHIP, or (None, None).
+
+    ⚠⚠ v2708 — THE CONSOLE REPORTED THREE VERSIONS AND ALL THREE READ THE WORKING TREE.
+    `ver`, `bibleVer` and `agentVer` are the app stamp, bible.html's D2R_BUILD and the agent
+    stamp — every one of them from the tree this process is executing. `shipVer` comes from the
+    Windows ship record and is None on his Mac. So nothing on any screen could answer "is the
+    page in front of me the page that shipped?"
+
+    That matters because HIS CONSOLE EXECS THIS WORKING TREE — every save is a deploy — and he
+    described the symptom himself: "something like unsyncs and it needs a restart or something to
+    fetch it". MEASURED during this session: the console answered ver=v2706 while origin/main
+    shipped v2705, for over an hour, silently. Three readings of one source is n=1, not n=3:
+    they agree with each other and can all be wrong together, which is mutual agreement mistaken
+    for corroboration.
+
+    ⚠ THE SOURCE IS THE SMALL ONE ON PURPOSE. `git show origin/main:bible.html` is 6 MB per call.
+    tv/WINDOWS_SHIP.json is 955 bytes and carries "ver" — it is one of the four stamps
+    bump_version.py writes, so it moves on every ship and cannot drift from the others.
+
+    ⚠⚠ AND IT REPORTS ITS OWN AGE, OR IT BECOMES THE DEFECT IT IS FIXING. `origin/main` is a
+    LOCAL ref and can be stale; the pre-push hook says so in its own words — "not the local
+    origin/main ref (which is stale, and is simply absent in a clone whose remote is not named
+    'origin' — that skipped the gate entirely)". A confidently wrong "live version" is WORSE than
+    none: it would tell him the page matches production when it does not. So the age of the REF
+    travels with the number, and an unaskable question answers None rather than a guess.
+    [[stale-reading]] [[unknown-stays-unknown]] [[execs-the-working-tree]]
+    """
+    now = time.time()
+    if now - _LIVE_VER_CACHE["t"] < 300:
+        return _LIVE_VER_CACHE["v"], _LIVE_VER_CACHE["age"]
+    ver, age = None, None
+    try:
+        out = subprocess.run(["git", "show", "origin/main:tv/WINDOWS_SHIP.json"],
+                             cwd=REPO, capture_output=True, timeout=20)
+        if out.returncode == 0 and out.stdout:
+            ver = (json.loads(out.stdout.decode("utf-8", "replace")) or {}).get("ver") or None
+        # how old is the REF itself — the thing that can be stale, not this read
+        r2 = subprocess.run(["git", "log", "-1", "--format=%ct", "origin/main"],
+                            cwd=REPO, capture_output=True, timeout=20)
+        if r2.returncode == 0 and r2.stdout.strip():
+            age = int(now - int(r2.stdout.strip()))
+    except Exception:
+        ver, age = None, None      # nobody could ask; never a guess
+    _LIVE_VER_CACHE.update(t=now, v=ver, age=age)
+    return ver, age
 
 
 def _agent_disk_ver():

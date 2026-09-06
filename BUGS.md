@@ -22469,3 +22469,41 @@ instead of folding both into `looks`.
 ⚠ **Every existing row is UNBOUND (0 bound, 335 unbound), and stays that way.** Nobody recorded it,
 which is a different fact from a hash that does not match — and backfilling a plausible hash would
 forge precisely the evidence this field exists to supply.
+
+## REG-677 — the console reported three versions and all three read the working tree
+
+**Shipped:** v2708 · **Gate:** `tv/test_live_version_is_not_the_working_tree.py`
+
+His console **execs this working tree** — every save is a deploy — so the page in front of him can
+be bytes that were never pushed. **Measured this session: `/api/status` answered `ver=v2706` while
+`origin/main` shipped v2705, for over an hour, silently.**
+
+Nothing could have told him:
+
+| field | source |
+|---|---|
+| `ver` | working tree |
+| `bibleVer` | working tree |
+| `agentVer` | working tree |
+| `shipVer` | the Windows ship record — **`None` on his Mac, always** |
+
+Three numbers that agree with each other and can all be wrong together — **mutual agreement
+mistaken for corroboration. Three readings of one source is n=1, not n=3.**
+
+**Fix:** `liveVer` / `liveVerAge` from `git show origin/main:tv/WINDOWS_SHIP.json` — **955 bytes**,
+one of the four stamps `bump_version.py` already writes, so it cannot drift from the others.
+(`bible.html` at the ref would be 6 MB per call.)
+
+⚠ **It reports its own age or it becomes the defect it fixes.** `origin/main` is a LOCAL ref and
+can be stale — the pre-push hook says so in its own words. A confidently wrong "live version" is
+worse than none: it would say the page matches production when it does not.
+
+⚠ **What this does NOT do:** fix a torn read. A half-written file still renders a blank panel. It
+ends the part that made three separate bugs unreproducible — he can SEE the page isn't the page
+that shipped, instead of chasing a blank panel on a settled tree that can never reproduce it.
+
+⚠ **Two of the guard's own laws were wrong first, and both were caught by sabotage.** It tripped on
+its own docstring (which names the 6 MB file while forbidding it — `source-reading-guard` verbatim,
+"the comment that trips the guard is usually the one describing the fix"), and its cache law
+checked for the NAME `_LIVE_VER_CACHE`, which survives in the `.update()` call after the early
+return is deleted. That sabotage stayed green until the law was rewritten to pin the return.

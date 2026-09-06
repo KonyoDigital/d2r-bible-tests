@@ -502,6 +502,18 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_live_version_is_not_the_working_tree",
+         [sys.executable, os.path.join(HERE, "test_live_version_is_not_the_working_tree.py")], 120,
+         why="his console EXECS the working tree, so the page in front of him can be bytes that "
+             "were never pushed — and /api/status reported THREE versions (ver, bibleVer, "
+             "agentVer) that ALL read that same tree, while shipVer is None on mac. Three "
+             "readings of one source is n=1, not n=3: they agree with each other and can be "
+             "wrong together. MEASURED this session: the console said v2706 while origin/main "
+             "shipped v2705, for over an hour, silently. Pins that liveVer comes from the REMOTE "
+             "ref and never the tree, that it carries the age of that ref (a local origin/main "
+             "goes stale, and a confidently wrong live version is worse than none), that an "
+             "unaskable question answers None rather than guessing, and that it is CACHED — an "
+             "uncached subprocess per poll is how a machine gets saturated. Proven RED four ways"),
     Gate("test_seal_verdict",
          [sys.executable, os.path.join(HERE, "test_seal_verdict.py")], 120,
          why="seal_covers_extraction answers yes or no, and its `no` covered two OPPOSITE facts: "
