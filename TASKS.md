@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2734** | `(this commit)` | v2734 — a cross-family witness banked from a shell call with no owning harness, then counted twice while fixing it because fold keys on the ref |
 | **v2733** | `(this commit)` | v2733 — a cross-family eye found the sibling my own fix missed one word away: the separator was bound and the count was not |
 | **v2732** | `(this commit)` | v2732 — a rebuild that derives a chronicle from the other ledgers; the first cut aimed at the wrong store and he caught it from the numbers on his own screen |
 | **v2731** | `(this commit)` | v2731 — the automatic ledger backup ran every ten minutes for sixty files and never copied two of his six ledgers, and blinded the ratchet meant to watch one of them |

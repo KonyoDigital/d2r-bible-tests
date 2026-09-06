@@ -32,6 +32,7 @@ traceless.py` holds the laws, and this file holds the evidence they generate.
 printer.stream's 83 were two functions applied to 40 reels each. Ten near-identical cover maps
 would be ONE idea. These are ten different ways to be wrong about the same question.
 """
+import io
 import os
 import sys
 
@@ -223,6 +224,47 @@ def live():
 
 
 def main(argv):
+    # ⚠⚠ v2734 — THIS BLOCK WAS UNREACHABLE ON ITS FIRST WRITING. It was anchored on the
+    # sabotage bank line, which lives INSIDE `if "--bank" in argv:` — so `--xfam` alone
+    # never reached it and the mode printed a normal run instead of refusing. Built and
+    # not joined, caught only by invoking it. [[the-unjoined-end]]
+    import self_arming as SA
+    # ⚠⚠ v2734 — THE CROSS-FAMILY SOURCE NEEDS AN OWNER, AND CI WAS RIGHT TO SAY SO.
+    # `rung_accounting_xfam` was banked from a one-off shell call, so PROVES named a source no
+    # module owned and `test_every_lock_declares_its_attacks` failed with the exact sentence
+    # that matters: "evidence nobody can re-derive". A witness with no author is a number.
+    #
+    # This is the `vault_live` shape — a legitimate LABEL, provided a real harness banks under
+    # it. The cross-family pass itself is a paid call to another model family and cannot be
+    # re-run for free, so this RECORDS a verdict that was obtained, the same way
+    # `ship_audit.py --third-eye` records a review rather than performing one.
+    # ⚠ AND IT REFUSES WITHOUT ONE. `--xfam` with no verdict file banks NOTHING: a mode that
+    # banked on being invoked would manufacture a witness on demand, which is the precise cheat
+    # `_hardening_gap` names. [[unknown-stays-unknown]] [[join-gate-heart]]
+    if "--xfam" in argv:
+        _vf = None
+        for _i, _a in enumerate(argv):
+            if _a == "--xfam" and _i + 1 < len(argv):
+                _vf = argv[_i + 1]
+        if not _vf:
+            print("  --xfam needs the path of a recorded cross-family verdict; banking NOTHING")
+            return 1
+        try:
+            _txt = io.open(_vf, encoding="utf-8").read().strip()
+        except Exception as _e:
+            print("  --xfam could not read %r (%s); banking NOTHING" % (_vf, str(_e)[:60]))
+            return 1
+        if not _txt:
+            print("  --xfam verdict file is empty; banking NOTHING")
+            return 1
+        SA.bank("reel.route", "cross-family", "rung_accounting_xfam", n=1, k=1, attacks=1,
+                note=("a different model family was handed the rung-accounting decision code "
+                      "and told to REFUTE six named claims; recorded verdict: %s"
+                      % _txt.replace("\n", " ")[:160]),
+                ref=_vf)
+        print("  banked the recorded cross-family verdict under rung_accounting_xfam")
+        return 0
+
     n, ok, rows = run()
     show = "-v" in argv or "--verbose" in argv
     for r in rows:

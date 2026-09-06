@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2733",
+  "ver": "v2734",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2733: a cross-family eye found the sibling my own fix missed one word away: the separator was bound and the count was not",
+  "note": "v2734: a cross-family witness banked from a shell call with no owning harness, then counted twice while fixing it because fold keys on the ref",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

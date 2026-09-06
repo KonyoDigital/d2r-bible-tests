@@ -180,6 +180,14 @@ SHAPE_COLLISIONS = {
     # named by an organ under another spelling, the other 9 by nobody.
     "shadowwatch":    ("shadow watch", "shadowWatch", "tvd-shadow-watch"),
     "versiondrift":   ("tvd-version-drift", "version drift"),
+    # ⚠ v2734 — THE THIRD OF THE SAME KIND, and it arrived the moment a Doctor row was added for a
+    # concern a LANE already named. `tvd-ledger-backup` is declared in auto_scope as "copies your
+    # ledger aside so a bad write can be undone"; console_doctor's `ledger backup` grades whether
+    # that copy covers every store. One concern, two house styles — the same shape as the two
+    # above, and this dict's own comment calls that the ratchet doing its job.
+    # ⚠ RENAMING THE ROW TO DODGE THE COLLISION WOULD BE THE WRONG FIX: the census would then
+    # report one concern under two names and count it twice.
+    "ledgerbackup":   ("ledger backup", "tvd-ledger-backup"),
 }
 
 #: Each source this census reads, and the fact that it must contribute SOMETHING.

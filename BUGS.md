@@ -22536,6 +22536,41 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-697 — a witness banked from a shell call, then counted twice while "fixing" it
+
+**v2734.** CI went red on 909e22c8 and 5a4bf495 with two gates, both mine:
+    ❌ test_every_lock_declares_its_attacks — "'rung_accounting_xfam' is declared in PROVES, has no
+       module, and no harness banks under it — that is evidence nobody can re-derive"
+    ❌ test_one_name — {'ledgerbackup': ['ledger backup', 'tvd-ledger-backup']}
+
+⚠⚠ THE FIRST IS THE SHARP ONE. I banked the cross-family witness for `reel.route` from a one-off
+shell call, so PROVES named a source that existed nowhere in the tree. `reel.route`'s kinds bar
+reached 2.50 partly on it. The gate's own sentence is the whole objection: EVIDENCE NOBODY CAN
+RE-DERIVE. A witness with no author is a number wearing proof's clothes.
+FIXED per the `vault_live` precedent — a label is legitimate when a real harness banks under it.
+`rung_accounting_wilson --xfam <verdict-file>` now owns the source, records the verdict, and
+REFUSES three ways: no file, unreadable file, empty file. A mode that banked on being invoked would
+manufacture a witness on demand, which is the exact cheat `_hardening_gap` names.
+
+⚠⚠ AND THE FIX INFLATED THE LOCK BEFORE IT CORRECTED IT. Re-banking through the owned path took
+reel.route from 19 attacks to 20 — because `_fold` keys on (lock, kind, src, **REF**), and the
+shell row's ref was `tv/one_funnel.py` while the new one's is the verdict file. Two rows survived
+folding and ONE cross-family look was counted TWICE. Caught by reading `_fold` after noticing the
+count move, not by any gate. Withdrawn with a reason; back to 19, kinds still 2.50.
+⚠ THE LESSON IS THE COUNT: a number that moves when no new evidence was gathered is the tell, and
+it is the same tell `wilsonByAttack` exists for. [[feedback-suspect-the-instrument]]
+
+⚠ THE --xfam BLOCK WAS ALSO UNREACHABLE ON ITS FIRST WRITING — anchored on the sabotage-bank line,
+which lives inside `if "--bank" in argv:`, so `--xfam` alone never reached it and printed a normal
+run instead of refusing. Built and not joined, caught only by invoking it. [[the-unjoined-end]]
+
+THE SECOND RED was a genuine duplicate: `tvd-ledger-backup` is declared in auto_scope as "copies
+your ledger aside so a bad write can be undone", and console_doctor's new `ledger backup` row grades
+whether that copy covers every store. One concern, two house styles — the same shape as the
+`shadowwatch` and `versiondrift` entries already in SHAPE_COLLISIONS. ⚠ Renaming my row to dodge the
+collision would have been the WRONG fix: the census would then report one concern under two names
+and count it twice.
+
 ## REG-696 — a cross-family eye found the sibling my own fix had missed, one word away
 
 **v2733.** REG-689 bound the eyebrow's SEPARATOR to the word before it, so a wrapped line could not

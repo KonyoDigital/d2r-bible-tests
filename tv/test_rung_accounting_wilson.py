@@ -165,9 +165,67 @@ class RungAccountingHarnessIsHonest(unittest.TestCase):
                     % (b["attacks"],))
                 self.assertEqual("ln", b["n"], "live bank: n is not the live check count")
                 self.assertEqual("lok", b["k"], "live bank: k is not the live agreed count")
+            elif b["kind"] == "cross-family":
+                # ⚠ v2734 — ONE PASS IS ONE WITNESS, however many probes the other family reports.
+                # The grok read listed SEVEN attempted probes; an LLM's self-reported breadth is not
+                # verifiable breadth, and banking 7 would inflate the lock on its own say-so. The
+                # VALUE of this bank is the KIND — a different model family looked — not the count.
+                self.assertEqual(
+                    1, b["attacks"],
+                    "the cross-family bank declares attacks=%r. One pass by another model family "
+                    "is ONE witness; counting its self-reported probe list as breadth takes its "
+                    "word for the thing the bank exists to establish independently."
+                    % (b["attacks"],))
+                self.assertEqual(1, b["n"], "cross-family bank: n must be the single pass")
+                self.assertEqual(1, b["k"], "cross-family bank: k must be the single pass")
             else:
                 self.fail("a bank declares kind=%r, which this law has not been taught to grade. "
                           "An ungraded kind is an ungraded breadth claim." % (b["kind"],))
+
+    def test_the_cross_family_mode_REFUSES_without_a_recorded_verdict(self):
+        """⚠⚠ A MODE THAT BANKS ON BEING INVOKED MANUFACTURES A WITNESS ON DEMAND.
+
+        `--xfam` exists because CI was right that a source with no owning harness is "evidence
+        nobody can re-derive". But an entry point that banks merely because someone typed it would
+        be strictly worse than the shell call it replaced — a button that mints cross-family
+        evidence, which is the precise cheat `_hardening_gap` names by name.
+
+        So it must refuse three ways: no path, unreadable path, empty file. Each refusal has to
+        RETURN before any bank is reached, and this pins the structure rather than trusting that a
+        hand-run once printed the right words.
+        ⚠ The block was also UNREACHABLE on its first writing — anchored inside `if "--bank" in
+        argv:` — so it printed a normal run instead of refusing. A guard that cannot be reached is
+        not lenient, it is absent. [[the-unjoined-end]]
+        """
+        code = _code()
+        self.assertIn("--xfam", code,
+                      "the cross-family mode is gone, but PROVES still declares its source — that "
+                      "is back to evidence nobody can re-derive")
+        blk = code[code.index("--xfam"):]
+        # ⚠ ast.unparse NORMALISES QUOTES, and my first anchor used double ones — the law errored
+        # instead of grading. A source-reading guard has to match the text it is actually handed.
+        # [[source-reading-guard]]
+        import re as _re
+        _m = _re.search(r"SA\.bank\([^)]*cross-family", blk)
+        self.assertIsNotNone(_m, "the cross-family bank is not inside the --xfam branch")
+        blk = blk[:_m.start()]
+        for guard, what in ((("if not _vf", "_vf is None", "not _vf"), "a missing path"),
+                            (("except", "could not read"), "an unreadable file"),
+                            (("if not _txt", "not _txt", "_txt =="), "an empty verdict")):
+            self.assertTrue(
+                any(g in blk for g in guard),
+                "nothing between the --xfam branch and its bank refuses %s. Without it the mode "
+                "banks a cross-family witness that nobody produced." % what
+            )
+        # ⚠ THREE REFUSALS, THREE RETURNS. The first cut asked for >= 2, so deleting one refusal's
+        # return left two and the law stayed green while that path warned and banked anyway —
+        # exactly the "warns and banks" shape this file already pins for the sabotage path. A
+        # threshold below the number of things it guards is an off-by-one that reads as coverage.
+        self.assertGreaterEqual(
+            blk.count("return 1"), 3,
+            "the --xfam refusals do not RETURN before the bank is reached, so they warn and bank "
+            "anyway — the same shape as banking a run you failed."
+        )
 
     def test_no_two_banks_share_a_source_name(self):
         """`_fold` keeps the newest row per (lock, kind, src). Two banks sharing a src would

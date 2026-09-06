@@ -1,0 +1,16 @@
+grok-4-1-fast-reasoning (xai) — 2026-09-06
+Handed: DERIVED_SOURCES, WAYPOINT_SOURCES, _store_of, _decided_count, _waypoint_cover,
+_observability, and the datedRungs expression from tv/one_funnel.py.
+Asked: REFUTE. Assume the code wrong until you fail to break it. Six named claims. A false
+break is worse than none.
+VERDICT: no break found. Probes attempted and why each failed:
+ · _waypoint_cover([]) empty sids -> covered=0 -> PARTIAL (claim 4 holds)
+ · store JSON literal null / non-dict / unreadable -> covered=None -> whole verdict UNKNOWN (3)
+ · _decided_count raising, or decided=0 -> None -> UNKNOWN, or dark -> PARTIAL; never a pass (2)
+ · derived rungs always emit covered=None, so the datedRungs int-filter excludes them (5)
+ · empty cover dict -> UNKNOWN directly (6)
+ · derived rung with decided>0 -> seen increments -> OBSERVED reachable (1)
+ · key collisions (<sid> AND reel_<sid>), `covered` as a BOOL (bool is int in Python),
+   non-dict reel entries, stageKnown True with stage="" -> counts preserved or fell to
+   dark/unknown without violating any claim
+All six claims hold for these cases.
